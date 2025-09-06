@@ -1,13 +1,14 @@
 import { db } from '../supabase/client';
 import { Order, OrdersAdapter, CreateOrderData, TrackingCarrier } from './types';
 
-if (!db) {
-  console.warn('Neon database configuration missing - this adapter should not be used');
-  throw new Error('Neon database configuration missing');
-}
+// Don't throw error immediately - let the adapter handle it gracefully
 
 export const neonOrdersAdapter: OrdersAdapter = {
   create: async (orderData: CreateOrderData): Promise<Order> => {
+    if (!db) {
+      throw new Error('Database not configured - using local adapter instead');
+    }
+
     try {
       // Insert order
       const orderResult = await db`
@@ -49,6 +50,10 @@ export const neonOrdersAdapter: OrdersAdapter = {
   },
 
   getByUserId: async (userId: string): Promise<Order[]> => {
+    if (!db) {
+      return [];
+    }
+
     try {
       const orders = await db`
         SELECT o.*, 
@@ -83,6 +88,10 @@ export const neonOrdersAdapter: OrdersAdapter = {
   },
 
   getByEmail: async (email: string): Promise<Order[]> => {
+    if (!db) {
+      return [];
+    }
+
     try {
       const orders = await db`
         SELECT o.*, 
@@ -117,6 +126,10 @@ export const neonOrdersAdapter: OrdersAdapter = {
   },
 
   getAll: async (): Promise<Order[]> => {
+    if (!db) {
+      return [];
+    }
+
     try {
       const orders = await db`
         SELECT o.*, 
@@ -150,6 +163,10 @@ export const neonOrdersAdapter: OrdersAdapter = {
   },
 
   updateTracking: async (orderId: string, trackingNumber: string, carrier: TrackingCarrier): Promise<void> => {
+    if (!db) {
+      throw new Error('Database not configured');
+    }
+
     try {
       await db`
         UPDATE orders 
