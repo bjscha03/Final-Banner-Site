@@ -11,6 +11,9 @@ export const netlifyDbOrdersAdapter: OrdersAdapter = {
       // Insert order
       const [newOrder] = await db.insert(orders).values({
         user_id: orderData.user_id,
+        email: 'guest@example.com', // Default for guest orders
+        subtotal_cents: orderData.subtotal_cents,
+        tax_cents: orderData.tax_cents,
         total_cents: orderData.total_cents,
         status: 'paid'
       }).returning();

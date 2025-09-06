@@ -8,6 +8,13 @@
       "when": 1757153814515,
       "tag": "0000_parched_exiles",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1757154456417,
+      "tag": "0001_nifty_vampiro",
+      "breakpoints": true
     }
   ]
 }
