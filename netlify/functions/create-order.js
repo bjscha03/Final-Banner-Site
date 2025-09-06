@@ -50,7 +50,24 @@ exports.handler = async (event, context) => {
     // Generate UUID for the order
     const orderId = randomUUID();
     
+    // First, let's test if we can connect to the database
+    console.log('Testing database connection...');
+    const testResult = await sql`SELECT 1 as test`;
+    console.log('Database connection successful:', testResult);
+
+    // Check if tables exist
+    console.log('Checking if orders table exists...');
+    const tableCheck = await sql`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables
+        WHERE table_schema = 'public'
+        AND table_name = 'orders'
+      );
+    `;
+    console.log('Orders table exists:', tableCheck);
+
     // Insert order into database
+    console.log('Inserting order with ID:', orderId);
     const orderResult = await sql`
       INSERT INTO orders (id, user_id, email, subtotal_cents, tax_cents, total_cents, status, created_at, updated_at)
       VALUES (${orderId}, ${orderData.user_id}, ${'guest@example.com'}, ${orderData.subtotal_cents}, ${orderData.tax_cents}, ${orderData.total_cents}, 'paid', NOW(), NOW())
