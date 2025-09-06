@@ -50,27 +50,13 @@ exports.handler = async (event, context) => {
     // Generate UUID for the order
     const orderId = randomUUID();
     
-    // First, let's test if we can connect to the database
-    console.log('Testing database connection...');
-    const testResult = await sql`SELECT 1 as test`;
-    console.log('Database connection successful:', testResult);
-
-    // Check if tables exist
-    console.log('Checking if orders table exists...');
-    const tableCheck = await sql`
-      SELECT EXISTS (
-        SELECT FROM information_schema.tables
-        WHERE table_schema = 'public'
-        AND table_name = 'orders'
-      );
-    `;
-    console.log('Orders table exists:', tableCheck);
-
-    // Insert order into database
+    // Insert order into database with simplified approach
     console.log('Inserting order with ID:', orderId);
+    console.log('Order data:', JSON.stringify(orderData, null, 2));
+
     const orderResult = await sql`
-      INSERT INTO orders (id, user_id, email, subtotal_cents, tax_cents, total_cents, status, created_at, updated_at)
-      VALUES (${orderId}, ${orderData.user_id}, ${'guest@example.com'}, ${orderData.subtotal_cents}, ${orderData.tax_cents}, ${orderData.total_cents}, 'paid', NOW(), NOW())
+      INSERT INTO orders (id, email, subtotal_cents, tax_cents, total_cents, status)
+      VALUES (${orderId}, ${'guest@example.com'}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, 'paid')
       RETURNING *
     `;
 
@@ -81,13 +67,20 @@ exports.handler = async (event, context) => {
     const order = orderResult[0];
     console.log('Order created:', order);
 
-    // Insert order items
-    for (const item of orderData.items) {
-      console.log('Inserting order item:', item);
-      await sql`
-        INSERT INTO order_items (id, order_id, width_in, height_in, quantity, material, grommets, rope_feet, pole_pockets, line_total_cents, created_at)
-        VALUES (${randomUUID()}, ${orderId}, ${item.width_in}, ${item.height_in}, ${item.quantity}, ${item.material}, ${item.grommets || 'none'}, ${item.rope_feet || 0}, false, ${item.line_total_cents}, NOW())
-      `;
+    // Insert order items with better error handling
+    if (orderData.items && Array.isArray(orderData.items)) {
+      for (const item of orderData.items) {
+        console.log('Inserting order item:', JSON.stringify(item, null, 2));
+        try {
+          await sql`
+            INSERT INTO order_items (id, order_id, width_in, height_in, quantity, material, line_total_cents)
+            VALUES (${randomUUID()}, ${orderId}, ${item.width_in || 0}, ${item.height_in || 0}, ${item.quantity || 1}, ${item.material || 'vinyl'}, ${item.line_total_cents || 0})
+          `;
+        } catch (itemError) {
+          console.error('Error inserting order item:', itemError);
+          throw new Error(`Failed to insert order item: ${itemError.message}`);
+        }
+      }
     }
 
     console.log('All order items created successfully');
@@ -95,16 +88,16 @@ exports.handler = async (event, context) => {
     // Return the order object
     const response = {
       id: orderId,
-      user_id: orderData.user_id,
-      subtotal_cents: orderData.subtotal_cents,
-      tax_cents: orderData.tax_cents,
-      total_cents: orderData.total_cents,
+      user_id: orderData.user_id || null,
+      subtotal_cents: orderData.subtotal_cents || 0,
+      tax_cents: orderData.tax_cents || 0,
+      total_cents: orderData.total_cents || 0,
       status: 'paid',
-      currency: orderData.currency,
+      currency: orderData.currency || 'USD',
       tracking_number: null,
       tracking_carrier: null,
-      created_at: order.created_at,
-      items: orderData.items
+      created_at: order.created_at || new Date().toISOString(),
+      items: orderData.items || []
     };
 
     return {
