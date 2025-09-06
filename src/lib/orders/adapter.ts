@@ -20,8 +20,20 @@ export function getOrdersAdapter(): OrdersAdapter {
   console.log('Adapter selection:');
   console.log('NETLIFY_DATABASE_URL:', import.meta.env.NETLIFY_DATABASE_URL ? 'SET' : 'NOT SET');
   console.log('VITE_DATABASE_URL:', import.meta.env.VITE_DATABASE_URL ? 'SET' : 'NOT SET');
+  console.log('Environment:', import.meta.env.MODE);
+  console.log('Is localhost:', window.location.hostname === 'localhost');
 
-  // First try Netlify Function adapter (most reliable for production - no CORS issues)
+  // Check if we're in local development
+  const isLocalDev = import.meta.env.MODE === 'development' || window.location.hostname === 'localhost';
+
+  if (isLocalDev) {
+    console.log('🔧 Local development detected, using local adapter');
+    _adapter = localOrdersAdapter;
+    console.log('✅ Using Local adapter (localStorage)');
+    return _adapter;
+  }
+
+  // For production, try Netlify Function adapter first (most reliable - no CORS issues)
   try {
     _adapter = netlifyFunctionOrdersAdapter;
     console.log('✅ Using Netlify Function adapter (serverless functions)');

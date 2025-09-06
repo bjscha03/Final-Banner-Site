@@ -16,10 +16,15 @@ function getStoredOrders(): Order[] {
 
     // If no orders exist, create some sample data
     if (orders.length === 0) {
+      // Get current user from localStorage to match sample orders
+      const currentUserStr = localStorage.getItem('banners_current_user');
+      const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null;
+      const sampleUserId = currentUser?.id || 'dev_user_123';
+
       const sampleOrders: Order[] = [
         {
           id: '#MF7Q79BQ',
-          user_id: 'dev_user_123',
+          user_id: sampleUserId,
           status: 'paid',
           subtotal_cents: 3600,
           tax_cents: 216, // 6% of 3600
@@ -45,7 +50,7 @@ function getStoredOrders(): Order[] {
         },
         {
           id: '#MF7PG4UM',
-          user_id: 'dev_user_123',
+          user_id: sampleUserId,
           status: 'paid',
           subtotal_cents: 1097,
           tax_cents: 66, // 6% of 1097
@@ -71,7 +76,7 @@ function getStoredOrders(): Order[] {
         },
         {
           id: '#MF7PDJ8B',
-          user_id: 'dev_user_123',
+          user_id: sampleUserId,
           status: 'paid',
           subtotal_cents: 7200,
           tax_cents: 432, // 6% of 7200
