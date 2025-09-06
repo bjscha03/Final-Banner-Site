@@ -90,7 +90,7 @@ const Checkout: React.FC = () => {
       console.log('Order items prepared:', orderItems);
 
       // Create order
-      const ordersAdapter = await getOrdersAdapter();
+      const ordersAdapter = getOrdersAdapter();
       console.log('Orders adapter obtained:', ordersAdapter);
       console.log('Adapter create method:', typeof ordersAdapter.create);
 
@@ -100,7 +100,6 @@ const Checkout: React.FC = () => {
 
       const order = await ordersAdapter.create({
         user_id: currentUser?.id || null,
-        email: currentUser?.email || null,
         subtotal_cents: subtotalCents,
         tax_cents: taxCents,
         total_cents: totalCents,
