@@ -1,4 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
+const { randomUUID } = require('crypto');
 
 // Neon database connection
 const sql = neon(process.env.NETLIFY_DATABASE_URL);
@@ -29,11 +30,25 @@ exports.handler = async (event, context) => {
   }
 
   try {
+    // Check if database URL is available
+    if (!process.env.NETLIFY_DATABASE_URL) {
+      console.error('NETLIFY_DATABASE_URL not found in environment variables');
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({
+          error: 'Database configuration missing',
+          details: 'NETLIFY_DATABASE_URL environment variable not set'
+        }),
+      };
+    }
+
     const orderData = JSON.parse(event.body);
     console.log('Creating order with data:', orderData);
+    console.log('Database URL available:', !!process.env.NETLIFY_DATABASE_URL);
 
     // Generate UUID for the order
-    const orderId = crypto.randomUUID();
+    const orderId = randomUUID();
     
     // Insert order into database
     const orderResult = await sql`
@@ -54,7 +69,7 @@ exports.handler = async (event, context) => {
       console.log('Inserting order item:', item);
       await sql`
         INSERT INTO order_items (id, order_id, width_in, height_in, quantity, material, grommets, rope_feet, pole_pockets, line_total_cents, created_at)
-        VALUES (${crypto.randomUUID()}, ${orderId}, ${item.width_in}, ${item.height_in}, ${item.quantity}, ${item.material}, ${item.grommets || 'none'}, ${item.rope_feet || 0}, 'none', ${item.line_total_cents}, NOW())
+        VALUES (${randomUUID()}, ${orderId}, ${item.width_in}, ${item.height_in}, ${item.quantity}, ${item.material}, ${item.grommets || 'none'}, ${item.rope_feet || 0}, false, ${item.line_total_cents}, NOW())
       `;
     }
 
