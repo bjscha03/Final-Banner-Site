@@ -1,7 +1,7 @@
-import { createClient } from '@supabase/supabase-js';
+import { neon } from '@neondatabase/serverless';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Use Netlify's environment variables for Neon database
+const databaseUrl = import.meta.env.NETLIFY_DATABASE_URL || import.meta.env.VITE_DATABASE_URL;
 
 // Demo user for testing
 const DEMO_USER = {
@@ -16,7 +16,10 @@ const DEMO_USER = {
 let demoLoggedIn = false;
 let authStateListeners: Array<(event: string, session: any) => void> = [];
 
-// Create a mock client if environment variables are not set
+// Create Neon database client
+const sql = databaseUrl ? neon(databaseUrl) : null;
+
+// Create a mock client if database URL is not set
 const createMockClient = () => ({
   auth: {
     getUser: () => Promise.resolve({
@@ -72,9 +75,9 @@ const createMockClient = () => ({
   }),
 });
 
-export const supabase = supabaseUrl && supabaseAnonKey
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : createMockClient();
+// Export the database client and auth mock
+export const db = sql;
+export const supabase = createMockClient(); // Keep for auth compatibility
 
 // Database types
 export interface Profile {

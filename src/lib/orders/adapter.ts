@@ -1,17 +1,23 @@
 import type { OrdersAdapter } from './types';
 import { localOrdersAdapter } from './local';
+import { neonOrdersAdapter } from './neon';
 
 let _adapter: OrdersAdapter | null = null;
 
 export function getOrdersAdapter(): OrdersAdapter {
   if (_adapter) return _adapter;
 
-  // For development, always use local adapter
-  // In production with Supabase env vars, this would switch to Supabase
-  const hasSupabase = !!import.meta.env.VITE_SUPABASE_URL && !!import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY;
+  // Check for Netlify/Neon database configuration
+  const databaseUrl = import.meta.env.NETLIFY_DATABASE_URL || import.meta.env.VITE_DATABASE_URL;
 
-  if (hasSupabase) {
-    console.log('Supabase environment detected, but using local adapter for now');
+  if (databaseUrl) {
+    try {
+      _adapter = neonOrdersAdapter;
+      console.log('Using Neon database adapter (production mode)');
+      return _adapter;
+    } catch (error) {
+      console.warn('Neon adapter failed to initialize, falling back to local adapter');
+    }
   }
 
   _adapter = localOrdersAdapter;
