@@ -48,6 +48,31 @@ class LocalAuthAdapter implements AuthAdapter {
       user.is_admin = true;
     }
 
+    // Create user profile in database
+    try {
+      const response = await fetch('/.netlify/functions/create-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: user.id,
+          email: user.email,
+          full_name: null,
+          is_admin: user.is_admin,
+        }),
+      });
+
+      if (!response.ok) {
+        console.warn('Failed to create user profile in database:', await response.text());
+      } else {
+        console.log('User profile created/updated in database');
+      }
+    } catch (error) {
+      console.warn('Error creating user profile:', error);
+      // Don't block sign-in if profile creation fails
+    }
+
     localStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
     return user;
   }
