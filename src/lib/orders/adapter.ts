@@ -17,11 +17,13 @@ let _adapter: OrdersAdapter | null = null;
 export function getOrdersAdapter(): OrdersAdapter {
   if (_adapter) return _adapter;
 
-  console.log('Adapter selection:');
+  console.log('🔍 ORDERS ADAPTER SELECTION DEBUG:');
   console.log('NETLIFY_DATABASE_URL:', import.meta.env.NETLIFY_DATABASE_URL ? 'SET' : 'NOT SET');
   console.log('VITE_DATABASE_URL:', import.meta.env.VITE_DATABASE_URL ? 'SET' : 'NOT SET');
   console.log('Environment:', import.meta.env.MODE);
-  console.log('Is localhost:', window.location.hostname === 'localhost');
+  console.log('Production:', import.meta.env.PROD);
+  console.log('Hostname:', window.location.hostname);
+  console.log('Full URL:', window.location.href);
 
   // Priority 1: Direct Neon database connection (both dev and production)
   const databaseUrl = import.meta.env.VITE_DATABASE_URL || import.meta.env.NETLIFY_DATABASE_URL;

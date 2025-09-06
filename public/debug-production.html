@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Production Debug - Banners On The Fly</title>
+    <style>
+        body { font-family: monospace; margin: 20px; background: #f5f5f5; }
+        .section { background: white; padding: 15px; margin: 10px 0; border-radius: 5px; }
+        .success { color: green; }
+        .error { color: red; }
+        .warning { color: orange; }
+        pre { background: #f0f0f0; padding: 10px; border-radius: 3px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Production Environment Debug</h1>
+    <p><strong>Site:</strong> www.bannersonthefly.com</p>
+    <p><strong>Purpose:</strong> Debug why orders are not appearing in Neon database</p>
+    
+    <div class="section">
+        <h2>Environment Variables Check</h2>
+        <div id="env-check">Checking...</div>
+    </div>
+    
+    <div class="section">
+        <h2>Orders Adapter Selection</h2>
+        <div id="adapter-check">Checking...</div>
+    </div>
+    
+    <div class="section">
+        <h2>Database Connectivity Test</h2>
+        <div id="db-check">Checking...</div>
+    </div>
+    
+    <div class="section">
+        <h2>Netlify Functions Test</h2>
+        <div id="functions-check">Checking...</div>
+    </div>
+    
+    <div class="section">
+        <h2>User Authentication Test</h2>
+        <div id="auth-check">Checking...</div>
+    </div>
+
+    <script type="module">
+        function log(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : type === 'warning' ? 'warning' : '';
+            element.innerHTML += `<div class="${className}">${message}</div>`;
+            console.log(`[${elementId}]`, message);
+        }
+
+        // Test 1: Environment Variables
+        async function checkEnvironment() {
+            try {
+                log('env-check', '🔍 Checking environment variables...');
+                
+                // These should be undefined in production (client-side)
+                const viteDbUrl = import.meta.env.VITE_DATABASE_URL;
+                const netlifyDbUrl = import.meta.env.NETLIFY_DATABASE_URL;
+                
+                log('env-check', `VITE_DATABASE_URL: ${viteDbUrl ? 'SET ✅' : 'NOT SET ❌'}`);
+                log('env-check', `NETLIFY_DATABASE_URL: ${netlifyDbUrl ? 'SET ✅' : 'NOT SET ❌'}`);
+                log('env-check', `Environment Mode: ${import.meta.env.MODE}`);
+                log('env-check', `Production: ${import.meta.env.PROD ? 'YES ✅' : 'NO ❌'}`);
+                
+                if (!viteDbUrl && !netlifyDbUrl) {
+                    log('env-check', '⚠️ No database URLs found in client environment (expected in production)', 'warning');
+                    log('env-check', '📝 Production should use Netlify Functions for database access', 'info');
+                }
+                
+            } catch (error) {
+                log('env-check', `❌ Error checking environment: ${error.message}`, 'error');
+            }
+        }
+
+        // Test 2: Orders Adapter
+        async function checkOrdersAdapter() {
+            try {
+                log('adapter-check', '🔍 Testing orders adapter selection...');
+                
+                const { getOrdersAdapter } = await import('/src/lib/orders/adapter.ts');
+                const adapter = getOrdersAdapter();
+                
+                log('adapter-check', `✅ Adapter obtained: ${typeof adapter}`);
+                log('adapter-check', `Adapter methods: ${Object.keys(adapter).join(', ')}`);
+                
+                // Test listByUser method
+                if (adapter.listByUser) {
+                    log('adapter-check', '🧪 Testing listByUser method...');
+                    const testUserId = 'test-user-123';
+                    const orders = await adapter.listByUser(testUserId);
+                    log('adapter-check', `✅ listByUser returned: ${orders.length} orders`);
+                } else {
+                    log('adapter-check', '❌ listByUser method not found', 'error');
+                }
+                
+            } catch (error) {
+                log('adapter-check', `❌ Error testing adapter: ${error.message}`, 'error');
+                log('adapter-check', `Error details: ${error.stack}`, 'error');
+            }
+        }
+
+        // Test 3: Database Connectivity
+        async function checkDatabase() {
+            try {
+                log('db-check', '🔍 Testing database connectivity...');
+                
+                // Test direct database connection
+                const { db } = await import('/src/lib/supabase/client.ts');
+                if (db) {
+                    log('db-check', '✅ Database client available');
+                    
+                    // Try a simple query
+                    try {
+                        const result = await db`SELECT 1 as test`;
+                        log('db-check', `✅ Database query successful: ${JSON.stringify(result)}`);
+                    } catch (queryError) {
+                        log('db-check', `❌ Database query failed: ${queryError.message}`, 'error');
+                    }
+                } else {
+                    log('db-check', '❌ Database client not available', 'error');
+                }
+                
+            } catch (error) {
+                log('db-check', `❌ Error testing database: ${error.message}`, 'error');
+            }
+        }
+
+        // Test 4: Netlify Functions
+        async function checkNetlifyFunctions() {
+            try {
+                log('functions-check', '🔍 Testing Netlify functions...');
+                
+                // Test get-orders function
+                const ordersResponse = await fetch('/.netlify/functions/get-orders');
+                log('functions-check', `get-orders status: ${ordersResponse.status}`);
+                
+                if (ordersResponse.ok) {
+                    const ordersData = await ordersResponse.json();
+                    log('functions-check', `✅ get-orders returned: ${ordersData.length || 0} orders`);
+                } else {
+                    const errorText = await ordersResponse.text();
+                    log('functions-check', `❌ get-orders error: ${errorText}`, 'error');
+                }
+                
+                // Test create-user function
+                const userResponse = await fetch('/.netlify/functions/create-user', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        id: 'debug-test-user',
+                        email: 'debug@test.com',
+                        is_signup: false
+                    })
+                });
+                
+                log('functions-check', `create-user status: ${userResponse.status}`);
+                
+                if (userResponse.ok) {
+                    const userData = await userResponse.json();
+                    log('functions-check', `✅ create-user successful: ${JSON.stringify(userData)}`);
+                } else {
+                    const errorText = await userResponse.text();
+                    log('functions-check', `❌ create-user error: ${errorText}`, 'error');
+                }
+                
+            } catch (error) {
+                log('functions-check', `❌ Error testing functions: ${error.message}`, 'error');
+            }
+        }
+
+        // Test 5: Authentication
+        async function checkAuthentication() {
+            try {
+                log('auth-check', '🔍 Testing authentication system...');
+                
+                const { getCurrentUser } = await import('/src/lib/auth.ts');
+                const currentUser = await getCurrentUser();
+                
+                if (currentUser) {
+                    log('auth-check', `✅ Current user: ${currentUser.email} (ID: ${currentUser.id})`);
+                } else {
+                    log('auth-check', '⚠️ No current user (not signed in)', 'warning');
+                }
+                
+            } catch (error) {
+                log('auth-check', `❌ Error testing auth: ${error.message}`, 'error');
+            }
+        }
+
+        // Run all tests
+        async function runAllTests() {
+            await checkEnvironment();
+            await checkOrdersAdapter();
+            await checkDatabase();
+            await checkNetlifyFunctions();
+            await checkAuthentication();
+            
+            console.log('🎯 All debug tests completed. Check the page for results.');
+        }
+
+        // Start debugging
+        runAllTests();
+    </script>
+</body>
+</html>
