@@ -136,10 +136,10 @@ export default function ARPreviewModal({ open, onClose, glbUrl, usdzUrl, widthIn
         {/* @ts-ignore web component */}
         <model-viewer
           ref={mvRef}
-          style={{ 
-            width: '100%', 
-            height: 420, 
-            borderRadius: 16, 
+          style={{
+            width: '100%',
+            height: window.innerWidth < 768 ? 300 : 420,
+            borderRadius: 16,
             overflow: 'hidden',
             backgroundColor: '#f8fafc'
           }}
@@ -148,6 +148,8 @@ export default function ARPreviewModal({ open, onClose, glbUrl, usdzUrl, widthIn
           ar
           ar-modes="webxr scene-viewer quick-look"
           ar-scale="fixed"
+          camera-controls
+          touch-action="pan-y"
           /* @ts-ignore */ 
           ar-placement="wall"
           camera-controls

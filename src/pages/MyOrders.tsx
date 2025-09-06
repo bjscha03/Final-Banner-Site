@@ -34,9 +34,34 @@ const MyOrders: React.FC = () => {
 
     try {
       setLoading(true);
+      console.log('Loading orders for user:', user.id, user.email);
+
+      // Debug: Check what's in the database
+      try {
+        const debugResponse = await fetch('/.netlify/functions/test-auth');
+        const debugData = await debugResponse.json();
+        console.log('Database debug info:', debugData);
+      } catch (debugError) {
+        console.warn('Debug info not available:', debugError);
+      }
+
       const ordersAdapter = await getOrdersAdapter();
+      console.log('Orders adapter:', ordersAdapter);
       const userOrders = await ordersAdapter.listByUser(user.id);
+      console.log('User orders loaded:', userOrders);
       setOrders(userOrders);
+
+      // If no orders found, try to fetch all orders to see what's in the database
+      if (userOrders.length === 0) {
+        console.log('No orders found for user, checking all orders...');
+        try {
+          const allOrdersResponse = await fetch('/.netlify/functions/get-orders');
+          const allOrders = await allOrdersResponse.json();
+          console.log('All orders in database:', allOrders);
+        } catch (allOrdersError) {
+          console.warn('Could not fetch all orders:', allOrdersError);
+        }
+      }
     } catch (error) {
       console.error('Error loading orders:', error);
       toast({

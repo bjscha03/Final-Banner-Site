@@ -26,6 +26,14 @@ export default function ARPreviewButton({ getDesign }: { getDesign: GetDesign })
     setBusy(true);
     setError(null);
 
+    // Check for mobile device and AR support
+    const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    const hasWebXR = 'xr' in navigator;
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isAndroid = /Android/.test(navigator.userAgent);
+
+    console.log('AR Debug:', { isMobile, hasWebXR, isIOS, isAndroid });
+
     try {
       const { widthIn, heightIn, imageUrl, pdfUrl, grommetMode = 'none' } = await getDesign();
       dims.current = { w: widthIn, h: heightIn };
@@ -64,7 +72,22 @@ export default function ARPreviewButton({ getDesign }: { getDesign: GetDesign })
       setBusy(false);
     } catch (err) {
       console.error('AR Preview error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to generate AR preview');
+      let errorMessage = 'Failed to generate AR preview';
+
+      if (err instanceof Error) {
+        errorMessage = err.message;
+      }
+
+      // Add mobile-specific error messages
+      if (isMobile && !hasWebXR && !isIOS && !isAndroid) {
+        errorMessage += '. AR may not be supported on this device.';
+      } else if (isMobile && isIOS && !window.DeviceMotionEvent) {
+        errorMessage += '. Please enable motion sensors in Safari settings.';
+      } else if (isMobile && isAndroid && !hasWebXR) {
+        errorMessage += '. Please update Chrome or install ARCore.';
+      }
+
+      setError(errorMessage);
       setBusy(false);
     }
   };
