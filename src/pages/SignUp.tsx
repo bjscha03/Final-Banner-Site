@@ -33,10 +33,10 @@ const SignUp: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!email || !password || !username) {
+    if (!email || !password) {
       toast({
         title: "Missing Information",
-        description: "Please enter email, username, and password.",
+        description: "Please enter email and password. Username is optional.",
         variant: "destructive",
       });
       return;
@@ -51,8 +51,8 @@ const SignUp: React.FC = () => {
       return;
     }
 
-    // Validate username format
-    if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
+    // Validate username format (only if username is provided)
+    if (username && !/^[a-zA-Z0-9_-]+$/.test(username)) {
       toast({
         title: "Invalid Username",
         description: "Username can only contain letters, numbers, underscores, and dashes.",
@@ -61,7 +61,7 @@ const SignUp: React.FC = () => {
       return;
     }
 
-    if (username.length < 3) {
+    if (username && username.length < 3) {
       toast({
         title: "Username Too Short",
         description: "Username must be at least 3 characters long.",
@@ -149,20 +149,19 @@ const SignUp: React.FC = () => {
               </div>
 
               <div>
-                <Label htmlFor="username">Username</Label>
+                <Label htmlFor="username">Username (Optional)</Label>
                 <Input
                   id="username"
                   name="username"
                   type="text"
                   autoComplete="username"
-                  required
                   value={username}
                   onChange={(e) => setUsername(e.target.value.toLowerCase())}
                   className="mt-1"
-                  placeholder="Enter your username"
+                  placeholder="Enter your username (optional)"
                 />
                 <p className="mt-1 text-xs text-gray-500">
-                  Username must be at least 3 characters (letters, numbers, _, -)
+                  Optional: Username must be at least 3 characters (letters, numbers, _, -)
                 </p>
               </div>
 
