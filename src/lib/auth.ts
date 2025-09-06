@@ -81,7 +81,7 @@ class LocalAuthAdapter implements AuthAdapter {
     return user;
   }
 
-  async signUp(email: string, password: string, fullName?: string): Promise<User> {
+  async signUp(email: string, password: string, fullName?: string, username?: string): Promise<User> {
     // In development mode, create a new user account
     const isAdmin = email.toLowerCase().includes('admin');
 
@@ -91,6 +91,7 @@ class LocalAuthAdapter implements AuthAdapter {
     const user: User = {
       id: userId,
       email,
+      username,
       full_name: fullName,
       is_admin: isAdmin,
     };
@@ -110,6 +111,7 @@ class LocalAuthAdapter implements AuthAdapter {
         body: JSON.stringify({
           id: user.id,
           email: user.email,
+          username: user.username,
           full_name: user.full_name,
           is_admin: user.is_admin,
           is_signup: true,
@@ -163,9 +165,9 @@ export async function signIn(email: string, password: string): Promise<User> {
   return adapter.signIn(email, password);
 }
 
-export async function signUp(email: string, password: string, fullName?: string): Promise<User> {
+export async function signUp(email: string, password: string, fullName?: string, username?: string): Promise<User> {
   const adapter = await getAuthAdapter();
-  return (adapter as LocalAuthAdapter).signUp(email, password, fullName);
+  return (adapter as LocalAuthAdapter).signUp(email, password, fullName, username);
 }
 
 export async function signOut(): Promise<void> {
@@ -200,8 +202,8 @@ export function useAuth() {
     return user;
   };
 
-  const handleSignUp = async (email: string, password: string, fullName?: string) => {
-    const user = await signUp(email, password, fullName);
+  const handleSignUp = async (email: string, password: string, fullName?: string, username?: string) => {
+    const user = await signUp(email, password, fullName, username);
     setUser(user);
     return user;
   };

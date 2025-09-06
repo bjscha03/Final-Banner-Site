@@ -49,6 +49,8 @@ export interface OrdersAdapter {
 export interface User {
   id: string;
   email: string;
+  username?: string;
+  full_name?: string;
   is_admin?: boolean;
 }
 

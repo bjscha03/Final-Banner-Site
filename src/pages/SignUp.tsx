@@ -17,6 +17,7 @@ const SignUp: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
+  const [username, setUsername] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
@@ -32,10 +33,10 @@ const SignUp: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!email || !password) {
+    if (!email || !password || !username) {
       toast({
         title: "Missing Information",
-        description: "Please enter both email and password.",
+        description: "Please enter email, username, and password.",
         variant: "destructive",
       });
       return;
@@ -50,10 +51,29 @@ const SignUp: React.FC = () => {
       return;
     }
 
+    // Validate username format
+    if (!/^[a-zA-Z0-9_-]+$/.test(username)) {
+      toast({
+        title: "Invalid Username",
+        description: "Username can only contain letters, numbers, underscores, and dashes.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (username.length < 3) {
+      toast({
+        title: "Username Too Short",
+        description: "Username must be at least 3 characters long.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setLoading(true);
 
     try {
-      await signUp(email, password, fullName);
+      await signUp(email, password, fullName, username);
 
       toast({
         title: "Account Created!",
@@ -126,6 +146,24 @@ const SignUp: React.FC = () => {
                   className="mt-1"
                   placeholder="Enter your full name"
                 />
+              </div>
+
+              <div>
+                <Label htmlFor="username">Username</Label>
+                <Input
+                  id="username"
+                  name="username"
+                  type="text"
+                  autoComplete="username"
+                  required
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value.toLowerCase())}
+                  className="mt-1"
+                  placeholder="Enter your username"
+                />
+                <p className="mt-1 text-xs text-gray-500">
+                  Username must be at least 3 characters (letters, numbers, _, -)
+                </p>
               </div>
 
               <div>

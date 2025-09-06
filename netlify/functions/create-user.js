@@ -45,7 +45,7 @@ exports.handler = async (event, context) => {
     const userData = JSON.parse(event.body);
     console.log('Creating/updating user profile:', userData);
 
-    const { id, email, full_name, is_admin, is_signup } = userData;
+    const { id, email, username, full_name, is_admin, is_signup } = userData;
 
     if (!id || !email) {
       return {
@@ -58,13 +58,33 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // For sign up, check if email already exists
+    // For sign up, check if email or username already exists
     // For sign in, allow updating existing profiles
     const existingUser = await sql`
-      SELECT id, email FROM profiles WHERE email = ${email}
+      SELECT id, email, username FROM profiles WHERE email = ${email}
     `;
 
+    // Check if username already exists (only for sign up)
+    let existingUsername = [];
+    if (is_signup && username) {
+      existingUsername = await sql`
+        SELECT id, username FROM profiles WHERE username = ${username}
+      `;
+    }
+
     let result;
+
+    // Check if username already exists (for sign up)
+    if (is_signup && existingUsername.length > 0) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({
+          error: 'Username already exists',
+          details: 'This username is already taken. Please choose a different one.'
+        }),
+      };
+    }
 
     if (existingUser.length > 0) {
       if (is_signup) {
@@ -82,7 +102,8 @@ exports.handler = async (event, context) => {
         console.log('Updating existing user profile');
         result = await sql`
           UPDATE profiles
-          SET full_name = ${full_name || null},
+          SET username = ${username || null},
+              full_name = ${full_name || null},
               is_admin = ${is_admin || false},
               updated_at = NOW()
           WHERE email = ${email}
@@ -93,8 +114,8 @@ exports.handler = async (event, context) => {
       // Insert new user profile (for sign up or first sign in)
       console.log('Creating new user profile');
       result = await sql`
-        INSERT INTO profiles (id, email, full_name, is_admin)
-        VALUES (${id}, ${email}, ${full_name || null}, ${is_admin || false})
+        INSERT INTO profiles (id, email, username, full_name, is_admin)
+        VALUES (${id}, ${email}, ${username || null}, ${full_name || null}, ${is_admin || false})
         RETURNING *
       `;
     }

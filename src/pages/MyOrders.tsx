@@ -118,6 +118,20 @@ const MyOrders: React.FC = () => {
                 <p className="text-gray-600 mt-2">
                   Track your custom banner orders and reorder your favorites
                 </p>
+                {user && (
+                  <div className="mt-3 text-sm text-gray-500">
+                    <span className="font-medium">Account:</span>{' '}
+                    {user.username ? (
+                      <>
+                        <span className="text-blue-600 font-medium">@{user.username}</span>
+                        <span className="mx-2">•</span>
+                        <span>{user.email}</span>
+                      </>
+                    ) : (
+                      <span>{user.email}</span>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="flex space-x-3">
