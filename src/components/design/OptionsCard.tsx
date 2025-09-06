@@ -1,0 +1,215 @@
+import React, { useState } from 'react';
+import { Circle, Square, ChevronDown, Info, HelpCircle } from 'lucide-react';
+import { useQuoteStore, Grommets, PolePocketSize } from '@/store/quote';
+import { ropeCost, polePocketCost } from '@/lib/pricing';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+
+const grommetOptions = [
+  { value: 'none', label: 'None', desc: 'No grommets' },
+  { value: 'every-2-3ft', label: 'Every 2–3 feet', desc: 'Standard spacing' },
+  { value: 'every-1-2ft', label: 'Every 1–2 feet', desc: 'Close spacing' },
+  { value: '4-corners', label: '4 corners only', desc: 'Corner grommets' },
+  { value: 'top-corners', label: 'Top corners only', desc: 'Top edge mounting' },
+  { value: 'right-corners', label: 'Right corners only', desc: 'Right edge mounting' },
+  { value: 'left-corners', label: 'Left corners only', desc: 'Left edge mounting' }
+];
+
+const polePocketOptions = [
+  { value: 'none', label: 'None' },
+  { value: 'top', label: 'Top only' },
+  { value: 'bottom', label: 'Bottom only' },
+  { value: 'top-bottom', label: 'Top & Bottom' },
+  { value: 'left', label: 'Left only' },
+  { value: 'right', label: 'Right only' }
+];
+
+const polePocketSizeOptions = [
+  { value: '1', label: '1 inch' },
+  { value: '2', label: '2 inch' },
+  { value: '3', label: '3 inch' },
+  { value: '4', label: '4 inch' }
+];
+
+const OptionsCard: React.FC = () => {
+  const { grommets, polePockets, polePocketSize, addRope, widthIn, heightIn, quantity, set } = useQuoteStore();
+  const [showPolePocketInfo, setShowPolePocketInfo] = useState(false);
+  const [showRopeInfo, setShowRopeInfo] = useState(false);
+
+  const totalRopeCost = addRope ? ropeCost(widthIn, quantity) : 0;
+  const totalPolePocketCost = polePocketCost(widthIn, heightIn, polePockets, quantity);
+  const linearFeet = widthIn / 12;
+
+  return (
+    <div className="bg-white border border-gray-200/60 rounded-2xl overflow-hidden shadow-sm">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-gray-50/50 to-white px-6 py-4 border-b border-gray-100">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-sm">
+            <Circle className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900 tracking-tight">Options</h2>
+            <p className="text-sm text-gray-500">Grommets, pole pockets, and rope</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="p-6 space-y-6">
+
+
+        {/* Pole Pockets Section */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <Square className="w-4 h-4 text-gray-600" />
+            <h3 className="text-sm font-medium text-gray-700">Pole Pockets</h3>
+            <button
+              onMouseEnter={() => setShowPolePocketInfo(true)}
+              onMouseLeave={() => setShowPolePocketInfo(false)}
+              className="relative"
+            >
+              <HelpCircle className="w-3 h-3 text-gray-400 hover:text-gray-600" />
+              {showPolePocketInfo && (
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-10">
+                  <div className="mb-2 font-medium">Pole Pockets</div>
+                  <div>Create a sleeve for inserting poles or rods. Perfect for hanging banners from poles or creating a professional display setup.</div>
+                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                </div>
+              )}
+            </button>
+          </div>
+          
+          <div className="space-y-3">
+            <Select value={polePockets} onValueChange={(value) => set({ polePockets: value })}>
+              <SelectTrigger className="w-full">
+                <SelectValue placeholder="Choose pole pocket option" />
+              </SelectTrigger>
+              <SelectContent>
+                {polePocketOptions.map((option) => (
+                  <SelectItem key={option.value} value={option.value}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {polePockets !== 'none' && (
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-600 mb-1">
+                    Pocket Size
+                  </label>
+                  <Select value={polePocketSize} onValueChange={(value) => set({ polePocketSize: value as PolePocketSize })}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select pocket size" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {polePocketSizeOptions.map((option) => (
+                        <SelectItem key={option.value} value={option.value}>
+                          {option.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {totalPolePocketCost > 0 && (
+                  <div className="bg-blue-50 p-3 rounded-lg">
+                    <div className="text-xs font-medium text-blue-800 mb-1">Cost Breakdown:</div>
+                    <div className="text-xs text-blue-700">
+                      Setup fee: $15.00
+                    </div>
+                    <div className="text-xs text-blue-700">
+                      Linear feet: {(() => {
+                        let linearFeet = 0;
+                        switch (polePockets) {
+                          case 'top':
+                          case 'bottom':
+                            linearFeet = widthIn / 12;
+                            break;
+                          case 'left':
+                          case 'right':
+                            linearFeet = heightIn / 12;
+                            break;
+                          case 'top-bottom':
+                            linearFeet = (widthIn / 12) * 2;
+                            break;
+                        }
+                        return linearFeet.toFixed(1);
+                      })()} ft × $2.00 = ${(() => {
+                        let linearFeet = 0;
+                        switch (polePockets) {
+                          case 'top':
+                          case 'bottom':
+                            linearFeet = widthIn / 12;
+                            break;
+                          case 'left':
+                          case 'right':
+                            linearFeet = heightIn / 12;
+                            break;
+                          case 'top-bottom':
+                            linearFeet = (widthIn / 12) * 2;
+                            break;
+                        }
+                        return (linearFeet * 2.00 * quantity).toFixed(2);
+                      })()}
+                    </div>
+                    <div className="text-xs font-semibold text-blue-800 mt-1 pt-1 border-t border-blue-200">
+                      Total: ${totalPolePocketCost.toFixed(2)}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Rope Section */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-sm">🪢</span>
+            <h3 className="text-sm font-medium text-gray-700">Rope</h3>
+            <button
+              onMouseEnter={() => setShowRopeInfo(true)}
+              onMouseLeave={() => setShowRopeInfo(false)}
+              className="relative"
+            >
+              <HelpCircle className="w-3 h-3 text-gray-400 hover:text-gray-600" />
+              {showRopeInfo && (
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-10">
+                  <div className="mb-2 font-medium">Rope Details</div>
+                  <div className="space-y-1">
+                    <div>• $2 per linear foot of width</div>
+                    <div>• Banner width: {widthIn}"</div>
+                    <div>• Linear feet per banner: {linearFeet.toFixed(1)}</div>
+                    <div>• Quantity: {quantity}</div>
+                    {addRope && <div className="font-medium">Total: ${totalRopeCost.toFixed(2)}</div>}
+                  </div>
+                  <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
+                </div>
+              )}
+            </button>
+          </div>
+          
+          <div className="flex items-center space-x-3">
+            <Checkbox
+              id="add-rope"
+              checked={addRope}
+              onCheckedChange={(checked) => set({ addRope: checked as boolean })}
+            />
+            <label htmlFor="add-rope" className="text-sm text-gray-700 cursor-pointer flex-1">
+              Add Rope — $2 per linear foot
+              {addRope && (
+                <span className="ml-2 text-green-600 font-medium">
+                  (+${totalRopeCost.toFixed(2)})
+                </span>
+              )}
+            </label>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default OptionsCard;
