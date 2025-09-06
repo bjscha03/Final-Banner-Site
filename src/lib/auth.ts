@@ -93,32 +93,20 @@ export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const loadUser = async () => {
+    try {
+      const currentUser = await getCurrentUser();
+      setUser(currentUser);
+    } catch (error) {
+      console.error('Error loading user:', error);
+      setUser(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    let mounted = true;
-
-    const loadUser = async () => {
-      try {
-        const currentUser = await getCurrentUser();
-        if (mounted) {
-          setUser(currentUser);
-        }
-      } catch (error) {
-        console.error('Error loading user:', error);
-        if (mounted) {
-          setUser(null);
-        }
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    };
-
     loadUser();
-
-    return () => {
-      mounted = false;
-    };
   }, []);
 
   const handleSignIn = async (email: string, password: string) => {
@@ -130,6 +118,8 @@ export function useAuth() {
   const handleSignOut = async () => {
     await signOut();
     setUser(null);
+    // Force a reload of user state to ensure UI updates
+    await loadUser();
   };
 
   return {

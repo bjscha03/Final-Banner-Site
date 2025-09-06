@@ -55,8 +55,8 @@ exports.handler = async (event, context) => {
     console.log('Order data:', JSON.stringify(orderData, null, 2));
 
     const orderResult = await sql`
-      INSERT INTO orders (id, email, subtotal_cents, tax_cents, total_cents, status)
-      VALUES (${orderId}, ${'guest@example.com'}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, 'paid')
+      INSERT INTO orders (id, user_id, email, subtotal_cents, tax_cents, total_cents, status)
+      VALUES (${orderId}, ${orderData.user_id}, ${'guest@example.com'}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, 'paid')
       RETURNING *
     `;
 

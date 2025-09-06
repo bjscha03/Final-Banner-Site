@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { ShoppingCart, Menu, X, User, LogOut, Package, Shield } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { useAuth, signOut, isAdmin } from '@/lib/auth';
+import { useAuth, isAdmin } from '@/lib/auth';
 import { useToast } from '@/components/ui/use-toast';
 import {
   DropdownMenu,
@@ -19,7 +19,7 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const { user, loading } = useAuth();
+  const { user, loading, signOut } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
