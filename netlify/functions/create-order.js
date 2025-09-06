@@ -49,23 +49,42 @@ exports.handler = async (event, context) => {
 
     // Generate UUID for the order
     const orderId = randomUUID();
-    
+
     // Insert order into database with simplified approach
     console.log('Inserting order with ID:', orderId);
     console.log('Order data:', JSON.stringify(orderData, null, 2));
+    console.log('User ID:', orderData.user_id);
+
+    // Handle user_id - if it's provided, check if user exists in profiles table
+    let finalUserId = null;
+    if (orderData.user_id) {
+      try {
+        const userCheck = await sql`
+          SELECT id FROM profiles WHERE id = ${orderData.user_id}
+        `;
+        if (userCheck.length > 0) {
+          finalUserId = orderData.user_id;
+          console.log('User found in profiles table:', finalUserId);
+        } else {
+          console.log('User not found in profiles table, creating guest order');
+        }
+      } catch (userError) {
+        console.warn('Error checking user profile:', userError);
+      }
+    }
 
     const orderResult = await sql`
       INSERT INTO orders (id, user_id, email, subtotal_cents, tax_cents, total_cents, status)
-      VALUES (${orderId}, ${orderData.user_id}, ${'guest@example.com'}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, 'paid')
+      VALUES (${orderId}, ${finalUserId}, ${'guest@example.com'}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, 'paid')
       RETURNING *
     `;
 
     if (!orderResult || orderResult.length === 0) {
-      throw new Error('Failed to create order');
+      throw new Error('Failed to create order - no result returned from database');
     }
 
     const order = orderResult[0];
-    console.log('Order created:', order);
+    console.log('Order created successfully:', order);
 
     // Insert order items with better error handling
     if (orderData.items && Array.isArray(orderData.items)) {

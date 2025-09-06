@@ -58,15 +58,26 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Insert or update user profile
+    // Check if email already exists
+    const existingUser = await sql`
+      SELECT id, email FROM profiles WHERE email = ${email}
+    `;
+
+    if (existingUser.length > 0) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({
+          error: 'Email already exists',
+          details: 'An account with this email address already exists'
+        }),
+      };
+    }
+
+    // Insert new user profile
     const result = await sql`
       INSERT INTO profiles (id, email, full_name, is_admin)
       VALUES (${id}, ${email}, ${full_name || null}, ${is_admin || false})
-      ON CONFLICT (email) 
-      DO UPDATE SET 
-        full_name = EXCLUDED.full_name,
-        is_admin = EXCLUDED.is_admin,
-        updated_at = NOW()
       RETURNING *
     `;
 

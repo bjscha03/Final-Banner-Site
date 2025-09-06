@@ -77,6 +77,53 @@ class LocalAuthAdapter implements AuthAdapter {
     return user;
   }
 
+  async signUp(email: string, password: string, fullName?: string): Promise<User> {
+    // In development mode, create a new user account
+    const isAdmin = email.toLowerCase().includes('admin');
+
+    const user: User = {
+      id: 'user_' + Math.random().toString(36).substr(2, 9),
+      email,
+      full_name: fullName,
+      is_admin: isAdmin,
+    };
+
+    // Check for admin cookie
+    if (document.cookie.includes('admin=1')) {
+      user.is_admin = true;
+    }
+
+    // Create user profile in database
+    try {
+      const response = await fetch('/.netlify/functions/create-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          id: user.id,
+          email: user.email,
+          full_name: user.full_name,
+          is_admin: user.is_admin,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Failed to create user profile in database:', errorText);
+        throw new Error('Failed to create user account');
+      } else {
+        console.log('User profile created in database');
+      }
+    } catch (error) {
+      console.error('Error creating user profile:', error);
+      throw new Error('Failed to create user account');
+    }
+
+    localStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
+    return user;
+  }
+
   async signOut(): Promise<void> {
     localStorage.removeItem(this.CURRENT_USER_KEY);
   }
@@ -106,6 +153,11 @@ export async function getCurrentUser(): Promise<User | null> {
 export async function signIn(email: string, password: string): Promise<User> {
   const adapter = await getAuthAdapter();
   return adapter.signIn(email, password);
+}
+
+export async function signUp(email: string, password: string, fullName?: string): Promise<User> {
+  const adapter = await getAuthAdapter();
+  return (adapter as LocalAuthAdapter).signUp(email, password, fullName);
 }
 
 export async function signOut(): Promise<void> {
@@ -140,6 +192,12 @@ export function useAuth() {
     return user;
   };
 
+  const handleSignUp = async (email: string, password: string, fullName?: string) => {
+    const user = await signUp(email, password, fullName);
+    setUser(user);
+    return user;
+  };
+
   const handleSignOut = async () => {
     await signOut();
     setUser(null);
@@ -151,6 +209,7 @@ export function useAuth() {
     user,
     loading,
     signIn: handleSignIn,
+    signUp: handleSignUp,
     signOut: handleSignOut,
   };
 }
