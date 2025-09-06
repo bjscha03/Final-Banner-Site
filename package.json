@@ -17,7 +17,7 @@
   "dependencies": {
     "@google/model-viewer": "^4.1.0",
     "@hookform/resolvers": "^3.10.0",
-    "@neondatabase/serverless": "^0.10.0",
+    "@neondatabase/serverless": "^0.10.4",
     "@netlify/neon": "^0.1.0",
     "@paypal/react-paypal-js": "^8.9.1",
     "@radix-ui/react-accordion": "^1.2.0",

@@ -2,6 +2,7 @@ import type { OrdersAdapter } from './types';
 import { localOrdersAdapter } from './local';
 import { neonOrdersAdapter } from './neon';
 import { neonApiOrdersAdapter } from './neon-api';
+import { netlifyFunctionOrdersAdapter } from './netlify-function';
 
 // Conditionally import Netlify DB adapter
 let netlifyDbOrdersAdapter: OrdersAdapter | null = null;
@@ -20,13 +21,13 @@ export function getOrdersAdapter(): OrdersAdapter {
   console.log('NETLIFY_DATABASE_URL:', import.meta.env.NETLIFY_DATABASE_URL ? 'SET' : 'NOT SET');
   console.log('VITE_DATABASE_URL:', import.meta.env.VITE_DATABASE_URL ? 'SET' : 'NOT SET');
 
-  // First try Neon Data API (most reliable for production)
+  // First try Netlify Function adapter (most reliable for production - no CORS issues)
   try {
-    _adapter = neonApiOrdersAdapter;
-    console.log('✅ Using Neon Data API adapter (REST API)');
+    _adapter = netlifyFunctionOrdersAdapter;
+    console.log('✅ Using Netlify Function adapter (serverless functions)');
     return _adapter;
   } catch (error) {
-    console.warn('❌ Neon Data API adapter failed, trying fallbacks', error);
+    console.warn('❌ Netlify Function adapter failed, trying fallbacks', error);
   }
 
   // Check if we're in Netlify environment (has NETLIFY_DATABASE_URL) and adapter is available
