@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Order } from '../../lib/orders/types';
 import { usd, formatDimensions } from '@/lib/pricing';
 import { Button } from '@/components/ui/button';
@@ -14,6 +15,7 @@ interface OrdersTableProps {
 }
 
 const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading = false }) => {
+  const navigate = useNavigate();
   const { addFromQuote } = useCartStore();
   const { toast } = useToast();
 
@@ -100,7 +102,7 @@ const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading = false }) =>
         </div>
         <h3 className="text-lg font-semibold text-gray-900 mb-2">No Orders Yet</h3>
         <p className="text-gray-600 mb-4">You haven't placed any orders yet.</p>
-        <Button onClick={() => window.location.href = '/design'}>
+        <Button onClick={() => navigate('/design')}>
           Start Designing
         </Button>
       </div>
