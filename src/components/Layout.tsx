@@ -36,12 +36,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-white overflow-x-hidden">
       <Header
         cartCount={getItemCount()}
         onCartClick={() => setIsCartOpen(true)}
       />
-      <main>
+      <main className="w-full">
         {children}
       </main>
       <Footer />

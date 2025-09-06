@@ -5,6 +5,7 @@ import { getOrdersAdapter } from '../lib/orders/adapter';
 import { Order } from '../lib/orders/types';
 import Layout from '@/components/Layout';
 import OrdersTable from '@/components/orders/OrdersTable';
+import ScrollToTopLink from '@/components/ScrollToTopLink';
 import { Button } from '@/components/ui/button';
 import { Package, Plus, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
@@ -95,18 +96,11 @@ const MyOrders: React.FC = () => {
                   Back to Home
                 </Button>
 
-                <Button
-                  onClick={() => {
-                    navigate('/design');
-                    // Scroll to top after navigation
-                    setTimeout(() => {
-                      window.scrollTo({ top: 0, behavior: 'smooth' });
-                    }, 100);
-                  }}
-                  className="bg-orange-500 hover:bg-orange-600"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Order New Banner
+                <Button asChild className="bg-orange-500 hover:bg-orange-600">
+                  <ScrollToTopLink to="/design">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Order New Banner
+                  </ScrollToTopLink>
                 </Button>
               </div>
             </div>

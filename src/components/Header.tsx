@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ShoppingCart, Menu, X, User, LogOut, Package, Shield } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import ScrollToTopLink from './ScrollToTopLink';
 import { useAuth, isAdmin } from '@/lib/auth';
 import { useToast } from '@/components/ui/use-toast';
 import {
@@ -57,9 +58,9 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div className="flex-shrink-0">
-            <Link to="/" className="text-2xl font-bold text-blue-700 hover:text-blue-800 transition-colors">
+            <ScrollToTopLink to="/" className="text-2xl font-bold text-blue-700 hover:text-blue-800 transition-colors">
               Banners On The Fly
-            </Link>
+            </ScrollToTopLink>
           </div>
 
           {/* Desktop Navigation */}
@@ -108,19 +109,19 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end" className="w-48">
                       <DropdownMenuItem asChild>
-                        <Link to="/my-orders" className="flex items-center">
+                        <ScrollToTopLink to="/my-orders" className="flex items-center">
                           <Package className="h-4 w-4 mr-2" />
                           My Orders
-                        </Link>
+                        </ScrollToTopLink>
                       </DropdownMenuItem>
                       {isAdmin(user) && (
                         <>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem asChild>
-                            <Link to="/admin/orders" className="flex items-center">
+                            <ScrollToTopLink to="/admin/orders" className="flex items-center">
                               <Shield className="h-4 w-4 mr-2" />
                               Admin: Orders
-                            </Link>
+                            </ScrollToTopLink>
                           </DropdownMenuItem>
                         </>
                       )}
@@ -139,14 +140,14 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
                       asChild
                       className="hidden md:flex items-center space-x-2"
                     >
-                      <Link to="/sign-in">
+                      <ScrollToTopLink to="/sign-in">
                         <User className="h-5 w-5" />
                         <span className="text-sm font-medium">Sign In</span>
-                      </Link>
+                      </ScrollToTopLink>
                     </Button>
 
                     <Button asChild className="hidden md:block">
-                      <Link to="/sign-up">Get Started</Link>
+                      <ScrollToTopLink to="/sign-up">Get Started</ScrollToTopLink>
                     </Button>
                   </>
                 )}
@@ -168,7 +169,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
           <div className="md:hidden">
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-gray-50">
               {navItems.map((item) => (
-                <Link
+                <ScrollToTopLink
                   key={item.name}
                   to={item.href}
                   className={`block px-3 py-2 text-base font-medium ${
@@ -179,7 +180,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
                   onClick={() => setIsMenuOpen(false)}
                 >
                   {item.name}
-                </Link>
+                </ScrollToTopLink>
               ))}
               <div className="border-t pt-3 mt-3">
                 {!loading && (
@@ -187,23 +188,23 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
                     {user ? (
                       // Authenticated mobile menu
                       <>
-                        <Link
+                        <ScrollToTopLink
                           to="/my-orders"
                           className="flex items-center space-x-2 text-gray-700 hover:text-blue-700 w-full px-3 py-2 text-base font-medium"
                           onClick={() => setIsMenuOpen(false)}
                         >
                           <Package className="h-5 w-5" />
                           <span>My Orders</span>
-                        </Link>
+                        </ScrollToTopLink>
                         {isAdmin(user) && (
-                          <Link
+                          <ScrollToTopLink
                             to="/admin/orders"
                             className="flex items-center space-x-2 text-gray-700 hover:text-blue-700 w-full px-3 py-2 text-base font-medium"
                             onClick={() => setIsMenuOpen(false)}
                           >
                             <Shield className="h-5 w-5" />
                             <span>Admin: Orders</span>
-                          </Link>
+                          </ScrollToTopLink>
                         )}
                         <button
                           onClick={() => {
@@ -219,21 +220,21 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
                     ) : (
                       // Unauthenticated mobile menu
                       <>
-                        <Link
+                        <ScrollToTopLink
                           to="/sign-in"
                           className="flex items-center space-x-2 text-gray-700 hover:text-blue-700 w-full px-3 py-2 text-base font-medium"
                           onClick={() => setIsMenuOpen(false)}
                         >
                           <User className="h-5 w-5" />
                           <span>Sign In</span>
-                        </Link>
-                        <Link
+                        </ScrollToTopLink>
+                        <ScrollToTopLink
                           to="/sign-up"
                           className="w-full mt-2 bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-lg font-medium transition-colors block text-center"
                           onClick={() => setIsMenuOpen(false)}
                         >
                           Get Started
-                        </Link>
+                        </ScrollToTopLink>
                       </>
                     )}
                   </>
