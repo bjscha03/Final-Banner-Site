@@ -10,10 +10,12 @@ export const neonOrdersAdapter: OrdersAdapter = {
     }
 
     try {
-      // Insert order
+      console.log('Creating order with data:', orderData);
+
+      // Insert order - match the actual database schema
       const orderResult = await db`
-        INSERT INTO orders (user_id, email, subtotal_cents, tax_cents, total_cents, status)
-        VALUES (${orderData.user_id}, ${orderData.email}, ${orderData.subtotal_cents}, ${orderData.tax_cents}, ${orderData.total_cents}, 'paid')
+        INSERT INTO orders (user_id, total_cents, status)
+        VALUES (${orderData.user_id}, ${orderData.total_cents}, 'paid')
         RETURNING *
       `;
 
@@ -22,34 +24,38 @@ export const neonOrdersAdapter: OrdersAdapter = {
       }
 
       const order = orderResult[0];
+      console.log('Order created:', order);
 
-      // Insert order items
+      // Insert order items - match the actual database schema
       for (const item of orderData.items) {
+        console.log('Inserting order item:', item);
         await db`
-          INSERT INTO order_items (order_id, width_in, height_in, quantity, material, grommets, rope_feet, pole_pockets, line_total_cents)
-          VALUES (${order.id}, ${item.width_in}, ${item.height_in}, ${item.quantity}, ${item.material}, ${item.grommets}, ${item.rope_feet}, ${item.pole_pockets}, ${item.line_total_cents})
+          INSERT INTO order_items (order_id, width_in, height_in, quantity, material, grommets, rope_feet, line_total_cents)
+          VALUES (${order.id}, ${item.width_in}, ${item.height_in}, ${item.quantity}, ${item.material}, ${item.grommets || 'none'}, ${item.rope_feet || 0}, ${item.line_total_cents})
         `;
       }
 
       return {
         id: order.id,
         user_id: order.user_id,
-        email: order.email,
-        subtotal_cents: order.subtotal_cents,
-        tax_cents: order.tax_cents,
+        subtotal_cents: orderData.subtotal_cents,
+        tax_cents: orderData.tax_cents,
         total_cents: order.total_cents,
         status: order.status,
+        currency: orderData.currency,
         tracking_number: order.tracking_number,
+        tracking_carrier: null,
         created_at: order.created_at,
         items: orderData.items
       };
     } catch (error) {
       console.error('Error creating order:', error);
-      throw new Error('Failed to create order');
+      console.error('Error details:', error);
+      throw new Error(`Failed to create order: ${error.message}`);
     }
   },
 
-  getByUserId: async (userId: string): Promise<Order[]> => {
+  listByUser: async (userId: string, page?: number): Promise<Order[]> => {
     if (!db) {
       return [];
     }
@@ -87,14 +93,14 @@ export const neonOrdersAdapter: OrdersAdapter = {
     }
   },
 
-  getByEmail: async (email: string): Promise<Order[]> => {
+  listAll: async (page?: number): Promise<Order[]> => {
     if (!db) {
       return [];
     }
 
     try {
       const orders = await db`
-        SELECT o.*, 
+        SELECT o.*,
                json_agg(
                  json_build_object(
                    'id', oi.id,
@@ -104,15 +110,14 @@ export const neonOrdersAdapter: OrdersAdapter = {
                    'material', oi.material,
                    'grommets', oi.grommets,
                    'rope_feet', oi.rope_feet,
-                   'pole_pockets', oi.pole_pockets,
                    'line_total_cents', oi.line_total_cents
                  )
                ) as items
         FROM orders o
         LEFT JOIN order_items oi ON o.id = oi.order_id
-        WHERE o.email = ${email}
         GROUP BY o.id
         ORDER BY o.created_at DESC
+        ${page ? db`LIMIT 50 OFFSET ${(page - 1) * 50}` : db``}
       `;
 
       return orders.map(order => ({
@@ -125,57 +130,71 @@ export const neonOrdersAdapter: OrdersAdapter = {
     }
   },
 
-  getAll: async (): Promise<Order[]> => {
-    if (!db) {
-      return [];
-    }
-
-    try {
-      const orders = await db`
-        SELECT o.*, 
-               json_agg(
-                 json_build_object(
-                   'id', oi.id,
-                   'width_in', oi.width_in,
-                   'height_in', oi.height_in,
-                   'quantity', oi.quantity,
-                   'material', oi.material,
-                   'grommets', oi.grommets,
-                   'rope_feet', oi.rope_feet,
-                   'pole_pockets', oi.pole_pockets,
-                   'line_total_cents', oi.line_total_cents
-                 )
-               ) as items
-        FROM orders o
-        LEFT JOIN order_items oi ON o.id = oi.order_id
-        GROUP BY o.id
-        ORDER BY o.created_at DESC
-      `;
-
-      return orders.map(order => ({
-        ...order,
-        items: order.items || []
-      }));
-    } catch (error) {
-      console.error('Error fetching all orders:', error);
-      return [];
-    }
-  },
-
-  updateTracking: async (orderId: string, trackingNumber: string, carrier: TrackingCarrier): Promise<void> => {
+  appendTracking: async (id: string, carrier: TrackingCarrier, number: string): Promise<void> => {
     if (!db) {
       throw new Error('Database not configured');
     }
 
     try {
       await db`
-        UPDATE orders 
-        SET tracking_number = ${trackingNumber}
-        WHERE id = ${orderId}
+        UPDATE orders
+        SET tracking_number = ${number}
+        WHERE id = ${id}
       `;
     } catch (error) {
       console.error('Error updating tracking:', error);
       throw new Error('Failed to update tracking number');
+    }
+  },
+
+  get: async (id: string): Promise<Order | null> => {
+    if (!db) {
+      return null;
+    }
+
+    try {
+      const orders = await db`
+        SELECT o.*,
+               json_agg(
+                 json_build_object(
+                   'width_in', oi.width_in,
+                   'height_in', oi.height_in,
+                   'quantity', oi.quantity,
+                   'material', oi.material,
+                   'grommets', oi.grommets,
+                   'rope_feet', oi.rope_feet,
+                   'area_sqft', oi.width_in * oi.height_in / 144.0,
+                   'unit_price_cents', oi.line_total_cents / oi.quantity,
+                   'line_total_cents', oi.line_total_cents
+                 )
+               ) as items
+        FROM orders o
+        LEFT JOIN order_items oi ON o.id = oi.order_id
+        WHERE o.id = ${id}
+        GROUP BY o.id
+      `;
+
+      if (!orders || orders.length === 0) {
+        return null;
+      }
+
+      const order = orders[0];
+      return {
+        id: order.id,
+        user_id: order.user_id,
+        subtotal_cents: order.total_cents, // We don't store subtotal separately
+        tax_cents: 0, // We don't store tax separately
+        total_cents: order.total_cents,
+        currency: 'usd',
+        status: order.status,
+        tracking_number: order.tracking_number,
+        tracking_carrier: order.tracking_number ? 'fedex' : null,
+        created_at: order.created_at,
+        items: order.items || []
+      };
+    } catch (error) {
+      console.error('Error fetching order:', error);
+      return null;
     }
   }
 };

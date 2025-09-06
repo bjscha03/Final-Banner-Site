@@ -3,6 +3,11 @@ import { neon } from '@neondatabase/serverless';
 // Use Netlify's environment variables for Neon database
 const databaseUrl = import.meta.env.NETLIFY_DATABASE_URL || import.meta.env.VITE_DATABASE_URL;
 
+console.log('Environment check:');
+console.log('NETLIFY_DATABASE_URL:', import.meta.env.NETLIFY_DATABASE_URL ? 'SET' : 'NOT SET');
+console.log('VITE_DATABASE_URL:', import.meta.env.VITE_DATABASE_URL ? 'SET' : 'NOT SET');
+console.log('Final databaseUrl:', databaseUrl ? 'SET' : 'NOT SET');
+
 // Demo user for testing
 const DEMO_USER = {
   id: 'demo-user-123',
