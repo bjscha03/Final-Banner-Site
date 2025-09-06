@@ -58,17 +58,7 @@ export function getOrdersAdapter(): OrdersAdapter {
     }
   }
 
-  // Fallback to direct Neon if VITE_DATABASE_URL is set (for production)
-  const databaseUrl = import.meta.env.VITE_DATABASE_URL;
-  if (databaseUrl) {
-    try {
-      _adapter = neonOrdersAdapter;
-      console.log('✅ Using direct Neon adapter');
-      return _adapter;
-    } catch (error) {
-      console.warn('❌ Neon adapter failed, falling back to local', error);
-    }
-  }
+  // This fallback section is no longer needed since we handle database URL above
 
   _adapter = localOrdersAdapter;
   console.log('⚠️ Using local orders adapter (development mode)');
