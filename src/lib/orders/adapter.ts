@@ -23,17 +23,22 @@ export function getOrdersAdapter(): OrdersAdapter {
   console.log('Environment:', import.meta.env.MODE);
   console.log('Is localhost:', window.location.hostname === 'localhost');
 
-  // Check if we're in local development
-  const isLocalDev = import.meta.env.MODE === 'development' || window.location.hostname === 'localhost';
-
-  if (isLocalDev) {
-    console.log('🔧 Local development detected, using local adapter');
-    _adapter = localOrdersAdapter;
-    console.log('✅ Using Local adapter (localStorage)');
-    return _adapter;
+  // Priority 1: Direct Neon database connection (both dev and production)
+  const databaseUrl = import.meta.env.VITE_DATABASE_URL || import.meta.env.NETLIFY_DATABASE_URL;
+  if (databaseUrl) {
+    try {
+      _adapter = neonOrdersAdapter;
+      console.log('✅ Using direct Neon adapter - ALL ORDERS SYNC THROUGH NEON DATABASE');
+      console.log('Database URL source:', import.meta.env.VITE_DATABASE_URL ? 'VITE_DATABASE_URL' : 'NETLIFY_DATABASE_URL');
+      return _adapter;
+    } catch (error) {
+      console.warn('❌ Direct Neon adapter failed:', error);
+    }
+  } else {
+    console.warn('⚠️ No database URL found - orders will not sync to Neon!');
   }
 
-  // For production, try Netlify Function adapter first (most reliable - no CORS issues)
+  // Try Netlify Function adapter (for production or when database URL not available)
   try {
     _adapter = netlifyFunctionOrdersAdapter;
     console.log('✅ Using Netlify Function adapter (serverless functions)');

@@ -12,10 +12,26 @@ export const neonOrdersAdapter: OrdersAdapter = {
     try {
       console.log('Creating order with data:', orderData);
 
-      // Insert order - match the actual database schema
+      // Get user email from profiles table if user_id is provided
+      let userEmail = 'guest@example.com';
+      if (orderData.user_id) {
+        try {
+          const userResult = await db`
+            SELECT email FROM profiles WHERE id = ${orderData.user_id}
+          `;
+          if (userResult.length > 0) {
+            userEmail = userResult[0].email;
+            console.log('Found user email:', userEmail);
+          }
+        } catch (emailError) {
+          console.warn('Could not fetch user email:', emailError);
+        }
+      }
+
+      // Insert order - match the current database schema with tax breakdown
       const orderResult = await db`
-        INSERT INTO orders (user_id, total_cents, status)
-        VALUES (${orderData.user_id}, ${orderData.total_cents}, 'paid')
+        INSERT INTO orders (user_id, email, subtotal_cents, tax_cents, total_cents, status)
+        VALUES (${orderData.user_id}, ${userEmail}, ${orderData.subtotal_cents}, ${orderData.tax_cents}, ${orderData.total_cents}, 'paid')
         RETURNING *
       `;
 
