@@ -45,10 +45,18 @@ const MyOrders: React.FC = () => {
         console.warn('Debug info not available:', debugError);
       }
 
-      const ordersAdapter = await getOrdersAdapter();
+      const ordersAdapter = getOrdersAdapter();
       console.log('Orders adapter:', ordersAdapter);
+
+      // Debug: Check localStorage state before calling adapter
+      console.log('Current user in localStorage:', localStorage.getItem('banners_current_user'));
+      console.log('Orders in localStorage before call:', localStorage.getItem('banners_orders'));
+
       const userOrders = await ordersAdapter.listByUser(user.id);
       console.log('User orders loaded:', userOrders);
+
+      // Debug: Check localStorage state after calling adapter
+      console.log('Orders in localStorage after call:', localStorage.getItem('banners_orders'));
       setOrders(userOrders);
 
       // If no orders found, try to fetch all orders to see what's in the database
