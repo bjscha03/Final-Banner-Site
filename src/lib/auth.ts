@@ -60,6 +60,7 @@ class LocalAuthAdapter implements AuthAdapter {
           email: user.email,
           full_name: null,
           is_admin: user.is_admin,
+          is_signup: false,
         }),
       });
 
@@ -105,6 +106,7 @@ class LocalAuthAdapter implements AuthAdapter {
           email: user.email,
           full_name: user.full_name,
           is_admin: user.is_admin,
+          is_signup: true,
         }),
       });
 

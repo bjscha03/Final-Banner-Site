@@ -100,6 +100,7 @@ const Checkout: React.FC = () => {
 
       const order = await ordersAdapter.create({
         user_id: currentUser?.id || null,
+        email: currentUser?.email || null,
         subtotal_cents: subtotalCents,
         tax_cents: taxCents,
         total_cents: totalCents,

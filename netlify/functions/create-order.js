@@ -57,25 +57,45 @@ exports.handler = async (event, context) => {
 
     // Handle user_id - if it's provided, check if user exists in profiles table
     let finalUserId = null;
+    let userEmail = 'guest@example.com';
+
     if (orderData.user_id) {
       try {
+        console.log('Looking for user with ID:', orderData.user_id);
         const userCheck = await sql`
-          SELECT id FROM profiles WHERE id = ${orderData.user_id}
+          SELECT id, email FROM profiles WHERE id = ${orderData.user_id}
         `;
+
         if (userCheck.length > 0) {
           finalUserId = orderData.user_id;
-          console.log('User found in profiles table:', finalUserId);
+          userEmail = userCheck[0].email;
+          console.log('User found in profiles table:', finalUserId, userEmail);
         } else {
-          console.log('User not found in profiles table, creating guest order');
+          console.log('User not found in profiles table, checking by email if available');
+
+          // If we have email in the order data, try to find user by email
+          if (orderData.email) {
+            const emailCheck = await sql`
+              SELECT id, email FROM profiles WHERE email = ${orderData.email}
+            `;
+            if (emailCheck.length > 0) {
+              finalUserId = emailCheck[0].id;
+              userEmail = emailCheck[0].email;
+              console.log('User found by email:', finalUserId, userEmail);
+            }
+          }
         }
       } catch (userError) {
         console.warn('Error checking user profile:', userError);
       }
     }
 
+    console.log('Final user_id for order:', finalUserId);
+    console.log('Final email for order:', userEmail);
+
     const orderResult = await sql`
       INSERT INTO orders (id, user_id, email, subtotal_cents, tax_cents, total_cents, status)
-      VALUES (${orderId}, ${finalUserId}, ${'guest@example.com'}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, 'paid')
+      VALUES (${orderId}, ${finalUserId}, ${userEmail}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, 'paid')
       RETURNING *
     `;
 

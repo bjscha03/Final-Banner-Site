@@ -45,7 +45,7 @@ exports.handler = async (event, context) => {
     const userData = JSON.parse(event.body);
     console.log('Creating/updating user profile:', userData);
 
-    const { id, email, full_name, is_admin } = userData;
+    const { id, email, full_name, is_admin, is_signup } = userData;
 
     if (!id || !email) {
       return {
@@ -58,28 +58,46 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Check if email already exists
+    // For sign up, check if email already exists
+    // For sign in, allow updating existing profiles
     const existingUser = await sql`
       SELECT id, email FROM profiles WHERE email = ${email}
     `;
 
-    if (existingUser.length > 0) {
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({
-          error: 'Email already exists',
-          details: 'An account with this email address already exists'
-        }),
-      };
-    }
+    let result;
 
-    // Insert new user profile
-    const result = await sql`
-      INSERT INTO profiles (id, email, full_name, is_admin)
-      VALUES (${id}, ${email}, ${full_name || null}, ${is_admin || false})
-      RETURNING *
-    `;
+    if (existingUser.length > 0) {
+      if (is_signup) {
+        // For sign up, reject if email exists
+        return {
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({
+            error: 'Email already exists',
+            details: 'An account with this email address already exists'
+          }),
+        };
+      } else {
+        // Update existing user (for sign in)
+        console.log('Updating existing user profile');
+        result = await sql`
+          UPDATE profiles
+          SET full_name = ${full_name || null},
+              is_admin = ${is_admin || false},
+              updated_at = NOW()
+          WHERE email = ${email}
+          RETURNING *
+        `;
+      }
+    } else {
+      // Insert new user profile (for sign up or first sign in)
+      console.log('Creating new user profile');
+      result = await sql`
+        INSERT INTO profiles (id, email, full_name, is_admin)
+        VALUES (${id}, ${email}, ${full_name || null}, ${is_admin || false})
+        RETURNING *
+      `;
+    }
 
     console.log('User profile created/updated:', result[0]);
 
