@@ -29,24 +29,22 @@ exports.handler = async (event) => {
   const dbUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
   const db = neon(dbUrl);
 
-  const providerMsgId = evt?.data?.email?.id || null;
-  const toEmail = Array.isArray(evt?.data?.email?.to)
-    ? evt.data.email.to[0]
-    : (evt?.data?.email?.to || null);
+  const providerMsgId =
+    (evt && evt.data && (evt.data.email_id || (evt.data.email && evt.data.email.id) || evt.data.id)) || null;
 
-  // 1) store raw event
+  const toEmail = Array.isArray(evt?.data?.to)
+    ? evt.data.to[0]
+    : (evt?.data?.to || (Array.isArray(evt?.data?.email?.to) ? evt.data.email.to[0] : evt?.data?.email?.to) || null);
+
+  // store raw event
   await db`
     INSERT INTO email_events (event_type, provider, provider_msg_id, to_email, raw)
     VALUES (${evt.type}, 'resend', ${providerMsgId}, ${toEmail}, ${evt})
   `;
 
-  // 2) update email status if we can map it
-  const map = {
-    'email.delivered': 'delivered',
-    'email.bounced': 'bounced',
-    'email.complained': 'complained',
-  };
-  const newStatus = map[evt.type];
+  // update email status if we can map an id
+  const statusMap = { 'email.delivered': 'delivered', 'email.bounced': 'bounced', 'email.complained': 'complained' };
+  const newStatus = statusMap[evt.type];
   if (providerMsgId && newStatus) {
     await db`UPDATE emails SET status=${newStatus} WHERE provider_msg_id=${providerMsgId}`;
   }
