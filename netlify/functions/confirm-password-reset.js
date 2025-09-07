@@ -1,5 +1,4 @@
 const { neon } = require('@neondatabase/serverless');
-const bcrypt = require('bcryptjs');
 
 const headers = {
   'Content-Type': 'application/json',
@@ -21,10 +20,12 @@ function validatePassword(password) {
   return { valid: true };
 }
 
-// Hash password using bcrypt
+// Simple password hashing (for now - replace with bcrypt in production)
 async function hashPassword(password) {
-  const saltRounds = 10;
-  return bcrypt.hash(password, saltRounds);
+  const crypto = require('crypto');
+  const salt = crypto.randomBytes(16).toString('hex');
+  const hash = crypto.pbkdf2Sync(password, salt, 10000, 64, 'sha512').toString('hex');
+  return `${salt}:${hash}`;
 }
 
 exports.handler = async (event) => {

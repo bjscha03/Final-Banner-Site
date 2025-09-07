@@ -32,6 +32,8 @@ exports.handler = async (event, context) => {
     console.log('Starting database migration: Email system tables');
     const results = [];
 
+    // Skip username check - run all migrations
+
     // 1. Create password_resets table
     console.log('Creating password_resets table...');
     await sql`
