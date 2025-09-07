@@ -12,6 +12,7 @@ import SignUpEncouragementModal from '@/components/checkout/SignUpEncouragementM
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Package, Truck } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { emailApi } from '@/lib/api';
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
@@ -101,18 +102,12 @@ const Checkout: React.FC = () => {
         items: orderItems,
       });
 
-      // Send confirmation email if user has email (via API route)
-      if (currentUser?.email) {
-        try {
-          await fetch('/api/admin/resend-confirmation', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ orderId: order.id })
-          });
-        } catch (error) {
-          console.error('Error sending confirmation email:', error);
-          // Don't block the flow if email fails
-        }
+      // Send confirmation email (idempotent)
+      try {
+        await emailApi.notifyOrder(order.id);
+      } catch (error) {
+        console.error('Error sending confirmation email:', error);
+        // Don't block the flow if email fails
       }
 
       // Store order data in sessionStorage for confirmation page

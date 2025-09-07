@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft, Mail, CheckCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { emailApi } from '@/lib/api';
 
 const ForgotPassword: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -28,15 +29,7 @@ const ForgotPassword: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('/api/auth/request-password-reset', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email: email.trim() }),
-      });
-
-      const result = await response.json();
+      const result = await emailApi.requestPasswordReset(email.trim());
 
       if (result.ok) {
         setIsSubmitted(true);

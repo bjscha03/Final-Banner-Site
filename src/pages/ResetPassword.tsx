@@ -4,32 +4,82 @@ import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Lock, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Lock, CheckCircle, AlertCircle, Mail } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { emailApi } from '@/lib/api';
 
 const ResetPassword: React.FC = () => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [token, setToken] = useState('');
+  const [email, setEmail] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
   const [error, setError] = useState('');
   const { toast } = useToast();
+
+  // Determine if we're in token mode (Step 2) or email mode (Step 1)
+  const hasToken = searchParams.get('token');
+  const isTokenMode = !!hasToken;
 
   useEffect(() => {
     const tokenParam = searchParams.get('token');
     if (tokenParam) {
       setToken(tokenParam);
-    } else {
-      setError('Invalid or missing reset token');
     }
   }, [searchParams]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Handle email submission (Step 1)
+  const handleEmailSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
+    if (!email.trim()) {
+      toast({
+        title: "Email Required",
+        description: "Please enter your email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsLoading(true);
+    setError('');
+
+    try {
+      const result = await emailApi.requestPasswordReset(email.trim());
+
+      if (result.ok) {
+        setEmailSent(true);
+        toast({
+          title: "Reset Link Sent",
+          description: "If that address exists, we've sent a reset link to your email.",
+        });
+      } else {
+        toast({
+          title: "Request Failed",
+          description: result.error || "Failed to send reset email. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Password reset request failed:', error);
+      toast({
+        title: "Request Failed",
+        description: "Failed to send reset email. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle password reset submission (Step 2)
+  const handlePasswordSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
     if (!token) {
       setError('Invalid or missing reset token');
       return;
@@ -57,18 +107,7 @@ const ResetPassword: React.FC = () => {
     setError('');
 
     try {
-      const response = await fetch('/api/auth/reset-password', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ 
-          token, 
-          newPassword 
-        }),
-      });
-
-      const result = await response.json();
+      const result = await emailApi.confirmPasswordReset(token, newPassword);
 
       if (result.ok) {
         setIsSuccess(true);
@@ -76,7 +115,7 @@ const ResetPassword: React.FC = () => {
           title: "Password Reset Successful",
           description: "Your password has been updated. You can now sign in with your new password.",
         });
-        
+
         // Redirect to sign in after 3 seconds
         setTimeout(() => {
           navigate('/sign-in');
@@ -174,6 +213,87 @@ const ResetPassword: React.FC = () => {
     );
   }
 
+  // Step 1: Email input form (no token)
+  if (!isTokenMode) {
+    return (
+      <Layout>
+        <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+          <Card className="w-full max-w-md">
+            <CardHeader className="text-center">
+              <div className="mx-auto w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                <Mail className="w-6 h-6 text-blue-600" />
+              </div>
+              <CardTitle className="text-2xl font-bold text-gray-900">
+                Reset Your Password
+              </CardTitle>
+              <CardDescription className="text-gray-600">
+                Enter your email address and we'll send you a reset link
+              </CardDescription>
+            </CardHeader>
+
+            <CardContent className="space-y-6">
+              {emailSent ? (
+                <div className="text-center space-y-4">
+                  <div className="mx-auto w-16 h-16 bg-green-100 rounded-full flex items-center justify-center">
+                    <CheckCircle className="w-8 h-8 text-green-600" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">
+                      Check Your Email
+                    </h3>
+                    <p className="text-gray-600 mb-4">
+                      If that address exists in our system, we've sent a password reset link to your email.
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      Didn't receive the email? Check your spam folder or try again.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <form onSubmit={handleEmailSubmit} className="space-y-4">
+                  <div>
+                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
+                      Email Address
+                    </label>
+                    <Input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="Enter your email address"
+                      required
+                      className="w-full"
+                      disabled={isLoading}
+                    />
+                  </div>
+
+                  <Button
+                    type="submit"
+                    className="w-full"
+                    disabled={isLoading || !email.trim()}
+                  >
+                    {isLoading ? 'Sending Reset Link...' : 'Send Reset Link'}
+                  </Button>
+                </form>
+              )}
+
+              <div className="text-center pt-4 border-t">
+                <Link
+                  to="/sign-in"
+                  className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 transition-colors"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  Back to Sign In
+                </Link>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </Layout>
+    );
+  }
+
+  // Step 2: Password reset form (with token)
   return (
     <Layout>
       <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -183,14 +303,14 @@ const ResetPassword: React.FC = () => {
               <Lock className="w-6 h-6 text-blue-600" />
             </div>
             <CardTitle className="text-2xl font-bold text-gray-900">
-              Reset Your Password
+              Set New Password
             </CardTitle>
             <CardDescription className="text-gray-600">
-              Enter your new password below.
+              Enter your new password below
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handlePasswordSubmit} className="space-y-4">
               <div>
                 <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700 mb-1">
                   New Password
@@ -233,7 +353,7 @@ const ResetPassword: React.FC = () => {
                   {error}
                 </div>
               )}
-              
+
               <Button
                 type="submit"
                 disabled={isLoading || !token}
@@ -242,7 +362,7 @@ const ResetPassword: React.FC = () => {
                 {isLoading ? 'Updating Password...' : 'Update Password'}
               </Button>
             </form>
-            
+
             <div className="mt-6 text-center">
               <Link to="/sign-in" className="text-sm text-blue-600 hover:text-blue-500">
                 <ArrowLeft className="w-4 h-4 inline mr-1" />
