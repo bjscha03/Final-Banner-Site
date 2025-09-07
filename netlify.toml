@@ -1,7 +1,11 @@
 [build]
   publish = "dist"
   command = "npm run build"
-  functions = "netlify/functions"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
+  external_node_modules = ["@neondatabase/serverless"]
 
 [dev]
   targetPort = 8080
