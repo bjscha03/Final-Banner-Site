@@ -19,9 +19,20 @@ export const netlifyFunctionOrdersAdapter: OrdersAdapter = {
         throw new Error(`Failed to create order: ${response.status} ${errorData.error || 'Unknown error'}`);
       }
 
-      const order = await response.json();
-      console.log('Order created successfully:', order);
-      return order;
+      const responseData = await response.json();
+      console.log('Order response received:', responseData);
+
+      // Handle the response format from create-order function
+      if (responseData.ok && responseData.order) {
+        console.log('Order created successfully:', responseData.order);
+        return responseData.order;
+      } else if (responseData.ok === false) {
+        throw new Error(`Failed to create order: ${responseData.error || 'Unknown error'} - ${responseData.details || ''}`);
+      } else {
+        // Fallback for direct order object response
+        console.log('Order created successfully (direct format):', responseData);
+        return responseData;
+      }
     } catch (error) {
       console.error('Error creating order with Netlify function:', error);
       throw new Error(`Failed to create order: ${error.message}`);
@@ -30,13 +41,18 @@ export const netlifyFunctionOrdersAdapter: OrdersAdapter = {
 
   listByUser: async (userId: string, page = 1): Promise<Order[]> => {
     try {
+      console.log('Fetching orders for user:', userId);
       const response = await fetch(`/.netlify/functions/get-orders?user_id=${userId}&page=${page}`);
-      
+
       if (!response.ok) {
-        throw new Error(`Failed to fetch orders: ${response.status}`);
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('Failed to fetch orders:', response.status, errorData);
+        throw new Error(`Failed to fetch orders: ${response.status} ${errorData.error || 'Unknown error'}`);
       }
 
-      return await response.json();
+      const orders = await response.json();
+      console.log('Orders fetched successfully:', orders.length, 'orders');
+      return orders;
     } catch (error) {
       console.error('Error fetching orders:', error);
       return [];
