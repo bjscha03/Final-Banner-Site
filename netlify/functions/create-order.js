@@ -127,7 +127,7 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // Ensure we have a valid email
+    // Ensure we have a valid email (allow guest emails with timestamp)
     if (!userEmail || userEmail === 'guest@example.com') {
       throw new Error('Cannot create order: Valid email address is required');
     }

@@ -93,8 +93,18 @@ const Checkout: React.FC = () => {
         throw new Error('Orders adapter create method is not a function. Adapter type: ' + typeof ordersAdapter);
       }
 
+      // For guest orders, we need an email address
+      let orderEmail = currentUser?.email;
+      if (!orderEmail) {
+        // For now, use a placeholder email for guest orders
+        // TODO: Add email input field for guest checkout
+        orderEmail = `guest-${Date.now()}@bannersonthefly.com`;
+        console.warn('Creating guest order with placeholder email:', orderEmail);
+      }
+
       const order = await ordersAdapter.create({
         user_id: currentUser?.id || null,
+        email: orderEmail,
         subtotal_cents: subtotalCents,
         tax_cents: taxCents,
         total_cents: totalCents,
