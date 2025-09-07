@@ -3,6 +3,7 @@ import { useCartStore } from '@/store/cart';
 import Header from './Header';
 import Footer from './Footer';
 import CartModal from './CartModal';
+import ScrollToTop from './ScrollToTop';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -37,6 +38,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
 
   return (
     <div className="min-h-screen bg-white overflow-x-hidden">
+      <ScrollToTop />
       <Header
         cartCount={getItemCount()}
         onCartClick={() => setIsCartOpen(true)}

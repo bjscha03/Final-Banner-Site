@@ -48,13 +48,7 @@ const Checkout: React.FC = () => {
               <h2 className="mt-4 text-2xl font-bold text-gray-900">Your cart is empty</h2>
               <p className="mt-2 text-gray-600">Add some items to your cart before checking out.</p>
               <Button
-                onClick={() => {
-                  navigate('/design');
-                  // Scroll to top after navigation
-                  setTimeout(() => {
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
-                  }, 100);
-                }}
+                onClick={() => navigate('/design')}
                 className="mt-6"
               >
                 Start Designing

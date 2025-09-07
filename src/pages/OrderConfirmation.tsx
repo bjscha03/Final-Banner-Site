@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getOrdersAdapter } from '../lib/orders/adapter';
 import { Order } from '../lib/orders/types';
@@ -7,6 +7,7 @@ import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Printer, Package, ArrowRight, Home } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { useScrollToTop } from '@/components/ScrollToTop';
 
 const OrderConfirmation: React.FC = () => {
   const navigate = useNavigate();
@@ -14,8 +15,21 @@ const OrderConfirmation: React.FC = () => {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
+  const { scrollToTop } = useScrollToTop();
+  const titleRef = useRef<HTMLHeadingElement>(null);
 
   const orderId = searchParams.get('orderId');
+
+  // Ensure page starts at top and focus title for accessibility
+  useEffect(() => {
+    scrollToTop();
+    if (titleRef.current) {
+      // Focus title for accessibility and to prevent mobile offset retention
+      setTimeout(() => {
+        titleRef.current?.focus();
+      }, 100);
+    }
+  }, [scrollToTop]);
 
   useEffect(() => {
     const loadOrder = async () => {
@@ -116,7 +130,13 @@ const OrderConfirmation: React.FC = () => {
             <div className="flex justify-center mb-4">
               <CheckCircle className="h-16 w-16 text-green-500" />
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Order Confirmed!</h1>
+            <h1
+              ref={titleRef}
+              tabIndex={-1}
+              className="text-3xl font-bold text-gray-900 mb-2"
+            >
+              Order Confirmed! 🎉
+            </h1>
             <p className="text-gray-600">
               Thank you for your order. We'll get started on your custom banners right away.
             </p>
@@ -218,22 +238,12 @@ const OrderConfirmation: React.FC = () => {
               Print Invoice
             </Button>
             
-            <Button onClick={() => {
-              navigate('/my-orders');
-              // Scroll to top after navigation
-              setTimeout(() => window.scrollTo({ top: 0, behavior: 'smooth' }), 100);
-            }} variant="outline" className="flex-1">
+            <Button onClick={() => navigate('/my-orders')} variant="outline" className="flex-1">
               <Package className="h-4 w-4 mr-2" />
               View My Orders
             </Button>
-            
-            <Button onClick={() => {
-              navigate('/design');
-              // Scroll to top after navigation
-              setTimeout(() => {
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }, 100);
-            }} className="flex-1">
+
+            <Button onClick={() => navigate('/design')} className="flex-1">
               <ArrowRight className="h-4 w-4 mr-2" />
               Order More Banners
             </Button>

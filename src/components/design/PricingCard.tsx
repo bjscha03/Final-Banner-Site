@@ -7,12 +7,14 @@ import { calcTotals, usd, formatArea, formatDimensions, PRICE_PER_SQFT } from '@
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import ARPreviewButton from '@/components/ar/ARPreviewButton';
+import { useScrollToTop } from '@/components/ScrollToTop';
 
 const PricingCard: React.FC = () => {
   const navigate = useNavigate();
   const quote = useQuoteStore();
   const { addFromQuote } = useCartStore();
   const { toast } = useToast();
+  const { scrollToTopBeforeNavigate } = useScrollToTop();
 
   const { widthIn, heightIn, quantity, material, grommets, polePockets, addRope, file } = quote;
 
@@ -70,9 +72,9 @@ const PricingCard: React.FC = () => {
     }
 
     addFromQuote(quote);
+    // Pre-scroll before navigation to prevent flash
+    scrollToTopBeforeNavigate();
     navigate('/checkout');
-    // Scroll to top of page
-    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth, signIn } from '@/lib/auth';
 import Layout from '@/components/Layout';
@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { Eye, EyeOff, User } from 'lucide-react';
+import { useScrollToTop } from '@/components/ScrollToTop';
 
 const SignIn: React.FC = () => {
   const navigate = useNavigate();
@@ -17,6 +18,8 @@ const SignIn: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const { scrollToTop } = useScrollToTop();
+  const titleRef = useRef<HTMLHeadingElement>(null);
 
   const nextUrl = searchParams.get('next') || '/';
 
@@ -26,6 +29,17 @@ const SignIn: React.FC = () => {
       navigate(nextUrl);
     }
   }, [user, authLoading, navigate, nextUrl]);
+
+  // Ensure page starts at top and focus title for accessibility
+  useEffect(() => {
+    scrollToTop();
+    if (titleRef.current) {
+      // Focus title for accessibility and to prevent mobile offset retention
+      setTimeout(() => {
+        titleRef.current?.focus();
+      }, 100);
+    }
+  }, [scrollToTop]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -88,7 +102,11 @@ const SignIn: React.FC = () => {
             <div className="mx-auto h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center">
               <User className="h-6 w-6 text-blue-600" />
             </div>
-            <h2 className="mt-4 text-2xl sm:text-3xl font-bold text-gray-900">
+            <h2
+              ref={titleRef}
+              tabIndex={-1}
+              className="mt-4 text-2xl sm:text-3xl font-bold text-gray-900"
+            >
               Sign in to your account
             </h2>
             <p className="mt-2 text-sm text-gray-600">
