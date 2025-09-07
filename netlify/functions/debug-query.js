@@ -56,8 +56,27 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Execute the provided query safely
-    const result = await sql.unsafe(query);
+    // For security, only allow specific safe queries
+    const allowedQueries = {
+      'tables': "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name",
+      'email_events': "SELECT * FROM email_events ORDER BY created_at DESC LIMIT 10",
+      'orders': "SELECT id, email, status, created_at FROM orders ORDER BY created_at DESC LIMIT 10",
+      'profiles': "SELECT id, email, is_admin, created_at FROM profiles ORDER BY created_at DESC LIMIT 10"
+    };
+
+    const queryKey = query.toLowerCase().trim();
+    let actualQuery = allowedQueries[queryKey];
+
+    if (!actualQuery) {
+      // Check if it's one of the allowed patterns
+      if (query.includes('information_schema.tables')) {
+        actualQuery = allowedQueries.tables;
+      } else {
+        throw new Error('Query not allowed. Use: tables, email_events, orders, or profiles');
+      }
+    }
+
+    const result = await sql([actualQuery]);
     
     return {
       statusCode: 200,
