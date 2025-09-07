@@ -109,7 +109,8 @@ exports.handler = async (event, context) => {
       headers,
       body: JSON.stringify({
         ok: false,
-        error: 'Failed to fetch order details'
+        error: 'Failed to fetch order details',
+        details: error.message
       })
     };
   }
