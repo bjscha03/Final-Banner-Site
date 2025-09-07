@@ -8,6 +8,8 @@ import ResetPassword from '../emails/ResetPassword';
 import OrderConfirmation from '../emails/OrderConfirmation';
 import OrderShipped from '../emails/OrderShipped';
 import OrderCanceled from '../emails/OrderCanceled';
+import ContactReceived from '../emails/ContactReceived';
+import ContactAcknowledgment from '../emails/ContactAcknowledgment';
 
 // Initialize Resend only when API key is available
 let resend: Resend | null = null;
@@ -100,6 +102,8 @@ export async function sendEmail(
     | 'order.confirmation'
     | 'order.shipped'
     | 'order.canceled'
+    | 'contact.received'
+    | 'contact.acknowledgment'
     | '__plain__',
   payload: any
 ): Promise<Result> {
@@ -168,6 +172,14 @@ export async function sendEmail(
       'order.canceled': {
         subject: `Order #${payload?.order?.order_number || payload?.order?.number || payload?.order?.id} canceled`,
         react: React.createElement(OrderCanceled, payload),
+      },
+      'contact.received': {
+        subject: `New Contact Form: ${payload?.contact?.subject || 'Customer Inquiry'}`,
+        react: React.createElement(ContactReceived, payload),
+      },
+      'contact.acknowledgment': {
+        subject: 'Thank you for contacting Banners On The Fly',
+        react: React.createElement(ContactAcknowledgment, payload),
       },
     };
 
