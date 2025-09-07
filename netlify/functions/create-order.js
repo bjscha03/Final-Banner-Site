@@ -29,6 +29,8 @@ exports.handler = async (event, context) => {
     };
   }
 
+  let orderData = null;
+
   try {
     // Check if database URL is available
     if (!process.env.NETLIFY_DATABASE_URL) {
@@ -43,7 +45,7 @@ exports.handler = async (event, context) => {
       };
     }
 
-    const orderData = JSON.parse(event.body);
+    orderData = JSON.parse(event.body);
     console.log('Creating order with data:', orderData);
     console.log('Database URL available:', !!process.env.NETLIFY_DATABASE_URL);
 
