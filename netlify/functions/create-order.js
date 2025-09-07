@@ -1,5 +1,6 @@
 const { neon } = require('@neondatabase/serverless');
 const { randomUUID } = require('crypto');
+const { sendEmail } = require('../../src/lib/email');
 
 // Neon database connection
 const sql = neon(process.env.NETLIFY_DATABASE_URL);
@@ -204,6 +205,46 @@ exports.handler = async (event, context) => {
     console.log('All order items created successfully');
 
     // Return structured response
+    // Send order confirmation email
+    try {
+      console.log('Sending order confirmation email to:', userEmail);
+      const siteUrl = process.env.PUBLIC_SITE_URL || 'https://bannersonthefly.com';
+      const orderUrl = `${siteUrl}/orders/${orderId}`;
+
+      const emailResult = await sendEmail('order.confirmation', {
+        to: userEmail,
+        order: {
+          id: orderId,
+          order_number: orderNumber,
+          total_cents: orderData.total_cents || 0,
+          items: orderData.items || []
+        },
+        orderUrl,
+        tags: [{ name: 'order_id', value: orderId }]
+      });
+
+      if (emailResult.ok) {
+        console.log('Order confirmation email sent successfully');
+        // Update order with email status
+        await sql`
+          UPDATE orders
+          SET confirmation_email_status = 'sent', confirmation_emailed_at = NOW()
+          WHERE id = ${orderId}
+        `;
+      } else {
+        console.error('Failed to send order confirmation email:', emailResult.error);
+        // Update order with email failure status
+        await sql`
+          UPDATE orders
+          SET confirmation_email_status = 'failed'
+          WHERE id = ${orderId}
+        `;
+      }
+    } catch (emailError) {
+      console.error('Error sending order confirmation email:', emailError);
+      // Don't fail the order creation if email fails
+    }
+
     const response = {
       ok: true,
       orderId: orderId,
