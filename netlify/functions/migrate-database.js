@@ -29,25 +29,115 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    console.log('Starting database migration: Add username to profiles');
+    console.log('Starting database migration: Email system tables');
+    const results = [];
 
-    // Check if username column already exists
-    const columnCheck = await sql`
-      SELECT column_name 
-      FROM information_schema.columns 
-      WHERE table_name = 'profiles' AND column_name = 'username'
+    // 1. Create password_resets table
+    console.log('Creating password_resets table...');
+    await sql`
+      CREATE TABLE IF NOT EXISTS password_resets (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id uuid NOT NULL,
+        token text UNIQUE NOT NULL,
+        expires_at timestamptz NOT NULL,
+        used boolean NOT NULL DEFAULT false,
+        used_at timestamptz,
+        created_at timestamptz NOT NULL DEFAULT now(),
+
+        CONSTRAINT fk_password_resets_user_id
+          FOREIGN KEY (user_id) REFERENCES profiles(id) ON DELETE CASCADE
+      )
     `;
+    results.push('password_resets table created');
 
-    if (columnCheck.length > 0) {
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({ 
-          message: 'Username column already exists',
-          status: 'already_migrated'
-        }),
-      };
-    }
+    // Create indexes for password_resets
+    await sql`CREATE INDEX IF NOT EXISTS idx_password_resets_token ON password_resets(token)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_password_resets_user_id ON password_resets(user_id)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_password_resets_expires_at ON password_resets(expires_at)`;
+    results.push('password_resets indexes created');
+
+    // 2. Add order email tracking fields
+    console.log('Adding order email tracking fields...');
+    await sql`
+      ALTER TABLE orders
+        ADD COLUMN IF NOT EXISTS confirmation_email_status text,
+        ADD COLUMN IF NOT EXISTS confirmation_emailed_at timestamptz
+    `;
+    await sql`CREATE INDEX IF NOT EXISTS idx_orders_confirmation_email_status ON orders(confirmation_email_status)`;
+    results.push('order email tracking fields added');
+
+    // 3. Create email_events table
+    console.log('Creating email_events table...');
+    await sql`
+      CREATE TABLE IF NOT EXISTS email_events (
+        id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+        type text NOT NULL,
+        to_email text NOT NULL,
+        provider_msg_id text,
+        status text NOT NULL,
+        error_message text,
+        order_id text,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        updated_at timestamptz NOT NULL DEFAULT now()
+      )
+    `;
+    results.push('email_events table created');
+
+    // Create indexes for email_events
+    await sql`CREATE INDEX IF NOT EXISTS idx_email_events_type ON email_events(type)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_email_events_status ON email_events(status)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_email_events_order_id ON email_events(order_id)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_email_events_created_at ON email_events(created_at)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_email_events_provider_msg_id ON email_events(provider_msg_id)`;
+    results.push('email_events indexes created');
+
+    // 4. Add password_hash column to profiles
+    console.log('Adding password_hash column to profiles...');
+    await sql`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS password_hash text`;
+    results.push('password_hash column added to profiles');
+
+    // 5. Create email_verifications table
+    console.log('Creating email_verifications table...');
+    await sql`
+      CREATE TABLE IF NOT EXISTS email_verifications (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+        token VARCHAR(128) NOT NULL UNIQUE,
+        expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+        verified BOOLEAN DEFAULT FALSE,
+        verified_at TIMESTAMP WITH TIME ZONE,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+        UNIQUE(user_id)
+      )
+    `;
+    await sql`CREATE INDEX IF NOT EXISTS idx_email_verifications_token ON email_verifications(token)`;
+    await sql`CREATE INDEX IF NOT EXISTS idx_email_verifications_user_id ON email_verifications(user_id)`;
+    results.push('email_verifications table created');
+
+    // 6. Add email verification fields to profiles
+    console.log('Adding email verification fields to profiles...');
+    await sql`
+      ALTER TABLE profiles
+      ADD COLUMN IF NOT EXISTS email_verified BOOLEAN DEFAULT FALSE,
+      ADD COLUMN IF NOT EXISTS email_verified_at TIMESTAMP WITH TIME ZONE
+    `;
+    results.push('email verification fields added to profiles');
+
+    // 7. Add username column if it doesn't exist (original migration)
+    console.log('Adding username column to profiles...');
+    await sql`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS username text`;
+    results.push('username column added to profiles');
+
+    // 8. Clean up expired password reset tokens
+    console.log('Cleaning up expired tokens...');
+    await sql`DELETE FROM password_resets WHERE expires_at < NOW() AND used = false`;
+    results.push('cleaned up expired tokens');
+
+    // 9. Update existing orders with default email status
+    console.log('Updating existing orders...');
+    await sql`UPDATE orders SET confirmation_email_status = 'unknown' WHERE confirmation_email_status IS NULL`;
+    results.push('updated existing orders with default email status');
 
     // Add username column
     await sql`
@@ -82,15 +172,16 @@ exports.handler = async (event, context) => {
       ORDER BY ordinal_position
     `;
 
-    console.log('Migration completed successfully');
+    console.log('Email system database migrations completed successfully');
     console.log('Updated profiles table schema:', verification);
 
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
-        message: 'Database migration completed successfully',
+        message: 'Email system database migrations completed successfully',
         status: 'migrated',
+        results: results,
         schema: verification
       }),
     };
