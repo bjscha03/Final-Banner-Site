@@ -36,12 +36,6 @@ exports.handler = async (event) => {
     ? evt.data.to[0]
     : (evt?.data?.to || (Array.isArray(evt?.data?.email?.to) ? evt.data.email.to[0] : evt?.data?.email?.to) || null);
 
-  // log raw event
-  await db`
-    INSERT INTO email_events (event_type, provider, provider_msg_id, to_email, raw)
-    VALUES (${evt.type}, 'resend', ${providerMsgId}, ${toEmail}, ${evt})
-  `;
-
   const statusMap = {
     'email.delivered': 'delivered',
     'email.bounced': 'bounced',
@@ -51,26 +45,58 @@ exports.handler = async (event) => {
   const newStatus = statusMap[evt.type];
 
   if (providerMsgId && newStatus) {
-    // Update email_events table
+    // Update email_events table with status precedence: complained > bounced > delivered > opened > sent
+    const statusPrecedence = {
+      'complained': 5,
+      'bounced': 4,
+      'delivered': 3,
+      'opened': 2,
+      'sent': 1,
+      'error': 0
+    };
+
+    // Only update if new status has higher precedence
     const result = await db`
       UPDATE email_events
       SET status = ${newStatus}
-      WHERE provider_msg_id = ${providerMsgId} AND status <> ${newStatus}
+      WHERE provider_msg_id = ${providerMsgId}
+        AND (
+          status = 'sent'
+          OR (status = 'opened' AND ${newStatus} IN ('delivered', 'bounced', 'complained'))
+          OR (status = 'delivered' AND ${newStatus} IN ('bounced', 'complained'))
+          OR (status = 'bounced' AND ${newStatus} = 'complained')
+        )
     `;
 
-    // Also update orders.confirmation_email_status if this is an order confirmation
+    // Extract order ID from tags for order confirmation emails
+    let orderId = null;
     if (evt.data && evt.data.tags) {
       const orderIdTag = evt.data.tags.find(tag => tag.name === 'order_id');
       if (orderIdTag && orderIdTag.value) {
+        orderId = orderIdTag.value;
+
+        // Update orders.confirmation_email_status
         await db`
           UPDATE orders
           SET confirmation_email_status = ${newStatus}
-          WHERE id = ${orderIdTag.value}
+          WHERE id = ${orderId}
         `;
       }
     }
 
-    console.log('webhook update', { providerMsgId, newStatus, rowCount: result.count || result.rowCount });
+    console.log('webhook update', {
+      providerMsgId,
+      newStatus,
+      orderId,
+      rowCount: result.count || result.rowCount,
+      eventType: evt.type
+    });
+  } else {
+    console.log('webhook received but not processed', {
+      eventType: evt.type,
+      providerMsgId,
+      hasStatus: !!newStatus
+    });
   }
 
   return { statusCode: 200, body: 'ok' };

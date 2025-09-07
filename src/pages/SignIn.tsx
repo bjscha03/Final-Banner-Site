@@ -140,9 +140,17 @@ const SignIn: React.FC = () => {
               </div>
 
               <div>
-                <Label htmlFor="password" className="text-sm font-medium text-gray-700">
-                  Password
-                </Label>
+                <div className="flex justify-between items-center">
+                  <Label htmlFor="password" className="text-sm font-medium text-gray-700">
+                    Password
+                  </Label>
+                  <Link
+                    to="/forgot-password"
+                    className="text-sm text-blue-600 hover:text-blue-500"
+                  >
+                    Forgot password?
+                  </Link>
+                </div>
                 <div className="relative mt-1">
                   <Input
                     id="password"
