@@ -65,7 +65,7 @@ const SignIn: React.FC = () => {
   if (authLoading) {
     return (
       <Layout>
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="bg-gray-50 flex items-center justify-center py-8 px-4 sm:px-6 lg:px-8 min-h-[calc(100vh-4rem)]">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
             <p className="mt-4 text-gray-600">Loading...</p>
@@ -82,30 +82,32 @@ const SignIn: React.FC = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8">
+      <div className="bg-gray-50 flex items-center justify-center py-8 px-4 sm:px-6 lg:px-8 min-h-[calc(100vh-4rem)]">
+        <div className="max-w-md w-full space-y-6">
           <div className="text-center">
             <div className="mx-auto h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center">
               <User className="h-6 w-6 text-blue-600" />
             </div>
-            <h2 className="mt-6 text-3xl font-bold text-gray-900">
+            <h2 className="mt-4 text-2xl sm:text-3xl font-bold text-gray-900">
               Sign in to your account
             </h2>
             <p className="mt-2 text-sm text-gray-600">
               Or{' '}
               <button
                 onClick={() => navigate('/sign-up')}
-                className="font-medium text-blue-600 hover:text-blue-500"
+                className="font-medium text-blue-600 hover:text-blue-500 touch-manipulation"
               >
                 create a new account
               </button>
             </p>
           </div>
 
-          <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="email">Email address</Label>
+                <Label htmlFor="email" className="text-sm font-medium text-gray-700">
+                  Email address
+                </Label>
                 <Input
                   id="email"
                   name="email"
@@ -115,12 +117,14 @@ const SignIn: React.FC = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email"
-                  className="mt-1"
+                  className="mt-1 h-12 text-base"
                 />
               </div>
 
               <div>
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" className="text-sm font-medium text-gray-700">
+                  Password
+                </Label>
                 <div className="relative mt-1">
                   <Input
                     id="password"
@@ -131,25 +135,25 @@ const SignIn: React.FC = () => {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="Enter your password"
-                    className="pr-10"
+                    className="pr-12 h-12 text-base"
                   />
                   <button
                     type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center touch-manipulation min-w-[44px] min-h-[44px] justify-center"
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? (
-                      <EyeOff className="h-4 w-4 text-gray-400" />
+                      <EyeOff className="h-5 w-5 text-gray-400" />
                     ) : (
-                      <Eye className="h-4 w-4 text-gray-400" />
+                      <Eye className="h-5 w-5 text-gray-400" />
                     )}
                   </button>
                 </div>
               </div>
             </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-              <p className="text-blue-800 text-sm">
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
+              <p className="text-blue-800 text-xs sm:text-sm">
                 <strong>Development Mode:</strong> Use any email/password combination to sign in.
                 Use an email containing "admin" to get admin access.
               </p>
@@ -158,7 +162,7 @@ const SignIn: React.FC = () => {
             <Button
               type="submit"
               disabled={loading}
-              className="w-full"
+              className="w-full h-12 text-base font-medium touch-manipulation"
             >
               {loading ? 'Signing in...' : 'Sign in'}
             </Button>

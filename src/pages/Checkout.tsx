@@ -41,7 +41,7 @@ const Checkout: React.FC = () => {
   if (items.length === 0) {
     return (
       <Layout>
-        <div className="min-h-screen bg-gray-50 py-12">
+        <div className="bg-gray-50 py-8 min-h-[calc(100vh-4rem)]">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center">
               <Package className="mx-auto h-12 w-12 text-gray-400" />
@@ -152,7 +152,7 @@ const Checkout: React.FC = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gray-50 py-12">
+      <div className="bg-gray-50 py-8 min-h-[calc(100vh-4rem)]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
           <div className="mb-8">

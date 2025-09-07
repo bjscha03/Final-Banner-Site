@@ -86,7 +86,7 @@ const MyOrders: React.FC = () => {
   if (authLoading) {
     return (
       <Layout>
-        <div className="min-h-screen bg-gray-50 py-12">
+        <div className="bg-gray-50 py-8 min-h-[calc(100vh-4rem)]">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center">
               <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
@@ -105,36 +105,36 @@ const MyOrders: React.FC = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gray-50 py-12">
+      <div className="bg-gray-50 py-8 min-h-[calc(100vh-4rem)]">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
-          <div className="mb-8">
-            <div className="flex items-center justify-between">
+          <div className="mb-6 sm:mb-8">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <h1 className="text-3xl font-bold text-gray-900 flex items-center">
-                  <Package className="h-8 w-8 mr-3 text-blue-600" />
+                <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center">
+                  <Package className="h-6 w-6 sm:h-8 sm:w-8 mr-2 sm:mr-3 text-blue-600" />
                   My Orders
                 </h1>
-                <p className="text-gray-600 mt-2">
+                <p className="text-gray-600 mt-2 text-sm sm:text-base">
                   Track your custom banner orders and reorder your favorites
                 </p>
                 {user && (
-                  <div className="mt-3 text-sm text-gray-500">
+                  <div className="mt-3 text-xs sm:text-sm text-gray-500">
                     <span className="font-medium">Account:</span>{' '}
                     {user.username ? (
                       <>
                         <span className="text-blue-600 font-medium">@{user.username}</span>
                         <span className="mx-2">•</span>
-                        <span>{user.email}</span>
+                        <span className="break-all">{user.email}</span>
                       </>
                     ) : (
-                      <span>{user.email}</span>
+                      <span className="break-all">{user.email}</span>
                     )}
                   </div>
                 )}
               </div>
 
-              <div className="flex space-x-3">
+              <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                 <Button
                   variant="outline"
                   onClick={() => navigate('/')}

@@ -96,7 +96,7 @@ const SignUp: React.FC = () => {
   if (authLoading) {
     return (
       <Layout>
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+        <div className="bg-gray-50 flex items-center justify-center py-8 px-4 sm:px-6 lg:px-8 min-h-[calc(100vh-4rem)]">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
             <p className="mt-4 text-gray-600">Loading...</p>
@@ -113,8 +113,8 @@ const SignUp: React.FC = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-md w-full space-y-8">
+      <div className="bg-gray-50 flex items-center justify-center py-8 px-4 sm:px-6 lg:px-8 min-h-[calc(100vh-4rem)]">
+        <div className="max-w-md w-full space-y-6">
           <div className="text-center">
             <div className="mx-auto h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center">
               <UserPlus className="h-6 w-6 text-blue-600" />
@@ -133,23 +133,27 @@ const SignUp: React.FC = () => {
             </p>
           </div>
 
-          <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
+          <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
             <div className="space-y-4">
               <div>
-                <Label htmlFor="fullName">Full Name (Optional)</Label>
+                <Label htmlFor="fullName" className="text-sm font-medium text-gray-700">
+                  Full Name (Optional)
+                </Label>
                 <Input
                   id="fullName"
                   name="fullName"
                   type="text"
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="mt-1"
+                  className="mt-1 h-12 text-base"
                   placeholder="Enter your full name"
                 />
               </div>
 
               <div>
-                <Label htmlFor="username">Username (Optional)</Label>
+                <Label htmlFor="username" className="text-sm font-medium text-gray-700">
+                  Username (Optional)
+                </Label>
                 <Input
                   id="username"
                   name="username"
@@ -157,7 +161,7 @@ const SignUp: React.FC = () => {
                   autoComplete="username"
                   value={username}
                   onChange={(e) => setUsername(e.target.value.toLowerCase())}
-                  className="mt-1"
+                  className="mt-1 h-12 text-base"
                   placeholder="Enter your username (optional)"
                 />
                 <p className="mt-1 text-xs text-gray-500">
@@ -166,7 +170,9 @@ const SignUp: React.FC = () => {
               </div>
 
               <div>
-                <Label htmlFor="email">Email Address</Label>
+                <Label htmlFor="email" className="text-sm font-medium text-gray-700">
+                  Email Address
+                </Label>
                 <Input
                   id="email"
                   name="email"
@@ -175,7 +181,7 @@ const SignUp: React.FC = () => {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="mt-1"
+                  className="mt-1 h-12 text-base"
                   placeholder="Enter your email"
                 />
               </div>

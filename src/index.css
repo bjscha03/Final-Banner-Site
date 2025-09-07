@@ -5,6 +5,79 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Mobile-first responsive fixes */
+@layer base {
+  /* Ensure proper viewport handling on mobile */
+  html {
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+  }
+
+  /* Prevent horizontal scrolling on mobile */
+  body {
+    overflow-x: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Fix iOS Safari viewport height issues */
+  .min-h-screen-mobile {
+    min-height: 100vh;
+    min-height: -webkit-fill-available;
+  }
+
+  /* Ensure touch targets are at least 44px */
+  button,
+  input[type="button"],
+  input[type="submit"],
+  input[type="reset"],
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Better mobile form inputs */
+  input,
+  textarea,
+  select {
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+
+  @media (max-width: 768px) {
+    /* Smaller font sizes on mobile for better fit */
+    h1 { font-size: 1.875rem; }
+    h2 { font-size: 1.5rem; }
+    h3 { font-size: 1.25rem; }
+
+    /* Better mobile spacing */
+    .container {
+      padding-left: 1rem;
+      padding-right: 1rem;
+    }
+  }
+}
+
+@layer components {
+  /* Mobile-optimized button styles */
+  .btn-mobile {
+    @apply h-12 px-6 text-base font-medium touch-manipulation;
+  }
+
+  /* Mobile-optimized input styles */
+  .input-mobile {
+    @apply h-12 px-4 text-base;
+  }
+
+  /* Mobile-friendly card spacing */
+  .card-mobile {
+    @apply p-4 sm:p-6;
+  }
+
+  /* Mobile navigation improvements */
+  .nav-mobile {
+    @apply block w-full text-left px-4 py-3 text-base font-medium;
+  }
+}
+
 @layer base {
   html {
     overflow-x: hidden;
