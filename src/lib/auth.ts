@@ -106,7 +106,7 @@ class LocalAuthAdapter implements AuthAdapter {
       user.is_admin = true;
     }
 
-    // Create user profile in database
+    // CRITICAL FIX: Ensure user profile is created in database before proceeding
     try {
       const response = await fetch('/.netlify/functions/create-user', {
         method: 'POST',
@@ -123,13 +123,21 @@ class LocalAuthAdapter implements AuthAdapter {
       });
 
       if (!response.ok) {
-        console.warn('Failed to create user profile in database:', await response.text());
+        const errorText = await response.text();
+        console.error('Failed to create user profile in database:', errorText);
+
+        // If user already exists, that's fine - continue with sign-in
+        if (!errorText.includes('already exists')) {
+          throw new Error(`Failed to create user profile: ${errorText}`);
+        } else {
+          console.log('User profile already exists in database - continuing with sign-in');
+        }
       } else {
-        console.log('User profile created/updated in database');
+        console.log('User profile created/updated in database successfully');
       }
     } catch (error) {
-      console.warn('Error creating user profile:', error);
-      // Don't block sign-in if profile creation fails
+      console.error('CRITICAL ERROR: Cannot create user profile in database:', error);
+      throw new Error('Sign-in failed: Unable to create user profile. Please try again.');
     }
 
     localStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
@@ -176,13 +184,22 @@ class LocalAuthAdapter implements AuthAdapter {
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Failed to create user profile in database:', errorText);
-        throw new Error('Failed to create user account');
+
+        // If user already exists, that's an error for signup
+        if (errorText.includes('already exists')) {
+          throw new Error('An account with this email address already exists. Please sign in instead.');
+        } else {
+          throw new Error(`Failed to create user account: ${errorText}`);
+        }
       } else {
-        console.log('User profile created in database');
+        console.log('User profile created in database successfully');
       }
     } catch (error) {
       console.error('Error creating user profile:', error);
-      throw new Error('Failed to create user account');
+      if (error.message.includes('already exists')) {
+        throw error; // Re-throw the specific error message
+      }
+      throw new Error('Failed to create user account. Please try again.');
     }
 
     localStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
