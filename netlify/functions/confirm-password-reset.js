@@ -1,6 +1,5 @@
-import { Handler } from '@netlify/functions';
-import { neon } from '@neondatabase/serverless';
-import { hashPassword, validatePassword } from '../../src/lib/crypto';
+const { neon } = require('@neondatabase/serverless');
+const bcrypt = require('bcryptjs');
 
 const headers = {
   'Content-Type': 'application/json',
@@ -9,7 +8,26 @@ const headers = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
 };
 
-export const handler: Handler = async (event) => {
+// Validate password strength
+function validatePassword(password) {
+  if (!password || password.length < 8) {
+    return { valid: false, error: 'Password must be at least 8 characters long' };
+  }
+  
+  if (password.length > 128) {
+    return { valid: false, error: 'Password must be less than 128 characters long' };
+  }
+  
+  return { valid: true };
+}
+
+// Hash password using bcrypt
+async function hashPassword(password) {
+  const saltRounds = 10;
+  return bcrypt.hash(password, saltRounds);
+}
+
+exports.handler = async (event) => {
   // Handle CORS preflight
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers, body: '' };
@@ -96,8 +114,6 @@ export const handler: Handler = async (event) => {
     const hashedPassword = await hashPassword(newPassword);
 
     // Update user password
-    // Note: This assumes you have a password_hash field in profiles table
-    // Adjust based on your actual auth system structure
     await db`
       UPDATE profiles 
       SET password_hash = ${hashedPassword}, updated_at = NOW()
