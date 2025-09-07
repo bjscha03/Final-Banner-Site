@@ -42,9 +42,9 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Check if user already exists
+    // Check if user already exists by email (primary lookup)
     const existingUser = await sql`
-      SELECT id, email, username, full_name FROM profiles WHERE id = ${id} OR email = ${email}
+      SELECT id, email, username, full_name, is_admin, created_at FROM profiles WHERE email = ${email}
     `;
 
     if (existingUser.length > 0) {

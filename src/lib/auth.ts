@@ -42,63 +42,56 @@ class LocalAuthAdapter implements AuthAdapter {
     // CRITICAL FIX: First check if user already exists in database
     let user: User | null = null;
 
+    // Skip the debug-user lookup since that function doesn't exist
+    // We'll let the ensure-user function handle finding/creating users
+
+    // Always create/ensure user exists in database
+    console.log('🆕 Creating/ensuring user for', email);
+    const userId = crypto.randomUUID();
+
+    user = {
+      id: userId,
+      email,
+      is_admin: isAdmin,
+    };
+
+    // Create user in database using ensure-user function
     try {
-      // Try to find existing user by email
-      const response = await fetch('/.netlify/functions/debug-user', {
-        method: 'GET'
+      const response = await fetch('/.netlify/functions/ensure-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: user.id,
+          email: user.email,
+          full_name: user.full_name,
+          username: user.username
+        })
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        const existingUser = data.profiles?.find((p: any) => p.email === email);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Failed to create user in database:', errorText);
 
-        if (existingUser) {
-          console.log('✅ Found existing user in database:', existingUser.id);
-          user = {
-            id: existingUser.id,
-            email: existingUser.email,
-            username: existingUser.username,
-            full_name: existingUser.full_name,
-            is_admin: existingUser.is_admin || isAdmin,
-          };
+        // If user already exists, try to get the existing user ID
+        if (errorText.includes('already exists')) {
+          console.log('User already exists, will use create-user function to get existing user');
+        } else {
+          throw new Error(`Failed to ensure user: ${errorText}`);
+        }
+      } else {
+        const result = await response.json();
+        console.log('✅ User ensured in database:', result);
+
+        // Use the returned user data if available
+        if (result.user) {
+          user.id = result.user.id;
+          user.username = result.user.username;
+          user.full_name = result.user.full_name;
         }
       }
     } catch (error) {
-      console.warn('Could not check for existing user:', error);
-    }
-
-    // If user doesn't exist, create new one
-    if (!user) {
-      console.log('🆕 Creating new user for', email);
-      const userId = crypto.randomUUID();
-
-      user = {
-        id: userId,
-        email,
-        is_admin: isAdmin,
-      };
-
-      // Create user in database
-      try {
-        const response = await fetch('/.netlify/functions/ensure-user', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: user.id,
-            email: user.email,
-            full_name: user.full_name,
-            username: user.username
-          })
-        });
-
-        if (!response.ok) {
-          console.error('Failed to create user in database');
-        } else {
-          console.log('✅ User created in database:', user.id);
-        }
-      } catch (error) {
-        console.error('Failed to ensure user in database:', error);
-      }
+      console.error('Failed to ensure user in database:', error);
+      throw new Error('Sign-in failed: Unable to create user profile. Please try again.');
     }
 
     // Check for admin cookie
