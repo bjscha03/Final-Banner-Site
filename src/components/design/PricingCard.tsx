@@ -6,7 +6,7 @@ import { useCartStore } from '@/store/cart';
 import { calcTotals, usd, formatArea, formatDimensions, PRICE_PER_SQFT } from '@/lib/pricing';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import ARPreviewButton from '@/components/ar/ARPreviewButton';
+
 import { useScrollToTop } from '@/components/ScrollToTop';
 
 const PricingCard: React.FC = () => {
@@ -285,17 +285,7 @@ const PricingCard: React.FC = () => {
 
         {/* Action Buttons */}
         <div className="space-y-4">
-          {/* AR Preview Button */}
-          <div className="mb-6">
-            <ARPreviewButton
-              getDesign={async () => ({
-                widthIn,
-                heightIn,
-                imageUrl: file?.url,
-                grommetMode: grommets
-              })}
-            />
-          </div>
+
 
           {/* Add to Cart Button */}
           <button

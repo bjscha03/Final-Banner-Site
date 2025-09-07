@@ -15,7 +15,6 @@
     "db:studio": "netlify dev:exec drizzle-kit studio"
   },
   "dependencies": {
-    "@google/model-viewer": "^4.1.0",
     "@hookform/resolvers": "^3.10.0",
     "@neondatabase/serverless": "^0.10.4",
     "@netlify/neon": "^0.1.0",
@@ -56,7 +55,6 @@
     "drizzle-orm": "^0.36.0",
     "embla-carousel-react": "^8.3.0",
     "highlight.js": "^11.9.0",
-    "html2canvas": "^1.4.1",
     "input-otp": "^1.2.4",
     "lucide-react": "^0.462.0",
     "marked": "^12.0.1",
@@ -72,7 +70,6 @@
     "sonner": "^1.5.0",
     "tailwind-merge": "^2.5.2",
     "tailwindcss-animate": "^1.0.7",
-    "three": "^0.172.0",
     "uuid": "^11.1.0",
     "vaul": "^0.9.3",
     "zod": "^3.25.76",
