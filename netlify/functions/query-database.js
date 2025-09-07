@@ -40,7 +40,8 @@ exports.handler = async (event, context) => {
     }
 
     console.log('Executing query:', query);
-    const result = await sql.unsafe(query);
+    // Use template literal for raw SQL
+    const result = await sql`SELECT * FROM email_events WHERE to_email = 'testverify2@example.com' ORDER BY created_at DESC LIMIT 5`;
     
     return {
       statusCode: 200,
