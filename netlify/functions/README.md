@@ -1,8 +1,12 @@
 # Netlify Functions
 
-## send-test-email.ts
+## send-test-email.js
 
-A minimal Netlify Function to send test emails via Resend API, designed to trigger webhook events for testing purposes.
+A minimal Netlify Function (CommonJS) to send test emails via Resend API, designed to trigger webhook events for testing purposes.
+
+## resend-webhook.js
+
+A Netlify Function (CommonJS) to handle Resend webhook events, storing them in the database and updating email statuses.
 
 ### Usage
 
@@ -57,3 +61,18 @@ If database environment variables are available, the function will:
 3. Update to "failed" status with error details on failure
 
 This provides visibility into email sending status in your database.
+
+### Webhook Function
+
+The `resend-webhook.js` function handles incoming webhook events from Resend:
+
+- **Signature Verification**: Validates webhook authenticity using HMAC-SHA256
+- **Event Storage**: Stores all webhook events in `email_events` table
+- **Status Updates**: Maps webhook events to email status updates:
+  - `email.delivered` → `delivered`
+  - `email.bounced` → `bounced`
+  - `email.complained` → `complained`
+
+**Webhook URL**: `https://your-site.netlify.app/.netlify/functions/resend-webhook`
+
+**Required Environment Variable**: `RESEND_WEBHOOK_SECRET`
