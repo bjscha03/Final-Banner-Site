@@ -3,6 +3,7 @@ import { Minus, Plus, Ruler, Hash } from 'lucide-react';
 import { useQuoteStore } from '@/store/quote';
 import { formatArea, formatDimensions, inchesToSqFt } from '@/lib/pricing';
 import { Input } from '@/components/ui/input';
+import { SizeStepper } from '@/components/ui/SizeStepper';
 
 const SizeQuantityCard: React.FC = () => {
   const { widthIn, heightIn, quantity, set } = useQuoteStore();
@@ -131,34 +132,24 @@ const SizeQuantityCard: React.FC = () => {
             ))}
           </div>
 
-          {/* Custom Size Inputs */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Width (inches)</label>
-              <Input
-                type="number"
-                value={widthInput}
-                onChange={(e) => validateAndSetWidth(e.target.value)}
-                className={`text-center ${widthError ? 'border-red-300' : ''}`}
-                min="1"
-                max="1000"
-                step="0.1"
-              />
-              {widthError && <p className="text-xs text-red-500 mt-1">{widthError}</p>}
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Height (inches)</label>
-              <Input
-                type="number"
-                value={heightInput}
-                onChange={(e) => validateAndSetHeight(e.target.value)}
-                className={`text-center ${heightError ? 'border-red-300' : ''}`}
-                min="1"
-                max="1000"
-                step="0.1"
-              />
-              {heightError && <p className="text-xs text-red-500 mt-1">{heightError}</p>}
-            </div>
+          {/* Custom Size Inputs with Mobile-Optimized Steppers */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <SizeStepper
+              label="Width"
+              value={widthIn}
+              onChange={(value) => set({ widthIn: value })}
+              min={1}
+              max={1000}
+              unit="in"
+            />
+            <SizeStepper
+              label="Height"
+              value={heightIn}
+              onChange={(value) => set({ heightIn: value })}
+              min={1}
+              max={1000}
+              unit="in"
+            />
           </div>
 
           {/* Size Info */}
@@ -178,30 +169,16 @@ const SizeQuantityCard: React.FC = () => {
         <div>
           <h3 className="text-sm font-medium text-gray-700 mb-3">Quantity</h3>
           
-          {/* Quantity Controls */}
-          <div className="flex items-center justify-center gap-3 mb-4">
-            <button
-              onClick={() => adjustQuantity(-1)}
-              disabled={quantity <= 1}
-              className="w-8 h-8 bg-white border border-gray-200 rounded-lg hover:border-gray-300 hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center"
-            >
-              <Minus className="w-3 h-3 text-gray-600" />
-            </button>
-
-            <Input
-              type="number"
+          {/* Mobile-Optimized Quantity Controls */}
+          <div className="max-w-xs mx-auto mb-4">
+            <SizeStepper
+              label="Quantity"
               value={quantity}
-              onChange={handleQuantityInputChange}
-              className="w-20 text-center font-semibold"
-              min="1"
+              onChange={(value) => set({ quantity: value })}
+              min={1}
+              max={1000}
+              className="text-center"
             />
-
-            <button
-              onClick={() => adjustQuantity(1)}
-              className="w-8 h-8 bg-white border border-gray-200 rounded-lg hover:border-gray-300 hover:shadow-sm transition-all duration-200 flex items-center justify-center"
-            >
-              <Plus className="w-3 h-3 text-gray-600" />
-            </button>
           </div>
 
           {/* Quick Quantity Pills */}

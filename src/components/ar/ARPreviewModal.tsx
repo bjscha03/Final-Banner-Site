@@ -3,6 +3,7 @@ import '@google/model-viewer';
 import { useEffect, useRef, useState } from 'react';
 import html2canvas from 'html2canvas';
 import { X, Camera, Share, Download } from 'lucide-react';
+import { useScrollToTop } from '../ScrollToTop';
 
 type Props = {
   open: boolean;
@@ -18,6 +19,14 @@ export default function ARPreviewModal({ open, onClose, glbUrl, usdzUrl, widthIn
   const [arStatus, setArStatus] = useState<'not-presenting'|'session-started'|'session-ended'>('not-presenting');
   const [shotUrl, setShotUrl] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const { scrollToTop } = useScrollToTop();
+
+  // Ensure AR modal opens at viewport top
+  useEffect(() => {
+    if (open) {
+      scrollToTop();
+    }
+  }, [open, scrollToTop]);
 
   useEffect(() => {
     if (!open) return;
@@ -159,9 +168,9 @@ export default function ARPreviewModal({ open, onClose, glbUrl, usdzUrl, widthIn
           alt={`${widthIn}" × ${heightIn}" Banner AR Preview`}
           loading="eager"
         >
-          <div 
-            slot="ar-button" 
-            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 font-semibold text-white hover:bg-indigo-700 transition-colors shadow-lg"
+          <div
+            slot="ar-button"
+            className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-6 py-3 font-semibold text-white hover:bg-indigo-700 transition-colors shadow-lg touch-manipulation min-h-[44px]"
           >
             📱 View in AR
           </div>

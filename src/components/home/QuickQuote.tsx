@@ -307,7 +307,7 @@ const QuickQuote: React.FC = () => {
                         adjustWidth(-1);
                       }}
                       disabled={widthIn <= 1}
-                      className="group relative h-11 w-11 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200/60 rounded-xl hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300/80 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-all duration-200 shadow-sm hover:shadow-md disabled:hover:shadow-sm"
+                      className="group relative h-12 w-12 min-w-[44px] min-h-[44px] bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200/60 rounded-xl hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300/80 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-all duration-200 shadow-sm hover:shadow-md disabled:hover:shadow-sm touch-manipulation"
                       type="button"
                     >
                       <Minus className="h-4 w-4 text-blue-600 group-hover:text-blue-700 transition-colors" />
@@ -318,7 +318,7 @@ const QuickQuote: React.FC = () => {
                       value={widthInput}
                       onChange={(e) => setWidthInput(e.target.value)}
                       onBlur={handleWidthBlur}
-                      className="flex-1 text-center bg-gradient-to-br from-white to-blue-50/30 border border-blue-200/60 rounded-xl px-4 py-3 text-lg font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 transition-all duration-200 shadow-sm hover:shadow-md"
+                      className="flex-1 min-w-[5rem] sm:min-w-[6rem] text-center bg-gradient-to-br from-white to-blue-50/30 border border-blue-200/60 rounded-xl px-4 py-3 text-lg font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 transition-all duration-200 shadow-sm hover:shadow-md tabular-nums"
                       min="1"
                       max="1000"
                     />
@@ -329,7 +329,7 @@ const QuickQuote: React.FC = () => {
                         adjustWidth(1);
                       }}
                       disabled={widthIn >= 1000}
-                      className="group relative h-11 w-11 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200/60 rounded-xl hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300/80 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-all duration-200 shadow-sm hover:shadow-md disabled:hover:shadow-sm"
+                      className="group relative h-12 w-12 min-w-[44px] min-h-[44px] bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200/60 rounded-xl hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300/80 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-all duration-200 shadow-sm hover:shadow-md disabled:hover:shadow-sm touch-manipulation"
                       type="button"
                     >
                       <Plus className="h-4 w-4 text-blue-600 group-hover:text-blue-700 transition-colors" />
@@ -352,7 +352,7 @@ const QuickQuote: React.FC = () => {
                         adjustHeight(-1);
                       }}
                       disabled={heightIn <= 1}
-                      className="group relative h-11 w-11 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200/60 rounded-xl hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300/80 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-all duration-200 shadow-sm hover:shadow-md disabled:hover:shadow-sm"
+                      className="group relative h-12 w-12 min-w-[44px] min-h-[44px] bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200/60 rounded-xl hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300/80 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-all duration-200 shadow-sm hover:shadow-md disabled:hover:shadow-sm touch-manipulation"
                       type="button"
                     >
                       <Minus className="h-4 w-4 text-blue-600 group-hover:text-blue-700 transition-colors" />
@@ -362,7 +362,7 @@ const QuickQuote: React.FC = () => {
                       value={heightInput}
                       onChange={(e) => setHeightInput(e.target.value)}
                       onBlur={handleHeightBlur}
-                      className="flex-1 text-center bg-gradient-to-br from-white to-blue-50/30 border border-blue-200/60 rounded-xl px-4 py-3 text-lg font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 transition-all duration-200 shadow-sm hover:shadow-md"
+                      className="flex-1 min-w-[5rem] sm:min-w-[6rem] text-center bg-gradient-to-br from-white to-blue-50/30 border border-blue-200/60 rounded-xl px-4 py-3 text-lg font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 transition-all duration-200 shadow-sm hover:shadow-md tabular-nums"
                       min="1"
                       max="1000"
                     />
@@ -373,7 +373,7 @@ const QuickQuote: React.FC = () => {
                         adjustHeight(1);
                       }}
                       disabled={heightIn >= 1000}
-                      className="group relative h-11 w-11 bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200/60 rounded-xl hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300/80 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-all duration-200 shadow-sm hover:shadow-md disabled:hover:shadow-sm"
+                      className="group relative h-12 w-12 min-w-[44px] min-h-[44px] bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200/60 rounded-xl hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300/80 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-all duration-200 shadow-sm hover:shadow-md disabled:hover:shadow-sm touch-manipulation"
                       type="button"
                     >
                       <Plus className="h-4 w-4 text-blue-600 group-hover:text-blue-700 transition-colors" />

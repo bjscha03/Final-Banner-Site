@@ -4,6 +4,7 @@ import ARPreviewModal from './ARPreviewModal';
 import { buildBannerGLBUSDZ } from '@/lib/ar/buildModel';
 import { composeTexture } from '@/lib/ar/texture';
 import { Smartphone, AlertCircle } from 'lucide-react';
+import { isARSupported, getARPlatformName } from '@/lib/ar/launcher';
 
 // Provide current config & artwork from the Design Tool
 type GetDesign = () => Promise<{

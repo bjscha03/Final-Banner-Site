@@ -7,16 +7,28 @@
 
 /* Mobile-first responsive fixes */
 @layer base {
-  /* Ensure proper viewport handling on mobile */
-  html {
+  /* Eliminate horizontal overflow completely */
+  html, body {
+    max-width: 100%;
+    overflow-x: hidden;
     -webkit-text-size-adjust: 100%;
     -ms-text-size-adjust: 100%;
   }
 
-  /* Prevent horizontal scrolling on mobile */
   body {
-    overflow-x: hidden;
+    overscroll-behavior-x: none;
     -webkit-overflow-scrolling: touch;
+  }
+
+  /* Prevent media overflow */
+  img, canvas, video {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* Ensure proper box sizing */
+  * {
+    box-sizing: border-box;
   }
 
   /* Fix iOS Safari viewport height issues */

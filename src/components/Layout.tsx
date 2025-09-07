@@ -37,13 +37,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   };
 
   return (
-    <div className="min-h-screen bg-white overflow-x-hidden">
+    <div className="min-h-screen bg-white overflow-x-hidden max-w-[100vw]">
       <ScrollToTop />
       <Header
         cartCount={getItemCount()}
         onCartClick={() => setIsCartOpen(true)}
       />
-      <main className="w-full">
+      <main className="w-full max-w-[100vw] overflow-x-hidden">
         {children}
       </main>
       <Footer />

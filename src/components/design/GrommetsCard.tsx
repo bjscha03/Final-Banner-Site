@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Circle, ChevronDown, Check } from 'lucide-react';
 import { useQuoteStore, Grommets } from '@/store/quote';
 
@@ -49,6 +50,8 @@ const grommetOptions: GrommetOption[] = [
 const GrommetsCard: React.FC = () => {
   const { grommets, set } = useQuoteStore();
   const [isOpen, setIsOpen] = useState(false);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   const selectedOption = grommetOptions.find(option => option.key === grommets);
 
@@ -56,6 +59,32 @@ const GrommetsCard: React.FC = () => {
     set({ grommets: value });
     setIsOpen(false);
   };
+
+  // Calculate dropdown position when opening
+  useEffect(() => {
+    if (isOpen && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + window.scrollY + 8,
+        left: rect.left + window.scrollX,
+        width: rect.width
+      });
+    }
+  }, [isOpen]);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (buttonRef.current && !buttonRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
 
   return (
     <div className="bg-white border border-gray-200/60 rounded-2xl overflow-hidden shadow-sm">
@@ -76,8 +105,9 @@ const GrommetsCard: React.FC = () => {
       <div className="p-6">
         <div className="relative">
           <button
+            ref={buttonRef}
             onClick={() => setIsOpen(!isOpen)}
-            className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-xl hover:border-gray-300 hover:shadow-sm transition-all duration-200 text-left"
+            className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-xl hover:border-gray-300 hover:shadow-sm transition-all duration-200 text-left touch-manipulation min-h-[44px]"
           >
             <div className="flex items-center gap-3">
               <div className="w-2 h-2 bg-gray-500 rounded-full"></div>
@@ -89,13 +119,21 @@ const GrommetsCard: React.FC = () => {
             <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
           </button>
 
-          {isOpen && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-white border border-gray-200 rounded-xl shadow-xl z-20 overflow-hidden">
+          {/* Portal-based dropdown to prevent clipping */}
+          {isOpen && createPortal(
+            <div
+              className="fixed bg-white border border-gray-200 rounded-xl shadow-xl z-[1000] overflow-hidden max-h-[60vh] overflow-y-auto"
+              style={{
+                top: dropdownPosition.top,
+                left: dropdownPosition.left,
+                width: dropdownPosition.width
+              }}
+            >
               {grommetOptions.map((option) => (
                 <button
                   key={option.key}
                   onClick={() => handleGrommetChange(option.key)}
-                  className={`w-full text-left px-4 py-3.5 hover:bg-gray-50 transition-colors duration-150 border-b border-gray-100 last:border-b-0 ${
+                  className={`w-full text-left px-4 py-3.5 hover:bg-gray-50 transition-colors duration-150 border-b border-gray-100 last:border-b-0 touch-manipulation min-h-[44px] ${
                     grommets === option.key ? 'bg-blue-50 border-blue-100' : ''
                   }`}
                 >
@@ -112,7 +150,8 @@ const GrommetsCard: React.FC = () => {
                   </div>
                 </button>
               ))}
-            </div>
+            </div>,
+            document.body
           )}
         </div>
 
