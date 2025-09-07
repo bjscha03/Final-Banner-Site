@@ -152,13 +152,18 @@ async function runMoneyOptimization() {
     results.columnsAdded.push('subtotal', 'tax', 'total');
 
     // Ensure currency column exists
-    await sql`
-      DO $$ BEGIN
+    try {
+      await sql`
         ALTER TABLE public.orders
-          ADD COLUMN IF NOT EXISTS currency text NOT NULL DEFAULT 'usd';
-      EXCEPTION WHEN duplicate_column THEN NULL; END $$;
-    `;
-    results.columnsAdded.push('currency');
+        ADD COLUMN IF NOT EXISTS currency text DEFAULT 'usd'
+      `;
+      results.columnsAdded.push('currency');
+    } catch (currencyError) {
+      // Column might already exist, which is fine
+      if (!currencyError.message.includes('already exists')) {
+        console.warn('Could not add currency column:', currencyError.message);
+      }
+    }
 
     // Create UI-friendly view
     await sql`
@@ -239,14 +244,19 @@ async function runPerformanceOptimization() {
     results.indexesCreated.push('idx_profiles_email');
 
     // Add check constraints for data integrity (non-breaking)
-    await sql`
-      DO $$ BEGIN
+    try {
+      await sql`
         ALTER TABLE public.orders
-          ADD CONSTRAINT IF NOT EXISTS chk_orders_money_positive 
-          CHECK (subtotal_cents >= 0 AND tax_cents >= 0 AND total_cents >= 0);
-      EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-    `;
-    results.constraintsAdded.push('chk_orders_money_positive');
+        ADD CONSTRAINT chk_orders_money_positive
+        CHECK (subtotal_cents >= 0 AND tax_cents >= 0 AND total_cents >= 0)
+      `;
+      results.constraintsAdded.push('chk_orders_money_positive');
+    } catch (constraintError) {
+      // Constraint might already exist, which is fine
+      if (!constraintError.message.includes('already exists')) {
+        console.warn('Could not add money constraint:', constraintError.message);
+      }
+    }
 
     console.log('✅ Performance optimization completed:', results);
     return results;
