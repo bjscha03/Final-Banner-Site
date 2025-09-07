@@ -52,6 +52,21 @@ exports.handler = async (event, context) => {
     // Generate UUID for the order
     const orderId = randomUUID();
 
+    // Generate unique order number (6 digits starting from 100000)
+    const generateOrderNumber = async () => {
+      // Get the highest existing order number
+      const maxOrderResult = await sql`
+        SELECT MAX(CAST(order_number AS INTEGER)) as max_number
+        FROM orders
+        WHERE order_number ~ '^[0-9]+$'
+      `;
+
+      const maxNumber = maxOrderResult[0]?.max_number || 99999;
+      return (maxNumber + 1).toString().padStart(6, '0');
+    };
+
+    const orderNumber = await generateOrderNumber();
+
     // Insert order into database with simplified approach
     console.log('Inserting order with ID:', orderId);
     console.log('Order data:', JSON.stringify(orderData, null, 2));
@@ -138,8 +153,8 @@ exports.handler = async (event, context) => {
     console.log('Final email for order:', userEmail);
 
     const orderResult = await sql`
-      INSERT INTO orders (id, user_id, email, subtotal_cents, tax_cents, total_cents, status)
-      VALUES (${orderId}, ${finalUserId}, ${userEmail}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, 'paid')
+      INSERT INTO orders (id, order_number, user_id, email, subtotal_cents, tax_cents, total_cents, status)
+      VALUES (${orderId}, ${orderNumber}, ${finalUserId}, ${userEmail}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, 'paid')
       RETURNING *
     `;
 
@@ -188,19 +203,26 @@ exports.handler = async (event, context) => {
 
     console.log('All order items created successfully');
 
-    // Return the order object
+    // Return structured response
     const response = {
-      id: orderId,
-      user_id: orderData.user_id || null,
-      subtotal_cents: orderData.subtotal_cents || 0,
-      tax_cents: orderData.tax_cents || 0,
-      total_cents: orderData.total_cents || 0,
-      status: 'paid',
-      currency: orderData.currency || 'USD',
-      tracking_number: null,
-      tracking_carrier: null,
-      created_at: order.created_at || new Date().toISOString(),
-      items: orderData.items || []
+      ok: true,
+      orderId: orderId,
+      orderNumber: orderNumber,
+      order: {
+        id: orderId,
+        order_number: orderNumber,
+        user_id: orderData.user_id || null,
+        email: userEmail,
+        subtotal_cents: orderData.subtotal_cents || 0,
+        tax_cents: orderData.tax_cents || 0,
+        total_cents: orderData.total_cents || 0,
+        status: 'paid',
+        currency: orderData.currency || 'USD',
+        tracking_number: null,
+        tracking_carrier: null,
+        created_at: order.created_at || new Date().toISOString(),
+        items: orderData.items || []
+      }
     };
 
     return {
@@ -217,10 +239,9 @@ exports.handler = async (event, context) => {
       statusCode: 500,
       headers,
       body: JSON.stringify({
+        ok: false,
         error: 'Failed to create order',
-        details: error.message,
-        stack: error.stack,
-        orderData: orderData
+        details: error.message
       }),
     };
   }

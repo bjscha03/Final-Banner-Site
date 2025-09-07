@@ -158,15 +158,15 @@ export async function sendEmail(
         react: React.createElement(ResetPassword, payload),
       },
       'order.confirmation': {
-        subject: `Order #${payload?.order?.number || payload?.order?.id} confirmed`,
+        subject: `Order #${payload?.order?.order_number || payload?.order?.number || payload?.order?.id} confirmed`,
         react: React.createElement(OrderConfirmation, payload),
       },
       'order.shipped': {
-        subject: `Your order #${payload?.order?.number || payload?.order?.id} is on the way`,
+        subject: `Your order #${payload?.order?.order_number || payload?.order?.number || payload?.order?.id} is on the way`,
         react: React.createElement(OrderShipped, payload),
       },
       'order.canceled': {
-        subject: `Order #${payload?.order?.number || payload?.order?.id} canceled`,
+        subject: `Order #${payload?.order?.order_number || payload?.order?.number || payload?.order?.id} canceled`,
         react: React.createElement(OrderCanceled, payload),
       },
     };
