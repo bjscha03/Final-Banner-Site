@@ -55,11 +55,23 @@ exports.handler = async (event, context) => {
     await sql`CREATE INDEX IF NOT EXISTS idx_contact_messages_email ON contact_messages(email)`;
 
     // Update existing orders with order numbers (backfill)
-    const updateResult = await sql`
-      UPDATE orders 
-      SET order_number = LPAD((100000 + ROW_NUMBER() OVER (ORDER BY created_at))::text, 6, '0')
-      WHERE order_number IS NULL
+    // First get all orders without order numbers
+    const ordersWithoutNumbers = await sql`
+      SELECT id FROM orders WHERE order_number IS NULL ORDER BY created_at
     `;
+
+    let orderNumber = 100000;
+    let updateCount = 0;
+
+    for (const order of ordersWithoutNumbers) {
+      await sql`
+        UPDATE orders
+        SET order_number = ${orderNumber.toString().padStart(6, '0')}
+        WHERE id = ${order.id}
+      `;
+      orderNumber++;
+      updateCount++;
+    }
 
     return {
       statusCode: 200,
@@ -67,7 +79,7 @@ exports.handler = async (event, context) => {
       body: JSON.stringify({
         success: true,
         message: 'Migration completed successfully',
-        ordersUpdated: updateResult.count || updateResult.rowCount || 0
+        ordersUpdated: updateCount
       })
     };
 
