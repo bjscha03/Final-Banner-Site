@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Orders - User ID Matching</title>
+    <style>
+        body { font-family: monospace; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        .success { color: green; background: #f0f8f0; padding: 10px; border-radius: 4px; margin: 10px 0; }
+        .error { color: red; background: #fff0f0; padding: 10px; border-radius: 4px; margin: 10px 0; }
+        .info { color: blue; background: #f0f0ff; padding: 10px; border-radius: 4px; margin: 10px 0; }
+        .warning { color: orange; background: #fff8f0; padding: 10px; border-radius: 4px; margin: 10px 0; }
+        button { background: #007cba; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin: 5px; }
+        button:hover { background: #005a87; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        pre { background: #f8f8f8; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
+        table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; font-size: 12px; }
+        th { background-color: #f2f2f2; }
+        .section { margin: 20px 0; border: 1px solid #ddd; padding: 15px; border-radius: 4px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Debug Orders - User ID Matching</h1>
+        
+        <div class="info">
+            <strong>Purpose:</strong> This will help us understand why orders aren't showing up for users by checking user ID formats and matches.
+        </div>
+
+        <div id="status"></div>
+
+        <button id="debugOrders" onclick="debugOrders()">
+            🔍 Debug Orders & User IDs
+        </button>
+
+        <button id="getCurrentUser" onclick="getCurrentUser()">
+            👤 Get Current User Info
+        </button>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = type;
+            div.innerHTML = typeof message === 'object' ? '<pre>' + JSON.stringify(message, null, 2) + '</pre>' : message;
+            results.appendChild(div);
+            console.log(message);
+        }
+
+        function createTable(data, title) {
+            if (!data || data.length === 0) {
+                return `<div class="warning">No ${title} found</div>`;
+            }
+
+            const keys = Object.keys(data[0]);
+            let html = `<div class="section"><h3>${title}</h3><table><thead><tr>`;
+            
+            keys.forEach(key => {
+                html += `<th>${key}</th>`;
+            });
+            html += `</tr></thead><tbody>`;
+            
+            data.forEach(row => {
+                html += '<tr>';
+                keys.forEach(key => {
+                    html += `<td>${row[key] || 'null'}</td>`;
+                });
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table></div>';
+            return html;
+        }
+
+        async function getCurrentUser() {
+            try {
+                log('🔍 Getting current user from localStorage...', 'info');
+                
+                const currentUser = localStorage.getItem('banners_current_user');
+                if (currentUser) {
+                    const user = JSON.parse(currentUser);
+                    log('Current user found:', 'success');
+                    log(user, 'info');
+                } else {
+                    log('❌ No current user found in localStorage', 'error');
+                }
+                
+                // Also check session storage
+                const sessionUser = sessionStorage.getItem('banners_current_user');
+                if (sessionUser) {
+                    const user = JSON.parse(sessionUser);
+                    log('Session user found:', 'success');
+                    log(user, 'info');
+                } else {
+                    log('❌ No session user found in sessionStorage', 'warning');
+                }
+                
+            } catch (error) {
+                log('❌ Error getting current user: ' + error.message, 'error');
+            }
+        }
+
+        async function debugOrders() {
+            const button = document.getElementById('debugOrders');
+            const status = document.getElementById('status');
+            
+            button.disabled = true;
+            button.textContent = 'Debugging...';
+            status.innerHTML = '<div class="info">⏳ Debugging orders and user IDs...</div>';
+
+            try {
+                log('🔍 Starting orders debug...', 'info');
+                
+                const response = await fetch('/.netlify/functions/debug-orders');
+                const result = await response.json();
+
+                if (response.ok) {
+                    log('✅ Debug completed successfully!', 'success');
+                    
+                    // Display analysis
+                    const analysis = result.analysis;
+                    log(`📊 Analysis: ${analysis.totalUsers} users, ${analysis.totalOrders} orders, ${analysis.matchingOrders} matches, ${analysis.mismatchedOrders} mismatches`, 'info');
+                    
+                    // Create tables
+                    document.getElementById('results').innerHTML += createTable(result.users, 'Users');
+                    document.getElementById('results').innerHTML += createTable(result.orders, 'Orders');
+                    document.getElementById('results').innerHTML += createTable(result.orderItems, 'Order Items');
+                    
+                    if (result.matches.length > 0) {
+                        log('✅ Matching Orders Found:', 'success');
+                        log(result.matches, 'success');
+                    }
+                    
+                    if (result.mismatches.length > 0) {
+                        log('❌ Mismatched Orders Found:', 'error');
+                        log(result.mismatches, 'error');
+                        log('This means orders exist but user IDs don\'t match any current users', 'warning');
+                    }
+                    
+                    status.innerHTML = '<div class="success">✅ Debug completed!</div>';
+                    
+                } else {
+                    log('❌ Debug failed: ' + result.error, 'error');
+                    status.innerHTML = '<div class="error">❌ Debug failed</div>';
+                }
+
+            } catch (error) {
+                log('❌ Error during debug: ' + error.message, 'error');
+                status.innerHTML = '<div class="error">❌ Error during debug</div>';
+            } finally {
+                button.disabled = false;
+                button.textContent = '🔍 Debug Orders & User IDs';
+            }
+        }
+
+        // Auto-run current user check on page load
+        window.addEventListener('load', () => {
+            log('🔍 Orders Debug Tool Loaded', 'info');
+            getCurrentUser();
+        });
+    </script>
+</body>
+</html>
