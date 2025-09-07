@@ -52,7 +52,7 @@ exports.handler = async (event, context) => {
       // Get orders for specific user
       console.log('Fetching orders for user:', user_id);
       orders = await sql`
-        SELECT o.*, 
+        SELECT o.*,
                json_agg(
                  json_build_object(
                    'id', oi.id,
@@ -61,9 +61,12 @@ exports.handler = async (event, context) => {
                    'quantity', oi.quantity,
                    'material', oi.material,
                    'grommets', oi.grommets,
-                   'rope_feet', oi.rope_feet,
+                   'rope_feet', COALESCE(oi.rope_feet, 0),
                    'pole_pockets', oi.pole_pockets,
-                   'line_total_cents', oi.line_total_cents
+                   'area_sqft', COALESCE(oi.area_sqft, (oi.width_in * oi.height_in / 144.0)),
+                   'unit_price_cents', COALESCE(oi.unit_price_cents, oi.line_total_cents / oi.quantity),
+                   'line_total_cents', oi.line_total_cents,
+                   'file_key', oi.file_key
                  )
                ) as items
         FROM orders o
@@ -77,7 +80,7 @@ exports.handler = async (event, context) => {
       // Get all orders (admin view)
       console.log('Fetching all orders');
       orders = await sql`
-        SELECT o.*, 
+        SELECT o.*,
                json_agg(
                  json_build_object(
                    'id', oi.id,
@@ -86,9 +89,12 @@ exports.handler = async (event, context) => {
                    'quantity', oi.quantity,
                    'material', oi.material,
                    'grommets', oi.grommets,
-                   'rope_feet', oi.rope_feet,
+                   'rope_feet', COALESCE(oi.rope_feet, 0),
                    'pole_pockets', oi.pole_pockets,
-                   'line_total_cents', oi.line_total_cents
+                   'area_sqft', COALESCE(oi.area_sqft, (oi.width_in * oi.height_in / 144.0)),
+                   'unit_price_cents', COALESCE(oi.unit_price_cents, oi.line_total_cents / oi.quantity),
+                   'line_total_cents', oi.line_total_cents,
+                   'file_key', oi.file_key
                  )
                ) as items
         FROM orders o

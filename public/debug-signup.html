@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Sign-Up Issues</title>
+    <style>
+        body { font-family: monospace; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        .success { color: green; background: #f0f8f0; padding: 10px; border-radius: 4px; margin: 10px 0; }
+        .error { color: red; background: #fff0f0; padding: 10px; border-radius: 4px; margin: 10px 0; }
+        .info { color: blue; background: #f0f0ff; padding: 10px; border-radius: 4px; margin: 10px 0; }
+        button { background: #007cba; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin: 5px; }
+        button:hover { background: #005a87; }
+        pre { background: #f8f8f8; padding: 10px; border-radius: 4px; overflow-x: auto; }
+        input { padding: 8px; margin: 5px; border: 1px solid #ccc; border-radius: 4px; width: 200px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Debug Sign-Up Issues</h1>
+        
+        <div class="info">
+            <strong>Purpose:</strong> This will help us figure out what's going wrong with user registration.
+        </div>
+
+        <div id="results"></div>
+
+        <h3>Step 1: Test Database Connection</h3>
+        <button onclick="testDatabase()">Test Database Connection</button>
+
+        <h3>Step 2: Test User Creation</h3>
+        <div>
+            <input type="email" id="testEmail" placeholder="test@example.com" value="test@example.com">
+            <input type="text" id="testUsername" placeholder="testuser" value="testuser">
+            <button onclick="testUserCreation()">Test User Creation</button>
+        </div>
+
+        <h3>Step 3: Check Environment Variables</h3>
+        <button onclick="checkEnvironment()">Check Environment</button>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = type;
+            div.innerHTML = typeof message === 'object' ? '<pre>' + JSON.stringify(message, null, 2) + '</pre>' : message;
+            results.appendChild(div);
+            console.log(message);
+        }
+
+        async function testDatabase() {
+            log('🔍 Testing database connection...', 'info');
+            
+            try {
+                const response = await fetch('/.netlify/functions/test-auth');
+                const result = await response.json();
+                
+                if (response.ok) {
+                    log('✅ Database connection successful!', 'success');
+                    log('Database info:', 'info');
+                    log(result, 'info');
+                } else {
+                    log('❌ Database connection failed', 'error');
+                    log(result, 'error');
+                }
+            } catch (error) {
+                log('❌ Error testing database: ' + error.message, 'error');
+            }
+        }
+
+        async function testUserCreation() {
+            const email = document.getElementById('testEmail').value;
+            const username = document.getElementById('testUsername').value;
+            
+            log(`🔍 Testing user creation for ${email} with username ${username}...`, 'info');
+            
+            try {
+                const response = await fetch('/.netlify/functions/create-user', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        id: 'test-' + Date.now(), // Generate a test ID
+                        email: email,
+                        username: username,
+                        full_name: 'Test User',
+                        is_admin: false,
+                        is_signup: true
+                    })
+                });
+
+                const result = await response.json();
+                
+                if (response.ok) {
+                    log('✅ User creation successful!', 'success');
+                    log('User data:', 'info');
+                    log(result, 'info');
+                } else {
+                    log('❌ User creation failed', 'error');
+                    log('Status: ' + response.status, 'error');
+                    log('Error details:', 'error');
+                    log(result, 'error');
+                }
+            } catch (error) {
+                log('❌ Error testing user creation: ' + error.message, 'error');
+            }
+        }
+
+        async function checkEnvironment() {
+            log('🔍 Checking environment variables...', 'info');
+            
+            try {
+                const response = await fetch('/.netlify/functions/debug-env');
+                const result = await response.json();
+                
+                if (response.ok) {
+                    log('✅ Environment check successful!', 'success');
+                    log('Environment info:', 'info');
+                    log(result, 'info');
+                } else {
+                    log('❌ Environment check failed', 'error');
+                    log(result, 'error');
+                }
+            } catch (error) {
+                log('❌ Error checking environment: ' + error.message, 'error');
+            }
+        }
+
+        // Auto-run database test on page load
+        window.addEventListener('load', () => {
+            log('🔍 Debug Tool Loaded', 'info');
+            log('Running automatic database connection test...', 'info');
+            testDatabase();
+        });
+    </script>
+</body>
+</html>

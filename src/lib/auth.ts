@@ -37,8 +37,8 @@ class LocalAuthAdapter implements AuthAdapter {
     // Check for admin flag in email (admin@example.com or contains 'admin')
     const isAdmin = email.toLowerCase().includes('admin');
 
-    // Use consistent user ID for development to match sample orders
-    const userId = isAdmin ? 'admin_dev_user' : 'dev_user_123';
+    // Generate a proper UUID for the user ID
+    const userId = crypto.randomUUID();
 
     const user: User = {
       id: userId,
@@ -85,8 +85,8 @@ class LocalAuthAdapter implements AuthAdapter {
     // In development mode, create a new user account
     const isAdmin = email.toLowerCase().includes('admin');
 
-    // Use consistent user ID for development to match sample orders
-    const userId = isAdmin ? 'admin_dev_user' : 'dev_user_123';
+    // Generate a proper UUID for the user ID
+    const userId = crypto.randomUUID();
 
     const user: User = {
       id: userId,

@@ -135,20 +135,20 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                       <div className="text-sm text-gray-600 mt-2 grid grid-cols-2 gap-2">
                         <p>Material: {item.material}</p>
                         <p>Quantity: {item.quantity}</p>
-                        <p>Area: {item.area_sqft.toFixed(2)} sq ft</p>
+                        <p>Area: {(item.area_sqft || 0).toFixed(2)} sq ft</p>
                         {item.grommets && <p>Grommets: {item.grommets}</p>}
                         {item.rope_feet && item.rope_feet > 0 && (
-                          <p>Rope: {item.rope_feet.toFixed(1)} ft</p>
+                          <p>Rope: {(item.rope_feet || 0).toFixed(1)} ft</p>
                         )}
                         {item.file_key && <p>File: {item.file_key}</p>}
                       </div>
                     </div>
                     <div className="text-right ml-4">
                       <p className="font-semibold text-gray-900">
-                        {usd(item.line_total_cents / 100)}
+                        {usd((item.line_total_cents || 0) / 100)}
                       </p>
                       <p className="text-sm text-gray-600">
-                        {usd(item.unit_price_cents / 100)} each
+                        {usd((item.unit_price_cents || 0) / 100)} each
                       </p>
                       <Button
                         variant="outline"
