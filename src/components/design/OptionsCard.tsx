@@ -4,15 +4,16 @@ import { useQuoteStore, Grommets, PolePocketSize } from '@/store/quote';
 import { ropeCost, polePocketCost } from '@/lib/pricing';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { GrommetPicker } from '@/components/ui/GrommetPicker';
 
 const grommetOptions = [
-  { value: 'none', label: 'None', desc: 'No grommets' },
-  { value: 'every-2-3ft', label: 'Every 2–3 feet', desc: 'Standard spacing' },
-  { value: 'every-1-2ft', label: 'Every 1–2 feet', desc: 'Close spacing' },
-  { value: '4-corners', label: '4 corners only', desc: 'Corner grommets' },
-  { value: 'top-corners', label: 'Top corners only', desc: 'Top edge mounting' },
-  { value: 'right-corners', label: 'Right corners only', desc: 'Right edge mounting' },
-  { value: 'left-corners', label: 'Left corners only', desc: 'Left edge mounting' }
+  { id: 'none', label: 'None', description: 'No grommets' },
+  { id: 'every-2-3ft', label: 'Every 2–3 feet', description: 'Standard spacing for most applications' },
+  { id: 'every-1-2ft', label: 'Every 1–2 feet', description: 'Close spacing for high wind areas' },
+  { id: '4-corners', label: '4 corners only', description: 'Corner grommets for simple hanging' },
+  { id: 'top-corners', label: 'Top corners only', description: 'Top edge mounting' },
+  { id: 'right-corners', label: 'Right corners only', description: 'Right edge mounting' },
+  { id: 'left-corners', label: 'Left corners only', description: 'Left edge mounting' }
 ];
 
 const polePocketOptions = [
@@ -56,7 +57,20 @@ const OptionsCard: React.FC = () => {
       </div>
 
       <div className="p-6 space-y-6">
+        {/* Grommets Section */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <Circle className="w-4 h-4 text-gray-600" />
+            <h3 className="text-sm font-medium text-gray-700">Grommets</h3>
+          </div>
 
+          <GrommetPicker
+            value={grommets}
+            onChange={(value) => set({ grommets: value as Grommets })}
+            options={grommetOptions}
+            placeholder="Choose grommet placement"
+          />
+        </div>
 
         {/* Pole Pockets Section */}
         <div>

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Circle } from 'lucide-react';
+import { Circle, Check } from 'lucide-react';
 import { useQuoteStore, Grommets } from '@/store/quote';
 import { GrommetPicker } from '@/components/ui/GrommetPicker';
 
@@ -71,7 +71,6 @@ const GrommetsCard: React.FC = () => {
           options={grommetOptions}
           placeholder="Choose grommet placement"
         />
-      </div>
 
         {/* Info Banner */}
         <div className="mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">

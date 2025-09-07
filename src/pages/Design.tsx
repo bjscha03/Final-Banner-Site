@@ -117,7 +117,7 @@ const Design: React.FC = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50 pt-8 pb-4 sm:pt-12 sm:pb-6 md:pt-16 md:pb-8 relative overflow-hidden">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50 pt-8 pb-4 sm:pt-12 sm:pb-6 md:pt-16 md:pb-8 relative">
         {/* Background Pattern */}
         <div className="absolute inset-0 opacity-30">
           <div className="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-blue-300/20 to-transparent rounded-full blur-3xl transform -translate-x-1/2 -translate-y-1/2"></div>
