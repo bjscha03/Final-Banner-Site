@@ -45,16 +45,31 @@ exports.handler = async (event) => {
   const statusMap = {
     'email.delivered': 'delivered',
     'email.bounced': 'bounced',
-    'email.complained': 'complained'
+    'email.complained': 'complained',
+    'email.opened': 'opened'
   };
   const newStatus = statusMap[evt.type];
 
   if (providerMsgId && newStatus) {
+    // Update email_events table
     const result = await db`
-      UPDATE emails
+      UPDATE email_events
       SET status = ${newStatus}
       WHERE provider_msg_id = ${providerMsgId} AND status <> ${newStatus}
     `;
+
+    // Also update orders.confirmation_email_status if this is an order confirmation
+    if (evt.data && evt.data.tags) {
+      const orderIdTag = evt.data.tags.find(tag => tag.name === 'order_id');
+      if (orderIdTag && orderIdTag.value) {
+        await db`
+          UPDATE orders
+          SET confirmation_email_status = ${newStatus}
+          WHERE id = ${orderIdTag.value}
+        `;
+      }
+    }
+
     console.log('webhook update', { providerMsgId, newStatus, rowCount: result.count || result.rowCount });
   }
 
