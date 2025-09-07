@@ -51,6 +51,22 @@ class LocalAuthAdapter implements AuthAdapter {
       user.is_admin = true;
     }
 
+    // Ensure user exists in database
+    try {
+      await fetch('/.netlify/functions/ensure-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: user.id,
+          email: user.email,
+          full_name: user.full_name,
+          username: user.username
+        })
+      });
+    } catch (error) {
+      console.warn('Failed to ensure user in database:', error);
+    }
+
     // Create user profile in database
     try {
       const response = await fetch('/.netlify/functions/create-user', {

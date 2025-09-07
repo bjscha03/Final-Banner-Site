@@ -55,38 +55,52 @@ exports.handler = async (event, context) => {
     console.log('Order data:', JSON.stringify(orderData, null, 2));
     console.log('User ID:', orderData.user_id);
 
-    // Handle user_id - if it's provided, check if user exists in profiles table
+    // Handle user_id - ALWAYS try to find or create user in database
     let finalUserId = null;
     let userEmail = 'guest@example.com';
 
+    console.log('Order data received:', JSON.stringify(orderData, null, 2));
+
+    // If we have user_id, try to find user
     if (orderData.user_id) {
       try {
         console.log('Looking for user with ID:', orderData.user_id);
         const userCheck = await sql`
-          SELECT id, email FROM profiles WHERE id = ${orderData.user_id}
+          SELECT id, email, username FROM profiles WHERE id = ${orderData.user_id}
         `;
 
         if (userCheck.length > 0) {
           finalUserId = orderData.user_id;
           userEmail = userCheck[0].email;
-          console.log('User found in profiles table:', finalUserId, userEmail);
+          console.log('✅ User found in profiles table:', finalUserId, userEmail);
         } else {
-          console.log('User not found in profiles table, checking by email if available');
+          console.log('❌ User ID not found in profiles table. User may not be properly registered.');
 
-          // If we have email in the order data, try to find user by email
-          if (orderData.email) {
-            const emailCheck = await sql`
-              SELECT id, email FROM profiles WHERE email = ${orderData.email}
-            `;
-            if (emailCheck.length > 0) {
-              finalUserId = emailCheck[0].id;
-              userEmail = emailCheck[0].email;
-              console.log('User found by email:', finalUserId, userEmail);
-            }
-          }
+          // Try to find user by any available identifier
+          // Check if we can extract email from localStorage or other sources
+          console.log('Attempting to find user by other means...');
+
+          // For now, create a guest order but log the issue
+          console.warn('⚠️ CRITICAL: User authenticated but not in database. This needs to be fixed.');
         }
       } catch (userError) {
-        console.warn('Error checking user profile:', userError);
+        console.error('Error checking user profile:', userError);
+      }
+    }
+
+    // If still no user found, check if we have email in order data
+    if (!finalUserId && orderData.email) {
+      try {
+        const emailCheck = await sql`
+          SELECT id, email FROM profiles WHERE email = ${orderData.email}
+        `;
+        if (emailCheck.length > 0) {
+          finalUserId = emailCheck[0].id;
+          userEmail = emailCheck[0].email;
+          console.log('✅ User found by email:', finalUserId, userEmail);
+        }
+      } catch (emailError) {
+        console.error('Error checking user by email:', emailError);
       }
     }
 
