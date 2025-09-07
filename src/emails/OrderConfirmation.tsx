@@ -18,17 +18,24 @@ interface OrderConfirmationProps {
   to: string;
   order: {
     id: string;
-    orderNumber: string;
-    customerName: string;
+    number?: string;
+    orderNumber?: string;
+    customerName?: string;
     items: Array<{
       name: string;
-      quantity: number;
-      price: number;
+      qty?: number;
+      quantity?: number;
+      unitPriceCents?: number;
+      price?: number;
+      size?: string;
       options?: string;
     }>;
-    subtotal: number;
-    tax: number;
-    total: number;
+    subtotal?: number;
+    subtotalCents?: number;
+    tax?: number;
+    taxCents?: number;
+    total?: number;
+    totalCents?: number;
     shippingAddress?: {
       name: string;
       address1: string;
@@ -47,6 +54,13 @@ export default function OrderConfirmation({ order, invoiceUrl }: OrderConfirmati
     month: 'long',
     day: 'numeric',
   });
+
+  // Handle different prop formats
+  const orderNumber = order.number || order.orderNumber || order.id.slice(-8).toUpperCase();
+  const customerName = order.customerName || 'Customer';
+  const subtotal = order.subtotal || (order.subtotalCents ? order.subtotalCents / 100 : 0);
+  const tax = order.tax || (order.taxCents ? order.taxCents / 100 : 0);
+  const total = order.total || (order.totalCents ? order.totalCents / 100 : subtotal + tax);
 
   return (
     <Html>
@@ -70,7 +84,7 @@ export default function OrderConfirmation({ order, invoiceUrl }: OrderConfirmati
               </Column>
               <Column style={orderDetails}>
                 <Text style={orderLabel}>Order #</Text>
-                <Text style={orderNumber}>{order.orderNumber}</Text>
+                <Text style={orderNumberStyle}>{orderNumber}</Text>
                 <Text style={orderDate}>{orderDate}</Text>
               </Column>
             </Row>
@@ -79,7 +93,7 @@ export default function OrderConfirmation({ order, invoiceUrl }: OrderConfirmati
           {/* Main Content */}
           <Section style={content}>
             <Text style={greeting}>
-              Hi {order.customerName},
+              Hi {customerName},
             </Text>
             
             <Text style={paragraph}>
@@ -91,36 +105,42 @@ export default function OrderConfirmation({ order, invoiceUrl }: OrderConfirmati
             <Section style={itemsSection}>
               <Heading style={sectionTitle}>Order Items</Heading>
               <div style={itemsContainer}>
-                {order.items.map((item, index) => (
-                  <div key={index} style={itemRow}>
-                    <div style={itemInfo}>
-                      <Text style={itemName}>{item.name}</Text>
-                      {item.options && (
-                        <Text style={itemOptions}>{item.options}</Text>
-                      )}
+                {order.items.map((item, index) => {
+                  const itemPrice = item.price || (item.unitPriceCents ? item.unitPriceCents / 100 : 0);
+                  const itemQty = item.qty || item.quantity || 1;
+                  const itemName = item.name + (item.size ? ` ${item.size}` : '');
+
+                  return (
+                    <div key={index} style={itemRow}>
+                      <div style={itemInfo}>
+                        <Text style={itemNameStyle}>{itemName}</Text>
+                        {item.options && (
+                          <Text style={itemOptions}>{item.options}</Text>
+                        )}
+                      </div>
+                      <div style={itemPricing}>
+                        <Text style={itemPriceStyle}>${itemPrice.toFixed(2)}</Text>
+                        <Text style={itemQuantity}>Qty: {itemQty}</Text>
+                      </div>
                     </div>
-                    <div style={itemPricing}>
-                      <Text style={itemPrice}>${item.price.toFixed(2)}</Text>
-                      <Text style={itemQuantity}>Qty: {item.quantity}</Text>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
                 
                 {/* Totals */}
                 <Hr style={itemsHr} />
                 <div style={totalRow}>
                   <Text style={totalLabel}>Subtotal</Text>
-                  <Text style={totalValue}>${order.subtotal.toFixed(2)}</Text>
+                  <Text style={totalValue}>${subtotal.toFixed(2)}</Text>
                 </div>
-                {order.tax > 0 && (
+                {tax > 0 && (
                   <div style={totalRow}>
                     <Text style={totalLabel}>Tax</Text>
-                    <Text style={totalValue}>${order.tax.toFixed(2)}</Text>
+                    <Text style={totalValue}>${tax.toFixed(2)}</Text>
                   </div>
                 )}
                 <div style={finalTotalRow}>
                   <Text style={finalTotalLabel}>Total Paid</Text>
-                  <Text style={finalTotalValue}>${order.total.toFixed(2)}</Text>
+                  <Text style={finalTotalValue}>${total.toFixed(2)}</Text>
                 </div>
               </div>
             </Section>
@@ -252,7 +272,7 @@ const orderLabel = {
   margin: '0',
 };
 
-const orderNumber = {
+const orderNumberStyle = {
   fontSize: '16px',
   fontWeight: 'bold',
   fontFamily: 'monospace',
@@ -313,7 +333,7 @@ const itemInfo = {
   flex: '1',
 };
 
-const itemName = {
+const itemNameStyle = {
   fontSize: '16px',
   fontWeight: '600',
   color: '#1f2937',
@@ -331,7 +351,7 @@ const itemPricing = {
   marginLeft: '20px',
 };
 
-const itemPrice = {
+const itemPriceStyle = {
   fontSize: '16px',
   fontWeight: '600',
   color: '#1f2937',
