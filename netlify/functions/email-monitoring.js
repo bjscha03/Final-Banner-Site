@@ -97,7 +97,7 @@ exports.handler = async (event) => {
         ee.created_at as email_sent_at,
         ee.error_message
       FROM orders o
-      LEFT JOIN email_events ee ON ee.order_id = o.id AND ee.type = 'order.confirmation'
+      LEFT JOIN email_events ee ON ee.order_id::text = o.id::text AND ee.type = 'order.confirmation'
       WHERE o.created_at > NOW() - INTERVAL '24 hours'
       ORDER BY o.created_at DESC
       LIMIT 20
