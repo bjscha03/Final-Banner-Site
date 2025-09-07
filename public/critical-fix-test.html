@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🚨 CRITICAL FIX - User Order Association</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 1000px; margin: 0 auto; padding: 20px; background: #f5f5f5; }
+        .container { background: white; padding: 30px; border-radius: 10px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .header { text-align: center; margin-bottom: 30px; }
+        .header h1 { color: #dc3545; font-size: 2.5em; margin: 0; }
+        .critical { background: #dc3545; color: white; padding: 20px; border-radius: 8px; margin: 20px 0; }
+        .step { margin: 20px 0; padding: 20px; border: 2px solid #007bff; border-radius: 8px; background: #f8f9fa; }
+        .step h3 { color: #007bff; margin-top: 0; }
+        .fix-button { 
+            background: #dc3545; color: white; border: none; padding: 15px 30px; 
+            font-size: 1.1em; border-radius: 5px; cursor: pointer; width: 100%; 
+            margin: 10px 0; transition: background 0.3s;
+        }
+        .fix-button:hover { background: #c82333; }
+        .fix-button:disabled { background: #6c757d; cursor: not-allowed; }
+        .test-button { 
+            background: #007bff; color: white; border: none; padding: 12px 25px; 
+            font-size: 1em; border-radius: 5px; cursor: pointer; margin: 5px; 
+        }
+        .test-button:hover { background: #0056b3; }
+        .test-button:disabled { background: #6c757d; cursor: not-allowed; }
+        .results { 
+            margin-top: 15px; padding: 15px; background: #f8f9fa; border-radius: 5px; 
+            white-space: pre-wrap; font-family: monospace; max-height: 300px; overflow-y: auto;
+            font-size: 12px;
+        }
+        .success { background: #d4edda; border: 1px solid #c3e6cb; color: #155724; }
+        .error { background: #f8d7da; border: 1px solid #f5c6cb; color: #721c24; }
+        .warning { background: #fff3cd; border: 1px solid #ffeaa7; color: #856404; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .status { padding: 10px; border-radius: 5px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚨 CRITICAL FIX</h1>
+            <p><strong>User-Order Association System Repair</strong></p>
+        </div>
+
+        <div class="critical">
+            <h2>🔥 CRITICAL ISSUES BEING FIXED:</h2>
+            <ul>
+                <li><strong>Orders showing "guest@example.com" instead of real user emails</strong></li>
+                <li><strong>Orders not appearing on My Orders page</strong></li>
+                <li><strong>User authentication creating new IDs instead of using existing ones</strong></li>
+                <li><strong>Database user-order association completely broken</strong></li>
+            </ul>
+        </div>
+
+        <div class="grid">
+            <div class="step">
+                <h3>🔍 Step 1: Database Diagnostics</h3>
+                <p>Check current database state</p>
+                <button class="test-button" onclick="testDatabase()">Test Database</button>
+                <div id="db-results" class="results"></div>
+            </div>
+
+            <div class="step">
+                <h3>👤 Step 2: User System Test</h3>
+                <p>Check user profiles and authentication</p>
+                <button class="test-button" onclick="testUsers()">Test Users</button>
+                <div id="user-results" class="results"></div>
+            </div>
+        </div>
+
+        <div class="step">
+            <h3>🔧 Step 3: REPAIR ALL ISSUES</h3>
+            <p>This will fix all orders with guest emails and ensure proper user associations</p>
+            <button class="fix-button" onclick="repairAllIssues()" id="repair-btn">
+                🔧 REPAIR ALL USER-ORDER ISSUES
+            </button>
+            <div id="repair-results" class="results"></div>
+        </div>
+
+        <div class="step">
+            <h3>✅ Step 4: Verification</h3>
+            <p>Verify all issues are resolved</p>
+            <div class="grid">
+                <button class="test-button" onclick="verifyDatabase()">Verify Database</button>
+                <button class="test-button" onclick="verifyOrders()">Verify Orders</button>
+            </div>
+            <div id="verify-results" class="results"></div>
+        </div>
+
+        <div class="step">
+            <h3>🎯 Step 5: Final Test</h3>
+            <p>Test the complete flow: Sign in → Create order → Check My Orders</p>
+            <button class="test-button" onclick="testCompleteFlow()">Test Complete Flow</button>
+            <div id="flow-results" class="results"></div>
+        </div>
+
+        <div id="overall-status" class="status warning">
+            <strong>Status:</strong> Ready to begin diagnostics and repair
+        </div>
+    </div>
+
+    <script>
+        let diagnosticsComplete = false;
+        let repairComplete = false;
+
+        async function testDatabase() {
+            const results = document.getElementById('db-results');
+            results.textContent = 'Testing database connection...\n';
+            results.className = 'results warning';
+
+            try {
+                const response = await fetch('/.netlify/functions/debug-db');
+                const data = await response.json();
+
+                if (data.ok) {
+                    results.textContent = `✅ Database Connection: OK
+Database: ${data.dbHostSuffix}
+Total Orders: ${data.orderCount}
+
+Latest Orders:
+${data.latestOrders.map(o => `- ${o.id}: ${o.email} (user: ${o.user_id || 'NULL'})`).join('\n')}
+
+Recent Users:
+${data.recentUsers.map(u => `- ${u.id}: ${u.email}`).join('\n')}`;
+                    results.className = 'results success';
+                } else {
+                    results.textContent = `❌ Database Error: ${data.error}`;
+                    results.className = 'results error';
+                }
+            } catch (error) {
+                results.textContent = `❌ Connection Error: ${error.message}`;
+                results.className = 'results error';
+            }
+        }
+
+        async function testUsers() {
+            const results = document.getElementById('user-results');
+            results.textContent = 'Testing user system...\n';
+            results.className = 'results warning';
+
+            try {
+                const response = await fetch('/.netlify/functions/debug-user');
+                const data = await response.json();
+
+                if (data.success) {
+                    results.textContent = `✅ User System: OK
+Total Users: ${data.count}
+
+User Profiles:
+${data.profiles.map(p => `- ${p.email} (${p.id})`).join('\n')}`;
+                    results.className = 'results success';
+                    diagnosticsComplete = true;
+                } else {
+                    results.textContent = `❌ User System Error: ${JSON.stringify(data)}`;
+                    results.className = 'results error';
+                }
+            } catch (error) {
+                results.textContent = `❌ User Test Error: ${error.message}`;
+                results.className = 'results error';
+            }
+        }
+
+        async function repairAllIssues() {
+            const btn = document.getElementById('repair-btn');
+            const results = document.getElementById('repair-results');
+            
+            btn.disabled = true;
+            btn.textContent = '🔧 REPAIRING ISSUES...';
+            results.textContent = 'Starting comprehensive repair...\n';
+            results.className = 'results warning';
+
+            try {
+                const response = await fetch('/.netlify/functions/repair-user-orders', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    results.textContent = `✅ REPAIR COMPLETED!
+
+${data.message}
+
+Details:
+- Orders Found: ${data.results.ordersFound}
+- Orders Repaired: ${data.results.ordersRepaired}
+- Users Created: ${data.results.usersCreated}
+- Errors: ${data.results.errors.length}
+
+Final Stats:
+- Total Orders: ${data.results.finalStats.totalOrders}
+- Remaining Guest Orders: ${data.results.finalStats.remainingGuestOrders}
+
+${data.results.errors.length > 0 ? 'Errors:\n' + data.results.errors.join('\n') : ''}`;
+                    results.className = 'results success';
+                    btn.textContent = '✅ REPAIR COMPLETED!';
+                    repairComplete = true;
+                    
+                    updateOverallStatus('Repair completed successfully! Ready for verification.');
+                } else {
+                    results.textContent = `❌ REPAIR FAILED:\n${JSON.stringify(data, null, 2)}`;
+                    results.className = 'results error';
+                    btn.textContent = '❌ REPAIR FAILED - TRY AGAIN';
+                    btn.disabled = false;
+                }
+            } catch (error) {
+                results.textContent = `❌ REPAIR ERROR: ${error.message}`;
+                results.className = 'results error';
+                btn.textContent = '❌ ERROR - TRY AGAIN';
+                btn.disabled = false;
+            }
+        }
+
+        async function verifyDatabase() {
+            const results = document.getElementById('verify-results');
+            results.textContent = 'Verifying database state...\n';
+            results.className = 'results warning';
+
+            try {
+                const response = await fetch('/.netlify/functions/debug-db');
+                const data = await response.json();
+
+                if (data.ok) {
+                    const guestOrders = data.latestOrders.filter(o => o.email === 'guest@example.com');
+                    const realOrders = data.latestOrders.filter(o => o.email !== 'guest@example.com');
+                    
+                    results.textContent = `✅ DATABASE VERIFICATION:
+
+Total Orders: ${data.orderCount}
+Orders with Real Emails: ${realOrders.length}
+Orders with Guest Email: ${guestOrders.length}
+
+${guestOrders.length === 0 ? '🎉 NO MORE GUEST ORDERS!' : '⚠️ Still have guest orders'}
+
+Recent Orders:
+${data.latestOrders.map(o => `${o.email === 'guest@example.com' ? '❌' : '✅'} ${o.email} (${o.user_id || 'NULL'})`).join('\n')}`;
+                    
+                    results.className = guestOrders.length === 0 ? 'results success' : 'results warning';
+                } else {
+                    results.textContent = `❌ Verification Error: ${data.error}`;
+                    results.className = 'results error';
+                }
+            } catch (error) {
+                results.textContent = `❌ Verification Error: ${error.message}`;
+                results.className = 'results error';
+            }
+        }
+
+        async function verifyOrders() {
+            // This would test the My Orders page functionality
+            const results = document.getElementById('verify-results');
+            results.textContent += '\n\n🎯 NEXT STEPS FOR MANUAL VERIFICATION:\n';
+            results.textContent += '1. Go to https://bannersonthefly.com/my-orders\n';
+            results.textContent += '2. Sign in with your account\n';
+            results.textContent += '3. Check if your orders appear\n';
+            results.textContent += '4. Create a new test order\n';
+            results.textContent += '5. Verify new order appears with correct email\n';
+        }
+
+        async function testCompleteFlow() {
+            const results = document.getElementById('flow-results');
+            results.textContent = 'Testing complete order flow...\n';
+            results.className = 'results warning';
+
+            // This would require more complex integration testing
+            results.textContent += '🎯 MANUAL FLOW TEST REQUIRED:\n\n';
+            results.textContent += '1. Open https://bannersonthefly.com in new tab\n';
+            results.textContent += '2. Sign in with your account (bjscha02@gmail.com)\n';
+            results.textContent += '3. Create a test banner and place order\n';
+            results.textContent += '4. Check that order shows your real email (not guest@example.com)\n';
+            results.textContent += '5. Go to My Orders page and verify order appears\n';
+            results.textContent += '6. If all steps work, the fix is successful!\n';
+            
+            results.className = 'results success';
+        }
+
+        function updateOverallStatus(message) {
+            const status = document.getElementById('overall-status');
+            status.textContent = `Status: ${message}`;
+            status.className = 'status success';
+        }
+
+        // Auto-run diagnostics on page load
+        window.addEventListener('load', () => {
+            setTimeout(() => {
+                testDatabase();
+                setTimeout(() => testUsers(), 1000);
+            }, 500);
+        });
+    </script>
+</body>
+</html>

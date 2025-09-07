@@ -37,34 +37,73 @@ class LocalAuthAdapter implements AuthAdapter {
     // Check for admin flag in email (admin@example.com or contains 'admin')
     const isAdmin = email.toLowerCase().includes('admin');
 
-    // Generate a proper UUID for the user ID
-    const userId = crypto.randomUUID();
+    console.log('🔍 SIGN IN DEBUG: Starting sign in for', email);
 
-    const user: User = {
-      id: userId,
-      email,
-      is_admin: isAdmin,
-    };
+    // CRITICAL FIX: First check if user already exists in database
+    let user: User | null = null;
+
+    try {
+      // Try to find existing user by email
+      const response = await fetch('/.netlify/functions/debug-user', {
+        method: 'GET'
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        const existingUser = data.profiles?.find((p: any) => p.email === email);
+
+        if (existingUser) {
+          console.log('✅ Found existing user in database:', existingUser.id);
+          user = {
+            id: existingUser.id,
+            email: existingUser.email,
+            username: existingUser.username,
+            full_name: existingUser.full_name,
+            is_admin: existingUser.is_admin || isAdmin,
+          };
+        }
+      }
+    } catch (error) {
+      console.warn('Could not check for existing user:', error);
+    }
+
+    // If user doesn't exist, create new one
+    if (!user) {
+      console.log('🆕 Creating new user for', email);
+      const userId = crypto.randomUUID();
+
+      user = {
+        id: userId,
+        email,
+        is_admin: isAdmin,
+      };
+
+      // Create user in database
+      try {
+        const response = await fetch('/.netlify/functions/ensure-user', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: user.id,
+            email: user.email,
+            full_name: user.full_name,
+            username: user.username
+          })
+        });
+
+        if (!response.ok) {
+          console.error('Failed to create user in database');
+        } else {
+          console.log('✅ User created in database:', user.id);
+        }
+      } catch (error) {
+        console.error('Failed to ensure user in database:', error);
+      }
+    }
 
     // Check for admin cookie
     if (document.cookie.includes('admin=1')) {
       user.is_admin = true;
-    }
-
-    // Ensure user exists in database
-    try {
-      await fetch('/.netlify/functions/ensure-user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: user.id,
-          email: user.email,
-          full_name: user.full_name,
-          username: user.username
-        })
-      });
-    } catch (error) {
-      console.warn('Failed to ensure user in database:', error);
     }
 
     // Create user profile in database

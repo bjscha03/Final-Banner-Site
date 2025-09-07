@@ -55,42 +55,46 @@ exports.handler = async (event, context) => {
     console.log('Order data:', JSON.stringify(orderData, null, 2));
     console.log('User ID:', orderData.user_id);
 
-    // Handle user_id - ALWAYS try to find or create user in database
+    // Handle user_id - CRITICAL FIX: Always use real user email, never guest email
     let finalUserId = null;
-    let userEmail = 'guest@example.com';
+    let userEmail = null; // CHANGED: Don't default to guest email
 
+    console.log('🔍 ORDER CREATION DEBUG:');
     console.log('Order data received:', JSON.stringify(orderData, null, 2));
 
-    // If we have user_id, try to find user
+    // STEP 1: If we have user_id, find the user and get their REAL email
     if (orderData.user_id) {
       try {
-        console.log('Looking for user with ID:', orderData.user_id);
+        console.log('🔍 Looking for user with ID:', orderData.user_id);
         const userCheck = await sql`
           SELECT id, email, username FROM profiles WHERE id = ${orderData.user_id}
         `;
 
         if (userCheck.length > 0) {
           finalUserId = orderData.user_id;
-          userEmail = userCheck[0].email;
-          console.log('✅ User found in profiles table:', finalUserId, userEmail);
+          userEmail = userCheck[0].email; // CRITICAL: Use the REAL user email
+          console.log('✅ User found in profiles table:');
+          console.log('   - User ID:', finalUserId);
+          console.log('   - Real Email:', userEmail);
+          console.log('   - Username:', userCheck[0].username);
         } else {
-          console.log('❌ User ID not found in profiles table. User may not be properly registered.');
+          console.log('❌ CRITICAL ERROR: User ID not found in profiles table!');
+          console.log('   - Provided user_id:', orderData.user_id);
+          console.log('   - This user needs to be created in database first');
 
-          // Try to find user by any available identifier
-          // Check if we can extract email from localStorage or other sources
-          console.log('Attempting to find user by other means...');
-
-          // For now, create a guest order but log the issue
-          console.warn('⚠️ CRITICAL: User authenticated but not in database. This needs to be fixed.');
+          // FAIL LOUDLY - don't create order with wrong email
+          throw new Error(`User ${orderData.user_id} not found in database. User must be created first.`);
         }
       } catch (userError) {
-        console.error('Error checking user profile:', userError);
+        console.error('❌ Error checking user profile:', userError);
+        throw userError; // Don't continue with invalid user
       }
     }
 
-    // If still no user found, check if we have email in order data
+    // STEP 2: If no user_id provided, check if we have email in order data
     if (!finalUserId && orderData.email) {
       try {
+        console.log('🔍 No user_id provided, trying to find user by email:', orderData.email);
         const emailCheck = await sql`
           SELECT id, email FROM profiles WHERE email = ${orderData.email}
         `;
@@ -98,9 +102,28 @@ exports.handler = async (event, context) => {
           finalUserId = emailCheck[0].id;
           userEmail = emailCheck[0].email;
           console.log('✅ User found by email:', finalUserId, userEmail);
+        } else {
+          console.log('❌ No user found with email:', orderData.email);
         }
       } catch (emailError) {
-        console.error('Error checking user by email:', emailError);
+        console.error('❌ Error checking user by email:', emailError);
+      }
+    }
+
+    // STEP 3: Final validation - NEVER allow guest email for authenticated users
+    if (!finalUserId || !userEmail) {
+      console.log('❌ CRITICAL ERROR: Cannot create order without valid user');
+      console.log('   - finalUserId:', finalUserId);
+      console.log('   - userEmail:', userEmail);
+      console.log('   - orderData.user_id:', orderData.user_id);
+      console.log('   - orderData.email:', orderData.email);
+
+      // For now, allow guest orders but with proper email
+      if (orderData.email && orderData.email !== 'guest@example.com') {
+        userEmail = orderData.email;
+        console.log('⚠️ Creating guest order with provided email:', userEmail);
+      } else {
+        throw new Error('Cannot create order: No valid user or email provided');
       }
     }
 
