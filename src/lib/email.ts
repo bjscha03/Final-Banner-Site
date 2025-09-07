@@ -8,7 +8,14 @@ import OrderConfirmation from '../emails/OrderConfirmation';
 import OrderShipped from '../emails/OrderShipped';
 import OrderCanceled from '../emails/OrderCanceled';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+// Initialize Resend only when API key is available
+let resend: Resend | null = null;
+function getResend() {
+  if (!resend && process.env.RESEND_API_KEY) {
+    resend = new Resend(process.env.RESEND_API_KEY);
+  }
+  return resend;
+}
 
 const FROM = `Banners On The Fly <${process.env.EMAIL_FROM || 'info@bannersonthefly.com'}>`;
 const REPLY_TO = process.env.EMAIL_REPLY_TO || 'support@bannersonthefly.com';
@@ -26,10 +33,15 @@ export async function sendEmail(
   payload: any
 ): Promise<Result> {
   try {
+    const resendClient = getResend();
+    if (!resendClient) {
+      return { ok: false, error: 'Resend API key not configured' };
+    }
+
     // Plain text bypass (for smoke tests)
     if (type === '__plain__') {
       const { to, subject = 'Test', text = 'Hello' } = payload || {};
-      const r = await resend.emails.send({
+      const r = await resendClient.emails.send({
         from: FROM,
         to,
         subject,
@@ -72,7 +84,7 @@ export async function sendEmail(
     if (!cfg) throw new Error(`Unknown email type: ${type}`);
     if (!to) throw new Error('Missing recipient email');
 
-    const resp = await resend.emails.send({
+    const resp = await resendClient.emails.send({
       from: FROM,
       to,
       subject: cfg.subject,

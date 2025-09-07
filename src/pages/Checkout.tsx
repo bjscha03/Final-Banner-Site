@@ -4,7 +4,7 @@ import { useCartStore } from '@/store/cart';
 import { useAuth, getCurrentUser } from '@/lib/auth';
 import { getOrdersAdapter } from '../lib/orders/adapter';
 import { OrderItem } from '../lib/orders/types';
-import { sendOrderConfirmation } from '@/lib/email';
+
 import { usd, formatDimensions } from '@/lib/pricing';
 import Layout from '@/components/Layout';
 import PayPalCheckout from '@/components/checkout/PayPalCheckout';
@@ -101,10 +101,14 @@ const Checkout: React.FC = () => {
         items: orderItems,
       });
 
-      // Send confirmation email if user has email
+      // Send confirmation email if user has email (via API route)
       if (currentUser?.email) {
         try {
-          await sendOrderConfirmation(order, currentUser.email);
+          await fetch('/api/admin/resend-confirmation', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId: order.id })
+          });
         } catch (error) {
           console.error('Error sending confirmation email:', error);
           // Don't block the flow if email fails
