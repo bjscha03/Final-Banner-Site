@@ -10,13 +10,13 @@ import Layout from '@/components/Layout';
 import PayPalCheckout from '@/components/checkout/PayPalCheckout';
 import SignUpEncouragementModal from '@/components/checkout/SignUpEncouragementModal';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Package, Truck } from 'lucide-react';
+import { ArrowLeft, Package, Truck, Plus, Minus, Trash2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { emailApi } from '@/lib/api';
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
-  const { items, clearCart, getSubtotalCents, getTaxCents, getTotalCents } = useCartStore();
+  const { items, clearCart, getSubtotalCents, getTaxCents, getTotalCents, updateQuantity, removeItem } = useCartStore();
   const { user } = useAuth();
   const { toast } = useToast();
   const [showSignUpModal, setShowSignUpModal] = useState(false);
@@ -25,6 +25,29 @@ const Checkout: React.FC = () => {
   const subtotalCents = getSubtotalCents();
   const taxCents = getTaxCents();
   const totalCents = getTotalCents();
+
+  // Cart management functions
+  const handleIncreaseQuantity = (itemId: string) => {
+    const item = items.find(i => i.id === itemId);
+    if (item && item.quantity < 999) {
+      updateQuantity(itemId, item.quantity + 1);
+    }
+  };
+
+  const handleDecreaseQuantity = (itemId: string) => {
+    const item = items.find(i => i.id === itemId);
+    if (item && item.quantity > 1) {
+      updateQuantity(itemId, item.quantity - 1);
+    }
+  };
+
+  const handleRemoveItem = (itemId: string) => {
+    removeItem(itemId);
+    toast({
+      title: "Item Removed",
+      description: "Item has been removed from your cart.",
+    });
+  };
 
   // Show sign-up modal for non-authenticated users (only once per session)
   useEffect(() => {
@@ -179,26 +202,65 @@ const Checkout: React.FC = () => {
                 
                 <div className="space-y-4">
                   {items.map((item) => (
-                    <div key={item.id} className="flex justify-between items-start border-b border-gray-200 pb-4">
-                      <div className="flex-1">
-                        <h3 className="font-medium text-gray-900">
-                          Custom Banner {formatDimensions(item.width_in, item.height_in)}
-                        </h3>
-                        <div className="text-sm text-gray-600 space-y-1">
-                          <p>Material: {item.material}</p>
-                          <p>Grommets: {item.grommets}</p>
-                          {item.rope_feet > 0 && <p>Rope: {item.rope_feet.toFixed(1)} ft</p>}
-                          <p>Quantity: {item.quantity}</p>
-                          {item.file_name && <p>File: {item.file_name}</p>}
+                    <div key={item.id} className="border-b border-gray-200 pb-4 last:border-b-0">
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex-1">
+                          <h3 className="font-medium text-gray-900">
+                            Custom Banner {formatDimensions(item.width_in, item.height_in)}
+                          </h3>
+                          <div className="text-sm text-gray-600 space-y-1">
+                            <p>Material: {item.material}</p>
+                            <p>Grommets: {item.grommets}</p>
+                            {item.rope_feet > 0 && <p>Rope: {item.rope_feet.toFixed(1)} ft</p>}
+                            {item.file_name && <p>File: {item.file_name}</p>}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-semibold text-gray-900">
+                            {usd(item.line_total_cents / 100)}
+                          </p>
+                          <p className="text-sm text-gray-600">
+                            {usd(item.unit_price_cents / 100)} each
+                          </p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className="font-semibold text-gray-900">
-                          {usd(item.line_total_cents / 100)}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          {usd(item.unit_price_cents / 100)} each
-                        </p>
+
+                      {/* Quantity Controls and Remove Button */}
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center space-x-3">
+                          <span className="text-sm text-gray-700">Quantity:</span>
+                          <div className="flex items-center space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDecreaseQuantity(item.id)}
+                              disabled={item.quantity <= 1}
+                              className="h-8 w-8 p-0"
+                            >
+                              <Minus className="h-4 w-4" />
+                            </Button>
+                            <span className="w-8 text-center font-medium">{item.quantity}</span>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleIncreaseQuantity(item.id)}
+                              disabled={item.quantity >= 999}
+                              className="h-8 w-8 p-0"
+                            >
+                              <Plus className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleRemoveItem(item.id)}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Remove
+                        </Button>
                       </div>
                     </div>
                   ))}
