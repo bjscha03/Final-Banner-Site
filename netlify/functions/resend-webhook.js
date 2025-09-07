@@ -36,18 +36,27 @@ exports.handler = async (event) => {
     ? evt.data.to[0]
     : (evt?.data?.to || (Array.isArray(evt?.data?.email?.to) ? evt.data.email.to[0] : evt?.data?.email?.to) || null);
 
-  // store raw event
+  // log raw event
   await db`
     INSERT INTO email_events (event_type, provider, provider_msg_id, to_email, raw)
     VALUES (${evt.type}, 'resend', ${providerMsgId}, ${toEmail}, ${evt})
   `;
 
-  // update email status if we can map an id
-  const statusMap = { 'email.delivered': 'delivered', 'email.bounced': 'bounced', 'email.complained': 'complained' };
+  const statusMap = {
+    'email.delivered': 'delivered',
+    'email.bounced': 'bounced',
+    'email.complained': 'complained'
+  };
   const newStatus = statusMap[evt.type];
+
   if (providerMsgId && newStatus) {
-    await db`UPDATE emails SET status=${newStatus} WHERE provider_msg_id=${providerMsgId}`;
+    const result = await db`
+      UPDATE emails
+      SET status = ${newStatus}
+      WHERE provider_msg_id = ${providerMsgId} AND status <> ${newStatus}
+    `;
+    console.log('webhook update', { providerMsgId, newStatus, rowCount: result.count || result.rowCount });
   }
 
-  return { statusCode: 200, body: JSON.stringify({ ok: true }) };
+  return { statusCode: 200, body: 'ok' };
 };
