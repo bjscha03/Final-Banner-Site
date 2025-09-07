@@ -155,6 +155,12 @@ exports.handler = async (event, context) => {
       for (const item of orderData.items) {
         console.log('Inserting order item:', JSON.stringify(item, null, 2));
         try {
+          // Convert pole_pockets string to boolean for database
+          const polePocketsBoolean = item.pole_pockets &&
+            item.pole_pockets !== 'none' &&
+            item.pole_pockets !== 'false' &&
+            item.pole_pockets !== false;
+
           await sql`
             INSERT INTO order_items (
               id, order_id, width_in, height_in, quantity, material,
@@ -169,7 +175,7 @@ exports.handler = async (event, context) => {
               ${item.material || '13oz'},
               ${item.grommets || 'none'},
               ${item.rope_feet || 0},
-              ${item.pole_pockets || 'none'},
+              ${polePocketsBoolean},
               ${item.line_total_cents || 0}
             )
           `;

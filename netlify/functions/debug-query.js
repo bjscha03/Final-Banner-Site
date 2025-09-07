@@ -56,7 +56,13 @@ exports.handler = async (event, context) => {
       };
     }
 
-    const result = await sql.unsafe(query);
+    // For now, just return the email_verifications query result
+    const result = await sql`
+      SELECT id, user_id, token, expires_at, verified, created_at
+      FROM email_verifications
+      ORDER BY created_at DESC
+      LIMIT 5
+    `;
     
     return {
       statusCode: 200,
