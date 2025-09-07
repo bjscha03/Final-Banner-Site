@@ -110,21 +110,26 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // STEP 3: Final validation - NEVER allow guest email for authenticated users
-    if (!finalUserId || !userEmail) {
-      console.log('❌ CRITICAL ERROR: Cannot create order without valid user');
+    // STEP 3: Final validation - ALWAYS ensure we have an email
+    if (!userEmail) {
+      console.log('❌ No userEmail found, checking orderData.email');
       console.log('   - finalUserId:', finalUserId);
       console.log('   - userEmail:', userEmail);
       console.log('   - orderData.user_id:', orderData.user_id);
       console.log('   - orderData.email:', orderData.email);
 
-      // For now, allow guest orders but with proper email
+      // Use provided email or fail
       if (orderData.email && orderData.email !== 'guest@example.com') {
         userEmail = orderData.email;
-        console.log('⚠️ Creating guest order with provided email:', userEmail);
+        console.log('✅ Using provided email for order:', userEmail);
       } else {
-        throw new Error('Cannot create order: No valid user or email provided');
+        throw new Error('Cannot create order: No valid email provided. Email is required for all orders.');
       }
+    }
+
+    // Ensure we have a valid email
+    if (!userEmail || userEmail === 'guest@example.com') {
+      throw new Error('Cannot create order: Valid email address is required');
     }
 
     console.log('Final user_id for order:', finalUserId);
@@ -151,7 +156,7 @@ exports.handler = async (event, context) => {
           await sql`
             INSERT INTO order_items (
               id, order_id, width_in, height_in, quantity, material,
-              grommets, rope_feet, line_total_cents
+              grommets, rope_feet, pole_pockets, line_total_cents
             )
             VALUES (
               ${randomUUID()},
@@ -162,6 +167,7 @@ exports.handler = async (event, context) => {
               ${item.material || '13oz'},
               ${item.grommets || 'none'},
               ${item.rope_feet || 0},
+              ${item.pole_pockets || 'none'},
               ${item.line_total_cents || 0}
             )
           `;
@@ -195,13 +201,18 @@ exports.handler = async (event, context) => {
       body: JSON.stringify(response),
     };
   } catch (error) {
-    console.error('Error creating order:', error);
+    console.error('❌ CRITICAL ERROR creating order:', error);
+    console.error('Error stack:', error.stack);
+    console.error('Order data that failed:', JSON.stringify(orderData, null, 2));
+
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ 
-        error: 'Failed to create order', 
-        details: error.message 
+      body: JSON.stringify({
+        error: 'Failed to create order',
+        details: error.message,
+        stack: error.stack,
+        orderData: orderData
       }),
     };
   }
