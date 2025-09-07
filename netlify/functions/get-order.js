@@ -44,20 +44,19 @@ exports.handler = async (event, context) => {
 
     // Get order details
     const orderResult = await sql`
-      SELECT 
-        id, 
-        order_number, 
-        user_id, 
-        email, 
-        subtotal_cents, 
-        tax_cents, 
-        total_cents, 
-        status, 
-        tracking_number, 
-        tracking_carrier, 
-        created_at, 
+      SELECT
+        id,
+        order_number,
+        user_id,
+        email,
+        subtotal_cents,
+        tax_cents,
+        total_cents,
+        status,
+        tracking_number,
+        created_at,
         updated_at
-      FROM orders 
+      FROM orders
       WHERE id = ${orderId}
     `;
 
