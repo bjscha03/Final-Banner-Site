@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { Layout } from '../components/Layout';
+import Layout from '../components/Layout';
 import { Button } from '../components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card';
 import { CheckCircle, XCircle, Loader2, Mail } from 'lucide-react';
