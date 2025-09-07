@@ -112,8 +112,24 @@ exports.handler = async (event, context) => {
         console.log('Inserting order item:', JSON.stringify(item, null, 2));
         try {
           await sql`
-            INSERT INTO order_items (id, order_id, width_in, height_in, quantity, material, line_total_cents)
-            VALUES (${randomUUID()}, ${orderId}, ${item.width_in || 0}, ${item.height_in || 0}, ${item.quantity || 1}, ${item.material || 'vinyl'}, ${item.line_total_cents || 0})
+            INSERT INTO order_items (
+              id, order_id, width_in, height_in, quantity, material,
+              grommets, rope_feet, area_sqft, unit_price_cents, line_total_cents, file_key
+            )
+            VALUES (
+              ${randomUUID()},
+              ${orderId},
+              ${item.width_in || 0},
+              ${item.height_in || 0},
+              ${item.quantity || 1},
+              ${item.material || '13oz'},
+              ${item.grommets || null},
+              ${item.rope_feet || 0},
+              ${item.area_sqft || 0},
+              ${item.unit_price_cents || 0},
+              ${item.line_total_cents || 0},
+              ${item.file_key || null}
+            )
           `;
         } catch (itemError) {
           console.error('Error inserting order item:', itemError);

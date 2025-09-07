@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Fix Orders - Associate with User</title>
+    <style>
+        body { font-family: monospace; margin: 20px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; }
+        .success { color: green; background: #f0f8f0; padding: 10px; border-radius: 4px; margin: 10px 0; }
+        .error { color: red; background: #fff0f0; padding: 10px; border-radius: 4px; margin: 10px 0; }
+        .info { color: blue; background: #f0f0ff; padding: 10px; border-radius: 4px; margin: 10px 0; }
+        .warning { color: orange; background: #fff8f0; padding: 10px; border-radius: 4px; margin: 10px 0; }
+        button { background: #007cba; color: white; padding: 10px 20px; border: none; border-radius: 4px; cursor: pointer; font-size: 16px; margin: 5px; }
+        button:hover { background: #005a87; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        pre { background: #f8f8f8; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 Fix Orders - Associate with User</h1>
+        
+        <div class="info">
+            <strong>Purpose:</strong> This will fix orders that have null user_id by associating them with the correct user based on email address.
+        </div>
+
+        <div id="status"></div>
+
+        <button id="fixOrders" onclick="fixOrders()">
+            🔧 Fix Orders User ID
+        </button>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = type;
+            div.innerHTML = typeof message === 'object' ? '<pre>' + JSON.stringify(message, null, 2) + '</pre>' : message;
+            results.appendChild(div);
+            console.log(message);
+        }
+
+        async function fixOrders() {
+            const button = document.getElementById('fixOrders');
+            const status = document.getElementById('status');
+            
+            button.disabled = true;
+            button.textContent = 'Fixing Orders...';
+            status.innerHTML = '<div class="info">⏳ Fixing orders user ID...</div>';
+
+            try {
+                log('🔧 Starting orders fix...', 'info');
+                
+                const response = await fetch('/.netlify/functions/fix-order-user-id', {
+                    method: 'POST'
+                });
+                const result = await response.json();
+
+                if (response.ok) {
+                    log('✅ Fix completed successfully!', 'success');
+                    
+                    if (result.ordersFixed > 0) {
+                        log(`🎯 Fixed ${result.ordersFixed} orders!`, 'success');
+                        log('Fixed orders:', 'success');
+                        log(result.fixedOrders, 'success');
+                        status.innerHTML = '<div class="success">✅ Orders fixed successfully!</div>';
+                        
+                        // Show next steps
+                        log('🎉 Next steps:', 'info');
+                        log('1. Go back to My Orders page', 'info');
+                        log('2. Refresh the page', 'info');
+                        log('3. Your orders should now appear!', 'info');
+                        
+                    } else {
+                        log('ℹ️ No orders needed fixing', 'info');
+                        status.innerHTML = '<div class="info">ℹ️ No orders needed fixing</div>';
+                    }
+                    
+                } else {
+                    log('❌ Fix failed: ' + result.error, 'error');
+                    status.innerHTML = '<div class="error">❌ Fix failed</div>';
+                }
+
+            } catch (error) {
+                log('❌ Error during fix: ' + error.message, 'error');
+                status.innerHTML = '<div class="error">❌ Error during fix</div>';
+            } finally {
+                button.disabled = false;
+                button.textContent = '🔧 Fix Orders User ID';
+            }
+        }
+
+        // Auto-run on page load
+        window.addEventListener('load', () => {
+            log('🔧 Orders Fix Tool Loaded', 'info');
+            log('This will associate orders with null user_id to the correct user based on email', 'info');
+        });
+    </script>
+</body>
+</html>
