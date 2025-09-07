@@ -31,8 +31,8 @@ exports.handler = async (event, context) => {
     }
 
     const sql = neon(dbUrl);
-    const params = new URLSearchParams(event.rawQuery || '');
-    const orderId = params.get('id');
+    // Parse query parameters
+    const orderId = event.queryStringParameters?.id;
 
     if (!orderId) {
       return {
