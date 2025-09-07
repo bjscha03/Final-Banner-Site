@@ -1,20 +1,12 @@
 import React, { useState } from 'react';
 import { Circle, Square, ChevronDown, Info, HelpCircle } from 'lucide-react';
-import { useQuoteStore, Grommets, PolePocketSize } from '@/store/quote';
+import { useQuoteStore, PolePocketSize } from '@/store/quote';
 import { ropeCost, polePocketCost } from '@/lib/pricing';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { GrommetPicker } from '@/components/ui/GrommetPicker';
 
-const grommetOptions = [
-  { id: 'none', label: 'None', description: 'No grommets' },
-  { id: 'every-2-3ft', label: 'Every 2–3 feet', description: 'Standard spacing for most applications' },
-  { id: 'every-1-2ft', label: 'Every 1–2 feet', description: 'Close spacing for high wind areas' },
-  { id: '4-corners', label: '4 corners only', description: 'Corner grommets for simple hanging' },
-  { id: 'top-corners', label: 'Top corners only', description: 'Top edge mounting' },
-  { id: 'right-corners', label: 'Right corners only', description: 'Right edge mounting' },
-  { id: 'left-corners', label: 'Left corners only', description: 'Left edge mounting' }
-];
+
+
 
 const polePocketOptions = [
   { value: 'none', label: 'None' },
@@ -33,7 +25,7 @@ const polePocketSizeOptions = [
 ];
 
 const OptionsCard: React.FC = () => {
-  const { grommets, polePockets, polePocketSize, addRope, widthIn, heightIn, quantity, set } = useQuoteStore();
+  const { polePockets, polePocketSize, addRope, widthIn, heightIn, quantity, set } = useQuoteStore();
   const [showPolePocketInfo, setShowPolePocketInfo] = useState(false);
   const [showRopeInfo, setShowRopeInfo] = useState(false);
 
@@ -51,26 +43,13 @@ const OptionsCard: React.FC = () => {
           </div>
           <div>
             <h2 className="text-lg font-semibold text-gray-900 tracking-tight">Options</h2>
-            <p className="text-sm text-gray-500">Grommets, pole pockets, and rope</p>
+            <p className="text-sm text-gray-500">Pole pockets and rope</p>
           </div>
         </div>
       </div>
 
       <div className="p-6 space-y-6">
-        {/* Grommets Section */}
-        <div>
-          <div className="flex items-center gap-2 mb-3">
-            <Circle className="w-4 h-4 text-gray-600" />
-            <h3 className="text-sm font-medium text-gray-700">Grommets</h3>
-          </div>
 
-          <GrommetPicker
-            value={grommets}
-            onChange={(value) => set({ grommets: value as Grommets })}
-            options={grommetOptions}
-            placeholder="Choose grommet placement"
-          />
-        </div>
 
         {/* Pole Pockets Section */}
         <div>

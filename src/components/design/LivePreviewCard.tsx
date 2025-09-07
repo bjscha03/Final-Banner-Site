@@ -199,7 +199,11 @@ const LivePreviewCard: React.FC = () => {
             onDrop={handleDrop}
             onDragOver={(e) => { e.preventDefault(); setDragActive(true); }}
             onDragLeave={() => setDragActive(false)}
-            className={`mx-3 sm:mx-6 mb-4 sm:mb-6 border border-gray-300 rounded-2xl flex items-center justify-center text-center p-4 sm:p-8 transition-all duration-200 h-72 sm:h-96 ${
+            onTouchStart={(e) => {
+              // Prevent drag events from interfering with mobile scrolling
+              e.stopPropagation();
+            }}
+            className={`drag-area mx-3 sm:mx-6 mb-4 sm:mb-6 border border-gray-300 rounded-2xl flex items-center justify-center text-center p-4 sm:p-8 transition-all duration-200 h-72 sm:h-96 ${
               dragActive
                 ? 'bg-blue-50 border-blue-400 border-dashed'
                 : 'bg-gray-100 hover:bg-gray-50'

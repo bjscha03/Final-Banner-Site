@@ -18,6 +18,7 @@
   body {
     overscroll-behavior-x: none;
     -webkit-overflow-scrolling: touch;
+    touch-action: manipulation;
   }
 
   /* Prevent media overflow */
@@ -64,6 +65,24 @@
     .container {
       padding-left: 1rem;
       padding-right: 1rem;
+    }
+
+    /* Fix mobile scrolling issues */
+    body, html {
+      touch-action: pan-y;
+      -webkit-overflow-scrolling: touch;
+      overflow-x: hidden;
+      overflow-y: auto;
+    }
+
+    /* Ensure drag areas don't interfere with scrolling */
+    .drag-area {
+      touch-action: none;
+    }
+
+    /* Fix sticky elements on mobile */
+    .sticky {
+      position: relative !important;
     }
   }
 }

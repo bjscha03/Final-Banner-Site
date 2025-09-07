@@ -1,15 +1,72 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Mail, Phone, MapPin, Linkedin, Send } from 'lucide-react';
+import { Mail, Phone, MapPin, Linkedin, Send, CheckCircle, AlertCircle } from 'lucide-react';
+import { useToast } from '@/components/ui/use-toast';
 
 const Footer: React.FC = () => {
   const [email, setEmail] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const { toast } = useToast();
 
-  const handleNewsletterSubmit = (e: React.FormEvent) => {
+  const handleNewsletterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Newsletter signup logic would go here
-    console.log('Newsletter signup:', email);
-    setEmail('');
+
+    if (!email.trim()) {
+      toast({
+        title: "Email Required",
+        description: "Please enter your email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitStatus('idle');
+
+    try {
+      const response = await fetch('/.netlify/functions/newsletter-signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.success) {
+        setSubmitStatus('success');
+        setEmail('');
+        toast({
+          title: "Success!",
+          description: data.message,
+          duration: 5000,
+        });
+      } else {
+        setSubmitStatus('error');
+        toast({
+          title: "Subscription Failed",
+          description: data.error || "Failed to subscribe. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Newsletter signup error:', error);
+      setSubmitStatus('error');
+      toast({
+        title: "Network Error",
+        description: "Failed to connect. Please check your internet connection and try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+
+      // Reset status after 3 seconds
+      setTimeout(() => {
+        setSubmitStatus('idle');
+      }, 3000);
+    }
   };
 
   const quickLinks = [
@@ -112,14 +169,38 @@ const Footer: React.FC = () => {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   placeholder="Enter your email"
-                  className="flex-1 px-3 py-2 bg-gray-800 border border-gray-700 rounded-l-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent text-white placeholder-gray-400"
+                  className={`flex-1 px-3 py-2 bg-gray-800 border rounded-l-lg focus:ring-2 focus:border-transparent text-white placeholder-gray-400 transition-colors ${
+                    submitStatus === 'success'
+                      ? 'border-green-500 focus:ring-green-500'
+                      : submitStatus === 'error'
+                      ? 'border-red-500 focus:ring-red-500'
+                      : 'border-gray-700 focus:ring-orange-500'
+                  }`}
                   required
+                  disabled={isSubmitting}
                 />
                 <button
                   type="submit"
-                  className="bg-orange-500 hover:bg-orange-600 px-4 py-2 rounded-r-lg transition-colors"
+                  disabled={isSubmitting || !email.trim()}
+                  className={`px-4 py-2 rounded-r-lg transition-colors flex items-center justify-center min-w-[48px] ${
+                    submitStatus === 'success'
+                      ? 'bg-green-500 hover:bg-green-600'
+                      : submitStatus === 'error'
+                      ? 'bg-red-500 hover:bg-red-600'
+                      : isSubmitting
+                      ? 'bg-gray-500 cursor-not-allowed'
+                      : 'bg-orange-500 hover:bg-orange-600'
+                  }`}
                 >
-                  <Send className="h-4 w-4" />
+                  {isSubmitting ? (
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  ) : submitStatus === 'success' ? (
+                    <CheckCircle className="h-4 w-4" />
+                  ) : submitStatus === 'error' ? (
+                    <AlertCircle className="h-4 w-4" />
+                  ) : (
+                    <Send className="h-4 w-4" />
+                  )}
                 </button>
               </div>
             </form>

@@ -1,8 +1,22 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Award, Users, Clock, Shield, Target, Heart, Zap, CheckCircle } from 'lucide-react';
 import Layout from '@/components/Layout';
+import { useScrollToTop } from '@/components/ScrollToTop';
 
 const About: React.FC = () => {
+  const navigate = useNavigate();
+  const { scrollToTop } = useScrollToTop();
+
+  const handleStartDesigning = () => {
+    scrollToTop();
+    navigate('/design');
+  };
+
+  const handleContactUs = () => {
+    scrollToTop();
+    navigate('/contact');
+  };
   const stats = [
     { icon: Clock, value: '24hr', label: 'Production Time', color: 'text-blue-600' },
     { icon: Shield, value: '100%', label: 'Satisfaction Rate', color: 'text-green-600' },
@@ -255,18 +269,18 @@ const About: React.FC = () => {
               Join thousands of satisfied customers who trust us with their banner needs.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <a
-                href="/design"
-                className="bg-white text-blue-600 px-8 py-3 rounded-lg font-medium hover:bg-gray-100 transition-colors"
+              <button
+                onClick={handleStartDesigning}
+                className="bg-white text-blue-600 px-8 py-3 rounded-lg font-medium hover:bg-gray-100 transition-colors cursor-pointer"
               >
                 Start Designing
-              </a>
-              <a
-                href="/contact"
-                className="bg-blue-700 text-white px-8 py-3 rounded-lg font-medium hover:bg-blue-800 transition-colors"
+              </button>
+              <button
+                onClick={handleContactUs}
+                className="bg-blue-700 text-white px-8 py-3 rounded-lg font-medium hover:bg-blue-800 transition-colors cursor-pointer"
               >
                 Contact Us
-              </a>
+              </button>
             </div>
           </div>
         </div>

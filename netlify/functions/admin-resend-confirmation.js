@@ -18,7 +18,7 @@ async function sendEmail(type, payload) {
 
     const resend = new Resend(process.env.RESEND_API_KEY);
     
-    const emailFrom = process.env.EMAIL_FROM || 'info@bannersonthefly.com';
+    const emailFrom = process.env.EMAIL_FROM || 'orders@bannersonthefly.com';
     const emailReplyTo = process.env.EMAIL_REPLY_TO || 'support@bannersonthefly.com';
 
     let subject, html;
@@ -188,7 +188,7 @@ exports.handler = async (event) => {
       ? `https://${event.headers['x-forwarded-host']}`
       : process.env.PUBLIC_SITE_URL || 'https://www.bannersonthefly.com';
     
-    const invoiceUrl = `${origin}/orders/${orderId}`;
+    const invoiceUrl = `${origin}/order-confirmation?orderId=${orderId}`;
 
     // Convert database order to email format
     const emailPayload = {
