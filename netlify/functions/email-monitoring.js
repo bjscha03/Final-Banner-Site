@@ -53,7 +53,7 @@ exports.handler = async (event) => {
         error_message,
         order_id
       FROM email_events
-      WHERE created_at > NOW() - INTERVAL '${interval}'
+      WHERE created_at > NOW() - INTERVAL ${interval}
       ORDER BY created_at DESC
       LIMIT 50
     `;
@@ -65,7 +65,7 @@ exports.handler = async (event) => {
         status,
         COUNT(*) as count
       FROM email_events
-      WHERE created_at > NOW() - INTERVAL '${interval}'
+      WHERE created_at > NOW() - INTERVAL ${interval}
       GROUP BY type, status
       ORDER BY type, status
     `;
@@ -98,7 +98,7 @@ exports.handler = async (event) => {
         ee.error_message
       FROM orders o
       LEFT JOIN email_events ee ON ee.order_id = o.id AND ee.type = 'order.confirmation'
-      WHERE o.created_at > NOW() - INTERVAL '${interval}'
+      WHERE o.created_at > NOW() - INTERVAL ${interval}
       ORDER BY o.created_at DESC
       LIMIT 20
     `;
@@ -118,7 +118,7 @@ exports.handler = async (event) => {
           2
         ) as delivery_rate_percent
       FROM email_events
-      WHERE created_at > NOW() - INTERVAL '${interval}'
+      WHERE created_at > NOW() - INTERVAL ${interval}
         AND status != 'error'
       GROUP BY type
       ORDER BY type
