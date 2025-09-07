@@ -32,8 +32,7 @@ exports.handler = async (event) => {
     }
 
     const db = neon(dbUrl);
-    const params = new URLSearchParams(event.rawQuery || '');
-    const timeframe = params.get('timeframe') || '24h';
+    const timeframe = event.queryStringParameters?.timeframe || '24h';
     
     // Convert timeframe to SQL interval
     const intervalMap = {
@@ -46,27 +45,27 @@ exports.handler = async (event) => {
 
     // Recent email activity
     const recentEmails = await db`
-      SELECT 
-        created_at, 
-        type, 
-        to_email, 
-        status, 
+      SELECT
+        created_at,
+        type,
+        to_email,
+        status,
         error_message,
         order_id
       FROM email_events
-      WHERE created_at > NOW() - INTERVAL ${interval}
+      WHERE created_at > NOW() - INTERVAL '${interval}'
       ORDER BY created_at DESC
       LIMIT 50
     `;
 
     // Email statistics by type and status
     const emailStats = await db`
-      SELECT 
+      SELECT
         type,
         status,
         COUNT(*) as count
       FROM email_events
-      WHERE created_at > NOW() - INTERVAL ${interval}
+      WHERE created_at > NOW() - INTERVAL '${interval}'
       GROUP BY type, status
       ORDER BY type, status
     `;
@@ -88,7 +87,7 @@ exports.handler = async (event) => {
 
     // Order confirmation status overview
     const orderEmailStatus = await db`
-      SELECT 
+      SELECT
         o.id,
         o.email,
         o.confirmation_email_status,
@@ -99,14 +98,14 @@ exports.handler = async (event) => {
         ee.error_message
       FROM orders o
       LEFT JOIN email_events ee ON ee.order_id = o.id AND ee.type = 'order.confirmation'
-      WHERE o.created_at > NOW() - INTERVAL ${interval}
+      WHERE o.created_at > NOW() - INTERVAL '${interval}'
       ORDER BY o.created_at DESC
       LIMIT 20
     `;
 
     // Email delivery rates
     const deliveryRates = await db`
-      SELECT 
+      SELECT
         type,
         COUNT(*) as total_sent,
         COUNT(CASE WHEN status = 'delivered' THEN 1 END) as delivered,
@@ -114,12 +113,12 @@ exports.handler = async (event) => {
         COUNT(CASE WHEN status = 'complained' THEN 1 END) as complained,
         COUNT(CASE WHEN status = 'error' THEN 1 END) as errors,
         ROUND(
-          COUNT(CASE WHEN status = 'delivered' THEN 1 END) * 100.0 / 
-          NULLIF(COUNT(CASE WHEN status IN ('sent', 'delivered', 'bounced', 'complained') THEN 1 END), 0), 
+          COUNT(CASE WHEN status = 'delivered' THEN 1 END) * 100.0 /
+          NULLIF(COUNT(CASE WHEN status IN ('sent', 'delivered', 'bounced', 'complained') THEN 1 END), 0),
           2
         ) as delivery_rate_percent
       FROM email_events
-      WHERE created_at > NOW() - INTERVAL ${interval}
+      WHERE created_at > NOW() - INTERVAL '${interval}'
         AND status != 'error'
       GROUP BY type
       ORDER BY type
