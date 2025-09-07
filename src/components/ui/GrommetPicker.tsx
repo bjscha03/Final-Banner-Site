@@ -174,7 +174,10 @@ export function GrommetPicker({
       {options.map((option) => (
         <button
           key={option.id}
-          onClick={() => handleSelect(option.id)}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            handleSelect(option.id);
+          }}
           className={`w-full text-left px-4 py-3.5 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0 touch-manipulation min-h-[44px] ${
             value === option.id ? 'bg-blue-50 border-blue-100' : ''
           }`}
