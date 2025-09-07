@@ -9,12 +9,16 @@ const About: React.FC = () => {
   const { scrollToTop } = useScrollToTop();
 
   const handleStartDesigning = () => {
+    console.log('🚀 Start Designing button clicked');
     scrollToTop();
+    console.log('📍 Navigating to /design');
     navigate('/design');
   };
 
   const handleContactUs = () => {
+    console.log('📞 Contact Us button clicked');
     scrollToTop();
+    console.log('📍 Navigating to /contact');
     navigate('/contact');
   };
   const stats = [
@@ -268,16 +272,16 @@ const About: React.FC = () => {
             <p className="text-xl text-blue-100 mb-8">
               Join thousands of satisfied customers who trust us with their banner needs.
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center relative z-10">
               <button
                 onClick={handleStartDesigning}
-                className="bg-white text-blue-600 px-8 py-3 rounded-lg font-medium hover:bg-gray-100 transition-colors cursor-pointer"
+                className="bg-white text-blue-600 px-8 py-3 rounded-lg font-medium hover:bg-gray-100 transition-colors cursor-pointer relative z-10"
               >
                 Start Designing
               </button>
               <button
                 onClick={handleContactUs}
-                className="bg-blue-700 text-white px-8 py-3 rounded-lg font-medium hover:bg-blue-800 transition-colors cursor-pointer"
+                className="bg-blue-700 text-white px-8 py-3 rounded-lg font-medium hover:bg-blue-800 transition-colors cursor-pointer relative z-10"
               >
                 Contact Us
               </button>
