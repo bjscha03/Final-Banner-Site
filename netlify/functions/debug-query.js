@@ -40,7 +40,7 @@ exports.handler = async (event, context) => {
     }
 
     console.log('Executing query:', query);
-    const result = await sql`${query}`;
+    const result = await sql.unsafe(query);
     
     return {
       statusCode: 200,
