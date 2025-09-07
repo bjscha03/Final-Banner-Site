@@ -106,7 +106,7 @@ exports.handler = async (event, context) => {
     const order = orderResult[0];
     console.log('Order created successfully:', order);
 
-    // Insert order items with better error handling
+    // Insert order items with better error handling - only use columns that exist in database
     if (orderData.items && Array.isArray(orderData.items)) {
       for (const item of orderData.items) {
         console.log('Inserting order item:', JSON.stringify(item, null, 2));
@@ -114,7 +114,7 @@ exports.handler = async (event, context) => {
           await sql`
             INSERT INTO order_items (
               id, order_id, width_in, height_in, quantity, material,
-              grommets, rope_feet, area_sqft, unit_price_cents, line_total_cents, file_key
+              grommets, rope_feet, line_total_cents
             )
             VALUES (
               ${randomUUID()},
@@ -123,12 +123,9 @@ exports.handler = async (event, context) => {
               ${item.height_in || 0},
               ${item.quantity || 1},
               ${item.material || '13oz'},
-              ${item.grommets || null},
+              ${item.grommets || 'none'},
               ${item.rope_feet || 0},
-              ${item.area_sqft || 0},
-              ${item.unit_price_cents || 0},
-              ${item.line_total_cents || 0},
-              ${item.file_key || null}
+              ${item.line_total_cents || 0}
             )
           `;
         } catch (itemError) {

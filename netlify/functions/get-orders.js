@@ -60,13 +60,13 @@ exports.handler = async (event, context) => {
                    'height_in', oi.height_in,
                    'quantity', oi.quantity,
                    'material', oi.material,
-                   'grommets', oi.grommets,
+                   'grommets', COALESCE(oi.grommets, 'none'),
                    'rope_feet', COALESCE(oi.rope_feet, 0),
-                   'pole_pockets', oi.pole_pockets,
-                   'area_sqft', COALESCE(oi.area_sqft, (oi.width_in * oi.height_in / 144.0)),
-                   'unit_price_cents', COALESCE(oi.unit_price_cents, oi.line_total_cents / oi.quantity),
+                   'pole_pockets', COALESCE(oi.pole_pockets, false),
+                   'area_sqft', (oi.width_in * oi.height_in / 144.0),
+                   'unit_price_cents', (oi.line_total_cents / oi.quantity),
                    'line_total_cents', oi.line_total_cents,
-                   'file_key', oi.file_key
+                   'file_key', null
                  )
                ) as items
         FROM orders o
@@ -88,13 +88,13 @@ exports.handler = async (event, context) => {
                    'height_in', oi.height_in,
                    'quantity', oi.quantity,
                    'material', oi.material,
-                   'grommets', oi.grommets,
+                   'grommets', COALESCE(oi.grommets, 'none'),
                    'rope_feet', COALESCE(oi.rope_feet, 0),
-                   'pole_pockets', oi.pole_pockets,
-                   'area_sqft', COALESCE(oi.area_sqft, (oi.width_in * oi.height_in / 144.0)),
-                   'unit_price_cents', COALESCE(oi.unit_price_cents, oi.line_total_cents / oi.quantity),
+                   'pole_pockets', COALESCE(oi.pole_pockets, false),
+                   'area_sqft', (oi.width_in * oi.height_in / 144.0),
+                   'unit_price_cents', (oi.line_total_cents / oi.quantity),
                    'line_total_cents', oi.line_total_cents,
-                   'file_key', oi.file_key
+                   'file_key', null
                  )
                ) as items
         FROM orders o
