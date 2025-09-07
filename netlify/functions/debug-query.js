@@ -40,6 +40,22 @@ exports.handler = async (event, context) => {
     }
 
     console.log('Executing query:', query);
+
+    // Handle specific queries safely
+    if (query.includes('SELECT') && query.includes('email_verifications')) {
+      const result = await sql`
+        SELECT id, user_id, token, expires_at, verified, created_at
+        FROM email_verifications
+        ORDER BY created_at DESC
+        LIMIT 5
+      `;
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ success: true, result }),
+      };
+    }
+
     const result = await sql.unsafe(query);
     
     return {
