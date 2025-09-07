@@ -61,6 +61,7 @@ exports.handler = async (event, context) => {
       'tables': "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public' ORDER BY table_name",
       'email_events': "SELECT * FROM email_events ORDER BY created_at DESC LIMIT 10",
       'orders': "SELECT id, order_number, email, status, created_at FROM orders ORDER BY created_at DESC LIMIT 10",
+      'order_columns': "SELECT column_name FROM information_schema.columns WHERE table_name = 'orders' AND table_schema = 'public'",
       'profiles': "SELECT id, email, is_admin, created_at FROM profiles ORDER BY created_at DESC LIMIT 10"
     };
 
