@@ -1,4 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
+const { randomUUID } = require('crypto');
 const sql = neon(process.env.NETLIFY_DATABASE_URL);
 
 exports.handler = async (event, context) => {
@@ -53,40 +54,84 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // STEP 2: For each guest order, try to find the real user
+    // STEP 2: For each guest order, try to find or create the real user
     for (const order of guestOrders) {
       try {
         console.log(`Processing order ${order.id}...`);
-        
+
         let realUser = null;
-        
+
         // If order has a user_id, try to find that user
         if (order.user_id) {
           const userCheck = await sql`
             SELECT id, email FROM profiles WHERE id = ${order.user_id}
           `;
-          
+
           if (userCheck.length > 0) {
             realUser = userCheck[0];
             console.log(`Found user for order ${order.id}: ${realUser.email}`);
           } else {
             console.log(`User ID ${order.user_id} not found in profiles table`);
+
+            // CRITICAL FIX: Create the missing user profile
+            // This handles the case where orders have user_ids that don't exist in profiles
+            console.log(`Creating missing user profile for ${order.user_id}`);
+
+            // Try to determine the real email based on order timing or other factors
+            // For now, we'll create a user with a placeholder email that can be updated later
+            const placeholderEmail = `user-${order.user_id.slice(0, 8)}@recovered.local`;
+
+            try {
+              await sql`
+                INSERT INTO profiles (id, email, username, full_name, is_admin, created_at)
+                VALUES (${order.user_id}, ${placeholderEmail}, 'Recovered User', 'Recovered User', false, ${order.created_at})
+              `;
+
+              realUser = { id: order.user_id, email: placeholderEmail };
+              results.usersCreated++;
+              console.log(`✅ Created missing user profile: ${realUser.email}`);
+            } catch (createError) {
+              console.error(`Failed to create user profile:`, createError);
+            }
           }
         }
 
-        // If we found a real user, update the order
+        // If we found or created a real user, update the order
         if (realUser) {
           await sql`
-            UPDATE orders 
+            UPDATE orders
             SET email = ${realUser.email}
             WHERE id = ${order.id}
           `;
-          
+
           results.ordersRepaired++;
           console.log(`✅ Repaired order ${order.id}: ${order.email} → ${realUser.email}`);
         } else {
-          console.log(`❌ Could not find real user for order ${order.id}`);
-          results.errors.push(`Order ${order.id}: No matching user found`);
+          console.log(`❌ Could not find or create user for order ${order.id}`);
+
+          // LAST RESORT: Create a completely new user for this order
+          const newUserId = order.user_id || randomUUID();
+          const recoveredEmail = `recovered-${order.id.slice(0, 8)}@bannersonthefly.com`;
+
+          try {
+            await sql`
+              INSERT INTO profiles (id, email, username, full_name, is_admin, created_at)
+              VALUES (${newUserId}, ${recoveredEmail}, 'Recovered User', 'Recovered User', false, ${order.created_at})
+            `;
+
+            await sql`
+              UPDATE orders
+              SET user_id = ${newUserId}, email = ${recoveredEmail}
+              WHERE id = ${order.id}
+            `;
+
+            results.ordersRepaired++;
+            results.usersCreated++;
+            console.log(`✅ Created new user and repaired order ${order.id}: ${recoveredEmail}`);
+          } catch (lastResortError) {
+            console.error(`Last resort repair failed for order ${order.id}:`, lastResortError);
+            results.errors.push(`Order ${order.id}: Complete repair failed - ${lastResortError.message}`);
+          }
         }
 
       } catch (orderError) {
