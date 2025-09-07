@@ -37,17 +37,10 @@ export function GrommetPicker({
 
   // Detect mobile screen size
   useEffect(() => {
-    const checkMobile = () => {
-      const isMobileScreen = window.innerWidth <= 639;
-      console.log('Mobile detection:', { width: window.innerWidth, isMobile: isMobileScreen });
-      setIsMobile(isMobileScreen);
-    };
-
-    checkMobile();
-
     const mediaQuery = window.matchMedia('(max-width: 639px)');
+    setIsMobile(mediaQuery.matches);
+
     const handleChange = (e: MediaQueryListEvent) => {
-      console.log('Media query change:', e.matches);
       setIsMobile(e.matches);
     };
 
@@ -104,36 +97,19 @@ export function GrommetPicker({
     setIsOpen(false);
   };
 
-  const renderMobileSheet = () => {
-    console.log('Rendering mobile sheet');
-    return (
+  const renderMobileSheet = () => (
+    <div className="fixed inset-0 z-[999999] flex items-end">
+      {/* Backdrop */}
       <div
-        className="fixed inset-0 flex items-end"
-        style={{
-          zIndex: 2147483647, // Maximum z-index value
-          position: 'fixed',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0
-        }}
-      >
-        {/* Backdrop */}
-        <div
-          className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-          onClick={() => setIsOpen(false)}
-          style={{ zIndex: 2147483646 }}
-        />
+        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
+        onClick={() => setIsOpen(false)}
+      />
 
-        {/* Bottom Sheet */}
-        <div
-          data-grommet-sheet
-          className="relative w-full bg-red-500 rounded-t-2xl shadow-2xl max-h-[80vh] flex flex-col"
-          style={{
-            zIndex: 2147483647,
-            backgroundColor: '#ef4444' // Bright red for debugging
-          }}
-        >
+      {/* Bottom Sheet */}
+      <div
+        data-grommet-sheet
+        className="relative w-full bg-white rounded-t-2xl shadow-2xl max-h-[80vh] flex flex-col animate-in slide-in-from-bottom duration-300"
+      >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
           <h3 className="text-lg font-semibold text-gray-900">Select Grommet Option</h3>
@@ -192,8 +168,7 @@ export function GrommetPicker({
       style={{
         top: dropdownPosition.top,
         left: dropdownPosition.left,
-        width: Math.max(dropdownPosition.width, 300),
-        zIndex: 999999
+        width: Math.max(dropdownPosition.width, 300)
       }}
     >
       {options.map((option) => (
@@ -227,10 +202,7 @@ export function GrommetPicker({
       {/* Trigger Button */}
       <button
         ref={triggerRef}
-        onClick={() => {
-          console.log('GrommetPicker clicked:', { isOpen, isMobile, screenWidth: window.innerWidth });
-          setIsOpen(!isOpen);
-        }}
+        onClick={() => setIsOpen(!isOpen)}
         className="w-full flex items-center justify-between px-4 py-3 bg-white border border-gray-200 rounded-xl hover:border-gray-300 hover:shadow-sm transition-all duration-200 text-left touch-manipulation min-h-[44px]"
         aria-expanded={isOpen}
         aria-haspopup="listbox"
@@ -250,21 +222,10 @@ export function GrommetPicker({
       </button>
 
       {/* Render appropriate dropdown/sheet */}
-      {isOpen && (() => {
-        console.log('Rendering GrommetPicker portal:', { isMobile, isOpen });
-        const content = isMobile ? renderMobileSheet() : renderDesktopDropdown();
-
-        // For debugging, render inline on mobile to see if portal is the issue
-        if (isMobile) {
-          return (
-            <div className="fixed inset-0" style={{ zIndex: 2147483647 }}>
-              {content}
-            </div>
-          );
-        }
-
-        return createPortal(content, document.body);
-      })()}
+      {isOpen && createPortal(
+        isMobile ? renderMobileSheet() : renderDesktopDropdown(),
+        document.body
+      )}
     </div>
   );
 }

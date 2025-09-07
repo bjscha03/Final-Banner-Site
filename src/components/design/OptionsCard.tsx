@@ -64,26 +64,12 @@ const OptionsCard: React.FC = () => {
             <h3 className="text-sm font-medium text-gray-700">Grommets</h3>
           </div>
 
-          <div>
-            <button
-              onClick={() => {
-                console.log('Test button clicked - screen width:', window.innerWidth);
-                alert(`Screen width: ${window.innerWidth}px - Mobile: ${window.innerWidth <= 639}`);
-              }}
-              className="w-full p-4 bg-blue-500 text-white rounded-lg"
-            >
-              TEST MOBILE DETECTION (Click me)
-            </button>
-            <GrommetPicker
-              value={grommets}
-              onChange={(value) => {
-                console.log('Grommet changed:', value);
-                set({ grommets: value as Grommets });
-              }}
-              options={grommetOptions}
-              placeholder="Choose grommet placement"
-            />
-          </div>
+          <GrommetPicker
+            value={grommets}
+            onChange={(value) => set({ grommets: value as Grommets })}
+            options={grommetOptions}
+            placeholder="Choose grommet placement"
+          />
         </div>
 
         {/* Pole Pockets Section */}

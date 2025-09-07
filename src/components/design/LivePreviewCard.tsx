@@ -1,15 +1,26 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image, X, ChevronDown, ChevronUp } from 'lucide-react';
-import { useQuoteStore } from '@/store/quote';
+import { useQuoteStore, Grommets } from '@/store/quote';
 import { formatDimensions } from '@/lib/pricing';
 import { grommetPoints } from '@/lib/preview/grommets';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
+import { GrommetPicker } from '@/components/ui/GrommetPicker';
 import PreviewCanvas from './PreviewCanvas';
+
+const grommetOptions = [
+  { id: 'none', label: 'None', description: 'No grommets' },
+  { id: 'every-2-3ft', label: 'Every 2–3 feet', description: 'Standard spacing' },
+  { id: 'every-1-2ft', label: 'Every 1–2 feet', description: 'Close spacing' },
+  { id: '4-corners', label: '4 corners only', description: 'Corner grommets' },
+  { id: 'top-corners', label: 'Top corners only', description: 'Top edge mounting' },
+  { id: 'right-corners', label: 'Right corners only', description: 'Right edge mounting' },
+  { id: 'left-corners', label: 'Left corners only', description: 'Left edge mounting' }
+];
 
 const LivePreviewCard: React.FC = () => {
   const { widthIn, heightIn, previewScalePct, grommets, file, set } = useQuoteStore();
-  const [grommetsExpanded, setGrommetsExpanded] = useState(false);
+
   const [dragActive, setDragActive] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -133,60 +144,14 @@ const LivePreviewCard: React.FC = () => {
             {/* Grommets Selector */}
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-gray-700 hidden sm:inline">Grommets:</span>
-              <div className="relative">
-                <button
-                  onClick={() => setGrommetsExpanded(!grommetsExpanded)}
-                  className="flex items-center gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-lg hover:border-gray-300 hover:shadow-sm transition-all duration-200 text-sm font-medium text-gray-700 w-full sm:min-w-[140px]"
-                >
-                  <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
-                  <span className="truncate">
-                    {grommets === 'none' ? 'None' :
-                     grommets === 'every-2-3ft' ? 'Every 2–3 feet' :
-                     grommets === 'every-1-2ft' ? 'Every 1–2 feet' :
-                     grommets === '4-corners' ? '4 corners only' :
-                     grommets === 'top-corners' ? 'Top corners only' :
-                     grommets === 'right-corners' ? 'Right corners only' :
-                     grommets === 'left-corners' ? 'Left corners only' : 'Every 2–3 feet'}
-                  </span>
-                  <ChevronDown className={`w-3 h-3 transition-transform duration-200 ml-auto ${grommetsExpanded ? 'rotate-180' : ''}`} />
-                </button>
-
-                {grommetsExpanded && (
-                  <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-gray-200 rounded-xl shadow-xl z-20 overflow-hidden">
-                    {[
-                      { value: 'none', label: 'None', desc: 'No grommets' },
-                      { value: 'every-2-3ft', label: 'Every 2–3 feet', desc: 'Standard spacing' },
-                      { value: 'every-1-2ft', label: 'Every 1–2 feet', desc: 'Close spacing' },
-                      { value: '4-corners', label: '4 corners only', desc: 'Corner grommets' },
-                      { value: 'top-corners', label: 'Top corners only', desc: 'Top edge mounting' },
-                      { value: 'right-corners', label: 'Right corners only', desc: 'Right edge mounting' },
-                      { value: 'left-corners', label: 'Left corners only', desc: 'Left edge mounting' }
-                    ].map((option) => (
-                      <button
-                        key={option.value}
-                        onClick={() => {
-                          set({ grommets: option.value as any });
-                          setGrommetsExpanded(false);
-                        }}
-                        className={`w-full text-left px-3 py-2.5 hover:bg-gray-50 transition-colors duration-150 border-b border-gray-100 last:border-b-0 ${
-                          grommets === option.value ? 'bg-blue-50 border-blue-100' : ''
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <div className={`font-medium text-sm ${grommets === option.value ? 'text-blue-700' : 'text-gray-900'}`}>
-                              {option.label}
-                            </div>
-                            <div className="text-xs text-gray-500 mt-0.5">{option.desc}</div>
-                          </div>
-                          {grommets === option.value && (
-                            <div className="w-1.5 h-1.5 bg-blue-500 rounded-full"></div>
-                          )}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
+              <div className="min-w-[140px]">
+                <GrommetPicker
+                  value={grommets}
+                  onChange={(value) => set({ grommets: value as Grommets })}
+                  options={grommetOptions}
+                  placeholder="Choose grommets"
+                  className="text-sm"
+                />
               </div>
             </div>
 
