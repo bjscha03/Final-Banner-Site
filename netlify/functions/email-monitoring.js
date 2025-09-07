@@ -43,7 +43,7 @@ exports.handler = async (event) => {
     };
     const interval = intervalMap[timeframe] || '24 hours';
 
-    // Recent email activity
+    // Recent email activity (last 24 hours for now)
     const recentEmails = await db`
       SELECT
         created_at,
@@ -53,7 +53,7 @@ exports.handler = async (event) => {
         error_message,
         order_id
       FROM email_events
-      WHERE created_at > NOW() - INTERVAL ${interval}
+      WHERE created_at > NOW() - INTERVAL '24 hours'
       ORDER BY created_at DESC
       LIMIT 50
     `;
@@ -65,7 +65,7 @@ exports.handler = async (event) => {
         status,
         COUNT(*) as count
       FROM email_events
-      WHERE created_at > NOW() - INTERVAL ${interval}
+      WHERE created_at > NOW() - INTERVAL '24 hours'
       GROUP BY type, status
       ORDER BY type, status
     `;
@@ -98,7 +98,7 @@ exports.handler = async (event) => {
         ee.error_message
       FROM orders o
       LEFT JOIN email_events ee ON ee.order_id = o.id AND ee.type = 'order.confirmation'
-      WHERE o.created_at > NOW() - INTERVAL ${interval}
+      WHERE o.created_at > NOW() - INTERVAL '24 hours'
       ORDER BY o.created_at DESC
       LIMIT 20
     `;
@@ -118,7 +118,7 @@ exports.handler = async (event) => {
           2
         ) as delivery_rate_percent
       FROM email_events
-      WHERE created_at > NOW() - INTERVAL ${interval}
+      WHERE created_at > NOW() - INTERVAL '24 hours'
         AND status != 'error'
       GROUP BY type
       ORDER BY type
