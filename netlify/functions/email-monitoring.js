@@ -91,7 +91,7 @@ exports.handler = async (event) => {
         o.id,
         o.email,
         o.confirmation_email_status,
-        o.confirmation_email_sent_at,
+        o.confirmation_emailed_at,
         o.created_at as order_created_at,
         ee.status as latest_email_status,
         ee.created_at as email_sent_at,
