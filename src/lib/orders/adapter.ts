@@ -18,20 +18,40 @@ export function getOrdersAdapter(): OrdersAdapter {
   if (_adapter) return _adapter;
 
   console.log('🔍 ORDERS ADAPTER SELECTION DEBUG:');
-  console.log('NETLIFY_DATABASE_URL:', import.meta.env.NETLIFY_DATABASE_URL ? 'SET' : 'NOT SET');
-  console.log('VITE_DATABASE_URL:', import.meta.env.VITE_DATABASE_URL ? 'SET' : 'NOT SET');
-  console.log('Environment:', import.meta.env.MODE);
-  console.log('Production:', import.meta.env.PROD);
-  console.log('Hostname:', window.location.hostname);
-  console.log('Full URL:', window.location.href);
+
+  // Safe environment variable access
+  const getEnvVar = (key: string): string | undefined => {
+    try {
+      return import.meta.env?.[key];
+    } catch (error) {
+      console.warn(`Error accessing environment variable ${key}:`, error);
+      return undefined;
+    }
+  };
+
+  const netlifyDbUrl = getEnvVar('NETLIFY_DATABASE_URL');
+  const viteDbUrl = getEnvVar('VITE_DATABASE_URL');
+  const mode = getEnvVar('MODE');
+  const isProd = getEnvVar('PROD');
+
+  console.log('NETLIFY_DATABASE_URL:', netlifyDbUrl ? 'SET' : 'NOT SET');
+  console.log('VITE_DATABASE_URL:', viteDbUrl ? 'SET' : 'NOT SET');
+  console.log('Environment:', mode);
+  console.log('Production:', isProd);
+
+  // Safe window access for browser environment
+  if (typeof window !== 'undefined') {
+    console.log('Hostname:', window.location?.hostname || 'unknown');
+    console.log('Full URL:', window.location?.href || 'unknown');
+  }
 
   // Priority 1: Direct Neon database connection (both dev and production)
-  const databaseUrl = import.meta.env.VITE_DATABASE_URL || import.meta.env.NETLIFY_DATABASE_URL;
+  const databaseUrl = viteDbUrl || netlifyDbUrl;
   if (databaseUrl) {
     try {
       _adapter = neonOrdersAdapter;
       console.log('✅ Using direct Neon adapter - ALL ORDERS SYNC THROUGH NEON DATABASE');
-      console.log('Database URL source:', import.meta.env.VITE_DATABASE_URL ? 'VITE_DATABASE_URL' : 'NETLIFY_DATABASE_URL');
+      console.log('Database URL source:', viteDbUrl ? 'VITE_DATABASE_URL' : 'NETLIFY_DATABASE_URL');
       return _adapter;
     } catch (error) {
       console.warn('❌ Direct Neon adapter failed:', error);
@@ -42,15 +62,25 @@ export function getOrdersAdapter(): OrdersAdapter {
 
   // Try Netlify Function adapter (for production or when database URL not available)
   try {
-    _adapter = netlifyFunctionOrdersAdapter;
-    console.log('✅ Using Netlify Function adapter (serverless functions)');
-    return _adapter;
+    // Test if Netlify functions are available by checking if we're in a browser environment
+    // and if the current domain suggests we're on Netlify
+    const isNetlifyEnvironment = typeof window !== 'undefined' &&
+      (window.location?.hostname?.includes('netlify') ||
+       window.location?.hostname?.includes('bannersonthefly'));
+
+    if (isNetlifyEnvironment || typeof window === 'undefined') {
+      _adapter = netlifyFunctionOrdersAdapter;
+      console.log('✅ Using Netlify Function adapter (serverless functions)');
+      return _adapter;
+    } else {
+      console.log('⚠️ Not in Netlify environment, skipping Netlify Function adapter');
+    }
   } catch (error) {
     console.warn('❌ Netlify Function adapter failed, trying fallbacks', error);
   }
 
   // Check if we're in Netlify environment (has NETLIFY_DATABASE_URL) and adapter is available
-  if (import.meta.env.NETLIFY_DATABASE_URL && netlifyDbOrdersAdapter) {
+  if (netlifyDbUrl && netlifyDbOrdersAdapter) {
     try {
       _adapter = netlifyDbOrdersAdapter;
       console.log('✅ Using Netlify DB adapter (Drizzle + Neon)');
@@ -60,10 +90,31 @@ export function getOrdersAdapter(): OrdersAdapter {
     }
   }
 
-  // This fallback section is no longer needed since we handle database URL above
-
+  // Final fallback to local adapter with enhanced logging
   _adapter = localOrdersAdapter;
   console.log('⚠️ Using local orders adapter (development mode)');
+  console.log('📝 Local adapter will use browser storage for orders');
+
+  // Test the local adapter to ensure it works
+  try {
+    // Quick test to ensure localStorage/storage is working
+    const testKey = '__orders_adapter_test__';
+    const testValue = 'test';
+
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(testKey, testValue);
+      const retrieved = localStorage.getItem(testKey);
+      localStorage.removeItem(testKey);
+
+      if (retrieved === testValue) {
+        console.log('✅ Local storage test passed - orders will persist');
+      } else {
+        console.warn('⚠️ Local storage test failed - orders may not persist');
+      }
+    }
+  } catch (error) {
+    console.warn('⚠️ Local storage test failed:', error);
+  }
 
   return _adapter;
 }

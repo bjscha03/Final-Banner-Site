@@ -107,13 +107,19 @@ const Checkout: React.FC = () => {
 
       console.log('Order items prepared:', orderItems);
 
-      // Create order
-      const ordersAdapter = getOrdersAdapter();
-      console.log('Orders adapter obtained:', ordersAdapter);
-      console.log('Adapter create method:', typeof ordersAdapter.create);
+      // Create order with enhanced error handling
+      let ordersAdapter;
+      try {
+        ordersAdapter = getOrdersAdapter();
+        console.log('Orders adapter obtained:', ordersAdapter);
+        console.log('Adapter create method:', typeof ordersAdapter.create);
 
-      if (typeof ordersAdapter.create !== 'function') {
-        throw new Error('Orders adapter create method is not a function. Adapter type: ' + typeof ordersAdapter);
+        if (typeof ordersAdapter.create !== 'function') {
+          throw new Error('Orders adapter create method is not a function. Adapter type: ' + typeof ordersAdapter);
+        }
+      } catch (adapterError) {
+        console.error('Failed to get orders adapter:', adapterError);
+        throw new Error('Unable to initialize order system. Please try again or contact support.');
       }
 
       // For guest orders, we need an email address
@@ -125,15 +131,43 @@ const Checkout: React.FC = () => {
         console.warn('Creating guest order with placeholder email:', orderEmail);
       }
 
-      const order = await ordersAdapter.create({
-        user_id: currentUser?.id || null,
-        email: orderEmail,
-        subtotal_cents: subtotalCents,
-        tax_cents: taxCents,
-        total_cents: totalCents,
-        currency: 'usd',
-        items: orderItems,
-      });
+      // Create order with retry logic
+      let order;
+      let createAttempts = 0;
+      const maxCreateAttempts = 3;
+
+      while (createAttempts < maxCreateAttempts) {
+        createAttempts++;
+        console.log(`Order creation attempt ${createAttempts}/${maxCreateAttempts}`);
+
+        try {
+          order = await ordersAdapter.create({
+            user_id: currentUser?.id || null,
+            email: orderEmail,
+            subtotal_cents: subtotalCents,
+            tax_cents: taxCents,
+            total_cents: totalCents,
+            currency: 'usd',
+            items: orderItems,
+          });
+
+          console.log('Order created successfully:', order);
+          break; // Success!
+        } catch (createError) {
+          console.error(`Order creation attempt ${createAttempts} failed:`, createError);
+
+          if (createAttempts === maxCreateAttempts) {
+            throw createError; // Re-throw the last error
+          }
+
+          // Wait before retrying
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+      }
+
+      if (!order) {
+        throw new Error('Failed to create order after multiple attempts');
+      }
 
       // Send confirmation email (idempotent)
       try {

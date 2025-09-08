@@ -26,6 +26,7 @@ import AdminOrders from "./pages/admin/Orders";
 import AdminSeed from "./pages/AdminSeed";
 import AdminSetup from "./pages/AdminSetup";
 import TestPage from "./pages/TestPage";
+import BrowserCompatibilityTest from "./pages/BrowserCompatibilityTest";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -59,6 +60,7 @@ const App = () => (
             <Route path="/admin/seed" element={<AdminSeed />} />
             <Route path="/admin/setup" element={<AdminSetup />} />
             <Route path="/test" element={<TestPage />} />
+            <Route path="/browser-test" element={<BrowserCompatibilityTest />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

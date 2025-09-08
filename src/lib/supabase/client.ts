@@ -1,11 +1,23 @@
 import { neon } from '@neondatabase/serverless';
 
+// Safe environment variable access
+const getEnvVar = (key: string): string | undefined => {
+  try {
+    return import.meta.env?.[key];
+  } catch (error) {
+    console.warn(`Error accessing environment variable ${key}:`, error);
+    return undefined;
+  }
+};
+
 // Use Netlify's environment variables for Neon database
-const databaseUrl = import.meta.env.NETLIFY_DATABASE_URL || import.meta.env.VITE_DATABASE_URL;
+const netlifyDbUrl = getEnvVar('NETLIFY_DATABASE_URL');
+const viteDbUrl = getEnvVar('VITE_DATABASE_URL');
+const databaseUrl = netlifyDbUrl || viteDbUrl;
 
 console.log('Environment check:');
-console.log('NETLIFY_DATABASE_URL:', import.meta.env.NETLIFY_DATABASE_URL ? 'SET' : 'NOT SET');
-console.log('VITE_DATABASE_URL:', import.meta.env.VITE_DATABASE_URL ? 'SET' : 'NOT SET');
+console.log('NETLIFY_DATABASE_URL:', netlifyDbUrl ? 'SET' : 'NOT SET');
+console.log('VITE_DATABASE_URL:', viteDbUrl ? 'SET' : 'NOT SET');
 console.log('Final databaseUrl:', databaseUrl ? 'SET' : 'NOT SET');
 
 // Demo user for testing

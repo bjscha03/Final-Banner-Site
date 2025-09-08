@@ -36,36 +36,80 @@ const MyOrders: React.FC = () => {
       setLoading(true);
       console.log('Loading orders for user:', user.id, user.email);
 
-      // Debug: Check what's in the database
+      // Get orders adapter with error handling
+      let ordersAdapter;
       try {
-        const debugResponse = await fetch('/.netlify/functions/test-auth');
-        const debugData = await debugResponse.json();
-        console.log('Database debug info:', debugData);
-      } catch (debugError) {
-        console.warn('Debug info not available:', debugError);
+        ordersAdapter = getOrdersAdapter();
+        console.log('Orders adapter obtained:', ordersAdapter);
+      } catch (adapterError) {
+        console.error('Failed to get orders adapter:', adapterError);
+        toast({
+          title: "System Error",
+          description: "Unable to initialize orders system. Please refresh the page.",
+          variant: "destructive",
+        });
+        return;
       }
 
-      const ordersAdapter = getOrdersAdapter();
-      console.log('Orders adapter:', ordersAdapter);
+      // Attempt to load orders with multiple fallback strategies
+      let userOrders: Order[] = [];
+      let loadAttempts = 0;
+      const maxAttempts = 3;
 
-      // Debug: Check localStorage state before calling adapter
-      console.log('Current user in localStorage:', localStorage.getItem('banners_current_user'));
-      console.log('Orders in localStorage before call:', localStorage.getItem('banners_orders'));
+      while (loadAttempts < maxAttempts && userOrders.length === 0) {
+        loadAttempts++;
+        console.log(`Orders load attempt ${loadAttempts}/${maxAttempts}`);
 
-      const userOrders = await ordersAdapter.listByUser(user.id);
-      console.log('User orders loaded:', userOrders);
+        try {
+          userOrders = await ordersAdapter.listByUser(user.id);
+          console.log(`Attempt ${loadAttempts}: Loaded ${userOrders.length} orders`);
 
-      // Debug: Check localStorage state after calling adapter
-      console.log('Orders in localStorage after call:', localStorage.getItem('banners_orders'));
+          if (userOrders.length > 0) {
+            break; // Success!
+          }
+        } catch (loadError) {
+          console.warn(`Attempt ${loadAttempts} failed:`, loadError);
+
+          // If this is the last attempt, try a different approach
+          if (loadAttempts === maxAttempts) {
+            console.log('All direct attempts failed, trying fallback methods...');
+
+            // Try to fetch via Netlify function directly if available
+            try {
+              const response = await fetch(`/.netlify/functions/get-orders?user_id=${user.id}`);
+              if (response.ok) {
+                userOrders = await response.json();
+                console.log('Fallback method succeeded:', userOrders.length, 'orders');
+              }
+            } catch (fallbackError) {
+              console.warn('Fallback method also failed:', fallbackError);
+            }
+          } else {
+            // Wait a bit before retrying
+            await new Promise(resolve => setTimeout(resolve, 1000));
+          }
+        }
+      }
+
       setOrders(userOrders);
+      console.log('Final orders set:', userOrders.length);
 
-      // If no orders found, try to fetch all orders to see what's in the database
+      // Debug: If no orders found, try to fetch all orders to see what's in the database
       if (userOrders.length === 0) {
         console.log('No orders found for user, checking all orders...');
         try {
           const allOrdersResponse = await fetch('/.netlify/functions/get-orders');
-          const allOrders = await allOrdersResponse.json();
-          console.log('All orders in database:', allOrders);
+          if (allOrdersResponse.ok) {
+            const allOrders = await allOrdersResponse.json();
+            console.log('All orders in database:', allOrders.length, 'total orders');
+
+            // Check if any orders belong to this user but weren't returned
+            const userOrdersInAll = allOrders.filter((order: Order) => order.user_id === user.id);
+            if (userOrdersInAll.length > 0) {
+              console.warn('Found user orders in all orders but not in user-specific query:', userOrdersInAll);
+              setOrders(userOrdersInAll);
+            }
+          }
         } catch (allOrdersError) {
           console.warn('Could not fetch all orders:', allOrdersError);
         }
@@ -74,7 +118,7 @@ const MyOrders: React.FC = () => {
       console.error('Error loading orders:', error);
       toast({
         title: "Error Loading Orders",
-        description: "There was an error loading your orders. Please try again.",
+        description: "There was an error loading your orders. Please try refreshing the page.",
         variant: "destructive",
       });
     } finally {

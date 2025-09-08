@@ -1,17 +1,18 @@
 import { Order, OrdersAdapter, CreateOrderData, TrackingCarrier } from './types';
 import { calculateTax, calculateTotalWithTax } from '@/lib/pricing';
+import { generateUUID, safeStorage } from '@/lib/utils';
 
 const ORDERS_STORAGE_KEY = 'banners_orders';
 
 // Generate a simple UUID for development
 function generateId(): string {
-  return 'order_' + Math.random().toString(36).substr(2, 9) + Date.now().toString(36);
+  return generateUUID();
 }
 
 // Get orders from localStorage
 function getStoredOrders(): Order[] {
   try {
-    const stored = localStorage.getItem(ORDERS_STORAGE_KEY);
+    const stored = safeStorage.getItem(ORDERS_STORAGE_KEY);
     const orders = stored ? JSON.parse(stored) : [];
 
     // If no orders exist, create some sample data
@@ -217,13 +218,13 @@ function getStoredOrders(): Order[] {
           tracking_carrier: null
         }
       ];
-      localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(sampleOrders));
+      safeStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(sampleOrders));
       return sampleOrders;
     }
 
     return orders;
   } catch (error) {
-    console.error('Error reading orders from localStorage:', error);
+    console.error('Error reading orders from storage:', error);
     return [];
   }
 }
@@ -231,9 +232,9 @@ function getStoredOrders(): Order[] {
 // Save orders to localStorage
 function saveOrders(orders: Order[]): void {
   try {
-    localStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(orders));
+    safeStorage.setItem(ORDERS_STORAGE_KEY, JSON.stringify(orders));
   } catch (error) {
-    console.error('Error saving orders to localStorage:', error);
+    console.error('Error saving orders to storage:', error);
   }
 }
 

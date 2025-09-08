@@ -1,5 +1,6 @@
 import { User, AuthAdapter } from './orders/types';
 import { useState, useEffect } from 'react';
+import { generateUUID, safeStorage } from './utils';
 
 // Local auth adapter for development
 class LocalAuthAdapter implements AuthAdapter {
@@ -7,27 +8,27 @@ class LocalAuthAdapter implements AuthAdapter {
 
   async getCurrentUser(): Promise<User | null> {
     try {
-      const stored = localStorage.getItem(this.CURRENT_USER_KEY);
+      const stored = safeStorage.getItem(this.CURRENT_USER_KEY);
       let user = stored ? JSON.parse(stored) : null;
 
       // If no user but admin cookie is present, create a temporary admin user
-      if (!user && document.cookie.includes('admin=1')) {
+      if (!user && typeof document !== 'undefined' && document.cookie.includes('admin=1')) {
         user = {
           id: 'admin_dev_user',
           email: 'admin@dev.local',
           is_admin: true,
         };
-        localStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
+        safeStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
       }
 
       // Update admin status based on cookie
-      if (user && document.cookie.includes('admin=1')) {
+      if (user && typeof document !== 'undefined' && document.cookie.includes('admin=1')) {
         user.is_admin = true;
       }
 
       return user;
     } catch (error) {
-      console.error('Error reading user from localStorage:', error);
+      console.error('Error reading user from storage:', error);
       return null;
     }
   }
@@ -47,7 +48,7 @@ class LocalAuthAdapter implements AuthAdapter {
 
     // Always create/ensure user exists in database
     console.log('🆕 Creating/ensuring user for', email);
-    const userId = crypto.randomUUID();
+    const userId = generateUUID();
 
     user = {
       id: userId,
@@ -95,7 +96,7 @@ class LocalAuthAdapter implements AuthAdapter {
     }
 
     // Check for admin cookie
-    if (document.cookie.includes('admin=1')) {
+    if (typeof document !== 'undefined' && document.cookie.includes('admin=1')) {
       user.is_admin = true;
     }
 
@@ -133,7 +134,7 @@ class LocalAuthAdapter implements AuthAdapter {
       throw new Error('Sign-in failed: Unable to create user profile. Please try again.');
     }
 
-    localStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
+    safeStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
     return user;
   }
 
@@ -142,7 +143,7 @@ class LocalAuthAdapter implements AuthAdapter {
     const isAdmin = email.toLowerCase().includes('admin');
 
     // Generate a proper UUID for the user ID
-    const userId = crypto.randomUUID();
+    const userId = generateUUID();
 
     const user: User = {
       id: userId,
@@ -153,7 +154,7 @@ class LocalAuthAdapter implements AuthAdapter {
     };
 
     // Check for admin cookie
-    if (document.cookie.includes('admin=1')) {
+    if (typeof document !== 'undefined' && document.cookie.includes('admin=1')) {
       user.is_admin = true;
     }
 
@@ -195,12 +196,12 @@ class LocalAuthAdapter implements AuthAdapter {
       throw new Error('Failed to create user account. Please try again.');
     }
 
-    localStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
+    safeStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
     return user;
   }
 
   async signOut(): Promise<void> {
-    localStorage.removeItem(this.CURRENT_USER_KEY);
+    safeStorage.removeItem(this.CURRENT_USER_KEY);
   }
 }
 
