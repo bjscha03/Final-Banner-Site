@@ -54,9 +54,6 @@ export function getOrdersAdapter(): OrdersAdapter {
   console.log('Production:', isProd);
 
   // Safe window access for browser environment
-  const isLocalhost = typeof window !== 'undefined' &&
-    (window.location?.hostname === 'localhost' || window.location?.hostname === '127.0.0.1');
-
   if (typeof window !== 'undefined') {
     console.log('Hostname:', window.location?.hostname || 'unknown');
     console.log('Full URL:', window.location?.href || 'unknown');
