@@ -111,13 +111,13 @@ exports.handler = async (event, context) => {
     const formattedOrders = orders.map(order => ({
       id: order.id,
       user_id: order.user_id,
+      email: order.email,
       subtotal_cents: order.subtotal_cents,
       tax_cents: order.tax_cents,
       total_cents: order.total_cents,
       status: order.status,
       currency: 'USD',
       tracking_number: order.tracking_number,
-      tracking_carrier: order.tracking_carrier,
       created_at: order.created_at,
       items: order.items || []
     }));
