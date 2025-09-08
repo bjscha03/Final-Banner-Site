@@ -45,7 +45,17 @@ export function getOrdersAdapter(): OrdersAdapter {
     console.log('Full URL:', window.location?.href || 'unknown');
   }
 
-  // Priority 1: Direct Neon database connection (both dev and production)
+  // Priority 1: Use Netlify Function adapter (works with our fixed get-orders function)
+  // This ensures we use the working Netlify functions instead of direct database access
+  try {
+    _adapter = netlifyFunctionOrdersAdapter;
+    console.log('✅ Using Netlify Function adapter (uses working get-orders function)');
+    return _adapter;
+  } catch (error) {
+    console.warn('❌ Netlify Function adapter failed:', error);
+  }
+
+  // Priority 2: Direct Neon database connection (fallback)
   const databaseUrl = viteDbUrl || netlifyDbUrl;
   if (databaseUrl) {
     try {
@@ -58,25 +68,6 @@ export function getOrdersAdapter(): OrdersAdapter {
     }
   } else {
     console.warn('⚠️ No database URL found - orders will not sync to Neon!');
-  }
-
-  // Try Netlify Function adapter (for production or when database URL not available)
-  try {
-    // Test if Netlify functions are available by checking if we're in a browser environment
-    // and if the current domain suggests we're on Netlify
-    const isNetlifyEnvironment = typeof window !== 'undefined' &&
-      (window.location?.hostname?.includes('netlify') ||
-       window.location?.hostname?.includes('bannersonthefly'));
-
-    if (isNetlifyEnvironment || typeof window === 'undefined') {
-      _adapter = netlifyFunctionOrdersAdapter;
-      console.log('✅ Using Netlify Function adapter (serverless functions)');
-      return _adapter;
-    } else {
-      console.log('⚠️ Not in Netlify environment, skipping Netlify Function adapter');
-    }
-  } catch (error) {
-    console.warn('❌ Netlify Function adapter failed, trying fallbacks', error);
   }
 
   // Check if we're in Netlify environment (has NETLIFY_DATABASE_URL) and adapter is available
