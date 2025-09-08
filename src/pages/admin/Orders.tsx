@@ -354,12 +354,12 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
     <tr className="hover:bg-gray-50">
       <td className="px-6 py-4 whitespace-nowrap">
         <div className="text-sm font-medium text-gray-900">
-          #{order.id.slice(-8).toUpperCase()}
+          #{order.id ? order.id.slice(-8).toUpperCase() : 'UNKNOWN'}
         </div>
       </td>
       <td className="px-6 py-4 whitespace-nowrap">
         <div className="text-sm text-gray-900">
-          {order.user_id ? order.user_id.slice(0, 8) + '...' : 'Guest'}
+          {order.user_id ? (order.user_id.slice(0, 8) + '...') : 'Guest'}
         </div>
       </td>
       <td className="px-6 py-4 whitespace-nowrap">

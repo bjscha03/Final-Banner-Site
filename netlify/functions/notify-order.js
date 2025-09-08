@@ -205,7 +205,7 @@ exports.handler = async (event) => {
       to: order.email,
       order: {
         id: order.id,
-        number: order.id.slice(-8).toUpperCase(),
+        number: order.id ? order.id.slice(-8).toUpperCase() : 'UNKNOWN',
         customerName: order.customer_name || 'Customer',
         items: itemRows.map((item) => ({
           name: `Custom Banner ${item.width_in}"×${item.height_in}"`,

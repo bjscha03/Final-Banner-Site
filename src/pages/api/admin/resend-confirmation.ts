@@ -57,7 +57,7 @@ export const POST: APIRoute = async ({ request }) => {
       to: order.customer_email,
       order: {
         id: order.id,
-        orderNumber: order.id.slice(-8).toUpperCase(),
+        orderNumber: order.id ? order.id.slice(-8).toUpperCase() : 'UNKNOWN',
         customerName: order.customer_name || 'Customer',
         items: itemRows.map((item: any) => ({
           name: `Custom Banner ${item.width_in}"×${item.height_in}"`,

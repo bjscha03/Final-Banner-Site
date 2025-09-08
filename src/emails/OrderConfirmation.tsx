@@ -56,7 +56,7 @@ export default function OrderConfirmation({ order, invoiceUrl }: OrderConfirmati
   });
 
   // Handle different prop formats
-  const orderNumber = order.number || order.orderNumber || order.id.slice(-8).toUpperCase();
+  const orderNumber = order.number || order.orderNumber || (order.id ? order.id.slice(-8).toUpperCase() : 'UNKNOWN');
   const customerName = order.customerName || 'Customer';
   const subtotal = order.subtotal || (order.subtotalCents ? order.subtotalCents / 100 : 0);
   const tax = order.tax || (order.taxCents ? order.taxCents / 100 : 0);

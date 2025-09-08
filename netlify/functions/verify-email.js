@@ -102,15 +102,15 @@ exports.handler = async (event) => {
 
     // Mark email as verified
     await db`
-      UPDATE email_verifications 
-      SET verified = true, verified_at = NOW(), updated_at = NOW()
+      UPDATE email_verifications
+      SET verified = true, verified_at = NOW()
       WHERE id = ${verificationToken.id}
     `;
 
     // Update user profile to mark email as verified
     await db`
-      UPDATE profiles 
-      SET email_verified = true, email_verified_at = NOW(), updated_at = NOW()
+      UPDATE profiles
+      SET email_verified = true, email_verified_at = NOW()
       WHERE id = ${verificationToken.user_id}
     `;
 
@@ -124,13 +124,19 @@ exports.handler = async (event) => {
 
   } catch (error) {
     console.error('Email verification failed:', error);
-    
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ 
-        ok: false, 
-        error: 'Internal server error' 
+      body: JSON.stringify({
+        ok: false,
+        error: 'Internal server error',
+        details: error.message
       })
     };
   }
