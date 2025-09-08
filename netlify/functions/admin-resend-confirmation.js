@@ -183,12 +183,12 @@ exports.handler = async (event) => {
       SELECT * FROM order_items WHERE order_id = ${orderId}
     `;
 
-    // Build origin URL for invoice link
-    const origin = event.headers['x-forwarded-host'] 
+    // Build origin URL for order details link
+    const origin = event.headers['x-forwarded-host']
       ? `https://${event.headers['x-forwarded-host']}`
       : process.env.PUBLIC_SITE_URL || 'https://www.bannersonthefly.com';
-    
-    const invoiceUrl = `${origin}/order-confirmation?orderId=${orderId}`;
+
+    const invoiceUrl = `${origin}/orders/${orderId}`;
 
     // Convert database order to email format
     const emailPayload = {

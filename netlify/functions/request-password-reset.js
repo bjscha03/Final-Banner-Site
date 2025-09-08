@@ -80,16 +80,17 @@ exports.handler = async (event) => {
     const token = generateSecureToken(32); // 64 character hex string
     const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 60 minutes from now
 
-    // Create/upsert password reset entry
+    // Invalidate any existing reset tokens for this user
+    await db`
+      UPDATE password_resets
+      SET used = true, used_at = NOW()
+      WHERE user_id = ${user.id} AND used = false
+    `;
+
+    // Create new password reset entry
     await db`
       INSERT INTO password_resets (id, user_id, token, expires_at, used, created_at)
       VALUES (${generateUUID()}, ${user.id}, ${token}, ${expiresAt}, false, NOW())
-      ON CONFLICT (user_id) 
-      DO UPDATE SET 
-        token = EXCLUDED.token,
-        expires_at = EXCLUDED.expires_at,
-        used = false,
-        created_at = NOW()
     `;
 
     // Build reset URL using origin from headers or env var
@@ -121,13 +122,19 @@ exports.handler = async (event) => {
 
   } catch (error) {
     console.error('Password reset request failed:', error);
-    
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      name: error.name
+    });
+
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({ 
-        ok: false, 
-        error: 'Internal server error' 
+      body: JSON.stringify({
+        ok: false,
+        error: 'Internal server error',
+        details: error.message
       })
     };
   }
