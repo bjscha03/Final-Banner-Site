@@ -1,11 +1,24 @@
 import { Order, OrdersAdapter, CreateOrderData, TrackingCarrier } from './types';
 
+// Get the correct base URL for Netlify functions
+const getNetlifyFunctionUrl = (functionName: string): string => {
+  // In development, Netlify functions run on port 8888
+  // In production, they're available at the same domain
+  if (typeof window !== 'undefined') {
+    const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (isDev) {
+      return `http://localhost:8888/.netlify/functions/${functionName}`;
+    }
+  }
+  return `/.netlify/functions/${functionName}`;
+};
+
 export const netlifyFunctionOrdersAdapter: OrdersAdapter = {
   create: async (orderData: CreateOrderData): Promise<Order> => {
     try {
       console.log('Creating order with Netlify function:', orderData);
 
-      const response = await fetch('/.netlify/functions/create-order', {
+      const response = await fetch(getNetlifyFunctionUrl('create-order'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -42,7 +55,7 @@ export const netlifyFunctionOrdersAdapter: OrdersAdapter = {
   listByUser: async (userId: string, page = 1): Promise<Order[]> => {
     try {
       console.log('Fetching orders for user:', userId);
-      const response = await fetch(`/.netlify/functions/get-orders?user_id=${userId}&page=${page}`);
+      const response = await fetch(getNetlifyFunctionUrl(`get-orders?user_id=${userId}&page=${page}`));
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
@@ -61,7 +74,7 @@ export const netlifyFunctionOrdersAdapter: OrdersAdapter = {
 
   listAll: async (page = 1): Promise<Order[]> => {
     try {
-      const response = await fetch(`/.netlify/functions/get-orders?page=${page}`);
+      const response = await fetch(getNetlifyFunctionUrl(`get-orders?page=${page}`));
       
       if (!response.ok) {
         throw new Error(`Failed to fetch orders: ${response.status}`);
@@ -76,7 +89,7 @@ export const netlifyFunctionOrdersAdapter: OrdersAdapter = {
 
   appendTracking: async (id: string, carrier: TrackingCarrier, number: string): Promise<void> => {
     try {
-      const response = await fetch('/.netlify/functions/update-tracking', {
+      const response = await fetch(getNetlifyFunctionUrl('update-tracking'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -95,7 +108,7 @@ export const netlifyFunctionOrdersAdapter: OrdersAdapter = {
 
   get: async (id: string): Promise<Order | null> => {
     try {
-      const response = await fetch(`/.netlify/functions/get-order?id=${id}`);
+      const response = await fetch(getNetlifyFunctionUrl(`get-order?id=${id}`));
 
       if (!response.ok) {
         if (response.status === 404) {
