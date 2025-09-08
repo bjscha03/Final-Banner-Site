@@ -198,7 +198,7 @@ export const neonApiOrdersAdapter: OrdersAdapter = {
         },
         body: JSON.stringify({
           tracking_number: number,
-          tracking_carrier: carrier,
+          // tracking_carrier: carrier, // Column doesn't exist in database schema
           status: 'shipped', // Update status to shipped when tracking is added
           updated_at: new Date().toISOString()
         })
