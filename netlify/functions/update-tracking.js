@@ -1,8 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
 
-// Neon database connection - initialize outside handler like get-orders.js
-const sql = neon(process.env.NETLIFY_DATABASE_URL);
-
 const headers = {
   'Content-Type': 'application/json',
   'Access-Control-Allow-Origin': '*',
@@ -38,6 +35,9 @@ exports.handler = async (event) => {
         })
       };
     }
+
+    // Initialize database connection inside handler
+    const sql = neon(process.env.NETLIFY_DATABASE_URL);
 
     const { id, carrier, number } = JSON.parse(event.body || '{}');
 
