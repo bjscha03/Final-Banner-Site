@@ -1,5 +1,8 @@
 const { neon } = require('@neondatabase/serverless');
 
+// Neon database connection - initialize outside handler like get-orders.js
+const sql = neon(process.env.NETLIFY_DATABASE_URL);
+
 const headers = {
   'Content-Type': 'application/json',
   'Access-Control-Allow-Origin': '*',
@@ -22,8 +25,22 @@ exports.handler = async (event) => {
   }
 
   try {
+    // Check if database URL is available
+    if (!process.env.NETLIFY_DATABASE_URL) {
+      console.error('NETLIFY_DATABASE_URL not found in environment variables');
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({
+          ok: false,
+          error: 'Database configuration missing',
+          details: 'NETLIFY_DATABASE_URL environment variable not set'
+        })
+      };
+    }
+
     const { id, carrier, number } = JSON.parse(event.body || '{}');
-    
+
     if (!id || typeof id !== 'string') {
       return {
         statusCode: 400,
@@ -40,21 +57,9 @@ exports.handler = async (event) => {
       };
     }
 
-    const dbUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
-    if (!dbUrl) {
-      console.error('Database URL not configured');
-      return {
-        statusCode: 500,
-        headers,
-        body: JSON.stringify({ ok: false, error: 'Database not configured' })
-      };
-    }
-
-    const db = neon(dbUrl);
-
     // Update the order with tracking information and set status to 'shipped'
     // Note: tracking_carrier column doesn't exist in database schema, so we only update tracking_number
-    const result = await db`
+    const result = await sql`
       UPDATE orders
       SET tracking_number = ${number},
           status = 'shipped',
