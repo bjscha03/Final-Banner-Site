@@ -1,5 +1,5 @@
 export type MaterialKey = '13oz' | '15oz' | '18oz' | 'mesh';
-export type OrderStatus = 'paid' | 'pending' | 'failed' | 'refunded';
+export type OrderStatus = 'paid' | 'pending' | 'failed' | 'refunded' | 'shipped';
 export type TrackingCarrier = 'fedex';
 
 export interface OrderItem {

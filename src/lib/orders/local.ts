@@ -291,6 +291,7 @@ export const localOrdersAdapter: OrdersAdapter = {
       ...orders[orderIndex],
       tracking_carrier: carrier,
       tracking_number: number,
+      status: 'shipped', // Automatically update status to shipped when tracking is added
     };
 
     saveOrders(orders);

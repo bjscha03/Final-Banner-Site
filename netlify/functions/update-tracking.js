@@ -52,10 +52,13 @@ exports.handler = async (event) => {
 
     const db = neon(dbUrl);
 
-    // Update the order with tracking information
+    // Update the order with tracking information and set status to 'shipped'
     const result = await db`
-      UPDATE orders 
-      SET tracking_number = ${number}, updated_at = NOW()
+      UPDATE orders
+      SET tracking_number = ${number},
+          tracking_carrier = ${carrier || 'fedex'},
+          status = 'shipped',
+          updated_at = NOW()
       WHERE id = ${id}
       RETURNING *
     `;

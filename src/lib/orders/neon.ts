@@ -154,7 +154,9 @@ export const neonOrdersAdapter: OrdersAdapter = {
     try {
       await db`
         UPDATE orders
-        SET tracking_number = ${number}
+        SET tracking_number = ${number},
+            tracking_carrier = ${carrier},
+            status = 'shipped'
         WHERE id = ${id}
       `;
     } catch (error) {

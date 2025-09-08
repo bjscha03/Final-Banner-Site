@@ -14,7 +14,21 @@ try {
 
 let _adapter: OrdersAdapter | null = null;
 
+// Function to reset adapter (useful for testing/development)
+export function resetOrdersAdapter(): void {
+  _adapter = null;
+  console.log('🔄 Orders adapter reset - will re-select on next call');
+}
+
 export function getOrdersAdapter(): OrdersAdapter {
+  // Force reset adapter on localhost to ensure we use the correct one
+  const isLocalhost = typeof window !== 'undefined' &&
+    (window.location?.hostname === 'localhost' || window.location?.hostname === '127.0.0.1');
+
+  if (isLocalhost) {
+    _adapter = null; // Force re-selection on localhost
+  }
+
   if (_adapter) return _adapter;
 
   console.log('🔍 ORDERS ADAPTER SELECTION DEBUG:');
@@ -40,12 +54,24 @@ export function getOrdersAdapter(): OrdersAdapter {
   console.log('Production:', isProd);
 
   // Safe window access for browser environment
+  const isLocalhost = typeof window !== 'undefined' &&
+    (window.location?.hostname === 'localhost' || window.location?.hostname === '127.0.0.1');
+
   if (typeof window !== 'undefined') {
     console.log('Hostname:', window.location?.hostname || 'unknown');
     console.log('Full URL:', window.location?.href || 'unknown');
+    console.log('Is localhost:', isLocalhost);
   }
 
-  // Priority 1: Use Netlify Function adapter (works with our fixed get-orders function)
+  // Priority 1: Use local adapter for localhost development
+  if (isLocalhost) {
+    _adapter = localOrdersAdapter;
+    console.log('✅ Using local orders adapter (localhost development)');
+    console.log('📝 Local adapter will use browser storage for orders');
+    return _adapter;
+  }
+
+  // Priority 2: Use Netlify Function adapter for production (works with our fixed get-orders function)
   // This ensures we use the working Netlify functions instead of direct database access
   try {
     _adapter = netlifyFunctionOrdersAdapter;
@@ -55,7 +81,7 @@ export function getOrdersAdapter(): OrdersAdapter {
     console.warn('❌ Netlify Function adapter failed:', error);
   }
 
-  // Priority 2: Direct Neon database connection (fallback)
+  // Priority 3: Direct Neon database connection (fallback)
   const databaseUrl = viteDbUrl || netlifyDbUrl;
   if (databaseUrl) {
     try {
@@ -83,7 +109,7 @@ export function getOrdersAdapter(): OrdersAdapter {
 
   // Final fallback to local adapter with enhanced logging
   _adapter = localOrdersAdapter;
-  console.log('⚠️ Using local orders adapter (development mode)');
+  console.log('⚠️ Using local orders adapter (fallback mode)');
   console.log('📝 Local adapter will use browser storage for orders');
 
   // Test the local adapter to ensure it works

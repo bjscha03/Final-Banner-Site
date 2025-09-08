@@ -103,11 +103,16 @@ const AdminOrders: React.FC = () => {
       const ordersAdapter = await getOrdersAdapter();
       await ordersAdapter.appendTracking(orderId, carrier, trackingNumber);
       
-      // Update local state
-      setOrders(prevOrders => 
-        prevOrders.map(order => 
-          order.id === orderId 
-            ? { ...order, tracking_carrier: carrier, tracking_number: trackingNumber }
+      // Update local state with tracking info and status change
+      setOrders(prevOrders =>
+        prevOrders.map(order =>
+          order.id === orderId
+            ? {
+                ...order,
+                tracking_carrier: carrier,
+                tracking_number: trackingNumber,
+                status: 'shipped' // Update status to shipped when tracking is added
+              }
             : order
         )
       );
@@ -130,6 +135,8 @@ const AdminOrders: React.FC = () => {
     switch (status) {
       case 'paid':
         return 'bg-green-100 text-green-800';
+      case 'shipped':
+        return 'bg-blue-100 text-blue-800';
       case 'pending':
         return 'bg-amber-100 text-amber-800';
       case 'failed':

@@ -154,7 +154,12 @@ export const netlifyDbOrdersAdapter: OrdersAdapter = {
     try {
       await db
         .update(orders)
-        .set({ updated_at: new Date() })
+        .set({
+          tracking_number: number,
+          tracking_carrier: carrier,
+          status: 'shipped', // Update status to shipped when tracking is added
+          updated_at: new Date()
+        })
         .where(eq(orders.id, id));
     } catch (error) {
       console.error('Error updating tracking:', error);

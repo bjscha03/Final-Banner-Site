@@ -80,6 +80,7 @@ export const supabaseOrdersAdapter: OrdersAdapter = {
       .update({
         tracking_carrier: carrier,
         tracking_number: number,
+        status: 'shipped', // Update status to shipped when tracking is added
       })
       .eq('id', id);
 
