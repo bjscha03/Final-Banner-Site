@@ -53,10 +53,10 @@ exports.handler = async (event) => {
     const db = neon(dbUrl);
 
     // Update the order with tracking information and set status to 'shipped'
+    // Note: tracking_carrier column doesn't exist in database schema, so we only update tracking_number
     const result = await db`
       UPDATE orders
       SET tracking_number = ${number},
-          tracking_carrier = ${carrier || 'fedex'},
           status = 'shipped',
           updated_at = NOW()
       WHERE id = ${id}

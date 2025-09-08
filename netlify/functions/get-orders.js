@@ -118,6 +118,7 @@ exports.handler = async (event, context) => {
       status: order.status,
       currency: 'USD',
       tracking_number: order.tracking_number,
+      tracking_carrier: order.tracking_number ? 'fedex' : null, // Default to fedex when tracking exists
       created_at: order.created_at,
       items: order.items || []
     }));

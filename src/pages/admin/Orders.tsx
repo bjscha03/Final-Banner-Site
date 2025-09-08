@@ -104,12 +104,13 @@ const AdminOrders: React.FC = () => {
       await ordersAdapter.appendTracking(orderId, carrier, trackingNumber);
       
       // Update local state with tracking info and status change
+      // Note: tracking_carrier is not stored in database, so we default to 'fedex'
       setOrders(prevOrders =>
         prevOrders.map(order =>
           order.id === orderId
             ? {
                 ...order,
-                tracking_carrier: carrier,
+                tracking_carrier: 'fedex' as const, // Default carrier since not stored in DB
                 tracking_number: trackingNumber,
                 status: 'shipped' // Update status to shipped when tracking is added
               }
