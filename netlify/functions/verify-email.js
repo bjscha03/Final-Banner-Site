@@ -45,12 +45,32 @@ exports.handler = async (event) => {
     const db = neon(dbUrl);
 
     // Find valid verification token
-    const verificationTokens = await db`
-      SELECT ev.id, ev.user_id, ev.expires_at, ev.verified, ev.verified_at, p.email
-      FROM email_verifications ev
-      JOIN profiles p ON p.id = ev.user_id
-      WHERE ev.token = ${token}
-    `;
+    let verificationTokens;
+    try {
+      verificationTokens = await db`
+        SELECT ev.id, ev.user_id, ev.expires_at, ev.verified, ev.verified_at, p.email
+        FROM email_verifications ev
+        JOIN profiles p ON p.id = ev.user_id
+        WHERE ev.token = ${token}
+      `;
+    } catch (dbError) {
+      console.error('Database query failed:', dbError);
+
+      // Check if it's a missing table error
+      if (dbError.message && dbError.message.includes('email_verifications')) {
+        return {
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({
+            ok: false,
+            error: 'Email verification system not properly configured. Please contact support.',
+            details: 'Missing email_verifications table'
+          })
+        };
+      }
+
+      throw dbError; // Re-throw other database errors
+    }
     
     if (verificationTokens.length === 0) {
       return {

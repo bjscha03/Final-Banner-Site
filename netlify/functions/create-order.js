@@ -1,11 +1,31 @@
 const { neon } = require('@neondatabase/serverless');
 const { randomUUID } = require('crypto');
 
-// Simple email function - no external dependencies
-async function sendEmail(type, payload) {
-  // For now, just log the email attempt
-  console.log(`Email would be sent: ${type}`, payload);
-  return { ok: true, id: 'mock-email-id' };
+// Send order confirmation email by calling notify-order function
+async function sendOrderConfirmationEmail(orderId) {
+  try {
+    // Call the notify-order function to send the confirmation email
+    const notifyOrderFunction = require('./notify-order');
+
+    const mockEvent = {
+      httpMethod: 'POST',
+      body: JSON.stringify({ orderId }),
+      headers: {}
+    };
+
+    const result = await notifyOrderFunction.handler(mockEvent);
+
+    if (result.statusCode === 200) {
+      const body = JSON.parse(result.body);
+      return { ok: body.ok, id: body.id };
+    } else {
+      const body = JSON.parse(result.body);
+      return { ok: false, error: body.error || 'Failed to send email' };
+    }
+  } catch (error) {
+    console.error('Error calling notify-order function:', error);
+    return { ok: false, error: error.message || 'Email send failed' };
+  }
 }
 
 // Neon database connection
@@ -213,38 +233,15 @@ exports.handler = async (event, context) => {
     // Return structured response
     // Send order confirmation email
     try {
-      console.log('Sending order confirmation email to:', userEmail);
-      const siteUrl = process.env.PUBLIC_SITE_URL || 'https://bannersonthefly.com';
-      const orderUrl = `${siteUrl}/orders/${orderId}`;
+      console.log('Sending order confirmation email for order:', orderId);
 
-      const emailResult = await sendEmail('order.confirmation', {
-        to: userEmail,
-        order: {
-          id: orderId,
-          order_number: orderNumber,
-          total_cents: orderData.total_cents || 0,
-          items: orderData.items || []
-        },
-        orderUrl,
-        tags: [{ name: 'order_id', value: orderId }]
-      });
+      const emailResult = await sendOrderConfirmationEmail(orderId);
 
       if (emailResult.ok) {
-        console.log('Order confirmation email sent successfully');
-        // Update order with email status
-        await sql`
-          UPDATE orders
-          SET confirmation_email_status = 'sent', confirmation_emailed_at = NOW()
-          WHERE id = ${orderId}
-        `;
+        console.log('Order confirmation email sent successfully, email ID:', emailResult.id);
       } else {
         console.error('Failed to send order confirmation email:', emailResult.error);
-        // Update order with email failure status
-        await sql`
-          UPDATE orders
-          SET confirmation_email_status = 'failed'
-          WHERE id = ${orderId}
-        `;
+        // Don't fail the order creation if email fails - the notify-order function handles database updates
       }
     } catch (emailError) {
       console.error('Error sending order confirmation email:', emailError);
