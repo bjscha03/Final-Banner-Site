@@ -39,8 +39,6 @@ exports.handler = async (event, context) => {
       };
     }
 
-
-
     const { id, carrier, number } = JSON.parse(event.body || '{}');
 
     if (!id || typeof id !== 'string') {
