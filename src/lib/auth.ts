@@ -227,7 +227,15 @@ class LocalAuthAdapter implements AuthAdapter {
   }
 
   async signOut(): Promise<void> {
+    // Remove user from localStorage
     safeStorage.removeItem(this.CURRENT_USER_KEY);
+
+    // Clear admin cookie if it exists
+    if (typeof document !== 'undefined') {
+      // Set the admin cookie to expire immediately
+      document.cookie = 'admin=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax';
+      console.log('🍪 Cleared admin cookie during logout');
+    }
   }
 }
 
