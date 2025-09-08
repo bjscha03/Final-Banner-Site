@@ -76,7 +76,7 @@ exports.handler = async (event) => {
       };
     }
 
-    console.log(`Tracking updated for order ${id}: ${number}`);
+    console.log(`Tracking updated for order ${id}: ${number} - ${new Date().toISOString()}`);
 
     return {
       statusCode: 200,
