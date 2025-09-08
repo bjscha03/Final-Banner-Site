@@ -1,5 +1,8 @@
 const { neon } = require('@neondatabase/serverless');
 
+// Neon database connection
+const sql = neon(process.env.NETLIFY_DATABASE_URL);
+
 const headers = {
   'Content-Type': 'application/json',
   'Access-Control-Allow-Origin': '*',
@@ -7,7 +10,7 @@ const headers = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
 };
 
-exports.handler = async (event) => {
+exports.handler = async (event, context) => {
   // Handle CORS preflight
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers, body: '' };
@@ -36,8 +39,7 @@ exports.handler = async (event) => {
       };
     }
 
-    // Initialize database connection inside handler
-    const sql = neon(process.env.NETLIFY_DATABASE_URL);
+
 
     const { id, carrier, number } = JSON.parse(event.body || '{}');
 
