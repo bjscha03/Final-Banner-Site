@@ -41,16 +41,28 @@ const AdminOrders: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
+  const [showAccessDenied, setShowAccessDenied] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
-    // Redirect if not authenticated or not admin
+    // Debug logging for production troubleshooting
+    console.log('🔍 Admin Orders - Auth State:', {
+      authLoading,
+      user: user ? { id: user.id, email: user.email, is_admin: user.is_admin } : null,
+      isAdmin: user ? isAdmin(user) : false,
+      hostname: typeof window !== 'undefined' ? window.location.hostname : 'unknown',
+      cookies: typeof document !== 'undefined' ? document.cookie : 'unavailable'
+    });
+
+    // Show access denied message instead of immediate redirect
     if (!authLoading && (!user || !isAdmin(user))) {
-      navigate('/');
+      console.log('🚫 Admin access denied - showing access denied message');
+      setShowAccessDenied(true);
       return;
     }
 
     if (user && isAdmin(user)) {
+      console.log('✅ Admin access granted - loading orders');
       loadOrders();
     }
   }, [user, authLoading, navigate]);
@@ -157,9 +169,55 @@ const AdminOrders: React.FC = () => {
     );
   }
 
-  // Don't render anything if user is not authenticated or not admin (will redirect)
-  if (!user || !isAdmin(user)) {
-    return null;
+  // Show access denied message if user is not authenticated or not admin
+  if (showAccessDenied || (!authLoading && (!user || !isAdmin(user)))) {
+    return (
+      <Layout>
+        <div className="min-h-screen bg-gray-50 py-12">
+          <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="bg-white rounded-lg shadow-sm p-8 text-center">
+              <Shield className="h-16 w-16 mx-auto text-red-600 mb-4" />
+              <h1 className="text-2xl font-bold text-gray-900 mb-4">
+                Admin Access Required
+              </h1>
+              <p className="text-gray-600 mb-6">
+                You need admin privileges to access this page. Please set up admin access first.
+              </p>
+              <div className="space-y-4">
+                <Button
+                  onClick={() => navigate('/admin/setup')}
+                  className="w-full sm:w-auto"
+                >
+                  Set Up Admin Access
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => navigate('/')}
+                  className="w-full sm:w-auto ml-0 sm:ml-4"
+                >
+                  <ArrowLeft className="h-4 w-4 mr-2" />
+                  Back to Home
+                </Button>
+              </div>
+
+              {/* Debug info for production troubleshooting */}
+              <details className="mt-8 text-left">
+                <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700">
+                  Debug Information (for troubleshooting)
+                </summary>
+                <div className="mt-2 p-4 bg-gray-50 rounded text-xs font-mono">
+                  <div>Auth Loading: {authLoading ? 'true' : 'false'}</div>
+                  <div>User: {user ? JSON.stringify({ id: user.id, email: user.email, is_admin: user.is_admin }) : 'null'}</div>
+                  <div>Is Admin: {user ? isAdmin(user) ? 'true' : 'false' : 'N/A'}</div>
+                  <div>Hostname: {typeof window !== 'undefined' ? window.location.hostname : 'unknown'}</div>
+                  <div>Cookies: {typeof document !== 'undefined' ? document.cookie || 'none' : 'unavailable'}</div>
+                </div>
+              </details>
+            </div>
+          </div>
+        </div>
+      </Layout>
+    );
   }
 
   return (

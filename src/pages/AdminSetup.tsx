@@ -20,11 +20,18 @@ const AdminSetup: React.FC = () => {
   }, []);
 
   const handleSetAdmin = () => {
+    console.log('🔐 Admin setup attempt:', { password: password.substring(0, 3) + '***' });
+
     if (password === 'admin123' || password === 'admin') {
-      // Set admin cookie for 24 hours
+      // Set admin cookie for 24 hours with proper domain settings
       const expires = new Date();
       expires.setTime(expires.getTime() + (24 * 60 * 60 * 1000));
-      document.cookie = `admin=1; expires=${expires.toUTCString()}; path=/`;
+
+      // Set cookie with multiple configurations to ensure it works in production
+      const cookieString = `admin=1; expires=${expires.toUTCString()}; path=/; SameSite=Lax`;
+      document.cookie = cookieString;
+
+      console.log('🍪 Setting admin cookie:', cookieString);
 
       // Create admin user in localStorage
       const adminUser = {
@@ -34,11 +41,19 @@ const AdminSetup: React.FC = () => {
       };
       localStorage.setItem('banners_current_user', JSON.stringify(adminUser));
 
+      console.log('💾 Stored admin user in localStorage:', adminUser);
+
       setIsAdmin(true);
       toast({
         title: "Admin Access Granted",
         description: "You now have admin access for 24 hours.",
       });
+
+      // Verify the cookie was set
+      setTimeout(() => {
+        const cookieCheck = document.cookie.includes('admin=1');
+        console.log('🔍 Cookie verification:', { cookieCheck, allCookies: document.cookie });
+      }, 100);
     } else {
       toast({
         title: "Invalid Password",

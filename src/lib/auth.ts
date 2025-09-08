@@ -2,6 +2,19 @@ import { User, AuthAdapter } from './orders/types';
 import { useState, useEffect } from 'react';
 import { generateUUID, safeStorage } from './utils';
 
+// Get the correct base URL for Netlify functions
+const getNetlifyFunctionUrl = (functionName: string): string => {
+  // In development, Netlify functions run on port 8888
+  // In production, they're available at the same domain
+  if (typeof window !== 'undefined') {
+    const isDev = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (isDev) {
+      return `http://localhost:8888/.netlify/functions/${functionName}`;
+    }
+  }
+  return `/.netlify/functions/${functionName}`;
+};
+
 // Local auth adapter for development
 class LocalAuthAdapter implements AuthAdapter {
   private readonly CURRENT_USER_KEY = 'banners_current_user';
@@ -11,8 +24,19 @@ class LocalAuthAdapter implements AuthAdapter {
       const stored = safeStorage.getItem(this.CURRENT_USER_KEY);
       let user = stored ? JSON.parse(stored) : null;
 
+      // Debug logging for production troubleshooting
+      const hasAdminCookie = typeof document !== 'undefined' && document.cookie.includes('admin=1');
+      console.log('🔍 getCurrentUser Debug:', {
+        hasStoredUser: !!user,
+        hasAdminCookie,
+        hostname: typeof window !== 'undefined' ? window.location.hostname : 'unknown',
+        cookies: typeof document !== 'undefined' ? document.cookie : 'unavailable',
+        storedUser: user ? { id: user.id, email: user.email, is_admin: user.is_admin } : null
+      });
+
       // If no user but admin cookie is present, create a temporary admin user
-      if (!user && typeof document !== 'undefined' && document.cookie.includes('admin=1')) {
+      if (!user && hasAdminCookie) {
+        console.log('🆕 Creating temporary admin user from cookie');
         user = {
           id: 'admin_dev_user',
           email: 'admin@dev.local',
@@ -22,10 +46,12 @@ class LocalAuthAdapter implements AuthAdapter {
       }
 
       // Update admin status based on cookie
-      if (user && typeof document !== 'undefined' && document.cookie.includes('admin=1')) {
+      if (user && hasAdminCookie) {
+        console.log('🔧 Updating user admin status from cookie');
         user.is_admin = true;
       }
 
+      console.log('✅ getCurrentUser result:', user ? { id: user.id, email: user.email, is_admin: user.is_admin } : null);
       return user;
     } catch (error) {
       console.error('Error reading user from storage:', error);
@@ -58,7 +84,7 @@ class LocalAuthAdapter implements AuthAdapter {
 
     // Create user in database using ensure-user function
     try {
-      const response = await fetch('/.netlify/functions/ensure-user', {
+      const response = await fetch(getNetlifyFunctionUrl('ensure-user'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -102,7 +128,7 @@ class LocalAuthAdapter implements AuthAdapter {
 
     // CRITICAL FIX: Ensure user profile is created in database before proceeding
     try {
-      const response = await fetch('/.netlify/functions/create-user', {
+      const response = await fetch(getNetlifyFunctionUrl('create-user'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -160,7 +186,7 @@ class LocalAuthAdapter implements AuthAdapter {
 
     // Create user profile in database
     try {
-      const response = await fetch('/.netlify/functions/create-user', {
+      const response = await fetch(getNetlifyFunctionUrl('create-user'), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
