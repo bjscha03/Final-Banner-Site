@@ -20,6 +20,9 @@ const PricingCard: React.FC = () => {
 
   const { widthIn, heightIn, quantity, material, grommets, polePockets, addRope, file } = quote;
 
+  // Get feature flags outside of useMemo so they're accessible in JSX
+  const flags = useMemo(() => getFeatureFlags(), []);
+
   // Safe calculation with error handling and memoization
   const { baseTotals, finalTotals, showMinOrderAdjustment, minOrderAdjustmentCents } = useMemo(() => {
     try {
@@ -53,7 +56,6 @@ const PricingCard: React.FC = () => {
       });
 
       // Apply feature flag pricing if enabled
-      const flags = getFeatureFlags();
       const pricingOptions = getPricingOptions();
 
       let finalTotals = baseTotals;
@@ -99,7 +101,7 @@ const PricingCard: React.FC = () => {
         minOrderAdjustmentCents: 0
       };
     }
-  }, [widthIn, heightIn, quantity, material, addRope, polePockets]);
+  }, [widthIn, heightIn, quantity, material, addRope, polePockets, flags]);
 
   const materialName = {
     '13oz': '13oz Vinyl',
