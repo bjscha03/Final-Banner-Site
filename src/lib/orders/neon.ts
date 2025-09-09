@@ -138,6 +138,7 @@ export const neonOrdersAdapter: OrdersAdapter = {
 
       return orders.map(order => ({
         ...order,
+        email: order.email,
         items: order.items || []
       }));
     } catch (error) {
@@ -200,6 +201,7 @@ export const neonOrdersAdapter: OrdersAdapter = {
       return {
         id: order.id,
         user_id: order.user_id,
+        email: order.email,
         subtotal_cents: order.total_cents, // We don't store subtotal separately
         tax_cents: 0, // We don't store tax separately
         total_cents: order.total_cents,

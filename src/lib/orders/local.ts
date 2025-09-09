@@ -26,6 +26,7 @@ function getStoredOrders(): Order[] {
         {
           id: '#MF7Q79BQ',
           user_id: sampleUserId,
+          email: 'customer@example.com',
           status: 'paid',
           subtotal_cents: 3600,
           tax_cents: 216, // 6% of 3600
@@ -52,6 +53,7 @@ function getStoredOrders(): Order[] {
         {
           id: '#MF7PG4UM',
           user_id: sampleUserId,
+          email: 'john.doe@business.com',
           status: 'paid',
           subtotal_cents: 1097,
           tax_cents: 66, // 6% of 1097
@@ -78,6 +80,7 @@ function getStoredOrders(): Order[] {
         {
           id: '#MF7PDJ8B',
           user_id: sampleUserId,
+          email: 'events@company.org',
           status: 'paid',
           subtotal_cents: 7200,
           tax_cents: 432, // 6% of 7200

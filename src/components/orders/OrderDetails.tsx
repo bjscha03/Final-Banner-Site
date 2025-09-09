@@ -4,7 +4,8 @@ import { usd, formatDimensions } from '@/lib/pricing';
 import { Button } from '@/components/ui/button';
 import { useCartStore } from '@/store/cart';
 import { useToast } from '@/components/ui/use-toast';
-import { ShoppingCart, Package, Calendar, CreditCard } from 'lucide-react';
+import { useAuth, isAdmin } from '@/lib/auth';
+import { ShoppingCart, Package, Calendar, CreditCard, Mail, User, Download, FileText } from 'lucide-react';
 import TrackingBadge from './TrackingBadge';
 import {
   Dialog,
@@ -22,6 +23,8 @@ interface OrderDetailsProps {
 const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
   const { addFromQuote } = useCartStore();
   const { toast } = useToast();
+  const { user } = useAuth();
+  const isAdminUser = user && isAdmin(user);
 
   const orderDate = new Date(order.created_at).toLocaleDateString('en-US', {
     year: 'numeric',
@@ -45,6 +48,40 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
         return 'bg-gray-100 text-gray-800';
       default:
         return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const handleFileDownload = async (fileKey: string, itemIndex: number) => {
+    try {
+      // For now, we'll create a simple download link
+      // In a real implementation, this would fetch from your file storage service
+      const fileName = fileKey || `banner-design-${order.id.slice(-8)}-item-${itemIndex + 1}`;
+
+      toast({
+        title: "Download Started",
+        description: `Downloading ${fileName}...`,
+      });
+
+      // Simulate file download - in production, this would be a real file URL
+      // You would typically have a secure endpoint that serves files to authenticated admins
+      const downloadUrl = `/api/files/download?key=${encodeURIComponent(fileKey)}&order=${order.id}`;
+
+      // Create a temporary link and trigger download
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = fileName;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      toast({
+        title: "Download Failed",
+        description: "Could not download the file. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -123,6 +160,36 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
             </div>
           </div>
 
+          {/* Customer Information - Admin Only */}
+          {isAdminUser && (
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                <User className="h-5 w-5 text-blue-600 mr-2" />
+                Customer Information
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center space-x-2">
+                  <Mail className="h-4 w-4 text-gray-500" />
+                  <div>
+                    <p className="text-sm text-gray-600">Email</p>
+                    <p className="font-medium text-gray-900">
+                      {order.email || 'Not provided'}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <User className="h-4 w-4 text-gray-500" />
+                  <div>
+                    <p className="text-sm text-gray-600">Customer ID</p>
+                    <p className="font-medium text-gray-900 font-mono text-sm">
+                      {order.user_id ? order.user_id.slice(0, 8) + '...' : 'Guest Order'}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Order Items */}
           <div>
             <h3 className="text-lg font-semibold text-gray-900 mb-4">Items</h3>
@@ -152,15 +219,38 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                       <p className="text-sm text-gray-600">
                         {usd((item.unit_price_cents || 0) / 100)} each
                       </p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => handleReorder(index)}
-                        className="mt-2"
-                      >
-                        <ShoppingCart className="h-3 w-3 mr-1" />
-                        Reorder
-                      </Button>
+                      <div className="mt-2 space-y-2">
+                        {/* Admin File Download Button */}
+                        {isAdminUser && item.file_key && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleFileDownload(item.file_key!, index)}
+                            className="w-full"
+                          >
+                            <Download className="h-3 w-3 mr-1" />
+                            Download File
+                          </Button>
+                        )}
+                        {isAdminUser && !item.file_key && (
+                          <div className="text-xs text-gray-500 text-center py-1">
+                            <FileText className="h-3 w-3 inline mr-1" />
+                            No file uploaded
+                          </div>
+                        )}
+                        {/* Reorder Button - Show for all users */}
+                        {!isAdminUser && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleReorder(index)}
+                            className="w-full"
+                          >
+                            <ShoppingCart className="h-3 w-3 mr-1" />
+                            Reorder
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

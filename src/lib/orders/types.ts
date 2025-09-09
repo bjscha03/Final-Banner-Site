@@ -18,6 +18,7 @@ export interface OrderItem {
 export interface Order {
   id: string;
   user_id: string | null;
+  email?: string; // Customer email for guest orders
   status: OrderStatus;
   subtotal_cents: number;
   tax_cents: number;

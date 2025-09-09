@@ -72,6 +72,7 @@ export const netlifyDbOrdersAdapter: OrdersAdapter = {
           return {
             id: order.id,
             user_id: order.user_id,
+            email: order.email,
             subtotal_cents: order.total_cents, // We don't store separately
             tax_cents: 0, // We don't store separately
             total_cents: order.total_cents,
@@ -120,6 +121,7 @@ export const netlifyDbOrdersAdapter: OrdersAdapter = {
           return {
             id: order.id,
             user_id: order.user_id,
+            email: order.email,
             subtotal_cents: order.total_cents,
             tax_cents: 0,
             total_cents: order.total_cents,
@@ -184,6 +186,7 @@ export const netlifyDbOrdersAdapter: OrdersAdapter = {
       return {
         id: order.id,
         user_id: order.user_id,
+        email: order.email,
         subtotal_cents: order.total_cents,
         tax_cents: 0,
         total_cents: order.total_cents,
