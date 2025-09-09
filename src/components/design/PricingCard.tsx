@@ -9,7 +9,7 @@ import { useToast } from '@/components/ui/use-toast';
 
 import { useScrollToTop } from '@/components/ScrollToTop';
 
-// Force rebuild - fix for ReferenceError: totals is not defined
+
 
 const PricingCard: React.FC = () => {
   const navigate = useNavigate();
@@ -212,7 +212,7 @@ const PricingCard: React.FC = () => {
                 <span className="text-xl">📏</span>
               </div>
               <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Area</p>
-              <p className="text-lg font-black text-gray-900">{formatArea(totals.area)}</p>
+              <p className="text-lg font-black text-gray-900">{formatArea(baseTotals.area)}</p>
             </div>
           </div>
 
@@ -250,16 +250,16 @@ const PricingCard: React.FC = () => {
             <div className="flex justify-between items-center py-3 border-b border-gray-200/50">
               <div className="flex-1">
                 <span className="text-sm font-semibold text-gray-800 block">
-                  <span className="hidden sm:inline">Banner cost ({formatArea(totals.area)} × {usd(PRICE_PER_SQFT[material])}/sq ft)</span>
+                  <span className="hidden sm:inline">Banner cost ({formatArea(baseTotals.area)} × {usd(PRICE_PER_SQFT[material])}/sq ft)</span>
                   <span className="sm:hidden">Banner cost</span>
                 </span>
               </div>
-              <span className="text-lg font-bold text-gray-900 ml-4">{usd(totals.unit)}</span>
+              <span className="text-lg font-bold text-gray-900 ml-4">{usd(baseTotals.unit)}</span>
             </div>
 
             <div className="flex justify-between items-center py-3 border-b border-gray-200/50">
               <span className="text-sm font-semibold text-gray-800">Subtotal per banner</span>
-              <span className="text-lg font-bold text-gray-900">{usd(totals.unit)}</span>
+              <span className="text-lg font-bold text-gray-900">{usd(baseTotals.unit)}</span>
             </div>
 
             {addRope && (
@@ -270,11 +270,11 @@ const PricingCard: React.FC = () => {
                     <span className="sm:hidden">Rope</span>
                   </span>
                 </div>
-                <span className="text-lg font-bold text-gray-900 ml-4">{usd(totals.rope)}</span>
+                <span className="text-lg font-bold text-gray-900 ml-4">{usd(baseTotals.rope)}</span>
               </div>
             )}
 
-            {polePockets !== 'none' && totals.polePocket > 0 && (
+            {polePockets !== 'none' && baseTotals.polePocket > 0 && (
               <div className="flex justify-between items-center py-3 border-b border-gray-200/50">
                 <div className="flex-1">
                   <span className="text-sm font-semibold text-gray-800 block">
@@ -282,7 +282,7 @@ const PricingCard: React.FC = () => {
                     <span className="sm:hidden">Pole Pockets</span>
                   </span>
                 </div>
-                <span className="text-lg font-bold text-gray-900 ml-4">{usd(totals.polePocket)}</span>
+                <span className="text-lg font-bold text-gray-900 ml-4">{usd(baseTotals.polePocket)}</span>
               </div>
             )}
 
