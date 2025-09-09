@@ -15,7 +15,7 @@ const Shipping: React.FC = () => {
     // Update meta description
     const metaDescription = document.querySelector('meta[name="description"]');
     if (metaDescription) {
-      metaDescription.setAttribute('content', '24-hour production and fast delivery. Free shipping on orders $20+, $5 shipping for orders under $20. See production times, coverage, packaging, and tracking.');
+      metaDescription.setAttribute('content', '24-hour production with free next-day air shipping on orders $20+. Orders under $20 ship ground for $5. See production times, coverage, packaging, and tracking.');
     }
 
     // Cleanup function to restore original title when component unmounts
@@ -45,7 +45,7 @@ const Shipping: React.FC = () => {
           <div className="text-center mb-8">
             <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-500 to-blue-500 text-white text-sm font-medium rounded-full shadow-lg">
               <Clock className="h-4 w-4 mr-2" />
-              24-hour production • Free shipping $20+
+              {flags.siteBadge || 'FREE Next-Day Air • 24-Hour Production'}
             </div>
           </div>
 
@@ -54,11 +54,13 @@ const Shipping: React.FC = () => {
             <div className="flex items-start">
               <Package className="h-6 w-6 text-green-400 mr-3 mt-0.5 flex-shrink-0" />
               <div>
-                <h2 className="text-lg font-bold text-green-800 mb-2">Free Shipping on Orders Over $20</h2>
+                <h2 className="text-lg font-bold text-green-800 mb-2">
+                  {hasMinOrderFloor ? "Free Next-Day Air Shipping" : "Free Next-Day Air on Orders $20+"}
+                </h2>
                 <p className="text-green-700 leading-relaxed">
                   {hasMinOrderFloor
-                    ? "Most orders ship the next business day with our 24-hour production guarantee. A $20 minimum order applies; shipping is free on all orders."
-                    : "Most orders ship the next business day with our 24-hour production guarantee. Orders under $20 include a $5 shipping fee."
+                    ? "All orders ship via free next-day air with our 24-hour production guarantee. A $20 minimum order applies."
+                    : "Orders $20+ ship via free next-day air with our 24-hour production guarantee. Orders under $20 include a $5 shipping fee."
                   }
                 </p>
               </div>
@@ -96,11 +98,11 @@ const Shipping: React.FC = () => {
                   <ul className="space-y-2 text-gray-700">
                     <li className="flex items-start">
                       <span className="w-2 h-2 bg-blue-400 rounded-full mr-3 mt-2"></span>
-                      Ground shipping: 3-5 business days
+                      {flags.shippingMethodLabel || 'Free Next-Day Air'}: 1 business day
                     </li>
                     <li className="flex items-start">
                       <span className="w-2 h-2 bg-blue-400 rounded-full mr-3 mt-2"></span>
-                      Expedited options available at checkout
+                      Saturday delivery available in select areas
                     </li>
                     <li className="flex items-start">
                       <span className="w-2 h-2 bg-blue-400 rounded-full mr-3 mt-2"></span>
@@ -133,18 +135,18 @@ const Shipping: React.FC = () => {
                       <tr>
                         <td className="border border-gray-200 px-4 py-3 text-gray-700">Under $20</td>
                         <td className="border border-gray-200 px-4 py-3 text-gray-700">$5.00</td>
-                        <td className="border border-gray-200 px-4 py-3 text-gray-700">3–5 business days</td>
+                        <td className="border border-gray-200 px-4 py-3 text-gray-700">3–5 business days (ground)</td>
                       </tr>
                     )}
                     <tr className="bg-green-50">
                       <td className="border border-gray-200 px-4 py-3 text-gray-700 font-semibold">$20 and above</td>
                       <td className="border border-gray-200 px-4 py-3 text-green-700 font-semibold">FREE</td>
-                      <td className="border border-gray-200 px-4 py-3 text-gray-700">3–5 business days</td>
+                      <td className="border border-gray-200 px-4 py-3 text-gray-700">1 business day (next-day air)</td>
                     </tr>
                     <tr>
-                      <td className="border border-gray-200 px-4 py-3 text-gray-700">Rush Processing</td>
+                      <td className="border border-gray-200 px-4 py-3 text-gray-700">Same-Day Processing</td>
                       <td className="border border-gray-200 px-4 py-3 text-gray-700">Additional fees apply</td>
-                      <td className="border border-gray-200 px-4 py-3 text-gray-700">1–2 business days</td>
+                      <td className="border border-gray-200 px-4 py-3 text-gray-700">Same day + next-day air</td>
                     </tr>
                   </tbody>
                 </table>
@@ -162,7 +164,7 @@ const Shipping: React.FC = () => {
                       </div>
                       <div className="flex justify-between">
                         <span>Delivery Time:</span>
-                        <span>3–5 business days</span>
+                        <span>3–5 business days (ground)</span>
                       </div>
                     </div>
                   </div>
@@ -176,12 +178,12 @@ const Shipping: React.FC = () => {
                     </div>
                     <div className="flex justify-between">
                       <span>Delivery Time:</span>
-                      <span>3–5 business days</span>
+                      <span>1 business day (next-day air)</span>
                     </div>
                   </div>
                 </div>
                 <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                  <div className="font-semibold text-gray-900 mb-2">Rush Processing</div>
+                  <div className="font-semibold text-gray-900 mb-2">Same-Day Processing</div>
                   <div className="text-sm text-gray-700">
                     <div className="flex justify-between mb-1">
                       <span>Shipping Cost:</span>
@@ -189,7 +191,7 @@ const Shipping: React.FC = () => {
                     </div>
                     <div className="flex justify-between">
                       <span>Delivery Time:</span>
-                      <span>1–2 business days</span>
+                      <span>Same day + next-day air</span>
                     </div>
                   </div>
                 </div>
@@ -394,8 +396,8 @@ const Shipping: React.FC = () => {
                 "acceptedAnswer": {
                   "@type": "Answer",
                   "text": hasMinOrderFloor
-                    ? "Free for all orders. A $20 minimum order applies; shipping is free on all orders."
-                    : "Free for orders $20+. Orders under $20 ship for $5. Rush processing is available for an additional fee."
+                    ? "Free next-day air shipping for all orders. A $20 minimum order applies."
+                    : "Free next-day air shipping for orders $20+. Orders under $20 ship ground for $5. Same-day processing available for additional fees."
                 }
               },
               {
