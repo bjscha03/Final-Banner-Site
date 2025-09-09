@@ -107,6 +107,7 @@ function getStoredOrders(): Order[] {
         {
           id: '#MF7PX5F',
           user_id: 'dev_user_123',
+          email: 'marketing@store.com',
           status: 'paid',
           subtotal_cents: 3600,
           tax_cents: 216, // 6% of 3600
@@ -133,6 +134,7 @@ function getStoredOrders(): Order[] {
         {
           id: '#MF7PGQBT',
           user_id: 'dev_user_123',
+          email: 'promo@retailer.net',
           status: 'paid',
           subtotal_cents: 3600,
           tax_cents: 216, // 6% of 3600
@@ -159,6 +161,7 @@ function getStoredOrders(): Order[] {
         {
           id: '#MF7P3JLA',
           user_id: 'dev_user_123',
+          email: 'bulk@orders.com',
           status: 'paid',
           subtotal_cents: 7200,
           tax_cents: 432, // 6% of 7200
@@ -185,6 +188,7 @@ function getStoredOrders(): Order[] {
         {
           id: '#MF7P29X5',
           user_id: 'dev_user_123',
+          email: 'orders@bigclient.com',
           status: 'paid',
           subtotal_cents: 13200,
           tax_cents: 792, // 6% of 13200
