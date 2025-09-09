@@ -3,7 +3,7 @@ import { ShoppingCart, CreditCard, Check, Truck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useQuoteStore } from '@/store/quote';
 import { useCartStore } from '@/store/cart';
-import { calcTotals, usd, formatArea, formatDimensions, PRICE_PER_SQFT } from '@/lib/pricing';
+import { calcTotals, usd, formatArea, formatDimensions, PRICE_PER_SQFT, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -18,7 +18,8 @@ const PricingCard: React.FC = () => {
 
   const { widthIn, heightIn, quantity, material, grommets, polePockets, addRope, file } = quote;
 
-  const totals = calcTotals({
+  // Calculate base totals
+  const baseTotals = calcTotals({
     widthIn,
     heightIn,
     qty: quantity,
@@ -26,6 +27,29 @@ const PricingCard: React.FC = () => {
     addRope,
     polePockets
   });
+
+  // Apply feature flag pricing if enabled
+  const flags = getFeatureFlags();
+  const pricingOptions = getPricingOptions();
+
+  let finalTotals = baseTotals;
+  let showMinOrderAdjustment = false;
+  let minOrderAdjustmentCents = 0;
+
+  if (flags.freeShipping || flags.minOrderFloor) {
+    const items: PricingItem[] = [{ line_total_cents: Math.round(baseTotals.materialTotal * 100) }];
+    const featureFlagTotals = computeTotals(items, 0.06, pricingOptions);
+
+    finalTotals = {
+      ...baseTotals,
+      materialTotal: featureFlagTotals.adjusted_subtotal_cents / 100,
+      tax: featureFlagTotals.tax_cents / 100,
+      totalWithTax: featureFlagTotals.total_cents / 100
+    };
+
+    showMinOrderAdjustment = featureFlagTotals.min_order_adjustment_cents > 0;
+    minOrderAdjustmentCents = featureFlagTotals.min_order_adjustment_cents;
+  }
 
   const materialName = {
     '13oz': '13oz Vinyl',
@@ -100,20 +124,13 @@ const PricingCard: React.FC = () => {
 
           {/* Main Price */}
           <div className="text-5xl md:text-6xl font-black bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 bg-clip-text text-transparent mb-3 drop-shadow-sm tracking-tight">
-            {usd(totals.totalWithTax)}
+            {usd(finalTotals.totalWithTax)}
           </div>
 
           {/* Price Breakdown */}
           <div className="bg-gradient-to-r from-green-50/60 to-emerald-50/40 border border-green-200/30 rounded-xl px-6 py-3 inline-block mb-2">
-            <div className="text-sm text-gray-600 space-y-1">
-              <div className="flex justify-between items-center gap-4">
-                <span>Subtotal:</span>
-                <span className="font-semibold">{usd(totals.materialTotal)}</span>
-              </div>
-              <div className="flex justify-between items-center gap-4">
-                <span>Tax (6%):</span>
-                <span className="font-semibold">{usd(totals.tax)}</span>
-              </div>
+            <div className="text-sm text-gray-600">
+              <span>Subtotal {usd(baseTotals.materialTotal)} • Tax (6%) {usd(finalTotals.tax)}</span>
             </div>
           </div>
 
@@ -219,11 +236,25 @@ const PricingCard: React.FC = () => {
               </div>
             )}
 
+            {/* Minimum Order Adjustment (if applicable) */}
+            {showMinOrderAdjustment && (
+              <div className="flex justify-between items-center py-3 border-b border-gray-200/50">
+                <span className="text-sm font-semibold text-gray-800">Minimum order adjustment</span>
+                <span className="text-lg font-bold text-gray-900">{usd(minOrderAdjustmentCents / 100)}</span>
+              </div>
+            )}
+
+            {/* Shipping Row */}
+            <div className="flex justify-between items-center py-3 border-b border-gray-200/50">
+              <span className="text-sm font-semibold text-gray-800">{flags.freeShipping ? flags.shippingMethodLabel : 'Shipping'}</span>
+              <span className="text-lg font-bold text-gray-900">$0</span>
+            </div>
+
             {/* Total */}
             <div className="bg-gradient-to-r from-blue-50/50 to-indigo-50/30 border border-blue-200/40 rounded-xl p-4 mt-6">
               <div className="flex justify-between items-center">
-                <span className="text-xl font-black text-gray-900">Material Total</span>
-                <span className="text-2xl font-black bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{usd(totals.materialTotal)}</span>
+                <span className="text-xl font-black text-gray-900">Subtotal</span>
+                <span className="text-2xl font-black bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{usd(finalTotals.materialTotal)}</span>
               </div>
             </div>
           </div>
@@ -264,7 +295,7 @@ const PricingCard: React.FC = () => {
               <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-200">
                 <Check className="h-5 w-5 text-white" />
               </div>
-              <span className="text-sm font-semibold text-gray-800">Free shipping on orders over $20</span>
+              <span className="text-sm font-semibold text-gray-800">{flags.freeShipping ? flags.shippingMethodLabel : 'Free shipping on orders over $20'}</span>
             </div>
           </div>
         </div>
@@ -277,8 +308,8 @@ const PricingCard: React.FC = () => {
               <Truck className="h-6 w-6 text-white" />
             </div>
             <div>
-              <div className="text-xl font-black">Free Shipping!</div>
-              <div className="text-sm font-medium opacity-90">On orders over $20</div>
+              <div className="text-xl font-black">{flags.freeShipping ? flags.shippingMethodLabel : 'Free Shipping!'}</div>
+              <div className="text-sm font-medium opacity-90">{flags.freeShipping ? '$0' : 'On orders over $20'}</div>
             </div>
           </div>
         </div>

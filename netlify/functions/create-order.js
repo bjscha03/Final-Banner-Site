@@ -1,6 +1,35 @@
 const { neon } = require('@neondatabase/serverless');
 const { randomUUID } = require('crypto');
 
+// Feature flag support for new pricing logic
+const getFeatureFlags = () => {
+  return {
+    freeShipping: process.env.FEATURE_FREE_SHIPPING === '1',
+    minOrderFloor: process.env.FEATURE_MIN_ORDER_FLOOR === '1',
+    minOrderCents: parseInt(process.env.MIN_ORDER_CENTS || '2000', 10),
+    shippingMethodLabel: process.env.SHIPPING_METHOD_LABEL || 'Free Next-Day Air'
+  };
+};
+
+const computeTotals = (items, taxRate, opts) => {
+  const raw = items.reduce((sum, i) => sum + i.line_total_cents, 0);
+  const adjusted = Math.max(raw, opts.minFloorCents || 0);
+  const minAdj = Math.max(0, adjusted - raw);
+
+  const shipping_cents = opts.freeShipping ? 0 : 0;
+  const tax_cents = Math.round(adjusted * taxRate);
+  const total_cents = adjusted + tax_cents + shipping_cents;
+
+  return {
+    raw_subtotal_cents: raw,
+    adjusted_subtotal_cents: adjusted,
+    min_order_adjustment_cents: minAdj,
+    shipping_cents,
+    tax_cents,
+    total_cents,
+  };
+};
+
 // Send order confirmation email by calling notify-order function
 async function sendOrderConfirmationEmail(orderId) {
   try {
@@ -75,6 +104,48 @@ exports.handler = async (event, context) => {
     orderData = JSON.parse(event.body);
     console.log('Creating order with data:', orderData);
     console.log('Database URL available:', !!process.env.NETLIFY_DATABASE_URL);
+
+    // Apply feature flag pricing logic if enabled
+    const flags = getFeatureFlags();
+    if (flags.freeShipping || flags.minOrderFloor) {
+      console.log('🏁 Feature flags enabled:', flags);
+
+      const taxRate = 0.06; // 6% tax rate
+      const pricingOptions = {
+        freeShipping: flags.freeShipping,
+        minFloorCents: flags.minOrderFloor ? flags.minOrderCents : 0,
+        shippingMethodLabel: flags.shippingMethodLabel
+      };
+
+      // Recalculate totals with feature flags
+      const recalculatedTotals = computeTotals(orderData.items || [], taxRate, pricingOptions);
+
+      // Log pricing calculation
+      console.info('pricing', {
+        orderId,
+        raw_subtotal_cents: recalculatedTotals.raw_subtotal_cents,
+        adjusted_subtotal_cents: recalculatedTotals.adjusted_subtotal_cents,
+        min_order_adjustment_cents: recalculatedTotals.min_order_adjustment_cents,
+        shipping_cents: recalculatedTotals.shipping_cents,
+        tax_cents: recalculatedTotals.tax_cents,
+        total_cents: recalculatedTotals.total_cents,
+        timestamp: new Date().toISOString()
+      });
+
+      // Update order data with recalculated totals
+      orderData.subtotal_cents = recalculatedTotals.adjusted_subtotal_cents;
+      orderData.tax_cents = recalculatedTotals.tax_cents;
+      orderData.total_cents = recalculatedTotals.total_cents;
+      orderData.min_order_adjustment_cents = recalculatedTotals.min_order_adjustment_cents;
+      orderData.shipping_cents = recalculatedTotals.shipping_cents;
+
+      console.log('✅ Updated order totals with feature flags:', {
+        subtotal_cents: orderData.subtotal_cents,
+        tax_cents: orderData.tax_cents,
+        total_cents: orderData.total_cents,
+        min_order_adjustment_cents: orderData.min_order_adjustment_cents
+      });
+    }
 
     // Generate UUID for the order
     const orderId = randomUUID();

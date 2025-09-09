@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { QuoteState, MaterialKey, Grommets } from './quote';
-import { calculateTax, calculateTotalWithTax } from '@/lib/pricing';
+import { calculateTax, calculateTotalWithTax, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
 
 export interface CartItem {
   id: string;
@@ -128,15 +128,45 @@ export const useCartStore = create<CartState>()(
       },
       
       getSubtotalCents: () => {
-        return get().items.reduce((total, item) => total + item.line_total_cents, 0);
+        const flags = getFeatureFlags();
+        const items = get().items;
+
+        if (flags.freeShipping || flags.minOrderFloor) {
+          const pricingOptions = getPricingOptions();
+          const pricingItems: PricingItem[] = items.map(item => ({ line_total_cents: item.line_total_cents }));
+          const totals = computeTotals(pricingItems, 0.06, pricingOptions);
+          return totals.adjusted_subtotal_cents;
+        }
+
+        return items.reduce((total, item) => total + item.line_total_cents, 0);
       },
 
       getTaxCents: () => {
+        const flags = getFeatureFlags();
+        const items = get().items;
+
+        if (flags.freeShipping || flags.minOrderFloor) {
+          const pricingOptions = getPricingOptions();
+          const pricingItems: PricingItem[] = items.map(item => ({ line_total_cents: item.line_total_cents }));
+          const totals = computeTotals(pricingItems, 0.06, pricingOptions);
+          return totals.tax_cents;
+        }
+
         const subtotal = get().getSubtotalCents();
         return Math.round(calculateTax(subtotal / 100) * 100);
       },
 
       getTotalCents: () => {
+        const flags = getFeatureFlags();
+        const items = get().items;
+
+        if (flags.freeShipping || flags.minOrderFloor) {
+          const pricingOptions = getPricingOptions();
+          const pricingItems: PricingItem[] = items.map(item => ({ line_total_cents: item.line_total_cents }));
+          const totals = computeTotals(pricingItems, 0.06, pricingOptions);
+          return totals.total_cents;
+        }
+
         const subtotal = get().getSubtotalCents();
         return Math.round(calculateTotalWithTax(subtotal / 100) * 100);
       },

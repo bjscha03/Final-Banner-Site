@@ -5,7 +5,7 @@ import { useAuth, getCurrentUser } from '@/lib/auth';
 import { getOrdersAdapter } from '../lib/orders/adapter';
 import { OrderItem } from '../lib/orders/types';
 
-import { usd, formatDimensions } from '@/lib/pricing';
+import { usd, formatDimensions, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
 import Layout from '@/components/Layout';
 import PayPalCheckout from '@/components/checkout/PayPalCheckout';
 import SignUpEncouragementModal from '@/components/checkout/SignUpEncouragementModal';
@@ -25,6 +25,19 @@ const Checkout: React.FC = () => {
   const subtotalCents = getSubtotalCents();
   const taxCents = getTaxCents();
   const totalCents = getTotalCents();
+
+  // Calculate feature flag pricing details
+  const flags = getFeatureFlags();
+  const pricingOptions = getPricingOptions();
+  let minOrderAdjustmentCents = 0;
+  let showMinOrderAdjustment = false;
+
+  if (flags.freeShipping || flags.minOrderFloor) {
+    const pricingItems: PricingItem[] = items.map(item => ({ line_total_cents: item.line_total_cents }));
+    const totals = computeTotals(pricingItems, 0.06, pricingOptions);
+    minOrderAdjustmentCents = totals.min_order_adjustment_cents;
+    showMinOrderAdjustment = minOrderAdjustmentCents > 0;
+  }
 
   // Cart management functions
   const handleIncreaseQuantity = (itemId: string) => {
@@ -304,8 +317,20 @@ const Checkout: React.FC = () => {
                   <div className="flex justify-between items-center">
                     <span className="text-gray-700">Subtotal</span>
                     <span className="text-gray-900">
-                      {usd(subtotalCents / 100)}
+                      {usd((subtotalCents - minOrderAdjustmentCents) / 100)}
                     </span>
+                  </div>
+                  {showMinOrderAdjustment && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-700">Minimum order adjustment</span>
+                      <span className="text-gray-900">
+                        {usd(minOrderAdjustmentCents / 100)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-700">{flags.freeShipping ? flags.shippingMethodLabel : 'Shipping'}</span>
+                    <span className="text-gray-900">$0</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-700">Tax (6%)</span>
