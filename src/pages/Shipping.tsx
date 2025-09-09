@@ -1,8 +1,29 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import Layout from '@/components/Layout';
 import { Truck, Clock, MapPin, Package, DollarSign, AlertTriangle } from 'lucide-react';
+import { getFeatureFlags } from '@/lib/pricing';
 
 const Shipping: React.FC = () => {
+  // Get feature flags to determine conditional content
+  const flags = getFeatureFlags();
+  const hasMinOrderFloor = flags.minOrderFloor && flags.minOrderCents >= 2000;
+
+  // Update page metadata
+  useEffect(() => {
+    document.title = 'Shipping Information | Banners On The Fly';
+
+    // Update meta description
+    const metaDescription = document.querySelector('meta[name="description"]');
+    if (metaDescription) {
+      metaDescription.setAttribute('content', '24-hour production and fast delivery. Free shipping on orders $20+, $5 shipping for orders under $20. See production times, coverage, packaging, and tracking.');
+    }
+
+    // Cleanup function to restore original title when component unmounts
+    return () => {
+      document.title = 'Banners On The Fly - Professional Banners • Free Next-Day Air • 24-Hour Production';
+    };
+  }, []);
+
   return (
     <Layout>
       <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50 pt-8 pb-16">
@@ -16,18 +37,29 @@ const Shipping: React.FC = () => {
               </h1>
             </div>
             <p className="text-xl text-gray-700 max-w-2xl mx-auto">
-              Fast, reliable shipping for your custom banners nationwide
+              24-hour production and fast delivery for your custom banners
             </p>
           </div>
 
-          {/* Quick Overview */}
+          {/* Top Badge */}
+          <div className="text-center mb-8">
+            <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-500 to-blue-500 text-white text-sm font-medium rounded-full shadow-lg">
+              <Clock className="h-4 w-4 mr-2" />
+              24-hour production • Free shipping $20+
+            </div>
+          </div>
+
+          {/* Hero Callout Section */}
           <div className="bg-green-50 border-l-4 border-green-400 p-6 mb-8 rounded-r-lg">
             <div className="flex items-start">
               <Package className="h-6 w-6 text-green-400 mr-3 mt-0.5 flex-shrink-0" />
               <div>
                 <h2 className="text-lg font-bold text-green-800 mb-2">Free Shipping on Orders Over $20</h2>
                 <p className="text-green-700 leading-relaxed">
-                  Most orders ship the next business day with our 24-hour production guarantee. Orders under $20 include a $5 shipping fee.
+                  {hasMinOrderFloor
+                    ? "Most orders ship the next business day with our 24-hour production guarantee. A $20 minimum order applies; shipping is free on all orders."
+                    : "Most orders ship the next business day with our 24-hour production guarantee. Orders under $20 include a $5 shipping fee."
+                  }
                 </p>
               </div>
             </div>
@@ -85,7 +117,9 @@ const Shipping: React.FC = () => {
                 <DollarSign className="h-6 w-6 text-green-500 mr-3" />
                 <h2 className="text-2xl font-bold text-gray-900">Shipping Costs</h2>
               </div>
-              <div className="overflow-x-auto">
+
+              {/* Desktop Table */}
+              <div className="hidden md:block overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
                     <tr className="bg-gray-50">
@@ -95,24 +129,80 @@ const Shipping: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    <tr>
-                      <td className="border border-gray-200 px-4 py-3 text-gray-700">Under $20</td>
-                      <td className="border border-gray-200 px-4 py-3 text-gray-700">$5.00</td>
-                      <td className="border border-gray-200 px-4 py-3 text-gray-700">3-5 business days</td>
-                    </tr>
+                    {!hasMinOrderFloor && (
+                      <tr>
+                        <td className="border border-gray-200 px-4 py-3 text-gray-700">Under $20</td>
+                        <td className="border border-gray-200 px-4 py-3 text-gray-700">$5.00</td>
+                        <td className="border border-gray-200 px-4 py-3 text-gray-700">3–5 business days</td>
+                      </tr>
+                    )}
                     <tr className="bg-green-50">
                       <td className="border border-gray-200 px-4 py-3 text-gray-700 font-semibold">$20 and above</td>
                       <td className="border border-gray-200 px-4 py-3 text-green-700 font-semibold">FREE</td>
-                      <td className="border border-gray-200 px-4 py-3 text-gray-700">3-5 business days</td>
+                      <td className="border border-gray-200 px-4 py-3 text-gray-700">3–5 business days</td>
                     </tr>
                     <tr>
                       <td className="border border-gray-200 px-4 py-3 text-gray-700">Rush Processing</td>
                       <td className="border border-gray-200 px-4 py-3 text-gray-700">Additional fees apply</td>
-                      <td className="border border-gray-200 px-4 py-3 text-gray-700">1-2 business days</td>
+                      <td className="border border-gray-200 px-4 py-3 text-gray-700">1–2 business days</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
+
+              {/* Mobile Cards */}
+              <div className="md:hidden space-y-4">
+                {!hasMinOrderFloor && (
+                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                    <div className="font-semibold text-gray-900 mb-2">Under $20</div>
+                    <div className="text-sm text-gray-700">
+                      <div className="flex justify-between mb-1">
+                        <span>Shipping Cost:</span>
+                        <span>$5.00</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Delivery Time:</span>
+                        <span>3–5 business days</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                <div className="bg-green-50 rounded-lg p-4 border border-green-200">
+                  <div className="font-semibold text-gray-900 mb-2">$20 and above</div>
+                  <div className="text-sm text-gray-700">
+                    <div className="flex justify-between mb-1">
+                      <span>Shipping Cost:</span>
+                      <span className="text-green-700 font-semibold">FREE</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Delivery Time:</span>
+                      <span>3–5 business days</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                  <div className="font-semibold text-gray-900 mb-2">Rush Processing</div>
+                  <div className="text-sm text-gray-700">
+                    <div className="flex justify-between mb-1">
+                      <span>Shipping Cost:</span>
+                      <span>Additional fees apply</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Delivery Time:</span>
+                      <span>1–2 business days</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Conditional Note */}
+              {hasMinOrderFloor && (
+                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-blue-800 text-sm">
+                    <strong>Note:</strong> A $20 minimum order applies; shipping is free on all orders.
+                  </p>
+                </div>
+              )}
             </section>
 
             {/* Shipping Coverage */}
@@ -281,6 +371,53 @@ const Shipping: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* JSON-LD Schema for FAQ */}
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "FAQPage",
+            "mainEntity": [
+              {
+                "@type": "Question",
+                "name": "How fast do orders ship?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Most orders placed by midnight ship the next business day (24-hour production guarantee)."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "How much is shipping?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": hasMinOrderFloor
+                    ? "Free for all orders. A $20 minimum order applies; shipping is free on all orders."
+                    : "Free for orders $20+. Orders under $20 ship for $5. Rush processing is available for an additional fee."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Do you ship to Alaska/Hawaii?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Yes; additional fees may apply."
+                }
+              },
+              {
+                "@type": "Question",
+                "name": "Do you offer international shipping?",
+                "acceptedAnswer": {
+                  "@type": "Answer",
+                  "text": "Not currently; contact us for special arrangements."
+                }
+              }
+            ]
+          })
+        }}
+      />
     </Layout>
   );
 };
