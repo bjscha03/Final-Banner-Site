@@ -34,12 +34,12 @@ const FAQ: React.FC = () => {
     },
     {
       question: "What is your return policy?",
-      answer: "Because every banner is made to order, we don't accept returns. If your order arrives damaged or defective, contact us within 7 days and we'll remake it or refund you.",
+      answer: "Because our products are custom-made, we don't accept returns. If your order arrives damaged or defective, we'll replace it at no cost—just contact support with your order number and photos.",
       category: "Policy"
     },
     {
       question: "Do you provide design proofs?",
-      answer: "We don't send separate proofs. You'll see a live preview in the designer before checkout. Review it carefully—what you approve is what we print.",
+      answer: "We don't provide digital proofs, but you'll see a full print preview before placing your order.",
       category: "Design"
     },
     {
@@ -54,7 +54,7 @@ const FAQ: React.FC = () => {
     },
     {
       question: "What shipping options are available?",
-      answer: "We offer standard ground shipping (3-5 business days), expedited shipping (2-3 business days), and overnight shipping. All orders over $100 qualify for free standard shipping.",
+      answer: "All orders include free next-day air shipping with 24-hour production. A $20 minimum order applies. We don't offer paid shipping upgrades since every order ships fast and free.",
       category: "Shipping"
     },
     {

@@ -27,11 +27,15 @@ const FAQSection: React.FC = () => {
     },
     {
       question: "What is your return policy?",
-      answer: "Because every banner is made to order, we don't accept returns. If your order arrives damaged or defective, contact us within 7 days and we'll remake it or refund you."
+      answer: "Because our products are custom-made, we don't accept returns. If your order arrives damaged or defective, we'll replace it at no cost—just contact support with your order number and photos."
     },
     {
       question: "Do you provide design proofs?",
-      answer: "Yes! We provide digital proofs for all custom designs at no extra charge. You'll receive a proof within 2 hours of placing your order for approval before printing begins."
+      answer: "We don't provide digital proofs, but you'll see a full print preview before placing your order."
+    },
+    {
+      question: "What shipping options are available?",
+      answer: "All orders include free next-day air shipping with 24-hour production. A $20 minimum order applies. We don't offer paid shipping upgrades since every order ships fast and free."
     },
     {
       question: "Do you offer bulk discounts?",
