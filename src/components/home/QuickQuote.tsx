@@ -330,7 +330,7 @@ const QuickQuote: React.FC = () => {
             Get Your Quote in Seconds
           </h2>
           <p className="text-xl text-slate-700 max-w-3xl mx-auto leading-relaxed">
-            Professional vinyl banners with next-day delivery. No hidden fees, no surprises.
+            Professional vinyl banners with free next day air delivery. No hidden fees, no surprises.
           </p>
         </div>
 
@@ -679,16 +679,6 @@ const QuickQuote: React.FC = () => {
               {/* Shipping & Production Features */}
               <div className="bg-gradient-to-br from-green-50/50 via-emerald-50/30 to-teal-50/20 border border-green-200/40 rounded-2xl p-6 mb-8 backdrop-blur-sm">
                 <div className="space-y-4">
-                  <div className="flex items-center gap-4 group">
-                    <div className="relative">
-                      <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-200">
-                        <Truck className="h-6 w-6 text-white" />
-                      </div>
-                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-orange-400 to-red-500 rounded-full shadow-sm animate-pulse"></div>
-                    </div>
-                    <span className="font-bold text-green-800 text-lg">FREE Next Day Shipping</span>
-                  </div>
-
                   <div className="flex items-center gap-4 group">
                     <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-200">
                       <Zap className="h-6 w-6 text-white" />
