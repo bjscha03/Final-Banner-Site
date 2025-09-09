@@ -29,8 +29,7 @@ export const netlifyDbOrdersAdapter: OrdersAdapter = {
         material: item.material,
         grommets: item.grommets || 'none',
         rope_feet: item.rope_feet || 0,
-        line_total_cents: item.line_total_cents,
-        file_key: item.file_key || null
+        line_total_cents: item.line_total_cents
       }));
 
       await db.insert(orderItems).values(orderItemsData);
