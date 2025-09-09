@@ -126,7 +126,8 @@ export const neonOrdersAdapter: OrdersAdapter = {
                    'material', oi.material,
                    'grommets', oi.grommets,
                    'rope_feet', oi.rope_feet,
-                   'line_total_cents', oi.line_total_cents
+                   'line_total_cents', oi.line_total_cents,
+                   'file_key', oi.file_key
                  )
                ) as items
         FROM orders o
@@ -184,7 +185,8 @@ export const neonOrdersAdapter: OrdersAdapter = {
                    'rope_feet', oi.rope_feet,
                    'area_sqft', oi.width_in * oi.height_in / 144.0,
                    'unit_price_cents', oi.line_total_cents / oi.quantity,
-                   'line_total_cents', oi.line_total_cents
+                   'line_total_cents', oi.line_total_cents,
+                   'file_key', oi.file_key
                  )
                ) as items
         FROM orders o

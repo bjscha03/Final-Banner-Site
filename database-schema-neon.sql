@@ -43,6 +43,7 @@ CREATE TABLE IF NOT EXISTS order_items (
     rope_feet INTEGER DEFAULT 0,
     pole_pockets BOOLEAN DEFAULT FALSE,
     line_total_cents INTEGER NOT NULL,
+    file_key VARCHAR(255), -- Customer uploaded file reference
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 

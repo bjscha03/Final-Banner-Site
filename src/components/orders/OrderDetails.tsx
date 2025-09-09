@@ -26,6 +26,8 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
   const { user } = useAuth();
   const isAdminUser = user && isAdmin(user);
 
+
+
   const orderDate = new Date(order.created_at).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
@@ -53,8 +55,6 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
 
   const handleFileDownload = async (fileKey: string, itemIndex: number) => {
     try {
-      // For now, we'll create a simple download link
-      // In a real implementation, this would fetch from your file storage service
       const fileName = fileKey || `banner-design-${order.id.slice(-8)}-item-${itemIndex + 1}`;
 
       toast({
@@ -62,18 +62,28 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
         description: `Downloading ${fileName}...`,
       });
 
-      // Simulate file download - in production, this would be a real file URL
-      // You would typically have a secure endpoint that serves files to authenticated admins
-      const downloadUrl = `/api/files/download?key=${encodeURIComponent(fileKey)}&order=${order.id}`;
+      // Use Netlify function for secure file downloads
+      const downloadUrl = `/.netlify/functions/download-file?key=${encodeURIComponent(fileKey)}&order=${order.id}`;
 
-      // Create a temporary link and trigger download
-      const link = document.createElement('a');
-      link.href = downloadUrl;
-      link.download = fileName;
-      link.target = '_blank';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      // For now, open in new tab to show the download endpoint is working
+      // In production, this would trigger an actual file download
+      const response = await fetch(downloadUrl);
+
+      if (!response.ok) {
+        throw new Error(`Download failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('Download response:', result);
+
+      // Open the download URL in a new tab for now
+      // In production, you'd handle the actual file download here
+      window.open(downloadUrl, '_blank');
+
+      toast({
+        title: "Download Ready",
+        description: `File download endpoint verified for ${fileName}`,
+      });
 
     } catch (error) {
       console.error('Error downloading file:', error);
@@ -238,7 +248,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                             No file uploaded
                           </div>
                         )}
-                        {/* Reorder Button - Show for all users */}
+                        {/* Reorder Button - Show for non-admin users only */}
                         {!isAdminUser && (
                           <Button
                             variant="outline"

@@ -24,5 +24,6 @@ export const orderItems = pgTable('order_items', {
     rope_feet: integer().default(0),
     pole_pockets: varchar({ length: 10 }).default('none'),
     line_total_cents: integer().notNull(),
+    file_key: varchar({ length: 255 }), // Customer uploaded file reference
     created_at: timestamp().defaultNow()
 });
