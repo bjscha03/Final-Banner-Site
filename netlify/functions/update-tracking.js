@@ -1,7 +1,11 @@
 const { neon } = require('@neondatabase/serverless');
 
 // Neon database connection
-const sql = neon(process.env.NETLIFY_DATABASE_URL);
+// Lazily resolve DB URL so the function doesn't crash when missing
+function getDbUrl() {
+  return process.env.NETLIFY_DATABASE_URL || process.env.VITE_DATABASE_URL || process.env.DATABASE_URL;
+}
+
 
 const headers = {
   'Content-Type': 'application/json',
@@ -25,19 +29,21 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    // Check if database URL is available
-    if (!process.env.NETLIFY_DATABASE_URL) {
-      console.error('NETLIFY_DATABASE_URL not found in environment variables');
+    const dbUrl = getDbUrl();
+    if (!dbUrl) {
+      console.error('Database URL not found in environment variables');
       return {
         statusCode: 500,
         headers,
         body: JSON.stringify({
           ok: false,
           error: 'Database configuration missing',
-          details: 'NETLIFY_DATABASE_URL environment variable not set'
+          details: 'Set NETLIFY_DATABASE_URL or VITE_DATABASE_URL or DATABASE_URL'
         })
       };
     }
+
+    const sql = neon(dbUrl);
 
     const { id, carrier, number } = JSON.parse(event.body || '{}');
 
