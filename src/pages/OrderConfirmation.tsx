@@ -223,8 +223,6 @@ const OrderConfirmation: React.FC = () => {
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mt-6 print:bg-gray-50 print:border-gray-300">
               <h3 className="font-semibold text-blue-900 mb-2">What's Next?</h3>
               <ul className="text-blue-800 text-sm space-y-1">
-                <li>• We'll review your order and contact you within 24 hours</li>
-                <li>• Production typically takes 3-5 business days</li>
                 <li>• You'll receive tracking information once shipped</li>
                 <li>• Questions? Contact us at support@bannersonthefly.com</li>
               </ul>
