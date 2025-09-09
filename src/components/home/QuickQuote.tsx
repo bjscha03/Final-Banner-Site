@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Minus, Plus, ArrowRight, Truck, Zap, Package, Palette } from 'lucide-react';
 import { MaterialKey } from '@/store/quote';
@@ -191,14 +191,43 @@ const QuickQuote: React.FC = () => {
     }
   };
 
-  const totals = calcTotals({
-    widthIn,
-    heightIn,
-    qty: quantity,
-    material,
-    addRope: false,
-    polePockets: 'none'
-  });
+  // Safe calculation with error handling
+  const totals = React.useMemo(() => {
+    try {
+      // Ensure all values are valid before calculating
+      if (widthIn <= 0 || heightIn <= 0 || quantity <= 0) {
+        return {
+          area: 0,
+          unit: 0,
+          rope: 0,
+          polePocket: 0,
+          materialTotal: 0,
+          tax: 0,
+          totalWithTax: 0
+        };
+      }
+
+      return calcTotals({
+        widthIn,
+        heightIn,
+        qty: quantity,
+        material,
+        addRope: false,
+        polePockets: 'none'
+      });
+    } catch (error) {
+      console.error('Error calculating totals:', error);
+      return {
+        area: 0,
+        unit: 0,
+        rope: 0,
+        polePocket: 0,
+        materialTotal: 0,
+        tax: 0,
+        totalWithTax: 0
+      };
+    }
+  }, [widthIn, heightIn, quantity, material]);
 
   const isValid = widthIn >= 1 && widthIn <= 1000 && heightIn >= 1 && heightIn <= 1000 && quantity >= 1 && quantity <= 999;
 
