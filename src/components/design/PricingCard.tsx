@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { ShoppingCart, CreditCard, Check, Truck } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useQuoteStore } from '@/store/quote';
@@ -18,38 +18,86 @@ const PricingCard: React.FC = () => {
 
   const { widthIn, heightIn, quantity, material, grommets, polePockets, addRope, file } = quote;
 
-  // Calculate base totals
-  const baseTotals = calcTotals({
-    widthIn,
-    heightIn,
-    qty: quantity,
-    material,
-    addRope,
-    polePockets
-  });
+  // Safe calculation with error handling and memoization
+  const { baseTotals, finalTotals, showMinOrderAdjustment, minOrderAdjustmentCents } = useMemo(() => {
+    try {
+      // Ensure all values are valid before calculating
+      if (widthIn <= 0 || heightIn <= 0 || quantity <= 0) {
+        const fallbackTotals = {
+          area: 0,
+          unit: 0,
+          rope: 0,
+          polePocket: 0,
+          materialTotal: 0,
+          tax: 0,
+          totalWithTax: 0
+        };
+        return {
+          baseTotals: fallbackTotals,
+          finalTotals: fallbackTotals,
+          showMinOrderAdjustment: false,
+          minOrderAdjustmentCents: 0
+        };
+      }
 
-  // Apply feature flag pricing if enabled
-  const flags = getFeatureFlags();
-  const pricingOptions = getPricingOptions();
+      // Calculate base totals
+      const baseTotals = calcTotals({
+        widthIn,
+        heightIn,
+        qty: quantity,
+        material,
+        addRope,
+        polePockets
+      });
 
-  let finalTotals = baseTotals;
-  let showMinOrderAdjustment = false;
-  let minOrderAdjustmentCents = 0;
+      // Apply feature flag pricing if enabled
+      const flags = getFeatureFlags();
+      const pricingOptions = getPricingOptions();
 
-  if (flags.freeShipping || flags.minOrderFloor) {
-    const items: PricingItem[] = [{ line_total_cents: Math.round(baseTotals.materialTotal * 100) }];
-    const featureFlagTotals = computeTotals(items, 0.06, pricingOptions);
+      let finalTotals = baseTotals;
+      let showMinOrderAdjustment = false;
+      let minOrderAdjustmentCents = 0;
 
-    finalTotals = {
-      ...baseTotals,
-      materialTotal: featureFlagTotals.adjusted_subtotal_cents / 100,
-      tax: featureFlagTotals.tax_cents / 100,
-      totalWithTax: featureFlagTotals.total_cents / 100
-    };
+      if (flags.freeShipping || flags.minOrderFloor) {
+        const items: PricingItem[] = [{ line_total_cents: Math.round(baseTotals.materialTotal * 100) }];
+        const featureFlagTotals = computeTotals(items, 0.06, pricingOptions);
 
-    showMinOrderAdjustment = featureFlagTotals.min_order_adjustment_cents > 0;
-    minOrderAdjustmentCents = featureFlagTotals.min_order_adjustment_cents;
-  }
+        finalTotals = {
+          ...baseTotals,
+          materialTotal: featureFlagTotals.adjusted_subtotal_cents / 100,
+          tax: featureFlagTotals.tax_cents / 100,
+          totalWithTax: featureFlagTotals.total_cents / 100
+        };
+
+        showMinOrderAdjustment = featureFlagTotals.min_order_adjustment_cents > 0;
+        minOrderAdjustmentCents = featureFlagTotals.min_order_adjustment_cents;
+      }
+
+      return {
+        baseTotals,
+        finalTotals,
+        showMinOrderAdjustment,
+        minOrderAdjustmentCents
+      };
+    } catch (error) {
+      console.error('Error calculating totals in PricingCard:', error);
+      const fallbackTotals = {
+        area: 0,
+        unit: 0,
+        rope: 0,
+        polePocket: 0,
+        materialTotal: 0,
+        tax: 0,
+        totalWithTax: 0
+      };
+      return {
+        baseTotals: fallbackTotals,
+        finalTotals: fallbackTotals,
+        showMinOrderAdjustment: false,
+        minOrderAdjustmentCents: 0
+      };
+    }
+  }, [widthIn, heightIn, quantity, material, addRope, polePockets]);
 
   const materialName = {
     '13oz': '13oz Vinyl',

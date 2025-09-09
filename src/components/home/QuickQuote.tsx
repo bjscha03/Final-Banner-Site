@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Minus, Plus, ArrowRight, Truck, Zap, Package, Palette } from 'lucide-react';
 import { MaterialKey } from '@/store/quote';
-import { calcTotals, usd, formatArea, PRICE_PER_SQFT } from '@/lib/pricing';
+import { calcTotals, usd, formatArea, PRICE_PER_SQFT, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -191,12 +191,12 @@ const QuickQuote: React.FC = () => {
     }
   };
 
-  // Safe calculation with error handling
-  const totals = React.useMemo(() => {
+  // Safe calculation with error handling and feature flag support
+  const { totals, showMinOrderAdjustment, minOrderAdjustmentCents } = React.useMemo(() => {
     try {
       // Ensure all values are valid before calculating
       if (widthIn <= 0 || heightIn <= 0 || quantity <= 0) {
-        return {
+        const fallbackTotals = {
           area: 0,
           unit: 0,
           rope: 0,
@@ -205,9 +205,15 @@ const QuickQuote: React.FC = () => {
           tax: 0,
           totalWithTax: 0
         };
+        return {
+          totals: fallbackTotals,
+          showMinOrderAdjustment: false,
+          minOrderAdjustmentCents: 0
+        };
       }
 
-      return calcTotals({
+      // Calculate base totals
+      const baseTotals = calcTotals({
         widthIn,
         heightIn,
         qty: quantity,
@@ -215,9 +221,38 @@ const QuickQuote: React.FC = () => {
         addRope: false,
         polePockets: 'none'
       });
+
+      // Apply feature flag pricing if enabled
+      const flags = getFeatureFlags();
+      const pricingOptions = getPricingOptions();
+
+      let finalTotals = baseTotals;
+      let showMinOrderAdjustment = false;
+      let minOrderAdjustmentCents = 0;
+
+      if (flags.freeShipping || flags.minOrderFloor) {
+        const items: PricingItem[] = [{ line_total_cents: Math.round(baseTotals.materialTotal * 100) }];
+        const featureFlagTotals = computeTotals(items, 0.06, pricingOptions);
+
+        finalTotals = {
+          ...baseTotals,
+          materialTotal: featureFlagTotals.adjusted_subtotal_cents / 100,
+          tax: featureFlagTotals.tax_cents / 100,
+          totalWithTax: featureFlagTotals.total_cents / 100
+        };
+
+        showMinOrderAdjustment = featureFlagTotals.min_order_adjustment_cents > 0;
+        minOrderAdjustmentCents = featureFlagTotals.min_order_adjustment_cents;
+      }
+
+      return {
+        totals: finalTotals,
+        showMinOrderAdjustment,
+        minOrderAdjustmentCents
+      };
     } catch (error) {
       console.error('Error calculating totals:', error);
-      return {
+      const fallbackTotals = {
         area: 0,
         unit: 0,
         rope: 0,
@@ -225,6 +260,11 @@ const QuickQuote: React.FC = () => {
         materialTotal: 0,
         tax: 0,
         totalWithTax: 0
+      };
+      return {
+        totals: fallbackTotals,
+        showMinOrderAdjustment: false,
+        minOrderAdjustmentCents: 0
       };
     }
   }, [widthIn, heightIn, quantity, material]);
@@ -599,7 +639,7 @@ const QuickQuote: React.FC = () => {
               <div className="text-center mb-8">
                 <div className="relative inline-block">
                   <div className="text-5xl md:text-6xl font-extrabold bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 bg-clip-text text-transparent mb-4 drop-shadow-sm">
-                    {usd(totals.materialTotal)}
+                    {usd(totals.totalWithTax)}
                   </div>
                   <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-orange-400 to-red-500 rounded-full shadow-sm animate-pulse"></div>
                 </div>
@@ -607,6 +647,28 @@ const QuickQuote: React.FC = () => {
                 <div className="bg-gradient-to-r from-green-50/50 to-emerald-50/30 border border-green-200/40 rounded-xl p-4 space-y-2">
                   <p className="font-bold text-gray-800">{formatArea(totals.area)} • {usd(PRICE_PER_SQFT[material])} per sq ft</p>
                   <p className="text-sm text-gray-600 font-medium">for {quantity} {quantity === 1 ? 'banner' : 'banners'}</p>
+
+                  {/* Price Breakdown */}
+                  <div className="mt-3 pt-3 border-t border-green-200/50 space-y-1 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Subtotal:</span>
+                      <span className="font-semibold text-gray-800">{usd(totals.materialTotal - (showMinOrderAdjustment ? minOrderAdjustmentCents / 100 : 0))}</span>
+                    </div>
+                    {showMinOrderAdjustment && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Minimum order adjustment:</span>
+                        <span className="font-semibold text-gray-800">{usd(minOrderAdjustmentCents / 100)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Tax (6%):</span>
+                      <span className="font-semibold text-gray-800">{usd(totals.tax)}</span>
+                    </div>
+                    <div className="flex justify-between pt-1 border-t border-green-200/50">
+                      <span className="font-bold text-gray-800">Total:</span>
+                      <span className="font-bold text-green-700">{usd(totals.totalWithTax)}</span>
+                    </div>
+                  </div>
                 </div>
               </div>
 
