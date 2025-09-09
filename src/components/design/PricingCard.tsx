@@ -9,6 +9,8 @@ import { useToast } from '@/components/ui/use-toast';
 
 import { useScrollToTop } from '@/components/ScrollToTop';
 
+// Force rebuild - fix for ReferenceError: totals is not defined
+
 const PricingCard: React.FC = () => {
   const navigate = useNavigate();
   const quote = useQuoteStore();

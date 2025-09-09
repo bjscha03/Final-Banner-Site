@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, ErrorBoundary } from 'react';
 import { useLocation } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import SizeQuantityCard from '@/components/design/SizeQuantityCard';
@@ -6,6 +6,7 @@ import MaterialCard from '@/components/design/MaterialCard';
 import OptionsCard from '@/components/design/OptionsCard';
 import LivePreviewCard from '@/components/design/LivePreviewCard';
 import PricingCard from '@/components/design/PricingCard';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useQuoteStore, MaterialKey } from '@/store/quote';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -143,7 +144,9 @@ const Design: React.FC = () => {
               <LivePreviewCard />
               <MaterialCard />
               <OptionsCard />
-              <PricingCard />
+              <ErrorBoundary>
+                <PricingCard />
+              </ErrorBoundary>
             </div>
 
             {/* Desktop Layout: Two columns */}
@@ -159,7 +162,9 @@ const Design: React.FC = () => {
               <div className="space-y-6">
                 <LivePreviewCard />
                 <div className="sticky top-6">
-                  <PricingCard />
+                  <ErrorBoundary>
+                    <PricingCard />
+                  </ErrorBoundary>
                 </div>
               </div>
             </div>

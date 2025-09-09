@@ -651,7 +651,7 @@ const QuickQuote: React.FC = () => {
                   {/* Price Breakdown */}
                   <div className="mt-3 pt-3 border-t border-green-200/50 space-y-1 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Subtotal:</span>
+                      <span className="text-gray-600">Banner subtotal:</span>
                       <span className="font-semibold text-gray-800">{usd(totals.materialTotal - (showMinOrderAdjustment ? minOrderAdjustmentCents / 100 : 0))}</span>
                     </div>
                     {showMinOrderAdjustment && (
@@ -665,7 +665,11 @@ const QuickQuote: React.FC = () => {
                       <span className="font-semibold text-gray-800">{usd(totals.tax)}</span>
                     </div>
                     <div className="flex justify-between pt-1 border-t border-green-200/50">
-                      <span className="font-bold text-gray-800">Total:</span>
+                      <span className="font-bold text-gray-800">Adjusted subtotal:</span>
+                      <span className="font-bold text-gray-800">{usd(totals.materialTotal)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="font-bold text-gray-800">Total with tax:</span>
                       <span className="font-bold text-green-700">{usd(totals.totalWithTax)}</span>
                     </div>
                   </div>
