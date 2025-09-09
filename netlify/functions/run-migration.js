@@ -32,9 +32,27 @@ exports.handler = async (event, context) => {
 
     const sql = neon(dbUrl);
 
+    // Add 'shipped' status to orders table check constraint
+    // Drop the existing check constraint
+    await sql`ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_status_check`;
+
+    // Add the new check constraint that includes 'shipped'
+    await sql`ALTER TABLE orders ADD CONSTRAINT orders_status_check
+      CHECK (status IN ('pending', 'paid', 'failed', 'refunded', 'shipped'))`;
+
+    // Update any existing orders with tracking numbers to have 'shipped' status
+    const shippedOrdersUpdated = await sql`
+      UPDATE orders
+      SET status = 'shipped'
+      WHERE tracking_number IS NOT NULL
+        AND tracking_number != ''
+        AND status = 'paid'
+      RETURNING id
+    `;
+
     // Add order_number column to orders table
     await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS order_number VARCHAR(20) UNIQUE`;
-    
+
     // Create index for performance
     await sql`CREATE INDEX IF NOT EXISTS idx_orders_order_number ON orders(order_number)`;
 
@@ -79,7 +97,8 @@ exports.handler = async (event, context) => {
       body: JSON.stringify({
         success: true,
         message: 'Migration completed successfully',
-        ordersUpdated: updateCount
+        ordersUpdated: updateCount,
+        shippedOrdersUpdated: shippedOrdersUpdated.length
       })
     };
 
