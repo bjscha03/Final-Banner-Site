@@ -55,11 +55,7 @@ export default function ContactAcknowledgment({ contact }: ContactAcknowledgment
                   support@bannersonthefly.com
                 </Link>
               </Text>
-              <Text style={contactItem}>
-                📞 Phone: <Link href="tel:1-800-BANNERS" style={link}>
-                  1-800-BANNERS
-                </Link>
-              </Text>
+
             </div>
 
             <Text style={paragraph}>

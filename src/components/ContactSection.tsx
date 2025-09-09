@@ -54,15 +54,7 @@ const ContactSection: React.FC = () => {
                   </div>
                 </div>
                 
-                <div className="flex items-center">
-                  <div className="bg-blue-500 p-2 rounded-lg mr-4">
-                    <Phone className="h-5 w-5" />
-                  </div>
-                  <div>
-                    <p className="font-medium">Phone Support</p>
-                    <p className="text-blue-100">Available 24/7</p>
-                  </div>
-                </div>
+
                 
                 <div className="flex items-center">
                   <div className="bg-blue-500 p-2 rounded-lg mr-4">

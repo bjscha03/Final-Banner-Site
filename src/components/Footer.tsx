@@ -98,10 +98,6 @@ const Footer: React.FC = () => {
             </p>
             <div className="space-y-2">
               <div className="flex items-center text-gray-300">
-                <Phone className="h-4 w-4 mr-2" />
-                <span className="text-sm">24/7 Support Available</span>
-              </div>
-              <div className="flex items-center text-gray-300">
                 <Mail className="h-4 w-4 mr-2" />
                 <span className="text-sm">support@bannersonthefly.com</span>
               </div>
@@ -206,7 +202,7 @@ const Footer: React.FC = () => {
             </form>
             <div className="mt-4">
               <a
-                href="https://linkedin.com"
+                href="https://www.linkedin.com/company/banners-on-the-fly/about/?viewAsMember=true"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center space-x-2 text-gray-300 hover:text-orange-400 transition-colors"

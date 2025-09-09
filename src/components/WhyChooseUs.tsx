@@ -11,7 +11,7 @@ const WhyChooseUs: React.FC = () => {
     {
       icon: Shield,
       title: "Quality Guarantee",
-      description: "100% satisfaction guarantee with premium materials and professional printing."
+      description: "Professional printing with premium materials and rigorous quality control."
     },
     {
       icon: Users,

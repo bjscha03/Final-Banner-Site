@@ -34,12 +34,12 @@ const FAQ: React.FC = () => {
     },
     {
       question: "What is your return policy?",
-      answer: "We offer a 100% satisfaction guarantee. If you're not completely satisfied with your banner, we'll reprint it free of charge or provide a full refund within 30 days of delivery.",
+      answer: "Because every banner is made to order, we don't accept returns. If your order arrives damaged or defective, contact us within 7 days and we'll remake it or refund you.",
       category: "Policy"
     },
     {
       question: "Do you provide design proofs?",
-      answer: "Yes! We provide digital proofs for all custom designs at no extra charge. You'll receive a proof within 2 hours of placing your order for approval before printing begins.",
+      answer: "We don't send separate proofs. You'll see a live preview in the designer before checkout. Review it carefully—what you approve is what we print.",
       category: "Design"
     },
     {

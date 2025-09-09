@@ -41,7 +41,7 @@ const HeroSection: React.FC = () => {
           {/* Trust Badge */}
           <div className="inline-flex items-center gap-3 rounded-full bg-emerald-500/10 text-emerald-300 border border-emerald-400/30 px-6 py-3 text-sm font-semibold tracking-wide backdrop-blur-sm mb-12 animate-pulse">
             <Zap className="h-4 w-4" />
-            <span>PROFESSIONAL BANNERS • NEXT-DAY DELIVERY • 100% GUARANTEE</span>
+            <span>PROFESSIONAL BANNERS • FREE NEXT-DAY AIR • 24-HOUR PRODUCTION</span>
             <CheckCircle className="h-4 w-4" />
           </div>
 
@@ -108,7 +108,7 @@ const HeroSection: React.FC = () => {
               </div>
               <div className="text-4xl md:text-5xl font-black text-white mb-2">100%</div>
               <div className="text-slate-300 font-medium text-lg">Satisfaction Rate</div>
-              <div className="text-slate-400 text-sm mt-1">Money-back guarantee</div>
+              <div className="text-slate-400 text-sm mt-1">Professional quality</div>
             </div>
           </div>
         </div>

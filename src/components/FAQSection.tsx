@@ -27,7 +27,7 @@ const FAQSection: React.FC = () => {
     },
     {
       question: "What is your return policy?",
-      answer: "We offer a 100% satisfaction guarantee. If you're not completely satisfied with your banner, we'll reprint it free of charge or provide a full refund within 30 days of delivery."
+      answer: "Because every banner is made to order, we don't accept returns. If your order arrives damaged or defective, contact us within 7 days and we'll remake it or refund you."
     },
     {
       question: "Do you provide design proofs?",

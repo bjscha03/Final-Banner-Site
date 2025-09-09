@@ -113,3 +113,104 @@ export const formatArea = (area: number): string => {
 export const formatDimensions = (widthIn: number, heightIn: number): string => {
   return `${widthIn}" × ${heightIn}"`;
 };
+
+// Feature flag support for new pricing logic
+// Environment variables:
+// FEATURE_FREE_SHIPPING=1
+// FEATURE_MIN_ORDER_FLOOR=1
+// MIN_ORDER_CENTS=2000
+// SHIPPING_METHOD_LABEL=Free Next-Day Air
+// SITE_BADGE=FREE Next-Day Air • 24-Hour Production
+
+export interface PricingItem {
+  line_total_cents: number;
+}
+
+export interface PricingOptions {
+  freeShipping: boolean;
+  minFloorCents: number;
+  shippingMethodLabel?: string;
+}
+
+export interface PricingTotals {
+  raw_subtotal_cents: number;
+  adjusted_subtotal_cents: number;
+  min_order_adjustment_cents: number;
+  shipping_cents: number;
+  tax_cents: number;
+  total_cents: number;
+}
+
+/**
+ * Compute order totals with feature flag support
+ */
+export function computeTotals(
+  items: PricingItem[],
+  taxRate: number,
+  opts: PricingOptions
+): PricingTotals {
+  const raw = items.reduce((sum, i) => sum + i.line_total_cents, 0);
+  const adjusted = Math.max(raw, opts.minFloorCents || 0);
+  const minAdj = Math.max(0, adjusted - raw);
+
+  const shipping_cents = opts.freeShipping ? 0 : 0;
+  const tax_cents = Math.round(adjusted * taxRate);
+  const total_cents = adjusted + tax_cents + shipping_cents;
+
+  return {
+    raw_subtotal_cents: raw,
+    adjusted_subtotal_cents: adjusted,
+    min_order_adjustment_cents: minAdj,
+    shipping_cents,
+    tax_cents,
+    total_cents,
+  };
+}
+
+/**
+ * Get feature flag values from environment variables
+ */
+export function getFeatureFlags() {
+  const getEnvVar = (key: string) => {
+    return import.meta.env?.[`VITE_${key}`] ||
+           (typeof process !== 'undefined' && process.env?.[key]) ||
+           (typeof window !== 'undefined' && (window as any).ENV?.[key]);
+  };
+
+  return {
+    freeShipping: getEnvVar('FEATURE_FREE_SHIPPING') === '1',
+    minOrderFloor: getEnvVar('FEATURE_MIN_ORDER_FLOOR') === '1',
+    minOrderCents: parseInt(getEnvVar('MIN_ORDER_CENTS') || '2000', 10),
+    shippingMethodLabel: getEnvVar('SHIPPING_METHOD_LABEL') || 'Free Next-Day Air',
+    siteBadge: getEnvVar('SITE_BADGE') || 'FREE Next-Day Air • 24-Hour Production'
+  };
+}
+
+/**
+ * Get pricing options based on current feature flags
+ */
+export function getPricingOptions(): PricingOptions {
+  const flags = getFeatureFlags();
+
+  return {
+    freeShipping: flags.freeShipping,
+    minFloorCents: flags.minOrderFloor ? flags.minOrderCents : 0,
+    shippingMethodLabel: flags.shippingMethodLabel
+  };
+}
+
+/**
+ * Log pricing calculation for debugging
+ */
+export function logPricingCalculation(totals: PricingTotals, orderId?: string) {
+  console.info('pricing', {
+    orderId,
+    raw_subtotal_cents: totals.raw_subtotal_cents,
+    adjusted_subtotal_cents: totals.adjusted_subtotal_cents,
+    min_order_adjustment_cents: totals.min_order_adjustment_cents,
+    shipping_cents: totals.shipping_cents,
+    tax_cents: totals.tax_cents,
+    total_cents: totals.total_cents,
+    timestamp: new Date().toISOString()
+  });
+}
