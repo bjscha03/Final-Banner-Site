@@ -6,7 +6,7 @@ const WhyChooseUs: React.FC = () => {
     {
       icon: Clock,
       title: "24-Hour Production",
-      description: "Lightning-fast turnaround with guaranteed next-day delivery for rush orders."
+      description: "Lightning-fast turnaround with next-day air delivery."
     },
     {
       icon: Shield,
