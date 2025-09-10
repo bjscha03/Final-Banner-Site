@@ -298,6 +298,11 @@ const PricingCard: React.FC = () => {
               <span className="text-lg font-bold text-gray-900">$0</span>
             </div>
 
+            {/* Tax Row */}
+            <div className="flex justify-between items-center py-3 border-b border-gray-200/50">
+              <span className="text-sm font-semibold text-gray-800">Tax (6%)</span>
+              <span className="text-lg font-bold text-gray-900">{usd(finalTotals.tax)}</span>
+            </div>
 
           </div>
         </div>
