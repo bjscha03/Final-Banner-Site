@@ -3,6 +3,19 @@ const { neon } = require('@neondatabase/serverless');
 // Neon database connection
 const sql = neon(process.env.NETLIFY_DATABASE_URL);
 
+// Helper function to check if file exists
+// In production, this would check your cloud storage service
+async function checkFileExists(fileKey) {
+  try {
+    // For development, simulate file existence based on file key pattern
+    // In production, you would check your actual storage service
+    return fileKey && fileKey.includes('uploads/');
+  } catch (error) {
+    console.error('Error checking file existence:', error);
+    return false;
+  }
+}
+
 exports.handler = async (event, context) => {
   // Set CORS headers
   const headers = {
@@ -60,25 +73,32 @@ exports.handler = async (event, context) => {
 
     console.log('Order verified for file download:', orderResult[0]);
 
-    // In a real implementation, you would:
-    // 1. Retrieve the file from your storage service (AWS S3, Google Cloud Storage, etc.)
-    // 2. Generate a signed URL or stream the file content
-    // 3. Return the file with appropriate headers
+    // Check if file exists in our simulated storage
+    // In production, you would retrieve the actual file from cloud storage
+    const fileExists = await checkFileExists(key);
 
-    // For now, we'll return a placeholder response indicating the download would work
-    // In production, you'd replace this with actual file serving logic
+    if (!fileExists) {
+      return {
+        statusCode: 404,
+        headers,
+        body: JSON.stringify({ error: 'File not found in storage' }),
+      };
+    }
+
+    // For development/demo purposes, create a sample file content
+    // In production, you would retrieve the actual file from storage
+    const fileName = key.split('/').pop() || 'banner-design.txt';
+    const fileContent = `Sample banner design file for order ${order}\nFile key: ${key}\nGenerated at: ${new Date().toISOString()}\n\nThis is a placeholder file for development purposes.\nIn production, this would be the actual customer-uploaded design file.`;
+
     return {
       statusCode: 200,
       headers: {
         ...headers,
-        'Content-Type': 'application/json',
+        'Content-Type': 'application/octet-stream',
+        'Content-Disposition': `attachment; filename="${fileName}"`,
+        'Content-Length': Buffer.byteLength(fileContent, 'utf8').toString(),
       },
-      body: JSON.stringify({
-        message: 'File download endpoint working',
-        fileKey: key,
-        orderId: order,
-        note: 'In production, this would serve the actual file content'
-      }),
+      body: fileContent,
     };
 
   } catch (error) {

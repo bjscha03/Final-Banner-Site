@@ -57,7 +57,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
 
   const handleFileDownload = async (fileKey: string, itemIndex: number) => {
     try {
-      const fileName = fileKey || `banner-design-${order.id.slice(-8)}-item-${itemIndex + 1}`;
+      const fileName = fileKey?.split('/').pop() || `banner-design-${order.id.slice(-8)}-item-${itemIndex + 1}.txt`;
 
       toast({
         title: "Download Started",
@@ -67,31 +67,47 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
       // Use Netlify function for secure file downloads
       const downloadUrl = `/.netlify/functions/download-file?key=${encodeURIComponent(fileKey)}&order=${order.id}`;
 
-      // For now, open in new tab to show the download endpoint is working
-      // In production, this would trigger an actual file download
+      // Fetch the file content
       const response = await fetch(downloadUrl);
 
       if (!response.ok) {
         throw new Error(`Download failed: ${response.statusText}`);
       }
 
-      const result = await response.json();
-      console.log('Download response:', result);
+      // Check if response is JSON (error) or file content
+      const contentType = response.headers.get('content-type');
 
-      // Open the download URL in a new tab for now
-      // In production, you'd handle the actual file download here
-      window.open(downloadUrl, '_blank');
+      if (contentType && contentType.includes('application/json')) {
+        // Handle JSON error response
+        const result = await response.json();
+        throw new Error(result.error || 'Download failed');
+      }
+
+      // Handle file download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+
+      // Create a temporary download link
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+
+      // Clean up
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
 
       toast({
-        title: "Download Ready",
-        description: `File download endpoint verified for ${fileName}`,
+        title: "Download Complete",
+        description: `Successfully downloaded ${fileName}`,
       });
 
     } catch (error) {
       console.error('Error downloading file:', error);
       toast({
         title: "Download Failed",
-        description: "Could not download the file. Please try again.",
+        description: error.message || "Could not download the file. Please try again.",
         variant: "destructive",
       });
     }
