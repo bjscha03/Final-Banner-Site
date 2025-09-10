@@ -61,6 +61,7 @@
     "input-otp": "^1.2.4",
     "lucide-react": "^0.462.0",
     "marked": "^12.0.1",
+    "netlify-cli": "^23.5.1",
     "next-themes": "^0.3.0",
     "pdfjs-dist": "^5.4.149",
     "react": "^18.3.1",
