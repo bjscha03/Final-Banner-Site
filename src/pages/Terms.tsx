@@ -181,16 +181,6 @@ const Terms: React.FC = () => {
               </p>
             </section>
 
-            {/* Rush Processing */}
-            <section className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
-              <div className="flex items-center mb-4">
-                <Clock className="h-6 w-6 text-orange-500 mr-3" />
-                <h2 className="text-2xl font-bold text-gray-900">Rush Processing</h2>
-              </div>
-              <p className="text-gray-700 leading-relaxed">
-                Rush options may be available during checkout and are subject to availability. We will make all reasonable efforts to meet rush deadlines.
-              </p>
-            </section>
 
             {/* Shipping & Delivery */}
             <section className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
