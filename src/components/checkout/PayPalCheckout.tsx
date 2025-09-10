@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '@/lib/auth';
+import { useCartStore } from '@/store/cart';
+import { Loader2 } from 'lucide-react';
 
 interface PayPalCheckoutProps {
   total: number;
@@ -9,59 +12,277 @@ interface PayPalCheckoutProps {
   onError: (error: any) => void;
 }
 
+interface PayPalConfig {
+  enabled: boolean;
+  clientId: string | null;
+  environment: 'sandbox' | 'live' | null;
+}
+
 const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onError }) => {
   const { toast } = useToast();
-  const paypalClientId = import.meta.env.VITE_PAYPAL_CLIENT_ID;
+  const { user } = useAuth();
+  const { items } = useCartStore();
+  const [paypalConfig, setPaypalConfig] = useState<PayPalConfig | null>(null);
+  const [isLoadingConfig, setIsLoadingConfig] = useState(true);
+  const [isCreatingOrder, setIsCreatingOrder] = useState(false);
+  const [isCapturingPayment, setIsCapturingPayment] = useState(false);
+  const [isAdminUser, setIsAdminUser] = useState(false);
 
-  // Development mode fallback
-  const handleDevPayment = () => {
-    toast({
-      title: "Test Payment Processed",
-      description: "This is a development mode payment. In production, PayPal would process the payment.",
-    });
-    
-    // Simulate successful payment with a fake order ID
-    const fakeOrderId = 'dev_' + Math.random().toString(36).substr(2, 9);
-    onSuccess(fakeOrderId);
+  // Load PayPal configuration on mount
+  useEffect(() => {
+    const loadPayPalConfig = async () => {
+      try {
+        const response = await fetch('/.netlify/functions/paypal-config');
+        if (response.ok) {
+          const config = await response.json();
+          setPaypalConfig(config);
+        } else {
+          console.error('Failed to load PayPal config:', response.status);
+          setPaypalConfig({ enabled: false, clientId: null, environment: null });
+        }
+      } catch (error) {
+        console.error('Error loading PayPal config:', error);
+        setPaypalConfig({ enabled: false, clientId: null, environment: null });
+      } finally {
+        setIsLoadingConfig(false);
+      }
+    };
+
+    loadPayPalConfig();
+  }, []);
+
+  // Check if user is admin (for test pay button)
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (user?.email) {
+        try {
+          // For now, check client-side. In production, this should be server-side
+          const adminEmails = ['brandon.schaefer@hotmail.com', 'bjscha02@gmail.com'];
+          setIsAdminUser(adminEmails.includes(user.email));
+        } catch (error) {
+          console.error('Error checking admin status:', error);
+          setIsAdminUser(false);
+        }
+      }
+    };
+
+    checkAdminStatus();
+  }, [user]);
+
+  // Admin test payment handler
+  const handleTestPayment = async () => {
+    try {
+      setIsCreatingOrder(true);
+
+      toast({
+        title: "Test Payment Processed",
+        description: "This is an admin test payment. Order will be created with test payment provider.",
+      });
+
+      // Call existing create-order endpoint with test payment
+      const response = await fetch('/.netlify/functions/create-order', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: user?.id || null,
+          email: user?.email || `guest-${Date.now()}@bannersonthefly.com`,
+          subtotal_cents: total,
+          tax_cents: Math.round(total * 0.06),
+          total_cents: total,
+          currency: 'usd',
+          items: items.map(item => ({
+            width_in: item.width_in,
+            height_in: item.height_in,
+            quantity: item.quantity,
+            material: item.material,
+            grommets: item.grommets,
+            rope_feet: item.rope_feet,
+            area_sqft: item.area_sqft,
+            unit_price_cents: item.unit_price_cents,
+            line_total_cents: item.line_total_cents,
+            file_key: item.file_key,
+          })),
+        }),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        onSuccess(result.id);
+      } else {
+        throw new Error('Test payment failed');
+      }
+    } catch (error) {
+      console.error('Test payment error:', error);
+      onError(error);
+    } finally {
+      setIsCreatingOrder(false);
+    }
   };
 
-  // If no PayPal client ID, show development mode button
-  if (!paypalClientId) {
+  // Loading state
+  if (isLoadingConfig) {
     return (
-      <div className="space-y-4">
-        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-          <p className="text-amber-800 text-sm">
-            <strong>Development Mode:</strong> PayPal is not configured. 
-            Use the test payment button below.
-          </p>
-        </div>
-        
-        <Button 
-          onClick={handleDevPayment}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 text-lg font-semibold"
-          size="lg"
-        >
-          Test Pay ${(total / 100).toFixed(2)} (Dev Mode)
-        </Button>
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin mr-2" />
+        <span>Loading payment options...</span>
       </div>
     );
   }
 
-  const initialOptions = {
-    clientId: paypalClientId,
-    currency: "USD",
-    intent: "capture",
-  };
-
-  return (
-    <PayPalScriptProvider options={initialOptions}>
+  // PayPal disabled or not configured
+  if (!paypalConfig?.enabled || !paypalConfig?.clientId) {
+    return (
       <div className="space-y-4">
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-          <p className="text-blue-800 text-sm">
-            <strong>Secure Payment:</strong> Your payment is processed securely through PayPal.
+        <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+          <p className="text-amber-800 text-sm">
+            <strong>PayPal Unavailable:</strong> PayPal payments are currently disabled or not configured.
+            {isAdminUser && ' Use the admin test payment button below.'}
           </p>
         </div>
 
+        {isAdminUser && (
+          <Button
+            onClick={handleTestPayment}
+            disabled={isCreatingOrder}
+            className="w-full bg-green-600 hover:bg-green-700 text-white py-3 text-lg font-semibold"
+            size="lg"
+          >
+            {isCreatingOrder ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Processing Test Payment...
+              </>
+            ) : (
+              `Admin Test Pay $${(total / 100).toFixed(2)}`
+            )}
+          </Button>
+        )}
+      </div>
+    );
+  }
+
+  // PayPal order creation handler
+  const handleCreateOrder = async () => {
+    try {
+      setIsCreatingOrder(true);
+
+      const response = await fetch('/.netlify/functions/paypal-create-order', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          items: items.map(item => ({
+            width_in: item.width_in,
+            height_in: item.height_in,
+            quantity: item.quantity,
+            material: item.material,
+            grommets: item.grommets,
+            rope_feet: item.rope_feet,
+            area_sqft: item.area_sqft,
+            unit_price_cents: item.unit_price_cents,
+            line_total_cents: item.line_total_cents,
+            file_key: item.file_key,
+          })),
+          email: user?.email || `guest-${Date.now()}@bannersonthefly.com`,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create PayPal order');
+      }
+
+      const result = await response.json();
+      return result.paypalOrderId;
+    } catch (error) {
+      console.error('PayPal create order error:', error);
+      throw error;
+    } finally {
+      setIsCreatingOrder(false);
+    }
+  };
+
+  // PayPal order approval handler
+  const handleApprove = async (data: any) => {
+    try {
+      setIsCapturingPayment(true);
+
+      const response = await fetch('/.netlify/functions/paypal-capture-order', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          paypalOrderId: data.orderID,
+          cartItems: items.map(item => ({
+            width_in: item.width_in,
+            height_in: item.height_in,
+            quantity: item.quantity,
+            material: item.material,
+            grommets: item.grommets,
+            rope_feet: item.rope_feet,
+            area_sqft: item.area_sqft,
+            unit_price_cents: item.unit_price_cents,
+            line_total_cents: item.line_total_cents,
+            file_key: item.file_key,
+          })),
+          userEmail: user?.email,
+          userId: user?.id,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to capture PayPal payment');
+      }
+
+      const result = await response.json();
+
+      toast({
+        title: "Payment Successful!",
+        description: `Payment of $${(total / 100).toFixed(2)} has been processed.`,
+      });
+
+      onSuccess(result.orderId);
+    } catch (error) {
+      console.error('PayPal capture error:', error);
+      toast({
+        title: "Payment Error",
+        description: "Payment could not be completed. Your card was not charged.",
+        variant: "destructive",
+      });
+      onError(error);
+    } finally {
+      setIsCapturingPayment(false);
+    }
+  };
+
+  const initialOptions = {
+    clientId: paypalConfig.clientId!,
+    currency: "USD",
+    intent: "capture" as const,
+    commit: true,
+  };
+
+  return (
+    <div className="space-y-4">
+      {/* Loading states */}
+      {(isCreatingOrder || isCapturingPayment) && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          <div className="flex items-center">
+            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            <span className="text-blue-800 text-sm">
+              {isCreatingOrder && "Preparing your order..."}
+              {isCapturingPayment && "Processing payment..."}
+            </span>
+          </div>
+        </div>
+      )}
+
+      <PayPalScriptProvider options={initialOptions}>
         <PayPalButtons
           style={{
             layout: "vertical",
@@ -69,43 +290,17 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
             shape: "rect",
             label: "paypal",
           }}
-          createOrder={(data, actions) => {
-            return actions.order.create({
-              purchase_units: [
-                {
-                  amount: {
-                    value: (total / 100).toFixed(2),
-                    currency_code: "USD",
-                  },
-                  description: "Custom Banner Order - Banners On The Fly",
-                },
-              ],
-            });
+          disabled={isCreatingOrder || isCapturingPayment}
+          createOrder={async (data, actions) => {
+            const paypalOrderId = await handleCreateOrder();
+            return paypalOrderId;
           }}
-          onApprove={async (data, actions) => {
-            try {
-              if (!actions.order) {
-                throw new Error('Order actions not available');
-              }
-
-              const details = await actions.order.capture();
-              
-              toast({
-                title: "Payment Successful!",
-                description: `Payment of $${(total / 100).toFixed(2)} has been processed.`,
-              });
-
-              onSuccess(details.id);
-            } catch (error) {
-              console.error('PayPal payment error:', error);
-              onError(error);
-            }
-          }}
+          onApprove={handleApprove}
           onError={(error) => {
             console.error('PayPal error:', error);
             toast({
               title: "Payment Error",
-              description: "There was an error processing your payment. Please try again.",
+              description: "Payment could not be completed. Your card was not charged.",
               variant: "destructive",
             });
             onError(error);
@@ -113,12 +308,40 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
           onCancel={() => {
             toast({
               title: "Payment Cancelled",
-              description: "Your payment was cancelled. You can try again when ready.",
+              description: "You cancelled the payment. Your order was not created.",
             });
           }}
         />
-      </div>
-    </PayPalScriptProvider>
+      </PayPalScriptProvider>
+
+      {/* Admin Test Pay Button */}
+      {isAdminUser && (
+        <div className="border-t pt-4">
+          <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 mb-3">
+            <p className="text-gray-700 text-sm">
+              <strong>Admin Access:</strong> You can use the test payment button below to create orders without processing real payments.
+            </p>
+          </div>
+
+          <Button
+            onClick={handleTestPayment}
+            disabled={isCreatingOrder || isCapturingPayment}
+            variant="outline"
+            className="w-full border-green-300 text-green-700 hover:bg-green-50"
+            size="lg"
+          >
+            {isCreatingOrder ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Processing Test Payment...
+              </>
+            ) : (
+              `Admin Test Pay $${(total / 100).toFixed(2)}`
+            )}
+          </Button>
+        </div>
+      )}
+    </div>
   );
 };
 

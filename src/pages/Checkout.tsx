@@ -97,118 +97,36 @@ const Checkout: React.FC = () => {
     );
   }
 
-  const handlePaymentSuccess = async (paypalOrderId: string) => {
+  const handlePaymentSuccess = async (orderId: string) => {
     try {
-      console.log('Payment success handler called with order ID:', paypalOrderId);
+      console.log('Payment success handler called with order ID:', orderId);
 
-      const currentUser = await getCurrentUser();
-      console.log('Current user:', currentUser);
+      // With the new PayPal integration, the order is already created in the database
+      // by the paypal-capture-order function. We just need to handle the UI flow.
 
-      // Convert cart items to order items
-      const orderItems: OrderItem[] = items.map(item => ({
-        width_in: item.width_in,
-        height_in: item.height_in,
-        quantity: item.quantity,
-        material: item.material,
-        grommets: item.grommets,
-        rope_feet: item.rope_feet,
-        area_sqft: item.area_sqft,
-        unit_price_cents: item.unit_price_cents,
-        line_total_cents: item.line_total_cents,
-        file_key: item.file_key,
-      }));
-
-      console.log('Order items prepared:', orderItems);
-
-      // Create order with enhanced error handling
-      let ordersAdapter;
-      try {
-        ordersAdapter = getOrdersAdapter();
-        console.log('Orders adapter obtained:', ordersAdapter);
-        console.log('Adapter create method:', typeof ordersAdapter.create);
-
-        if (typeof ordersAdapter.create !== 'function') {
-          throw new Error('Orders adapter create method is not a function. Adapter type: ' + typeof ordersAdapter);
-        }
-      } catch (adapterError) {
-        console.error('Failed to get orders adapter:', adapterError);
-        throw new Error('Unable to initialize order system. Please try again or contact support.');
-      }
-
-      // For guest orders, we need an email address
-      let orderEmail = currentUser?.email;
-      if (!orderEmail) {
-        // For now, use a placeholder email for guest orders
-        // TODO: Add email input field for guest checkout
-        orderEmail = `guest-${Date.now()}@bannersonthefly.com`;
-        console.warn('Creating guest order with placeholder email:', orderEmail);
-      }
-
-      // Create order with retry logic
-      let order;
-      let createAttempts = 0;
-      const maxCreateAttempts = 3;
-
-      while (createAttempts < maxCreateAttempts) {
-        createAttempts++;
-        console.log(`Order creation attempt ${createAttempts}/${maxCreateAttempts}`);
-
-        try {
-          order = await ordersAdapter.create({
-            user_id: currentUser?.id || null,
-            email: orderEmail,
-            subtotal_cents: subtotalCents,
-            tax_cents: taxCents,
-            total_cents: totalCents,
-            currency: 'usd',
-            items: orderItems,
-          });
-
-          console.log('Order created successfully:', order);
-          break; // Success!
-        } catch (createError) {
-          console.error(`Order creation attempt ${createAttempts} failed:`, createError);
-
-          if (createAttempts === maxCreateAttempts) {
-            throw createError; // Re-throw the last error
-          }
-
-          // Wait before retrying
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-      }
-
-      if (!order) {
-        throw new Error('Failed to create order after multiple attempts');
-      }
-
-      // Send confirmation email (idempotent)
-      try {
-        await emailApi.notifyOrder(order.id);
-      } catch (error) {
-        console.error('Error sending confirmation email:', error);
-        // Don't block the flow if email fails
-      }
-
-      // Store order data in sessionStorage for confirmation page
-      sessionStorage.setItem('order_confirmation', JSON.stringify(order));
-
-      // Clear cart
+      // Clear the cart
       clearCart();
 
-      // Navigate to confirmation
-      navigate(`/order-confirmation?orderId=${order.id}`);
-
+      // Show success message
       toast({
-        title: "Order Created Successfully!",
-        description: `Order #${order.id.slice(-8)} has been created.`,
+        title: "Order Placed Successfully!",
+        description: `Your order has been created and payment processed. Order ID: ${orderId}`,
+      });
+
+      // Navigate to order confirmation page
+      navigate(`/order-confirmation/${orderId}`, {
+        replace: true,
+        state: {
+          fromCheckout: true,
+          orderId: orderId
+        }
       });
 
     } catch (error) {
-      console.error('Error creating order:', error);
+      console.error('Payment success handler error:', error);
       toast({
-        title: "Order Creation Failed",
-        description: "There was an error creating your order. Please contact support.",
+        title: "Order Processing Error",
+        description: "Your payment was processed but there was an issue completing your order. Please contact support.",
         variant: "destructive",
       });
     }

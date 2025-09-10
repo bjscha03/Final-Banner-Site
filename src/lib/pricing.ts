@@ -182,8 +182,21 @@ export function getFeatureFlags() {
     minOrderFloor: getEnvVar('FEATURE_MIN_ORDER_FLOOR') === '1',
     minOrderCents: parseInt(getEnvVar('MIN_ORDER_CENTS') || '2000', 10),
     shippingMethodLabel: getEnvVar('SHIPPING_METHOD_LABEL') || 'Free Next-Day Air',
-    siteBadge: getEnvVar('SITE_BADGE') || 'FREE Next-Day Air • 24-Hour Production'
+    siteBadge: getEnvVar('SITE_BADGE') || 'FREE Next-Day Air • 24-Hour Production',
+    // PayPal feature flags
+    paypalEnabled: getEnvVar('FEATURE_PAYPAL') === '1'
   };
+}
+
+/**
+ * Check if current user is admin (client-side helper)
+ */
+export function isCurrentUserAdmin(userEmail?: string): boolean {
+  if (!userEmail) return false;
+
+  // This will be populated by the server via a separate endpoint
+  // For now, return false as admin status should be checked server-side
+  return false;
 }
 
 /**
