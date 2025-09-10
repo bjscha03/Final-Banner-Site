@@ -330,7 +330,7 @@ const Checkout: React.FC = () => {
                   )}
                   <div className="flex justify-between items-center">
                     <span className="text-gray-700">{flags.freeShipping ? flags.shippingMethodLabel : 'Shipping'}</span>
-                    <span className="text-gray-900">$0</span>
+                    <span className="text-green-600 font-semibold">FREE</span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-700">Tax (6%)</span>
@@ -348,13 +348,13 @@ const Checkout: React.FC = () => {
               </div>
 
               {/* Shipping Info */}
-              <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6">
+              <div className="bg-green-50 border border-green-200 rounded-2xl p-6">
                 <div className="flex items-start space-x-3">
-                  <Truck className="h-6 w-6 text-blue-600 mt-1" />
+                  <Truck className="h-6 w-6 text-green-600 mt-1" />
                   <div>
-                    <h3 className="font-semibold text-blue-900">Shipping Information</h3>
-                    <p className="text-blue-800 text-sm mt-1">
-                      After payment, we'll contact you to arrange shipping details and provide tracking information.
+                    <h3 className="font-semibold text-green-900">🎉 FREE Next-Day Air Shipping!</h3>
+                    <p className="text-green-800 text-sm mt-1">
+                      Your order ships completely FREE via next-day air. After payment, we'll provide tracking information for your shipment.
                     </p>
                   </div>
                 </div>

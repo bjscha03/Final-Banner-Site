@@ -35,7 +35,7 @@ const FAQSection: React.FC = () => {
     },
     {
       question: "What shipping options are available?",
-      answer: "All orders include free next-day air shipping with 24-hour production. A $20 minimum order applies. We don't offer paid shipping upgrades since every order ships fast and free."
+      answer: "All orders include FREE next-day air shipping with 24-hour production. No minimum order required! We don't offer paid shipping upgrades since every order ships fast and free."
     },
     {
       question: "Do you offer bulk discounts?",

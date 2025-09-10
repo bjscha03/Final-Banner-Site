@@ -116,9 +116,9 @@ export const formatDimensions = (widthIn: number, heightIn: number): string => {
 
 // Feature flag support for new pricing logic
 // Environment variables:
-// FEATURE_FREE_SHIPPING=1
-// FEATURE_MIN_ORDER_FLOOR=1
-// MIN_ORDER_CENTS=2000
+// FEATURE_FREE_SHIPPING=1 (enables free shipping on all orders)
+// FEATURE_MIN_ORDER_FLOOR=0 (disabled - no minimum order required)
+// MIN_ORDER_CENTS=0 (no minimum order amount)
 // SHIPPING_METHOD_LABEL=Free Next-Day Air
 // SITE_BADGE=FREE Next-Day Air • 24-Hour Production
 

@@ -194,6 +194,10 @@ const CartModal: React.FC<CartModalProps> = ({
                   <span>Subtotal:</span>
                   <span>${(subtotalCents / 100).toFixed(2)}</span>
                 </div>
+                <div className="flex justify-between text-green-600 font-medium">
+                  <span>Shipping:</span>
+                  <span>FREE</span>
+                </div>
                 <div className="flex justify-between">
                   <span>Tax (6%):</span>
                   <span>${(taxCents / 100).toFixed(2)}</span>

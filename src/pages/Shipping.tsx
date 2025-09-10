@@ -55,13 +55,10 @@ const Shipping: React.FC = () => {
               <Package className="h-6 w-6 text-green-400 mr-3 mt-0.5 flex-shrink-0" />
               <div>
                 <h2 className="text-lg font-bold text-green-800 mb-2">
-                  {hasMinOrderFloor ? "Free Next-Day Air Shipping" : "Free Next-Day Air on Orders $20+"}
+                  🎉 FREE Next-Day Air Shipping on ALL Orders!
                 </h2>
                 <p className="text-green-700 leading-relaxed">
-                  {hasMinOrderFloor
-                    ? "All orders ship via free next-day air with our 24-hour production guarantee. A $20 minimum order applies."
-                    : "Orders $20+ ship via free next-day air with our 24-hour production guarantee. Orders under $20 include a $5 shipping fee."
-                  }
+                  Every order ships completely FREE via next-day air with our 24-hour production guarantee. No minimum order required, no hidden fees, no exceptions!
                 </p>
               </div>
             </div>
@@ -113,40 +110,46 @@ const Shipping: React.FC = () => {
               </div>
             </section>
 
-            {/* Shipping Costs */}
-            <section className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
+            {/* Free Shipping */}
+            <section className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl shadow-lg p-8 border-2 border-green-200">
               <div className="flex items-center mb-4">
-                <DollarSign className="h-6 w-6 text-green-500 mr-3" />
-                <h2 className="text-2xl font-bold text-gray-900">Shipping Costs</h2>
+                <DollarSign className="h-6 w-6 text-green-600 mr-3" />
+                <h2 className="text-2xl font-bold text-gray-900">🎉 FREE Shipping on ALL Orders!</h2>
+              </div>
+
+              {/* Prominent Free Shipping Message */}
+              <div className="bg-white rounded-lg p-6 mb-6 border-2 border-green-300 shadow-sm">
+                <div className="text-center">
+                  <div className="text-3xl font-bold text-green-600 mb-2">$0.00 SHIPPING</div>
+                  <div className="text-lg text-gray-800 mb-3">
+                    <strong>Every order ships completely FREE!</strong>
+                  </div>
+                  <div className="text-gray-700">
+                    No minimum order required • No hidden fees • No exceptions
+                  </div>
+                </div>
               </div>
 
               {/* Desktop Table */}
               <div className="hidden md:block overflow-x-auto">
                 <table className="w-full border-collapse">
                   <thead>
-                    <tr className="bg-gray-50">
-                      <th className="border border-gray-200 px-4 py-3 text-left font-semibold text-gray-900">Order Total</th>
-                      <th className="border border-gray-200 px-4 py-3 text-left font-semibold text-gray-900">Shipping Cost</th>
-                      <th className="border border-gray-200 px-4 py-3 text-left font-semibold text-gray-900">Delivery Time</th>
+                    <tr className="bg-green-50">
+                      <th className="border border-green-200 px-4 py-3 text-left font-semibold text-gray-900">Order Size</th>
+                      <th className="border border-green-200 px-4 py-3 text-left font-semibold text-gray-900">Shipping Cost</th>
+                      <th className="border border-green-200 px-4 py-3 text-left font-semibold text-gray-900">Delivery Time</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {!hasMinOrderFloor && (
-                      <tr>
-                        <td className="border border-gray-200 px-4 py-3 text-gray-700">Under $20</td>
-                        <td className="border border-gray-200 px-4 py-3 text-gray-700">$5.00</td>
-                        <td className="border border-gray-200 px-4 py-3 text-gray-700">3–5 business days (ground)</td>
-                      </tr>
-                    )}
                     <tr className="bg-green-50">
-                      <td className="border border-gray-200 px-4 py-3 text-gray-700 font-semibold">$20 and above</td>
-                      <td className="border border-gray-200 px-4 py-3 text-green-700 font-semibold">FREE</td>
-                      <td className="border border-gray-200 px-4 py-3 text-gray-700">1 business day (next-day air)</td>
+                      <td className="border border-green-200 px-4 py-3 text-gray-800 font-medium">Any Order Amount</td>
+                      <td className="border border-green-200 px-4 py-3 text-green-700 font-bold text-lg">FREE</td>
+                      <td className="border border-green-200 px-4 py-3 text-gray-700">1 business day (next-day air)</td>
                     </tr>
-                    <tr>
-                      <td className="border border-gray-200 px-4 py-3 text-gray-700">Same-Day Processing</td>
-                      <td className="border border-gray-200 px-4 py-3 text-gray-700">Additional fees apply</td>
-                      <td className="border border-gray-200 px-4 py-3 text-gray-700">Same day + next-day air</td>
+                    <tr className="bg-blue-50">
+                      <td className="border border-blue-200 px-4 py-3 text-gray-700">Same-Day Processing</td>
+                      <td className="border border-blue-200 px-4 py-3 text-green-700 font-bold">FREE</td>
+                      <td className="border border-blue-200 px-4 py-3 text-gray-700">Same day + next-day air</td>
                     </tr>
                   </tbody>
                 </table>
@@ -154,27 +157,12 @@ const Shipping: React.FC = () => {
 
               {/* Mobile Cards */}
               <div className="md:hidden space-y-4">
-                {!hasMinOrderFloor && (
-                  <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-                    <div className="font-semibold text-gray-900 mb-2">Under $20</div>
-                    <div className="text-sm text-gray-700">
-                      <div className="flex justify-between mb-1">
-                        <span>Shipping Cost:</span>
-                        <span>$5.00</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span>Delivery Time:</span>
-                        <span>3–5 business days (ground)</span>
-                      </div>
-                    </div>
-                  </div>
-                )}
-                <div className="bg-green-50 rounded-lg p-4 border border-green-200">
-                  <div className="font-semibold text-gray-900 mb-2">$20 and above</div>
+                <div className="bg-green-50 rounded-lg p-4 border-2 border-green-300">
+                  <div className="font-bold text-gray-900 mb-2 text-lg">Any Order Amount</div>
                   <div className="text-sm text-gray-700">
                     <div className="flex justify-between mb-1">
                       <span>Shipping Cost:</span>
-                      <span className="text-green-700 font-semibold">FREE</span>
+                      <span className="text-green-700 font-bold text-lg">FREE</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Delivery Time:</span>
@@ -182,12 +170,12 @@ const Shipping: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <div className="bg-blue-50 rounded-lg p-4 border-2 border-blue-300">
                   <div className="font-semibold text-gray-900 mb-2">Same-Day Processing</div>
                   <div className="text-sm text-gray-700">
                     <div className="flex justify-between mb-1">
                       <span>Shipping Cost:</span>
-                      <span>Additional fees apply</span>
+                      <span className="text-green-700 font-bold">FREE</span>
                     </div>
                     <div className="flex justify-between">
                       <span>Delivery Time:</span>
@@ -197,14 +185,12 @@ const Shipping: React.FC = () => {
                 </div>
               </div>
 
-              {/* Conditional Note */}
-              {hasMinOrderFloor && (
-                <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <p className="text-blue-800 text-sm">
-                    <strong>Note:</strong> A $20 minimum order applies; shipping is free on all orders.
-                  </p>
-                </div>
-              )}
+              {/* Free Shipping Guarantee */}
+              <div className="mt-4 p-4 bg-green-100 border-2 border-green-300 rounded-lg">
+                <p className="text-green-800 text-sm font-medium text-center">
+                  ✅ <strong>100% FREE SHIPPING GUARANTEE:</strong> No minimum order • No hidden fees • No exceptions
+                </p>
+              </div>
             </section>
 
             {/* Shipping Coverage */}
@@ -223,7 +209,7 @@ const Shipping: React.FC = () => {
                     </li>
                     <li className="flex items-start">
                       <span className="w-2 h-2 bg-purple-400 rounded-full mr-3 mt-2"></span>
-                      Alaska and Hawaii (additional fees may apply)
+                      Alaska and Hawaii (FREE shipping included)
                     </li>
                     <li className="flex items-start">
                       <span className="w-2 h-2 bg-purple-400 rounded-full mr-3 mt-2"></span>
@@ -395,9 +381,7 @@ const Shipping: React.FC = () => {
                 "name": "How much is shipping?",
                 "acceptedAnswer": {
                   "@type": "Answer",
-                  "text": hasMinOrderFloor
-                    ? "Free next-day air shipping for all orders. A $20 minimum order applies."
-                    : "Free next-day air shipping for orders $20+. Orders under $20 ship ground for $5. Same-day processing available for additional fees."
+                  "text": "Shipping is completely FREE on all orders with no minimum required. Every order ships via next-day air at no cost to you."
                 }
               },
               {
