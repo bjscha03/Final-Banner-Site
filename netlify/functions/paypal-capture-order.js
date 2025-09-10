@@ -173,8 +173,11 @@ exports.handler = async (event, context) => {
     }
 
     // Get PayPal order details to verify status
+    console.log('PayPal capture - Getting access token...', { cid, paypalOrderId });
     const accessToken = await getPayPalAccessToken();
+    console.log('PayPal capture - Access token obtained', { cid, tokenLength: accessToken?.length });
     const { baseUrl } = getPayPalCredentials();
+    console.log('PayPal capture - Using base URL:', { cid, baseUrl });
 
     const orderDetailsResponse = await fetch(`${baseUrl}/v2/checkout/orders/${paypalOrderId}`, {
       method: 'GET',
@@ -215,6 +218,7 @@ exports.handler = async (event, context) => {
     }
 
     // Capture the payment
+    console.log('PayPal capture - Attempting capture...', { cid, paypalOrderId, baseUrl });
     const captureResponse = await fetch(`${baseUrl}/v2/checkout/orders/${paypalOrderId}/capture`, {
       method: 'POST',
       headers: {
@@ -222,6 +226,7 @@ exports.handler = async (event, context) => {
         'Content-Type': 'application/json'
       }
     });
+    console.log('PayPal capture - Capture response status:', { cid, status: captureResponse.status });
 
     if (!captureResponse.ok) {
       const errorText = await captureResponse.text();

@@ -185,6 +185,7 @@ exports.handler = async (event, context) => {
       };
     }
 
+    console.log('PayPal create - Making order request...', { cid, baseUrl, orderAmount: orderRequest.purchase_units[0].amount.value });
     const paypalResponse = await fetch(`${baseUrl}/v2/checkout/orders`, {
       method: 'POST',
       headers: {
@@ -194,6 +195,7 @@ exports.handler = async (event, context) => {
       },
       body: JSON.stringify(orderRequest)
     });
+    console.log('PayPal create - Order response status:', { cid, status: paypalResponse.status });
 
     if (!paypalResponse.ok) {
       const errorText = await paypalResponse.text();
