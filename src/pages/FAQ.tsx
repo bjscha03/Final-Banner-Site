@@ -14,7 +14,7 @@ const FAQ: React.FC = () => {
     },
     {
       question: "What is your turnaround time?",
-      answer: "We guarantee 24-hour production on all standard orders. Orders placed before 2 PM EST are typically printed and shipped the same day. Rush orders can be accommodated for an additional fee.",
+      answer: "We guarantee 24-hour production on all standard orders. Orders placed before 2 PM EST are typically printed and shipped the same day.",
       category: "Production"
     },
     {
@@ -49,12 +49,12 @@ const FAQ: React.FC = () => {
     },
     {
       question: "How do I track my order?",
-      answer: "Once your order ships, you'll receive a tracking number via email. You can also check your order status anytime by logging into your account and visiting the 'My Orders' page.",
+      answer: "Once your order ships, you'll receive a tracking number. You can check your order status anytime by logging into your account and visiting the 'My Orders' page.",
       category: "Orders"
     },
     {
       question: "What shipping options are available?",
-      answer: "All orders include free next-day air shipping with 24-hour production. A $20 minimum order applies. We don't offer paid shipping upgrades since every order ships fast and free.",
+      answer: "All orders include FREE next-day air shipping with 24-hour production. No minimum order required! We don't offer paid shipping upgrades since every order ships fast and free.",
       category: "Shipping"
     },
     {
