@@ -7,11 +7,11 @@ const FAQSection: React.FC = () => {
   const faqs = [
     {
       question: "What file formats do you accept?",
-      answer: "We accept PDF, JPG, PNG, and AI files up to 100MB. For best results, we recommend high-resolution PDF files with embedded fonts and images at 300 DPI."
+      answer: "We accept PDF, JPG, and PNG files up to 100MB. For best results, we recommend high-resolution PDF files with embedded fonts and images at 300 DPI."
     },
     {
       question: "What is your turnaround time?",
-      answer: "We guarantee 24-hour production on all standard orders. Orders placed before 2 PM EST are typically printed and shipped the same day. Rush orders can be accommodated for an additional fee."
+      answer: "We guarantee 24-hour production on all standard orders. Orders placed before 2 PM EST are typically printed and shipped the same day."
     },
     {
       question: "What banner sizes do you offer?",

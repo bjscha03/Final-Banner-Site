@@ -259,7 +259,7 @@ const Privacy: React.FC = () => {
                   If you have questions about this Privacy Policy or wish to exercise your rights, please contact us:
                 </p>
                 <div className="bg-gray-50 p-4 rounded-lg">
-                  <p><strong>Email:</strong> <a href="mailto:privacy@bannersonthefly.com" className="text-blue-600 hover:text-blue-800">privacy@bannersonthefly.com</a></p>
+                  <p><strong>Email:</strong> <a href="mailto:support@bannersonthefly.com" className="text-blue-600 hover:text-blue-800">support@bannersonthefly.com</a></p>
                   <p><strong>Company:</strong> BPS Sales Group, Inc. DBA Banners on the Fly</p>
                   <p><strong>Response Time:</strong> We will respond to privacy requests within 30 days</p>
                 </div>

@@ -9,7 +9,7 @@ const FAQ: React.FC = () => {
   const faqs = [
     {
       question: "What file formats do you accept?",
-      answer: "We accept PDF, JPG, PNG, and AI files up to 100MB. For best results, we recommend high-resolution PDF files with embedded fonts and images at 300 DPI.",
+      answer: "We accept PDF, JPG, and PNG files up to 100MB. For best results, we recommend high-resolution PDF files with embedded fonts and images at 300 DPI.",
       category: "Design"
     },
     {

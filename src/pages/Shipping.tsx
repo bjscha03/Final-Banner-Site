@@ -349,8 +349,8 @@ const Shipping: React.FC = () => {
                 Our customer service team is here to help with any shipping questions or concerns.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center space-y-2 sm:space-y-0 sm:space-x-6">
-                <a href="mailto:shipping@bannersonthefly.com" className="text-blue-600 hover:text-blue-800 text-sm">
-                  shipping@bannersonthefly.com
+                <a href="mailto:support@bannersonthefly.com" className="text-blue-600 hover:text-blue-800 text-sm">
+                  support@bannersonthefly.com
                 </a>
                 <span className="text-gray-400 hidden sm:block">|</span>
                 <span className="text-gray-600 text-sm">24/7 Support Available</span>
