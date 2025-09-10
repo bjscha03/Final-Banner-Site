@@ -56,9 +56,21 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
     const checkAdminStatus = async () => {
       if (user?.email) {
         try {
-          // For now, check client-side. In production, this should be server-side
-          const adminEmails = ['brandon.schaefer@hotmail.com', 'bjscha02@gmail.com'];
-          setIsAdminUser(adminEmails.includes(user.email));
+          // Check admin status via server endpoint (which reads ADMIN_TEST_PAY_ALLOWLIST)
+          const response = await fetch('/.netlify/functions/check-admin-status', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ email: user.email }),
+          });
+
+          if (response.ok) {
+            const result = await response.json();
+            setIsAdminUser(result.isAdmin);
+          } else {
+            setIsAdminUser(false);
+          }
         } catch (error) {
           console.error('Error checking admin status:', error);
           setIsAdminUser(false);
