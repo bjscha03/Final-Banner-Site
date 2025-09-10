@@ -274,25 +274,53 @@ exports.handler = async (event, context) => {
             item.pole_pockets !== 'false' &&
             item.pole_pockets !== false;
 
-          await sql`
-            INSERT INTO order_items (
-              id, order_id, width_in, height_in, quantity, material,
-              grommets, rope_feet, pole_pockets, line_total_cents, file_key
-            )
-            VALUES (
-              ${randomUUID()},
-              ${orderId},
-              ${item.width_in || 0},
-              ${item.height_in || 0},
-              ${item.quantity || 1},
-              ${item.material || '13oz'},
-              ${item.grommets || 'none'},
-              ${item.rope_feet || 0},
-              ${polePocketsBoolean},
-              ${item.line_total_cents || 0},
-              ${item.file_key || null}
-            )
-          `;
+          // Try to insert with file_key first, fallback to without if column doesn't exist
+          try {
+            await sql`
+              INSERT INTO order_items (
+                id, order_id, width_in, height_in, quantity, material,
+                grommets, rope_feet, pole_pockets, line_total_cents, file_key
+              )
+              VALUES (
+                ${randomUUID()},
+                ${orderId},
+                ${item.width_in || 0},
+                ${item.height_in || 0},
+                ${item.quantity || 1},
+                ${item.material || '13oz'},
+                ${item.grommets || 'none'},
+                ${item.rope_feet || 0},
+                ${polePocketsBoolean},
+                ${item.line_total_cents || 0},
+                ${item.file_key || null}
+              )
+            `;
+          } catch (columnError) {
+            // If file_key column doesn't exist, insert without it
+            if (columnError.message && columnError.message.includes('file_key')) {
+              console.log('file_key column not found, inserting without it');
+              await sql`
+                INSERT INTO order_items (
+                  id, order_id, width_in, height_in, quantity, material,
+                  grommets, rope_feet, pole_pockets, line_total_cents
+                )
+                VALUES (
+                  ${randomUUID()},
+                  ${orderId},
+                  ${item.width_in || 0},
+                  ${item.height_in || 0},
+                  ${item.quantity || 1},
+                  ${item.material || '13oz'},
+                  ${item.grommets || 'none'},
+                  ${item.rope_feet || 0},
+                  ${polePocketsBoolean},
+                  ${item.line_total_cents || 0}
+                )
+              `;
+            } else {
+              throw columnError;
+            }
+          }
         } catch (itemError) {
           console.error('Error inserting order item:', itemError);
           throw new Error(`Failed to insert order item: ${itemError.message}`);
