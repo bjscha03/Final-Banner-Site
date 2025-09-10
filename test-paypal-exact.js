@@ -1,4 +1,5 @@
-require('dotenv').config();
+import dotenv from 'dotenv';
+dotenv.config();
 
 console.log('🧪 PayPal Exact Format Test');
 console.log('============================');
