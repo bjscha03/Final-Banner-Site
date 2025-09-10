@@ -7,8 +7,12 @@
  * the correct configuration based on environment variables.
  */
 
-const https = require('https');
-const http = require('http');
+import https from 'https';
+import http from 'http';
+import { config } from 'dotenv';
+
+// Load environment variables from .env file
+config();
 
 // Configuration
 const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:8888';
