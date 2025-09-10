@@ -1,41 +1,4 @@
-import { Handler } from '@netlify/functions';
-import { randomUUID } from 'crypto';
-
-// Import PayPal utilities (we'll need to convert to JS or use a build step)
-interface PayPalOrderRequest {
-  intent: 'CAPTURE';
-  purchase_units: Array<{
-    amount: {
-      currency_code: 'USD';
-      value: string;
-    };
-    description?: string;
-    shipping?: any;
-  }>;
-  application_context?: {
-    brand_name?: string;
-    user_action?: 'PAY_NOW' | 'CONTINUE';
-  };
-}
-
-interface CartItem {
-  width_in: number;
-  height_in: number;
-  quantity: number;
-  material: string;
-  grommets: string;
-  rope_feet: number;
-  area_sqft: number;
-  unit_price_cents: number;
-  line_total_cents: number;
-  file_key?: string;
-}
-
-interface CreateOrderPayload {
-  items: CartItem[];
-  shippingAddress?: any;
-  email: string;
-}
+const { randomUUID } = require('crypto');
 
 // Feature flag support for pricing logic (copied from create-order.js)
 const getFeatureFlags = () => {
@@ -47,7 +10,7 @@ const getFeatureFlags = () => {
   };
 };
 
-const computeTotals = (items: CartItem[], taxRate: number, opts: any) => {
+const computeTotals = (items, taxRate, opts) => {
   const raw = items.reduce((sum, i) => sum + i.line_total_cents, 0);
   const adjusted = Math.max(raw, opts.minFloorCents || 0);
   const minAdj = Math.max(0, adjusted - raw);
@@ -85,7 +48,7 @@ const getPayPalCredentials = () => {
   };
 };
 
-const getPayPalAccessToken = async (): Promise<string> => {
+const getPayPalAccessToken = async () => {
   const { clientId, secret, baseUrl } = getPayPalCredentials();
   const auth = Buffer.from(`${clientId}:${secret}`).toString('base64');
   
@@ -107,16 +70,16 @@ const getPayPalAccessToken = async (): Promise<string> => {
   return data.access_token;
 };
 
-const handler: Handler = async (event, context) => {
+const headers = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Content-Type': 'application/json',
+};
+
+exports.handler = async (event, context) => {
   const cid = randomUUID();
   
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Content-Type': 'application/json',
-  };
-
   // Handle preflight requests
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers, body: '' };
@@ -142,7 +105,7 @@ const handler: Handler = async (event, context) => {
     }
 
     // Parse and validate request body
-    let payload: CreateOrderPayload;
+    let payload;
     try {
       payload = JSON.parse(event.body || '{}');
     } catch (parseError) {
@@ -199,7 +162,7 @@ const handler: Handler = async (event, context) => {
     const accessToken = await getPayPalAccessToken();
     const { baseUrl } = getPayPalCredentials();
 
-    const orderRequest: PayPalOrderRequest = {
+    const orderRequest = {
       intent: 'CAPTURE',
       purchase_units: [{
         amount: {
@@ -264,7 +227,7 @@ const handler: Handler = async (event, context) => {
       }),
     };
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('PayPal create order error:', error, 'cid:', cid);
     return {
       statusCode: 500,
@@ -277,5 +240,3 @@ const handler: Handler = async (event, context) => {
     };
   }
 };
-
-export { handler };

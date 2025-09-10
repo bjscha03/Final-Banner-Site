@@ -14,12 +14,54 @@ const http = require('http');
 const BASE_URL = process.env.TEST_BASE_URL || 'http://localhost:8888';
 const ENDPOINT = '/.netlify/functions/paypal-config';
 
+// Environment variable checks
+function checkEnvironmentVariables() {
+  console.log('🔍 Environment Variable Check');
+  console.log('============================');
+
+  const requiredVars = [
+    'FEATURE_PAYPAL',
+    'PAYPAL_ENV',
+    'PAYPAL_CLIENT_ID_SANDBOX',
+    'PAYPAL_SECRET_SANDBOX',
+    'NETLIFY_DATABASE_URL'
+  ];
+
+  const optionalVars = [
+    'PAYPAL_CLIENT_ID_LIVE',
+    'PAYPAL_SECRET_LIVE',
+    'ADMIN_TEST_PAY_ALLOWLIST',
+    'PUBLIC_SITE_URL'
+  ];
+
+  console.log('Required Variables:');
+  requiredVars.forEach(varName => {
+    const value = process.env[varName];
+    const status = value ? '✅' : '❌';
+    const display = value ? (varName.includes('SECRET') ? '[HIDDEN]' : value) : 'NOT SET';
+    console.log(`  ${status} ${varName}: ${display}`);
+  });
+
+  console.log('\nOptional Variables:');
+  optionalVars.forEach(varName => {
+    const value = process.env[varName];
+    const status = value ? '✅' : '⚠️ ';
+    const display = value ? (varName.includes('SECRET') ? '[HIDDEN]' : value) : 'NOT SET';
+    console.log(`  ${status} ${varName}: ${display}`);
+  });
+
+  console.log('');
+}
+
 async function testPayPalConfig() {
   console.log('🧪 Testing PayPal Configuration Endpoint');
   console.log('=====================================');
   console.log(`Base URL: ${BASE_URL}`);
   console.log(`Endpoint: ${ENDPOINT}`);
   console.log('');
+
+  // First check environment variables
+  checkEnvironmentVariables();
 
   try {
     const url = `${BASE_URL}${ENDPOINT}`;

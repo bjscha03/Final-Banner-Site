@@ -1,5 +1,3 @@
-import { Handler } from '@netlify/functions';
-
 /**
  * PayPal Configuration Endpoint
  * 
@@ -7,14 +5,14 @@ import { Handler } from '@netlify/functions';
  * Never exposes secrets or sensitive configuration.
  */
 
-const handler: Handler = async (event, context) => {
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'GET, OPTIONS',
-    'Content-Type': 'application/json',
-  };
+const headers = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Methods': 'GET, OPTIONS',
+  'Content-Type': 'application/json',
+};
 
+exports.handler = async (event, context) => {
   // Handle preflight requests
   if (event.httpMethod === 'OPTIONS') {
     return {
@@ -87,5 +85,3 @@ const handler: Handler = async (event, context) => {
     };
   }
 };
-
-export { handler };

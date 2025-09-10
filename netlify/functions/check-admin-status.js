@@ -1,5 +1,3 @@
-import { Handler } from '@netlify/functions';
-
 /**
  * Admin Status Check Endpoint
  * 
@@ -7,14 +5,14 @@ import { Handler } from '@netlify/functions';
  * Used to determine if a user should see admin test payment options.
  */
 
-const handler: Handler = async (event, context) => {
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Content-Type': 'application/json',
-  };
+const headers = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Content-Type': 'application/json',
+};
 
+exports.handler = async (event, context) => {
   // Handle preflight requests
   if (event.httpMethod === 'OPTIONS') {
     return {
@@ -86,5 +84,3 @@ const handler: Handler = async (event, context) => {
     };
   }
 };
-
-export { handler };

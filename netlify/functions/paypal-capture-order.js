@@ -1,13 +1,5 @@
-import { Handler } from '@netlify/functions';
-import { randomUUID } from 'crypto';
-import { neon } from '@neondatabase/serverless';
-
-interface CaptureOrderPayload {
-  paypalOrderId: string;
-  cartItems: any[];
-  userEmail?: string;
-  userId?: string;
-}
+const { randomUUID } = require('crypto');
+const { neon } = require('@neondatabase/serverless');
 
 // PayPal API helpers (duplicated from create-order for now)
 const getPayPalCredentials = () => {
@@ -28,7 +20,7 @@ const getPayPalCredentials = () => {
   };
 };
 
-const getPayPalAccessToken = async (): Promise<string> => {
+const getPayPalAccessToken = async () => {
   const { clientId, secret, baseUrl } = getPayPalCredentials();
   const auth = Buffer.from(`${clientId}:${secret}`).toString('base64');
   
@@ -60,7 +52,7 @@ const getFeatureFlags = () => {
   };
 };
 
-const computeTotals = (items: any[], taxRate: number, opts: any) => {
+const computeTotals = (items, taxRate, opts) => {
   const raw = items.reduce((sum, i) => sum + i.line_total_cents, 0);
   const adjusted = Math.max(raw, opts.minFloorCents || 0);
   const minAdj = Math.max(0, adjusted - raw);
@@ -79,16 +71,16 @@ const computeTotals = (items: any[], taxRate: number, opts: any) => {
   };
 };
 
-const handler: Handler = async (event, context) => {
+const headers = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+  'Content-Type': 'application/json',
+};
+
+exports.handler = async (event, context) => {
   const cid = randomUUID();
   
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Content-Type': 'application/json',
-  };
-
   // Handle preflight requests
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers, body: '' };
@@ -114,7 +106,7 @@ const handler: Handler = async (event, context) => {
     }
 
     // Parse request body
-    let payload: CaptureOrderPayload;
+    let payload;
     try {
       payload = JSON.parse(event.body || '{}');
     } catch (parseError) {
@@ -147,7 +139,16 @@ const handler: Handler = async (event, context) => {
     }
 
     // Initialize database connection
-    const sql = neon(process.env.NETLIFY_DATABASE_URL!);
+    if (!process.env.NETLIFY_DATABASE_URL) {
+      console.error('PayPal capture order - Database URL not configured:', 'cid:', cid);
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ ok: false, error: 'DATABASE_NOT_CONFIGURED', cid }),
+      };
+    }
+
+    const sql = neon(process.env.NETLIFY_DATABASE_URL);
 
     // Check for existing order with this PayPal order ID (idempotency)
     const existingOrder = await sql`
@@ -327,7 +328,7 @@ const handler: Handler = async (event, context) => {
       }),
     };
 
-  } catch (error: any) {
+  } catch (error) {
     console.error('PayPal capture order error:', error, 'cid:', cid);
     return {
       statusCode: 500,
@@ -340,5 +341,3 @@ const handler: Handler = async (event, context) => {
     };
   }
 };
-
-export { handler };
