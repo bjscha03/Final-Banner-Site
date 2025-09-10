@@ -161,36 +161,32 @@ const PricingCard: React.FC = () => {
         <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-emerald-300/15 to-transparent rounded-full blur-3xl"></div>
       </div>
 
-      {/* Header with Total Price */}
+      {/* Header with Single Prominent Price */}
       <div className="relative bg-gradient-to-r from-green-600/8 via-emerald-600/8 to-teal-600/8 px-8 py-8 border-b border-green-200/25 backdrop-blur-sm text-center">
         <div className="relative">
           {/* Price Badge */}
           <div className="inline-flex items-center justify-center mb-4">
             <div className="relative">
-              <div className="w-16 h-16 bg-gradient-to-br from-green-500 via-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-xl">
-                <span className="text-2xl">💰</span>
+              <div className="w-14 h-14 bg-gradient-to-br from-green-500 via-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-xl">
+                <span className="text-xl">💰</span>
               </div>
-              <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-orange-400 to-red-500 rounded-full shadow-lg animate-pulse"></div>
+              <div className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-orange-400 to-red-500 rounded-full shadow-lg animate-pulse"></div>
             </div>
           </div>
 
-          {/* Main Price */}
-          <div className="text-5xl md:text-6xl font-black bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 bg-clip-text text-transparent mb-3 drop-shadow-sm tracking-tight">
+          {/* Main Price - Single Prominent Display */}
+          <div className="text-5xl md:text-6xl font-black bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 bg-clip-text text-transparent mb-2 drop-shadow-sm tracking-tight">
             {usd(finalTotals.totalWithTax)}
           </div>
 
-          {/* Price Breakdown */}
-          <div className="bg-gradient-to-r from-green-50/60 to-emerald-50/40 border border-green-200/30 rounded-xl px-6 py-3 inline-block mb-2">
-            <div className="text-sm text-gray-600">
-              <span>Subtotal {usd(baseTotals.materialTotal)} • Tax (6%) {usd(finalTotals.tax)}</span>
-            </div>
-          </div>
+          {/* Simple Subtitle */}
+          <p className="text-lg font-semibold text-gray-700 mb-3">
+            Total for {quantity} banner{quantity > 1 ? 's' : ''}
+          </p>
 
-          {/* Subtitle */}
-          <div className="bg-gradient-to-r from-green-50/60 to-emerald-50/40 border border-green-200/30 rounded-xl px-6 py-3 inline-block">
-            <p className="text-base font-bold text-gray-700">
-              Total for {quantity} banner{quantity > 1 ? 's' : ''}
-            </p>
+          {/* Quick Tax Info */}
+          <div className="text-sm text-gray-600">
+            Subtotal {usd(finalTotals.materialTotal)} • Tax (6%) {usd(finalTotals.tax)}
           </div>
         </div>
       </div>
@@ -302,13 +298,7 @@ const PricingCard: React.FC = () => {
               <span className="text-lg font-bold text-gray-900">$0</span>
             </div>
 
-            {/* Total */}
-            <div className="bg-gradient-to-r from-blue-50/50 to-indigo-50/30 border border-blue-200/40 rounded-xl p-4 mt-6">
-              <div className="flex justify-between items-center">
-                <span className="text-xl font-black text-gray-900">Subtotal</span>
-                <span className="text-2xl font-black bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{usd(finalTotals.materialTotal)}</span>
-              </div>
-            </div>
+
           </div>
         </div>
 
@@ -329,12 +319,15 @@ const PricingCard: React.FC = () => {
               <span className="text-sm font-semibold text-gray-800">Professional printing on {materialName}</span>
             </div>
 
-            <div className="flex items-center gap-4 group">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-200">
-                <Check className="h-5 w-5 text-white" />
+            {/* Conditional Grommet Display - Only show when grommets are selected */}
+            {grommets !== 'none' && (
+              <div className="flex items-center gap-4 group">
+                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-200">
+                  <Check className="h-5 w-5 text-white" />
+                </div>
+                <span className="text-sm font-semibold text-gray-800">{grommetName} at no extra cost</span>
               </div>
-              <span className="text-sm font-semibold text-gray-800">{grommetName} at no extra cost</span>
-            </div>
+            )}
 
             <div className="flex items-center gap-4 group">
               <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-200">
@@ -352,24 +345,8 @@ const PricingCard: React.FC = () => {
           </div>
         </div>
 
-        {/* Free Shipping Banner */}
-        <div className="bg-gradient-to-r from-emerald-500 via-green-500 to-teal-600 text-white rounded-2xl p-6 text-center shadow-2xl mb-8 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-50"></div>
-          <div className="relative flex items-center justify-center gap-4">
-            <div className="w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center backdrop-blur-sm">
-              <Truck className="h-6 w-6 text-white" />
-            </div>
-            <div>
-              <div className="text-xl font-black">{flags.freeShipping ? flags.shippingMethodLabel : 'Free Shipping!'}</div>
-              <div className="text-sm font-medium opacity-90">{flags.freeShipping ? '$0' : 'On orders over $20'}</div>
-            </div>
-          </div>
-        </div>
-
         {/* Action Buttons */}
-        <div className="space-y-4">
-
-
+        <div className="space-y-4 mt-8">
           {/* Add to Cart Button */}
           <button
             onClick={handleAddToCart}
