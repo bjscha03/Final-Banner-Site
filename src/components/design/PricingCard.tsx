@@ -191,7 +191,7 @@ const PricingCard: React.FC = () => {
         </div>
       </div>
 
-      {/* Quick Facts Grid */}
+      {/* Quick Facts Grid - Moved to top priority position */}
       <div className="relative p-8">
         <div className="grid grid-cols-2 gap-6 mb-8">
           <div className="group">
@@ -235,120 +235,69 @@ const PricingCard: React.FC = () => {
           </div>
         </div>
 
-        {/* Pricing Breakdown */}
-        <div className="bg-gradient-to-br from-gray-50/50 to-blue-50/20 border border-gray-200/40 rounded-2xl p-6 mb-8">
-          <h4 className="text-lg font-bold bg-gradient-to-r from-gray-900 to-blue-800 bg-clip-text text-transparent mb-6 flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-sm">
-              <span className="text-white font-bold text-sm">$</span>
+        {/* Simplified Pricing Line Items */}
+        <div className="space-y-3 mb-8">
+          <div className="flex justify-between items-center py-2">
+            <div className="flex-1">
+              <span className="text-sm text-gray-700">
+                <span className="hidden sm:inline">Banner cost ({formatArea(baseTotals.area)} × {usd(PRICE_PER_SQFT[material])}/sq ft)</span>
+                <span className="sm:hidden">Banner cost</span>
+              </span>
             </div>
-            Pricing Breakdown
-          </h4>
+            <span className="text-sm font-semibold text-gray-900 ml-4">{usd(baseTotals.unit)}</span>
+          </div>
 
-          <div className="space-y-4">
-            <div className="flex justify-between items-center py-3 border-b border-gray-200/50">
+          <div className="flex justify-between items-center py-2">
+            <span className="text-sm text-gray-700">Subtotal per banner</span>
+            <span className="text-sm font-semibold text-gray-900">{usd(baseTotals.unit)}</span>
+          </div>
+
+          {addRope && (
+            <div className="flex justify-between items-center py-2">
               <div className="flex-1">
-                <span className="text-sm font-semibold text-gray-800 block">
-                  <span className="hidden sm:inline">Banner cost ({formatArea(baseTotals.area)} × {usd(PRICE_PER_SQFT[material])}/sq ft)</span>
-                  <span className="sm:hidden">Banner cost</span>
+                <span className="text-sm text-gray-700">
+                  <span className="hidden sm:inline">Rope ({(widthIn / 12).toFixed(2)} ft × {quantity} × $2.00)</span>
+                  <span className="sm:hidden">Rope</span>
                 </span>
               </div>
-              <span className="text-lg font-bold text-gray-900 ml-4">{usd(baseTotals.unit)}</span>
+              <span className="text-sm font-semibold text-gray-900 ml-4">{usd(baseTotals.rope)}</span>
             </div>
+          )}
 
-            <div className="flex justify-between items-center py-3 border-b border-gray-200/50">
-              <span className="text-sm font-semibold text-gray-800">Subtotal per banner</span>
-              <span className="text-lg font-bold text-gray-900">{usd(baseTotals.unit)}</span>
-            </div>
-
-            {addRope && (
-              <div className="flex justify-between items-center py-3 border-b border-gray-200/50">
-                <div className="flex-1">
-                  <span className="text-sm font-semibold text-gray-800 block">
-                    <span className="hidden sm:inline">Rope ({(widthIn / 12).toFixed(2)} ft × {quantity} × $2.00)</span>
-                    <span className="sm:hidden">Rope</span>
-                  </span>
-                </div>
-                <span className="text-lg font-bold text-gray-900 ml-4">{usd(baseTotals.rope)}</span>
+          {polePockets !== 'none' && baseTotals.polePocket > 0 && (
+            <div className="flex justify-between items-center py-2">
+              <div className="flex-1">
+                <span className="text-sm text-gray-700">
+                  <span className="hidden sm:inline">Pole Pockets (Setup + Linear ft)</span>
+                  <span className="sm:hidden">Pole Pockets</span>
+                </span>
               </div>
-            )}
-
-            {polePockets !== 'none' && baseTotals.polePocket > 0 && (
-              <div className="flex justify-between items-center py-3 border-b border-gray-200/50">
-                <div className="flex-1">
-                  <span className="text-sm font-semibold text-gray-800 block">
-                    <span className="hidden sm:inline">Pole Pockets (Setup + Linear ft)</span>
-                    <span className="sm:hidden">Pole Pockets</span>
-                  </span>
-                </div>
-                <span className="text-lg font-bold text-gray-900 ml-4">{usd(baseTotals.polePocket)}</span>
-              </div>
-            )}
-
-            {/* Minimum Order Adjustment (if applicable) */}
-            {showMinOrderAdjustment && (
-              <div className="flex justify-between items-center py-3 border-b border-gray-200/50">
-                <span className="text-sm font-semibold text-gray-800">Minimum order adjustment</span>
-                <span className="text-lg font-bold text-gray-900">{usd(minOrderAdjustmentCents / 100)}</span>
-              </div>
-            )}
-
-            {/* Shipping Row */}
-            <div className="flex justify-between items-center py-3 border-b border-gray-200/50">
-              <span className="text-sm font-semibold text-gray-800">{flags.freeShipping ? flags.shippingMethodLabel : 'Shipping'}</span>
-              <span className="text-lg font-bold text-gray-900">$0</span>
+              <span className="text-sm font-semibold text-gray-900 ml-4">{usd(baseTotals.polePocket)}</span>
             </div>
+          )}
 
-            {/* Tax Row */}
-            <div className="flex justify-between items-center py-3 border-b border-gray-200/50">
-              <span className="text-sm font-semibold text-gray-800">Tax (6%)</span>
-              <span className="text-lg font-bold text-gray-900">{usd(finalTotals.tax)}</span>
+          {/* Minimum Order Adjustment (if applicable) */}
+          {showMinOrderAdjustment && (
+            <div className="flex justify-between items-center py-2">
+              <span className="text-sm text-gray-700">Minimum order adjustment</span>
+              <span className="text-sm font-semibold text-gray-900">{usd(minOrderAdjustmentCents / 100)}</span>
             </div>
+          )}
 
+          {/* Shipping Row */}
+          <div className="flex justify-between items-center py-2">
+            <span className="text-sm text-gray-700">{flags.freeShipping ? flags.shippingMethodLabel : 'Shipping'}</span>
+            <span className="text-sm font-semibold text-gray-900">$0</span>
+          </div>
+
+          {/* Tax Row */}
+          <div className="flex justify-between items-center py-2">
+            <span className="text-sm text-gray-700">Tax (6%)</span>
+            <span className="text-sm font-semibold text-gray-900">{usd(finalTotals.tax)}</span>
           </div>
         </div>
 
-        {/* What's Included */}
-        <div className="bg-gradient-to-br from-green-50/50 to-emerald-50/20 border border-green-200/40 rounded-2xl p-6 mb-8">
-          <h4 className="text-lg font-bold bg-gradient-to-r from-gray-900 to-green-800 bg-clip-text text-transparent mb-6 flex items-center gap-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center shadow-sm">
-              <span className="text-white font-bold text-sm">✓</span>
-            </div>
-            What's Included
-          </h4>
 
-          <div className="space-y-4">
-            <div className="flex items-center gap-4 group">
-              <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-200">
-                <Check className="h-5 w-5 text-white" />
-              </div>
-              <span className="text-sm font-semibold text-gray-800">Professional printing on {materialName}</span>
-            </div>
-
-            {/* Conditional Grommet Display - Only show when grommets are selected */}
-            {grommets !== 'none' && (
-              <div className="flex items-center gap-4 group">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-200">
-                  <Check className="h-5 w-5 text-white" />
-                </div>
-                <span className="text-sm font-semibold text-gray-800">{grommetName} at no extra cost</span>
-              </div>
-            )}
-
-            <div className="flex items-center gap-4 group">
-              <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-200">
-                <Check className="h-5 w-5 text-white" />
-              </div>
-              <span className="text-sm font-semibold text-gray-800">Quality inspection and packaging</span>
-            </div>
-
-            <div className="flex items-center gap-4 group">
-              <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-200">
-                <Check className="h-5 w-5 text-white" />
-              </div>
-              <span className="text-sm font-semibold text-gray-800">{flags.freeShipping ? flags.shippingMethodLabel : 'Free shipping on orders over $20'}</span>
-            </div>
-          </div>
-        </div>
 
         {/* Action Buttons */}
         <div className="space-y-4 mt-8">
