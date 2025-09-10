@@ -150,20 +150,7 @@ exports.handler = async (event, context) => {
     // Generate UUID for the order
     const orderId = randomUUID();
 
-    // Generate unique order number (6 digits starting from 100000)
-    const generateOrderNumber = async () => {
-      // Get the highest existing order number
-      const maxOrderResult = await sql`
-        SELECT MAX(CAST(order_number AS INTEGER)) as max_number
-        FROM orders
-        WHERE order_number ~ '^[0-9]+$'
-      `;
-
-      const maxNumber = maxOrderResult[0]?.max_number || 99999;
-      return (maxNumber + 1).toString().padStart(6, '0');
-    };
-
-    const orderNumber = await generateOrderNumber();
+    // Order number functionality removed - using UUID as primary identifier
 
     // Insert order into database with simplified approach
     console.log('Inserting order with ID:', orderId);
@@ -251,8 +238,8 @@ exports.handler = async (event, context) => {
     console.log('Final email for order:', userEmail);
 
     const orderResult = await sql`
-      INSERT INTO orders (id, order_number, user_id, email, subtotal_cents, tax_cents, total_cents, status)
-      VALUES (${orderId}, ${orderNumber}, ${finalUserId}, ${userEmail}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, 'paid')
+      INSERT INTO orders (id, user_id, email, subtotal_cents, tax_cents, total_cents, status)
+      VALUES (${orderId}, ${finalUserId}, ${userEmail}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, 'paid')
       RETURNING *
     `;
 
@@ -268,59 +255,30 @@ exports.handler = async (event, context) => {
       for (const item of orderData.items) {
         console.log('Inserting order item:', JSON.stringify(item, null, 2));
         try {
-          // Convert pole_pockets string to boolean for database
-          const polePocketsBoolean = item.pole_pockets &&
+          // Convert pole_pockets to string for database (varchar column)
+          const polePocketsValue = item.pole_pockets &&
             item.pole_pockets !== 'none' &&
             item.pole_pockets !== 'false' &&
-            item.pole_pockets !== false;
+            item.pole_pockets !== false ? 'true' : 'none';
 
-          // Try to insert with file_key first, fallback to without if column doesn't exist
-          try {
-            await sql`
-              INSERT INTO order_items (
-                id, order_id, width_in, height_in, quantity, material,
-                grommets, rope_feet, pole_pockets, line_total_cents, file_key
-              )
-              VALUES (
-                ${randomUUID()},
-                ${orderId},
-                ${item.width_in || 0},
-                ${item.height_in || 0},
-                ${item.quantity || 1},
-                ${item.material || '13oz'},
-                ${item.grommets || 'none'},
-                ${item.rope_feet || 0},
-                ${polePocketsBoolean},
-                ${item.line_total_cents || 0},
-                ${item.file_key || null}
-              )
-            `;
-          } catch (columnError) {
-            // If file_key column doesn't exist, insert without it
-            if (columnError.message && columnError.message.includes('file_key')) {
-              console.log('file_key column not found, inserting without it');
-              await sql`
-                INSERT INTO order_items (
-                  id, order_id, width_in, height_in, quantity, material,
-                  grommets, rope_feet, pole_pockets, line_total_cents
-                )
-                VALUES (
-                  ${randomUUID()},
-                  ${orderId},
-                  ${item.width_in || 0},
-                  ${item.height_in || 0},
-                  ${item.quantity || 1},
-                  ${item.material || '13oz'},
-                  ${item.grommets || 'none'},
-                  ${item.rope_feet || 0},
-                  ${polePocketsBoolean},
-                  ${item.line_total_cents || 0}
-                )
-              `;
-            } else {
-              throw columnError;
-            }
-          }
+          await sql`
+            INSERT INTO order_items (
+              id, order_id, width_in, height_in, quantity, material,
+              grommets, rope_feet, pole_pockets, line_total_cents
+            )
+            VALUES (
+              ${randomUUID()},
+              ${orderId},
+              ${item.width_in || 0},
+              ${item.height_in || 0},
+              ${item.quantity || 1},
+              ${item.material || '13oz'},
+              ${item.grommets || 'none'},
+              ${item.rope_feet || 0},
+              ${polePocketsValue},
+              ${item.line_total_cents || 0}
+            )
+          `;
         } catch (itemError) {
           console.error('Error inserting order item:', itemError);
           throw new Error(`Failed to insert order item: ${itemError.message}`);
