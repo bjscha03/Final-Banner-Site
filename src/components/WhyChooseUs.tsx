@@ -21,7 +21,7 @@ const WhyChooseUs: React.FC = () => {
     {
       icon: Truck,
       title: "Free Shipping",
-      description: "Complimentary shipping on all orders over $20 with tracking included."
+      description: "Complimentary shipping on all orders with tracking included."
     },
     {
       icon: Award,
