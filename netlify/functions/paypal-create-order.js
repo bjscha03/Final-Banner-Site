@@ -42,9 +42,9 @@ const getPayPalCredentials = () => {
   return {
     clientId,
     secret,
-    baseUrl: env === 'live' 
-      ? 'https://api.paypal.com' 
-      : 'https://api.sandbox.paypal.com'
+    baseUrl: env === 'live'
+      ? 'https://api-m.paypal.com'
+      : 'https://api-m.sandbox.paypal.com'
   };
 };
 
