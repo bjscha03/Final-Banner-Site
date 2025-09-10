@@ -43,7 +43,7 @@ const materials: MaterialOption[] = [
     key: 'mesh',
     name: 'Mesh Vinyl',
     subtitle: 'Wind-through design',
-    imagePath: '/images/materials/mesh.svg'
+    imagePath: '/images/materials/mesh-vinyl.jpg'
   }
 ];
 

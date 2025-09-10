@@ -11,3 +11,15 @@ This image will be used in:
 - Home page quick quote material selection (if applicable)
 
 The image will expand to nearly full screen when clicked via the Lightbox component.
+
+## Mesh Vinyl Sample
+
+The mesh vinyl material image is saved as `mesh-vinyl.jpg` in this directory.
+
+The image shows a mesh vinyl banner with "Eagles Baseball" design on a chain-link fence, demonstrating the wind-through mesh material properties.
+
+This image is used in:
+- Design page material selection (MaterialCard.tsx)
+- Home page quick quote material selection (QuickQuote.tsx)
+
+The image will expand to nearly full screen when clicked via the Lightbox component.
