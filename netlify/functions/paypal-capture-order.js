@@ -104,8 +104,21 @@ exports.handler = async (event, context) => {
   }
 
   try {
+    // Comprehensive environment check
+    console.log('=== PayPal Capture Order Debug Info ===', { cid });
+    console.log('Environment variables check:', {
+      FEATURE_PAYPAL: process.env.FEATURE_PAYPAL,
+      PAYPAL_ENV: process.env.PAYPAL_ENV,
+      hasClientId: !!process.env.PAYPAL_CLIENT_ID_SANDBOX,
+      hasSecret: !!process.env.PAYPAL_SECRET_SANDBOX,
+      hasDatabase: !!process.env.NETLIFY_DATABASE_URL,
+      nodeVersion: process.version,
+      timestamp: new Date().toISOString()
+    });
+
     // Check if PayPal is enabled
     if (process.env.FEATURE_PAYPAL !== '1') {
+      console.error('PayPal is disabled:', { FEATURE_PAYPAL: process.env.FEATURE_PAYPAL, cid });
       return {
         statusCode: 400,
         headers,
@@ -343,12 +356,22 @@ exports.handler = async (event, context) => {
 
   } catch (error) {
     console.error('PayPal capture order error:', error, 'cid:', cid);
+    console.error('Error stack:', error.stack);
+    console.error('Error message:', error.message);
+
+    // Return more detailed error information for debugging
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({
         ok: false,
         error: 'INTERNAL_ERROR',
+        debug: {
+          message: error.message,
+          type: error.constructor.name,
+          cid,
+          timestamp: new Date().toISOString()
+        },
         cid
       }),
     };
