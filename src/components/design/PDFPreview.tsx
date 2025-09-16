@@ -39,7 +39,3 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({ url, className = '' }) => {
 };
 
 export default PDFPreview;
-
-
-
-export default PDFPreview;
