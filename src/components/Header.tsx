@@ -58,8 +58,12 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div className="flex-shrink-0">
-            <ScrollToTopLink to="/" className="text-2xl font-bold text-blue-700 hover:text-blue-800 transition-colors">
-              Banners On The Fly
+            <ScrollToTopLink to="/" className="flex items-center hover:opacity-80 transition-opacity">
+              <img
+                src="/images/banners-on-the-fly-logo.svg"
+                alt="Banners On The Fly"
+                className="h-10 w-auto"
+              />
             </ScrollToTopLink>
           </div>
 
