@@ -38,11 +38,13 @@ exports.handler = async (event, context) => {
 
     console.log('Adding test file_key to an order item...');
 
-    // Find the first order item without a file_key
+    // Find the first order item from a recent order without a file_key
     const orderItems = await sql`
-      SELECT id, order_id 
-      FROM order_items 
-      WHERE file_key IS NULL 
+      SELECT oi.id, oi.order_id
+      FROM order_items oi
+      JOIN orders o ON oi.order_id = o.id
+      WHERE oi.file_key IS NULL
+      ORDER BY o.created_at DESC
       LIMIT 1
     `;
 
