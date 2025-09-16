@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Mail, Clock, Shield, Send, Phone, MessageCircle, CheckCircle, AlertCircle } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { useToast } from '@/components/ui/use-toast';
+import { useLocation } from 'react-router-dom';
 
 const Contact: React.FC = () => {
   const { toast } = useToast();
+  const location = useLocation();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -12,6 +14,21 @@ const Contact: React.FC = () => {
     message: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Handle URL parameters from chatbot
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const from = searchParams.get('from');
+    const message = searchParams.get('message');
+
+    if (from === 'chatbot' && message) {
+      setFormData(prev => ({
+        ...prev,
+        subject: 'Chatbot Inquiry',
+        message: decodeURIComponent(message)
+      }));
+    }
+  }, [location.search]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;

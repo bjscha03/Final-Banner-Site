@@ -20,5 +20,312 @@
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+
+    <!-- Banners On The Fly Chatbot Widget -->
+    <script>
+(() => {
+/* =========================
+   Banners On The Fly — Chatbot Widget
+   Zero-deps, auto replies, contact fallback
+   ========================= */
+
+const CONFIG = {
+  brandName: "Banners On The Fly",
+  brandColor: "#005EFF",
+  contactUrl: "/contact",           // React Router contact page
+  designUrl: "/design",             // React Router design tool page
+  smsNumber: "+15026324108",        // SMS fallback number
+  supportEmail: "support@bannersonthefly.com",
+  taxRate: 0.06,                    // 6% tax rate (matches your pricing.ts)
+  pricingSqft: {                    // $/sqft (matches your PRICE_PER_SQFT)
+    "13oz Vinyl": 4.50,
+    "15oz Vinyl": 6.00,
+    "18oz Vinyl": 7.50,
+    "Mesh Vinyl": 6.00
+  },
+  grommetsIncluded: true,
+  productionCopy: "24-hour production + Free Next-Day Air",
+};
+
+// ---------- DOM helpers ----------
+function el(tag, props={}, ...children){
+  const node = document.createElement(tag);
+  Object.entries(props).forEach(([k,v])=>{
+    if (k === "style") Object.assign(node.style, v);
+    else if (k.startsWith("on") && typeof v === "function") node.addEventListener(k.slice(2).toLowerCase(), v);
+    else if (k === "class") node.className = v;
+    else node.setAttribute(k, v);
+  });
+  children.forEach(c => {
+    if (c == null) return;
+    if (typeof c === "string") node.appendChild(document.createTextNode(c));
+    else node.appendChild(c);
+  });
+  return node;
+}
+function money(n){ return `$${n.toFixed(2)}`; }
+function toInt(v){ const n = parseInt(String(v).replace(/[^\d]/g,""),10); return isNaN(n)?0:n; }
+function toNum(v){ const n = parseFloat(String(v).replace(/[^\d.]/g,"")); return isNaN(n)?0:n; }
+function scrollToBottom(){ setTimeout(()=> { chatBody.scrollTop = chatBody.scrollHeight; }, 10); }
+function openContact(prefill){
+  const qs = new URLSearchParams({ from:"chatbot", message: prefill || "" }).toString();
+  window.open(`${CONFIG.contactUrl}?${qs}`, "_blank", "noopener");
+}
+function smsHref(text){
+  const body = encodeURIComponent(text || "Hi Banners on the Fly, I need help.");
+  return `sms:${CONFIG.smsNumber}?body=${body}`;
+}
+
+// ---------- Widget Shell ----------
+const style = el("style", {}, `
+  .botf-chat-root{ position:fixed; right:18px; bottom:18px; z-index:2147483647; font-family: ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; }
+  .botf-bubble{ width:56px; height:56px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; cursor:pointer; box-shadow:0 8px 20px rgba(0,0,0,.25); transition:.2s transform; }
+  .botf-bubble:hover{ transform: translateY(-1px); }
+  .botf-panel{ width:330px; max-height:520px; background:#fff; border-radius:16px; overflow:hidden; box-shadow:0 20px 40px rgba(0,0,0,.25); display:none; flex-direction:column; }
+  .botf-header{ background:${CONFIG.brandColor}; color:#fff; padding:12px 14px; font-weight:600; display:flex; align-items:center; justify-content:space-between; }
+  .botf-title{ font-size:15px; }
+  .botf-close{ background:transparent; border:none; color:#fff; font-size:18px; cursor:pointer; opacity:.85; }
+  .botf-body{ padding:10px; overflow:auto; height:380px; background:#F7FAFF; }
+  .botf-input{ display:flex; gap:8px; padding:10px; border-top:1px solid #e9eefc; background:#fff; }
+  .botf-input input{ flex:1; border-radius:10px; border:1px solid #d7def3; padding:10px 12px; font-size:14px; outline:none; }
+  .botf-input button{ background:${CONFIG.brandColor}; color:#fff; border:none; padding:10px 12px; border-radius:10px; cursor:pointer; font-weight:600; }
+  .botf-msg{ display:flex; margin:8px 0; }
+  .botf-bot{ justify-content:flex-start; }
+  .botf-user{ justify-content:flex-end; }
+  .botf-bubble-msg{ max-width:77%; padding:9px 12px; border-radius:12px; font-size:14px; line-height:1.35; }
+  .botf-bot .botf-bubble-msg{ background:#fff; border:1px solid #e6ecfe; }
+  .botf-user .botf-bubble-msg{ background:${CONFIG.brandColor}; color:#fff; }
+  .botf-buttons{ display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+  .botf-btn{ border:1px solid #c7d3ff; background:#fff; color:#1f2a62; padding:7px 10px; border-radius:999px; font-size:13px; cursor:pointer; }
+  .botf-section{ background:#fff; border:1px solid #e6ecfe; padding:10px; border-radius:12px; margin-top:8px; }
+  .botf-mini{ font-size:12px; color:#667; margin-top:6px; }
+  .botf-cta{ border:none; background:${CONFIG.brandColor}; color:#fff; padding:10px 12px; border-radius:10px; font-weight:600; cursor:pointer; }
+  .botf-row{ display:flex; gap:8px; }
+  .botf-row input, .botf-row select{ flex:1; border-radius:10px; border:1px solid #d7def3; padding:8px 10px; font-size:14px; }
+  .botf-footer-note{ font-size:11px; color:#556; opacity:.9; margin-top:6px; }
+  @media (max-width:480px){ .botf-panel{ width:92vw; height:70vh; max-height:none; } }
+`);
+document.head.appendChild(style);
+
+const root = el("div",{class:"botf-chat-root","aria-live":"polite"});
+const bubble = el("button",{class:"botf-bubble",style:{background:CONFIG.brandColor}, "aria-label":"Open chat"},
+  el("span", {style:{fontSize:"22px"}}, "💬")
+);
+const panel = el("div",{class:"botf-panel","role":"dialog","aria-label":`${CONFIG.brandName} Chatbot`});
+const header = el("div",{class:"botf-header"},
+  el("div",{class:"botf-title"}, `${CONFIG.brandName} — Live Assistant`),
+  el("button",{class:"botf-close",onClick:() => { panel.style.display="none"; bubble.style.display="flex"; }}, "×")
+);
+const chatBody = el("div",{class:"botf-body"});
+const inputBar = el("div",{class:"botf-input"},
+  el("input",{type:"text",placeholder:"Type here… (we'll route to Contact if not a menu option)", "aria-label":"chat input"}),
+  el("button",{onClick:handleFreeText}, "Send")
+);
+panel.append(header,chatBody,inputBar);
+root.append(panel,bubble);
+document.body.appendChild(root);
+bubble.addEventListener("click", () => { bubble.style.display="none"; panel.style.display="flex"; welcome(); });
+
+// ---------- Chat primitives ----------
+function addMsg(text, who="bot", extra){
+  const row = el("div",{class:`botf-msg botf-${who}`});
+  const bubble = el("div",{class:"botf-bubble-msg"});
+  if (typeof text === "string") bubble.append(text);
+  else bubble.append(text); // Node
+  if (extra) bubble.append(extra);
+  row.append(bubble);
+  chatBody.append(row);
+  scrollToBottom();
+  return row;
+}
+function addButtons(buttons){
+  const wrap = el("div",{class:"botf-buttons"});
+  buttons.forEach(btn=>{
+    const b = el("button",{class:"botf-btn",onClick:btn.onClick}, btn.label);
+    wrap.append(b);
+  });
+  chatBody.append(wrap);
+  scrollToBottom();
+  return wrap;
+}
+function handleFreeText(){
+  const input = inputBar.querySelector("input");
+  const text = input.value.trim();
+  if(!text) return;
+  addMsg(text, "user");
+  input.value = "";
+  // No NLP—auto route to contact
+  addMsg("Thanks! I'll get you to our support team so we can help right away.");
+  setTimeout(()=> openContact(`User typed: ${text}`), 400);
+}
+
+// ---------- Flows ----------
+function welcome(){
+  chatBody.innerHTML = "";
+  addMsg(`👋 Hi! How can we help today? We print **professional vinyl banners** with **${CONFIG.productionCopy}**.`);
+
+  addButtons([
+    {label:"Get a Quick Quote", onClick:quoteStart},
+    {label:"Design Help / File Check", onClick:designHelp},
+    {label:"Order Status", onClick:orderStatus},
+    {label:"Payment / Checkout", onClick:paymentHelp},
+    {label:"Bulk / Reseller", onClick:bulkReseller},
+    {label:"Something else (Contact)", onClick:()=>openContact("General question from chatbot")}
+  ]);
+  const note = el("div",{class:"botf-footer-note"},
+    `Auto replies only. If your issue isn't listed, we'll send you to our Contact page.`
+  );
+  chatBody.append(note);
+  scrollToBottom();
+}
+
+// ---- 1) Quick Quote ----
+const quoteState = { width:48, height:24, qty:1, material:"13oz Vinyl" };
+
+function quoteStart(){
+  addMsg("Great — I'll get you a fast estimate. Enter **Width** and **Height** in inches, select a material, and set quantity.");
+  renderQuoteForm();
+}
+
+function renderQuoteForm(){
+  const form = el("div",{class:"botf-section"});
+  const row1 = el("div",{class:"botf-row"},
+    el("input",{type:"number", min:"1", value:quoteState.width, "aria-label":"Width (in)", placeholder:"Width (in)"}),
+    el("input",{type:"number", min:"1", value:quoteState.height, "aria-label":"Height (in)", placeholder:"Height (in)"})
+  );
+  const row2 = el("div",{class:"botf-row"},
+    el("select",{},
+      ...Object.keys(CONFIG.pricingSqft).map(m=> el("option",{value:m, selected:m===quoteState.material}, m))
+    ),
+    el("input",{type:"number", min:"1", value:quoteState.qty, "aria-label":"Quantity", placeholder:"Qty"})
+  );
+  const calcBtn = el("button",{class:"botf-cta", style:{marginTop:"8px"}, onClick:()=>{
+    const [wEl,hEl] = row1.querySelectorAll("input");
+    const [matEl,qEl] = row2.children;
+    quoteState.width = Math.max(1, toNum(wEl.value));
+    quoteState.height = Math.max(1, toNum(hEl.value));
+    quoteState.material = matEl.value;
+    quoteState.qty = Math.max(1, toInt(qEl.value));
+    renderQuoteResult();
+  }}, "Calculate Price");
+  form.append(row1,row2,calcBtn);
+  addMsg(form);
+}
+
+function renderQuoteResult(){
+  const sqft = (quoteState.width * quoteState.height) / 144;
+  const rate = CONFIG.pricingSqft[quoteState.material] || 0;
+  const subtotal = sqft * rate * quoteState.qty;
+  const tax = subtotal * CONFIG.taxRate;
+  const total = subtotal + tax;
+
+  const result = el("div",{class:"botf-section"},
+    el("div",{}, `📐 Size: ${quoteState.width}" × ${quoteState.height}"  •  ${sqft.toFixed(2)} sq ft`),
+    el("div",{}, `🔢 Quantity: ${quoteState.qty}`),
+    el("div",{}, `🎨 Material: ${quoteState.material} @ ${money(rate)}/sq ft`),
+    el("hr"),
+    el("div",{}, `Banner subtotal: ${money(subtotal)}`),
+    el("div",{}, `Tax (${(CONFIG.taxRate*100).toFixed(0)}%): ${money(tax)}`),
+    el("div", {style:{fontWeight:"700", marginTop:"4px"}}, `Total: ${money(total)}`),
+    el("div",{class:"botf-mini"}, `Includes ${CONFIG.productionCopy}${CONFIG.grommetsIncluded ? " • Grommets every 24\"" : ""}`)
+  );
+
+  const actions = el("div",{class:"botf-buttons"},
+    el("button",{class:"botf-btn",onClick:()=> window.open(CONFIG.designUrl,"_blank","noopener")}, "Start My Design"),
+    el("button",{class:"botf-btn",onClick:()=> openContact(`Quote request: ${quoteState.width}x${quoteState.height}, qty ${quoteState.qty}, ${quoteState.material}, est ${money(total)}`)}, "Send to Contact"),
+    CONFIG.smsNumber ? el("a",{class:"botf-btn", href:smsHref(`Quote for ${quoteState.width}x${quoteState.height}, qty ${quoteState.qty}, ${quoteState.material}`)}, "Text Us") : null,
+    el("button",{class:"botf-btn",onClick:welcome}, "Start Over")
+  );
+
+  addMsg(result);
+  chatBody.append(actions);
+  scrollToBottom();
+}
+
+// ---- 2) Design Help ----
+function designHelp(){
+  const box = el("div",{class:"botf-section"},
+    el("div",{}, "We'll prep your file for free and send a proof for approval."),
+    el("ul", {class:"botf-mini"},
+      el("li",{}, "Best formats: PDF/AI (fonts outlined). Also fine: JPG/PNG at full size 150–300 dpi."),
+      el("li",{}, "Grommets every 24\" included. Pole pockets 1–4\" available."),
+      el("li",{}, "Use (indoor/outdoor) helps us pick the best material.")
+    ),
+    el("div",{class:"botf-buttons", style:{marginTop:"8px"}},
+      el("button",{class:"botf-btn", onClick:()=> window.open(CONFIG.designUrl,"_blank","noopener")}, "Open Design Tool"),
+      el("a",{class:"botf-btn", href:`mailto:${CONFIG.supportEmail}?subject=Design%20Help%20Request&body=Size:%0D%0AFinish:%0D%0AUse:%0D%0ALink%20to%20artwork:%0D%0A`}, "Email Files"),
+      el("button",{class:"botf-btn", onClick:()=> openContact("Design help from chatbot")}, "Contact Support"),
+      el("button",{class:"botf-btn", onClick:welcome}, "Back")
+    )
+  );
+  addMsg(box);
+}
+
+// ---- 3) Order Status ----
+function orderStatus(){
+  const form = el("div",{class:"botf-section"});
+  const order = el("input",{type:"text", placeholder:"Order # (or leave blank)", "aria-label":"Order number"});
+  const email = el("input",{type:"email", placeholder:"Email used at checkout", "aria-label":"Email"});
+  const row = el("div",{class:"botf-row"}, order, email);
+  const btn = el("button",{class:"botf-cta", style:{marginTop:"8px"}, onClick:()=>{
+    addMsg(`Thanks! We'll check your order and send an update to ${email.value || "(email missing)"} shortly.`);
+    openContact(`Order status request — Order#: ${order.value || "(n/a)"} — Email: ${email.value || "(n/a)"}`);
+  }}, "Request Status");
+  form.append(el("div",{},"Enter your details and we'll update you quickly:"), row, btn,
+    el("div",{class:"botf-mini"}, "We ship Next-Day Air after 24-hour production.")
+  );
+  addMsg(form);
+}
+
+// ---- 4) Payment / Checkout ----
+function paymentHelp(){
+  addMsg("Choose a payment path:");
+  addButtons([
+    {label:"PayPal issue", onClick:()=> {
+      addMsg("We can send a PayPal invoice or a direct checkout link.");
+      addButtons([
+        {label:"Send PayPal Invoice", onClick:()=> openContact("PayPal invoice request from chatbot")},
+        {label:"Direct Checkout Link", onClick:()=> openContact("Direct checkout link request from chatbot")},
+        {label:"Back", onClick:welcome}
+      ]);
+    }},
+    {label:"Payment declined", onClick:()=> {
+      addMsg("No worries — we can switch to invoice or phone payment.");
+      addButtons([
+        {label:"Request Invoice", onClick:()=> openContact("Invoice request (card declined) from chatbot")},
+        {label:"Back", onClick:welcome}
+      ]);
+    }},
+    {label:"Need invoice / PO", onClick:()=> openContact("PO/Invoice request from chatbot")},
+    {label:"Back", onClick:welcome}
+  ]);
+}
+
+// ---- 5) Bulk / Reseller ----
+function bulkReseller(){
+  const form = el("div",{class:"botf-section"});
+  const sizes = el("input",{type:"text", placeholder:"Sizes (e.g., 48x24, 96x30…)"});
+  const qtys = el("input",{type:"text", placeholder:"Quantities per size"});
+  const mats = el("input",{type:"text", placeholder:"Materials (13oz, 15oz, 18oz, Mesh)"});
+  const cadence = el("input",{type:"text", placeholder:"Delivery cadence / deadlines"});
+  const row1 = el("div",{class:"botf-row"}, sizes, qtys);
+  const row2 = el("div",{class:"botf-row"}, mats, cadence);
+  const btn = el("button",{class:"botf-cta", style:{marginTop:"8px"}, onClick:()=>{
+    const msg = `Bulk/Reseller quote:
+Sizes: ${sizes.value}
+Quantities: ${qtys.value}
+Materials: ${mats.value}
+Cadence: ${cadence.value}`;
+    addMsg("Got it — we'll send volume pricing and lead times asap.");
+    openContact(msg);
+  }}, "Send Details");
+  form.append(el("div",{},"Tell us what you need and we'll send volume pricing:"),
+             row1,row2,btn);
+  addMsg(form);
+}
+
+// Kickoff if user clicks the bubble
+})();
+    </script>
   </body>
 </html>
