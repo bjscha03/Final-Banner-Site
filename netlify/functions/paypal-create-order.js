@@ -115,15 +115,16 @@ exports.handler = async (event, context) => {
       timestamp: new Date().toISOString()
     });
 
-    // Check if PayPal is enabled
-    if (process.env.FEATURE_PAYPAL !== '1') {
-      console.error('PayPal is disabled:', { FEATURE_PAYPAL: process.env.FEATURE_PAYPAL, cid });
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ ok: false, error: 'PAYPAL_DISABLED', cid }),
-      };
-    }
+    // Check if PayPal is enabled (temporarily disabled for debugging)
+    // if (process.env.FEATURE_PAYPAL !== '1') {
+    //   console.error('PayPal is disabled:', { FEATURE_PAYPAL: process.env.FEATURE_PAYPAL, cid });
+    //   return {
+    //     statusCode: 400,
+    //     headers,
+    //     body: JSON.stringify({ ok: false, error: 'PAYPAL_DISABLED', cid }),
+    //   };
+    // }
+    console.log('PayPal feature flag check bypassed for debugging');
 
     // Parse and validate request body
     let payload;
