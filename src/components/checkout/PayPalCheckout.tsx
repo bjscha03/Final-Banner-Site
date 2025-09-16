@@ -222,7 +222,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
     try {
       setIsCapturingPayment(true);
 
-      const r = await fetch('/.netlify/functions/paypal-capture-simple', {
+      const r = await fetch('/.netlify/functions/paypal-capture-minimal', {
         method:'POST',
         headers:{ 'Content-Type':'application/json' },
         body: JSON.stringify({ orderID: data.orderID }),
@@ -230,7 +230,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
       const j = await r.json().catch(()=> ({}));
       if (!r.ok || !j?.ok) {
         console.error('Payment error:', j || r.status);
-        alert(`Payment failed: ${j?.error || r.status}\nHint: ${j?.hint || 'see console'}\nDiag: ${JSON.stringify(j?.diag || {}, null, 2)}`);
+        alert(`Payment failed: ${j?.error || 'Unknown error'}\nStatus: ${r.status}`);
         return;
       }
 
