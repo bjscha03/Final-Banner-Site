@@ -17,6 +17,11 @@
   publish = "dist"
   autoLaunch = false
 
+[[headers]]
+  for = "/*"
+  [headers.values]
+    Permissions-Policy = "geolocation=(), camera=(), microphone=(), payment=(self)"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"

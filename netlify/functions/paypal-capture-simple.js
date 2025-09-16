@@ -42,15 +42,22 @@ const getPayPalAccessToken = async () => {
   return data.access_token;
 };
 
-const capturePayPalOrder = async (orderId, accessToken) => {
+const capturePayPalOrder = async (orderId, accessToken, requestId) => {
   const { baseUrl } = getPayPalCredentials();
-  
+
+  const headers = {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${accessToken}`,
+  };
+
+  // Add idempotency header if provided
+  if (requestId) {
+    headers['PayPal-Request-Id'] = requestId;
+  }
+
   const response = await fetch(`${baseUrl}/v2/checkout/orders/${orderId}/capture`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${accessToken}`,
-    },
+    headers,
   });
 
   if (!response.ok) {
@@ -142,8 +149,11 @@ exports.handler = async (event, context) => {
     }
 
     try {
+      // Generate idempotency key for PayPal request
+      const requestId = `${cid}-${paypalOrderId}`;
+
       // Capture the PayPal order
-      captureDetails = await capturePayPalOrder(paypalOrderId, accessToken);
+      captureDetails = await capturePayPalOrder(paypalOrderId, accessToken, requestId);
     } catch (captureError) {
       console.error('PayPal capture error:', captureError, 'cid:', cid);
       return {
@@ -255,13 +265,26 @@ exports.handler = async (event, context) => {
     };
 
   } catch (error) {
-    console.error('PayPal capture error:', error, 'cid:', cid);
+    console.error('PayPal capture unexpected error:', error, 'cid:', cid);
+
+    // Determine specific error type based on error message
+    let errorType = 'INTERNAL_ERROR';
+    if (error.message?.includes('PayPal credentials not configured')) {
+      errorType = 'PAYPAL_CONFIG_ERROR';
+    } else if (error.message?.includes('PayPal auth failed')) {
+      errorType = 'PAYPAL_AUTH_ERROR';
+    } else if (error.message?.includes('PayPal capture failed')) {
+      errorType = 'PAYPAL_CAPTURE_ERROR';
+    } else if (error.message?.includes('Database')) {
+      errorType = 'DATABASE_ERROR';
+    }
+
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({
         ok: false,
-        error: 'INTERNAL_ERROR',
+        error: errorType,
         message: error.message,
         cid
       }),
