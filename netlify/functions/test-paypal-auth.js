@@ -16,14 +16,15 @@ const getPayPalCredentials = () => {
   const clientId = process.env[`PAYPAL_CLIENT_ID_${env.toUpperCase()}`];
   const secret = process.env[`PAYPAL_SECRET_${env.toUpperCase()}`];
   
-  console.log('Test PayPal credentials:', { 
-    env, 
-    clientIdExists: !!clientId, 
+  console.log('Test PayPal credentials:', {
+    env,
+    clientIdExists: !!clientId,
     secretExists: !!secret,
     clientIdLength: clientId?.length,
     secretLength: secret?.length,
     clientIdStart: clientId?.substring(0, 10),
-    secretStart: secret?.substring(0, 10)
+    secretStart: secret?.substring(0, 10),
+    timestamp: new Date().toISOString()
   });
   
   return {
