@@ -53,8 +53,9 @@ exports.handler = async (event, context) => {
 
     // Test a simple insert (we'll rollback)
     console.log('Testing order insert...');
-    
-    const testOrderId = 'test-' + Date.now();
+
+    const { randomUUID } = require('crypto');
+    const testOrderId = randomUUID();
     const testEmail = 'test@example.com';
     
     try {
