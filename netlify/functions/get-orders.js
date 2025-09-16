@@ -72,13 +72,7 @@ exports.handler = async (event, context) => {
                    'area_sqft', (oi.width_in * oi.height_in / 144.0),
                    'unit_price_cents', (oi.line_total_cents / oi.quantity),
                    'line_total_cents', oi.line_total_cents,
-                   'file_key', CASE
-                     WHEN EXISTS (
-                       SELECT 1 FROM information_schema.columns
-                       WHERE table_name = 'order_items' AND column_name = 'file_key'
-                     ) THEN oi.file_key
-                     ELSE null
-                   END
+                   'file_key', oi.file_key
                  )
                ) as items
         FROM orders o
@@ -106,13 +100,7 @@ exports.handler = async (event, context) => {
                    'area_sqft', (oi.width_in * oi.height_in / 144.0),
                    'unit_price_cents', (oi.line_total_cents / oi.quantity),
                    'line_total_cents', oi.line_total_cents,
-                   'file_key', CASE
-                     WHEN EXISTS (
-                       SELECT 1 FROM information_schema.columns
-                       WHERE table_name = 'order_items' AND column_name = 'file_key'
-                     ) THEN oi.file_key
-                     ELSE null
-                   END
+                   'file_key', oi.file_key
                  )
                ) as items
         FROM orders o

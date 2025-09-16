@@ -265,7 +265,7 @@ exports.handler = async (event, context) => {
           await sql`
             INSERT INTO order_items (
               id, order_id, width_in, height_in, quantity, material,
-              grommets, rope_feet, pole_pockets, line_total_cents
+              grommets, rope_feet, pole_pockets, line_total_cents, file_key
             )
             VALUES (
               ${randomUUID()},
@@ -277,7 +277,8 @@ exports.handler = async (event, context) => {
               ${item.grommets || 'none'},
               ${item.rope_feet || 0},
               ${polePocketsValue},
-              ${item.line_total_cents || 0}
+              ${item.line_total_cents || 0},
+              ${item.file_key || null}
             )
           `;
         } catch (itemError) {
