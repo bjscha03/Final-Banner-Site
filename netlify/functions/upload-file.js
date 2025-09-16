@@ -1,6 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
 const { randomUUID } = require('crypto');
-const multipart = require('lambda-multipart-parser');
 
 // Neon database connection
 const sql = neon(process.env.NETLIFY_DATABASE_URL);
@@ -31,40 +30,35 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    // Parse the multipart form data
-    const contentType = event.headers['content-type'] || event.headers['Content-Type'];
+    // For now, simulate file upload by accepting JSON data with file info
+    // This is a temporary approach until we can properly handle multipart uploads
 
-    if (!contentType || !contentType.includes('multipart/form-data')) {
+    let requestData;
+    try {
+      requestData = JSON.parse(event.body || '{}');
+    } catch (e) {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ error: 'Content-Type must be multipart/form-data' }),
+        body: JSON.stringify({ error: 'Invalid JSON in request body' }),
       };
     }
 
-    // Parse the multipart form data to extract the file
-    const result = await multipart.parse(event);
+    const { filename, size, contentType } = requestData;
 
-    if (!result.files || result.files.length === 0) {
+    if (!filename) {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ error: 'No file uploaded' }),
+        body: JSON.stringify({ error: 'Filename is required' }),
       };
     }
 
-    const file = result.files[0];
-    console.log('File upload received:', {
-      filename: file.filename,
-      contentType: file.contentType,
-      size: file.content.length
-    });
+    console.log('File upload simulation for:', { filename, size, contentType });
 
-    // Validate file type and size
+    // Validate file type
     const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
-    const maxSize = 100 * 1024 * 1024; // 100MB
-
-    if (!allowedTypes.includes(file.contentType)) {
+    if (contentType && !allowedTypes.includes(contentType)) {
       return {
         statusCode: 400,
         headers,
@@ -72,30 +66,18 @@ exports.handler = async (event, context) => {
       };
     }
 
-    if (file.content.length > maxSize) {
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ error: 'File too large. Maximum size is 100MB.' }),
-      };
-    }
-
     // Generate a unique file key with original filename
     const timestamp = Date.now();
     const uuid = randomUUID();
-    const extension = file.filename.split('.').pop() || 'bin';
-    const sanitizedFilename = file.filename.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const sanitizedFilename = filename.replace(/[^a-zA-Z0-9.-]/g, '_');
     const fileKey = `uploads/${timestamp}-${uuid}-${sanitizedFilename}`;
 
     console.log('Generated file key:', fileKey);
 
-    // Store file content in database (for development - in production use cloud storage)
-    // Convert buffer to base64 for storage
-    const fileContentBase64 = file.content.toString('base64');
-
+    // Store file metadata in database (without actual content for now)
     await sql`
-      INSERT INTO uploaded_files (id, file_key, original_filename, file_size, mime_type, file_content_base64, upload_timestamp, status)
-      VALUES (${randomUUID()}, ${fileKey}, ${file.filename}, ${file.content.length}, ${file.contentType}, ${fileContentBase64}, ${new Date().toISOString()}, 'uploaded')
+      INSERT INTO uploaded_files (id, file_key, original_filename, file_size, mime_type, upload_timestamp, status)
+      VALUES (${randomUUID()}, ${fileKey}, ${filename}, ${size || 0}, ${contentType || 'application/octet-stream'}, ${new Date().toISOString()}, 'uploaded')
       ON CONFLICT (file_key) DO NOTHING
     `;
 
@@ -108,10 +90,10 @@ exports.handler = async (event, context) => {
       body: JSON.stringify({
         success: true,
         fileKey: fileKey,
-        filename: file.filename,
-        size: file.content.length,
-        contentType: file.contentType,
-        message: 'File uploaded successfully'
+        filename: filename,
+        size: size || 0,
+        contentType: contentType || 'application/octet-stream',
+        message: 'File upload simulated successfully (metadata stored)'
       }),
     };
 

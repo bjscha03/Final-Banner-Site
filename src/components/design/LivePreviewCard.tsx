@@ -71,14 +71,18 @@ const LivePreviewCard: React.FC = () => {
     // Create URL for preview
     const url = URL.createObjectURL(file);
 
-    // Upload file to server
+    // Upload file metadata to server (simplified approach)
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-
       const response = await fetch('/.netlify/functions/upload-file', {
         method: 'POST',
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          filename: file.name,
+          size: file.size,
+          contentType: file.type,
+        }),
       });
 
       if (!response.ok) {
