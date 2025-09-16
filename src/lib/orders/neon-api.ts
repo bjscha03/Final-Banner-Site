@@ -213,6 +213,30 @@ export const neonApiOrdersAdapter: OrdersAdapter = {
     }
   },
 
+  updateTracking: async (id: string, carrier: TrackingCarrier, number: string): Promise<void> => {
+    try {
+      const response = await fetch(`${NEON_API_ENDPOINT}/orders?id=eq.${id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          tracking_number: number,
+          // tracking_carrier: carrier, // Column doesn't exist in database schema
+          // Don't change status when updating existing tracking
+          updated_at: new Date().toISOString()
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to update tracking: ${response.status}`);
+      }
+    } catch (error) {
+      console.error('Error updating tracking:', error);
+      throw error;
+    }
+  },
+
   get: async (id: string): Promise<Order | null> => {
     try {
       const response = await fetch(`${NEON_API_ENDPOINT}/orders?id=eq.${id}`, {

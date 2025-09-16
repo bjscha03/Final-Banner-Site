@@ -289,7 +289,7 @@ export const localOrdersAdapter: OrdersAdapter = {
   appendTracking: async (id: string, carrier: TrackingCarrier, number: string): Promise<void> => {
     const orders = getStoredOrders();
     const orderIndex = orders.findIndex(order => order.id === id);
-    
+
     if (orderIndex === -1) {
       throw new Error(`Order ${id} not found`);
     }
@@ -299,6 +299,24 @@ export const localOrdersAdapter: OrdersAdapter = {
       tracking_carrier: carrier,
       tracking_number: number,
       status: 'shipped', // Automatically update status to shipped when tracking is added
+    };
+
+    saveOrders(orders);
+  },
+
+  updateTracking: async (id: string, carrier: TrackingCarrier, number: string): Promise<void> => {
+    const orders = getStoredOrders();
+    const orderIndex = orders.findIndex(order => order.id === id);
+
+    if (orderIndex === -1) {
+      throw new Error(`Order ${id} not found`);
+    }
+
+    orders[orderIndex] = {
+      ...orders[orderIndex],
+      tracking_carrier: carrier,
+      tracking_number: number,
+      // Don't change status when updating existing tracking
     };
 
     saveOrders(orders);

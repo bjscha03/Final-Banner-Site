@@ -45,7 +45,7 @@ exports.handler = async (event, context) => {
 
     const sql = neon(dbUrl);
 
-    const { id, carrier, number } = JSON.parse(event.body || '{}');
+    const { id, carrier, number, isUpdate = false } = JSON.parse(event.body || '{}');
 
     if (!id || typeof id !== 'string') {
       return {
@@ -63,16 +63,25 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Update the order with tracking information and set status to 'shipped'
+    // Update the order with tracking information
     // Note: tracking_carrier column doesn't exist in database schema, so we only update tracking_number
-    const result = await sql`
-      UPDATE orders
-      SET tracking_number = ${number},
-          status = 'shipped',
-          updated_at = NOW()
-      WHERE id = ${id}
-      RETURNING *
-    `;
+    // Only set status to 'shipped' when adding tracking for the first time (not when updating)
+    const result = isUpdate
+      ? await sql`
+          UPDATE orders
+          SET tracking_number = ${number},
+              updated_at = NOW()
+          WHERE id = ${id}
+          RETURNING *
+        `
+      : await sql`
+          UPDATE orders
+          SET tracking_number = ${number},
+              status = 'shipped',
+              updated_at = NOW()
+          WHERE id = ${id}
+          RETURNING *
+        `;
 
     if (result.length === 0) {
       return {

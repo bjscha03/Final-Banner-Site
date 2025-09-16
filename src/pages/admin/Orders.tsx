@@ -8,14 +8,19 @@ import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Shield, 
-  Package, 
-  Search, 
-  Truck, 
-  Eye, 
+import {
+  Shield,
+  Package,
+  Search,
+  Truck,
+  Eye,
   Plus,
-  ArrowLeft 
+  ArrowLeft,
+  Download,
+  Edit3,
+  Save,
+  X,
+  FileText
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import OrderDetails from '@/components/orders/OrderDetails';
@@ -102,7 +107,7 @@ const AdminOrders: React.FC = () => {
     try {
       const ordersAdapter = await getOrdersAdapter();
       await ordersAdapter.appendTracking(orderId, carrier, trackingNumber);
-      
+
       // Update local state with tracking info and status change
       // Note: tracking_carrier is not stored in database, so we default to 'fedex'
       setOrders(prevOrders =>
@@ -127,6 +132,84 @@ const AdminOrders: React.FC = () => {
       toast({
         title: "Error Adding Tracking",
         description: "There was an error adding tracking information.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleUpdateTracking = async (orderId: string, carrier: TrackingCarrier, trackingNumber: string) => {
+    try {
+      const ordersAdapter = await getOrdersAdapter();
+      await ordersAdapter.updateTracking(orderId, carrier, trackingNumber);
+
+      // Update local state with new tracking info (don't change status)
+      setOrders(prevOrders =>
+        prevOrders.map(order =>
+          order.id === orderId
+            ? {
+                ...order,
+                tracking_carrier: 'fedex' as const, // Default carrier since not stored in DB
+                tracking_number: trackingNumber,
+                // Don't change status when updating existing tracking
+              }
+            : order
+        )
+      );
+
+      toast({
+        title: "Tracking Updated",
+        description: `Tracking information updated for order #${orderId.slice(-8)}`,
+      });
+    } catch (error) {
+      console.error('Error updating tracking:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update tracking information. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleFileDownload = async (fileKey: string, orderId: string, itemIndex: number) => {
+    try {
+      const fileName = fileKey?.split('/').pop() || `banner-design-${orderId.slice(-8)}-item-${itemIndex + 1}.txt`;
+
+      toast({
+        title: "Download Started",
+        description: `Downloading ${fileName}...`,
+      });
+
+      // Use Netlify function for secure file downloads
+      const downloadUrl = `/.netlify/functions/download-file?key=${encodeURIComponent(fileKey)}&order=${orderId}`;
+
+      // Fetch the file content
+      const response = await fetch(downloadUrl);
+
+      if (!response.ok) {
+        throw new Error(`Download failed: ${response.statusText}`);
+      }
+
+      // Create blob and download
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = fileName;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Download Complete",
+        description: `${fileName} has been downloaded successfully.`,
+      });
+    } catch (error) {
+      console.error('Error downloading file:', error);
+      toast({
+        title: "Download Failed",
+        description: "Could not download the file. It may not exist or be accessible.",
         variant: "destructive",
       });
     }
@@ -363,6 +446,9 @@ const AdminOrders: React.FC = () => {
                         Status
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        Files
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Tracking
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -372,10 +458,12 @@ const AdminOrders: React.FC = () => {
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
                     {filteredOrders.map((order) => (
-                      <AdminOrderRow 
-                        key={order.id} 
-                        order={order} 
+                      <AdminOrderRow
+                        key={order.id}
+                        order={order}
                         onAddTracking={handleAddTracking}
+                        onUpdateTracking={handleUpdateTracking}
+                        onFileDownload={handleFileDownload}
                         getStatusColor={getStatusColor}
                         getItemsSummary={getItemsSummary}
                       />
@@ -395,18 +483,24 @@ const AdminOrders: React.FC = () => {
 interface AdminOrderRowProps {
   order: Order;
   onAddTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string) => void;
+  onUpdateTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string) => void;
+  onFileDownload: (fileKey: string, orderId: string, itemIndex: number) => void;
   getStatusColor: (status: string) => string;
   getItemsSummary: (order: Order) => string;
 }
 
-const AdminOrderRow: React.FC<AdminOrderRowProps> = ({ 
-  order, 
-  onAddTracking, 
-  getStatusColor, 
-  getItemsSummary 
+const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
+  order,
+  onAddTracking,
+  onUpdateTracking,
+  onFileDownload,
+  getStatusColor,
+  getItemsSummary
 }) => {
   const [trackingNumber, setTrackingNumber] = useState('');
   const [isAddingTracking, setIsAddingTracking] = useState(false);
+  const [isEditingTracking, setIsEditingTracking] = useState(false);
+  const [editTrackingNumber, setEditTrackingNumber] = useState('');
 
   const handleAddTracking = () => {
     if (trackingNumber.trim()) {
@@ -414,6 +508,31 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
       setTrackingNumber('');
       setIsAddingTracking(false);
     }
+  };
+
+  const handleEditTracking = () => {
+    setEditTrackingNumber(order.tracking_number || '');
+    setIsEditingTracking(true);
+  };
+
+  const handleSaveTracking = () => {
+    if (editTrackingNumber.trim()) {
+      onUpdateTracking(order.id, 'fedex', editTrackingNumber.trim());
+      setIsEditingTracking(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditTrackingNumber('');
+    setIsEditingTracking(false);
+  };
+
+  const getFilesWithDownload = () => {
+    const filesWithDownload = order.items
+      .map((item, index) => ({ item, index }))
+      .filter(({ item }) => item.file_key);
+
+    return filesWithDownload;
   };
 
   return (
@@ -448,21 +567,77 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
           {order.status}
         </Badge>
       </td>
+      {/* Files Column */}
+      <td className="px-6 py-4 whitespace-nowrap">
+        <div className="flex flex-col space-y-1">
+          {getFilesWithDownload().length > 0 ? (
+            getFilesWithDownload().map(({ item, index }) => (
+              <Button
+                key={index}
+                size="sm"
+                variant="outline"
+                onClick={() => onFileDownload(item.file_key!, order.id, index)}
+                className="text-xs h-6 px-2"
+              >
+                <Download className="h-3 w-3 mr-1" />
+                Item {index + 1}
+              </Button>
+            ))
+          ) : (
+            <div className="text-xs text-gray-500 flex items-center">
+              <FileText className="h-3 w-3 mr-1" />
+              No files
+            </div>
+          )}
+        </div>
+      </td>
       <td className="px-6 py-4 whitespace-nowrap">
         {order.tracking_number ? (
-          <div className="flex items-center space-x-2">
-            <Badge className="bg-green-100 text-green-800">
-              <Truck className="h-3 w-3 mr-1" />
-              {order.tracking_carrier?.toUpperCase()}
-            </Badge>
-            <a
-              href={fedexUrl(order.tracking_number)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-blue-600 hover:text-blue-800 font-mono underline"
-            >
-              {order.tracking_number}
-            </a>
+          <div className="flex flex-col space-y-2">
+            {isEditingTracking ? (
+              <div className="flex items-center space-x-1">
+                <Input
+                  type="text"
+                  value={editTrackingNumber}
+                  onChange={(e) => setEditTrackingNumber(e.target.value)}
+                  className="w-32 h-7 text-xs"
+                />
+                <Button size="sm" onClick={handleSaveTracking} className="h-7 px-2">
+                  <Save className="h-3 w-3" />
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleCancelEdit}
+                  className="h-7 px-2"
+                >
+                  <X className="h-3 w-3" />
+                </Button>
+              </div>
+            ) : (
+              <div className="flex items-center space-x-2">
+                <Badge className="bg-green-100 text-green-800">
+                  <Truck className="h-3 w-3 mr-1" />
+                  {order.tracking_carrier?.toUpperCase()}
+                </Badge>
+                <a
+                  href={fedexUrl(order.tracking_number)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-blue-600 hover:text-blue-800 font-mono underline"
+                >
+                  {order.tracking_number}
+                </a>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={handleEditTracking}
+                  className="h-6 px-1"
+                >
+                  <Edit3 className="h-3 w-3" />
+                </Button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex items-center space-x-2">

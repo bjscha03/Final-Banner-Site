@@ -90,6 +90,22 @@ export const supabaseOrdersAdapter: OrdersAdapter = {
     }
   },
 
+  updateTracking: async (id: string, carrier: TrackingCarrier, number: string): Promise<void> => {
+    const { error } = await supabase
+      .from('orders')
+      .update({
+        tracking_carrier: carrier,
+        tracking_number: number,
+        // Don't change status when updating existing tracking
+      })
+      .eq('id', id);
+
+    if (error) {
+      console.error('Error updating tracking:', error);
+      throw new Error(`Failed to update tracking: ${error.message}`);
+    }
+  },
+
   get: async (id: string): Promise<Order | null> => {
     const { data, error } = await supabase
       .from('orders')

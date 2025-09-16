@@ -94,7 +94,26 @@ export const netlifyFunctionOrdersAdapter: OrdersAdapter = {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ id, carrier, number })
+        body: JSON.stringify({ id, carrier, number, isUpdate: false })
+      });
+
+      if (!response.ok) {
+        throw new Error(`Failed to update tracking: ${response.status}`);
+      }
+    } catch (error) {
+      console.error('Error updating tracking:', error);
+      throw error;
+    }
+  },
+
+  updateTracking: async (id: string, carrier: TrackingCarrier, number: string): Promise<void> => {
+    try {
+      const response = await fetch(getNetlifyFunctionUrl('update-tracking'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id, carrier, number, isUpdate: true })
       });
 
       if (!response.ok) {

@@ -44,6 +44,7 @@ export interface OrdersAdapter {
   listByUser(userId: string, page?: number): Promise<Order[]>;
   listAll(page?: number): Promise<Order[]>;
   appendTracking(id: string, carrier: TrackingCarrier, number: string): Promise<void>;
+  updateTracking(id: string, carrier: TrackingCarrier, number: string): Promise<void>;
   get(id: string): Promise<Order | null>;
 }
 

@@ -169,6 +169,23 @@ export const netlifyDbOrdersAdapter: OrdersAdapter = {
     }
   },
 
+  updateTracking: async (id: string, carrier: TrackingCarrier, number: string): Promise<void> => {
+    try {
+      await db
+        .update(orders)
+        .set({
+          tracking_number: number,
+          tracking_carrier: carrier,
+          updated_at: new Date()
+          // Don't change status when updating existing tracking
+        })
+        .where(eq(orders.id, id));
+    } catch (error) {
+      console.error('Error updating tracking:', error);
+      throw new Error('Failed to update tracking number');
+    }
+  },
+
   get: async (id: string): Promise<Order | null> => {
     try {
       const [order] = await db
