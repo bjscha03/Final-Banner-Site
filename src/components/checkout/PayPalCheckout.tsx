@@ -241,9 +241,9 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
         description: `Payment of $${(total / 100).toFixed(2)} has been processed.`,
       });
 
-      // Extract PayPal order ID from response
-      const paypalOrderId = j.data?.id || data.orderID || 'unknown';
-      onSuccess(paypalOrderId);
+      // Extract order ID from response (prefer our database orderId)
+      const orderId = result.orderId || result.data?.id || data.orderID || 'unknown';
+      onSuccess(orderId);
     } catch (e: any) {
       console.error('Payment exception:', e);
       alert('Network error capturing payment. Please try again.');
