@@ -222,48 +222,19 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
     try {
       setIsCapturingPayment(true);
 
-      const response = await fetch('/.netlify/functions/paypal-capture-simple', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          orderID: data.orderID,
-          paypalOrderId: data.orderID, // backward compatibility
-          cartItems: items.map(item => ({
-            width_in: item.width_in,
-            height_in: item.height_in,
-            quantity: item.quantity,
-            material: item.material,
-            grommets: item.grommets,
-            rope_feet: item.rope_feet,
-            area_sqft: item.area_sqft,
-            unit_price_cents: item.unit_price_cents,
-            line_total_cents: item.line_total_cents,
-            file_key: item.file_key,
-          })),
-          userEmail: user?.email,
-          userId: user?.id,
-        }),
+      const r = await fetch('/.netlify/functions/paypal-capture-simple', {
+        method:'POST',
+        headers:{ 'Content-Type':'application/json' },
+        body: JSON.stringify({ orderID: data.orderID }),
       });
-
-      const responseData = await response.json().catch(() => ({}));
-
-      if (!response.ok || !responseData?.ok) {
-        const errorType = responseData.error || 'UNKNOWN_ERROR';
-        const errorMessage = responseData.message || responseData.hint || 'Failed to capture PayPal payment';
-
-        console.error('Payment error:', responseData || response.status);
-
-        // Create a detailed error object
-        const detailedError = new Error(errorMessage);
-        (detailedError as any).type = errorType;
-        (detailedError as any).details = responseData;
-
-        throw detailedError;
+      const j = await r.json().catch(()=> ({}));
+      if (!r.ok || !j?.ok) {
+        console.error('Payment error:', j || r.status);
+        alert(`Payment failed: ${j?.error || r.status}\nHint: ${j?.hint || 'see console'}\nDiag: ${JSON.stringify(j?.diag || {}, null, 2)}`);
+        return;
       }
 
-      const result = responseData;
+      const result = j;
 
       toast({
         title: "Payment Successful!",
@@ -271,47 +242,10 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
       });
 
       onSuccess(result.orderId);
-    } catch (error: any) {
-      console.error('PayPal capture error:', error);
-
-      // Get specific error messages based on error type
-      const getErrorMessage = (errorType: string, hint?: string) => {
-        switch (errorType) {
-          case 'PAYPAL_TOKEN_ERROR':
-          case 'PAYPAL_AUTH_ERROR':
-            return 'PayPal authentication failed. Please try again or contact support.';
-          case 'PAYPAL_CAPTURE_FAILED':
-          case 'PAYPAL_CAPTURE_ERROR':
-            return hint || 'PayPal payment capture failed. Your payment may not have been processed.';
-          case 'PAYPAL_CAPTURE_INCOMPLETE':
-            return 'PayPal payment was incomplete. Please try again.';
-          case 'DATABASE_ERROR':
-            return 'Order processing failed. Please contact support with your PayPal transaction ID.';
-          case 'PAYPAL_CONFIG_ERROR':
-          case 'MISSING_PAYPAL_CREDS':
-            return 'Payment system configuration error. Please contact support.';
-          case 'MISSING_ORDER_ID':
-          case 'MISSING_PAYPAL_ORDER_ID':
-            return 'Invalid payment request. Please try again.';
-          case 'MISSING_CART_ITEMS':
-            return 'Cart is empty. Please add items before checkout.';
-          case 'FUNCTION_CRASH':
-            return 'Payment system error. Please try again or contact support.';
-          default:
-            return hint || 'Payment could not be completed. Please try again.';
-        }
-      };
-
-      const errorType = error.type || 'UNKNOWN_ERROR';
-      const hint = error.details?.hint;
-      const errorMessage = getErrorMessage(errorType, hint);
-
-      toast({
-        title: "Payment Error",
-        description: errorMessage,
-        variant: "destructive",
-      });
-      onError(error);
+    } catch (e: any) {
+      console.error('Payment exception:', e);
+      alert('Network error capturing payment. Please try again.');
+      onError(e);
     } finally {
       setIsCapturingPayment(false);
     }
