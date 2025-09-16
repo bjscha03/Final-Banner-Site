@@ -66,49 +66,23 @@ exports.handler = async (event) => {
       };
     }
 
-    // Create a simple order record in database
-    const { neon } = require('@neondatabase/serverless');
-    const { randomUUID } = require('crypto');
-
-    try {
-      const sql = neon(process.env.NETLIFY_DATABASE_URL);
-      const orderId = randomUUID();
-
-      // Create basic order record
-      await sql`
-        INSERT INTO orders (
-          id, user_id, email, subtotal_cents, tax_cents, total_cents, status
-        )
-        VALUES (
-          ${orderId}, null, ${captureData.payer?.email_address || 'unknown@example.com'},
-          1000, 60, 1060, 'paid'
-        )
-      `;
-
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({
-          ok: true,
-          data: captureData,
-          orderId: orderId,
-          message: 'Payment captured and order created successfully'
-        })
-      };
-    } catch (dbError) {
-      console.error('Database error:', dbError);
-      // Return success anyway since PayPal payment worked
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({
-          ok: true,
-          data: captureData,
-          orderId: orderID, // Use PayPal order ID as fallback
-          message: 'Payment captured successfully (order creation failed)'
-        })
-      };
-    }
+    // Return success with PayPal order ID - no database needed for now
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        ok: true,
+        data: captureData,
+        orderId: orderID, // Use PayPal order ID directly
+        paypalData: {
+          id: captureData.id,
+          status: captureData.status,
+          amount: captureData.purchase_units?.[0]?.payments?.captures?.[0]?.amount,
+          payer: captureData.payer
+        },
+        message: 'Payment captured successfully'
+      })
+    };
 
   } catch (error) {
     return {

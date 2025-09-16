@@ -21,6 +21,7 @@ import { VerifyEmail } from "./pages/VerifyEmail";
 import MyOrders from "./pages/MyOrders";
 import Checkout from "./pages/Checkout";
 import OrderConfirmation from "./pages/OrderConfirmation";
+import PaymentSuccess from "./pages/PaymentSuccess";
 import OrderDetail from "./pages/OrderDetail";
 import AdminOrders from "./pages/admin/Orders";
 import AdminSeed from "./pages/AdminSeed";
@@ -55,6 +56,7 @@ const App = () => (
             <Route path="/my-orders" element={<MyOrders />} />
             <Route path="/orders/:id" element={<OrderDetail />} />
             <Route path="/checkout" element={<Checkout />} />
+            <Route path="/payment-success" element={<PaymentSuccess />} />
             <Route path="/order-confirmation" element={<OrderConfirmation />} />
             <Route path="/admin/orders" element={<AdminOrders />} />
             <Route path="/admin/seed" element={<AdminSeed />} />
