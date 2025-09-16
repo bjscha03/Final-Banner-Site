@@ -78,32 +78,70 @@ function smsHref(text){
 
 // ---------- Widget Shell ----------
 const style = el("style", {}, `
-  .botf-chat-root{ position:fixed; right:18px; bottom:18px; z-index:2147483647; font-family: ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; }
+  .botf-chat-root{ position:fixed; right:12px; bottom:12px; z-index:2147483647; font-family: ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; }
   .botf-bubble{ width:56px; height:56px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:#fff; cursor:pointer; box-shadow:0 8px 20px rgba(0,0,0,.25); transition:.2s transform; }
   .botf-bubble:hover{ transform: translateY(-1px); }
-  .botf-panel{ width:330px; max-height:520px; background:#fff; border-radius:16px; overflow:hidden; box-shadow:0 20px 40px rgba(0,0,0,.25); display:none; flex-direction:column; }
-  .botf-header{ background:${CONFIG.brandColor}; color:#fff; padding:12px 14px; font-weight:600; display:flex; align-items:center; justify-content:space-between; }
+  .botf-panel{ width:360px; max-height:600px; background:#fff; border-radius:16px; overflow:hidden; box-shadow:0 20px 40px rgba(0,0,0,.25); display:none; flex-direction:column; position:relative; }
+  .botf-header{ background:${CONFIG.brandColor}; color:#fff; padding:14px 16px; font-weight:600; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
   .botf-title{ font-size:15px; }
-  .botf-close{ background:transparent; border:none; color:#fff; font-size:18px; cursor:pointer; opacity:.85; }
-  .botf-body{ padding:10px; overflow:auto; height:380px; background:#F7FAFF; }
-  .botf-input{ display:flex; gap:8px; padding:10px; border-top:1px solid #e9eefc; background:#fff; }
-  .botf-input input{ flex:1; border-radius:10px; border:1px solid #d7def3; padding:10px 12px; font-size:14px; outline:none; }
-  .botf-input button{ background:${CONFIG.brandColor}; color:#fff; border:none; padding:10px 12px; border-radius:10px; cursor:pointer; font-weight:600; }
+  .botf-close{ background:transparent; border:none; color:#fff; font-size:20px; cursor:pointer; opacity:.85; padding:4px; line-height:1; }
+  .botf-close:hover{ opacity:1; }
+  .botf-body{ padding:12px; overflow-y:auto; flex:1; background:#F7FAFF; min-height:300px; max-height:450px; }
+  .botf-input{ display:flex; gap:8px; padding:12px; border-top:1px solid #e9eefc; background:#fff; flex-shrink:0; }
+  .botf-input input{ flex:1; border-radius:10px; border:1px solid #d7def3; padding:10px 12px; font-size:14px; outline:none; min-width:0; }
+  .botf-input button{ background:${CONFIG.brandColor}; color:#fff; border:none; padding:10px 14px; border-radius:10px; cursor:pointer; font-weight:600; white-space:nowrap; }
   .botf-msg{ display:flex; margin:8px 0; }
   .botf-bot{ justify-content:flex-start; }
   .botf-user{ justify-content:flex-end; }
-  .botf-bubble-msg{ max-width:77%; padding:9px 12px; border-radius:12px; font-size:14px; line-height:1.35; }
+  .botf-bubble-msg{ max-width:85%; padding:10px 14px; border-radius:12px; font-size:14px; line-height:1.4; word-wrap:break-word; }
   .botf-bot .botf-bubble-msg{ background:#fff; border:1px solid #e6ecfe; }
   .botf-user .botf-bubble-msg{ background:${CONFIG.brandColor}; color:#fff; }
-  .botf-buttons{ display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
-  .botf-btn{ border:1px solid #c7d3ff; background:#fff; color:#1f2a62; padding:7px 10px; border-radius:999px; font-size:13px; cursor:pointer; }
-  .botf-section{ background:#fff; border:1px solid #e6ecfe; padding:10px; border-radius:12px; margin-top:8px; }
-  .botf-mini{ font-size:12px; color:#667; margin-top:6px; }
-  .botf-cta{ border:none; background:${CONFIG.brandColor}; color:#fff; padding:10px 12px; border-radius:10px; font-weight:600; cursor:pointer; }
-  .botf-row{ display:flex; gap:8px; }
-  .botf-row input, .botf-row select{ flex:1; border-radius:10px; border:1px solid #d7def3; padding:8px 10px; font-size:14px; }
-  .botf-footer-note{ font-size:11px; color:#556; opacity:.9; margin-top:6px; }
-  @media (max-width:480px){ .botf-panel{ width:92vw; height:70vh; max-height:none; } }
+  .botf-buttons{ display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+  .botf-btn{ border:1px solid #c7d3ff; background:#fff; color:#1f2a62; padding:8px 12px; border-radius:20px; font-size:13px; cursor:pointer; transition:all 0.2s; white-space:nowrap; }
+  .botf-btn:hover{ background:#f0f4ff; border-color:#a5b4fc; }
+  .botf-section{ background:#fff; border:1px solid #e6ecfe; padding:12px; border-radius:12px; margin-top:8px; }
+  .botf-mini{ font-size:12px; color:#667; margin-top:6px; line-height:1.3; }
+  .botf-cta{ border:none; background:${CONFIG.brandColor}; color:#fff; padding:10px 14px; border-radius:10px; font-weight:600; cursor:pointer; transition:all 0.2s; }
+  .botf-cta:hover{ background:#0052e6; }
+  .botf-row{ display:flex; gap:8px; margin-bottom:8px; }
+  .botf-row input, .botf-row select{ flex:1; border-radius:8px; border:1px solid #d7def3; padding:10px 12px; font-size:14px; min-width:0; }
+  .botf-footer-note{ font-size:11px; color:#556; opacity:.9; margin-top:8px; line-height:1.3; }
+
+  /* Mobile Responsive */
+  @media (max-width:480px){
+    .botf-chat-root{ right:8px; bottom:8px; }
+    .botf-panel{
+      width:calc(100vw - 16px);
+      height:calc(100vh - 100px);
+      max-height:none;
+      max-width:none;
+      position:fixed;
+      top:50px;
+      right:8px;
+      left:8px;
+      margin:0 auto;
+    }
+    .botf-body{
+      max-height:none;
+      flex:1;
+      min-height:200px;
+    }
+    .botf-bubble-msg{ max-width:90%; }
+    .botf-buttons{ gap:4px; }
+    .botf-btn{ padding:6px 10px; font-size:12px; }
+    .botf-row{ flex-direction:column; gap:6px; }
+    .botf-row input, .botf-row select{ width:100%; }
+  }
+
+  /* Tablet */
+  @media (max-width:768px) and (min-width:481px){
+    .botf-panel{
+      width:calc(100vw - 40px);
+      max-width:400px;
+      height:calc(100vh - 120px);
+      max-height:600px;
+    }
+  }
 `);
 document.head.appendChild(style);
 
@@ -117,8 +155,20 @@ const header = el("div",{class:"botf-header"},
   el("button",{class:"botf-close",onClick:() => { panel.style.display="none"; bubble.style.display="flex"; }}, "×")
 );
 const chatBody = el("div",{class:"botf-body"});
+const chatInput = el("input",{
+  type:"text",
+  placeholder:"Type here… (we'll route to Contact if not a menu option)",
+  "aria-label":"chat input",
+  onKeyDown:(e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleFreeText();
+    }
+  }
+});
+
 const inputBar = el("div",{class:"botf-input"},
-  el("input",{type:"text",placeholder:"Type here… (we'll route to Contact if not a menu option)", "aria-label":"chat input"}),
+  chatInput,
   el("button",{onClick:handleFreeText}, "Send")
 );
 panel.append(header,chatBody,inputBar);
@@ -155,8 +205,13 @@ function handleFreeText(){
   addMsg(text, "user");
   input.value = "";
   // No NLP—auto route to contact
-  addMsg("Thanks! I'll get you to our support team so we can help right away.");
-  setTimeout(()=> openContact(`User typed: ${text}`), 400);
+  addMsg("Thanks! I'll connect you with our support team who can help with your specific question.");
+
+  // Add quick action buttons
+  addButtons([
+    {label:"Go to Contact Page", onClick:()=> openContact(`User question: ${text}`)},
+    {label:"Back to Menu", onClick:welcome}
+  ]);
 }
 
 // ---------- Flows ----------
@@ -189,18 +244,26 @@ function quoteStart(){
 
 function renderQuoteForm(){
   const form = el("div",{class:"botf-section"});
+
+  // Size inputs
+  const sizeLabel = el("div",{style:{fontWeight:"600", marginBottom:"6px", fontSize:"13px"}}, "Banner Size (inches):");
   const row1 = el("div",{class:"botf-row"},
-    el("input",{type:"number", min:"1", value:quoteState.width, "aria-label":"Width (in)", placeholder:"Width (in)"}),
-    el("input",{type:"number", min:"1", value:quoteState.height, "aria-label":"Height (in)", placeholder:"Height (in)"})
+    el("input",{type:"number", min:"1", value:quoteState.width, "aria-label":"Width (in)", placeholder:"Width"}),
+    el("span",{style:{alignSelf:"center", padding:"0 4px", fontSize:"14px", color:"#666"}}, "×"),
+    el("input",{type:"number", min:"1", value:quoteState.height, "aria-label":"Height (in)", placeholder:"Height"})
   );
+
+  // Material and quantity
+  const matLabel = el("div",{style:{fontWeight:"600", marginBottom:"6px", fontSize:"13px", marginTop:"12px"}}, "Material & Quantity:");
   const row2 = el("div",{class:"botf-row"},
-    el("select",{},
+    el("select",{style:{flex:"2"}},
       ...Object.keys(CONFIG.pricingSqft).map(m=> el("option",{value:m, selected:m===quoteState.material}, m))
     ),
-    el("input",{type:"number", min:"1", value:quoteState.qty, "aria-label":"Quantity", placeholder:"Qty"})
+    el("input",{type:"number", min:"1", value:quoteState.qty, "aria-label":"Quantity", placeholder:"Qty", style:{flex:"1"}})
   );
-  const calcBtn = el("button",{class:"botf-cta", style:{marginTop:"8px"}, onClick:()=>{
-    const [wEl,hEl] = row1.querySelectorAll("input");
+
+  const calcBtn = el("button",{class:"botf-cta", style:{marginTop:"12px", width:"100%"}, onClick:()=>{
+    const [wEl, , hEl] = row1.children; // Skip the × symbol
     const [matEl,qEl] = row2.children;
     quoteState.width = Math.max(1, toNum(wEl.value));
     quoteState.height = Math.max(1, toNum(hEl.value));
@@ -208,7 +271,8 @@ function renderQuoteForm(){
     quoteState.qty = Math.max(1, toInt(qEl.value));
     renderQuoteResult();
   }}, "Calculate Price");
-  form.append(row1,row2,calcBtn);
+
+  form.append(sizeLabel, row1, matLabel, row2, calcBtn);
   addMsg(form);
 }
 
@@ -264,16 +328,27 @@ function designHelp(){
 // ---- 3) Order Status ----
 function orderStatus(){
   const form = el("div",{class:"botf-section"});
-  const order = el("input",{type:"text", placeholder:"Order # (or leave blank)", "aria-label":"Order number"});
-  const email = el("input",{type:"email", placeholder:"Email used at checkout", "aria-label":"Email"});
-  const row = el("div",{class:"botf-row"}, order, email);
-  const btn = el("button",{class:"botf-cta", style:{marginTop:"8px"}, onClick:()=>{
-    addMsg(`Thanks! We'll check your order and send an update to ${email.value || "(email missing)"} shortly.`);
-    openContact(`Order status request — Order#: ${order.value || "(n/a)"} — Email: ${email.value || "(n/a)"}`);
+
+  const intro = el("div",{style:{marginBottom:"12px", fontSize:"14px"}}, "Enter your details and we'll update you quickly:");
+
+  const orderLabel = el("div",{style:{fontWeight:"600", marginBottom:"6px", fontSize:"13px"}}, "Order Number (optional):");
+  const order = el("input",{type:"text", placeholder:"Order # (or leave blank)", "aria-label":"Order number", style:{marginBottom:"8px"}});
+
+  const emailLabel = el("div",{style:{fontWeight:"600", marginBottom:"6px", fontSize:"13px"}}, "Email Address:");
+  const email = el("input",{type:"email", placeholder:"Email used at checkout", "aria-label":"Email", style:{marginBottom:"12px"}});
+
+  const btn = el("button",{class:"botf-cta", style:{width:"100%"}, onClick:()=>{
+    if (!email.value.trim()) {
+      alert("Please enter your email address");
+      return;
+    }
+    addMsg(`Thanks! We'll check your order and send an update to ${email.value} shortly.`);
+    openContact(`Order status request — Order#: ${order.value || "(n/a)"} — Email: ${email.value}`);
   }}, "Request Status");
-  form.append(el("div",{},"Enter your details and we'll update you quickly:"), row, btn,
-    el("div",{class:"botf-mini"}, "We ship Next-Day Air after 24-hour production.")
-  );
+
+  const note = el("div",{class:"botf-mini", style:{marginTop:"8px"}}, "We ship Next-Day Air after 24-hour production.");
+
+  form.append(intro, orderLabel, order, emailLabel, email, btn, note);
   addMsg(form);
 }
 
@@ -304,23 +379,25 @@ function paymentHelp(){
 // ---- 5) Bulk / Reseller ----
 function bulkReseller(){
   const form = el("div",{class:"botf-section"});
-  const sizes = el("input",{type:"text", placeholder:"Sizes (e.g., 48x24, 96x30…)"});
-  const qtys = el("input",{type:"text", placeholder:"Quantities per size"});
-  const mats = el("input",{type:"text", placeholder:"Materials (13oz, 15oz, 18oz, Mesh)"});
-  const cadence = el("input",{type:"text", placeholder:"Delivery cadence / deadlines"});
-  const row1 = el("div",{class:"botf-row"}, sizes, qtys);
-  const row2 = el("div",{class:"botf-row"}, mats, cadence);
-  const btn = el("button",{class:"botf-cta", style:{marginTop:"8px"}, onClick:()=>{
+
+  const intro = el("div",{style:{marginBottom:"12px", fontSize:"14px"}}, "Tell us what you need and we'll send volume pricing:");
+
+  const sizes = el("input",{type:"text", placeholder:"Sizes (e.g., 48x24, 96x30…)", style:{marginBottom:"8px"}});
+  const qtys = el("input",{type:"text", placeholder:"Quantities per size", style:{marginBottom:"8px"}});
+  const mats = el("input",{type:"text", placeholder:"Materials (13oz, 15oz, 18oz, Mesh)", style:{marginBottom:"8px"}});
+  const cadence = el("input",{type:"text", placeholder:"Delivery cadence / deadlines", style:{marginBottom:"12px"}});
+
+  const btn = el("button",{class:"botf-cta", style:{width:"100%"}, onClick:()=>{
     const msg = `Bulk/Reseller quote:
-Sizes: ${sizes.value}
-Quantities: ${qtys.value}
-Materials: ${mats.value}
-Cadence: ${cadence.value}`;
+Sizes: ${sizes.value || "Not specified"}
+Quantities: ${qtys.value || "Not specified"}
+Materials: ${mats.value || "Not specified"}
+Cadence: ${cadence.value || "Not specified"}`;
     addMsg("Got it — we'll send volume pricing and lead times asap.");
     openContact(msg);
   }}, "Send Details");
-  form.append(el("div",{},"Tell us what you need and we'll send volume pricing:"),
-             row1,row2,btn);
+
+  form.append(intro, sizes, qtys, mats, cadence, btn);
   addMsg(form);
 }
 
