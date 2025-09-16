@@ -4,17 +4,17 @@ import { Star, Quote } from 'lucide-react';
 const TestimonialsSection: React.FC = () => {
   const testimonials = [
     {
-      name: "Sarah Johnson",
-      title: "Marketing Director",
-      company: "TechStart Inc.",
+      name: "Mike Rodriguez",
+      title: "Business Owner",
+      company: "Rodriguez Construction",
       image: "https://d64gsuwffb70l.cloudfront.net/68bb812d3c680d9a9bc2bdd7_1757118816938_db1b361b.webp",
       rating: 5,
       text: "Incredible quality and speed! Our trade show banners looked professional and arrived exactly when promised. The design tool made customization so easy."
     },
     {
-      name: "Mike Rodriguez",
-      title: "Business Owner",
-      company: "Rodriguez Construction",
+      name: "Sarah Johnson",
+      title: "Marketing Director",
+      company: "TechStart Inc.",
       image: "https://d64gsuwffb70l.cloudfront.net/68bb812d3c680d9a9bc2bdd7_1757118818687_27f339aa.webp",
       rating: 5,
       text: "Best banner service I've used. The 24-hour turnaround saved our grand opening event. Quality exceeded expectations and pricing was very competitive."
