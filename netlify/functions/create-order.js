@@ -255,7 +255,6 @@ exports.handler = async (event, context) => {
     if (orderData.items && Array.isArray(orderData.items)) {
       for (const item of orderData.items) {
         console.log('Inserting order item:', JSON.stringify(item, null, 2));
-        console.log('Item file_key:', item.file_key);
         try {
           // Convert pole_pockets to boolean for database (boolean column)
           const polePocketsValue = item.pole_pockets &&
@@ -266,7 +265,7 @@ exports.handler = async (event, context) => {
           await sql`
             INSERT INTO order_items (
               id, order_id, width_in, height_in, quantity, material,
-              grommets, rope_feet, pole_pockets, line_total_cents, file_key
+              grommets, rope_feet, pole_pockets, line_total_cents
             )
             VALUES (
               ${randomUUID()},
@@ -278,8 +277,7 @@ exports.handler = async (event, context) => {
               ${item.grommets || 'none'},
               ${item.rope_feet || 0},
               ${polePocketsValue},
-              ${item.line_total_cents || 0},
-              ${item.file_key || null}
+              ${item.line_total_cents || 0}
             )
           `;
         } catch (itemError) {
