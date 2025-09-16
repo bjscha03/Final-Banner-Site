@@ -100,16 +100,16 @@ exports.handler = async (event, context) => {
 
     // If we have actual file content, serve it
     if (fileRecord.file_content_base64) {
-      const fileContent = Buffer.from(fileRecord.file_content_base64, 'base64');
+      console.log('Serving actual file content for:', fileName);
       return {
         statusCode: 200,
         headers: {
           ...headers,
           'Content-Type': fileRecord.mime_type || 'application/octet-stream',
           'Content-Disposition': `attachment; filename="${fileName}"`,
-          'Content-Length': fileContent.length.toString(),
+          'Content-Length': Buffer.from(fileRecord.file_content_base64, 'base64').length.toString(),
         },
-        body: fileContent.toString('base64'),
+        body: fileRecord.file_content_base64,
         isBase64Encoded: true,
       };
     }

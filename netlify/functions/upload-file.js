@@ -44,7 +44,7 @@ exports.handler = async (event, context) => {
       };
     }
 
-    const { filename, size, contentType } = requestData;
+    const { filename, size, contentType, fileContent } = requestData;
 
     if (!filename) {
       return {
@@ -54,7 +54,15 @@ exports.handler = async (event, context) => {
       };
     }
 
-    console.log('File upload simulation for:', { filename, size, contentType });
+    if (!fileContent) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: 'File content is required' }),
+      };
+    }
+
+    console.log('File upload received:', { filename, size, contentType, hasContent: !!fileContent });
 
     // Validate file type
     const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
@@ -74,10 +82,10 @@ exports.handler = async (event, context) => {
 
     console.log('Generated file key:', fileKey);
 
-    // Store file metadata in database (without actual content for now)
+    // Store file content and metadata in database
     await sql`
-      INSERT INTO uploaded_files (id, file_key, original_filename, file_size, mime_type, upload_timestamp, status)
-      VALUES (${randomUUID()}, ${fileKey}, ${filename}, ${size || 0}, ${contentType || 'application/octet-stream'}, ${new Date().toISOString()}, 'uploaded')
+      INSERT INTO uploaded_files (id, file_key, original_filename, file_size, mime_type, file_content_base64, upload_timestamp, status)
+      VALUES (${randomUUID()}, ${fileKey}, ${filename}, ${size || 0}, ${contentType || 'application/octet-stream'}, ${fileContent}, ${new Date().toISOString()}, 'uploaded')
       ON CONFLICT (file_key) DO NOTHING
     `;
 
@@ -93,7 +101,7 @@ exports.handler = async (event, context) => {
         filename: filename,
         size: size || 0,
         contentType: contentType || 'application/octet-stream',
-        message: 'File upload simulated successfully (metadata stored)'
+        message: 'File uploaded successfully with content'
       }),
     };
 

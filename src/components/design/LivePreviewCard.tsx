@@ -71,8 +71,19 @@ const LivePreviewCard: React.FC = () => {
     // Create URL for preview
     const url = URL.createObjectURL(file);
 
-    // Upload file metadata to server (simplified approach)
+    // Upload actual file content to server
     try {
+      // Convert file to base64
+      const fileContent = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const base64 = (reader.result as string).split(',')[1]; // Remove data:image/jpeg;base64, prefix
+          resolve(base64);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+
       const response = await fetch('/.netlify/functions/upload-file', {
         method: 'POST',
         headers: {
@@ -82,6 +93,7 @@ const LivePreviewCard: React.FC = () => {
           filename: file.name,
           size: file.size,
           contentType: file.type,
+          fileContent: fileContent, // Send actual file content as base64
         }),
       });
 
