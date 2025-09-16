@@ -58,7 +58,7 @@ const LivePreviewCard: React.FC = () => {
     return null;
   };
 
-  const handleFile = (file: File) => {
+  const handleFile = async (file: File) => {
     const error = validateFile(file);
     if (error) {
       setUploadError(error);
@@ -67,22 +67,43 @@ const LivePreviewCard: React.FC = () => {
 
     setUploadError('');
     const isPdf = file.type === 'application/pdf';
-    let url: string | undefined;
 
-    // Create URL for both PDFs and images - PDFs will be handled by PDF viewer
-    url = URL.createObjectURL(file);
+    // Create URL for preview
+    const url = URL.createObjectURL(file);
 
-    set({
-      file: {
-        name: file.name,
-        type: file.type,
-        size: file.size,
-        url,
-        isPdf
-      },
-      // Reset scale to 100% when uploading a new file
-      previewScalePct: 100
-    });
+    // Upload file to server
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch('/.netlify/functions/upload-file', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error(`Upload failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+
+      set({
+        file: {
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          url,
+          isPdf,
+          fileKey: result.fileKey // Store the server file key
+        },
+        // Reset scale to 100% when uploading a new file
+        previewScalePct: 100
+      });
+    } catch (uploadError) {
+      console.error('File upload error:', uploadError);
+      setUploadError('Failed to upload file. Please try again.');
+      return;
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {

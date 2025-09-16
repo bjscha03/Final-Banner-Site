@@ -73,11 +73,15 @@ exports.handler = async (event, context) => {
 
     console.log('Order verified for file download:', orderResult[0]);
 
-    // Check if file exists in our simulated storage
-    // In production, you would retrieve the actual file from cloud storage
-    const fileExists = await checkFileExists(key);
+    // Retrieve the actual file from the uploaded_files table
+    const fileResult = await sql`
+      SELECT file_key, original_filename, file_size, mime_type, file_content_base64
+      FROM uploaded_files
+      WHERE file_key = ${key}
+      LIMIT 1
+    `;
 
-    if (!fileExists) {
+    if (!fileResult || fileResult.length === 0) {
       return {
         statusCode: 404,
         headers,
@@ -85,20 +89,27 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // For development/demo purposes, create a sample file content
-    // In production, you would retrieve the actual file from storage
-    const fileName = key.split('/').pop() || 'banner-design.txt';
-    const fileContent = `Sample banner design file for order ${order}\nFile key: ${key}\nGenerated at: ${new Date().toISOString()}\n\nThis is a placeholder file for development purposes.\nIn production, this would be the actual customer-uploaded design file.`;
+    const fileRecord = fileResult[0];
+    console.log('File found in storage:', {
+      filename: fileRecord.original_filename,
+      size: fileRecord.file_size,
+      mimeType: fileRecord.mime_type
+    });
+
+    // Convert base64 back to binary
+    const fileContent = Buffer.from(fileRecord.file_content_base64, 'base64');
+    const fileName = fileRecord.original_filename || key.split('/').pop() || 'banner-design.bin';
 
     return {
       statusCode: 200,
       headers: {
         ...headers,
-        'Content-Type': 'application/octet-stream',
+        'Content-Type': fileRecord.mime_type || 'application/octet-stream',
         'Content-Disposition': `attachment; filename="${fileName}"`,
-        'Content-Length': Buffer.byteLength(fileContent, 'utf8').toString(),
+        'Content-Length': fileContent.length.toString(),
       },
-      body: fileContent,
+      body: fileContent.toString('base64'),
+      isBase64Encoded: true,
     };
 
   } catch (error) {

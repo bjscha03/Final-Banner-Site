@@ -35,6 +35,7 @@ export interface QuoteState {
     size: number;
     url?: string;
     isPdf?: boolean;
+    fileKey?: string;
   };
   set: (partial: Partial<QuoteState>) => void;
   setFromQuickQuote: (params: QuickQuoteParams) => void;

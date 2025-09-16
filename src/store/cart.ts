@@ -80,8 +80,8 @@ export const useCartStore = create<CartState>()(
 
         const lineTotalCents = unitPriceCents * quote.quantity + ropeCostCents + polePocketCostCents;
         
-        // Generate a proper file key for uploaded files
-        const fileKey = quote.file?.name ? `uploads/${Date.now()}-${quote.file.name}` : undefined;
+        // Use the file key from the uploaded file
+        const fileKey = quote.file?.fileKey;
 
         const newItem: CartItem = {
           id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,

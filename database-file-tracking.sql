@@ -7,6 +7,7 @@ CREATE TABLE IF NOT EXISTS uploaded_files (
     original_filename VARCHAR(255),
     file_size INTEGER,
     mime_type VARCHAR(100),
+    file_content_base64 TEXT, -- Store file content as base64 for development
     upload_timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     status VARCHAR(20) DEFAULT 'uploaded',
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()

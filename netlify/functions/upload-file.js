@@ -1,5 +1,6 @@
 const { neon } = require('@neondatabase/serverless');
 const { randomUUID } = require('crypto');
+const multipart = require('lambda-multipart-parser');
 
 // Neon database connection
 const sql = neon(process.env.NETLIFY_DATABASE_URL);
@@ -32,7 +33,7 @@ exports.handler = async (event, context) => {
   try {
     // Parse the multipart form data
     const contentType = event.headers['content-type'] || event.headers['Content-Type'];
-    
+
     if (!contentType || !contentType.includes('multipart/form-data')) {
       return {
         statusCode: 400,
@@ -41,21 +42,60 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // For now, we'll simulate file storage by generating a unique file key
-    // In production, you would:
-    // 1. Parse the multipart form data to extract the file
-    // 2. Upload the file to cloud storage (AWS S3, Google Cloud Storage, etc.)
-    // 3. Return the storage key/URL
-    
-    const fileKey = `uploads/${randomUUID()}-${Date.now()}`;
-    
-    console.log('File upload simulation - generated key:', fileKey);
+    // Parse the multipart form data to extract the file
+    const result = await multipart.parse(event);
 
-    // Store file metadata in database for tracking
-    // This is optional but helps with file management
+    if (!result.files || result.files.length === 0) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: 'No file uploaded' }),
+      };
+    }
+
+    const file = result.files[0];
+    console.log('File upload received:', {
+      filename: file.filename,
+      contentType: file.contentType,
+      size: file.content.length
+    });
+
+    // Validate file type and size
+    const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
+    const maxSize = 100 * 1024 * 1024; // 100MB
+
+    if (!allowedTypes.includes(file.contentType)) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: 'Invalid file type. Only PDF, JPG, JPEG, and PNG files are allowed.' }),
+      };
+    }
+
+    if (file.content.length > maxSize) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: 'File too large. Maximum size is 100MB.' }),
+      };
+    }
+
+    // Generate a unique file key with original filename
+    const timestamp = Date.now();
+    const uuid = randomUUID();
+    const extension = file.filename.split('.').pop() || 'bin';
+    const sanitizedFilename = file.filename.replace(/[^a-zA-Z0-9.-]/g, '_');
+    const fileKey = `uploads/${timestamp}-${uuid}-${sanitizedFilename}`;
+
+    console.log('Generated file key:', fileKey);
+
+    // Store file content in database (for development - in production use cloud storage)
+    // Convert buffer to base64 for storage
+    const fileContentBase64 = file.content.toString('base64');
+
     await sql`
-      INSERT INTO uploaded_files (id, file_key, upload_timestamp, status)
-      VALUES (${randomUUID()}, ${fileKey}, ${new Date().toISOString()}, 'uploaded')
+      INSERT INTO uploaded_files (id, file_key, original_filename, file_size, mime_type, file_content_base64, upload_timestamp, status)
+      VALUES (${randomUUID()}, ${fileKey}, ${file.filename}, ${file.content.length}, ${file.contentType}, ${fileContentBase64}, ${new Date().toISOString()}, 'uploaded')
       ON CONFLICT (file_key) DO NOTHING
     `;
 
@@ -68,8 +108,10 @@ exports.handler = async (event, context) => {
       body: JSON.stringify({
         success: true,
         fileKey: fileKey,
-        message: 'File upload simulated successfully',
-        note: 'In production, this would upload to cloud storage'
+        filename: file.filename,
+        size: file.content.length,
+        contentType: file.contentType,
+        message: 'File uploaded successfully'
       }),
     };
 
