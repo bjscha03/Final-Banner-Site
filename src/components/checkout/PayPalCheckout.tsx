@@ -228,7 +228,8 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          paypalOrderId: data.orderID,
+          orderID: data.orderID,
+          paypalOrderId: data.orderID, // backward compatibility
           cartItems: items.map(item => ({
             width_in: item.width_in,
             height_in: item.height_in,
@@ -246,20 +247,23 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
         }),
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        const errorType = errorData.error || 'UNKNOWN_ERROR';
-        const errorMessage = errorData.message || 'Failed to capture PayPal payment';
+      const responseData = await response.json().catch(() => ({}));
+
+      if (!response.ok || !responseData?.ok) {
+        const errorType = responseData.error || 'UNKNOWN_ERROR';
+        const errorMessage = responseData.message || responseData.hint || 'Failed to capture PayPal payment';
+
+        console.error('Payment error:', responseData || response.status);
 
         // Create a detailed error object
         const detailedError = new Error(errorMessage);
         (detailedError as any).type = errorType;
-        (detailedError as any).details = errorData;
+        (detailedError as any).details = responseData;
 
         throw detailedError;
       }
 
-      const result = await response.json();
+      const result = responseData;
 
       toast({
         title: "Payment Successful!",
@@ -271,29 +275,36 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
       console.error('PayPal capture error:', error);
 
       // Get specific error messages based on error type
-      const getErrorMessage = (errorType: string) => {
+      const getErrorMessage = (errorType: string, hint?: string) => {
         switch (errorType) {
+          case 'PAYPAL_TOKEN_ERROR':
           case 'PAYPAL_AUTH_ERROR':
             return 'PayPal authentication failed. Please try again or contact support.';
+          case 'PAYPAL_CAPTURE_FAILED':
           case 'PAYPAL_CAPTURE_ERROR':
-            return 'PayPal payment capture failed. Your payment may not have been processed.';
+            return hint || 'PayPal payment capture failed. Your payment may not have been processed.';
           case 'PAYPAL_CAPTURE_INCOMPLETE':
             return 'PayPal payment was incomplete. Please try again.';
           case 'DATABASE_ERROR':
             return 'Order processing failed. Please contact support with your PayPal transaction ID.';
           case 'PAYPAL_CONFIG_ERROR':
+          case 'MISSING_PAYPAL_CREDS':
             return 'Payment system configuration error. Please contact support.';
+          case 'MISSING_ORDER_ID':
           case 'MISSING_PAYPAL_ORDER_ID':
             return 'Invalid payment request. Please try again.';
           case 'MISSING_CART_ITEMS':
             return 'Cart is empty. Please add items before checkout.';
+          case 'FUNCTION_CRASH':
+            return 'Payment system error. Please try again or contact support.';
           default:
-            return 'Payment could not be completed. Your card was not charged.';
+            return hint || 'Payment could not be completed. Please try again.';
         }
       };
 
       const errorType = error.type || 'UNKNOWN_ERROR';
-      const errorMessage = getErrorMessage(errorType);
+      const hint = error.details?.hint;
+      const errorMessage = getErrorMessage(errorType, hint);
 
       toast({
         title: "Payment Error",

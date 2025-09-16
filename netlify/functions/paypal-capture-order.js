@@ -1,381 +1,201 @@
+// netlify/functions/paypal-capture-order.js
 const { randomUUID } = require('crypto');
 const { neon } = require('@neondatabase/serverless');
+const fetch = global.fetch;
 
-// PayPal API helpers (duplicated from create-order for now)
-const getPayPalCredentials = () => {
-  const env = process.env.PAYPAL_ENV || 'sandbox';
-  const clientId = process.env[`PAYPAL_CLIENT_ID_${env.toUpperCase()}`];
-  const secret = process.env[`PAYPAL_SECRET_${env.toUpperCase()}`];
-
-  console.log('PayPal credentials check:', {
-    env,
-    clientIdExists: !!clientId,
-    secretExists: !!secret,
-    clientIdLength: clientId?.length,
-    secretLength: secret?.length
-  });
-
-  if (!clientId || !secret) {
-    throw new Error(`PayPal credentials not configured for environment: ${env}`);
-  }
-  
-  return {
-    clientId,
-    secret,
-    baseUrl: env === 'live'
-      ? 'https://api-m.paypal.com'
-      : 'https://api-m.sandbox.paypal.com'
-  };
-};
-
-const getPayPalAccessToken = async () => {
-  const { clientId, secret, baseUrl } = getPayPalCredentials();
-  const auth = Buffer.from(`${clientId}:${secret}`).toString('base64');
-  
-  const response = await fetch(`${baseUrl}/v1/oauth2/token`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Basic ${auth}`,
-      'Content-Type': 'application/x-www-form-urlencoded'
-    },
-    body: 'grant_type=client_credentials'
-  });
-  
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`PayPal auth failed: ${response.status} ${error}`);
-  }
-  
-  const data = await response.json();
-  return data.access_token;
-};
-
-// Pricing calculation helpers (copied from create-order.js)
-const getFeatureFlags = () => {
-  return {
-    freeShipping: process.env.FEATURE_FREE_SHIPPING === '1',
-    minOrderFloor: process.env.FEATURE_MIN_ORDER_FLOOR === '1',
-    minOrderCents: parseInt(process.env.MIN_ORDER_CENTS || '2000', 10),
-    shippingMethodLabel: process.env.SHIPPING_METHOD_LABEL || 'Free Next-Day Air'
-  };
-};
-
-const computeTotals = (items, taxRate, opts) => {
-  const raw = items.reduce((sum, i) => sum + i.line_total_cents, 0);
-  const adjusted = Math.max(raw, opts.minFloorCents || 0);
-  const minAdj = Math.max(0, adjusted - raw);
-
-  const shipping_cents = opts.freeShipping ? 0 : 0;
-  const tax_cents = Math.round(adjusted * taxRate);
-  const total_cents = adjusted + tax_cents + shipping_cents;
-
-  return {
-    raw_subtotal_cents: raw,
-    adjusted_subtotal_cents: adjusted,
-    min_order_adjustment_cents: minAdj,
-    shipping_cents,
-    tax_cents,
-    total_cents,
-  };
-};
-
-const headers = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'Content-Type',
-  'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  'Content-Type': 'application/json',
-};
-
-exports.handler = async (event, context) => {
-  const cid = randomUUID();
-  
-  // Handle preflight requests
-  if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 200, headers, body: '' };
-  }
-
-  // Only allow POST requests
-  if (event.httpMethod !== 'POST') {
-    return {
-      statusCode: 405,
-      headers,
-      body: JSON.stringify({ ok: false, error: 'METHOD_NOT_ALLOWED', cid }),
-    };
-  }
-
+async function dbWritePayPalOrder(orderId, paypalOrderId, details) {
+  // Implement for your stack: Prisma / Drizzle / pg. Try columns in priority order.
+  // This is a no-throw helper: it logs and returns false on error.
+  const candidates = ['paypal_order_id', 'provider_order_id', 'payment_order_id'];
   try {
-    // Comprehensive environment check
-    console.log('=== PayPal Capture Order Debug Info ===', { cid });
-    console.log('Environment variables check:', {
-      FEATURE_PAYPAL: process.env.FEATURE_PAYPAL,
-      PAYPAL_ENV: process.env.PAYPAL_ENV,
-      hasClientId: !!process.env.PAYPAL_CLIENT_ID_SANDBOX,
-      hasSecret: !!process.env.PAYPAL_SECRET_SANDBOX,
-      hasDatabase: !!process.env.NETLIFY_DATABASE_URL,
-      nodeVersion: process.version,
-      timestamp: new Date().toISOString()
-    });
-
-    // Check if PayPal is enabled (temporarily disabled for debugging)
-    // if (process.env.FEATURE_PAYPAL !== '1') {
-    //   console.error('PayPal is disabled:', { FEATURE_PAYPAL: process.env.FEATURE_PAYPAL, cid });
-    //   return {
-    //     statusCode: 400,
-    //     headers,
-    //     body: JSON.stringify({ ok: false, error: 'PAYPAL_DISABLED', cid }),
-    //   };
-    // }
-    console.log('PayPal feature flag check bypassed for debugging');
-
-    // Parse request body
-    let payload;
-    try {
-      payload = JSON.parse(event.body || '{}');
-    } catch (parseError) {
-      console.error('PayPal capture order - Invalid JSON:', parseError, 'cid:', cid);
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ ok: false, error: 'INVALID_JSON', cid }),
-      };
+    const col = await pickAvailableColumn('orders', candidates);
+    if (!col) { 
+      console.warn('No suitable order id column found. Skipping persist.'); 
+      return false; 
     }
+    await upsertOrderPayPalId(col, orderId, paypalOrderId, details);
+    return true;
+  } catch (e) {
+    console.warn('Non-fatal DB write error:', e?.message || e);
+    return false;
+  }
+}
 
-    const { paypalOrderId, cartItems, userEmail, userId } = payload;
-
-    if (!paypalOrderId) {
-      console.error('PayPal capture order - Missing paypalOrderId:', 'cid:', cid);
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ ok: false, error: 'MISSING_PAYPAL_ORDER_ID', cid }),
-      };
-    }
-
-    if (!cartItems || !Array.isArray(cartItems) || cartItems.length === 0) {
-      console.error('PayPal capture order - Missing cart items:', 'cid:', cid);
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ ok: false, error: 'MISSING_CART_ITEMS', cid }),
-      };
-    }
-
-    // Initialize database connection
-    if (!process.env.NETLIFY_DATABASE_URL) {
-      console.error('PayPal capture order - Database URL not configured:', 'cid:', cid);
-      return {
-        statusCode: 500,
-        headers,
-        body: JSON.stringify({ ok: false, error: 'DATABASE_NOT_CONFIGURED', cid }),
-      };
-    }
-
+async function pickAvailableColumn(table, cols) {
+  try {
     const sql = neon(process.env.NETLIFY_DATABASE_URL);
+    const result = await sql`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = ${table}
+        AND column_name = ANY(${cols})
+      ORDER BY array_position(${cols}, column_name)
+    `;
+    return result.length > 0 ? result[0].column_name : null;
+  } catch (error) {
+    console.warn(`Error checking columns for table ${table}:`, error);
+    return null;
+  }
+}
 
-    // Check for existing order with this PayPal order ID (idempotency)
-    // Note: Since metadata column doesn't exist, we'll skip this check for now
-    // TODO: Add metadata column or use a different approach for idempotency
-    const existingOrder = [];
-
-    if (existingOrder.length > 0) {
-      console.log('PayPal capture order - Order already exists:', {
-        cid,
-        paypalOrderId,
-        existingOrderId: existingOrder[0].id
-      });
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({
-          ok: true,
-          orderId: existingOrder[0].id,
-          cid
-        }),
-      };
+async function upsertOrderPayPalId(col, orderId, paypalOrderId, details) {
+  try {
+    const sql = neon(process.env.NETLIFY_DATABASE_URL);
+    
+    // Build update object
+    const updates = {};
+    updates[col] = paypalOrderId;
+    
+    // Add capture ID if column exists
+    const captureCol = await pickAvailableColumn('orders', ['paypal_capture_id']);
+    if (captureCol && details.purchase_units?.[0]?.payments?.captures?.[0]?.id) {
+      updates.paypal_capture_id = details.purchase_units[0].payments.captures[0].id;
     }
-
-    // Get PayPal order details to verify status
-    console.log('PayPal capture - Getting access token...', { cid, paypalOrderId });
-    const accessToken = await getPayPalAccessToken();
-    console.log('PayPal capture - Access token obtained', { cid, tokenLength: accessToken?.length });
-    const { baseUrl } = getPayPalCredentials();
-    console.log('PayPal capture - Using base URL:', { cid, baseUrl });
-
-    const orderDetailsResponse = await fetch(`${baseUrl}/v2/checkout/orders/${paypalOrderId}`, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      }
-    });
-
-    if (!orderDetailsResponse.ok) {
-      const errorText = await orderDetailsResponse.text();
-      console.error('PayPal get order details failed:', {
-        cid,
-        paypalOrderId,
-        status: orderDetailsResponse.status,
-        error: errorText
-      });
-      return {
-        statusCode: 500,
-        headers,
-        body: JSON.stringify({ ok: false, error: 'PAYPAL_ORDER_DETAILS_FAILED', cid }),
-      };
+    
+    // Add customer name if column exists
+    const nameCol = await pickAvailableColumn('orders', ['customer_name']);
+    if (nameCol && details.payer?.name) {
+      const name = `${details.payer.name.given_name || ''} ${details.payer.name.surname || ''}`.trim();
+      if (name) updates.customer_name = name;
     }
-
-    const orderDetails = await orderDetailsResponse.json();
-
-    if (orderDetails.status !== 'APPROVED') {
-      console.error('PayPal order not approved:', {
-        cid,
-        paypalOrderId,
-        status: orderDetails.status
-      });
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ ok: false, error: 'ORDER_NOT_APPROVED', cid }),
-      };
+    
+    // Create SET clause dynamically
+    const setClause = Object.keys(updates).map(key => `${key} = $${Object.keys(updates).indexOf(key) + 2}`).join(', ');
+    const values = [orderId, ...Object.values(updates)];
+    
+    if (setClause) {
+      await sql.unsafe(`UPDATE orders SET ${setClause} WHERE id = $1`, values);
     }
+  } catch (error) {
+    console.warn('Error updating order with PayPal data:', error);
+    throw error;
+  }
+}
 
-    // Capture the payment
-    console.log('PayPal capture - Attempting capture...', { cid, paypalOrderId, baseUrl });
-    const captureResponse = await fetch(`${baseUrl}/v2/checkout/orders/${paypalOrderId}/capture`, {
+exports.handler = async (event) => {
+  try {
+    if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers: cors(), body: '' };
+    if (event.httpMethod !== 'POST') return json(405, { error: 'METHOD_NOT_ALLOWED' });
+
+    const body = JSON.parse(event.body || '{}');
+    const orderID = body.orderID || body.paypalOrderId;
+    if (!orderID) return json(400, { error: 'MISSING_ORDER_ID' });
+
+    const env = (process.env.PAYPAL_ENV || 'sandbox').toLowerCase();
+    const base = env === 'live' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com';
+
+    const client = process.env.PAYPAL_CLIENT_ID || process.env.PAYPAL_CLIENT_ID_SANDBOX;
+    const secret = process.env.PAYPAL_CLIENT_SECRET || process.env.PAYPAL_SECRET_SANDBOX;
+    if (!client || !secret) return json(500, { error: 'MISSING_PAYPAL_CREDS' });
+
+    // OAuth
+    const tRes = await fetch(`${base}/v1/oauth2/token`, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      }
+        Authorization: 'Basic ' + Buffer.from(`${client}:${secret}`).toString('base64'),
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: 'grant_type=client_credentials',
     });
-    console.log('PayPal capture - Capture response status:', { cid, status: captureResponse.status });
+    const tJson = await tRes.json();
+    if (!tRes.ok) {
+      console.error('PayPal token error', tRes.status, tJson);
+      return json(tRes.status, { error: 'PAYPAL_TOKEN_ERROR', details: safe(tJson) });
+    }
 
-    if (!captureResponse.ok) {
-      const errorText = await captureResponse.text();
-      console.error('PayPal capture failed:', {
-        cid,
-        paypalOrderId,
-        status: captureResponse.status,
-        error: errorText
+    // Capture (idempotent)
+    const cRes = await fetch(`${base}/v2/checkout/orders/${orderID}/capture`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${tJson.access_token}`,
+        'PayPal-Request-Id': `cap_${orderID}`,
+      },
+    });
+    const cJson = await cRes.json();
+
+    if (!cRes.ok || cJson?.name === 'INTERNAL_SERVER_ERROR' || cJson?.name === 'INTERNAL_ERROR') {
+      console.error('PayPal capture failed', cRes.status, cJson);
+      return json(cRes.status || 502, {
+        error: 'PAYPAL_CAPTURE_FAILED',
+        details: safe(cJson),
+        hint: hint(cJson),
       });
-      return {
-        statusCode: 500,
-        headers,
-        body: JSON.stringify({ ok: false, error: 'PAYPAL_CAPTURE_FAILED', cid }),
-      };
     }
 
-    const captureDetails = await captureResponse.json();
-
-    // Verify captured amount matches server-calculated total
-    const flags = getFeatureFlags();
-    const taxRate = 0.06;
-    const pricingOptions = {
-      freeShipping: flags.freeShipping,
-      minFloorCents: flags.minOrderFloor ? flags.minOrderCents : 0,
-    };
-
-    const serverTotals = computeTotals(cartItems, taxRate, pricingOptions);
-    const expectedAmount = (serverTotals.total_cents / 100).toFixed(2);
-    const capturedAmount = captureDetails.purchase_units[0].payments.captures[0].amount.value;
-
-    if (expectedAmount !== capturedAmount) {
-      console.error('PayPal amount mismatch:', {
-        cid,
-        paypalOrderId,
-        expectedAmount,
-        capturedAmount
-      });
-      return {
-        statusCode: 400,
-        headers,
-        body: JSON.stringify({ ok: false, error: 'AMOUNT_MISMATCH', cid }),
-      };
-    }
-
-    // Create order in database using existing logic
-    const orderId = randomUUID();
-    const payerEmail = captureDetails.payer.email_address;
-    const payerName = `${captureDetails.payer.name.given_name} ${captureDetails.payer.name.surname}`;
-    const captureId = captureDetails.purchase_units[0].payments.captures[0].id;
-
-    // Use provided email or fallback to payer email
-    const finalEmail = userEmail || payerEmail;
-
-    const orderResult = await sql`
-      INSERT INTO orders (
-        id, user_id, email, subtotal_cents, tax_cents, total_cents, status
-      )
-      VALUES (
-        ${orderId}, ${userId || null}, ${finalEmail},
-        ${serverTotals.adjusted_subtotal_cents}, ${serverTotals.tax_cents}, ${serverTotals.total_cents},
-        'paid'
-      )
-      RETURNING *
-    `;
-
-    if (!orderResult || orderResult.length === 0) {
-      throw new Error('Failed to create order in database');
-    }
-
-    // Insert order items
-    for (const item of cartItems) {
+    // Find existing order by cart items or create new one
+    let orderId = body.orderId;
+    if (!orderId) {
+      // Create new order if none provided
+      orderId = randomUUID();
+      const sql = neon(process.env.NETLIFY_DATABASE_URL);
+      
+      const cartItems = body.cartItems || [];
+      const subtotalCents = cartItems.reduce((sum, item) => sum + (item.line_total_cents || 0), 0);
+      const taxCents = Math.round(subtotalCents * 0.06);
+      const totalCents = subtotalCents + taxCents;
+      
       await sql`
-        INSERT INTO order_items (
-          id, order_id, width_in, height_in, quantity, material,
-          grommets, rope_feet, pole_pockets, line_total_cents
+        INSERT INTO orders (
+          id, user_id, email, subtotal_cents, tax_cents, total_cents, status
         )
         VALUES (
-          ${randomUUID()}, ${orderId},
-          ${item.width_in || 0}, ${item.height_in || 0}, ${item.quantity || 1},
-          ${item.material || '13oz'}, ${item.grommets || 'none'},
-          ${item.rope_feet || 0}, ${item.pole_pockets || 'none'},
-          ${item.line_total_cents || 0}
+          ${orderId}, ${body.userId || null}, ${body.userEmail || cJson.payer?.email_address || 'unknown@example.com'},
+          ${subtotalCents}, ${taxCents}, ${totalCents}, 'paid'
         )
       `;
+      
+      // Insert order items
+      for (const item of cartItems) {
+        await sql`
+          INSERT INTO order_items (
+            id, order_id, width_in, height_in, quantity, material,
+            grommets, rope_feet, pole_pockets, line_total_cents
+          )
+          VALUES (
+            ${randomUUID()}, ${orderId},
+            ${item.width_in || 0}, ${item.height_in || 0}, ${item.quantity || 1},
+            ${item.material || '13oz'}, ${item.grommets || 'none'},
+            ${item.rope_feet || 0}, ${item.pole_pockets || 'none'},
+            ${item.line_total_cents || 0}
+          )
+        `;
+      }
     }
 
-    console.log('PayPal order captured and created successfully:', {
-      cid,
-      paypalOrderId,
-      orderId,
-      captureId,
-      totalAmount: capturedAmount,
-      payerEmail,
-      payerName,
-      finalEmail
-    });
+    // Persist PayPal data (non-fatal)
+    await dbWritePayPalOrder(orderId, orderID, cJson);
 
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify({
-        ok: true,
-        orderId,
-        cid
-      }),
-    };
-
-  } catch (error) {
-    console.error('PayPal capture order error:', error, 'cid:', cid);
-    console.error('Error stack:', error.stack);
-    console.error('Error message:', error.message);
-
-    // Return more detailed error information for debugging
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({
-        ok: false,
-        error: 'INTERNAL_ERROR',
-        debug: {
-          message: error.message,
-          type: error.constructor.name,
-          cid,
-          timestamp: new Date().toISOString()
-        },
-        cid
-      }),
-    };
+    return json(200, { ok: true, data: cJson, orderId });
+  } catch (e) {
+    console.error('Function crash:', e);
+    return json(500, { error: 'FUNCTION_CRASH', message: e.message || String(e) });
   }
 };
+
+function json(statusCode, body) { 
+  return { statusCode, headers: cors(), body: JSON.stringify(body) }; 
+}
+
+function cors() {
+  return {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Methods': 'POST,OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type,Authorization',
+  };
+}
+
+function safe(o) { 
+  try { 
+    return JSON.parse(JSON.stringify(o)); 
+  } catch { 
+    return { note: 'unserializable' }; 
+  } 
+}
+
+function hint(d) {
+  const n = d?.name || '';
+  if (/INVALID_/i.test(n)) return 'Check orderID and request fields.';
+  if (/AUTHORIZATION/i.test(n)) return 'Verify credentials and PAYPAL_ENV vs client ID type.';
+  return 'Transient gateway issue. Retry with same PayPal-Request-Id.';
+}
