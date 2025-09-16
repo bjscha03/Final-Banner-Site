@@ -46,8 +46,8 @@ export const neonOrdersAdapter: OrdersAdapter = {
       for (const item of orderData.items) {
         console.log('Inserting order item:', item);
         await db`
-          INSERT INTO order_items (order_id, width_in, height_in, quantity, material, grommets, rope_feet, line_total_cents)
-          VALUES (${order.id}, ${item.width_in}, ${item.height_in}, ${item.quantity}, ${item.material}, ${item.grommets || 'none'}, ${item.rope_feet || 0}, ${item.line_total_cents})
+          INSERT INTO order_items (order_id, width_in, height_in, quantity, material, grommets, rope_feet, line_total_cents, file_key)
+          VALUES (${order.id}, ${item.width_in}, ${item.height_in}, ${item.quantity}, ${item.material}, ${item.grommets || 'none'}, ${item.rope_feet || 0}, ${item.line_total_cents}, ${item.file_key || null})
         `;
       }
 
