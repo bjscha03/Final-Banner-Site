@@ -90,6 +90,18 @@ const AdminOrders: React.FC = () => {
       setLoading(true);
       const ordersAdapter = await getOrdersAdapter();
       const allOrders = await ordersAdapter.listAll();
+
+      // Debug logging to see what orders and files are loaded
+      console.log('📋 Admin Orders - Fetched orders:', allOrders.length);
+      allOrders.forEach(order => {
+        const filesCount = order.items.filter(item => item.file_key).length;
+        if (filesCount > 0) {
+          console.log(`📁 Order ${order.id} has ${filesCount} files:`,
+            order.items.filter(item => item.file_key).map(item => item.file_key)
+          );
+        }
+      });
+
       setOrders(allOrders);
     } catch (error) {
       console.error('Error loading orders:', error);
@@ -531,6 +543,12 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
     const filesWithDownload = order.items
       .map((item, index) => ({ item, index }))
       .filter(({ item }) => item.file_key);
+
+    // Debug logging to see what files are detected
+    console.log(`Order ${order.id} - Files detected:`, filesWithDownload.map(f => ({
+      index: f.index,
+      file_key: f.item.file_key
+    })));
 
     return filesWithDownload;
   };

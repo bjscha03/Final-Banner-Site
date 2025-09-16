@@ -90,7 +90,8 @@ export const netlifyDbOrdersAdapter: OrdersAdapter = {
               rope_feet: item.rope_feet,
               area_sqft: (item.width_in * item.height_in) / 144,
               unit_price_cents: Math.round(item.line_total_cents / item.quantity),
-              line_total_cents: item.line_total_cents
+              line_total_cents: item.line_total_cents,
+              file_key: item.file_key
             }))
           };
         })
@@ -139,7 +140,8 @@ export const netlifyDbOrdersAdapter: OrdersAdapter = {
               rope_feet: item.rope_feet,
               area_sqft: (item.width_in * item.height_in) / 144,
               unit_price_cents: Math.round(item.line_total_cents / item.quantity),
-              line_total_cents: item.line_total_cents
+              line_total_cents: item.line_total_cents,
+              file_key: item.file_key
             }))
           };
         })
@@ -221,7 +223,8 @@ export const netlifyDbOrdersAdapter: OrdersAdapter = {
           rope_feet: item.rope_feet,
           area_sqft: (item.width_in * item.height_in) / 144,
           unit_price_cents: Math.round(item.line_total_cents / item.quantity),
-          line_total_cents: item.line_total_cents
+          line_total_cents: item.line_total_cents,
+          file_key: item.file_key
         }))
       };
     } catch (error) {
