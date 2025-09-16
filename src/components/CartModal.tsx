@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Trash2, Plus, Minus, ShoppingBag, Package } from 'lucide-react';
+import { X, Trash2, Plus, Minus, ShoppingBag, Package, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useCartStore } from '@/store/cart';
 
@@ -15,6 +15,7 @@ interface CartItem {
   pole_pockets?: string;
   rope_feet?: number;
   file_name?: string;
+  isPdf?: boolean;
 }
 
 interface CartModalProps {
@@ -88,7 +89,11 @@ const CartModal: React.FC<CartModalProps> = ({
                     <div className="flex gap-3">
                       {/* Thumbnail */}
                       <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                        {item.thumbnail ? (
+                        {item.isPdf ? (
+                          <div className="w-full h-full bg-gradient-to-br from-red-100 to-red-200 flex items-center justify-center">
+                            <FileText className="h-6 w-6 text-red-600" />
+                          </div>
+                        ) : item.thumbnail ? (
                           <img
                             src={item.thumbnail}
                             alt={item.name}

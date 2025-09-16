@@ -25,7 +25,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
     grommets: item.grommets,
     pole_pockets: item.pole_pockets,
     rope_feet: item.rope_feet,
-    file_name: item.file_name
+    file_name: item.file_name,
+    isPdf: item.file_name?.toLowerCase().endsWith('.pdf') || false
   }));
 
   const handleUpdateQuantity = (id: string, quantity: number) => {

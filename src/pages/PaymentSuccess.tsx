@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Home, ArrowRight } from 'lucide-react';
-import { usd } from '@/lib/pricing';
+import { usd, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
 
 const PaymentSuccess: React.FC = () => {
   const navigate = useNavigate();
@@ -16,6 +16,41 @@ const PaymentSuccess: React.FC = () => {
   // Get data from navigation state or defaults
   const items = state?.items || [];
   const total = state?.total || 0;
+
+  // Calculate pricing breakdown using the same logic as cart store
+  const calculatePricingBreakdown = () => {
+    if (items.length === 0) {
+      return { subtotal: 0, tax: 0, total: 0 };
+    }
+
+    const flags = getFeatureFlags();
+
+    if (flags.freeShipping || flags.minOrderFloor) {
+      const pricingOptions = getPricingOptions();
+      const pricingItems: PricingItem[] = items.map((item: any) => ({
+        line_total_cents: item.line_total_cents
+      }));
+      const totals = computeTotals(pricingItems, 0.06, pricingOptions);
+      return {
+        subtotal: totals.adjusted_subtotal_cents,
+        tax: totals.tax_cents,
+        total: totals.total_cents
+      };
+    }
+
+    // Fallback calculation
+    const subtotalCents = items.reduce((sum: number, item: any) => sum + item.line_total_cents, 0);
+    const taxCents = Math.round(subtotalCents * 0.06);
+    const totalCents = subtotalCents + taxCents;
+
+    return {
+      subtotal: subtotalCents,
+      tax: taxCents,
+      total: totalCents
+    };
+  };
+
+  const pricing = calculatePricingBreakdown();
 
   return (
     <Layout>
@@ -71,15 +106,41 @@ const PaymentSuccess: React.FC = () => {
               </div>
             )}
 
-            {/* Total */}
-            <div className="border-t border-gray-200 pt-4">
-              <div className="flex justify-between items-center">
-                <span className="text-xl font-semibold text-gray-900">Total Paid</span>
-                <span className="text-2xl font-bold text-gray-900">
-                  {total > 0 ? usd(total / 100) : 'Confirmed'}
-                </span>
+            {/* Pricing Breakdown */}
+            {items.length > 0 && (
+              <div className="border-t border-gray-200 pt-4 space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-700">Subtotal</span>
+                  <span className="text-gray-900">
+                    {usd(pricing.subtotal / 100)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-700">Tax (6%)</span>
+                  <span className="text-gray-900">
+                    {usd(pricing.tax / 100)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center border-t border-gray-200 pt-3">
+                  <span className="text-xl font-semibold text-gray-900">Total Paid</span>
+                  <span className="text-2xl font-bold text-gray-900">
+                    {usd(pricing.total / 100)}
+                  </span>
+                </div>
               </div>
-            </div>
+            )}
+
+            {/* Fallback for when no items data */}
+            {items.length === 0 && (
+              <div className="border-t border-gray-200 pt-4">
+                <div className="flex justify-between items-center">
+                  <span className="text-xl font-semibold text-gray-900">Total Paid</span>
+                  <span className="text-2xl font-bold text-gray-900">
+                    {total > 0 ? usd(total / 100) : 'Confirmed'}
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* Next Steps */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mt-6">
