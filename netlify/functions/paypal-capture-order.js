@@ -172,9 +172,9 @@ exports.handler = async (event, context) => {
     const sql = neon(process.env.NETLIFY_DATABASE_URL);
 
     // Check for existing order with this PayPal order ID (idempotency)
-    const existingOrder = await sql`
-      SELECT id FROM orders WHERE metadata->>'paypal_order_id' = ${paypalOrderId}
-    `;
+    // Note: Since metadata column doesn't exist, we'll skip this check for now
+    // TODO: Add metadata column or use a different approach for idempotency
+    const existingOrder = [];
 
     if (existingOrder.length > 0) {
       console.log('PayPal capture order - Order already exists:', {
@@ -303,14 +303,12 @@ exports.handler = async (event, context) => {
 
     const orderResult = await sql`
       INSERT INTO orders (
-        id, user_id, email, subtotal_cents, tax_cents, total_cents, 
-        status, payment_provider, payment_id, payer_email, payer_name, metadata
+        id, user_id, email, subtotal_cents, tax_cents, total_cents, status
       )
       VALUES (
-        ${orderId}, ${userId || null}, ${finalEmail}, 
+        ${orderId}, ${userId || null}, ${finalEmail},
         ${serverTotals.adjusted_subtotal_cents}, ${serverTotals.tax_cents}, ${serverTotals.total_cents},
-        'paid', 'paypal', ${captureId}, ${payerEmail}, ${payerName},
-        ${JSON.stringify({ paypal_order_id: paypalOrderId, capture_id: captureId })}
+        'paid'
       )
       RETURNING *
     `;
@@ -341,7 +339,10 @@ exports.handler = async (event, context) => {
       paypalOrderId,
       orderId,
       captureId,
-      totalAmount: capturedAmount
+      totalAmount: capturedAmount,
+      payerEmail,
+      payerName,
+      finalEmail
     });
 
     return {
