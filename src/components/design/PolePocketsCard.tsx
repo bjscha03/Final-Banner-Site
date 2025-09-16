@@ -1,5 +1,5 @@
 import React from 'react';
-import { Square } from 'lucide-react';
+import { Minus } from 'lucide-react';
 import { useQuoteStore } from '@/store/quote';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -22,7 +22,7 @@ const PolePocketsCard: React.FC = () => {
   return (
     <div className="bg-white rounded-2xl shadow-md p-5 md:p-6">
       <div className="flex items-center space-x-2 mb-6">
-        <Square className="h-5 w-5 text-indigo-500" />
+        <Minus className="h-5 w-5 text-indigo-500" />
         <h3 className="text-lg font-bold text-gray-900">📏 Pole Pockets</h3>
       </div>
 

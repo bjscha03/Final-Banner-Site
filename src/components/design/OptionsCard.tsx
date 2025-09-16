@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Circle, Square, ChevronDown, Info, HelpCircle } from 'lucide-react';
+import { Circle, Minus, ChevronDown, Info, HelpCircle } from 'lucide-react';
 import { useQuoteStore, PolePocketSize } from '@/store/quote';
 import { ropeCost, polePocketCost } from '@/lib/pricing';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -54,7 +54,7 @@ const OptionsCard: React.FC = () => {
         {/* Pole Pockets Section */}
         <div>
           <div className="flex items-center gap-2 mb-3">
-            <Square className="w-4 h-4 text-gray-600" />
+            <Minus className="w-4 h-4 text-gray-600" />
             <h3 className="text-sm font-medium text-gray-700">Pole Pockets</h3>
             <button
               onMouseEnter={() => setShowPolePocketInfo(true)}
