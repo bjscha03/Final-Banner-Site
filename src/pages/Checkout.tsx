@@ -113,8 +113,8 @@ const Checkout: React.FC = () => {
         description: `Your order has been created and payment processed. Order ID: ${orderId}`,
       });
 
-      // Navigate to order confirmation page
-      navigate(`/order-confirmation/${orderId}`, {
+      // Navigate to order confirmation page with query parameter
+      navigate(`/order-confirmation?orderId=${orderId}`, {
         replace: true,
         state: {
           fromCheckout: true,
