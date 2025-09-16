@@ -16,13 +16,16 @@ interface MaterialOption {
   imagePath: string;
 }
 
+// Add cache-busting timestamp to force image reload
+const CACHE_BUST = Date.now();
+
 const materials: MaterialOption[] = [
   {
     key: '13oz',
     name: '13oz Vinyl',
     subtitle: 'Standard outdoor vinyl',
     category: 'vinyl',
-    imagePath: '/images/materials/13oz.svg'
+    imagePath: `/images/materials/13oz.svg?v=${CACHE_BUST}`
   },
   {
     key: '15oz',
@@ -30,21 +33,21 @@ const materials: MaterialOption[] = [
     subtitle: 'Premium outdoor vinyl',
     popular: true,
     category: 'vinyl',
-    imagePath: '/images/materials/15oz.svg'
+    imagePath: `/images/materials/15oz.svg?v=${CACHE_BUST}`
   },
   {
     key: '18oz',
     name: '18oz Vinyl',
     subtitle: 'Heavy-duty vinyl',
     category: 'vinyl',
-    imagePath: '/images/materials/18oz.svg'
+    imagePath: `/images/materials/18oz.svg?v=${CACHE_BUST}`
   },
   {
     key: 'mesh',
     name: 'Mesh Fence Application',
     subtitle: 'Wind-resistant mesh',
     category: 'specialty',
-    imagePath: '/images/materials/mesh-vinyl.jpg'
+    imagePath: `/images/materials/mesh.svg?v=${CACHE_BUST}`
   }
 ];
 
