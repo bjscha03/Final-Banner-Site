@@ -31,11 +31,9 @@ const UploadArtworkCard: React.FC = () => {
 
     setUploadError('');
     const isPdf = file.type === 'application/pdf';
-    let url: string | undefined;
 
-    if (!isPdf) {
-      url = URL.createObjectURL(file);
-    }
+    // Create URL for both PDFs and images - PDFs will be handled by PDF viewer
+    const url = URL.createObjectURL(file);
 
     set({
       file: {

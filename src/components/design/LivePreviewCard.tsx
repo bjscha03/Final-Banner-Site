@@ -69,9 +69,8 @@ const LivePreviewCard: React.FC = () => {
     const isPdf = file.type === 'application/pdf';
     let url: string | undefined;
 
-    if (!isPdf) {
-      url = URL.createObjectURL(file);
-    }
+    // Create URL for both PDFs and images - PDFs will be handled by PDF viewer
+    url = URL.createObjectURL(file);
 
     set({
       file: {
@@ -266,18 +265,7 @@ const LivePreviewCard: React.FC = () => {
           </div>
         )}
 
-        {/* PDF overlay */}
-        {file && file.isPdf && (
-          <div className="absolute inset-6 bg-white/95 flex items-center justify-center rounded-2xl">
-            <div className="text-center p-6">
-              <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <FileText className="h-8 w-8 text-red-500" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">PDF Uploaded</h3>
-              <p className="text-gray-600">Preview shows layout only. Your PDF will be used in production.</p>
-            </div>
-          </div>
-        )}
+
 
         {/* Upload error */}
         {uploadError && (

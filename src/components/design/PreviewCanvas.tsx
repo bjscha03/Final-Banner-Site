@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { Grommets } from '@/store/quote';
 import { FileText, Image } from 'lucide-react';
+import PDFPreview from './PDFPreview';
 
 interface PreviewCanvasProps {
   widthIn: number;
@@ -162,7 +163,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
         />
 
         {/* Image if provided */}
-        {imageUrl && (
+        {imageUrl && !file?.isPdf && (
           <image
             href={imageUrl}
             x="0.5"
@@ -175,7 +176,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
         )}
 
         {/* Placeholder when no image */}
-        {!imageUrl && (
+        {!imageUrl && !file?.isPdf && (
           <g>
             <rect
               x="2"
@@ -269,6 +270,16 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           ry="0.45"
         />
       </svg>
+
+      {/* PDF Preview Overlay */}
+      {file?.isPdf && file.url && (
+        <div className="absolute inset-0 flex items-center justify-center p-4">
+          <PDFPreview
+            url={file.url}
+            className="w-full h-full max-w-md max-h-80"
+          />
+        </div>
+      )}
       </div>
 
     {/* Professional info panel below the preview with more spacing */}

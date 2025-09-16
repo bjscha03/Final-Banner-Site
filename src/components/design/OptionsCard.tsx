@@ -71,21 +71,48 @@ const OptionsCard: React.FC = () => {
               )}
             </button>
           </div>
-          
-          <div className="space-y-3">
-            <Select value={polePockets} onValueChange={(value) => set({ polePockets: value })}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Choose pole pocket option" />
-              </SelectTrigger>
-              <SelectContent>
-                {polePocketOptions.map((option) => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
 
+          <div className="space-y-3">
+            {/* Checkbox to enable/disable pole pockets */}
+            <div className="flex items-center space-x-3">
+              <Checkbox
+                id="enable-pole-pockets"
+                checked={polePockets !== 'none'}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    set({ polePockets: 'top' }); // Default to 'top' when enabling
+                  } else {
+                    set({ polePockets: 'none' });
+                  }
+                }}
+              />
+              <label htmlFor="enable-pole-pockets" className="text-sm text-gray-700 cursor-pointer flex-1">
+                Add Pole Pockets
+                {totalPolePocketCost > 0 && (
+                  <span className="ml-2 text-green-600 font-medium">
+                    (+${totalPolePocketCost.toFixed(2)})
+                  </span>
+                )}
+              </label>
+            </div>
+
+            {/* Dropdown for pole pocket configuration - only show when enabled */}
+            {polePockets !== 'none' && (
+              <Select value={polePockets} onValueChange={(value) => set({ polePockets: value })}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Choose pole pocket option" />
+                </SelectTrigger>
+                <SelectContent>
+                  {polePocketOptions.filter(option => option.value !== 'none').map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
+
+            {/* Additional options when pole pockets are enabled */}
             {polePockets !== 'none' && (
               <div className="space-y-3">
                 <div>
