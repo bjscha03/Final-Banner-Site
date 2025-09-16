@@ -222,27 +222,63 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
     try {
       setIsCapturingPayment(true);
 
-      const r = await fetch('/.netlify/functions/paypal-capture-minimal', {
+      // First capture the PayPal payment
+      const captureResponse = await fetch('/.netlify/functions/paypal-capture-minimal', {
         method:'POST',
         headers:{ 'Content-Type':'application/json' },
         body: JSON.stringify({ orderID: data.orderID }),
       });
-      const j = await r.json().catch(()=> ({}));
-      if (!r.ok || !j?.ok) {
-        console.error('Payment error:', j || r.status);
-        alert(`Payment failed: ${j?.error || 'Unknown error'}\nStatus: ${r.status}`);
+      const captureResult = await captureResponse.json().catch(()=> ({}));
+      if (!captureResponse.ok || !captureResult?.ok) {
+        console.error('Payment capture error:', captureResult || captureResponse.status);
+        alert(`Payment failed: ${captureResult?.error || 'Unknown error'}\nStatus: ${captureResponse.status}`);
         return;
       }
 
-      const result = j;
+      // Now create the database order
+      const orderResponse = await fetch('/.netlify/functions/create-order', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: user?.id || null,
+          email: user?.email || captureResult.paypalData?.payer?.email_address || `guest-${Date.now()}@bannersonthefly.com`,
+          subtotal_cents: total,
+          tax_cents: Math.round(total * 0.06),
+          total_cents: total,
+          currency: 'usd',
+          paypal_order_id: data.orderID,
+          paypal_capture_id: captureResult.paypalData?.id,
+          items: items.map(item => ({
+            width_in: item.width_in,
+            height_in: item.height_in,
+            quantity: item.quantity,
+            material: item.material,
+            grommets: item.grommets,
+            rope_feet: item.rope_feet,
+            area_sqft: item.area_sqft,
+            unit_price_cents: item.unit_price_cents,
+            line_total_cents: item.line_total_cents,
+            file_key: item.file_key,
+          })),
+        }),
+      });
+
+      const orderResult = await orderResponse.json();
+      if (!orderResponse.ok || !orderResult?.ok) {
+        console.error('Order creation error:', orderResult);
+        // Payment succeeded but order creation failed - still show success but log error
+        console.error('PayPal payment succeeded but database order creation failed');
+      }
 
       toast({
         title: "Payment Successful!",
         description: `Payment of $${(total / 100).toFixed(2)} has been processed.`,
       });
 
-      // Extract order ID from response (prefer our database orderId)
-      const orderId = result.orderId || result.data?.id || data.orderID || 'unknown';
+      // Use database order ID if available, otherwise PayPal order ID
+      const orderId = orderResult?.orderId || data.orderID;
       onSuccess(orderId);
     } catch (e: any) {
       console.error('Payment exception:', e);

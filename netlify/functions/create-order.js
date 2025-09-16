@@ -33,9 +33,24 @@ const computeTotals = (items, taxRate, opts) => {
 // Send order confirmation email by calling notify-order function
 async function sendOrderConfirmationEmail(orderId) {
   try {
-    console.log('Email notification temporarily disabled for order:', orderId);
-    // TODO: Re-enable email notifications after fixing ES module compatibility
-    return { ok: true, id: 'email-disabled' };
+    console.log('Sending order confirmation email for order:', orderId);
+
+    const response = await fetch(`${process.env.URL || 'https://bannersonthefly.com'}/.netlify/functions/notify-order`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ orderId }),
+    });
+
+    const result = await response.json();
+
+    if (response.ok && result.ok) {
+      return { ok: true, id: result.id };
+    } else {
+      console.error('Email notification failed:', result);
+      return { ok: false, error: result.error || 'Email send failed' };
+    }
   } catch (error) {
     console.error('Error calling notify-order function:', error);
     return { ok: false, error: error.message || 'Email send failed' };
@@ -224,8 +239,8 @@ exports.handler = async (event, context) => {
     console.log('Final email for order:', userEmail);
 
     const orderResult = await sql`
-      INSERT INTO orders (id, user_id, email, subtotal_cents, tax_cents, total_cents, status)
-      VALUES (${orderId}, ${finalUserId}, ${userEmail}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, 'paid')
+      INSERT INTO orders (id, user_id, email, subtotal_cents, tax_cents, total_cents, status, paypal_order_id, paypal_capture_id)
+      VALUES (${orderId}, ${finalUserId}, ${userEmail}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, 'paid', ${orderData.paypal_order_id || null}, ${orderData.paypal_capture_id || null})
       RETURNING *
     `;
 
