@@ -29,7 +29,7 @@ export default function PdfImagePreview({ file, fileUrl, fileName, scale, classN
         } else if (fileUrl) {
           // Fetch the file from the URL and create a File object
           const response = await fetch(fileUrl);
-          if (!response.ok) throw new Error('Failed to fetch PDF file');
+          if (!response.ok) throw new Error(`Failed to fetch PDF file: ${response.status} ${response.statusText}`);
           const blob = await response.blob();
           pdfFile = new File([blob], fileName || 'document.pdf', { type: 'application/pdf' });
         } else {

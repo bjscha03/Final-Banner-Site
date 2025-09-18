@@ -20,9 +20,9 @@ export async function renderPdfToDataUrl(file: File, opts: PdfRenderOptions = {}
   // Lazy import pdfjs and set worker
   if (!_pdfjsLib) {
     _pdfjsLib = await import('pdfjs-dist');
-    // Set worker source to the CDN version for compatibility
+    // Set worker source to match the installed version (5.4.149)
     (_pdfjsLib as any).GlobalWorkerOptions.workerSrc =
-      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.0.379/pdf.worker.min.mjs';
+      'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.149/pdf.worker.min.mjs';
   }
 
   const arrayBuffer = await file.arrayBuffer();
