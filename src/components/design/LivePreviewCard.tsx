@@ -284,6 +284,7 @@ const LivePreviewCard: React.FC = () => {
                   grommets={grommets}
                   imageUrl={file?.url && !file.isPdf ? file.url : undefined}
                   className="shadow-lg"
+                  scale={previewScalePct / 100} // Convert percentage to decimal
                   file={file}
                 />
               </div>

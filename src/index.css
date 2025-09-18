@@ -476,3 +476,14 @@
 .markdown-preview ol {
   @apply my-4 ml-6;
 }
+
+/* Defense-in-depth: Hard kill any accidental native PDF toolbars if iframes slip in */
+iframe[src*="pdf"] .toolbar,
+embed[type="application/pdf"] + .toolbar,
+iframe[src*="pdf"] .pdfViewer .toolbar,
+embed[type="application/pdf"] .pdfViewer .toolbar {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}

@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { Grommets } from '@/store/quote';
 import { FileText, Image } from 'lucide-react';
 import PDFPreview from './PDFPreview';
+import PdfImagePreview from '@/components/preview/PdfImagePreview';
 
 interface PreviewCanvasProps {
   widthIn: number;
@@ -9,6 +10,7 @@ interface PreviewCanvasProps {
   grommets: Grommets;
   imageUrl?: string;
   className?: string;
+  scale?: number; // Preview scale for PDF rendering (1 = 100%)
   file?: {
     name: string;
     type: string;
@@ -105,8 +107,12 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   grommets,
   imageUrl,
   className = '',
+  scale = 1,
   file
 }) => {
+  // Feature flag for PDF static preview
+  const FEATURE_PDF_STATIC_PREVIEW = import.meta.env.VITE_FEATURE_PDF_STATIC_PREVIEW === '1';
+
   const grommetPositions = useMemo(() => {
     return grommetPoints(widthIn, heightIn, grommets);
   }, [widthIn, heightIn, grommets]);
@@ -274,10 +280,20 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
       {/* PDF Preview Overlay */}
       {file?.isPdf && file.url && (
         <div className="absolute inset-0 flex items-center justify-center p-4">
-          <PDFPreview
-            url={file.url}
-            className="w-full h-full max-w-md max-h-80"
-          />
+          {FEATURE_PDF_STATIC_PREVIEW ? (
+            <PdfImagePreview
+              fileUrl={file.url}
+              fileName={file.name}
+              scale={scale}
+              className="w-full h-full max-w-md max-h-80 object-contain"
+              onError={(e) => console.error('PDF preview error:', e)}
+            />
+          ) : (
+            <PDFPreview
+              url={file.url}
+              className="w-full h-full max-w-md max-h-80"
+            />
+          )}
         </div>
       )}
       </div>
