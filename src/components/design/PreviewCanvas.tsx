@@ -284,7 +284,6 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
             <PdfImagePreview
               fileUrl={file.url}
               fileName={file.name}
-              scale={scale || 1} // Pass scale for internal image scaling
               className="w-full h-full max-w-md max-h-80 object-contain"
               onError={(e) => console.error('PDF preview error:', e)}
             />
