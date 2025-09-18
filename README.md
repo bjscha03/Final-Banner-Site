@@ -1,3 +1,6 @@
-# React + TypeScript + Vite
+# Custom Banners E-commerce
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A modern e-commerce platform for custom banner printing with real-time preview, design tools, and integrated payment processing.
+
+## 🎯 Latest Features
+- **PDF Static Preview**: Eliminates Firefox native PDF controls by rendering PDFs as static images
