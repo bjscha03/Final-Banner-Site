@@ -35,10 +35,6 @@ async function sendEmail(type, payload) {
     const emailFrom = process.env.EMAIL_FROM || 'orders@bannersonthefly.com';
     const emailReplyTo = process.env.EMAIL_REPLY_TO || 'support@bannersonthefly.com';
 
-    // Import React email templates
-    const React = require('react');
-    const { renderToStaticMarkup } = require('react-dom/server');
-    
     // For now, we'll use a simple HTML template since importing React components in Netlify functions is complex
     // In production, you'd want to use the actual OrderShipped React component
     const createShippingEmailHtml = (order, trackingNumber, trackingUrl) => {
