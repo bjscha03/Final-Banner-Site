@@ -139,7 +139,7 @@ export async function sendEmail(
       };
 
       const result = await sendWithRetry(resendClient, emailData);
-      const id = (result as any).id;
+      const id = (result as any).data?.id;
 
       await logEmailAttempt({
         type,
@@ -224,7 +224,7 @@ export async function sendEmail(
     };
 
     const result = await sendWithRetry(resendClient, emailData);
-    const id = (result as any).id;
+    const id = (result as any).data?.id;
 
     await logEmailAttempt({
       type,

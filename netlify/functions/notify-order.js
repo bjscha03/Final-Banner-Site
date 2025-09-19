@@ -180,7 +180,7 @@ async function sendEmail(type, payload) {
 
     const result = await sendEmailWithRetry(resend, emailData);
 
-    return { ok: true, id: result.id };
+    return { ok: true, id: result.data?.id };
   } catch (error) {
     console.error('Email send error:', error);
     return { 
