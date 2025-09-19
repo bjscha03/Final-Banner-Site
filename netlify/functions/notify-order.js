@@ -7,11 +7,44 @@ const headers = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
 };
 
+// Send email with retry logic for rate limiting
+async function sendEmailWithRetry(resendClient, emailData, maxAttempts = 3) {
+  let lastError;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const result = await resendClient.emails.send(emailData);
+      if (result.error) {
+        throw new Error(result.error);
+      }
+      return result;
+    } catch (error) {
+      lastError = error;
+
+      // Check if error is retryable (429 rate limit or 5xx server errors)
+      const isRetryable = error?.status === 429 || (error?.status >= 500 && error?.status < 600) ||
+                         error?.message?.includes('Too many requests');
+
+      if (!isRetryable || attempt === maxAttempts) {
+        throw error;
+      }
+
+      // Exponential backoff: 1s, 3s for rate limiting
+      const delay = attempt === 1 ? 1000 : 3000;
+      await new Promise(resolve => setTimeout(resolve, delay));
+
+      console.log(`Email send attempt ${attempt} failed (rate limited), retrying in ${delay}ms:`, error?.message);
+    }
+  }
+
+  throw lastError;
+}
+
 // Send email using existing email system
 async function sendEmail(type, payload) {
   try {
     const { Resend } = require('resend');
-    
+
     if (!process.env.RESEND_API_KEY) {
       return { ok: false, error: 'RESEND_API_KEY not configured' };
     }
@@ -137,13 +170,15 @@ async function sendEmail(type, payload) {
       return { ok: false, error: `Unknown email type: ${type}` };
     }
 
-    const result = await resend.emails.send({
+    const emailData = {
       from: emailFrom,
       to: payload.to,
       replyTo: emailReplyTo,
       subject,
       html
-    });
+    };
+
+    const result = await sendEmailWithRetry(resend, emailData);
 
     return { ok: true, id: result.id };
   } catch (error) {
@@ -308,6 +343,9 @@ exports.handler = async (event) => {
       const adminEmail = process.env.ADMIN_EMAIL || 'info@bannersonthefly.com';
 
       try {
+        // Add delay to prevent rate limiting (Resend allows 2 requests per second)
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
         const adminEmailPayload = {
           to: adminEmail,
           order: {

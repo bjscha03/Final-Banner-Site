@@ -26,8 +26,11 @@ exports.handler = async (event) => {
     
     console.log('Testing Resend API with key:', process.env.RESEND_API_KEY.substring(0, 10) + '...');
     
+    // Test with the actual FROM address from environment
+    const emailFrom = process.env.EMAIL_FROM || 'info@bannersonthefly.com';
+
     const result = await resend.emails.send({
-      from: 'orders@bannersonthefly.com',
+      from: emailFrom,
       to: 'info@bannersonthefly.com',
       subject: 'Test Admin Notification',
       html: '<p>This is a test admin notification email.</p>'
