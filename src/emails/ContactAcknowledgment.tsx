@@ -21,8 +21,8 @@ interface ContactAcknowledgmentProps {
 }
 
 export default function ContactAcknowledgment({ contact }: ContactAcknowledgmentProps) {
-  // Logo URL for email
-  const logoUrl = `${process.env.PUBLIC_SITE_URL || 'https://www.bannersonthefly.com'}/images/logo-compact.svg`;
+  // Logo URL for email - use absolute URL for email compatibility
+  const logoUrl = 'https://www.bannersonthefly.com/images/logo-compact.svg';
   return (
     <Html>
       <Head />

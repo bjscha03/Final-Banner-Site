@@ -73,14 +73,34 @@ const SignUp: React.FC = () => {
     setLoading(true);
 
     try {
-      await signUp(email, password, fullName, username);
+      // Create account but don't auto-sign in - require email verification
+      const response = await fetch('/.netlify/functions/create-user', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: email.toLowerCase().trim(),
+          password,
+          full_name: fullName,
+          username,
+          is_signup: true,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.ok) {
+        throw new Error(result.error || 'Failed to create account');
+      }
 
       toast({
         title: "Account Created!",
-        description: "Your account has been created successfully.",
+        description: "Please check your email to verify your account before signing in.",
       });
 
-      navigate(nextUrl);
+      // Redirect to check email page instead of auto-signing in
+      navigate(`/check-email?email=${encodeURIComponent(email)}`);
     } catch (error: any) {
       toast({
         title: "Sign Up Failed",

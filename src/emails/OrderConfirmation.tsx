@@ -63,8 +63,8 @@ export default function OrderConfirmation({ order, invoiceUrl }: OrderConfirmati
   const tax = order.tax || (order.taxCents ? order.taxCents / 100 : 0);
   const total = order.total || (order.totalCents ? order.totalCents / 100 : subtotal + tax);
 
-  // Logo URL for email
-  const logoUrl = `${process.env.PUBLIC_SITE_URL || 'https://www.bannersonthefly.com'}/images/logo-compact.svg`;
+  // Logo URL for email - use absolute URL for email compatibility
+  const logoUrl = 'https://www.bannersonthefly.com/images/logo-compact.svg';
 
   return (
     <Html>

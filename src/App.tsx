@@ -18,6 +18,7 @@ import SignUp from "./pages/SignUp";
 import ForgotPassword from "./pages/ForgotPassword";
 import ResetPassword from "./pages/ResetPassword";
 import { VerifyEmail } from "./pages/VerifyEmail";
+import CheckEmail from "./pages/CheckEmail";
 import MyOrders from "./pages/MyOrders";
 import Checkout from "./pages/Checkout";
 import OrderConfirmation from "./pages/OrderConfirmation";
@@ -54,6 +55,7 @@ const App = () => (
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/verify-email" element={<VerifyEmail />} />
+            <Route path="/check-email" element={<CheckEmail />} />
             <Route path="/my-orders" element={<MyOrders />} />
             <Route path="/orders/:id" element={<OrderDetail />} />
             <Route path="/checkout" element={<Checkout />} />

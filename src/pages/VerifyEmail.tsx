@@ -122,7 +122,7 @@ export function VerifyEmail() {
                 {status === 'success' && (
                   <>
                     <Button asChild className="w-full">
-                      <Link to="/dashboard">Go to Dashboard</Link>
+                      <Link to="/my-orders">Go to My Orders</Link>
                     </Button>
                     <Button variant="outline" asChild className="w-full">
                       <Link to="/design">Start Creating Banners</Link>

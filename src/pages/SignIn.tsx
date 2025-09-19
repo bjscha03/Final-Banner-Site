@@ -65,11 +65,21 @@ const SignIn: React.FC = () => {
 
       navigate(nextUrl);
     } catch (error: any) {
-      toast({
-        title: "Sign In Failed",
-        description: error.message || "Please check your credentials and try again.",
-        variant: "destructive",
-      });
+      // Check if the error is related to email verification
+      if (error.message && error.message.includes('email verification')) {
+        toast({
+          title: "Email Verification Required",
+          description: "Please verify your email address before signing in.",
+          variant: "destructive",
+        });
+        navigate(`/check-email?email=${encodeURIComponent(email)}`);
+      } else {
+        toast({
+          title: "Sign In Failed",
+          description: error.message || "Please check your credentials and try again.",
+          variant: "destructive",
+        });
+      }
     } finally {
       setLoading(false);
     }
