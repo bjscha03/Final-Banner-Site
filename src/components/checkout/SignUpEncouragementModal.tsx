@@ -34,16 +34,16 @@ const SignUpEncouragementModal: React.FC<SignUpEncouragementModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
+    <div className="fixed inset-0 z-[9999] overflow-y-auto">
       <div className="flex min-h-full items-center justify-center p-4">
         {/* Backdrop */}
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 transition-opacity"
+        <div
+          className="fixed inset-0 bg-black bg-opacity-50 transition-opacity z-[9998]"
           onClick={onClose}
         />
-        
+
         {/* Modal */}
-        <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
+        <div className="relative bg-white rounded-2xl shadow-xl max-w-md w-full p-6 z-[10000]">
           {/* Close button */}
           <button
             onClick={onClose}

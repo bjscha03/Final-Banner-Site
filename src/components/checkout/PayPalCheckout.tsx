@@ -312,35 +312,37 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
       )}
 
       <PayPalScriptProvider options={initialOptions}>
-        <PayPalButtons
-          style={{
-            layout: "vertical",
-            color: "blue",
-            shape: "rect",
-            label: "paypal",
-          }}
-          disabled={isCreatingOrder || isCapturingPayment}
-          createOrder={async (data, actions) => {
-            const paypalOrderId = await handleCreateOrder();
-            return paypalOrderId;
-          }}
-          onApprove={handleApprove}
-          onError={(error) => {
-            console.error('PayPal error:', error);
-            toast({
-              title: "Payment Error",
-              description: "Payment could not be completed. Your card was not charged.",
-              variant: "destructive",
-            });
-            onError(error);
-          }}
-          onCancel={() => {
-            toast({
-              title: "Payment Cancelled",
-              description: "You cancelled the payment. Your order was not created.",
-            });
-          }}
-        />
+        <div className="relative z-10">
+          <PayPalButtons
+            style={{
+              layout: "vertical",
+              color: "blue",
+              shape: "rect",
+              label: "paypal",
+            }}
+            disabled={isCreatingOrder || isCapturingPayment}
+            createOrder={async (data, actions) => {
+              const paypalOrderId = await handleCreateOrder();
+              return paypalOrderId;
+            }}
+            onApprove={handleApprove}
+            onError={(error) => {
+              console.error('PayPal error:', error);
+              toast({
+                title: "Payment Error",
+                description: "Payment could not be completed. Your card was not charged.",
+                variant: "destructive",
+              });
+              onError(error);
+            }}
+            onCancel={() => {
+              toast({
+                title: "Payment Cancelled",
+                description: "You cancelled the payment. Your order was not created.",
+              });
+            }}
+          />
+        </div>
       </PayPalScriptProvider>
 
       {/* Admin Test Pay Button */}

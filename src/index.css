@@ -107,6 +107,27 @@
   .nav-mobile {
     @apply block w-full text-left px-4 py-3 text-base font-medium;
   }
+
+  /* PayPal button z-index control to prevent modal conflicts */
+  .paypal-buttons-container {
+    position: relative !important;
+    z-index: 10 !important;
+  }
+
+  /* Ensure PayPal buttons don't interfere with modals */
+  [data-paypal-button] {
+    position: relative !important;
+    z-index: 10 !important;
+  }
+
+  /* Modal z-index hierarchy */
+  .modal-overlay {
+    z-index: 9998 !important;
+  }
+
+  .modal-content {
+    z-index: 10000 !important;
+  }
 }
 
 @layer base {
