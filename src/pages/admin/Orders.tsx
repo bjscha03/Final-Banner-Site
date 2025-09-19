@@ -230,9 +230,7 @@ const AdminOrders: React.FC = () => {
       const result = await response.json();
 
       if (!response.ok || !result.ok) {
-        const errorMessage = result.details || result.error || 'Failed to send shipping notification';
-        console.error('Server error details:', result);
-        throw new Error(errorMessage);
+        throw new Error(result.error || 'Failed to send shipping notification');
       }
 
       // Update local state to mark notification as sent
