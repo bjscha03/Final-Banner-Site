@@ -1,0 +1,41 @@
+<svg width="400" height="120" viewBox="0 0 400 120" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <!-- Orange gradient for the banner -->
+    <linearGradient id="bannerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF6B35;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#F7931E;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#E67E22;stop-opacity:1" />
+    </linearGradient>
+    
+    <!-- Shadow filter -->
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.2)"/>
+    </filter>
+  </defs>
+  
+  <!-- Banner flag shape -->
+  <path d="M10 25 L70 25 L70 65 L60 70 L50 65 L40 70 L30 65 L20 70 L10 65 Z" 
+        fill="url(#bannerGradient)" 
+        filter="url(#shadow)"
+        stroke="#D35400" 
+        stroke-width="1"/>
+  
+  <!-- Banner pole -->
+  <rect x="8" y="25" width="4" height="50" fill="#8B4513" rx="2"/>
+  
+  <!-- Main text "BANNERS" -->
+  <text x="85" y="50" 
+        font-family="Arial, Helvetica, sans-serif" 
+        font-size="28" 
+        font-weight="bold" 
+        fill="#1E3A8A"
+        letter-spacing="1px">BANNERS</text>
+  
+  <!-- Subtitle "ON THE FLY" -->
+  <text x="85" y="75" 
+        font-family="Arial, Helvetica, sans-serif" 
+        font-size="18" 
+        font-weight="600" 
+        fill="#F7931E"
+        letter-spacing="0.5px">ON THE FLY</text>
+</svg>

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ShoppingCart, Menu, X, User, LogOut, Package, Shield } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import ScrollToTopLink from './ScrollToTopLink';
+import Logo from './Logo';
 import { useAuth, isAdmin } from '@/lib/auth';
 import { useToast } from '@/components/ui/use-toast';
 import {
@@ -58,8 +59,8 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div className="flex-shrink-0">
-            <ScrollToTopLink to="/" className="text-2xl font-bold text-blue-700 hover:text-blue-800 transition-colors">
-              Banners On The Fly
+            <ScrollToTopLink to="/" className="flex items-center">
+              <Logo variant="compact" height={40} className="h-10" animated />
             </ScrollToTopLink>
           </div>
 
