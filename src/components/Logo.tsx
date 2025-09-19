@@ -31,13 +31,13 @@ const Logo: React.FC<LogoProps> = ({
   const getDefaultDimensions = () => {
     switch (variant) {
       case 'compact':
-        return { width: 200, height: 60 };
+        return { width: 300, height: 90 };
       case 'icon':
-        return { width: 60, height: 60 };
+        return { width: 80, height: 80 };
       case 'hero':
-        return { width: 600, height: 180 };
+        return { width: 800, height: 240 };
       default:
-        return { width: 400, height: 120 };
+        return { width: 500, height: 150 };
     }
   };
 

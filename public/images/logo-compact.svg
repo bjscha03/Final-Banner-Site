@@ -1,41 +1,46 @@
-<svg width="200" height="60" viewBox="0 0 200 60" xmlns="http://www.w3.org/2000/svg">
+<svg width="300" height="90" viewBox="0 0 300 90" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <!-- Orange gradient for the banner -->
-    <linearGradient id="bannerGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" style="stop-color:#FF6B35;stop-opacity:1" />
-      <stop offset="50%" style="stop-color:#F7931E;stop-opacity:1" />
-      <stop offset="100%" style="stop-color:#E67E22;stop-opacity:1" />
+    <!-- Orange to red gradient for the main flag -->
+    <linearGradient id="flagGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#FF8C42;stop-opacity:1" />
+      <stop offset="50%" style="stop-color:#FF6B35;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#E55A4F;stop-opacity:1" />
     </linearGradient>
-    
+
     <!-- Shadow filter -->
     <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
-      <feDropShadow dx="1" dy="1" stdDeviation="2" flood-color="rgba(0,0,0,0.2)"/>
+      <feDropShadow dx="2" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.25)"/>
     </filter>
   </defs>
-  
-  <!-- Banner flag shape -->
-  <path d="M5 12 L35 12 L35 32 L30 35 L25 32 L20 35 L15 32 L10 35 L5 32 Z" 
-        fill="url(#bannerGradient)" 
+
+  <!-- Main flag body with flowing shape -->
+  <path d="M8 18 L55 18 C58 18 60 20 60 23 L60 50 C60 53 58 55 55 55 L45 55 L42 58 L39 55 L32 55 L29 58 L26 55 L19 55 L16 58 L13 55 L8 55 Z"
+        fill="url(#flagGradient)"
         filter="url(#shadow)"
-        stroke="#D35400" 
-        stroke-width="0.5"/>
-  
-  <!-- Banner pole -->
-  <rect x="4" y="12" width="2" height="25" fill="#8B4513" rx="1"/>
-  
+        stroke="#D35400"
+        stroke-width="1"/>
+
+  <!-- Blue triangle accent -->
+  <path d="M8 18 L8 36 L20 27 Z"
+        fill="#1E40AF"
+        opacity="0.9"/>
+
+  <!-- Flag pole -->
+  <rect x="6" y="18" width="4" height="42" fill="#8B4513" rx="2"/>
+
   <!-- Main text "BANNERS" -->
-  <text x="42" y="25" 
-        font-family="Arial, Helvetica, sans-serif" 
-        font-size="14" 
-        font-weight="bold" 
+  <text x="70" y="38"
+        font-family="Arial, Helvetica, sans-serif"
+        font-size="20"
+        font-weight="bold"
         fill="#1E3A8A"
-        letter-spacing="0.5px">BANNERS</text>
-  
+        letter-spacing="1px">BANNERS</text>
+
   <!-- Subtitle "ON THE FLY" -->
-  <text x="42" y="38" 
-        font-family="Arial, Helvetica, sans-serif" 
-        font-size="9" 
-        font-weight="600" 
-        fill="#F7931E"
-        letter-spacing="0.3px">ON THE FLY</text>
+  <text x="70" y="55"
+        font-family="Arial, Helvetica, sans-serif"
+        font-size="14"
+        font-weight="600"
+        fill="#FF6B35"
+        letter-spacing="0.5px">ON THE FLY</text>
 </svg>

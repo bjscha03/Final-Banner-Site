@@ -6,22 +6,22 @@ This project includes several optimized logo variants for different use cases:
 
 ### Available Logo Files
 
-1. **`/public/images/logo-full.svg`** (400×120px)
+1. **`/public/images/logo-full.svg`** (500×150px)
    - Full horizontal logo with banner icon and complete text
    - Best for: Headers, footers, business cards, letterheads
    - Usage: When you have adequate horizontal space
 
-2. **`/public/images/logo-compact.svg`** (200×60px)
+2. **`/public/images/logo-compact.svg`** (300×90px)
    - Compact version for smaller spaces
    - Best for: Navigation bars, mobile headers, small print materials
    - Usage: When horizontal space is limited
 
-3. **`/public/images/logo-icon.svg`** (60×60px)
+3. **`/public/images/logo-icon.svg`** (80×80px)
    - Square icon version with "B" initial
    - Best for: Favicons, app icons, social media profile pictures
    - Usage: When only a small square space is available
 
-4. **`/public/images/logo-hero.svg`** (600×180px)
+4. **`/public/images/logo-hero.svg`** (800×240px)
    - Large version with enhanced styling and decorative elements
    - Best for: Hero sections, marketing materials, presentations
    - Usage: When you want maximum visual impact
@@ -69,10 +69,12 @@ import Logo from '@/components/Logo';
 ## Design Specifications
 
 ### Colors
-- **Primary Orange**: #FF6B35 to #F7931E (gradient)
-- **Secondary Orange**: #E67E22 to #D35400
-- **Blue Text**: #1E3A8A to #3B82F6 (gradient)
+- **Primary Flag Gradient**: #FF8C42 to #FF6B35 to #E55A4F (orange to red)
+- **Blue Triangle Accent**: #1E40AF (with 90% opacity)
+- **Text Color**: #1E3A8A (dark blue)
+- **Subtitle Color**: #FF6B35 (orange)
 - **Brown Pole**: #8B4513
+- **Stroke Color**: #D35400 (dark orange)
 
 ### Typography
 - **Font Family**: Arial, Helvetica, sans-serif
@@ -80,10 +82,11 @@ import Logo from '@/components/Logo';
 - **Subtitle**: Semi-bold weight
 
 ### Banner Design
-- Wavy flag shape with multiple points
-- Gradient fill with shadow effects
+- Flowing flag shape with curved edges and wavy bottom
+- Orange-to-red gradient fill with professional drop shadow
+- Blue triangle accent in the top-left corner
 - Wooden pole on the left side
-- Professional drop shadow
+- Enhanced shadow effects for depth
 
 ## Implementation Examples
 
