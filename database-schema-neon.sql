@@ -93,7 +93,9 @@ CREATE TABLE IF NOT EXISTS password_resets (
 -- Add email status columns to orders table
 ALTER TABLE orders
 ADD COLUMN IF NOT EXISTS confirmation_email_status TEXT DEFAULT 'pending',
-ADD COLUMN IF NOT EXISTS confirmation_email_sent_at TIMESTAMP WITH TIME ZONE;
+ADD COLUMN IF NOT EXISTS confirmation_email_sent_at TIMESTAMP WITH TIME ZONE,
+ADD COLUMN IF NOT EXISTS admin_notification_status TEXT DEFAULT 'pending',
+ADD COLUMN IF NOT EXISTS admin_notification_sent_at TIMESTAMP WITH TIME ZONE;
 
 -- Create indexes for email tables
 CREATE INDEX IF NOT EXISTS idx_email_verifications_token ON email_verifications(token);
@@ -105,6 +107,7 @@ CREATE INDEX IF NOT EXISTS idx_email_events_status ON email_events(status);
 CREATE INDEX IF NOT EXISTS idx_password_resets_token ON password_resets(token);
 CREATE INDEX IF NOT EXISTS idx_password_resets_user_id ON password_resets(user_id);
 CREATE INDEX IF NOT EXISTS idx_orders_confirmation_email_status ON orders(confirmation_email_status);
+CREATE INDEX IF NOT EXISTS idx_orders_admin_notification_status ON orders(admin_notification_status);
 
 -- Insert sample admin user
 INSERT INTO profiles (id, email, full_name, is_admin) 

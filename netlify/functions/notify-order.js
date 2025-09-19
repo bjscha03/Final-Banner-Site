@@ -79,6 +79,60 @@ async function sendEmail(type, payload) {
           </p>
         </div>
       `;
+    } else if (type === 'order.admin_notification') {
+      subject = `🎉 New Order #${payload.order.number} - $${payload.order.total.toFixed(2)}`;
+      html = `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #059669;">🎉 New Order Received!</h2>
+          <p>A customer has placed a new order on Banners On The Fly</p>
+
+          <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="margin-top: 0; color: #374151;">Order Information</h3>
+            <p><strong>Order Number:</strong> #${payload.order.number}</p>
+            <p><strong>Order ID:</strong> ${payload.order.id}</p>
+            <p><strong>Customer:</strong> ${payload.order.customerName}</p>
+            <p><strong>Email:</strong> <a href="mailto:${payload.order.email}">${payload.order.email}</a></p>
+            <p><strong>Total Amount:</strong> <span style="color: #059669; font-weight: bold;">$${payload.order.total.toFixed(2)}</span></p>
+
+            <h4 style="color: #374151;">Items:</h4>
+            ${payload.order.items.map(item => `
+              <div style="border-bottom: 1px solid #e5e7eb; padding: 10px 0;">
+                <p style="margin: 5px 0;"><strong>${item.name}</strong></p>
+                <p style="margin: 5px 0; color: #6b7280;">Quantity: ${item.quantity}</p>
+                <p style="margin: 5px 0; color: #6b7280;">${item.options}</p>
+                <p style="margin: 5px 0;"><strong>$${item.price.toFixed(2)}</strong></p>
+              </div>
+            `).join('')}
+
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #e5e7eb;">
+              <p style="margin: 5px 0;">Subtotal: $${payload.order.subtotal.toFixed(2)}</p>
+              ${payload.order.tax > 0 ? `<p style="margin: 5px 0;">Tax: $${payload.order.tax.toFixed(2)}</p>` : ''}
+              <p style="margin: 5px 0; font-size: 18px;"><strong>Total: $${payload.order.total.toFixed(2)}</strong></p>
+            </div>
+          </div>
+
+          ${payload.order.shippingAddress ? `
+            <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <h3 style="margin-top: 0; color: #374151;">Shipping Address</h3>
+              <p style="margin: 5px 0;">${payload.order.shippingAddress}</p>
+            </div>
+          ` : ''}
+
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${payload.invoiceUrl}"
+               style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+              View Full Order Details
+            </a>
+          </div>
+
+          <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
+          <p style="color: #6b7280; font-size: 12px;">
+            This is an automated notification from Banners On The Fly order system.<br>
+            <a href="mailto:${payload.order.email}">Contact customer</a> •
+            <a href="https://bannersonthefly.com">Visit website</a>
+          </p>
+        </div>
+      `;
     } else {
       return { ok: false, error: `Unknown email type: ${type}` };
     }
@@ -242,14 +296,66 @@ exports.handler = async (event) => {
     if (emailResult.ok) {
       // Update order with confirmation email status
       await db`
-        UPDATE orders 
-        SET confirmation_email_status = 'sent', 
+        UPDATE orders
+        SET confirmation_email_status = 'sent',
             confirmation_emailed_at = NOW()
         WHERE id = ${orderId}
       `;
 
       console.log(`Order confirmation email sent successfully for order ${orderId}, email ID: ${emailResult.id}`);
-      
+
+      // Send admin notification email to info@bannersonthefly.com
+      const adminEmail = process.env.ADMIN_EMAIL || 'info@bannersonthefly.com';
+
+      try {
+        const adminEmailPayload = {
+          to: adminEmail,
+          order: {
+            ...emailPayload.order,
+            email: order.email, // Add customer email to admin notification
+            created_at: order.created_at
+          },
+          invoiceUrl: emailPayload.invoiceUrl
+        };
+
+        const adminEmailResult = await sendEmail('order.admin_notification', adminEmailPayload);
+
+        // Log admin email attempt
+        await logEmailAttempt({
+          type: 'order.admin_notification',
+          to: adminEmail,
+          orderId: order.id,
+          status: adminEmailResult.ok ? 'sent' : 'error',
+          providerMsgId: adminEmailResult.ok ? adminEmailResult.id : undefined,
+          errorMessage: adminEmailResult.ok ? undefined : `${adminEmailResult.error} ${adminEmailResult.details ? JSON.stringify(adminEmailResult.details) : ''}`.trim()
+        });
+
+        if (adminEmailResult.ok) {
+          // Update order with admin notification status
+          await db`
+            UPDATE orders
+            SET admin_notification_status = 'sent',
+                admin_notification_sent_at = NOW()
+            WHERE id = ${orderId}
+          `;
+          console.log(`Admin notification email sent successfully for order ${orderId}, email ID: ${adminEmailResult.id}`);
+        } else {
+          console.error(`Admin notification email failed for order ${orderId}:`, adminEmailResult);
+          // Don't fail the main request if admin email fails
+        }
+      } catch (adminEmailError) {
+        console.error(`Admin notification email error for order ${orderId}:`, adminEmailError);
+        // Log the failed attempt
+        await logEmailAttempt({
+          type: 'order.admin_notification',
+          to: adminEmail,
+          orderId: order.id,
+          status: 'error',
+          errorMessage: adminEmailError.message || 'Unknown error'
+        });
+        // Don't fail the main request if admin email fails
+      }
+
       return {
         statusCode: 200,
         headers,

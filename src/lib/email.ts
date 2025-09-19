@@ -10,6 +10,7 @@ import OrderShipped from '../emails/OrderShipped';
 import OrderCanceled from '../emails/OrderCanceled';
 import ContactReceived from '../emails/ContactReceived';
 import ContactAcknowledgment from '../emails/ContactAcknowledgment';
+import AdminOrderNotification from '../emails/AdminOrderNotification';
 
 // Initialize Resend only when API key is available
 let resend: Resend | null = null;
@@ -102,6 +103,7 @@ export async function sendEmail(
     | 'order.confirmation'
     | 'order.shipped'
     | 'order.canceled'
+    | 'order.admin_notification'
     | 'contact.received'
     | 'contact.acknowledgment'
     | '__plain__',
@@ -172,6 +174,10 @@ export async function sendEmail(
       'order.canceled': {
         subject: `Order #${payload?.order?.order_number || payload?.order?.number || payload?.order?.id} canceled`,
         react: React.createElement(OrderCanceled, payload),
+      },
+      'order.admin_notification': {
+        subject: `🎉 New Order #${payload?.order?.number || payload?.order?.id} - $${payload?.order?.total?.toFixed(2) || '0.00'}`,
+        react: React.createElement(AdminOrderNotification, payload),
       },
       'contact.received': {
         subject: `New Contact Form: ${payload?.contact?.subject || 'Customer Inquiry'}`,
