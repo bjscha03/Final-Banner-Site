@@ -733,7 +733,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
         )}
       </td>
       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-        <div className="flex flex-col items-start space-y-2">
+        <div className="flex flex-col space-y-2">
           <OrderDetails
             order={order}
             trigger={
@@ -751,7 +751,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
               variant="outline"
               onClick={handleSendNotification}
               disabled={isSendingNotification}
-              className="text-xs"
+              className="text-xs mr-4"
             >
               {isSendingNotification ? (
                 <>
