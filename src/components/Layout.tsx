@@ -14,20 +14,27 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   const [isCartOpen, setIsCartOpen] = useState(false);
 
   // Convert cart items to the format expected by CartModal
-  const cartItems = items.map(item => ({
-    id: item.id,
-    name: `Custom Banner ${item.width_in}" × ${item.height_in}"`,
-    size: `${item.width_in}" × ${item.height_in}"`,
-    material: item.material,
-    quantity: item.quantity,
-    price: item.unit_price_cents / 100,
-    thumbnail: item.file_url,
-    grommets: item.grommets,
-    pole_pockets: item.pole_pockets,
-    rope_feet: item.rope_feet,
-    file_name: item.file_name,
-    isPdf: item.file_name?.toLowerCase().endsWith('.pdf') || false
-  }));
+  const cartItems = items.map(item => {
+    // Generate persistent thumbnail URL using file_key instead of temporary blob URL
+    const thumbnailUrl = item.file_key
+      ? `/.netlify/functions/download-file?fileKey=${encodeURIComponent(item.file_key)}`
+      : item.file_url; // Fallback to original URL if no file_key
+
+    return {
+      id: item.id,
+      name: `Custom Banner ${item.width_in}" × ${item.height_in}"`,
+      size: `${item.width_in}" × ${item.height_in}"`,
+      material: item.material,
+      quantity: item.quantity,
+      price: item.unit_price_cents / 100,
+      thumbnail: thumbnailUrl,
+      grommets: item.grommets,
+      pole_pockets: item.pole_pockets,
+      rope_feet: item.rope_feet,
+      file_name: item.file_name,
+      isPdf: item.file_name?.toLowerCase().endsWith('.pdf') || false
+    };
+  });
 
   const handleUpdateQuantity = (id: string, quantity: number) => {
     updateQuantity(id, quantity);

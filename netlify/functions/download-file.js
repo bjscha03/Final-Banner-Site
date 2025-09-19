@@ -42,42 +42,56 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const { key, order } = event.queryStringParameters || {};
+    const { key, order, fileKey } = event.queryStringParameters || {};
 
-    if (!key || !order) {
+    // Handle thumbnail requests (fileKey parameter) without order verification
+    const requestedKey = fileKey || key;
+
+    if (!requestedKey) {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ error: 'Missing required parameters: key and order' }),
+        body: JSON.stringify({ error: 'Missing required parameter: key, fileKey, or order' }),
       };
     }
 
-    console.log('File download request:', { key, order });
+    console.log('File download request:', { key, order, fileKey, requestedKey });
 
-    // Verify the order exists and contains the file
-    const orderResult = await sql`
-      SELECT o.id, o.email, oi.file_key
-      FROM orders o
-      JOIN order_items oi ON o.id = oi.order_id
-      WHERE o.id = ${order} AND oi.file_key = ${key}
-      LIMIT 1
-    `;
-
-    if (!orderResult || orderResult.length === 0) {
+    // For thumbnail requests (fileKey parameter), skip order verification
+    if (!fileKey && (!key || !order)) {
       return {
-        statusCode: 404,
+        statusCode: 400,
         headers,
-        body: JSON.stringify({ error: 'File not found or access denied' }),
+        body: JSON.stringify({ error: 'Missing required parameters: key and order (for order downloads)' }),
       };
     }
 
-    console.log('Order verified for file download:', orderResult[0]);
+    // Verify the order exists and contains the file (only for order-based downloads)
+    if (!fileKey && key && order) {
+      const orderResult = await sql`
+        SELECT o.id, o.email, oi.file_key
+        FROM orders o
+        JOIN order_items oi ON o.id = oi.order_id
+        WHERE o.id = ${order} AND oi.file_key = ${key}
+        LIMIT 1
+      `;
+
+      if (!orderResult || orderResult.length === 0) {
+        return {
+          statusCode: 404,
+          headers,
+          body: JSON.stringify({ error: 'File not found or access denied' }),
+        };
+      }
+
+      console.log('Order verified for file download:', orderResult[0]);
+    }
 
     // Retrieve the file metadata from the uploaded_files table
     const fileResult = await sql`
       SELECT file_key, original_filename, file_size, mime_type, file_content_base64
       FROM uploaded_files
-      WHERE file_key = ${key}
+      WHERE file_key = ${requestedKey}
       LIMIT 1
     `;
 
@@ -96,18 +110,26 @@ exports.handler = async (event, context) => {
       mimeType: fileRecord.mime_type
     });
 
-    const fileName = fileRecord.original_filename || key.split('/').pop() || 'banner-design.txt';
+    const fileName = fileRecord.original_filename || requestedKey.split('/').pop() || 'banner-design.txt';
 
     // If we have actual file content, serve it
     if (fileRecord.file_content_base64) {
       console.log('Serving actual file content for:', fileName);
+
+      // For thumbnail requests (fileKey parameter), serve inline; for order downloads, serve as attachment
+      const isThumbailRequest = !!fileKey;
+      const contentDisposition = isThumbailRequest
+        ? 'inline'
+        : `attachment; filename="${fileName}"`;
+
       return {
         statusCode: 200,
         headers: {
           ...headers,
           'Content-Type': fileRecord.mime_type || 'application/octet-stream',
-          'Content-Disposition': `attachment; filename="${fileName}"`,
+          'Content-Disposition': contentDisposition,
           'Content-Length': Buffer.from(fileRecord.file_content_base64, 'base64').length.toString(),
+          'Cache-Control': isThumbailRequest ? 'public, max-age=3600' : 'private, no-cache', // Cache thumbnails for 1 hour
         },
         body: fileRecord.file_content_base64,
         isBase64Encoded: true,
@@ -116,8 +138,8 @@ exports.handler = async (event, context) => {
 
     // Otherwise, create a sample file with metadata
     const fileContent = `Banner Design File: ${fileName}
-Order ID: ${order}
-File Key: ${key}
+Order ID: ${order || 'N/A (thumbnail request)'}
+File Key: ${requestedKey}
 Original Size: ${fileRecord.file_size} bytes
 MIME Type: ${fileRecord.mime_type}
 Generated: ${new Date().toISOString()}
