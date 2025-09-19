@@ -122,15 +122,7 @@ const Contact: React.FC = () => {
                   
 
                   
-                  <div className="flex items-center">
-                    <div className="bg-blue-500 p-2 rounded-lg mr-4">
-                      <MessageCircle className="h-5 w-5" />
-                    </div>
-                    <div>
-                      <p className="font-medium">Live Chat</p>
-                      <p className="text-blue-100">Available 24/7</p>
-                    </div>
-                  </div>
+
                 </div>
               </div>
 
@@ -274,14 +266,17 @@ const Contact: React.FC = () => {
           <div className="mt-16 text-center">
             <div className="bg-blue-50 rounded-xl p-8 border border-blue-200">
               <h3 className="text-xl font-semibold text-blue-900 mb-4">
-                Need Immediate Help?
+                Need Help?
               </h3>
               <p className="text-blue-700 mb-6">
-                For urgent order questions or technical issues, our live chat is the fastest way to get help.
+                For any questions about your order or our services, please use the contact form above or email us directly.
               </p>
-              <button className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors">
-                Start Live Chat
-              </button>
+              <a
+                href="mailto:support@bannersonthefly.com"
+                className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors inline-block"
+              >
+                Email Support
+              </a>
             </div>
           </div>
         </div>

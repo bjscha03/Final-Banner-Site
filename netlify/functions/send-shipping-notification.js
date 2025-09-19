@@ -10,10 +10,10 @@ async function logEmailAttempt({ type, to, orderId, status, providerMsgId, error
   try {
     const dbUrl = getDbUrl();
     if (!dbUrl) return;
-    
+
     const sql = neon(dbUrl);
     await sql`
-      INSERT INTO email_logs (type, recipient, order_id, status, provider_message_id, error_message, created_at)
+      INSERT INTO email_events (type, to_email, order_id, status, provider_msg_id, error_message, created_at)
       VALUES (${type}, ${to}, ${orderId}, ${status}, ${providerMsgId}, ${errorMessage}, NOW())
     `;
   } catch (error) {
@@ -209,11 +209,9 @@ exports.handler = async (event, context) => {
 
     // Get order details
     const orderResult = await sql`
-      SELECT o.*, u.email as user_email, u.first_name, u.last_name,
-             sa.name as shipping_name, sa.address1, sa.address2, sa.city, sa.state, sa.zip
+      SELECT o.*, p.email as user_email, p.full_name
       FROM orders o
-      LEFT JOIN users u ON o.user_id = u.id
-      LEFT JOIN shipping_addresses sa ON o.shipping_address_id = sa.id
+      LEFT JOIN profiles p ON o.user_id = p.id
       WHERE o.id = ${orderId}
     `;
 
@@ -246,6 +244,9 @@ exports.handler = async (event, context) => {
       };
     }
 
+    // Get customer name
+    const customerName = order.full_name || 'Valued Customer';
+
     // Get order items
     const itemsResult = await sql`
       SELECT * FROM order_items WHERE order_id = ${orderId}
@@ -255,25 +256,18 @@ exports.handler = async (event, context) => {
     const emailOrder = {
       id: order.id,
       orderNumber: order.id.slice(-8).toUpperCase(),
-      customerName: order.first_name ? `${order.first_name} ${order.last_name}` : 'Valued Customer',
+      customerName: customerName,
       email: customerEmail,
       items: itemsResult.map(item => ({
         name: `Custom Banner (${item.width_in}" x ${item.height_in}")`,
         quantity: item.quantity,
-        price: item.unit_price_cents / 100,
-        options: `${item.material} material${item.grommets ? `, ${item.grommets} grommets` : ''}${item.rope_feet > 0 ? `, ${item.rope_feet}ft rope` : ''}`
+        price: item.line_total_cents / 100 / item.quantity, // Calculate unit price from line total
+        options: `${item.material} material${item.grommets && item.grommets !== 'none' ? `, ${item.grommets} grommets` : ''}${item.rope_feet > 0 ? `, ${item.rope_feet}ft rope` : ''}`
       })),
       subtotal: order.subtotal_cents / 100,
       tax: order.tax_cents / 100,
       total: order.total_cents / 100,
-      shippingAddress: order.shipping_name ? {
-        name: order.shipping_name,
-        address1: order.address1,
-        address2: order.address2,
-        city: order.city,
-        state: order.state,
-        zip: order.zip
-      } : undefined
+      shippingAddress: undefined // No shipping address table in current schema
     };
 
     // Create tracking URL (FedEx)

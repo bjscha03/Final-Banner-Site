@@ -197,16 +197,13 @@ const FAQ: React.FC = () => {
               <p className="text-blue-700 mb-6">
                 Our support team is here to help with any questions not covered in our FAQ.
               </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <div className="flex justify-center">
                 <a
                   href="/contact"
                   className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
                 >
                   Contact Support
                 </a>
-                <button className="bg-white text-blue-600 border border-blue-600 px-6 py-3 rounded-lg font-medium hover:bg-blue-50 transition-colors">
-                  Start Live Chat
-                </button>
               </div>
             </div>
           </div>
