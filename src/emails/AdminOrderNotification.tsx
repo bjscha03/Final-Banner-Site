@@ -8,7 +8,8 @@ import {
   Text,
   Heading,
   Hr,
-  Link
+  Link,
+  Img
 } from '@react-email/components';
 
 interface AdminOrderNotificationProps {
@@ -49,11 +50,25 @@ export default function AdminOrderNotification({ order, invoiceUrl }: AdminOrder
         minute: '2-digit'
       });
 
+  // Logo URL for email
+  const logoUrl = `${process.env.PUBLIC_SITE_URL || 'https://www.bannersonthefly.com'}/images/logo-compact.svg`;
+
   return (
     <Html>
       <Head />
       <Body style={main}>
         <Container style={container}>
+          {/* Logo */}
+          <Section style={logoSection}>
+            <Img
+              src={logoUrl}
+              alt="Banners On The Fly"
+              width="200"
+              height="60"
+              style={logoStyle}
+            />
+          </Section>
+
           {/* Header */}
           <Section style={header}>
             <Heading style={headerTitle}>🎉 New Order Received!</Heading>
@@ -190,6 +205,19 @@ const container = {
   maxWidth: '600px',
   borderRadius: '8px',
   boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+};
+
+const logoSection = {
+  textAlign: 'center' as const,
+  padding: '20px 30px 10px',
+  backgroundColor: '#ffffff',
+};
+
+const logoStyle = {
+  display: 'block',
+  margin: '0 auto',
+  maxWidth: '200px',
+  height: 'auto',
 };
 
 const header = {

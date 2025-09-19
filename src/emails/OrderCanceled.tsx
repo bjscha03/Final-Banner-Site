@@ -11,7 +11,8 @@ import {
   Hr,
   Link,
   Row,
-  Column
+  Column,
+  Img
 } from '@react-email/components';
 
 interface OrderCanceledProps {
@@ -47,11 +48,25 @@ export default function OrderCanceled({ order }: OrderCanceledProps) {
     day: 'numeric',
   });
 
+  // Logo URL for email
+  const logoUrl = `${process.env.PUBLIC_SITE_URL || 'https://www.bannersonthefly.com'}/images/logo-compact.svg`;
+
   return (
     <Html>
       <Head />
       <Body style={main}>
         <Container style={container}>
+          {/* Logo */}
+          <Section style={logoSection}>
+            <Img
+              src={logoUrl}
+              alt="Banners On The Fly"
+              width="200"
+              height="60"
+              style={logoStyle}
+            />
+          </Section>
+
           {/* Header */}
           <Section style={header}>
             <Heading style={headerTitle}>Order Canceled</Heading>
@@ -200,6 +215,19 @@ const container = {
   padding: '20px 0 48px',
   marginBottom: '64px',
   maxWidth: '600px',
+};
+
+const logoSection = {
+  textAlign: 'center' as const,
+  padding: '20px 30px 10px',
+  backgroundColor: '#ffffff',
+};
+
+const logoStyle = {
+  display: 'block',
+  margin: '0 auto',
+  maxWidth: '200px',
+  height: 'auto',
 };
 
 const header = {

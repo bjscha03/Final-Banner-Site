@@ -160,13 +160,23 @@ Status precedence: `complained > bounced > delivered > opened > sent`
 
 ## Email Templates
 
-All templates are mobile-responsive React components using `@react-email/components`:
+All templates are mobile-responsive React components using `@react-email/components` with company logo:
 
-- **VerifyEmail.tsx** - Blue gradient header, clear CTA button
-- **ResetPassword.tsx** - Red gradient header, security warnings
-- **OrderConfirmation.tsx** - Complete order details, invoice link
-- **OrderShipped.tsx** - Green gradient, tracking information
-- **OrderCanceled.tsx** - Red gradient, refund details
+- **VerifyEmail.tsx** - Blue gradient header, company logo, clear CTA button
+- **ResetPassword.tsx** - Red gradient header, company logo, security warnings
+- **OrderConfirmation.tsx** - Complete order details, company logo, invoice link
+- **OrderShipped.tsx** - Green gradient, company logo, tracking information
+- **OrderCanceled.tsx** - Red gradient, company logo, refund details
+- **ContactReceived.tsx** - Admin notification with company logo
+- **ContactAcknowledgment.tsx** - Customer acknowledgment with company logo
+- **AdminOrderNotification.tsx** - Admin order notification with company logo
+
+### Logo Implementation
+- All templates include the company logo at the top
+- Uses the compact logo variant (300×90px) optimized for email
+- Logo URL: `${PUBLIC_SITE_URL}/images/logo-compact.svg`
+- Includes proper alt text and fallback handling
+- Styled for consistent display across email clients
 
 ## Database Migration
 
