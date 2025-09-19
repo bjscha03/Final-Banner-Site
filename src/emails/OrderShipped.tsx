@@ -51,8 +51,8 @@ export default function OrderShipped({ order, trackingNumber, trackingUrl, carri
     day: 'numeric',
   });
 
-  // Logo URL for email - use absolute URL for email compatibility
-  const logoUrl = 'https://www.bannersonthefly.com/images/logo-compact.svg';
+  // Logo URL for email - use environment-aware URL
+  const logoUrl = `${process.env.NODE_ENV === 'development' ? 'http://localhost:8082' : 'https://www.bannersonthefly.com'}/images/logo-compact.svg`;
 
   return (
     <Html>
