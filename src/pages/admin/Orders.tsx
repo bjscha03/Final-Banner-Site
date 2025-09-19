@@ -20,7 +20,9 @@ import {
   Edit3,
   Save,
   X,
-  FileText
+  FileText,
+  Mail,
+  Loader2
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import OrderDetails from '@/components/orders/OrderDetails';
@@ -210,6 +212,49 @@ const AdminOrders: React.FC = () => {
       toast({
         title: "Download Failed",
         description: "Could not download the file. It may not exist or be accessible.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSendShippingNotification = async (orderId: string) => {
+    try {
+      const response = await fetch('/.netlify/functions/send-shipping-notification', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ orderId }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.ok) {
+        throw new Error(result.error || 'Failed to send shipping notification');
+      }
+
+      // Update local state to mark notification as sent
+      setOrders(prevOrders =>
+        prevOrders.map(order =>
+          order.id === orderId
+            ? {
+                ...order,
+                shipping_notification_sent: true,
+                shipping_notification_sent_at: new Date().toISOString()
+              }
+            : order
+        )
+      );
+
+      toast({
+        title: "Shipping Notification Sent",
+        description: `Customer has been notified about order #${orderId.slice(-8)}`,
+      });
+    } catch (error) {
+      console.error('Send shipping notification failed:', error);
+      toast({
+        title: "Failed to Send Notification",
+        description: error.message || "Could not send shipping notification. Please try again.",
         variant: "destructive",
       });
     }
@@ -464,6 +509,7 @@ const AdminOrders: React.FC = () => {
                         onAddTracking={handleAddTracking}
                         onUpdateTracking={handleUpdateTracking}
                         onFileDownload={handleFileDownload}
+                        onSendShippingNotification={handleSendShippingNotification}
                         getStatusColor={getStatusColor}
                         getItemsSummary={getItemsSummary}
                       />
@@ -485,6 +531,7 @@ interface AdminOrderRowProps {
   onAddTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string) => void;
   onUpdateTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string) => void;
   onFileDownload: (fileKey: string, orderId: string, itemIndex: number) => void;
+  onSendShippingNotification: (orderId: string) => void;
   getStatusColor: (status: string) => string;
   getItemsSummary: (order: Order) => string;
 }
@@ -494,6 +541,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   onAddTracking,
   onUpdateTracking,
   onFileDownload,
+  onSendShippingNotification,
   getStatusColor,
   getItemsSummary
 }) => {
@@ -501,6 +549,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   const [isAddingTracking, setIsAddingTracking] = useState(false);
   const [isEditingTracking, setIsEditingTracking] = useState(false);
   const [editTrackingNumber, setEditTrackingNumber] = useState('');
+  const [isSendingNotification, setIsSendingNotification] = useState(false);
 
   const handleAddTracking = () => {
     if (trackingNumber.trim()) {
@@ -525,6 +574,15 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   const handleCancelEdit = () => {
     setEditTrackingNumber('');
     setIsEditingTracking(false);
+  };
+
+  const handleSendNotification = async () => {
+    setIsSendingNotification(true);
+    try {
+      await onSendShippingNotification(order.id);
+    } finally {
+      setIsSendingNotification(false);
+    }
   };
 
   const getFilesWithDownload = () => {
@@ -675,15 +733,48 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
         )}
       </td>
       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-        <OrderDetails 
-          order={order}
-          trigger={
-            <Button variant="ghost" size="sm">
-              <Eye className="h-4 w-4 mr-1" />
-              View
+        <div className="flex flex-col space-y-2">
+          <OrderDetails
+            order={order}
+            trigger={
+              <Button variant="ghost" size="sm">
+                <Eye className="h-4 w-4 mr-1" />
+                View
+              </Button>
+            }
+          />
+
+          {/* Send Shipping Notification Button */}
+          {order.tracking_number && !order.shipping_notification_sent && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleSendNotification}
+              disabled={isSendingNotification}
+              className="text-xs"
+            >
+              {isSendingNotification ? (
+                <>
+                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Mail className="h-3 w-3 mr-1" />
+                  Send Email
+                </>
+              )}
             </Button>
-          }
-        />
+          )}
+
+          {/* Show notification sent status */}
+          {order.shipping_notification_sent && (
+            <div className="text-xs text-green-600 flex items-center">
+              <Mail className="h-3 w-3 mr-1" />
+              Email Sent
+            </div>
+          )}
+        </div>
       </td>
     </tr>
   );

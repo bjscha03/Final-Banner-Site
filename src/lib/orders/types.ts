@@ -28,6 +28,8 @@ export interface Order {
   items: OrderItem[];
   tracking_number?: string | null;
   tracking_carrier?: TrackingCarrier | null;
+  shipping_notification_sent?: boolean;
+  shipping_notification_sent_at?: string | null;
 }
 
 export interface CreateOrderData {
