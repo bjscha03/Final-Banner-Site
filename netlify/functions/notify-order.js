@@ -145,7 +145,7 @@ async function sendEmail(type, payload) {
       html
     });
 
-    return { ok: true, id: result.data?.id };
+    return { ok: true, id: result.id };
   } catch (error) {
     console.error('Email send error:', error);
     return { 
