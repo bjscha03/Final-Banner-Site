@@ -304,7 +304,8 @@ export function useAuth() {
 
   const handleSignUp = async (email: string, password: string, fullName?: string, username?: string) => {
     const user = await signUp(email, password, fullName, username);
-    setUser(user);
+    // Don't auto-sign in after signup - require email verification
+    // setUser(user);
     return user;
   };
 
