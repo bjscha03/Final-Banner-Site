@@ -31,7 +31,7 @@ const Logo: React.FC<LogoProps> = ({
   const getDefaultDimensions = () => {
     switch (variant) {
       case 'compact':
-        return { width: 300, height: 90 };
+        return { width: 240, height: 60 };
       case 'icon':
         return { width: 80, height: 80 };
       case 'hero':
@@ -55,6 +55,7 @@ const Logo: React.FC<LogoProps> = ({
       style={{
         maxWidth: '100%',
         height: 'auto',
+        objectFit: 'contain',
         filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
       }}
     />

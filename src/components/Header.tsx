@@ -60,7 +60,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
           {/* Logo */}
           <div className="flex-shrink-0">
             <ScrollToTopLink to="/" className="flex items-center">
-              <Logo variant="compact" height={40} className="h-10" animated />
+              <Logo variant="compact" height={32} className="h-8 max-w-[200px] object-contain" animated />
             </ScrollToTopLink>
           </div>
 
