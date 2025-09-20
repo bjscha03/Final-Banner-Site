@@ -154,11 +154,26 @@ exports.handler = async (event, context) => {
     } else {
       // For file downloads, we need to fetch the file and serve it
       try {
-        // Generate the download URL from Cloudinary
-        const downloadUrl = cloudinary.url(requestedKey, {
-          resource_type: 'auto',
-          flags: 'attachment'
-        });
+        // Generate the download URL from Cloudinary using the same approach as thumbnails
+        // but without transformations
+        let downloadUrl;
+        
+        // Check if it's a PDF or image to determine resource type
+        const isPdf = requestedKey.includes('.pdf') || requestedKey.includes('raw');
+        
+        if (isPdf) {
+          // For PDFs, use the raw resource type
+          downloadUrl = cloudinary.url(requestedKey, {
+            resource_type: 'raw',
+            flags: 'attachment'
+          });
+        } else {
+          // For images, use standard image resource type
+          downloadUrl = cloudinary.url(requestedKey, {
+            resource_type: 'image',
+            flags: 'attachment'
+          });
+        }
         
         console.log('Generated Cloudinary download URL:', downloadUrl);
         
