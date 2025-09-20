@@ -57,7 +57,7 @@ export const handler = async (event) => {
     try {
       await s3Client.send(new PutObjectCommand(uploadParams));
       const fileUrl = `https://${S3_BUCKET_NAME}.s3.${S3_REGION}.amazonaws.com/${fileKey}`;
-      return json(200, { success: true, filename: fileName, size: buffer.length, fileUrl: fileUrl });
+      return json(200, { success: true, filename: fileName, size: buffer.length, fileUrl: fileUrl, fileKey: fileKey });
     } catch (s3Error) {
       console.error("Error uploading to S3:", s3Error);
       return json(500, { success: false, error: `Failed to upload file to S3: ${s3Error.message}` });
