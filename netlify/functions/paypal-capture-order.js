@@ -1,5 +1,5 @@
 // netlify/functions/paypal-capture-order.js
-const fetch = global.fetch;
+const fetch = require('node-fetch');
 const { neon } = require('@neondatabase/serverless');
 const { randomUUID } = require('crypto');
 
@@ -26,37 +26,50 @@ async function sendOrderNotificationEmail(orderId) {
   }
 }
 
+const getPayPalCredentials = () => {
+  const env = (process.env.PAYPAL_ENV || 'sandbox').toLowerCase();
+  const clientId = process.env[`PAYPAL_CLIENT_ID_${env.toUpperCase()}`];
+  const secret = process.env[`PAYPAL_SECRET_${env.toUpperCase()}`];
+
+  if (!clientId || !secret) {
+    throw new Error(`PayPal credentials not configured for environment: ${env}`);
+  }
+
+  return {
+    clientId,
+    secret,
+    baseUrl: env === 'live'
+      ? 'https://api-m.paypal.com'
+      : 'https://api-m.sandbox.paypal.com'
+  };
+};
+
 exports.handler = async (event) => {
   try {
     if (event.httpMethod === 'OPTIONS') return ok('');
     if (event.httpMethod !== 'POST') return send(405, { error: 'METHOD_NOT_ALLOWED' });
 
     const { orderID } = JSON.parse(event.body || '{}');
-    if (!orderID) return send(400, { error:'MISSING_ORDER_ID' });
+    if (!orderID) return send(400, { error: 'MISSING_ORDER_ID' });
 
-    const env = (process.env.PAYPAL_ENV || 'sandbox').toLowerCase();
-    const base = env === 'live' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com';
-    const client = process.env.PAYPAL_CLIENT_ID;
-    const secret = process.env.PAYPAL_CLIENT_SECRET; // Note: This should be PAYPAL_CLIENT_SECRET_LIVE or _SANDBOX
+    const { clientId, secret, baseUrl: base } = getPayPalCredentials();
 
     // Database connection
     const dbUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
     if (!dbUrl) return send(500, { error: 'DATABASE_NOT_CONFIGURED' });
     const sql = neon(dbUrl);
 
-    if (!client || !secret) return send(500, { error:'MISSING_PAYPAL_CREDS' });
-
     // OAuth
     const tRes = await fetch(`${base}/v1/oauth2/token`, {
       method:'POST',
       headers:{
-        Authorization:'Basic '+Buffer.from(`${client}:${secret}`).toString('base64'),
+        Authorization:'Basic '+Buffer.from(`${clientId}:${secret}`).toString('base64'),
         'Content-Type':'application/x-www-form-urlencoded',
       },
       body:'grant_type=client_credentials',
     });
     const tJson = await tRes.json();
-    if (!tRes.ok) return send(tRes.status, { error:'PAYPAL_TOKEN_ERROR', details:tJson });
+    if (!tRes.ok) return send(tRes.status, { error: 'PAYPAL_TOKEN_ERROR', details:tJson });
 
     // Capture (idempotent)
     const cRes = await fetch(`${base}/v2/checkout/orders/${orderID}/capture`, {
@@ -139,6 +152,22 @@ exports.handler = async (event) => {
     return send(500, { error:'FUNCTION_CRASH', message:e.message || String(e) });
   }
 };
+
+function ok(body){ return { statusCode:200, headers:cors(), body }; }
+function send(statusCode, body){ return { statusCode, headers:cors(), body:JSON.stringify(body) }; }
+function cors(){
+  return {
+    'Access-Control-Allow-Origin':'*',
+    'Access-Control-Allow-Methods':'POST,OPTIONS',
+    'Access-Control-Allow-Headers':'Content-Type,Authorization',
+  };
+}
+function hint(d){
+  const n = d?.name || '';
+  if (/INVALID_/i.test(n)) return 'Invalid orderID or payload.';
+  if (/AUTHORIZATION/i.test(n)) return 'Check client/secret and PAYPAL_ENV vs client type.';
+  return 'Transient gateway error. Safe to retry.';
+}
 
 function ok(body){ return { statusCode:200, headers:cors(), body }; }
 function send(statusCode, body){ return { statusCode, headers:cors(), body:JSON.stringify(body) }; }
