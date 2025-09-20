@@ -50,17 +50,16 @@
       'self' 'unsafe-inline'
       https://www.googletagmanager.com
       https://www.paypal.com
-      https://www.paypalobjects.com
       https://cdn.chatsimple.ai
       https://cdnjs.cloudflare.com
       https://us-assets.i.posthog.com
-      https://*.cloudfront.net;
+      https://fonts.googleapis.com;
 
     style-src
       'self' 'unsafe-inline'
       https://fonts.googleapis.com
-      https://us-assets.i.posthog.com
-      https://cdn.chatsimple.ai;
+      https://cdn.chatsimple.ai
+      https://us-assets.i.posthog.com;
 
     font-src
       'self' data:
@@ -70,14 +69,14 @@
       'self' data: blob:
       https://*.cloudfront.net
       https://*.amazonaws.com
-      https://*.paypalobjects.com
+      https://www.paypalobjects.com
       https://cdn.chatsimple.ai
       https://us-assets.i.posthog.com;
 
     connect-src
       'self' blob:
       https://*.paypal.com
-      https://*.paypalobjects.com
+      https://www.paypalobjects.com
       https://*.chatsimple.ai
       https://api.expertise.ai
       https://us-assets.i.posthog.com
