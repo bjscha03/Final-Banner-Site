@@ -50,6 +50,7 @@
       'self' 'unsafe-inline'
       https://www.googletagmanager.com
       https://www.paypal.com
+      https://www.sandbox.paypal.com
       https://www.paypalobjects.com
       https://cdn.chatsimple.ai
       https://cdnjs.cloudflare.com
@@ -90,7 +91,8 @@
 
     frame-src
       'self'
-      https://www.paypal.com;
+      https://www.paypal.com
+      https://www.sandbox.paypal.com;
 
     worker-src
       'self' blob:

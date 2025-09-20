@@ -131,6 +131,7 @@ exports.handler = async (event) => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
+            success: true,
             message: "File uploaded successfully",
             filename: fileName,
             size: fileSize,
@@ -143,6 +144,7 @@ exports.handler = async (event) => {
           statusCode: 500,
           headers,
           body: JSON.stringify({
+            success: false,
             error: 'Internal server error',
             message: error.message
           }),
@@ -155,7 +157,11 @@ exports.handler = async (event) => {
       resolve({
         statusCode: 500,
         headers,
-        body: JSON.stringify({ error: 'File upload parsing error', message: err.message }),
+        body: JSON.stringify({
+          success: false,
+          error: 'File upload parsing error',
+          message: err.message
+        }),
       });
     });
 
