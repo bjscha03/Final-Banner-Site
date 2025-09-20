@@ -32,17 +32,42 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
   useEffect(() => {
     const loadPayPalConfig = async () => {
       try {
+        console.log('Loading PayPal config...');
         const response = await fetch('/.netlify/functions/paypal-config');
+        console.log('PayPal config response status:', response.status);
         if (response.ok) {
           const config = await response.json();
+          console.log('PayPal config loaded:', config);
           setPaypalConfig(config);
         } else {
           console.error('Failed to load PayPal config:', response.status);
-          setPaypalConfig({ enabled: false, clientId: null, environment: null });
+          // Development fallback - if functions aren't available, enable PayPal with env vars
+          const isDev = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
+          if (isDev) {
+            console.log('Development mode: Using fallback PayPal config');
+            setPaypalConfig({
+              enabled: true,
+              clientId: 'ASMQFdH7oWMmG_kvb-cHTBNK0ce47eL4ry0fz_zZv9LhzLSdT2Ye7FoU1bdLbIdtr4aIxRaz3iZJ82Sz', // Sandbox client ID from .env
+              environment: 'sandbox'
+            });
+          } else {
+            setPaypalConfig({ enabled: false, clientId: null, environment: null });
+          }
         }
       } catch (error) {
         console.error('Error loading PayPal config:', error);
-        setPaypalConfig({ enabled: false, clientId: null, environment: null });
+        // Development fallback - if functions aren't available, enable PayPal with env vars
+        const isDev = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
+        if (isDev) {
+          console.log('Development mode: Using fallback PayPal config due to error');
+          setPaypalConfig({
+            enabled: true,
+            clientId: 'ASMQFdH7oWMmG_kvb-cHTBNK0ce47eL4ry0fz_zZv9LhzLSdT2Ye7FoU1bdLbIdtr4aIxRaz3iZJ82Sz', // Sandbox client ID from .env
+            environment: 'sandbox'
+          });
+        } else {
+          setPaypalConfig({ enabled: false, clientId: null, environment: null });
+        }
       } finally {
         setIsLoadingConfig(false);
       }
@@ -143,6 +168,9 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
     );
   }
 
+  // Debug information (remove this in production)
+  console.log('PayPal config state:', paypalConfig);
+
   // PayPal disabled or not configured
   if (!paypalConfig?.enabled || !paypalConfig?.clientId) {
     return (
@@ -151,6 +179,8 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
           <p className="text-amber-800 text-sm">
             <strong>PayPal Unavailable:</strong> PayPal payments are currently disabled or not configured.
             {isAdminUser && ' Use the admin test payment button below.'}
+            <br />
+            <small>Debug: enabled={String(paypalConfig?.enabled)}, clientId={paypalConfig?.clientId ? 'present' : 'missing'}</small>
           </p>
         </div>
 
@@ -180,6 +210,9 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
     try {
       setIsCreatingOrder(true);
 
+      // Development fallback - if functions aren't available, return a mock order ID
+      const isDev = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
+      
       const response = await fetch('/.netlify/functions/paypal-create-order', {
         method: 'POST',
         headers: {
@@ -203,6 +236,10 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
       });
 
       if (!response.ok) {
+        if (isDev) {
+          console.log('Development mode: Using mock PayPal order ID');
+          return `DEV_ORDER_${Date.now()}`;
+        }
         const error = await response.json();
         throw new Error(error.error || 'Failed to create PayPal order');
       }
@@ -211,6 +248,14 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
       return result.paypalOrderId;
     } catch (error) {
       console.error('PayPal create order error:', error);
+      
+      // Development fallback
+      const isDev = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
+      if (isDev) {
+        console.log('Development mode: Using mock PayPal order ID due to error');
+        return `DEV_ORDER_${Date.now()}`;
+      }
+      
       throw error;
     } finally {
       setIsCreatingOrder(false);
