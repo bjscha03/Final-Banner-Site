@@ -2,11 +2,13 @@ import Busboy from "busboy";
 import fs from "fs";
 import path from "path";
 
-const MAX_BYTES = 25 * 1024 * 1024; // 25 MB cap for everything
+// Increase cap if you like; try 50MB to be safe
+const MAX_BYTES = 50 * 1024 * 1024; // was 25MB
+// We'll grab more header to detect "%PDF-" even with BOM/whitespace
+const HEADER_SNIFF = 2048; // bytes
 const TMP_DIR = "/tmp";
 
 const ALLOWED_EXT = new Set(["pdf","jpg","jpeg","png","webp","gif","svg","heic","heif"]);
-const isPdf = (h) => h.slice(0,5).toString() === "%PDF-";
 const isPng = (h) => h.length>=8 && h[0]===0x89 && h[1]===0x50 && h[2]===0x4E && h[3]===0x47;
 const isJpg = (h) => h.length>=2 && h[0]===0xFF && h[1]===0xD8;
 const isGif = (h) => h.length>=4 && h.slice(0,4).toString() === "GIF8";
@@ -29,7 +31,7 @@ const okMime = (mime, ext) => {
 };
 
 const magicLooksLike = (header, ext) => {
-  if (isPdf(header)) return "pdf";
+  // PDF is handled by looksLikePdf
   if (isPng(header)) return "png";
   if (isJpg(header)) return "jpg";
   if (isGif(header)) return "gif";
@@ -39,6 +41,20 @@ const magicLooksLike = (header, ext) => {
   if (ext==="svg") return "svg";
   return "unknown";
 };
+
+function looksLikePdf(buf) {
+  // strip UTF-8 BOM if present
+  const BOM = Buffer.from([0xEF, 0xBB, 0xBF]);
+  if (buf.slice(0, 3).equals(BOM)) buf = buf.slice(3);
+
+  // trim leading whitespace/newlines that some generators add
+  let i = 0;
+  while (i < buf.length && (buf[i] === 0x20 || buf[i] === 0x0A || buf[i] === 0x0D || buf[i] === 0x09)) i++;
+  buf = buf.slice(i);
+
+  // accept if "%PDF-" occurs at start (or very near start)
+  return buf.slice(0, 5).toString() === "%PDF-";
+}
 
 export const handler = async (event) => {
   if (event.httpMethod !== "POST") {
@@ -71,9 +87,9 @@ export const handler = async (event) => {
           size += chunk.length;
           if (size > MAX_BYTES) { stream.destroy(new Error("MAX_SIZE")); return; }
 
-          // capture up to 32 bytes for magic sniff
-          if (headerBuf.length < 32) {
-            const need = 32 - headerBuf.length;
+          // capture up to HEADER_SNIFF bytes for magic sniff
+          if (headerBuf.length < HEADER_SNIFF) {
+            const need = HEADER_SNIFF - headerBuf.length;
             headerBuf = Buffer.concat([headerBuf, chunk.slice(0, need)]);
           }
           out.write(chunk);
@@ -106,9 +122,9 @@ export const handler = async (event) => {
     }
 
     const magic = magicLooksLike(headerBuf, ext);
-    if (ext==="pdf" && magic!=="pdf") {
+    if (ext === "pdf" && !looksLikePdf(headerBuf)) {
       try { if (filePath) fs.unlinkSync(filePath); } catch {} // eslint-disable-line no-empty
-      return json(400, { success:false, error:`Not a valid PDF (magic=${magic}).` });
+      return json(400, { success:false, error:"Not a valid PDF header (try re-exporting)."});
     }
     if (["jpg","jpeg"].includes(ext) && magic!=="jpg") {
       try { if (filePath) fs.unlinkSync(filePath); } catch {} // eslint-disable-line no-empty
