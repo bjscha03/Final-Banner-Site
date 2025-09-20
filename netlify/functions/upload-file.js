@@ -1,7 +1,14 @@
 // netlify/functions/upload-file.js
 import Busboy from "busboy";
-import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { v2 as cloudinary } from 'cloudinary';
 import { v4 as uuidv4 } from 'uuid';
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 export const handler = async (event) => {
   if (event.httpMethod !== "POST") {
@@ -18,55 +25,101 @@ export const handler = async (event) => {
     const chunks = [];
 
     bb.on("file", (field, stream, info) => {
-      if (!["file", "pdf"].includes(field)) { stream.resume(); return; }
+      if (!["file", "pdf"].includes(field)) { 
+        stream.resume(); 
+        return; 
+      }
       fileName = info.filename || "upload.pdf";
       mime = info.mimeType || info.mime || "";
-      stream.on("data", (d) => { chunks.push(d); size += d.length; if (size > 10 * 1024 * 1024) stream.destroy(new Error("MAX_SIZE")); });
+      stream.on("data", (d) => { 
+        chunks.push(d); 
+        size += d.length; 
+        if (size > 100 * 1024 * 1024) { // 100MB limit
+          stream.destroy(new Error("MAX_SIZE")); 
+        }
+      });
     });
 
-    await new Promise((res, rej) => { bb.on("finish", res); bb.on("error", rej); bb.end(bodyBuf); });
+    await new Promise((res, rej) => { 
+      bb.on("finish", res); 
+      bb.on("error", rej); 
+      bb.end(bodyBuf); 
+    });
 
-    if (!fileName) return json(400, { success: false, error: "No file provided. Use field name 'file'." });
-    if (!/^(application\/pdf|image\/(jpeg|png))$/i.test(mime)) return json(400, { success: false, error: `Only PDF, JPG, or PNG allowed. Got ${mime || "unknown"}` });
+    if (!fileName) {
+      return json(400, { success: false, error: "No file provided. Use field name 'file'." });
+    }
+    
+    if (!/^(application\/pdf|image\/(jpeg|png|jpg))$/i.test(mime)) {
+      return json(400, { success: false, error: `Only PDF, JPG, JPEG, or PNG allowed. Got ${mime || "unknown"}` });
+    }
 
     const buffer = Buffer.concat(chunks);
 
-    // S3 Upload Logic
-    const S3_BUCKET_NAME = process.env.S3_BUCKET_NAME;
-    const S3_REGION = process.env.S3_REGION || "us-east-1"; // Default to us-east-1 if not set
-
-    console.log("S3_BUCKET_NAME:", S3_BUCKET_NAME);
-    console.log("S3_REGION:", S3_REGION);
-
-    if (!S3_BUCKET_NAME) {
-      console.error("S3_BUCKET_NAME environment variable not set.");
-      return json(500, { success: false, error: "S3_BUCKET_NAME environment variable not set." });
+    // Check Cloudinary configuration
+    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+      console.error("Cloudinary environment variables not set.");
+      return json(500, { success: false, error: "Cloudinary configuration missing." });
     }
 
-    const s3Client = new S3Client({ region: S3_REGION });
-    const fileKey = `uploads/${uuidv4()}-${fileName}`;
-
-    const uploadParams = {
-      Bucket: S3_BUCKET_NAME,
-      Key: fileKey,
-      Body: buffer,
-      ContentType: mime,
-      ACL: 'public-read', // Make the file publicly accessible
-    };
+    console.log("Uploading to Cloudinary:", fileName, "Size:", buffer.length, "Type:", mime);
 
     try {
-      await s3Client.send(new PutObjectCommand(uploadParams));
-      const fileUrl = `https://${S3_BUCKET_NAME}.s3.${S3_REGION}.amazonaws.com/${fileKey}`;
-      return json(200, { success: true, filename: fileName, size: buffer.length, fileUrl: fileUrl, fileKey: fileKey });
-    } catch (s3Error) {
-      console.error("Error uploading to S3:", s3Error);
-      return json(500, { success: false, error: `Failed to upload file to S3: ${s3Error.message}` });
+      // Generate unique public ID
+      const publicId = `banner-uploads/${uuidv4()}-${fileName.replace(/\.[^/.]+$/, "")}`;
+      
+      // Determine resource type based on file type
+      const resourceType = mime === 'application/pdf' ? 'raw' : 'image';
+      
+      // Upload to Cloudinary
+      const uploadResult = await new Promise((resolve, reject) => {
+        const uploadStream = cloudinary.uploader.upload_stream(
+          {
+            resource_type: resourceType,
+            public_id: publicId,
+            folder: 'banner-uploads',
+            use_filename: true,
+            unique_filename: true,
+            overwrite: false,
+          },
+          (error, result) => {
+            if (error) {
+              console.error("Cloudinary upload error:", error);
+              reject(error);
+            } else {
+              console.log("Cloudinary upload success:", result.secure_url);
+              resolve(result);
+            }
+          }
+        );
+        
+        uploadStream.end(buffer);
+      });
+
+      return json(200, { 
+        success: true, 
+        filename: fileName, 
+        size: buffer.length, 
+        fileUrl: uploadResult.secure_url,
+        fileKey: uploadResult.public_id,
+        cloudinaryId: uploadResult.public_id
+      });
+
+    } catch (cloudinaryError) {
+      console.error("Error uploading to Cloudinary:", cloudinaryError);
+      return json(500, { 
+        success: false, 
+        error: `Failed to upload file to Cloudinary: ${cloudinaryError.message}` 
+      });
     }
 
   } catch (e) {
     const msg = e?.message || String(e);
     console.error("General error in upload-file function:", e);
-    return json(msg === "MAX_SIZE" ? 400 : 500, { success: false, error: msg });
+    return json(msg === "MAX_SIZE" ? 400 : 500, { 
+      success: false, 
+      error: msg === "MAX_SIZE" ? "File size must be less than 100MB" : msg 
+    });
   }
 };
 
@@ -77,6 +130,7 @@ function json(status, body) {
       "Content-Type": "application/json",
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Headers": "Origin, Content-Type, Accept",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
     },
     body: JSON.stringify(body),
   };
