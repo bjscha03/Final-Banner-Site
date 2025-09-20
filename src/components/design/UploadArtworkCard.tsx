@@ -37,28 +37,11 @@ const UploadArtworkCard: React.FC = () => {
 
     // Upload actual file content to server
     try {
-      // Convert file to base64
-      const fileContent = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const base64 = (reader.result as string).split(',')[1]; // Remove data:image/jpeg;base64, prefix
-          resolve(base64);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-
-      const response = await fetch('/.netlify/functions/upload-file', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          filename: file.name,
-          size: file.size,
-          contentType: file.type,
-          fileContent: fileContent, // Send actual file content as base64
-        }),
+      const form = new FormData();
+      form.append("file", file); // Append the actual File object
+      const response = await fetch("/.netlify/functions/upload-file", {
+        method: "POST",
+        body: form
       });
 
       if (!response.ok) {
