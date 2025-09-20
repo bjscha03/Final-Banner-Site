@@ -1,5 +1,12 @@
 const { neon } = require('@neondatabase/serverless');
-const { S3Client, GetObjectCommand } = require("@aws-sdk/client-s3");
+const { v2: cloudinary } = require('cloudinary');
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 // Neon database connection
 const sql = neon(process.env.NETLIFY_DATABASE_URL);
@@ -75,57 +82,111 @@ exports.handler = async (event, context) => {
       console.log('Order verified for file download:', orderResult[0]);
     }
 
-    // Extract bucket name and key from the S3 URL (requestedKey)
-    const S3_BUCKET_NAME = process.env.S3_BUCKET_NAME;
-    const S3_REGION = process.env.S3_REGION || "us-east-1";
-
-    if (!S3_BUCKET_NAME) {
-      console.error("S3_BUCKET_NAME environment variable not set.");
+    // Check Cloudinary configuration
+    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+      console.error("Cloudinary environment variables not set.");
       return {
         statusCode: 500,
         headers,
-        body: JSON.stringify({ error: "S3_BUCKET_NAME environment variable not set." }),
+        body: JSON.stringify({ error: "Cloudinary configuration missing." }),
       };
     }
 
-    const s3Client = new S3Client({ region: S3_REGION });
+    console.log('Attempting to download from Cloudinary:', requestedKey);
 
-    // Assuming requestedKey is the full S3 URL, extract the path part
-    const url = new URL(requestedKey);
-    const s3Key = url.pathname.substring(1); // Remove leading slash
-
-    const getObjectParams = {
-      Bucket: S3_BUCKET_NAME,
-      Key: s3Key,
-    };
-
-    console.log('Attempting to download from S3:', getObjectParams);
-
-    const { Body, ContentType, ContentLength } = await s3Client.send(new GetObjectCommand(getObjectParams));
-
-    const fileBuffer = await Body.transformToByteArray();
-    const base64File = Buffer.from(fileBuffer).toString('base64');
-
-    const fileName = s3Key.split('/').pop() || 'download';
-
-    // For thumbnail requests (fileKey parameter), serve inline; for order downloads, serve as attachment
+    // For thumbnail requests, we can use Cloudinary's transformation API
     const isThumbailRequest = !!fileKey;
-    const contentDisposition = isThumbailRequest
-      ? 'inline'
-      : `attachment; filename="${fileName}"`;
-
-    return {
-      statusCode: 200,
-      headers: {
-        ...headers,
-        'Content-Type': ContentType || 'application/octet-stream',
-        'Content-Disposition': contentDisposition,
-        'Content-Length': ContentLength.toString(),
-        'Cache-Control': isThumbailRequest ? 'public, max-age=3600' : 'private, no-cache', // Cache thumbnails for 1 hour
-      },
-      body: base64File,
-      isBase64Encoded: true,
-    };
+    
+    if (isThumbailRequest) {
+      // For thumbnails, generate a Cloudinary URL with transformations
+      let cloudinaryUrl;
+      
+      // Check if it's a PDF or image
+      const isPdf = requestedKey.includes('.pdf') || requestedKey.includes('raw');
+      
+      if (isPdf) {
+        // For PDFs, use the raw resource type and generate a thumbnail
+        cloudinaryUrl = cloudinary.url(requestedKey, {
+          resource_type: 'raw',
+          format: 'jpg',
+          page: 1,
+          width: 150,
+          height: 150,
+          crop: 'fill',
+          quality: 'auto'
+        });
+      } else {
+        // For images, use standard image transformations
+        cloudinaryUrl = cloudinary.url(requestedKey, {
+          resource_type: 'image',
+          width: 150,
+          height: 150,
+          crop: 'fill',
+          quality: 'auto'
+        });
+      }
+      
+      console.log('Generated Cloudinary thumbnail URL:', cloudinaryUrl);
+      
+      // Redirect to the Cloudinary URL for thumbnails
+      return {
+        statusCode: 302,
+        headers: {
+          ...headers,
+          'Location': cloudinaryUrl,
+          'Cache-Control': 'public, max-age=3600', // Cache thumbnails for 1 hour
+        },
+        body: '',
+      };
+    } else {
+      // For file downloads, we need to fetch the file and serve it
+      try {
+        // Generate the download URL from Cloudinary
+        const downloadUrl = cloudinary.url(requestedKey, {
+          resource_type: 'auto',
+          flags: 'attachment'
+        });
+        
+        console.log('Generated Cloudinary download URL:', downloadUrl);
+        
+        // Fetch the file from Cloudinary
+        const response = await fetch(downloadUrl);
+        
+        if (!response.ok) {
+          throw new Error(`Failed to fetch file from Cloudinary: ${response.status} ${response.statusText}`);
+        }
+        
+        const fileBuffer = await response.arrayBuffer();
+        const base64File = Buffer.from(fileBuffer).toString('base64');
+        
+        // Extract filename from the public ID
+        const fileName = requestedKey.split('/').pop()?.replace(/^.*-/, '') || 'download';
+        
+        return {
+          statusCode: 200,
+          headers: {
+            ...headers,
+            'Content-Type': response.headers.get('content-type') || 'application/octet-stream',
+            'Content-Disposition': `attachment; filename="${fileName}"`,
+            'Content-Length': fileBuffer.byteLength.toString(),
+            'Cache-Control': 'private, no-cache',
+          },
+          body: base64File,
+          isBase64Encoded: true,
+        };
+        
+      } catch (fetchError) {
+        console.error('Error fetching file from Cloudinary:', fetchError);
+        return {
+          statusCode: 404,
+          headers,
+          body: JSON.stringify({ 
+            error: 'File not found',
+            message: fetchError.message 
+          }),
+        };
+      }
+    }
 
   } catch (error) {
     console.error('Error in download-file function:', error);
