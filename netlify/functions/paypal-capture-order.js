@@ -1,5 +1,5 @@
 // netlify/functions/paypal-capture-order.js
-const fetch = require('node-fetch');
+const fetch = require('node-fetch'); // Ensure node-fetch is used
 const { neon } = require('@neondatabase/serverless');
 const { randomUUID } = require('crypto');
 
@@ -11,7 +11,7 @@ async function sendOrderNotificationEmail(orderId) {
     const siteURL = process.env.URL || 'https://bannersonthefly.com';
     const notifyURL = `${siteURL}/.netlify/functions/notify-order`;
 
-    // We don't need to wait for the response, just fire and forget.
+    // Fire-and-forget request. We don't need to wait for the response.
     // The notify-order function will handle its own logic, including logging.
     fetch(notifyURL, {
       method: 'POST',
@@ -24,6 +24,22 @@ async function sendOrderNotificationEmail(orderId) {
     // Log and ignore, as failing to send email should not block the user flow.
     console.error('Failed to trigger notification for order:', orderId, error);
   }
+}
+
+function ok(body){ return { statusCode:200, headers:cors(), body }; }
+function send(statusCode, body){ return { statusCode, headers:cors(), body:JSON.stringify(body) }; }
+function cors(){
+  return {
+    'Access-Control-Allow-Origin':'*',
+    'Access-Control-Allow-Methods':'POST,OPTIONS',
+    'Access-Control-Allow-Headers':'Content-Type,Authorization',
+  };
+}
+function hint(d){
+  const n = d?.name || '';
+  if (/INVALID_/i.test(n)) return 'Invalid orderID or payload.';
+  if (/AUTHORIZATION/i.test(n)) return 'Check client/secret and PAYPAL_ENV vs client type.';
+  return 'Transient gateway error. Safe to retry.';
 }
 
 const getPayPalCredentials = () => {
@@ -49,8 +65,15 @@ exports.handler = async (event) => {
     if (event.httpMethod === 'OPTIONS') return ok('');
     if (event.httpMethod !== 'POST') return send(405, { error: 'METHOD_NOT_ALLOWED' });
 
-    const { orderID } = JSON.parse(event.body || '{}');
+    // CRITICAL FIX: The entire payload from the client is needed, not just the orderID.
+    const payload = JSON.parse(event.body || '{}');
+    const { orderID, cartItems, userEmail, userId, shippingAddress, customerName } = payload;
+
     if (!orderID) return send(400, { error: 'MISSING_ORDER_ID' });
+    if (!cartItems || !Array.isArray(cartItems) || cartItems.length === 0) {
+      console.error('PayPal capture error: Missing or invalid cartItems in payload.');
+      return send(400, { error: 'MISSING_CART_ITEMS' });
+    }
 
     const { clientId, secret, baseUrl: base } = getPayPalCredentials();
 
@@ -91,7 +114,6 @@ exports.handler = async (event) => {
     }
 
     // --- Database Persistence ---
-    const { cartItems, userEmail, userId, shippingAddress, customerName } = JSON.parse(event.body || '{}');
     const capture = cJson.purchase_units[0].payments.captures[0];
     const capturedAmount = parseFloat(capture.amount.value);
     const payerEmail = cJson.payer.email_address;
@@ -152,35 +174,3 @@ exports.handler = async (event) => {
     return send(500, { error:'FUNCTION_CRASH', message:e.message || String(e) });
   }
 };
-
-function ok(body){ return { statusCode:200, headers:cors(), body }; }
-function send(statusCode, body){ return { statusCode, headers:cors(), body:JSON.stringify(body) }; }
-function cors(){
-  return {
-    'Access-Control-Allow-Origin':'*',
-    'Access-Control-Allow-Methods':'POST,OPTIONS',
-    'Access-Control-Allow-Headers':'Content-Type,Authorization',
-  };
-}
-function hint(d){
-  const n = d?.name || '';
-  if (/INVALID_/i.test(n)) return 'Invalid orderID or payload.';
-  if (/AUTHORIZATION/i.test(n)) return 'Check client/secret and PAYPAL_ENV vs client type.';
-  return 'Transient gateway error. Safe to retry.';
-}
-
-function ok(body){ return { statusCode:200, headers:cors(), body }; }
-function send(statusCode, body){ return { statusCode, headers:cors(), body:JSON.stringify(body) }; }
-function cors(){
-  return {
-    'Access-Control-Allow-Origin':'*',
-    'Access-Control-Allow-Methods':'POST,OPTIONS',
-    'Access-Control-Allow-Headers':'Content-Type,Authorization',
-  };
-}
-function hint(d){
-  const n = d?.name || '';
-  if (/INVALID_/i.test(n)) return 'Invalid orderID or payload.';
-  if (/AUTHORIZATION/i.test(n)) return 'Check client/secret and PAYPAL_ENV vs client type.';
-  return 'Transient gateway error. Safe to retry.';
-}
