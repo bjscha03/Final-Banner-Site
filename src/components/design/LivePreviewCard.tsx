@@ -72,45 +72,9 @@ const LivePreviewCard: React.FC = () => {
     const url = URL.createObjectURL(file);
 
     // Upload actual file content to server
-    console.log('🔍 LivePreview - Current hostname:', window.location.hostname);
-    
-    // ALWAYS use mock upload in development - NO NETWORK CALLS
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-      console.log('✅ DEVELOPMENT MODE: LivePreview using mock upload - NO SERVER CALL');
-      
-      // Simulate upload delay
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      const mockResult = {
-        success: true,
-        filename: file.name,
-        size: file.size,
-        fileKey: `dev-uploads/${Date.now()}-${file.name}`,
-        fileUrl: url
-      };
-
-      set({
-        file: {
-          name: file.name,
-          type: file.type,
-          size: file.size,
-          url,
-          isPdf,
-          fileKey: mockResult.fileKey
-        },
-        previewScalePct: 100
-      });
-
-      console.log('✅ LivePreview mock upload completed - NO SERVER INVOLVED');
-      return; // CRITICAL: Exit here, no server call
-    }
-
-    // Production code (only runs when NOT on localhost)
-    console.log('🚀 PRODUCTION MODE: LivePreview using real upload');
     try {
       const form = new FormData();
-      form.append("file", file);
-      
+      form.append("file", file); // Append the actual File object
       const response = await fetch("/.netlify/functions/upload-file", {
         method: "POST",
         body: form
@@ -129,8 +93,9 @@ const LivePreviewCard: React.FC = () => {
           size: file.size,
           url,
           isPdf,
-          fileKey: result.fileKey
+          fileKey: result.fileKey // Store the server file key
         },
+        // Reset scale to 100% when uploading a new file
         previewScalePct: 100
       });
     } catch (uploadError) {

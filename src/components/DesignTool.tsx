@@ -45,33 +45,6 @@ const DesignTool: React.FC = () => {
       setUploadedFileUrl(null); // Reset S3 URL on new upload
 
       // Upload file to Netlify function
-      console.log('🔍 DesignTool - Current hostname:', window.location.hostname);
-      
-      // ALWAYS use mock upload in development - NO NETWORK CALLS
-      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        console.log('✅ DEVELOPMENT MODE: DesignTool using mock upload - NO SERVER CALL');
-        
-        // Simulate upload delay
-        await new Promise(resolve => setTimeout(resolve, 100));
-        
-        const mockResult = {
-          success: true,
-          filename: file.name,
-          size: file.size,
-          fileKey: `dev-uploads/${Date.now()}-${file.name}`,
-          fileUrl: previewUrl
-        };
-
-        if (mockResult.success && mockResult.fileUrl) {
-          setUploadedFileUrl(mockResult.fileUrl);
-          setPreviewUrl(mockResult.fileUrl);
-          console.log("✅ DesignTool mock upload completed - NO SERVER INVOLVED:", mockResult.fileUrl);
-        }
-        return; // CRITICAL: Exit here, no server call
-      }
-
-      // Production code (only runs when NOT on localhost)
-      console.log('🚀 PRODUCTION MODE: DesignTool using real upload');
       const formData = new FormData();
       formData.append("file", file);
 
@@ -87,8 +60,8 @@ const DesignTool: React.FC = () => {
 
         const result = await response.json();
         if (result.success && result.fileUrl) {
-          setUploadedFileUrl(result.fileUrl);
-          setPreviewUrl(result.fileUrl);
+          setUploadedFileUrl(result.fileUrl); // Store the S3 URL
+          setPreviewUrl(result.fileUrl); // Update preview to S3 URL after successful upload
           console.log("File uploaded successfully:", result.fileUrl);
         } else {
           throw new Error(result.error || "Unknown upload error");
