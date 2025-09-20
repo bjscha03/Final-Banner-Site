@@ -1,10 +1,44 @@
-// netlify/functions/upload-file.js
 import Busboy from "busboy";
 import fs from "fs";
 import path from "path";
 
-const MAX_BYTES = 25 * 1024 * 1024; // 25 MB
+const MAX_BYTES = 25 * 1024 * 1024; // 25 MB cap for everything
 const TMP_DIR = "/tmp";
+
+const ALLOWED_EXT = new Set(["pdf","jpg","jpeg","png","webp","gif","svg","heic","heif"]);
+const isPdf = (h) => h.slice(0,5).toString() === "%PDF-";
+const isPng = (h) => h.length>=8 && h[0]===0x89 && h[1]===0x50 && h[2]===0x4E && h[3]===0x47;
+const isJpg = (h) => h.length>=2 && h[0]===0xFF && h[1]===0xD8;
+const isGif = (h) => h.length>=4 && h.slice(0,4).toString() === "GIF8";
+const isWebp= (h) => h.length>=12 && h.slice(0,4).toString()==="RIFF" && h.slice(8,12).toString()==="WEBP";
+const isHeic= (h) => {
+  // look for "ftyp" then brand like "heic","heif","hevc","mif1"
+  const s = h.slice(0,32).toString();
+  return s.includes("ftypheic") || s.includes("ftypheif") || s.includes("ftyphevc") || s.includes("ftypmif1");
+};
+// SVG is XML/text; no strong magic signature. We'll allow by mime/ext.
+
+const okMime = (mime, ext) => {
+  if (!mime) return true; // we’ll rely on magic/extension below
+  if (mime.toLowerCase()==="application/pdf") return true;
+  if (mime.toLowerCase().startsWith("image/")) return true;
+  if (mime.toLowerCase()==="application/octet-stream" && ALLOWED_EXT.has(ext)) return true;
+  // some HEICs report as application/heic
+  if (mime.toLowerCase().includes("heic") || mime.toLowerCase().includes("heif")) return true;
+  return false;
+};
+
+const magicLooksLike = (header, ext) => {
+  if (isPdf(header)) return "pdf";
+  if (isPng(header)) return "png";
+  if (isJpg(header)) return "jpg";
+  if (isGif(header)) return "gif";
+  if (isWebp(header)) return "webp";
+  if (isHeic(header)) return "heic";
+  // svg can't be reliably magic-checked; allow if extension says svg
+  if (ext==="svg") return "svg";
+  return "unknown";
+};
 
 export const handler = async (event) => {
   if (event.httpMethod !== "POST") {
@@ -12,53 +46,36 @@ export const handler = async (event) => {
   }
 
   try {
-    const bodyBuf = Buffer.from(
-      event.body || "",
-      event.isBase64Encoded ? "base64" : "utf8"
-    );
+    const bodyBuf = Buffer.from(event.body || "", event.isBase64Encoded ? "base64" : "utf8");
     const bb = Busboy({ headers: event.headers || {} });
 
-    let filePath = "";
     let fileName = "";
     let mime = "";
     let size = 0;
-
-    // We'll capture the first few bytes to confirm "%PDF-"
-    let sawMagic = false;
+    let filePath = "";
     let headerBuf = Buffer.alloc(0);
 
     const done = new Promise((resolve, reject) => {
       bb.on("file", (field, stream, info) => {
-        if (!["file", "pdf"].includes(field)) {
-          // Ignore unknown fields
-          stream.resume();
-          return;
-        }
+        // accept common field names; if you use a custom one, add it here
+        if (!["file","pdf","image","upload"].includes(field)) { stream.resume(); return; }
 
-        fileName = info.filename || "upload.pdf";
+        fileName = info.filename || "upload.bin";
         mime = info.mimeType || info.mime || "";
 
-        // Create a temp path
-        const safeName = fileName.replace(/[^\w.\-]+/g, "_");
-        filePath = path.join(TMP_DIR, `${Date.now()}_${safeName}`);
+        const safe = fileName.replace(/[^\w.\-]+/g, "_");
+        filePath = path.join(TMP_DIR, `${Date.now()}_${safe}`);
         const out = fs.createWriteStream(filePath);
 
         stream.on("data", (chunk) => {
           size += chunk.length;
-          if (size > MAX_BYTES) {
-            stream.destroy(new Error("MAX_SIZE"));
-            return;
-          }
+          if (size > MAX_BYTES) { stream.destroy(new Error("MAX_SIZE")); return; }
 
-          // Accumulate header bytes until we can check magic
-          if (!sawMagic) {
-            headerBuf = Buffer.concat([headerBuf, chunk]);
-            if (headerBuf.length >= 5) {
-              // PDF files start with "%PDF-"
-              sawMagic = headerBuf.slice(0, 5).toString() === "%PDF-";
-            }
+          // capture up to 32 bytes for magic sniff
+          if (headerBuf.length < 32) {
+            const need = 32 - headerBuf.length;
+            headerBuf = Buffer.concat([headerBuf, chunk.slice(0, need)]);
           }
-
           out.write(chunk);
         });
 
@@ -69,42 +86,62 @@ export const handler = async (event) => {
       });
 
       bb.on("error", reject);
-      bb.on("finish", () => {
-        // If no file field seen, still resolve; we check below.
-        if (!fileName) resolve();
-      });
+      bb.on("finish", () => { if (!fileName) resolve(); });
     });
 
     bb.end(bodyBuf);
     await done;
 
-    if (!fileName) return json(400, { success: false, error: "No file provided. Use field name 'file'." });
+    if (!fileName) return json(400, { success:false, error:"No file provided. Use field name 'file'." });
 
-    // Accept common PDF MIME or octet-stream, but *verify magic bytes*
-    const mimeLooksOk =
-      /^application\/pdf$/i.test(mime) || /^application\/octet-stream$/i.test(mime);
-
-    if (!mimeLooksOk || !sawMagic) {
-      // Clean up temp file if created
-      try { if (filePath) fs.unlinkSync(filePath); } catch (_) {}
-      return json(400, {
-        success: false,
-        error: `Not a valid PDF (mime="${mime || "unknown"}", magic=${sawMagic})`,
-      });
+    const ext = path.extname(fileName).slice(1).toLowerCase();
+    if (!ALLOWED_EXT.has(ext)) {
+      try { if (filePath) fs.unlinkSync(filePath); } catch {} // eslint-disable-line no-empty
+      return json(400, { success:false, error:`Unsupported extension ".${ext}". Allowed: ${[...ALLOWED_EXT].join(", ")}` });
     }
 
-    // TODO: upload the file at filePath to your storage (S3/Cloudinary/etc.)
-    // and produce a public URL. For now, we just report success + stats.
-    const result = { success: true, filename: fileName, size, mime };
+    if (!okMime(mime, ext)) {
+      try { if (filePath) fs.unlinkSync(filePath); } catch {} // eslint-disable-line no-empty
+      return json(400, { success:false, error:`Unsupported MIME "${mime}".` });
+    }
 
-    // Remove temp file if you uploaded elsewhere. If you keep it, leave it.
-    try { fs.unlinkSync(filePath); } catch (_) {}
+    const magic = magicLooksLike(headerBuf, ext);
+    if (ext==="pdf" && magic!=="pdf") {
+      try { if (filePath) fs.unlinkSync(filePath); } catch {} // eslint-disable-line no-empty
+      return json(400, { success:false, error:`Not a valid PDF (magic=${magic}).` });
+    }
+    if (["jpg","jpeg"].includes(ext) && magic!=="jpg") {
+      try { if (filePath) fs.unlinkSync(filePath); } catch {} // eslint-disable-line no-empty
+      return json(400, { success:false, error:`Not a valid JPEG (magic=${magic}).` });
+    }
+    if (ext==="png" && magic!=="png") {
+      try { if (filePath) fs.unlinkSync(filePath); } catch {} // eslint-disable-line no-empty
+      return json(400, { success:false, error:`Not a valid PNG (magic=${magic}).` });
+    }
+    if (ext==="webp" && magic!=="webp") {
+      try { if (filePath) fs.unlinkSync(filePath); } catch {} // eslint-disable-line no-empty
+      return json(400, { success:false, error:`Not a valid WEBP (magic=${magic}).` });
+    }
+    if (["heic","heif"].includes(ext) && magic!=="heic") {
+      // many HEICs still pass as jpg magic=false; we accept if mime/ext says heic/heif
+      if (!(mime.toLowerCase().includes("heic") || mime.toLowerCase().includes("heif") || mime.toLowerCase()==="application/octet-stream")) {
+        try { if (filePath) fs.unlinkSync(filePath); } catch {} // eslint-disable-line no-empty
+        return json(400, { success:false, error:`Not a valid HEIC/HEIF (magic=${magic}, mime=${mime}).` });
+      }
+    }
+    // svg: skip magic check; ext already validated
+
+    // TODO: upload filePath to your storage (S3/Cloudinary/etc.) and return its URL.
+    const result = { success:true, filename:fileName, size, mime, ext, magic };
+
+    // Clean tmp unless you keep it
+    try { fs.unlinkSync(filePath); } catch {} // eslint-disable-line no-empty
 
     return json(200, result);
+
   } catch (e) {
     const msg = e?.message || String(e);
-    const status = msg === "MAX_SIZE" ? 400 : 500;
-    return json(status, { success: false, error: msg });
+    return json(msg==="MAX_SIZE" ? 400 : 500, { success:false, error: msg });
   }
 };
 
