@@ -1,170 +1,121 @@
-const { neon } = require('@neondatabase/serverless');
-const { randomUUID } = require('crypto');
-const Busboy = require('busboy'); // Use require for Busboy in Netlify functions
+// netlify/functions/upload-file.js
+import Busboy from "busboy";
+import fs from "fs";
+import path from "path";
 
-// Neon database connection
-const sql = neon(process.env.NETLIFY_DATABASE_URL);
+const MAX_BYTES = 25 * 1024 * 1024; // 25 MB
+const TMP_DIR = "/tmp";
 
-exports.handler = async (event) => {
-  // Set CORS headers
-  const headers = {
-    'Access-Control-Allow-Origin': '*',
-    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-  };
-
-  if (event.httpMethod === "OPTIONS") {
-    return {
-      statusCode: 200,
-      headers,
-      body: "",
-    };
-  }
-
+export const handler = async (event) => {
   if (event.httpMethod !== "POST") {
-    return {
-      statusCode: 405,
-      headers,
-      body: JSON.stringify({ success: false, error: "Method Not Allowed" }),
-    };
+    return json(405, { success: false, error: "Method Not Allowed" });
   }
 
-  return new Promise((resolve) => {
-    const busboy = Busboy({ headers: event.headers });
+  try {
+    const bodyBuf = Buffer.from(
+      event.body || "",
+      event.isBase64Encoded ? "base64" : "utf8"
+    );
+    const bb = Busboy({ headers: event.headers || {} });
 
-    let fileBuffer = Buffer.from([]);
-    let fileMime = "";
+    let filePath = "";
     let fileName = "";
-    let fileSize = 0;
-    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
+    let mime = "";
+    let size = 0;
 
-    busboy.on("file", (fieldname, file, info) => {
-      // Accept both 'file' and 'pdf' as field names
-      if (fieldname !== 'file' && fieldname !== 'pdf') {
-        resolve({
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ success: false, error: "Invalid field name. Expected 'file' or 'pdf'." }),
-        });
-        file.resume();
-        return;
-      }
+    // We'll capture the first few bytes to confirm "%PDF-"
+    let sawMagic = false;
+    let headerBuf = Buffer.alloc(0);
 
-      fileName = info.filename;
-      fileMime = info.mimeType;
-
-      // Validate file type immediately
-      if (fileMime !== "application/pdf") {
-        resolve({
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ success: false, error: "Only PDF files allowed" }),
-        });
-        file.resume();
-        return;
-      }
-
-      file.on("data", (data) => {
-        fileBuffer = Buffer.concat([fileBuffer, data]);
-        fileSize += data.length;
-
-        if (fileSize > MAX_FILE_SIZE) {
-          resolve({
-            statusCode: 400,
-            headers,
-            body: JSON.stringify({ success: false, error: `File size exceeds the 10MB limit. Current size: ${Math.round(fileSize / (1024 * 1024))}MB` }),
-          });
-          file.resume(); // Consume the stream to prevent 'finish' event from hanging
+    const done = new Promise((resolve, reject) => {
+      bb.on("file", (field, stream, info) => {
+        if (!["file", "pdf"].includes(field)) {
+          // Ignore unknown fields
+          stream.resume();
+          return;
         }
+
+        fileName = info.filename || "upload.pdf";
+        mime = info.mimeType || info.mime || "";
+
+        // Create a temp path
+        const safeName = fileName.replace(/[^\w.\-]+/g, "_");
+        filePath = path.join(TMP_DIR, `${Date.now()}_${safeName}`);
+        const out = fs.createWriteStream(filePath);
+
+        stream.on("data", (chunk) => {
+          size += chunk.length;
+          if (size > MAX_BYTES) {
+            stream.destroy(new Error("MAX_SIZE"));
+            return;
+          }
+
+          // Accumulate header bytes until we can check magic
+          if (!sawMagic) {
+            headerBuf = Buffer.concat([headerBuf, chunk]);
+            if (headerBuf.length >= 5) {
+              // PDF files start with "%PDF-"
+              sawMagic = headerBuf.slice(0, 5).toString() === "%PDF-";
+            }
+          }
+
+          out.write(chunk);
+        });
+
+        stream.on("end", () => out.end());
+        stream.on("error", reject);
+        out.on("error", reject);
+        out.on("finish", () => resolve());
       });
 
-      file.on("end", () => {
-        console.log(`File [${fileName}] uploaded, size: ${fileBuffer.length}`);
-      });
-    });
-
-    busboy.on("finish", async () => {
-      if (!fileName) {
-        return resolve({
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ success: false, error: "No file uploaded" }),
-        });
-      }
-
-      if (fileMime !== "application/pdf") {
-        return resolve({
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ success: false, error: "Only PDF files allowed" }),
-        });
-      }
-
-      if (fileSize > MAX_FILE_SIZE) {
-        return resolve({
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ success: false, error: `File size exceeds the 10MB limit. Current size: ${Math.round(fileSize / (1024 * 1024))}MB` }),
-        });
-      }
-
-      try {
-        // Generate a unique file key with original filename
-        const timestamp = Date.now();
-        const uuid = randomUUID();
-        const sanitizedFilename = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
-        const fileKey = `uploads/${timestamp}-${uuid}-${sanitizedFilename}`;
-
-        console.log('Generated file key:', fileKey);
-
-        // Store file content and metadata in database
-        await sql`
-          INSERT INTO uploaded_files (id, file_key, original_filename, file_size, mime_type, file_content_base64, upload_timestamp, status)
-          VALUES (${randomUUID()}, ${fileKey}, ${fileName}, ${fileSize}, ${fileMime}, ${fileBuffer.toString('base64')}, ${new Date().toISOString()}, 'uploaded')
-          ON CONFLICT (file_key) DO NOTHING
-        `;
-
-        resolve({
-          statusCode: 200,
-          headers: {
-            ...headers,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            success: true,
-            message: "File uploaded successfully",
-            filename: fileName,
-            size: fileSize,
-            fileKey: fileKey // Include fileKey in the response
-          }),
-        });
-      } catch (error) {
-        console.error('Error in upload-file function:', error);
-        resolve({
-          statusCode: 500,
-          headers,
-          body: JSON.stringify({
-            success: false,
-            error: 'Internal server error',
-            message: error.message
-          }),
-        });
-      }
-    });
-
-    busboy.on('error', (err) => {
-      console.error('Busboy error:', err);
-      resolve({
-        statusCode: 500,
-        headers,
-        body: JSON.stringify({
-          success: false,
-          error: 'File upload parsing error',
-          message: err.message
-        }),
+      bb.on("error", reject);
+      bb.on("finish", () => {
+        // If no file field seen, still resolve; we check below.
+        if (!fileName) resolve();
       });
     });
 
-    busboy.end(Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'utf8'));
-  });
+    bb.end(bodyBuf);
+    await done;
+
+    if (!fileName) return json(400, { success: false, error: "No file provided. Use field name 'file'." });
+
+    // Accept common PDF MIME or octet-stream, but *verify magic bytes*
+    const mimeLooksOk =
+      /^application\/pdf$/i.test(mime) || /^application\/octet-stream$/i.test(mime);
+
+    if (!mimeLooksOk || !sawMagic) {
+      // Clean up temp file if created
+      try { if (filePath) fs.unlinkSync(filePath); } catch (_) {}
+      return json(400, {
+        success: false,
+        error: `Not a valid PDF (mime="${mime || "unknown"}", magic=${sawMagic})`,
+      });
+    }
+
+    // TODO: upload the file at filePath to your storage (S3/Cloudinary/etc.)
+    // and produce a public URL. For now, we just report success + stats.
+    const result = { success: true, filename: fileName, size, mime };
+
+    // Remove temp file if you uploaded elsewhere. If you keep it, leave it.
+    try { fs.unlinkSync(filePath); } catch (_) {}
+
+    return json(200, result);
+  } catch (e) {
+    const msg = e?.message || String(e);
+    const status = msg === "MAX_SIZE" ? 400 : 500;
+    return json(status, { success: false, error: msg });
+  }
 };
+
+function json(status, body) {
+  return {
+    statusCode: status,
+    headers: {
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Headers": "Origin, Content-Type, Accept",
+    },
+    body: JSON.stringify(body),
+  };
+}
