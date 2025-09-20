@@ -45,11 +45,15 @@ const DesignTool: React.FC = () => {
       setUploadedFileUrl(null); // Reset S3 URL on new upload
 
       // Upload file to Netlify function
-      // Always use mock upload in development (when running on localhost)
+      console.log('🔍 DesignTool - Current hostname:', window.location.hostname);
+      
+      // ALWAYS use mock upload in development - NO NETWORK CALLS
       if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        console.log('Development mode detected: Using mock upload');
+        console.log('✅ DEVELOPMENT MODE: DesignTool using mock upload - NO SERVER CALL');
         
-        // Create mock response immediately
+        // Simulate upload delay
+        await new Promise(resolve => setTimeout(resolve, 100));
+        
         const mockResult = {
           success: true,
           filename: file.name,
@@ -61,12 +65,13 @@ const DesignTool: React.FC = () => {
         if (mockResult.success && mockResult.fileUrl) {
           setUploadedFileUrl(mockResult.fileUrl);
           setPreviewUrl(mockResult.fileUrl);
-          console.log("Mock upload completed successfully:", mockResult.fileUrl);
+          console.log("✅ DesignTool mock upload completed - NO SERVER INVOLVED:", mockResult.fileUrl);
         }
-        return;
+        return; // CRITICAL: Exit here, no server call
       }
 
       // Production code (only runs when NOT on localhost)
+      console.log('🚀 PRODUCTION MODE: DesignTool using real upload');
       const formData = new FormData();
       formData.append("file", file);
 

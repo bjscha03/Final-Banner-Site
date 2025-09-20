@@ -36,40 +36,43 @@ const UploadArtworkCard: React.FC = () => {
     const url = URL.createObjectURL(file);
 
     // Upload actual file content to server
-    console.log('Current hostname:', window.location.hostname);
-    console.log('Is localhost?', window.location.hostname === 'localhost');
+    console.log('🔍 Current hostname:', window.location.hostname);
+    console.log('🔍 Is localhost?', window.location.hostname === 'localhost');
     
-    try {
-      // Always use mock upload in development (when running on localhost)
-      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        console.log('✅ Development mode detected: Using mock upload');
-        
-        // Create mock response immediately
-        const mockResult = {
-          success: true,
-          filename: file.name,
+    // ALWAYS use mock upload in development - NO NETWORK CALLS
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      console.log('✅ DEVELOPMENT MODE: Using mock upload - NO SERVER CALL');
+      
+      // Simulate upload delay
+      await new Promise(resolve => setTimeout(resolve, 100));
+      
+      // Create mock response immediately
+      const mockResult = {
+        success: true,
+        filename: file.name,
+        size: file.size,
+        fileKey: `dev-uploads/${Date.now()}-${file.name}`,
+        fileUrl: url
+      };
+
+      set({
+        file: {
+          name: file.name,
+          type: file.type,
           size: file.size,
-          fileKey: `dev-uploads/${Date.now()}-${file.name}`,
-          fileUrl: url
-        };
+          url,
+          isPdf,
+          fileKey: mockResult.fileKey
+        }
+      });
 
-        set({
-          file: {
-            name: file.name,
-            type: file.type,
-            size: file.size,
-            url,
-            isPdf,
-            fileKey: mockResult.fileKey
-          }
-        });
+      console.log('✅ Mock upload completed successfully - NO SERVER INVOLVED');
+      return; // CRITICAL: Exit here, no server call
+    }
 
-        console.log('✅ Mock upload completed successfully');
-        return;
-      }
-
-      console.log('Production mode: Using real upload');
-      // Production code (only runs when NOT on localhost)
+    // Production code (only runs when NOT on localhost)
+    console.log('🚀 PRODUCTION MODE: Using real upload');
+    try {
       const form = new FormData();
       form.append("file", file);
       
