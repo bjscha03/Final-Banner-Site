@@ -49,16 +49,46 @@ const DesignTool: React.FC = () => {
       formData.append("file", file);
 
       try {
-        const response = await fetch("/.netlify/functions/upload-file", {
-          method: "POST",
-          body: formData,
-        });
+        const isDev = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
+        let result;
 
-        if (!response.ok) {
-          throw new Error(`Upload failed: ${response.statusText}`);
+        try {
+          const response = await fetch("/.netlify/functions/upload-file", {
+            method: "POST",
+            body: formData,
+          });
+
+          if (!response.ok) {
+            if (isDev) {
+              console.log('Development mode: Using mock upload response');
+              result = {
+                success: true,
+                filename: file.name,
+                size: file.size,
+                fileKey: `dev-uploads/${Date.now()}-${file.name}`,
+                fileUrl: previewUrl // Use the blob URL for preview in dev mode
+              };
+            } else {
+              throw new Error(`Upload failed: ${response.statusText}`);
+            }
+          } else {
+            result = await response.json();
+          }
+        } catch (fetchError) {
+          if (isDev) {
+            console.log('Development mode: Upload function not available, using mock response');
+            result = {
+              success: true,
+              filename: file.name,
+              size: file.size,
+              fileKey: `dev-uploads/${Date.now()}-${file.name}`,
+              fileUrl: previewUrl // Use the blob URL for preview in dev mode
+            };
+          } else {
+            throw fetchError;
+          }
         }
 
-        const result = await response.json();
         if (result.success && result.fileUrl) {
           setUploadedFileUrl(result.fileUrl); // Store the S3 URL
           setPreviewUrl(result.fileUrl); // Update preview to S3 URL after successful upload

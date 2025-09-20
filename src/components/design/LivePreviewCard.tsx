@@ -75,16 +75,46 @@ const LivePreviewCard: React.FC = () => {
     try {
       const form = new FormData();
       form.append("file", file); // Append the actual File object
-      const response = await fetch("/.netlify/functions/upload-file", {
-        method: "POST",
-        body: form
-      });
+      
+      const isDev = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
+      let result;
 
-      if (!response.ok) {
-        throw new Error(`Upload failed: ${response.statusText}`);
+      try {
+        const response = await fetch("/.netlify/functions/upload-file", {
+          method: "POST",
+          body: form
+        });
+
+        if (!response.ok) {
+          if (isDev) {
+            console.log('Development mode: Using mock upload response');
+            result = {
+              success: true,
+              filename: file.name,
+              size: file.size,
+              fileKey: `dev-uploads/${Date.now()}-${file.name}`,
+              fileUrl: url // Use the blob URL for preview in dev mode
+            };
+          } else {
+            throw new Error(`Upload failed: ${response.statusText}`);
+          }
+        } else {
+          result = await response.json();
+        }
+      } catch (fetchError) {
+        if (isDev) {
+          console.log('Development mode: Upload function not available, using mock response');
+          result = {
+            success: true,
+            filename: file.name,
+            size: file.size,
+            fileKey: `dev-uploads/${Date.now()}-${file.name}`,
+            fileUrl: url // Use the blob URL for preview in dev mode
+          };
+        } else {
+          throw fetchError;
+        }
       }
-
-      const result = await response.json();
 
       set({
         file: {
