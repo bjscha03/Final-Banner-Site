@@ -41,7 +41,7 @@
   for = "/*"
   [headers.values]
     Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
-    Content-Security-Policy = "upgrade-insecure-requests; default-src 'self' https: data: blob:; img-src 'self' https: data: blob:; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com; style-src 'self' 'unsafe-inline' https:; connect-src 'self' https: wss:;"
+    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.paypal.com https://www.paypalobjects.com https://cdn.chatsimple.ai; connect-src 'self' https://*.paypal.com https://www.paypalobjects.com https://*.chatsimple.ai; frame-src https://*.paypal.com; img-src 'self' data: https://www.paypalobjects.com https://*.chatsimple.ai; style-src 'self' 'unsafe-inline'; font-src 'self' data:; frame-ancestors 'self';"
     X-Content-Type-Options = "nosniff"
     X-Frame-Options = "DENY"
     Referrer-Policy = "strict-origin-when-cross-origin"
