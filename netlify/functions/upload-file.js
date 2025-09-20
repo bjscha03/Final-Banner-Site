@@ -1,11 +1,11 @@
 const { neon } = require('@neondatabase/serverless');
 const { randomUUID } = require('crypto');
-import Busboy from "busboy"; // Use import for Busboy
+const Busboy = require('busboy'); // Use require for Busboy in Netlify functions
 
 // Neon database connection
 const sql = neon(process.env.NETLIFY_DATABASE_URL);
 
-export async function handler(event) {
+exports.handler = async (event) => {
   // Set CORS headers
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -29,7 +29,7 @@ export async function handler(event) {
     };
   }
 
-  return new Promise((resolve, reject) => {
+  return new Promise((resolve) => {
     const busboy = Busboy({ headers: event.headers });
 
     let fileBuffer = Buffer.from([]);
@@ -39,8 +39,30 @@ export async function handler(event) {
     const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
     busboy.on("file", (fieldname, file, info) => {
+      // Accept both 'file' and 'pdf' as field names
+      if (fieldname !== 'file' && fieldname !== 'pdf') {
+        resolve({
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: "Invalid field name. Expected 'file' or 'pdf'." }),
+        });
+        file.resume();
+        return;
+      }
+
       fileName = info.filename;
       fileMime = info.mimeType;
+
+      // Validate file type immediately
+      if (fileMime !== "application/pdf") {
+        resolve({
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: "Only PDF files allowed" }),
+        });
+        file.resume();
+        return;
+      }
 
       file.on("data", (data) => {
         fileBuffer = Buffer.concat([fileBuffer, data]);
@@ -139,4 +161,4 @@ export async function handler(event) {
 
     busboy.end(Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'utf8'));
   });
-}
+};
