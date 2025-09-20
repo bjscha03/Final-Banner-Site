@@ -37,7 +37,7 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const { key, order, fileKey, download } = event.queryStringParameters || {};
+    const { key, order, fileKey } = event.queryStringParameters || {};
 
     // Handle thumbnail requests (fileKey parameter) without order verification
     const requestedKey = fileKey || key;
@@ -50,7 +50,7 @@ exports.handler = async (event, context) => {
       };
     }
 
-    console.log('File download request:', { key, order, fileKey, requestedKey, download });
+    console.log('File download request:', { key, order, fileKey, requestedKey });
 
     // For thumbnail requests (fileKey parameter), skip order verification
     if (!fileKey && (!key || !order)) {
@@ -63,36 +63,23 @@ exports.handler = async (event, context) => {
 
     // Verify the order exists and contains the file (only for order-based downloads)
     if (!fileKey && key && order) {
-      try {
-        const orderResult = await sql`
-          SELECT o.id, o.email, oi.file_key
-          FROM orders o
-          JOIN order_items oi ON o.id = oi.order_id
-          WHERE o.id = ${order} AND oi.file_key = ${key}
-          LIMIT 1
-        `;
+      const orderResult = await sql`
+        SELECT o.id, o.email, oi.file_key
+        FROM orders o
+        JOIN order_items oi ON o.id = oi.order_id
+        WHERE o.id = ${order} AND oi.file_key = ${key}
+        LIMIT 1
+      `;
 
-        if (!orderResult || orderResult.length === 0) {
-          console.log('Order verification failed:', { order, key, resultCount: orderResult?.length || 0 });
-          return {
-            statusCode: 404,
-            headers,
-            body: JSON.stringify({ error: 'File not found or access denied' }),
-          };
-        }
-
-        console.log('Order verified for file download:', orderResult[0]);
-      } catch (dbError) {
-        console.error('Database error during order verification:', dbError);
+      if (!orderResult || orderResult.length === 0) {
         return {
-          statusCode: 500,
+          statusCode: 404,
           headers,
-          body: JSON.stringify({ 
-            error: 'Database error during order verification',
-            message: dbError.message 
-          }),
+          body: JSON.stringify({ error: 'File not found or access denied' }),
         };
       }
+
+      console.log('Order verified for file download:', orderResult[0]);
     }
 
     // Check Cloudinary configuration
@@ -108,7 +95,7 @@ exports.handler = async (event, context) => {
     console.log('Attempting to download from Cloudinary:', requestedKey);
 
     // For thumbnail requests, we can use Cloudinary's transformation API
-    const isThumbailRequest = !!fileKey && download !== 'true';
+    const isThumbailRequest = !!fileKey;
     
     if (isThumbailRequest) {
       // For thumbnails, generate a Cloudinary URL with transformations

@@ -182,7 +182,7 @@ const AdminOrders: React.FC = () => {
       });
 
       // Use Netlify function for secure file downloads
-      const downloadUrl = `/.netlify/functions/admin-download-file?fileKey=${encodeURIComponent(fileKey)}`;
+      const downloadUrl = `/.netlify/functions/download-file?fileKey=${encodeURIComponent(fileKey)}&download=true`;
 
       // Fetch the file content
       const response = await fetch(downloadUrl);
