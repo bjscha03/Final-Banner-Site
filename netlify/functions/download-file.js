@@ -1,20 +1,8 @@
 const { neon } = require('@neondatabase/serverless');
+const { S3Client, GetObjectCommand } = require("@aws-sdk/client-s3");
 
 // Neon database connection
 const sql = neon(process.env.NETLIFY_DATABASE_URL);
-
-// Helper function to check if file exists
-// In production, this would check your cloud storage service
-async function checkFileExists(fileKey) {
-  try {
-    // For development, simulate file existence based on file key pattern
-    // In production, you would check your actual storage service
-    return fileKey && fileKey.includes('uploads/');
-  } catch (error) {
-    console.error('Error checking file existence:', error);
-    return false;
-  }
-}
 
 exports.handler = async (event, context) => {
   // Set CORS headers
@@ -87,82 +75,56 @@ exports.handler = async (event, context) => {
       console.log('Order verified for file download:', orderResult[0]);
     }
 
-    // Retrieve the file metadata from the uploaded_files table
-    const fileResult = await sql`
-      SELECT file_key, original_filename, file_size, mime_type, file_content_base64
-      FROM uploaded_files
-      WHERE file_key = ${requestedKey}
-      LIMIT 1
-    `;
+    // Extract bucket name and key from the S3 URL (requestedKey)
+    const S3_BUCKET_NAME = process.env.S3_BUCKET_NAME;
+    const S3_REGION = process.env.S3_REGION || "us-east-1";
 
-    if (!fileResult || fileResult.length === 0) {
+    if (!S3_BUCKET_NAME) {
+      console.error("S3_BUCKET_NAME environment variable not set.");
       return {
-        statusCode: 404,
+        statusCode: 500,
         headers,
-        body: JSON.stringify({ error: 'File not found in storage' }),
+        body: JSON.stringify({ error: "S3_BUCKET_NAME environment variable not set." }),
       };
     }
 
-    const fileRecord = fileResult[0];
-    console.log('File found in storage:', {
-      filename: fileRecord.original_filename,
-      size: fileRecord.file_size,
-      mimeType: fileRecord.mime_type
-    });
+    const s3Client = new S3Client({ region: S3_REGION });
 
-    const fileName = fileRecord.original_filename || requestedKey.split('/').pop() || 'banner-design.txt';
+    // Assuming requestedKey is the full S3 URL, extract the path part
+    const url = new URL(requestedKey);
+    const s3Key = url.pathname.substring(1); // Remove leading slash
 
-    // If we have actual file content, serve it
-    if (fileRecord.file_content_base64) {
-      console.log('Serving actual file content for:', fileName);
+    const getObjectParams = {
+      Bucket: S3_BUCKET_NAME,
+      Key: s3Key,
+    };
 
-      // For thumbnail requests (fileKey parameter), serve inline; for order downloads, serve as attachment
-      const isThumbailRequest = !!fileKey;
-      const contentDisposition = isThumbailRequest
-        ? 'inline'
-        : `attachment; filename="${fileName}"`;
+    console.log('Attempting to download from S3:', getObjectParams);
 
-      return {
-        statusCode: 200,
-        headers: {
-          ...headers,
-          'Content-Type': fileRecord.mime_type || 'application/octet-stream',
-          'Content-Disposition': contentDisposition,
-          'Content-Length': Buffer.from(fileRecord.file_content_base64, 'base64').length.toString(),
-          'Cache-Control': isThumbailRequest ? 'public, max-age=3600' : 'private, no-cache', // Cache thumbnails for 1 hour
-        },
-        body: fileRecord.file_content_base64,
-        isBase64Encoded: true,
-      };
-    }
+    const { Body, ContentType, ContentLength } = await s3Client.send(new GetObjectCommand(getObjectParams));
 
-    // Otherwise, create a sample file with metadata
-    const fileContent = `Banner Design File: ${fileName}
-Order ID: ${order || 'N/A (thumbnail request)'}
-File Key: ${requestedKey}
-Original Size: ${fileRecord.file_size} bytes
-MIME Type: ${fileRecord.mime_type}
-Generated: ${new Date().toISOString()}
+    const fileBuffer = await Body.transformToByteArray();
+    const base64File = Buffer.from(fileBuffer).toString('base64');
 
-This is a sample file created from the file metadata.
-The original uploaded file would be served here in production.
+    const fileName = s3Key.split('/').pop() || 'download';
 
-File Information:
-- Filename: ${fileName}
-- Size: ${fileRecord.file_size} bytes
-- Type: ${fileRecord.mime_type}
-- Upload Key: ${key}
-`;
+    // For thumbnail requests (fileKey parameter), serve inline; for order downloads, serve as attachment
+    const isThumbailRequest = !!fileKey;
+    const contentDisposition = isThumbailRequest
+      ? 'inline'
+      : `attachment; filename="${fileName}"`;
 
     return {
       statusCode: 200,
       headers: {
         ...headers,
-        'Content-Type': 'text/plain',
-        'Content-Disposition': `attachment; filename="${fileName.replace(/\.[^.]+$/, '.txt')}"`,
-        'Content-Length': Buffer.byteLength(fileContent, 'utf8').toString(),
+        'Content-Type': ContentType || 'application/octet-stream',
+        'Content-Disposition': contentDisposition,
+        'Content-Length': ContentLength.toString(),
+        'Cache-Control': isThumbailRequest ? 'public, max-age=3600' : 'private, no-cache', // Cache thumbnails for 1 hour
       },
-      body: fileContent,
+      body: base64File,
+      isBase64Encoded: true,
     };
 
   } catch (error) {

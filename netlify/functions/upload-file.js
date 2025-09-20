@@ -35,7 +35,11 @@ export const handler = async (event) => {
     const S3_BUCKET_NAME = process.env.S3_BUCKET_NAME;
     const S3_REGION = process.env.S3_REGION || "us-east-1"; // Default to us-east-1 if not set
 
+    console.log("S3_BUCKET_NAME:", S3_BUCKET_NAME);
+    console.log("S3_REGION:", S3_REGION);
+
     if (!S3_BUCKET_NAME) {
+      console.error("S3_BUCKET_NAME environment variable not set.");
       return json(500, { success: false, error: "S3_BUCKET_NAME environment variable not set." });
     }
 
@@ -50,13 +54,18 @@ export const handler = async (event) => {
       ACL: 'public-read', // Make the file publicly accessible
     };
 
-    await s3Client.send(new PutObjectCommand(uploadParams));
+    try {
+      await s3Client.send(new PutObjectCommand(uploadParams));
+      const fileUrl = `https://${S3_BUCKET_NAME}.s3.${S3_REGION}.amazonaws.com/${fileKey}`;
+      return json(200, { success: true, filename: fileName, size: buffer.length, fileUrl: fileUrl });
+    } catch (s3Error) {
+      console.error("Error uploading to S3:", s3Error);
+      return json(500, { success: false, error: `Failed to upload file to S3: ${s3Error.message}` });
+    }
 
-    const fileUrl = `https://${S3_BUCKET_NAME}.s3.${S3_REGION}.amazonaws.com/${fileKey}`;
-
-    return json(200, { success: true, filename: fileName, size: buffer.length, fileUrl: fileUrl });
   } catch (e) {
     const msg = e?.message || String(e);
+    console.error("General error in upload-file function:", e);
     return json(msg === "MAX_SIZE" ? 400 : 500, { success: false, error: msg });
   }
 };
