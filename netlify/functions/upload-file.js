@@ -1,11 +1,11 @@
 const { neon } = require('@neondatabase/serverless');
 const { randomUUID } = require('crypto');
-const Busboy = require('busboy'); // Import Busboy
+import Busboy from "busboy"; // Use import for Busboy
 
 // Neon database connection
 const sql = neon(process.env.NETLIFY_DATABASE_URL);
 
-exports.handler = async (event, context) => {
+export async function handler(event) {
   // Set CORS headers
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -13,98 +13,84 @@ exports.handler = async (event, context) => {
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
   };
 
-  // Handle preflight requests
-  if (event.httpMethod === 'OPTIONS') {
+  if (event.httpMethod === "OPTIONS") {
     return {
       statusCode: 200,
       headers,
-      body: '',
+      body: "",
     };
   }
 
-  if (event.httpMethod !== 'POST') {
+  if (event.httpMethod !== "POST") {
     return {
       statusCode: 405,
       headers,
-      body: JSON.stringify({ error: 'Method not allowed' }),
+      body: JSON.stringify({ error: "Method Not Allowed" }),
     };
   }
 
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const busboy = Busboy({ headers: event.headers });
-    let fileContent = '';
-    let filename = '';
-    let contentType = '';
+
+    let fileBuffer = Buffer.from([]);
+    let fileMime = "";
+    let fileName = "";
     let fileSize = 0;
-    const MAX_FILE_SIZE = 20 * 1024 * 1024; // 20 MB
+    const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 
-    busboy.on('file', (fieldname, file, info) => {
-      const { filename: originalFilename, encoding, mimeType } = info;
-      filename = originalFilename;
-      contentType = mimeType;
+    busboy.on("file", (fieldname, file, info) => {
+      fileName = info.filename;
+      fileMime = info.mimeType;
 
-      // Validate file type
-      const allowedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
-      if (!allowedTypes.includes(contentType)) {
-        resolve({
-          statusCode: 400,
-          headers,
-          body: JSON.stringify({ error: 'Invalid file type. Only PDF, JPG, JPEG, and PNG files are allowed.' }),
-        });
-        file.resume(); // Consume the stream to prevent 'finish' event from hanging
-        return;
-      }
-
-      file.on('data', (data) => {
-        fileContent += data.toString('base64');
+      file.on("data", (data) => {
+        fileBuffer = Buffer.concat([fileBuffer, data]);
         fileSize += data.length;
 
         if (fileSize > MAX_FILE_SIZE) {
           resolve({
             statusCode: 400,
             headers,
-            body: JSON.stringify({ error: `File size exceeds the 20MB limit. Current size: ${Math.round(fileSize / (1024 * 1024))}MB` }),
+            body: JSON.stringify({ error: `File size exceeds the 10MB limit. Current size: ${Math.round(fileSize / (1024 * 1024))}MB` }),
           });
           file.resume(); // Consume the stream to prevent 'finish' event from hanging
         }
       });
 
-      file.on('end', () => {
-        console.log('File [' + fieldname + '] finished');
+      file.on("end", () => {
+        console.log(`File [${fileName}] uploaded, size: ${fileBuffer.length}`);
       });
     });
 
-    busboy.on('field', (fieldname, val, info) => {
-      // Handle other fields if necessary
-      console.log(`Field [${fieldname}]: ${val}`);
-    });
-
-    busboy.on('finish', async () => {
-      if (!filename) {
-        resolve({
+    busboy.on("finish", async () => {
+      if (!fileName) {
+        return resolve({
           statusCode: 400,
           headers,
-          body: JSON.stringify({ error: 'No file uploaded or filename is missing.' }),
+          body: JSON.stringify({ error: "No file uploaded" }),
         });
-        return;
       }
 
-      if (!fileContent) {
-        resolve({
+      if (fileMime !== "application/pdf") {
+        return resolve({
           statusCode: 400,
           headers,
-          body: JSON.stringify({ error: 'File content is empty.' }),
+          body: JSON.stringify({ error: "Only PDF files allowed" }),
         });
-        return;
+      }
+
+      if (fileSize > MAX_FILE_SIZE) {
+        return resolve({
+          statusCode: 400,
+          headers,
+          body: JSON.stringify({ error: `File size exceeds the 10MB limit. Current size: ${Math.round(fileSize / (1024 * 1024))}MB` }),
+        });
       }
 
       try {
-        console.log('File upload received:', { filename, fileSize, contentType, hasContent: !!fileContent });
-
         // Generate a unique file key with original filename
         const timestamp = Date.now();
         const uuid = randomUUID();
-        const sanitizedFilename = filename.replace(/[^a-zA-Z0-9.-]/g, '_');
+        const sanitizedFilename = fileName.replace(/[^a-zA-Z0-9.-]/g, '_');
         const fileKey = `uploads/${timestamp}-${uuid}-${sanitizedFilename}`;
 
         console.log('Generated file key:', fileKey);
@@ -112,7 +98,7 @@ exports.handler = async (event, context) => {
         // Store file content and metadata in database
         await sql`
           INSERT INTO uploaded_files (id, file_key, original_filename, file_size, mime_type, file_content_base64, upload_timestamp, status)
-          VALUES (${randomUUID()}, ${fileKey}, ${filename}, ${fileSize}, ${contentType}, ${fileContent}, ${new Date().toISOString()}, 'uploaded')
+          VALUES (${randomUUID()}, ${fileKey}, ${fileName}, ${fileSize}, ${fileMime}, ${fileBuffer.toString('base64')}, ${new Date().toISOString()}, 'uploaded')
           ON CONFLICT (file_key) DO NOTHING
         `;
 
@@ -123,12 +109,10 @@ exports.handler = async (event, context) => {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            success: true,
-            fileKey: fileKey,
-            filename: filename,
+            message: "File uploaded successfully",
+            filename: fileName,
             size: fileSize,
-            contentType: contentType,
-            message: 'File uploaded successfully with content'
+            fileKey: fileKey // Include fileKey in the response
           }),
         });
       } catch (error) {
@@ -155,4 +139,4 @@ exports.handler = async (event, context) => {
 
     busboy.end(Buffer.from(event.body, event.isBase64Encoded ? 'base64' : 'utf8'));
   });
-};
+}
