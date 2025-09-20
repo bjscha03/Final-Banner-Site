@@ -41,7 +41,19 @@
   for = "/*"
   [headers.values]
     Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
-    Content-Security-Policy = "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.paypal.com https://www.paypalobjects.com https://cdn.chatsimple.ai; connect-src 'self' https://*.paypal.com https://www.paypalobjects.com https://*.chatsimple.ai; frame-src https://*.paypal.com; img-src 'self' data: https://www.paypalobjects.com https://*.chatsimple.ai; style-src 'self' 'unsafe-inline'; font-src 'self' data:; frame-ancestors 'self';"
+    Content-Security-Policy = """
+    default-src 'self';
+    base-uri 'self';
+    object-src 'none';
+    script-src 'self' 'unsafe-inline' https://www.googletagmanager.com https://www.paypal.com https://www.paypalobjects.com https://cdn.chatsimple.ai;
+    style-src  'self' 'unsafe-inline' https://us-assets.i.posthog.com;
+    img-src    'self' data: blob: https://www.paypalobjects.com https://*.chatsimple.ai https://us-assets.i.posthog.com;
+    font-src   'self' data:;
+    connect-src 'self' blob: https://*.paypal.com https://www.paypalobjects.com https://*.chatsimple.ai https://api.expertise.ai https://us-assets.i.posthog.com https://*.posthog.com;
+    frame-src  'self' https://*.paypal.com blob:;
+    worker-src 'self' blob:;
+    media-src  'self' blob:;
+  """
     X-Content-Type-Options = "nosniff"
     X-Frame-Options = "DENY"
     Referrer-Policy = "strict-origin-when-cross-origin"
