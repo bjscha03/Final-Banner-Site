@@ -1,6 +1,11 @@
 // renderPdfToDataUrl.ts
 // Renders page 1 of a PDF File to a data URL for <img src="...">
 
+import { GlobalWorkerOptions } from 'pdfjs-dist';
+import workerURL from 'pdfjs-dist/build/pdf.worker.min.js?url';
+
+GlobalWorkerOptions.workerSrc = workerURL;
+
 let _pdfjsLib: typeof import('pdfjs-dist') | null = null;
 let _pdfjsWorker: any | null = null;
 
@@ -34,12 +39,7 @@ export async function renderPdfToDataUrl(file: File, opts: PdfRenderOptions = {}
     if (!_pdfjsLib) {
       console.log('Loading PDF.js library...');
       _pdfjsLib = await import('pdfjs-dist');
-      // Set worker source to match the installed version (5.4.149)
-      // Use a local worker for pdf.js
-      (_pdfjsLib as any).GlobalWorkerOptions.workerSrc = new URL(
-        'pdfjs-dist/build/pdf.worker.min.js',
-        import.meta.url,
-      ).toString();
+      // PDF.js worker source is now set globally at the top of the file.
       console.log('PDF.js library loaded successfully');
     }
 
