@@ -2,9 +2,8 @@
 // Renders page 1 of a PDF File to a data URL for <img src="...">
 
 import { GlobalWorkerOptions } from 'pdfjs-dist';
-import workerURL from 'pdfjs-dist/build/pdf.worker.min.js?url';
 
-GlobalWorkerOptions.workerSrc = workerURL;
+GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 
 let _pdfjsLib: typeof import('pdfjs-dist') | null = null;
 let _pdfjsWorker: any | null = null;
@@ -33,7 +32,7 @@ export async function renderPdfToDataUrl(file: File, opts: PdfRenderOptions = {}
 
     // Use a more conservative scale for banner-sized PDFs to avoid memory issues
     const scale = Math.max(0.1, Math.min(2.0, opts.scale ?? 1));
-    const deviceScale = Math.max(1, Math.floor(opts.deviceScale ?? (globalThis.window?.devicePixelRatio ?? 1)));
+    const deviceScale = Math.max(1, Math.floor(opts.devicePixelRatio ?? (globalThis.window?.devicePixelRatio ?? 1)));
 
     // Lazy import pdfjs and set worker
     if (!_pdfjsLib) {
