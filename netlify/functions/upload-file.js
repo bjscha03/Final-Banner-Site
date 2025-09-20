@@ -25,7 +25,7 @@ exports.handler = async (event) => {
     return {
       statusCode: 405,
       headers,
-      body: JSON.stringify({ error: "Method Not Allowed" }),
+      body: JSON.stringify({ success: false, error: "Method Not Allowed" }),
     };
   }
 
@@ -44,7 +44,7 @@ exports.handler = async (event) => {
         resolve({
           statusCode: 400,
           headers,
-          body: JSON.stringify({ error: "Invalid field name. Expected 'file' or 'pdf'." }),
+          body: JSON.stringify({ success: false, error: "Invalid field name. Expected 'file' or 'pdf'." }),
         });
         file.resume();
         return;
@@ -58,7 +58,7 @@ exports.handler = async (event) => {
         resolve({
           statusCode: 400,
           headers,
-          body: JSON.stringify({ error: "Only PDF files allowed" }),
+          body: JSON.stringify({ success: false, error: "Only PDF files allowed" }),
         });
         file.resume();
         return;
@@ -72,7 +72,7 @@ exports.handler = async (event) => {
           resolve({
             statusCode: 400,
             headers,
-            body: JSON.stringify({ error: `File size exceeds the 10MB limit. Current size: ${Math.round(fileSize / (1024 * 1024))}MB` }),
+            body: JSON.stringify({ success: false, error: `File size exceeds the 10MB limit. Current size: ${Math.round(fileSize / (1024 * 1024))}MB` }),
           });
           file.resume(); // Consume the stream to prevent 'finish' event from hanging
         }
@@ -88,7 +88,7 @@ exports.handler = async (event) => {
         return resolve({
           statusCode: 400,
           headers,
-          body: JSON.stringify({ error: "No file uploaded" }),
+          body: JSON.stringify({ success: false, error: "No file uploaded" }),
         });
       }
 
@@ -96,7 +96,7 @@ exports.handler = async (event) => {
         return resolve({
           statusCode: 400,
           headers,
-          body: JSON.stringify({ error: "Only PDF files allowed" }),
+          body: JSON.stringify({ success: false, error: "Only PDF files allowed" }),
         });
       }
 
@@ -104,7 +104,7 @@ exports.handler = async (event) => {
         return resolve({
           statusCode: 400,
           headers,
-          body: JSON.stringify({ error: `File size exceeds the 10MB limit. Current size: ${Math.round(fileSize / (1024 * 1024))}MB` }),
+          body: JSON.stringify({ success: false, error: `File size exceeds the 10MB limit. Current size: ${Math.round(fileSize / (1024 * 1024))}MB` }),
         });
       }
 

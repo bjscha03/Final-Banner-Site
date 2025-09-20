@@ -50,13 +50,7 @@
       'self' 'unsafe-inline'
       https://www.googletagmanager.com
       https://www.paypal.com
-      https://www.sandbox.paypal.com
-      https://www.paypalobjects.com
-      https://cdn.chatsimple.ai
-      https://cdnjs.cloudflare.com
-      https://us-assets.i.posthog.com
-      https://fonts.googleapis.com
-      https://*.cloudfront.net;
+      https://cdn.chatsimple.ai;
 
     style-src
       'self' 'unsafe-inline'
@@ -81,13 +75,12 @@
       https://*.paypal.com
       https://www.paypalobjects.com
       https://*.chatsimple.ai
-      https://api.expertise.ai
-      https://us-assets.i.posthog.com
       https://*.posthog.com
       https://*.cloudfront.net
       https://*.amazonaws.com
       https://api.ipify.org
-      https://pro.ip-api.com;
+      https://pro.ip-api.com
+      https://api.expertise.ai;
 
     frame-src
       'self'
@@ -95,8 +88,7 @@
       https://www.sandbox.paypal.com;
 
     worker-src
-      'self' blob:
-      https://cdnjs.cloudflare.com;
+      'self' blob:;
 
     media-src
       'self' blob:

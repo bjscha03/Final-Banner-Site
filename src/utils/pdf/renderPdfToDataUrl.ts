@@ -35,8 +35,11 @@ export async function renderPdfToDataUrl(file: File, opts: PdfRenderOptions = {}
       console.log('Loading PDF.js library...');
       _pdfjsLib = await import('pdfjs-dist');
       // Set worker source to match the installed version (5.4.149)
-      (_pdfjsLib as any).GlobalWorkerOptions.workerSrc =
-        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/5.4.149/pdf.worker.min.js";
+      // Use a local worker for pdf.js
+      (_pdfjsLib as any).GlobalWorkerOptions.workerSrc = new URL(
+        'pdfjs-dist/build/pdf.worker.min.js',
+        import.meta.url,
+      ).toString();
       console.log('PDF.js library loaded successfully');
     }
 
