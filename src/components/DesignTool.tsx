@@ -45,28 +45,28 @@ const DesignTool: React.FC = () => {
       setUploadedFileUrl(null); // Reset S3 URL on new upload
 
       // Upload file to Netlify function
-      const isDev = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
-      
-      if (isDev) {
-        console.log('Development mode: Using mock upload (skipping server upload)');
-        // In development mode, skip the server upload entirely and use mock response
-        const result = {
+      // Always use mock upload in development (when running on localhost)
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        console.log('Development mode detected: Using mock upload');
+        
+        // Create mock response immediately
+        const mockResult = {
           success: true,
           filename: file.name,
           size: file.size,
           fileKey: `dev-uploads/${Date.now()}-${file.name}`,
-          fileUrl: previewUrl // Use the blob URL for preview in dev mode
+          fileUrl: previewUrl
         };
 
-        if (result.success && result.fileUrl) {
-          setUploadedFileUrl(result.fileUrl); // Store the S3 URL
-          setPreviewUrl(result.fileUrl); // Update preview to S3 URL after successful upload
-          console.log("File uploaded successfully (dev mode):", result.fileUrl);
+        if (mockResult.success && mockResult.fileUrl) {
+          setUploadedFileUrl(mockResult.fileUrl);
+          setPreviewUrl(mockResult.fileUrl);
+          console.log("Mock upload completed successfully:", mockResult.fileUrl);
         }
-        return; // Exit early in development mode
+        return;
       }
 
-      // Production mode - try actual upload
+      // Production code (only runs when NOT on localhost)
       const formData = new FormData();
       formData.append("file", file);
 
@@ -82,8 +82,8 @@ const DesignTool: React.FC = () => {
 
         const result = await response.json();
         if (result.success && result.fileUrl) {
-          setUploadedFileUrl(result.fileUrl); // Store the S3 URL
-          setPreviewUrl(result.fileUrl); // Update preview to S3 URL after successful upload
+          setUploadedFileUrl(result.fileUrl);
+          setPreviewUrl(result.fileUrl);
           console.log("File uploaded successfully:", result.fileUrl);
         } else {
           throw new Error(result.error || "Unknown upload error");

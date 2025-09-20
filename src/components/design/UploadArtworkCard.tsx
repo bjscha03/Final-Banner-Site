@@ -37,17 +37,17 @@ const UploadArtworkCard: React.FC = () => {
 
     // Upload actual file content to server
     try {
-      const isDev = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
-      
-      if (isDev) {
-        console.log('Development mode: Using mock upload (skipping server upload)');
-        // In development mode, skip the server upload entirely and use mock response
-        const result = {
+      // Always use mock upload in development (when running on localhost)
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        console.log('Development mode detected: Using mock upload');
+        
+        // Create mock response immediately
+        const mockResult = {
           success: true,
           filename: file.name,
           size: file.size,
           fileKey: `dev-uploads/${Date.now()}-${file.name}`,
-          fileUrl: url // Use the blob URL for preview in dev mode
+          fileUrl: url
         };
 
         set({
@@ -57,13 +57,15 @@ const UploadArtworkCard: React.FC = () => {
             size: file.size,
             url,
             isPdf,
-            fileKey: result.fileKey // Store the server file key
+            fileKey: mockResult.fileKey
           }
         });
-        return; // Exit early in development mode
+
+        console.log('Mock upload completed successfully');
+        return;
       }
 
-      // Production mode - try actual upload
+      // Production code (only runs when NOT on localhost)
       const form = new FormData();
       form.append("file", file);
       
@@ -85,7 +87,7 @@ const UploadArtworkCard: React.FC = () => {
           size: file.size,
           url,
           isPdf,
-          fileKey: result.fileKey // Store the server file key
+          fileKey: result.fileKey
         }
       });
     } catch (uploadError) {
