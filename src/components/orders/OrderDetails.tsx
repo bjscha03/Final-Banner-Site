@@ -237,7 +237,17 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                         {item.rope_feet && item.rope_feet > 0 && (
                           <p>Rope: {(item.rope_feet || 0).toFixed(1)} ft</p>
                         )}
-                        {item.file_key && <p>File: {item.file_key}</p>}
+                        {item.file_key && (
+                          <p>
+                            File: <a 
+                              href="#" 
+                              onClick={(e) => { e.preventDefault(); handleFileDownload(item.file_key!, index); }}
+                              className="text-blue-600 hover:underline"
+                            >
+                              {item.file_name || item.file_key.split('/').pop() || 'Download File'}
+                            </a>
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div className="text-right ml-4">

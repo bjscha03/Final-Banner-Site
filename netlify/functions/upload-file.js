@@ -1,5 +1,7 @@
 // netlify/functions/upload-file.js
 import Busboy from "busboy";
+import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
+import { v4 as uuidv4 } from 'uuid';
 
 export const handler = async (event) => {
   if (event.httpMethod !== "POST") {
@@ -25,11 +27,34 @@ export const handler = async (event) => {
     await new Promise((res, rej) => { bb.on("finish", res); bb.on("error", rej); bb.end(bodyBuf); });
 
     if (!fileName) return json(400, { success: false, error: "No file provided. Use field name 'file'." });
-    if (!/^application\/pdf$/i.test(mime)) return json(400, { success: false, error: `Only PDF allowed. Got ${mime || "unknown"}` });
+    if (!/^(application\/pdf|image\/(jpeg|png))$/i.test(mime)) return json(400, { success: false, error: `Only PDF, JPG, or PNG allowed. Got ${mime || "unknown"}` });
 
     const buffer = Buffer.concat(chunks);
-    // TODO: store buffer to S3/Cloudinary/etc. and return URL
-    return json(200, { success: true, filename: fileName, size: buffer.length });
+
+    // S3 Upload Logic
+    const S3_BUCKET_NAME = process.env.S3_BUCKET_NAME;
+    const S3_REGION = process.env.S3_REGION || "us-east-1"; // Default to us-east-1 if not set
+
+    if (!S3_BUCKET_NAME) {
+      return json(500, { success: false, error: "S3_BUCKET_NAME environment variable not set." });
+    }
+
+    const s3Client = new S3Client({ region: S3_REGION });
+    const fileKey = `uploads/${uuidv4()}-${fileName}`;
+
+    const uploadParams = {
+      Bucket: S3_BUCKET_NAME,
+      Key: fileKey,
+      Body: buffer,
+      ContentType: mime,
+      ACL: 'public-read', // Make the file publicly accessible
+    };
+
+    await s3Client.send(new PutObjectCommand(uploadParams));
+
+    const fileUrl = `https://${S3_BUCKET_NAME}.s3.${S3_REGION}.amazonaws.com/${fileKey}`;
+
+    return json(200, { success: true, filename: fileName, size: buffer.length, fileUrl: fileUrl });
   } catch (e) {
     const msg = e?.message || String(e);
     return json(msg === "MAX_SIZE" ? 400 : 500, { success: false, error: msg });

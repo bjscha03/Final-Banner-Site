@@ -11,6 +11,7 @@ const DesignTool: React.FC = () => {
   const [rope, setRope] = useState<boolean>(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>('');
+  const [uploadedFileUrl, setUploadedFileUrl] = useState<string | null>(null); // New state for the S3 URL
 
   const materialPrices = {
     '13oz': 4.50,
@@ -35,13 +36,70 @@ const DesignTool: React.FC = () => {
     setTotalPrice(price);
   }, [width, height, quantity, material, polePockets, rope]);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setUploadedFile(file);
-      const url = URL.createObjectURL(file);
-      setPreviewUrl(url);
+      const clientSideUrl = URL.createObjectURL(file);
+      setPreviewUrl(clientSideUrl); // Show client-side preview immediately
+      setUploadedFileUrl(null); // Reset S3 URL on new upload
+
+      // Upload file to Netlify function
+      const formData = new FormData();
+      formData.append("file", file);
+
+      try {
+        const response = await fetch("/.netlify/functions/upload-file", {
+          method: "POST",
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error(`Upload failed: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        if (result.success && result.fileUrl) {
+          setUploadedFileUrl(result.fileUrl); // Store the S3 URL
+          setPreviewUrl(result.fileUrl); // Update preview to S3 URL after successful upload
+          console.log("File uploaded successfully:", result.fileUrl);
+        } else {
+          throw new Error(result.error || "Unknown upload error");
+        }
+      } catch (error) {
+        console.error("Error uploading file:", error);
+        setUploadedFile(null);
+        setPreviewUrl('');
+        setUploadedFileUrl(null);
+        alert("Failed to upload file. Please try again.");
+      }
     }
+  };
+
+  // This function would be called when the "Add to Cart" button is clicked
+  const handleAddToCart = () => {
+    if (!uploadedFileUrl) {
+      alert("Please upload your artwork before adding to cart.");
+      return;
+    }
+
+    const item = {
+      width_in: parseFloat(width) * 12, // Assuming width is in feet, convert to inches
+      height_in: parseFloat(height) * 12, // Assuming height is in feet, convert to inches
+      quantity: parseInt(quantity),
+      material: material,
+      grommets: grommets,
+      rope_feet: rope ? (parseFloat(width) * 2 + parseFloat(height) * 2) : 0, // Example calculation
+      pole_pockets: polePockets,
+      line_total_cents: Math.round(totalPrice * 100),
+      file_key: uploadedFileUrl, // Pass the S3 URL as file_key
+      file_name: uploadedFile?.name || 'untitled',
+    };
+    
+    console.log("Adding to cart:", item);
+    // Here you would typically dispatch an action to add the item to a global cart state
+    // or send it to a cart API.
+    alert("Item added to cart! (Check console for details)");
   };
 
   return (
@@ -195,6 +253,11 @@ const DesignTool: React.FC = () => {
                     ✅ {uploadedFile.name} uploaded
                   </p>
                 )}
+                {uploadedFileUrl && (
+                  <p className="mt-2 text-sm text-blue-600">
+                    🔗 <a href={uploadedFileUrl} target="_blank" rel="noopener noreferrer">View Uploaded File</a>
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -260,7 +323,10 @@ const DesignTool: React.FC = () => {
                 </div>
               </div>
 
-              <button className="w-full mt-6 bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors flex items-center justify-center space-x-2">
+              <button 
+                onClick={handleAddToCart}
+                className="w-full mt-6 bg-orange-500 hover:bg-orange-600 text-white px-6 py-3 rounded-lg font-semibold transition-colors flex items-center justify-center space-x-2"
+              >
                 <ShoppingCart className="h-5 w-5" />
                 <span>Add to Cart</span>
               </button>

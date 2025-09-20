@@ -80,7 +80,9 @@ exports.handler = async (event, context) => {
         grommets, 
         rope_feet, 
         pole_pockets, 
-        line_total_cents
+        line_total_cents,
+        file_key,
+        file_name
       FROM order_items 
       WHERE order_id = ${orderId}
       ORDER BY created_at

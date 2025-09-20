@@ -9,7 +9,7 @@
   directory = "netlify/functions"
   node_bundler = "esbuild"
   included_files = ["src/lib/**", "src/emails/**"]
-  external_node_modules = ["@neondatabase/serverless", "resend"]
+  external_node_modules = ["@neondatabase/serverless", "resend", "aws-sdk", "uuid"]
 
 [dev]
   targetPort = 8080
