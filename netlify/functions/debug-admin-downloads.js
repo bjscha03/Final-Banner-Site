@@ -31,7 +31,7 @@ exports.handler = async (event, context) => {
         o.created_at,
         oi.id as item_id,
         oi.file_key, 
-        oi.file_url,
+        
         LENGTH(oi.file_key) as file_key_length,
         oi.width_in,
         oi.height_in,
