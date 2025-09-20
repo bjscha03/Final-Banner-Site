@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, ErrorBoundary } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import SizeQuantityCard from '@/components/design/SizeQuantityCard';
