@@ -30,44 +30,35 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
 
   // Load PayPal configuration on mount
   useEffect(() => {
+    const isDev = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
+
+    const setFallbackConfig = () => {
+      const fallbackClientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
+      if (fallbackClientId) {
+        console.log('Using fallback PayPal config from environment variables.');
+        setPaypalConfig({
+          enabled: true,
+          clientId: fallbackClientId,
+          environment: 'sandbox', // Or determine from another env var
+        });
+      } else {
+        console.error('PayPal fallback failed: NEXT_PUBLIC_PAYPAL_CLIENT_ID is not set.');
+        setPaypalConfig({ enabled: false, clientId: null, environment: null });
+      }
+    };
+
     const loadPayPalConfig = async () => {
       try {
-        console.log('Loading PayPal config...');
         const response = await fetch('/.netlify/functions/paypal-config');
-        console.log('PayPal config response status:', response.status);
         if (response.ok) {
           const config = await response.json();
-          console.log('PayPal config loaded:', config);
           setPaypalConfig(config);
         } else {
-          console.error('Failed to load PayPal config:', response.status);
-          // Development fallback - if functions aren't available, enable PayPal with env vars
-          const isDev = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
-          if (isDev) {
-            console.log('Development mode: Using fallback PayPal config');
-            setPaypalConfig({
-              enabled: true,
-              clientId: 'ASMQFdH7oWMmG_kvb-cHTBNK0ce47eL4ry0fz_zZv9LhzLSdT2Ye7FoU1bdLbIdtr4aIxRaz3iZJ82Sz', // Sandbox client ID from .env
-              environment: 'sandbox'
-            });
-          } else {
-            setPaypalConfig({ enabled: false, clientId: null, environment: null });
-          }
+          throw new Error(`Failed to load PayPal config: ${response.status}`);
         }
       } catch (error) {
         console.error('Error loading PayPal config:', error);
-        // Development fallback - if functions aren't available, enable PayPal with env vars
-        const isDev = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
-        if (isDev) {
-          console.log('Development mode: Using fallback PayPal config due to error');
-          setPaypalConfig({
-            enabled: true,
-            clientId: 'ASMQFdH7oWMmG_kvb-cHTBNK0ce47eL4ry0fz_zZv9LhzLSdT2Ye7FoU1bdLbIdtr4aIxRaz3iZJ82Sz', // Sandbox client ID from .env
-            environment: 'sandbox'
-          });
-        } else {
-          setPaypalConfig({ enabled: false, clientId: null, environment: null });
-        }
+        setFallbackConfig();
       } finally {
         setIsLoadingConfig(false);
       }
