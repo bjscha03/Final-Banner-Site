@@ -36,10 +36,13 @@ const UploadArtworkCard: React.FC = () => {
     const url = URL.createObjectURL(file);
 
     // Upload actual file content to server
+    console.log('Current hostname:', window.location.hostname);
+    console.log('Is localhost?', window.location.hostname === 'localhost');
+    
     try {
       // Always use mock upload in development (when running on localhost)
       if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        console.log('Development mode detected: Using mock upload');
+        console.log('✅ Development mode detected: Using mock upload');
         
         // Create mock response immediately
         const mockResult = {
@@ -61,10 +64,11 @@ const UploadArtworkCard: React.FC = () => {
           }
         });
 
-        console.log('Mock upload completed successfully');
+        console.log('✅ Mock upload completed successfully');
         return;
       }
 
+      console.log('Production mode: Using real upload');
       // Production code (only runs when NOT on localhost)
       const form = new FormData();
       form.append("file", file);
