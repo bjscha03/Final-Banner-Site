@@ -152,68 +152,38 @@ exports.handler = async (event, context) => {
         body: '',
       };
     } else {
-      // For file downloads, we need to fetch the file and serve it
-      try {
-        // Generate the download URL from Cloudinary using the same approach as thumbnails
-        // but without transformations
-        let downloadUrl;
-        
-        // Check if it's a PDF or image to determine resource type
-        const isPdf = requestedKey.includes('.pdf') || requestedKey.includes('raw');
-        
-        if (isPdf) {
-          // For PDFs, use the raw resource type
-          downloadUrl = cloudinary.url(requestedKey, {
-            resource_type: 'raw',
-            flags: 'attachment'
-          });
-        } else {
-          // For images, use standard image resource type
-          downloadUrl = cloudinary.url(requestedKey, {
-            resource_type: 'image',
-            flags: 'attachment'
-          });
-        }
-        
-        console.log('Generated Cloudinary download URL:', downloadUrl);
-        
-        // Fetch the file from Cloudinary
-        const response = await fetch(downloadUrl);
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch file from Cloudinary: ${response.status} ${response.statusText}`);
-        }
-        
-        const fileBuffer = await response.arrayBuffer();
-        const base64File = Buffer.from(fileBuffer).toString('base64');
-        
-        // Extract filename from the public ID
-        const fileName = requestedKey.split('/').pop()?.replace(/^.*-/, '') || 'download';
-        
-        return {
-          statusCode: 200,
-          headers: {
-            ...headers,
-            'Content-Type': response.headers.get('content-type') || 'application/octet-stream',
-            'Content-Disposition': `attachment; filename="${fileName}"`,
-            'Content-Length': fileBuffer.byteLength.toString(),
-            'Cache-Control': 'private, no-cache',
-          },
-          body: base64File,
-          isBase64Encoded: true,
-        };
-        
-      } catch (fetchError) {
-        console.error('Error fetching file from Cloudinary:', fetchError);
-        return {
-          statusCode: 404,
-          headers,
-          body: JSON.stringify({ 
-            error: 'File not found',
-            message: fetchError.message 
-          }),
-        };
+      // For file downloads, redirect to Cloudinary URL with attachment flag
+      let downloadUrl;
+      
+      // Check if it's a PDF or image to determine resource type
+      const isPdf = requestedKey.includes('.pdf') || requestedKey.includes('raw');
+      
+      if (isPdf) {
+        // For PDFs, use the raw resource type
+        downloadUrl = cloudinary.url(requestedKey, {
+          resource_type: 'raw',
+          flags: 'attachment'
+        });
+      } else {
+        // For images, use standard image resource type with attachment flag
+        downloadUrl = cloudinary.url(requestedKey, {
+          resource_type: 'image',
+          flags: 'attachment'
+        });
       }
+      
+      console.log('Generated Cloudinary download URL:', downloadUrl);
+      
+      // Redirect to the Cloudinary URL for downloads
+      return {
+        statusCode: 302,
+        headers: {
+          ...headers,
+          'Location': downloadUrl,
+          'Cache-Control': 'private, no-cache',
+        },
+        body: '',
+      };
     }
 
   } catch (error) {
