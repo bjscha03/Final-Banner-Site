@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Upload, FileText, Image, X } from 'lucide-react';
+import { Upload, FileText, Image, X, Loader2 } from 'lucide-react';
 import { useQuoteStore } from '@/store/quote';
 import { Button } from '@/components/ui/button';
 
@@ -8,6 +8,7 @@ const UploadArtworkCard: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragActive, setDragActive] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
 
   const acceptedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
   const maxSizeBytes = 100 * 1024 * 1024; // 100MB
@@ -30,6 +31,7 @@ const UploadArtworkCard: React.FC = () => {
     }
 
     setUploadError('');
+    setIsUploading(true);
     const isPdf = file.type === 'application/pdf';
 
     // Create URL for preview
@@ -39,16 +41,23 @@ const UploadArtworkCard: React.FC = () => {
     try {
       const form = new FormData();
       form.append("file", file); // Append the actual File object
+      
+      console.log(`Uploading file: ${file.name}, size: ${file.size}, type: ${file.type}`);
+      
       const response = await fetch("/.netlify/functions/upload-file", {
         method: "POST",
         body: form
       });
 
+      console.log(`Upload response status: ${response.status}`);
+
       if (!response.ok) {
-        throw new Error(`Upload failed: ${response.statusText}`);
+        const errorData = await response.json().catch(() => ({ error: response.statusText }));
+        throw new Error(errorData.error || `Upload failed: ${response.statusText}`);
       }
 
       const result = await response.json();
+      console.log('Upload successful:', result);
 
       set({
         file: {
@@ -62,8 +71,29 @@ const UploadArtworkCard: React.FC = () => {
       });
     } catch (uploadError) {
       console.error('File upload error:', uploadError);
-      setUploadError('Failed to upload file. Please try again.');
+      
+      // Provide more specific error messages
+      let errorMessage = 'Failed to upload file. Please try again.';
+      
+      if (uploadError.message.includes('timeout')) {
+        errorMessage = 'Upload timed out. Please try again with a smaller file or check your internet connection.';
+      } else if (uploadError.message.includes('file type') || uploadError.message.includes('allowed')) {
+        errorMessage = uploadError.message;
+      } else if (uploadError.message.includes('size')) {
+        errorMessage = 'File is too large. Please use a file smaller than 100MB.';
+      } else if (uploadError.message.includes('network') || uploadError.message.includes('fetch')) {
+        errorMessage = 'Network error. Please check your internet connection and try again.';
+      } else if (uploadError.message) {
+        errorMessage = uploadError.message;
+      }
+      
+      setUploadError(errorMessage);
+      
+      // Clean up the preview URL if upload failed
+      URL.revokeObjectURL(url);
       return;
+    } finally {
+      setIsUploading(false);
     }
   };
 
@@ -103,6 +133,7 @@ const UploadArtworkCard: React.FC = () => {
     if (fileInputRef.current) {
       fileInputRef.current.value = '';
     }
+    setUploadError('');
   };
 
   const formatFileSize = (bytes: number): string => {
@@ -122,26 +153,32 @@ const UploadArtworkCard: React.FC = () => {
 
       {!file ? (
         <div
-          className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors cursor-pointer ${
-            dragActive
-              ? 'border-blue-400 bg-blue-50'
-              : 'border-gray-300 hover:border-gray-400'
+          className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
+            isUploading 
+              ? 'border-blue-400 bg-blue-50 cursor-not-allowed' 
+              : dragActive
+              ? 'border-blue-400 bg-blue-50 cursor-pointer'
+              : 'border-gray-300 hover:border-gray-400 cursor-pointer'
           }`}
-          onDragEnter={handleDrag}
-          onDragLeave={handleDrag}
-          onDragOver={handleDrag}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
+          onDragEnter={!isUploading ? handleDrag : undefined}
+          onDragLeave={!isUploading ? handleDrag : undefined}
+          onDragOver={!isUploading ? handleDrag : undefined}
+          onDrop={!isUploading ? handleDrop : undefined}
+          onClick={!isUploading ? () => fileInputRef.current?.click() : undefined}
         >
-          <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          {isUploading ? (
+            <Loader2 className="h-12 w-12 text-blue-500 mx-auto mb-4 animate-spin" />
+          ) : (
+            <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+          )}
           <p className="text-lg font-medium text-gray-700 mb-2">
-            Click to upload or drag and drop
+            {isUploading ? 'Uploading...' : 'Click to upload or drag and drop'}
           </p>
           <p className="text-sm text-gray-500 mb-4">
             PDF, JPG, JPEG, PNG up to 100MB
           </p>
-          <Button variant="outline" className="mx-auto">
-            Choose File
+          <Button variant="outline" className="mx-auto" disabled={isUploading}>
+            {isUploading ? 'Uploading...' : 'Choose File'}
           </Button>
         </div>
       ) : (
@@ -168,6 +205,7 @@ const UploadArtworkCard: React.FC = () => {
               size="sm"
               onClick={removeFile}
               className="text-red-500 hover:text-red-700 hover:bg-red-50"
+              disabled={isUploading}
             >
               <X className="h-4 w-4" />
             </Button>
@@ -191,12 +229,21 @@ const UploadArtworkCard: React.FC = () => {
         </div>
       )}
 
+      {isUploading && (
+        <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <p className="text-sm text-blue-700">
+            Uploading your file... This may take a moment for large files.
+          </p>
+        </div>
+      )}
+
       <input
         ref={fileInputRef}
         type="file"
         accept=".pdf,.jpg,.jpeg,.png"
         onChange={handleFileInput}
         className="hidden"
+        disabled={isUploading}
       />
 
       <div className="mt-4 p-3 bg-blue-50 rounded-lg">
