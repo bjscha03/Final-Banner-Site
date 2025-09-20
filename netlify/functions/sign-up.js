@@ -183,8 +183,8 @@ exports.handler = async (event) => {
     const expiresAt = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hours
 
     await db`
-      INSERT INTO email_verifications (id, user_id, token, expires_at, verified, created_at, updated_at)
-      VALUES (${generateUUID()}, ${userId}, ${verificationToken}, ${expiresAt}, false, NOW(), NOW())
+      INSERT INTO email_verifications (id, user_id, token, expires_at, verified, created_at)
+      VALUES (${generateUUID()}, ${userId}, ${verificationToken}, ${expiresAt}, false, NOW())
     `;
 
     // Build verification URL
