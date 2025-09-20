@@ -52,7 +52,9 @@
       https://www.paypal.com
       https://www.paypalobjects.com
       https://cdn.chatsimple.ai
-      https://us-assets.i.posthog.com;
+      https://us-assets.i.posthog.com
+      https://cdnjs.cloudflare.com
+      https://*.cloudfront.net;
 
     style-src
       'self' 'unsafe-inline'
@@ -81,7 +83,8 @@
       https://us-assets.i.posthog.com
       https://*.posthog.com
       https://*.cloudfront.net
-      https://*.amazonaws.com;
+      https://*.amazonaws.com
+      https://api.ipify.org;
 
     frame-src
       'self'
@@ -89,7 +92,8 @@
       blob:;
 
     worker-src
-      'self' blob:;
+      'self' blob:
+      https://cdnjs.cloudflare.com;
 
     media-src
       'self' blob:
