@@ -45,50 +45,42 @@ const DesignTool: React.FC = () => {
       setUploadedFileUrl(null); // Reset S3 URL on new upload
 
       // Upload file to Netlify function
+      const isDev = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
+      
+      if (isDev) {
+        console.log('Development mode: Using mock upload (skipping server upload)');
+        // In development mode, skip the server upload entirely and use mock response
+        const result = {
+          success: true,
+          filename: file.name,
+          size: file.size,
+          fileKey: `dev-uploads/${Date.now()}-${file.name}`,
+          fileUrl: previewUrl // Use the blob URL for preview in dev mode
+        };
+
+        if (result.success && result.fileUrl) {
+          setUploadedFileUrl(result.fileUrl); // Store the S3 URL
+          setPreviewUrl(result.fileUrl); // Update preview to S3 URL after successful upload
+          console.log("File uploaded successfully (dev mode):", result.fileUrl);
+        }
+        return; // Exit early in development mode
+      }
+
+      // Production mode - try actual upload
       const formData = new FormData();
       formData.append("file", file);
 
       try {
-        const isDev = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
-        let result;
+        const response = await fetch("/.netlify/functions/upload-file", {
+          method: "POST",
+          body: formData,
+        });
 
-        try {
-          const response = await fetch("/.netlify/functions/upload-file", {
-            method: "POST",
-            body: formData,
-          });
-
-          if (!response.ok) {
-            if (isDev) {
-              console.log('Development mode: Using mock upload response');
-              result = {
-                success: true,
-                filename: file.name,
-                size: file.size,
-                fileKey: `dev-uploads/${Date.now()}-${file.name}`,
-                fileUrl: previewUrl // Use the blob URL for preview in dev mode
-              };
-            } else {
-              throw new Error(`Upload failed: ${response.statusText}`);
-            }
-          } else {
-            result = await response.json();
-          }
-        } catch (fetchError) {
-          if (isDev) {
-            console.log('Development mode: Upload function not available, using mock response');
-            result = {
-              success: true,
-              filename: file.name,
-              size: file.size,
-              fileKey: `dev-uploads/${Date.now()}-${file.name}`,
-              fileUrl: previewUrl // Use the blob URL for preview in dev mode
-            };
-          } else {
-            throw fetchError;
-          }
+        if (!response.ok) {
+          throw new Error(`Upload failed: ${response.statusText}`);
         }
 
+        const result = await response.json();
         if (result.success && result.fileUrl) {
           setUploadedFileUrl(result.fileUrl); // Store the S3 URL
           setPreviewUrl(result.fileUrl); // Update preview to S3 URL after successful upload

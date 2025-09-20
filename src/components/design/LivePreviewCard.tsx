@@ -73,48 +73,48 @@ const LivePreviewCard: React.FC = () => {
 
     // Upload actual file content to server
     try {
-      const form = new FormData();
-      form.append("file", file); // Append the actual File object
-      
       const isDev = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
-      let result;
+      
+      if (isDev) {
+        console.log('Development mode: Using mock upload (skipping server upload)');
+        // In development mode, skip the server upload entirely and use mock response
+        const result = {
+          success: true,
+          filename: file.name,
+          size: file.size,
+          fileKey: `dev-uploads/${Date.now()}-${file.name}`,
+          fileUrl: url // Use the blob URL for preview in dev mode
+        };
 
-      try {
-        const response = await fetch("/.netlify/functions/upload-file", {
-          method: "POST",
-          body: form
-        });
-
-        if (!response.ok) {
-          if (isDev) {
-            console.log('Development mode: Using mock upload response');
-            result = {
-              success: true,
-              filename: file.name,
-              size: file.size,
-              fileKey: `dev-uploads/${Date.now()}-${file.name}`,
-              fileUrl: url // Use the blob URL for preview in dev mode
-            };
-          } else {
-            throw new Error(`Upload failed: ${response.statusText}`);
-          }
-        } else {
-          result = await response.json();
-        }
-      } catch (fetchError) {
-        if (isDev) {
-          console.log('Development mode: Upload function not available, using mock response');
-          result = {
-            success: true,
-            filename: file.name,
+        set({
+          file: {
+            name: file.name,
+            type: file.type,
             size: file.size,
-            fileKey: `dev-uploads/${Date.now()}-${file.name}`,
-            fileUrl: url // Use the blob URL for preview in dev mode
-          };
-        } else {
-          throw fetchError;
-        }
+            url,
+            isPdf,
+            fileKey: result.fileKey // Store the server file key
+          },
+          // Reset scale to 100% when uploading a new file
+          previewScalePct: 100
+        });
+        return; // Exit early in development mode
       }
+
+      // Production mode - try actual upload
+      const form = new FormData();
+      form.append("file", file);
+      
+      const response = await fetch("/.netlify/functions/upload-file", {
+        method: "POST",
+        body: form
+      });
+
+      if (!response.ok) {
+        throw new Error(`Upload failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
 
       set({
         file: {
