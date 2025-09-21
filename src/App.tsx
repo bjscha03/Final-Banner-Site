@@ -27,8 +27,6 @@ import OrderDetail from "./pages/OrderDetail";
 import AdminOrders from "./pages/admin/Orders";
 import AdminSeed from "./pages/AdminSeed";
 import AdminSetup from "./pages/AdminSetup";
-import TestPage from "./pages/TestPage";
-import BrowserCompatibilityTest from "./pages/BrowserCompatibilityTest";
 import LogoShowcase from "./pages/LogoShowcase";
 import NotFound from "./pages/NotFound";
 
@@ -64,8 +62,6 @@ const App = () => (
             <Route path="/admin/orders" element={<AdminOrders />} />
             <Route path="/admin/seed" element={<AdminSeed />} />
             <Route path="/admin/setup" element={<AdminSetup />} />
-            <Route path="/test" element={<TestPage />} />
-            <Route path="/browser-test" element={<BrowserCompatibilityTest />} />
             <Route path="/logo-showcase" element={<LogoShowcase />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

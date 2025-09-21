@@ -6,7 +6,6 @@ import { Order, OrdersAdapter, CreateOrderData, TrackingCarrier } from './types'
 export const netlifyDbOrdersAdapter: OrdersAdapter = {
   create: async (orderData: CreateOrderData): Promise<Order> => {
     try {
-      console.log('Creating order with Netlify DB:', orderData);
       
       // Insert order
       const [newOrder] = await db.insert(orders).values({
@@ -18,7 +17,6 @@ export const netlifyDbOrdersAdapter: OrdersAdapter = {
         status: 'paid'
       }).returning();
 
-      console.log('Order created:', newOrder);
 
       // Insert order items
       const orderItemsData = orderData.items.map(item => ({

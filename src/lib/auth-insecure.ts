@@ -26,7 +26,6 @@ class LocalAuthAdapter implements AuthAdapter {
 
       // Debug logging for production troubleshooting
       const hasAdminCookie = typeof document !== 'undefined' && document.cookie.includes('admin=1');
-      console.log('🔍 getCurrentUser Debug:', {
         hasStoredUser: !!user,
         hasAdminCookie,
         hostname: typeof window !== 'undefined' ? window.location.hostname : 'unknown',
@@ -36,7 +35,6 @@ class LocalAuthAdapter implements AuthAdapter {
 
       // If no user but admin cookie is present, create a temporary admin user
       if (!user && hasAdminCookie) {
-        console.log('🆕 Creating temporary admin user from cookie');
         user = {
           id: 'admin_dev_user',
           email: 'admin@dev.local',
@@ -47,11 +45,9 @@ class LocalAuthAdapter implements AuthAdapter {
 
       // Update admin status based on cookie
       if (user && hasAdminCookie) {
-        console.log('🔧 Updating user admin status from cookie');
         user.is_admin = true;
       }
 
-      console.log('✅ getCurrentUser result:', user ? { id: user.id, email: user.email, is_admin: user.is_admin } : null);
       return user;
     } catch (error) {
       console.error('Error reading user from storage:', error);
@@ -64,7 +60,6 @@ class LocalAuthAdapter implements AuthAdapter {
     // Check for admin flag in email (admin@example.com or contains 'admin')
     const isAdmin = email.toLowerCase().includes('admin');
 
-    console.log('🔍 SIGN IN DEBUG: Starting sign in for', email);
 
     // CRITICAL FIX: First check if user already exists in database
     let user: User | null = null;
@@ -73,7 +68,6 @@ class LocalAuthAdapter implements AuthAdapter {
     // We'll let the ensure-user function handle finding/creating users
 
     // Always create/ensure user exists in database
-    console.log('🆕 Creating/ensuring user for', email);
     const userId = generateUUID();
 
     user = {
@@ -101,13 +95,11 @@ class LocalAuthAdapter implements AuthAdapter {
 
         // If user already exists, try to get the existing user ID
         if (errorText.includes('already exists')) {
-          console.log('User already exists, will use create-user function to get existing user');
         } else {
           throw new Error(`Failed to ensure user: ${errorText}`);
         }
       } else {
         const result = await response.json();
-        console.log('✅ User ensured in database:', result);
 
         // Use the returned user data if available
         if (result.user) {
@@ -150,10 +142,8 @@ class LocalAuthAdapter implements AuthAdapter {
         if (!errorText.includes('already exists')) {
           throw new Error(`Failed to create user profile: ${errorText}`);
         } else {
-          console.log('User profile already exists in database - continuing with sign-in');
         }
       } else {
-        console.log('User profile created/updated in database successfully');
       }
     } catch (error) {
       console.error('CRITICAL ERROR: Cannot create user profile in database:', error);
@@ -212,7 +202,6 @@ class LocalAuthAdapter implements AuthAdapter {
           throw new Error(`Failed to create user account: ${errorText}`);
         }
       } else {
-        console.log('User profile created in database successfully');
       }
     } catch (error) {
       console.error('Error creating user profile:', error);
@@ -234,7 +223,6 @@ class LocalAuthAdapter implements AuthAdapter {
     if (typeof document !== 'undefined') {
       // Set the admin cookie to expire immediately
       document.cookie = 'admin=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax';
-      console.log('🍪 Cleared admin cookie during logout');
     }
   }
 }
@@ -249,7 +237,6 @@ export async function getAuthAdapter(): Promise<AuthAdapter> {
 
   // For now, always use local adapter since we don't want Supabase
   authAdapter = new LocalAuthAdapter();
-  console.log('Using local auth adapter (development mode)');
 
   return authAdapter;
 }

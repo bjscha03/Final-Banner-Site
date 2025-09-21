@@ -35,7 +35,6 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
     const setFallbackConfig = () => {
       const fallbackClientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
       if (fallbackClientId) {
-        console.log('Using fallback PayPal config from environment variables.');
         setPaypalConfig({
           enabled: true,
           clientId: fallbackClientId,
