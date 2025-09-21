@@ -48,26 +48,26 @@ export const handler = async (event) => {
     // Generate timestamp for signature
     const timestamp = Math.round(new Date().getTime() / 1000);
     
-    // Upload parameters - CRITICAL: boolean values must be strings for Cloudinary signature
-    const uploadParams = {
+    // Parameters for signature generation (resource_type is NOT included in signature)
+    const signatureParams = {
       folder: 'banner-uploads',
       public_id: publicId,
-      resource_type: resourceType,
       timestamp: timestamp,
       use_filename: 'true',
       unique_filename: 'true'
     };
 
-    // Generate signature using Cloudinary's built-in method
-    const signature = cloudinary.utils.api_sign_request(uploadParams, process.env.CLOUDINARY_API_SECRET);
+    // Generate signature using only the signature parameters
+    const signature = cloudinary.utils.api_sign_request(signatureParams, process.env.CLOUDINARY_API_SECRET);
 
     console.log(`Generated upload signature for: ${filename}, resource_type: ${resourceType}`);
-    console.log(`Upload params for signature:`, uploadParams);
+    console.log(`Signature params:`, signatureParams);
 
+    // Return all parameters needed for upload (including resource_type for the upload URL)
     return json(200, {
       success: true,
       uploadParams: {
-        ...uploadParams,
+        ...signatureParams,
         signature,
         api_key: process.env.CLOUDINARY_API_KEY
       },
