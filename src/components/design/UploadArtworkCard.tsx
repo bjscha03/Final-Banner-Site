@@ -1,5 +1,5 @@
 import React, { useRef, useState } from 'react';
-import { Upload, FileText, Image, X, Loader2 } from 'lucide-react';
+import { Upload, FileText, Image, X, Loader2, AlertTriangle } from 'lucide-react';
 import { useQuoteStore } from '@/store/quote';
 import { Button } from '@/components/ui/button';
 
@@ -11,129 +11,21 @@ const UploadArtworkCard: React.FC = () => {
   const [isUploading, setIsUploading] = useState(false);
 
   const acceptedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
-  const maxSizeBytes = 100 * 1024 * 1024; // 100MB
+  const maxSizeBytes = 100 * 1024 * 1024; // 100MB theoretical limit
+  const cloudinaryLimit = 10 * 1024 * 1024; // 10MB Cloudinary free tier limit
+  const largeSizeThreshold = 15 * 1024 * 1024; // 15MB threshold for direct upload
 
   const validateFile = (file: File): string | null => {
     if (!acceptedTypes.includes(file.type)) {
       return 'Please upload a PDF, JPG, JPEG, or PNG file.';
     }
     if (file.size > maxSizeBytes) {
-      return 'File size must be less than 100MB.';
+      return `File size must be less than ${maxSizeBytes / (1024 * 1024)}MB.`;
+    }
+    if (file.size > cloudinaryLimit) {
+      return `File size (${(file.size / (1024 * 1024)).toFixed(1)}MB) exceeds the 10MB limit. Please compress your file or upgrade your plan.`;
     }
     return null;
-  };
-
-  const handleFile = async (file: File) => {
-    const error = validateFile(file);
-    if (error) {
-      setUploadError(error);
-      return;
-    }
-
-    setUploadError('');
-    setIsUploading(true);
-    const isPdf = file.type === 'application/pdf';
-
-    // Create URL for preview
-    const url = URL.createObjectURL(file);
-
-    // Upload actual file content to server
-    try {
-      const form = new FormData();
-      form.append("file", file); // Append the actual File object
-      
-      console.log(`Uploading file: ${file.name}, size: ${file.size}, type: ${file.type}`);
-      
-      const response = await fetch("/.netlify/functions/upload-file", {
-        method: "POST",
-        body: form
-      });
-
-      console.log(`Upload response status: ${response.status}`);
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: response.statusText }));
-        throw new Error(errorData.error || `Upload failed: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      console.log('Upload successful:', result);
-
-      set({
-        file: {
-          name: file.name,
-          type: file.type,
-          size: file.size,
-          url,
-          isPdf,
-          fileKey: result.fileKey // Store the server file key
-        }
-      });
-    } catch (uploadError) {
-      console.error('File upload error:', uploadError);
-      
-      // Provide more specific error messages
-      let errorMessage = 'Failed to upload file. Please try again.';
-      
-      if (uploadError.message.includes('timeout')) {
-        errorMessage = 'Upload timed out. Please try again with a smaller file or check your internet connection.';
-      } else if (uploadError.message.includes('file type') || uploadError.message.includes('allowed')) {
-        errorMessage = uploadError.message;
-      } else if (uploadError.message.includes('size')) {
-        errorMessage = 'File is too large. Please use a file smaller than 100MB.';
-      } else if (uploadError.message.includes('network') || uploadError.message.includes('fetch')) {
-        errorMessage = 'Network error. Please check your internet connection and try again.';
-      } else if (uploadError.message) {
-        errorMessage = uploadError.message;
-      }
-      
-      setUploadError(errorMessage);
-      
-      // Clean up the preview URL if upload failed
-      URL.revokeObjectURL(url);
-      return;
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  const handleFileInput = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      handleFile(selectedFile);
-    }
-  };
-
-  const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === 'dragenter' || e.type === 'dragover') {
-      setDragActive(true);
-    } else if (e.type === 'dragleave') {
-      setDragActive(false);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-
-    const droppedFile = e.dataTransfer.files?.[0];
-    if (droppedFile) {
-      handleFile(droppedFile);
-    }
-  };
-
-  const removeFile = () => {
-    if (file?.url && !file.isPdf) {
-      URL.revokeObjectURL(file.url);
-    }
-    set({ file: undefined });
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-    setUploadError('');
   };
 
   const formatFileSize = (bytes: number): string => {
@@ -144,112 +36,257 @@ const UploadArtworkCard: React.FC = () => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  // Function upload for small files (< 15MB)
+  const handleFunctionUpload = async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await fetch('/.netlify/functions/upload-file', {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `Upload failed with status ${response.status}`);
+    }
+
+    return await response.json();
+  };
+
+  // Direct upload for large files (>= 15MB) - Currently disabled due to Cloudinary limits
+  const handleDirectUpload = async (file: File) => {
+    // Get signature from our function
+    const signatureResponse = await fetch('/.netlify/functions/generate-upload-signature', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        filename: file.name,
+        fileType: file.type
+      })
+    });
+
+    if (!signatureResponse.ok) {
+      const errorData = await signatureResponse.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Failed to get upload signature');
+    }
+
+    const { uploadParams, uploadUrl } = await signatureResponse.json();
+
+    // Upload directly to Cloudinary
+    const formData = new FormData();
+    formData.append('file', file);
+    
+    // Add all signature parameters
+    Object.entries(uploadParams).forEach(([key, value]) => {
+      formData.append(key, value as string);
+    });
+
+    const uploadResponse = await fetch(uploadUrl, {
+      method: 'POST',
+      body: formData
+    });
+
+    if (!uploadResponse.ok) {
+      const errorData = await uploadResponse.json().catch(() => ({}));
+      throw new Error(errorData.error?.message || `Direct upload failed with status ${uploadResponse.status}`);
+    }
+
+    const result = await uploadResponse.json();
+    
+    // Transform Cloudinary response to match our expected format
+    return {
+      success: true,
+      url: result.secure_url,
+      filename: file.name,
+      size: file.size
+    };
+  };
+
+  const handleFileUpload = async (file: File) => {
+    setIsUploading(true);
+    setUploadError('');
+
+    try {
+      const validationError = validateFile(file);
+      if (validationError) {
+        setUploadError(validationError);
+        return;
+      }
+
+      let result;
+      
+      // Route based on file size - but currently all files must be under 10MB
+      if (file.size >= largeSizeThreshold) {
+        // Large files would use direct upload, but Cloudinary free tier doesn't support this
+        setUploadError(`File size (${(file.size / (1024 * 1024)).toFixed(1)}MB) exceeds the 10MB limit. Please compress your file or upgrade your Cloudinary plan.`);
+        return;
+      } else {
+        // Small files use function upload
+        result = await handleFunctionUpload(file);
+      }
+
+      if (result.success) {
+        set({
+          file: {
+            name: result.filename,
+            url: result.url,
+            size: result.size,
+          },
+        });
+        setUploadError('');
+      } else {
+        setUploadError(result.error || 'Upload failed. Please try again.');
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      setUploadError(error instanceof Error ? error.message : 'Upload failed. Please try again.');
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    const droppedFile = e.dataTransfer.files[0];
+    if (droppedFile) {
+      handleFileUpload(droppedFile);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0];
+    if (selectedFile) {
+      handleFileUpload(selectedFile);
+    }
+  };
+
+  const removeFile = () => {
+    set({ file: null });
+    setUploadError('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const openFileDialog = () => {
+    fileInputRef.current?.click();
+  };
+
+  const getFileIcon = (fileName: string) => {
+    const extension = fileName.split('.').pop()?.toLowerCase();
+    return extension === 'pdf' ? FileText : Image;
+  };
+
   return (
-    <div className="bg-white rounded-2xl shadow-md p-5 md:p-6">
-      <div className="flex items-center space-x-2 mb-6">
-        <Upload className="h-5 w-5 text-green-500" />
-        <h3 className="text-lg font-bold text-gray-900">🖼️ Upload Artwork</h3>
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <h3 className="text-lg font-semibold text-gray-900 mb-4">Upload Artwork</h3>
+      
+      {/* File Size Limit Warning */}
+      <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
+        <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
+        <div className="text-sm text-amber-800">
+          <p className="font-medium">File Size Limit: 10MB</p>
+          <p>Large files may fail to upload. Consider compressing PDFs or upgrading your plan for larger files.</p>
+        </div>
       </div>
 
       {!file ? (
         <div
           className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-            isUploading 
-              ? 'border-blue-400 bg-blue-50 cursor-not-allowed' 
-              : dragActive
-              ? 'border-blue-400 bg-blue-50 cursor-pointer'
-              : 'border-gray-300 hover:border-gray-400 cursor-pointer'
+            dragActive
+              ? 'border-blue-400 bg-blue-50'
+              : 'border-gray-300 hover:border-gray-400'
           }`}
-          onDragEnter={!isUploading ? handleDrag : undefined}
-          onDragLeave={!isUploading ? handleDrag : undefined}
-          onDragOver={!isUploading ? handleDrag : undefined}
-          onDrop={!isUploading ? handleDrop : undefined}
-          onClick={!isUploading ? () => fileInputRef.current?.click() : undefined}
+          onDrop={handleDrop}
+          onDragOver={handleDragOver}
+          onDragLeave={handleDragLeave}
         >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.jpg,.jpeg,.png"
+            onChange={handleFileSelect}
+            className="hidden"
+            disabled={isUploading}
+          />
+          
           {isUploading ? (
-            <Loader2 className="h-12 w-12 text-blue-500 mx-auto mb-4 animate-spin" />
+            <div className="flex flex-col items-center">
+              <Loader2 className="h-12 w-12 text-blue-500 animate-spin mb-4" />
+              <p className="text-gray-600">Uploading your file...</p>
+            </div>
           ) : (
-            <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <div className="flex flex-col items-center">
+              <Upload className="h-12 w-12 text-gray-400 mb-4" />
+              <p className="text-lg font-medium text-gray-900 mb-2">
+                Drop your file here or click to browse
+              </p>
+              <p className="text-sm text-gray-500 mb-4">
+                Supports PDF, JPG, JPEG, PNG files up to 10MB
+              </p>
+              <Button onClick={openFileDialog} disabled={isUploading}>
+                Choose File
+              </Button>
+            </div>
           )}
-          <p className="text-lg font-medium text-gray-700 mb-2">
-            {isUploading ? 'Uploading...' : 'Click to upload or drag and drop'}
-          </p>
-          <p className="text-sm text-gray-500 mb-4">
-            PDF, JPG, JPEG, PNG up to 100MB
-          </p>
-          <Button variant="outline" className="mx-auto" disabled={isUploading}>
-            {isUploading ? 'Uploading...' : 'Choose File'}
-          </Button>
         </div>
       ) : (
-        <div className="border rounded-lg p-4 bg-gray-50">
-          <div className="flex items-start justify-between">
+        <div className="border border-gray-200 rounded-lg p-4">
+          <div className="flex items-center justify-between">
             <div className="flex items-center space-x-3">
-              {file.isPdf ? (
-                <FileText className="h-8 w-8 text-red-500" />
-              ) : (
-                <Image className="h-8 w-8 text-blue-500" />
-              )}
+              {React.createElement(getFileIcon(file.name), {
+                className: "h-8 w-8 text-blue-500"
+              })}
               <div>
                 <p className="font-medium text-gray-900">{file.name}</p>
-                <p className="text-sm text-gray-500">{formatFileSize(file.size)}</p>
-                {file.isPdf && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    PDF uploaded — preview not rendered
-                  </p>
-                )}
+                <p className="text-sm text-gray-500">
+                  {formatFileSize(file.size)}
+                </p>
               </div>
             </div>
             <Button
               variant="ghost"
               size="sm"
               onClick={removeFile}
-              className="text-red-500 hover:text-red-700 hover:bg-red-50"
-              disabled={isUploading}
+              className="text-gray-400 hover:text-gray-600"
             >
               <X className="h-4 w-4" />
             </Button>
           </div>
-          
-          {file.url && !file.isPdf && (
-            <div className="mt-4">
-              <img
-                src={file.url}
-                alt="Uploaded artwork preview"
-                className="max-w-full h-32 object-contain rounded border"
-              />
-            </div>
-          )}
         </div>
       )}
 
       {uploadError && (
-        <div className="mt-3 p-3 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-sm text-red-700">{uploadError}</p>
+        <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-sm text-red-800">{uploadError}</p>
         </div>
       )}
 
-      {isUploading && (
-        <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <p className="text-sm text-blue-700">
-            Uploading your file... This may take a moment for large files.
-          </p>
-        </div>
-      )}
-
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".pdf,.jpg,.jpeg,.png"
-        onChange={handleFileInput}
-        className="hidden"
-        disabled={isUploading}
-      />
-
-      <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-        <p className="text-sm text-blue-700">
-          <strong>File requirements:</strong> High-resolution files (300 DPI) work best. 
-          We'll review your artwork and contact you if any adjustments are needed.
+      <div className="mt-4 text-xs text-gray-500">
+        <p>
+          <strong>Supported formats:</strong> PDF, JPG, JPEG, PNG
+        </p>
+        <p>
+          <strong>Maximum file size:</strong> 10MB (due to current plan limitations)
+        </p>
+        <p>
+          For larger files, please compress your PDF or contact support about upgrading your plan.
         </p>
       </div>
     </div>
