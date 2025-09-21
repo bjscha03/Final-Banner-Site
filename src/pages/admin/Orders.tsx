@@ -472,31 +472,31 @@ const AdminOrders: React.FC = () => {
                 <table className="min-w-full divide-y divide-gray-200">
                   <thead className="bg-gray-50">
                     <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Order
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Customer
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="hidden md:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Date
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="hidden lg:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Items
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Total
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Status
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="hidden xl:table-cell px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Files
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Tracking
                       </th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 sm:px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Actions
                       </th>
                     </tr>
@@ -595,38 +595,38 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
 
   return (
     <tr className="hover:bg-gray-50">
-      <td className="px-6 py-4 whitespace-nowrap">
+      <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
         <div className="text-sm font-medium text-gray-900">
           #{order.id ? order.id.slice(-8).toUpperCase() : 'UNKNOWN'}
         </div>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap">
+      <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
         <div className="text-sm text-gray-900">
           {order.user_id ? (order.user_id.slice(0, 8) + '...') : 'Guest'}
         </div>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap">
+      <td className="hidden md:table-cell px-3 sm:px-6 py-4 whitespace-nowrap">
         <div className="text-sm text-gray-900">
           {new Date(order.created_at).toLocaleDateString()}
         </div>
       </td>
-      <td className="px-6 py-4">
+      <td className="hidden lg:table-cell px-3 sm:px-6 py-4">
         <div className="text-sm text-gray-900">
           {getItemsSummary(order)}
         </div>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap">
+      <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
         <div className="text-sm font-semibold text-gray-900">
           {usd(order.total_cents / 100)}
         </div>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap">
+      <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
         <Badge className={`${getStatusColor(order.status)} capitalize`}>
           {order.status}
         </Badge>
       </td>
       {/* Files Column */}
-      <td className="px-6 py-4 whitespace-nowrap">
+      <td className="px-3 sm:px-6 py-4 whitespace-nowrap">
         <div className="flex flex-col space-y-1">
           {getFilesWithDownload().length > 0 ? (
             getFilesWithDownload().map(({ item, index }) => (
@@ -649,7 +649,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
           )}
         </div>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap">
+      <td className="hidden xl:table-cell px-3 sm:px-6 py-4 whitespace-nowrap">
         {order.tracking_number ? (
           <div className="flex flex-col space-y-2">
             {isEditingTracking ? (
@@ -698,85 +698,128 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
             )}
           </div>
         ) : (
-          <div className="flex items-center space-x-2">
+          <div className="text-xs text-gray-500">
             {isAddingTracking ? (
-              <>
+              <div className="flex items-center space-x-1">
                 <Input
                   type="text"
-                  placeholder="Tracking number"
+                  placeholder="Tracking #"
                   value={trackingNumber}
                   onChange={(e) => setTrackingNumber(e.target.value)}
-                  className="w-32 h-8 text-xs"
+                  className="w-24 h-6 text-xs"
                 />
-                <Button size="sm" onClick={handleAddTracking}>
+                <Button size="sm" onClick={handleAddTracking} className="h-6 px-2 text-xs">
                   Add
                 </Button>
                 <Button 
                   size="sm" 
                   variant="ghost" 
                   onClick={() => setIsAddingTracking(false)}
+                  className="h-6 px-2 text-xs"
                 >
-                  Cancel
+                  ×
                 </Button>
-              </>
+              </div>
             ) : (
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setIsAddingTracking(true)}
-              >
-                <Plus className="h-3 w-3 mr-1" />
-                Add Tracking
-              </Button>
+              <span>No tracking</span>
             )}
-          </div>
-        )}
-      </td>
+          </div>      </td>
       <td className="pr-4 sm:pr-5 py-4 whitespace-nowrap text-sm font-medium">
-        <div className="flex items-center justify-end gap-2 sm:gap-3">
+        <div className="flex items-center justify-end gap-2">
+          {/* Always visible View button */}
           <OrderDetails
             order={order}
             trigger={
-              <Button variant="ghost" size="sm">
-                <Eye className="h-4 w-4 mr-1" />
-                View
+              <Button variant="ghost" size="sm" className="px-2">
+                <Eye className="h-4 w-4" />
+                <span className="sr-only">View Order</span>
               </Button>
             }
           />
 
-          {/* Send Shipping Notification Button */}
-          {order.tracking_number && !order.shipping_notification_sent && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleSendNotification}
-              disabled={isSendingNotification}
-              className="text-xs"
-            >
-              {isSendingNotification ? (
+          {/* Dropdown menu for other actions */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="px-2">
+                <MoreHorizontal className="h-4 w-4" />
+                <span className="sr-only">More actions</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-48">
+              {/* File Downloads */}
+              {getFilesWithDownload().length > 0 && (
                 <>
-                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                  Sending...
-                </>
-              ) : (
-                <>
-                  <Mail className="h-3 w-3 mr-1" />
-                  Send Email
+                  {getFilesWithDownload().map(({ item, index }) => (
+                    <DropdownMenuItem
+                      key={index}
+                      onClick={() => onFileDownload(item.file_key!, order.id, index)}
+                      className="cursor-pointer"
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Download File {index + 1}
+                    </DropdownMenuItem>
+                  ))}
+                  <DropdownMenuSeparator />
                 </>
               )}
-            </Button>
-          )}
 
-          {/* Show notification sent status */}
-          {order.shipping_notification_sent && (
-            <div className="text-xs text-green-600 flex items-center">
-              <Mail className="h-3 w-3 mr-1" />
-              Email Sent
-            </div>
-          )}
+              {/* Tracking Actions */}
+              {!order.tracking_number ? (
+                <DropdownMenuItem
+                  onClick={() => setIsAddingTracking(true)}
+                  className="cursor-pointer"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Add Tracking
+                </DropdownMenuItem>
+              ) : (
+                <DropdownMenuItem
+                  onClick={handleEditTracking}
+                  className="cursor-pointer"
+                >
+                  <Edit3 className="h-4 w-4 mr-2" />
+                  Edit Tracking
+                </DropdownMenuItem>
+              )}
+
+              {/* Send Notification */}
+              {order.tracking_number && !order.shipping_notification_sent && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={handleSendNotification}
+                    disabled={isSendingNotification}
+                    className="cursor-pointer"
+                  >
+                    {isSendingNotification ? (
+                      <>
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        Sending Email...
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="h-4 w-4 mr-2" />
+                        Send Email
+                      </>
+                    )}
+                  </DropdownMenuItem>
+                </>
+              )}
+
+              {/* Show notification sent status */}
+              {order.shipping_notification_sent && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem disabled>
+                    <Mail className="h-4 w-4 mr-2 text-green-600" />
+                    Email Sent
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
-      </td>
-    </tr>
+      </td>    </tr>
   );
 };
 
