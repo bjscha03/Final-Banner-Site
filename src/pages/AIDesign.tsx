@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
 import Layout from '@/components/Layout';
 import SizeQuantityCard from '@/components/design/SizeQuantityCard';
+import GrommetsCard from '@/components/design/GrommetsCard';
 import MaterialCard from '@/components/design/MaterialCard';
 import OptionsCard from '@/components/design/OptionsCard';
 import PricingCard from '@/components/design/PricingCard';
@@ -523,6 +524,7 @@ const AIDesign: React.FC = () => {
               {/* Reused Components from Manual Design */}
               <SizeQuantityCard />
               <MaterialCard />
+              <GrommetsCard />
               <OptionsCard />
             </div>
 

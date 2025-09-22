@@ -131,66 +131,20 @@ export const handler = async (event) => {
 };
 
 function buildEnhancedPrompt(prompt, styles, colors, size, textLayers) {
-  // Content classification for better relevance
-  const lowerPrompt = prompt.toLowerCase();
-  let contentType = 'general';
-  let enhancedPrompt = prompt;
-  
-  // Birthday/Party themes
-  if (lowerPrompt.includes('birthday') || lowerPrompt.includes('party') || lowerPrompt.includes('balloon') || lowerPrompt.includes('celebration')) {
-    contentType = 'party';
-    enhancedPrompt = `colorful party background with balloons, streamers, and festive decorations, ${prompt}`;
-  }
-  // Sale/Business themes  
-  else if (lowerPrompt.includes('sale') || lowerPrompt.includes('grand opening') || lowerPrompt.includes('discount') || lowerPrompt.includes('business')) {
-    contentType = 'business';
-    enhancedPrompt = `professional business storefront or retail environment, ${prompt}`;
-  }
-  // Tech/Conference themes
-  else if (lowerPrompt.includes('tech') || lowerPrompt.includes('conference') || lowerPrompt.includes('digital') || lowerPrompt.includes('innovation')) {
-    contentType = 'tech';
-    enhancedPrompt = `modern technology background with digital elements, ${prompt}`;
-  }
-  // Sports/Fitness themes
-  else if (lowerPrompt.includes('sport') || lowerPrompt.includes('fitness') || lowerPrompt.includes('gym') || lowerPrompt.includes('athletic')) {
-    contentType = 'sports';
-    enhancedPrompt = `dynamic sports or fitness environment, ${prompt}`;
-  }
-  // Food/Restaurant themes
-  else if (lowerPrompt.includes('food') || lowerPrompt.includes('restaurant') || lowerPrompt.includes('cafe') || lowerPrompt.includes('dining')) {
-    contentType = 'food';
-    enhancedPrompt = `appetizing food photography background, ${prompt}`;
-  }
-  // Event/Wedding themes
-  else if (lowerPrompt.includes('wedding') || lowerPrompt.includes('event') || lowerPrompt.includes('ceremony')) {
-    contentType = 'event';
-    enhancedPrompt = `elegant event venue or ceremony backdrop, ${prompt}`;
-  }
-
   const styleText = styles && styles.length > 0 ? styles.join(', ') + ' style' : 'professional style';
-  const colorText = colors && colors.length > 0 ? `dominant colors: ${colors.join(', ')}` : '';
+  const colorText = colors && colors.length > 0 ? `using colors ${colors.join(', ')}` : '';
+  const dimensionText = `${size.wIn}"x${size.hIn}" banner format`;
   
-  // Calculate proper aspect ratio
-  const aspectRatio = size.wIn / size.hIn;
-  let aspectText = '';
-  if (aspectRatio >= 2) {
-    aspectText = 'wide horizontal banner format';
-  } else if (aspectRatio >= 1.5) {
-    aspectText = 'landscape banner format';
-  } else if (aspectRatio <= 0.7) {
-    aspectText = 'tall vertical banner format';
-  } else {
-    aspectText = 'square banner format';
+  let textLayerPrompt = '';
+  if (textLayers) {
+    const textParts = [];
+    if (textLayers.headline) textParts.push(`headline "${textLayers.headline}"`);
+    if (textLayers.subheadline) textParts.push(`subheadline "${textLayers.subheadline}"`);
+    if (textLayers.cta) textParts.push(`call-to-action "${textLayers.cta}"`);
+    if (textParts.length > 0) {
+      textLayerPrompt = `, with text elements: ${textParts.join(', ')}`;
+    }
   }
-
-  // Build final prompt with better composition instructions
-  const finalPrompt = `Professional ${aspectText} banner background: ${enhancedPrompt}. ${styleText}. ${colorText}. Clean composition with space for text overlay, high contrast, suitable for large format printing. No text, logos, or watermarks in the image.`;
-  
-  console.log('Content type detected:', contentType);
-  console.log('Enhanced prompt:', finalPrompt);
-  
-  return finalPrompt;
-}
 
   return `Create a high-quality ${dimensionText} banner design: ${prompt}. ${styleText} ${colorText}. Ensure quiet background behind text areas for readability, high contrast elements, professional composition suitable for printing${textLayerPrompt}. No watermarks or signatures.`;
 }
@@ -206,8 +160,8 @@ async function generateWithReplicate(prompt, size, seed) {
       version: "39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b", // SDXL
       input: {
         prompt: prompt,
-        width: calculateOptimalWidth(size),
-        height: calculateOptimalHeight(size),
+        width: Math.min(1024, size.wIn * 50),
+        height: Math.min(1024, size.hIn * 50),
         num_outputs: 1,
         scheduler: "K_EULER",
         num_inference_steps: 50,
@@ -262,8 +216,8 @@ async function generateWithReplicate(prompt, size, seed) {
 }
 
 async function generatePlaceholder(prompt, size) {
-  const width = calculateOptimalWidth(size);
-  const height = calculateOptimalHeight(size);
+  const width = Math.min(1024, size.wIn * 50);
+  const height = Math.min(1024, size.hIn * 50);
   
   // Use a reliable placeholder service
   return `https://picsum.photos/${width}/${height}?random=${Date.now()}`;
@@ -280,43 +234,4 @@ function json(status, body) {
     },
     body: JSON.stringify(body),
   };
-}
-
-// Helper functions for proper aspect ratio calculation
-function calculateOptimalWidth(size) {
-  const aspectRatio = size.wIn / size.hIn;
-  const maxDimension = 1280;
-  
-  let targetWidth, targetHeight;
-  if (aspectRatio >= 1) {
-    // Landscape or square - limit by width
-    targetWidth = Math.min(maxDimension, Math.round(size.wIn * 50));
-    targetHeight = Math.round(targetWidth / aspectRatio);
-  } else {
-    // Portrait - limit by height
-    targetHeight = Math.min(maxDimension, Math.round(size.hIn * 50));
-    targetWidth = Math.round(targetHeight * aspectRatio);
-  }
-  
-  // Round to nearest multiple of 64 for AI model stability
-  return Math.round(targetWidth / 64) * 64;
-}
-
-function calculateOptimalHeight(size) {
-  const aspectRatio = size.wIn / size.hIn;
-  const maxDimension = 1280;
-  
-  let targetWidth, targetHeight;
-  if (aspectRatio >= 1) {
-    // Landscape or square - limit by width
-    targetWidth = Math.min(maxDimension, Math.round(size.wIn * 50));
-    targetHeight = Math.round(targetWidth / aspectRatio);
-  } else {
-    // Portrait - limit by height
-    targetHeight = Math.min(maxDimension, Math.round(size.hIn * 50));
-    targetWidth = Math.round(targetHeight * aspectRatio);
-  }
-  
-  // Round to nearest multiple of 64 for AI model stability
-  return Math.round(targetHeight / 64) * 64;
 }
