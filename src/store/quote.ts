@@ -36,6 +36,14 @@ export interface QuoteState {
     url?: string;
     isPdf?: boolean;
     fileKey?: string;
+    isAI?: boolean;
+    aiMetadata?: {
+      prompt?: string;
+      styles?: string[];
+      colors?: string[];
+      model?: string;
+      aspectRatio?: string;
+    };
   };
   set: (partial: Partial<QuoteState>) => void;
   setFromQuickQuote: (params: QuickQuoteParams) => void;

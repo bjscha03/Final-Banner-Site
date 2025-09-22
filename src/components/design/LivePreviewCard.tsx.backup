@@ -1,12 +1,11 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image, X, ChevronDown, ChevronUp, Wand2, Crop } from 'lucide-react';
+import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image, X, ChevronDown, ChevronUp, Wand2 } from 'lucide-react';
 import { useQuoteStore, Grommets } from '@/store/quote';
 import { formatDimensions } from '@/lib/pricing';
 import { grommetPoints } from '@/lib/preview/grommets';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { GrommetPicker } from '@/components/ui/GrommetPicker';
-import { useToast } from '@/components/ui/use-toast';
 import PreviewCanvas from './PreviewCanvas';
 
 const grommetOptions = [
@@ -22,31 +21,12 @@ const grommetOptions = [
 interface LivePreviewCardProps {
   onOpenAIModal?: () => void;
 }
-// Helper function to create Cloudinary transformation URL for fitting to dimensions
-const createFittedImageUrl = (originalUrl: string, targetWidthIn: number, targetHeightIn: number): string => {
-  // Extract Cloudinary public ID from URL
-  const urlParts = originalUrl.split('/');
-  const uploadIndex = urlParts.findIndex(part => part === 'upload');
-  if (uploadIndex === -1) return originalUrl;
-  
-  const publicIdWithExtension = urlParts.slice(uploadIndex + 1).join('/');
-  const publicId = publicIdWithExtension.replace(/\.[^/.]+$/, ''); // Remove extension
-  const baseUrl = urlParts.slice(0, uploadIndex + 1).join('/');
-  
-  // Use Cloudinary transformations to fit the image to exact dimensions
-  const transformation = `ar_${targetWidthIn}:${targetHeightIn},c_fill,q_auto:best`;
-  
-  return `${baseUrl}/${transformation}/${publicId}.jpg`;
-};
-
 
 const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
   const { widthIn, heightIn, previewScalePct, grommets, file, set } = useQuoteStore();
-  const { toast } = useToast();
 
   const [dragActive, setDragActive] = useState(false);
   const [uploadError, setUploadError] = useState('');
-  const [isFittingImage, setIsFittingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Calculate grommet info
@@ -67,14 +47,6 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       name: grommetName
     };
   }, [widthIn, heightIn, grommets]);
-  // Check if current file is an AI-generated image (has Cloudinary URL and is not PDF)
-  const isAIImage = useMemo(() => {
-    return file && 
-           file.url && 
-           !file.isPdf && 
-           (file.url.includes('cloudinary.com') || file.isAI === true);
-  }, [file]);
-
 
   // File upload logic
   const acceptedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
@@ -178,49 +150,6 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
   const handleResetZoom = () => {
     set({ previewScalePct: 100 });
   };
-  // Fit Image to Dimensions functionality
-  const handleFitImageToDimensions = async () => {
-    if (!file?.url || !isAIImage) {
-      toast({
-        title: 'No AI image to fit',
-        description: 'Please generate an AI image first.',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    setIsFittingImage(true);
-
-    try {
-      // Create fitted image URL using Cloudinary transformations
-      const fittedUrl = createFittedImageUrl(file.url, widthIn, heightIn);
-      
-      // Update the file with the fitted URL
-      set({
-        file: {
-          ...file,
-          url: fittedUrl,
-          name: `${file.name.replace(/\.[^/.]+$/, '')}_fitted_${widthIn}x${heightIn}.jpg`
-        }
-      });
-
-      toast({
-        title: 'Image fitted successfully!',
-        description: `Image has been resized to perfectly match your ${widthIn}" × ${heightIn}" banner dimensions.`
-      });
-
-    } catch (error) {
-      console.error('Error fitting image:', error);
-      toast({
-        title: 'Failed to fit image',
-        description: 'There was an error resizing the image. Please try again.',
-        variant: 'destructive'
-      });
-    } finally {
-      setIsFittingImage(false);
-    }
-  };
-
 
   return (
     <div className="bg-white border border-gray-200/60 rounded-2xl overflow-hidden shadow-sm">
@@ -371,29 +300,6 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
                 Remove
               </button>
             </div>
-            {/* Fit Image to Dimensions Button - Only show for AI images */}
-            {isAIImage && (
-              <div className="absolute bottom-4 left-4 right-4 flex justify-center">
-                <Button
-                  onClick={handleFitImageToDimensions}
-                  disabled={isFittingImage}
-                  variant="outline"
-                  className="flex items-center gap-2 bg-white/90 hover:bg-white shadow-sm"
-                >
-                  {isFittingImage ? (
-                    <>
-                      <div className="w-4 h-4 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600" />
-                      Fitting Image...
-                    </>
-                  ) : (
-                    <>
-                      <Crop className="w-4 h-4" />
-                      Fit Image to Dimensions
-                    </>
-                  )}
-                </Button>
-              </div>
-            )}
           </div>
         )}
 
