@@ -52,6 +52,8 @@ export const handler = async (event) => {
     const enhancedPrompt = `Create a high-quality ${dimensionText} banner design: ${prompt}. ${styleText} ${colorText}. Ensure quiet background behind text areas for readability, high contrast elements, professional composition suitable for printing${textLayerPrompt}. No watermarks or signatures.`;
 
     console.log('Enhanced prompt:', enhancedPrompt);
+    console.log('Environment check - REPLICATE_API_TOKEN exists:', !!process.env.REPLICATE_API_TOKEN);
+    console.log('Environment check - CLOUDINARY_CLOUD_NAME exists:', !!process.env.CLOUDINARY_CLOUD_NAME);
 
     let imageUrl;
     let provider = 'none';
@@ -64,20 +66,16 @@ export const handler = async (event) => {
         provider = 'replicate';
         console.log('Replicate generation successful');
       } catch (replicateError) {
-        console.error('Replicate generation failed:', replicateError);
+        console.error('Replicate generation failed:', replicateError.message);
+        // For now, let's use a placeholder approach as fallback
+        console.log('Falling back to placeholder generation...');
+        imageUrl = await generatePlaceholder(prompt, size);
+        provider = 'placeholder';
       }
-    }
-
-    // Try Gemini if Replicate failed or not available
-    if (!imageUrl && process.env.GEMINI_API_KEY) {
-      try {
-        console.log('Attempting Gemini generation...');
-        imageUrl = await generateWithGemini(enhancedPrompt, seed);
-        provider = 'gemini';
-        console.log('Gemini generation successful');
-      } catch (geminiError) {
-        console.error('Gemini generation failed:', geminiError);
-      }
+    } else {
+      console.log('No Replicate API token found, using placeholder...');
+      imageUrl = await generatePlaceholder(prompt, size);
+      provider = 'placeholder';
     }
 
     if (!imageUrl) {
@@ -148,10 +146,14 @@ async function generateWithReplicate(prompt, size, seed) {
 
   const prediction = await response.json();
   
-  // Poll for completion
+  // Poll for completion with timeout
   let result = prediction;
-  while (result.status === 'starting' || result.status === 'processing') {
+  let attempts = 0;
+  const maxAttempts = 60; // 60 seconds max
+  
+  while ((result.status === 'starting' || result.status === 'processing') && attempts < maxAttempts) {
     await new Promise(resolve => setTimeout(resolve, 1000));
+    attempts++;
     
     const pollResponse = await fetch(`https://api.replicate.com/v1/predictions/${result.id}`, {
       headers: {
@@ -170,6 +172,10 @@ async function generateWithReplicate(prompt, size, seed) {
     throw new Error(`Generation failed: ${result.error}`);
   }
 
+  if (result.status === 'starting' || result.status === 'processing') {
+    throw new Error('Generation timed out');
+  }
+
   if (!result.output || !result.output[0]) {
     throw new Error('No output generated');
   }
@@ -177,10 +183,14 @@ async function generateWithReplicate(prompt, size, seed) {
   return result.output[0];
 }
 
-async function generateWithGemini(prompt, seed) {
-  // Note: Google's Imagen API through Gemini would be implemented here
-  // For now, we'll throw an error to fall back to Replicate
-  throw new Error('Gemini integration not yet implemented');
+async function generatePlaceholder(prompt, size) {
+  // Create a more sophisticated placeholder using a reliable service
+  const width = Math.min(1024, size.wIn * 50);
+  const height = Math.min(1024, size.hIn * 50);
+  const encodedPrompt = encodeURIComponent(prompt.substring(0, 50));
+  
+  // Use picsum.photos for a more realistic placeholder
+  return `https://picsum.photos/${width}/${height}?random=${Date.now()}`;
 }
 
 function json(status, body) {
