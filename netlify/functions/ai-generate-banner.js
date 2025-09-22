@@ -407,15 +407,11 @@ async function generateEnhancedPlaceholder(prompt, styles, colors, size, variati
   // Generate different variations by using different random seeds
   const seed = Date.now() + variation * 1000;
   
-  // Use Unsplash for more relevant placeholder images
-  let placeholderUrl;
-  if (category) {
-    placeholderUrl = `https://source.unsplash.com/${width}x${height}/?${category}&sig=${seed}`;
-  } else {
-    placeholderUrl = `https://source.unsplash.com/${width}x${height}/?abstract,background&sig=${seed}`;
-  }
+  // Use reliable picsum service with different seeds for variations
+  const placeholderUrl = `https://picsum.photos/${width}/${height}?random=${seed}`;
   
-  console.log(`Generated enhanced placeholder (variation ${variation}):`, placeholderUrl);
+  console.log(`Generated placeholder (variation ${variation}):`, placeholderUrl);
+  return placeholderUrl;
   return placeholderUrl;
 }
 
