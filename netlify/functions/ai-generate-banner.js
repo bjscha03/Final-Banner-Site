@@ -10,7 +10,7 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { prompt, styles, colors, size, textLayers, seed } = JSON.parse(event.body || '{}');
+    const { prompt, styles = [], colors = [], size, variations = 1, quality = 'fast', textLayers = [], seed } = JSON.parse(event.body || '{}');
 
     // Validate required fields
     if (!prompt || !prompt.trim()) {

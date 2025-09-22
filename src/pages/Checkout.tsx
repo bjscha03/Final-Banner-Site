@@ -33,14 +33,15 @@ const Checkout: React.FC = () => {
   let minOrderAdjustmentCents = 0;
   let showMinOrderAdjustment = false;
 
+
+  // Minimum order validation (moved outside conditional block)
+  const adminContext = { isAdmin: isAdminUser, bypassValidation: isAdminUser };
+  const minimumOrderValidation = validateMinimumOrder(totalCents, adminContext);
+  const canProceed = minimumOrderValidation.isValid;
   if (flags.freeShipping || flags.minOrderFloor) {
     const pricingItems: PricingItem[] = items.map(item => ({ line_total_cents: item.line_total_cents }));
     const totals = computeTotals(pricingItems, 0.06, pricingOptions);
 
-  // Minimum order validation
-  const adminContext = { isAdmin: isAdminUser, bypassValidation: isAdminUser };
-  const minimumOrderValidation = validateMinimumOrder(totalCents, adminContext);
-  const canProceed = minimumOrderValidation.isValid;
     minOrderAdjustmentCents = totals.min_order_adjustment_cents;
     showMinOrderAdjustment = minOrderAdjustmentCents > 0;
   }
