@@ -36,11 +36,13 @@
   from = "/api/ai/generate-banner"
   to = "/.netlify/functions/ai-generate-banner"
   status = 200
+  force = true
 
 [[redirects]]
   from = "/api/ai/finalize-banner"
   to = "/.netlify/functions/ai-finalize-banner"
   status = 200
+  force = true
 
 # AI Design redirect
 [[redirects]]
@@ -53,6 +55,7 @@
   from = "/*"
   to = "/index.html"
   status = 200
+  force = true
 
 [[headers]]
 for = "/*"
