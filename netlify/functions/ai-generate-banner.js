@@ -1,467 +1,241 @@
-// netlify/functions/ai-generate-banner.js
-const { v2: cloudinary } = require('cloudinary');
-const { v4: uuidv4 } = require('uuid');
 const { GoogleGenerativeAI } = require('@google/generative-ai');
+const cloudinary = require('cloudinary').v2;
 
-exports.handler = async (event) => {
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
 
-  if (event.httpMethod !== "POST") {
-    return json(405, { success: false, error: "Method Not Allowed" });
+// Enhanced prompt engineering
+function enhancePrompt(prompt, styles = [], colors = [], size) {
+  let enhancedPrompt = `High-quality professional banner background image: ${prompt}`;
+  
+  // Add style influences with more specific descriptions
+  if (styles && styles.length > 0) {
+    const styleDescriptions = {
+      'corporate': 'clean, professional, business-appropriate, polished',
+      'kid-friendly': 'colorful, playful, fun, child-appropriate, cheerful, bright',
+      'elegant': 'sophisticated, refined, luxurious, classy, upscale',
+      'modern': 'contemporary, sleek, minimalist, cutting-edge',
+      'vintage': 'retro, classic, nostalgic, timeless',
+      'playful': 'fun, energetic, vibrant, lively, dynamic',
+      'minimalist': 'clean, simple, uncluttered, spacious'
+    };
+    
+    const styleText = styles.map(style => styleDescriptions[style] || style).join(', ');
+    enhancedPrompt += `. Style: ${styleText}`;
+  }
+  
+  // Add color influences with better color mapping
+  if (colors && colors.length > 0) {
+    const colorNames = colors.map(color => {
+      // Convert hex to color names for better AI understanding
+      const colorMap = {
+        '#FF0000': 'bright red', '#00FF00': 'bright green', '#0000FF': 'bright blue',
+        '#FFFF00': 'bright yellow', '#FF00FF': 'bright magenta', '#00FFFF': 'bright cyan',
+        '#FFA500': 'orange', '#800080': 'purple', '#FFC0CB': 'pink',
+        '#FF69B4': 'hot pink', '#32CD32': 'lime green', '#87CEEB': 'sky blue',
+        '#FFD700': 'gold', '#FF1493': 'deep pink', '#00CED1': 'dark turquoise',
+        '#FF4500': 'orange red', '#9370DB': 'medium purple', '#20B2AA': 'light sea green'
+      };
+      return colorMap[color.toUpperCase()] || `vibrant ${color} color`;
+    });
+    enhancedPrompt += `. Colors: prominently featuring ${colorNames.join(', ')} as the main color scheme`;
+  }
+  
+  // Add banner-specific instructions with emphasis on quality
+  enhancedPrompt += '. Requirements: wide landscape banner format, suitable for large format printing, ultra high quality, professional commercial photography style, vibrant colors, sharp details, no text or logos, clean composition';
+  
+  return enhancedPrompt;
+}
+
+// Generate images using Google Gemini 2.5 Flash Image
+async function generateWithGemini(prompt, variations, quality, size) {
+  const apiKey = process.env.GOOGLE_AI_API_KEY;
+  if (!apiKey) {
+    throw new Error('GOOGLE_AI_API_KEY environment variable is required');
+  }
+
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash-image-preview" });
+
+  const images = [];
+  
+  // Generate multiple images by making multiple API calls
+  for (let i = 0; i < variations; i++) {
+    try {
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      
+      // Extract image data from response
+      for (const candidate of response.candidates) {
+        for (const part of candidate.content.parts) {
+          if (part.inlineData && part.inlineData.data) {
+            // Convert base64 to buffer
+            const buffer = Buffer.from(part.inlineData.data, 'base64');
+            
+            // Upload to Cloudinary
+            const uploadResult = await new Promise((resolve, reject) => {
+              cloudinary.uploader.upload_stream(
+                {
+                  resource_type: 'image',
+                  folder: 'ai-generated-banners',
+                  format: 'jpg',
+                  quality: 'auto:best'
+                },
+                (error, result) => {
+                  if (error) reject(error);
+                  else resolve(result);
+                }
+              ).end(buffer);
+            });
+
+            images.push({
+              url: uploadResult.secure_url,
+              cloudinary_public_id: uploadResult.public_id,
+              width: uploadResult.width,
+              height: uploadResult.height
+            });
+            break; // Only take the first image from each response
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`Error generating image ${i + 1}:`, error);
+      // Continue with other images even if one fails
+    }
+  }
+
+  if (images.length === 0) {
+    throw new Error('No images were successfully generated');
+  }
+
+  return images;
+}
+
+// Fallback placeholder images
+function generatePlaceholderImages(variations, size) {
+  const images = [];
+  const colors = ['FF6B6B', '4ECDC4', '45B7D1', 'FFA07A', '98D8C8'];
+  
+  for (let i = 0; i < variations; i++) {
+    const color = colors[i % colors.length];
+    const width = Math.round(size.wIn * 100);
+    const height = Math.round(size.hIn * 100);
+    
+    images.push({
+      url: `https://via.placeholder.com/${width}x${height}/${color}/FFFFFF?text=AI+Generated+Banner+${i + 1}`,
+      cloudinary_public_id: null,
+      width: width,
+      height: height,
+      placeholder: true
+    });
+  }
+  
+  return images;
+}
+
+exports.handler = async (event, context) => {
+  // CORS headers
+  const headers = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS'
+  };
+
+  if (event.httpMethod === 'OPTIONS') {
+    return {
+      statusCode: 200,
+      headers,
+      body: ''
+    };
+  }
+
+  if (event.httpMethod !== 'POST') {
+    return {
+      statusCode: 405,
+      headers,
+      body: JSON.stringify({ error: 'Method not allowed' })
+    };
   }
 
   try {
-    const { prompt, styles = [], colors = [], size, variations = 1, quality = 'fast', textLayers = [], seed } = JSON.parse(event.body || '{}');
+    const { prompt, styles = [], colors = [], size, variations = 3, quality = 'fast', debugMode = false } = JSON.parse(event.body);
 
-    // Validate required fields
-    if (!prompt || !prompt.trim()) {
-      return json(400, { success: false, error: "Prompt is required" });
+    if (!prompt) {
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: 'Prompt is required' })
+      };
     }
 
     if (!size || !size.wIn || !size.hIn) {
-      return json(400, { success: false, error: "Banner size is required" });
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ error: 'Size with wIn and hIn is required' })
+      };
     }
 
-    // Basic content moderation
-    const blockedTerms = ['nsfw', 'nude', 'explicit', 'violence', 'illegal', 'drugs', 'weapons'];
-    const lowerPrompt = prompt.toLowerCase();
-    if (blockedTerms.some(term => lowerPrompt.includes(term))) {
-      return json(400, { success: false, error: "Content not allowed. Please use appropriate language for business banners." });
-    }
-
-    console.log('=== AI Banner Generation Debug ===');
-    console.log('Prompt:', prompt);
-    console.log('Size:', size);
-    console.log('Environment variables check:');
-    console.log('- REPLICATE_API_TOKEN exists:', !!process.env.REPLICATE_API_TOKEN);
-    console.log('- CLOUDINARY_CLOUD_NAME exists:', !!process.env.CLOUDINARY_CLOUD_NAME);
-    console.log('- CLOUDINARY_API_KEY exists:', !!process.env.CLOUDINARY_API_KEY);
-    console.log('- CLOUDINARY_API_SECRET exists:', !!process.env.CLOUDINARY_API_SECRET);
-
-    // Configure Cloudinary with detailed logging
-    try {
-      cloudinary.config({
-        cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-        api_key: process.env.CLOUDINARY_API_KEY,
-        api_secret: process.env.CLOUDINARY_API_SECRET,
-      });
-      console.log('Cloudinary configured successfully');
-    } catch (cloudinaryConfigError) {
-      console.error('Cloudinary configuration failed:', cloudinaryConfigError);
-      return json(500, { success: false, error: `Cloudinary configuration failed: ${cloudinaryConfigError.message}` });
-    }
-
-    let imageUrl;
-    let provider = 'none';
-    let model;
-    let aspectRatio;
-
-    // Try Google Imagen first if API key is available
-    console.log('=== AI GENERATION DEBUG ===');
-    console.log('Environment variables check:');
-    console.log('GOOGLE_AI_API_KEY present:', process.env.GOOGLE_AI_API_KEY ? 'Yes (length: ' + process.env.GOOGLE_AI_API_KEY.length + ')' : 'No');
-    console.log('Variations requested:', variations);
-    console.log('Quality:', quality);
+    // Enhanced prompt engineering
+    const enhancedPrompt = enhancePrompt(prompt, styles, colors, size);
     
-    if (process.env.GOOGLE_AI_API_KEY) {
-      try {
-        console.log('Attempting Google Imagen generation...');
-        const enhancedPrompt = buildEnhancedPrompt(prompt, styles, colors, size, textLayers);
-        console.log('Enhanced prompt:', enhancedPrompt);
-        
-        if (variations > 1) {
-          // Multiple variations
-          const imageUrls = await generateWithImagen(enhancedPrompt, size, quality, variations);
-          const uploadedImages = [];
-          
-          for (let i = 0; i < imageUrls.length; i++) {
-            const uploadResult = await cloudinary.uploader.upload(imageUrls[i], {
-              folder: 'ai-drafts',
-              public_id: `${uuidv4()}-${Date.now()}-${i}`,
-              resource_type: 'image'
-            });
-            uploadedImages.push({
-              imageUrl: uploadResult.secure_url,
-              publicId: uploadResult.public_id,
-              model: quality === 'standard' ? 'imagen-4.0-generate-001' : 'imagen-4.0-fast-generate-001',
-              aspectRatio: nearestImagenAR(size.wIn, size.hIn)
-            });
+    if (debugMode) {
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          success: true,
+          debug: {
+            originalPrompt: prompt,
+            enhancedPrompt: enhancedPrompt,
+            styles: styles,
+            colors: colors,
+            size: size,
+            variations: variations,
+            quality: quality
           }
-          
-          return json(200, {
-            success: true,
-            images: uploadedImages,
-            provider: 'google-imagen'
-          });
-        } else {
-          // Single image
-          imageUrl = await generateWithImagen(enhancedPrompt, size, quality, 1);
-          provider = 'google-imagen';
-          model = quality === 'standard' ? 'imagen-4.0-generate-001' : 'imagen-4.0-fast-generate-001';
-          aspectRatio = nearestImagenAR(size.wIn, size.hIn);
-        }
-        
-        console.log('Google Imagen generation successful:', imageUrl);
-      } catch (imagenError) {
-        console.error('Google Imagen generation failed:', imagenError.message);
-        console.log('Falling back to enhanced placeholder generation...');
-        try {
-          if (variations > 1) {
-            const placeholderImages = [];
-            for (let i = 0; i < variations; i++) {
-              const placeholderUrl = await generateEnhancedPlaceholder(prompt, styles, colors, size, i);
-              const uploadResult = await cloudinary.uploader.upload(placeholderUrl, {
-                folder: 'ai-drafts',
-                public_id: `${uuidv4()}-${Date.now()}-${i}`,
-                resource_type: 'image'
-              });
-              placeholderImages.push({
-                imageUrl: uploadResult.secure_url,
-                publicId: uploadResult.public_id,
-                model: 'enhanced-placeholder',
-                aspectRatio: nearestImagenAR(size.wIn, size.hIn)
-              });
-            }
-            
-            console.log('Enhanced placeholder fallback multiple variations successful:', placeholderImages.length);
-            return json(200, {
-              success: true,
-              images: placeholderImages,
-              provider: 'placeholder'
-            });
-          } else {
-            imageUrl = await generateEnhancedPlaceholder(prompt, styles, colors, size);
-            provider = 'placeholder';
-            console.log('Enhanced placeholder fallback successful:', imageUrl);
-          }
-        } catch (placeholderError) {
-          console.error('Enhanced placeholder generation failed:', placeholderError.message);
-          return json(500, { success: false, error: `Both AI and placeholder generation failed: ${placeholderError.message}` });
-        }
-      }
-    } else {
-      console.log('No Google AI API key found, using enhanced placeholder...');
-      try {
-        if (variations > 1) {
-          // Multiple placeholder variations
-          const placeholderImages = [];
-          for (let i = 0; i < variations; i++) {
-            const placeholderUrl = await generateEnhancedPlaceholder(prompt, styles, colors, size, i);
-            const uploadResult = await cloudinary.uploader.upload(placeholderUrl, {
-              folder: 'ai-drafts',
-              public_id: `${uuidv4()}-${Date.now()}-${i}`,
-              resource_type: 'image'
-            });
-            placeholderImages.push({
-              imageUrl: uploadResult.secure_url,
-              publicId: uploadResult.public_id,
-              model: 'enhanced-placeholder',
-              aspectRatio: nearestImagenAR(size.wIn, size.hIn)
-            });
-          }
-          
-          console.log('Enhanced placeholder multiple variations generated:', placeholderImages.length);
-          return json(200, {
-            success: true,
-            images: placeholderImages,
-            provider: 'placeholder'
-          });
-        } else {
-          imageUrl = await generateEnhancedPlaceholder(prompt, styles, colors, size);
-          provider = 'placeholder';
-          console.log('Enhanced placeholder generation successful:', imageUrl);
-        }
-      } catch (placeholderError) {
-        console.error('Enhanced placeholder generation failed:', placeholderError.message);
-        return json(500, { success: false, error: `Enhanced placeholder generation failed: ${placeholderError.message}` });
-      }
+        })
+      };
     }
 
-    if (!imageUrl) {
-      return json(500, { 
-        success: false, 
-        error: "No image URL generated from any provider" 
-      });
-    }
-
-    // Upload to Cloudinary with detailed error handling
+    let images;
     try {
-      const publicId = `ai-drafts/${uuidv4()}-${Date.now()}`;
-      
-      console.log('Uploading to Cloudinary...');
-      console.log('Image URL:', imageUrl);
-      console.log('Public ID:', publicId);
-      
-      const uploadResult = await cloudinary.uploader.upload(imageUrl, {
-        public_id: publicId,
-        folder: 'ai-drafts',
-        resource_type: 'image',
-        overwrite: false
-      });
-
-      console.log('Upload successful:', uploadResult.secure_url);
-
-      return json(200, {
-        success: true,
-        imageUrl: uploadResult.secure_url,
-        publicId: uploadResult.public_id,
-        seed: seed || Math.floor(Math.random() * 1000000),
-        width: uploadResult.width,
-        height: uploadResult.height,
-        provider,
-        ...(model && { model }),
-        ...(aspectRatio && { aspectRatio })
-      });
-    } catch (uploadError) {
-      console.error('Cloudinary upload failed:', uploadError);
-      return json(500, { success: false, error: `Upload failed: ${uploadError.message}` });
+      // Try to generate with Gemini 2.5 Flash Image
+      images = await generateWithGemini(enhancedPrompt, variations, quality, size);
+    } catch (error) {
+      console.error('AI generation failed, using placeholders:', error);
+      // Fall back to placeholder images
+      images = generatePlaceholderImages(variations, size);
     }
+
+    // Always return images array format for consistency
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        success: true,
+        images: images,
+        prompt: enhancedPrompt,
+        metadata: {
+          model: 'gemini-2.5-flash-image-preview',
+          variations: variations
+        }
+      })
+    };
 
   } catch (error) {
-    console.error('AI generation error:', error);
-    return json(500, {
-      success: false,
-      error: `Generation failed: ${error.message}`
-    });
+    console.error('Handler error:', error);
+    return {
+      statusCode: 500,
+      headers,
+      body: JSON.stringify({ 
+        error: 'Internal server error',
+        details: error.message 
+      })
+    };
   }
 };
-
-function buildEnhancedPrompt(prompt, styles, colors, size, textLayers) {
-  // Content classification for better relevance
-  const lowerPrompt = prompt.toLowerCase();
-  let contentType = 'general';
-  let enhancedPrompt = prompt;
-  
-  // Birthday/Party themes
-  if (lowerPrompt.includes('birthday') || lowerPrompt.includes('party') || lowerPrompt.includes('balloon') || lowerPrompt.includes('celebration')) {
-    contentType = 'party';
-    enhancedPrompt = `colorful party background with balloons, streamers, and festive decorations, ${prompt}`;
-  }
-  // Sale/Business themes  
-  else if (lowerPrompt.includes('sale') || lowerPrompt.includes('grand opening') || lowerPrompt.includes('discount') || lowerPrompt.includes('business')) {
-    contentType = 'business';
-    enhancedPrompt = `professional business storefront or retail environment, ${prompt}`;
-  }
-  // Tech/Conference themes
-  else if (lowerPrompt.includes('tech') || lowerPrompt.includes('conference') || lowerPrompt.includes('digital') || lowerPrompt.includes('innovation')) {
-    contentType = 'tech';
-    enhancedPrompt = `modern technology background with digital elements, ${prompt}`;
-  }
-  // Sports/Fitness themes
-  else if (lowerPrompt.includes('sport') || lowerPrompt.includes('fitness') || lowerPrompt.includes('gym') || lowerPrompt.includes('athletic')) {
-    contentType = 'sports';
-    enhancedPrompt = `dynamic sports or fitness environment, ${prompt}`;
-  }
-  // Food/Restaurant themes
-  else if (lowerPrompt.includes('food') || lowerPrompt.includes('restaurant') || lowerPrompt.includes('cafe') || lowerPrompt.includes('dining')) {
-    contentType = 'food';
-    enhancedPrompt = `appetizing food photography background, ${prompt}`;
-  }
-  // Event/Wedding themes
-  else if (lowerPrompt.includes('wedding') || lowerPrompt.includes('event') || lowerPrompt.includes('ceremony')) {
-    contentType = 'event';
-    enhancedPrompt = `elegant event venue or ceremony backdrop, ${prompt}`;
-  }
-
-  // Enhanced style processing
-  const styleText = styles && styles.length > 0 ? 
-    styles.map(style => {
-      switch(style) {
-        case 'modern': return 'clean, minimalist, contemporary design';
-        case 'bold': return 'strong, vibrant, high-impact visual';
-        case 'minimal': return 'simple, uncluttered, elegant composition';
-        case 'retro': return 'vintage, nostalgic, classic aesthetic';
-        case 'kid-friendly': return 'playful, colorful, fun and engaging';
-        case 'seasonal': return 'themed for current season, festive atmosphere';
-        case 'corporate': return 'professional, business-appropriate, polished';
-        default: return style;
-      }
-    }).join(', ') + ' style' : 'professional style';
-  
-  // Enhanced color processing
-  const colorText = colors && colors.length > 0 ? 
-    'featuring ' + colors.map(hex => {
-      const colorMap = {
-        '#FF0000': 'bright red', '#FF69B4': 'hot pink', '#FFFF00': 'bright yellow',
-        '#00FF00': 'bright green', '#0000FF': 'bright blue', '#800080': 'purple',
-        '#FFA500': 'orange', '#FFFFFF': 'white', '#000000': 'black',
-        '#808080': 'gray', '#1e40af': 'deep blue', '#f3f4f6': 'light gray'
-      };
-      return colorMap[hex.toUpperCase()] || (hex + ' color');
-    }).join(', ') + ' color palette' : '';
-  
-  // Calculate proper aspect ratio
-  const aspectRatio = size.wIn / size.hIn;
-  let aspectText = '';
-  if (aspectRatio >= 2) {
-    aspectText = 'wide horizontal banner format';
-  } else if (aspectRatio >= 1.5) {
-    aspectText = 'landscape banner format';
-  } else if (aspectRatio <= 0.7) {
-    aspectText = 'tall vertical banner format';
-  } else {
-    aspectText = 'square banner format';
-  }
-
-  // Build final prompt with better composition instructions
-  const finalPrompt = `Professional ${aspectText} banner background: ${enhancedPrompt}. ${styleText}. ${colorText}. Clean composition with space for text overlay, high contrast, suitable for large format printing. No text, logos, or watermarks in the image.`;
-  
-  console.log('Content type detected:', contentType);
-  console.log('Enhanced prompt:', finalPrompt);
-  
-  return finalPrompt;
-}
-
-
-async function generateWithImagen(prompt, size, quality, variations) {
-  const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
-  
-  // Select model based on quality
-  const modelName = quality === 'standard' ? 'imagen-4.0-generate-001' : 'imagen-4.0-fast-generate-001';
-  const model = genAI.getGenerativeModel({ model: modelName });
-  
-  // Calculate nearest supported aspect ratio
-  const aspectRatio = nearestImagenAR(size.wIn, size.hIn);
-  
-  const config = {
-    numberOfImages: variations,
-    aspectRatio,
-    personGeneration: 'dont_allow',
-    ...(modelName === 'imagen-4.0-generate-001' ? { sampleImageSize: '2K' } : {})
-  };
-  
-  try {
-    const result = await model.generateContent({
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      generationConfig: config
-    });
-    
-    const response = await result.response;
-    const images = response.candidates || [];
-    
-    if (!images.length) {
-      throw new Error('No images generated');
-    }
-    
-    // Return array of image URLs for multiple variations
-    if (variations > 1) {
-      return images.map(img => img.content?.parts?.[0]?.inlineData?.data || img.uri).filter(Boolean);
-    }
-    
-    // Return single image URL
-    return images[0].content?.parts?.[0]?.inlineData?.data || images[0].uri;
-    
-  } catch (error) {
-    console.error('Google Imagen error:', error);
-    throw new Error(`Imagen generation failed: ${error.message}`);
-  }
-}
-
-// Helper function to map banner dimensions to supported Imagen aspect ratios
-function nearestImagenAR(wIn, hIn) {
-  const ratio = wIn / hIn;
-  
-  // Imagen 4 supported aspect ratios
-  const supportedRatios = {
-    '1:1': 1.0,
-    '9:16': 0.5625,
-    '16:9': 1.7778,
-    '4:3': 1.3333,
-    '3:4': 0.75
-  };
-  
-  let closest = '1:1';
-  let minDiff = Math.abs(ratio - 1.0);
-  
-  for (const [ar, value] of Object.entries(supportedRatios)) {
-    const diff = Math.abs(ratio - value);
-    if (diff < minDiff) {
-      minDiff = diff;
-      closest = ar;
-    }
-  }
-  
-  return closest;
-}
-
-async function generateEnhancedPlaceholder(prompt, styles, colors, size, variation = 0) {
-  // Enhanced placeholder generation that considers prompt content
-  const width = calculateOptimalWidth(size);
-  const height = calculateOptimalHeight(size);
-  
-  // Create different placeholder categories based on prompt content
-  const lowerPrompt = prompt.toLowerCase();
-  let category = '';
-  
-  if (lowerPrompt.includes('birthday') || lowerPrompt.includes('party') || lowerPrompt.includes('balloon')) {
-    category = 'party';
-  } else if (lowerPrompt.includes('business') || lowerPrompt.includes('office') || lowerPrompt.includes('corporate')) {
-    category = 'business';
-  } else if (lowerPrompt.includes('food') || lowerPrompt.includes('restaurant')) {
-    category = 'food';
-  } else if (lowerPrompt.includes('nature') || lowerPrompt.includes('outdoor')) {
-    category = 'nature';
-  } else if (lowerPrompt.includes('tech') || lowerPrompt.includes('digital')) {
-    category = 'tech';
-  }
-  
-  // Generate different variations by using different random seeds
-  const seed = Date.now() + variation * 1000;
-  
-  // Use reliable picsum service with different seeds for variations
-  const placeholderUrl = `https://picsum.photos/${width}/${height}?random=${seed}`;
-  
-  console.log(`Generated placeholder (variation ${variation}):`, placeholderUrl);
-  return placeholderUrl;
-}
-
-function json(status, body) {
-  return {
-    statusCode: status,
-    headers: {
-      "Content-Type": "application/json",
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Headers": "Origin, Content-Type, Accept",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
-    },
-    body: JSON.stringify(body),
-  };
-}
-
-// Helper functions for proper aspect ratio calculation
-function calculateOptimalWidth(size) {
-  const aspectRatio = size.wIn / size.hIn;
-  const maxDimension = 1280;
-  
-  let targetWidth, targetHeight;
-  if (aspectRatio >= 1) {
-    // Landscape or square - limit by width
-    targetWidth = Math.min(maxDimension, Math.round(size.wIn * 50));
-    targetHeight = Math.round(targetWidth / aspectRatio);
-  } else {
-    // Portrait - limit by height
-    targetHeight = Math.min(maxDimension, Math.round(size.hIn * 50));
-    targetWidth = Math.round(targetHeight * aspectRatio);
-  }
-  
-  // Round to nearest multiple of 64 for AI model stability
-  return Math.round(targetWidth / 64) * 64;
-}
-
-function calculateOptimalHeight(size) {
-  const aspectRatio = size.wIn / size.hIn;
-  const maxDimension = 1280;
-  
-  let targetWidth, targetHeight;
-  if (aspectRatio >= 1) {
-    // Landscape or square - limit by width
-    targetWidth = Math.min(maxDimension, Math.round(size.wIn * 50));
-    targetHeight = Math.round(targetWidth / aspectRatio);
-  } else {
-    // Portrait - limit by height
-    targetHeight = Math.min(maxDimension, Math.round(size.hIn * 50));
-    targetWidth = Math.round(targetHeight * aspectRatio);
-  }
-  
-  // Round to nearest multiple of 64 for AI model stability
-  return Math.round(targetHeight / 64) * 64;
-}
