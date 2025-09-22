@@ -32,8 +32,8 @@ interface AIGenerationModalProps {
 }
 
 interface GeneratedImage {
-  imageUrl: string;
-  publicId: string;
+  url: string;
+  cloudinary_public_id: string;
   model?: string;
   aspectRatio?: string;
 }
@@ -103,8 +103,8 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
         // Single image - apply directly
         const firstImage = result.images[0];
         applyGeneratedImage({
-          imageUrl: firstImage.url,
-          publicId: firstImage.cloudinary_public_id,
+          url: firstImage.url,
+          cloudinary_public_id: firstImage.cloudinary_public_id,
           model: result.metadata?.model || 'imagen-4',
           aspectRatio: `${firstImage.width}:${firstImage.height}`
         });      } else {
@@ -132,9 +132,9 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
         name: `ai-generated-${Date.now()}.jpg`,
         type: 'image/jpeg',
         size: 0, // Unknown size for AI images
-        url: image.imageUrl,
+        url: image.url,
         isPdf: false,
-        fileKey: image.publicId, // Use publicId as fileKey for AI images
+        fileKey: image.cloudinary_public_id, // Use publicId as fileKey for AI images
         isAI: true, // Flag to identify AI-generated backgrounds
         aiMetadata: {
           prompt: prompt.trim(),
@@ -321,7 +321,7 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
               {generatedImages.map((image, index) => (
                 <div key={index} className="relative group cursor-pointer" onClick={() => applyGeneratedImage(image)}>
                   <img
-                    src={image.imageUrl}
+                    src={image.url}
                     alt={`Generated option ${index + 1}`}
                     className="w-full h-48 object-cover rounded-lg border-2 border-transparent group-hover:border-blue-500 transition-colors"
                   />

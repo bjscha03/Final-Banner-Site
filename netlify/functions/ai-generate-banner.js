@@ -1,59 +1,59 @@
 const { GoogleGenAI } = require('@google/genai');
-const { v2: cloudinary } = require('cloudinary');
+const cloudinary = require('cloudinary').v2;
 
 // Configure Cloudinary
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
+  api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-// Supported aspect ratios for Imagen
-const IMAGEN_ASPECT_RATIOS = [
-  { ratio: '1:1', value: 1.0 },
-  { ratio: '9:16', value: 0.5625 },
-  { ratio: '16:9', value: 1.7778 },
-  { ratio: '3:4', value: 0.75 },
-  { ratio: '4:3', value: 1.3333 }
-];
-
-function nearestImagenAR(width, height) {
-  const targetRatio = width / height;
-  let closest = IMAGEN_ASPECT_RATIOS[0];
-  let minDiff = Math.abs(targetRatio - closest.value);
+// Calculate nearest supported aspect ratio for Imagen
+function nearestImagenAR(widthIn, heightIn) {
+  const inputRatio = widthIn / heightIn;
+  const supportedRatios = [
+    { ratio: 1, ar: '1:1' },
+    { ratio: 4/3, ar: '4:3' },
+    { ratio: 3/4, ar: '3:4' },
+    { ratio: 16/9, ar: '16:9' },
+    { ratio: 9/16, ar: '9:16' }
+  ];
   
-  for (const ar of IMAGEN_ASPECT_RATIOS) {
-    const diff = Math.abs(targetRatio - ar.value);
+  let closest = supportedRatios[0];
+  let minDiff = Math.abs(inputRatio - closest.ratio);
+  
+  for (const ar of supportedRatios) {
+    const diff = Math.abs(inputRatio - ar.ratio);
     if (diff < minDiff) {
       minDiff = diff;
       closest = ar;
     }
   }
   
-  return closest.ratio;
+  return closest.ar;
 }
 
 // Enhanced prompt engineering
 function enhancePrompt(prompt, styles = [], colors = [], size) {
-  let enhancedPrompt = `Professional landscape banner format banner background: ${prompt}`;
+  let enhancedPrompt = `High-quality professional banner background image: ${prompt}`;
   
-  // Add style influences
+  // Add style influences with more specific descriptions
   if (styles && styles.length > 0) {
     const styleDescriptions = {
-      'corporate': 'clean, professional, business-appropriate',
-      'kid-friendly': 'colorful, playful, fun, child-appropriate',
-      'elegant': 'sophisticated, refined, luxurious',
-      'modern': 'contemporary, sleek, minimalist',
-      'vintage': 'retro, classic, nostalgic',
-      'playful': 'fun, energetic, vibrant',
-      'minimalist': 'clean, simple, uncluttered'
+      'corporate': 'clean, professional, business-appropriate, polished',
+      'kid-friendly': 'colorful, playful, fun, child-appropriate, cheerful, bright',
+      'elegant': 'sophisticated, refined, luxurious, classy, upscale',
+      'modern': 'contemporary, sleek, minimalist, cutting-edge',
+      'vintage': 'retro, classic, nostalgic, timeless',
+      'playful': 'fun, energetic, vibrant, lively, dynamic',
+      'minimalist': 'clean, simple, uncluttered, spacious'
     };
     
     const styleText = styles.map(style => styleDescriptions[style] || style).join(', ');
-    enhancedPrompt += `, ${styleText} style`;
+    enhancedPrompt += `. Style: ${styleText}`;
   }
   
-  // Add color influences
+  // Add color influences with better color mapping
   if (colors && colors.length > 0) {
     const colorNames = colors.map(color => {
       // Convert hex to color names for better AI understanding
@@ -61,15 +61,17 @@ function enhancePrompt(prompt, styles = [], colors = [], size) {
         '#FF0000': 'bright red', '#00FF00': 'bright green', '#0000FF': 'bright blue',
         '#FFFF00': 'bright yellow', '#FF00FF': 'bright magenta', '#00FFFF': 'bright cyan',
         '#FFA500': 'orange', '#800080': 'purple', '#FFC0CB': 'pink',
-        '#FF69B4': 'hot pink', '#32CD32': 'lime green', '#87CEEB': 'sky blue'
+        '#FF69B4': 'hot pink', '#32CD32': 'lime green', '#87CEEB': 'sky blue',
+        '#FFD700': 'gold', '#FF1493': 'deep pink', '#00CED1': 'dark turquoise',
+        '#FF4500': 'orange red', '#9370DB': 'medium purple', '#20B2AA': 'light sea green'
       };
-      return colorMap[color.toUpperCase()] || `color ${color}`;
+      return colorMap[color.toUpperCase()] || `vibrant ${color} color`;
     });
-    enhancedPrompt += `, prominently featuring ${colorNames.join(', ')} colors`;
+    enhancedPrompt += `. Colors: prominently featuring ${colorNames.join(', ')} as the main color scheme`;
   }
   
-  // Add banner-specific instructions
-  enhancedPrompt += ', wide banner composition, suitable for banner printing, high quality, professional photography style, no text or logos';
+  // Add banner-specific instructions with emphasis on quality
+  enhancedPrompt += '. Requirements: wide landscape banner format, suitable for large format printing, ultra high quality, professional commercial photography style, vibrant colors, sharp details, no text or logos, clean composition';
   
   return enhancedPrompt;
 }
@@ -83,64 +85,59 @@ async function generateWithImagen(prompt, variations, quality, size) {
 
   const ai = new GoogleGenAI({ apiKey });
   
-  // Determine model based on quality
+  // Use standard quality by default for better results
   const modelName = quality === 'fast' ? 'imagen-4.0-fast-generate-001' : 'imagen-4.0-generate-001';
   
-  // Calculate nearest supported aspect ratio
   const aspectRatio = nearestImagenAR(size.wIn, size.hIn);
   
-  try {
-    const response = await ai.models.generateImages({
-      model: modelName,
-      prompt: prompt,
-      config: {
-        numberOfImages: variations,
-        aspectRatio: aspectRatio,
-        personGeneration: 'allow_adult',
-        ...(modelName === 'imagen-4.0-generate-001' ? { sampleImageSize: '2K' } : {})
-      },
+  const response = await ai.models.generateImages({
+    model: modelName,
+    prompt: prompt,
+    config: {
+      candidateCount: variations,
+      aspectRatio: aspectRatio,
+      personGeneration: 'allow_adult',
+      ...(modelName === 'imagen-4.0-generate-001' ? { sampleImageSize: '2K' } : {})
+    },
+  });
+
+  if (!response.images || response.images.length === 0) {
+    throw new Error('No images generated');
+  }
+
+  // Upload to Cloudinary and return URLs
+  const images = [];
+  for (let i = 0; i < response.images.length; i++) {
+    const imageData = response.images[i];
+    
+    // Convert base64 to buffer
+    const buffer = Buffer.from(imageData.split(',')[1], 'base64');
+    
+    // Upload to Cloudinary
+    const uploadResult = await new Promise((resolve, reject) => {
+      cloudinary.uploader.upload_stream(
+        {
+          resource_type: 'image',
+          folder: 'ai-generated-banners',
+          format: 'jpg',
+          quality: 'auto:best'
+        },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        }
+      ).end(buffer);
     });
 
-    if (!response.generatedImages || response.generatedImages.length === 0) {
-      throw new Error('No images generated');
-    }
-
-    const images = [];
-    for (let i = 0; i < response.generatedImages.length; i++) {
-      const imageData = response.generatedImages[i];
-      
-      // Convert base64 to buffer
-      const imageBuffer = Buffer.from(imageData.image.imageBytes, 'base64');
-      
-      // Upload to Cloudinary
-      const uploadResult = await new Promise((resolve, reject) => {
-        cloudinary.uploader.upload_stream(
-          {
-            resource_type: 'image',
-            folder: 'ai-generated-banners',
-            format: 'jpg',
-            quality: 'auto:good'
-          },
-          (error, result) => {
-            if (error) reject(error);
-            else resolve(result);
-          }
-        ).end(imageBuffer);
-      });
-
-      images.push({
-        url: uploadResult.secure_url,
-        cloudinary_public_id: uploadResult.public_id,
-        width: uploadResult.width,
-        height: uploadResult.height
-      });
-    }
-
-    return images;
-  } catch (error) {
-    console.error('Imagen generation error:', error);
-    throw error;
+    images.push({
+      url: uploadResult.secure_url,
+      cloudinary_public_id: uploadResult.public_id,
+      width: uploadResult.width,
+      height: uploadResult.height
+    });
   }
+
+  return images;
 }
 
 // Fallback placeholder images
@@ -170,12 +167,15 @@ exports.handler = async (event, context) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Content-Type': 'application/json'
+    'Access-Control-Allow-Methods': 'POST, OPTIONS'
   };
 
   if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 200, headers, body: '' };
+    return {
+      statusCode: 200,
+      headers,
+      body: ''
+    };
   }
 
   if (event.httpMethod !== 'POST') {
@@ -187,7 +187,7 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const { prompt, styles = [], colors = [], size, variations = 3, quality = 'fast', debugMode = false } = JSON.parse(event.body);
+    const { prompt, styles = [], colors = [], size, variations = 3, quality = 'standard', debugMode = false } = JSON.parse(event.body);
 
     if (!prompt) {
       return {
@@ -254,14 +254,13 @@ exports.handler = async (event, context) => {
     };
 
   } catch (error) {
-    console.error('Function error:', error);
+    console.error('Handler error:', error);
     return {
       statusCode: 500,
       headers,
-      body: JSON.stringify({
-        success: false,
-        error: error.message,
-        fallback_images: generatePlaceholderImages(3, { wIn: 48, hIn: 24 })
+      body: JSON.stringify({ 
+        error: 'Internal server error',
+        details: error.message 
       })
     };
   }
