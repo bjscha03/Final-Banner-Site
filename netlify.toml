@@ -42,6 +42,13 @@
   to = "/.netlify/functions/ai-finalize-banner"
   status = 200
 
+# AI Design redirect
+[[redirects]]
+  from = "/ai-design"
+  to = "/design?ai=1"
+  status = 302
+
+
 # SPA fallback (must be last redirect)
 [[redirects]]
   from = "/*"
@@ -87,8 +94,4 @@ for = "/*"
   Cross-Origin-Opener-Policy = "same-origin"
   Cross-Origin-Resource-Policy = "same-site"
 
-# AI Design redirect
-[[redirects]]
-  from = "/ai-design"
-  to = "/design?ai=1"
   status = 302
