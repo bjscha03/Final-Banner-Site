@@ -62,12 +62,12 @@ const AIDesign: React.FC = () => {
   // Calculate pricing using existing logic
   const totals = useMemo(() => {
     try {
-      return calcTotals(quote.widthIn, quote.heightIn, quote.quantity, quote.material, quote.grommets, quote.polePockets, quote.addRope);
+      return calcTotals({ widthIn: quote.widthIn, heightIn: quote.heightIn, qty: quote.quantity, material: quote.material, addRope: quote.addRope, polePockets: quote.polePockets });
     } catch (error) {
       console.error('Error calculating totals:', error);
-      return { subtotal: 0, tax: 0, total: 0, shipping: 0 };
+      return { area: 0, unit: 0, rope: 0, polePocket: 0, materialTotal: 0, tax: 0, totalWithTax: 0 };
     }
-  }, [quote.widthIn, quote.heightIn, quote.quantity, quote.material, quote.grommets, quote.polePockets, quote.addRope]);
+  }, [quote.widthIn, quote.heightIn, quote.quantity, quote.material, quote.addRope, quote.polePockets]);
 
   const handleStyleToggle = (styleId: string) => {
     setAIState(prev => ({
@@ -392,7 +392,7 @@ const AIDesign: React.FC = () => {
                 </div>
                 <div className="border-t pt-3 flex justify-between font-semibold">
                   <span>Total:</span>
-                  <span>{usd(totals.total)}</span>
+                  <span>{usd(totals.totalWithTax || 0)}</span>
                 </div>
               </div>
             </div>
