@@ -31,6 +31,17 @@
   status = 301
   force = true
 
+# AI Banner Generator API redirects (must be before SPA fallback)
+[[redirects]]
+  from="/api/ai/generate-banner"
+  to="/.netlify/functions/ai-generate-banner"
+  status=200
+
+[[redirects]]
+  from="/api/ai/finalize-banner"
+  to="/.netlify/functions/ai-finalize-banner"
+  status=200
+
 # SPA fallback (must be last redirect)
 [[redirects]]
   from = "/*"
@@ -75,14 +86,3 @@ for = "/*"
   Permissions-Policy = "geolocation=(), microphone=(), camera=()"
   Cross-Origin-Opener-Policy = "same-origin"
   Cross-Origin-Resource-Policy = "same-site"
-
-# AI Banner Generator API redirects
-[[redirects]]
-  from="/api/ai/generate-banner"
-  to="/.netlify/functions/ai-generate-banner"
-  status=200
-
-[[redirects]]
-  from="/api/ai/finalize-banner"
-  to="/.netlify/functions/ai-finalize-banner"
-  status=200
