@@ -27,7 +27,7 @@ const PricingCard: React.FC = () => {
     const checkAdminStatus = async () => {
       if (user?.email) {
         try {
-          const response = await fetch('/api/admin/check', {
+          const response = await fetch('/.netlify/functions/check-admin-status', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email: user.email }),
