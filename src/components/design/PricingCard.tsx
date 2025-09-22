@@ -2,11 +2,13 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { ShoppingCart, CreditCard, Check, Truck, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useQuoteStore } from '@/store/quote';
-import { useAuth } from '@/lib/auth';import { useCartStore } from '@/store/cart';
+import { useAuth } from '@/lib/auth';
+import { useCartStore } from '@/store/cart';
 import { calcTotals, usd, formatArea, formatDimensions, PRICE_PER_SQFT, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
 import { validateMinimumOrder, canProceedToCheckout } from '@/lib/validation/minimumOrder';
 import { Button } from '@/components/ui/button';
-import { useToast } from '@/components/ui/use-toast';import { useScrollToTop } from '@/components/ScrollToTop';
+import { useToast } from '@/components/ui/use-toast';
+import { useScrollToTop } from '@/components/ScrollToTop';
 
 
 
