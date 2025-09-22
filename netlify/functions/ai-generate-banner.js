@@ -53,15 +53,45 @@ export const handler = async (event) => {
 
     console.log('Enhanced prompt:', enhancedPrompt);
 
-    // For demo purposes, create a mock response
-    // In production, this would call actual AI services
-    const mockImageUrl = `https://via.placeholder.com/${Math.min(1024, size.wIn * 50)}x${Math.min(1024, size.hIn * 50)}/4F46E5/FFFFFF?text=${encodeURIComponent(prompt.substring(0, 50))}`;
-    
-    // Upload mock image to Cloudinary for consistency
+    let imageUrl;
+    let provider = 'none';
+
+    // Try Replicate first if API token is available
+    if (process.env.REPLICATE_API_TOKEN) {
+      try {
+        console.log('Attempting Replicate generation...');
+        imageUrl = await generateWithReplicate(enhancedPrompt, size, seed);
+        provider = 'replicate';
+        console.log('Replicate generation successful');
+      } catch (replicateError) {
+        console.error('Replicate generation failed:', replicateError);
+      }
+    }
+
+    // Try Gemini if Replicate failed or not available
+    if (!imageUrl && process.env.GEMINI_API_KEY) {
+      try {
+        console.log('Attempting Gemini generation...');
+        imageUrl = await generateWithGemini(enhancedPrompt, seed);
+        provider = 'gemini';
+        console.log('Gemini generation successful');
+      } catch (geminiError) {
+        console.error('Gemini generation failed:', geminiError);
+      }
+    }
+
+    if (!imageUrl) {
+      return json(500, { 
+        success: false, 
+        error: "AI generation service unavailable. Please check API configuration." 
+      });
+    }
+
+    // Upload to Cloudinary
     const publicId = `ai-drafts/${uuidv4()}-${Date.now()}`;
     
     console.log('Uploading to Cloudinary...');
-    const uploadResult = await cloudinary.uploader.upload(mockImageUrl, {
+    const uploadResult = await cloudinary.uploader.upload(imageUrl, {
       public_id: publicId,
       folder: 'ai-drafts',
       resource_type: 'image',
@@ -77,7 +107,7 @@ export const handler = async (event) => {
       seed: seed || Math.floor(Math.random() * 1000000),
       width: uploadResult.width,
       height: uploadResult.height,
-      provider: 'demo'
+      provider
     });
 
   } catch (error) {
@@ -88,6 +118,70 @@ export const handler = async (event) => {
     });
   }
 };
+
+async function generateWithReplicate(prompt, size, seed) {
+  const response = await fetch('https://api.replicate.com/v1/predictions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Token ${process.env.REPLICATE_API_TOKEN}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      version: "39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b", // SDXL
+      input: {
+        prompt: prompt,
+        width: Math.min(1024, size.wIn * 50), // Scale up for better quality
+        height: Math.min(1024, size.hIn * 50),
+        num_outputs: 1,
+        scheduler: "K_EULER",
+        num_inference_steps: 50,
+        guidance_scale: 7.5,
+        seed: seed || Math.floor(Math.random() * 1000000)
+      }
+    })
+  });
+
+  if (!response.ok) {
+    const error = await response.json();
+    throw new Error(`Replicate API error: ${error.detail || response.statusText}`);
+  }
+
+  const prediction = await response.json();
+  
+  // Poll for completion
+  let result = prediction;
+  while (result.status === 'starting' || result.status === 'processing') {
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const pollResponse = await fetch(`https://api.replicate.com/v1/predictions/${result.id}`, {
+      headers: {
+        'Authorization': `Token ${process.env.REPLICATE_API_TOKEN}`,
+      }
+    });
+    
+    if (!pollResponse.ok) {
+      throw new Error('Failed to poll prediction status');
+    }
+    
+    result = await pollResponse.json();
+  }
+
+  if (result.status === 'failed') {
+    throw new Error(`Generation failed: ${result.error}`);
+  }
+
+  if (!result.output || !result.output[0]) {
+    throw new Error('No output generated');
+  }
+
+  return result.output[0];
+}
+
+async function generateWithGemini(prompt, seed) {
+  // Note: Google's Imagen API through Gemini would be implemented here
+  // For now, we'll throw an error to fall back to Replicate
+  throw new Error('Gemini integration not yet implemented');
+}
 
 function json(status, body) {
   return {
