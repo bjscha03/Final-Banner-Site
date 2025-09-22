@@ -98,7 +98,7 @@ const AIDesign: React.FC = () => {
     setAIState(prev => ({ ...prev, isGenerating: true }));
 
     try {
-      const response = await fetch('/api/ai/generate-banner', {
+      const response = await fetch('/.netlify/functions/ai-generate-banner', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
