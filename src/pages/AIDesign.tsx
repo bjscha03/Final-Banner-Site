@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Sparkles, Palette, Type, RefreshCw, Download, ShoppingCart, Zap } from 'lucide-react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { Sparkles, Palette, Type, RefreshCw, Download, ShoppingCart, Zap, Eye, Upload, Layers } from 'lucide-react';
 import { useQuoteStore } from '@/store/quote';
 import { useCartStore } from '@/store/cart';
 import { useAuth } from '@/lib/auth';
@@ -10,7 +10,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import Header from '@/components/Header';
+import { Slider } from '@/components/ui/slider';
+import Layout from '@/components/Layout';
+import SizeQuantityCard from '@/components/design/SizeQuantityCard';
+import MaterialCard from '@/components/design/MaterialCard';
+import OptionsCard from '@/components/design/OptionsCard';
+import PricingCard from '@/components/design/PricingCard';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { calcTotals, usd, formatDimensions } from '@/lib/pricing';
 
 // Style chips for AI generation
@@ -22,7 +28,11 @@ const STYLE_CHIPS = [
   { id: 'playful', label: 'Playful', description: 'Fun, energetic vibe' },
   { id: 'professional', label: 'Professional', description: 'Business-appropriate' },
   { id: 'artistic', label: 'Artistic', description: 'Creative, expressive' },
-  { id: 'tech', label: 'Tech', description: 'Digital, futuristic' }
+  { id: 'tech', label: 'Tech', description: 'Digital, futuristic' },
+  { id: 'retro', label: 'Retro', description: 'Nostalgic, throwback' },
+  { id: 'corporate', label: 'Corporate', description: 'Business, formal' },
+  { id: 'kid-friendly', label: 'Kid-friendly', description: 'Colorful, fun for children' },
+  { id: 'seasonal', label: 'Seasonal', description: 'Holiday or seasonal theme' }
 ];
 
 interface AIDesignState {
@@ -38,10 +48,127 @@ interface AIDesignState {
     url: string;
     publicId: string;
     seed?: number;
+    provider?: string;
+  };
+  finalizedImage?: {
+    proofUrl: string;
+    finalUrl: string;
+    proofPublicId: string;
+    finalPublicId: string;
   };
   isGenerating: boolean;
   isFinalizing: boolean;
+  previewScale: number;
 }
+
+// AI-specific preview component with text overlay
+const AIPreviewCanvas: React.FC<{
+  generatedImage?: { url: string };
+  textLayers: { headline?: string; subheadline?: string; cta?: string };
+  widthIn: number;
+  heightIn: number;
+  scale: number;
+}> = ({ generatedImage, textLayers, widthIn, heightIn, scale }) => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [imageLoaded, setImageLoaded] = useState(false);
+
+  // Calculate display dimensions
+  const aspectRatio = widthIn / heightIn;
+  const maxWidth = 600;
+  const displayWidth = Math.min(maxWidth, maxWidth * (scale / 100));
+  const displayHeight = displayWidth / aspectRatio;
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Set canvas size
+    canvas.width = displayWidth;
+    canvas.height = displayHeight;
+
+    // Clear canvas
+    ctx.fillStyle = '#f3f4f6';
+    ctx.fillRect(0, 0, displayWidth, displayHeight);
+
+    if (generatedImage?.url) {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        // Draw background image
+        ctx.drawImage(img, 0, 0, displayWidth, displayHeight);
+        
+        // Draw text layers
+        drawTextLayers(ctx, textLayers, displayWidth, displayHeight);
+        setImageLoaded(true);
+      };
+      img.src = generatedImage.url;
+    } else {
+      // Draw placeholder
+      ctx.fillStyle = '#e5e7eb';
+      ctx.fillRect(0, 0, displayWidth, displayHeight);
+      
+      ctx.fillStyle = '#9ca3af';
+      ctx.font = '16px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('AI-generated banner will appear here', displayWidth / 2, displayHeight / 2);
+      
+      // Still draw text layers on placeholder
+      drawTextLayers(ctx, textLayers, displayWidth, displayHeight);
+    }
+  }, [generatedImage, textLayers, displayWidth, displayHeight]);
+
+  const drawTextLayers = (ctx: CanvasRenderingContext2D, layers: any, width: number, height: number) => {
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#ffffff';
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
+
+    // Headline
+    if (layers.headline) {
+      const fontSize = Math.max(16, width * 0.08);
+      ctx.font = `bold ${fontSize}px Arial`;
+      const y = height * 0.25;
+      ctx.strokeText(layers.headline, width / 2, y);
+      ctx.fillText(layers.headline, width / 2, y);
+    }
+
+    // Subheadline
+    if (layers.subheadline) {
+      const fontSize = Math.max(12, width * 0.04);
+      ctx.font = `600 ${fontSize}px Arial`;
+      const y = height * 0.6;
+      ctx.strokeText(layers.subheadline, width / 2, y);
+      ctx.fillText(layers.subheadline, width / 2, y);
+    }
+
+    // CTA
+    if (layers.cta) {
+      const fontSize = Math.max(14, width * 0.05);
+      ctx.font = `bold ${fontSize}px Arial`;
+      const y = height * 0.8;
+      ctx.strokeText(layers.cta, width / 2, y);
+      ctx.fillText(layers.cta, width / 2, y);
+    }
+  };
+
+  return (
+    <div className="relative">
+      <canvas
+        ref={canvasRef}
+        className="w-full h-auto border rounded-lg shadow-sm"
+        style={{ maxWidth: '100%', height: 'auto' }}
+      />
+      {!imageLoaded && generatedImage && (
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-100 rounded-lg">
+          <RefreshCw className="w-6 h-6 animate-spin text-gray-400" />
+        </div>
+      )}
+    </div>
+  );
+};
 
 const AIDesign: React.FC = () => {
   const navigate = useNavigate();
@@ -56,18 +183,14 @@ const AIDesign: React.FC = () => {
     customColors: ['#1e40af', '#ffffff', '#f3f4f6'],
     textLayers: {},
     isGenerating: false,
-    isFinalizing: false
+    isFinalizing: false,
+    previewScale: 75
   });
 
-  // Calculate pricing using existing logic
-  const totals = useMemo(() => {
-    try {
-      return calcTotals({ widthIn: quote.widthIn, heightIn: quote.heightIn, qty: quote.quantity, material: quote.material, addRope: quote.addRope, polePockets: quote.polePockets });
-    } catch (error) {
-      console.error('Error calculating totals:', error);
-      return { area: 0, unit: 0, rope: 0, polePocket: 0, materialTotal: 0, tax: 0, totalWithTax: 0 };
-    }
-  }, [quote.widthIn, quote.heightIn, quote.quantity, quote.material, quote.addRope, quote.polePockets]);
+  // Ensure page starts at top on navigation
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
 
   const handleStyleToggle = (styleId: string) => {
     setAIState(prev => ({
@@ -85,7 +208,14 @@ const AIDesign: React.FC = () => {
     }));
   };
 
-  const handleGenerate = async () => {
+  const handleTextLayerChange = (role: 'headline' | 'subheadline' | 'cta', value: string) => {
+    setAIState(prev => ({
+      ...prev,
+      textLayers: { ...prev.textLayers, [role]: value }
+    }));
+  };
+
+  const handleGenerate = async (variations = 1) => {
     if (!aiState.prompt.trim()) {
       toast({
         title: 'Prompt required',
@@ -106,7 +236,8 @@ const AIDesign: React.FC = () => {
           styles: aiState.selectedStyles,
           colors: aiState.customColors,
           size: { wIn: quote.widthIn, hIn: quote.heightIn },
-          textLayers: aiState.textLayers
+          textLayers: aiState.textLayers,
+          debugPrompt: new URLSearchParams(window.location.search).has('debugPrompt')
         })
       });
 
@@ -121,13 +252,14 @@ const AIDesign: React.FC = () => {
         generatedImage: {
           url: result.imageUrl,
           publicId: result.publicId,
-          seed: result.seed
+          seed: result.seed,
+          provider: result.provider
         }
       }));
 
       toast({
         title: 'Banner generated!',
-        description: 'Your AI-generated banner is ready for preview.'
+        description: `Your AI-generated banner is ready for preview. (Provider: ${result.provider})`
       });
 
     } catch (error) {
@@ -142,7 +274,7 @@ const AIDesign: React.FC = () => {
     }
   };
 
-  const handleAddToCart = () => {
+  const handleUpscaleForPrint = async () => {
     if (!aiState.generatedImage) {
       toast({
         title: 'No design generated',
@@ -152,283 +284,351 @@ const AIDesign: React.FC = () => {
       return;
     }
 
-    // Add AI metadata to cart item
-    const aiMetadata = {
-      aiDesign: {
-        prompt: aiState.prompt,
-        styles: aiState.selectedStyles,
-        colors: aiState.customColors,
-        size: { wIn: quote.widthIn, hIn: quote.heightIn },
-        material: quote.material,
-        options: {
-          grommets: quote.grommets,
-          polePockets: quote.polePockets,
-          addRope: quote.addRope
-        },
-        ai: {
-          provider: 'gemini',
-          seed: aiState.generatedImage.seed,
-          draftPublicId: aiState.generatedImage.publicId
-        },
-        layers: aiState.textLayers,
-        assets: {
-          proofUrl: aiState.generatedImage.url,
-          finalUrl: quote.file?.fileKey
-        }
-      }
-    };
+    setAIState(prev => ({ ...prev, isFinalizing: true }));
 
-    addFromQuote(quote, aiMetadata);
-    
-    toast({
-      title: 'Added to cart!',
-      description: 'Your AI-generated banner has been added to your cart.'
-    });
+    try {
+      // Build text layers array for server-side rendering
+      const textLayers = [];
+      if (aiState.textLayers.headline) {
+        textLayers.push({
+          type: 'text',
+          role: 'headline',
+          text: aiState.textLayers.headline,
+          font: 'Inter',
+          weight: 900,
+          align: 'center',
+          color: '#ffffff'
+        });
+      }
+      if (aiState.textLayers.subheadline) {
+        textLayers.push({
+          type: 'text',
+          role: 'subheadline',
+          text: aiState.textLayers.subheadline,
+          font: 'Inter',
+          weight: 600,
+          align: 'center',
+          color: '#ffffff'
+        });
+      }
+      if (aiState.textLayers.cta) {
+        textLayers.push({
+          type: 'text',
+          role: 'cta',
+          text: aiState.textLayers.cta,
+          font: 'Inter',
+          weight: 700,
+          align: 'center',
+          color: '#ffffff'
+        });
+      }
+
+      const response = await fetch('/.netlify/functions/ai-finalize-banner', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          publicId: aiState.generatedImage.publicId,
+          size: { wIn: quote.widthIn, hIn: quote.heightIn },
+          dpi: 150,
+          material: quote.material,
+          options: {
+            grommets: quote.grommets !== 'none',
+            polePockets: quote.polePockets !== 'none',
+            ropeFt: quote.addRope ? quote.widthIn / 12 : 0
+          },
+          textLayers
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Finalization failed');
+      }
+
+      const result = await response.json();
+      setAIState(prev => ({
+        ...prev,
+        finalizedImage: {
+          proofUrl: result.proofUrl,
+          finalUrl: result.finalUrl,
+          proofPublicId: result.proofPublicId,
+          finalPublicId: result.finalPublicId
+        }
+      }));
+
+      toast({
+        title: 'Banner finalized!',
+        description: 'High-resolution print version created with text layers.'
+      });
+
+    } catch (error) {
+      console.error('Finalization error:', error);
+      toast({
+        title: 'Finalization failed',
+        description: error instanceof Error ? error.message : 'Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      setAIState(prev => ({ ...prev, isFinalizing: false }));
+    }
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Header />
-      
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="mb-8">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center">
-              <Sparkles className="w-5 h-5 text-white" />
+    <Layout>
+      <ErrorBoundary>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {/* Header */}
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center">
+                <Sparkles className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h1 className="text-3xl font-bold text-gray-900">AI Banner Generator</h1>
+                <p className="text-gray-600">Create stunning banners with artificial intelligence</p>
+              </div>
+              <Badge variant="secondary" className="ml-auto">Beta</Badge>
             </div>
-            <div>
-              <h1 className="text-3xl font-bold text-gray-900">AI Banner Generator</h1>
-              <p className="text-gray-600">Create stunning banners with artificial intelligence</p>
-            </div>
-            <Badge variant="secondary" className="ml-auto">Beta</Badge>
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
-          {/* Left Panel - Controls */}
-          <div className="lg:col-span-1 space-y-6">
-            {/* Prompt Section */}
-            <div className="bg-white rounded-lg p-6 shadow-sm border">
-              <div className="flex items-center gap-2 mb-4">
-                <Type className="w-5 h-5 text-blue-600" />
-                <h3 className="font-semibold text-gray-900">Describe Your Banner</h3>
-              </div>
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="prompt">Design Description</Label>
-                  <Textarea
-                    id="prompt"
-                    placeholder="e.g., A modern tech conference banner with geometric patterns and bold typography..."
-                    value={aiState.prompt}
-                    onChange={(e) => setAIState(prev => ({ ...prev, prompt: e.target.value }))}
-                    className="min-h-[100px]"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Style Chips */}
-            <div className="bg-white rounded-lg p-6 shadow-sm border">
-              <div className="flex items-center gap-2 mb-4">
-                <Palette className="w-5 h-5 text-purple-600" />
-                <h3 className="font-semibold text-gray-900">Style</h3>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {STYLE_CHIPS.map((style) => (
-                  <Badge
-                    key={style.id}
-                    variant={aiState.selectedStyles.includes(style.id) ? "default" : "outline"}
-                    className="cursor-pointer"
-                    onClick={() => handleStyleToggle(style.id)}
-                  >
-                    {style.label}
-                  </Badge>
-                ))}
-              </div>
-            </div>
-
-            {/* Color Picker */}
-            <div className="bg-white rounded-lg p-6 shadow-sm border">
-              <h3 className="font-semibold text-gray-900 mb-4">Colors</h3>
-              <div className="space-y-4">
-                <div className="grid grid-cols-3 gap-2">
-                  {aiState.customColors.map((color, index) => (
-                    <div key={index} className="space-y-2">
-                      <Label className="text-xs">Color {index + 1}</Label>
-                      <input
-                        type="color"
-                        value={color}
-                        onChange={(e) => handleColorChange(index, e.target.value)}
-                        className="w-full h-10 rounded border cursor-pointer"
-                      />
+          {/* 3-Column Layout */}
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            {/* Left Column - AI Inputs + Reused Components */}
+            <div className="lg:col-span-3 space-y-6">
+              {/* AI Prompt Section */}
+              <div className="bg-white border border-gray-200/60 rounded-2xl overflow-hidden shadow-sm">
+                <div className="bg-gradient-to-r from-purple-50/50 to-white px-6 py-4 border-b border-gray-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-sm">
+                      <Type className="w-5 h-5 text-white" />
                     </div>
-                  ))}
+                    <div>
+                      <h2 className="text-lg font-semibold text-gray-900 tracking-tight">Describe Your Banner</h2>
+                      <p className="text-sm text-gray-500">AI will create the background</p>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
-
-            {/* Text Layers */}
-            <div className="bg-white rounded-lg p-6 shadow-sm border">
-              <h3 className="font-semibold text-gray-900 mb-4">Text Layers (Optional)</h3>
-              <div className="space-y-3">
-                <div>
-                  <Label htmlFor="headline" className="text-sm">Headline</Label>
-                  <Input
-                    id="headline"
-                    placeholder="Main headline text"
-                    value={aiState.textLayers.headline || ''}
-                    onChange={(e) => setAIState(prev => ({
-                      ...prev,
-                      textLayers: { ...prev.textLayers, headline: e.target.value }
-                    }))}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="subheadline" className="text-sm">Subheadline</Label>
-                  <Input
-                    id="subheadline"
-                    placeholder="Supporting text"
-                    value={aiState.textLayers.subheadline || ''}
-                    onChange={(e) => setAIState(prev => ({
-                      ...prev,
-                      textLayers: { ...prev.textLayers, subheadline: e.target.value }
-                    }))}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="cta" className="text-sm">Call to Action</Label>
-                  <Input
-                    id="cta"
-                    placeholder="e.g., Visit Us Today!"
-                    value={aiState.textLayers.cta || ''}
-                    onChange={(e) => setAIState(prev => ({
-                      ...prev,
-                      textLayers: { ...prev.textLayers, cta: e.target.value }
-                    }))}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Generate Button */}
-            <Button
-              onClick={handleGenerate}
-              disabled={aiState.isGenerating || !aiState.prompt.trim()}
-              className="w-full"
-              size="lg"
-            >
-              {aiState.isGenerating ? (
-                <>
-                  <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Generate Banner
-                </>
-              )}
-            </Button>
-          </div>
-
-          {/* Center Panel - Preview */}
-          <div className="lg:col-span-2">
-            <div className="bg-white rounded-lg shadow-sm border overflow-hidden">
-              <div className="p-6 border-b">
-                <h3 className="font-semibold text-gray-900">Preview</h3>
-                <p className="text-sm text-gray-600">
-                  {formatDimensions(quote.widthIn, quote.heightIn)} • {quote.material} vinyl
-                </p>
-              </div>
-              
-              <div className="p-6">
-                {aiState.generatedImage ? (
-                  <div className="relative">
-                    <img
-                      src={aiState.generatedImage.url}
-                      alt="Generated banner"
-                      className="w-full h-auto rounded-lg shadow-lg"
+                <div className="p-6 space-y-4">
+                  <div>
+                    <Label htmlFor="prompt">Design Description</Label>
+                    <Textarea
+                      id="prompt"
+                      placeholder="e.g., balloon backdrop for birthday party, grand opening sale, tech conference..."
+                      value={aiState.prompt}
+                      onChange={(e) => setAIState(prev => ({ ...prev, prompt: e.target.value }))}
+                      className="min-h-[100px] mt-2"
                     />
-                    <div className="absolute top-4 right-4 flex gap-2">
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        onClick={handleGenerate}
-                        disabled={aiState.isGenerating}
-                      >
-                        <RefreshCw className="w-4 h-4" />
-                      </Button>
-                    </div>
                   </div>
-                ) : (
-                  <div className="aspect-[2/1] bg-gray-100 rounded-lg flex items-center justify-center">
-                    <div className="text-center">
-                      <Sparkles className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-gray-500">Your AI-generated banner will appear here</p>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Right Panel - Summary & Actions */}
-          <div className="lg:col-span-1 space-y-6">
-            {/* Summary Card */}
-            <div className="bg-white rounded-lg p-6 shadow-sm border">
-              <h3 className="font-semibold text-gray-900 mb-4">Order Summary</h3>
-              <div className="space-y-3 text-sm">
-                <div className="flex justify-between">
-                  <span>Size:</span>
-                  <span>{formatDimensions(quote.widthIn, quote.heightIn)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Material:</span>
-                  <span>{quote.material} vinyl</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Quantity:</span>
-                  <span>{quote.quantity}</span>
-                </div>
-                <div className="border-t pt-3 flex justify-between font-semibold">
-                  <span>Total:</span>
-                  <span>{usd(totals.totalWithTax || 0)}</span>
                 </div>
               </div>
+
+              {/* Style & Color Section */}
+              <div className="bg-white border border-gray-200/60 rounded-2xl overflow-hidden shadow-sm">
+                <div className="bg-gradient-to-r from-blue-50/50 to-white px-6 py-4 border-b border-gray-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-sm">
+                      <Palette className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-semibold text-gray-900 tracking-tight">Style & Colors</h2>
+                      <p className="text-sm text-gray-500">Customize the look</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-6 space-y-6">
+                  {/* Style Chips */}
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700 mb-3 block">Style</Label>
+                    <div className="flex flex-wrap gap-2">
+                      {STYLE_CHIPS.map((style) => (
+                        <Badge
+                          key={style.id}
+                          variant={aiState.selectedStyles.includes(style.id) ? "default" : "outline"}
+                          className="cursor-pointer hover:bg-gray-100 transition-colors"
+                          onClick={() => handleStyleToggle(style.id)}
+                        >
+                          {style.label}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Color Picker */}
+                  <div>
+                    <Label className="text-sm font-medium text-gray-700 mb-3 block">Colors</Label>
+                    <div className="grid grid-cols-3 gap-3">
+                      {aiState.customColors.map((color, index) => (
+                        <div key={index} className="space-y-2">
+                          <Label className="text-xs text-gray-500">Color {index + 1}</Label>
+                          <input
+                            type="color"
+                            value={color}
+                            onChange={(e) => handleColorChange(index, e.target.value)}
+                            className="w-full h-10 rounded-lg border border-gray-200 cursor-pointer"
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Text Layers Section */}
+              <div className="bg-white border border-gray-200/60 rounded-2xl overflow-hidden shadow-sm">
+                <div className="bg-gradient-to-r from-green-50/50 to-white px-6 py-4 border-b border-gray-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-600 rounded-xl flex items-center justify-center shadow-sm">
+                      <Layers className="w-5 h-5 text-white" />
+                    </div>
+                    <div>
+                      <h2 className="text-lg font-semibold text-gray-900 tracking-tight">Text Layers</h2>
+                      <p className="text-sm text-gray-500">Add text to your banner</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-6 space-y-4">
+                  <div>
+                    <Label htmlFor="headline" className="text-sm font-medium text-gray-700">Headline</Label>
+                    <Input
+                      id="headline"
+                      placeholder="Main headline text"
+                      value={aiState.textLayers.headline || ''}
+                      onChange={(e) => handleTextLayerChange('headline', e.target.value)}
+                      className="mt-2"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="subheadline" className="text-sm font-medium text-gray-700">Subheadline</Label>
+                    <Input
+                      id="subheadline"
+                      placeholder="Supporting text"
+                      value={aiState.textLayers.subheadline || ''}
+                      onChange={(e) => handleTextLayerChange('subheadline', e.target.value)}
+                      className="mt-2"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="cta" className="text-sm font-medium text-gray-700">Call to Action</Label>
+                    <Input
+                      id="cta"
+                      placeholder="e.g., Visit Us Today!"
+                      value={aiState.textLayers.cta || ''}
+                      onChange={(e) => handleTextLayerChange('cta', e.target.value)}
+                      className="mt-2"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Reused Components from Manual Design */}
+              <SizeQuantityCard />
+              <MaterialCard />
+              <OptionsCard />
             </div>
 
-            {/* Action Buttons */}
-            <div className="space-y-3">
-              <Button
-                onClick={handleAddToCart}
-                disabled={!aiState.generatedImage}
-                className="w-full"
-              >
-                <ShoppingCart className="w-4 h-4 mr-2" />
-                Add to Cart
-              </Button>
+            {/* Center Column - Live Preview */}
+            <div className="lg:col-span-6">
+              <div className="bg-white border border-gray-200/60 rounded-2xl overflow-hidden shadow-sm">
+                <div className="bg-gradient-to-r from-gray-50/50 to-white px-6 py-4 border-b border-gray-100">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-gradient-to-br from-gray-500 to-blue-600 rounded-xl flex items-center justify-center shadow-sm">
+                        <Eye className="w-5 h-5 text-white" />
+                      </div>
+                      <div>
+                        <h2 className="text-lg font-semibold text-gray-900 tracking-tight">Live Preview</h2>
+                        <p className="text-sm text-gray-500">
+                          {formatDimensions(quote.widthIn, quote.heightIn)} • {quote.material} vinyl
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Label className="text-sm text-gray-600">Scale:</Label>
+                      <div className="w-24">
+                        <Slider
+                          value={[aiState.previewScale]}
+                          onValueChange={([value]) => setAIState(prev => ({ ...prev, previewScale: value }))}
+                          min={25}
+                          max={100}
+                          step={5}
+                          className="w-full"
+                        />
+                      </div>
+                      <span className="text-sm text-gray-500 w-10">{aiState.previewScale}%</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="p-6">
+                  <AIPreviewCanvas
+                    generatedImage={aiState.generatedImage}
+                    textLayers={aiState.textLayers}
+                    widthIn={quote.widthIn}
+                    heightIn={quote.heightIn}
+                    scale={aiState.previewScale}
+                  />
+                  
+                  {/* Action Buttons */}
+                  <div className="mt-6 flex flex-wrap gap-3">
+                    <Button
+                      onClick={() => handleGenerate(1)}
+                      disabled={aiState.isGenerating || !aiState.prompt.trim()}
+                      className="flex-1 min-w-[140px]"
+                    >
+                      {aiState.isGenerating ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                          Generating...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-4 h-4 mr-2" />
+                          Generate Banner
+                        </>
+                      )}
+                    </Button>
+                    
+                    <Button
+                      onClick={() => handleGenerate(3)}
+                      disabled={aiState.isGenerating || !aiState.prompt.trim()}
+                      variant="outline"
+                      className="flex-1 min-w-[140px]"
+                    >
+                      <Zap className="w-4 h-4 mr-2" />
+                      Generate 3 Variations
+                    </Button>
+                    
+                    <Button
+                      onClick={handleUpscaleForPrint}
+                      disabled={!aiState.generatedImage || aiState.isFinalizing}
+                      variant="outline"
+                      className="flex-1 min-w-[140px]"
+                    >
+                      {aiState.isFinalizing ? (
+                        <>
+                          <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <Upload className="w-4 h-4 mr-2" />
+                          Upscale for Print
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
 
-              <Button
-                onClick={() => {
-                  if (aiState.generatedImage?.url) {
-                    const link = document.createElement('a');
-                    link.href = aiState.generatedImage.url;
-                    link.download = `ai-banner-proof-${Date.now()}.png`;
-                    link.click();
-                  }
-                }}
-                disabled={!aiState.generatedImage}
-                variant="outline"
-                className="w-full"
-              >
-                <Download className="w-4 h-4 mr-2" />
-                Download Proof
-              </Button>
+            {/* Right Column - Reused Pricing Card */}
+            <div className="lg:col-span-3">
+              <PricingCard />
             </div>
           </div>
         </div>
-      </div>
-    </div>
+      </ErrorBoundary>
+    </Layout>
   );
 };
 
