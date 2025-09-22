@@ -1,6 +1,6 @@
 const { randomUUID } = require('crypto');
 
-const { validateServerOrder, createMinimumOrderErrorResponse, extractValidationContext } = require('./utils/minimumOrderValidation');// Feature flag support for pricing logic (copied from create-order.js)
+// Feature flag support for pricing logic (copied from create-order.js)
 const getFeatureFlags = () => {
   return {
     freeShipping: process.env.FEATURE_FREE_SHIPPING === '1',
@@ -180,27 +180,6 @@ exports.handler = async (event, context) => {
       totalAmount
     });
 
-    // Validate minimum order requirement
-    const validationContext = extractValidationContext(event);
-    const orderValidation = validateServerOrder(totals.total_cents, validationContext);
-    
-    if (!orderValidation.valid) {
-      console.log('PayPal create order - Minimum order validation failed:', {
-        cid,
-        totalCents: totals.total_cents,
-        minimumRequired: orderValidation.details.minimumRequired,
-        shortfall: orderValidation.details.shortfall,
-        context: validationContext
-      });
-      
-      return createMinimumOrderErrorResponse(orderValidation);
-    }
-    
-    console.log('PayPal create order - Minimum order validation passed:', {
-      cid,
-      totalCents: totals.total_cents,
-      validationCode: orderValidation.code
-    });
     // Create PayPal order
     const accessToken = await getPayPalAccessToken();
     const { baseUrl } = getPayPalCredentials();
