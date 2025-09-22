@@ -132,7 +132,9 @@ const PricingCard: React.FC = () => {
     return validateMinimumOrder(totalCents, adminContext);
   }, [finalTotals.totalWithTax, isAdminUser]);
 
-  const canProceed = minimumOrderValidation.isValid;  const materialName = {
+  const canProceed = minimumOrderValidation.isValid;
+
+  const materialName = {
     '13oz': '13oz Vinyl',
     '15oz': '15oz Vinyl', 
     '18oz': '18oz Vinyl',
@@ -167,6 +169,16 @@ const PricingCard: React.FC = () => {
         variant: "destructive",
       });
       return;
+    }
+
+    addFromQuote(quote);
+    toast({
+      title: "Added to Cart",
+      description: "Your banner has been added to the cart.",
+    });
+  };
+
+  const handleCheckout = () => {
     // Check minimum order requirement
     if (!canProceed) {
       toast({
@@ -189,14 +201,8 @@ const PricingCard: React.FC = () => {
     addFromQuote(quote);
     // Pre-scroll before navigation to prevent flash
     scrollToTopBeforeNavigate();
-    navigate('/checkout');    }
-
-    addFromQuote(quote);
-    // Pre-scroll before navigation to prevent flash
-    scrollToTopBeforeNavigate();
     navigate('/checkout');
   };
-
   return (
     <div className="relative bg-gradient-to-br from-white via-green-50/20 to-emerald-50/10 border border-green-200/30 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-sm">
       {/* Decorative background elements */}
