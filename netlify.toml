@@ -44,6 +44,19 @@
   status = 200
   force = true
 
+# PayPal API redirects
+[[redirects]]
+  from = "/api/paypal/create-order"
+  to = "/.netlify/functions/paypal-create-order"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/paypal/capture-order"
+  to = "/.netlify/functions/paypal-capture-order"
+  status = 200
+  force = true
+
 # AI Design redirect
 [[redirects]]
   from = "/ai-design"
@@ -55,7 +68,6 @@
   from = "/*"
   to = "/index.html"
   status = 200
-  force = true
 
 [[headers]]
 for = "/*"
