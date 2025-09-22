@@ -52,6 +52,8 @@ exports.handler = async (event) => {
 
     let imageUrl;
     let provider = 'none';
+    let model;
+    let aspectRatio;
 
     // Try Google Imagen first if API key is available
     if (process.env.GOOGLE_AI_API_KEY) {
@@ -86,8 +88,8 @@ exports.handler = async (event) => {
         } else {
           // Single image
           imageUrl = await generateWithImagen(enhancedPrompt, size, quality, 1);
-          provider = 'google-imagen',
-          model = quality === 'standard' ? 'imagen-4.0-generate-001' : 'imagen-4.0-fast-generate-001',
+          provider = 'google-imagen';
+          model = quality === 'standard' ? 'imagen-4.0-generate-001' : 'imagen-4.0-fast-generate-001';
           aspectRatio = nearestImagenAR(size.wIn, size.hIn);
         }
         
