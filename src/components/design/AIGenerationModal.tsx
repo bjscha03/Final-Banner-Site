@@ -101,13 +101,13 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
       
       if (variations === '1') {
         // Single image - apply directly
+        const firstImage = result.images[0];
         applyGeneratedImage({
-          imageUrl: result.imageUrl,
-          publicId: result.publicId,
-          model: result.model,
-          aspectRatio: result.aspectRatio
-        });
-      } else {
+          imageUrl: firstImage.url,
+          publicId: firstImage.cloudinary_public_id,
+          model: result.metadata?.model || 'imagen-4',
+          aspectRatio: `${firstImage.width}:${firstImage.height}`
+        });      } else {
         // Multiple images - show selection
         setGeneratedImages(result.images || []);
         setShowSelection(true);

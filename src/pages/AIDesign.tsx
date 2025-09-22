@@ -251,16 +251,16 @@ const AIDesign: React.FC = () => {
       setAIState(prev => ({
         ...prev,
         generatedImage: {
-          url: result.imageUrl,
-          publicId: result.publicId,
-          seed: result.seed,
-          provider: result.provider
+          url: result.images[0].url,
+          publicId: result.images[0].cloudinary_public_id,
+          seed: result.metadata?.seed,
+          provider: result.metadata?.model || 'imagen-4'
         }
       }));
 
       toast({
         title: 'Banner generated!',
-        description: `Your AI-generated banner is ready for preview. (Provider: ${result.provider})`
+        description: `Your AI-generated banner is ready for preview. (Provider: ${result.metadata?.model || 'imagen-4'})`
       });
 
     } catch (error) {
