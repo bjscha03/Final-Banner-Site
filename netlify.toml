@@ -48,7 +48,6 @@
   to = "/design?ai=1"
   status = 302
 
-
 # SPA fallback (must be last redirect)
 [[redirects]]
   from = "/*"
@@ -93,5 +92,3 @@ for = "/*"
   Permissions-Policy = "geolocation=(), microphone=(), camera=()"
   Cross-Origin-Opener-Policy = "same-origin"
   Cross-Origin-Resource-Policy = "same-site"
-
-  status = 302
