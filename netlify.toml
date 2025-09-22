@@ -33,14 +33,14 @@
 
 # AI Banner Generator API redirects (must be before SPA fallback)
 [[redirects]]
-  from="/api/ai/generate-banner"
-  to="/.netlify/functions/ai-generate-banner"
-  status=200
+  from = "/api/ai/generate-banner"
+  to = "/.netlify/functions/ai-generate-banner"
+  status = 200
 
 [[redirects]]
-  from="/api/ai/finalize-banner"
-  to="/.netlify/functions/ai-finalize-banner"
-  status=200
+  from = "/api/ai/finalize-banner"
+  to = "/.netlify/functions/ai-finalize-banner"
+  status = 200
 
 # SPA fallback (must be last redirect)
 [[redirects]]
