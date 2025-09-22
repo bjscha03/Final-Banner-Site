@@ -13,6 +13,7 @@ import AIGenerationModal from '@/components/design/AIGenerationModal';
 
 const Design: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [aiModalOpen, setAiModalOpen] = useState(false);
   
   // Check for AI auto-open parameter
@@ -26,7 +27,6 @@ const Design: React.FC = () => {
       navigate(newUrl, { replace: true });
     }
   }, [location, navigate]);
-  const location = useLocation();
   const { setFromQuickQuote } = useQuoteStore();
   const { toast } = useToast();
   const hasAppliedQuickQuote = useRef(false);
