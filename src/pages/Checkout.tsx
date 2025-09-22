@@ -6,7 +6,8 @@ import { getOrdersAdapter } from '../lib/orders/adapter';
 import { OrderItem } from '../lib/orders/types';
 
 import { usd, formatDimensions, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
-import { validateMinimumOrder, canProceedToCheckout } from '@/lib/validation/minimumOrder';import Layout from '@/components/Layout';
+import { validateMinimumOrder, canProceedToCheckout } from '@/lib/validation/minimumOrder';
+import Layout from '@/components/Layout';
 import PayPalCheckout from '@/components/checkout/PayPalCheckout';
 import SignUpEncouragementModal from '@/components/checkout/SignUpEncouragementModal';
 import { Button } from '@/components/ui/button';
@@ -39,7 +40,8 @@ const Checkout: React.FC = () => {
   // Minimum order validation
   const adminContext = { isAdmin: isAdminUser, bypassValidation: isAdminUser };
   const minimumOrderValidation = validateMinimumOrder(totalCents, adminContext);
-  const canProceed = minimumOrderValidation.isValid;    minOrderAdjustmentCents = totals.min_order_adjustment_cents;
+  const canProceed = minimumOrderValidation.isValid;
+    minOrderAdjustmentCents = totals.min_order_adjustment_cents;
     showMinOrderAdjustment = minOrderAdjustmentCents > 0;
   }
 
