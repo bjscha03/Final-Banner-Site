@@ -193,8 +193,6 @@ function buildEnhancedPrompt(prompt, styles, colors, size, textLayers) {
   return finalPrompt;
 }
 
-  return `Create a high-quality ${dimensionText} banner design: ${prompt}. ${styleText} ${colorText}. Ensure quiet background behind text areas for readability, high contrast elements, professional composition suitable for printing${textLayerPrompt}. No watermarks or signatures.`;
-}
 
 async function generateWithReplicate(prompt, size, seed) {
   const response = await fetch('https://api.replicate.com/v1/predictions', {
