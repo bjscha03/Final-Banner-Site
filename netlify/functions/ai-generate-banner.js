@@ -412,7 +412,6 @@ async function generateEnhancedPlaceholder(prompt, styles, colors, size, variati
   
   console.log(`Generated placeholder (variation ${variation}):`, placeholderUrl);
   return placeholderUrl;
-  return placeholderUrl;
 }
 
 function json(status, body) {
