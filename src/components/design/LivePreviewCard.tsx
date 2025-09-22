@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image, X, ChevronDown, ChevronUp, Wand2 } from 'lucide-react';
 import { useQuoteStore, Grommets } from '@/store/quote';
 import { formatDimensions } from '@/lib/pricing';
 import { grommetPoints } from '@/lib/preview/grommets';
@@ -18,7 +18,11 @@ const grommetOptions = [
   { id: 'left-corners', label: 'Left corners only', description: 'Left edge mounting' }
 ];
 
-const LivePreviewCard: React.FC = () => {
+interface LivePreviewCardProps {
+  onOpenAIModal?: () => void;
+}
+
+const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
   const { widthIn, heightIn, previewScalePct, grommets, file, set } = useQuoteStore();
 
   const [dragActive, setDragActive] = useState(false);
@@ -234,10 +238,23 @@ const LivePreviewCard: React.FC = () => {
               <p className="text-sm text-gray-400 mb-4">Supports: JPG, PNG, JPEG, PDF</p>
               <button
                 onClick={() => fileInputRef.current?.click()}
-                className="mb-4 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200"
+                className="mb-2 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200 w-full max-w-xs"
               >
                 Upload Artwork
               </button>
+              {import.meta.env.VITE_AI_BANNER_ENABLED !== 'false' && onOpenAIModal && (
+                <>
+                  <div className="text-gray-400 text-sm mb-2">or</div>
+                  <button
+                    onClick={onOpenAIModal}
+                    className="mb-4 px-6 py-2 border border-purple-600 text-purple-600 hover:bg-purple-50 rounded-lg font-medium transition-colors duration-200 w-full max-w-xs flex items-center justify-center gap-2"
+                    data-cta="ai-generate-open"
+                  >
+                    <Wand2 className="w-4 h-4" />
+                    Generate with AI
+                  </button>
+                </>
+              )}
               <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-left max-w-md mx-auto">
                 <p className="text-xs text-blue-700 font-medium mb-1">File requirements:</p>
                 <p className="text-xs text-blue-600">

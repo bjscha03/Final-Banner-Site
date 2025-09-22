@@ -86,3 +86,9 @@ for = "/*"
   Permissions-Policy = "geolocation=(), microphone=(), camera=()"
   Cross-Origin-Opener-Policy = "same-origin"
   Cross-Origin-Resource-Policy = "same-site"
+
+# AI Design redirect
+[[redirects]]
+  from = "/ai-design"
+  to = "/design?ai=1"
+  status = 302

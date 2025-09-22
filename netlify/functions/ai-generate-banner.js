@@ -1,6 +1,7 @@
 // netlify/functions/ai-generate-banner.js
 const { v2: cloudinary } = require('cloudinary');
 const { v4: uuidv4 } = require('uuid');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 exports.handler = async (event) => {
 
@@ -52,20 +53,51 @@ exports.handler = async (event) => {
     let imageUrl;
     let provider = 'none';
 
-    // Try Replicate first if API token is available
-    if (process.env.REPLICATE_API_TOKEN) {
+    // Try Google Imagen first if API key is available
+    if (process.env.GOOGLE_AI_API_KEY) {
       try {
-        console.log('Attempting Replicate generation...');
+        console.log('Attempting Google Imagen generation...');
         const enhancedPrompt = buildEnhancedPrompt(prompt, styles, colors, size, textLayers);
-        imageUrl = await generateWithReplicate(enhancedPrompt, size, seed);
-        provider = 'replicate';
-        console.log('Replicate generation successful:', imageUrl);
-      } catch (replicateError) {
-        console.error('Replicate generation failed:', replicateError.message);
+        
+        if (variations > 1) {
+          // Multiple variations
+          const imageUrls = await generateWithImagen(enhancedPrompt, size, quality, variations);
+          const uploadedImages = [];
+          
+          for (let i = 0; i < imageUrls.length; i++) {
+            const uploadResult = await cloudinary.uploader.upload(imageUrls[i], {
+              folder: 'ai-drafts',
+              public_id: `${uuidv4()}-${Date.now()}-${i}`,
+              resource_type: 'image'
+            });
+            uploadedImages.push({
+              imageUrl: uploadResult.secure_url,
+              publicId: uploadResult.public_id,
+              model: quality === 'standard' ? 'imagen-4.0-generate-001' : 'imagen-4.0-fast-generate-001',
+              aspectRatio: nearestImagenAR(size.wIn, size.hIn)
+            });
+          }
+          
+          return json(200, {
+            success: true,
+            images: uploadedImages,
+            provider: 'google-imagen'
+          });
+        } else {
+          // Single image
+          imageUrl = await generateWithImagen(enhancedPrompt, size, quality, 1);
+          provider = 'google-imagen',
+          model = quality === 'standard' ? 'imagen-4.0-generate-001' : 'imagen-4.0-fast-generate-001',
+          aspectRatio = nearestImagenAR(size.wIn, size.hIn);
+        }
+        
+        console.log('Google Imagen generation successful:', imageUrl);
+      } catch (imagenError) {
+        console.error('Google Imagen generation failed:', imagenError.message);
         console.log('Falling back to placeholder generation...');
         try {
           imageUrl = await generatePlaceholder(prompt, size);
-          provider = 'placeholder';
+          provider = 'placeholder',
           console.log('Placeholder generation successful:', imageUrl);
         } catch (placeholderError) {
           console.error('Placeholder generation failed:', placeholderError.message);
@@ -73,10 +105,10 @@ exports.handler = async (event) => {
         }
       }
     } else {
-      console.log('No Replicate API token found, using placeholder...');
+      console.log('No Google AI API key found, using placeholder...');
       try {
         imageUrl = await generatePlaceholder(prompt, size);
-        provider = 'placeholder';
+        provider = 'placeholder',
         console.log('Placeholder generation successful:', imageUrl);
       } catch (placeholderError) {
         console.error('Placeholder generation failed:', placeholderError.message);
@@ -115,7 +147,9 @@ exports.handler = async (event) => {
         seed: seed || Math.floor(Math.random() * 1000000),
         width: uploadResult.width,
         height: uploadResult.height,
-        provider
+        provider,
+        ...(model && { model }),
+        ...(aspectRatio && { aspectRatio })
       });
     } catch (uploadError) {
       console.error('Cloudinary upload failed:', uploadError);
@@ -194,70 +228,75 @@ function buildEnhancedPrompt(prompt, styles, colors, size, textLayers) {
 }
 
 
-async function generateWithReplicate(prompt, size, seed) {
-  const response = await fetch('https://api.replicate.com/v1/predictions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Token ${process.env.REPLICATE_API_TOKEN}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      version: "39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b", // SDXL
-      input: {
-        prompt: prompt,
-        width: calculateOptimalWidth(size),
-        height: calculateOptimalHeight(size),
-        num_outputs: 1,
-        scheduler: "K_EULER",
-        num_inference_steps: 50,
-        guidance_scale: 7.5,
-        seed: seed || Math.floor(Math.random() * 1000000)
-      }
-    })
-  });
-
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(`Replicate API error: ${error.detail || response.statusText}`);
-  }
-
-  const prediction = await response.json();
+async function generateWithImagen(prompt, size, quality, variations) {
+  const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
   
-  // Poll for completion with timeout
-  let result = prediction;
-  let attempts = 0;
-  const maxAttempts = 30; // 30 seconds max for faster fallback
+  // Select model based on quality
+  const modelName = quality === 'standard' ? 'imagen-4.0-generate-001' : 'imagen-4.0-fast-generate-001';
+  const model = genAI.getGenerativeModel({ model: modelName });
   
-  while ((result.status === 'starting' || result.status === 'processing') && attempts < maxAttempts) {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    attempts++;
-    
-    const pollResponse = await fetch(`https://api.replicate.com/v1/predictions/${result.id}`, {
-      headers: {
-        'Authorization': `Token ${process.env.REPLICATE_API_TOKEN}`,
-      }
+  // Calculate nearest supported aspect ratio
+  const aspectRatio = nearestImagenAR(size.wIn, size.hIn);
+  
+  const config = {
+    numberOfImages: variations,
+    aspectRatio,
+    personGeneration: 'dont_allow',
+    ...(modelName === 'imagen-4.0-generate-001' ? { sampleImageSize: '2K' } : {})
+  };
+  
+  try {
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: config
     });
     
-    if (!pollResponse.ok) {
-      throw new Error('Failed to poll prediction status');
+    const response = await result.response;
+    const images = response.candidates || [];
+    
+    if (!images.length) {
+      throw new Error('No images generated');
     }
     
-    result = await pollResponse.json();
+    // Return array of image URLs for multiple variations
+    if (variations > 1) {
+      return images.map(img => img.content?.parts?.[0]?.inlineData?.data || img.uri).filter(Boolean);
+    }
+    
+    // Return single image URL
+    return images[0].content?.parts?.[0]?.inlineData?.data || images[0].uri;
+    
+  } catch (error) {
+    console.error('Google Imagen error:', error);
+    throw new Error(`Imagen generation failed: ${error.message}`);
   }
+}
 
-  if (result.status === 'failed') {
-    throw new Error(`Generation failed: ${result.error}`);
+// Helper function to map banner dimensions to supported Imagen aspect ratios
+function nearestImagenAR(wIn, hIn) {
+  const ratio = wIn / hIn;
+  
+  // Imagen 4 supported aspect ratios
+  const supportedRatios = {
+    '1:1': 1.0,
+    '9:16': 0.5625,
+    '16:9': 1.7778,
+    '4:3': 1.3333,
+    '3:4': 0.75
+  };
+  
+  let closest = '1:1';
+  let minDiff = Math.abs(ratio - 1.0);
+  
+  for (const [ar, value] of Object.entries(supportedRatios)) {
+    const diff = Math.abs(ratio - value);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closest = ar;
+    }
   }
-
-  if (result.status === 'starting' || result.status === 'processing') {
-    throw new Error('Generation timed out');
-  }
-
-  if (!result.output || !result.output[0]) {
-    throw new Error('No output generated');
-  }
-
-  return result.output[0];
+  
+  return closest;
 }
 
 async function generatePlaceholder(prompt, size) {

@@ -28,7 +28,6 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
 
   const navItems = [
     { name: 'Home', href: '/' },
-    ...(import.meta.env.VITE_AI_BANNER_ENABLED !== 'false' ? [{ name: 'AI Design (Beta)', href: '/ai-design' }] : []),
     { name: 'Design Tool', href: '/design' },
     { name: 'About', href: '/about' },
     { name: 'FAQ', href: '/faq' },

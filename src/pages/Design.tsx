@@ -1,5 +1,5 @@
-import React, { useEffect, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import React, { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import SizeQuantityCard from '@/components/design/SizeQuantityCard';
 import MaterialCard from '@/components/design/MaterialCard';
@@ -9,8 +9,23 @@ import PricingCard from '@/components/design/PricingCard';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useQuoteStore, MaterialKey } from '@/store/quote';
 import { useToast } from '@/components/ui/use-toast';
+import AIGenerationModal from '@/components/design/AIGenerationModal';
 
 const Design: React.FC = () => {
+  const navigate = useNavigate();
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+  
+  // Check for AI auto-open parameter
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    if (searchParams.has('ai') && import.meta.env.VITE_AI_BANNER_ENABLED !== 'false') {
+      setAiModalOpen(true);
+      // Remove ai parameter from URL
+      searchParams.delete('ai');
+      const newUrl = searchParams.toString() ? `${location.pathname}?${searchParams.toString()}` : location.pathname;
+      navigate(newUrl, { replace: true });
+    }
+  }, [location, navigate]);
   const location = useLocation();
   const { setFromQuickQuote } = useQuoteStore();
   const { toast } = useToast();
@@ -141,7 +156,7 @@ const Design: React.FC = () => {
             {/* Mobile Layout: Vertical stack with optimal order */}
             <div className="block lg:hidden space-y-4 md:space-y-6">
               <SizeQuantityCard />
-              <LivePreviewCard />
+              <LivePreviewCard onOpenAIModal={() => setAiModalOpen(true)} />
               <MaterialCard />
               <OptionsCard />
               <ErrorBoundary>
@@ -160,7 +175,7 @@ const Design: React.FC = () => {
 
               {/* Right Column - Preview & Pricing */}
               <div className="space-y-6">
-                <LivePreviewCard />
+                <LivePreviewCard onOpenAIModal={() => setAiModalOpen(true)} />
                 <div className="sticky top-6">
                   <ErrorBoundary>
                     <PricingCard />
@@ -171,6 +186,11 @@ const Design: React.FC = () => {
           </div>
         </div>
       </div>
+      {/* AI Generation Modal */}
+      <AIGenerationModal 
+        open={aiModalOpen} 
+        onOpenChange={setAiModalOpen} 
+      />
     </Layout>
   );
 };
