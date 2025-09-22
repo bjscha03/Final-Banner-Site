@@ -103,14 +103,7 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
         }
         throw new Error(errorMessage);
       }
-
-      let result;
-      try {
-        result = await response.json();
-      } catch (parseError) {
-        console.error('Failed to parse response JSON:', parseError);
-        throw new Error('Invalid response from server. Please try again.');
-      }
+      const result = await response.json();
       
       if (variations === '1') {
         // Single image - apply directly
