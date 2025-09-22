@@ -1,6 +1,6 @@
 // netlify/functions/ai-finalize-banner.js
-import { v2 as cloudinary } from 'cloudinary';
-import { v4 as uuidv4 } from 'uuid';
+const { v2: cloudinary } = require('cloudinary');
+const { v4: uuidv4 } = require('uuid');
 
 // Configure Cloudinary
 cloudinary.config({
@@ -9,7 +9,7 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-export const handler = async (event) => {
+exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
     return json(405, { success: false, error: "Method Not Allowed" });
   }
