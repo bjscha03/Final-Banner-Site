@@ -236,7 +236,7 @@ function buildEnhancedPrompt(prompt, styles, colors, size, textLayers) {
         '#808080': 'gray', '#1e40af': 'deep blue', '#f3f4f6': 'light gray'
       };
       return colorMap[hex.toUpperCase()] || (hex + ' color');
-    }).join(', ') + ' color palette' : ''';
+    }).join(', ') + ' color palette' : '';
   
   // Calculate proper aspect ratio
   const aspectRatio = size.wIn / size.hIn;
