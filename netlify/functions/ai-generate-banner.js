@@ -1,14 +1,16 @@
 // netlify/functions/ai-generate-banner.js
-import { v2 as cloudinary } from 'cloudinary';
-import { v4 as uuidv4 } from 'uuid';
+const { v2: cloudinary } = require('cloudinary');
+const { v4: uuidv4 } = require('uuid');
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-export const handler = async (event) => {
+exports.handler = async (event) => {
+
   if (event.httpMethod !== "POST") {
     return json(405, { success: false, error: "Method Not Allowed" });
   }
 
   try {
-    const { prompt, styles, colors, size, textLayers, seed } = JSON.parse(event.body || '{}');
+    const { prompt, styles = [], colors = [], size, variations = 1, quality = 'fast', textLayers = [], seed } = JSON.parse(event.body || '{}');
 
     // Validate required fields
     if (!prompt || !prompt.trim()) {
@@ -50,36 +52,127 @@ export const handler = async (event) => {
 
     let imageUrl;
     let provider = 'none';
+    let model;
+    let aspectRatio;
 
-    // Try Replicate first if API token is available
-    if (process.env.REPLICATE_API_TOKEN) {
+    // Try Google Imagen first if API key is available
+    console.log('=== AI GENERATION DEBUG ===');
+    console.log('Environment variables check:');
+    console.log('GOOGLE_AI_API_KEY present:', process.env.GOOGLE_AI_API_KEY ? 'Yes (length: ' + process.env.GOOGLE_AI_API_KEY.length + ')' : 'No');
+    console.log('Variations requested:', variations);
+    console.log('Quality:', quality);
+    
+    if (process.env.GOOGLE_AI_API_KEY) {
       try {
-        console.log('Attempting Replicate generation...');
+        console.log('Attempting Google Imagen generation...');
         const enhancedPrompt = buildEnhancedPrompt(prompt, styles, colors, size, textLayers);
-        imageUrl = await generateWithReplicate(enhancedPrompt, size, seed);
-        provider = 'replicate';
-        console.log('Replicate generation successful:', imageUrl);
-      } catch (replicateError) {
-        console.error('Replicate generation failed:', replicateError.message);
-        console.log('Falling back to placeholder generation...');
+        console.log('Enhanced prompt:', enhancedPrompt);
+        
+        if (variations > 1) {
+          // Multiple variations
+          const imageUrls = await generateWithImagen(enhancedPrompt, size, quality, variations);
+          const uploadedImages = [];
+          
+          for (let i = 0; i < imageUrls.length; i++) {
+            const uploadResult = await cloudinary.uploader.upload(imageUrls[i], {
+              folder: 'ai-drafts',
+              public_id: `${uuidv4()}-${Date.now()}-${i}`,
+              resource_type: 'image'
+            });
+            uploadedImages.push({
+              imageUrl: uploadResult.secure_url,
+              publicId: uploadResult.public_id,
+              model: quality === 'standard' ? 'imagen-4.0-generate-001' : 'imagen-4.0-fast-generate-001',
+              aspectRatio: nearestImagenAR(size.wIn, size.hIn)
+            });
+          }
+          
+          return json(200, {
+            success: true,
+            images: uploadedImages,
+            provider: 'google-imagen'
+          });
+        } else {
+          // Single image
+          imageUrl = await generateWithImagen(enhancedPrompt, size, quality, 1);
+          provider = 'google-imagen';
+          model = quality === 'standard' ? 'imagen-4.0-generate-001' : 'imagen-4.0-fast-generate-001';
+          aspectRatio = nearestImagenAR(size.wIn, size.hIn);
+        }
+        
+        console.log('Google Imagen generation successful:', imageUrl);
+      } catch (imagenError) {
+        console.error('Google Imagen generation failed:', imagenError.message);
+        console.log('Falling back to enhanced placeholder generation...');
         try {
-          imageUrl = await generatePlaceholder(prompt, size);
-          provider = 'placeholder';
-          console.log('Placeholder generation successful:', imageUrl);
+          if (variations > 1) {
+            const placeholderImages = [];
+            for (let i = 0; i < variations; i++) {
+              const placeholderUrl = await generateEnhancedPlaceholder(prompt, styles, colors, size, i);
+              const uploadResult = await cloudinary.uploader.upload(placeholderUrl, {
+                folder: 'ai-drafts',
+                public_id: `${uuidv4()}-${Date.now()}-${i}`,
+                resource_type: 'image'
+              });
+              placeholderImages.push({
+                imageUrl: uploadResult.secure_url,
+                publicId: uploadResult.public_id,
+                model: 'enhanced-placeholder',
+                aspectRatio: nearestImagenAR(size.wIn, size.hIn)
+              });
+            }
+            
+            console.log('Enhanced placeholder fallback multiple variations successful:', placeholderImages.length);
+            return json(200, {
+              success: true,
+              images: placeholderImages,
+              provider: 'placeholder'
+            });
+          } else {
+            imageUrl = await generateEnhancedPlaceholder(prompt, styles, colors, size);
+            provider = 'placeholder';
+            console.log('Enhanced placeholder fallback successful:', imageUrl);
+          }
         } catch (placeholderError) {
-          console.error('Placeholder generation failed:', placeholderError.message);
+          console.error('Enhanced placeholder generation failed:', placeholderError.message);
           return json(500, { success: false, error: `Both AI and placeholder generation failed: ${placeholderError.message}` });
         }
       }
     } else {
-      console.log('No Replicate API token found, using placeholder...');
+      console.log('No Google AI API key found, using enhanced placeholder...');
       try {
-        imageUrl = await generatePlaceholder(prompt, size);
-        provider = 'placeholder';
-        console.log('Placeholder generation successful:', imageUrl);
+        if (variations > 1) {
+          // Multiple placeholder variations
+          const placeholderImages = [];
+          for (let i = 0; i < variations; i++) {
+            const placeholderUrl = await generateEnhancedPlaceholder(prompt, styles, colors, size, i);
+            const uploadResult = await cloudinary.uploader.upload(placeholderUrl, {
+              folder: 'ai-drafts',
+              public_id: `${uuidv4()}-${Date.now()}-${i}`,
+              resource_type: 'image'
+            });
+            placeholderImages.push({
+              imageUrl: uploadResult.secure_url,
+              publicId: uploadResult.public_id,
+              model: 'enhanced-placeholder',
+              aspectRatio: nearestImagenAR(size.wIn, size.hIn)
+            });
+          }
+          
+          console.log('Enhanced placeholder multiple variations generated:', placeholderImages.length);
+          return json(200, {
+            success: true,
+            images: placeholderImages,
+            provider: 'placeholder'
+          });
+        } else {
+          imageUrl = await generateEnhancedPlaceholder(prompt, styles, colors, size);
+          provider = 'placeholder';
+          console.log('Enhanced placeholder generation successful:', imageUrl);
+        }
       } catch (placeholderError) {
-        console.error('Placeholder generation failed:', placeholderError.message);
-        return json(500, { success: false, error: `Placeholder generation failed: ${placeholderError.message}` });
+        console.error('Enhanced placeholder generation failed:', placeholderError.message);
+        return json(500, { success: false, error: `Enhanced placeholder generation failed: ${placeholderError.message}` });
       }
     }
 
@@ -114,7 +207,9 @@ export const handler = async (event) => {
         seed: seed || Math.floor(Math.random() * 1000000),
         width: uploadResult.width,
         height: uploadResult.height,
-        provider
+        provider,
+        ...(model && { model }),
+        ...(aspectRatio && { aspectRatio })
       });
     } catch (uploadError) {
       console.error('Cloudinary upload failed:', uploadError);
@@ -131,96 +226,192 @@ export const handler = async (event) => {
 };
 
 function buildEnhancedPrompt(prompt, styles, colors, size, textLayers) {
-  const styleText = styles && styles.length > 0 ? styles.join(', ') + ' style' : 'professional style';
-  const colorText = colors && colors.length > 0 ? `using colors ${colors.join(', ')}` : '';
-  const dimensionText = `${size.wIn}"x${size.hIn}" banner format`;
+  // Content classification for better relevance
+  const lowerPrompt = prompt.toLowerCase();
+  let contentType = 'general';
+  let enhancedPrompt = prompt;
   
-  let textLayerPrompt = '';
-  if (textLayers) {
-    const textParts = [];
-    if (textLayers.headline) textParts.push(`headline "${textLayers.headline}"`);
-    if (textLayers.subheadline) textParts.push(`subheadline "${textLayers.subheadline}"`);
-    if (textLayers.cta) textParts.push(`call-to-action "${textLayers.cta}"`);
-    if (textParts.length > 0) {
-      textLayerPrompt = `, with text elements: ${textParts.join(', ')}`;
-    }
+  // Birthday/Party themes
+  if (lowerPrompt.includes('birthday') || lowerPrompt.includes('party') || lowerPrompt.includes('balloon') || lowerPrompt.includes('celebration')) {
+    contentType = 'party';
+    enhancedPrompt = `colorful party background with balloons, streamers, and festive decorations, ${prompt}`;
+  }
+  // Sale/Business themes  
+  else if (lowerPrompt.includes('sale') || lowerPrompt.includes('grand opening') || lowerPrompt.includes('discount') || lowerPrompt.includes('business')) {
+    contentType = 'business';
+    enhancedPrompt = `professional business storefront or retail environment, ${prompt}`;
+  }
+  // Tech/Conference themes
+  else if (lowerPrompt.includes('tech') || lowerPrompt.includes('conference') || lowerPrompt.includes('digital') || lowerPrompt.includes('innovation')) {
+    contentType = 'tech';
+    enhancedPrompt = `modern technology background with digital elements, ${prompt}`;
+  }
+  // Sports/Fitness themes
+  else if (lowerPrompt.includes('sport') || lowerPrompt.includes('fitness') || lowerPrompt.includes('gym') || lowerPrompt.includes('athletic')) {
+    contentType = 'sports';
+    enhancedPrompt = `dynamic sports or fitness environment, ${prompt}`;
+  }
+  // Food/Restaurant themes
+  else if (lowerPrompt.includes('food') || lowerPrompt.includes('restaurant') || lowerPrompt.includes('cafe') || lowerPrompt.includes('dining')) {
+    contentType = 'food';
+    enhancedPrompt = `appetizing food photography background, ${prompt}`;
+  }
+  // Event/Wedding themes
+  else if (lowerPrompt.includes('wedding') || lowerPrompt.includes('event') || lowerPrompt.includes('ceremony')) {
+    contentType = 'event';
+    enhancedPrompt = `elegant event venue or ceremony backdrop, ${prompt}`;
   }
 
-  return `Create a high-quality ${dimensionText} banner design: ${prompt}. ${styleText} ${colorText}. Ensure quiet background behind text areas for readability, high contrast elements, professional composition suitable for printing${textLayerPrompt}. No watermarks or signatures.`;
+  // Enhanced style processing
+  const styleText = styles && styles.length > 0 ? 
+    styles.map(style => {
+      switch(style) {
+        case 'modern': return 'clean, minimalist, contemporary design';
+        case 'bold': return 'strong, vibrant, high-impact visual';
+        case 'minimal': return 'simple, uncluttered, elegant composition';
+        case 'retro': return 'vintage, nostalgic, classic aesthetic';
+        case 'kid-friendly': return 'playful, colorful, fun and engaging';
+        case 'seasonal': return 'themed for current season, festive atmosphere';
+        case 'corporate': return 'professional, business-appropriate, polished';
+        default: return style;
+      }
+    }).join(', ') + ' style' : 'professional style';
+  
+  // Enhanced color processing
+  const colorText = colors && colors.length > 0 ? 
+    'featuring ' + colors.map(hex => {
+      const colorMap = {
+        '#FF0000': 'bright red', '#FF69B4': 'hot pink', '#FFFF00': 'bright yellow',
+        '#00FF00': 'bright green', '#0000FF': 'bright blue', '#800080': 'purple',
+        '#FFA500': 'orange', '#FFFFFF': 'white', '#000000': 'black',
+        '#808080': 'gray', '#1e40af': 'deep blue', '#f3f4f6': 'light gray'
+      };
+      return colorMap[hex.toUpperCase()] || (hex + ' color');
+    }).join(', ') + ' color palette' : '';
+  
+  // Calculate proper aspect ratio
+  const aspectRatio = size.wIn / size.hIn;
+  let aspectText = '';
+  if (aspectRatio >= 2) {
+    aspectText = 'wide horizontal banner format';
+  } else if (aspectRatio >= 1.5) {
+    aspectText = 'landscape banner format';
+  } else if (aspectRatio <= 0.7) {
+    aspectText = 'tall vertical banner format';
+  } else {
+    aspectText = 'square banner format';
+  }
+
+  // Build final prompt with better composition instructions
+  const finalPrompt = `Professional ${aspectText} banner background: ${enhancedPrompt}. ${styleText}. ${colorText}. Clean composition with space for text overlay, high contrast, suitable for large format printing. No text, logos, or watermarks in the image.`;
+  
+  console.log('Content type detected:', contentType);
+  console.log('Enhanced prompt:', finalPrompt);
+  
+  return finalPrompt;
 }
 
-async function generateWithReplicate(prompt, size, seed) {
-  const response = await fetch('https://api.replicate.com/v1/predictions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Token ${process.env.REPLICATE_API_TOKEN}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      version: "39ed52f2a78e934b3ba6e2a89f5b1c712de7dfea535525255b1aa35c5565e08b", // SDXL
-      input: {
-        prompt: prompt,
-        width: Math.min(1024, size.wIn * 50),
-        height: Math.min(1024, size.hIn * 50),
-        num_outputs: 1,
-        scheduler: "K_EULER",
-        num_inference_steps: 50,
-        guidance_scale: 7.5,
-        seed: seed || Math.floor(Math.random() * 1000000)
-      }
-    })
-  });
 
-  if (!response.ok) {
-    const error = await response.json();
-    throw new Error(`Replicate API error: ${error.detail || response.statusText}`);
-  }
-
-  const prediction = await response.json();
+async function generateWithImagen(prompt, size, quality, variations) {
+  const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY);
   
-  // Poll for completion with timeout
-  let result = prediction;
-  let attempts = 0;
-  const maxAttempts = 30; // 30 seconds max for faster fallback
+  // Select model based on quality
+  const modelName = quality === 'standard' ? 'imagen-4.0-generate-001' : 'imagen-4.0-fast-generate-001';
+  const model = genAI.getGenerativeModel({ model: modelName });
   
-  while ((result.status === 'starting' || result.status === 'processing') && attempts < maxAttempts) {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    attempts++;
-    
-    const pollResponse = await fetch(`https://api.replicate.com/v1/predictions/${result.id}`, {
-      headers: {
-        'Authorization': `Token ${process.env.REPLICATE_API_TOKEN}`,
-      }
+  // Calculate nearest supported aspect ratio
+  const aspectRatio = nearestImagenAR(size.wIn, size.hIn);
+  
+  const config = {
+    numberOfImages: variations,
+    aspectRatio,
+    personGeneration: 'dont_allow',
+    ...(modelName === 'imagen-4.0-generate-001' ? { sampleImageSize: '2K' } : {})
+  };
+  
+  try {
+    const result = await model.generateContent({
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      generationConfig: config
     });
     
-    if (!pollResponse.ok) {
-      throw new Error('Failed to poll prediction status');
+    const response = await result.response;
+    const images = response.candidates || [];
+    
+    if (!images.length) {
+      throw new Error('No images generated');
     }
     
-    result = await pollResponse.json();
+    // Return array of image URLs for multiple variations
+    if (variations > 1) {
+      return images.map(img => img.content?.parts?.[0]?.inlineData?.data || img.uri).filter(Boolean);
+    }
+    
+    // Return single image URL
+    return images[0].content?.parts?.[0]?.inlineData?.data || images[0].uri;
+    
+  } catch (error) {
+    console.error('Google Imagen error:', error);
+    throw new Error(`Imagen generation failed: ${error.message}`);
   }
-
-  if (result.status === 'failed') {
-    throw new Error(`Generation failed: ${result.error}`);
-  }
-
-  if (result.status === 'starting' || result.status === 'processing') {
-    throw new Error('Generation timed out');
-  }
-
-  if (!result.output || !result.output[0]) {
-    throw new Error('No output generated');
-  }
-
-  return result.output[0];
 }
 
-async function generatePlaceholder(prompt, size) {
-  const width = Math.min(1024, size.wIn * 50);
-  const height = Math.min(1024, size.hIn * 50);
+// Helper function to map banner dimensions to supported Imagen aspect ratios
+function nearestImagenAR(wIn, hIn) {
+  const ratio = wIn / hIn;
   
-  // Use a reliable placeholder service
-  return `https://picsum.photos/${width}/${height}?random=${Date.now()}`;
+  // Imagen 4 supported aspect ratios
+  const supportedRatios = {
+    '1:1': 1.0,
+    '9:16': 0.5625,
+    '16:9': 1.7778,
+    '4:3': 1.3333,
+    '3:4': 0.75
+  };
+  
+  let closest = '1:1';
+  let minDiff = Math.abs(ratio - 1.0);
+  
+  for (const [ar, value] of Object.entries(supportedRatios)) {
+    const diff = Math.abs(ratio - value);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closest = ar;
+    }
+  }
+  
+  return closest;
+}
+
+async function generateEnhancedPlaceholder(prompt, styles, colors, size, variation = 0) {
+  // Enhanced placeholder generation that considers prompt content
+  const width = calculateOptimalWidth(size);
+  const height = calculateOptimalHeight(size);
+  
+  // Create different placeholder categories based on prompt content
+  const lowerPrompt = prompt.toLowerCase();
+  let category = '';
+  
+  if (lowerPrompt.includes('birthday') || lowerPrompt.includes('party') || lowerPrompt.includes('balloon')) {
+    category = 'party';
+  } else if (lowerPrompt.includes('business') || lowerPrompt.includes('office') || lowerPrompt.includes('corporate')) {
+    category = 'business';
+  } else if (lowerPrompt.includes('food') || lowerPrompt.includes('restaurant')) {
+    category = 'food';
+  } else if (lowerPrompt.includes('nature') || lowerPrompt.includes('outdoor')) {
+    category = 'nature';
+  } else if (lowerPrompt.includes('tech') || lowerPrompt.includes('digital')) {
+    category = 'tech';
+  }
+  
+  // Generate different variations by using different random seeds
+  const seed = Date.now() + variation * 1000;
+  
+  // Use reliable picsum service with different seeds for variations
+  const placeholderUrl = `https://picsum.photos/${width}/${height}?random=${seed}`;
+  
+  console.log(`Generated placeholder (variation ${variation}):`, placeholderUrl);
+  return placeholderUrl;
 }
 
 function json(status, body) {
@@ -234,4 +425,43 @@ function json(status, body) {
     },
     body: JSON.stringify(body),
   };
+}
+
+// Helper functions for proper aspect ratio calculation
+function calculateOptimalWidth(size) {
+  const aspectRatio = size.wIn / size.hIn;
+  const maxDimension = 1280;
+  
+  let targetWidth, targetHeight;
+  if (aspectRatio >= 1) {
+    // Landscape or square - limit by width
+    targetWidth = Math.min(maxDimension, Math.round(size.wIn * 50));
+    targetHeight = Math.round(targetWidth / aspectRatio);
+  } else {
+    // Portrait - limit by height
+    targetHeight = Math.min(maxDimension, Math.round(size.hIn * 50));
+    targetWidth = Math.round(targetHeight * aspectRatio);
+  }
+  
+  // Round to nearest multiple of 64 for AI model stability
+  return Math.round(targetWidth / 64) * 64;
+}
+
+function calculateOptimalHeight(size) {
+  const aspectRatio = size.wIn / size.hIn;
+  const maxDimension = 1280;
+  
+  let targetWidth, targetHeight;
+  if (aspectRatio >= 1) {
+    // Landscape or square - limit by width
+    targetWidth = Math.min(maxDimension, Math.round(size.wIn * 50));
+    targetHeight = Math.round(targetWidth / aspectRatio);
+  } else {
+    // Portrait - limit by height
+    targetHeight = Math.min(maxDimension, Math.round(size.hIn * 50));
+    targetWidth = Math.round(targetHeight * aspectRatio);
+  }
+  
+  // Round to nearest multiple of 64 for AI model stability
+  return Math.round(targetHeight / 64) * 64;
 }
