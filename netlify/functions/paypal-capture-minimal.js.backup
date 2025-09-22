@@ -1,5 +1,5 @@
 // Minimal PayPal capture - supports both sandbox and live environments
-const { validateServerOrder, createMinimumOrderErrorResponse, extractValidationContext } = require('./utils/minimumOrderValidation');exports.handler = async (event) => {
+exports.handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'POST,OPTIONS',
@@ -59,46 +59,7 @@ const { validateServerOrder, createMinimumOrderErrorResponse, extractValidationC
     const tokenData = await tokenResponse.json();
     const accessToken = tokenData.access_token;
 
-
-    // Get order details to validate amount before capture
-    const orderDetailsResponse = await fetch(`${baseUrl}/v2/checkout/orders/${orderID}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${accessToken}`
-      }
-    });
-
-    if (!orderDetailsResponse.ok) {
-      const errorText = await orderDetailsResponse.text();
-      console.error('PayPal order details error:', errorText);
-      return { statusCode: 400, headers, body: JSON.stringify({ error: 'Failed to get order details' }) };
-    }
-
-    const orderDetails = await orderDetailsResponse.json();
-    const orderAmount = parseFloat(orderDetails.purchase_units[0].amount.value);
-    const orderAmountCents = Math.round(orderAmount * 100);
-
-    // Validate minimum order requirement
-    const validationContext = extractValidationContext(event);
-    const orderValidation = validateServerOrder(orderAmountCents, validationContext);
-    
-    if (!orderValidation.valid) {
-      console.error('PayPal capture - Minimum order validation failed:', {
-        orderID,
-        orderAmountCents,
-        minimumRequired: orderValidation.details.minimumRequired,
-        shortfall: orderValidation.details.shortfall
-      });
-      
-      return createMinimumOrderErrorResponse(orderValidation);
-    }
-    
-    console.log('PayPal capture - Minimum order validation passed:', {
-      orderID,
-      orderAmountCents,
-      validationCode: orderValidation.code
-    });    // Capture the payment
+    // Capture the payment
     const captureResponse = await fetch(`${baseUrl}/v2/checkout/orders/${orderID}/capture`, {
       method: 'POST',
       headers: {

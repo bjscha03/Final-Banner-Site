@@ -11,7 +11,6 @@ interface PayPalCheckoutProps {
   onSuccess: (orderId: string) => void;
   onError: (error: any) => void;
   disabled?: boolean;
-}
 
 interface PayPalConfig {
   enabled: boolean;
