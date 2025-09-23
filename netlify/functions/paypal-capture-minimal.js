@@ -1,5 +1,7 @@
 // Minimal PayPal capture - supports both sandbox and live environments
-const { validateServerOrder, createMinimumOrderErrorResponse, extractValidationContext } = require('./utils/minimumOrderValidation');exports.handler = async (event) => {
+const { validateServerOrder, createMinimumOrderErrorResponse, extractValidationContext } = require('./utils/minimumOrderValidation.js');
+
+exports.handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Methods': 'POST,OPTIONS',
