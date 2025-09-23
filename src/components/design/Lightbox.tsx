@@ -88,8 +88,9 @@ const Lightbox: React.FC<LightboxProps> = ({ isOpen, onClose, src, alt, title })
     }
   };
 
-  // Simple detection for embedded SVG images that need larger display
-  const needsLargerDisplay = src.includes('18oz.svg') || src.includes('mesh.svg');
+  // Detection for embedded SVG material images that need larger display
+  // All four material images (13oz, 15oz, 18oz, mesh) are embedded SVGs with similar characteristics
+  const needsLargerDisplay = src.includes('13oz.svg') || src.includes('15oz.svg') || src.includes('18oz.svg') || src.includes('mesh.svg');
 
   return createPortal(
     <div
