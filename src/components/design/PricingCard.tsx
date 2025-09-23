@@ -9,6 +9,8 @@ import { validateMinimumOrder, canProceedToCheckout } from '@/lib/validation/min
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useScrollToTop } from '@/components/ScrollToTop';
+import { useUpsell } from '@/hooks/useUpsell';
+import UpsellModal from '@/components/cart/UpsellModal';
 
 
 
@@ -21,6 +23,43 @@ const PricingCard: React.FC = () => {
   const { user } = useAuth();
   const [isAdminUser, setIsAdminUser] = useState(false);
   const { widthIn, heightIn, quantity, material, grommets, polePockets, addRope, file } = quote;
+
+  // Upsell functionality
+  const {
+    showUpsellModal,
+    upsellActionType,
+    handleAddToCart: upsellHandleAddToCart,
+    handleCheckout: upsellHandleCheckout,
+    handleUpsellContinue,
+    handleUpsellClose
+  } = useUpsell({
+    onAddToCart: (updatedQuote) => {
+      // Update the quote store with upsell selections
+      quote.set({
+        grommets: updatedQuote.grommets,
+        addRope: updatedQuote.addRope,
+        polePockets: updatedQuote.polePockets,
+        polePocketSize: updatedQuote.polePocketSize
+      });
+      addFromQuote(updatedQuote);
+      toast({
+        title: "Added to Cart",
+        description: "Your banner has been added to the cart.",
+      });
+    },
+    onCheckout: (updatedQuote) => {
+      // Update the quote store with upsell selections
+      quote.set({
+        grommets: updatedQuote.grommets,
+        addRope: updatedQuote.addRope,
+        polePockets: updatedQuote.polePockets,
+        polePocketSize: updatedQuote.polePocketSize
+      });
+      addFromQuote(updatedQuote);
+      scrollToTopBeforeNavigate();
+      navigate('/checkout');
+    }
+  });
 
   // Check admin status
   useEffect(() => {
@@ -181,11 +220,7 @@ const PricingCard: React.FC = () => {
       return;
     }
 
-    addFromQuote(quote);
-    toast({
-      title: "Added to Cart",
-      description: "Your banner has been added to the cart.",
-    });
+    upsellHandleAddToCart(quote);
   };
 
   const handleCheckout = () => {
@@ -208,10 +243,7 @@ const PricingCard: React.FC = () => {
       return;
     }
 
-    addFromQuote(quote);
-    // Pre-scroll before navigation to prevent flash
-    scrollToTopBeforeNavigate();
-    navigate('/checkout');
+    upsellHandleCheckout(quote);
   };
   return (
     <div className="relative bg-gradient-to-br from-white via-green-50/20 to-emerald-50/10 border border-green-200/30 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-sm">
@@ -424,6 +456,17 @@ const PricingCard: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Upsell Modal */}
+      {showUpsellModal && upsellActionType && (
+        <UpsellModal
+          isOpen={showUpsellModal}
+          onClose={handleUpsellClose}
+          quote={quote}
+          onContinue={handleUpsellContinue}
+          actionType={upsellActionType}
+        />
+      )}
     </div>
   );
 };
