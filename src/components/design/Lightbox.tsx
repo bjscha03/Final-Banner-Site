@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 
@@ -13,7 +13,6 @@ interface LightboxProps {
 const Lightbox: React.FC<LightboxProps> = ({ isOpen, onClose, src, alt, title }) => {
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
-  const imageRef = useRef<HTMLImageElement>(null);
   const previousActiveElement = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
@@ -89,12 +88,8 @@ const Lightbox: React.FC<LightboxProps> = ({ isOpen, onClose, src, alt, title })
     }
   };
 
-  // Check if this is an SVG file that might need special handling
-  const isSvgFile = src.endsWith('.svg');
-  const isMaterialSvg = src.includes('/materials/') && isSvgFile;
-  
-  // Check specifically for the problematic SVG files with embedded images
-  const isEmbeddedImageSvg = isMaterialSvg && (src.includes('18oz.svg') || src.includes('mesh.svg'));
+  // Simple detection for embedded SVG images that need larger display
+  const needsLargerDisplay = src.includes('18oz.svg') || src.includes('mesh.svg');
 
   return createPortal(
     <div
@@ -114,30 +109,28 @@ const Lightbox: React.FC<LightboxProps> = ({ isOpen, onClose, src, alt, title })
           <button
             ref={closeButtonRef}
             onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-full transition-colors touch-manipulation"
+            className="p-2 hover:bg-gray-100 rounded-full transition-colors"
             aria-label="Close lightbox"
           >
             <X className="h-5 w-5 text-gray-500" />
           </button>
         </div>
 
-        {/* Image - Simplified with responsive handling */}
+        {/* Image - Back to basics with targeted enhancement */}
         <div className="p-2">
           <img
-            ref={imageRef}
             src={src}
             alt={alt}
-            className={`max-w-full max-h-[calc(95vh-80px)] object-contain mx-auto ${
-              isEmbeddedImageSvg ? 'min-w-[280px] min-h-[280px]' : ''
-            }`}
+            className="max-w-full max-h-[calc(95vh-80px)] object-contain mx-auto"
             style={{
               maxWidth: '95vw',
               maxHeight: 'calc(95vh - 80px)',
-              ...(isEmbeddedImageSvg && {
-                // Responsive sizing for embedded SVG images
-                width: 'min(80vw, 700px)',
-                height: 'min(70vh, 700px)',
-                imageRendering: 'crisp-edges'
+              // Only apply special sizing to the problematic embedded SVGs
+              ...(needsLargerDisplay && {
+                minWidth: '600px',
+                minHeight: '600px',
+                width: '800px',
+                height: '800px'
               })
             }}
           />
