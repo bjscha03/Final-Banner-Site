@@ -359,7 +359,7 @@ const AIDesign: React.FC = () => {
 
       toast({
         title: 'Banner finalized!',
-        description: 'High-resolution print version created with text layers.'
+        description: 'Your AI banner is ready! Print-ready files will be automatically generated when you place your order at 300 DPI with exact dimensions.'
       });
 
     } catch (error) {
@@ -614,7 +614,7 @@ const AIDesign: React.FC = () => {
                       ) : (
                         <>
                           <Upload className="w-4 h-4 mr-2" />
-                          Upscale for Print
+                          Prepare for Order
                         </>
                       )}
                     </Button>
