@@ -136,6 +136,14 @@ const PricingCard: React.FC = () => {
 
   const canProceed = minimumOrderValidation.isValid;
 
+  // Size validation
+  const squareFootage = quote.getSquareFootage();
+  const isOverSizeLimit = quote.isOverSizeLimit();
+  const sizeLimitMessage = quote.getSizeLimitMessage();
+  const canProceedWithSize = !isOverSizeLimit;
+  const finalCanProceed = canProceed && canProceedWithSize;
+
+
   const materialName = {
     '13oz': '13oz Vinyl',
     '15oz': '15oz Vinyl', 
@@ -393,7 +401,7 @@ const PricingCard: React.FC = () => {
         <div className="space-y-4 mt-8">
           {/* Add to Cart Button */}
           <button
-            onClick={handleAddToCart} disabled={!canProceed}
+            onClick={handleAddToCart} disabled={!finalCanProceed}
             className={`w-full py-5 rounded-2xl font-bold text-xl shadow-2xl transition-all duration-300 flex items-center justify-center gap-3 relative overflow-hidden ${finalCanProceed ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 text-white hover:shadow-3xl transform hover:scale-105' : 'bg-gray-400 text-gray-600 cursor-not-allowed'}`}
           >
             <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
