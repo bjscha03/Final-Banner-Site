@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { QuoteState } from '@/store/quote';
+import { QuoteState, Grommets, PolePocketSize } from '@/store/quote';
 import { UpsellOption } from '@/components/cart/UpsellModal';
 
 const STORAGE_KEY = 'skipUpsell';
@@ -61,14 +61,14 @@ export const useUpsell = ({ onAddToCart, onCheckout }: UseUpsellOptions): UseUps
 
       switch (option.id) {
         case 'grommets':
-          updatedQuote.grommets = 'every-2-3ft'; // Default to standard spacing
+          updatedQuote.grommets = (option.grommetSelection || 'every-2-3ft') as Grommets;
           break;
         case 'rope':
           updatedQuote.addRope = true;
           break;
         case 'polePockets':
-          updatedQuote.polePockets = 'top-bottom'; // Default to top & bottom
-          updatedQuote.polePocketSize = '2'; // Default to 2" size
+          updatedQuote.polePockets = option.polePocketSelection || 'top-bottom';
+          updatedQuote.polePocketSize = (option.polePocketSize || '2') as PolePocketSize;
           break;
       }
     });

@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, ShoppingCart, CreditCard, Check } from 'lucide-react';
+import { X, ShoppingCart, CreditCard, Check, ChevronDown } from 'lucide-react';
 import { createPortal } from 'react-dom';
-import { QuoteState } from '@/store/quote';
-import { formatDimensions, usd } from '@/lib/pricing';
+import { QuoteState, Grommets, PolePocketSize } from '@/store/quote';
+import { formatDimensions, usd, ropeCost, polePocketCost } from '@/lib/pricing';
 
 export interface UpsellOption {
   id: 'grommets' | 'rope' | 'polePockets';
@@ -10,7 +10,38 @@ export interface UpsellOption {
   description: string;
   price: number;
   selected: boolean;
+  // For detailed options
+  grommetSelection?: string;
+  polePocketSelection?: string;
+  polePocketSize?: string;
 }
+
+// Grommet options matching GrommetsCard
+const grommetOptions = [
+  { id: 'every-2-3ft', label: 'Every 2–3 feet', description: 'Standard spacing for most applications' },
+  { id: 'every-1-2ft', label: 'Every 1–2 feet', description: 'Close spacing for high wind areas' },
+  { id: '4-corners', label: '4 corners only', description: 'Corner grommets for simple hanging' },
+  { id: 'top-corners', label: 'Top corners only', description: 'Top edge mounting' },
+  { id: 'right-corners', label: 'Right corners only', description: 'Right edge mounting' },
+  { id: 'left-corners', label: 'Left corners only', description: 'Left edge mounting' }
+];
+
+// Pole pocket options matching PolePocketsCard
+const polePocketOptions = [
+  { value: 'top', label: 'Top only' },
+  { value: 'bottom', label: 'Bottom only' },
+  { value: 'top-bottom', label: 'Top & Bottom' },
+  { value: 'left', label: 'Left only' },
+  { value: 'right', label: 'Right only' }
+];
+
+// Pole pocket size options
+const polePocketSizeOptions = [
+  { value: '1', label: '1 inch' },
+  { value: '2', label: '2 inch' },
+  { value: '3', label: '3 inch' },
+  { value: '4', label: '4 inch' }
+];
 
 export interface UpsellModalProps {
   isOpen: boolean;
@@ -52,37 +83,38 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
     if (quote.grommets === 'none') {
       options.push({
         id: 'grommets',
-        label: 'Grommets (Every 2-3 feet)',
+        label: 'Grommets',
         description: 'Metal reinforced holes for easy hanging',
         price: 0, // Grommets are free
-        selected: false
+        selected: false,
+        grommetSelection: 'every-2-3ft' // Default selection
       });
     }
 
     // Add rope if not selected
     if (!quote.addRope) {
-      const ropeLinearFeet = quote.widthIn / 12;
-      const ropeCost = ropeLinearFeet * 2 * quote.quantity; // $2 per linear foot
+      const ropeCostValue = ropeCost(quote.widthIn, quote.quantity);
       options.push({
         id: 'rope',
         label: 'Nylon Rope',
-        description: `${ropeLinearFeet.toFixed(1)} linear feet for secure mounting`,
-        price: ropeCost,
+        description: `${(quote.widthIn / 12).toFixed(1)} linear feet for secure mounting`,
+        price: ropeCostValue,
         selected: false
       });
     }
 
     // Add pole pockets if none selected
     if (quote.polePockets === 'none') {
-      const setupFee = 15;
-      const pocketLinearFeet = (quote.widthIn / 12) * 2; // Top and bottom
-      const pocketCost = setupFee + (pocketLinearFeet * 2); // $2 per linear foot + setup
+      const defaultPolePocketSelection = 'top-bottom';
+      const pocketCost = polePocketCost(quote.widthIn, quote.heightIn, defaultPolePocketSelection, quote.quantity);
       options.push({
         id: 'polePockets',
-        label: 'Pole Pockets (Top & Bottom)',
-        description: '2" sewn pockets for pole mounting',
+        label: 'Pole Pockets',
+        description: 'Sewn pockets for pole mounting',
         price: pocketCost,
-        selected: false
+        selected: false,
+        polePocketSelection: defaultPolePocketSelection,
+        polePocketSize: '2' // Default to 2"
       });
     }
 
@@ -95,6 +127,45 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
       prev.map(option => 
         option.id === optionId 
           ? { ...option, selected: !option.selected }
+          : option
+      )
+    );
+  };
+
+  // Handle grommet selection change
+  const handleGrommetChange = (optionId: string, grommetId: string) => {
+    setSelectedOptions(prev => 
+      prev.map(option => 
+        option.id === optionId 
+          ? { ...option, grommetSelection: grommetId }
+          : option
+      )
+    );
+  };
+
+  // Handle pole pocket selection change
+  const handlePolePocketChange = (optionId: string, polePocketValue: string) => {
+    setSelectedOptions(prev => 
+      prev.map(option => {
+        if (option.id === optionId) {
+          const newPrice = polePocketCost(quote.widthIn, quote.heightIn, polePocketValue, quote.quantity);
+          return { 
+            ...option, 
+            polePocketSelection: polePocketValue,
+            price: newPrice
+          };
+        }
+        return option;
+      })
+    );
+  };
+
+  // Handle pole pocket size change
+  const handlePolePocketSizeChange = (optionId: string, size: string) => {
+    setSelectedOptions(prev => 
+      prev.map(option => 
+        option.id === optionId 
+          ? { ...option, polePocketSize: size }
           : option
       )
     );
@@ -134,13 +205,60 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
   const actionIcon = actionType === 'cart' ? ShoppingCart : CreditCard;
   const actionText = actionType === 'cart' ? 'Add to Cart' : 'Buy Now';
 
+  // Custom dropdown component for options
+  const OptionDropdown: React.FC<{
+    value: string;
+    options: Array<{id?: string; value?: string; label: string; description?: string}>;
+    onChange: (value: string) => void;
+    placeholder: string;
+  }> = ({ value, options, onChange, placeholder }) => {
+    const [isOpen, setIsOpen] = useState(false);
+    const selectedOption = options.find(opt => (opt.id || opt.value) === value);
+
+    return (
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className="w-full px-3 py-2 text-left bg-white border border-gray-300 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 flex items-center justify-between"
+        >
+          <span className="text-sm">
+            {selectedOption ? selectedOption.label : placeholder}
+          </span>
+          <ChevronDown className={`h-4 w-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        </button>
+        
+        {isOpen && (
+          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
+            {options.map((option) => (
+              <button
+                key={option.id || option.value}
+                type="button"
+                onClick={() => {
+                  onChange(option.id || option.value || '');
+                  setIsOpen(false);
+                }}
+                className="w-full px-3 py-2 text-left hover:bg-gray-50 focus:outline-none focus:bg-gray-50 first:rounded-t-lg last:rounded-b-lg"
+              >
+                <div className="text-sm font-medium text-gray-900">{option.label}</div>
+                {option.description && (
+                  <div className="text-xs text-gray-500 mt-1">{option.description}</div>
+                )}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return createPortal(
     <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
       <div 
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col">
+      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-xl font-bold text-gray-900">
@@ -188,20 +306,22 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
             {selectedOptions.map((option) => (
               <div
                 key={option.id}
-                className={`border-2 rounded-xl p-4 transition-all cursor-pointer ${
+                className={`border-2 rounded-xl p-4 transition-all ${
                   option.selected
                     ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-200 hover:border-gray-300'
+                    : 'border-gray-200'
                 }`}
-                onClick={() => toggleOption(option.id)}
               >
-                <div className="flex items-start justify-between">
+                <div className="flex items-start justify-between mb-3">
                   <div className="flex items-start gap-3">
-                    <div className={`w-6 h-6 rounded border-2 flex items-center justify-center mt-0.5 ${
-                      option.selected
-                        ? 'border-blue-500 bg-blue-500'
-                        : 'border-gray-300'
-                    }`}>
+                    <div 
+                      className={`w-6 h-6 rounded border-2 flex items-center justify-center mt-0.5 cursor-pointer ${
+                        option.selected
+                          ? 'border-blue-500 bg-blue-500'
+                          : 'border-gray-300'
+                      }`}
+                      onClick={() => toggleOption(option.id)}
+                    >
                       {option.selected && <Check className="h-4 w-4 text-white" />}
                     </div>
                     <div>
@@ -215,6 +335,49 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
                     </span>
                   </div>
                 </div>
+
+                {/* Detailed options for grommets */}
+                {option.id === 'grommets' && option.selected && (
+                  <div className="mt-3 pl-9">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Grommet Placement
+                    </label>
+                    <OptionDropdown
+                      value={option.grommetSelection || 'every-2-3ft'}
+                      options={grommetOptions}
+                      onChange={(value) => handleGrommetChange(option.id, value)}
+                      placeholder="Select grommet placement"
+                    />
+                  </div>
+                )}
+
+                {/* Detailed options for pole pockets */}
+                {option.id === 'polePockets' && option.selected && (
+                  <div className="mt-3 pl-9 space-y-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Pole Pocket Configuration
+                      </label>
+                      <OptionDropdown
+                        value={option.polePocketSelection || 'top-bottom'}
+                        options={polePocketOptions}
+                        onChange={(value) => handlePolePocketChange(option.id, value)}
+                        placeholder="Select pole pocket configuration"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Pole Pocket Size
+                      </label>
+                      <OptionDropdown
+                        value={option.polePocketSize || '2'}
+                        options={polePocketSizeOptions}
+                        onChange={(value) => handlePolePocketSizeChange(option.id, value)}
+                        placeholder="Select pocket size"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
