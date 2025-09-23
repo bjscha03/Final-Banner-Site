@@ -303,33 +303,38 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
                 : 'bg-gray-100 hover:bg-gray-50'
             }`}
           >
-            <div>
+            <div className="flex flex-col items-center">
               <h3 className="text-lg font-medium text-gray-500 mb-2">Upload artwork to preview</h3>
               <p className="text-gray-400 mb-4">Your banner will appear here</p>
               <p className="text-sm text-gray-400 mb-4">Supports: JPG, PNG, JPEG, PDF</p>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="mb-3 px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200 w-full max-w-xs h-12 flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
-              >
-                <Upload className="w-5 h-5" />
-                Upload Artwork
-              </button>
-              {import.meta.env.VITE_AI_BANNER_ENABLED !== 'false' && onOpenAIModal && (
-                <>
-                  <div className="text-gray-400 text-sm mb-3">or</div>
-                  <button
-                    onClick={onOpenAIModal}
-                    className="mb-4 px-6 py-3 relative bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-300 hover:border-purple-400 hover:from-purple-100 hover:to-blue-100 text-purple-700 hover:text-purple-800 rounded-lg font-medium transition-all duration-200 w-full max-w-xs h-12 flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
-                    data-cta="ai-generate-open"
-                  >
-                    <Wand2 className="w-5 h-5" />
-                    Generate with AI
-                    <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full shadow-sm">
-                      BETA
-                    </span>
-                  </button>
-                </>
-              )}
+              
+              {/* Button container with proper centering */}
+              <div className="flex flex-col items-center gap-3 w-full">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200 w-full max-w-xs h-12 flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
+                >
+                  <Upload className="w-5 h-5" />
+                  Upload Artwork
+                </button>
+                {import.meta.env.VITE_AI_BANNER_ENABLED !== 'false' && onOpenAIModal && (
+                  <>
+                    <div className="text-gray-400 text-sm">or</div>
+                    <button
+                      onClick={onOpenAIModal}
+                      className="px-6 py-3 relative bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-300 hover:border-purple-400 hover:from-purple-100 hover:to-blue-100 text-purple-700 hover:text-purple-800 rounded-lg font-medium transition-all duration-200 w-full max-w-xs h-12 flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
+                      data-cta="ai-generate-open"
+                    >
+                      <Wand2 className="w-5 h-5" />
+                      Generate with AI
+                      <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full shadow-sm">
+                        BETA
+                      </span>
+                    </button>
+                  </>
+                )}
+              </div>
+              
               <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-left max-w-md mx-auto">
                 <p className="text-xs text-blue-700 font-medium mb-1">File requirements:</p>
                 <p className="text-xs text-blue-600">
