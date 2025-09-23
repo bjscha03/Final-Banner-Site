@@ -88,6 +88,10 @@ const Lightbox: React.FC<LightboxProps> = ({ isOpen, onClose, src, alt, title })
     }
   };
 
+  // Check if this is an SVG file that might need special handling
+  const isSvgFile = src.endsWith('.svg');
+  const isMaterialSvg = src.includes('/materials/') && isSvgFile;
+
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4"
@@ -113,13 +117,23 @@ const Lightbox: React.FC<LightboxProps> = ({ isOpen, onClose, src, alt, title })
           </button>
         </div>
 
-        {/* Image - Much larger display */}
+        {/* Image - Much larger display with special handling for material SVGs */}
         <div className="p-2">
           <img
             src={src}
             alt={alt}
-            className="max-w-full max-h-[calc(95vh-80px)] object-contain mx-auto"
-            style={{ maxWidth: '95vw', maxHeight: 'calc(95vh - 80px)' }}
+            className={`max-w-full max-h-[calc(95vh-80px)] object-contain mx-auto ${
+              isMaterialSvg ? 'min-w-[600px] min-h-[600px]' : ''
+            }`}
+            style={{ 
+              maxWidth: '95vw', 
+              maxHeight: 'calc(95vh - 80px)',
+              ...(isMaterialSvg && {
+                width: '800px',
+                height: '800px',
+                objectFit: 'contain'
+              })
+            }}
           />
         </div>
       </div>
