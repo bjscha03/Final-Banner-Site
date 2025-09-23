@@ -20,7 +20,7 @@ interface MaterialOption {
 }
 
 // Add cache-busting timestamp to force image reload
-const CACHE_BUST = Date.now();
+const CACHE_BUST = "1758606986";
 
 const materials: MaterialOption[] = [
   {
