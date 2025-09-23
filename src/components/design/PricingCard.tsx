@@ -1,7 +1,7 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { ShoppingCart, CreditCard, Check, Truck, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useQuoteStore } from '@/store/quote';
+import { useQuoteStore, ORDER_SIZE_LIMIT_SQFT } from '@/store/quote';
 import { useAuth } from '@/lib/auth';
 import { useCartStore } from '@/store/cart';
 import { calcTotals, usd, formatArea, formatDimensions, PRICE_PER_SQFT, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
@@ -394,7 +394,7 @@ const PricingCard: React.FC = () => {
           {/* Add to Cart Button */}
           <button
             onClick={handleAddToCart} disabled={!canProceed}
-            className={`w-full py-5 rounded-2xl font-bold text-xl shadow-2xl transition-all duration-300 flex items-center justify-center gap-3 relative overflow-hidden ${canProceed ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 text-white hover:shadow-3xl transform hover:scale-105' : 'bg-gray-400 text-gray-600 cursor-not-allowed'}`}
+            className={`w-full py-5 rounded-2xl font-bold text-xl shadow-2xl transition-all duration-300 flex items-center justify-center gap-3 relative overflow-hidden ${finalCanProceed ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 text-white hover:shadow-3xl transform hover:scale-105' : 'bg-gray-400 text-gray-600 cursor-not-allowed'}`}
           >
             <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div className="relative flex items-center gap-3">
@@ -406,7 +406,7 @@ const PricingCard: React.FC = () => {
           {/* Checkout Button */}
           <button
             onClick={handleCheckout}
-            className={`w-full py-5 rounded-2xl font-bold text-xl shadow-2xl transition-all duration-300 flex items-center justify-center gap-3 relative overflow-hidden ${canProceed ? 'bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 hover:from-emerald-700 hover:via-green-700 hover:to-teal-700 text-white hover:shadow-3xl transform hover:scale-105' : 'bg-gray-400 text-gray-600 cursor-not-allowed'}`}
+            className={`w-full py-5 rounded-2xl font-bold text-xl shadow-2xl transition-all duration-300 flex items-center justify-center gap-3 relative overflow-hidden ${finalCanProceed ? 'bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 hover:from-emerald-700 hover:via-green-700 hover:to-teal-700 text-white hover:shadow-3xl transform hover:scale-105' : 'bg-gray-400 text-gray-600 cursor-not-allowed'}`}
           >
             <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div className="relative flex items-center gap-3">
