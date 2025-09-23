@@ -93,4 +93,17 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
     addRope: false,
     file: undefined,
   })),
+  // Computed validation methods
+  getSquareFootage: () => {
+    const state = get();
+    return calculateSquareFootage(state.widthIn, state.heightIn);
+  },
+  isOverSizeLimit: () => {
+    const sqft = get().getSquareFootage();
+    return sqft > ORDER_SIZE_LIMIT_SQFT;
+  },
+  getSizeLimitMessage: () => {
+    const sqft = get().getSquareFootage();
+    return getSizeLimitMessage(sqft);
+  }
 }));
