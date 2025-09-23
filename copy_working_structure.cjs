@@ -1,4 +1,20 @@
-const { randomUUID } = require('crypto');
+const fs = require('fs');
+
+// Read the working paypal-create-order.js to see its structure
+const workingContent = fs.readFileSync('netlify/functions/paypal-create-order.js', 'utf8');
+
+// Extract just the handler part to see the exact format
+const handlerMatch = workingContent.match(/exports\.handler = async \(event[^}]+\{[\s\S]*\};/);
+
+if (handlerMatch) {
+  console.log('Working function handler format:');
+  console.log(handlerMatch[0].substring(0, 200) + '...');
+} else {
+  console.log('Could not find handler in working function');
+}
+
+// Let's create a minimal test function using the exact same structure
+const testContent = \`const { randomUUID } = require('crypto');
 
 exports.handler = async (event, context) => {
   const headers = {
@@ -39,4 +55,8 @@ exports.handler = async (event, context) => {
       })
     };
   }
-};
+};\`;
+
+// Write the test version
+fs.writeFileSync('netlify/functions/paypal-capture-minimal.js', testContent);
+console.log('Created test function with working structure');

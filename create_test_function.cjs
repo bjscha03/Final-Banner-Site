@@ -1,4 +1,7 @@
-const { randomUUID } = require('crypto');
+const fs = require('fs');
+
+// Create a minimal test function using the exact same structure as the working function
+const testContent = `const { randomUUID } = require('crypto');
 
 exports.handler = async (event, context) => {
   const headers = {
@@ -39,4 +42,8 @@ exports.handler = async (event, context) => {
       })
     };
   }
-};
+};`;
+
+// Write the test version
+fs.writeFileSync('netlify/functions/paypal-capture-minimal.js', testContent);
+console.log('Created test function with working structure');
