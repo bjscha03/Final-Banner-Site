@@ -27,26 +27,26 @@ const materials: MaterialOption[] = [
     key: '13oz',
     name: '13oz Vinyl',
     subtitle: 'Standard outdoor banner',
-    imagePath: `/images/materials/13oz.svg?v=${CACHE_BUST}`
+    imagePath: `/direct-assets/materials/13oz.svg?v=${CACHE_BUST}`
   },
   {
     key: '15oz',
     name: '15oz Vinyl',
     subtitle: 'Premium outdoor banner',
     popular: true,
-    imagePath: `/images/materials/15oz.svg?v=${CACHE_BUST}`
+    imagePath: `/direct-assets/materials/15oz.svg?v=${CACHE_BUST}`
   },
   {
     key: '18oz',
     name: '18oz Vinyl',
     subtitle: 'Heavy-duty, wind resistant',
-    imagePath: `/images/materials/18oz.svg?v=${CACHE_BUST}`
+    imagePath: `/direct-assets/materials/18oz.svg?v=${CACHE_BUST}`
   },
   {
     key: 'mesh',
     name: 'Mesh Vinyl',
     subtitle: 'Wind-through design',
-    imagePath: `/images/materials/mesh.svg?v=${CACHE_BUST}`
+    imagePath: `/direct-assets/materials/mesh.svg?v=${CACHE_BUST}`
   }
 ];
 
