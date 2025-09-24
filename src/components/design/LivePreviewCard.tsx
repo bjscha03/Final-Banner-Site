@@ -448,8 +448,6 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       return null;
     }
   };
-    }
-  };
 
 
   return (
