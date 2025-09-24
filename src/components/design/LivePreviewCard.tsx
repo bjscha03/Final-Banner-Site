@@ -223,13 +223,12 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
   };
   // NEW: Resize Image functionality - Re-triggers AI artwork processing for new dimensions
   // NEW: Resize Image functionality - Re-triggers AI artwork processing for new dimensions
-  // NEW: Resize Image functionality - Generate print-ready high-resolution version
   const handleResizeImage = async () => {
     if (!file?.url || !isAIImage || !file.aiMetadata) {
       toast({
-        title: "No AI image to resize",
-        description: "Please generate an AI image first.",
-        variant: "destructive"
+        title: 'No AI image to resize',
+        description: 'Please generate an AI image first.',
+        variant: 'destructive'
       });
       return;
     }
@@ -243,19 +242,19 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       const publicId = file.aiMetadata?.cloudinary_public_id || extractPublicIdFromUrl(file.url);
       
       if (!publicId) {
-        throw new Error("Could not extract Cloudinary public ID from image");
+        throw new Error('Could not extract Cloudinary public ID from image');
       }
 
-      console.log("Using public ID:", publicId);
+      console.log('Using public ID:', publicId);
 
       // Call the new AI image processor
-      const response = await fetch("/.netlify/functions/ai-image-processor", {
-        method: "POST",
+      const response = await fetch('/.netlify/functions/ai-image-processor', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          action: "resize",
+          action: 'resize',
           publicId: publicId,
           widthIn: widthIn,
           heightIn: heightIn
@@ -264,25 +263,25 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("AI image processor error:", errorText);
+        console.error('AI image processor error:', errorText);
         throw new Error(`Processing failed: ${response.status} ${response.statusText}`);
       }
 
       const result = await response.json();
-      console.log("AI image processor result:", result);
+      console.log('AI image processor result:', result);
 
       if (!result.success) {
-        throw new Error(result.error || "Image processing failed");
+        throw new Error(result.error || 'Image processing failed');
       }
 
       // Update the file with the print-ready version
-      console.log("✅ Updating file with print-ready URL:", result.processedUrl);
+      console.log('✅ Updating file with print-ready URL:', result.processedUrl);
       
       set({
         file: {
           ...file,
           url: result.processedUrl,
-          name: file.name.replace(/_fitted_\d+x\d+|_resized_\d+x\d+|_print_ready_\d+x\d+/, "") + `_print_ready_${widthIn}x${heightIn}`,
+          name: file.name.replace(/_fitted_\d+x\d+|_resized_\d+x\d+|_print_ready_\d+x\d+/, '') + `_print_ready_${widthIn}x${heightIn}`,
           aiMetadata: {
             ...file.aiMetadata,
             printReadyVersion: {
@@ -296,29 +295,29 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       });
 
       toast({
-        title: "Print-ready version generated!",
+        title: 'Print-ready version generated!',
         description: `Created high-resolution file at ${result.dimensions?.dpi || 150} DPI for ${widthIn}×${heightIn}" banner`,
-        variant: "default"
+        variant: 'default'
       });
 
     } catch (error) {
-      console.error("Error generating print-ready version:", error);
+      console.error('Error generating print-ready version:', error);
       toast({
-        title: "Resize failed",
-        description: error.message || "Could not generate print-ready version. Please try again.",
-        variant: "destructive"
+        title: 'Resize failed',
+        description: error.message || 'Could not generate print-ready version. Please try again.',
+        variant: 'destructive'
       });
     } finally {
       setIsResizingImage(false);
     }
-  };  // NEW: Reset Image functionality - Restores AI image to original generated size/aspect ratio
-  // NEW: Reset Image functionality - Restore AI image to original state
+  };
+  // NEW: Reset Image functionality - Restores AI image to original generated size/aspect ratio
   const handleResetImage = async () => {
     if (!file?.url || !isAIImage || !file.aiMetadata) {
       toast({
-        title: "No AI image to reset",
-        description: "Please generate an AI image first.",
-        variant: "destructive"
+        title: 'No AI image to reset',
+        description: 'Please generate an AI image first.',
+        variant: 'destructive'
       });
       return;
     }
@@ -326,50 +325,50 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     setIsResettingImage(true);
 
     try {
-      console.log("🔄 Resetting AI image to original state");
+      console.log('🔄 Resetting AI image to original state');
 
       // Extract public ID from the current image
       const publicId = file.aiMetadata?.cloudinary_public_id || extractPublicIdFromUrl(file.url);
       
       if (!publicId) {
-        throw new Error("Could not extract Cloudinary public ID from image");
+        throw new Error('Could not extract Cloudinary public ID from image');
       }
 
-      console.log("Using public ID for reset:", publicId);
+      console.log('Using public ID for reset:', publicId);
 
       // Call the AI image processor to get original version
-      const response = await fetch("/.netlify/functions/ai-image-processor", {
-        method: "POST",
+      const response = await fetch('/.netlify/functions/ai-image-processor', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          action: "reset",
+          action: 'reset',
           publicId: publicId
         }),
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("AI image processor error:", errorText);
+        console.error('AI image processor error:', errorText);
         throw new Error(`Reset failed: ${response.status} ${response.statusText}`);
       }
 
       const result = await response.json();
-      console.log("AI image processor reset result:", result);
+      console.log('AI image processor reset result:', result);
 
       if (!result.success) {
-        throw new Error(result.error || "Image reset failed");
+        throw new Error(result.error || 'Image reset failed');
       }
 
       // Update the file with the original version
-      console.log("✅ Resetting to original URL:", result.processedUrl);
+      console.log('✅ Resetting to original URL:', result.processedUrl);
       
       set({
         file: {
           ...file,
           url: result.processedUrl,
-          name: file.name.replace(/_fitted_\d+x\d+|_resized_\d+x\d+|_print_ready_\d+x\d+/, ""),
+          name: file.name.replace(/_fitted_\d+x\d+|_resized_\d+x\d+|_print_ready_\d+x\d+/, ''),
           aiMetadata: {
             ...file.aiMetadata,
             // Remove any transformation metadata
@@ -382,22 +381,23 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       });
 
       toast({
-        title: "Image reset successfully!",
-        description: "Restored AI image to its original state",
-        variant: "default"
+        title: 'Image reset successfully!',
+        description: 'Restored AI image to its original state',
+        variant: 'default'
       });
 
     } catch (error) {
-      console.error("Error resetting image:", error);
+      console.error('Error resetting image:', error);
       toast({
-        title: "Reset failed",
-        description: error.message || "Could not reset the image. Please try again.",
-        variant: "destructive"
+        title: 'Reset failed',
+        description: error.message || 'Could not reset the image. Please try again.',
+        variant: 'destructive'
       });
     } finally {
       setIsResettingImage(false);
     }
   };
+
   // Helper function to extract Cloudinary public ID from URL
   const extractPublicIdFromUrl = (url) => {
     try {
@@ -701,5 +701,3 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
 };
 
 export default LivePreviewCard;
-// Force rebuild Wed Sep 24 13:14:49 EDT 2025
-console.log('AI Buttons Debug - Wed Sep 24 13:33:30 EDT 2025');
