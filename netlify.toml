@@ -41,18 +41,20 @@
 [[redirects]]
   from = "/api/ai/finalize-banner"
   to = "/.netlify/functions/ai-finalize-banner"
+  status = 200
+  force = true
 
 [[redirects]]
   from = "/api/ai/artwork-processor"
   to = "/.netlify/functions/ai-artwork-processor"
   status = 200
-  
+  force = true
 
 [[redirects]]
   from = "/api/ai/image-processor"
   to = "/.netlify/functions/ai-image-processor"
   status = 200
-  force = true  force = true
+  force = true
 
 # PayPal API redirects
 [[redirects]]
