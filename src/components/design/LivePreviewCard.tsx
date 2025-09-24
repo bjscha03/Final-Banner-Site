@@ -701,3 +701,4 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
 };
 
 export default LivePreviewCard;
+console.log("🔥 AI BUTTONS DEBUG: LivePreviewCard loaded at", new Date().toISOString());
