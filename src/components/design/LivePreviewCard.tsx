@@ -287,14 +287,18 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
         const processedItem = result.processedItems[0];
         console.log('Processed item:', processedItem);
         
-        // Validate URLs before updating
-        const newUrl = processedItem.webPreviewUrl || processedItem.printReadyUrl;
-        console.log('New image URL:', newUrl);
-        
-        if (!newUrl) {
-          throw new Error('No valid image URL returned from processor');
+        // Check if the processing was successful
+        if (!processedItem.success) {
+          throw new Error(`AI processor error: ${processedItem.error || "Unknown error"}`);
         }
 
+        // Validate URLs before updating
+        const newUrl = processedItem.webPreviewUrl || processedItem.printReadyUrl;
+        console.log("New image URL:", newUrl);
+        
+        if (!newUrl) {
+          throw new Error("No valid image URL returned from processor");
+        }
         // Update the file with the resized image URL
         const updatedFile = {
           ...file,
