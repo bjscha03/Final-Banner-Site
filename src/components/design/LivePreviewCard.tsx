@@ -222,6 +222,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     }
   };
   // NEW: Resize Image functionality - Re-triggers AI artwork processing for new dimensions
+  // NEW: Resize Image functionality - Re-triggers AI artwork processing for new dimensions
   const handleResizeImage = async () => {
     if (!file?.url || !isAIImage || !file.aiMetadata) {
       toast({
@@ -236,63 +237,87 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
 
     try {
       console.log(`🔄 Resizing AI image to new dimensions: ${widthIn}×${heightIn}"`);
+      console.log('Current file:', file);
+      console.log('AI metadata:', file.aiMetadata);
+
+      // Extract public ID for the request
+      const publicId = file.aiMetadata?.cloudinary_public_id || extractPublicIdFromUrl(file.url);
+      console.log('Extracted public ID:', publicId);
 
       // Call the AI artwork processor to generate new dimensions
+      const requestBody = {
+        orderId: `resize-${Date.now()}`, // Temporary order ID for resize
+        orderItems: [{
+          id: `resize-item-${Date.now()}`,
+          width_in: widthIn,
+          height_in: heightIn,
+          aiDesign: {
+            generatedImage: {
+              url: file.url,
+              publicId: publicId
+            },
+            prompt: file.aiMetadata?.prompt,
+            styles: file.aiMetadata?.styles,
+            colors: file.aiMetadata?.colors
+          }
+        }],
+        triggerSource: 'dimension_resize'
+      };
+
+      console.log('Sending request to AI artwork processor:', requestBody);
+
       const response = await fetch('/.netlify/functions/ai-artwork-processor', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          orderId: `resize-${Date.now()}`, // Temporary order ID for resize
-          orderItems: [{
-            id: `resize-item-${Date.now()}`,
-            width_in: widthIn,
-            height_in: heightIn,
-            aiDesign: {
-              generatedImage: {
-                url: file.url,
-                publicId: file.aiMetadata?.cloudinary_public_id || extractPublicIdFromUrl(file.url)
-              },
-              prompt: file.aiMetadata?.prompt,
-              styles: file.aiMetadata?.styles,
-              colors: file.aiMetadata?.colors
-            }
-          }],
-          triggerSource: 'dimension_resize'
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
-        throw new Error(`Resize failed: ${response.statusText}`);
+        const errorText = await response.text();
+        console.error('AI artwork processor error response:', errorText);
+        throw new Error(`Resize failed: ${response.statusText} - ${errorText}`);
       }
 
       const result = await response.json();
+      console.log('AI artwork processor response:', result);
       
       if (result.success && result.processedItems && result.processedItems[0]) {
         const processedItem = result.processedItems[0];
+        console.log('Processed item:', processedItem);
         
+        // Validate URLs before updating
+        const newUrl = processedItem.webPreviewUrl || processedItem.printReadyUrl;
+        console.log('New image URL:', newUrl);
+        
+        if (!newUrl) {
+          throw new Error('No valid image URL returned from processor');
+        }
+
         // Update the file with the resized image URL
-        set({
-          file: {
-            ...file,
-            url: processedItem.webPreviewUrl || processedItem.printReadyUrl,
-            name: `${file.name.replace(/\.[^/.]+$/, '')}_resized_${widthIn}x${heightIn}.jpg`,
-            aiMetadata: {
-              ...file.aiMetadata,
-              resizedDimensions: `${widthIn}×${heightIn}`,
-              printReadyUrl: processedItem.printReadyUrl,
-              webPreviewUrl: processedItem.webPreviewUrl
-            }
+        const updatedFile = {
+          ...file,
+          url: newUrl + "?t=" + Date.now(),
+          name: `${file.name.replace(/\.[^/.]+$/, '')}_resized_${widthIn}x${heightIn}.jpg`,
+          aiMetadata: {
+            ...file.aiMetadata,
+            resizedDimensions: `${widthIn}×${heightIn}`,
+            printReadyUrl: processedItem.printReadyUrl,
+            webPreviewUrl: processedItem.webPreviewUrl
           }
-        });
+        };
+
+        console.log('Updating file state with:', updatedFile);
+        set({ file: updatedFile });
 
         toast({
           title: 'Image resized successfully!',
           description: `AI artwork has been processed for your new ${widthIn}×${heightIn}" banner dimensions.`
         });
       } else {
-        throw new Error('Failed to process resized image');
+        console.error('Invalid response structure:', result);
+        throw new Error('Failed to process resized image - invalid response structure');
       }
 
     } catch (error) {
@@ -306,7 +331,6 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       setIsResizingImage(false);
     }
   };
-
   // NEW: Reset Image functionality - Restores AI image to original generated size/aspect ratio
   const handleResetImage = async () => {
     if (!file?.url || !isAIImage || !file.aiMetadata) {

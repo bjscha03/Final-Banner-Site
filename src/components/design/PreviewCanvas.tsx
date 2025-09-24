@@ -170,7 +170,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
 
         {/* Image if provided */}
         {imageUrl && !file?.isPdf && (
-          <image
+          <image key={imageUrl}
             href={imageUrl}
             x="0.5"
             y="0.5"
