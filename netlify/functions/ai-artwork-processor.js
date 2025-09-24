@@ -200,34 +200,38 @@ async function calculateTargetDimensions({ widthIn, heightIn, sourceUrl, sourceP
   }
 
   console.log(`📋 Target: ${targetWidthIn}×${targetHeightIn}" → ${finalWidthIn}×${finalHeightIn}" with bleed`);
+  console.log(`📋 Target: ${targetWidthIn}×${targetHeightIn}" → ${finalWidthIn}×${finalHeightIn}" with bleed`);
 
   // CRITICAL FIX: Cloudinary has a 25 megapixel limit
   const CLOUDINARY_MAX_MEGAPIXELS = 25000000; // 25 million pixels
   
-  // Start with 300 DPI target
-  let targetDPI = 300;
+  // Calculate the maximum DPI that keeps us under the megapixel limit
+  const maxSafeDPI = Math.floor(Math.sqrt(CLOUDINARY_MAX_MEGAPIXELS / (finalWidthIn * finalHeightIn)));
+  console.log(`🔍 Maximum safe DPI for ${finalWidthIn}×${finalHeightIn}" = ${maxSafeDPI} DPI`);
+  
+  // Start with 300 DPI target, but cap it at the safe limit
+  let targetDPI = Math.min(300, maxSafeDPI);
+  
+  // Ensure we have a reasonable minimum DPI (but prioritize staying under megapixel limit)
+  if (targetDPI < 100) {
+    console.log(`⚠️ Banner too large for reasonable DPI. Using ${targetDPI} DPI to stay under 25MP limit.`);
+  }
+  
   let widthPx = Math.round(finalWidthIn * targetDPI);
   let heightPx = Math.round(finalHeightIn * targetDPI);
   let totalPixels = widthPx * heightPx;
 
-  console.log(`🔍 Initial calculation: ${widthPx}×${heightPx}px = ${(totalPixels / 1000000).toFixed(2)} megapixels`);
+  console.log(`🔍 Safe calculation: ${widthPx}×${heightPx}px @ ${targetDPI} DPI = ${(totalPixels / 1000000).toFixed(2)} megapixels`);
 
-  // CRITICAL FIX: Scale down DPI if we exceed Cloudinary's limit
+  // Double-check we're under the limit (should always be true now)
   if (totalPixels > CLOUDINARY_MAX_MEGAPIXELS) {
-    const scaleFactor = Math.sqrt(CLOUDINARY_MAX_MEGAPIXELS / totalPixels);
-    targetDPI = Math.floor(targetDPI * scaleFactor);
-    
-    // Ensure minimum viable DPI
-    if (targetDPI < 150) {
-      targetDPI = 150;
-      console.log('⚠️ DPI clamped to minimum 150 DPI');
-    }
-    
+    console.error(`❌ STILL OVER LIMIT: ${(totalPixels / 1000000).toFixed(2)} megapixels > 25MP`);
+    // Emergency fallback: reduce DPI further
+    targetDPI = Math.floor(targetDPI * 0.95);
     widthPx = Math.round(finalWidthIn * targetDPI);
     heightPx = Math.round(finalHeightIn * targetDPI);
     totalPixels = widthPx * heightPx;
-    
-    console.log(`🎯 SCALED DOWN: ${widthPx}×${heightPx}px @ ${targetDPI} DPI = ${(totalPixels / 1000000).toFixed(2)} megapixels`);
+    console.log(`🚨 Emergency reduction: ${widthPx}×${heightPx}px @ ${targetDPI} DPI = ${(totalPixels / 1000000).toFixed(2)} megapixels`);
   }
 
   // Calculate upscaling requirements
