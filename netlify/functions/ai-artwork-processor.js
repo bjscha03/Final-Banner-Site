@@ -16,6 +16,7 @@ cloudinary.config({
  */
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
+  console.log("🚀 AI Artwork Processor called - Method:", event.httpMethod);
     return json(405, { success: false, error: "Method Not Allowed" });
   }
 
@@ -233,33 +234,6 @@ async function calculateTargetDimensions({ widthIn, heightIn, sourceUrl, sourceP
     totalPixels = widthPx * heightPx;
     console.log(`🚨 Emergency reduction: ${widthPx}×${heightPx}px @ ${targetDPI} DPI = ${(totalPixels / 1000000).toFixed(2)} megapixels`);
   }
-
-  // Calculate upscaling requirements
-  const requiredUpscaleX = widthPx / sourceWidth;
-  const requiredUpscaleY = heightPx / sourceHeight;
-  const maxUpscaling = Math.max(requiredUpscaleX, requiredUpscaleY);
-
-  console.log(`📈 Required upscaling: ${maxUpscaling.toFixed(2)}x`);
-
-  // If upscaling > 4x, reduce DPI further to maintain quality
-  if (maxUpscaling > 4) {
-    const qualityDPI = Math.min(targetDPI, 200);
-    if (qualityDPI < targetDPI) {
-      console.log(`⚡ Reducing DPI to ${qualityDPI} due to excessive upscaling requirement`);
-      targetDPI = qualityDPI;
-      widthPx = Math.round(finalWidthIn * targetDPI);
-      heightPx = Math.round(finalHeightIn * targetDPI);
-      totalPixels = widthPx * heightPx;
-    }
-  }
-
-  // Calculate aspect ratios
-  const sourceAspectRatio = sourceWidth / sourceHeight;
-  const targetAspectRatio = finalWidthIn / finalHeightIn;
-  const aspectRatioDiff = Math.abs(sourceAspectRatio - targetAspectRatio) / targetAspectRatio;
-
-  console.log(`📐 Aspect ratios: source=${sourceAspectRatio.toFixed(3)}, target=${targetAspectRatio.toFixed(3)}, diff=${(aspectRatioDiff * 100).toFixed(1)}%`);
-  console.log(`✅ FINAL: ${widthPx}×${heightPx}px @ ${targetDPI} DPI = ${(totalPixels / 1000000).toFixed(2)} megapixels`);
 
   return {
     // Final output dimensions (with bleed)
