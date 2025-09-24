@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image, X, ChevronDown, ChevronUp, Wand2, Crop } from 'lucide-react';
+import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image, X, ChevronDown, ChevronUp, Wand2, Crop, RefreshCw } from 'lucide-react';
 import { useQuoteStore, Grommets } from '@/store/quote';
 import { formatDimensions } from '@/lib/pricing';
 import { grommetPoints } from '@/lib/preview/grommets';
@@ -47,6 +47,8 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
   const [dragActive, setDragActive] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [isFittingImage, setIsFittingImage] = useState(false);
+  const [isResizingImage, setIsResizingImage] = useState(false);
+  const [isResettingImage, setIsResettingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Calculate grommet info
@@ -222,6 +224,308 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
   };
 
 
+  // NEW: Resize Image functionality - Re-triggers AI artwork processing for new dimensions
+  const handleResizeImage = async () => {
+    if (!file?.url || !isAIImage || !file.aiMetadata) {
+      toast({
+        title: 'No AI image to resize',
+        description: 'Please generate an AI image first.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setIsResizingImage(true);
+
+    try {
+      console.log(`🔄 Resizing AI image to new dimensions: ${widthIn}×${heightIn}"`);
+
+      // Call the AI artwork processor to generate new dimensions
+      const response = await fetch('/.netlify/functions/ai-artwork-processor', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          orderId: `resize-${Date.now()}`, // Temporary order ID for resize
+          orderItems: [{
+            id: `resize-item-${Date.now()}`,
+            width_in: widthIn,
+            height_in: heightIn,
+            aiDesign: {
+              generatedImage: {
+                url: file.url,
+                publicId: file.aiMetadata?.cloudinary_public_id || extractPublicIdFromUrl(file.url)
+              },
+              prompt: file.aiMetadata?.prompt,
+              styles: file.aiMetadata?.styles,
+              colors: file.aiMetadata?.colors
+            }
+          }],
+          triggerSource: 'dimension_resize'
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Resize failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.success && result.processedItems && result.processedItems[0]) {
+        const processedItem = result.processedItems[0];
+        
+        // Update the file with the resized image URL
+        set({
+          file: {
+            ...file,
+            url: processedItem.webPreviewUrl || processedItem.printReadyUrl,
+            name: `${file.name.replace(/\.[^/.]+$/, '')}_resized_${widthIn}x${heightIn}.jpg`,
+            aiMetadata: {
+              ...file.aiMetadata,
+              resizedDimensions: `${widthIn}×${heightIn}`,
+              printReadyUrl: processedItem.printReadyUrl,
+              webPreviewUrl: processedItem.webPreviewUrl
+            }
+          }
+        });
+
+        toast({
+          title: 'Image resized successfully!',
+          description: `AI artwork has been processed for your new ${widthIn}×${heightIn}" banner dimensions.`
+        });
+      } else {
+        throw new Error('Failed to process resized image');
+      }
+
+    } catch (error) {
+      console.error('Error resizing image:', error);
+      toast({
+        title: 'Resize failed',
+        description: error.message || 'Could not resize the image. Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsResizingImage(false);
+    }
+  };
+
+  // NEW: Reset Image functionality - Restores AI image to original generated size/aspect ratio
+  const handleResetImage = async () => {
+    if (!file?.url || !isAIImage || !file.aiMetadata) {
+      toast({
+        title: 'No AI image to reset',
+        description: 'Please generate an AI image first.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setIsResettingImage(true);
+
+    try {
+      console.log('🔄 Resetting AI image to original dimensions');
+
+      // Find the original generated image URL (without transformations)
+      const originalUrl = file.aiMetadata.originalUrl || file.url.split('/upload/')[0] + '/upload/' + file.url.split('/upload/')[1].split('/')[file.url.split('/upload/')[1].split('/').length - 1];
+      
+      // Update the file with the original URL
+      set({
+        file: {
+          ...file,
+          url: originalUrl,
+          name: file.name.replace(/_fitted_\d+x\d+|_resized_\d+x\d+/, ''),
+          aiMetadata: {
+            ...file.aiMetadata,
+            resizedDimensions: undefined
+          }
+        }
+      });
+
+      toast({
+        title: 'Image reset successfully!',
+        description: 'AI artwork has been restored to its original generated size and aspect ratio.'
+      });
+
+    } catch (error) {
+      console.error('Error resetting image:', error);
+      toast({
+        title: 'Reset failed',
+        description: 'Could not reset the image. Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsResettingImage(false);
+    }
+  };
+
+  // Helper function to extract Cloudinary public ID from URL
+  const extractPublicIdFromUrl = (url) => {
+    try {
+      const urlParts = url.split('/');
+      const uploadIndex = urlParts.findIndex(part => part === 'upload');
+      if (uploadIndex === -1) return null;
+      
+      const publicIdWithExtension = urlParts.slice(uploadIndex + 1).join('/');
+      return publicIdWithExtension.replace(/\.[^/.]+$/, ''); // Remove extension
+    } catch (error) {
+      console.error('Error extracting public ID:', error);
+      return null;
+    }
+  };
+
+  // NEW: Resize Image functionality - Re-triggers AI artwork processing for new dimensions
+  const handleResizeImage = async () => {
+    if (!file?.url || !isAIImage || !file.aiMetadata) {
+      toast({
+        title: 'No AI image to resize',
+        description: 'Please generate an AI image first.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setIsResizingImage(true);
+
+    try {
+      console.log(`🔄 Resizing AI image to new dimensions: ${widthIn}×${heightIn}"`);
+
+      // Call the AI artwork processor to generate new dimensions
+      const response = await fetch('/.netlify/functions/ai-artwork-processor', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          orderId: `resize-${Date.now()}`, // Temporary order ID for resize
+          orderItems: [{
+            id: `resize-item-${Date.now()}`,
+            width_in: widthIn,
+            height_in: heightIn,
+            aiDesign: {
+              generatedImage: {
+                url: file.url,
+                publicId: file.aiMetadata?.cloudinary_public_id || extractPublicIdFromUrl(file.url)
+              },
+              prompt: file.aiMetadata?.prompt,
+              styles: file.aiMetadata?.styles,
+              colors: file.aiMetadata?.colors
+            }
+          }],
+          triggerSource: 'dimension_resize'
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Resize failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      
+      if (result.success && result.processedItems && result.processedItems[0]) {
+        const processedItem = result.processedItems[0];
+        
+        // Update the file with the resized image URL
+        set({
+          file: {
+            ...file,
+            url: processedItem.webPreviewUrl || processedItem.printReadyUrl,
+            name: `${file.name.replace(/\.[^/.]+$/, '')}_resized_${widthIn}x${heightIn}.jpg`,
+            aiMetadata: {
+              ...file.aiMetadata,
+              resizedDimensions: `${widthIn}×${heightIn}`,
+              printReadyUrl: processedItem.printReadyUrl,
+              webPreviewUrl: processedItem.webPreviewUrl
+            }
+          }
+        });
+
+        toast({
+          title: 'Image resized successfully!',
+          description: `AI artwork has been processed for your new ${widthIn}×${heightIn}" banner dimensions.`
+        });
+      } else {
+        throw new Error('Failed to process resized image');
+      }
+
+    } catch (error) {
+      console.error('Error resizing image:', error);
+      toast({
+        title: 'Resize failed',
+        description: error.message || 'Could not resize the image. Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsResizingImage(false);
+    }
+  };
+
+  // NEW: Reset Image functionality - Restores AI image to original generated size/aspect ratio
+  const handleResetImage = async () => {
+    if (!file?.url || !isAIImage || !file.aiMetadata) {
+      toast({
+        title: 'No AI image to reset',
+        description: 'Please generate an AI image first.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setIsResettingImage(true);
+
+    try {
+      console.log('🔄 Resetting AI image to original dimensions');
+
+      // Find the original generated image URL (without transformations)
+      const originalUrl = file.aiMetadata.originalUrl || file.url.split('/upload/')[0] + '/upload/' + file.url.split('/upload/')[1].split('/')[file.url.split('/upload/')[1].split('/').length - 1];
+      
+      // Update the file with the original URL
+      set({
+        file: {
+          ...file,
+          url: originalUrl,
+          name: file.name.replace(/_fitted_\d+x\d+|_resized_\d+x\d+/, ''),
+          aiMetadata: {
+            ...file.aiMetadata,
+            resizedDimensions: undefined
+          }
+        }
+      });
+
+      toast({
+        title: 'Image reset successfully!',
+        description: 'AI artwork has been restored to its original generated size and aspect ratio.'
+      });
+
+    } catch (error) {
+      console.error('Error resetting image:', error);
+      toast({
+        title: 'Reset failed',
+        description: 'Could not reset the image. Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsResettingImage(false);
+    }
+  };
+
+  // Helper function to extract Cloudinary public ID from URL
+  const extractPublicIdFromUrl = (url) => {
+    try {
+      const urlParts = url.split('/');
+      const uploadIndex = urlParts.findIndex(part => part === 'upload');
+      if (uploadIndex === -1) return null;
+      
+      const publicIdWithExtension = urlParts.slice(uploadIndex + 1).join('/');
+      return publicIdWithExtension.replace(/\.[^/.]+$/, ''); // Remove extension
+    } catch (error) {
+      console.error('Error extracting public ID:', error);
+      return null;
+    }
+  };
+
+
+
   return (
     <div className="bg-white border border-gray-200/60 rounded-2xl overflow-hidden shadow-sm">
       {/* Header - responsive design */}
@@ -380,27 +684,73 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
                 Remove
               </button>
             </div>
-            {/* Fit Image to Dimensions Button - Only show for AI images */}
+            {/* AI Image Control Buttons - Enhanced with Resize and Reset */}
             {isAIImage && (
               <div className="absolute bottom-4 left-4 right-4 flex justify-center">
-                <Button
-                  onClick={handleFitImageToDimensions}
-                  disabled={isFittingImage}
-                  variant="outline"
-                  className="flex items-center gap-2 bg-white/90 hover:bg-white shadow-sm"
-                >
-                  {isFittingImage ? (
-                    <>
-                      <div className="w-4 h-4 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600" />
-                      Fitting Image...
-                    </>
-                  ) : (
-                    <>
-                      <Crop className="w-4 h-4" />
-                      Fit Image to Dimensions
-                    </>
-                  )}
-                </Button>
+                <div className="flex gap-2 bg-white/95 backdrop-blur-sm rounded-lg p-2 shadow-lg border">
+                  {/* Fit Image to Dimensions Button */}
+                  <Button
+                    onClick={handleFitImageToDimensions}
+                    disabled={isFittingImage || isResizingImage || isResettingImage}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-1.5 text-xs"
+                  >
+                    {isFittingImage ? (
+                      <>
+                        <div className="w-3 h-3 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600" />
+                        Fitting...
+                      </>
+                    ) : (
+                      <>
+                        <Crop className="w-3 h-3" />
+                        Fit to Size
+                      </>
+                    )}
+                  </Button>
+
+                  {/* NEW: Resize Image Button */}
+                  <Button
+                    onClick={handleResizeImage}
+                    disabled={isFittingImage || isResizingImage || isResettingImage}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-1.5 text-xs bg-blue-50 hover:bg-blue-100 border-blue-200"
+                  >
+                    {isResizingImage ? (
+                      <>
+                        <div className="w-3 h-3 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600" />
+                        Resizing...
+                      </>
+                    ) : (
+                      <>
+                        <Wand2 className="w-3 h-3" />
+                        Resize Image
+                      </>
+                    )}
+                  </Button>
+
+                  {/* NEW: Reset Image Button */}
+                  <Button
+                    onClick={handleResetImage}
+                    disabled={isFittingImage || isResizingImage || isResettingImage}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-1.5 text-xs"
+                  >
+                    {isResettingImage ? (
+                      <>
+                        <div className="w-3 h-3 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600" />
+                        Resetting...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="w-3 h-3" />
+                        Reset
+                      </>
+                    )}
+                  </Button>
+                </div>
               </div>
             )}
           </div>
