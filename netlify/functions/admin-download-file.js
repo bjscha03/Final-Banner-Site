@@ -8,15 +8,23 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
+// Neon database connection
+
 exports.handler = async (event, context) => {
+  // Set CORS headers
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Methods': 'GET, OPTIONS',
   };
 
+  // Handle preflight requests
   if (event.httpMethod === 'OPTIONS') {
-    return { statusCode: 200, headers, body: '' };
+    return {
+      statusCode: 200,
+      headers,
+      body: '',
+    };
   }
 
   if (event.httpMethod !== 'GET') {
@@ -25,7 +33,9 @@ exports.handler = async (event, context) => {
       headers,
       body: JSON.stringify({ error: 'Method not allowed' }),
     };
-  }
+
+    // Initialize database connection
+    const sql = neon(process.env.NETLIFY_DATABASE_URL);  }
 
   try {
     const { fileKey } = event.queryStringParameters || {};
@@ -38,105 +48,70 @@ exports.handler = async (event, context) => {
       };
     }
 
-    console.log('Enhanced admin file download request:', { fileKey });
+    console.log('Admin file download request:', { fileKey });
 
-    // Initialize database connection
-    const sql = neon(process.env.NETLIFY_DATABASE_URL);
-
-    // Try to find order item information for print-ready generation
-    let orderItem = null;
-    try {
-      const orderItems = await sql`
-        SELECT width_in, height_in, ai_design_metadata 
-        FROM order_items 
-        WHERE file_key = ${fileKey}
-        LIMIT 1
-      `;
-      orderItem = orderItems[0];
-      console.log('Found order item:', orderItem);
-    } catch (dbError) {
-      console.log('Could not find order item, using standard download:', dbError.message);
+    // Check Cloudinary configuration
+    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+      console.error("Cloudinary environment variables not set.");
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ error: "Cloudinary configuration missing." }),
+      };
     }
 
-    let downloadUrl;
-    let filename = fileKey.split('/').pop() || 'download';
-    
-    // If we have order item with dimensions and it's an AI image, generate print-ready version
-    if (orderItem && orderItem.width_in && orderItem.height_in && orderItem.ai_design_metadata) {
-      console.log(`🖨️ Generating print-ready version: ${orderItem.width_in}×${orderItem.height_in}"`);
-      
-      // Calculate print-ready dimensions
-      const targetDPI = 150;
-      const targetWidthPx = Math.round(orderItem.width_in * targetDPI);
-      const targetHeightPx = Math.round(orderItem.height_in * targetDPI);
-      
-      // Check Cloudinary limits (25 megapixels)
-      const totalPixels = targetWidthPx * targetHeightPx;
-      const maxPixels = 25000000;
-      
-      let finalWidthPx = targetWidthPx;
-      let finalHeightPx = targetHeightPx;
-      let actualDPI = targetDPI;
-      
-      if (totalPixels > maxPixels) {
-        const scaleFactor = Math.sqrt(maxPixels / totalPixels);
-        finalWidthPx = Math.round(targetWidthPx * scaleFactor);
-        finalHeightPx = Math.round(targetHeightPx * scaleFactor);
-        actualDPI = Math.round(targetDPI * scaleFactor);
-        console.log(`⚠️ Scaled down: ${finalWidthPx}×${finalHeightPx}px at ${actualDPI} DPI`);
-      }
+    console.log('Attempting to download from Cloudinary:', fileKey);
 
-      // Generate print-ready URL
-      downloadUrl = cloudinary.url(fileKey, {
-        resource_type: 'image',
-        width: finalWidthPx,
-        height: finalHeightPx,
-        crop: 'fill',
-        gravity: 'center',
-        format: 'png',
-        quality: 'auto:best',
-        flags: 'progressive.attachment'
-      });
-      
-      filename = `${filename.replace(/\.[^/.]+$/, '')}_print_ready_${orderItem.width_in}x${orderItem.height_in}_${actualDPI}dpi.png`;
-      console.log(`✅ Generated print-ready download at ${actualDPI} DPI`);
-    } else {
-      // Standard download
-      downloadUrl = cloudinary.url(fileKey, {
+    // For admin downloads, fetch the file and serve it as a download
+    try {
+      // Generate the download URL from Cloudinary
+      const downloadUrl = cloudinary.url(fileKey, {
         resource_type: 'auto',
         flags: 'attachment'
       });
-      console.log('Generated standard download URL');
+      
+      console.log('Generated Cloudinary download URL:', downloadUrl);
+      
+      // Fetch the file from Cloudinary
+      const response = await fetch(downloadUrl);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch file from Cloudinary: ${response.status} ${response.statusText}`);
+      }
+      
+      const fileBuffer = await response.arrayBuffer();
+      const base64File = Buffer.from(fileBuffer).toString('base64');
+      
+      // Extract filename from the public ID
+      const fileName = fileKey.split('/').pop()?.replace(/^.*-/, '') || 'download';
+      
+      return {
+        statusCode: 200,
+        headers: {
+          ...headers,
+          'Content-Type': response.headers.get('content-type') || 'application/octet-stream',
+          'Content-Disposition': `attachment; filename="${fileName}"`,
+          'Content-Length': fileBuffer.byteLength.toString(),
+          'Cache-Control': 'private, no-cache',
+        },
+        body: base64File,
+        isBase64Encoded: true,
+      };
+      
+    } catch (fetchError) {
+      console.error('Error fetching file from Cloudinary:', fetchError);
+      return {
+        statusCode: 404,
+        headers,
+        body: JSON.stringify({ 
+          error: 'File not found',
+          message: fetchError.message 
+        }),
+      };
     }
-    
-    console.log('Final download URL:', downloadUrl);
-    
-    // Fetch the file from Cloudinary
-    const response = await fetch(downloadUrl);
-    
-    if (!response.ok) {
-      throw new Error(`Failed to fetch file: ${response.status} ${response.statusText}`);
-    }
-    
-    const fileBuffer = await response.arrayBuffer();
-    const base64File = Buffer.from(fileBuffer).toString('base64');
-    
-    // Ensure filename has extension
-    const fileExtension = filename.includes('.') ? '' : '.jpg';
-    
-    return {
-      statusCode: 200,
-      headers: {
-        ...headers,
-        'Content-Type': 'application/octet-stream',
-        'Content-Disposition': `attachment; filename="${filename}${fileExtension}"`,
-      },
-      body: base64File,
-      isBase64Encoded: true,
-    };
 
   } catch (error) {
-    console.error('Error in enhanced admin-download-file function:', error);
+    console.error('Error in admin-download-file function:', error);
     return {
       statusCode: 500,
       headers,
