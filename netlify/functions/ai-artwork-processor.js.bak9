@@ -3,6 +3,7 @@
 const { v2: cloudinary } = require('cloudinary');
 const { v4: uuidv4 } = require('uuid');
 const { neon } = require('@neondatabase/serverless');
+const sql = neon(process.env.VITE_DATABASE_URL || process.env.NETLIFY_DATABASE_URL);
 
 // Configure Cloudinary
 cloudinary.config({
@@ -21,9 +22,7 @@ exports.handler = async (event) => {
     return json(405, { success: false, error: "Method Not Allowed" });
   }
 
-
-  // Initialize database connection
-  const sql = neon(process.env.VITE_DATABASE_URL || process.env.NETLIFY_DATABASE_URL);  try {
+  try {
     const { 
       orderId, 
       orderItems, 

@@ -47,12 +47,7 @@
   to = "/.netlify/functions/ai-artwork-processor"
   status = 200
   
-
-[[redirects]]
-  from = "/api/ai/image-processor"
-  to = "/.netlify/functions/ai-image-processor"
-  status = 200
-  force = true  force = true
+  force = true
 
 # PayPal API redirects
 [[redirects]]

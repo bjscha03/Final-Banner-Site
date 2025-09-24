@@ -2,8 +2,7 @@
 // FIXED VERSION - Automatic AI artwork processing for print-ready output
 const { v2: cloudinary } = require('cloudinary');
 const { v4: uuidv4 } = require('uuid');
-const { neon } = require('@neondatabase/serverless');
-
+const { sql } = require('@vercel/postgres');
 // Configure Cloudinary
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -21,9 +20,7 @@ exports.handler = async (event) => {
     return json(405, { success: false, error: "Method Not Allowed" });
   }
 
-
-  // Initialize database connection
-  const sql = neon(process.env.VITE_DATABASE_URL || process.env.NETLIFY_DATABASE_URL);  try {
+  try {
     const { 
       orderId, 
       orderItems, 
@@ -157,20 +154,6 @@ async function processAIArtwork({ orderItem, orderId }) {
     }
   );
 
-
-  // CRITICAL FIX: Update database with print-ready file URL
-  try {
-    console.log(`📝 Updating order item ${itemId} with print-ready file URL`);
-    await sql`
-      UPDATE order_items 
-      SET file_key = ${printReadyResult.secure_url}
-      WHERE id = ${itemId}
-    `;
-    console.log(`✅ Successfully updated order item ${itemId} file_key`);
-  } catch (dbError) {
-    console.error(`❌ Failed to update order item ${itemId} file_key:`, dbError);
-    // Continue processing - don't fail the entire operation for DB update issues
-  }
   return {
     orderItemId: itemId,
     success: true,

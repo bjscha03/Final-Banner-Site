@@ -52,24 +52,14 @@ const AdminOrders: React.FC = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Debug logging for production troubleshooting
-    console.log('🔍 Admin Orders - Auth State:', {
-      authLoading,
-      user: user ? { id: user.id, email: user.email, is_admin: user.is_admin } : null,
-      isAdmin: user ? isAdmin(user) : false,
-      hostname: typeof window !== 'undefined' ? window.location.hostname : 'unknown',
-      cookies: typeof document !== 'undefined' ? document.cookie : 'unavailable'
-    });
 
     // Show access denied message instead of immediate redirect
     if (!authLoading && (!user || !isAdmin(user))) {
-      console.log('🚫 Admin access denied - showing access denied message');
       setShowAccessDenied(true);
       return;
     }
 
     if (user && isAdmin(user)) {
-      console.log('✅ Admin access granted - loading orders');
       loadOrders();
     }
   }, [user, authLoading, navigate]);

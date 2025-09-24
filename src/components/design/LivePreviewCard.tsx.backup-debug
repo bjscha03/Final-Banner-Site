@@ -222,14 +222,12 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     }
   };
   // NEW: Resize Image functionality - Re-triggers AI artwork processing for new dimensions
-  // NEW: Resize Image functionality - Re-triggers AI artwork processing for new dimensions
-  // NEW: Resize Image functionality - Generate print-ready high-resolution version
   const handleResizeImage = async () => {
     if (!file?.url || !isAIImage || !file.aiMetadata) {
       toast({
-        title: "No AI image to resize",
-        description: "Please generate an AI image first.",
-        variant: "destructive"
+        title: 'No AI image to resize',
+        description: 'Please generate an AI image first.',
+        variant: 'destructive'
       });
       return;
     }
@@ -237,88 +235,85 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     setIsResizingImage(true);
 
     try {
-      console.log(`🔄 Generating print-ready version for ${widthIn}×${heightIn}"`);
+      console.log(`🔄 Resizing AI image to new dimensions: ${widthIn}×${heightIn}"`);
 
-      // Extract public ID from the current image
-      const publicId = file.aiMetadata?.cloudinary_public_id || extractPublicIdFromUrl(file.url);
-      
-      if (!publicId) {
-        throw new Error("Could not extract Cloudinary public ID from image");
-      }
-
-      console.log("Using public ID:", publicId);
-
-      // Call the new AI image processor
-      const response = await fetch("/.netlify/functions/ai-image-processor", {
-        method: "POST",
+      // Call the AI artwork processor to generate new dimensions
+      const response = await fetch('/.netlify/functions/ai-artwork-processor', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          action: "resize",
-          publicId: publicId,
-          widthIn: widthIn,
-          heightIn: heightIn
+          orderId: `resize-${Date.now()}`, // Temporary order ID for resize
+          orderItems: [{
+            id: `resize-item-${Date.now()}`,
+            width_in: widthIn,
+            height_in: heightIn,
+            aiDesign: {
+              generatedImage: {
+                url: file.url,
+                publicId: file.aiMetadata?.cloudinary_public_id || extractPublicIdFromUrl(file.url)
+              },
+              prompt: file.aiMetadata?.prompt,
+              styles: file.aiMetadata?.styles,
+              colors: file.aiMetadata?.colors
+            }
+          }],
+          triggerSource: 'dimension_resize'
         }),
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error("AI image processor error:", errorText);
-        throw new Error(`Processing failed: ${response.status} ${response.statusText}`);
+        throw new Error(`Resize failed: ${response.statusText}`);
       }
 
       const result = await response.json();
-      console.log("AI image processor result:", result);
-
-      if (!result.success) {
-        throw new Error(result.error || "Image processing failed");
-      }
-
-      // Update the file with the print-ready version
-      console.log("✅ Updating file with print-ready URL:", result.processedUrl);
       
-      set({
-        file: {
-          ...file,
-          url: result.processedUrl,
-          name: file.name.replace(/_fitted_\d+x\d+|_resized_\d+x\d+|_print_ready_\d+x\d+/, "") + `_print_ready_${widthIn}x${heightIn}`,
-          aiMetadata: {
-            ...file.aiMetadata,
-            printReadyVersion: {
-              url: result.processedUrl,
-              dimensions: result.dimensions,
-              widthIn: widthIn,
-              heightIn: heightIn
+      if (result.success && result.processedItems && result.processedItems[0]) {
+        const processedItem = result.processedItems[0];
+        
+        // Update the file with the resized image URL
+        set({
+          file: {
+            ...file,
+            url: processedItem.webPreviewUrl || processedItem.printReadyUrl,
+            name: `${file.name.replace(/\.[^/.]+$/, '')}_resized_${widthIn}x${heightIn}.jpg`,
+            aiMetadata: {
+              ...file.aiMetadata,
+              resizedDimensions: `${widthIn}×${heightIn}`,
+              printReadyUrl: processedItem.printReadyUrl,
+              webPreviewUrl: processedItem.webPreviewUrl
             }
           }
-        }
-      });
+        });
 
-      toast({
-        title: "Print-ready version generated!",
-        description: `Created high-resolution file at ${result.dimensions?.dpi || 150} DPI for ${widthIn}×${heightIn}" banner`,
-        variant: "default"
-      });
+        toast({
+          title: 'Image resized successfully!',
+          description: `AI artwork has been processed for your new ${widthIn}×${heightIn}" banner dimensions.`
+        });
+      } else {
+        throw new Error('Failed to process resized image');
+      }
 
     } catch (error) {
-      console.error("Error generating print-ready version:", error);
+      console.error('Error resizing image:', error);
       toast({
-        title: "Resize failed",
-        description: error.message || "Could not generate print-ready version. Please try again.",
-        variant: "destructive"
+        title: 'Resize failed',
+        description: error.message || 'Could not resize the image. Please try again.',
+        variant: 'destructive'
       });
     } finally {
       setIsResizingImage(false);
     }
-  };  // NEW: Reset Image functionality - Restores AI image to original generated size/aspect ratio
-  // NEW: Reset Image functionality - Restore AI image to original state
+  };
+
+  // NEW: Reset Image functionality - Restores AI image to original generated size/aspect ratio
   const handleResetImage = async () => {
     if (!file?.url || !isAIImage || !file.aiMetadata) {
       toast({
-        title: "No AI image to reset",
-        description: "Please generate an AI image first.",
-        variant: "destructive"
+        title: 'No AI image to reset',
+        description: 'Please generate an AI image first.',
+        variant: 'destructive'
       });
       return;
     }
@@ -326,121 +321,52 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     setIsResettingImage(true);
 
     try {
-      console.log("🔄 Resetting AI image to original state");
+      console.log('🔄 Resetting AI image to original dimensions');
 
-      // Extract public ID from the current image
-      const publicId = file.aiMetadata?.cloudinary_public_id || extractPublicIdFromUrl(file.url);
+      // Find the original generated image URL (without transformations)
+      const originalUrl = file.aiMetadata.originalUrl || file.url.split('/upload/')[0] + '/upload/' + file.url.split('/upload/')[1].split('/')[file.url.split('/upload/')[1].split('/').length - 1];
       
-      if (!publicId) {
-        throw new Error("Could not extract Cloudinary public ID from image");
-      }
-
-      console.log("Using public ID for reset:", publicId);
-
-      // Call the AI image processor to get original version
-      const response = await fetch("/.netlify/functions/ai-image-processor", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          action: "reset",
-          publicId: publicId
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("AI image processor error:", errorText);
-        throw new Error(`Reset failed: ${response.status} ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      console.log("AI image processor reset result:", result);
-
-      if (!result.success) {
-        throw new Error(result.error || "Image reset failed");
-      }
-
-      // Update the file with the original version
-      console.log("✅ Resetting to original URL:", result.processedUrl);
-      
+      // Update the file with the original URL
       set({
         file: {
           ...file,
-          url: result.processedUrl,
-          name: file.name.replace(/_fitted_\d+x\d+|_resized_\d+x\d+|_print_ready_\d+x\d+/, ""),
+          url: originalUrl,
+          name: file.name.replace(/_fitted_\d+x\d+|_resized_\d+x\d+/, ''),
           aiMetadata: {
             ...file.aiMetadata,
-            // Remove any transformation metadata
-            printReadyVersion: undefined,
             resizedDimensions: undefined
           }
-        },
-        // Reset scale to 100% when resetting image
-        previewScalePct: 100
+        }
       });
 
       toast({
-        title: "Image reset successfully!",
-        description: "Restored AI image to its original state",
-        variant: "default"
+        title: 'Image reset successfully!',
+        description: 'AI artwork has been restored to its original generated size and aspect ratio.'
       });
 
     } catch (error) {
-      console.error("Error resetting image:", error);
+      console.error('Error resetting image:', error);
       toast({
-        title: "Reset failed",
-        description: error.message || "Could not reset the image. Please try again.",
-        variant: "destructive"
+        title: 'Reset failed',
+        description: 'Could not reset the image. Please try again.',
+        variant: 'destructive'
       });
     } finally {
       setIsResettingImage(false);
     }
   };
+
   // Helper function to extract Cloudinary public ID from URL
   const extractPublicIdFromUrl = (url) => {
     try {
-      console.log('🔍 Extracting public ID from URL:', url);
-      
       const urlParts = url.split('/');
       const uploadIndex = urlParts.findIndex(part => part === 'upload');
-      if (uploadIndex === -1) {
-        console.warn('⚠️ No "upload" found in URL');
-        return null;
-      }
+      if (uploadIndex === -1) return null;
       
-      // Get everything after 'upload/'
-      let pathAfterUpload = urlParts.slice(uploadIndex + 1);
-      console.log('📂 Path after upload:', pathAfterUpload);
-      
-      // Remove transformation parameters (they start with letters like 'c_', 'w_', etc.)
-      // The public ID is typically the last part that doesn't start with transformation params
-      const publicIdParts = [];
-      let foundTransformations = false;
-      
-      for (const part of pathAfterUpload) {
-        // Check if this looks like a transformation parameter (contains underscores and starts with letter)
-        if (part.includes('_') && /^[a-z]_/.test(part)) {
-          foundTransformations = true;
-          continue;
-        }
-        
-        // If we haven't found transformations yet, or this is clearly a path segment
-        if (!foundTransformations || !part.includes('_')) {
-          publicIdParts.push(part);
-        }
-      }
-      
-      // Join the parts and remove file extension
-      const publicIdWithExtension = publicIdParts.join('/');
-      const publicId = publicIdWithExtension.replace(/\.[^/.]+$/, '');
-      
-      console.log('✅ Extracted public ID:', publicId);
-      return publicId;
-      
+      const publicIdWithExtension = urlParts.slice(uploadIndex + 1).join('/');
+      return publicIdWithExtension.replace(/\.[^/.]+$/, ''); // Remove extension
     } catch (error) {
-      console.error('❌ Error extracting public ID:', error);
+      console.error('Error extracting public ID:', error);
       return null;
     }
   };

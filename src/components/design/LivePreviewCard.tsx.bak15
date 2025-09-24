@@ -312,13 +312,12 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       setIsResizingImage(false);
     }
   };  // NEW: Reset Image functionality - Restores AI image to original generated size/aspect ratio
-  // NEW: Reset Image functionality - Restore AI image to original state
   const handleResetImage = async () => {
     if (!file?.url || !isAIImage || !file.aiMetadata) {
       toast({
-        title: "No AI image to reset",
-        description: "Please generate an AI image first.",
-        variant: "destructive"
+        title: 'No AI image to reset',
+        description: 'Please generate an AI image first.',
+        variant: 'destructive'
       });
       return;
     }
@@ -326,78 +325,59 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     setIsResettingImage(true);
 
     try {
-      console.log("🔄 Resetting AI image to original state");
+      console.log('🔄 Resetting AI image to original dimensions');
 
-      // Extract public ID from the current image
-      const publicId = file.aiMetadata?.cloudinary_public_id || extractPublicIdFromUrl(file.url);
+      // Find the original generated image URL (without transformations)
+      // Find the original generated image URL (without transformations)
+      let originalUrl = file.aiMetadata.originalUrl;
       
-      if (!publicId) {
-        throw new Error("Could not extract Cloudinary public ID from image");
+      if (!originalUrl) {
+        // Extract the base URL and public ID, removing any transformations
+        const publicId = extractPublicIdFromUrl(file.url);
+        if (publicId) {
+          const urlParts = file.url.split('/upload/');
+          if (urlParts.length === 2) {
+            originalUrl = `${urlParts[0]}/upload/${publicId}.jpg`;
+          }
+        }
       }
-
-      console.log("Using public ID for reset:", publicId);
-
-      // Call the AI image processor to get original version
-      const response = await fetch("/.netlify/functions/ai-image-processor", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          action: "reset",
-          publicId: publicId
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error("AI image processor error:", errorText);
-        throw new Error(`Reset failed: ${response.status} ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      console.log("AI image processor reset result:", result);
-
-      if (!result.success) {
-        throw new Error(result.error || "Image reset failed");
-      }
-
-      // Update the file with the original version
-      console.log("✅ Resetting to original URL:", result.processedUrl);
       
+      if (!originalUrl) {
+        throw new Error('Could not determine original image URL');
+      }
+      
+      console.log('🔄 Resetting to original URL:', originalUrl);
+      
+      // Update the file with the original URL
       set({
         file: {
           ...file,
-          url: result.processedUrl,
-          name: file.name.replace(/_fitted_\d+x\d+|_resized_\d+x\d+|_print_ready_\d+x\d+/, ""),
+          url: originalUrl,
+          name: file.name.replace(/_fitted_\d+x\d+|_resized_\d+x\d+/, ''),
           aiMetadata: {
             ...file.aiMetadata,
-            // Remove any transformation metadata
-            printReadyVersion: undefined,
             resizedDimensions: undefined
           }
-        },
-        // Reset scale to 100% when resetting image
-        previewScalePct: 100
+        }
       });
 
       toast({
-        title: "Image reset successfully!",
-        description: "Restored AI image to its original state",
-        variant: "default"
+        title: 'Image reset successfully!',
+        description: 'AI artwork has been restored to its original generated size and aspect ratio.'
       });
 
     } catch (error) {
-      console.error("Error resetting image:", error);
+      console.error('Error resetting image:', error);
       toast({
-        title: "Reset failed",
-        description: error.message || "Could not reset the image. Please try again.",
-        variant: "destructive"
+        title: 'Reset failed',
+        description: 'Could not reset the image. Please try again.',
+        variant: 'destructive'
       });
     } finally {
       setIsResettingImage(false);
     }
   };
+
   // Helper function to extract Cloudinary public ID from URL
   const extractPublicIdFromUrl = (url) => {
     try {

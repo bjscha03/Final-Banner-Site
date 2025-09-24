@@ -2,7 +2,6 @@
 // FIXED VERSION - Automatic AI artwork processing for print-ready output
 const { v2: cloudinary } = require('cloudinary');
 const { v4: uuidv4 } = require('uuid');
-const { neon } = require('@neondatabase/serverless');
 
 // Configure Cloudinary
 cloudinary.config({
@@ -17,13 +16,10 @@ cloudinary.config({
  */
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
-  console.log("🚀 AI Artwork Processor called - Method:", event.httpMethod);
     return json(405, { success: false, error: "Method Not Allowed" });
   }
 
-
-  // Initialize database connection
-  const sql = neon(process.env.VITE_DATABASE_URL || process.env.NETLIFY_DATABASE_URL);  try {
+  try {
     const { 
       orderId, 
       orderItems, 
@@ -48,7 +44,7 @@ exports.handler = async (event) => {
         continue;
       }
 
-      console.log(`🔄 Processing AI item: ${item.id}, dimensions: ${item.width_in}×${item.height_in}"`); console.log("AI Design data:", JSON.stringify(item.aiDesign, null, 2));
+      console.log(`🔄 Processing AI item: ${item.id}, dimensions: ${item.width_in}×${item.height_in}"`);
 
       try {
         const processed = await processAIArtwork({
@@ -96,8 +92,8 @@ async function processAIArtwork({ orderItem, orderId }) {
   const { id: itemId, width_in, height_in, aiDesign } = orderItem;
   
   // Extract AI design info
-  const sourceUrl = aiDesign.generatedImage?.url || aiDesign.finalizedImage?.finalUrl; console.log("Extracted source URL:", sourceUrl);
-  const sourcePublicId = aiDesign.generatedImage?.publicId || aiDesign.finalizedImage?.finalPublicId; console.log("Extracted public ID:", sourcePublicId);
+  const sourceUrl = aiDesign.generatedImage?.url || aiDesign.finalizedImage?.finalUrl;
+  const sourcePublicId = aiDesign.generatedImage?.publicId || aiDesign.finalizedImage?.finalPublicId;
   
   if (!sourceUrl) {
     throw new Error('No source image URL found in AI design data');
@@ -157,20 +153,6 @@ async function processAIArtwork({ orderItem, orderId }) {
     }
   );
 
-
-  // CRITICAL FIX: Update database with print-ready file URL
-  try {
-    console.log(`📝 Updating order item ${itemId} with print-ready file URL`);
-    await sql`
-      UPDATE order_items 
-      SET file_key = ${printReadyResult.secure_url}
-      WHERE id = ${itemId}
-    `;
-    console.log(`✅ Successfully updated order item ${itemId} file_key`);
-  } catch (dbError) {
-    console.error(`❌ Failed to update order item ${itemId} file_key:`, dbError);
-    // Continue processing - don't fail the entire operation for DB update issues
-  }
   return {
     orderItemId: itemId,
     success: true,
@@ -219,49 +201,32 @@ async function calculateTargetDimensions({ widthIn, heightIn, sourceUrl, sourceP
 
   console.log(`📋 Target: ${targetWidthIn}×${targetHeightIn}" → ${finalWidthIn}×${finalHeightIn}" with bleed`);
 
-  // Calculate aspect ratios and upscaling requirements
-  const sourceAspectRatio = sourceWidth / sourceHeight;
-  const targetAspectRatio = targetWidthIn / targetHeightIn;
-  const aspectRatioDiff = Math.abs(sourceAspectRatio - targetAspectRatio);
-  
-  // Calculate upscaling factor needed
-  const targetWidthPx = targetWidthIn * 300; // 300 DPI baseline
-  const targetHeightPx = targetHeightIn * 300;
-  const maxUpscaling = Math.max(targetWidthPx / sourceWidth, targetHeightPx / sourceHeight);
-  
-  console.log(`📏 Aspect ratios - Source: ${sourceAspectRatio.toFixed(3)}, Target: ${targetAspectRatio.toFixed(3)}, Diff: ${aspectRatioDiff.toFixed(3)}`);
-  console.log(`�� Upscaling factor needed: ${maxUpscaling.toFixed(2)}x`);
-  // CRITICAL FIX: Cloudinary has a 25 megapixel limit
-  const CLOUDINARY_MAX_MEGAPIXELS = 25000000; // 25 million pixels
-  
-  // Calculate the maximum DPI that keeps us under the megapixel limit
-  const maxSafeDPI = Math.floor(Math.sqrt(CLOUDINARY_MAX_MEGAPIXELS / (finalWidthIn * finalHeightIn)));
-  console.log(`🔍 Maximum safe DPI for ${finalWidthIn}×${finalHeightIn}" = ${maxSafeDPI} DPI`);
-  
-  // Start with 300 DPI target, but cap it at the safe limit
-  let targetDPI = Math.min(300, maxSafeDPI);
-  
-  // Ensure we have a reasonable minimum DPI (but prioritize staying under megapixel limit)
-  if (targetDPI < 100) {
-    console.log(`⚠️ Banner too large for reasonable DPI. Using ${targetDPI} DPI to stay under 25MP limit.`);
-  }
-  
+  // Start with 300 DPI target
+  let targetDPI = 300;
   let widthPx = Math.round(finalWidthIn * targetDPI);
   let heightPx = Math.round(finalHeightIn * targetDPI);
-  let totalPixels = widthPx * heightPx;
 
-  console.log(`🔍 Safe calculation: ${widthPx}×${heightPx}px @ ${targetDPI} DPI = ${(totalPixels / 1000000).toFixed(2)} megapixels`);
+  // Calculate upscaling requirements
+  const requiredUpscaleX = widthPx / sourceWidth;
+  const requiredUpscaleY = heightPx / sourceHeight;
+  const maxUpscaling = Math.max(requiredUpscaleX, requiredUpscaleY);
 
-  // Double-check we're under the limit (should always be true now)
-  if (totalPixels > CLOUDINARY_MAX_MEGAPIXELS) {
-    console.error(`❌ STILL OVER LIMIT: ${(totalPixels / 1000000).toFixed(2)} megapixels > 25MP`);
-    // Emergency fallback: reduce DPI further
-    targetDPI = Math.floor(targetDPI * 0.95);
+  console.log(`📈 Required upscaling: ${maxUpscaling.toFixed(2)}x`);
+
+  // If upscaling > 4x, reduce DPI to maintain quality
+  if (maxUpscaling > 4) {
+    console.log('⚡ Reducing DPI to 200 due to excessive upscaling requirement');
+    targetDPI = 200;
     widthPx = Math.round(finalWidthIn * targetDPI);
     heightPx = Math.round(finalHeightIn * targetDPI);
-    totalPixels = widthPx * heightPx;
-    console.log(`🚨 Emergency reduction: ${widthPx}×${heightPx}px @ ${targetDPI} DPI = ${(totalPixels / 1000000).toFixed(2)} megapixels`);
   }
+
+  // Calculate aspect ratios
+  const sourceAspectRatio = sourceWidth / sourceHeight;
+  const targetAspectRatio = finalWidthIn / finalHeightIn;
+  const aspectRatioDiff = Math.abs(sourceAspectRatio - targetAspectRatio) / targetAspectRatio;
+
+  console.log(`📐 Aspect ratios: source=${sourceAspectRatio.toFixed(3)}, target=${targetAspectRatio.toFixed(3)}, diff=${(aspectRatioDiff * 100).toFixed(1)}%`);
 
   return {
     // Final output dimensions (with bleed)
@@ -361,7 +326,7 @@ async function generatePrintReadyFile({ sourceUrl, sourcePublicId, targetDimensi
     console.log(`🎨 Transformation pipeline: ${transformation.length} steps`);
 
     // FIXED: Generate high-quality TIFF for print (not PDF for raster images)
-    console.log("🖨️ Attempting Cloudinary upload with:", { sourceUrl, outputId }); const result = await cloudinary.uploader.upload(sourceUrl, {
+    const result = await cloudinary.uploader.upload(sourceUrl, {
       public_id: outputId,
       transformation: transformation,
       resource_type: 'image',
@@ -396,7 +361,7 @@ async function generateWebPreviewFile({ sourceUrl, sourcePublicId, targetDimensi
   const webHeight = Math.round(targetHeightIn * 72);
 
   try {
-    console.log("🖨️ Attempting Cloudinary upload with:", { sourceUrl, outputId }); const result = await cloudinary.uploader.upload(sourceUrl, {
+    const result = await cloudinary.uploader.upload(sourceUrl, {
       public_id: outputId,
       transformation: [
         { width: webWidth, height: webHeight, crop: 'fit', quality: 'auto:good' },
