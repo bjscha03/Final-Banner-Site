@@ -48,8 +48,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
   const [uploadError, setUploadError] = useState('');
   const [isFittingImage, setIsFittingImage] = useState(false);
   const [isResizingImage, setIsResizingImage] = useState(false);
-  const [isResettingImage, setIsResettingImage] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isResettingImage, setIsResettingImage] = useState(false);  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Calculate grommet info
   const grommetInfo = useMemo(() => {
@@ -222,8 +221,6 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       setIsFittingImage(false);
     }
   };
-
-
   // NEW: Resize Image functionality - Re-triggers AI artwork processing for new dimensions
   const handleResizeImage = async () => {
     if (!file?.url || !isAIImage || !file.aiMetadata) {
@@ -373,157 +370,6 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       return null;
     }
   };
-
-  // NEW: Resize Image functionality - Re-triggers AI artwork processing for new dimensions
-  const handleResizeImage = async () => {
-    if (!file?.url || !isAIImage || !file.aiMetadata) {
-      toast({
-        title: 'No AI image to resize',
-        description: 'Please generate an AI image first.',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    setIsResizingImage(true);
-
-    try {
-      console.log(`🔄 Resizing AI image to new dimensions: ${widthIn}×${heightIn}"`);
-
-      // Call the AI artwork processor to generate new dimensions
-      const response = await fetch('/.netlify/functions/ai-artwork-processor', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          orderId: `resize-${Date.now()}`, // Temporary order ID for resize
-          orderItems: [{
-            id: `resize-item-${Date.now()}`,
-            width_in: widthIn,
-            height_in: heightIn,
-            aiDesign: {
-              generatedImage: {
-                url: file.url,
-                publicId: file.aiMetadata?.cloudinary_public_id || extractPublicIdFromUrl(file.url)
-              },
-              prompt: file.aiMetadata?.prompt,
-              styles: file.aiMetadata?.styles,
-              colors: file.aiMetadata?.colors
-            }
-          }],
-          triggerSource: 'dimension_resize'
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`Resize failed: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      
-      if (result.success && result.processedItems && result.processedItems[0]) {
-        const processedItem = result.processedItems[0];
-        
-        // Update the file with the resized image URL
-        set({
-          file: {
-            ...file,
-            url: processedItem.webPreviewUrl || processedItem.printReadyUrl,
-            name: `${file.name.replace(/\.[^/.]+$/, '')}_resized_${widthIn}x${heightIn}.jpg`,
-            aiMetadata: {
-              ...file.aiMetadata,
-              resizedDimensions: `${widthIn}×${heightIn}`,
-              printReadyUrl: processedItem.printReadyUrl,
-              webPreviewUrl: processedItem.webPreviewUrl
-            }
-          }
-        });
-
-        toast({
-          title: 'Image resized successfully!',
-          description: `AI artwork has been processed for your new ${widthIn}×${heightIn}" banner dimensions.`
-        });
-      } else {
-        throw new Error('Failed to process resized image');
-      }
-
-    } catch (error) {
-      console.error('Error resizing image:', error);
-      toast({
-        title: 'Resize failed',
-        description: error.message || 'Could not resize the image. Please try again.',
-        variant: 'destructive'
-      });
-    } finally {
-      setIsResizingImage(false);
-    }
-  };
-
-  // NEW: Reset Image functionality - Restores AI image to original generated size/aspect ratio
-  const handleResetImage = async () => {
-    if (!file?.url || !isAIImage || !file.aiMetadata) {
-      toast({
-        title: 'No AI image to reset',
-        description: 'Please generate an AI image first.',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    setIsResettingImage(true);
-
-    try {
-      console.log('🔄 Resetting AI image to original dimensions');
-
-      // Find the original generated image URL (without transformations)
-      const originalUrl = file.aiMetadata.originalUrl || file.url.split('/upload/')[0] + '/upload/' + file.url.split('/upload/')[1].split('/')[file.url.split('/upload/')[1].split('/').length - 1];
-      
-      // Update the file with the original URL
-      set({
-        file: {
-          ...file,
-          url: originalUrl,
-          name: file.name.replace(/_fitted_\d+x\d+|_resized_\d+x\d+/, ''),
-          aiMetadata: {
-            ...file.aiMetadata,
-            resizedDimensions: undefined
-          }
-        }
-      });
-
-      toast({
-        title: 'Image reset successfully!',
-        description: 'AI artwork has been restored to its original generated size and aspect ratio.'
-      });
-
-    } catch (error) {
-      console.error('Error resetting image:', error);
-      toast({
-        title: 'Reset failed',
-        description: 'Could not reset the image. Please try again.',
-        variant: 'destructive'
-      });
-    } finally {
-      setIsResettingImage(false);
-    }
-  };
-
-  // Helper function to extract Cloudinary public ID from URL
-  const extractPublicIdFromUrl = (url) => {
-    try {
-      const urlParts = url.split('/');
-      const uploadIndex = urlParts.findIndex(part => part === 'upload');
-      if (uploadIndex === -1) return null;
-      
-      const publicIdWithExtension = urlParts.slice(uploadIndex + 1).join('/');
-      return publicIdWithExtension.replace(/\.[^/.]+$/, ''); // Remove extension
-    } catch (error) {
-      console.error('Error extracting public ID:', error);
-      return null;
-    }
-  };
-
 
 
   return (
