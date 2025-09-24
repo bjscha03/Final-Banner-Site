@@ -44,7 +44,7 @@ exports.handler = async (event) => {
         continue;
       }
 
-      console.log(`🔄 Processing AI item: ${item.id}, dimensions: ${item.width_in}×${item.height_in}"`);
+      console.log(`🔄 Processing AI item: ${item.id}, dimensions: ${item.width_in}×${item.height_in}"`); console.log("AI Design data:", JSON.stringify(item.aiDesign, null, 2));
 
       try {
         const processed = await processAIArtwork({
@@ -92,8 +92,8 @@ async function processAIArtwork({ orderItem, orderId }) {
   const { id: itemId, width_in, height_in, aiDesign } = orderItem;
   
   // Extract AI design info
-  const sourceUrl = aiDesign.generatedImage?.url || aiDesign.finalizedImage?.finalUrl;
-  const sourcePublicId = aiDesign.generatedImage?.publicId || aiDesign.finalizedImage?.finalPublicId;
+  const sourceUrl = aiDesign.generatedImage?.url || aiDesign.finalizedImage?.finalUrl; console.log("Extracted source URL:", sourceUrl);
+  const sourcePublicId = aiDesign.generatedImage?.publicId || aiDesign.finalizedImage?.finalPublicId; console.log("Extracted public ID:", sourcePublicId);
   
   if (!sourceUrl) {
     throw new Error('No source image URL found in AI design data');
@@ -326,7 +326,7 @@ async function generatePrintReadyFile({ sourceUrl, sourcePublicId, targetDimensi
     console.log(`🎨 Transformation pipeline: ${transformation.length} steps`);
 
     // FIXED: Generate high-quality TIFF for print (not PDF for raster images)
-    const result = await cloudinary.uploader.upload(sourceUrl, {
+    console.log("🖨️ Attempting Cloudinary upload with:", { sourceUrl, outputId }); const result = await cloudinary.uploader.upload(sourceUrl, {
       public_id: outputId,
       transformation: transformation,
       resource_type: 'image',
@@ -361,7 +361,7 @@ async function generateWebPreviewFile({ sourceUrl, sourcePublicId, targetDimensi
   const webHeight = Math.round(targetHeightIn * 72);
 
   try {
-    const result = await cloudinary.uploader.upload(sourceUrl, {
+    console.log("🖨️ Attempting Cloudinary upload with:", { sourceUrl, outputId }); const result = await cloudinary.uploader.upload(sourceUrl, {
       public_id: outputId,
       transformation: [
         { width: webWidth, height: webHeight, crop: 'fit', quality: 'auto:good' },
