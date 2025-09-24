@@ -387,15 +387,49 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
   // Helper function to extract Cloudinary public ID from URL
   const extractPublicIdFromUrl = (url) => {
     try {
+      console.log('🔍 Extracting public ID from URL:', url);
+      
       const urlParts = url.split('/');
       const uploadIndex = urlParts.findIndex(part => part === 'upload');
-      if (uploadIndex === -1) return null;
+      if (uploadIndex === -1) {
+        console.warn('⚠️ No "upload" found in URL');
+        return null;
+      }
       
-      const publicIdWithExtension = urlParts.slice(uploadIndex + 1).join('/');
-      return publicIdWithExtension.replace(/\.[^/.]+$/, ''); // Remove extension
+      // Get everything after 'upload/'
+      let pathAfterUpload = urlParts.slice(uploadIndex + 1);
+      console.log('📂 Path after upload:', pathAfterUpload);
+      
+      // Remove transformation parameters (they start with letters like 'c_', 'w_', etc.)
+      // The public ID is typically the last part that doesn't start with transformation params
+      const publicIdParts = [];
+      let foundTransformations = false;
+      
+      for (const part of pathAfterUpload) {
+        // Check if this looks like a transformation parameter (contains underscores and starts with letter)
+        if (part.includes('_') && /^[a-z]_/.test(part)) {
+          foundTransformations = true;
+          continue;
+        }
+        
+        // If we haven't found transformations yet, or this is clearly a path segment
+        if (!foundTransformations || !part.includes('_')) {
+          publicIdParts.push(part);
+        }
+      }
+      
+      // Join the parts and remove file extension
+      const publicIdWithExtension = publicIdParts.join('/');
+      const publicId = publicIdWithExtension.replace(/\.[^/.]+$/, '');
+      
+      console.log('✅ Extracted public ID:', publicId);
+      return publicId;
+      
     } catch (error) {
-      console.error('Error extracting public ID:', error);
+      console.error('❌ Error extracting public ID:', error);
       return null;
+    }
+  };
     }
   };
 
