@@ -309,7 +309,7 @@ exports.handler = async (event, context) => {
 
         if (artworkProcessingResponse.ok) {
           const processingResult = await artworkProcessingResponse.json();
-          console.log('AI artwork processing completed:', processingResult.summary);
+          console.log('AI artwork processing completed:', processingResult.processedItems?.length || 0, "items");
           
           // Update order items with processed artwork URLs
           for (const processedItem of processingResult.processedItems) {
@@ -318,14 +318,14 @@ exports.handler = async (event, context) => {
                 await sql`
                   UPDATE order_items 
                   SET 
-                    print_ready_url = ${processedItem.printReady?.url || null},
-                    web_preview_url = ${processedItem.webPreview?.url || null},
-                    artwork_metadata_url = ${processedItem.metadata?.url || null}
-                  WHERE order_id = ${orderId} AND id = ${processedItem.itemId}
+                    print_ready_url = ${processedItem.printReadyUrl || null},
+                    web_preview_url = ${processedItem.webPreviewUrl || null},
+                    artwork_metadata_url = ${processedItem.artworkMetadataUrl || null}
+                  WHERE order_id = ${orderId} AND id = ${processedItem.orderItemId}
                 `;
-                console.log(`Updated order item ${processedItem.itemId} with processed artwork URLs`);
+                console.log(`Updated order item ${processedItem.orderItemId} with processed artwork URLs`);
               } catch (updateError) {
-                console.error(`Failed to update order item ${processedItem.itemId} with artwork URLs:`, updateError);
+                console.error(`Failed to update order item ${processedItem.orderItemId} with artwork URLs:`, updateError);
                 // Don't fail the order - artwork processing succeeded but DB update failed
               }
             }

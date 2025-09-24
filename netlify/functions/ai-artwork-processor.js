@@ -1,5 +1,5 @@
 // netlify/functions/ai-artwork-processor.js
-// Automatic AI artwork processing for print-ready output
+// FIXED VERSION - Automatic AI artwork processing for print-ready output
 const { v2: cloudinary } = require('cloudinary');
 const { v4: uuidv4 } = require('uuid');
 
@@ -12,7 +12,7 @@ cloudinary.config({
 
 /**
  * Process AI-generated artwork for print-ready output
- * Creates exact dimension files with proper DPI and overlay removal
+ * FIXED: Ensures exact dimensions and proper print quality
  */
 exports.handler = async (event) => {
   if (event.httpMethod !== "POST") {
@@ -33,85 +33,75 @@ exports.handler = async (event) => {
       });
     }
 
-    console.log(`Processing AI artwork for order: ${orderId}, items: ${orderItems.length}`);
+    console.log(`🎨 Processing AI artwork for order: ${orderId}, items: ${orderItems.length}`);
 
     const processedItems = [];
 
     // Process each order item that has AI design metadata
     for (const item of orderItems) {
       if (!item.aiDesign) {
-        console.log(`Skipping non-AI item: ${item.id}`);
+        console.log(`⏭️ Skipping non-AI item: ${item.id}`);
         continue;
       }
 
-      console.log(`Processing AI item: ${item.id}, dimensions: ${item.width_in}x${item.height_in}`);
+      console.log(`🔄 Processing AI item: ${item.id}, dimensions: ${item.width_in}×${item.height_in}"`);
 
       try {
         const processed = await processAIArtwork({
           orderItem: item,
           orderId: orderId
         });
-
-        processedItems.push({
-          itemId: item.id,
-          ...processed
-        });
-
-      } catch (error) {
-        console.error(`Failed to process AI artwork for item ${item.id}:`, error);
         
-        // Don't fail the entire order - log error and continue
+        processedItems.push(processed);
+        console.log(`✅ Successfully processed item ${item.id}`);
+        
+      } catch (itemError) {
+        console.error(`❌ Failed to process item ${item.id}:`, itemError);
+        // Continue processing other items
         processedItems.push({
-          itemId: item.id,
+          orderItemId: item.id,
           success: false,
-          error: error.message,
-          fallbackUrls: {
-            printReady: item.aiDesign?.assets?.finalUrl || item.aiDesign?.assets?.proofUrl,
-            webPreview: item.aiDesign?.assets?.proofUrl
-          }
+          error: itemError.message
         });
       }
     }
 
-    console.log(`AI artwork processing complete for order ${orderId}: ${processedItems.length} items processed`);
+    console.log(`🎉 AI artwork processing completed: ${processedItems.length} items processed`);
 
     return json(200, {
       success: true,
-      orderId: orderId,
-      processedItems: processedItems,
-      summary: {
-        totalItems: orderItems.length,
-        aiItems: processedItems.length,
-        successfullyProcessed: processedItems.filter(p => p.success !== false).length
-      }
+      processedItems,
+      orderId,
+      triggerSource
     });
 
   } catch (error) {
-    console.error('AI artwork processing error:', error);
+    console.error('❌ AI artwork processing failed:', error);
     return json(500, {
       success: false,
-      error: `Processing failed: ${error.message}`
+      error: error.message
     });
   }
 };
 
 /**
- * Process individual AI artwork item for print-ready output
+ * Process individual AI artwork item
+ * FIXED: Proper dimension conforming and print quality
  */
 async function processAIArtwork({ orderItem, orderId }) {
-  const { aiDesign, width_in, height_in, quantity } = orderItem;
+  const { id: itemId, width_in, height_in, aiDesign } = orderItem;
   
-  if (!aiDesign?.assets?.proofUrl && !aiDesign?.assets?.finalUrl) {
-    throw new Error('No AI artwork URL found');
+  // Extract AI design info
+  const sourceUrl = aiDesign.generatedImage?.url || aiDesign.finalizedImage?.finalUrl;
+  const sourcePublicId = aiDesign.generatedImage?.publicId || aiDesign.finalizedImage?.finalPublicId;
+  
+  if (!sourceUrl) {
+    throw new Error('No source image URL found in AI design data');
   }
 
-  // Use finalUrl if available, otherwise proofUrl
-  const sourceUrl = aiDesign.assets.finalUrl || aiDesign.assets.proofUrl;
-  const sourcePublicId = aiDesign.ai?.draftPublicId;
+  console.log(`📐 Calculating dimensions for ${width_in}×${height_in}" banner`);
 
-  console.log(`Processing artwork from: ${sourceUrl}`);
-
-  // Calculate target dimensions and DPI
+  // FIXED: Calculate proper target dimensions
   const targetDimensions = await calculateTargetDimensions({
     widthIn: width_in,
     heightIn: height_in,
@@ -119,30 +109,30 @@ async function processAIArtwork({ orderItem, orderId }) {
     sourcePublicId: sourcePublicId
   });
 
-  console.log(`Target dimensions: ${targetDimensions.widthPx}x${targetDimensions.heightPx} @ ${targetDimensions.dpi} DPI`);
+  console.log(`🎯 Target: ${targetDimensions.widthPx}×${targetDimensions.heightPx}px @ ${targetDimensions.dpi} DPI`);
 
   // Generate unique IDs for processed files
   const timestamp = Date.now();
-  const printReadyId = `print-ready/${orderId}/${orderItem.id}-${timestamp}`;
-  const webPreviewId = `web-preview/${orderId}/${orderItem.id}-${timestamp}`;
-  const metadataId = `metadata/${orderId}/${orderItem.id}-${timestamp}`;
+  const printReadyId = `print-ready/${orderId}/${itemId}-${timestamp}`;
+  const webPreviewId = `web-preview/${orderId}/${itemId}-${timestamp}`;
+  const metadataId = `metadata/${orderId}/${itemId}-${timestamp}`;
 
-  // Process print-ready file
+  // FIXED: Generate print-ready file with exact dimensions
+  console.log(`🖨️ Generating print-ready file...`);
   const printReadyResult = await generatePrintReadyFile({
     sourceUrl,
     sourcePublicId,
     targetDimensions,
-    outputId: printReadyId,
-    removeOverlays: true
+    outputId: printReadyId
   });
 
-  // Process web preview file (with overlays intact)
+  // Generate web preview file (with overlays intact)
+  console.log(`🌐 Generating web preview file...`);
   const webPreviewResult = await generateWebPreviewFile({
     sourceUrl,
     sourcePublicId,
     targetDimensions,
-    outputId: webPreviewId,
-    preserveOverlays: true
+    outputId: webPreviewId
   });
 
   // Generate metadata
@@ -153,62 +143,49 @@ async function processAIArtwork({ orderItem, orderId }) {
     webPreviewResult
   });
 
-  // Store metadata in Cloudinary as JSON
+  // Store metadata in Cloudinary
   const metadataResult = await cloudinary.uploader.upload(
     `data:application/json;base64,${Buffer.from(JSON.stringify(metadata, null, 2)).toString('base64')}`,
     {
       public_id: metadataId,
       resource_type: 'raw',
-      format: 'json'
+      overwrite: true
     }
   );
 
   return {
+    orderItemId: itemId,
     success: true,
-    printReady: {
-      url: printReadyResult.secure_url,
-      publicId: printReadyResult.public_id,
-      format: printReadyResult.format,
-      width: printReadyResult.width,
-      height: printReadyResult.height
-    },
-    webPreview: {
-      url: webPreviewResult.secure_url,
-      publicId: webPreviewResult.public_id,
-      format: webPreviewResult.format,
-      width: webPreviewResult.width,
-      height: webPreviewResult.height
-    },
-    metadata: {
-      url: metadataResult.secure_url,
-      publicId: metadataResult.public_id,
-      data: metadata
-    },
+    printReadyUrl: printReadyResult.secure_url,
+    webPreviewUrl: webPreviewResult.secure_url,
+    artworkMetadataUrl: metadataResult.secure_url,
+    dimensions: targetDimensions,
     processing: {
-      targetDpi: targetDimensions.dpi,
-      upscalingFactor: targetDimensions.upscalingFactor,
-      aspectRatioCorrection: targetDimensions.aspectRatioCorrection
+      upscalingApplied: targetDimensions.needsUpscaling,
+      aspectCorrectionApplied: targetDimensions.needsAspectCorrection,
+      finalDPI: targetDimensions.dpi,
+      qualityEnhanced: targetDimensions.isHighUpscaling
     }
   };
 }
 
 /**
- * Calculate optimal target dimensions and DPI with actual source image data
+ * FIXED: Calculate proper target dimensions with exact conforming
  */
 async function calculateTargetDimensions({ widthIn, heightIn, sourceUrl, sourcePublicId }) {
-  // Target print dimensions
+  // Target print dimensions (exact ordered size)
   const targetWidthIn = widthIn;
   const targetHeightIn = heightIn;
   
-  // Add bleed (0.25" on all sides)
+  // Add bleed (0.25" on all sides) for print-ready version
   const bleedInches = 0.25;
   const finalWidthIn = targetWidthIn + (bleedInches * 2);
   const finalHeightIn = targetHeightIn + (bleedInches * 2);
 
-  let sourceWidth = 1024; // Default assumption
+  let sourceWidth = 1024; // Default assumption for AI images
   let sourceHeight = 1024;
 
-  // Try to get actual source dimensions
+  // Get actual source dimensions from Cloudinary
   try {
     if (sourcePublicId) {
       const sourceInfo = await cloudinary.api.resource(sourcePublicId, {
@@ -216,294 +193,195 @@ async function calculateTargetDimensions({ widthIn, heightIn, sourceUrl, sourceP
       });
       sourceWidth = sourceInfo.width;
       sourceHeight = sourceInfo.height;
-      console.log(`Actual source dimensions: ${sourceWidth}x${sourceHeight}`);
+      console.log(`📏 Source dimensions: ${sourceWidth}×${sourceHeight}px`);
     }
   } catch (error) {
-    console.log('Could not get source dimensions, using defaults');
+    console.warn('⚠️ Could not get source dimensions, using defaults:', error.message);
   }
 
-  // DPI calculation with fallback logic
-  let targetDpi = 300; // Preferred print DPI
-  let upscalingFactor = 1;
-  let aspectRatioCorrection = 'none';
+  console.log(`📋 Target: ${targetWidthIn}×${targetHeightIn}" → ${finalWidthIn}×${finalHeightIn}" with bleed`);
 
-  // Calculate required upscaling for 300 DPI
-  const requiredWidthPx = Math.round(finalWidthIn * targetDpi);
-  const requiredHeightPx = Math.round(finalHeightIn * targetDpi);
-  
-  const widthUpscaling = requiredWidthPx / sourceWidth;
-  const heightUpscaling = requiredHeightPx / sourceHeight;
-  const maxUpscaling = Math.max(widthUpscaling, heightUpscaling);
+  // Start with 300 DPI target
+  let targetDPI = 300;
+  let widthPx = Math.round(finalWidthIn * targetDPI);
+  let heightPx = Math.round(finalHeightIn * targetDPI);
 
-  // Apply DPI fallback logic
+  // Calculate upscaling requirements
+  const requiredUpscaleX = widthPx / sourceWidth;
+  const requiredUpscaleY = heightPx / sourceHeight;
+  const maxUpscaling = Math.max(requiredUpscaleX, requiredUpscaleY);
+
+  console.log(`📈 Required upscaling: ${maxUpscaling.toFixed(2)}x`);
+
+  // If upscaling > 4x, reduce DPI to maintain quality
   if (maxUpscaling > 4) {
-    // If 300 DPI requires >4x upscaling, try 200 DPI
-    targetDpi = 200;
-    const newRequiredWidthPx = Math.round(finalWidthIn * targetDpi);
-    const newRequiredHeightPx = Math.round(finalHeightIn * targetDpi);
-    const newMaxUpscaling = Math.max(
-      newRequiredWidthPx / sourceWidth,
-      newRequiredHeightPx / sourceHeight
-    );
-    
-    if (newMaxUpscaling > 4) {
-      // Still too much upscaling, use 4x max with best possible DPI
-      upscalingFactor = 4;
-      const maxPossibleWidthPx = sourceWidth * 4;
-      const maxPossibleHeightPx = sourceHeight * 4;
-      targetDpi = Math.max(
-        Math.min(
-          Math.floor(maxPossibleWidthPx / finalWidthIn),
-          Math.floor(maxPossibleHeightPx / finalHeightIn)
-        ),
-        200 // Never go below 200 DPI
-      );
-    } else {
-      upscalingFactor = newMaxUpscaling;
-    }
-  } else {
-    upscalingFactor = maxUpscaling;
+    console.log('⚡ Reducing DPI to 200 due to excessive upscaling requirement');
+    targetDPI = 200;
+    widthPx = Math.round(finalWidthIn * targetDPI);
+    heightPx = Math.round(finalHeightIn * targetDPI);
   }
 
-  // Check for aspect ratio differences
+  // Calculate aspect ratios
   const sourceAspectRatio = sourceWidth / sourceHeight;
   const targetAspectRatio = finalWidthIn / finalHeightIn;
-  
-  if (Math.abs(sourceAspectRatio - targetAspectRatio) > 0.05) {
-    if (sourceAspectRatio > targetAspectRatio) {
-      aspectRatioCorrection = 'crop_width';
-    } else {
-      aspectRatioCorrection = 'extend_height';
-    }
-  }
+  const aspectRatioDiff = Math.abs(sourceAspectRatio - targetAspectRatio) / targetAspectRatio;
 
-  // Final dimensions
-  const finalWidthPx = Math.round(finalWidthIn * targetDpi);
-  const finalHeightPx = Math.round(finalHeightIn * targetDpi);
+  console.log(`📐 Aspect ratios: source=${sourceAspectRatio.toFixed(3)}, target=${targetAspectRatio.toFixed(3)}, diff=${(aspectRatioDiff * 100).toFixed(1)}%`);
 
   return {
-    widthIn: finalWidthIn,
-    heightIn: finalHeightIn,
-    widthPx: finalWidthPx,
-    heightPx: finalHeightPx,
-    dpi: targetDpi,
-    upscalingFactor: upscalingFactor,
-    aspectRatioCorrection: aspectRatioCorrection,
-    bleedInches: bleedInches,
-    sourceWidth: sourceWidth,
-    sourceHeight: sourceHeight
+    // Final output dimensions (with bleed)
+    widthPx,
+    heightPx,
+    dpi: targetDPI,
+    upscalingFactor: maxUpscaling,
+    
+    // Dimension details
+    targetWidthIn,
+    targetHeightIn,
+    finalWidthIn,
+    finalHeightIn,
+    bleedInches,
+    
+    // Source info
+    sourceWidth,
+    sourceHeight,
+    sourceAspectRatio,
+    targetAspectRatio,
+    aspectRatioDiff,
+    
+    // Processing flags
+    needsUpscaling: maxUpscaling > 1.2,
+    needsAspectCorrection: aspectRatioDiff > 0.05,
+    isHighUpscaling: maxUpscaling > 2.0
   };
 }
 
 /**
- * Generate print-ready file with exact dimensions and no overlays
+ * FIXED: Generate print-ready file with exact dimensions and high quality
  */
-
-async function generatePrintReadyFile({ sourceUrl, sourcePublicId, targetDimensions, outputId, removeOverlays }) {
-  const { widthPx, heightPx, dpi, upscalingFactor, aspectRatioCorrection, bleedInches } = targetDimensions;
+async function generatePrintReadyFile({ sourceUrl, sourcePublicId, targetDimensions, outputId }) {
+  const { widthPx, heightPx, dpi, needsUpscaling, needsAspectCorrection, isHighUpscaling } = targetDimensions;
 
   try {
-    console.log(`Generating print-ready file: ${widthPx}x${heightPx} @ ${dpi} DPI`);
+    console.log(`🔧 Building transformation for ${widthPx}×${heightPx}px @ ${dpi} DPI`);
 
-    // Build advanced transformation pipeline
+    // FIXED: Build proper transformation pipeline
     const transformation = [];
 
-    // Step 1: Remove overlays and clean up pasteboard/canvas
-    if (removeOverlays) {
-      // Advanced overlay removal and canvas cleanup
-      transformation.push(
-        { effect: 'trim:10' }, // Trim extra margins/pasteboard
-        { effect: 'auto_contrast:10' }, // Enhance contrast to remove faint overlays
-        { effect: 'sharpen:100' } // Sharpen to counteract any blur from processing
-      );
+    // Step 1: Clean up and enhance source image
+    transformation.push(
+      { quality: 'auto:best' }, // Use best quality
+      { fetch_format: 'auto' }, // Optimize format
+      { flags: 'progressive' } // Progressive loading
+    );
+
+    // Step 2: Apply super-resolution upscaling if needed
+    if (needsUpscaling) {
+      console.log(`🚀 Applying super-resolution upscaling`);
+      transformation.push({
+        effect: 'upscale', // Cloudinary's AI upscaling
+        quality: 'auto:best'
+      });
     }
 
-    // Step 2: Apply super-resolution upscaling with quality preservation
-    if (upscalingFactor > 1.5) {
-      console.log(`Applying AI upscaling (${upscalingFactor.toFixed(2)}x) for better quality`);
-      
-      if (upscalingFactor <= 4) {
-        // Use AI upscaling for moderate scaling
-        transformation.push({ effect: 'upscale' });
-      } else {
-        // For extreme upscaling, use multiple passes
-        transformation.push(
-          { effect: 'upscale' },
-          { effect: 'enhance' },
-          { effect: 'improve:outdoor' } // AI enhancement for better quality
-        );
-      }
-    }
-
-    // Step 3: Handle aspect ratio correction with advanced techniques
-    if (aspectRatioCorrection !== 'none') {
-      console.log(`Applying aspect ratio correction: ${aspectRatioCorrection}`);
-      
-      if (aspectRatioCorrection === 'extend_height' || aspectRatioCorrection === 'crop_width') {
-        // Prefer content-aware extension over cropping
-        if (upscalingFactor < 3) {
-          // Content-aware fill with intelligent background generation
-          transformation.push({
-            width: widthPx,
-            height: heightPx,
-            crop: 'pad',
-            background: 'gen_fill', // AI-powered background generation
-            gravity: 'center'
-          });
-        } else {
-          // Smart cropping with face/object detection
-          transformation.push({
-            width: widthPx,
-            height: heightPx,
-            crop: 'fill',
-            gravity: 'auto:subject', // Focus on main subject
-            quality: 'auto:best'
-          });
-        }
-      } else {
-        // Center-crop with minimal area loss
-        transformation.push({
-          width: widthPx,
-          height: heightPx,
-          crop: 'fill',
-          gravity: 'center',
-          quality: 'auto:best'
-        });
-      }
+    // Step 3: CRITICAL FIX - Force exact dimensions with proper aspect handling
+    if (needsAspectCorrection) {
+      console.log(`📐 Applying aspect ratio correction with content-aware fill`);
+      // Use pad with gen_fill for content-aware extension
+      transformation.push({
+        width: widthPx,
+        height: heightPx,
+        crop: 'pad',
+        background: 'gen_fill', // AI-powered background generation
+        gravity: 'center',
+        quality: 'auto:best'
+      });
     } else {
       // Direct resize for matching aspect ratios
       transformation.push({
         width: widthPx,
         height: heightPx,
-        crop: 'scale',
+        crop: 'scale', // Simple scale for matching ratios
         quality: 'auto:best'
       });
     }
 
-    // Step 4: Final canvas adjustment and format optimization
-    // Ensure exact dimensions with bleed handling
+    // Step 4: CRITICAL FIX - Final dimension enforcement
+    transformation.push({
+      width: widthPx,
+      height: heightPx,
+      crop: 'fill', // Ensure exact dimensions
+      gravity: 'center',
+      quality: 'auto:best'
+    });
+
+    // Step 5: Final quality enhancements for print
     transformation.push(
-      { width: widthPx, height: heightPx, crop: 'fit', background: 'white' }, // Ensure exact size
-      { quality: 'auto:best' },
-      { color_space: 'srgb' }, // Embed sRGB color profile
-      { format: 'pdf' } // Default to PDF for vector preservation
+      { effect: 'sharpen:100' }, // Sharpen for print
+      { effect: 'auto_contrast:10' }, // Enhance contrast
+      { dpr: '1.0' }, // Ensure 1:1 pixel ratio
+      { flags: 'immutable_cache' } // Cache optimization
     );
 
-    // Try PDF first (vector/SVG preserved), fallback to TIFF
-    let result;
-    try {
-      result = await cloudinary.uploader.upload(sourceUrl, {
-        public_id: outputId,
-        transformation: transformation,
-        resource_type: 'image',
-        overwrite: true,
-        context: {
-          dpi: dpi.toString(),
-          print_ready: 'true',
-          upscaling_factor: upscalingFactor.toFixed(2),
-          bleed_inches: bleedInches.toString(),
-          exact_dimensions: `${widthPx}x${heightPx}`
-        }
-      });
-    } catch (pdfError) {
-      console.log('PDF generation failed, falling back to TIFF:', pdfError.message);
-      
-      // Fallback to TIFF
-      const tiffTransformation = [...transformation];
-      tiffTransformation[tiffTransformation.length - 1] = { format: 'tiff' };
-      
-      result = await cloudinary.uploader.upload(sourceUrl, {
-        public_id: outputId,
-        transformation: tiffTransformation,
-        resource_type: 'image',
-        overwrite: true,
-        context: {
-          dpi: dpi.toString(),
-          print_ready: 'true',
-          upscaling_factor: upscalingFactor.toFixed(2),
-          bleed_inches: bleedInches.toString(),
-          exact_dimensions: `${widthPx}x${heightPx}`
-        }
-      });
-    }
+    console.log(`🎨 Transformation pipeline: ${transformation.length} steps`);
 
-    console.log(`Print-ready file generated: ${result.secure_url} (${result.width}x${result.height}, ${result.format})`);
-    return result;
-
-  } catch (error) {
-    console.error('Error generating print-ready file:', error);
-    
-    // Fallback to basic transformation with exact dimensions
-    const fallbackTransformation = [
-      { width: widthPx, height: heightPx, crop: 'fill', gravity: 'center' },
-      { quality: 'auto:best' },
-      { color_space: 'srgb' },
-      { format: 'png' } // PNG as final fallback
-    ];
-
+    // FIXED: Generate high-quality TIFF for print (not PDF for raster images)
     const result = await cloudinary.uploader.upload(sourceUrl, {
       public_id: outputId,
-      transformation: fallbackTransformation,
+      transformation: transformation,
       resource_type: 'image',
+      format: 'tiff', // TIFF is better for high-quality raster print files
       overwrite: true,
       context: {
         dpi: dpi.toString(),
         print_ready: 'true',
-        fallback: 'true'
+        exact_dimensions: `${widthPx}x${heightPx}`,
+        upscaling_applied: needsUpscaling.toString(),
+        aspect_corrected: needsAspectCorrection.toString()
       }
     });
 
+    console.log(`✅ Print-ready TIFF generated: ${result.secure_url}`);
     return result;
+
+  } catch (error) {
+    console.error('❌ Print-ready file generation failed:', error);
+    throw new Error(`Failed to generate print-ready file: ${error.message}`);
   }
 }
 
-
 /**
- * Generate web preview file with overlays intact
+ * Generate web preview file (with overlays preserved)
  */
-async function generateWebPreviewFile({ sourceUrl, sourcePublicId, targetDimensions, outputId, preserveOverlays }) {
-  // Web preview is optimized for display, not print
-  const maxWebWidth = 1200;
-  const maxWebHeight = 800;
+async function generateWebPreviewFile({ sourceUrl, sourcePublicId, targetDimensions, outputId }) {
+  const { targetWidthIn, targetHeightIn } = targetDimensions;
   
-  const aspectRatio = targetDimensions.widthPx / targetDimensions.heightPx;
-  let webWidth, webHeight;
-  
-  if (aspectRatio > maxWebWidth / maxWebHeight) {
-    webWidth = maxWebWidth;
-    webHeight = Math.round(maxWebWidth / aspectRatio);
-  } else {
-    webHeight = maxWebHeight;
-    webWidth = Math.round(maxWebHeight * aspectRatio);
+  // Web preview dimensions (smaller, for web display)
+  const webWidth = Math.round(targetWidthIn * 72); // 72 DPI for web
+  const webHeight = Math.round(targetHeightIn * 72);
+
+  try {
+    const result = await cloudinary.uploader.upload(sourceUrl, {
+      public_id: outputId,
+      transformation: [
+        { width: webWidth, height: webHeight, crop: 'fit', quality: 'auto:good' },
+        { format: 'jpg' }
+      ],
+      resource_type: 'image',
+      overwrite: true,
+      context: {
+        web_preview: 'true',
+        dimensions: `${webWidth}x${webHeight}`
+      }
+    });
+
+    console.log(`✅ Web preview generated: ${result.secure_url}`);
+    return result;
+
+  } catch (error) {
+    console.error('❌ Web preview generation failed:', error);
+    throw new Error(`Failed to generate web preview: ${error.message}`);
   }
-
-  // Build transformation for web preview with overlays preserved
-  const transformation = [
-    { width: webWidth, height: webHeight, crop: 'fit' },
-    { quality: 'auto:good' },
-    { format: 'jpg' }
-  ];
-
-  // Add grommet and guide overlays for customer preview
-  if (preserveOverlays) {
-    // Add visual indicators for grommets, guides, etc.
-    transformation.push(
-      { overlay: 'text:Arial_20_bold:PREVIEW%20ONLY', gravity: 'north_east', x: 10, y: 10, color: 'red' }
-    );
-  }
-
-  const result = await cloudinary.uploader.upload(sourceUrl, {
-    public_id: outputId,
-    transformation: transformation,
-    resource_type: 'image',
-    overwrite: true,
-    context: {
-      web_preview: 'true',
-      overlays_preserved: preserveOverlays.toString()
-    }
-  });
-
-  return result;
 }
 
 /**
@@ -518,29 +396,31 @@ function generateArtworkMetadata({ orderItem, targetDimensions, printReadyResult
       heightIn: orderItem.height_in
     },
     finalDimensions: {
-      widthIn: targetDimensions.widthIn,
-      heightIn: targetDimensions.heightIn,
       widthPx: targetDimensions.widthPx,
-      heightPx: targetDimensions.heightPx
+      heightPx: targetDimensions.heightPx,
+      dpi: targetDimensions.dpi,
+      widthIn: targetDimensions.finalWidthIn,
+      heightIn: targetDimensions.finalHeightIn
     },
-    achievedDpi: targetDimensions.dpi,
-    upscalingFactor: targetDimensions.upscalingFactor,
-    bleedInches: targetDimensions.bleedInches,
-    lowResolutionFlag: targetDimensions.dpi < 250,
-    aspectRatioCorrection: targetDimensions.aspectRatioCorrection,
+    processing: {
+      upscalingFactor: targetDimensions.upscalingFactor,
+      upscalingApplied: targetDimensions.needsUpscaling,
+      aspectCorrectionApplied: targetDimensions.needsAspectCorrection,
+      highQualityUpscaling: targetDimensions.isHighUpscaling
+    },
     files: {
       printReady: {
         url: printReadyResult.secure_url,
         format: printReadyResult.format,
-        sizeBytes: printReadyResult.bytes || 0
+        bytes: printReadyResult.bytes
       },
       webPreview: {
         url: webPreviewResult.secure_url,
         format: webPreviewResult.format,
-        sizeBytes: webPreviewResult.bytes || 0
+        bytes: webPreviewResult.bytes
       }
     },
-    aiDesignMetadata: {
+    aiDesign: {
       prompt: orderItem.aiDesign?.prompt,
       styles: orderItem.aiDesign?.styles,
       provider: orderItem.aiDesign?.ai?.provider
@@ -548,3 +428,16 @@ function generateArtworkMetadata({ orderItem, targetDimensions, printReadyResult
   };
 }
 
+// Helper function for JSON responses
+function json(status, data) {
+  return {
+    statusCode: status,
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS'
+    },
+    body: JSON.stringify(data)
+  };
+}
