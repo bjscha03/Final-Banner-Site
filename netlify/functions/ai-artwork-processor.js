@@ -146,8 +146,31 @@ async function processAIArtwork({ orderItem, orderId }) {
   // Store metadata in Cloudinary
   const metadataResult = await cloudinary.uploader.upload(
     `data:application/json;base64,${Buffer.from(JSON.stringify(metadata, null, 2)).toString('base64')}`,
+    {
+      public_id: metadataId,
+      resource_type: 'raw',
+      overwrite: true
+    }
+  );
+
+  return {
+    orderItemId: itemId,
+    success: true,
+    printReadyUrl: printReadyResult.secure_url,
+    webPreviewUrl: webPreviewResult.secure_url,
+    artworkMetadataUrl: metadataResult.secure_url,
+    dimensions: targetDimensions,
+    processing: {
+      upscalingApplied: targetDimensions.needsUpscaling,
+      aspectCorrectionApplied: targetDimensions.needsAspectCorrection,
+      finalDPI: targetDimensions.dpi,
+      qualityEnhanced: targetDimensions.isHighUpscaling
+    }
+  };
+}
+
 /**
- * FIXED: Calculate proper target dimensions with exact conforming and Cloudinary limits
+ * FIXED: Calculate proper target dimensions with exact conforming
  */
 async function calculateTargetDimensions({ widthIn, heightIn, sourceUrl, sourcePublicId }) {
   // Target print dimensions (exact ordered size)
@@ -166,14 +189,14 @@ async function calculateTargetDimensions({ widthIn, heightIn, sourceUrl, sourceP
   try {
     if (sourcePublicId) {
       const sourceInfo = await cloudinary.api.resource(sourcePublicId, {
-        resource_type: "image"
+        resource_type: 'image'
       });
       sourceWidth = sourceInfo.width;
       sourceHeight = sourceInfo.height;
-      console.log(`�� Source dimensions: ${sourceWidth}×${sourceHeight}px`);
+      console.log(`📏 Source dimensions: ${sourceWidth}×${sourceHeight}px`);
     }
   } catch (error) {
-    console.warn("⚠️ Could not get source dimensions, using defaults:", error.message);
+    console.warn('⚠️ Could not get source dimensions, using defaults:', error.message);
   }
 
   console.log(`📋 Target: ${targetWidthIn}×${targetHeightIn}" → ${finalWidthIn}×${finalHeightIn}" with bleed`);
@@ -189,7 +212,7 @@ async function calculateTargetDimensions({ widthIn, heightIn, sourceUrl, sourceP
 
   console.log(`🔍 Initial calculation: ${widthPx}×${heightPx}px = ${(totalPixels / 1000000).toFixed(2)} megapixels`);
 
-  // CRITICAL FIX: Scale down DPI if we exceed Cloudinary limit
+  // CRITICAL FIX: Scale down DPI if we exceed Cloudinary's limit
   if (totalPixels > CLOUDINARY_MAX_MEGAPIXELS) {
     const scaleFactor = Math.sqrt(CLOUDINARY_MAX_MEGAPIXELS / totalPixels);
     targetDPI = Math.floor(targetDPI * scaleFactor);
@@ -197,7 +220,7 @@ async function calculateTargetDimensions({ widthIn, heightIn, sourceUrl, sourceP
     // Ensure minimum viable DPI
     if (targetDPI < 150) {
       targetDPI = 150;
-      console.log("⚠️ DPI clamped to minimum 150 DPI");
+      console.log('⚠️ DPI clamped to minimum 150 DPI');
     }
     
     widthPx = Math.round(finalWidthIn * targetDPI);
@@ -232,40 +255,7 @@ async function calculateTargetDimensions({ widthIn, heightIn, sourceUrl, sourceP
   const aspectRatioDiff = Math.abs(sourceAspectRatio - targetAspectRatio) / targetAspectRatio;
 
   console.log(`📐 Aspect ratios: source=${sourceAspectRatio.toFixed(3)}, target=${targetAspectRatio.toFixed(3)}, diff=${(aspectRatioDiff * 100).toFixed(1)}%`);
-  console.log(`✅ FINAL: ${widthPx}×${heightPx}px @ ${targetDPI} DPI = ${(totalPixels / 1000000).toFixed(2)} megapixels`);      console.log(`📏 Source dimensions: ${sourceWidth}×${sourceHeight}px`);
-    }
-  } catch (error) {
-    console.warn('⚠️ Could not get source dimensions, using defaults:', error.message);
-  }
-
-  console.log(`📋 Target: ${targetWidthIn}×${targetHeightIn}" → ${finalWidthIn}×${finalHeightIn}" with bleed`);
-
-  // Start with 300 DPI target
-  let targetDPI = 300;
-  let widthPx = Math.round(finalWidthIn * targetDPI);
-  let heightPx = Math.round(finalHeightIn * targetDPI);
-
-  // Calculate upscaling requirements
-  const requiredUpscaleX = widthPx / sourceWidth;
-  const requiredUpscaleY = heightPx / sourceHeight;
-  const maxUpscaling = Math.max(requiredUpscaleX, requiredUpscaleY);
-
-  console.log(`📈 Required upscaling: ${maxUpscaling.toFixed(2)}x`);
-
-  // If upscaling > 4x, reduce DPI to maintain quality
-  if (maxUpscaling > 4) {
-    console.log('⚡ Reducing DPI to 200 due to excessive upscaling requirement');
-    targetDPI = 200;
-    widthPx = Math.round(finalWidthIn * targetDPI);
-    heightPx = Math.round(finalHeightIn * targetDPI);
-  }
-
-  // Calculate aspect ratios
-  const sourceAspectRatio = sourceWidth / sourceHeight;
-  const targetAspectRatio = finalWidthIn / finalHeightIn;
-  const aspectRatioDiff = Math.abs(sourceAspectRatio - targetAspectRatio) / targetAspectRatio;
-
-  console.log(`📐 Aspect ratios: source=${sourceAspectRatio.toFixed(3)}, target=${targetAspectRatio.toFixed(3)}, diff=${(aspectRatioDiff * 100).toFixed(1)}%`);
+  console.log(`✅ FINAL: ${widthPx}×${heightPx}px @ ${targetDPI} DPI = ${(totalPixels / 1000000).toFixed(2)} megapixels`);
 
   return {
     // Final output dimensions (with bleed)
