@@ -352,7 +352,25 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       console.log('🔄 Resetting AI image to original dimensions');
 
       // Find the original generated image URL (without transformations)
-      const originalUrl = file.aiMetadata.originalUrl || file.url.split('/upload/')[0] + '/upload/' + file.url.split('/upload/')[1].split('/')[file.url.split('/upload/')[1].split('/').length - 1];
+      // Find the original generated image URL (without transformations)
+      let originalUrl = file.aiMetadata.originalUrl;
+      
+      if (!originalUrl) {
+        // Extract the base URL and public ID, removing any transformations
+        const publicId = extractPublicIdFromUrl(file.url);
+        if (publicId) {
+          const urlParts = file.url.split('/upload/');
+          if (urlParts.length === 2) {
+            originalUrl = `${urlParts[0]}/upload/${publicId}.jpg`;
+          }
+        }
+      }
+      
+      if (!originalUrl) {
+        throw new Error('Could not determine original image URL');
+      }
+      
+      console.log('🔄 Resetting to original URL:', originalUrl);
       
       // Update the file with the original URL
       set({
