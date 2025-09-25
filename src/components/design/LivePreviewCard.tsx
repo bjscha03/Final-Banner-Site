@@ -60,7 +60,6 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
   const [showBleedArea, setShowBleedArea] = useState(false);
   const [showDimensions, setShowDimensions] = useState(false);
 
-  // Professional print guidelines state
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   
