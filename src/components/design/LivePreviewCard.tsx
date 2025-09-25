@@ -61,9 +61,6 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
   const [showDimensions, setShowDimensions] = useState(false);
 
   // Professional print guidelines state
-  const [showSafetyArea, setShowSafetyArea] = useState(false);
-  const [showBleedArea, setShowBleedArea] = useState(false);
-  const [showDimensions, setShowDimensions] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -857,41 +854,6 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
                   </Button>
                 
                   
-                  {/* Professional Print Guidelines Section */}
-                  <div className="flex items-center gap-2 pt-2 border-t border-gray-200">
-                    <span className="text-xs font-medium text-gray-600">Print Guidelines:</span>
-                    
-                    <Button
-                      onClick={() => setShowDimensions(!showDimensions)}
-                      variant={showDimensions ? "default" : "outline"}
-                      size="sm"
-                      className="flex items-center gap-1.5 text-xs"
-                    >
-                      <Ruler className="w-3 h-3" />
-                      Dimensions
-                    </Button>
-                    
-                    <Button
-                      onClick={() => setShowSafetyArea(!showSafetyArea)}
-                      variant={showSafetyArea ? "default" : "outline"}
-                      size="sm"
-                      className="flex items-center gap-1.5 text-xs"
-                    >
-                      <Shield className="w-3 h-3" />
-                      Safety Area
-                    </Button>
-                    
-                    <Button
-                      onClick={() => setShowBleedArea(!showBleedArea)}
-                      variant={showBleedArea ? "default" : "outline"}
-                      size="sm"
-                      className="flex items-center gap-1.5 text-xs"
-                      disabled={!showDimensions}
-                    >
-                      <Square className="w-3 h-3" />
-                      Bleed Area
-                    </Button>
-                  </div>
                 </div>
               </div>
             )}
