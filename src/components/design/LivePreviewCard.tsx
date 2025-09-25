@@ -621,7 +621,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
                   {/* Fit Image to Dimensions Button */}
                   <Button
                     onClick={handleFitImageToDimensions}
-                    disabled={isFittingImage || isResizingImage || isResettingImage}
+                    disabled={true}
                     variant="outline"
                     size="sm"
                     className="flex items-center gap-1.5 text-xs"
@@ -642,7 +642,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
                   {/* NEW: Resize Image Button */}
                   <Button
                     onClick={handleResizeImage}
-                    disabled={isFittingImage || isResizingImage || isResettingImage}
+                    disabled={true}
                     variant="outline"
                     size="sm"
                     className="flex items-center gap-1.5 text-xs bg-blue-50 hover:bg-blue-100 border-blue-200"
@@ -663,7 +663,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
                   {/* NEW: Reset Image Button */}
                   <Button
                     onClick={handleResetImage}
-                    disabled={isFittingImage || isResizingImage || isResettingImage}
+                    disabled={true}
                     variant="outline"
                     size="sm"
                     className="flex items-center gap-1.5 text-xs"
