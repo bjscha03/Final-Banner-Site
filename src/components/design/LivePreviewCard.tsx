@@ -48,7 +48,72 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
   const [uploadError, setUploadError] = useState('');
   const [isFittingImage, setIsFittingImage] = useState(false);
   const [isResizingImage, setIsResizingImage] = useState(false);
-  const [isResettingImage, setIsResettingImage] = useState(false);  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isResettingImage, setIsResettingImage] = useState(false);
+  
+  // Image positioning state
+  const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
+  const [isDraggingImage, setIsDraggingImage] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  
+  // Image positioning state
+
+  // Global event listeners for image dragging
+  useEffect(() => {
+    const handleGlobalMouseMove = (e) => handleImageMouseMove(e);
+    const handleGlobalMouseUp = () => handleImageMouseUp();
+    const handleGlobalTouchMove = (e) => handleImageTouchMove(e);
+    const handleGlobalTouchEnd = () => handleImageTouchEnd();
+
+    if (isDraggingImage) {
+      document.addEventListener('mousemove', handleGlobalMouseMove);
+      document.addEventListener('mouseup', handleGlobalMouseUp);
+      document.addEventListener('touchmove', handleGlobalTouchMove, { passive: false });
+      document.addEventListener('touchend', handleGlobalTouchEnd);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleGlobalMouseMove);
+      document.removeEventListener('mouseup', handleGlobalMouseUp);
+      document.removeEventListener('touchmove', handleGlobalTouchMove);
+      document.removeEventListener('touchend', handleGlobalTouchEnd);
+    };
+  }, [isDraggingImage, dragStart, imagePosition]);
+
+  // Reset image position when file changes
+  useEffect(() => {
+    if (file?.url) {
+      resetImagePosition();
+    }
+  }, [file?.url]);
+
+  // Global event listeners for image dragging
+  useEffect(() => {
+    const handleGlobalMouseMove = (e) => handleImageMouseMove(e);
+    const handleGlobalMouseUp = () => handleImageMouseUp();
+    const handleGlobalTouchMove = (e) => handleImageTouchMove(e);
+    const handleGlobalTouchEnd = () => handleImageTouchEnd();
+
+    if (isDraggingImage) {
+      document.addEventListener('mousemove', handleGlobalMouseMove);
+      document.addEventListener('mouseup', handleGlobalMouseUp);
+      document.addEventListener('touchmove', handleGlobalTouchMove, { passive: false });
+      document.addEventListener('touchend', handleGlobalTouchEnd);
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleGlobalMouseMove);
+      document.removeEventListener('mouseup', handleGlobalMouseUp);
+      document.removeEventListener('touchmove', handleGlobalTouchMove);
+      document.removeEventListener('touchend', handleGlobalTouchEnd);
+    };
+  }, [isDraggingImage, dragStart, imagePosition]);
+
+  // Reset image position when file changes
+  useEffect(() => {
+    if (file?.url) {
+      resetImagePosition();
+    }
+  }, [file?.url]);
 
   // Calculate grommet info
   const grommetInfo = useMemo(() => {
@@ -223,8 +288,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       setIsFittingImage(false);
     }
   };
-  // NEW: Resize Image functionality - Re-triggers AI artwork processing for new dimensions
-  // NEW: Resize Image functionality - Re-triggers AI artwork processing for new dimensions
+  // Enhanced Resize Image functionality - Creates print-ready high-DPI version
   const handleResizeImage = async () => {
     if (!file?.url || !isAIImage || !file.aiMetadata) {
       toast({
@@ -235,23 +299,41 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       return;
     }
 
+    // Prevent double-clicks by checking if already processing
+    if (isResizingImage) {
+      return;
+    }
+
     setIsResizingImage(true);
     const originalUrl = file.url; // Store original URL
     
     try {
-      // Simple approach: just create a higher DPI version using Cloudinary transformations
-      const baseUrl = file.url.split('?')[0]; // Remove query params
-      const highDpiUrl = baseUrl.replace('/upload/', '/upload/dpr_2.0,f_auto,q_auto:best/');
+      // Calculate exact dimensions for print (300 DPI)
+      const printWidthPx = Math.round(widthIn * 300);
+      const printHeightPx = Math.round(heightIn * 300);
       
-      // Update with high DPI version
+      // Create print-ready version with exact dimensions and high quality
+      const baseUrl = file.url.split('?')[0]; // Remove query params
+      const printReadyUrl = baseUrl.replace(
+        '/upload/', 
+        `/upload/c_fill,w_${printWidthPx},h_${printHeightPx},g_center,dpr_1.0,f_auto,q_auto:best/`
+      );
+      
+      // Update with print-ready version
       set({
         file: {
           ...file,
-          url: highDpiUrl,
+          url: printReadyUrl,
           aiMetadata: {
             ...file.aiMetadata,
             printReady: true,
             dpi: 300,
+            dimensions: {
+              widthPx: printWidthPx,
+              heightPx: printHeightPx,
+              widthIn: widthIn,
+              heightIn: heightIn
+            },
             processedAt: new Date().toISOString()
           }
         }
@@ -259,7 +341,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
 
       toast({
         title: 'Print-ready version generated!',
-        description: 'Image optimized for high-quality printing at 300 DPI.',
+        description: `Image optimized for ${widthIn}×${heightIn}" printing at 300 DPI (${printWidthPx}×${printHeightPx}px).`,
         variant: 'default'
       });
 
@@ -341,6 +423,77 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       setIsResettingImage(false);
     }
   };
+
+  // Image positioning handlers for drag and touch support
+  const handleImageMouseDown = (e) => {
+    if (!isAIImage || !file?.url) return;
+    
+    e.preventDefault();
+    setIsDraggingImage(true);
+    setDragStart({
+      x: e.clientX - imagePosition.x,
+      y: e.clientY - imagePosition.y
+    });
+  };
+
+  const handleImageTouchStart = (e) => {
+    if (!isAIImage || !file?.url) return;
+    
+    e.preventDefault();
+    const touch = e.touches[0];
+    setIsDraggingImage(true);
+    setDragStart({
+      x: touch.clientX - imagePosition.x,
+      y: touch.clientY - imagePosition.y
+    });
+  };
+
+  const handleImageMouseMove = (e) => {
+    if (!isDraggingImage) return;
+    
+    e.preventDefault();
+    const newX = e.clientX - dragStart.x;
+    const newY = e.clientY - dragStart.y;
+    
+    // Constrain movement within reasonable bounds
+    const constrainedX = Math.max(-100, Math.min(100, newX));
+    const constrainedY = Math.max(-100, Math.min(100, newY));
+    
+    setImagePosition({ x: constrainedX, y: constrainedY });
+  };
+
+  const handleImageTouchMove = (e) => {
+    if (!isDraggingImage) return;
+    
+    e.preventDefault();
+    const touch = e.touches[0];
+    const newX = touch.clientX - dragStart.x;
+    const newY = touch.clientY - dragStart.y;
+    
+    // Constrain movement within reasonable bounds
+    const constrainedX = Math.max(-100, Math.min(100, newX));
+    const constrainedY = Math.max(-100, Math.min(100, newY));
+    
+    setImagePosition({ x: constrainedX, y: constrainedY });
+  };
+
+  const handleImageMouseUp = () => {
+    setIsDraggingImage(false);
+  };
+
+  const handleImageTouchEnd = () => {
+    setIsDraggingImage(false);
+  };
+
+  // Reset image position when new image is loaded
+  const resetImagePosition = () => {
+    setImagePosition({ x: 0, y: 0 });
+    setIsDraggingImage(false);
+  };
+
+  // Image positioning handlers for drag and touch support
+
+  // Reset image position when new image is loaded
 
   // Helper function to extract Cloudinary public ID from URL
   const extractPublicIdFromUrl = (url) => {
@@ -536,6 +689,10 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
                   className="shadow-lg"
                   scale={previewScalePct / 100} // Convert percentage to decimal
                   file={file}
+                  imagePosition={imagePosition}
+                  onImageMouseDown={handleImageMouseDown}
+                  onImageTouchStart={handleImageTouchStart}
+                  isDraggingImage={isDraggingImage}
                 />
               </div>
             </div>

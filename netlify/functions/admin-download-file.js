@@ -62,13 +62,62 @@ exports.handler = async (event, context) => {
 
     console.log('Attempting to download from Cloudinary:', fileKey);
 
-    // For admin downloads, fetch the file and serve it as a download
+    // Initialize database connection
+    const sql = neon(process.env.NETLIFY_DATABASE_URL);
+
+    // Get order details to determine if this is an AI image and get dimensions
+    let orderDetails = null;
     try {
-      // Generate the download URL from Cloudinary
-      const downloadUrl = cloudinary.url(fileKey, {
-        resource_type: 'auto',
-        flags: 'attachment'
-      });
+      const orderQuery = await sql`
+        SELECT width_in, height_in, file_metadata 
+        FROM orders 
+        WHERE file_key = ${fileKey}
+        LIMIT 1
+      `;
+      orderDetails = orderQuery[0];
+    } catch (dbError) {
+      console.log('Could not fetch order details:', dbError.message);
+    }
+
+    // For admin downloads, generate print-ready version if it's an AI image
+    try {
+      let downloadUrl;
+      let fileName = fileKey.split('/').pop()?.replace(/^.*-/, '') || 'download';
+      
+      // Check if this is an AI image and we have dimensions
+      const isAIImage = fileKey.includes('ai-generated') || 
+                       (orderDetails?.file_metadata && 
+                        JSON.parse(orderDetails.file_metadata || '{}').isAIGenerated);
+      
+      if (isAIImage && orderDetails?.width_in && orderDetails?.height_in) {
+        // Generate print-ready version with exact dimensions (300 DPI)
+        const printWidthPx = Math.round(orderDetails.width_in * 300);
+        const printHeightPx = Math.round(orderDetails.height_in * 300);
+        
+        downloadUrl = cloudinary.url(fileKey, {
+          resource_type: 'image',
+          transformation: [
+            {
+              crop: 'fill',
+              width: printWidthPx,
+              height: printHeightPx,
+              gravity: 'center',
+              quality: 'auto:best',
+              format: 'jpg'
+            }
+          ],
+          flags: 'attachment'
+        });
+        
+        fileName = `print-ready-${orderDetails.width_in}x${orderDetails.height_in}-${fileName}.jpg`;
+        console.log(`Generated print-ready AI image: ${printWidthPx}x${printHeightPx}px at 300 DPI`);
+      } else {
+        // Regular file download
+        downloadUrl = cloudinary.url(fileKey, {
+          resource_type: 'auto',
+          flags: 'attachment'
+        });
+      }
       
       console.log('Generated Cloudinary download URL:', downloadUrl);
       
@@ -81,9 +130,6 @@ exports.handler = async (event, context) => {
       
       const fileBuffer = await response.arrayBuffer();
       const base64File = Buffer.from(fileBuffer).toString('base64');
-      
-      // Extract filename from the public ID
-      const fileName = fileKey.split('/').pop()?.replace(/^.*-/, '') || 'download';
       
       return {
         statusCode: 200,

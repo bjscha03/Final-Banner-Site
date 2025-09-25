@@ -18,6 +18,10 @@ interface PreviewCanvasProps {
     url?: string;
     isPdf?: boolean;
   };
+  imagePosition?: { x: number; y: number };
+  onImageMouseDown?: (e: React.MouseEvent) => void;
+  onImageTouchStart?: (e: React.TouchEvent) => void;
+  isDraggingImage?: boolean;
 }
 
 interface Point {
@@ -108,7 +112,11 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   imageUrl,
   className = '',
   scale = 1,
-  file
+  file,
+  imagePosition = { x: 0, y: 0 },
+  onImageMouseDown,
+  onImageTouchStart,
+  isDraggingImage = false
 }) => {
   // Feature flag for PDF static preview
   const FEATURE_PDF_STATIC_PREVIEW = import.meta.env.VITE_FEATURE_PDF_STATIC_PREVIEW === '1';
@@ -172,12 +180,18 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
         {imageUrl && !file?.isPdf && (
           <image key={imageUrl}
             href={imageUrl}
-            x="0.5"
-            y="0.5"
+            x={0.5 + (imagePosition.x * 0.01)}
+            y={0.5 + (imagePosition.y * 0.01)}
             width={widthIn - 1}
             height={heightIn - 1}
-            preserveAspectRatio="xMidYMid meet"
+            preserveAspectRatio="xMidYMid slice"
             clipPath="url(#banner-clip)"
+            style={{
+              cursor: isDraggingImage ? 'grabbing' : 'grab',
+              userSelect: 'none'
+            }}
+            onMouseDown={onImageMouseDown}
+            onTouchStart={onImageTouchStart}
           />
         )}
 
