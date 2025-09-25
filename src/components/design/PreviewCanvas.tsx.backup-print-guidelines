@@ -22,11 +22,8 @@ interface PreviewCanvasProps {
   onImageMouseDown?: (e: React.MouseEvent) => void;
   onImageTouchStart?: (e: React.TouchEvent) => void;
   isDraggingImage?: boolean;
-  // Professional print guidelines
-  showSafetyArea?: boolean;
-  showBleedArea?: boolean;
-  showDimensions?: boolean;
 }
+
 interface Point {
   x: number;
   y: number;
@@ -113,17 +110,16 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   heightIn,
   grommets,
   imageUrl,
-  className = "",
+  className = '',
   scale = 1,
   file,
   imagePosition = { x: 0, y: 0 },
   onImageMouseDown,
   onImageTouchStart,
-  isDraggingImage = false,
-  showSafetyArea = false,
-  showBleedArea = false,
-  showDimensions = false
-}) => {  // Feature flag for PDF static preview
+  isDraggingImage = false
+}) => {
+  // Feature flag for PDF static preview
+  const FEATURE_PDF_STATIC_PREVIEW = import.meta.env.VITE_FEATURE_PDF_STATIC_PREVIEW === '1';
 
   const grommetPositions = useMemo(() => {
     return grommetPoints(widthIn, heightIn, grommets);
@@ -136,129 +132,46 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
-
-  // Debug logging
-  console.log('🎯 PreviewCanvas Print Guidelines Debug:', {
-    showDimensions,
-    showSafetyArea,
-    showBleedArea,
-    totalWidth,
-    totalHeight,
-    bannerOffsetX,
-    bannerOffsetY,
-    widthIn,
-    heightIn
-  });    const k = 1024;
+    const k = 1024;
     const sizes = ['Bytes', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
-  // Professional print guidelines constants
-  const BLEED_SIZE = 0.125; // 0.125" bleed area
-  const SAFETY_MARGIN = 0.5; // 0.5" safety area
-  const RULER_HEIGHT = 0.3; // Height of dimension rulers
-
-  // Calculate dimensions for print guidelines
-  const bleedWidth = widthIn + (BLEED_SIZE * 2);
-  const bleedHeight = heightIn + (BLEED_SIZE * 2);
-  const totalWidth = showDimensions ? bleedWidth + (RULER_HEIGHT * 2) : widthIn;
-  const totalHeight = showDimensions ? bleedHeight + (RULER_HEIGHT * 2) : heightIn;
-  const bannerOffsetX = showDimensions ? RULER_HEIGHT + BLEED_SIZE : 0;
-  const bannerOffsetY = showDimensions ? RULER_HEIGHT + BLEED_SIZE : 0;
   return (
     <div className={`${className}`}>
       <div className="relative">
         <svg
-          viewBox={`0 0 ${totalWidth} ${totalHeight}`}
+          viewBox={`0 0 ${widthIn} ${heightIn}`}
           className="w-full h-full border border-gray-300 rounded-xl bg-white"
           style={{
-            aspectRatio: `${totalWidth}/${totalHeight}`,
+            aspectRatio: `${widthIn}/${heightIn}`,
             width: '100%',
             height: '100%'
           }}
         >
-        {/* Professional Print Guidelines */}
-        
-        {/* Dimension Rulers - Only show when showDimensions is true */}
-        {showDimensions && (
-          <g className="print-rulers">
-            {/* Top ruler */}
-            <rect x="0" y="0" width={totalWidth} height={RULER_HEIGHT} fill="#f8f9fa" stroke="#e5e7eb" strokeWidth="0.01"/>
-            <text x={totalWidth/2} y={RULER_HEIGHT/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.12" fill="#6b7280">
-              {`${widthIn}"`}
-            </text>
-            
-            {/* Bottom ruler */}
-            <rect x="0" y={totalHeight - RULER_HEIGHT} width={totalWidth} height={RULER_HEIGHT} fill="#f8f9fa" stroke="#e5e7eb" strokeWidth="0.01"/>
-            <text x={totalWidth/2} y={totalHeight - RULER_HEIGHT/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.12" fill="#6b7280">
-              {`${widthIn}"`}
-            </text>
-            
-            {/* Left ruler */}
-            <rect x="0" y="0" width={RULER_HEIGHT} height={totalHeight} fill="#f8f9fa" stroke="#e5e7eb" strokeWidth="0.01"/>
-            <text x={RULER_HEIGHT/2} y={totalHeight/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.12" fill="#6b7280" transform={`rotate(-90, ${RULER_HEIGHT/2}, ${totalHeight/2})`}>
-              {`${heightIn}"`}
-            </text>
-            
-            {/* Right ruler */}
-            <rect x={totalWidth - RULER_HEIGHT} y="0" width={RULER_HEIGHT} height={totalHeight} fill="#f8f9fa" stroke="#e5e7eb" strokeWidth="0.01"/>
-            <text x={totalWidth - RULER_HEIGHT/2} y={totalHeight/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.12" fill="#6b7280" transform={`rotate(90, ${totalWidth - RULER_HEIGHT/2}, ${totalHeight/2})`}>
-              {`${heightIn}"`}
-            </text>
-          </g>
-        )}
-
-        {/* Bleed Area - Only show when showBleedArea is true */}
-        {showBleedArea && (
-          <rect
-            x={RULER_HEIGHT}
-            y={RULER_HEIGHT}
-            width={bleedWidth}
-            height={bleedHeight}
-            fill="none"
-            stroke="#ef4444"
-            strokeWidth="0.05"
-            strokeDasharray="0.05 0.05"
-            opacity="0.8"
-          />
-        )}
-
-        {/* Safety Area - Only show when showSafetyArea is true */}
-        {showSafetyArea && (
-          <rect
-            x={bannerOffsetX + SAFETY_MARGIN}
-            y={bannerOffsetY + SAFETY_MARGIN}
-            width={widthIn - (SAFETY_MARGIN * 2)}
-            height={heightIn - (SAFETY_MARGIN * 2)}
-            fill="none"
-            stroke="#3b82f6"
-            strokeWidth="0.05"
-            strokeDasharray="0.1 0.1"
-            opacity="0.8"
-          />
-        )}        {/* Banner background */}
+        {/* Banner background */}
         <rect
-          x={bannerOffsetX}
-          y={bannerOffsetY}
+          x="0"
+          y="0"
           width={widthIn}
           height={heightIn}
           fill="white"
           stroke="#e5e7eb"
           strokeWidth="0.1"
-          rx={bannerOffsetX + 0.5}
-          ry={bannerOffsetY + 0.5}
+          rx="0.5"
+          ry="0.5"
         />
 
         {/* Safe area / hem guide (1" inset) - very subtle */}
         <rect
-          x={bannerOffsetX + 1}
-          y={bannerOffsetY + 1}
+          x="1"
+          y="1"
           width={widthIn - 2}
           height={heightIn - 2}
           fill="none"
           stroke="#f3f4f6"
-          strokeWidth="0.05"
+          strokeWidth="0.02"
           strokeDasharray="0.1 0.1"
           opacity="0.3"
         />
@@ -267,8 +180,8 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
         {imageUrl && !file?.isPdf && (
           <image key={imageUrl}
             href={imageUrl}
-            x={bannerOffsetX + 0.5 + (imagePosition.x * 0.01)}
-            y={bannerOffsetY + 0.5 + (imagePosition.y * 0.01)}
+            x={0.5 + (imagePosition.x * 0.01)}
+            y={0.5 + (imagePosition.y * 0.01)}
             width={widthIn - 1}
             height={heightIn - 1}
             preserveAspectRatio="xMidYMid slice"
@@ -286,8 +199,8 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
         {!imageUrl && !file?.isPdf && (
           <g>
             <rect
-              x={bannerOffsetX + 2}
-              y={bannerOffsetY + 2}
+              x="2"
+              y="2"
               width={widthIn - 4}
               height={heightIn - 4}
               fill="#f9fafb"
@@ -297,8 +210,8 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
               rx="0.3"
             />
             <text
-              x={bannerOffsetX + widthIn / 2}
-              y={bannerOffsetY + heightIn / 2}
+              x={widthIn / 2}
+              y={heightIn / 2}
               fontSize={Math.min(widthIn, heightIn) * 0.06}
               textAnchor="middle"
               dominantBaseline="middle"
@@ -314,8 +227,8 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
         <defs>
           <clipPath id="banner-clip">
             <rect
-              x={bannerOffsetX + 0.5}
-              y={bannerOffsetY + 0.5}
+              x="0.5"
+              y="0.5"
               width={widthIn - 1}
               height={heightIn - 1}
               rx="0.4"
@@ -329,16 +242,16 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           <g key={index}>
             {/* Grommet shadow for depth */}
             <circle
-              cx={bannerOffsetX + point.x + 0.03}
-              cy={bannerOffsetY + point.y + 0.03}
+              cx={point.x + 0.03}
+              cy={point.y + 0.03}
               r={grommetRadius}
               fill="#000000"
               opacity="0.3"
             />
             {/* Outer grommet ring (metal) - more prominent */}
             <circle
-              cx={bannerOffsetX + point.x}
-              cy={bannerOffsetY + point.y}
+              cx={point.x}
+              cy={point.y}
               r={grommetRadius}
               fill="#6b7280"
               stroke="#374151"
@@ -346,8 +259,8 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
             />
             {/* Inner hole - larger for visibility */}
             <circle
-              cx={bannerOffsetX + point.x}
-              cy={bannerOffsetY + point.y}
+              cx={point.x}
+              cy={point.y}
               r={grommetRadius * 0.65}
               fill="white"
               stroke="#9ca3af"
@@ -366,8 +279,8 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
 
         {/* Banner border (subtle inner stroke for realism) */}
         <rect
-          x={bannerOffsetX + 0.05}
-          y={bannerOffsetY + 0.05}
+          x="0.05"
+          y="0.05"
           width={widthIn - 0.1}
           height={heightIn - 0.1}
           fill="none"
