@@ -211,7 +211,9 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       });
 
     } catch (error) {
-      console.error('Error fitting image:', error);
+      console.error("🚨 RESIZE ERROR DETAILS:", error);
+      console.error("🚨 ORIGINAL URL:", file?.url);
+      console.error("🚨 PUBLIC ID:", publicId);      console.error('Error fitting image:', error);
       toast({
         title: 'Failed to fit image',
         description: 'There was an error resizing the image. Please try again.',
@@ -302,7 +304,9 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       });
 
     } catch (error) {
-      console.error('Error generating print-ready version:', error);
+      console.error("🚨 RESIZE ERROR DETAILS:", error);
+      console.error("🚨 ORIGINAL URL:", file?.url);
+      console.error("🚨 PUBLIC ID:", publicId);      console.error('Error generating print-ready version:', error);
       toast({
         title: 'Resize failed',
         description: error.message || 'Could not generate print-ready version. Please try again.',
@@ -389,7 +393,9 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       });
 
     } catch (error) {
-      console.error('Error resetting image:', error);
+      console.error("🚨 RESIZE ERROR DETAILS:", error);
+      console.error("🚨 ORIGINAL URL:", file?.url);
+      console.error("🚨 PUBLIC ID:", publicId);      console.error('Error resetting image:', error);
       toast({
         title: 'Reset failed',
         description: error.message || 'Could not reset the image. Please try again.',
@@ -442,7 +448,9 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       return publicId;
       
     } catch (error) {
-      console.error('❌ Error extracting public ID:', error);
+      console.error("🚨 RESIZE ERROR DETAILS:", error);
+      console.error("🚨 ORIGINAL URL:", file?.url);
+      console.error("🚨 PUBLIC ID:", publicId);      console.error('❌ Error extracting public ID:', error);
       return null;
     }
   };
