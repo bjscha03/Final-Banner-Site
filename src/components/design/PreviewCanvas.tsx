@@ -173,25 +173,25 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
         {showDimensions && (
           <g className="print-rulers">
             {/* Top ruler */}
-            <rect x={bannerOffsetX} y={bannerOffsetY} width={totalWidth} height={RULER_HEIGHT} fill="#f8f9fa" stroke="#e5e7eb" strokeWidth="0.01"/>
+            <rect x="0" y="0" width={totalWidth} height={RULER_HEIGHT} fill="#f8f9fa" stroke="#e5e7eb" strokeWidth="0.01"/>
             <text x={totalWidth/2} y={RULER_HEIGHT/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.12" fill="#6b7280">
               {`${widthIn}"`}
             </text>
             
             {/* Bottom ruler */}
-            <rect x={bannerOffsetX} y={totalHeight - RULER_HEIGHT} width={totalWidth} height={RULER_HEIGHT} fill="#f8f9fa" stroke="#e5e7eb" strokeWidth="0.01"/>
+            <rect x={showDimensions ? RULER_HEIGHT + BLEED_SIZE : 0} y={totalHeight - RULER_HEIGHT} width={totalWidth} height={RULER_HEIGHT} fill="#f8f9fa" stroke="#e5e7eb" strokeWidth="0.01"/>
             <text x={totalWidth/2} y={totalHeight - RULER_HEIGHT/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.12" fill="#6b7280">
               {`${widthIn}"`}
             </text>
             
             {/* Left ruler */}
-            <rect x={bannerOffsetX} y={bannerOffsetY} width={RULER_HEIGHT} height={totalHeight} fill="#f8f9fa" stroke="#e5e7eb" strokeWidth="0.01"/>
+            <rect x="0" y="0" width={RULER_HEIGHT} height={totalHeight} fill="#f8f9fa" stroke="#e5e7eb" strokeWidth="0.01"/>
             <text x={RULER_HEIGHT/2} y={totalHeight/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.12" fill="#6b7280" transform={`rotate(-90, ${RULER_HEIGHT/2}, ${totalHeight/2})`}>
               {`${heightIn}"`}
             </text>
             
             {/* Right ruler */}
-            <rect x={totalWidth - RULER_HEIGHT} y={bannerOffsetY} width={RULER_HEIGHT} height={totalHeight} fill="#f8f9fa" stroke="#e5e7eb" strokeWidth="0.01"/>
+            <rect x={totalWidth - RULER_HEIGHT} y="0" width={RULER_HEIGHT} height={totalHeight} fill="#f8f9fa" stroke="#e5e7eb" strokeWidth="0.01"/>
             <text x={totalWidth - RULER_HEIGHT/2} y={totalHeight/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.12" fill="#6b7280" transform={`rotate(90, ${totalWidth - RULER_HEIGHT/2}, ${totalHeight/2})`}>
               {`${heightIn}"`}
             </text>
@@ -228,8 +228,8 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           />
         )}        {/* Banner background */}
         <rect
-          x={bannerOffsetX}
-          y={bannerOffsetY}
+          x={showDimensions ? RULER_HEIGHT + BLEED_SIZE : 0}
+          y={showDimensions ? RULER_HEIGHT + BLEED_SIZE : 0}
           width={widthIn}
           height={heightIn}
           fill="white"
