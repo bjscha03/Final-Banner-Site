@@ -45,8 +45,8 @@ exports.handler = async (event) => {
       : publicId;
     
     console.log(`🎨 Processing AI image: action=${action}`);
-    console.log(`🔍 Original cleanPublicId: ${publicId}`);
-    console.log(`🧹 Cleaned cleanPublicId: ${cleanPublicId}`);
+    console.log(`🔍 Original publicId: ${publicId}`);
+    console.log(`🧹 Cleaned publicId: ${cleanPublicId}`);
     console.log(`📏 Dimensions: ${widthIn}×${heightIn}"`);
     if (!action || !publicId) {
       return json(400, { 

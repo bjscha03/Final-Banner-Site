@@ -39,15 +39,8 @@ exports.handler = async (event) => {
       originalUrl       // Original AI image URL (for reset)
     } = JSON.parse(event.body || '{}');
 
-    // Clean the publicId - remove any transformations that might be included
-    const cleanPublicId = publicId.includes("/") 
-      ? publicId.split("/").slice(-2).join("/") // Get last 2 parts: folder/filename
-      : publicId;
-    
-    console.log(`🎨 Processing AI image: action=${action}`);
-    console.log(`🔍 Original cleanPublicId: ${publicId}`);
-    console.log(`🧹 Cleaned cleanPublicId: ${cleanPublicId}`);
-    console.log(`📏 Dimensions: ${widthIn}×${heightIn}"`);
+    console.log(`🎨 Processing AI image: action=${action}, publicId=${publicId}, dimensions=${widthIn}×${heightIn}"`);
+
     if (!action || !publicId) {
       return json(400, { 
         success: false, 
