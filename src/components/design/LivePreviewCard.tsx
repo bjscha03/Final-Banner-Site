@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image, X, ChevronDown, ChevronUp, Wand2, Crop, RefreshCw } from 'lucide-react';
+import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image, X, ChevronDown, ChevronUp, Wand2, Crop, RefreshCw, Ruler, Shield, Square } from 'lucide-react';
 import { useQuoteStore, Grommets } from '@/store/quote';
 import { formatDimensions } from '@/lib/pricing';
 import { grommetPoints } from '@/lib/preview/grommets';
@@ -54,6 +54,16 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
   const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
   const [isDraggingImage, setIsDraggingImage] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+  // Professional print guidelines state
+  const [showSafetyArea, setShowSafetyArea] = useState(false);
+  const [showBleedArea, setShowBleedArea] = useState(false);
+  const [showDimensions, setShowDimensions] = useState(false);
+
+  // Professional print guidelines state
+  const [showSafetyArea, setShowSafetyArea] = useState(false);
+  const [showBleedArea, setShowBleedArea] = useState(false);
+  const [showDimensions, setShowDimensions] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -292,7 +302,21 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
   };
   // Enhanced Resize Image functionality - Creates print-ready high-DPI version
   const handleResizeImage = async () => {
+    console.log('�� handleResizeImage called');
+    console.log('📊 Current state:', { 
+      file: file ? { url: file.url, isPdf: file.isPdf, isAI: file.isAI, aiMetadata: file.aiMetadata } : null,
+      isAIImage, 
+      widthIn, 
+      heightIn,
+      isResizingImage 
+    });
+
     if (!file?.url || !isAIImage || !file.aiMetadata) {
+      console.log('❌ Validation failed:', { 
+        hasFile: !!file?.url, 
+        isAIImage, 
+        hasAiMetadata: !!file?.aiMetadata 
+      });
       toast({
         title: 'No AI image to resize',
         description: 'Please generate an AI image first.',
@@ -303,9 +327,11 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
 
     // Prevent double-clicks by checking if already processing
     if (isResizingImage) {
+      console.log('⏳ Already processing, skipping...');
       return;
     }
 
+    console.log('✅ Starting resize process...');
     setIsResizingImage(true);
     const originalUrl = file.url; // Store original URL
     
@@ -314,15 +340,21 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       const printWidthPx = Math.round(widthIn * 300);
       const printHeightPx = Math.round(heightIn * 300);
       
+      console.log('📐 Calculated dimensions:', { printWidthPx, printHeightPx });
+      
       // Create print-ready version with exact dimensions and high quality
       const baseUrl = file.url.split('?')[0]; // Remove query params
+      console.log('🔗 Base URL:', baseUrl);
+      
       const printReadyUrl = baseUrl.replace(
         '/upload/', 
         `/upload/c_fill,w_${printWidthPx},h_${printHeightPx},g_center,dpr_1.0,f_auto,q_auto:best/`
       );
       
+      console.log('🎯 Print-ready URL:', printReadyUrl);
+      
       // Update with print-ready version
-      set({
+      const newFileData = {
         file: {
           ...file,
           url: printReadyUrl,
@@ -339,7 +371,10 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
             processedAt: new Date().toISOString()
           }
         }
-      });
+      };
+      
+      console.log('💾 Updating store with:', newFileData);
+      set(newFileData);
 
       toast({
         title: 'Print-ready version generated!',
@@ -347,8 +382,12 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
         variant: 'default'
       });
 
+      console.log('✅ Resize completed successfully');
+
     } catch (error) {
-      console.error('Error generating print-ready version:', error);
+      console.error('💥 Error generating print-ready version:', error);
+      console.error('📍 Error stack:', error.stack);
+      
       // Restore original URL on error
       set({
         file: {
@@ -362,6 +401,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
         variant: 'destructive'
       });
     } finally {
+      console.log('🏁 Resize process finished, setting isResizingImage to false');
       setIsResizingImage(false);
     }
   };
@@ -555,7 +595,44 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-sm">
               <Eye className="w-5 h-5 text-white" />
-            </div>
+            
+                  
+                  {/* Professional Print Guidelines Section */}
+                  <div className="flex items-center gap-2 pt-2 border-t border-gray-200">
+                    <span className="text-xs font-medium text-gray-600">Print Guidelines:</span>
+                    
+                    <Button
+                      onClick={() => setShowDimensions(!showDimensions)}
+                      variant={showDimensions ? "default" : "outline"}
+                      size="sm"
+                      className="flex items-center gap-1.5 text-xs"
+                    >
+                      <Ruler className="w-3 h-3" />
+                      Dimensions
+                    </Button>
+                    
+                    <Button
+                      onClick={() => setShowSafetyArea(!showSafetyArea)}
+                      variant={showSafetyArea ? "default" : "outline"}
+                      size="sm"
+                      className="flex items-center gap-1.5 text-xs"
+                    >
+                      <Shield className="w-3 h-3" />
+                      Safety Area
+                    </Button>
+                    
+                    <Button
+                      onClick={() => setShowBleedArea(!showBleedArea)}
+                      variant={showBleedArea ? "default" : "outline"}
+                      size="sm"
+                      className="flex items-center gap-1.5 text-xs"
+                      disabled={!showDimensions}
+                    >
+                      <Square className="w-3 h-3" />
+                      Bleed Area
+                    </Button>
+                  </div>
+                </div>
             <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Live Preview</h2>
           </div>
 
@@ -695,6 +772,9 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
                   onImageMouseDown={handleImageMouseDown}
                   onImageTouchStart={handleImageTouchStart}
                   isDraggingImage={isDraggingImage}
+                  showSafetyArea={showSafetyArea}
+                  showBleedArea={showBleedArea}
+                  showDimensions={showDimensions}
                 />
               </div>
             </div>
@@ -775,6 +855,43 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
                       </>
                     )}
                   </Button>
+                
+                  
+                  {/* Professional Print Guidelines Section */}
+                  <div className="flex items-center gap-2 pt-2 border-t border-gray-200">
+                    <span className="text-xs font-medium text-gray-600">Print Guidelines:</span>
+                    
+                    <Button
+                      onClick={() => setShowDimensions(!showDimensions)}
+                      variant={showDimensions ? "default" : "outline"}
+                      size="sm"
+                      className="flex items-center gap-1.5 text-xs"
+                    >
+                      <Ruler className="w-3 h-3" />
+                      Dimensions
+                    </Button>
+                    
+                    <Button
+                      onClick={() => setShowSafetyArea(!showSafetyArea)}
+                      variant={showSafetyArea ? "default" : "outline"}
+                      size="sm"
+                      className="flex items-center gap-1.5 text-xs"
+                    >
+                      <Shield className="w-3 h-3" />
+                      Safety Area
+                    </Button>
+                    
+                    <Button
+                      onClick={() => setShowBleedArea(!showBleedArea)}
+                      variant={showBleedArea ? "default" : "outline"}
+                      size="sm"
+                      className="flex items-center gap-1.5 text-xs"
+                      disabled={!showDimensions}
+                    >
+                      <Square className="w-3 h-3" />
+                      Bleed Area
+                    </Button>
+                  </div>
                 </div>
               </div>
             )}
