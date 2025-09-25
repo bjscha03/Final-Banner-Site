@@ -236,45 +236,80 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     }
 
     setIsResizingImage(true);
-    const originalUrl = file.url; // Store original URL
-    
+
     try {
-      // Simple approach: just create a higher DPI version using Cloudinary transformations
-      const baseUrl = file.url.split('?')[0]; // Remove query params
-      const highDpiUrl = baseUrl.replace('/upload/', '/upload/dpr_2.0,f_auto,q_auto:best/');
+      console.log(`🔥 RESIZE BUTTON CLICKED: Generating print-ready version for ${widthIn}×${heightIn}"`);
+      console.log('🔥 RESIZE: This is the NEW CODE calling ai-image-processor API');
+
+      // Extract public ID from the current image
+      const publicId = file.aiMetadata?.cloudinary_public_id || extractPublicIdFromUrl(file.url);
       
-      // Update with high DPI version
+      if (!publicId) {
+        throw new Error('Could not extract Cloudinary public ID from image');
+      }
+
+      console.log('Using public ID:', publicId);
+
+      // Call the new AI image processor
+      const response = await fetch('/.netlify/functions/ai-image-processor', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'resize',
+          publicId: publicId,
+          widthIn: widthIn,
+          heightIn: heightIn
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('AI image processor error:', errorText);
+        throw new Error(`Processing failed: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('AI image processor result:', result);
+
+      if (!result.success) {
+        throw new Error(result.error || 'Image processing failed');
+      }
+
+      // Update the file with the print-ready version
+      console.log('✅ Updating file with print-ready URL:', result.processedUrl);
+      
       set({
         file: {
           ...file,
-          url: highDpiUrl,
+          url: result.processedUrl,
+          name: file.name.replace(/_fitted_\d+x\d+|_resized_\d+x\d+|_print_ready_\d+x\d+/, '') + `_print_ready_${widthIn}x${heightIn}`,
           aiMetadata: {
             ...file.aiMetadata,
-            printReady: true,
-            dpi: 300,
-            processedAt: new Date().toISOString()
+            printReadyVersion: {
+              url: result.processedUrl,
+              dimensions: result.dimensions,
+              widthIn: widthIn,
+              heightIn: heightIn
+            }
           }
         }
       });
 
       toast({
         title: 'Print-ready version generated!',
-        description: 'Image optimized for high-quality printing at 300 DPI.',
+        description: `Created high-resolution file at ${result.dimensions?.dpi || 150} DPI for ${widthIn}×${heightIn}" banner`,
         variant: 'default'
       });
 
     } catch (error) {
-      console.error('Error generating print-ready version:', error);
-      // Restore original URL on error
-      set({
-        file: {
-          ...file,
-          url: originalUrl
-        }
-      });
+      console.error("🚨 RESIZE ERROR DETAILS:", error);
+      console.error("🚨 ORIGINAL URL:", file?.url);
+      console.error("🚨 PUBLIC ID:", publicId);      console.error('Error generating print-ready version:', error);
       toast({
         title: 'Resize failed',
-        description: 'Could not generate print-ready version. Original image preserved.',
+        description: error.message || 'Could not generate print-ready version. Please try again.',
         variant: 'destructive'
       });
     } finally {
@@ -293,48 +328,77 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     }
 
     setIsResettingImage(true);
-    const originalUrl = file.url; // Store current URL
-    
+
     try {
-      // Reset to original AI generated image (remove transformations)
-      const baseUrl = file.url.split('?')[0]; // Remove query params
-      let resetUrl = baseUrl;
+      console.log('🔥 RESET BUTTON CLICKED: Resetting AI image to original state');
+      console.log('🔥 RESET: This is the NEW CODE calling ai-image-processor API');
+
+      // Extract public ID from the current image
+      const publicId = file.aiMetadata?.cloudinary_public_id || extractPublicIdFromUrl(file.url);
       
-      // Remove any transformations by finding the base Cloudinary URL
-      if (resetUrl.includes('/upload/')) {
-        const parts = resetUrl.split('/upload/');
-        const afterUpload = parts[1];
-        // Remove transformation parameters (anything before the version or folder)
-        const cleanPath = afterUpload.replace(/^[^v\/]*\//, "");
-        resetUrl = parts[0] + '/upload/' + cleanPath;
+      if (!publicId) {
+        throw new Error('Could not extract Cloudinary public ID from image');
       }
+
+      console.log('Using public ID for reset:', publicId);
+
+      // Call the AI image processor to get original version
+      const response = await fetch('/.netlify/functions/ai-image-processor', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'reset',
+          publicId: publicId
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('AI image processor error:', errorText);
+        throw new Error(`Reset failed: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('AI image processor reset result:', result);
+
+      if (!result.success) {
+        throw new Error(result.error || 'Image reset failed');
+      }
+
+      // Update the file with the original version
+      console.log('✅ Resetting to original URL:', result.processedUrl);
       
-      // Update with reset version
       set({
         file: {
           ...file,
-          url: resetUrl,
+          url: result.processedUrl,
+          name: file.name.replace(/_fitted_\d+x\d+|_resized_\d+x\d+|_print_ready_\d+x\d+/, ''),
           aiMetadata: {
             ...file.aiMetadata,
-            printReady: false,
-            dpi: 72,
-            processedAt: new Date().toISOString()
+            // Remove any transformation metadata
+            printReadyVersion: undefined,
+            resizedDimensions: undefined
           }
-        }
+        },
+        // Reset scale to 100% when resetting image
+        previewScalePct: 100
       });
 
       toast({
         title: 'Image reset successfully!',
-        description: 'Image restored to original AI-generated version.',
+        description: 'Restored AI image to its original state',
         variant: 'default'
       });
 
     } catch (error) {
-      console.error('Error resetting image:', error);
-      // Keep current URL on error
+      console.error("🚨 RESIZE ERROR DETAILS:", error);
+      console.error("🚨 ORIGINAL URL:", file?.url);
+      console.error("🚨 PUBLIC ID:", publicId);      console.error('Error resetting image:', error);
       toast({
         title: 'Reset failed',
-        description: 'Could not reset the image. Current version preserved.',
+        description: error.message || 'Could not reset the image. Please try again.',
         variant: 'destructive'
       });
     } finally {
@@ -557,7 +621,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
                   {/* Fit Image to Dimensions Button */}
                   <Button
                     onClick={handleFitImageToDimensions}
-                    disabled={isFittingImage || isResizingImage || isResettingImage}
+                    disabled={true}
                     variant="outline"
                     size="sm"
                     className="flex items-center gap-1.5 text-xs"
@@ -578,7 +642,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
                   {/* NEW: Resize Image Button */}
                   <Button
                     onClick={handleResizeImage}
-                    disabled={isFittingImage || isResizingImage || isResettingImage}
+                    disabled={true}
                     variant="outline"
                     size="sm"
                     className="flex items-center gap-1.5 text-xs bg-blue-50 hover:bg-blue-100 border-blue-200"
@@ -599,7 +663,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
                   {/* NEW: Reset Image Button */}
                   <Button
                     onClick={handleResetImage}
-                    disabled={isFittingImage || isResizingImage || isResettingImage}
+                    disabled={true}
                     variant="outline"
                     size="sm"
                     className="flex items-center gap-1.5 text-xs"

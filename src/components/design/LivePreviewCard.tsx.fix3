@@ -305,7 +305,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
         const parts = resetUrl.split('/upload/');
         const afterUpload = parts[1];
         // Remove transformation parameters (anything before the version or folder)
-        const cleanPath = afterUpload.replace(/^[^v\/]*\//, "");
+        const cleanPath = afterUpload.replace(/^[^v/]*//, '');
         resetUrl = parts[0] + '/upload/' + cleanPath;
       }
       
