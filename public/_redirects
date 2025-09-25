@@ -1,5 +1,9 @@
 # API routing for Netlify Functions
 /api/*   /.netlify/functions/:splat   200
 
-# SPA fallback for React Router
+# Direct test pages - serve as-is (no React routing)
+/ai-test-direct.html   /ai-test-direct.html   200
+/ai-button-test.html   /ai-button-test.html   200
+
+# SPA fallback for React Router (must be last)
 /*    /index.html   200
