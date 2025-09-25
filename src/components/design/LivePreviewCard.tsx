@@ -286,7 +286,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     } catch (error) {
       console.error("🚨 RESIZE ERROR DETAILS:", error);
       console.error("🚨 ORIGINAL URL:", file?.url);
-      console.error("🚨 PUBLIC ID:", publicId);      console.error('Error fitting image:', error);
+      console.error('Error fitting image:', error);
       toast({
         title: 'Failed to fit image',
         description: 'There was an error resizing the image. Please try again.',
@@ -577,7 +577,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     } catch (error) {
       console.error("🚨 RESIZE ERROR DETAILS:", error);
       console.error("🚨 ORIGINAL URL:", file?.url);
-      console.error("🚨 PUBLIC ID:", publicId);      console.error('❌ Error extracting public ID:', error);
+      console.error('❌ Error extracting public ID:', error);
       return null;
     }
   };
@@ -651,7 +651,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
             <Square className="w-3 h-3" />
             Bleed Area
           </Button>
-        </div>            </div>
+
           </div>
         </div>
       </div>
@@ -885,5 +885,3 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
 };
 
 export default LivePreviewCard;
-console.log("🔥 AI BUTTONS DEBUG: LivePreviewCard loaded at", new Date().toISOString());
-window.AI_BUTTONS_FIXED = true;
