@@ -95,27 +95,6 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     }
   }, [file?.url]);
 
-  // Global event listeners for image dragging
-  useEffect(() => {
-    const handleGlobalMouseMove = (e) => handleImageMouseMove(e);
-    const handleGlobalMouseUp = () => handleImageMouseUp();
-    const handleGlobalTouchMove = (e) => handleImageTouchMove(e);
-    const handleGlobalTouchEnd = () => handleImageTouchEnd();
-
-    if (isDraggingImage) {
-      document.addEventListener('mousemove', handleGlobalMouseMove);
-      document.addEventListener('mouseup', handleGlobalMouseUp);
-      document.addEventListener('touchmove', handleGlobalTouchMove, { passive: false });
-      document.addEventListener('touchend', handleGlobalTouchEnd);
-    }
-
-    return () => {
-      document.removeEventListener('mousemove', handleGlobalMouseMove);
-      document.removeEventListener('mouseup', handleGlobalMouseUp);
-      document.removeEventListener('touchmove', handleGlobalTouchMove);
-      document.removeEventListener('touchend', handleGlobalTouchEnd);
-    };
-  }, [isDraggingImage, dragStart, imagePosition]);
 
   // Reset image position when file changes
   useEffect(() => {

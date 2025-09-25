@@ -29,7 +29,7 @@ import AdminOrders from "./pages/admin/Orders";
 import AdminSeed from "./pages/AdminSeed";
 import AdminSetup from "./pages/AdminSetup";
 import LogoShowcase from "./pages/LogoShowcase";
-import NotFound from "./pages/NotFound";
+import SimplePrintGuidelines from "./components/design/SimplePrintGuidelines";import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
@@ -65,7 +65,7 @@ const App = () => (
             <Route path="/admin/seed" element={<AdminSeed />} />
             <Route path="/admin/setup" element={<AdminSetup />} />
             <Route path="/logo-showcase" element={<LogoShowcase />} />
-            <Route path="*" element={<NotFound />} />
+            <Route path="/test-print-guidelines" element={<SimplePrintGuidelines />} />            <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
