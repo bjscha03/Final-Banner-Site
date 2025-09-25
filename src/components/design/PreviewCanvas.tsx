@@ -22,11 +22,11 @@ interface PreviewCanvasProps {
   onImageMouseDown?: (e: React.MouseEvent) => void;
   onImageTouchStart?: (e: React.TouchEvent) => void;
   isDraggingImage?: boolean;
-}
   // Professional print guidelines
   showSafetyArea?: boolean;
   showBleedArea?: boolean;
   showDimensions?: boolean;
+}
 interface Point {
   x: number;
   y: number;
