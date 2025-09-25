@@ -236,8 +236,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     setIsResizingImage(true);
 
     try {
-      console.log(`🔥 RESIZE BUTTON CLICKED: Generating print-ready version for ${widthIn}×${heightIn}"`);
-      console.log('🔥 RESIZE: This is the NEW CODE calling ai-image-processor API');
+      console.log(`🔄 Generating print-ready version for ${widthIn}×${heightIn}"`);
 
       // Extract public ID from the current image
       const publicId = file.aiMetadata?.cloudinary_public_id || extractPublicIdFromUrl(file.url);
@@ -326,8 +325,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     setIsResettingImage(true);
 
     try {
-      console.log('🔥 RESET BUTTON CLICKED: Resetting AI image to original state');
-      console.log('🔥 RESET: This is the NEW CODE calling ai-image-processor API');
+      console.log('🔄 Resetting AI image to original state');
 
       // Extract public ID from the current image
       const publicId = file.aiMetadata?.cloudinary_public_id || extractPublicIdFromUrl(file.url);
