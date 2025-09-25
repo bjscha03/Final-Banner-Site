@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image, X, ChevronDown, ChevronUp, Wand2, Crop, RefreshCw } from 'lucide-react';
 import { useQuoteStore, Grommets } from '@/store/quote';
 import { formatDimensions } from '@/lib/pricing';
