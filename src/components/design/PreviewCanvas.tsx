@@ -162,7 +162,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           viewBox={`0 0 ${totalWidth} ${totalHeight}`}
           className="w-full h-full border border-gray-300 rounded-xl bg-white"
           style={{
-            aspectRatio: `${widthIn}/${heightIn}`,
+            aspectRatio: `${totalWidth}/${totalHeight}`,
             width: '100%',
             height: '100%'
           }}
@@ -179,7 +179,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
             </text>
             
             {/* Bottom ruler */}
-            <rect x={showDimensions ? RULER_HEIGHT + BLEED_SIZE : 0} y={totalHeight - RULER_HEIGHT} width={totalWidth} height={RULER_HEIGHT} fill="#f8f9fa" stroke="#e5e7eb" strokeWidth="0.01"/>
+            <rect x="0" y={totalHeight - RULER_HEIGHT} width={totalWidth} height={RULER_HEIGHT} fill="#f8f9fa" stroke="#e5e7eb" strokeWidth="0.01"/>
             <text x={totalWidth/2} y={totalHeight - RULER_HEIGHT/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.12" fill="#6b7280">
               {`${widthIn}"`}
             </text>
@@ -228,21 +228,21 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           />
         )}        {/* Banner background */}
         <rect
-          x={showDimensions ? RULER_HEIGHT + BLEED_SIZE : 0}
-          y={showDimensions ? RULER_HEIGHT + BLEED_SIZE : 0}
+          x={bannerOffsetX}
+          y={bannerOffsetY}
           width={widthIn}
           height={heightIn}
           fill="white"
           stroke="#e5e7eb"
           strokeWidth="0.1"
-          rx="0.5"
-          ry="0.5"
+          rx={bannerOffsetX + 0.5}
+          ry={bannerOffsetY + 0.5}
         />
 
         {/* Safe area / hem guide (1" inset) - very subtle */}
         <rect
-          x="1"
-          y="1"
+          x={bannerOffsetX + 1}
+          y={bannerOffsetY + 1}
           width={widthIn - 2}
           height={heightIn - 2}
           fill="none"
@@ -256,8 +256,8 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
         {imageUrl && !file?.isPdf && (
           <image key={imageUrl}
             href={imageUrl}
-            x={0.5 + (imagePosition.x * 0.01)}
-            y={0.5 + (imagePosition.y * 0.01)}
+            x={bannerOffsetX + 0.5 + (imagePosition.x * 0.01)}
+            y={bannerOffsetY + 0.5 + (imagePosition.y * 0.01)}
             width={widthIn - 1}
             height={heightIn - 1}
             preserveAspectRatio="xMidYMid slice"
@@ -275,8 +275,8 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
         {!imageUrl && !file?.isPdf && (
           <g>
             <rect
-              x="2"
-              y="2"
+              x={bannerOffsetX + 2}
+              y={bannerOffsetY + 2}
               width={widthIn - 4}
               height={heightIn - 4}
               fill="#f9fafb"
@@ -286,8 +286,8 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
               rx="0.3"
             />
             <text
-              x={widthIn / 2}
-              y={heightIn / 2}
+              x={bannerOffsetX + widthIn / 2}
+              y={bannerOffsetY + heightIn / 2}
               fontSize={Math.min(widthIn, heightIn) * 0.06}
               textAnchor="middle"
               dominantBaseline="middle"
@@ -303,8 +303,8 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
         <defs>
           <clipPath id="banner-clip">
             <rect
-              x="0.5"
-              y="0.5"
+              x={bannerOffsetX + 0.5}
+              y={bannerOffsetY + 0.5}
               width={widthIn - 1}
               height={heightIn - 1}
               rx="0.4"
@@ -318,16 +318,16 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           <g key={index}>
             {/* Grommet shadow for depth */}
             <circle
-              cx={point.x + 0.03}
-              cy={point.y + 0.03}
+              cx={bannerOffsetX + point.x + 0.03}
+              cy={bannerOffsetY + point.y + 0.03}
               r={grommetRadius}
               fill="#000000"
               opacity="0.3"
             />
             {/* Outer grommet ring (metal) - more prominent */}
             <circle
-              cx={point.x}
-              cy={point.y}
+              cx={bannerOffsetX + point.x}
+              cy={bannerOffsetY + point.y}
               r={grommetRadius}
               fill="#6b7280"
               stroke="#374151"
@@ -335,8 +335,8 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
             />
             {/* Inner hole - larger for visibility */}
             <circle
-              cx={point.x}
-              cy={point.y}
+              cx={bannerOffsetX + point.x}
+              cy={bannerOffsetY + point.y}
               r={grommetRadius * 0.65}
               fill="white"
               stroke="#9ca3af"
@@ -355,8 +355,8 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
 
         {/* Banner border (subtle inner stroke for realism) */}
         <rect
-          x="0.05"
-          y="0.05"
+          x={bannerOffsetX + 0.05}
+          y={bannerOffsetY + 0.05}
           width={widthIn - 0.1}
           height={heightIn - 0.1}
           fill="none"
