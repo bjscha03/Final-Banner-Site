@@ -62,7 +62,7 @@ const Design: React.FC = () => {
 
           {/* Main Preview Card */}
           <div className="max-w-5xl mx-auto mb-8">
-            <LivePreviewCard onOpenAIModal={() => setAiModalOpen(true)} />
+            <LivePreviewCard expanded={true} onOpenAIModal={() => setAiModalOpen(true)} />
             <CheckoutSummary />
           </div>
 
