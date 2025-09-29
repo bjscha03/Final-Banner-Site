@@ -458,7 +458,9 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, expand
       
     } catch (error) {
       console.error("🚨 RESIZE ERROR DETAILS:", error);
-      console.error("🚨 ORIGINAL URL:", file?.url);
+      return null;
+    }
+  };      console.error("🚨 ORIGINAL URL:", file?.url);
       console.error("🚨 PUBLIC ID:", publicId);      console.error('❌ Error extracting public ID:', error);
 
   // Image interaction handlers
@@ -554,9 +556,6 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, expand
       };
     }
   }, [isDraggingImage, isResizingImage, dragStart, initialImagePosition]);
-      return null;
-    }
-  };
 
 
   return (
