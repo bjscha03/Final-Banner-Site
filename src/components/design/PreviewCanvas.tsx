@@ -1,4 +1,4 @@
-import EnhancedEnhancedInteractiveImageEditor from "./EnhancedEnhancedInteractiveImageEditor";
+import InteractiveImageEditor from "./InteractiveImageEditor";
 import React, { useMemo, useState } from 'react';
 import { Grommets } from '@/store/quote';
 import { FileText, Image } from 'lucide-react';
@@ -239,7 +239,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           {/* Interactive Image Editor */}
           {imageUrl && !file?.isPdf && (
             <div className="absolute inset-0" style={{ zIndex: 2 }}>
-              <EnhancedInteractiveImageEditor
+              <InteractiveImageEditor
                 imageUrl={imageUrl}
                 canvasWidth={widthIn}
                 canvasHeight={heightIn}
