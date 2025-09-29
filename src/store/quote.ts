@@ -36,12 +36,39 @@ export interface QuoteState {
     url?: string;
     isPdf?: boolean;
     fileKey?: string;
+    isAI?: boolean;
+    aiMetadata?: {
+      prompt?: string;
+      styles?: string[];
+      colors?: string[];
+      model?: string;
+      aspectRatio?: string;
+    };
   };
   set: (partial: Partial<QuoteState>) => void;
   setFromQuickQuote: (params: QuickQuoteParams) => void;
+  // Computed properties for validation
+  getSquareFootage: () => number;
+  isOverSizeLimit: () => boolean;
+  getSizeLimitMessage: () => string | null;
 }
 
-export const useQuoteStore = create<QuoteState>((set) => ({
+
+// Helper functions for order size validation
+export const calculateSquareFootage = (widthIn: number, heightIn: number): number => {
+  return (widthIn * heightIn) / 144; // Convert square inches to square feet
+};
+
+export const ORDER_SIZE_LIMIT_SQFT = 1000;
+
+export const getSizeLimitMessage = (sqft: number): string | null => {
+  if (sqft > ORDER_SIZE_LIMIT_SQFT) {
+    return `Orders over 1,000 sq ft require a custom quote. Please contact us at (555) 123-4567 or support@bannersonthefly.com before placing your order.`;
+  }
+  return null;
+};
+
+export const useQuoteStore = create<QuoteState>((set, get) => ({
   widthIn: 48,
   heightIn: 24,
   quantity: 1,
@@ -66,4 +93,17 @@ export const useQuoteStore = create<QuoteState>((set) => ({
     addRope: false,
     file: undefined,
   })),
+  // Computed validation methods
+  getSquareFootage: () => {
+    const state = get();
+    return calculateSquareFootage(state.widthIn, state.heightIn);
+  },
+  isOverSizeLimit: () => {
+    const sqft = get().getSquareFootage();
+    return sqft > ORDER_SIZE_LIMIT_SQFT;
+  },
+  getSizeLimitMessage: () => {
+    const sqft = get().getSquareFootage();
+    return getSizeLimitMessage(sqft);
+  }
 }));

@@ -17,7 +17,7 @@ interface MaterialOption {
 }
 
 // Add cache-busting timestamp to force image reload
-const CACHE_BUST = Date.now();
+const CACHE_BUST = "1758606986";
 
 const materials: MaterialOption[] = [
   {
@@ -25,7 +25,7 @@ const materials: MaterialOption[] = [
     name: '13oz Vinyl',
     subtitle: 'Standard outdoor vinyl',
     category: 'vinyl',
-    imagePath: `/images/materials/13oz.svg?v=${CACHE_BUST}`
+    imagePath: `/direct-assets/materials/13oz.svg?v=${CACHE_BUST}`
   },
   {
     key: '15oz',
@@ -33,21 +33,21 @@ const materials: MaterialOption[] = [
     subtitle: 'Premium outdoor vinyl',
     popular: true,
     category: 'vinyl',
-    imagePath: `/images/materials/15oz.svg?v=${CACHE_BUST}`
+    imagePath: `/direct-assets/materials/15oz.svg?v=${CACHE_BUST}`
   },
   {
     key: '18oz',
     name: '18oz Vinyl',
     subtitle: 'Heavy-duty vinyl',
     category: 'vinyl',
-    imagePath: `/images/materials/18oz.svg?v=${CACHE_BUST}`
+    imagePath: `/direct-assets/materials/18oz.svg?v=${CACHE_BUST}`
   },
   {
     key: 'mesh',
     name: 'Mesh Fence Application',
     subtitle: 'Wind-resistant mesh',
     category: 'specialty',
-    imagePath: `/images/materials/mesh.svg?v=${CACHE_BUST}`
+    imagePath: `/direct-assets/materials/mesh.svg?v=${CACHE_BUST}`
   }
 ];
 
@@ -161,7 +161,7 @@ const MaterialCard: React.FC = () => {
         </div>
 
         {/* Header */}
-        <div className="relative bg-gradient-to-r from-purple-600/5 via-pink-600/5 to-red-600/5 px-6 py-5 border-b border-purple-200/30 backdrop-blur-sm">
+        <div className="relative bg-gradient-to-r from-purple-600/5 via-pink-600/5 to-red-600/5 px-6 py-4 border-b border-purple-200/30 backdrop-blur-sm">
           <div className="flex items-center gap-4">
             <div className="relative">
               <div className="w-12 h-12 bg-gradient-to-br from-purple-500 via-pink-500 to-red-600 rounded-2xl flex items-center justify-center shadow-lg">
@@ -176,7 +176,7 @@ const MaterialCard: React.FC = () => {
           </div>
         </div>
 
-        <div className="relative p-8">
+        <div className="relative p-6">
 
           <RadioGroup value={material} onValueChange={handleMaterialChange} className="space-y-6">
             {/* VINYL Section */}

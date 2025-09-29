@@ -262,23 +262,6 @@ const Contact: React.FC = () => {
             </div>
           </div>
 
-          {/* Additional Info */}
-          <div className="mt-16 text-center">
-            <div className="bg-blue-50 rounded-xl p-8 border border-blue-200">
-              <h3 className="text-xl font-semibold text-blue-900 mb-4">
-                Need Help?
-              </h3>
-              <p className="text-blue-700 mb-6">
-                For any questions about your order or our services, please use the contact form above or email us directly.
-              </p>
-              <a
-                href="mailto:support@bannersonthefly.com"
-                className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors inline-block"
-              >
-                Email Support
-              </a>
-            </div>
-          </div>
         </div>
       </div>
     </Layout>

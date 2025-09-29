@@ -1,0 +1,450 @@
+// netlify/functions/ai-artwork-processor.js
+// FIXED VERSION - Automatic AI artwork processing for print-ready output
+const { v2: cloudinary } = require('cloudinary');
+const { v4: uuidv4 } = require('uuid');
+const { sql } = require('@vercel/postgres');
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+/**
+ * Process AI-generated artwork for print-ready output
+ * FIXED: Ensures exact dimensions and proper print quality
+ */
+exports.handler = async (event) => {
+  if (event.httpMethod !== "POST") {
+  console.log("🚀 AI Artwork Processor called - Method:", event.httpMethod);
+    return json(405, { success: false, error: "Method Not Allowed" });
+  }
+
+  try {
+    const { 
+      orderId, 
+      orderItems, 
+      triggerSource = 'order_creation' 
+    } = JSON.parse(event.body || '{}');
+
+    if (!orderId || !orderItems || !Array.isArray(orderItems)) {
+      return json(400, { 
+        success: false, 
+        error: "Order ID and items are required" 
+      });
+    }
+
+    console.log(`🎨 Processing AI artwork for order: ${orderId}, items: ${orderItems.length}`);
+
+    const processedItems = [];
+
+    // Process each order item that has AI design metadata
+    for (const item of orderItems) {
+      if (!item.aiDesign) {
+        console.log(`⏭️ Skipping non-AI item: ${item.id}`);
+        continue;
+      }
+
+      console.log(`🔄 Processing AI item: ${item.id}, dimensions: ${item.width_in}×${item.height_in}"`); console.log("AI Design data:", JSON.stringify(item.aiDesign, null, 2));
+
+      try {
+        const processed = await processAIArtwork({
+          orderItem: item,
+          orderId: orderId
+        });
+        
+        processedItems.push(processed);
+        console.log(`✅ Successfully processed item ${item.id}`);
+        
+      } catch (itemError) {
+        console.error(`❌ Failed to process item ${item.id}:`, itemError);
+        // Continue processing other items
+        processedItems.push({
+          orderItemId: item.id,
+          success: false,
+          error: itemError.message
+        });
+      }
+    }
+
+    console.log(`🎉 AI artwork processing completed: ${processedItems.length} items processed`);
+
+    return json(200, {
+      success: true,
+      processedItems,
+      orderId,
+      triggerSource
+    });
+
+  } catch (error) {
+    console.error('❌ AI artwork processing failed:', error);
+    return json(500, {
+      success: false,
+      error: error.message
+    });
+  }
+};
+
+/**
+ * Process individual AI artwork item
+ * FIXED: Proper dimension conforming and print quality
+ */
+async function processAIArtwork({ orderItem, orderId }) {
+  const { id: itemId, width_in, height_in, aiDesign } = orderItem;
+  
+  // Extract AI design info
+  const sourceUrl = aiDesign.generatedImage?.url || aiDesign.finalizedImage?.finalUrl; console.log("Extracted source URL:", sourceUrl);
+  const sourcePublicId = aiDesign.generatedImage?.publicId || aiDesign.finalizedImage?.finalPublicId; console.log("Extracted public ID:", sourcePublicId);
+  
+  if (!sourceUrl) {
+    throw new Error('No source image URL found in AI design data');
+  }
+
+  console.log(`📐 Calculating dimensions for ${width_in}×${height_in}" banner`);
+
+  // FIXED: Calculate proper target dimensions
+  const targetDimensions = await calculateTargetDimensions({
+    widthIn: width_in,
+    heightIn: height_in,
+    sourceUrl: sourceUrl,
+    sourcePublicId: sourcePublicId
+  });
+
+  console.log(`🎯 Target: ${targetDimensions.widthPx}×${targetDimensions.heightPx}px @ ${targetDimensions.dpi} DPI`);
+
+  // Generate unique IDs for processed files
+  const timestamp = Date.now();
+  const printReadyId = `print-ready/${orderId}/${itemId}-${timestamp}`;
+  const webPreviewId = `web-preview/${orderId}/${itemId}-${timestamp}`;
+  const metadataId = `metadata/${orderId}/${itemId}-${timestamp}`;
+
+  // FIXED: Generate print-ready file with exact dimensions
+  console.log(`🖨️ Generating print-ready file...`);
+  const printReadyResult = await generatePrintReadyFile({
+    sourceUrl,
+    sourcePublicId,
+    targetDimensions,
+    outputId: printReadyId
+  });
+
+  // Generate web preview file (with overlays intact)
+  console.log(`🌐 Generating web preview file...`);
+  const webPreviewResult = await generateWebPreviewFile({
+    sourceUrl,
+    sourcePublicId,
+    targetDimensions,
+    outputId: webPreviewId
+  });
+
+  // Generate metadata
+  const metadata = generateArtworkMetadata({
+    orderItem,
+    targetDimensions,
+    printReadyResult,
+    webPreviewResult
+  });
+
+  // Store metadata in Cloudinary
+  const metadataResult = await cloudinary.uploader.upload(
+    `data:application/json;base64,${Buffer.from(JSON.stringify(metadata, null, 2)).toString('base64')}`,
+    {
+      public_id: metadataId,
+      resource_type: 'raw',
+      overwrite: true
+    }
+  );
+
+  return {
+    orderItemId: itemId,
+    success: true,
+    printReadyUrl: printReadyResult.secure_url,
+    webPreviewUrl: webPreviewResult.secure_url,
+    artworkMetadataUrl: metadataResult.secure_url,
+    dimensions: targetDimensions,
+    processing: {
+      upscalingApplied: targetDimensions.needsUpscaling,
+      aspectCorrectionApplied: targetDimensions.needsAspectCorrection,
+      finalDPI: targetDimensions.dpi,
+      qualityEnhanced: targetDimensions.isHighUpscaling
+    }
+  };
+}
+
+/**
+ * FIXED: Calculate proper target dimensions with exact conforming
+ */
+async function calculateTargetDimensions({ widthIn, heightIn, sourceUrl, sourcePublicId }) {
+  // Target print dimensions (exact ordered size)
+  const targetWidthIn = widthIn;
+  const targetHeightIn = heightIn;
+  
+  // Add bleed (0.25" on all sides) for print-ready version
+  const bleedInches = 0.25;
+  const finalWidthIn = targetWidthIn + (bleedInches * 2);
+  const finalHeightIn = targetHeightIn + (bleedInches * 2);
+
+  let sourceWidth = 1024; // Default assumption for AI images
+  let sourceHeight = 1024;
+
+  // Get actual source dimensions from Cloudinary
+  try {
+    if (sourcePublicId) {
+      const sourceInfo = await cloudinary.api.resource(sourcePublicId, {
+        resource_type: 'image'
+      });
+      sourceWidth = sourceInfo.width;
+      sourceHeight = sourceInfo.height;
+      console.log(`📏 Source dimensions: ${sourceWidth}×${sourceHeight}px`);
+    }
+  } catch (error) {
+    console.warn('⚠️ Could not get source dimensions, using defaults:', error.message);
+  }
+
+  console.log(`📋 Target: ${targetWidthIn}×${targetHeightIn}" → ${finalWidthIn}×${finalHeightIn}" with bleed`);
+  console.log(`📋 Target: ${targetWidthIn}×${targetHeightIn}" → ${finalWidthIn}×${finalHeightIn}" with bleed`);
+
+  // CRITICAL FIX: Cloudinary has a 25 megapixel limit
+  const CLOUDINARY_MAX_MEGAPIXELS = 25000000; // 25 million pixels
+  
+  // Calculate the maximum DPI that keeps us under the megapixel limit
+  const maxSafeDPI = Math.floor(Math.sqrt(CLOUDINARY_MAX_MEGAPIXELS / (finalWidthIn * finalHeightIn)));
+  console.log(`🔍 Maximum safe DPI for ${finalWidthIn}×${finalHeightIn}" = ${maxSafeDPI} DPI`);
+  
+  // Start with 300 DPI target, but cap it at the safe limit
+  let targetDPI = Math.min(300, maxSafeDPI);
+  
+  // Ensure we have a reasonable minimum DPI (but prioritize staying under megapixel limit)
+  if (targetDPI < 100) {
+    console.log(`⚠️ Banner too large for reasonable DPI. Using ${targetDPI} DPI to stay under 25MP limit.`);
+  }
+  
+  let widthPx = Math.round(finalWidthIn * targetDPI);
+  let heightPx = Math.round(finalHeightIn * targetDPI);
+  let totalPixels = widthPx * heightPx;
+
+  console.log(`🔍 Safe calculation: ${widthPx}×${heightPx}px @ ${targetDPI} DPI = ${(totalPixels / 1000000).toFixed(2)} megapixels`);
+
+  // Double-check we're under the limit (should always be true now)
+  if (totalPixels > CLOUDINARY_MAX_MEGAPIXELS) {
+    console.error(`❌ STILL OVER LIMIT: ${(totalPixels / 1000000).toFixed(2)} megapixels > 25MP`);
+    // Emergency fallback: reduce DPI further
+    targetDPI = Math.floor(targetDPI * 0.95);
+    widthPx = Math.round(finalWidthIn * targetDPI);
+    heightPx = Math.round(finalHeightIn * targetDPI);
+    totalPixels = widthPx * heightPx;
+    console.log(`🚨 Emergency reduction: ${widthPx}×${heightPx}px @ ${targetDPI} DPI = ${(totalPixels / 1000000).toFixed(2)} megapixels`);
+  }
+
+  return {
+    // Final output dimensions (with bleed)
+    widthPx,
+    heightPx,
+    dpi: targetDPI,
+    upscalingFactor: maxUpscaling,
+    
+    // Dimension details
+    targetWidthIn,
+    targetHeightIn,
+    finalWidthIn,
+    finalHeightIn,
+    bleedInches,
+    
+    // Source info
+    sourceWidth,
+    sourceHeight,
+    sourceAspectRatio,
+    targetAspectRatio,
+    aspectRatioDiff,
+    
+    // Processing flags
+    needsUpscaling: maxUpscaling > 1.2,
+    needsAspectCorrection: aspectRatioDiff > 0.05,
+    isHighUpscaling: maxUpscaling > 2.0
+  };
+}
+
+/**
+ * FIXED: Generate print-ready file with exact dimensions and high quality
+ */
+async function generatePrintReadyFile({ sourceUrl, sourcePublicId, targetDimensions, outputId }) {
+  const { widthPx, heightPx, dpi, needsUpscaling, needsAspectCorrection, isHighUpscaling } = targetDimensions;
+
+  try {
+    console.log(`🔧 Building transformation for ${widthPx}×${heightPx}px @ ${dpi} DPI`);
+
+    // FIXED: Build proper transformation pipeline
+    const transformation = [];
+
+    // Step 1: Clean up and enhance source image
+    transformation.push(
+      { quality: 'auto:best' }, // Use best quality
+      { fetch_format: 'auto' }, // Optimize format
+      { flags: 'progressive' } // Progressive loading
+    );
+
+    // Step 2: Apply super-resolution upscaling if needed
+    if (needsUpscaling) {
+      console.log(`🚀 Applying super-resolution upscaling`);
+      transformation.push({
+        effect: 'upscale', // Cloudinary's AI upscaling
+        quality: 'auto:best'
+      });
+    }
+
+    // Step 3: CRITICAL FIX - Force exact dimensions with proper aspect handling
+    if (needsAspectCorrection) {
+      console.log(`📐 Applying aspect ratio correction with content-aware fill`);
+      // Use pad with gen_fill for content-aware extension
+      transformation.push({
+        width: widthPx,
+        height: heightPx,
+        crop: 'pad',
+        background: 'gen_fill', // AI-powered background generation
+        gravity: 'center',
+        quality: 'auto:best'
+      });
+    } else {
+      // Direct resize for matching aspect ratios
+      transformation.push({
+        width: widthPx,
+        height: heightPx,
+        crop: 'scale', // Simple scale for matching ratios
+        quality: 'auto:best'
+      });
+    }
+
+    // Step 4: CRITICAL FIX - Final dimension enforcement
+    transformation.push({
+      width: widthPx,
+      height: heightPx,
+      crop: 'fill', // Ensure exact dimensions
+      gravity: 'center',
+      quality: 'auto:best'
+    });
+
+    // Step 5: Final quality enhancements for print
+    transformation.push(
+      { effect: 'sharpen:100' }, // Sharpen for print
+      { effect: 'auto_contrast:10' }, // Enhance contrast
+      { dpr: '1.0' }, // Ensure 1:1 pixel ratio
+      { flags: 'immutable_cache' } // Cache optimization
+    );
+
+    console.log(`🎨 Transformation pipeline: ${transformation.length} steps`);
+
+    // FIXED: Generate high-quality TIFF for print (not PDF for raster images)
+    console.log("🖨️ Attempting Cloudinary upload with:", { sourceUrl, outputId }); const result = await cloudinary.uploader.upload(sourceUrl, {
+      public_id: outputId,
+      transformation: transformation,
+      resource_type: 'image',
+      format: 'tiff', // TIFF is better for high-quality raster print files
+      overwrite: true,
+      context: {
+        dpi: dpi.toString(),
+        print_ready: 'true',
+        exact_dimensions: `${widthPx}x${heightPx}`,
+        upscaling_applied: needsUpscaling.toString(),
+        aspect_corrected: needsAspectCorrection.toString()
+      }
+    });
+
+    console.log(`✅ Print-ready TIFF generated: ${result.secure_url}`);
+    return result;
+
+  } catch (error) {
+    console.error('❌ Print-ready file generation failed:', error);
+    throw new Error(`Failed to generate print-ready file: ${error.message}`);
+  }
+}
+
+/**
+ * Generate web preview file (with overlays preserved)
+ */
+async function generateWebPreviewFile({ sourceUrl, sourcePublicId, targetDimensions, outputId }) {
+  const { targetWidthIn, targetHeightIn } = targetDimensions;
+  
+  // Web preview dimensions (smaller, for web display)
+  const webWidth = Math.round(targetWidthIn * 72); // 72 DPI for web
+  const webHeight = Math.round(targetHeightIn * 72);
+
+  try {
+    console.log("🖨️ Attempting Cloudinary upload with:", { sourceUrl, outputId }); const result = await cloudinary.uploader.upload(sourceUrl, {
+      public_id: outputId,
+      transformation: [
+        { width: webWidth, height: webHeight, crop: 'fit', quality: 'auto:good' },
+        { format: 'jpg' }
+      ],
+      resource_type: 'image',
+      overwrite: true,
+      context: {
+        web_preview: 'true',
+        dimensions: `${webWidth}x${webHeight}`
+      }
+    });
+
+    console.log(`✅ Web preview generated: ${result.secure_url}`);
+    return result;
+
+  } catch (error) {
+    console.error('❌ Web preview generation failed:', error);
+    throw new Error(`Failed to generate web preview: ${error.message}`);
+  }
+}
+
+/**
+ * Generate artwork processing metadata
+ */
+function generateArtworkMetadata({ orderItem, targetDimensions, printReadyResult, webPreviewResult }) {
+  return {
+    orderItemId: orderItem.id,
+    processedAt: new Date().toISOString(),
+    originalDimensions: {
+      widthIn: orderItem.width_in,
+      heightIn: orderItem.height_in
+    },
+    finalDimensions: {
+      widthPx: targetDimensions.widthPx,
+      heightPx: targetDimensions.heightPx,
+      dpi: targetDimensions.dpi,
+      widthIn: targetDimensions.finalWidthIn,
+      heightIn: targetDimensions.finalHeightIn
+    },
+    processing: {
+      upscalingFactor: targetDimensions.upscalingFactor,
+      upscalingApplied: targetDimensions.needsUpscaling,
+      aspectCorrectionApplied: targetDimensions.needsAspectCorrection,
+      highQualityUpscaling: targetDimensions.isHighUpscaling
+    },
+    files: {
+      printReady: {
+        url: printReadyResult.secure_url,
+        format: printReadyResult.format,
+        bytes: printReadyResult.bytes
+      },
+      webPreview: {
+        url: webPreviewResult.secure_url,
+        format: webPreviewResult.format,
+        bytes: webPreviewResult.bytes
+      }
+    },
+    aiDesign: {
+      prompt: orderItem.aiDesign?.prompt,
+      styles: orderItem.aiDesign?.styles,
+      provider: orderItem.aiDesign?.ai?.provider
+    }
+  };
+}
+
+// Helper function for JSON responses
+function json(status, data) {
+  return {
+    statusCode: status,
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS'
+    },
+    body: JSON.stringify(data)
+  };
+}

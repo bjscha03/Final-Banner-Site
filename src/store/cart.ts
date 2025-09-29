@@ -18,12 +18,39 @@ export interface CartItem {
   file_key?: string;
   file_name?: string;
   file_url?: string;
+  // AI Design metadata (optional)
+  aiDesign?: {
+    prompt: string;
+    styles: string[];
+    colors: string[];
+    size: { wIn: number; hIn: number };
+    material: string;
+    options: {
+      grommets: string;
+      polePockets: string;
+      addRope: boolean;
+    };
+    ai: {
+      provider: string;
+      seed?: number;
+      draftPublicId: string;
+    };
+    layers: {
+      headline?: string;
+      subheadline?: string;
+      cta?: string;
+    };
+    assets: {
+      proofUrl: string;
+      finalUrl?: string;
+    };
+  };
   created_at: string;
 }
 
 export interface CartState {
   items: CartItem[];
-  addFromQuote: (quote: QuoteState) => void;
+  addFromQuote: (quote: QuoteState, aiMetadata?: any) => void;
   updateQuantity: (id: string, quantity: number) => void;
   removeItem: (id: string) => void;
   clearCart: () => void;
@@ -38,7 +65,7 @@ export const useCartStore = create<CartState>()(
     (set, get) => ({
       items: [],
       
-      addFromQuote: (quote: QuoteState) => {
+      addFromQuote: (quote: QuoteState, aiMetadata?: any) => {
         const area = (quote.widthIn * quote.heightIn) / 144;
         const pricePerSqFt = {
           '13oz': 4.5,
@@ -99,6 +126,7 @@ export const useCartStore = create<CartState>()(
           file_name: quote.file?.name,
           file_url: quote.file?.url,
           created_at: new Date().toISOString(),
+          ...(aiMetadata || {}),
         };
         
         set((state) => ({

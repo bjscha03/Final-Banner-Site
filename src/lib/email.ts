@@ -89,7 +89,6 @@ async function sendWithRetry(resendClient: any, emailData: any, maxAttempts = 3)
       const delay = attempt === 1 ? 300 : 900;
       await new Promise(resolve => setTimeout(resolve, delay));
 
-      console.log(`Email send attempt ${attempt} failed, retrying in ${delay}ms:`, error?.message);
     }
   }
 

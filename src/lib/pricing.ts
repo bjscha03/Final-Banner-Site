@@ -99,7 +99,9 @@ export const calculateTotalWithTax = (subtotal: number): number => {
 };
 
 export const usd = (amount: number): string => {
-  return amount.toLocaleString('en-US', {
+  // Safety check to prevent undefined/null errors
+  const safeAmount = typeof amount === 'number' && !isNaN(amount) ? amount : 0;
+  return safeAmount.toLocaleString('en-US', {
     style: 'currency',
     currency: 'USD',
     maximumFractionDigits: 2

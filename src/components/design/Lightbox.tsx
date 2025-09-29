@@ -88,6 +88,10 @@ const Lightbox: React.FC<LightboxProps> = ({ isOpen, onClose, src, alt, title })
     }
   };
 
+  // Detection for embedded SVG material images that need larger display
+  // All four material images (13oz, 15oz, 18oz, mesh) are embedded SVGs with similar characteristics
+  const needsLargerDisplay = src.includes('13oz.svg') || src.includes('15oz.svg') || src.includes('18oz.svg') || src.includes('mesh.svg');
+
   return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-75 p-4"
@@ -113,13 +117,23 @@ const Lightbox: React.FC<LightboxProps> = ({ isOpen, onClose, src, alt, title })
           </button>
         </div>
 
-        {/* Image - Much larger display */}
+        {/* Image - Back to basics with targeted enhancement */}
         <div className="p-2">
           <img
             src={src}
             alt={alt}
             className="max-w-full max-h-[calc(95vh-80px)] object-contain mx-auto"
-            style={{ maxWidth: '95vw', maxHeight: 'calc(95vh - 80px)' }}
+            style={{
+              maxWidth: '95vw',
+              maxHeight: 'calc(95vh - 80px)',
+              // Only apply special sizing to the problematic embedded SVGs
+              ...(needsLargerDisplay && {
+                minWidth: '600px',
+                minHeight: '600px',
+                width: '800px',
+                height: '800px'
+              })
+            }}
           />
         </div>
       </div>

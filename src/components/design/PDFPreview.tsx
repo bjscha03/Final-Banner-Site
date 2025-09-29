@@ -85,13 +85,13 @@ const PDFPreview: React.FC<PDFPreviewProps> = ({ url, className = '' }) => {
         <p className="text-xs text-gray-500 mb-3">Your PDF will be used in production</p>
 
         {/* Add a button to open PDF in new tab */}
-        <button
-          onClick={() => window.open(url, '_blank')}
+        <a href={url} download
+          onClick={() => void 0}
           className="inline-flex items-center gap-1 px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 transition-colors"
         >
           <Eye className="w-3 h-3" />
-          View PDF
-        </button>
+          Download PDF
+        </a>
       </div>
     </div>
   );

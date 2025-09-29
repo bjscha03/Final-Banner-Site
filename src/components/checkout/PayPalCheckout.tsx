@@ -10,6 +10,7 @@ interface PayPalCheckoutProps {
   total: number;
   onSuccess: (orderId: string) => void;
   onError: (error: any) => void;
+  disabled?: boolean;
 }
 
 interface PayPalConfig {
@@ -18,7 +19,7 @@ interface PayPalConfig {
   environment: 'sandbox' | 'live' | null;
 }
 
-const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onError }) => {
+const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onError, disabled = false }) => {
   const { toast } = useToast();
   const { user } = useAuth();
   const { items } = useCartStore();
@@ -35,7 +36,6 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
     const setFallbackConfig = () => {
       const fallbackClientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
       if (fallbackClientId) {
-        console.log('Using fallback PayPal config from environment variables.');
         setPaypalConfig({
           enabled: true,
           clientId: fallbackClientId,
@@ -383,7 +383,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
               shape: "rect",
               label: "paypal",
             }}
-            disabled={isCreatingOrder || isCapturingPayment}
+            disabled={disabled || isCreatingOrder || isCapturingPayment}
             createOrder={async (data, actions) => {
               const paypalOrderId = await handleCreateOrder();
               return paypalOrderId;
@@ -419,7 +419,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
 
           <Button
             onClick={handleTestPayment}
-            disabled={isCreatingOrder || isCapturingPayment}
+            disabled={disabled || isCreatingOrder || isCapturingPayment}
             variant="outline"
             className="w-full border-green-300 text-green-700 hover:bg-green-50"
             size="lg"

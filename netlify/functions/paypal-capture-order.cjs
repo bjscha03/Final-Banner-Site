@@ -4,6 +4,40 @@ const { neon } = require('@neondatabase/serverless');
 const { randomUUID } = require('crypto');
 
 // Helper to trigger the notify-order function
+// Helper to trigger AI artwork processing for orders with AI-generated items
+async function processAIArtworkForOrder(orderId, cartItems) {
+  try {
+    // Check if any items have AI design metadata
+    const aiItems = cartItems.filter(item => item.aiDesign);
+    
+    if (aiItems.length === 0) {
+      console.log(`No AI items found in order ${orderId}, skipping AI processing`);
+      return;
+    }
+    
+    console.log(`Found ${aiItems.length} AI items in order ${orderId}, triggering processing`);
+    
+    const siteURL = process.env.URL || "https://bannersonthefly.com";
+    const processingURL = `${siteURL}/.netlify/functions/ai-artwork-processor`;
+    
+    // Fire-and-forget request to AI artwork processor
+    fetch(processingURL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        orderId: orderId,
+        orderItems: cartItems,
+        triggerSource: "order_creation"
+      }),
+    });
+    
+    console.log(`AI artwork processing triggered for order: ${orderId}`);
+  } catch (error) {
+    // Log and ignore, as failing to process AI artwork should not block the order
+    console.error(`Failed to trigger AI artwork processing for order: ${orderId}`, error);
+  }
+}
+
 async function sendOrderNotificationEmail(orderId) {
   try {
     console.log('Triggering notification for PayPal order:', orderId);
@@ -164,6 +198,8 @@ exports.handler = async (event) => {
     // This ensures the user gets a fast response and email issues don't block the order.
     sendOrderNotificationEmail(orderId);
 
+    // Process AI artwork if any items have AI design metadata
+    processAIArtworkForOrder(orderId, cartItems);
     return send(200, {
       ok: true,
       orderId: orderId,

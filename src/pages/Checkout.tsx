@@ -6,6 +6,7 @@ import { getOrdersAdapter } from '../lib/orders/adapter';
 import { OrderItem } from '../lib/orders/types';
 
 import { usd, formatDimensions, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
+import { validateMinimumOrder, canProceedToCheckout } from '@/lib/validation/minimumOrder';
 import Layout from '@/components/Layout';
 import PayPalCheckout from '@/components/checkout/PayPalCheckout';
 import SignUpEncouragementModal from '@/components/checkout/SignUpEncouragementModal';
@@ -18,7 +19,7 @@ const Checkout: React.FC = () => {
   const navigate = useNavigate();
   const { items, clearCart, getSubtotalCents, getTaxCents, getTotalCents, updateQuantity, removeItem } = useCartStore();
   const { user } = useAuth();
-  const { toast } = useToast();
+  const [isAdminUser, setIsAdminUser] = useState(false);  const { toast } = useToast();
   const [showSignUpModal, setShowSignUpModal] = useState(false);
   const [hasShownModal, setHasShownModal] = useState(false);
 
@@ -32,13 +33,40 @@ const Checkout: React.FC = () => {
   let minOrderAdjustmentCents = 0;
   let showMinOrderAdjustment = false;
 
+
+  // Minimum order validation (moved outside conditional block)
+  const adminContext = { isAdmin: isAdminUser, bypassValidation: isAdminUser };
+  const minimumOrderValidation = validateMinimumOrder(totalCents, adminContext);
+  const canProceed = minimumOrderValidation.isValid;
   if (flags.freeShipping || flags.minOrderFloor) {
     const pricingItems: PricingItem[] = items.map(item => ({ line_total_cents: item.line_total_cents }));
     const totals = computeTotals(pricingItems, 0.06, pricingOptions);
+
     minOrderAdjustmentCents = totals.min_order_adjustment_cents;
     showMinOrderAdjustment = minOrderAdjustmentCents > 0;
   }
 
+  // Check admin status
+  useEffect(() => {
+    const checkAdminStatus = async () => {
+      if (user?.email) {
+        try {
+          const response = await fetch('/.netlify/functions/check-admin-status', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: user.email }),
+          });
+          if (response.ok) {
+            const result = await response.json();
+            setIsAdminUser(result.isAdmin);
+          }
+        } catch (error) {
+          console.error('Error checking admin status:', error);
+        }
+      }
+    };
+    checkAdminStatus();
+  }, [user?.email]);
   // Cart management functions
   const handleIncreaseQuantity = (itemId: string) => {
     const item = items.find(i => i.id === itemId);
@@ -281,12 +309,40 @@ const Checkout: React.FC = () => {
               </div>
             </div>
 
+            {/* Minimum Order Warning */}
+            {!canProceed && (
+              <div className="bg-amber-50 border border-amber-200 rounded-2xl shadow-lg p-6 mb-6">
+                <div className="flex items-start gap-4">
+                  <div className="flex-shrink-0">
+                    <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                      <svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z" />
+                      </svg>
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-lg font-semibold text-amber-800 mb-2">Minimum Order Required</h3>
+                    <p className="text-amber-700 mb-4">{minimumOrderValidation.message}</p>
+                    {minimumOrderValidation.suggestions.length > 0 && (
+                      <div className="bg-amber-100 rounded-lg p-4">
+                        <p className="font-medium text-amber-800 mb-2">Suggestions to reach minimum:</p>
+                        <ul className="list-disc list-inside space-y-1 text-sm text-amber-700">
+                          {minimumOrderValidation.suggestions.slice(0, 3).map((suggestion, index) => (
+                            <li key={index}>{suggestion}</li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
             {/* Payment */}
             <div className="space-y-6">
               <div className="bg-white rounded-2xl shadow-lg p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-6">Payment</h2>
                 
-                <PayPalCheckout
+                <PayPalCheckout disabled={!canProceed}
                   total={totalCents}
                   onSuccess={handlePaymentSuccess}
                   onError={handlePaymentError}

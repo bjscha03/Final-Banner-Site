@@ -1,0 +1,482 @@
+// netlify/functions/ai-artwork-processor.js
+// Automatic AI artwork processing for print-ready output
+const { v2: cloudinary } = require('cloudinary');
+const { v4: uuidv4 } = require('uuid');
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+/**
+ * Process AI-generated artwork for print-ready output
+ * Creates exact dimension files with proper DPI and overlay removal
+ */
+exports.handler = async (event) => {
+  if (event.httpMethod !== "POST") {
+    return json(405, { success: false, error: "Method Not Allowed" });
+  }
+
+  try {
+    const { 
+      orderId, 
+      orderItems, 
+      triggerSource = 'order_creation' 
+    } = JSON.parse(event.body || '{}');
+
+    if (!orderId || !orderItems || !Array.isArray(orderItems)) {
+      return json(400, { 
+        success: false, 
+        error: "Order ID and items are required" 
+      });
+    }
+
+    console.log(`Processing AI artwork for order: ${orderId}, items: ${orderItems.length}`);
+
+    const processedItems = [];
+
+    // Process each order item that has AI design metadata
+    for (const item of orderItems) {
+      if (!item.aiDesign) {
+        console.log(`Skipping non-AI item: ${item.id}`);
+        continue;
+      }
+
+      console.log(`Processing AI item: ${item.id}, dimensions: ${item.width_in}x${item.height_in}`);
+
+      try {
+        const processed = await processAIArtwork({
+          orderItem: item,
+          orderId: orderId
+        });
+
+        processedItems.push({
+          itemId: item.id,
+          ...processed
+        });
+
+      } catch (error) {
+        console.error(`Failed to process AI artwork for item ${item.id}:`, error);
+        
+        // Don't fail the entire order - log error and continue
+        processedItems.push({
+          itemId: item.id,
+          success: false,
+          error: error.message,
+          fallbackUrls: {
+            printReady: item.aiDesign?.assets?.finalUrl || item.aiDesign?.assets?.proofUrl,
+            webPreview: item.aiDesign?.assets?.proofUrl
+          }
+        });
+      }
+    }
+
+    console.log(`AI artwork processing complete for order ${orderId}: ${processedItems.length} items processed`);
+
+    return json(200, {
+      success: true,
+      orderId: orderId,
+      processedItems: processedItems,
+      summary: {
+        totalItems: orderItems.length,
+        aiItems: processedItems.length,
+        successfullyProcessed: processedItems.filter(p => p.success !== false).length
+      }
+    });
+
+  } catch (error) {
+    console.error('AI artwork processing error:', error);
+    return json(500, {
+      success: false,
+      error: `Processing failed: ${error.message}`
+    });
+  }
+};
+
+/**
+ * Process individual AI artwork item for print-ready output
+ */
+async function processAIArtwork({ orderItem, orderId }) {
+  const { aiDesign, width_in, height_in, quantity } = orderItem;
+  
+  if (!aiDesign?.assets?.proofUrl && !aiDesign?.assets?.finalUrl) {
+    throw new Error('No AI artwork URL found');
+  }
+
+  // Use finalUrl if available, otherwise proofUrl
+  const sourceUrl = aiDesign.assets.finalUrl || aiDesign.assets.proofUrl;
+  const sourcePublicId = aiDesign.ai?.draftPublicId;
+
+  console.log(`Processing artwork from: ${sourceUrl}`);
+
+  // Calculate target dimensions and DPI
+  const targetDimensions = await calculateTargetDimensions({
+    widthIn: width_in,
+    heightIn: height_in,
+    sourceUrl: sourceUrl,
+    sourcePublicId: sourcePublicId
+  });
+
+  console.log(`Target dimensions: ${targetDimensions.widthPx}x${targetDimensions.heightPx} @ ${targetDimensions.dpi} DPI`);
+
+  // Generate unique IDs for processed files
+  const timestamp = Date.now();
+  const printReadyId = `print-ready/${orderId}/${orderItem.id}-${timestamp}`;
+  const webPreviewId = `web-preview/${orderId}/${orderItem.id}-${timestamp}`;
+  const metadataId = `metadata/${orderId}/${orderItem.id}-${timestamp}`;
+
+  // Process print-ready file
+  const printReadyResult = await generatePrintReadyFile({
+    sourceUrl,
+    sourcePublicId,
+    targetDimensions,
+    outputId: printReadyId,
+    removeOverlays: true
+  });
+
+  // Process web preview file (with overlays intact)
+  const webPreviewResult = await generateWebPreviewFile({
+    sourceUrl,
+    sourcePublicId,
+    targetDimensions,
+    outputId: webPreviewId,
+    preserveOverlays: true
+  });
+
+  // Generate metadata
+  const metadata = generateArtworkMetadata({
+    orderItem,
+    targetDimensions,
+    printReadyResult,
+    webPreviewResult
+  });
+
+  // Store metadata in Cloudinary as JSON
+  const metadataResult = await cloudinary.uploader.upload(
+    `data:application/json;base64,${Buffer.from(JSON.stringify(metadata, null, 2)).toString('base64')}`,
+    {
+      public_id: metadataId,
+      resource_type: 'raw',
+      format: 'json'
+    }
+  );
+
+  return {
+    success: true,
+    printReady: {
+      url: printReadyResult.secure_url,
+      publicId: printReadyResult.public_id,
+      format: printReadyResult.format,
+      width: printReadyResult.width,
+      height: printReadyResult.height
+    },
+    webPreview: {
+      url: webPreviewResult.secure_url,
+      publicId: webPreviewResult.public_id,
+      format: webPreviewResult.format,
+      width: webPreviewResult.width,
+      height: webPreviewResult.height
+    },
+    metadata: {
+      url: metadataResult.secure_url,
+      publicId: metadataResult.public_id,
+      data: metadata
+    },
+    processing: {
+      targetDpi: targetDimensions.dpi,
+      upscalingFactor: targetDimensions.upscalingFactor,
+      aspectRatioCorrection: targetDimensions.aspectRatioCorrection
+    }
+  };
+}
+
+/**
+ * Calculate optimal target dimensions and DPI with actual source image data
+ */
+async function calculateTargetDimensions({ widthIn, heightIn, sourceUrl, sourcePublicId }) {
+  // Target print dimensions
+  const targetWidthIn = widthIn;
+  const targetHeightIn = heightIn;
+  
+  // Add bleed (0.25" on all sides)
+  const bleedInches = 0.25;
+  const finalWidthIn = targetWidthIn + (bleedInches * 2);
+  const finalHeightIn = targetHeightIn + (bleedInches * 2);
+
+  let sourceWidth = 1024; // Default assumption
+  let sourceHeight = 1024;
+
+  // Try to get actual source dimensions
+  try {
+    if (sourcePublicId) {
+      const sourceInfo = await cloudinary.api.resource(sourcePublicId, {
+        resource_type: 'image'
+      });
+      sourceWidth = sourceInfo.width;
+      sourceHeight = sourceInfo.height;
+      console.log(`Actual source dimensions: ${sourceWidth}x${sourceHeight}`);
+    }
+  } catch (error) {
+    console.log('Could not get source dimensions, using defaults');
+  }
+
+  // DPI calculation with fallback logic
+  let targetDpi = 300; // Preferred print DPI
+  let upscalingFactor = 1;
+  let aspectRatioCorrection = 'none';
+
+  // Calculate required upscaling for 300 DPI
+  const requiredWidthPx = Math.round(finalWidthIn * targetDpi);
+  const requiredHeightPx = Math.round(finalHeightIn * targetDpi);
+  
+  const widthUpscaling = requiredWidthPx / sourceWidth;
+  const heightUpscaling = requiredHeightPx / sourceHeight;
+  const maxUpscaling = Math.max(widthUpscaling, heightUpscaling);
+
+  // Apply DPI fallback logic
+  if (maxUpscaling > 4) {
+    // If 300 DPI requires >4x upscaling, try 200 DPI
+    targetDpi = 200;
+    const newRequiredWidthPx = Math.round(finalWidthIn * targetDpi);
+    const newRequiredHeightPx = Math.round(finalHeightIn * targetDpi);
+    const newMaxUpscaling = Math.max(
+      newRequiredWidthPx / sourceWidth,
+      newRequiredHeightPx / sourceHeight
+    );
+    
+    if (newMaxUpscaling > 4) {
+      // Still too much upscaling, use 4x max with best possible DPI
+      upscalingFactor = 4;
+      const maxPossibleWidthPx = sourceWidth * 4;
+      const maxPossibleHeightPx = sourceHeight * 4;
+      targetDpi = Math.max(
+        Math.min(
+          Math.floor(maxPossibleWidthPx / finalWidthIn),
+          Math.floor(maxPossibleHeightPx / finalHeightIn)
+        ),
+        200 // Never go below 200 DPI
+      );
+    } else {
+      upscalingFactor = newMaxUpscaling;
+    }
+  } else {
+    upscalingFactor = maxUpscaling;
+  }
+
+  // Check for aspect ratio differences
+  const sourceAspectRatio = sourceWidth / sourceHeight;
+  const targetAspectRatio = finalWidthIn / finalHeightIn;
+  
+  if (Math.abs(sourceAspectRatio - targetAspectRatio) > 0.05) {
+    if (sourceAspectRatio > targetAspectRatio) {
+      aspectRatioCorrection = 'crop_width';
+    } else {
+      aspectRatioCorrection = 'extend_height';
+    }
+  }
+
+  // Final dimensions
+  const finalWidthPx = Math.round(finalWidthIn * targetDpi);
+  const finalHeightPx = Math.round(finalHeightIn * targetDpi);
+
+  return {
+    widthIn: finalWidthIn,
+    heightIn: finalHeightIn,
+    widthPx: finalWidthPx,
+    heightPx: finalHeightPx,
+    dpi: targetDpi,
+    upscalingFactor: upscalingFactor,
+    aspectRatioCorrection: aspectRatioCorrection,
+    bleedInches: bleedInches,
+    sourceWidth: sourceWidth,
+    sourceHeight: sourceHeight
+  };
+}
+
+/**
+ * Generate print-ready file with exact dimensions and no overlays
+ */
+async function generatePrintReadyFile({ sourceUrl, sourcePublicId, targetDimensions, outputId, removeOverlays }) {
+  const { widthPx, heightPx, dpi, upscalingFactor, aspectRatioCorrection } = targetDimensions;
+
+  try {
+    console.log(`Generating print-ready file: ${widthPx}x${heightPx} @ ${dpi} DPI`);
+
+    // Build advanced transformation pipeline
+    const transformation = [];
+
+    // Step 1: Remove overlays and clean up
+    if (removeOverlays) {
+      transformation.push({ effect: 'trim:5' }); // Trim small margins
+    }
+
+    // Step 2: Apply super-resolution if needed
+    if (upscalingFactor > 2) {
+      console.log('Applying AI upscaling for better quality');
+      transformation.push({ effect: 'upscale' });
+    }
+
+    // Step 3: Handle aspect ratio correction and canvas sizing
+    if (aspectRatioCorrection !== 'none') {
+      console.log(`Applying aspect ratio correction: ${aspectRatioCorrection}`);
+      
+      if (upscalingFactor < 3) {
+        // Content-aware extension
+        transformation.push({
+          width: widthPx,
+          height: heightPx,
+          crop: 'pad',
+          background: 'auto',
+          gravity: 'center'
+        });
+      } else {
+        // Smart cropping
+        transformation.push({
+          width: widthPx,
+          height: heightPx,
+          crop: 'fill',
+          gravity: 'auto'
+        });
+      }
+    } else {
+      // Direct resize for matching aspect ratios
+      transformation.push({
+        width: widthPx,
+        height: heightPx,
+        crop: 'scale'
+      });
+    }
+
+    // Step 4: Final quality and format optimization
+    transformation.push(
+      { quality: 'auto:best' },
+      { format: 'png' },
+      { color_space: 'srgb' }
+    );
+
+    // Generate print-ready file
+    const result = await cloudinary.uploader.upload(sourceUrl, {
+      public_id: outputId,
+      transformation: transformation,
+      resource_type: 'image',
+      overwrite: true,
+      context: {
+        dpi: dpi.toString(),
+        print_ready: 'true',
+        upscaling_factor: upscalingFactor.toFixed(2)
+      }
+    });
+
+    console.log(`Print-ready file generated: ${result.secure_url} (${result.width}x${result.height})`);
+    return result;
+
+  } catch (error) {
+    console.error('Error generating print-ready file:', error);
+    
+    // Fallback to basic transformation
+    const fallbackTransformation = [
+      { width: widthPx, height: heightPx, crop: 'fill', gravity: 'center' },
+      { quality: 'auto:best' },
+      { format: 'png' }
+    ];
+
+    const result = await cloudinary.uploader.upload(sourceUrl, {
+      public_id: outputId,
+      transformation: fallbackTransformation,
+      resource_type: 'image',
+      overwrite: true
+    });
+
+    return result;
+  }
+}
+
+/**
+ * Generate web preview file with overlays intact
+ */
+async function generateWebPreviewFile({ sourceUrl, sourcePublicId, targetDimensions, outputId, preserveOverlays }) {
+  // Web preview is optimized for display, not print
+  const maxWebWidth = 1200;
+  const maxWebHeight = 800;
+  
+  const aspectRatio = targetDimensions.widthPx / targetDimensions.heightPx;
+  let webWidth, webHeight;
+  
+  if (aspectRatio > maxWebWidth / maxWebHeight) {
+    webWidth = maxWebWidth;
+    webHeight = Math.round(maxWebWidth / aspectRatio);
+  } else {
+    webHeight = maxWebHeight;
+    webWidth = Math.round(maxWebHeight * aspectRatio);
+  }
+
+  const result = await cloudinary.uploader.upload(sourceUrl, {
+    public_id: outputId,
+    transformation: [
+      { width: webWidth, height: webHeight, crop: 'fit' },
+      { quality: 'auto:good' },
+      { format: 'jpg' }
+    ],
+    resource_type: 'image',
+    overwrite: true
+  });
+
+  return result;
+}
+
+/**
+ * Generate artwork processing metadata
+ */
+function generateArtworkMetadata({ orderItem, targetDimensions, printReadyResult, webPreviewResult }) {
+  return {
+    orderItemId: orderItem.id,
+    processedAt: new Date().toISOString(),
+    originalDimensions: {
+      widthIn: orderItem.width_in,
+      heightIn: orderItem.height_in
+    },
+    finalDimensions: {
+      widthIn: targetDimensions.widthIn,
+      heightIn: targetDimensions.heightIn,
+      widthPx: targetDimensions.widthPx,
+      heightPx: targetDimensions.heightPx
+    },
+    achievedDpi: targetDimensions.dpi,
+    upscalingFactor: targetDimensions.upscalingFactor,
+    bleedInches: targetDimensions.bleedInches,
+    lowResolutionFlag: targetDimensions.dpi < 250,
+    aspectRatioCorrection: targetDimensions.aspectRatioCorrection,
+    files: {
+      printReady: {
+        url: printReadyResult.secure_url,
+        format: printReadyResult.format,
+        sizeBytes: printReadyResult.bytes || 0
+      },
+      webPreview: {
+        url: webPreviewResult.secure_url,
+        format: webPreviewResult.format,
+        sizeBytes: webPreviewResult.bytes || 0
+      }
+    },
+    aiDesignMetadata: {
+      prompt: orderItem.aiDesign?.prompt,
+      styles: orderItem.aiDesign?.styles,
+      provider: orderItem.aiDesign?.ai?.provider
+    }
+  };
+}
+
+function json(status, body) {
+  return {
+    statusCode: status,
+    headers: {
+      "Content-Type": "application/json",
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Headers": "Origin, Content-Type, Accept",
+      "Access-Control-Allow-Methods": "POST, OPTIONS",
+    },
+    body: JSON.stringify(body),
+  };
+}

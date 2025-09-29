@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme-provider";
 import Index from "./pages/Index";
+import AIDesign from "./pages/AIDesign";
 import Design from "./pages/Design";
 import About from "./pages/About";
 import FAQ from "./pages/FAQ";
@@ -27,10 +28,7 @@ import OrderDetail from "./pages/OrderDetail";
 import AdminOrders from "./pages/admin/Orders";
 import AdminSeed from "./pages/AdminSeed";
 import AdminSetup from "./pages/AdminSetup";
-import TestPage from "./pages/TestPage";
-import BrowserCompatibilityTest from "./pages/BrowserCompatibilityTest";
 import LogoShowcase from "./pages/LogoShowcase";
-import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
@@ -44,6 +42,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/design" element={<Design />} />
+            <Route path="/ai-design" element={<AIDesign />} />
             <Route path="/about" element={<About />} />
             <Route path="/faq" element={<FAQ />} />
             <Route path="/contact" element={<Contact />} />
@@ -64,10 +63,7 @@ const App = () => (
             <Route path="/admin/orders" element={<AdminOrders />} />
             <Route path="/admin/seed" element={<AdminSeed />} />
             <Route path="/admin/setup" element={<AdminSetup />} />
-            <Route path="/test" element={<TestPage />} />
-            <Route path="/browser-test" element={<BrowserCompatibilityTest />} />
             <Route path="/logo-showcase" element={<LogoShowcase />} />
-            <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
       </TooltipProvider>
@@ -76,3 +72,4 @@ const App = () => (
 );
 
 export default App;
+// DEPLOYMENT FORCE 1758771933

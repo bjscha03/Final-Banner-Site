@@ -52,24 +52,14 @@ const AdminOrders: React.FC = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Debug logging for production troubleshooting
-    console.log('🔍 Admin Orders - Auth State:', {
-      authLoading,
-      user: user ? { id: user.id, email: user.email, is_admin: user.is_admin } : null,
-      isAdmin: user ? isAdmin(user) : false,
-      hostname: typeof window !== 'undefined' ? window.location.hostname : 'unknown',
-      cookies: typeof document !== 'undefined' ? document.cookie : 'unavailable'
-    });
 
     // Show access denied message instead of immediate redirect
     if (!authLoading && (!user || !isAdmin(user))) {
-      console.log('🚫 Admin access denied - showing access denied message');
       setShowAccessDenied(true);
       return;
     }
 
     if (user && isAdmin(user)) {
-      console.log('✅ Admin access granted - loading orders');
       loadOrders();
     }
   }, [user, authLoading, navigate]);
@@ -547,6 +537,40 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
 }) => {
   const [trackingNumber, setTrackingNumber] = useState('');
   const [isAddingTracking, setIsAddingTracking] = useState(false);
+  // Helper function to get the best download URL for an item
+  const getBestDownloadUrl = (item) => {
+    // For AI-generated items, prioritize print_ready_url for high-quality downloads
+    if (item.print_ready_url) {
+      return { url: item.print_ready_url, type: 'print_ready', isAI: true };
+    }
+    
+    // Fallback to web_preview_url if available
+    if (item.web_preview_url) {
+      return { url: item.web_preview_url, type: 'web_preview', isAI: true };
+    }
+    
+    // Fallback to original file_key for non-AI items
+    if (item.file_key) {
+      return { url: item.file_key, type: 'file_key', isAI: false };
+    }
+    
+    return null;
+  };
+
+  // Helper function to get download label based on item type
+  const getDownloadLabel = (item, index) => {
+    const downloadInfo = getBestDownloadUrl(item);
+    if (!downloadInfo) return `Item ${index + 1}`;
+    
+    if (downloadInfo.isAI) {
+      return downloadInfo.type === 'print_ready' 
+        ? `🎨 Print File ${index + 1}` 
+        : `🎨 Preview ${index + 1}`;
+    }
+    
+    return `Item ${index + 1}`;
+  };
+
   const [isEditingTracking, setIsEditingTracking] = useState(false);
   const [editTrackingNumber, setEditTrackingNumber] = useState('');
   const [isSendingNotification, setIsSendingNotification] = useState(false);
@@ -588,7 +612,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   const getFilesWithDownload = () => {
     const filesWithDownload = order.items
       .map((item, index) => ({ item, index }))
-      .filter(({ item }) => item.file_key);
+      .filter(({ item }) => item.file_key || item.print_ready_url || item.web_preview_url);
 
     return filesWithDownload;
   };
@@ -634,11 +658,27 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                 key={index}
                 size="sm"
                 variant="outline"
-                onClick={() => onFileDownload(item.file_key!, order.id, index)}
+                onClick={() => {
+                  const downloadInfo = getBestDownloadUrl(item);
+                  if (downloadInfo) {
+                    if (downloadInfo.isAI) {
+                      // For AI items, download directly from the URL (print-ready files)
+                      const link = document.createElement('a');
+                      link.href = downloadInfo.url;
+                      link.download = `banner-${order.id}-item-${index + 1}-${downloadInfo.type}.${downloadInfo.type === 'print_ready' ? 'tiff' : 'jpg'}`;
+                      document.body.appendChild(link);
+                      link.click();
+                      document.body.removeChild(link);
+                    } else {
+                      // For regular items, use the existing download function
+                      onFileDownload(downloadInfo.url, order.id, index);
+                    }
+                  }
+                }}
                 className="text-xs h-6 px-2"
               >
                 <Download className="h-3 w-3 mr-1" />
-                Item {index + 1}
+                {getDownloadLabel(item, index)}
               </Button>
             ))
           ) : (

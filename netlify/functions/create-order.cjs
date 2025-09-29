@@ -288,6 +288,59 @@ exports.handler = async (event, context) => {
       }
     }
 
+    // Process AI artwork automatically for orders containing AI designs
+    try {
+      const aiItems = orderData.items?.filter(item => item.aiDesign) || [];
+      
+      if (aiItems.length > 0) {
+        console.log(`Processing AI artwork for ${aiItems.length} items in order ${orderId}`);
+        
+        const artworkProcessingResponse = await fetch(`${process.env.URL || 'https://bannersonthefly.com'}/.netlify/functions/ai-artwork-processor`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            orderId: orderId,
+            orderItems: aiItems,
+            triggerSource: 'order_creation'
+          }),
+        });
+
+        if (artworkProcessingResponse.ok) {
+          const processingResult = await artworkProcessingResponse.json();
+          console.log('AI artwork processing completed:', processingResult.processedItems?.length || 0, "items");
+          
+          // Update order items with processed artwork URLs
+          for (const processedItem of processingResult.processedItems) {
+            if (processedItem.success !== false) {
+              try {
+                await sql`
+                  UPDATE order_items 
+                  SET 
+                    print_ready_url = ${processedItem.printReadyUrl || null},
+                    web_preview_url = ${processedItem.webPreviewUrl || null},
+                    artwork_metadata_url = ${processedItem.artworkMetadataUrl || null}
+                  WHERE order_id = ${orderId} AND id = ${processedItem.orderItemId}
+                `;
+                console.log(`Updated order item ${processedItem.orderItemId} with processed artwork URLs`);
+              } catch (updateError) {
+                console.error(`Failed to update order item ${processedItem.orderItemId} with artwork URLs:`, updateError);
+                // Don't fail the order - artwork processing succeeded but DB update failed
+              }
+            }
+          }
+        } else {
+          console.error('AI artwork processing failed:', await artworkProcessingResponse.text());
+          // Don't fail the order creation - artwork processing can be retried later
+        }
+      }
+    } catch (artworkError) {
+      console.error('Error processing AI artwork:', artworkError);
+      // Don't fail the order creation - artwork processing can be retried later
+    }
+
+
     console.log('All order items created successfully');
 
     // Return structured response

@@ -188,12 +188,6 @@ const SignIn: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 sm:p-4">
-              <p className="text-blue-800 text-xs sm:text-sm">
-                <strong>Development Mode:</strong> Use any email/password combination to sign in.
-                Use an email containing "admin" to get admin access.
-              </p>
-            </div>
 
             <Button
               type="submit"

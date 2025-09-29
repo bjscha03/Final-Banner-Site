@@ -1,11 +1,12 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image, X, ChevronDown, ChevronUp, Wand2, Crop, RefreshCw } from 'lucide-react';
 import { useQuoteStore, Grommets } from '@/store/quote';
 import { formatDimensions } from '@/lib/pricing';
 import { grommetPoints } from '@/lib/preview/grommets';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { GrommetPicker } from '@/components/ui/GrommetPicker';
+import { useToast } from '@/components/ui/use-toast';
 import PreviewCanvas from './PreviewCanvas';
 
 const grommetOptions = [
@@ -18,11 +19,43 @@ const grommetOptions = [
   { id: 'left-corners', label: 'Left corners only', description: 'Left edge mounting' }
 ];
 
-const LivePreviewCard: React.FC = () => {
+interface LivePreviewCardProps {
+  onOpenAIModal?: () => void;
+}
+// Helper function to create Cloudinary transformation URL for fitting to dimensions
+const createFittedImageUrl = (originalUrl: string, targetWidthIn: number, targetHeightIn: number): string => {
+  // Extract Cloudinary public ID from URL
+  const urlParts = originalUrl.split('/');
+  const uploadIndex = urlParts.findIndex(part => part === 'upload');
+  if (uploadIndex === -1) return originalUrl;
+  
+  const publicIdWithExtension = urlParts.slice(uploadIndex + 1).join('/');
+  const publicId = publicIdWithExtension.replace(/\.[^/.]+$/, ''); // Remove extension
+  const baseUrl = urlParts.slice(0, uploadIndex + 1).join('/');
+  
+  // Use Cloudinary transformations to fit the image to exact dimensions
+  const transformation = `ar_${targetWidthIn}:${targetHeightIn},c_fill,q_auto:best`;
+  
+  return `${baseUrl}/${transformation}/${publicId}.jpg`;
+};
+
+
+const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
   const { widthIn, heightIn, previewScalePct, grommets, file, set } = useQuoteStore();
+  const { toast } = useToast();
 
   const [dragActive, setDragActive] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  
+  // Image interaction state
+  const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
+  const [isDraggingImage, setIsDraggingImage] = useState(false);
+  const [isResizingImage, setIsResizingImage] = useState(false);
+  const [resizeHandle, setResizeHandle] = useState<string | null>(null);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [initialImagePosition, setInitialImagePosition] = useState({ x: 0, y: 0 });
+  const [isFittingImage, setIsFittingImage] = useState(false);
+  const [isResettingImage, setIsResettingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Calculate grommet info
@@ -43,6 +76,14 @@ const LivePreviewCard: React.FC = () => {
       name: grommetName
     };
   }, [widthIn, heightIn, grommets]);
+  // Check if current file is an AI-generated image (has Cloudinary URL and is not PDF)
+  const isAIImage = useMemo(() => {
+    return file && 
+           file.url && 
+           !file.isPdf && 
+           (file.url.includes('cloudinary.com') || file.isAI === true);
+  }, [file]);
+
 
   // File upload logic
   const acceptedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
@@ -146,6 +187,373 @@ const LivePreviewCard: React.FC = () => {
   const handleResetZoom = () => {
     set({ previewScalePct: 100 });
   };
+  // Fit Image to Dimensions functionality
+  const handleFitImageToDimensions = async () => {
+    if (!file?.url || !isAIImage) {
+      toast({
+        title: 'No AI image to fit',
+        description: 'Please generate an AI image first.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setIsFittingImage(true);
+
+    try {
+      // Create fitted image URL using Cloudinary transformations
+      const fittedUrl = createFittedImageUrl(file.url, widthIn, heightIn);
+      
+      // Update the file with the fitted URL
+      set({
+        file: {
+          ...file,
+          url: fittedUrl,
+          name: `${file.name.replace(/\.[^/.]+$/, '')}_fitted_${widthIn}x${heightIn}.jpg`
+        }
+      });
+
+      toast({
+        title: 'Image fitted successfully!',
+        description: `Image has been resized to perfectly match your ${widthIn}" × ${heightIn}" banner dimensions.`
+      });
+
+    } catch (error) {
+      console.error("🚨 RESIZE ERROR DETAILS:", error);
+      console.error("🚨 ORIGINAL URL:", file?.url);
+      console.error("🚨 PUBLIC ID:", publicId);      console.error('Error fitting image:', error);
+      toast({
+        title: 'Failed to fit image',
+        description: 'There was an error resizing the image. Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsFittingImage(false);
+    }
+  };
+  // NEW: Resize Image functionality - Re-triggers AI artwork processing for new dimensions
+  // NEW: Resize Image functionality - Re-triggers AI artwork processing for new dimensions
+  const handleResizeImage = async () => {
+    if (!file?.url || !isAIImage || !file.aiMetadata) {
+      toast({
+        title: 'No AI image to resize',
+        description: 'Please generate an AI image first.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setIsResizingImage(true);
+
+    try {
+      console.log(`🔥 RESIZE BUTTON CLICKED: Generating print-ready version for ${widthIn}×${heightIn}"`);
+      console.log('🔥 RESIZE: This is the NEW CODE calling ai-image-processor API');
+
+      // Extract public ID from the current image
+      const publicId = file.aiMetadata?.cloudinary_public_id || extractPublicIdFromUrl(file.url);
+      
+      if (!publicId) {
+        throw new Error('Could not extract Cloudinary public ID from image');
+      }
+
+      console.log('Using public ID:', publicId);
+
+      // Call the new AI image processor
+      const response = await fetch('/.netlify/functions/ai-image-processor', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'resize',
+          publicId: publicId,
+          widthIn: widthIn,
+          heightIn: heightIn
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('AI image processor error:', errorText);
+        throw new Error(`Processing failed: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('AI image processor result:', result);
+
+      if (!result.success) {
+        throw new Error(result.error || 'Image processing failed');
+      }
+
+      // Update the file with the print-ready version
+      console.log('✅ Updating file with print-ready URL:', result.processedUrl);
+      
+      set({
+        file: {
+          ...file,
+          url: result.processedUrl,
+          name: file.name.replace(/_fitted_\d+x\d+|_resized_\d+x\d+|_print_ready_\d+x\d+/, '') + `_print_ready_${widthIn}x${heightIn}`,
+          aiMetadata: {
+            ...file.aiMetadata,
+            printReadyVersion: {
+              url: result.processedUrl,
+              dimensions: result.dimensions,
+              widthIn: widthIn,
+              heightIn: heightIn
+            }
+          }
+        }
+      });
+
+      toast({
+        title: 'Print-ready version generated!',
+        description: `Created high-resolution file at ${result.dimensions?.dpi || 150} DPI for ${widthIn}×${heightIn}" banner`,
+        variant: 'default'
+      });
+
+    } catch (error) {
+      console.error("🚨 RESIZE ERROR DETAILS:", error);
+      console.error("🚨 ORIGINAL URL:", file?.url);
+      console.error("🚨 PUBLIC ID:", publicId);      console.error('Error generating print-ready version:', error);
+      toast({
+        title: 'Resize failed',
+        description: error.message || 'Could not generate print-ready version. Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsResizingImage(false);
+    }
+  };
+  // NEW: Reset Image functionality - Restores AI image to original generated size/aspect ratio
+  const handleResetImage = async () => {
+    if (!file?.url || !isAIImage || !file.aiMetadata) {
+      toast({
+        title: 'No AI image to reset',
+        description: 'Please generate an AI image first.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setIsResettingImage(true);
+
+    try {
+      console.log('🔥 RESET BUTTON CLICKED: Resetting AI image to original state');
+      console.log('🔥 RESET: This is the NEW CODE calling ai-image-processor API');
+
+      // Extract public ID from the current image
+      const publicId = file.aiMetadata?.cloudinary_public_id || extractPublicIdFromUrl(file.url);
+      
+      if (!publicId) {
+        throw new Error('Could not extract Cloudinary public ID from image');
+      }
+
+      console.log('Using public ID for reset:', publicId);
+
+      // Call the AI image processor to get original version
+      const response = await fetch('/.netlify/functions/ai-image-processor', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'reset',
+          publicId: publicId
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('AI image processor error:', errorText);
+        throw new Error(`Reset failed: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('AI image processor reset result:', result);
+
+      if (!result.success) {
+        throw new Error(result.error || 'Image reset failed');
+      }
+
+      // Update the file with the original version
+      console.log('✅ Resetting to original URL:', result.processedUrl);
+      
+      set({
+        file: {
+          ...file,
+          url: result.processedUrl,
+          name: file.name.replace(/_fitted_\d+x\d+|_resized_\d+x\d+|_print_ready_\d+x\d+/, ''),
+          aiMetadata: {
+            ...file.aiMetadata,
+            // Remove any transformation metadata
+            printReadyVersion: undefined,
+            resizedDimensions: undefined
+          }
+        },
+        // Reset scale to 100% when resetting image
+        previewScalePct: 100
+      });
+
+      toast({
+        title: 'Image reset successfully!',
+        description: 'Restored AI image to its original state',
+        variant: 'default'
+      });
+
+    } catch (error) {
+      console.error("🚨 RESIZE ERROR DETAILS:", error);
+      console.error("🚨 ORIGINAL URL:", file?.url);
+      console.error("🚨 PUBLIC ID:", publicId);      console.error('Error resetting image:', error);
+      toast({
+        title: 'Reset failed',
+        description: error.message || 'Could not reset the image. Please try again.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsResettingImage(false);
+    }
+  };
+
+  // Helper function to extract Cloudinary public ID from URL
+  const extractPublicIdFromUrl = (url) => {
+    try {
+      console.log('🔍 Extracting public ID from URL:', url);
+      
+      const urlParts = url.split('/');
+      const uploadIndex = urlParts.findIndex(part => part === 'upload');
+      if (uploadIndex === -1) {
+        console.warn('⚠️ No "upload" found in URL');
+        return null;
+      }
+      
+      // Get everything after 'upload/'
+      let pathAfterUpload = urlParts.slice(uploadIndex + 1);
+      console.log('📂 Path after upload:', pathAfterUpload);
+      
+      // Remove transformation parameters (they start with letters like 'c_', 'w_', etc.)
+      // The public ID is typically the last part that doesn't start with transformation params
+      const publicIdParts = [];
+      let foundTransformations = false;
+      
+      for (const part of pathAfterUpload) {
+        // Check if this looks like a transformation parameter (contains underscores and starts with letter)
+        if (part.includes('_') && /^[a-z]_/.test(part)) {
+          foundTransformations = true;
+          continue;
+        }
+        
+        // If we haven't found transformations yet, or this is clearly a path segment
+        if (!foundTransformations || !part.includes('_')) {
+          publicIdParts.push(part);
+        }
+      }
+      
+      // Join the parts and remove file extension
+      const publicIdWithExtension = publicIdParts.join('/');
+      const publicId = publicIdWithExtension.replace(/\.[^/.]+$/, '');
+      
+      console.log('✅ Extracted public ID:', publicId);
+      return publicId;
+      
+    } catch (error) {
+      console.error('❌ Error extracting public ID:', error);
+      return null;
+    }
+  };
+  // Image interaction handlers
+  const handleImageMouseDown = (e: React.MouseEvent) => {
+    if (!file?.url || file.isPdf) return;
+    
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    // Check if clicking on a resize handle
+    const target = e.target as SVGElement;
+    if (target.classList.contains("resize-handle-nw") ||
+        target.classList.contains("resize-handle-ne") ||
+        target.classList.contains("resize-handle-sw") ||
+        target.classList.contains("resize-handle-se")) {
+      setIsResizingImage(true);
+      setResizeHandle(target.classList[0]);
+    } else {
+      setIsDraggingImage(true);
+    }
+    
+    setDragStart({ x, y });
+    setInitialImagePosition({ ...imagePosition });
+  };
+  
+  const handleImageTouchStart = (e: React.TouchEvent) => {
+    if (!file?.url || file.isPdf) return;
+    
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const touch = e.touches[0];
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    
+    setIsDraggingImage(true);
+    setDragStart({ x, y });
+    setInitialImagePosition({ ...imagePosition });
+  };
+  
+  // Global mouse/touch handlers for dragging
+  React.useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDraggingImage && !isResizingImage) return;
+      
+      e.preventDefault();
+      const deltaX = e.clientX - dragStart.x;
+      const deltaY = e.clientY - dragStart.y;
+      
+      if (isDraggingImage) {
+        // Convert pixel movement to percentage of banner dimensions
+        const newX = Math.max(-50, Math.min(50, initialImagePosition.x + (deltaX / 10)));
+        const newY = Math.max(-50, Math.min(50, initialImagePosition.y + (deltaY / 10)));
+        setImagePosition({ x: newX, y: newY });
+      }
+    };
+    
+    const handleMouseUp = () => {
+      setIsDraggingImage(false);
+      setIsResizingImage(false);
+      setResizeHandle(null);
+    };
+    
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isDraggingImage) return;
+      
+      e.preventDefault();
+      const touch = e.touches[0];
+      const deltaX = touch.clientX - dragStart.x;
+      const deltaY = touch.clientY - dragStart.y;
+      
+      const newX = Math.max(-50, Math.min(50, initialImagePosition.x + (deltaX / 10)));
+      const newY = Math.max(-50, Math.min(50, initialImagePosition.y + (deltaY / 10)));
+      setImagePosition({ x: newX, y: newY });
+    };
+    
+    const handleTouchEnd = () => {
+      setIsDraggingImage(false);
+    };
+    
+    if (isDraggingImage || isResizingImage) {
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+      document.addEventListener("touchmove", handleTouchMove, { passive: false });
+      document.addEventListener("touchend", handleTouchEnd);
+      
+      return () => {
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+        document.removeEventListener("touchmove", handleTouchMove);
+        document.removeEventListener("touchend", handleTouchEnd);
+      };
+    }
+  }, [isDraggingImage, isResizingImage, dragStart, initialImagePosition]);
+
 
   return (
     <div className="bg-white border border-gray-200/60 rounded-2xl overflow-hidden shadow-sm">
@@ -228,16 +636,38 @@ const LivePreviewCard: React.FC = () => {
                 : 'bg-gray-100 hover:bg-gray-50'
             }`}
           >
-            <div>
+            <div className="flex flex-col items-center">
               <h3 className="text-lg font-medium text-gray-500 mb-2">Upload artwork to preview</h3>
               <p className="text-gray-400 mb-4">Your banner will appear here</p>
               <p className="text-sm text-gray-400 mb-4">Supports: JPG, PNG, JPEG, PDF</p>
-              <button
-                onClick={() => fileInputRef.current?.click()}
-                className="mb-4 px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200"
-              >
-                Upload Artwork
-              </button>
+              
+              {/* Button container with proper centering */}
+              <div className="flex flex-col items-center gap-3 w-full">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200 w-full max-w-xs h-12 flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
+                >
+                  <Upload className="w-5 h-5" />
+                  Upload Artwork
+                </button>
+                {import.meta.env.VITE_AI_BANNER_ENABLED !== 'false' && onOpenAIModal && (
+                  <>
+                    <div className="text-gray-400 text-sm">or</div>
+                    <button
+                      onClick={onOpenAIModal}
+                      className="px-6 py-3 relative bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-300 hover:border-purple-400 hover:from-purple-100 hover:to-blue-100 text-purple-700 hover:text-purple-800 rounded-lg font-medium transition-all duration-200 w-full max-w-xs h-12 flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
+                      data-cta="ai-generate-open"
+                    >
+                      <Wand2 className="w-5 h-5" />
+                      Generate with AI
+                      <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full shadow-sm">
+                        BETA
+                      </span>
+                    </button>
+                  </>
+                )}
+              </div>
+              
               <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-left max-w-md mx-auto">
                 <p className="text-xs text-blue-700 font-medium mb-1">File requirements:</p>
                 <p className="text-xs text-blue-600">
@@ -267,9 +697,12 @@ const LivePreviewCard: React.FC = () => {
                   grommets={grommets}
                   imageUrl={file?.url && !file.isPdf ? file.url : undefined}
                   className="shadow-lg"
-                  scale={previewScalePct / 100} // Convert percentage to decimal
+                  
                   file={file}
-                />
+                  imagePosition={imagePosition}
+                  onImageMouseDown={handleImageMouseDown}
+                  onImageTouchStart={handleImageTouchStart}
+                  isDraggingImage={isDraggingImage}                />
               </div>
             </div>
 
@@ -283,6 +716,75 @@ const LivePreviewCard: React.FC = () => {
                 Remove
               </button>
             </div>
+            {/* AI Image Control Buttons - Enhanced with Resize and Reset */}
+            {isAIImage && (
+              <div className="absolute bottom-4 left-4 right-4 flex justify-center">
+                <div className="flex gap-2 bg-white/95 backdrop-blur-sm rounded-lg p-2 shadow-lg border">
+                  {/* Fit Image to Dimensions Button */}
+                  <Button
+                    onClick={handleFitImageToDimensions}
+                    disabled={isFittingImage || isResizingImage || isResettingImage}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-1.5 text-xs"
+                  >
+                    {isFittingImage ? (
+                      <>
+                        <div className="w-3 h-3 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600" />
+                        Fitting...
+                      </>
+                    ) : (
+                      <>
+                        <Crop className="w-3 h-3" />
+                        Fit to Size
+                      </>
+                    )}
+                  </Button>
+
+                  {/* NEW: Resize Image Button */}
+                  <Button
+                    onClick={handleResizeImage}
+                    disabled={isFittingImage || isResizingImage || isResettingImage}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-1.5 text-xs bg-blue-50 hover:bg-blue-100 border-blue-200"
+                  >
+                    {isResizingImage ? (
+                      <>
+                        <div className="w-3 h-3 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600" />
+                        Resizing...
+                      </>
+                    ) : (
+                      <>
+                        <Wand2 className="w-3 h-3" />
+                        Resize Image
+                      </>
+                    )}
+                  </Button>
+
+                  {/* NEW: Reset Image Button */}
+                  <Button
+                    onClick={handleResetImage}
+                    disabled={isFittingImage || isResizingImage || isResettingImage}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-1.5 text-xs"
+                  >
+                    {isResettingImage ? (
+                      <>
+                        <div className="w-3 h-3 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600" />
+                        Resetting...
+                      </>
+                    ) : (
+                      <>
+                        <RefreshCw className="w-3 h-3" />
+                        Reset
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -311,3 +813,5 @@ const LivePreviewCard: React.FC = () => {
 };
 
 export default LivePreviewCard;
+console.log("🔥 AI BUTTONS DEBUG: LivePreviewCard loaded at", new Date().toISOString());
+window.AI_BUTTONS_FIXED = true;

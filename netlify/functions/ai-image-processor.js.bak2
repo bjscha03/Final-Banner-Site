@@ -1,0 +1,168 @@
+// netlify/functions/ai-image-processor.js
+// NEW: Simplified AI image processing for resize and print-ready generation
+const { v2: cloudinary } = require('cloudinary');
+const { v4: uuidv4 } = require('uuid');
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
+
+/**
+ * Process AI images for print-ready output or reset to original
+ * Handles both "Resize Image" and "Reset" functionality
+ */
+exports.handler = async (event) => {
+  console.log("🚀 AI Image Processor called - Method:", event.httpMethod);
+  
+  if (event.httpMethod !== "POST") {
+    return {
+      statusCode: 405,
+      headers: {
+        'Content-Type': 'application/json',
+        'Access-Control-Allow-Origin': '*',
+        'Access-Control-Allow-Headers': 'Content-Type',
+        'Access-Control-Allow-Methods': 'POST, OPTIONS'
+      },
+      body: JSON.stringify({ success: false, error: "Method Not Allowed" })
+    };
+  }
+
+  try {
+    const { 
+      action,           // 'resize' or 'reset'
+      publicId,         // Cloudinary public ID
+      widthIn,          // Target width in inches
+      heightIn,         // Target height in inches
+      originalUrl       // Original AI image URL (for reset)
+    } = JSON.parse(event.body || '{}');
+
+    // Clean the publicId - remove any transformations that might be included
+    const cleanPublicId = publicId.includes("/") 
+      ? publicId.split("/").slice(-2).join("/") // Get last 2 parts: folder/filename
+      : publicId;
+    
+    console.log(`🎨 Processing AI image: action=${action}`);
+    console.log(`🔍 Original publicId: ${publicId}`);
+    console.log(`🧹 Cleaned publicId: ${cleanPublicId}`);
+    console.log(`📏 Dimensions: ${widthIn}×${heightIn}"`);
+    if (!action || !publicId) {
+      return json(400, { 
+        success: false, 
+        error: "Action and publicId are required" 
+      });
+    }
+
+    if (action === 'reset') {
+      // RESET: Return original AI image URL
+      console.log('🔄 Resetting to original AI image');
+      
+      const originalImageUrl = cloudinary.url(publicId, {
+        resource_type: 'image',
+        format: 'jpg',
+        quality: 'auto:good'
+      });
+
+      return json(200, {
+        success: true,
+        action: 'reset',
+        processedUrl: originalImageUrl,
+        message: 'Image reset to original successfully'
+      });
+    }
+
+    if (action === 'resize') {
+      // RESIZE: Generate print-ready version
+      console.log(`🖨️ Generating print-ready version for ${widthIn}×${heightIn}"`);
+      
+      if (!widthIn || !heightIn) {
+        return json(400, { 
+          success: false, 
+          error: "Width and height are required for resize action" 
+        });
+      }
+
+      // Calculate optimal dimensions for print quality
+      const targetDPI = 150; // Good balance between quality and file size
+      const targetWidthPx = Math.round(widthIn * targetDPI);
+      const targetHeightPx = Math.round(heightIn * targetDPI);
+      
+      console.log(`📐 Target dimensions: ${targetWidthPx}×${targetHeightPx}px at ${targetDPI} DPI`);
+
+      // Check Cloudinary limits (25 megapixels)
+      const totalPixels = targetWidthPx * targetHeightPx;
+      const maxPixels = 25000000; // 25 million pixels
+      
+      let finalWidthPx = targetWidthPx;
+      let finalHeightPx = targetHeightPx;
+      let actualDPI = targetDPI;
+      
+      if (totalPixels > maxPixels) {
+        // Scale down proportionally to fit within limits
+        const scaleFactor = Math.sqrt(maxPixels / totalPixels);
+        finalWidthPx = Math.round(targetWidthPx * scaleFactor);
+        finalHeightPx = Math.round(targetHeightPx * scaleFactor);
+        actualDPI = Math.round(targetDPI * scaleFactor);
+        
+        console.log(`⚠️ Scaled down due to Cloudinary limits: ${finalWidthPx}×${finalHeightPx}px at ${actualDPI} DPI`);
+      }
+
+      // Generate print-ready image URL with transformations
+      const printReadyUrl = cloudinary.url(publicId, {
+        resource_type: 'image',
+        width: finalWidthPx,
+        height: finalHeightPx,
+        crop: 'fill',
+        gravity: 'center',
+        format: 'png', // PNG for better print quality
+        quality: 'auto:best',
+        flags: 'progressive'
+      });
+
+      console.log(`✅ Generated print-ready URL: ${printReadyUrl}`);
+
+      return json(200, {
+        success: true,
+        action: 'resize',
+        processedUrl: printReadyUrl,
+        dimensions: {
+          widthPx: finalWidthPx,
+          heightPx: finalHeightPx,
+          widthIn: widthIn,
+          heightIn: heightIn,
+          dpi: actualDPI
+        },
+        message: `Print-ready image generated at ${actualDPI} DPI`
+      });
+    }
+
+    return json(400, { 
+      success: false, 
+      error: "Invalid action. Use 'resize' or 'reset'" 
+    });
+
+  } catch (error) {
+    console.error('❌ AI Image Processor error:', error);
+    return json(500, {
+      success: false,
+      error: 'Failed to process image',
+      details: error.message
+    });
+  }
+};
+
+// Helper function for JSON responses
+function json(status, data) {
+  return {
+    statusCode: status,
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+      'Access-Control-Allow-Headers': 'Content-Type',
+      'Access-Control-Allow-Methods': 'POST, OPTIONS'
+    },
+    body: JSON.stringify(data)
+  };
+}

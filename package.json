@@ -15,6 +15,8 @@
     "db:studio": "netlify dev:exec drizzle-kit studio"
   },
   "dependencies": {
+    "@google/genai": "^1.20.0",
+    "@google/generative-ai": "^0.24.1",
     "@hookform/resolvers": "^3.10.0",
     "@neondatabase/serverless": "^0.10.4",
     "@netlify/functions": "^4.2.5",
