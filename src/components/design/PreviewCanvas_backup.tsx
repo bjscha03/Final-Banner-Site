@@ -143,7 +143,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           className="w-full h-full border-2 border-gray-400 rounded-xl bg-white shadow-lg"
           style={{
             aspectRatio: `${totalWidth}/${totalHeight}`,
-            minWidth: '300px',
+            minWidth: '400px',
             minHeight: '700px',
             maxWidth: '100%'
           }}
@@ -179,7 +179,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           height={bleedHeight}
           fill="none"
           stroke="#ef4444"
-          strokeWidth="0.2"
+          strokeWidth="0.15"
           strokeDasharray="0.2 0.2"
           opacity="0.8"
         />
@@ -195,7 +195,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           height={heightIn - (SAFETY_MARGIN * 2)}
           fill="none"
           stroke="#3b82f6"
-          strokeWidth="0.2"
+          strokeWidth="0.15"
           strokeDasharray="0.3 0.3"
           opacity="0.8"
         />
