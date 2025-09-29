@@ -41,6 +41,22 @@ const createFittedImageUrl = (originalUrl: string, targetWidthIn: number, target
 
 
 const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
+
+  // Helper function to calculate proper fit-to-canvas scale
+  const calculateFitToCanvasScale = (canvasWidthIn: number, canvasHeightIn: number) => {
+    // Convert canvas dimensions to pixels (assuming 96 DPI for web display)
+    const canvasWidthPx = canvasWidthIn * 96;
+    const canvasHeightPx = canvasHeightIn * 96;
+    
+    // Get the preview container dimensions (approximately 400px wide)
+    const containerWidth = 400;
+    const containerHeight = (containerWidth * canvasHeightPx) / canvasWidthPx;
+    
+    // Calculate scale to fit nicely in preview (leave some margin)
+    const fitScale = Math.min(containerWidth / canvasWidthPx, containerHeight / canvasHeightPx) * 80; // 80% for margin
+    
+    return Math.max(25, Math.min(200, fitScale * 100)); // Clamp between 25% and 200%
+  };
   const { widthIn, heightIn, previewScalePct, grommets, file, set } = useQuoteStore();
   const { toast } = useToast();
 
@@ -137,7 +153,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
           fileKey: result.fileKey // Store the server file key
         },
         // Reset scale to 100% when uploading a new file
-        previewScalePct: 100
+        previewScalePct: calculateFitToCanvasScale(widthIn, heightIn)
       });
     } catch (uploadError) {
       console.error('File upload error:', uploadError);
@@ -185,7 +201,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
   };
 
   const handleResetZoom = () => {
-    set({ previewScalePct: 100 });
+    set({ previewScalePct: calculateFitToCanvasScale(widthIn, heightIn) });
   };
   // Fit Image to Dimensions functionality
   const handleFitImageToDimensions = async () => {
@@ -391,7 +407,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
           }
         },
         // Reset scale to 100% when resetting image
-        previewScalePct: 100
+        previewScalePct: calculateFitToCanvasScale(widthIn, heightIn)
       });
 
       toast({
