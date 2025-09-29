@@ -1,4 +1,5 @@
-import React, { useMemo } from 'react';
+import InteractiveImageEditor from "./InteractiveImageEditor";
+import React, { useMemo, useState } from 'react';
 import { Grommets } from '@/store/quote';
 import { FileText, Image } from 'lucide-react';
 import PDFPreview from './PDFPreview';
@@ -112,6 +113,14 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
 }) => {
   // Feature flag for PDF static preview
   const FEATURE_PDF_STATIC_PREVIEW = import.meta.env.VITE_FEATURE_PDF_STATIC_PREVIEW === '1';
+  
+  // State for image transform
+  const [imageTransform, setImageTransform] = useState({
+    x: 0,
+    y: 0,
+    scale: 1,
+    rotation: 0
+  });
 
   const grommetPositions = useMemo(() => {
     return grommetPoints(widthIn, heightIn, grommets);
@@ -133,215 +142,202 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   return (
     <div className={`${className}`}>
       <div className="relative">
-        <svg
-          viewBox={`0 0 ${widthIn} ${heightIn}`}
-          className="w-full h-full border border-gray-300 rounded-xl bg-white"
+        {/* Canvas container with proper aspect ratio */}
+        <div 
+          className="relative w-full border border-gray-300 rounded-xl bg-white overflow-hidden"
           style={{
             aspectRatio: `${widthIn}/${heightIn}`,
-            width: '100%',
-            height: '100%'
+            minHeight: '300px'
           }}
         >
-        {/* Banner background */}
-        <rect
-          x="0"
-          y="0"
-          width={widthIn}
-          height={heightIn}
-          fill="white"
-          stroke="#e5e7eb"
-          strokeWidth="0.1"
-          rx="0.5"
-          ry="0.5"
-        />
-
-        {/* Safe area / hem guide (1" inset) - very subtle */}
-        <rect
-          x="1"
-          y="1"
-          width={widthIn - 2}
-          height={heightIn - 2}
-          fill="none"
-          stroke="#f3f4f6"
-          strokeWidth="0.02"
-          strokeDasharray="0.1 0.1"
-          opacity="0.3"
-        />
-
-        {/* Image if provided */}
-        {imageUrl && !file?.isPdf && (
-          <image
-            href={imageUrl}
-            x="0.5"
-            y="0.5"
-            width={widthIn - 1}
-            height={heightIn - 1}
-            preserveAspectRatio="xMidYMid meet"
-            clipPath="url(#banner-clip)"
-          />
-        )}
-
-        {/* Placeholder when no image */}
-        {!imageUrl && !file?.isPdf && (
-          <g>
+          {/* Background SVG for grommets and guides */}
+          <svg
+            viewBox={`0 0 ${widthIn} ${heightIn}`}
+            className="absolute inset-0 w-full h-full pointer-events-none"
+            style={{ zIndex: 1 }}
+          >
+            {/* Banner background */}
             <rect
-              x="2"
-              y="2"
-              width={widthIn - 4}
-              height={heightIn - 4}
-              fill="#f9fafb"
+              x="0"
+              y="0"
+              width={widthIn}
+              height={heightIn}
+              fill="white"
               stroke="#e5e7eb"
               strokeWidth="0.1"
-              strokeDasharray="0.5 0.5"
-              rx="0.3"
+              rx="0.5"
+              ry="0.5"
             />
-            <text
-              x={widthIn / 2}
-              y={heightIn / 2}
-              fontSize={Math.min(widthIn, heightIn) * 0.06}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fill="#6b7280"
-              fontFamily="system-ui, sans-serif"
-            >
-              Upload artwork to preview
-            </text>
-          </g>
-        )}
 
-        {/* Clip path for image */}
-        <defs>
-          <clipPath id="banner-clip">
+            {/* Safe area / hem guide (1" inset) - very subtle */}
             <rect
-              x="0.5"
-              y="0.5"
-              width={widthIn - 1}
-              height={heightIn - 1}
-              rx="0.4"
-              ry="0.4"
-            />
-          </clipPath>
-        </defs>
-
-        {/* Grommets - highly prominent and realistic */}
-        {grommetPositions.map((point, index) => (
-          <g key={index}>
-            {/* Grommet shadow for depth */}
-            <circle
-              cx={point.x + 0.03}
-              cy={point.y + 0.03}
-              r={grommetRadius}
-              fill="#000000"
+              x="1"
+              y="1"
+              width={widthIn - 2}
+              height={heightIn - 2}
+              fill="none"
+              stroke="#f3f4f6"
+              strokeWidth="0.02"
+              strokeDasharray="0.1 0.1"
               opacity="0.3"
             />
-            {/* Outer grommet ring (metal) - more prominent */}
-            <circle
-              cx={point.x}
-              cy={point.y}
-              r={grommetRadius}
-              fill="#6b7280"
-              stroke="#374151"
-              strokeWidth="0.04"
-            />
-            {/* Inner hole - larger for visibility */}
-            <circle
-              cx={point.x}
-              cy={point.y}
-              r={grommetRadius * 0.65}
-              fill="white"
-              stroke="#9ca3af"
-              strokeWidth="0.03"
-            />
-            {/* Metallic highlight - more prominent */}
-            <circle
-              cx={point.x - grommetRadius * 0.25}
-              cy={point.y - grommetRadius * 0.25}
-              r={grommetRadius * 0.25}
-              fill="white"
-              opacity="0.8"
-            />
-          </g>
-        ))}
 
-        {/* Banner border (subtle inner stroke for realism) */}
-        <rect
-          x="0.05"
-          y="0.05"
-          width={widthIn - 0.1}
-          height={heightIn - 0.1}
-          fill="none"
-          stroke="#f3f4f6"
-          strokeWidth="0.05"
-          rx="0.45"
-          ry="0.45"
-        />
-      </svg>
+            {/* Grommets - highly prominent and realistic */}
+            {grommetPositions.map((point, index) => (
+              <g key={index}>
+                {/* Grommet shadow for depth */}
+                <circle
+                  cx={point.x + 0.03}
+                  cy={point.y + 0.03}
+                  r={grommetRadius}
+                  fill="#000000"
+                  opacity="0.3"
+                />
+                {/* Outer grommet ring (metal) - more prominent */}
+                <circle
+                  cx={point.x}
+                  cy={point.y}
+                  r={grommetRadius}
+                  fill="#6b7280"
+                  stroke="#374151"
+                  strokeWidth="0.04"
+                />
+                {/* Inner hole - larger for visibility */}
+                <circle
+                  cx={point.x}
+                  cy={point.y}
+                  r={grommetRadius * 0.65}
+                  fill="white"
+                  stroke="#9ca3af"
+                  strokeWidth="0.03"
+                />
+                {/* Metallic highlight - more prominent */}
+                <circle
+                  cx={point.x - grommetRadius * 0.25}
+                  cy={point.y - grommetRadius * 0.25}
+                  r={grommetRadius * 0.25}
+                  fill="white"
+                  opacity="0.8"
+                />
+              </g>
+            ))}
 
-      {/* PDF Preview Overlay */}
-      {file?.isPdf && file.url && (
-        <div className="absolute inset-0 flex items-center justify-center p-4">
-          {FEATURE_PDF_STATIC_PREVIEW ? (
-            <PdfImagePreview
-              fileUrl={file.url}
-              fileName={file.name}
-              className="w-full h-full max-w-md max-h-80 object-contain"
-              onError={(e) => console.error('PDF preview error:', e)}
+            {/* Banner border (subtle inner stroke for realism) */}
+            <rect
+              x="0.05"
+              y="0.05"
+              width={widthIn - 0.1}
+              height={heightIn - 0.1}
+              fill="none"
+              stroke="#f3f4f6"
+              strokeWidth="0.05"
+              rx="0.45"
+              ry="0.45"
             />
-          ) : (
-            <PDFPreview
-              url={file.url}
-              className="w-full h-full max-w-md max-h-80"
-            />
+          </svg>
+
+          {/* Interactive Image Editor */}
+          {imageUrl && !file?.isPdf && (
+            <div className="absolute inset-0" style={{ zIndex: 2 }}>
+              <InteractiveImageEditor
+                imageUrl={imageUrl}
+                canvasWidth={widthIn}
+                canvasHeight={heightIn}
+                onTransformChange={setImageTransform}
+                className="w-full h-full"
+              />
+            </div>
+          )}
+
+          {/* Placeholder when no image */}
+          {!imageUrl && !file?.isPdf && (
+            <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 2 }}>
+              <div className="text-center">
+                <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-lg flex items-center justify-center">
+                  <Image className="w-8 h-8 text-gray-400" />
+                </div>
+                <p className="text-gray-500 font-medium">Upload artwork to preview</p>
+                <p className="text-gray-400 text-sm mt-1">Your banner will appear here</p>
+              </div>
+            </div>
+          )}
+
+          {/* PDF Preview Overlay */}
+          {file?.isPdf && file.url && (
+            <div className="absolute inset-0 flex items-center justify-center p-4" style={{ zIndex: 2 }}>
+              {FEATURE_PDF_STATIC_PREVIEW ? (
+                <PdfImagePreview
+                  fileUrl={file.url}
+                  fileName={file.name}
+                  className="w-full h-full max-w-md max-h-80 object-contain"
+                  onError={(e) => console.error('PDF preview error:', e)}
+                />
+              ) : (
+                <PDFPreview
+                  url={file.url}
+                  className="w-full h-full max-w-md max-h-80"
+                />
+              )}
+            </div>
           )}
         </div>
-      )}
       </div>
 
-    {/* Professional info panel below the preview with more spacing */}
-    <div className="mt-8 bg-gradient-to-r from-gray-50 to-white rounded-xl border border-gray-200 p-5 shadow-sm overflow-hidden">
-      <div className="flex flex-wrap items-center gap-4 w-full">
-        {/* Banner dimensions */}
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <span className="text-sm text-gray-600 font-medium">Size:</span>
-          <span className="text-sm font-bold text-gray-900 bg-blue-100 px-2 py-1 rounded-md whitespace-nowrap">
-            {widthIn}″ × {heightIn}″
-          </span>
-        </div>
-
-        {/* Grommet info */}
-        {grommetPositions.length > 0 && (
+      {/* Professional info panel below the preview with more spacing */}
+      <div className="mt-8 bg-gradient-to-r from-gray-50 to-white rounded-xl border border-gray-200 p-5 shadow-sm overflow-hidden">
+        <div className="flex flex-wrap items-center gap-4 w-full">
+          {/* Banner dimensions */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            <span className="text-sm text-gray-600 font-medium">Grommets:</span>
-            <span className="text-sm font-bold text-gray-900 bg-green-100 px-2 py-1 rounded-md whitespace-nowrap">
-              {grommetPositions.length} total
+            <span className="text-sm text-gray-600 font-medium">Size:</span>
+            <span className="text-sm font-bold text-gray-900 bg-blue-100 px-2 py-1 rounded-md whitespace-nowrap">
+              {widthIn}″ × {heightIn}″
             </span>
           </div>
-        )}
 
-        {/* File info - constrained width */}
-        {file && (
-          <div className="flex items-center gap-2 min-w-0 max-w-xs">
-            <div className="flex items-center gap-1 flex-shrink-0">
-              {file.isPdf ? (
-                <FileText className="h-4 w-4 text-red-500" />
-              ) : (
-                <Image className="h-4 w-4 text-blue-500" />
-              )}
-              <span className="text-sm text-gray-600 font-medium">File:</span>
+          {/* Grommet info */}
+          {grommetPositions.length > 0 && (
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <span className="text-sm text-gray-600 font-medium">Grommets:</span>
+              <span className="text-sm font-bold text-gray-900 bg-green-100 px-2 py-1 rounded-md whitespace-nowrap">
+                {grommetPositions.length} total
+              </span>
             </div>
-            <div className="min-w-0 flex-1">
-              <div className="text-sm font-bold text-gray-900 truncate max-w-[120px]" title={file.name}>
-                {file.name}
+          )}
+
+          {/* Image transform info */}
+          {imageUrl && !file?.isPdf && (
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <span className="text-sm text-gray-600 font-medium">Transform:</span>
+              <span className="text-sm font-bold text-gray-900 bg-purple-100 px-2 py-1 rounded-md whitespace-nowrap">
+                {Math.round(imageTransform.scale * 100)}% • {imageTransform.rotation}°
+              </span>
+            </div>
+          )}
+
+          {/* File info - constrained width */}
+          {file && (
+            <div className="flex items-center gap-2 min-w-0 max-w-xs">
+              <div className="flex items-center gap-1 flex-shrink-0">
+                {file.isPdf ? (
+                  <FileText className="h-4 w-4 text-red-500" />
+                ) : (
+                  <Image className="h-4 w-4 text-blue-500" />
+                )}
+                <span className="text-sm text-gray-600 font-medium">File:</span>
               </div>
-              <div className="text-xs text-gray-500 truncate max-w-[120px]">
-                {file.type.split('/')[1].toUpperCase()} • {formatFileSize(file.size)}
+              <div className="min-w-0 flex-1">
+                <div className="text-sm font-bold text-gray-900 truncate max-w-[120px]" title={file.name}>
+                  {file.name}
+                </div>
+                <div className="text-xs text-gray-500 truncate max-w-[120px]">
+                  {file.type.split('/')[1].toUpperCase()} • {formatFileSize(file.size)}
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
-  </div>
   );
 };
 
