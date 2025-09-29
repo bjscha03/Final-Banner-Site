@@ -137,7 +137,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
           fileKey: result.fileKey // Store the server file key
         },
         // Reset scale to 100% when uploading a new file
-        previewScalePct: 100
+        previewScalePct: 50
       });
     } catch (uploadError) {
       console.error('File upload error:', uploadError);
@@ -185,7 +185,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
   };
 
   const handleResetZoom = () => {
-    set({ previewScalePct: 100 });
+    set({ previewScalePct: 50 });
   };
   // Fit Image to Dimensions functionality
   const handleFitImageToDimensions = async () => {
@@ -391,7 +391,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
           }
         },
         // Reset scale to 100% when resetting image
-        previewScalePct: 100
+        previewScalePct: 50
       });
 
       toast({
