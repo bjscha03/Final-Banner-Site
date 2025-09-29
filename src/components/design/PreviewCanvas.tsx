@@ -212,15 +212,15 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
         {/* Bleed Area - Only show when showBleedArea is true */}
         {showBleedArea && (
           <rect
-            x={RULER_HEIGHT}
-            y={RULER_HEIGHT}
+            x={showDimensions ? RULER_HEIGHT : -BLEED_SIZE}
+            y={showDimensions ? RULER_HEIGHT : -BLEED_SIZE}
             width={bleedWidth}
             height={bleedHeight}
             fill="none"
             stroke="#ef4444"
-            strokeWidth="0.05"
+            strokeWidth="0.2"
             strokeDasharray="0.05 0.05"
-            opacity="0.8"
+            opacity="0.9"
           />
         )}
 
@@ -233,9 +233,9 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
             height={heightIn - (SAFETY_MARGIN * 2)}
             fill="none"
             stroke="#3b82f6"
-            strokeWidth="0.05"
+            strokeWidth="0.2"
             strokeDasharray="0.1 0.1"
-            opacity="0.8"
+            opacity="0.9"
           />
         )}        {/* Banner background */}
         <rect
@@ -258,7 +258,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           height={heightIn - 2}
           fill="none"
           stroke="#f3f4f6"
-          strokeWidth="0.05"
+          strokeWidth="0.2"
           strokeDasharray="0.1 0.1"
           opacity="0.3"
         />
@@ -359,7 +359,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
               cy={point.y - grommetRadius * 0.25}
               r={grommetRadius * 0.25}
               fill="white"
-              opacity="0.8"
+              opacity="0.9"
             />
           </g>
         ))}
@@ -372,7 +372,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           height={heightIn - 0.1}
           fill="none"
           stroke="#f3f4f6"
-          strokeWidth="0.05"
+          strokeWidth="0.2"
           rx="0.45"
           ry="0.45"
         />
