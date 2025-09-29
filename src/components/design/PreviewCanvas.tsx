@@ -143,30 +143,30 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           className="w-full h-full border-2 border-gray-400 rounded-xl bg-white shadow-lg"
           style={{
             aspectRatio: `${totalWidth}/${totalHeight}`,
-            minWidth: '900px',
+            minWidth: '400px',
             minHeight: '700px',
-            maxWidth: '1200px'
+            maxWidth: '100%'
           }}
         >
         {/* PROFESSIONAL PRINT GUIDELINES - ALWAYS VISIBLE */}
         <g className="print-rulers">
           <rect x="0" y="0" width={totalWidth} height={RULER_HEIGHT} fill="#f1f5f9" stroke="#64748b" strokeWidth="0.02"/>
-          <text x={totalWidth/2} y={RULER_HEIGHT/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.3" fill="#1e293b" fontWeight="600">
+          <text x={totalWidth/2} y={RULER_HEIGHT/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.5" fill="#1e293b" fontWeight="600">
             {/* Ruler tick marks */}
             {Array.from({length: Math.floor(widthIn)}, (_, i) => (
               <line key={i} x1={RULER_HEIGHT + BLEED_SIZE + i} y1={RULER_HEIGHT - TICK_SIZE} x2={RULER_HEIGHT + BLEED_SIZE + i} y2={RULER_HEIGHT} stroke="#64748b" strokeWidth="0.02" />
             ))}            {`${widthIn}"`}
           </text>
           <rect x="0" y={totalHeight - RULER_HEIGHT} width={totalWidth} height={RULER_HEIGHT} fill="#f1f5f9" stroke="#64748b" strokeWidth="0.02"/>
-          <text x={totalWidth/2} y={totalHeight - RULER_HEIGHT/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.3" fill="#1e293b" fontWeight="600">
+          <text x={totalWidth/2} y={totalHeight - RULER_HEIGHT/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.5" fill="#1e293b" fontWeight="600">
             {`${widthIn}"`}
           </text>
           <rect x="0" y="0" width={RULER_HEIGHT} height={totalHeight} fill="#f1f5f9" stroke="#64748b" strokeWidth="0.02"/>
-          <text x={RULER_HEIGHT/2} y={totalHeight/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.3" fill="#1e293b" fontWeight="600" transform={`rotate(-90, ${RULER_HEIGHT/2}, ${totalHeight/2})`}>
+          <text x={RULER_HEIGHT/2} y={totalHeight/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.5" fill="#1e293b" fontWeight="600" transform={`rotate(-90, ${RULER_HEIGHT/2}, ${totalHeight/2})`}>
             {`${heightIn}"`}
           </text>
           <rect x={totalWidth - RULER_HEIGHT} y="0" width={RULER_HEIGHT} height={totalHeight} fill="#f1f5f9" stroke="#64748b" strokeWidth="0.02"/>
-          <text x={totalWidth - RULER_HEIGHT/2} y={totalHeight/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.3" fill="#1e293b" fontWeight="600" transform={`rotate(90, ${totalWidth - RULER_HEIGHT/2}, ${totalHeight/2})`}>
+          <text x={totalWidth - RULER_HEIGHT/2} y={totalHeight/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.5" fill="#1e293b" fontWeight="600" transform={`rotate(90, ${totalWidth - RULER_HEIGHT/2}, ${totalHeight/2})`}>
             {`${heightIn}"`}
           </text>
         </g>
@@ -179,11 +179,11 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           height={bleedHeight}
           fill="none"
           stroke="#ef4444"
-          strokeWidth="0.08"
+          strokeWidth="0.15"
           strokeDasharray="0.2 0.2"
           opacity="0.8"
         />
-        <text x={RULER_HEIGHT + bleedWidth/2} y={RULER_HEIGHT - 0.1} textAnchor="middle" fontSize="0.25" fill="#ef4444" fontWeight="600">
+        <text x={RULER_HEIGHT + bleedWidth/2} y={RULER_HEIGHT - 0.1} textAnchor="middle" fontSize="0.4" fill="#ef4444" fontWeight="600">
           Bleed Area
         </text>
 
@@ -195,11 +195,11 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           height={heightIn - (SAFETY_MARGIN * 2)}
           fill="none"
           stroke="#3b82f6"
-          strokeWidth="0.08"
+          strokeWidth="0.15"
           strokeDasharray="0.3 0.3"
           opacity="0.8"
         />
-        <text x={bannerOffsetX + widthIn/2} y={bannerOffsetY + SAFETY_MARGIN - 0.1} textAnchor="middle" fontSize="0.25" fill="#3b82f6" fontWeight="600">
+        <text x={bannerOffsetX + widthIn/2} y={bannerOffsetY + SAFETY_MARGIN - 0.1} textAnchor="middle" fontSize="0.4" fill="#3b82f6" fontWeight="600">
           Safety Area
         </text>
 
