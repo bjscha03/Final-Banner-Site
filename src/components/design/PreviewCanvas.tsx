@@ -128,7 +128,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
 
   // Calculate grommet radius - more prominent and visible
   const grommetRadius = useMemo(() => {
-    return Math.max(0.2, Math.min(widthIn, heightIn) * 0.04);
+    return Math.max(0.3, Math.min(widthIn, heightIn) * 0.06);
   }, [widthIn, heightIn]);
 
   const formatFileSize = (bytes: number): string => {
@@ -223,7 +223,59 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
             ))}
 
             {/* Banner border (subtle inner stroke for realism) */}
+          </svg>
+
+          {/* Print Guidelines SVG - ALWAYS VISIBLE */}
+          <svg
+            viewBox={`${-0.125} ${-0.125} ${widthIn + 0.25} ${heightIn + 0.25}`}
+            className="absolute inset-0 w-full h-full pointer-events-none"
+            style={{ zIndex: 10 }}
+          >
+            {/* Bleed lines (red, outside banner) */}
             <rect
+              x={-0.125}
+              y={-0.125}
+              width={widthIn + 0.25}
+              height={heightIn + 0.25}
+              fill="none"
+              stroke="#ff0000"
+              strokeWidth="0.08"
+              strokeDasharray="0.3 0.15"
+              opacity="1"
+            />
+            
+            {/* Safety lines (green, inside banner) */}
+            <rect
+              x={0.25}
+              y={0.25}
+              width={widthIn - 0.5}
+              height={heightIn - 0.5}
+              fill="none"
+              stroke="#00aa00"
+              strokeWidth="0.08"
+              strokeDasharray="0.3 0.15"
+              opacity="1"
+            />
+            
+            {/* Dimension labels */}
+            <text
+              x={widthIn / 2}
+              y={-0.05}
+              textAnchor="middle"
+              fontSize="0.4"
+              fill="#333"
+              fontWeight="bold"
+            >
+              {widthIn}″ × {heightIn}″
+            </text>
+          </svg>
+
+          {/* Grommets SVG - ABOVE EVERYTHING */}
+          <svg
+            viewBox={`0 0 ${widthIn} ${heightIn}`}
+            className="absolute inset-0 w-full h-full pointer-events-none"
+            style={{ zIndex: 20 }}
+          >            <rect
               x="0.05"
               y="0.05"
               width={widthIn - 0.1}
