@@ -162,10 +162,10 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   // Calculate dimensions for print guidelines
   const bleedWidth = widthIn + (BLEED_SIZE * 2);
   const bleedHeight = heightIn + (BLEED_SIZE * 2);
-  const totalWidth = showDimensions ? bleedWidth + (RULER_HEIGHT * 2) : widthIn;
-  const totalHeight = showDimensions ? bleedHeight + (RULER_HEIGHT * 2) : heightIn;
-  const bannerOffsetX = showDimensions ? RULER_HEIGHT + BLEED_SIZE : 0;
-  const bannerOffsetY = showDimensions ? RULER_HEIGHT + BLEED_SIZE : 0;
+  const totalWidth = bleedWidth + (RULER_HEIGHT * 2);
+  const totalHeight = bleedHeight + (RULER_HEIGHT * 2);
+  const bannerOffsetX = RULER_HEIGHT + BLEED_SIZE;
+  const bannerOffsetY = RULER_HEIGHT + BLEED_SIZE;
   return (
     <div className={`${className}`}>
       <div className="relative">
@@ -181,7 +181,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
         {/* Professional Print Guidelines */}
         
         {/* Dimension Rulers - Only show when showDimensions is true */}
-        {showDimensions && (
+         (
           <g className="print-rulers">
             {/* Top ruler */}
             <rect x="0" y="0" width={totalWidth} height={RULER_HEIGHT} fill="#f8f9fa" stroke="#e5e7eb" strokeWidth="0.5"/>
@@ -210,10 +210,10 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
         )}
 
         {/* Bleed Area - Only show when showBleedArea is true */}
-        {showBleedArea && (
+         (
           <rect
-            x={showDimensions ? RULER_HEIGHT : -BLEED_SIZE}
-            y={showDimensions ? RULER_HEIGHT : -BLEED_SIZE}
+            x={RULER_HEIGHT}
+            y={RULER_HEIGHT}
             width={bleedWidth}
             height={bleedHeight}
             fill="none"
@@ -225,7 +225,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
         )}
 
         {/* Safety Area - Only show when showSafetyArea is true */}
-        {showSafetyArea && (
+         (
           <rect
             x={bannerOffsetX + SAFETY_MARGIN}
             y={bannerOffsetY + SAFETY_MARGIN}
@@ -280,6 +280,56 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
             onMouseDown={onImageMouseDown}
             onTouchStart={onImageTouchStart}
           />
+        )}
+
+        {/* Image resize handles */}
+        {imageUrl && !file?.isPdf && (
+          <g className="resize-handles">
+            {/* Corner resize handles */}
+            <rect
+              x={bannerOffsetX + 0.5 + (imagePosition.x * 0.01) - 0.1}
+              y={bannerOffsetY + 0.5 + (imagePosition.y * 0.01) - 0.1}
+              width="0.2"
+              height="0.2"
+              fill="#3b82f6"
+              stroke="#ffffff"
+              strokeWidth="0.02"
+              style={{ cursor: "nw-resize" }}
+              className="resize-handle-nw"
+            />
+            <rect
+              x={bannerOffsetX + 0.5 + (imagePosition.x * 0.01) + widthIn - 1.1}
+              y={bannerOffsetY + 0.5 + (imagePosition.y * 0.01) - 0.1}
+              width="0.2"
+              height="0.2"
+              fill="#3b82f6"
+              stroke="#ffffff"
+              strokeWidth="0.02"
+              style={{ cursor: "ne-resize" }}
+              className="resize-handle-ne"
+            />
+            <rect
+              x={bannerOffsetX + 0.5 + (imagePosition.x * 0.01) - 0.1}
+              y={bannerOffsetY + 0.5 + (imagePosition.y * 0.01) + heightIn - 1.1}
+              width="0.2"
+              height="0.2"
+              fill="#3b82f6"
+              stroke="#ffffff"
+              strokeWidth="0.02"
+              style={{ cursor: "sw-resize" }}
+              className="resize-handle-sw"
+            />
+            <rect
+              x={bannerOffsetX + 0.5 + (imagePosition.x * 0.01) + widthIn - 1.1}
+              y={bannerOffsetY + 0.5 + (imagePosition.y * 0.01) + heightIn - 1.1}
+              width="0.2"
+              height="0.2"
+              fill="#3b82f6"
+              stroke="#ffffff"
+              strokeWidth="0.02"
+              style={{ cursor: "se-resize" }}
+              className="resize-handle-se"
+            />          />
         )}
 
         {/* Placeholder when no image */}

@@ -1,5 +1,4 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image, X, ChevronDown, ChevronUp, Wand2, Crop, RefreshCw, Ruler, Shield, Square } from 'lucide-react';
 import { useQuoteStore, Grommets } from '@/store/quote';
 import { formatDimensions } from '@/lib/pricing';
 import { grommetPoints } from '@/lib/preview/grommets';
@@ -597,42 +596,6 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
               <span className="text-sm text-gray-600">Real-time</span>
         </div>
         
-        {/* Professional Print Guidelines Section - Properly positioned */}
-        <div className="flex flex-wrap items-center gap-2 mt-4 pt-3 border-t border-gray-100">
-          <span className="text-sm font-medium text-gray-600">Print Guidelines:</span>
-          
-          <Button
-            onClick={() => setShowDimensions(!showDimensions)}
-            variant={showDimensions ? "default" : "outline"}
-            size="sm"
-            className="flex items-center gap-1.5 text-xs"
-          >
-            <Ruler className="w-3 h-3" />
-            Dimensions
-          </Button>
-          
-          <Button
-            onClick={() => setShowSafetyArea(!showSafetyArea)}
-            variant={showSafetyArea ? "default" : "outline"}
-            size="sm"
-            className="flex items-center gap-1.5 text-xs"
-          >
-            <Shield className="w-3 h-3" />
-            Safety Area
-          </Button>
-          
-          <Button
-            onClick={() => setShowBleedArea(!showBleedArea)}
-            variant={showBleedArea ? "default" : "outline"}
-            size="sm"
-            className="flex items-center gap-1.5 text-xs"
-            disabled={!showDimensions}
-          >
-            <Square className="w-3 h-3" />
-            Bleed Area
-          </Button>
-
-          </div>
         </div>
       </div>
 
