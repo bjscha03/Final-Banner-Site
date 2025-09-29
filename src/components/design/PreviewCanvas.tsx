@@ -128,7 +128,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
 
   // Calculate grommet radius - more prominent and visible
   const grommetRadius = useMemo(() => {
-    return Math.max(0.15, Math.min(widthIn, heightIn) * 0.025);
+    return Math.max(0.2, Math.min(widthIn, heightIn) * 0.04);
   }, [widthIn, heightIn]);
 
   const formatFileSize = (bytes: number): string => {
