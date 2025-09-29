@@ -1,5 +1,5 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { ZoomIn, ZoomOut, RotateCw, Move } from 'lucide-react';
+console.log("InteractiveImageEditor loaded");import { ZoomIn, ZoomOut, RotateCw, Move } from 'lucide-react';
 
 interface ImageTransform {
   x: number;
