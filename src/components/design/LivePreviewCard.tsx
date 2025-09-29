@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { GrommetPicker } from '@/components/ui/GrommetPicker';
 import { useToast } from '@/components/ui/use-toast';
 import PreviewCanvas from './PreviewCanvas';
-import { Eye } from 'lucide-react';
+import { Eye, Upload, Wand2, X, Crop, RefreshCw } from 'lucide-react';
 const grommetOptions = [
   { id: 'none', label: 'None', description: 'No grommets' },
   { id: 'every-2-3ft', label: 'Every 2–3 feet', description: 'Standard spacing' },
