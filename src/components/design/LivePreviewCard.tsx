@@ -456,10 +456,10 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       return publicId;
       
     } catch (error) {
-      console.error("🚨 RESIZE ERROR DETAILS:", error);
-      console.error("🚨 ORIGINAL URL:", file?.url);
-      console.error("🚨 PUBLIC ID:", publicId);      console.error('❌ Error extracting public ID:', error);
-
+      console.error('❌ Error extracting public ID:', error);
+      return null;
+    }
+  };
   // Image interaction handlers
   const handleImageMouseDown = (e: React.MouseEvent) => {
     if (!file?.url || file.isPdf) return;
@@ -553,9 +553,6 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       };
     }
   }, [isDraggingImage, isResizingImage, dragStart, initialImagePosition]);
-      return null;
-    }
-  };
 
 
   return (
