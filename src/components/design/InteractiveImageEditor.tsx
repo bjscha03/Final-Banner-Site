@@ -28,7 +28,7 @@ const InteractiveImageEditor: React.FC<InteractiveImageEditorProps> = ({
   const [transform, setTransform] = useState<ImageTransform>({
     x: 0,
     y: 0,
-    scale: 1,
+    scale: 0.3,
     rotation: 0
   });
   
@@ -36,6 +36,32 @@ const InteractiveImageEditor: React.FC<InteractiveImageEditorProps> = ({
   const imageRef = useRef<HTMLImageElement>(null);
   const dragStartRef = useRef<{ x: number; y: number; startX: number; startY: number } | null>(null);
 
+  // Auto-fit image when it loads
+  const handleImageLoad = useCallback(() => {
+    if (!imageRef.current || !containerRef.current) return;
+    
+    const img = imageRef.current;
+    const container = containerRef.current;
+    const containerRect = container.getBoundingClientRect();
+    
+    // Calculate scale to fit image within 80% of container
+    const targetWidth = containerRect.width * 0.8;
+    const targetHeight = containerRect.height * 0.8;
+    
+    const scaleX = targetWidth / img.naturalWidth;
+    const scaleY = targetHeight / img.naturalHeight;
+    const fitScale = Math.min(scaleX, scaleY);
+    
+    const newTransform = {
+      x: 0,
+      y: 0,
+      scale: fitScale,
+      rotation: 0
+    };
+    
+    setTransform(newTransform);
+    onTransformChange?.(newTransform);
+  }, [onTransformChange]);
   // Handle mouse/touch start
   const handlePointerStart = useCallback((e: React.MouseEvent | React.TouchEvent) => {
     e.preventDefault();
@@ -137,7 +163,7 @@ const InteractiveImageEditor: React.FC<InteractiveImageEditorProps> = ({
   };
 
   const handleReset = () => {
-    const newTransform = { x: 0, y: 0, scale: 1, rotation: 0 };
+    const newTransform = { x: 0, y: 0, scale: 0.3, rotation: 0 };
     setTransform(newTransform);
     onTransformChange?.(newTransform);
   };
@@ -165,7 +191,7 @@ const InteractiveImageEditor: React.FC<InteractiveImageEditorProps> = ({
         }}
         onMouseDown={handlePointerStart}
         onTouchStart={handlePointerStart}
-        draggable={false}
+        onLoad={handleImageLoad}        draggable={false}
       />
 
       {/* Control toolbar */}
