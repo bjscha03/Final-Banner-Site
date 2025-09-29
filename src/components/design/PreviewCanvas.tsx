@@ -1,4 +1,4 @@
-import InteractiveImageEditor from "./InteractiveImageEditor";
+import PrintGuidelines from "./PrintGuidelines";import InteractiveImageEditor from "./InteractiveImageEditor";
 import React, { useMemo, useState } from 'react';
 import { Grommets } from '@/store/quote';
 import { FileText, Image } from 'lucide-react';
@@ -143,7 +143,8 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
     <div className={`${className}`}>
       <div className="relative">
         {/* Canvas container with proper aspect ratio */}
-        <div 
+        {/* Print Guidelines with corner handles and measurements */}
+        <PrintGuidelines widthIn={widthIn} heightIn={heightIn} className="absolute inset-0 z-30" />        <div 
           className="relative w-full border border-gray-300 rounded-xl bg-white overflow-hidden"
           style={{
             aspectRatio: `${widthIn}/${heightIn}`,

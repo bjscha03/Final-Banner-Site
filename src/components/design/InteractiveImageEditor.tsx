@@ -23,9 +23,9 @@ const InteractiveImageEditor: React.FC<InteractiveImageEditorProps> = ({
   onTransformChange,
   className = ''
 }) => {
-  const [isSelected, setIsSelected] = useState(false);
-  const [isDragging, setIsDragging] = useState(false);
-  const [isResizing, setIsResizing] = useState(false);
+  const [isSelected, setIsSelected] = useState(true) // Start selected so handles are visible;
+  const [isDragging, setIsDragging] = useState(true) // Start selected so handles are visible;
+  const [isResizing, setIsResizing] = useState(true) // Start selected so handles are visible;
   const [transform, setTransform] = useState<ImageTransform>({
     x: 0,
     y: 0,
@@ -237,7 +237,7 @@ const InteractiveImageEditor: React.FC<InteractiveImageEditorProps> = ({
       {isSelected && (
         <>
           <div
-            className="absolute w-4 h-4 bg-blue-500 border-2 border-white rounded-full cursor-nw-resize shadow-lg hover:bg-blue-600 transition-colors"
+            className="absolute w-6 h-6 bg-blue-500 border-2 border-white rounded-full cursor-nw-resize shadow-lg hover:bg-blue-600 transition-colors"
             style={{
               left: '50%',
               top: '50%',
@@ -247,7 +247,7 @@ const InteractiveImageEditor: React.FC<InteractiveImageEditorProps> = ({
             onMouseDown={handleResizeStart}
           />
           <div
-            className="absolute w-4 h-4 bg-blue-500 border-2 border-white rounded-full cursor-ne-resize shadow-lg hover:bg-blue-600 transition-colors"
+            className="absolute w-6 h-6 bg-blue-500 border-2 border-white rounded-full cursor-ne-resize shadow-lg hover:bg-blue-600 transition-colors"
             style={{
               left: '50%',
               top: '50%',
@@ -257,7 +257,7 @@ const InteractiveImageEditor: React.FC<InteractiveImageEditorProps> = ({
             onMouseDown={handleResizeStart}
           />
           <div
-            className="absolute w-4 h-4 bg-blue-500 border-2 border-white rounded-full cursor-sw-resize shadow-lg hover:bg-blue-600 transition-colors"
+            className="absolute w-6 h-6 bg-blue-500 border-2 border-white rounded-full cursor-sw-resize shadow-lg hover:bg-blue-600 transition-colors"
             style={{
               left: '50%',
               top: '50%',
@@ -267,7 +267,7 @@ const InteractiveImageEditor: React.FC<InteractiveImageEditorProps> = ({
             onMouseDown={handleResizeStart}
           />
           <div
-            className="absolute w-4 h-4 bg-blue-500 border-2 border-white rounded-full cursor-se-resize shadow-lg hover:bg-blue-600 transition-colors"
+            className="absolute w-6 h-6 bg-blue-500 border-2 border-white rounded-full cursor-se-resize shadow-lg hover:bg-blue-600 transition-colors"
             style={{
               left: '50%',
               top: '50%',
@@ -283,19 +283,19 @@ const InteractiveImageEditor: React.FC<InteractiveImageEditorProps> = ({
       {isSelected && (
         <div className="absolute top-2 left-2 flex gap-1 bg-white/95 backdrop-blur-sm rounded-lg p-2 shadow-lg z-20">
           <button onClick={handleZoomIn} className="p-2 hover:bg-gray-100 rounded transition-colors" title="Zoom In">
-            <ZoomIn className="w-4 h-4" />
+            <ZoomIn className="w-6 h-6" />
           </button>
           <button onClick={handleZoomOut} className="p-2 hover:bg-gray-100 rounded transition-colors" title="Zoom Out">
-            <ZoomOut className="w-4 h-4" />
+            <ZoomOut className="w-6 h-6" />
           </button>
           <button onClick={handleRotate} className="p-2 hover:bg-gray-100 rounded transition-colors" title="Rotate 90°">
-            <RotateCw className="w-4 h-4" />
+            <RotateCw className="w-6 h-6" />
           </button>
           <button onClick={handleAutoFit} className="p-2 hover:bg-green-100 rounded transition-colors text-green-600 font-bold" title="Auto Fit">
-            <Move className="w-4 h-4" />
+            <Move className="w-6 h-6" />
           </button>
           <button onClick={handleReset} className="p-2 hover:bg-red-100 rounded transition-colors text-red-600" title="Reset">
-            <Move className="w-4 h-4" />
+            <Move className="w-6 h-6" />
           </button>
         </div>
       )}
