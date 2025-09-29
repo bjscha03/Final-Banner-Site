@@ -60,37 +60,107 @@ const Design: React.FC = () => {
             </p>
           </div>
 
-          {/* Main Preview Card */}
-          <div className="max-w-5xl mx-auto mb-8">
-            <LivePreviewCard expanded={true} onOpenAIModal={() => setAiModalOpen(true)} />
-            <CheckoutSummary />
-          </div>
+          {/* HYBRID LAYOUT: Preview + Essential Controls */}
+          <div className="max-w-7xl mx-auto">
+            {/* Desktop Layout: Preview + Sidebar */}
+            <div className="hidden lg:flex lg:gap-8">
+              {/* Main Preview Area */}
+              <div className="flex-1 min-w-0">
+                <LivePreviewCard expanded={true} onOpenAIModal={() => setAiModalOpen(true)} />
+                <CheckoutSummary />
+              </div>
 
-          {/* Configuration Accordions */}
-          <div className="max-w-4xl mx-auto space-y-6">
-            <AccordionSection
-              title="Size & Quantity"
-              icon={<Ruler className="w-4 h-4 text-white" />}
-              defaultOpen={false}
-            >
-              <SizeQuantityCard />
-            </AccordionSection>
+              {/* Essential Controls Sidebar */}
+              <div className="w-80 flex-shrink-0 space-y-6">
+                {/* Size & Quantity - Always Visible */}
+                <div className="bg-white border border-gray-200/60 rounded-2xl overflow-hidden shadow-sm">
+                  <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50/50 to-white">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-sm">
+                        <Ruler className="w-4 h-4 text-white" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900">Size & Quantity</h3>
+                    </div>
+                  </div>
+                  <div className="p-6">
+                    <SizeQuantityCard />
+                  </div>
+                </div>
 
-            <AccordionSection
-              title="Material"
-              icon={<Palette className="w-4 h-4 text-white" />}
-              defaultOpen={false}
-            >
-              <MaterialCard />
-            </AccordionSection>
+                {/* Material - Always Visible */}
+                <div className="bg-white border border-gray-200/60 rounded-2xl overflow-hidden shadow-sm">
+                  <div className="px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-gray-50/50 to-white">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-sm">
+                        <Palette className="w-4 h-4 text-white" />
+                      </div>
+                      <h3 className="text-lg font-semibold text-gray-900">Material</h3>
+                    </div>
+                  </div>
+                  <div className="p-6">
+                    <MaterialCard />
+                  </div>
+                </div>
 
-            <AccordionSection
-              title="Options"
-              icon={<Settings className="w-4 h-4 text-white" />}
-              defaultOpen={false}
-            >
-              <OptionsCard />
-            </AccordionSection>
+                {/* Advanced Options - Collapsible */}
+                <AccordionSection
+                  title="Advanced Options"
+                  icon={<Settings className="w-4 h-4 text-white" />}
+                  defaultOpen={false}
+                >
+                  <OptionsCard />
+                </AccordionSection>
+              </div>
+            </div>
+
+            {/* Mobile Layout: Stacked */}
+            <div className="lg:hidden space-y-6">
+              {/* Preview */}
+              <LivePreviewCard expanded={true} onOpenAIModal={() => setAiModalOpen(true)} />
+              
+              {/* Essential Controls - Always Visible on Mobile */}
+              <div className="space-y-4">
+                <div className="bg-white border border-gray-200/60 rounded-2xl overflow-hidden shadow-sm">
+                  <div className="px-4 py-3 border-b border-gray-100 bg-gradient-to-r from-gray-50/50 to-white">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                        <Ruler className="w-3 h-3 text-white" />
+                      </div>
+                      <h3 className="text-base font-semibold text-gray-900">Size & Quantity</h3>
+                    </div>
+                  </div>
+                  <div className="p-4">
+                    <SizeQuantityCard />
+                  </div>
+                </div>
+
+                <div className="bg-white border border-gray-200/60 rounded-2xl overflow-hidden shadow-sm">
+                  <div className="px-4 py-3 border-b border-gray-100 bg-gradient-to-r from-gray-50/50 to-white">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                        <Palette className="w-3 h-3 text-white" />
+                      </div>
+                      <h3 className="text-base font-semibold text-gray-900">Material</h3>
+                    </div>
+                  </div>
+                  <div className="p-4">
+                    <MaterialCard />
+                  </div>
+                </div>
+              </div>
+
+              {/* Checkout */}
+              <CheckoutSummary />
+
+              {/* Advanced Options - Collapsible on Mobile */}
+              <AccordionSection
+                title="Advanced Options"
+                icon={<Settings className="w-4 h-4 text-white" />}
+                defaultOpen={false}
+              >
+                <OptionsCard />
+              </AccordionSection>
+            </div>
           </div>
         </div>
       </div>
