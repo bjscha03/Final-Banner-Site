@@ -164,28 +164,23 @@ const Design: React.FC = () => {
               </ErrorBoundary>
             </div>
 
-            {/* VISTAPRINT-STYLE DESKTOP LAYOUT: Compact Sidebar + Dominant Preview */}
-            <div className="hidden lg:flex lg:gap-8">
-              {/* CONSOLIDATED SIDEBAR - Compact Controls */}
-              <div className="w-80 flex-shrink-0 space-y-6">
+            {/* Desktop Layout: Two columns */}
+            <div className="hidden lg:grid lg:grid-cols-2 lg:gap-6">
+              {/* Left Column - Configuration */}
+              <div className="space-y-6">
                 <SizeQuantityCard />
                 <MaterialCard />
                 <OptionsCard />
-                
-                {/* Pricing Card - Sticky */}
+              </div>
+
+              {/* Right Column - Preview & Pricing */}
+              <div className="space-y-6">
+                <LivePreviewCard onOpenAIModal={() => setAiModalOpen(true)} />
                 <div className="sticky top-6">
                   <ErrorBoundary>
                     <PricingCard />
                   </ErrorBoundary>
                 </div>
-              </div>
-
-              {/* DOMINANT PREVIEW AREA - Vistaprint Style */}
-              <div className="flex-1 min-w-0">
-                <LivePreviewCard 
-                  onOpenAIModal={() => setAiModalOpen(true)} 
-                  expanded={true}
-                />
               </div>
             </div>
           </div>

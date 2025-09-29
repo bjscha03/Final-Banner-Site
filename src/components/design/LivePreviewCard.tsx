@@ -1,4 +1,5 @@
-import React, { useState, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
+import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image, X, ChevronDown, ChevronUp, Wand2, Crop, RefreshCw } from 'lucide-react';
 import { useQuoteStore, Grommets } from '@/store/quote';
 import { formatDimensions } from '@/lib/pricing';
 import { grommetPoints } from '@/lib/preview/grommets';
@@ -7,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { GrommetPicker } from '@/components/ui/GrommetPicker';
 import { useToast } from '@/components/ui/use-toast';
 import PreviewCanvas from './PreviewCanvas';
-import { Eye, Upload, Wand2, X, Crop, RefreshCw } from 'lucide-react';
+
 const grommetOptions = [
   { id: 'none', label: 'None', description: 'No grommets' },
   { id: 'every-2-3ft', label: 'Every 2–3 feet', description: 'Standard spacing' },
@@ -47,60 +48,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
   const [uploadError, setUploadError] = useState('');
   const [isFittingImage, setIsFittingImage] = useState(false);
   const [isResizingImage, setIsResizingImage] = useState(false);
-  const [isResettingImage, setIsResettingImage] = useState(false);
-  
-  // Image positioning state
-  const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
-  const [isDraggingImage, setIsDraggingImage] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-
-  // Professional print guidelines state
-  const [showSafetyArea, setShowSafetyArea] = useState(false);
-  const [showBleedArea, setShowBleedArea] = useState(false);
-  const [showDimensions, setShowDimensions] = useState(false);
-
-  // Debug logging for print guidelines
-
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  
-  // Image positioning state
-
-  // Global event listeners for image dragging
-  useEffect(() => {
-    const handleGlobalMouseMove = (e) => handleImageMouseMove(e);
-    const handleGlobalMouseUp = () => handleImageMouseUp();
-    const handleGlobalTouchMove = (e) => handleImageTouchMove(e);
-    const handleGlobalTouchEnd = () => handleImageTouchEnd();
-
-    if (isDraggingImage) {
-      document.addEventListener('mousemove', handleGlobalMouseMove);
-      document.addEventListener('mouseup', handleGlobalMouseUp);
-      document.addEventListener('touchmove', handleGlobalTouchMove, { passive: false });
-      document.addEventListener('touchend', handleGlobalTouchEnd);
-    }
-
-    return () => {
-      document.removeEventListener('mousemove', handleGlobalMouseMove);
-      document.removeEventListener('mouseup', handleGlobalMouseUp);
-      document.removeEventListener('touchmove', handleGlobalTouchMove);
-      document.removeEventListener('touchend', handleGlobalTouchEnd);
-    };
-  }, [isDraggingImage, dragStart, imagePosition]);
-
-  // Reset image position when file changes
-  useEffect(() => {
-    if (file?.url) {
-      resetImagePosition();
-    }
-  }, [file?.url]);
-
-
-  // Reset image position when file changes
-  useEffect(() => {
-    if (file?.url) {
-      resetImagePosition();
-    }
-  }, [file?.url]);
+  const [isResettingImage, setIsResettingImage] = useState(false);  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Calculate grommet info
   const grommetInfo = useMemo(() => {
@@ -265,7 +213,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     } catch (error) {
       console.error("🚨 RESIZE ERROR DETAILS:", error);
       console.error("🚨 ORIGINAL URL:", file?.url);
-      console.error('Error fitting image:', error);
+      console.error("🚨 PUBLIC ID:", publicId);      console.error('Error fitting image:', error);
       toast({
         title: 'Failed to fit image',
         description: 'There was an error resizing the image. Please try again.',
@@ -275,23 +223,10 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       setIsFittingImage(false);
     }
   };
-  // Enhanced Resize Image functionality - Creates print-ready high-DPI version
+  // NEW: Resize Image functionality - Re-triggers AI artwork processing for new dimensions
+  // NEW: Resize Image functionality - Re-triggers AI artwork processing for new dimensions
   const handleResizeImage = async () => {
-    console.log('�� handleResizeImage called');
-    console.log('📊 Current state:', { 
-      file: file ? { url: file.url, isPdf: file.isPdf, isAI: file.isAI, aiMetadata: file.aiMetadata } : null,
-      isAIImage, 
-      widthIn, 
-      heightIn,
-      isResizingImage 
-    });
-
     if (!file?.url || !isAIImage || !file.aiMetadata) {
-      console.log('❌ Validation failed:', { 
-        hasFile: !!file?.url, 
-        isAIImage, 
-        hasAiMetadata: !!file?.aiMetadata 
-      });
       toast({
         title: 'No AI image to resize',
         description: 'Please generate an AI image first.',
@@ -300,83 +235,84 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       return;
     }
 
-    // Prevent double-clicks by checking if already processing
-    if (isResizingImage) {
-      console.log('⏳ Already processing, skipping...');
-      return;
-    }
-
-    console.log('✅ Starting resize process...');
     setIsResizingImage(true);
-    const originalUrl = file.url; // Store original URL
-    
-    try {
-      // Calculate exact dimensions for print (300 DPI)
-      const printWidthPx = Math.round(widthIn * 300);
-      const printHeightPx = Math.round(heightIn * 300);
-      
-      console.log('📐 Calculated dimensions:', { printWidthPx, printHeightPx });
-      
-      // Create print-ready version with exact dimensions and high quality
-      const baseUrl = file.url.split('?')[0]; // Remove query params
-      console.log('🔗 Base URL:', baseUrl);
-      
-      const printReadyUrl = baseUrl.replace(
-        '/upload/', 
-        `/upload/c_fill,w_${printWidthPx},h_${printHeightPx},g_center,dpr_1.0,f_auto,q_auto:best/`
-      );
-      
-      console.log('🎯 Print-ready URL:', printReadyUrl);
-      
-      // Update with print-ready version
-      const newFileData = {
-        file: {
-          ...file,
-          url: printReadyUrl,
-          aiMetadata: {
-            ...file.aiMetadata,
-            printReady: true,
-            dpi: 300,
-            dimensions: {
-              widthPx: printWidthPx,
-              heightPx: printHeightPx,
-              widthIn: widthIn,
-              heightIn: heightIn
-            },
-            processedAt: new Date().toISOString()
-          }
-        }
-      };
-      
-      console.log('💾 Updating store with:', newFileData);
-      set(newFileData);
 
-      toast({
-        title: 'Print-ready version generated!',
-        description: `Image optimized for ${widthIn}×${heightIn}" printing at 300 DPI (${printWidthPx}×${printHeightPx}px).`,
-        variant: 'default'
+    try {
+      console.log(`🔥 RESIZE BUTTON CLICKED: Generating print-ready version for ${widthIn}×${heightIn}"`);
+      console.log('🔥 RESIZE: This is the NEW CODE calling ai-image-processor API');
+
+      // Extract public ID from the current image
+      const publicId = file.aiMetadata?.cloudinary_public_id || extractPublicIdFromUrl(file.url);
+      
+      if (!publicId) {
+        throw new Error('Could not extract Cloudinary public ID from image');
+      }
+
+      console.log('Using public ID:', publicId);
+
+      // Call the new AI image processor
+      const response = await fetch('/.netlify/functions/ai-image-processor', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'resize',
+          publicId: publicId,
+          widthIn: widthIn,
+          heightIn: heightIn
+        }),
       });
 
-      console.log('✅ Resize completed successfully');
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('AI image processor error:', errorText);
+        throw new Error(`Processing failed: ${response.status} ${response.statusText}`);
+      }
 
-    } catch (error) {
-      console.error('💥 Error generating print-ready version:', error);
-      console.error('📍 Error stack:', error.stack);
+      const result = await response.json();
+      console.log('AI image processor result:', result);
+
+      if (!result.success) {
+        throw new Error(result.error || 'Image processing failed');
+      }
+
+      // Update the file with the print-ready version
+      console.log('✅ Updating file with print-ready URL:', result.processedUrl);
       
-      // Restore original URL on error
       set({
         file: {
           ...file,
-          url: originalUrl
+          url: result.processedUrl,
+          name: file.name.replace(/_fitted_\d+x\d+|_resized_\d+x\d+|_print_ready_\d+x\d+/, '') + `_print_ready_${widthIn}x${heightIn}`,
+          aiMetadata: {
+            ...file.aiMetadata,
+            printReadyVersion: {
+              url: result.processedUrl,
+              dimensions: result.dimensions,
+              widthIn: widthIn,
+              heightIn: heightIn
+            }
+          }
         }
       });
+
+      toast({
+        title: 'Print-ready version generated!',
+        description: `Created high-resolution file at ${result.dimensions?.dpi || 150} DPI for ${widthIn}×${heightIn}" banner`,
+        variant: 'default'
+      });
+
+    } catch (error) {
+      console.error("🚨 RESIZE ERROR DETAILS:", error);
+      console.error("🚨 ORIGINAL URL:", file?.url);
+      console.error("🚨 PUBLIC ID:", publicId);      console.error('Error generating print-ready version:', error);
       toast({
         title: 'Resize failed',
-        description: 'Could not generate print-ready version. Original image preserved.',
+        description: error.message || 'Could not generate print-ready version. Please try again.',
         variant: 'destructive'
       });
     } finally {
-      console.log('🏁 Resize process finished, setting isResizingImage to false');
       setIsResizingImage(false);
     }
   };
@@ -392,125 +328,83 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     }
 
     setIsResettingImage(true);
-    const originalUrl = file.url; // Store current URL
-    
+
     try {
-      // Reset to original AI generated image (remove transformations)
-      const baseUrl = file.url.split('?')[0]; // Remove query params
-      let resetUrl = baseUrl;
+      console.log('🔥 RESET BUTTON CLICKED: Resetting AI image to original state');
+      console.log('🔥 RESET: This is the NEW CODE calling ai-image-processor API');
+
+      // Extract public ID from the current image
+      const publicId = file.aiMetadata?.cloudinary_public_id || extractPublicIdFromUrl(file.url);
       
-      // Remove any transformations by finding the base Cloudinary URL
-      if (resetUrl.includes('/upload/')) {
-        const parts = resetUrl.split('/upload/');
-        const afterUpload = parts[1];
-        // Remove transformation parameters (anything before the version or folder)
-        const cleanPath = afterUpload.replace(/^[^v\/]*\//, "");
-        resetUrl = parts[0] + '/upload/' + cleanPath;
+      if (!publicId) {
+        throw new Error('Could not extract Cloudinary public ID from image');
       }
+
+      console.log('Using public ID for reset:', publicId);
+
+      // Call the AI image processor to get original version
+      const response = await fetch('/.netlify/functions/ai-image-processor', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'reset',
+          publicId: publicId
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('AI image processor error:', errorText);
+        throw new Error(`Reset failed: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('AI image processor reset result:', result);
+
+      if (!result.success) {
+        throw new Error(result.error || 'Image reset failed');
+      }
+
+      // Update the file with the original version
+      console.log('✅ Resetting to original URL:', result.processedUrl);
       
-      // Update with reset version
       set({
         file: {
           ...file,
-          url: resetUrl,
+          url: result.processedUrl,
+          name: file.name.replace(/_fitted_\d+x\d+|_resized_\d+x\d+|_print_ready_\d+x\d+/, ''),
           aiMetadata: {
             ...file.aiMetadata,
-            printReady: false,
-            dpi: 72,
-            processedAt: new Date().toISOString()
+            // Remove any transformation metadata
+            printReadyVersion: undefined,
+            resizedDimensions: undefined
           }
-        }
+        },
+        // Reset scale to 100% when resetting image
+        previewScalePct: 100
       });
 
       toast({
         title: 'Image reset successfully!',
-        description: 'Image restored to original AI-generated version.',
+        description: 'Restored AI image to its original state',
         variant: 'default'
       });
 
     } catch (error) {
-      console.error('Error resetting image:', error);
-      // Keep current URL on error
+      console.error("🚨 RESIZE ERROR DETAILS:", error);
+      console.error("🚨 ORIGINAL URL:", file?.url);
+      console.error("🚨 PUBLIC ID:", publicId);      console.error('Error resetting image:', error);
       toast({
         title: 'Reset failed',
-        description: 'Could not reset the image. Current version preserved.',
+        description: error.message || 'Could not reset the image. Please try again.',
         variant: 'destructive'
       });
     } finally {
       setIsResettingImage(false);
     }
   };
-
-  // Image positioning handlers for drag and touch support
-  const handleImageMouseDown = (e) => {
-    if (!isAIImage || !file?.url) return;
-    
-    e.preventDefault();
-    setIsDraggingImage(true);
-    setDragStart({
-      x: e.clientX - imagePosition.x,
-      y: e.clientY - imagePosition.y
-    });
-  };
-
-  const handleImageTouchStart = (e) => {
-    if (!isAIImage || !file?.url) return;
-    
-    e.preventDefault();
-    const touch = e.touches[0];
-    setIsDraggingImage(true);
-    setDragStart({
-      x: touch.clientX - imagePosition.x,
-      y: touch.clientY - imagePosition.y
-    });
-  };
-
-  const handleImageMouseMove = (e) => {
-    if (!isDraggingImage) return;
-    
-    e.preventDefault();
-    const newX = e.clientX - dragStart.x;
-    const newY = e.clientY - dragStart.y;
-    
-    // Constrain movement within reasonable bounds
-    const constrainedX = Math.max(-100, Math.min(100, newX));
-    const constrainedY = Math.max(-100, Math.min(100, newY));
-    
-    setImagePosition({ x: constrainedX, y: constrainedY });
-  };
-
-  const handleImageTouchMove = (e) => {
-    if (!isDraggingImage) return;
-    
-    e.preventDefault();
-    const touch = e.touches[0];
-    const newX = touch.clientX - dragStart.x;
-    const newY = touch.clientY - dragStart.y;
-    
-    // Constrain movement within reasonable bounds
-    const constrainedX = Math.max(-100, Math.min(100, newX));
-    const constrainedY = Math.max(-100, Math.min(100, newY));
-    
-    setImagePosition({ x: constrainedX, y: constrainedY });
-  };
-
-  const handleImageMouseUp = () => {
-    setIsDraggingImage(false);
-  };
-
-  const handleImageTouchEnd = () => {
-    setIsDraggingImage(false);
-  };
-
-  // Reset image position when new image is loaded
-  const resetImagePosition = () => {
-    setImagePosition({ x: 0, y: 0 });
-    setIsDraggingImage(false);
-  };
-
-  // Image positioning handlers for drag and touch support
-
-  // Reset image position when new image is loaded
 
   // Helper function to extract Cloudinary public ID from URL
   const extractPublicIdFromUrl = (url) => {
@@ -556,7 +450,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     } catch (error) {
       console.error("🚨 RESIZE ERROR DETAILS:", error);
       console.error("🚨 ORIGINAL URL:", file?.url);
-      console.error('❌ Error extracting public ID:', error);
+      console.error("🚨 PUBLIC ID:", publicId);      console.error('❌ Error extracting public ID:', error);
       return null;
     }
   };
@@ -570,9 +464,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-sm">
               <Eye className="w-5 h-5 text-white" />
-            
-                  </div>
-                </div>
+            </div>
             <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Live Preview</h2>
           </div>
 
@@ -594,8 +486,8 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
             <div className="flex items-center gap-2">
               <div className="w-2 h-2 bg-green-500 rounded-full"></div>
               <span className="text-sm text-gray-600">Real-time</span>
-        </div>
-        
+            </div>
+          </div>
         </div>
       </div>
 
@@ -708,13 +600,6 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
                   className="shadow-lg"
                   scale={previewScalePct / 100} // Convert percentage to decimal
                   file={file}
-                  imagePosition={imagePosition}
-                  onImageMouseDown={handleImageMouseDown}
-                  onImageTouchStart={handleImageTouchStart}
-                  isDraggingImage={isDraggingImage}
-                  showSafetyArea={showSafetyArea}
-                  showBleedArea={showBleedArea}
-                  showDimensions={showDimensions}
                 />
               </div>
             </div>
@@ -795,8 +680,6 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
                       </>
                     )}
                   </Button>
-                
-                  
                 </div>
               </div>
             )}
@@ -828,3 +711,5 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
 };
 
 export default LivePreviewCard;
+console.log("🔥 AI BUTTONS DEBUG: LivePreviewCard loaded at", new Date().toISOString());
+window.AI_BUTTONS_FIXED = true;
