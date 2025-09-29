@@ -89,7 +89,7 @@ const SizeQuantityCard: React.FC = () => {
       </div>
 
       {/* Header */}
-      <div className="relative bg-gradient-to-r from-blue-600/5 via-indigo-600/5 to-purple-600/5 px-6 py-5 border-b border-blue-200/30 backdrop-blur-sm">
+      <div className="relative bg-gradient-to-r from-blue-600/5 via-indigo-600/5 to-purple-600/5 px-6 py-4 border-b border-blue-200/30 backdrop-blur-sm">
         <div className="flex items-center gap-4">
           <div className="relative">
             <div className="w-12 h-12 bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
@@ -104,7 +104,7 @@ const SizeQuantityCard: React.FC = () => {
         </div>
       </div>
 
-      <div className="relative p-8 space-y-8">
+      <div className="relative p-6 space-y-6">
         {/* Size Section */}
         <div>
           <h3 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">

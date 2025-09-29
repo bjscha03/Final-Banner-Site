@@ -161,7 +161,7 @@ const MaterialCard: React.FC = () => {
         </div>
 
         {/* Header */}
-        <div className="relative bg-gradient-to-r from-purple-600/5 via-pink-600/5 to-red-600/5 px-6 py-5 border-b border-purple-200/30 backdrop-blur-sm">
+        <div className="relative bg-gradient-to-r from-purple-600/5 via-pink-600/5 to-red-600/5 px-6 py-4 border-b border-purple-200/30 backdrop-blur-sm">
           <div className="flex items-center gap-4">
             <div className="relative">
               <div className="w-12 h-12 bg-gradient-to-br from-purple-500 via-pink-500 to-red-600 rounded-2xl flex items-center justify-center shadow-lg">
@@ -176,7 +176,7 @@ const MaterialCard: React.FC = () => {
           </div>
         </div>
 
-        <div className="relative p-8">
+        <div className="relative p-6">
 
           <RadioGroup value={material} onValueChange={handleMaterialChange} className="space-y-6">
             {/* VINYL Section */}

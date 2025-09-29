@@ -20,6 +20,7 @@ const grommetOptions = [
 ];
 
 interface LivePreviewCardProps {
+  expanded?: boolean;
   onOpenAIModal?: () => void;
 }
 // Helper function to create Cloudinary transformation URL for fitting to dimensions
@@ -40,7 +41,7 @@ const createFittedImageUrl = (originalUrl: string, targetWidthIn: number, target
 };
 
 
-const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
+const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, expanded = false }) => {
   const { widthIn, heightIn, previewScalePct, grommets, file, set } = useQuoteStore();
   const { toast } = useToast();
 
@@ -559,7 +560,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
 
 
   return (
-    <div className="bg-white border border-gray-200/60 rounded-2xl overflow-hidden shadow-sm">
+    <div className="bg-white border border-gray-200/60 rounded-2xl overflow-hidden shadow-lg">
       {/* Header - responsive design */}
       <div className="px-3 sm:px-6 py-4 border-b border-gray-100">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">

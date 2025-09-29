@@ -142,8 +142,8 @@ const Design: React.FC = () => {
         </div>
 
         <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 relative z-10">
-          <div className="text-center mb-6 md:mb-8">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-indigo-800 bg-clip-text text-transparent mb-3 md:mb-4 px-4">
+          <div className="text-center mb-8 md:mb-12">
+            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-indigo-800 bg-clip-text text-transparent mb-4 md:mb-6 px-4">
               Design Your Custom Banner
             </h1>
             <p className="text-base sm:text-lg md:text-xl text-gray-700 max-w-2xl mx-auto px-4">
@@ -154,7 +154,7 @@ const Design: React.FC = () => {
 
           <div ref={configuratorRef}>
             {/* Mobile Layout: Vertical stack with optimal order */}
-            <div className="block lg:hidden space-y-4 md:space-y-6">
+            <div className="block lg:hidden space-y-6 md:space-y-8">
               <SizeQuantityCard />
               <LivePreviewCard onOpenAIModal={() => setAiModalOpen(true)} />
               <MaterialCard />
@@ -165,9 +165,9 @@ const Design: React.FC = () => {
             </div>
 
             {/* VISTAPRINT-STYLE DESKTOP LAYOUT: Compact Sidebar + Dominant Preview */}
-            <div className="hidden lg:flex lg:gap-8">
+            <div className="hidden lg:flex lg:gap-10">
               {/* CONSOLIDATED SIDEBAR - Compact Controls */}
-              <div className="w-80 flex-shrink-0 space-y-6">
+              <div className="w-96 flex-shrink-0 space-y-8">
                 <SizeQuantityCard />
                 <MaterialCard />
                 <OptionsCard />
