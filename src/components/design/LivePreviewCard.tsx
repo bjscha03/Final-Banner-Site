@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image, X, ChevronDown, ChevronUp, Wand2, Crop, RefreshCw } from 'lucide-react';
 import { useQuoteStore, Grommets } from '@/store/quote';
 import { formatDimensions } from '@/lib/pricing';
@@ -20,7 +20,6 @@ const grommetOptions = [
 ];
 
 interface LivePreviewCardProps {
-  expanded?: boolean;
   onOpenAIModal?: () => void;
 }
 // Helper function to create Cloudinary transformation URL for fitting to dimensions
@@ -41,7 +40,7 @@ const createFittedImageUrl = (originalUrl: string, targetWidthIn: number, target
 };
 
 
-const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, expanded = false }) => {
+const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
   const { widthIn, heightIn, previewScalePct, grommets, file, set } = useQuoteStore();
   const { toast } = useToast();
 
@@ -458,9 +457,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, expand
       
     } catch (error) {
       console.error("🚨 RESIZE ERROR DETAILS:", error);
-      return null;
-    }
-  };      console.error("🚨 ORIGINAL URL:", file?.url);
+      console.error("🚨 ORIGINAL URL:", file?.url);
       console.error("🚨 PUBLIC ID:", publicId);      console.error('❌ Error extracting public ID:', error);
 
   // Image interaction handlers
@@ -503,7 +500,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, expand
   };
   
   // Global mouse/touch handlers for dragging
-  useEffect(() => {
+  React.useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDraggingImage && !isResizingImage) return;
       
@@ -556,10 +553,13 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, expand
       };
     }
   }, [isDraggingImage, isResizingImage, dragStart, initialImagePosition]);
+      return null;
+    }
+  };
 
 
   return (
-    <div className="bg-white border border-gray-200/60 rounded-2xl overflow-hidden shadow-lg">
+    <div className="bg-white border border-gray-200/60 rounded-2xl overflow-hidden shadow-sm">
       {/* Header - responsive design */}
       <div className="px-3 sm:px-6 py-4 border-b border-gray-100">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
