@@ -125,7 +125,8 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   // VISTAPRINT-STYLE PROFESSIONAL PRINT GUIDELINES - ALWAYS VISIBLE
   const BLEED_SIZE = 0.125;
   const SAFETY_MARGIN = 0.5;
-  const RULER_HEIGHT = 1.0; // Larger rulers
+  const RULER_HEIGHT = 1.2; // Even larger rulers for better visibility
+  const TICK_SIZE = 0.15; // Ruler tick marks
 
   const bleedWidth = widthIn + (BLEED_SIZE * 2);
   const bleedHeight = heightIn + (BLEED_SIZE * 2);
@@ -142,8 +143,8 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           className="w-full h-full border-2 border-gray-400 rounded-xl bg-white shadow-lg"
           style={{
             aspectRatio: `${totalWidth}/${totalHeight}`,
-            minWidth: '800px',
-            minHeight: '600px',
+            minWidth: '900px',
+            minHeight: '700px',
             maxWidth: '1200px'
           }}
         >
@@ -151,7 +152,10 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
         <g className="print-rulers">
           <rect x="0" y="0" width={totalWidth} height={RULER_HEIGHT} fill="#f1f5f9" stroke="#64748b" strokeWidth="0.02"/>
           <text x={totalWidth/2} y={RULER_HEIGHT/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.3" fill="#1e293b" fontWeight="600">
-            {`${widthIn}"`}
+            {/* Ruler tick marks */}
+            {Array.from({length: Math.floor(widthIn)}, (_, i) => (
+              <line key={i} x1={RULER_HEIGHT + BLEED_SIZE + i} y1={RULER_HEIGHT - TICK_SIZE} x2={RULER_HEIGHT + BLEED_SIZE + i} y2={RULER_HEIGHT} stroke="#64748b" strokeWidth="0.02" />
+            ))}            {`${widthIn}"`}
           </text>
           <rect x="0" y={totalHeight - RULER_HEIGHT} width={totalWidth} height={RULER_HEIGHT} fill="#f1f5f9" stroke="#64748b" strokeWidth="0.02"/>
           <text x={totalWidth/2} y={totalHeight - RULER_HEIGHT/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.3" fill="#1e293b" fontWeight="600">
