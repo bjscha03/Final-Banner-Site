@@ -119,16 +119,15 @@ const BannerDesigner: React.FC<BannerDesignerProps> = ({
         setShowLowDPIWarning(effectiveDPI < 100);
         
         setLoading(false);
+      };
         
         // Auto-center and fit image after a short delay to ensure imageNode is set
         setTimeout(() => {
           resetImage();
-        }, 100);
-      };
-      img.src = e.target?.result as string;
+        }, 100);      img.src = e.target?.result as string;
     };
     reader.readAsDataURL(file);
-  }, [widthIn, heightIn, resetImage]);
+  }, [widthIn, heightIn]);
 
   // Position image initially when loaded
   useEffect(() => {
