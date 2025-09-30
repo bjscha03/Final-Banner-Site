@@ -146,7 +146,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
         {/* Canvas container with proper aspect ratio */}
         {/* Print Guidelines with corner handles and measurements */}
         <PrintGuidelines widthIn={widthIn} heightIn={heightIn} className="absolute inset-0 z-30" />        <div 
-          className="relative w-full border border-gray-300 rounded-xl bg-white overflow-hidden"
+          className="relative w-full border border-gray-300 rounded-xl bg-white "
           style={{
             aspectRatio: `${widthIn}/${heightIn}`,
             minHeight: '300px'
@@ -288,7 +288,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
       </div>
 
       {/* Professional info panel below the preview with more spacing */}
-      <div className="mt-8 bg-gradient-to-r from-gray-50 to-white rounded-xl border border-gray-200 p-5 shadow-sm overflow-hidden">
+      <div className="mt-8 bg-gradient-to-r from-gray-50 to-white rounded-xl border border-gray-200 p-5 shadow-sm ">
         <div className="flex flex-wrap items-center gap-4 w-full">
           {/* Banner dimensions */}
           <div className="flex items-center gap-2 flex-shrink-0">
