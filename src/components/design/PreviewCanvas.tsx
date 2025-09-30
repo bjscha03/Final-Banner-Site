@@ -250,6 +250,8 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
             </div>
           )}
 
+          {/* Print Guidelines with corner handles and measurements */}
+          <PrintGuidelines widthIn={widthIn} heightIn={heightIn} />
           {/* Placeholder when no image */}
           {!imageUrl && !file?.isPdf && (
             <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 2 }}>
