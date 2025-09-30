@@ -1,3 +1,4 @@
+import PrintGuidelines from "./PrintGuidelines";
 import InteractiveImageEditor from "./InteractiveImageEditor";
 import React, { useMemo, useState } from 'react';
 import { Grommets } from '@/store/quote';
@@ -143,8 +144,9 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
     <div className={`${className}`}>
       <div className="relative">
         {/* Canvas container with proper aspect ratio */}
-        <div 
-          className="relative w-full border border-gray-300 rounded-xl bg-white overflow-hidden"
+        {/* Print Guidelines with corner handles and measurements */}
+        <PrintGuidelines widthIn={widthIn} heightIn={heightIn} className="absolute inset-0 z-30" />        <div 
+          className="relative w-full border border-gray-300 rounded-xl bg-white "
           style={{
             aspectRatio: `${widthIn}/${heightIn}`,
             minHeight: '300px'
@@ -249,6 +251,8 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
             </div>
           )}
 
+          {/* Print Guidelines with corner handles and measurements */}
+          <PrintGuidelines widthIn={widthIn} heightIn={heightIn} grommets={grommets} />
           {/* Placeholder when no image */}
           {!imageUrl && !file?.isPdf && (
             <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 2 }}>
@@ -284,7 +288,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
       </div>
 
       {/* Professional info panel below the preview with more spacing */}
-      <div className="mt-8 bg-gradient-to-r from-gray-50 to-white rounded-xl border border-gray-200 p-5 shadow-sm overflow-hidden">
+      <div className="mt-8 bg-gradient-to-r from-gray-50 to-white rounded-xl border border-gray-200 p-5 shadow-sm ">
         <div className="flex flex-wrap items-center gap-4 w-full">
           {/* Banner dimensions */}
           <div className="flex items-center gap-2 flex-shrink-0">

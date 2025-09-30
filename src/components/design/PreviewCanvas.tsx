@@ -144,8 +144,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
     <div className={`${className}`}>
       <div className="relative">
         {/* Canvas container with proper aspect ratio */}
-        {/* Print Guidelines with corner handles and measurements */}
-        <PrintGuidelines widthIn={widthIn} heightIn={heightIn} className="absolute inset-0 z-30" />        <div 
+        <div
           className="relative w-full border border-gray-300 rounded-xl bg-white "
           style={{
             aspectRatio: `${widthIn}/${heightIn}`,

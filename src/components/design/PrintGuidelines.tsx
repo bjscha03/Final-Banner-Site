@@ -116,7 +116,7 @@ const PrintGuidelines: React.FC<PrintGuidelinesProps> = ({
           height={heightIn + 0.25} 
           fill="none" 
           stroke="#dc2626" 
-          strokeWidth="0.15"
+          strokeWidth="2"
           strokeDasharray="0.3,0.2"
           vectorEffect="non-scaling-stroke"
         />
@@ -129,7 +129,7 @@ const PrintGuidelines: React.FC<PrintGuidelinesProps> = ({
           height={heightIn - 0.5} 
           fill="none" 
           stroke="#16a34a" 
-          strokeWidth="0.15"
+          strokeWidth="2"
           strokeDasharray="0.3,0.2"
           vectorEffect="non-scaling-stroke"
         />
@@ -142,7 +142,7 @@ const PrintGuidelines: React.FC<PrintGuidelinesProps> = ({
           height={heightIn} 
           fill="none" 
           stroke="#0891b2" 
-          strokeWidth="0.1"
+          strokeWidth="1"
           vectorEffect="non-scaling-stroke"
         />
 
