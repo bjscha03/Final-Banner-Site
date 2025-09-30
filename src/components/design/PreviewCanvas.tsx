@@ -1,4 +1,5 @@
-import PrintGuidelines from "./PrintGuidelines";import InteractiveImageEditor from "./InteractiveImageEditor";
+import PrintGuidelines from "./PrintGuidelines";
+import InteractiveImageEditor from "./InteractiveImageEditor";
 import React, { useMemo, useState } from 'react';
 import { Grommets } from '@/store/quote';
 import { FileText, Image } from 'lucide-react';
@@ -251,7 +252,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           )}
 
           {/* Print Guidelines with corner handles and measurements */}
-          <PrintGuidelines widthIn={widthIn} heightIn={heightIn} />
+          <PrintGuidelines widthIn={widthIn} heightIn={heightIn} grommets={grommets} />
           {/* Placeholder when no image */}
           {!imageUrl && !file?.isPdf && (
             <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 2 }}>
