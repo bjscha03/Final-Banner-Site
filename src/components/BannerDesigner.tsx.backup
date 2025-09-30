@@ -349,34 +349,7 @@ const BannerDesigner: React.FC<BannerDesignerProps> = ({
             <Layer>
               {image && (
                 <KonvaImage
-                  ref={(node) => {
-                    setImageNode(node);
-                    if (node && image) {
-                      // Auto-position and scale the image when the node is ready
-                      setTimeout(() => {
-                        const centerX = bannerPxW / 2;
-                        const centerY = bannerPxH / 2;
-                        
-                        const safeAreaW = bannerPxW - (2 * safeMarginPx);
-                        const safeAreaH = bannerPxH - (2 * safeMarginPx);
-                        
-                        const scaleX = safeAreaW / image.naturalWidth;
-                        const scaleY = safeAreaH / image.naturalHeight;
-                        let scale = Math.min(scaleX, scaleY);
-                        
-                        node.position({
-                          x: centerX - (image.naturalWidth * scale) / 2,
-                          y: centerY - (image.naturalHeight * scale) / 2
-                        });
-                        node.scale({ x: scale, y: scale });
-                        
-                        if (transformerRef.current) {
-                          transformerRef.current.nodes([node]);
-                          transformerRef.current.getLayer()?.batchDraw();
-                        }
-                      }, 50);
-                    }
-                  }}
+                  ref={setImageNode}
                   image={image}
                   draggable={!loading}
                   dragBoundFunc={dragBoundFunc}
