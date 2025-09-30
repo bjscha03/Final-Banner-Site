@@ -269,14 +269,14 @@ const BannerDesigner: React.FC<BannerDesignerProps> = ({
       {/* Main stage container */}
       <div className="flex">
         {/* Left ruler */}
-        <div className="w-12 bg-white border-r flex flex-col justify-between text-xs text-gray-600 py-2">
-          <div className="flex items-center justify-end pr-1">
-            0"
-          </div>
-          <div className="flex items-center justify-end pr-1">
-            {Math.round(heightIn)}"
-          </div>
-        </div>        
+        <div className="w-12 bg-white border-r flex flex-col justify-between text-xs text-gray-600">
+          {Array.from({ length: Math.ceil(heightIn) + 1 }, (_, i) => (
+            <div key={i} className="flex items-center justify-end pr-1 h-4">
+              {i}"
+            </div>
+          ))}
+        </div>
+        
         {/* Stage area */}
         <div className="flex-1 relative">
           <Stage
@@ -396,9 +396,12 @@ const BannerDesigner: React.FC<BannerDesignerProps> = ({
           </Stage>
           
           {/* Bottom ruler */}
-          <div className="h-8 bg-white border-t flex justify-between text-xs text-gray-600 px-2 items-start pt-1">
-            <div>0"</div>
-            <div>{Math.round(widthIn)}"</div>
+          <div className="h-8 bg-white border-t flex justify-between text-xs text-gray-600 px-2">
+            {Array.from({ length: Math.ceil(widthIn) + 1 }, (_, i) => (
+              <div key={i} className="flex items-start pt-1">
+                {i}"
+              </div>
+            ))}
           </div>
           
           {/* Toolbar */}
