@@ -270,9 +270,9 @@ const BannerDesigner: React.FC<BannerDesignerProps> = ({
       <div className="flex">
         {/* Left ruler */}
         <div className="w-12 bg-white border-r flex flex-col justify-between text-xs text-gray-600">
-          {Array.from({ length: Math.ceil(heightIn) + 1 }, (_, i) => (
+          {Array.from({ length: Math.ceil(heightIn / 6) + 1 }, (_, i) => (
             <div key={i} className="flex items-center justify-end pr-1 h-4">
-              {i}"
+              {i * 6}"
             </div>
           ))}
         </div>
@@ -397,9 +397,9 @@ const BannerDesigner: React.FC<BannerDesignerProps> = ({
           
           {/* Bottom ruler */}
           <div className="h-8 bg-white border-t flex justify-between text-xs text-gray-600 px-2">
-            {Array.from({ length: Math.ceil(widthIn) + 1 }, (_, i) => (
+            {Array.from({ length: Math.ceil(widthIn / 6) + 1 }, (_, i) => (
               <div key={i} className="flex items-start pt-1">
-                {i}"
+                {i * 6}"
               </div>
             ))}
           </div>
