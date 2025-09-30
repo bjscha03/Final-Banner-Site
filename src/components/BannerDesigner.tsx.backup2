@@ -121,7 +121,10 @@ const BannerDesigner: React.FC<BannerDesignerProps> = ({
         setLoading(false);
       };
         
-      img.src = e.target?.result as string;
+        // Auto-center and fit image after a short delay to ensure imageNode is set
+        setTimeout(() => {
+          resetImage();
+        }, 100);      img.src = e.target?.result as string;
     };
     reader.readAsDataURL(file);
   }, [widthIn, heightIn]);
@@ -241,14 +244,7 @@ const BannerDesigner: React.FC<BannerDesignerProps> = ({
 
   return (
     <div className="relative w-full h-full bg-gray-100" ref={containerRef}>
-      {loading       {loading && <Spinner />}      {loading && <Spinner />} (
-        <div className="absolute inset-0 bg-white bg-opacity-75 flex items-center justify-center z-50">
-          <div className="text-center">
-            <Spinner />
-            <p className="mt-4 text-gray-600">Processing image...</p>
-          </div>
-        </div>
-      )}
+      {loading && <Spinner />}
       
       {/* Upload button */}
       {!image && (
@@ -290,7 +286,7 @@ const BannerDesigner: React.FC<BannerDesignerProps> = ({
             scaleX={stageScale}
             scaleY={stageScale}
             className="border border-gray-300"
-            onClick={(e) => {if (e.target === e.target.getStage() && transformerRef.current) transformerRef.current.nodes([]);}}          >
+          >
             {/* Background layer */}
             <Layer>
               {/* Banner background */}
@@ -305,81 +301,88 @@ const BannerDesigner: React.FC<BannerDesignerProps> = ({
               />
               
               {/* Bleed line */}
-              {/* Bleed line - red dashed */}
               <Rect
                 x={bleedPx}
                 y={bleedPx}
                 width={bannerPxW - 2 * bleedPx}
                 height={bannerPxH - 2 * bleedPx}
-                stroke="#ef4444"
+                stroke="red"
                 strokeWidth={2}
-                dash={[8, 4]}
+                dash={[5, 5]}
                 fill="transparent"
-              />              
+              />
+              
               {/* Safety area */}
-              {/* Safety area - green dashed */}
               <Rect
                 x={safeMarginPx}
                 y={safeMarginPx}
                 width={bannerPxW - 2 * safeMarginPx}
                 height={bannerPxH - 2 * safeMarginPx}
-                stroke="#22c55e"
+                stroke="green"
                 strokeWidth={2}
-                dash={[8, 4]}
+                dash={[5, 5]}
                 fill="transparent"
-              />            </Layer>
+              />
+            </Layer>
             
             {/* Grommets layer */}
             <Layer>
               {grommetPositions.map((pos) => (
                 <Group key={pos.id}>
-                  {/* Outer circle - black */}
                   <Circle
                     x={pos.x}
                     y={pos.y}
-                    radius={12}
-                    fill="#000000"
-                    stroke="#666666"
-                    strokeWidth={1}
+                    radius={8}
+                    fill="black"
                   />
-                  {/* Inner circle - white */}
                   <Circle
                     x={pos.x}
                     y={pos.y}
-                    radius={6}
-                    fill="#ffffff"
+                    radius={4}
+                    fill="white"
                   />
-                  {/* Center dot */}
-                  <Circle
-                    x={pos.x}
-                    y={pos.y}
-                    radius={2}
-                    fill="#000000"
-                  />
-                  {/* Target lines */}
-                  <Line
-                    points={[pos.x - 8, pos.y, pos.x + 8, pos.y]}
-                    stroke="#666666"
-                    strokeWidth={1}
-                  />
-                  <Line
-                    points={[pos.x, pos.y - 8, pos.x, pos.y + 8]}
-                    stroke="#666666"
-                    strokeWidth={1}
-                  />              ))}
+                </Group>
+              ))}
             </Layer>
             
             {/* Image layer */}
             <Layer>
               {image && (
                 <KonvaImage
-                  ref={setImageNode}
+                  ref={(node) => {
+                    setImageNode(node);
+                    if (node && image) {
+                      // Auto-position and scale the image when the node is ready
+                      setTimeout(() => {
+                        const centerX = bannerPxW / 2;
+                        const centerY = bannerPxH / 2;
+                        
+                        const safeAreaW = bannerPxW - (2 * safeMarginPx);
+                        const safeAreaH = bannerPxH - (2 * safeMarginPx);
+                        
+                        const scaleX = safeAreaW / image.naturalWidth;
+                        const scaleY = safeAreaH / image.naturalHeight;
+                        let scale = Math.min(scaleX, scaleY);
+                        
+                        node.position({
+                          x: centerX - (image.naturalWidth * scale) / 2,
+                          y: centerY - (image.naturalHeight * scale) / 2
+                        });
+                        node.scale({ x: scale, y: scale });
+                        
+                        if (transformerRef.current) {
+                          transformerRef.current.nodes([node]);
+                          transformerRef.current.getLayer()?.batchDraw();
+                        }
+                      }, 50);
+                    }
+                  }}
                   image={image}
                   draggable={!loading}
                   dragBoundFunc={dragBoundFunc}
                   onDragEnd={emitStateChange}
                   onTransformEnd={emitStateChange}
-                  onClick={() => {if (transformerRef.current && imageNode) transformerRef.current.nodes([imageNode]);}}                />
+                />
               )}
               
               {imageNode && (
@@ -395,28 +398,26 @@ const BannerDesigner: React.FC<BannerDesignerProps> = ({
             {/* Overlay layer */}
             <Layer>
               {/* Legend badges */}
-              <Group x={bannerPxW - 160} y={20}>
-                <Rect width={150} height={60} fill="white" stroke="#d1d5db" cornerRadius={8} opacity={0.95} />
-                <Rect x={10} y={12} width={16} height={3} fill="#22c55e" />
-                <Text x={30} y={10} text="Safety Area" fontSize={12} fill="#374151" fontFamily="Arial" />
-                <Rect x={10} y={30} width={16} height={3} fill="#ef4444" />
-                <Text x={30} y={28} text="Bleed Line" fontSize={12} fill="#374151" fontFamily="Arial" />
-                <Circle x={18} y={46} radius={6} fill="#000000" />
-                <Circle x={18} y={46} radius={3} fill="#ffffff" />
-                <Text x={30} y={42} text="Grommets" fontSize={12} fill="#374151" fontFamily="Arial" />
-              </Group>              
+              <Group x={bannerPxW - 150} y={20}>
+                <Rect width={140} height={50} fill="white" stroke="#ccc" cornerRadius={5} />
+                <Rect x={10} y={10} width={12} height={12} fill="green" />
+                <Text x={25} y={12} text="Safety Area" fontSize={12} fill="black" />
+                <Rect x={10} y={28} width={12} height={12} fill="red" />
+                <Text x={25} y={30} text="Bleed" fontSize={12} fill="black" />
+              </Group>
+              
               {/* Size display */}
-              <Group x={bannerPxW / 2 - 50} y={bannerPxH - 35}>
-                <Rect width={100} height={30} fill="white" stroke="#d1d5db" cornerRadius={6} opacity={0.95} />
+              <Group x={bannerPxW / 2 - 40} y={bannerPxH - 30}>
+                <Rect width={80} height={25} fill="white" stroke="#ccc" cornerRadius={3} />
                 <Text
-                  x={50}
-                  y={20}
+                  x={40}
+                  y={12}
                   text={`${widthIn}" × ${heightIn}"`}
-                  fontSize={14}
-                  fill="#374151"
-                  fontFamily="Arial"
+                  fontSize={12}
+                  fill="black"
                   align="center"
-                  offsetX={0}                />
+                  offsetX={0}
+                />
               </Group>
             </Layer>
           </Stage>
