@@ -124,7 +124,9 @@ const BannerDesigner: React.FC<BannerDesignerProps> = ({
         // Auto-center and fit image after a short delay to ensure imageNode is set
         setTimeout(() => {
           resetImage();
-        }, 100);      img.src = e.target?.result as string;
+        }, 100);
+      };
+      img.src = e.target?.result as string;
     };
     reader.readAsDataURL(file);
   }, [widthIn, heightIn]);

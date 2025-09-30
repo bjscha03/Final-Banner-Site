@@ -124,7 +124,9 @@ const BannerDesigner: React.FC<BannerDesignerProps> = ({
         // Auto-center and fit image after a short delay to ensure imageNode is set
         setTimeout(() => {
           resetImage();
-        }, 100);      img.src = e.target?.result as string;
+        }, 100);
+      };
+      img.src = e.target?.result as string;
     };
     reader.readAsDataURL(file);
   }, [widthIn, heightIn]);
@@ -267,14 +269,15 @@ const BannerDesigner: React.FC<BannerDesignerProps> = ({
       />
       
       {/* Main stage container */}
-      <div className="flex">
         {/* Left ruler */}
-        <div className="w-12 bg-white border-r flex flex-col justify-between text-xs text-gray-600">
-          {Array.from({ length: Math.ceil(heightIn) + 1 }, (_, i) => (
-            <div key={i} className="flex items-center justify-end pr-1 h-4">
-              {i}"
-            </div>
-          ))}
+        <div className="w-12 bg-white border-r flex flex-col justify-between text-xs text-gray-600 py-2">
+          <div className="flex items-center justify-end pr-1">
+            0"
+          </div>
+          <div className="flex items-center justify-end pr-1">
+            {Math.round(heightIn)}"
+          </div>
+        </div>          ))}
         </div>
         
         {/* Stage area */}
@@ -393,14 +396,11 @@ const BannerDesigner: React.FC<BannerDesignerProps> = ({
                 />
               </Group>
             </Layer>
-          </Stage>
-          
           {/* Bottom ruler */}
-          <div className="h-8 bg-white border-t flex justify-between text-xs text-gray-600 px-2">
-            {Array.from({ length: Math.ceil(widthIn) + 1 }, (_, i) => (
-              <div key={i} className="flex items-start pt-1">
-                {i}"
-              </div>
+          <div className="h-8 bg-white border-t flex justify-between text-xs text-gray-600 px-2 items-start pt-1">
+            <div>0"</div>
+            <div>{Math.round(widthIn)}"</div>
+          </div>              </div>
             ))}
           </div>
           
