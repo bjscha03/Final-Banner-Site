@@ -223,7 +223,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     } catch (error) {
       console.error("🚨 RESIZE ERROR DETAILS:", error);
       console.error("🚨 ORIGINAL URL:", file?.url);
-      console.error("🚨 PUBLIC ID:", publicId);      console.error('Error fitting image:', error);
+      console.error('Error fitting image:', error);
       toast({
         title: 'Failed to fit image',
         description: 'There was an error resizing the image. Please try again.',
@@ -316,7 +316,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     } catch (error) {
       console.error("🚨 RESIZE ERROR DETAILS:", error);
       console.error("🚨 ORIGINAL URL:", file?.url);
-      console.error("🚨 PUBLIC ID:", publicId);      console.error('Error generating print-ready version:', error);
+      console.error('Error generating print-ready version:', error);
       toast({
         title: 'Resize failed',
         description: error.message || 'Could not generate print-ready version. Please try again.',
@@ -405,7 +405,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     } catch (error) {
       console.error("🚨 RESIZE ERROR DETAILS:", error);
       console.error("🚨 ORIGINAL URL:", file?.url);
-      console.error("🚨 PUBLIC ID:", publicId);      console.error('Error resetting image:', error);
+      console.error('Error resetting image:', error);
       
       // Clear any broken image state
       set({
@@ -475,7 +475,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     }
   };
   // Image interaction handlers
-  const handleImageMouseDown = (e: React.MouseEvent) => { console.log("🔥 DEBUG: handleImageMouseDown called", e.target);
+  const handleImageMouseDown = (e: React.MouseEvent) => {
     if (!file?.url || file.isPdf) return;
     
     e.preventDefault();
@@ -492,7 +492,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       setIsResizingImage(true);
       setResizeHandle(handle);
       setInitialImageScale(imageScale);
-    } else { console.log("🔥 DEBUG: Starting drag mode", {x, y, target});
+    } else {
       setIsDraggingImage(true);
     }
     
@@ -523,15 +523,15 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       const deltaX = e.clientX - dragStart.x;
       const deltaY = e.clientY - dragStart.y;
       
-      if (isDraggingImage) { console.log("🔥 DEBUG: Dragging image", {deltaX, deltaY, sensitivity: 2.0});
+      if (isDraggingImage) {
         // Improved drag sensitivity - convert pixel movement to banner coordinate system
-        const sensitivity = 2.0; // FIXED: Improved drag sensitivity
-        const maxMove = Math.max(widthIn, heightIn) * 0.4; const newX = Math.max(-maxMove, Math.min(maxMove, initialImagePosition.x + (deltaX * sensitivity)));
-        const newY = Math.max(-maxMove, Math.min(maxMove, initialImagePosition.y + (deltaY * sensitivity)));
+        const sensitivity = 1.5; // FIXED: Improved drag sensitivity
+        const maxMove = Math.max(widthIn, heightIn) * 0.4; const newX = Math.max(-maxMove, Math.min(maxMove, initialImagePosition.x + (deltaX * sensitivity))); // FIXED: Dynamic bounds
+        const newY = Math.max(-maxMove, Math.min(maxMove, initialImagePosition.y + (deltaY * sensitivity))); // FIXED: Dynamic bounds Y
         setImagePosition({ x: newX, y: newY });
       } else if (isResizingImage && resizeHandle) {
         // Handle proportional resizing based on corner handle
-        const sensitivity = 0.005; // FIXED: Improved resize sensitivity
+        const sensitivity = 0.004; // FIXED: Improved resize sensitivity
         let scaleChange = 0;
         
         // Calculate scale change based on handle direction
@@ -541,7 +541,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
           scaleChange = (deltaX - deltaY) * sensitivity;
         }
         
-        const newScale = Math.max(0.2, Math.min(3, initialImageScale + scaleChange));
+        const newScale = Math.max(0.2, Math.min(3, initialImageScale + scaleChange)); // FIXED: Better min scale
         setImageScale(newScale);
       }
     };
@@ -708,8 +708,8 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
           </div>
         ) : (
           /* Preview Canvas */
-          <div className="mx-3 sm:mx-6 mb-4 sm:mb-6 bg-gray-100 border border-gray-300 rounded-2xl overflow-hidden relative ">
-            <div className="flex items-center justify-center p-2" style={{maxHeight: "min(70vh, 600px)", minHeight: "300px"}}>
+          <div className="mx-3 sm:mx-6 mb-4 sm:mb-6 bg-gray-100 border border-gray-300 rounded-2xl overflow-hidden relative h-80 sm:h-[600px]">
+            <div className="flex items-center justify-center h-full p-2">
               <div
                 style={{
                   transform: `scale(${previewScalePct / 100})`,
