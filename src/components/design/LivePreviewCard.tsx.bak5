@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image, X, ChevronDown, ChevronUp, Wand2, Crop, RefreshCw } from 'lucide-react';
+import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image, X, ChevronDown, ChevronUp, Wand2, Crop, RefreshCw, Loader2 } from 'lucide-react';
 import { useQuoteStore, Grommets } from '@/store/quote';
 import { formatDimensions } from '@/lib/pricing';
 import { grommetPoints } from '@/lib/preview/grommets';
@@ -46,11 +46,11 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
 
   const [dragActive, setDragActive] = useState(false);
   const [uploadError, setUploadError] = useState('');
-  
+  const [isUploading, setIsUploading] = useState(false);  
   // Image interaction state
   const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
   const [isDraggingImage, setIsDraggingImage] = useState(false);
-  const [isResizingImage, setIsResizingImage] = useState(false);
+  const [imageScale, setImageScale] = useState(1);  const [isResizingImage, setIsResizingImage] = useState(false);
   const [resizeHandle, setResizeHandle] = useState<string | null>(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [initialImagePosition, setInitialImagePosition] = useState({ x: 0, y: 0 });
@@ -107,7 +107,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     }
 
     setUploadError('');
-    const isPdf = file.type === 'application/pdf';
+    setIsUploading(true);    const isPdf = file.type === 'application/pdf';
 
     // Create URL for preview
     const url = URL.createObjectURL(file);

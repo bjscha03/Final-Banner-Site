@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image, X, ChevronDown, ChevronUp, Wand2, Crop, RefreshCw } from 'lucide-react';
+import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image, X, ChevronDown, ChevronUp, Wand2, Crop, RefreshCw, Loader2 } from 'lucide-react';
 import { useQuoteStore, Grommets } from '@/store/quote';
 import { formatDimensions } from '@/lib/pricing';
 import { grommetPoints } from '@/lib/preview/grommets';
@@ -47,7 +47,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
   const [dragActive, setDragActive] = useState(false);
   const [uploadError, setUploadError] = useState('');
   
-  // Image interaction state
+  const [isUploading, setIsUploading] = useState(false);  // Image interaction state
   const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
   const [isDraggingImage, setIsDraggingImage] = useState(false);
   const [isResizingImage, setIsResizingImage] = useState(false);
@@ -107,15 +107,16 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     }
 
     setUploadError('');
+    setIsUploading(true);
     const isPdf = file.type === 'application/pdf';
 
-    // Create URL for preview
-    const url = URL.createObjectURL(file);
-
-    // Upload actual file content to server
     try {
+      // Create URL for preview
+      const url = URL.createObjectURL(file);
+
+      // Upload actual file content to server
       const form = new FormData();
-      form.append("file", file); // Append the actual File object
+      form.append("file", file);
       const response = await fetch("/.netlify/functions/upload-file", {
         method: "POST",
         body: form
@@ -134,18 +135,23 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
           size: file.size,
           url,
           isPdf,
-          fileKey: result.fileKey // Store the server file key
+          fileKey: result.fileKey
         },
-        // Reset scale to 100% when uploading a new file
         previewScalePct: 100
       });
+
+      // Auto-center image if it's not a PDF
+      if (!isPdf) {
+        setImagePosition({ x: 0, y: 0 });
+      }
+
     } catch (uploadError) {
       console.error('File upload error:', uploadError);
       setUploadError('Failed to upload file. Please try again.');
-      return;
+    } finally {
+      setIsUploading(false);
     }
   };
-
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragActive(false);
@@ -647,9 +653,17 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
                   onClick={() => fileInputRef.current?.click()}
                   className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200 w-full max-w-xs h-12 flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
                 >
-                  <Upload className="w-5 h-5" />
-                  Upload Artwork
-                </button>
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-5 h-5" />
+                      Upload Artwork
+                    </>
+                  )}                </button>
                 {import.meta.env.VITE_AI_BANNER_ENABLED !== 'false' && onOpenAIModal && (
                   <>
                     <div className="text-gray-400 text-sm">or</div>

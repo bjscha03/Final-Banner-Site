@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image, X, ChevronDown, ChevronUp, Wand2, Crop, RefreshCw } from 'lucide-react';
+import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image, X, ChevronDown, ChevronUp, Wand2, Crop, RefreshCw, Loader2 } from 'lucide-react';
 import { useQuoteStore, Grommets } from '@/store/quote';
 import { formatDimensions } from '@/lib/pricing';
 import { grommetPoints } from '@/lib/preview/grommets';
@@ -46,9 +46,17 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
 
   const [dragActive, setDragActive] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  const [isUploading, setIsUploading] = useState(false);  
+  // Image interaction state
+  const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
+  const [isDraggingImage, setIsDraggingImage] = useState(false);
+  const [imageScale, setImageScale] = useState(1);  const [isResizingImage, setIsResizingImage] = useState(false);
+  const [resizeHandle, setResizeHandle] = useState<string | null>(null);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [initialImagePosition, setInitialImagePosition] = useState({ x: 0, y: 0 });
   const [isFittingImage, setIsFittingImage] = useState(false);
-  const [isResizingImage, setIsResizingImage] = useState(false);
-  const [isResettingImage, setIsResettingImage] = useState(false);  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isResettingImage, setIsResettingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Calculate grommet info
   const grommetInfo = useMemo(() => {
@@ -99,7 +107,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     }
 
     setUploadError('');
-    const isPdf = file.type === 'application/pdf';
+    setIsUploading(true);    const isPdf = file.type === 'application/pdf';
 
     // Create URL for preview
     const url = URL.createObjectURL(file);
@@ -131,12 +139,27 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
         // Reset scale to 100% when uploading a new file
         previewScalePct: 100
       });
-    } catch (uploadError) {
+
+      // Auto-center and scale image if it's not a PDF
+      if (!isPdf) {
+        setImagePosition({ x: 0, y: 0 });
+        
+        const img = new Image();
+        img.onload = () => {
+          const imageAspectRatio = img.width / img.height;
+          const bannerAspectRatio = widthIn / heightIn;
+          let scale = imageAspectRatio > bannerAspectRatio ? 0.8 : 0.8;
+          setImageScale(scale);
+        };
+        img.src = url;
+      }    } catch (uploadError) {
       console.error('File upload error:', uploadError);
       setUploadError('Failed to upload file. Please try again.');
       return;
     }
-  };
+    } finally {
+      setIsUploading(false);
+    }  };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -211,7 +234,9 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       });
 
     } catch (error) {
-      console.error('Error fitting image:', error);
+      console.error("🚨 RESIZE ERROR DETAILS:", error);
+      console.error("🚨 ORIGINAL URL:", file?.url);
+      console.error("🚨 PUBLIC ID:", publicId);      console.error('Error fitting image:', error);
       toast({
         title: 'Failed to fit image',
         description: 'There was an error resizing the image. Please try again.',
@@ -223,13 +248,12 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
   };
   // NEW: Resize Image functionality - Re-triggers AI artwork processing for new dimensions
   // NEW: Resize Image functionality - Re-triggers AI artwork processing for new dimensions
-  // NEW: Resize Image functionality - Generate print-ready high-resolution version
   const handleResizeImage = async () => {
     if (!file?.url || !isAIImage || !file.aiMetadata) {
       toast({
-        title: "No AI image to resize",
-        description: "Please generate an AI image first.",
-        variant: "destructive"
+        title: 'No AI image to resize',
+        description: 'Please generate an AI image first.',
+        variant: 'destructive'
       });
       return;
     }
@@ -237,25 +261,26 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     setIsResizingImage(true);
 
     try {
-      console.log(`🔄 Generating print-ready version for ${widthIn}×${heightIn}"`);
+      console.log(`🔥 RESIZE BUTTON CLICKED: Generating print-ready version for ${widthIn}×${heightIn}"`);
+      console.log('🔥 RESIZE: This is the NEW CODE calling ai-image-processor API');
 
       // Extract public ID from the current image
       const publicId = file.aiMetadata?.cloudinary_public_id || extractPublicIdFromUrl(file.url);
       
       if (!publicId) {
-        throw new Error("Could not extract Cloudinary public ID from image");
+        throw new Error('Could not extract Cloudinary public ID from image');
       }
 
-      console.log("Using public ID:", publicId);
+      console.log('Using public ID:', publicId);
 
       // Call the new AI image processor
-      const response = await fetch("/.netlify/functions/ai-image-processor", {
-        method: "POST",
+      const response = await fetch('/.netlify/functions/ai-image-processor', {
+        method: 'POST',
         headers: {
-          "Content-Type": "application/json",
+          'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          action: "resize",
+          action: 'resize',
           publicId: publicId,
           widthIn: widthIn,
           heightIn: heightIn
@@ -264,25 +289,25 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error("AI image processor error:", errorText);
+        console.error('AI image processor error:', errorText);
         throw new Error(`Processing failed: ${response.status} ${response.statusText}`);
       }
 
       const result = await response.json();
-      console.log("AI image processor result:", result);
+      console.log('AI image processor result:', result);
 
       if (!result.success) {
-        throw new Error(result.error || "Image processing failed");
+        throw new Error(result.error || 'Image processing failed');
       }
 
       // Update the file with the print-ready version
-      console.log("✅ Updating file with print-ready URL:", result.processedUrl);
+      console.log('✅ Updating file with print-ready URL:', result.processedUrl);
       
       set({
         file: {
           ...file,
           url: result.processedUrl,
-          name: file.name.replace(/_fitted_\d+x\d+|_resized_\d+x\d+|_print_ready_\d+x\d+/, "") + `_print_ready_${widthIn}x${heightIn}`,
+          name: file.name.replace(/_fitted_\d+x\d+|_resized_\d+x\d+|_print_ready_\d+x\d+/, '') + `_print_ready_${widthIn}x${heightIn}`,
           aiMetadata: {
             ...file.aiMetadata,
             printReadyVersion: {
@@ -296,22 +321,25 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       });
 
       toast({
-        title: "Print-ready version generated!",
+        title: 'Print-ready version generated!',
         description: `Created high-resolution file at ${result.dimensions?.dpi || 150} DPI for ${widthIn}×${heightIn}" banner`,
-        variant: "default"
+        variant: 'default'
       });
 
     } catch (error) {
-      console.error("Error generating print-ready version:", error);
+      console.error("🚨 RESIZE ERROR DETAILS:", error);
+      console.error("🚨 ORIGINAL URL:", file?.url);
+      console.error("🚨 PUBLIC ID:", publicId);      console.error('Error generating print-ready version:', error);
       toast({
-        title: "Resize failed",
-        description: error.message || "Could not generate print-ready version. Please try again.",
-        variant: "destructive"
+        title: 'Resize failed',
+        description: error.message || 'Could not generate print-ready version. Please try again.',
+        variant: 'destructive'
       });
     } finally {
       setIsResizingImage(false);
     }
-  };  // NEW: Reset Image functionality - Restores AI image to original generated size/aspect ratio
+  };
+  // NEW: Reset Image functionality - Restores AI image to original generated size/aspect ratio
   const handleResetImage = async () => {
     if (!file?.url || !isAIImage || !file.aiMetadata) {
       toast({
@@ -325,52 +353,75 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     setIsResettingImage(true);
 
     try {
-      console.log('🔄 Resetting AI image to original dimensions');
+      console.log('🔥 RESET BUTTON CLICKED: Resetting AI image to original state');
+      console.log('🔥 RESET: This is the NEW CODE calling ai-image-processor API');
 
-      // Find the original generated image URL (without transformations)
-      // Find the original generated image URL (without transformations)
-      let originalUrl = file.aiMetadata.originalUrl;
+      // Extract public ID from the current image
+      const publicId = file.aiMetadata?.cloudinary_public_id || extractPublicIdFromUrl(file.url);
       
-      if (!originalUrl) {
-        // Extract the base URL and public ID, removing any transformations
-        const publicId = extractPublicIdFromUrl(file.url);
-        if (publicId) {
-          const urlParts = file.url.split('/upload/');
-          if (urlParts.length === 2) {
-            originalUrl = `${urlParts[0]}/upload/${publicId}.jpg`;
-          }
-        }
+      if (!publicId) {
+        throw new Error('Could not extract Cloudinary public ID from image');
       }
-      
-      if (!originalUrl) {
-        throw new Error('Could not determine original image URL');
+
+      console.log('Using public ID for reset:', publicId);
+
+      // Call the AI image processor to get original version
+      const response = await fetch('/.netlify/functions/ai-image-processor', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'reset',
+          publicId: publicId
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('AI image processor error:', errorText);
+        throw new Error(`Reset failed: ${response.status} ${response.statusText}`);
       }
+
+      const result = await response.json();
+      console.log('AI image processor reset result:', result);
+
+      if (!result.success) {
+        throw new Error(result.error || 'Image reset failed');
+      }
+
+      // Update the file with the original version
+      console.log('✅ Resetting to original URL:', result.processedUrl);
       
-      console.log('🔄 Resetting to original URL:', originalUrl);
-      
-      // Update the file with the original URL
       set({
         file: {
           ...file,
-          url: originalUrl,
-          name: file.name.replace(/_fitted_\d+x\d+|_resized_\d+x\d+/, ''),
+          url: result.processedUrl,
+          name: file.name.replace(/_fitted_\d+x\d+|_resized_\d+x\d+|_print_ready_\d+x\d+/, ''),
           aiMetadata: {
             ...file.aiMetadata,
+            // Remove any transformation metadata
+            printReadyVersion: undefined,
             resizedDimensions: undefined
           }
-        }
+        },
+        // Reset scale to 100% when resetting image
+        previewScalePct: 100
       });
 
       toast({
         title: 'Image reset successfully!',
-        description: 'AI artwork has been restored to its original generated size and aspect ratio.'
+        description: 'Restored AI image to its original state',
+        variant: 'default'
       });
 
     } catch (error) {
-      console.error('Error resetting image:', error);
+      console.error("🚨 RESIZE ERROR DETAILS:", error);
+      console.error("🚨 ORIGINAL URL:", file?.url);
+      console.error("🚨 PUBLIC ID:", publicId);      console.error('Error resetting image:', error);
       toast({
         title: 'Reset failed',
-        description: 'Could not reset the image. Please try again.',
+        description: error.message || 'Could not reset the image. Please try again.',
         variant: 'destructive'
       });
     } finally {
@@ -424,6 +475,99 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       return null;
     }
   };
+  // Image interaction handlers
+  const handleImageMouseDown = (e: React.MouseEvent) => {
+    if (!file?.url || file.isPdf) return;
+    
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    // Check if clicking on a resize handle
+    const target = e.target as SVGElement;
+    if (target.classList.contains("resize-handle-nw") ||
+        target.classList.contains("resize-handle-ne") ||
+        target.classList.contains("resize-handle-sw") ||
+        target.classList.contains("resize-handle-se")) {
+      setIsResizingImage(true);
+      setResizeHandle(target.classList[0]);
+    } else {
+      setIsDraggingImage(true);
+    }
+    
+    setDragStart({ x, y });
+    setInitialImagePosition({ ...imagePosition });
+  };
+  
+  const handleImageTouchStart = (e: React.TouchEvent) => {
+    if (!file?.url || file.isPdf) return;
+    
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const touch = e.touches[0];
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    
+    setIsDraggingImage(true);
+    setDragStart({ x, y });
+    setInitialImagePosition({ ...imagePosition });
+  };
+  
+  // Global mouse/touch handlers for dragging
+  React.useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDraggingImage && !isResizingImage) return;
+      
+      e.preventDefault();
+      const deltaX = e.clientX - dragStart.x;
+      const deltaY = e.clientY - dragStart.y;
+      
+      if (isDraggingImage) {
+        // Convert pixel movement to percentage of banner dimensions
+        const newX = Math.max(-50, Math.min(50, initialImagePosition.x + (deltaX / 10)));
+        const newY = Math.max(-50, Math.min(50, initialImagePosition.y + (deltaY / 10)));
+        setImagePosition({ x: newX, y: newY });
+      }
+    };
+    
+    const handleMouseUp = () => {
+      setIsDraggingImage(false);
+      setIsResizingImage(false);
+      setResizeHandle(null);
+    };
+    
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isDraggingImage) return;
+      
+      e.preventDefault();
+      const touch = e.touches[0];
+      const deltaX = touch.clientX - dragStart.x;
+      const deltaY = touch.clientY - dragStart.y;
+      
+      const newX = Math.max(-50, Math.min(50, initialImagePosition.x + (deltaX / 10)));
+      const newY = Math.max(-50, Math.min(50, initialImagePosition.y + (deltaY / 10)));
+      setImagePosition({ x: newX, y: newY });
+    };
+    
+    const handleTouchEnd = () => {
+      setIsDraggingImage(false);
+    };
+    
+    if (isDraggingImage || isResizingImage) {
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+      document.addEventListener("touchmove", handleTouchMove, { passive: false });
+      document.addEventListener("touchend", handleTouchEnd);
+      
+      return () => {
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+        document.removeEventListener("touchmove", handleTouchMove);
+        document.removeEventListener("touchend", handleTouchEnd);
+      };
+    }
+  }, [isDraggingImage, isResizingImage, dragStart, initialImagePosition]);
 
 
   return (
@@ -515,12 +659,20 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
               {/* Button container with proper centering */}
               <div className="flex flex-col items-center gap-3 w-full">
                 <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200 w-full max-w-xs h-12 flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
+                  onClick={() => !isUploading && fileInputRef.current?.click()}
+                  className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg font-medium transition-colors duration-200 w-full max-w-xs h-12 flex items-center justify-center gap-2 shadow-sm hover:shadow-md" disabled={isUploading}
                 >
-                  <Upload className="w-5 h-5" />
-                  Upload Artwork
-                </button>
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-5 h-5" />
+                      Upload Artwork
+                    </>
+                  )}                </button>
                 {import.meta.env.VITE_AI_BANNER_ENABLED !== 'false' && onOpenAIModal && (
                   <>
                     <div className="text-gray-400 text-sm">or</div>
@@ -568,9 +720,12 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
                   grommets={grommets}
                   imageUrl={file?.url && !file.isPdf ? file.url : undefined}
                   className="shadow-lg"
-                  scale={previewScalePct / 100} // Convert percentage to decimal
+                  
                   file={file}
-                />
+                  imagePosition={imagePosition}
+                  imageScale={imageScale}                  onImageMouseDown={handleImageMouseDown}
+                  onImageTouchStart={handleImageTouchStart}
+                  isDraggingImage={isDraggingImage}                />
               </div>
             </div>
 
@@ -681,3 +836,5 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
 };
 
 export default LivePreviewCard;
+console.log("🔥 AI BUTTONS DEBUG: LivePreviewCard loaded at", new Date().toISOString());
+window.AI_BUTTONS_FIXED = true;

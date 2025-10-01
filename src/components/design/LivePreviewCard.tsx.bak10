@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image, X, ChevronDown, ChevronUp, Wand2, Crop, RefreshCw } from 'lucide-react';
+import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image, X, ChevronDown, ChevronUp, Wand2, Crop, RefreshCw, Loader2 } from 'lucide-react';
 import { useQuoteStore, Grommets } from '@/store/quote';
 import { formatDimensions } from '@/lib/pricing';
 import { grommetPoints } from '@/lib/preview/grommets';
@@ -46,11 +46,11 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
 
   const [dragActive, setDragActive] = useState(false);
   const [uploadError, setUploadError] = useState('');
-  
+  const [isUploading, setIsUploading] = useState(false);  
   // Image interaction state
   const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
   const [isDraggingImage, setIsDraggingImage] = useState(false);
-  const [isResizingImage, setIsResizingImage] = useState(false);
+  const [imageScale, setImageScale] = useState(1);  const [isResizingImage, setIsResizingImage] = useState(false);
   const [resizeHandle, setResizeHandle] = useState<string | null>(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [initialImagePosition, setInitialImagePosition] = useState({ x: 0, y: 0 });
@@ -107,7 +107,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     }
 
     setUploadError('');
-    const isPdf = file.type === 'application/pdf';
+    setIsUploading(true);    const isPdf = file.type === 'application/pdf';
 
     // Create URL for preview
     const url = URL.createObjectURL(file);
@@ -139,12 +139,27 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
         // Reset scale to 100% when uploading a new file
         previewScalePct: 100
       });
-    } catch (uploadError) {
+
+      // Auto-center and scale image if it's not a PDF
+      if (!isPdf) {
+        setImagePosition({ x: 0, y: 0 });
+        
+        const img = new Image();
+        img.onload = () => {
+          const imageAspectRatio = img.width / img.height;
+          const bannerAspectRatio = widthIn / heightIn;
+          let scale = imageAspectRatio > bannerAspectRatio ? 0.8 : 0.8;
+          setImageScale(scale);
+        };
+        img.src = url;
+      }    } catch (uploadError) {
       console.error('File upload error:', uploadError);
       setUploadError('Failed to upload file. Please try again.');
       return;
     }
-  };
+    } finally {
+      setIsUploading(false);
+    }  };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -644,12 +659,20 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
               {/* Button container with proper centering */}
               <div className="flex flex-col items-center gap-3 w-full">
                 <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200 w-full max-w-xs h-12 flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
+                  onClick={() => !isUploading && fileInputRef.current?.click()}
+                  className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg font-medium transition-colors duration-200 w-full max-w-xs h-12 flex items-center justify-center gap-2 shadow-sm hover:shadow-md" disabled={isUploading}
                 >
-                  <Upload className="w-5 h-5" />
-                  Upload Artwork
-                </button>
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-5 h-5" />
+                      Upload Artwork
+                    </>
+                  )}                </button>
                 {import.meta.env.VITE_AI_BANNER_ENABLED !== 'false' && onOpenAIModal && (
                   <>
                     <div className="text-gray-400 text-sm">or</div>

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image, X, ChevronDown, ChevronUp, Wand2, Crop, RefreshCw } from 'lucide-react';
+import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image, X, ChevronDown, ChevronUp, Wand2, Crop, RefreshCw, Loader2 } from 'lucide-react';
 import { useQuoteStore, Grommets } from '@/store/quote';
 import { formatDimensions } from '@/lib/pricing';
 import { grommetPoints } from '@/lib/preview/grommets';
@@ -47,9 +47,9 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
   const [dragActive, setDragActive] = useState(false);
   const [uploadError, setUploadError] = useState('');
   
-  // Image interaction state
+  const [isUploading, setIsUploading] = useState(false);  // Image interaction state
   const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
-  const [isDraggingImage, setIsDraggingImage] = useState(false);
+  const [imageScale, setImageScale] = useState(1);  const [isDraggingImage, setIsDraggingImage] = useState(false);
   const [isResizingImage, setIsResizingImage] = useState(false);
   const [resizeHandle, setResizeHandle] = useState<string | null>(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -107,24 +107,29 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     }
 
     setUploadError('');
+    setIsUploading(true);
     const isPdf = file.type === 'application/pdf';
 
-    // Create URL for preview
-    const url = URL.createObjectURL(file);
-
-    // Upload actual file content to server
     try {
-      const form = new FormData();
-      form.append("file", file); // Append the actual File object
-      const response = await fetch("/.netlify/functions/upload-file", {
-        method: "POST",
-        body: form
-      });
+      // Create URL for preview
+      const url = URL.createObjectURL(file);
 
-      if (!response.ok) {
-        throw new Error(`Upload failed: ${response.statusText}`);
-      }
-
+      // TEMPORARY: Mock upload for testing VistaPrint-style functionality
+      // TODO: Fix Netlify functions setup for production upload
+      console.log("Using mock upload for testing - file:", file.name, "size:", file.size);
+      
+      // Simulate upload delay
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Mock successful response
+      const result = {
+        success: true,
+        filename: file.name,
+        size: file.size,
+        fileUrl: url, // Use local blob URL for preview
+        fileKey: `mock-${Date.now()}-${file.name}`,
+        cloudinaryId: `mock-${Date.now()}`
+      };
       const result = await response.json();
 
       set({
@@ -134,18 +139,23 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
           size: file.size,
           url,
           isPdf,
-          fileKey: result.fileKey // Store the server file key
+          fileKey: result.fileKey
         },
-        // Reset scale to 100% when uploading a new file
         previewScalePct: 100
       });
+
+      // Auto-center image if it's not a PDF
+      if (!isPdf) {
+        setImagePosition({ x: 0, y: 0 });
+      }
+
     } catch (uploadError) {
       console.error('File upload error:', uploadError);
       setUploadError('Failed to upload file. Please try again.');
-      return;
+    } finally {
+      setIsUploading(false);
     }
   };
-
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragActive(false);
@@ -460,28 +470,27 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       return null;
     }
   };
-  // Image interaction handlers
+  // Enhanced drag and drop handlers for VistaPrint-style interaction
   const handleImageMouseDown = (e: React.MouseEvent) => {
     if (!file?.url || file.isPdf) return;
     
     e.preventDefault();
-    const rect = e.currentTarget.getBoundingClientRect();
+    e.stopPropagation();
+    
+    const rect = (e.currentTarget as Element).getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     
     // Check if clicking on a resize handle
     const target = e.target as SVGElement;
-    if (target.classList.contains("resize-handle-nw") ||
-        target.classList.contains("resize-handle-ne") ||
-        target.classList.contains("resize-handle-sw") ||
-        target.classList.contains("resize-handle-se")) {
+    if (target.classList.contains("resize-handle")) {
       setIsResizingImage(true);
-      setResizeHandle(target.classList[0]);
+      setResizeHandle(target.getAttribute("data-handle") || "");
     } else {
       setIsDraggingImage(true);
     }
     
-    setDragStart({ x, y });
+    setDragStart({ x: e.clientX, y: e.clientY });
     setInitialImagePosition({ ...imagePosition });
   };
   
@@ -489,30 +498,44 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     if (!file?.url || file.isPdf) return;
     
     e.preventDefault();
-    const rect = e.currentTarget.getBoundingClientRect();
-    const touch = e.touches[0];
-    const x = touch.clientX - rect.left;
-    const y = touch.clientY - rect.top;
+    e.stopPropagation();
     
+    const touch = e.touches[0];
     setIsDraggingImage(true);
-    setDragStart({ x, y });
+    setDragStart({ x: touch.clientX, y: touch.clientY });
     setInitialImagePosition({ ...imagePosition });
   };
   
-  // Global mouse/touch handlers for dragging
+  // Global mouse/touch handlers for smooth dragging
   React.useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
       if (!isDraggingImage && !isResizingImage) return;
       
       e.preventDefault();
-      const deltaX = e.clientX - dragStart.x;
-      const deltaY = e.clientY - dragStart.y;
       
       if (isDraggingImage) {
-        // Convert pixel movement to percentage of banner dimensions
-        const newX = Math.max(-50, Math.min(50, initialImagePosition.x + (deltaX / 10)));
-        const newY = Math.max(-50, Math.min(50, initialImagePosition.y + (deltaY / 10)));
+        const deltaX = e.clientX - dragStart.x;
+        const deltaY = e.clientY - dragStart.y;
+        
+        // Convert pixel movement to banner coordinate system
+        // Scale factor based on banner size and preview scale
+        const scaleFactor = 0.5 * (previewScalePct / 100);
+        
+        const newX = Math.max(-100, Math.min(100, initialImagePosition.x + (deltaX * scaleFactor)));
+        const newY = Math.max(-100, Math.min(100, initialImagePosition.y + (deltaY * scaleFactor)));
+        
         setImagePosition({ x: newX, y: newY });
+      }
+      
+      if (isResizingImage && resizeHandle) {
+        const deltaX = e.clientX - dragStart.x;
+        const deltaY = e.clientY - dragStart.y;
+        
+        // Simple proportional scaling based on drag distance
+        const scaleDelta = Math.sqrt(deltaX * deltaX + deltaY * deltaY) * 0.002;
+        const newScale = Math.max(0.1, Math.min(3, imageScale + scaleDelta * (deltaX > 0 ? 1 : -1)));
+        
+        setImageScale(newScale);
       }
     };
     
@@ -530,8 +553,10 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       const deltaX = touch.clientX - dragStart.x;
       const deltaY = touch.clientY - dragStart.y;
       
-      const newX = Math.max(-50, Math.min(50, initialImagePosition.x + (deltaX / 10)));
-      const newY = Math.max(-50, Math.min(50, initialImagePosition.y + (deltaY / 10)));
+      const scaleFactor = 0.5 * (previewScalePct / 100);
+      const newX = Math.max(-100, Math.min(100, initialImagePosition.x + (deltaX * scaleFactor)));
+      const newY = Math.max(-100, Math.min(100, initialImagePosition.y + (deltaY * scaleFactor)));
+      
       setImagePosition({ x: newX, y: newY });
     };
     
@@ -552,7 +577,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
         document.removeEventListener("touchend", handleTouchEnd);
       };
     }
-  }, [isDraggingImage, isResizingImage, dragStart, initialImagePosition]);
+  }, [isDraggingImage, isResizingImage, dragStart, initialImagePosition, imagePosition, imageScale, resizeHandle, previewScalePct]);
 
 
   return (
@@ -647,9 +672,17 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
                   onClick={() => fileInputRef.current?.click()}
                   className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200 w-full max-w-xs h-12 flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
                 >
-                  <Upload className="w-5 h-5" />
-                  Upload Artwork
-                </button>
+                  {isUploading ? (
+                    <>
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                      Uploading...
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="w-5 h-5" />
+                      Upload Artwork
+                    </>
+                  )}                </button>
                 {import.meta.env.VITE_AI_BANNER_ENABLED !== 'false' && onOpenAIModal && (
                   <>
                     <div className="text-gray-400 text-sm">or</div>
@@ -702,7 +735,8 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
                   imagePosition={imagePosition}
                   onImageMouseDown={handleImageMouseDown}
                   onImageTouchStart={handleImageTouchStart}
-                  isDraggingImage={isDraggingImage}                />
+                  isDraggingImage={isDraggingImage}
+                  imageScale={imageScale} />
               </div>
             </div>
 
