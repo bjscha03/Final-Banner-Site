@@ -137,7 +137,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
 
   return (
     <div className={`${className} w-full`}>
-      <div className="relative bg-gray-50 p-8 rounded-2xl overflow-hidden" style={{maxHeight: "500px", display: "flex", alignItems: "center", justifyContent: "center"}}>
+      <div className="relative bg-gray-50 p-8 rounded-2xl overflow-hidden" style={{height: "500px", width: "100%", display: "flex", alignItems: "center", justifyContent: "center"}}>
         <svg
           viewBox={`0 0 ${totalWidth} ${totalHeight}`}
           className="border-2 border-gray-400 rounded-xl bg-white shadow-lg"
@@ -145,10 +145,10 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
             maxWidth: "100%",
             maxHeight: "100%",
             width: "auto",
-            height: "auto",
-            objectFit: "contain"
+            height: "auto"
           }}
-        >        {/* PROFESSIONAL PRINT GUIDELINES - ALWAYS VISIBLE */}
+        >
+        {/* PROFESSIONAL PRINT GUIDELINES - ALWAYS VISIBLE */}
         <g className="print-rulers">
           <rect x="0" y="0" width={totalWidth} height={RULER_HEIGHT} fill="#f1f5f9" stroke="#64748b" strokeWidth="0.02"/>
           <text x={totalWidth/2} y={RULER_HEIGHT/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.5" fill="#1e293b" fontWeight="600">
