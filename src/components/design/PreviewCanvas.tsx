@@ -144,7 +144,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           style={{
             aspectRatio: `${totalWidth}/${totalHeight}`,
             minWidth: '300px',
-            maxHeight: '500px',
+            maxHeight: Math.min(500, window.innerHeight * 0.6) + 'px',
             maxWidth: '100%'
           }}
         >
@@ -265,8 +265,8 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
             href={imageUrl}
             x={bannerOffsetX + (widthIn - (widthIn - 1) * imageScale) / 2 + (imagePosition.x * 0.01)}
             y={bannerOffsetY + (heightIn - (heightIn - 1) * imageScale) / 2 + (imagePosition.y * 0.01)}
-            width={(widthIn - 1) * imageScale}
-            height={(heightIn - 1) * imageScale}            preserveAspectRatio="xMidYMid slice"
+            width={(widthIn - 1) * (imageScale || 1)}
+            height={(heightIn - 1) * (imageScale || 1)}            preserveAspectRatio="xMidYMid slice"
             clipPath="url(#banner-clip)"
             style={{
               cursor: isDraggingImage ? 'grabbing' : 'grab',
@@ -282,7 +282,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           <g className="resize-handles">
             {/* Corner resize handles with improved styling */}
             <circle
-              cx={bannerOffsetX + (widthIn - (widthIn - 1) * imageScale) / 2 + (imagePosition.x * 0.01) - 0.2}
+              cx={bannerOffsetX + (widthIn - (widthIn - 1) * (imageScale || 1)) / 2 + (imagePosition.x * 0.01) - 0.2}
               cy={bannerOffsetY + (heightIn - (heightIn - 1) * imageScale) / 2 + (imagePosition.y * 0.01) - 0.2}
               r="0.15"
               fill="#ffffff"
@@ -304,7 +304,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
               data-handle="ne"
             />
             <circle
-              cx={bannerOffsetX + (widthIn - (widthIn - 1) * imageScale) / 2 + (imagePosition.x * 0.01) - 0.2}
+              cx={bannerOffsetX + (widthIn - (widthIn - 1) * (imageScale || 1)) / 2 + (imagePosition.x * 0.01) - 0.2}
               cy={bannerOffsetY + (heightIn - (heightIn - 1) * imageScale) / 2 + (imagePosition.y * 0.01) + (heightIn - 1) * imageScale + 0.2}
               r="0.15"
               fill="#ffffff"

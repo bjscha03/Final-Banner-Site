@@ -49,11 +49,15 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
   
   const [isUploading, setIsUploading] = useState(false);  // Image interaction state
   const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
+  const [imageScale, setImageScale] = useState(1);
+  const [imageScale, setImageScale] = useState(1);
   const [isDraggingImage, setIsDraggingImage] = useState(false);
   const [isResizingImage, setIsResizingImage] = useState(false);
   const [resizeHandle, setResizeHandle] = useState<string | null>(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [initialImagePosition, setInitialImagePosition] = useState({ x: 0, y: 0 });
+  const [initialImageScale, setInitialImageScale] = useState(1);
+  const [initialImageScale, setInitialImageScale] = useState(1);
   const [isFittingImage, setIsFittingImage] = useState(false);
   const [isResettingImage, setIsResettingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -404,6 +408,18 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       console.error("🚨 RESIZE ERROR DETAILS:", error);
       console.error("🚨 ORIGINAL URL:", file?.url);
       console.error("🚨 PUBLIC ID:", publicId);      console.error('Error resetting image:', error);
+      
+      // Clear any broken image state
+      set({
+        file: null,
+        previewScalePct: 100
+      });
+      
+      // Clear any broken image state
+      set({
+        file: null,
+        previewScalePct: 100
+      });
       toast({
         title: 'Reset failed',
         description: error.message || 'Could not reset the image. Please try again.',
@@ -465,18 +481,19 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     if (!file?.url || file.isPdf) return;
     
     e.preventDefault();
-    const rect = e.currentTarget.getBoundingClientRect();
+    e.stopPropagation();
+    
+    const target = e.target as SVGElement;
+    const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     
     // Check if clicking on a resize handle
-    const target = e.target as SVGElement;
-    if (target.classList.contains("resize-handle-nw") ||
-        target.classList.contains("resize-handle-ne") ||
-        target.classList.contains("resize-handle-sw") ||
-        target.classList.contains("resize-handle-se")) {
+    if (target.classList.contains("resize-handle") || target.getAttribute("data-handle")) {
+      const handle = target.getAttribute("data-handle") || target.classList[1];
       setIsResizingImage(true);
-      setResizeHandle(target.classList[0]);
+      setResizeHandle(handle);
+      setInitialImageScale(imageScale);
     } else {
       setIsDraggingImage(true);
     }
@@ -509,10 +526,25 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       const deltaY = e.clientY - dragStart.y;
       
       if (isDraggingImage) {
-        // Convert pixel movement to percentage of banner dimensions
-        const newX = Math.max(-50, Math.min(50, initialImagePosition.x + (deltaX / 10)));
-        const newY = Math.max(-50, Math.min(50, initialImagePosition.y + (deltaY / 10)));
+        // Improved drag sensitivity - convert pixel movement to banner coordinate system
+        const sensitivity = 0.5; // Adjust for smoother dragging
+        const newX = Math.max(-100, Math.min(100, initialImagePosition.x + (deltaX * sensitivity)));
+        const newY = Math.max(-100, Math.min(100, initialImagePosition.y + (deltaY * sensitivity)));
         setImagePosition({ x: newX, y: newY });
+      } else if (isResizingImage && resizeHandle) {
+        // Handle proportional resizing based on corner handle
+        const sensitivity = 0.002; // Scale sensitivity
+        let scaleChange = 0;
+        
+        // Calculate scale change based on handle direction
+        if (resizeHandle === 'se' || resizeHandle === 'nw') {
+          scaleChange = (deltaX + deltaY) * sensitivity;
+        } else if (resizeHandle === 'ne' || resizeHandle === 'sw') {
+          scaleChange = (deltaX - deltaY) * sensitivity;
+        }
+        
+        const newScale = Math.max(0.1, Math.min(3, initialImageScale + scaleChange));
+        setImageScale(newScale);
       }
     };
     
@@ -702,7 +734,8 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
                   imagePosition={imagePosition}
                   onImageMouseDown={handleImageMouseDown}
                   onImageTouchStart={handleImageTouchStart}
-                  isDraggingImage={isDraggingImage}                />
+                  isDraggingImage={isDraggingImage}
+                  imageScale={imageScale} />
               </div>
             </div>
 
