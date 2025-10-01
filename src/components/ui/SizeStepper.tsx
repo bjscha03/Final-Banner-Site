@@ -81,14 +81,14 @@ export function SizeStepper({
             type="text"
             inputMode="numeric"
             pattern="[0-9]*"
-            className="h-12 w-full rounded-lg border border-gray-300 text-center font-medium tabular-nums text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors duration-200 pr-12"
+            className="h-12 w-full rounded-lg border border-gray-300 text-center font-medium tabular-nums text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors duration-200 pr-6"
             value={value || ''}
             onChange={handleInputChange}
             onBlur={handleInputBlur}
             aria-label={`${label} value`}
           />
           {unit && (
-            <span className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none font-medium">
+            <span className="absolute right-1 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none font-medium">
               {unit}
             </span>
           )}
