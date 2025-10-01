@@ -181,14 +181,14 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
             width={bleedWidth}
             height={bleedHeight}
             fill="none"
-            stroke="#e53e3e"
+            stroke="#dc2626"
             strokeWidth="0.15"
             strokeDasharray="0.3 0.15"
             opacity="0.9"
           />
           
           {/* Bleed corner markers */}
-          <g stroke="#e53e3e" strokeWidth="0.1" fill="none" opacity="0.8">
+          <g stroke="#dc2626" strokeWidth="0.1" fill="none" opacity="0.8">
             <path d={`M ${RULER_HEIGHT} ${RULER_HEIGHT + 0.5} L ${RULER_HEIGHT} ${RULER_HEIGHT} L ${RULER_HEIGHT + 0.5} ${RULER_HEIGHT}`} />
             <path d={`M ${RULER_HEIGHT + bleedWidth - 0.5} ${RULER_HEIGHT} L ${RULER_HEIGHT + bleedWidth} ${RULER_HEIGHT} L ${RULER_HEIGHT + bleedWidth} ${RULER_HEIGHT + 0.5}`} />
             <path d={`M ${RULER_HEIGHT} ${RULER_HEIGHT + bleedHeight - 0.5} L ${RULER_HEIGHT} ${RULER_HEIGHT + bleedHeight} L ${RULER_HEIGHT + 0.5} ${RULER_HEIGHT + bleedHeight}`} />
@@ -212,14 +212,14 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
             width={widthIn - (SAFETY_MARGIN * 2)}
             height={heightIn - (SAFETY_MARGIN * 2)}
             fill="none"
-            stroke="#0891b2"
+            stroke="#2563eb"
             strokeWidth="0.12"
             strokeDasharray="0.4 0.2"
             opacity="0.85"
           />
           
           {/* Safety corner markers */}
-          <g stroke="#0891b2" strokeWidth="0.08" fill="none" opacity="0.7">
+          <g stroke="#2563eb" strokeWidth="0.08" fill="none" opacity="0.7">
             <path d={`M ${bannerOffsetX + SAFETY_MARGIN} ${bannerOffsetY + SAFETY_MARGIN + 0.4} L ${bannerOffsetX + SAFETY_MARGIN} ${bannerOffsetY + SAFETY_MARGIN} L ${bannerOffsetX + SAFETY_MARGIN + 0.4} ${bannerOffsetY + SAFETY_MARGIN}`} />
             <path d={`M ${bannerOffsetX + widthIn - SAFETY_MARGIN - 0.4} ${bannerOffsetY + SAFETY_MARGIN} L ${bannerOffsetX + widthIn - SAFETY_MARGIN} ${bannerOffsetY + SAFETY_MARGIN} L ${bannerOffsetX + widthIn - SAFETY_MARGIN} ${bannerOffsetY + SAFETY_MARGIN + 0.4}`} />
             <path d={`M ${bannerOffsetX + SAFETY_MARGIN} ${bannerOffsetY + heightIn - SAFETY_MARGIN - 0.4} L ${bannerOffsetX + SAFETY_MARGIN} ${bannerOffsetY + heightIn - SAFETY_MARGIN} L ${bannerOffsetX + SAFETY_MARGIN + 0.4} ${bannerOffsetY + heightIn - SAFETY_MARGIN}`} />
