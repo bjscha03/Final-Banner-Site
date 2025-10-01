@@ -223,7 +223,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     } catch (error) {
       console.error("🚨 RESIZE ERROR DETAILS:", error);
       console.error("🚨 ORIGINAL URL:", file?.url);
-      console.error('Error fitting image:', error);
+      console.error("🚨 PUBLIC ID:", publicId);      console.error('Error fitting image:', error);
       toast({
         title: 'Failed to fit image',
         description: 'There was an error resizing the image. Please try again.',
@@ -316,7 +316,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     } catch (error) {
       console.error("🚨 RESIZE ERROR DETAILS:", error);
       console.error("🚨 ORIGINAL URL:", file?.url);
-      console.error('Error generating print-ready version:', error);
+      console.error("🚨 PUBLIC ID:", publicId);      console.error('Error generating print-ready version:', error);
       toast({
         title: 'Resize failed',
         description: error.message || 'Could not generate print-ready version. Please try again.',
@@ -405,8 +405,15 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     } catch (error) {
       console.error("🚨 RESIZE ERROR DETAILS:", error);
       console.error("🚨 ORIGINAL URL:", file?.url);
-      console.error('Error resetting image:', error);
+      console.error("🚨 PUBLIC ID:", publicId);      console.error('Error resetting image:', error);
       
+      // Clear any broken image state
+      set({
+        file: null,
+        previewScalePct: 100
+      });
+      
+      // Clear any broken image state
       set({
         file: null,
         previewScalePct: 100

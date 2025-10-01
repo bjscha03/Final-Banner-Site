@@ -407,6 +407,13 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       console.error("🚨 ORIGINAL URL:", file?.url);
       console.error('Error resetting image:', error);
       
+      // Clear any broken image state
+      set({
+        file: null,
+        previewScalePct: 100
+      });
+      
+      // Clear any broken image state
       set({
         file: null,
         previewScalePct: 100
