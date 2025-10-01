@@ -1,6 +1,4 @@
-import PrintGuidelines from "./PrintGuidelines";
-import InteractiveImageEditor from "./InteractiveImageEditor";
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Grommets } from '@/store/quote';
 import { FileText, Image } from 'lucide-react';
 import PDFPreview from './PDFPreview';
@@ -12,7 +10,7 @@ interface PreviewCanvasProps {
   grommets: Grommets;
   imageUrl?: string;
   className?: string;
-  scale?: number; // Preview scale for PDF rendering (1 = 100%)
+  scale?: number;
   file?: {
     name: string;
     type: string;
@@ -20,6 +18,10 @@ interface PreviewCanvasProps {
     url?: string;
     isPdf?: boolean;
   };
+  imagePosition?: { x: number; y: number };
+  imageScale?: number;  onImageMouseDown?: (e: React.MouseEvent) => void;
+  onImageTouchStart?: (e: React.TouchEvent) => void;
+  isDraggingImage?: boolean;
 }
 
 interface Point {
@@ -27,17 +29,15 @@ interface Point {
   y: number;
 }
 
-// Helper function to get corner points
 function cornerPoints(w: number, h: number, m: number): Point[] {
   return [
-    { x: m, y: m },           // TL
-    { x: w - m, y: m },       // TR
-    { x: m, y: h - m },       // BL
-    { x: w - m, y: h - m },   // BR
+    { x: m, y: m },
+    { x: w - m, y: m },
+    { x: m, y: h - m },
+    { x: w - m, y: h - m },
   ];
 }
 
-// Helper function to get midpoints along an edge
 function midpoints(length: number, m: number, spacing: number): number[] {
   const usable = Math.max(0, length - 2 * m);
   const n = Math.floor(usable / spacing);
@@ -46,7 +46,6 @@ function midpoints(length: number, m: number, spacing: number): number[] {
   return Array.from({ length: n }, (_, k) => m + (k + 1) * step);
 }
 
-// Remove duplicate points (when corners overlap)
 function dedupe(points: Point[]): Point[] {
   const seen = new Set<string>();
   return points.filter(p => {
@@ -57,9 +56,8 @@ function dedupe(points: Point[]): Point[] {
   });
 }
 
-// Calculate grommet points based on pattern
 function grommetPoints(w: number, h: number, mode: Grommets): Point[] {
-  const m = 1; // 1 inch margin from edges
+  const m = 1;
   const corners = cornerPoints(w, h, m);
   const pts: Point[] = [];
 
@@ -72,34 +70,24 @@ function grommetPoints(w: number, h: number, mode: Grommets): Point[] {
   };
 
   if (mode === 'none') return pts;
-
   if (mode === '4-corners') {
     pts.push(...corners);
     return dedupe(pts);
   }
-
   if (mode === 'top-corners') { addCorners(['top']); return dedupe(pts); }
   if (mode === 'left-corners') { addCorners(['left']); return dedupe(pts); }
   if (mode === 'right-corners') { addCorners(['right']); return dedupe(pts); }
 
-  // every-N case:
-  const s = mode === 'every-1-2ft' ? 18 : 24; // inches
-  
-  // Add corners first
+  const s = mode === 'every-1-2ft' ? 18 : 24;
   pts.push(...corners);
-
-  // Add top/bottom midpoints
   for (const x of midpoints(w, m, s)) {
-    pts.push({ x, y: m });          // top
-    pts.push({ x, y: h - m });      // bottom
+    pts.push({ x, y: m });
+    pts.push({ x, y: h - m });
   }
-  
-  // Add left/right midpoints
   for (const y of midpoints(h, m, s)) {
-    pts.push({ x: m, y });          // left
-    pts.push({ x: w - m, y });      // right
+    pts.push({ x: m, y });
+    pts.push({ x: w - m, y });
   }
-  
   return dedupe(pts);
 }
 
@@ -108,28 +96,22 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   heightIn,
   grommets,
   imageUrl,
-  className = '',
+  className = "",
   scale = 1,
-  file
+  file,
+  imagePosition = { x: 0, y: 0 },
+  imageScale = 1,  onImageMouseDown,
+  onImageTouchStart,
+  isDraggingImage = false
 }) => {
-  // Feature flag for PDF static preview
-  const FEATURE_PDF_STATIC_PREVIEW = import.meta.env.VITE_FEATURE_PDF_STATIC_PREVIEW === '1';
-  
-  // State for image transform
-  const [imageTransform, setImageTransform] = useState({
-    x: 0,
-    y: 0,
-    scale: 1,
-    rotation: 0
-  });
+  const FEATURE_PDF_STATIC_PREVIEW = true;
 
   const grommetPositions = useMemo(() => {
     return grommetPoints(widthIn, heightIn, grommets);
   }, [widthIn, heightIn, grommets]);
 
-  // Calculate grommet radius - more prominent and visible
   const grommetRadius = useMemo(() => {
-    return Math.max(0.2, Math.min(widthIn, heightIn) * 0.04);
+    return Math.max(0.25, Math.min(widthIn, heightIn) * 0.015);
   }, [widthIn, heightIn]);
 
   const formatFileSize = (bytes: number): string => {
@@ -140,207 +122,397 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
   };
 
+  // VISTAPRINT-STYLE PROFESSIONAL PRINT GUIDELINES - ALWAYS VISIBLE
+  const BLEED_SIZE = 0.125;
+  const SAFETY_MARGIN = 0.5;
+  const RULER_HEIGHT = 1.2; // Even larger rulers for better visibility
+  const TICK_SIZE = 0.15; // Ruler tick marks
+
+  const bleedWidth = widthIn + (BLEED_SIZE * 2);
+  const bleedHeight = heightIn + (BLEED_SIZE * 2);
+  const totalWidth = bleedWidth + (RULER_HEIGHT * 2);
+  const totalHeight = bleedHeight + (RULER_HEIGHT * 2);
+  const bannerOffsetX = RULER_HEIGHT + BLEED_SIZE;
+  const bannerOffsetY = RULER_HEIGHT + BLEED_SIZE;
+
   return (
-    <div className={`${className}`}>
-      <div className="relative">
-        {/* Canvas container with proper aspect ratio */}
-        <div
-          className="relative w-full border border-gray-300 rounded-xl bg-white "
+    <div className={`${className} w-full`}>
+      <div className="relative bg-gray-50 p-8 rounded-2xl">
+        <svg
+          viewBox={`0 0 ${totalWidth} ${totalHeight}`}
+          className="w-full h-auto border-2 border-gray-400 rounded-xl bg-white shadow-lg"
           style={{
-            aspectRatio: `${widthIn}/${heightIn}`,
-            minHeight: '300px'
+            aspectRatio: `${totalWidth}/${totalHeight}`,
+            minWidth: '300px',
+            maxHeight: '500px',
+            maxWidth: '100%'
           }}
         >
-          {/* Background SVG for grommets and guides */}
-          <svg
-            viewBox={`0 0 ${widthIn} ${heightIn}`}
-            className="absolute inset-0 w-full h-full pointer-events-none"
-            style={{ zIndex: 1 }}
-          >
-            {/* Banner background */}
+        {/* PROFESSIONAL PRINT GUIDELINES - ALWAYS VISIBLE */}
+        <g className="print-rulers">
+          <rect x="0" y="0" width={totalWidth} height={RULER_HEIGHT} fill="#f1f5f9" stroke="#64748b" strokeWidth="0.02"/>
+          <text x={totalWidth/2} y={RULER_HEIGHT/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.5" fill="#1e293b" fontWeight="600">
+            {/* Ruler tick marks */}
+            {Array.from({length: Math.floor(widthIn)}, (_, i) => (
+              <line key={i} x1={RULER_HEIGHT + BLEED_SIZE + i} y1={RULER_HEIGHT - TICK_SIZE} x2={RULER_HEIGHT + BLEED_SIZE + i} y2={RULER_HEIGHT} stroke="#64748b" strokeWidth="0.02" />
+            ))}            {`${widthIn}"`}
+          </text>
+          <rect x="0" y={totalHeight - RULER_HEIGHT} width={totalWidth} height={RULER_HEIGHT} fill="#f1f5f9" stroke="#64748b" strokeWidth="0.02"/>
+          <text x={totalWidth/2} y={totalHeight - RULER_HEIGHT/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.5" fill="#1e293b" fontWeight="600">
+            {`${widthIn}"`}
+          </text>
+          <rect x="0" y="0" width={RULER_HEIGHT} height={totalHeight} fill="#f1f5f9" stroke="#64748b" strokeWidth="0.02"/>
+          <text x={RULER_HEIGHT/2} y={totalHeight/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.5" fill="#1e293b" fontWeight="600" transform={`rotate(-90, ${RULER_HEIGHT/2}, ${totalHeight/2})`}>
+            {`${heightIn}"`}
+          </text>
+          <rect x={totalWidth - RULER_HEIGHT} y="0" width={RULER_HEIGHT} height={totalHeight} fill="#f1f5f9" stroke="#64748b" strokeWidth="0.02"/>
+          <text x={totalWidth - RULER_HEIGHT/2} y={totalHeight/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.5" fill="#1e293b" fontWeight="600" transform={`rotate(90, ${totalWidth - RULER_HEIGHT/2}, ${totalHeight/2})`}>
+            {`${heightIn}"`}
+          </text>
+        </g>
+
+        {/* PROFESSIONAL PRINT GUIDELINES - VISTAPRINT STYLE */}
+        
+        {/* Bleed Area - Enhanced with corner markers */}
+        <g className="bleed-guidelines">
+          <rect
+            x={RULER_HEIGHT}
+            y={RULER_HEIGHT}
+            width={bleedWidth}
+            height={bleedHeight}
+            fill="none"
+            stroke="#dc2626"
+            strokeWidth="0.15"
+            strokeDasharray="0.3 0.15"
+            opacity="0.9"
+          />
+          
+          {/* Bleed corner markers */}
+          <g stroke="#dc2626" strokeWidth="0.1" fill="none" opacity="0.8">
+            <path d={`M ${RULER_HEIGHT} ${RULER_HEIGHT + 0.5} L ${RULER_HEIGHT} ${RULER_HEIGHT} L ${RULER_HEIGHT + 0.5} ${RULER_HEIGHT}`} />
+            <path d={`M ${RULER_HEIGHT + bleedWidth - 0.5} ${RULER_HEIGHT} L ${RULER_HEIGHT + bleedWidth} ${RULER_HEIGHT} L ${RULER_HEIGHT + bleedWidth} ${RULER_HEIGHT + 0.5}`} />
+            <path d={`M ${RULER_HEIGHT} ${RULER_HEIGHT + bleedHeight - 0.5} L ${RULER_HEIGHT} ${RULER_HEIGHT + bleedHeight} L ${RULER_HEIGHT + 0.5} ${RULER_HEIGHT + bleedHeight}`} />
+            <path d={`M ${RULER_HEIGHT + bleedWidth - 0.5} ${RULER_HEIGHT + bleedHeight} L ${RULER_HEIGHT + bleedWidth} ${RULER_HEIGHT + bleedHeight} L ${RULER_HEIGHT + bleedWidth} ${RULER_HEIGHT + bleedHeight - 0.5}`} />
+          </g>
+          
+          {/* Bleed labels */}
+          <text x={RULER_HEIGHT + bleedWidth/2} y={RULER_HEIGHT - 0.15} textAnchor="middle" fontSize="0.35" fill="#dc2626" fontWeight="700" opacity="0.9">
+            BLEED AREA
+          </text>
+          <text x={RULER_HEIGHT + bleedWidth/2} y={RULER_HEIGHT + bleedHeight + 0.4} textAnchor="middle" fontSize="0.25" fill="#dc2626" fontWeight="600" opacity="0.7">
+            Extend artwork to this line
+          </text>
+        </g>
+
+        {/* Safety Area - Enhanced with professional styling */}
+        <g className="safety-guidelines">
+          <rect
+            x={bannerOffsetX + SAFETY_MARGIN}
+            y={bannerOffsetY + SAFETY_MARGIN}
+            width={widthIn - (SAFETY_MARGIN * 2)}
+            height={heightIn - (SAFETY_MARGIN * 2)}
+            fill="none"
+            stroke="#2563eb"
+            strokeWidth="0.12"
+            strokeDasharray="0.4 0.2"
+            opacity="0.85"
+          />
+          
+          {/* Safety corner markers */}
+          <g stroke="#2563eb" strokeWidth="0.08" fill="none" opacity="0.7">
+            <path d={`M ${bannerOffsetX + SAFETY_MARGIN} ${bannerOffsetY + SAFETY_MARGIN + 0.4} L ${bannerOffsetX + SAFETY_MARGIN} ${bannerOffsetY + SAFETY_MARGIN} L ${bannerOffsetX + SAFETY_MARGIN + 0.4} ${bannerOffsetY + SAFETY_MARGIN}`} />
+            <path d={`M ${bannerOffsetX + widthIn - SAFETY_MARGIN - 0.4} ${bannerOffsetY + SAFETY_MARGIN} L ${bannerOffsetX + widthIn - SAFETY_MARGIN} ${bannerOffsetY + SAFETY_MARGIN} L ${bannerOffsetX + widthIn - SAFETY_MARGIN} ${bannerOffsetY + SAFETY_MARGIN + 0.4}`} />
+            <path d={`M ${bannerOffsetX + SAFETY_MARGIN} ${bannerOffsetY + heightIn - SAFETY_MARGIN - 0.4} L ${bannerOffsetX + SAFETY_MARGIN} ${bannerOffsetY + heightIn - SAFETY_MARGIN} L ${bannerOffsetX + SAFETY_MARGIN + 0.4} ${bannerOffsetY + heightIn - SAFETY_MARGIN}`} />
+            <path d={`M ${bannerOffsetX + widthIn - SAFETY_MARGIN - 0.4} ${bannerOffsetY + heightIn - SAFETY_MARGIN} L ${bannerOffsetX + widthIn - SAFETY_MARGIN} ${bannerOffsetY + heightIn - SAFETY_MARGIN} L ${bannerOffsetX + widthIn - SAFETY_MARGIN} ${bannerOffsetY + heightIn - SAFETY_MARGIN - 0.4}`} />
+          </g>
+          
+          {/* Safety labels */}
+          <text x={bannerOffsetX + widthIn/2} y={bannerOffsetY + SAFETY_MARGIN - 0.15} textAnchor="middle" fontSize="0.35" fill="#2563eb" fontWeight="700" opacity="0.9">
+            SAFETY AREA
+          </text>
+          <text x={bannerOffsetX + widthIn/2} y={bannerOffsetY + heightIn - SAFETY_MARGIN + 0.4} textAnchor="middle" fontSize="0.25" fill="#2563eb" fontWeight="600" opacity="0.7">
+            Keep important content within this area
+          </text>
+        </g>
+
+        {/* Print area outline - the actual banner dimensions */}
+        <rect
+          x={bannerOffsetX}
+          y={bannerOffsetY}
+          width={widthIn}
+          height={heightIn}
+          fill="none"
+          stroke="#1f2937"
+          strokeWidth="0.08"
+          opacity="0.6"
+        />
+        {/* Banner background */}
+        <rect
+          x={bannerOffsetX}
+          y={bannerOffsetY}
+          width={widthIn}
+          height={heightIn}
+          fill="white"
+          stroke="#e5e7eb"
+          strokeWidth="0.04"
+          rx="0.2"
+          ry="0.2"
+        />
+
+        {/* Image if provided */}
+        {imageUrl && !file?.isPdf && (
+          <image key={imageUrl}
+            href={imageUrl}
+            x={bannerOffsetX + (widthIn - (widthIn - 1) * imageScale) / 2 + (imagePosition.x * 0.01)}
+            y={bannerOffsetY + (heightIn - (heightIn - 1) * imageScale) / 2 + (imagePosition.y * 0.01)}
+            width={(widthIn - 1) * imageScale}
+            height={(heightIn - 1) * imageScale}            preserveAspectRatio="xMidYMid slice"
+            clipPath="url(#banner-clip)"
+            style={{
+              cursor: isDraggingImage ? 'grabbing' : 'grab',
+              userSelect: 'none'
+            }}
+            onMouseDown={onImageMouseDown}
+            onTouchStart={onImageTouchStart}
+          />
+        )}
+
+        {/* VistaPrint-style Image resize handles */}
+        {imageUrl && !file?.isPdf && (
+          <g className="resize-handles">
+            {/* Corner resize handles with improved styling */}
+            <circle
+              cx={bannerOffsetX + (widthIn - (widthIn - 1) * imageScale) / 2 + (imagePosition.x * 0.01) - 0.2}
+              cy={bannerOffsetY + (heightIn - (heightIn - 1) * imageScale) / 2 + (imagePosition.y * 0.01) - 0.2}
+              r="0.15"
+              fill="#ffffff"
+              stroke="#3b82f6"
+              strokeWidth="0.06"
+              style={{ cursor: "nw-resize" }}
+              className="resize-handle"
+              data-handle="nw"
+            />
+            <circle
+              cx={bannerOffsetX + (widthIn - (widthIn - 1) * imageScale) / 2 + (imagePosition.x * 0.01) + (widthIn - 1) * imageScale + 0.2}
+              cy={bannerOffsetY + (heightIn - (heightIn - 1) * imageScale) / 2 + (imagePosition.y * 0.01) - 0.2}
+              r="0.15"
+              fill="#ffffff"
+              stroke="#3b82f6"
+              strokeWidth="0.06"
+              style={{ cursor: "ne-resize" }}
+              className="resize-handle"
+              data-handle="ne"
+            />
+            <circle
+              cx={bannerOffsetX + (widthIn - (widthIn - 1) * imageScale) / 2 + (imagePosition.x * 0.01) - 0.2}
+              cy={bannerOffsetY + (heightIn - (heightIn - 1) * imageScale) / 2 + (imagePosition.y * 0.01) + (heightIn - 1) * imageScale + 0.2}
+              r="0.15"
+              fill="#ffffff"
+              stroke="#3b82f6"
+              strokeWidth="0.06"
+              style={{ cursor: "sw-resize" }}
+              className="resize-handle"
+              data-handle="sw"
+            />
+            <circle
+              cx={bannerOffsetX + (widthIn - (widthIn - 1) * imageScale) / 2 + (imagePosition.x * 0.01) + (widthIn - 1) * imageScale + 0.2}
+              cy={bannerOffsetY + (heightIn - (heightIn - 1) * imageScale) / 2 + (imagePosition.y * 0.01) + (heightIn - 1) * imageScale + 0.2}
+              r="0.15"
+              fill="#ffffff"
+              stroke="#3b82f6"
+              strokeWidth="0.06"
+              style={{ cursor: "se-resize" }}
+              className="resize-handle"
+              data-handle="se"
+            />
+          </g>
+        )}
+
+        {/* Placeholder when no image */}
+        {!imageUrl && !file?.isPdf && (
+          <g>
             <rect
-              x="0"
-              y="0"
-              width={widthIn}
-              height={heightIn}
-              fill="white"
+              x={bannerOffsetX + 2}
+              y={bannerOffsetY + 2}
+              width={widthIn - 4}
+              height={heightIn - 4}
+              fill="#f9fafb"
               stroke="#e5e7eb"
               strokeWidth="0.1"
-              rx="0.5"
-              ry="0.5"
+              strokeDasharray="0.5 0.5"
+              rx="0.3"
             />
+            <text
+              x={bannerOffsetX + widthIn / 2}
+              y={bannerOffsetY + heightIn / 2}
+              fontSize={Math.min(widthIn, heightIn) * 0.06}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fill="#6b7280"
+              fontFamily="system-ui, sans-serif"
+            >
+              Upload artwork to preview
+            </text>
+          </g>
+        )}
 
-            {/* Safe area / hem guide (1" inset) - very subtle */}
+        <defs>
+          <clipPath id="banner-clip">
             <rect
-              x="1"
-              y="1"
-              width={widthIn - 2}
-              height={heightIn - 2}
-              fill="none"
-              stroke="#f3f4f6"
-              strokeWidth="0.02"
-              strokeDasharray="0.1 0.1"
-              opacity="0.3"
+              x={bannerOffsetX + 0.5}
+              y={bannerOffsetY + 0.5}
+              width={widthIn - 1}
+              height={heightIn - 1}
+              rx="0.4"
+              ry="0.4"
             />
+          </clipPath>
+        </defs>
 
-            {/* Grommets - highly prominent and realistic */}
-            {grommetPositions.map((point, index) => (
-              <g key={index}>
-                {/* Grommet shadow for depth */}
-                <circle
-                  cx={point.x + 0.03}
-                  cy={point.y + 0.03}
-                  r={grommetRadius}
-                  fill="#000000"
-                  opacity="0.3"
-                />
-                {/* Outer grommet ring (metal) - more prominent */}
-                <circle
-                  cx={point.x}
-                  cy={point.y}
-                  r={grommetRadius}
-                  fill="#6b7280"
-                  stroke="#374151"
-                  strokeWidth="0.04"
-                />
-                {/* Inner hole - larger for visibility */}
-                <circle
-                  cx={point.x}
-                  cy={point.y}
-                  r={grommetRadius * 0.65}
-                  fill="white"
-                  stroke="#9ca3af"
-                  strokeWidth="0.03"
-                />
-                {/* Metallic highlight - more prominent */}
-                <circle
-                  cx={point.x - grommetRadius * 0.25}
-                  cy={point.y - grommetRadius * 0.25}
-                  r={grommetRadius * 0.25}
-                  fill="white"
-                  opacity="0.8"
-                />
-              </g>
-            ))}
-
-            {/* Banner border (subtle inner stroke for realism) */}
-            <rect
-              x="0.05"
-              y="0.05"
-              width={widthIn - 0.1}
-              height={heightIn - 0.1}
-              fill="none"
-              stroke="#f3f4f6"
-              strokeWidth="0.05"
-              rx="0.45"
-              ry="0.45"
+        {/* PROFESSIONAL VISTAPRINT-STYLE GROMMETS */}
+        {grommetPositions.map((point, index) => (
+          <g key={index}>
+            {/* Drop shadow */}
+            <circle
+              cx={bannerOffsetX + point.x + 0.08}
+              cy={bannerOffsetY + point.y + 0.08}
+              r={grommetRadius * 1.3}
+              fill="#000000"
+              opacity="0.15"
             />
-          </svg>
-
-          {/* Interactive Image Editor */}
-          {imageUrl && !file?.isPdf && (
-            <div className="absolute inset-0" style={{ zIndex: 2 }}>
-              <InteractiveImageEditor
-                imageUrl={imageUrl}
-                canvasWidth={widthIn}
-                canvasHeight={heightIn}
-                onTransformChange={setImageTransform}
-                className="w-full h-full"
+            
+            {/* Outer metallic ring */}
+            <circle
+              cx={bannerOffsetX + point.x}
+              cy={bannerOffsetY + point.y}
+              r={grommetRadius * 1.3}
+              fill="url(#grommetGradient)"
+              stroke="#2d3748"
+              strokeWidth="0.08"
+            />
+            
+            {/* Inner hole */}
+            <circle
+              cx={bannerOffsetX + point.x}
+              cy={bannerOffsetY + point.y}
+              r={grommetRadius * 0.7}
+              fill="#f7fafc"
+              stroke="#cbd5e0"
+              strokeWidth="0.04"
+            />
+            
+            {/* Target-style crosshairs */}
+            <g opacity="0.6">
+              <line
+                x1={bannerOffsetX + point.x - grommetRadius * 0.5}
+                y1={bannerOffsetY + point.y}
+                x2={bannerOffsetX + point.x + grommetRadius * 0.5}
+                y2={bannerOffsetY + point.y}
+                stroke="#718096"
+                strokeWidth="0.02"
               />
-            </div>
-          )}
+              <line
+                x1={bannerOffsetX + point.x}
+                y1={bannerOffsetY + point.y - grommetRadius * 0.5}
+                x2={bannerOffsetX + point.x}
+                y2={bannerOffsetY + point.y + grommetRadius * 0.5}
+                stroke="#718096"
+                strokeWidth="0.02"
+              />
+            </g>
+            
+            {/* Center dot */}
+            <circle
+              cx={bannerOffsetX + point.x}
+              cy={bannerOffsetY + point.y}
+              r={grommetRadius * 0.15}
+              fill="#4a5568"
+              opacity="0.8"
+            />
+            
+            {/* Highlight for 3D effect */}
+            <circle
+              cx={bannerOffsetX + point.x - grommetRadius * 0.4}
+              cy={bannerOffsetY + point.y - grommetRadius * 0.4}
+              r={grommetRadius * 0.3}
+              fill="#ffffff"
+              opacity="0.4"
+            />
+          </g>
+        ))}
+        
+        {/* Gradient definitions for grommets */}
+        <defs>
+          <radialGradient id="grommetGradient" cx="30%" cy="30%">
+            <stop offset="0%" stopColor="#e2e8f0" />
+            <stop offset="50%" stopColor="#a0aec0" />
+            <stop offset="100%" stopColor="#4a5568" />
+          </radialGradient>
+        </defs>
+      </svg>
 
-          {/* Print Guidelines with corner handles and measurements */}
-          <PrintGuidelines widthIn={widthIn} heightIn={heightIn} grommets={grommets} />
-          {/* Placeholder when no image */}
-          {!imageUrl && !file?.isPdf && (
-            <div className="absolute inset-0 flex items-center justify-center" style={{ zIndex: 2 }}>
-              <div className="text-center">
-                <div className="w-16 h-16 mx-auto mb-4 bg-gray-200 rounded-lg flex items-center justify-center">
-                  <Image className="w-8 h-8 text-gray-400" />
-                </div>
-                <p className="text-gray-500 font-medium">Upload artwork to preview</p>
-                <p className="text-gray-400 text-sm mt-1">Your banner will appear here</p>
-              </div>
-            </div>
-          )}
-
-          {/* PDF Preview Overlay */}
-          {file?.isPdf && file.url && (
-            <div className="absolute inset-0 flex items-center justify-center p-4" style={{ zIndex: 2 }}>
-              {FEATURE_PDF_STATIC_PREVIEW ? (
-                <PdfImagePreview
-                  fileUrl={file.url}
-                  fileName={file.name}
-                  className="w-full h-full max-w-md max-h-80 object-contain"
-                  onError={(e) => console.error('PDF preview error:', e)}
-                />
-              ) : (
-                <PDFPreview
-                  url={file.url}
-                  className="w-full h-full max-w-md max-h-80"
-                />
-              )}
-            </div>
+      {/* PDF Preview Overlay */}
+      {file?.isPdf && file.url && (
+        <div className="absolute inset-0 flex items-center justify-center p-4">
+          {FEATURE_PDF_STATIC_PREVIEW ? (
+            <PdfImagePreview
+              fileUrl={file.url}
+              fileName={file.name}
+              className="w-full h-auto max-w-md max-h-80 object-contain"
+              onError={(e) => console.error('PDF preview error:', e)}
+            />
+          ) : (
+            <PDFPreview
+              url={file.url}
+              className="w-full h-auto max-w-md max-h-80"
+            />
           )}
         </div>
+      )}
       </div>
 
-      {/* Professional info panel below the preview with more spacing */}
-      <div className="mt-8 bg-gradient-to-r from-gray-50 to-white rounded-xl border border-gray-200 p-5 shadow-sm ">
-        <div className="flex flex-wrap items-center gap-4 w-full">
-          {/* Banner dimensions */}
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <span className="text-sm text-gray-600 font-medium">Size:</span>
-            <span className="text-sm font-bold text-gray-900 bg-blue-100 px-2 py-1 rounded-md whitespace-nowrap">
-              {widthIn}″ × {heightIn}″
+    {/* ENHANCED PROFESSIONAL INFO PANEL */}
+    <div className="mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 p-6 shadow-md">
+      <div className="flex flex-wrap items-center gap-6 w-full">
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <span className="text-sm text-gray-700 font-semibold">Banner Size:</span>
+          <span className="text-lg font-bold text-blue-900 bg-blue-200 px-3 py-2 rounded-lg whitespace-nowrap">
+            {widthIn}″ × {heightIn}″
+          </span>
+        </div>
+
+        {grommetPositions.length > 0 && (
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <span className="text-sm text-gray-700 font-semibold">Grommets:</span>
+            <span className="text-lg font-bold text-green-900 bg-green-200 px-3 py-2 rounded-lg whitespace-nowrap">
+              {grommetPositions.length} total
             </span>
           </div>
+        )}
 
-          {/* Grommet info */}
-          {grommetPositions.length > 0 && (
+        {file && (
+          <div className="flex items-center gap-3 min-w-0 max-w-xs">
             <div className="flex items-center gap-2 flex-shrink-0">
-              <span className="text-sm text-gray-600 font-medium">Grommets:</span>
-              <span className="text-sm font-bold text-gray-900 bg-green-100 px-2 py-1 rounded-md whitespace-nowrap">
-                {grommetPositions.length} total
-              </span>
+              {file.isPdf ? (
+                <FileText className="h-5 w-5 text-red-600" />
+              ) : (
+                <Image className="h-5 w-5 text-blue-600" />
+              )}
+              <span className="text-sm text-gray-700 font-semibold">File:</span>
             </div>
-          )}
-
-          {/* Image transform info */}
-          {imageUrl && !file?.isPdf && (
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <span className="text-sm text-gray-600 font-medium">Transform:</span>
-              <span className="text-sm font-bold text-gray-900 bg-purple-100 px-2 py-1 rounded-md whitespace-nowrap">
-                {Math.round(imageTransform.scale * 100)}% • {imageTransform.rotation}°
-              </span>
-            </div>
-          )}
-
-          {/* File info - constrained width */}
-          {file && (
-            <div className="flex items-center gap-2 min-w-0 max-w-xs">
-              <div className="flex items-center gap-1 flex-shrink-0">
-                {file.isPdf ? (
-                  <FileText className="h-4 w-4 text-red-500" />
-                ) : (
-                  <Image className="h-4 w-4 text-blue-500" />
-                )}
-                <span className="text-sm text-gray-600 font-medium">File:</span>
+            <div className="min-w-0 flex-1">
+              <div className="text-sm font-bold text-gray-900 truncate max-w-[150px]" title={file.name}>
+                {file.name}
               </div>
-              <div className="min-w-0 flex-1">
-                <div className="text-sm font-bold text-gray-900 truncate max-w-[120px]" title={file.name}>
-                  {file.name}
-                </div>
-                <div className="text-xs text-gray-500 truncate max-w-[120px]">
-                  {file.type.split('/')[1].toUpperCase()} • {formatFileSize(file.size)}
-                </div>
+              <div className="text-xs text-gray-600 truncate max-w-[150px]">
+                {file.type.split('/')[1].toUpperCase()} • {formatFileSize(file.size)}
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </div>
+  </div>
   );
 };
 

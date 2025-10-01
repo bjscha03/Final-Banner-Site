@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image, X, ChevronDown, ChevronUp, Wand2, Crop, RefreshCw } from 'lucide-react';
+import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image, X, ChevronDown, ChevronUp, Wand2, Crop, RefreshCw, Loader2 } from 'lucide-react';
 import { useQuoteStore, Grommets } from '@/store/quote';
 import { formatDimensions } from '@/lib/pricing';
 import { grommetPoints } from '@/lib/preview/grommets';
@@ -46,9 +46,17 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
 
   const [dragActive, setDragActive] = useState(false);
   const [uploadError, setUploadError] = useState('');
-  const [isFittingImage, setIsFittingImage] = useState(false);
+  
+  const [isUploading, setIsUploading] = useState(false);  // Image interaction state
+  const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
+  const [isDraggingImage, setIsDraggingImage] = useState(false);
   const [isResizingImage, setIsResizingImage] = useState(false);
-  const [isResettingImage, setIsResettingImage] = useState(false);  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [resizeHandle, setResizeHandle] = useState<string | null>(null);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [initialImagePosition, setInitialImagePosition] = useState({ x: 0, y: 0 });
+  const [isFittingImage, setIsFittingImage] = useState(false);
+  const [isResettingImage, setIsResettingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Calculate grommet info
   const grommetInfo = useMemo(() => {
@@ -99,7 +107,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     }
 
     setUploadError('');
-    const isPdf = file.type === 'application/pdf';
+    setIsUploading(true);    const isPdf = file.type === 'application/pdf';
 
     // Create URL for preview
     const url = URL.createObjectURL(file);
@@ -448,12 +456,103 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       return publicId;
       
     } catch (error) {
-      console.error("🚨 RESIZE ERROR DETAILS:", error);
-      console.error("🚨 ORIGINAL URL:", file?.url);
-      console.error("🚨 PUBLIC ID:", publicId);      console.error('❌ Error extracting public ID:', error);
+      console.error('❌ Error extracting public ID:', error);
       return null;
     }
   };
+  // Image interaction handlers
+  const handleImageMouseDown = (e: React.MouseEvent) => {
+    if (!file?.url || file.isPdf) return;
+    
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    // Check if clicking on a resize handle
+    const target = e.target as SVGElement;
+    if (target.classList.contains("resize-handle-nw") ||
+        target.classList.contains("resize-handle-ne") ||
+        target.classList.contains("resize-handle-sw") ||
+        target.classList.contains("resize-handle-se")) {
+      setIsResizingImage(true);
+      setResizeHandle(target.classList[0]);
+    } else {
+      setIsDraggingImage(true);
+    }
+    
+    setDragStart({ x, y });
+    setInitialImagePosition({ ...imagePosition });
+  };
+  
+  const handleImageTouchStart = (e: React.TouchEvent) => {
+    if (!file?.url || file.isPdf) return;
+    
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const touch = e.touches[0];
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    
+    setIsDraggingImage(true);
+    setDragStart({ x, y });
+    setInitialImagePosition({ ...imagePosition });
+  };
+  
+  // Global mouse/touch handlers for dragging
+  React.useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDraggingImage && !isResizingImage) return;
+      
+      e.preventDefault();
+      const deltaX = e.clientX - dragStart.x;
+      const deltaY = e.clientY - dragStart.y;
+      
+      if (isDraggingImage) {
+        // Convert pixel movement to percentage of banner dimensions
+        const newX = Math.max(-50, Math.min(50, initialImagePosition.x + (deltaX / 10)));
+        const newY = Math.max(-50, Math.min(50, initialImagePosition.y + (deltaY / 10)));
+        setImagePosition({ x: newX, y: newY });
+      }
+    };
+    
+    const handleMouseUp = () => {
+      setIsDraggingImage(false);
+      setIsResizingImage(false);
+      setResizeHandle(null);
+    };
+    
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isDraggingImage) return;
+      
+      e.preventDefault();
+      const touch = e.touches[0];
+      const deltaX = touch.clientX - dragStart.x;
+      const deltaY = touch.clientY - dragStart.y;
+      
+      const newX = Math.max(-50, Math.min(50, initialImagePosition.x + (deltaX / 10)));
+      const newY = Math.max(-50, Math.min(50, initialImagePosition.y + (deltaY / 10)));
+      setImagePosition({ x: newX, y: newY });
+    };
+    
+    const handleTouchEnd = () => {
+      setIsDraggingImage(false);
+    };
+    
+    if (isDraggingImage || isResizingImage) {
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+      document.addEventListener("touchmove", handleTouchMove, { passive: false });
+      document.addEventListener("touchend", handleTouchEnd);
+      
+      return () => {
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+        document.removeEventListener("touchmove", handleTouchMove);
+        document.removeEventListener("touchend", handleTouchEnd);
+      };
+    }
+  }, [isDraggingImage, isResizingImage, dragStart, initialImagePosition]);
 
 
   return (
@@ -598,9 +697,12 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
                   grommets={grommets}
                   imageUrl={file?.url && !file.isPdf ? file.url : undefined}
                   className="shadow-lg"
-                  scale={previewScalePct / 100} // Convert percentage to decimal
+                  
                   file={file}
-                />
+                  imagePosition={imagePosition}
+                  onImageMouseDown={handleImageMouseDown}
+                  onImageTouchStart={handleImageTouchStart}
+                  isDraggingImage={isDraggingImage}                />
               </div>
             </div>
 
