@@ -1,0 +1,473 @@
+import React, { useState, useRef, useCallback, useEffect } from 'react';
+import { Stage, Layer, Rect, Line, Text, Image as KonvaImage, Circle, Group } from 'react-konva';
+import { Transformer } from 'react-konva';
+import Konva from 'konva';
+import { inToPx, pxToIn, calculateEffectiveDPI, computeGrommetPositions } from '../utils/units';
+import Spinner from './Spinner';
+
+export interface ExportState {
+  stageZoom: number;
+  image: {
+    x: number;
+    y: number;
+    scaleX: number;
+    scaleY: number;
+    rotation: number;
+    widthPx: number;
+    heightPx: number;
+  };
+}
+
+export interface BannerDesignerProps {
+  widthIn?: number;
+  heightIn?: number;
+  dpi?: number;
+  bleedIn?: number;
+  safeMarginIn?: number;
+  grommetEveryIn?: number;
+  cornerGrommetOffsetIn?: number;
+  onChange?: (state: ExportState) => void;
+}
+
+const BannerDesigner: React.FC<BannerDesignerProps> = ({
+  widthIn = 48,
+  heightIn = 24,
+  dpi = 96,
+  bleedIn = 0.25,
+  safeMarginIn = 0.5,
+  grommetEveryIn = 24,
+  cornerGrommetOffsetIn = 1,
+  onChange
+}) => {
+  const [loading, setLoading] = useState(false);
+  const [image, setImage] = useState<HTMLImageElement | null>(null);
+  const [imageNode, setImageNode] = useState<Konva.Image | null>(null);
+  const [stageScale, setStageScale] = useState(1);
+  const [showLowDPIWarning, setShowLowDPIWarning] = useState(false);
+  
+  const stageRef = useRef<Konva.Stage>(null);
+  const transformerRef = useRef<Konva.Transformer>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  
+  // Calculate dimensions
+  const bannerPxW = inToPx(widthIn, dpi);
+  const bannerPxH = inToPx(heightIn, dpi);
+  const bleedPx = inToPx(bleedIn, dpi);
+  const safeMarginPx = inToPx(safeMarginIn, dpi);
+  
+  // Calculate viewport scale to fit container
+  const updateStageScale = useCallback(() => {
+    if (!containerRef.current) return;
+    
+    const containerWidth = containerRef.current.clientWidth - 100; // Leave space for rulers
+    const containerHeight = containerRef.current.clientHeight - 100;
+    
+    const scaleX = containerWidth / bannerPxW;
+    const scaleY = containerHeight / bannerPxH;
+    const scale = Math.min(scaleX, scaleY, 1); // Don't scale up beyond 100%
+    
+    setStageScale(scale);
+  }, [bannerPxW, bannerPxH]);
+  
+  useEffect(() => {
+    updateStageScale();
+    window.addEventListener('resize', updateStageScale);
+    return () => window.removeEventListener('resize', updateStageScale);
+  }, [updateStageScale]);
+
+  // Emit state changes
+  const emitStateChange = useCallback(() => {
+    if (!imageNode || !onChange) return;
+    
+    const state: ExportState = {
+      stageZoom: stageScale,
+      image: {
+        x: imageNode.x(),
+        y: imageNode.y(),
+        scaleX: imageNode.scaleX(),
+        scaleY: imageNode.scaleY(),
+        rotation: imageNode.rotation(),
+        widthPx: image?.naturalWidth || 0,
+        heightPx: image?.naturalHeight || 0
+      }
+    };
+    
+    onChange(state);
+  }, [imageNode, stageScale, image, onChange]);
+
+  // Debounced state emission
+  useEffect(() => {
+    const timer = setTimeout(emitStateChange, 100);
+    return () => clearTimeout(timer);
+  }, [emitStateChange]);
+
+  const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    
+    setLoading(true);
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        setImage(img);
+        
+        // Check DPI
+        const effectiveDPI = calculateEffectiveDPI(img.naturalWidth, img.naturalHeight, widthIn, heightIn);
+        setShowLowDPIWarning(effectiveDPI < 100);
+        
+        setLoading(false);
+      };
+        
+        // Auto-center and fit image after a short delay to ensure imageNode is set
+        setTimeout(() => {
+          resetImage();
+        }, 100);      img.src = e.target?.result as string;
+    };
+    reader.readAsDataURL(file);
+  }, [widthIn, heightIn]);
+
+  // Position image initially when loaded
+  useEffect(() => {
+    if (!image || !imageNode) return;
+    
+    // Center the image
+    const centerX = bannerPxW / 2;
+    const centerY = bannerPxH / 2;
+    
+    // Calculate scale to fit within safety area
+    const safeAreaW = bannerPxW - (2 * safeMarginPx);
+    const safeAreaH = bannerPxH - (2 * safeMarginPx);
+    
+    const scaleX = safeAreaW / image.naturalWidth;
+    const scaleY = safeAreaH / image.naturalHeight;
+    let scale = Math.min(scaleX, scaleY);
+    
+    // Minimum scale of 50% of safety area
+    const minScale = Math.min(scaleX, scaleY) * 0.5;
+    scale = Math.max(scale, minScale);
+    
+    imageNode.position({
+      x: centerX - (image.naturalWidth * scale) / 2,
+      y: centerY - (image.naturalHeight * scale) / 2
+    });
+    imageNode.scale({ x: scale, y: scale });
+    
+    // Add transformer
+    if (transformerRef.current) {
+      transformerRef.current.nodes([imageNode]);
+      transformerRef.current.getLayer()?.batchDraw();
+    }
+  }, [image, imageNode, bannerPxW, bannerPxH, safeMarginPx]);
+
+  // Drag bounds function
+  const dragBoundFunc = useCallback((pos: { x: number; y: number }) => {
+    if (!imageNode) return pos;
+    
+    const imageWidth = image!.naturalWidth * imageNode.scaleX();
+    const imageHeight = image!.naturalHeight * imageNode.scaleY();
+    
+    // Ensure image covers at least the bleed area
+    const minX = bleedPx - imageWidth;
+    const maxX = bannerPxW - bleedPx;
+    const minY = bleedPx - imageHeight;
+    const maxY = bannerPxH - bleedPx;
+    
+    return {
+      x: Math.max(minX, Math.min(maxX, pos.x)),
+      y: Math.max(minY, Math.min(maxY, pos.y))
+    };
+  }, [imageNode, image, bleedPx, bannerPxW, bannerPxH]);
+
+  // Resize bounds function
+  const boundBoxFunc = useCallback((oldBox: any, newBox: any) => {
+    // Maintain aspect ratio
+    const ratio = oldBox.width / oldBox.height;
+    
+    if (newBox.width / newBox.height > ratio) {
+      newBox.width = newBox.height * ratio;
+    } else {
+      newBox.height = newBox.width / ratio;
+    }
+    
+    // Minimum size constraint
+    const minSize = Math.min(safeMarginPx, safeMarginPx) * 0.5;
+    if (newBox.width < minSize) {
+      newBox.width = minSize;
+      newBox.height = minSize / ratio;
+    }
+    
+    return newBox;
+  }, [safeMarginPx]);
+
+  const resetImage = useCallback(() => {
+    if (!imageNode || !image) return;
+    
+    const centerX = bannerPxW / 2;
+    const centerY = bannerPxH / 2;
+    
+    const safeAreaW = bannerPxW - (2 * safeMarginPx);
+    const safeAreaH = bannerPxH - (2 * safeMarginPx);
+    
+    const scaleX = safeAreaW / image.naturalWidth;
+    const scaleY = safeAreaH / image.naturalHeight;
+    const scale = Math.min(scaleX, scaleY);
+    
+    imageNode.to({
+      x: centerX - (image.naturalWidth * scale) / 2,
+      y: centerY - (image.naturalHeight * scale) / 2,
+      scaleX: scale,
+      scaleY: scale,
+      rotation: 0,
+      duration: 0.3
+    });
+  }, [imageNode, image, bannerPxW, bannerPxH, safeMarginPx]);
+
+  const zoomIn = useCallback(() => {
+    if (!imageNode) return;
+    const newScale = Math.min(imageNode.scaleX() * 1.2, 3);
+    imageNode.to({ scaleX: newScale, scaleY: newScale, duration: 0.2 });
+  }, [imageNode]);
+
+  const zoomOut = useCallback(() => {
+    if (!imageNode) return;
+    const newScale = Math.max(imageNode.scaleX() * 0.8, 0.1);
+    imageNode.to({ scaleX: newScale, scaleY: newScale, duration: 0.2 });
+  }, [imageNode]);
+
+  // Grommet positions
+  const grommetPositions = computeGrommetPositions(
+    widthIn, heightIn, dpi, grommetEveryIn, cornerGrommetOffsetIn
+  );
+
+  return (
+    <div className="relative w-full h-full bg-gray-100" ref={containerRef}>
+      {loading && <Spinner />}
+      
+      {/* Upload button */}
+      {!image && (
+        <div className="absolute inset-0 flex items-center justify-center z-10">
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            Upload Artwork to Preview
+          </button>
+        </div>
+      )}
+      
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleFileUpload}
+        className="hidden"
+      />
+      
+      {/* Main stage container */}
+      <div className="flex">
+        {/* Left ruler */}
+        <div className="w-12 bg-white border-r flex flex-col justify-between text-xs text-gray-600">
+          {Array.from({ length: Math.ceil(heightIn) + 1 }, (_, i) => (
+            <div key={i} className="flex items-center justify-end pr-1 h-4">
+              {i}"
+            </div>
+          ))}
+        </div>
+        
+        {/* Stage area */}
+        <div className="flex-1 relative">
+          <Stage
+            ref={stageRef}
+            width={bannerPxW * stageScale}
+            height={bannerPxH * stageScale}
+            scaleX={stageScale}
+            scaleY={stageScale}
+            className="border border-gray-300"
+          >
+            {/* Background layer */}
+            <Layer>
+              {/* Banner background */}
+              <Rect
+                x={0}
+                y={0}
+                width={bannerPxW}
+                height={bannerPxH}
+                fill="white"
+                stroke="#ccc"
+                strokeWidth={1}
+              />
+              
+              {/* Bleed line */}
+              <Rect
+                x={bleedPx}
+                y={bleedPx}
+                width={bannerPxW - 2 * bleedPx}
+                height={bannerPxH - 2 * bleedPx}
+                stroke="red"
+                strokeWidth={2}
+                dash={[5, 5]}
+                fill="transparent"
+              />
+              
+              {/* Safety area */}
+              <Rect
+                x={safeMarginPx}
+                y={safeMarginPx}
+                width={bannerPxW - 2 * safeMarginPx}
+                height={bannerPxH - 2 * safeMarginPx}
+                stroke="green"
+                strokeWidth={2}
+                dash={[5, 5]}
+                fill="transparent"
+              />
+            </Layer>
+            
+            {/* Grommets layer */}
+            <Layer>
+              {grommetPositions.map((pos) => (
+                <Group key={pos.id}>
+                  <Circle
+                    x={pos.x}
+                    y={pos.y}
+                    radius={8}
+                    fill="black"
+                  />
+                  <Circle
+                    x={pos.x}
+                    y={pos.y}
+                    radius={4}
+                    fill="white"
+                  />
+                </Group>
+              ))}
+            </Layer>
+            
+            {/* Image layer */}
+            <Layer>
+              {image && (
+                <KonvaImage
+                  ref={(node) => {
+                    setImageNode(node);
+                    if (node && image) {
+                      // Auto-position and scale the image when the node is ready
+                      setTimeout(() => {
+                        const centerX = bannerPxW / 2;
+                        const centerY = bannerPxH / 2;
+                        
+                        const safeAreaW = bannerPxW - (2 * safeMarginPx);
+                        const safeAreaH = bannerPxH - (2 * safeMarginPx);
+                        
+                        const scaleX = safeAreaW / image.naturalWidth;
+                        const scaleY = safeAreaH / image.naturalHeight;
+                        let scale = Math.min(scaleX, scaleY);
+                        
+                        node.position({
+                          x: centerX - (image.naturalWidth * scale) / 2,
+                          y: centerY - (image.naturalHeight * scale) / 2
+                        });
+                        node.scale({ x: scale, y: scale });
+                        
+                        if (transformerRef.current) {
+                          transformerRef.current.nodes([node]);
+                          transformerRef.current.getLayer()?.batchDraw();
+                        }
+                      }, 50);
+                    }
+                  }}
+                  image={image}
+                  draggable={!loading}
+                  dragBoundFunc={dragBoundFunc}
+                  onDragEnd={emitStateChange}
+                  onTransformEnd={emitStateChange}
+                />
+              )}
+              
+              {imageNode && (
+                <Transformer
+                  ref={transformerRef}
+                  boundBoxFunc={boundBoxFunc}
+                  keepRatio={true}
+                  enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right']}
+                />
+              )}
+            </Layer>
+            
+            {/* Overlay layer */}
+            <Layer>
+              {/* Legend badges */}
+              <Group x={bannerPxW - 150} y={20}>
+                <Rect width={140} height={50} fill="white" stroke="#ccc" cornerRadius={5} />
+                <Rect x={10} y={10} width={12} height={12} fill="green" />
+                <Text x={25} y={12} text="Safety Area" fontSize={12} fill="black" />
+                <Rect x={10} y={28} width={12} height={12} fill="red" />
+                <Text x={25} y={30} text="Bleed" fontSize={12} fill="black" />
+              </Group>
+              
+              {/* Size display */}
+              <Group x={bannerPxW / 2 - 40} y={bannerPxH - 30}>
+                <Rect width={80} height={25} fill="white" stroke="#ccc" cornerRadius={3} />
+                <Text
+                  x={40}
+                  y={12}
+                  text={`${widthIn}" × ${heightIn}"`}
+                  fontSize={12}
+                  fill="black"
+                  align="center"
+                  offsetX={0}
+                />
+              </Group>
+            </Layer>
+          </Stage>
+          
+          {/* Bottom ruler */}
+          <div className="h-8 bg-white border-t flex justify-between text-xs text-gray-600 px-2">
+            {Array.from({ length: Math.ceil(widthIn) + 1 }, (_, i) => (
+              <div key={i} className="flex items-start pt-1">
+                {i}"
+              </div>
+            ))}
+          </div>
+          
+          {/* Toolbar */}
+          {imageNode && (
+            <div className="absolute top-4 left-4 bg-white rounded-lg shadow-lg p-2 flex space-x-2">
+              <button
+                onClick={zoomIn}
+                className="p-2 hover:bg-gray-100 rounded"
+                title="Zoom In"
+              >
+                +
+              </button>
+              <button
+                onClick={zoomOut}
+                className="p-2 hover:bg-gray-100 rounded"
+                title="Zoom Out"
+              >
+                -
+              </button>
+              <button
+                onClick={resetImage}
+                className="p-2 hover:bg-gray-100 rounded text-sm"
+                title="Reset"
+              >
+                Reset
+              </button>
+            </div>
+          )}
+          
+          {/* Low DPI warning */}
+          {showLowDPIWarning && (
+            <div className="absolute bottom-4 left-4 bg-yellow-100 border border-yellow-400 text-yellow-800 px-3 py-2 rounded-lg text-sm">
+              ⚠️ Low resolution – may print poorly
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default BannerDesigner;

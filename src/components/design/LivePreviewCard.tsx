@@ -50,13 +50,11 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
   const [isUploading, setIsUploading] = useState(false);  // Image interaction state
   const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
   const [imageScale, setImageScale] = useState(1);
-  const [imageScale, setImageScale] = useState(1);
   const [isDraggingImage, setIsDraggingImage] = useState(false);
   const [isResizingImage, setIsResizingImage] = useState(false);
   const [resizeHandle, setResizeHandle] = useState<string | null>(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [initialImagePosition, setInitialImagePosition] = useState({ x: 0, y: 0 });
-  const [initialImageScale, setInitialImageScale] = useState(1);
   const [initialImageScale, setInitialImageScale] = useState(1);
   const [isFittingImage, setIsFittingImage] = useState(false);
   const [isResettingImage, setIsResettingImage] = useState(false);
