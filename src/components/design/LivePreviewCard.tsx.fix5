@@ -496,7 +496,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       setIsDraggingImage(true);
     }
     
-    setDragStart({ x, y });
+    setDragStart({ x: e.clientX, y: e.clientY });
     setInitialImagePosition({ ...imagePosition });
   };
   
@@ -510,7 +510,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     const y = touch.clientY - rect.top;
     
     setIsDraggingImage(true);
-    setDragStart({ x, y });
+    setDragStart({ x: e.clientX, y: e.clientY });
     setInitialImagePosition({ ...imagePosition });
   };
   

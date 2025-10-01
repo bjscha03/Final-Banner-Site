@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image, X, ChevronDown, ChevronUp, Wand2, Crop, RefreshCw } from 'lucide-react';
+import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image, X, ChevronDown, ChevronUp, Wand2, Crop, RefreshCw, Loader2 } from 'lucide-react';
 import { useQuoteStore, Grommets } from '@/store/quote';
 import { formatDimensions } from '@/lib/pricing';
 import { grommetPoints } from '@/lib/preview/grommets';
@@ -46,9 +46,19 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
 
   const [dragActive, setDragActive] = useState(false);
   const [uploadError, setUploadError] = useState('');
-  const [isFittingImage, setIsFittingImage] = useState(false);
+  
+  const [isUploading, setIsUploading] = useState(false);  // Image interaction state
+  const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
+  const [imageScale, setImageScale] = useState(1);
+  const [isDraggingImage, setIsDraggingImage] = useState(false);
   const [isResizingImage, setIsResizingImage] = useState(false);
-  const [isResettingImage, setIsResettingImage] = useState(false);  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [resizeHandle, setResizeHandle] = useState<string | null>(null);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [initialImagePosition, setInitialImagePosition] = useState({ x: 0, y: 0 });
+  const [initialImageScale, setInitialImageScale] = useState(1);
+  const [isFittingImage, setIsFittingImage] = useState(false);
+  const [isResettingImage, setIsResettingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Calculate grommet info
   const grommetInfo = useMemo(() => {
@@ -99,7 +109,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     }
 
     setUploadError('');
-    const isPdf = file.type === 'application/pdf';
+    setIsUploading(true);    const isPdf = file.type === 'application/pdf';
 
     // Create URL for preview
     const url = URL.createObjectURL(file);
@@ -236,45 +246,80 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     }
 
     setIsResizingImage(true);
-    const originalUrl = file.url; // Store original URL
-    
+
     try {
-      // Simple approach: just create a higher DPI version using Cloudinary transformations
-      const baseUrl = file.url.split('?')[0]; // Remove query params
-      const highDpiUrl = baseUrl.replace('/upload/', '/upload/dpr_2.0,f_auto,q_auto:best/');
+      console.log(`🔥 RESIZE BUTTON CLICKED: Generating print-ready version for ${widthIn}×${heightIn}"`);
+      console.log('🔥 RESIZE: This is the NEW CODE calling ai-image-processor API');
+
+      // Extract public ID from the current image
+      const publicId = file.aiMetadata?.cloudinary_public_id || extractPublicIdFromUrl(file.url);
       
-      // Update with high DPI version
+      if (!publicId) {
+        throw new Error('Could not extract Cloudinary public ID from image');
+      }
+
+      console.log('Using public ID:', publicId);
+
+      // Call the new AI image processor
+      const response = await fetch('/.netlify/functions/ai-image-processor', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'resize',
+          publicId: publicId,
+          widthIn: widthIn,
+          heightIn: heightIn
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('AI image processor error:', errorText);
+        throw new Error(`Processing failed: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('AI image processor result:', result);
+
+      if (!result.success) {
+        throw new Error(result.error || 'Image processing failed');
+      }
+
+      // Update the file with the print-ready version
+      console.log('✅ Updating file with print-ready URL:', result.processedUrl);
+      
       set({
         file: {
           ...file,
-          url: highDpiUrl,
+          url: result.processedUrl,
+          name: file.name.replace(/_fitted_\d+x\d+|_resized_\d+x\d+|_print_ready_\d+x\d+/, '') + `_print_ready_${widthIn}x${heightIn}`,
           aiMetadata: {
             ...file.aiMetadata,
-            printReady: true,
-            dpi: 300,
-            processedAt: new Date().toISOString()
+            printReadyVersion: {
+              url: result.processedUrl,
+              dimensions: result.dimensions,
+              widthIn: widthIn,
+              heightIn: heightIn
+            }
           }
         }
       });
 
       toast({
         title: 'Print-ready version generated!',
-        description: 'Image optimized for high-quality printing at 300 DPI.',
+        description: `Created high-resolution file at ${result.dimensions?.dpi || 150} DPI for ${widthIn}×${heightIn}" banner`,
         variant: 'default'
       });
 
     } catch (error) {
-      console.error('Error generating print-ready version:', error);
-      // Restore original URL on error
-      set({
-        file: {
-          ...file,
-          url: originalUrl
-        }
-      });
+      console.error("🚨 RESIZE ERROR DETAILS:", error);
+      console.error("🚨 ORIGINAL URL:", file?.url);
+      console.error("🚨 PUBLIC ID:", publicId);      console.error('Error generating print-ready version:', error);
       toast({
         title: 'Resize failed',
-        description: 'Could not generate print-ready version. Original image preserved.',
+        description: error.message || 'Could not generate print-ready version. Please try again.',
         variant: 'destructive'
       });
     } finally {
@@ -293,48 +338,89 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     }
 
     setIsResettingImage(true);
-    const originalUrl = file.url; // Store current URL
-    
+
     try {
-      // Reset to original AI generated image (remove transformations)
-      const baseUrl = file.url.split('?')[0]; // Remove query params
-      let resetUrl = baseUrl;
+      console.log('🔥 RESET BUTTON CLICKED: Resetting AI image to original state');
+      console.log('🔥 RESET: This is the NEW CODE calling ai-image-processor API');
+
+      // Extract public ID from the current image
+      const publicId = file.aiMetadata?.cloudinary_public_id || extractPublicIdFromUrl(file.url);
       
-      // Remove any transformations by finding the base Cloudinary URL
-      if (resetUrl.includes('/upload/')) {
-        const parts = resetUrl.split('/upload/');
-        const afterUpload = parts[1];
-        // Remove transformation parameters (anything before the version or folder)
-        const cleanPath = afterUpload.replace(/^[^v/]*//, '');
-        resetUrl = parts[0] + '/upload/' + cleanPath;
+      if (!publicId) {
+        throw new Error('Could not extract Cloudinary public ID from image');
       }
+
+      console.log('Using public ID for reset:', publicId);
+
+      // Call the AI image processor to get original version
+      const response = await fetch('/.netlify/functions/ai-image-processor', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          action: 'reset',
+          publicId: publicId
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('AI image processor error:', errorText);
+        throw new Error(`Reset failed: ${response.status} ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('AI image processor reset result:', result);
+
+      if (!result.success) {
+        throw new Error(result.error || 'Image reset failed');
+      }
+
+      // Update the file with the original version
+      console.log('✅ Resetting to original URL:', result.processedUrl);
       
-      // Update with reset version
       set({
         file: {
           ...file,
-          url: resetUrl,
+          url: result.processedUrl,
+          name: file.name.replace(/_fitted_\d+x\d+|_resized_\d+x\d+|_print_ready_\d+x\d+/, ''),
           aiMetadata: {
             ...file.aiMetadata,
-            printReady: false,
-            dpi: 72,
-            processedAt: new Date().toISOString()
+            // Remove any transformation metadata
+            printReadyVersion: undefined,
+            resizedDimensions: undefined
           }
-        }
+        },
+        // Reset scale to 100% when resetting image
+        previewScalePct: 100
       });
 
       toast({
         title: 'Image reset successfully!',
-        description: 'Image restored to original AI-generated version.',
+        description: 'Restored AI image to its original state',
         variant: 'default'
       });
 
     } catch (error) {
-      console.error('Error resetting image:', error);
-      // Keep current URL on error
+      console.error("🚨 RESIZE ERROR DETAILS:", error);
+      console.error("🚨 ORIGINAL URL:", file?.url);
+      console.error("🚨 PUBLIC ID:", publicId);      console.error('Error resetting image:', error);
+      
+      // Clear any broken image state
+      set({
+        file: null,
+        previewScalePct: 100
+      });
+      
+      // Clear any broken image state
+      set({
+        file: null,
+        previewScalePct: 100
+      });
       toast({
         title: 'Reset failed',
-        description: 'Could not reset the image. Current version preserved.',
+        description: error.message || 'Could not reset the image. Please try again.',
         variant: 'destructive'
       });
     } finally {
@@ -384,12 +470,119 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       return publicId;
       
     } catch (error) {
-      console.error("🚨 RESIZE ERROR DETAILS:", error);
-      console.error("🚨 ORIGINAL URL:", file?.url);
-      console.error("🚨 PUBLIC ID:", publicId);      console.error('❌ Error extracting public ID:', error);
+      console.error('❌ Error extracting public ID:', error);
       return null;
     }
   };
+  // Image interaction handlers
+  const handleImageMouseDown = (e: React.MouseEvent) => {
+    if (!file?.url || file.isPdf) return;
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const target = e.target as SVGElement;
+    // FIXED: Use screen coordinates directly
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    // Check if clicking on a resize handle
+    if (target.classList.contains("resize-handle") || target.getAttribute("data-handle")) {
+      const handle = target.getAttribute("data-handle") || target.classList[1];
+      setIsResizingImage(true);
+      setResizeHandle(handle);
+      setInitialImageScale(imageScale);
+    } else {
+      setIsDraggingImage(true);
+    }
+    
+    setDragStart({ x, y });
+    setInitialImagePosition({ ...imagePosition });
+  };
+  
+  const handleImageTouchStart = (e: React.TouchEvent) => {
+    if (!file?.url || file.isPdf) return;
+    
+    e.preventDefault();
+    const rect = e.currentTarget.getBoundingClientRect();
+    const touch = e.touches[0];
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    
+    setIsDraggingImage(true);
+    setDragStart({ x, y });
+    setInitialImagePosition({ ...imagePosition });
+  };
+  
+  // Global mouse/touch handlers for dragging
+  React.useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDraggingImage && !isResizingImage) return;
+      
+      e.preventDefault();
+      const deltaX = e.clientX - dragStart.x;
+      const deltaY = e.clientY - dragStart.y;
+      
+      if (isDraggingImage) {
+        // Improved drag sensitivity - convert pixel movement to banner coordinate system
+        const sensitivity = 0.5; // Adjust for smoother dragging
+        const newX = Math.max(-100, Math.min(100, initialImagePosition.x + (deltaX * sensitivity)));
+        const newY = Math.max(-100, Math.min(100, initialImagePosition.y + (deltaY * sensitivity)));
+        setImagePosition({ x: newX, y: newY });
+      } else if (isResizingImage && resizeHandle) {
+        // Handle proportional resizing based on corner handle
+        const sensitivity = 0.002; // Scale sensitivity
+        let scaleChange = 0;
+        
+        // Calculate scale change based on handle direction
+        if (resizeHandle === 'se' || resizeHandle === 'nw') {
+          scaleChange = (deltaX + deltaY) * sensitivity;
+        } else if (resizeHandle === 'ne' || resizeHandle === 'sw') {
+          scaleChange = (deltaX - deltaY) * sensitivity;
+        }
+        
+        const newScale = Math.max(0.1, Math.min(3, initialImageScale + scaleChange));
+        setImageScale(newScale);
+      }
+    };
+    
+    const handleMouseUp = () => {
+      setIsDraggingImage(false);
+      setIsResizingImage(false);
+      setResizeHandle(null);
+    };
+    
+    const handleTouchMove = (e: TouchEvent) => {
+      if (!isDraggingImage) return;
+      
+      e.preventDefault();
+      const touch = e.touches[0];
+      const deltaX = touch.clientX - dragStart.x;
+      const deltaY = touch.clientY - dragStart.y;
+      
+      const newX = Math.max(-50, Math.min(50, initialImagePosition.x + (deltaX / 10)));
+      const newY = Math.max(-50, Math.min(50, initialImagePosition.y + (deltaY / 10)));
+      setImagePosition({ x: newX, y: newY });
+    };
+    
+    const handleTouchEnd = () => {
+      setIsDraggingImage(false);
+    };
+    
+    if (isDraggingImage || isResizingImage) {
+      document.addEventListener("mousemove", handleMouseMove);
+      document.addEventListener("mouseup", handleMouseUp);
+      document.addEventListener("touchmove", handleTouchMove, { passive: false });
+      document.addEventListener("touchend", handleTouchEnd);
+      
+      return () => {
+        document.removeEventListener("mousemove", handleMouseMove);
+        document.removeEventListener("mouseup", handleMouseUp);
+        document.removeEventListener("touchmove", handleTouchMove);
+        document.removeEventListener("touchend", handleTouchEnd);
+      };
+    }
+  }, [isDraggingImage, isResizingImage, dragStart, initialImagePosition]);
 
 
   return (
@@ -534,9 +727,13 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
                   grommets={grommets}
                   imageUrl={file?.url && !file.isPdf ? file.url : undefined}
                   className="shadow-lg"
-                  scale={previewScalePct / 100} // Convert percentage to decimal
+                  
                   file={file}
-                />
+                  imagePosition={imagePosition}
+                  onImageMouseDown={handleImageMouseDown}
+                  onImageTouchStart={handleImageTouchStart}
+                  isDraggingImage={isDraggingImage}
+                  imageScale={imageScale} />
               </div>
             </div>
 

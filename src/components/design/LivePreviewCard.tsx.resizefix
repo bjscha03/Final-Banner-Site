@@ -482,9 +482,9 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     e.stopPropagation();
     
     const target = e.target as SVGElement;
-    // FIXED: Use screen coordinates directly
-    // const x = e.clientX - rect.left; // REMOVED
-    // const y = e.clientY - rect.top; // REMOVED
+    const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
     
     // Check if clicking on a resize handle
     if (target.classList.contains("resize-handle") || target.getAttribute("data-handle")) {
@@ -525,7 +525,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       
       if (isDraggingImage) {
         // Improved drag sensitivity - convert pixel movement to banner coordinate system
-        const sensitivity = 0.5; // Adjust for smoother dragging
+        const sensitivity = 1.5; // FIXED: Improved drag sensitivity
         const newX = Math.max(-100, Math.min(100, initialImagePosition.x + (deltaX * sensitivity)));
         const newY = Math.max(-100, Math.min(100, initialImagePosition.y + (deltaY * sensitivity)));
         setImagePosition({ x: newX, y: newY });
