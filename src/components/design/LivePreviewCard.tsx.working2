@@ -526,12 +526,12 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       if (isDraggingImage) {
         // Improved drag sensitivity - convert pixel movement to banner coordinate system
         const sensitivity = 2.0; // FIXED: Improved drag sensitivity
-        const maxMove = Math.max(widthIn, heightIn) * 0.4; const newX = Math.max(-maxMove, Math.min(maxMove, initialImagePosition.x + (deltaX * sensitivity)));
-        const newY = Math.max(-maxMove, Math.min(maxMove, initialImagePosition.y + (deltaY * sensitivity)));
+        const newX = Math.max(-100, Math.min(100, initialImagePosition.x + (deltaX * sensitivity)));
+        const newY = Math.max(-100, Math.min(100, initialImagePosition.y + (deltaY * sensitivity)));
         setImagePosition({ x: newX, y: newY });
       } else if (isResizingImage && resizeHandle) {
         // Handle proportional resizing based on corner handle
-        const sensitivity = 0.005; // FIXED: Improved resize sensitivity
+        const sensitivity = 0.002; // Scale sensitivity
         let scaleChange = 0;
         
         // Calculate scale change based on handle direction
@@ -541,7 +541,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
           scaleChange = (deltaX - deltaY) * sensitivity;
         }
         
-        const newScale = Math.max(0.2, Math.min(3, initialImageScale + scaleChange));
+        const newScale = Math.max(0.1, Math.min(3, initialImageScale + scaleChange));
         setImageScale(newScale);
       }
     };

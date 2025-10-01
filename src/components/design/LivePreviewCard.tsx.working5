@@ -541,7 +541,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
           scaleChange = (deltaX - deltaY) * sensitivity;
         }
         
-        const newScale = Math.max(0.2, Math.min(3, initialImageScale + scaleChange));
+        const newScale = Math.max(0.1, Math.min(3, initialImageScale + scaleChange));
         setImageScale(newScale);
       }
     };
