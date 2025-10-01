@@ -472,19 +472,19 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
       </div>
 
     {/* ENHANCED PROFESSIONAL INFO PANEL */}
-    <div className="mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 p-6 shadow-md">
-      <div className="flex flex-wrap items-center gap-6 w-full">
-        <div className="flex items-center gap-3 flex-shrink-0">
-          <span className="text-sm text-gray-700 font-semibold">Banner Size:</span>
-          <span className="text-lg font-bold text-blue-900 bg-blue-200 px-3 py-2 rounded-lg whitespace-nowrap">
+    <div className="mt-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 p-3 shadow-sm">
+      <div className="flex flex-wrap items-center gap-4 w-full">
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className="text-xs text-gray-700 font-semibold">Banner Size:</span>
+          <span className="text-sm font-bold text-blue-900 bg-blue-200 px-2 py-1 rounded whitespace-nowrap">
             {widthIn}″ × {heightIn}″
           </span>
         </div>
 
         {grommetPositions.length > 0 && (
-          <div className="flex items-center gap-3 flex-shrink-0">
-            <span className="text-sm text-gray-700 font-semibold">Grommets:</span>
-            <span className="text-lg font-bold text-green-900 bg-green-200 px-3 py-2 rounded-lg whitespace-nowrap">
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <span className="text-xs text-gray-700 font-semibold">Grommets:</span>
+            <span className="text-sm font-bold text-green-900 bg-green-200 px-2 py-1 rounded whitespace-nowrap">
               {grommetPositions.length} total
             </span>
           </div>
@@ -498,10 +498,10 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
               ) : (
                 <Image className="h-5 w-5 text-blue-600" />
               )}
-              <span className="text-sm text-gray-700 font-semibold">File:</span>
+              <span className="text-xs text-gray-700 font-semibold">File:</span>
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-sm font-bold text-gray-900 truncate max-w-[150px]" title={file.name}>
+              <div className="text-xs font-bold text-gray-900 truncate max-w-[150px]" title={file.name}>
                 {file.name}
               </div>
               <div className="text-xs text-gray-600 truncate max-w-[150px]">
