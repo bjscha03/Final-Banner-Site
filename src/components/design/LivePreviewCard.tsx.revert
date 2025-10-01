@@ -708,7 +708,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
           </div>
         ) : (
           /* Preview Canvas */
-          <div className="mx-3 sm:mx-6 mb-4 sm:mb-6 bg-gray-100 border border-gray-300 rounded-2xl overflow-hidden relative h-80 sm:h-[600px]">
+          <div className="mx-3 sm:mx-6 mb-4 sm:mb-6 bg-gray-100 border border-gray-300 rounded-2xl overflow-hidden relative" style={{height: `min(70vh, ${Math.max(400, Math.min(800, (heightIn / widthIn) * 600))}px)`}} >
             <div className="flex items-center justify-center h-full p-2">
               <div
                 style={{
