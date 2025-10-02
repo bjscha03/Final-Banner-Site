@@ -284,56 +284,6 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           />
         )}
 
-        {/* VistaPrint-style Image resize handles */}
-        {imageUrl && !file?.isPdf && (
-          <g className="resize-handles">
-            {/* Corner resize handles with improved styling */}
-            <circle
-              cx={bannerOffsetX + (widthIn - (widthIn - 1) * (imageScale || 1)) / 2 + (imagePosition.x * 0.01) - 0.2}
-              cy={bannerOffsetY + (heightIn - (heightIn - 1) * imageScale) / 2 + (imagePosition.y * 0.01) - 0.2}
-              r="0.15"
-              fill="#ffffff"
-              stroke="#3b82f6"
-              strokeWidth="0.06"
-              style={{ cursor: "nw-resize" }}
-              className="resize-handle" onMouseDown={onImageMouseDown} onTouchStart={onImageTouchStart}
-              data-handle="nw"
-            />
-            <circle
-              cx={bannerOffsetX + (widthIn - (widthIn - 1) * imageScale) / 2 + (imagePosition.x * 0.01) + (widthIn - 1) * imageScale + 0.2}
-              cy={bannerOffsetY + (heightIn - (heightIn - 1) * imageScale) / 2 + (imagePosition.y * 0.01) - 0.2}
-              r="0.15"
-              fill="#ffffff"
-              stroke="#3b82f6"
-              strokeWidth="0.06"
-              style={{ cursor: "ne-resize" }}
-              className="resize-handle" onMouseDown={onImageMouseDown} onTouchStart={onImageTouchStart}
-              data-handle="ne"
-            />
-            <circle
-              cx={bannerOffsetX + (widthIn - (widthIn - 1) * (imageScale || 1)) / 2 + (imagePosition.x * 0.01) - 0.2}
-              cy={bannerOffsetY + (heightIn - (heightIn - 1) * imageScale) / 2 + (imagePosition.y * 0.01) + (heightIn - 1) * imageScale + 0.2}
-              r="0.15"
-              fill="#ffffff"
-              stroke="#3b82f6"
-              strokeWidth="0.06"
-              style={{ cursor: "sw-resize" }}
-              className="resize-handle" onMouseDown={onImageMouseDown} onTouchStart={onImageTouchStart}
-              data-handle="sw"
-            />
-            <circle
-              cx={bannerOffsetX + (widthIn - (widthIn - 1) * imageScale) / 2 + (imagePosition.x * 0.01) + (widthIn - 1) * imageScale + 0.2}
-              cy={bannerOffsetY + (heightIn - (heightIn - 1) * imageScale) / 2 + (imagePosition.y * 0.01) + (heightIn - 1) * imageScale + 0.2}
-              r="0.15"
-              fill="#ffffff"
-              stroke="#3b82f6"
-              strokeWidth="0.06"
-              style={{ cursor: "se-resize" }}
-              className="resize-handle" onMouseDown={onImageMouseDown} onTouchStart={onImageTouchStart}
-              data-handle="se"
-            />
-          </g>
-        )}
 
         {/* Placeholder when no image */}
         {!imageUrl && !file?.isPdf && (
