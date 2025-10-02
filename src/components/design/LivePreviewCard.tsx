@@ -20,6 +20,7 @@ const grommetOptions = [
 ];
 
 interface LivePreviewCardProps {
+  isGeneratingAI?: boolean;
   onOpenAIModal?: () => void;
 }
 // Helper function to create Cloudinary transformation URL for fitting to dimensions
@@ -40,7 +41,7 @@ const createFittedImageUrl = (originalUrl: string, targetWidthIn: number, target
 };
 
 
-const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
+const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGeneratingAI = false }) => {
   const { widthIn, heightIn, previewScalePct, grommets, file, set } = useQuoteStore();
   const { toast } = useToast();
 
@@ -739,7 +740,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
                   onImageTouchStart={handleImageTouchStart}
                   isDraggingImage={isDraggingImage}
                   imageScale={imageScale}
-                  isUploading={isUploading} />
+                  isUploading={isUploading || isGeneratingAI} />
               </div>
             </div>
 

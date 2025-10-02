@@ -81,7 +81,7 @@ export function SizeStepper({
             type="text"
             inputMode="numeric"
             pattern="[0-9]*"
-            className="h-12 w-full rounded-lg border border-gray-300 text-center font-medium tabular-nums text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors duration-200 pr-6"
+            className={`h-12 w-full rounded-lg border border-gray-300 text-center font-medium tabular-nums text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors duration-200 ${unit ? 'pr-6' : 'px-3'}`}
             value={value || ''}
             onChange={handleInputChange}
             onBlur={handleInputBlur}

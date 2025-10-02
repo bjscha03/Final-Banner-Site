@@ -15,7 +15,7 @@ const Design: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [aiModalOpen, setAiModalOpen] = useState(false);
-  
+  const [isGeneratingAI, setIsGeneratingAI] = useState(false);  
   // Check for AI auto-open parameter
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
@@ -156,7 +156,7 @@ const Design: React.FC = () => {
             {/* Mobile Layout: Vertical stack with optimal order */}
             <div className="block lg:hidden space-y-6 md:space-y-8">
               <SizeQuantityCard />
-              <LivePreviewCard onOpenAIModal={() => setAiModalOpen(true)} />
+              <LivePreviewCard onOpenAIModal={() => setAiModalOpen(true)} isGeneratingAI={isGeneratingAI} />
               <MaterialCard />
               <OptionsCard />
               <ErrorBoundary>
@@ -184,7 +184,7 @@ const Design: React.FC = () => {
               <div className="flex-1 min-w-0">
                 <LivePreviewCard 
                   onOpenAIModal={() => setAiModalOpen(true)} 
-                  expanded={true}
+                  isGeneratingAI={isGeneratingAI}                  expanded={true}
                 />
               </div>
             </div>
@@ -196,7 +196,8 @@ const Design: React.FC = () => {
         open={aiModalOpen} 
         onOpenChange={setAiModalOpen} 
       />
-    </Layout>
+        isGenerating={isGeneratingAI}
+        setIsGenerating={setIsGeneratingAI}    </Layout>
   );
 };
 
