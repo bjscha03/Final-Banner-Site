@@ -141,11 +141,11 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
         // Reset scale to 100% when uploading a new file
         previewScalePct: 100
       });
-    } catch (uploadError) {
+      setIsUploading(false);    } catch (uploadError) {
       console.error('File upload error:', uploadError);
       setUploadError('Failed to upload file. Please try again.');
       return;
-    }
+      setIsUploading(false);    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -734,7 +734,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
                   onImageTouchStart={handleImageTouchStart}
                   isDraggingImage={isDraggingImage}
                   imageScale={imageScale} />
-              </div>
+                  isUploading={isUploading}              </div>
             </div>
 
             {/* File controls */}

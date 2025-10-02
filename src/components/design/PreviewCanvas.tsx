@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Grommets } from '@/store/quote';
-import { FileText, Image } from 'lucide-react';
+import { FileText, Image, Loader2 } from 'lucide-react';
 import PDFPreview from './PDFPreview';
 import PdfImagePreview from '@/components/preview/PdfImagePreview';
 
@@ -22,7 +22,7 @@ interface PreviewCanvasProps {
   imageScale?: number;  onImageMouseDown?: (e: React.MouseEvent) => void;
   onImageTouchStart?: (e: React.TouchEvent) => void;
   isDraggingImage?: boolean;
-}
+  isUploading?: boolean;}
 
 interface Point {
   x: number;
@@ -102,8 +102,8 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   imagePosition = { x: 0, y: 0 },
   imageScale = 1,  onImageMouseDown,
   onImageTouchStart,
-  isDraggingImage = false
-}) => {
+  isDraggingImage = false,
+  isUploading = false,}) => {
   const FEATURE_PDF_STATIC_PREVIEW = true;
 
   const grommetPositions = useMemo(() => {
@@ -138,7 +138,15 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   return (
     <div className={`${className} w-full`}>
       <div className="relative bg-gray-50 p-8 rounded-2xl overflow-hidden" style={{height: "500px", width: "100%", display: "flex", alignItems: "center", justifyContent: "center"}}>
-        <svg
+        {/* Loading Spinner Overlay */}
+        {isUploading && (
+          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 rounded-2xl">
+            <div className="flex flex-col items-center gap-3">
+              <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
+              <p className="text-sm font-medium text-blue-700">Processing file...</p>
+            </div>
+          </div>
+        )}        <svg
           viewBox={`0 0 ${totalWidth} ${totalHeight}`}
           className="border-2 border-gray-400 rounded-xl bg-white shadow-lg"
           style={{
