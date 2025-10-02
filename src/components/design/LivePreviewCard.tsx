@@ -144,7 +144,6 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       setIsUploading(false);    } catch (uploadError) {
       console.error('File upload error:', uploadError);
       setUploadError('Failed to upload file. Please try again.');
-      return;
       setIsUploading(false);    }
   };
 
@@ -733,8 +732,9 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
                   onImageMouseDown={handleImageMouseDown}
                   onImageTouchStart={handleImageTouchStart}
                   isDraggingImage={isDraggingImage}
-                  imageScale={imageScale} />
-                  isUploading={isUploading}              </div>
+                  imageScale={imageScale}
+                  isUploading={isUploading} />
+              </div>
             </div>
 
             {/* File controls */}
