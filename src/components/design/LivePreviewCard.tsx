@@ -110,7 +110,6 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
 
     setUploadError('');
     setIsUploading(true);    const isPdf = file.type === 'application/pdf';
-
     // Create URL for preview
     const url = URL.createObjectURL(file);
 
@@ -143,7 +142,6 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
       });
       setIsUploading(false);    } catch (uploadError) {
       console.error('File upload error:', uploadError);
-      setUploadError('Failed to upload file. Please try again.');
       setIsUploading(false);    }
   };
 
@@ -659,13 +657,21 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
               // Prevent drag events from interfering with mobile scrolling
               e.stopPropagation();
             }}
-            className={`drag-area mx-3 sm:mx-6 mb-4 sm:mb-6 border border-gray-300 rounded-2xl flex items-center justify-center text-center p-4 sm:p-8 transition-all duration-200 h-72 sm:h-96 ${
+            className={`relative drag-area mx-3 sm:mx-6 mb-4 sm:mb-6 border border-gray-300 rounded-2xl flex items-center justify-center text-center p-4 sm:p-8 transition-all duration-200 h-72 sm:h-96 ${
               dragActive
                 ? 'bg-blue-50 border-blue-400 border-dashed'
                 : 'bg-gray-100 hover:bg-gray-50'
             }`}
           >
-            <div className="flex flex-col items-center">
+            {/* Loading Spinner Overlay for Upload Area */}
+            {isUploading && (
+              <div className="absolute inset-0 bg-white/90 backdrop-blur-sm flex items-center justify-center z-50 rounded-2xl">
+                <div className="flex flex-col items-center gap-3">
+                  <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
+                  <p className="text-sm font-medium text-blue-700">Processing file...</p>
+                </div>
+              </div>
+            )}            <div className="flex flex-col items-center">
               <h3 className="text-lg font-medium text-gray-500 mb-2">Upload artwork to preview</h3>
               <p className="text-gray-400 mb-4">Your banner will appear here</p>
               <p className="text-sm text-gray-400 mb-4">Supports: JPG, PNG, JPEG, PDF</p>

@@ -105,7 +105,6 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   isDraggingImage = false,
   isUploading = false,}) => {
   const FEATURE_PDF_STATIC_PREVIEW = true;
-
   const grommetPositions = useMemo(() => {
     return grommetPoints(widthIn, heightIn, grommets);
   }, [widthIn, heightIn, grommets]);
