@@ -27,8 +27,6 @@ const STYLE_CHIPS = [
 ];
 
 interface AIGenerationModalProps {
-  isGenerating?: boolean;
-  setIsGenerating?: (generating: boolean) => void;
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
@@ -40,7 +38,7 @@ interface GeneratedImage {
   aspectRatio?: string;
 }
 
-const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChange, isGenerating: externalIsGenerating, setIsGenerating: externalSetIsGenerating }) => {
+const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChange }) => {
   const { widthIn, heightIn, material, grommets, polePockets, addRope, set } = useQuoteStore();
   const { toast } = useToast();
 
@@ -48,10 +46,7 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
   const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
   const [colors, setColors] = useState(['#1e40af', '#ffffff', '#f3f4f6']);
   const [variations, setVariations] = useState<'1' | '3'>('1');
-
-  // Use external state if provided, otherwise use internal state
-  const actualIsGenerating = externalIsGenerating !== undefined ? externalIsGenerating : isGenerating;
-  const actualSetIsGenerating = externalSetIsGenerating || setIsGenerating;  const [quality, setQuality] = useState<'fast' | 'standard'>('fast');
+  const [quality, setQuality] = useState<'fast' | 'standard'>('fast');
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [showSelection, setShowSelection] = useState(false);
@@ -78,7 +73,7 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
       return;
     }
 
-    actualSetIsGenerating(true);
+    setIsGenerating(true);
     setGeneratedImages([]);
     setShowSelection(false);
 
@@ -139,7 +134,7 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
         variant: 'destructive'
       });
     } finally {
-      actualSetIsGenerating(false);
+      setIsGenerating(false);
     }
   };
 
@@ -365,10 +360,10 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
           {!showSelection && (
             <Button
               onClick={handleGenerate}
-              disabled={actualIsGenerating || !prompt.trim()}
+              disabled={isGenerating || !prompt.trim()}
               data-cta="ai-generate-submit"
             >
-              {actualIsGenerating ? (
+              {isGenerating ? (
                 <>
                   <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
                   Generating...
