@@ -266,15 +266,16 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           ry="0.2"
         />
 
-        {/* Image if provided */}
+        {/* Image if provided - Extended to bleed area */}
         {imageUrl && !file?.isPdf && (
           <image key={imageUrl}
             href={imageUrl}
-            x={bannerOffsetX + (widthIn - (widthIn - 1) * imageScale) / 2 + (imagePosition.x * 0.01)}
-            y={bannerOffsetY + (heightIn - (heightIn - 1) * imageScale) / 2 + (imagePosition.y * 0.01)}
-            width={(widthIn - 1) * (imageScale || 1)}
-            height={(heightIn - 1) * (imageScale || 1)}            preserveAspectRatio="xMidYMid slice"
-            clipPath="url(#banner-clip)"
+            x={RULER_HEIGHT + (bleedWidth - bleedWidth * imageScale) / 2 + (imagePosition.x * 0.01)}
+            y={RULER_HEIGHT + (bleedHeight - bleedHeight * imageScale) / 2 + (imagePosition.y * 0.01)}
+            width={bleedWidth * (imageScale || 1)}
+            height={bleedHeight * (imageScale || 1)}
+            preserveAspectRatio="xMidYMid slice"
+            clipPath="url(#bleed-clip)"
             style={{
               cursor: isDraggingImage ? 'grabbing' : 'grab',
               userSelect: 'none'
@@ -283,7 +284,6 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
             onTouchStart={onImageTouchStart}
           />
         )}
-
 
         {/* Placeholder when no image */}
         {!imageUrl && !file?.isPdf && (
@@ -314,17 +314,16 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
         )}
 
         <defs>
-          <clipPath id="banner-clip">
+          <clipPath id="bleed-clip">
             <rect
-              x={bannerOffsetX + 0.5}
-              y={bannerOffsetY + 0.5}
-              width={widthIn - 1}
-              height={heightIn - 1}
+              x={RULER_HEIGHT}
+              y={RULER_HEIGHT}
+              width={bleedWidth}
+              height={bleedHeight}
               rx="0.4"
               ry="0.4"
             />
-          </clipPath>
-        </defs>
+          </clipPath>        </defs>
 
         {/* PROFESSIONAL VISTAPRINT-STYLE GROMMETS */}
         {grommetPositions.map((point, index) => (
