@@ -180,36 +180,6 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
 
         {/* PROFESSIONAL PRINT GUIDELINES - VISTAPRINT STYLE */}
         
-        {/* Bleed Area - Enhanced with corner markers */}
-        <g className="bleed-guidelines">
-          <rect
-            x={RULER_HEIGHT}
-            y={RULER_HEIGHT}
-            width={bleedWidth}
-            height={bleedHeight}
-            fill="none"
-            stroke="#e53e3e"
-            strokeWidth="0.15"
-            strokeDasharray="0.3 0.15"
-            opacity="0.9"
-          />
-          
-          {/* Bleed corner markers */}
-          <g stroke="#e53e3e" strokeWidth="0.1" fill="none" opacity="0.8">
-            <path d={`M ${RULER_HEIGHT} ${RULER_HEIGHT + 0.5} L ${RULER_HEIGHT} ${RULER_HEIGHT} L ${RULER_HEIGHT + 0.5} ${RULER_HEIGHT}`} />
-            <path d={`M ${RULER_HEIGHT + bleedWidth - 0.5} ${RULER_HEIGHT} L ${RULER_HEIGHT + bleedWidth} ${RULER_HEIGHT} L ${RULER_HEIGHT + bleedWidth} ${RULER_HEIGHT + 0.5}`} />
-            <path d={`M ${RULER_HEIGHT} ${RULER_HEIGHT + bleedHeight - 0.5} L ${RULER_HEIGHT} ${RULER_HEIGHT + bleedHeight} L ${RULER_HEIGHT + 0.5} ${RULER_HEIGHT + bleedHeight}`} />
-            <path d={`M ${RULER_HEIGHT + bleedWidth - 0.5} ${RULER_HEIGHT + bleedHeight} L ${RULER_HEIGHT + bleedWidth} ${RULER_HEIGHT + bleedHeight} L ${RULER_HEIGHT + bleedWidth} ${RULER_HEIGHT + bleedHeight - 0.5}`} />
-          </g>
-          
-          {/* Bleed labels */}
-          <text x={RULER_HEIGHT + bleedWidth/2} y={RULER_HEIGHT - 0.15} textAnchor="middle" fontSize="0.35" fill="#dc2626" fontWeight="700" opacity="0.9">
-            BLEED AREA
-          </text>
-          <text x={RULER_HEIGHT + bleedWidth/2} y={RULER_HEIGHT + bleedHeight + 0.4} textAnchor="middle" fontSize="0.25" fill="#dc2626" fontWeight="600" opacity="0.7">
-            Extend artwork to this line
-          </text>
-        </g>
 
         {/* Safety Area - Enhanced with professional styling */}
         <g className="safety-guidelines">
@@ -235,10 +205,10 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           
           {/* Safety labels */}
           <text x={bannerOffsetX + widthIn/2} y={bannerOffsetY + SAFETY_MARGIN - 0.15} textAnchor="middle" fontSize="0.35" fill="#2563eb" fontWeight="700" opacity="0.9">
-            SAFETY AREA
+            BLEED AREA
           </text>
           <text x={bannerOffsetX + widthIn/2} y={bannerOffsetY + heightIn - SAFETY_MARGIN + 0.4} textAnchor="middle" fontSize="0.25" fill="#2563eb" fontWeight="600" opacity="0.7">
-            Keep important content within this area
+            Extend artwork to this line
           </text>
         </g>
 
@@ -285,6 +255,36 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           />
         )}
 
+        {/* Safety Area (Red Line) - Rendered after image for visibility */}
+        <g className="safety-guidelines-red">
+          <rect
+            x={RULER_HEIGHT}
+            y={RULER_HEIGHT}
+            width={bleedWidth}
+            height={bleedHeight}
+            fill="none"
+            stroke="#e53e3e"
+            strokeWidth="0.15"
+            strokeDasharray="0.3 0.15"
+            opacity="0.9"
+          />
+
+          {/* Safety corner markers */}
+          <g stroke="#e53e3e" strokeWidth="0.1" fill="none" opacity="0.8">
+            <path d={`M ${RULER_HEIGHT} ${RULER_HEIGHT + 0.5} L ${RULER_HEIGHT} ${RULER_HEIGHT} L ${RULER_HEIGHT + 0.5} ${RULER_HEIGHT}`} />
+            <path d={`M ${RULER_HEIGHT + bleedWidth - 0.5} ${RULER_HEIGHT} L ${RULER_HEIGHT + bleedWidth} ${RULER_HEIGHT} L ${RULER_HEIGHT + bleedWidth} ${RULER_HEIGHT + 0.5}`} />
+            <path d={`M ${RULER_HEIGHT} ${RULER_HEIGHT + bleedHeight - 0.5} L ${RULER_HEIGHT} ${RULER_HEIGHT + bleedHeight} L ${RULER_HEIGHT + 0.5} ${RULER_HEIGHT + bleedHeight}`} />
+            <path d={`M ${RULER_HEIGHT + bleedWidth - 0.5} ${RULER_HEIGHT + bleedHeight} L ${RULER_HEIGHT + bleedWidth} ${RULER_HEIGHT + bleedHeight} L ${RULER_HEIGHT + bleedWidth} ${RULER_HEIGHT + bleedHeight - 0.5}`} />
+          </g>
+
+          {/* Safety labels */}
+          <text x={RULER_HEIGHT + bleedWidth/2} y={RULER_HEIGHT - 0.15} textAnchor="middle" fontSize="0.35" fill="#dc2626" fontWeight="700" opacity="0.9">
+            SAFETY AREA
+          </text>
+          <text x={RULER_HEIGHT + bleedWidth/2} y={RULER_HEIGHT + bleedHeight + 0.4} textAnchor="middle" fontSize="0.25" fill="#dc2626" fontWeight="600" opacity="0.7">
+            Keep important content within this area
+          </text>
+        </g>
         {/* Placeholder when no image */}
         {!imageUrl && !file?.isPdf && (
           <g>
