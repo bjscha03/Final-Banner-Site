@@ -674,15 +674,15 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     <div className="bg-white border border-gray-200/60 rounded-2xl overflow-hidden shadow-sm">
       {/* Header - responsive design */}
       <div className="px-3 sm:px-6 py-4 border-b border-gray-100">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex items-center gap-3">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-4">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-sm">
               <Eye className="w-5 h-5 text-white" />
             </div>
             <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Live Preview</h2>
           </div>
 
-          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-4">
             {/* Grommets Selector */}
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-gray-700 hidden sm:inline">Grommets:</span>
@@ -709,10 +709,10 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
 
       {/* Scale Controls - responsive design */}
       <div className="px-3 sm:px-6 py-4 border-b border-gray-100">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div className="flex items-center gap-3 sm:gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex items-center gap-4 sm:gap-4">
             <span className="text-sm font-medium text-gray-700">Preview Scale:</span>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-4">
               <Slider
                 value={[previewScalePct]}
                 onValueChange={(value) => set({ previewScalePct: value[0] })}
@@ -727,7 +727,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
             </div>
           </div>
 
-          <div className="text-sm text-gray-600 text-center sm:text-right">
+          <div className="text-sm text-gray-600 text-center sm:text-right mt-3 sm:mt-0">
             Banner: {formatDimensions(widthIn, heightIn)}
           </div>
         </div>
@@ -745,7 +745,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
               // Prevent drag events from interfering with mobile scrolling
               e.stopPropagation();
             }}
-            className={`relative drag-area mx-3 sm:mx-6 mb-4 sm:mb-6 border border-gray-300 rounded-2xl flex items-center justify-center text-center p-4 sm:p-8 transition-all duration-200 h-72 sm:h-96 ${
+            className={`relative drag-area mx-3 sm:mx-6 mb-4 sm:mb-6 border border-gray-300 rounded-2xl flex items-center justify-center text-center p-6 sm:p-8 transition-all duration-200 h-80 sm:h-96 ${
               dragActive
                 ? 'bg-blue-50 border-blue-400 border-dashed'
                 : 'bg-gray-100 hover:bg-gray-50'
@@ -754,18 +754,18 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
             {/* Loading Spinner Overlay for Upload Area */}
             {isUploading && (
               <div className="absolute inset-0 bg-white/90 backdrop-blur-sm flex items-center justify-center z-50 rounded-2xl">
-                <div className="flex flex-col items-center gap-3">
+                <div className="flex flex-col items-center gap-4">
                   <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
                   <p className="text-sm font-medium text-blue-700">Processing file...</p>
                 </div>
               </div>
             )}            <div className="flex flex-col items-center">
-              <h3 className="text-lg font-medium text-gray-500 mb-2">Upload artwork to preview</h3>
-              <p className="text-gray-400 mb-4">Your banner will appear here</p>
-              <p className="text-sm text-gray-400 mb-4">Supports: JPG, PNG, JPEG, PDF</p>
+              <h3 className="text-lg font-medium text-gray-500 mb-3 sm:mb-2">Upload artwork to preview</h3>
+              <p className="text-gray-400 mb-4 sm:mb-3">Your banner will appear here</p>
+              <p className="text-sm text-gray-400 mb-6 sm:mb-4">Supports: JPG, PNG, JPEG, PDF</p>
               
               {/* Button container with proper centering */}
-              <div className="flex flex-col items-center gap-3 w-full">
+              <div className="flex flex-col items-center gap-4 w-full">
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200 w-full max-w-xs h-12 flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
@@ -791,9 +791,9 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                 )}
               </div>
               
-              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-left max-w-md mx-auto">
-                <p className="text-xs text-blue-700 font-medium mb-1">File requirements:</p>
-                <p className="text-xs text-blue-600">
+              <div className="mt-6 sm:mt-4 p-4 sm:p-3 bg-blue-50 border border-blue-200 rounded-lg text-left max-w-md mx-auto w-full">
+                <p className="text-sm sm:text-xs text-blue-700 font-medium mb-2 sm:mb-1">File requirements:</p>
+                <p className="text-sm sm:text-xs text-blue-600 leading-relaxed">
                   High-resolution files (300 DPI) work best. We'll review your artwork and contact you if any adjustments are needed.
                 </p>
               </div>
