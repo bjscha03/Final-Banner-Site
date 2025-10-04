@@ -60,6 +60,12 @@ export async function renderPdfToDataUrl(file: File, opts: PdfRenderOptions = {}
       isEvalSupported: false, // Disable eval for security
       disableFontFace: false, // Allow font rendering
       useSystemFonts: true, // Use system fonts as fallback
+      // Additional compatibility options for problematic PDFs
+      stopAtErrors: false, // Continue parsing despite minor errors
+      maxImageSize: 16777216, // 16MB max image size
+      disableAutoFetch: false, // Allow auto-fetching of missing data
+      disableStream: false, // Allow streaming
+      ignoreErrors: true, // Ignore non-critical errors
     });
 
     const pdf = await loadingTask.promise;
