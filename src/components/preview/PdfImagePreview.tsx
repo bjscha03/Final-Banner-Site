@@ -1,5 +1,6 @@
 import React from 'react';
 import { renderPdfToDataUrl } from '@/utils/pdf/renderPdfToDataUrl';
+import { FileText, Download, AlertCircle } from 'lucide-react';
 
 type Props = {
   file?: File; // Actual File object
@@ -13,6 +14,7 @@ export default function PdfImagePreview({ file, fileUrl, fileName, className, on
   const [src, setSrc] = React.useState<string | null>(null);
   const [error, setError] = React.useState<string | null>(null);
   const [isLoading, setIsLoading] = React.useState<boolean>(false);
+  const [downloadUrl, setDownloadUrl] = React.useState<string | null>(null);
   const abortRef = React.useRef<AbortController | null>(null);
 
   React.useEffect(() => {
@@ -38,6 +40,10 @@ export default function PdfImagePreview({ file, fileUrl, fileName, className, on
         } else {
           throw new Error('No file or fileUrl provided');
         }
+
+        // Create download URL for fallback
+        const downloadBlobUrl = URL.createObjectURL(pdfFile);
+        setDownloadUrl(downloadBlobUrl);
 
         // Render PDF at fixed scale (1.0) - let CSS handle UI scaling for smooth performance
         const url = await renderPdfToDataUrl(pdfFile, {
@@ -67,7 +73,27 @@ export default function PdfImagePreview({ file, fileUrl, fileName, className, on
     return () => {
       ac.abort();
     };
-  }, [file, fileUrl, fileName, onError]); // Removed 'scale' from dependencies - no longer re-renders on scale change
+  }, [file, fileUrl, fileName, onError]);
+
+  // Clean up download URL on unmount
+  React.useEffect(() => {
+    return () => {
+      if (downloadUrl) {
+        URL.revokeObjectURL(downloadUrl);
+      }
+    };
+  }, [downloadUrl]);
+
+  const handleDownload = () => {
+    if (downloadUrl && (file || fileName)) {
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = fileName || file?.name || 'document.pdf';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -83,11 +109,40 @@ export default function PdfImagePreview({ file, fileUrl, fileName, className, on
   if (!src) {
     return (
       <div className={`flex h-48 w-full items-center justify-center rounded bg-neutral-100 text-neutral-500 ${className ?? ''}`}>
-        <div className="text-center p-4">
-          <div className="text-sm font-medium mb-2">PDF preview unavailable</div>
-          {error && (
-            <div className="text-xs text-red-600 bg-red-50 p-2 rounded border">
-              Error: {error}
+        <div className="text-center p-4 max-w-sm">
+          {/* PDF Icon */}
+          <div className="mx-auto mb-3 w-16 h-16 bg-red-100 rounded-lg flex items-center justify-center">
+            <FileText className="w-8 h-8 text-red-600" />
+          </div>
+          
+          {/* File name */}
+          <div className="text-sm font-medium mb-2 text-gray-700">
+            {fileName || file?.name || 'PDF Document'}
+          </div>
+          
+          {/* Error message (if not too technical) */}
+          {error && !error.includes('InvalidPDFException') && !error.includes('corrupted') && (
+            <div className="text-xs text-amber-600 bg-amber-50 p-2 rounded border mb-3 flex items-center gap-1">
+              <AlertCircle className="w-3 h-3 flex-shrink-0" />
+              <span>Preview unavailable</span>
+            </div>
+          )}
+          
+          {/* Download button */}
+          {downloadUrl && (
+            <button
+              onClick={handleDownload}
+              className="inline-flex items-center gap-2 px-3 py-2 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            >
+              <Download className="w-4 h-4" />
+              Download PDF
+            </button>
+          )}
+          
+          {/* Fallback text if no download available */}
+          {!downloadUrl && (
+            <div className="text-xs text-gray-500">
+              PDF preview not available
             </div>
           )}
         </div>
