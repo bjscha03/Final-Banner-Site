@@ -37,7 +37,9 @@ export interface QuoteState {
     isPdf?: boolean;
     fileKey?: string;
     isAI?: boolean;
-    aiMetadata?: {
+    originalPdfFile?: File;
+    artworkWidth?: number;
+    artworkHeight?: number;    aiMetadata?: {
       prompt?: string;
       styles?: string[];
       colors?: string[];
