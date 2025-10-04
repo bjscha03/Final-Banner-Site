@@ -249,7 +249,6 @@ const PricingCard: React.FC = () => {
   };
 
   // Handle upsell modal continue
-  // Handle upsell modal continue
   const handleUpsellContinue = (selectedOptions: UpsellOption[], dontAskAgain: boolean) => {
     console.log('🔍 UPSELL DEBUG: Starting handleUpsellContinue with options:', selectedOptions);
 
@@ -259,7 +258,9 @@ const PricingCard: React.FC = () => {
       setDontShowUpsellAgain(true);
     }
 
-    // Apply selected options to quote store
+    // Build updated quote object with selected options
+    let updatedQuote = { ...quote };
+    
     selectedOptions.forEach(option => {
       if (option.selected) {
         console.log(`🔍 UPSELL DEBUG: Applying option ${option.id}:`, option);
@@ -267,20 +268,24 @@ const PricingCard: React.FC = () => {
           case 'grommets':
             if (option.grommetSelection) {
               console.log(`🔍 UPSELL DEBUG: Setting grommets to: ${option.grommetSelection}`);
+              updatedQuote.grommets = option.grommetSelection as any;
               quote.set({ grommets: option.grommetSelection as any });
             }
             break;
           case 'rope':
             console.log('🔍 UPSELL DEBUG: Setting addRope to: true');
+            updatedQuote.addRope = true;
             quote.set({ addRope: true });
             break;
           case 'polePockets':
             if (option.polePocketSelection) {
               console.log(`🔍 UPSELL DEBUG: Setting polePockets to: ${option.polePocketSelection}`);
+              updatedQuote.polePockets = option.polePocketSelection as any;
               quote.set({ polePockets: option.polePocketSelection as any });
             }
             if (option.polePocketSize) {
               console.log(`🔍 UPSELL DEBUG: Setting polePocketSize to: ${option.polePocketSize}`);
+              updatedQuote.polePocketSize = option.polePocketSize as any;
               quote.set({ polePocketSize: option.polePocketSize as any });
             }
             break;
@@ -288,30 +293,19 @@ const PricingCard: React.FC = () => {
       }
     });
 
-    console.log('🔍 UPSELL DEBUG: Final quote state:', {
-      grommets: quote.grommets,
-      addRope: quote.addRope,
-      polePockets: quote.polePockets,
-      polePocketSize: quote.polePocketSize
+    console.log('🔍 UPSELL DEBUG: Final updated quote:', {
+      grommets: updatedQuote.grommets,
+      addRope: updatedQuote.addRope,
+      polePockets: updatedQuote.polePockets,
+      polePocketSize: updatedQuote.polePocketSize
     });
 
     // Close modal
     setShowUpsellModal(false);
 
-    // Execute the pending action using the updated quote store
+    // Execute the pending action with updated quote
     if (pendingAction === 'cart') {
-      console.log('🔍 UPSELL DEBUG: Adding to cart with updated quote store');
-      addFromQuote(quote);
-      toast({
-        title: "Added to Cart",
-        description: "Your banner has been added to the cart.",
-      });
-    } else if (pendingAction === 'checkout') {
-      console.log('🔍 UPSELL DEBUG: Going to checkout with updated quote store');
-      addFromQuote(quote);
-      scrollToTopBeforeNavigate();
-      navigate('/checkout');
-    }
+      console.log('🔍 UPSELL DEBUG: Adding to cart with updated quote');
       addFromQuote(updatedQuote);
       toast({
         title: "Added to Cart",

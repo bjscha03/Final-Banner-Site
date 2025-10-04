@@ -76,17 +76,6 @@ export const useCartStore = create<CartState>()(
           quantity: quote.quantity,
           material: quote.material
         });
-        console.log('🛒 CART DEBUG: addFromQuote called with quote:', {
-          grommets: quote.grommets,
-          addRope: quote.addRope,
-          polePockets: quote.polePockets,
-          polePocketSize: quote.polePocketSize,
-          widthIn: quote.widthIn,
-          heightIn: quote.heightIn,
-          quantity: quote.quantity,
-          material: quote.material
-        });
-        const area = (quote.widthIn * quote.heightIn) / 144;
         const pricePerSqFt = {
           '13oz': 4.5,
           '15oz': 6.0,
@@ -132,7 +121,6 @@ export const useCartStore = create<CartState>()(
 
         console.log('🛒 CART DEBUG: Creating cart item with grommets:', quote.grommets);
         console.log('🛒 CART DEBUG: Creating cart item with grommets:', quote.grommets);
-        const newItem: CartItem = {
           id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           width_in: quote.widthIn,
           height_in: quote.heightIn,
