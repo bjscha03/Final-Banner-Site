@@ -699,7 +699,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
                   isDraggingImage={isDraggingImage}
                   imageScale={imageScale}
                   isUploading={isUploading}
-                  isRenderingPdf={isRenderingPdf} />
+                  />
                 {/* Quality Badge for DPI warnings */}
                 {file?.artworkWidth && file?.artworkHeight && (
                   <QualityBadge
