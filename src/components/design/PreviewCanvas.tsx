@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { Grommets } from '@/store/quote';
-import { FileText, Image, Loader2 } from 'lucide-react';
+import { FileText, Image } from 'lucide-react';
 import PDFPreview from './PDFPreview';
 import PdfImagePreview from '@/components/preview/PdfImagePreview';
 
@@ -22,7 +22,7 @@ interface PreviewCanvasProps {
   imageScale?: number;  onImageMouseDown?: (e: React.MouseEvent) => void;
   onImageTouchStart?: (e: React.TouchEvent) => void;
   isDraggingImage?: boolean;
-  isUploading?: boolean;}
+}
 
 interface Point {
   x: number;
@@ -102,9 +102,10 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   imagePosition = { x: 0, y: 0 },
   imageScale = 1,  onImageMouseDown,
   onImageTouchStart,
-  isDraggingImage = false,
-  isUploading = false,}) => {
+  isDraggingImage = false
+}) => {
   const FEATURE_PDF_STATIC_PREVIEW = true;
+
   const grommetPositions = useMemo(() => {
     return grommetPoints(widthIn, heightIn, grommets);
   }, [widthIn, heightIn, grommets]);
@@ -136,23 +137,15 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
 
   return (
     <div className={`${className} w-full`}>
-      <div className="relative bg-gray-50 p-8 rounded-2xl overflow-hidden" style={{height: "500px", width: "100%", display: "flex", alignItems: "center", justifyContent: "center"}}>
-        {/* Loading Spinner Overlay */}
-        {isUploading && (
-          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 rounded-2xl">
-            <div className="flex flex-col items-center gap-3">
-              <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
-              <p className="text-sm font-medium text-blue-700">Processing file...</p>
-            </div>
-          </div>
-        )}        <svg
+      <div className="relative bg-gray-50 p-8 rounded-2xl overflow-hidden" style={{maxHeight: "600px", display: "flex", alignItems: "center", justifyContent: "center"}}>
+        <svg
           viewBox={`0 0 ${totalWidth} ${totalHeight}`}
-          className="border-2 border-gray-400 rounded-xl bg-white shadow-lg"
+          className="w-full h-auto border-2 border-gray-400 rounded-xl bg-white shadow-lg"
           style={{
-            maxWidth: "100%",
-            maxHeight: "100%",
-            width: "auto",
-            height: "auto"
+            aspectRatio: `${totalWidth}/${totalHeight}`,
+            minWidth: '300px',
+            maxHeight: "100%", height: "auto", width: "100%", objectFit: "contain",
+            maxWidth: '100%'
           }}
         >
         {/* PROFESSIONAL PRINT GUIDELINES - ALWAYS VISIBLE */}
@@ -180,6 +173,36 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
 
         {/* PROFESSIONAL PRINT GUIDELINES - VISTAPRINT STYLE */}
         
+        {/* Bleed Area - Enhanced with corner markers */}
+        <g className="bleed-guidelines">
+          <rect
+            x={RULER_HEIGHT}
+            y={RULER_HEIGHT}
+            width={bleedWidth}
+            height={bleedHeight}
+            fill="none"
+            stroke="#e53e3e"
+            strokeWidth="0.15"
+            strokeDasharray="0.3 0.15"
+            opacity="0.9"
+          />
+          
+          {/* Bleed corner markers */}
+          <g stroke="#e53e3e" strokeWidth="0.1" fill="none" opacity="0.8">
+            <path d={`M ${RULER_HEIGHT} ${RULER_HEIGHT + 0.5} L ${RULER_HEIGHT} ${RULER_HEIGHT} L ${RULER_HEIGHT + 0.5} ${RULER_HEIGHT}`} />
+            <path d={`M ${RULER_HEIGHT + bleedWidth - 0.5} ${RULER_HEIGHT} L ${RULER_HEIGHT + bleedWidth} ${RULER_HEIGHT} L ${RULER_HEIGHT + bleedWidth} ${RULER_HEIGHT + 0.5}`} />
+            <path d={`M ${RULER_HEIGHT} ${RULER_HEIGHT + bleedHeight - 0.5} L ${RULER_HEIGHT} ${RULER_HEIGHT + bleedHeight} L ${RULER_HEIGHT + 0.5} ${RULER_HEIGHT + bleedHeight}`} />
+            <path d={`M ${RULER_HEIGHT + bleedWidth - 0.5} ${RULER_HEIGHT + bleedHeight} L ${RULER_HEIGHT + bleedWidth} ${RULER_HEIGHT + bleedHeight} L ${RULER_HEIGHT + bleedWidth} ${RULER_HEIGHT + bleedHeight - 0.5}`} />
+          </g>
+          
+          {/* Bleed labels */}
+          <text x={RULER_HEIGHT + bleedWidth/2} y={RULER_HEIGHT - 0.15} textAnchor="middle" fontSize="0.35" fill="#dc2626" fontWeight="700" opacity="0.9">
+            BLEED AREA
+          </text>
+          <text x={RULER_HEIGHT + bleedWidth/2} y={RULER_HEIGHT + bleedHeight + 0.4} textAnchor="middle" fontSize="0.25" fill="#dc2626" fontWeight="600" opacity="0.7">
+            Extend artwork to this line
+          </text>
+        </g>
 
         {/* Safety Area - Enhanced with professional styling */}
         <g className="safety-guidelines">
@@ -205,10 +228,10 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           
           {/* Safety labels */}
           <text x={bannerOffsetX + widthIn/2} y={bannerOffsetY + SAFETY_MARGIN - 0.15} textAnchor="middle" fontSize="0.35" fill="#2563eb" fontWeight="700" opacity="0.9">
-            BLEED AREA
+            SAFETY AREA
           </text>
           <text x={bannerOffsetX + widthIn/2} y={bannerOffsetY + heightIn - SAFETY_MARGIN + 0.4} textAnchor="middle" fontSize="0.25" fill="#2563eb" fontWeight="600" opacity="0.7">
-            Extend artwork to this line
+            Keep important content within this area
           </text>
         </g>
 
@@ -236,16 +259,15 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           ry="0.2"
         />
 
-        {/* Image if provided - Extended to bleed area */}
+        {/* Image if provided */}
         {imageUrl && !file?.isPdf && (
           <image key={imageUrl}
             href={imageUrl}
-            x={RULER_HEIGHT + (bleedWidth - bleedWidth * imageScale) / 2 + (imagePosition.x * 0.01)}
-            y={RULER_HEIGHT + (bleedHeight - bleedHeight * imageScale) / 2 + (imagePosition.y * 0.01)}
-            width={bleedWidth * (imageScale || 1)}
-            height={bleedHeight * (imageScale || 1)}
-            preserveAspectRatio="xMidYMid slice"
-            clipPath="url(#bleed-clip)"
+            x={bannerOffsetX + (widthIn - (widthIn - 1) * imageScale) / 2 + (imagePosition.x * 0.01)}
+            y={bannerOffsetY + (heightIn - (heightIn - 1) * imageScale) / 2 + (imagePosition.y * 0.01)}
+            width={(widthIn - 1) * (imageScale || 1)}
+            height={(heightIn - 1) * (imageScale || 1)}            preserveAspectRatio="xMidYMid slice"
+            clipPath="url(#banner-clip)"
             style={{
               cursor: isDraggingImage ? 'grabbing' : 'grab',
               userSelect: 'none'
@@ -255,36 +277,57 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           />
         )}
 
-        {/* Safety Area (Red Line) - Rendered after image for visibility */}
-        <g className="safety-guidelines-red">
-          <rect
-            x={RULER_HEIGHT}
-            y={RULER_HEIGHT}
-            width={bleedWidth}
-            height={bleedHeight}
-            fill="none"
-            stroke="#e53e3e"
-            strokeWidth="0.15"
-            strokeDasharray="0.3 0.15"
-            opacity="0.9"
-          />
-
-          {/* Safety corner markers */}
-          <g stroke="#e53e3e" strokeWidth="0.1" fill="none" opacity="0.8">
-            <path d={`M ${RULER_HEIGHT} ${RULER_HEIGHT + 0.5} L ${RULER_HEIGHT} ${RULER_HEIGHT} L ${RULER_HEIGHT + 0.5} ${RULER_HEIGHT}`} />
-            <path d={`M ${RULER_HEIGHT + bleedWidth - 0.5} ${RULER_HEIGHT} L ${RULER_HEIGHT + bleedWidth} ${RULER_HEIGHT} L ${RULER_HEIGHT + bleedWidth} ${RULER_HEIGHT + 0.5}`} />
-            <path d={`M ${RULER_HEIGHT} ${RULER_HEIGHT + bleedHeight - 0.5} L ${RULER_HEIGHT} ${RULER_HEIGHT + bleedHeight} L ${RULER_HEIGHT + 0.5} ${RULER_HEIGHT + bleedHeight}`} />
-            <path d={`M ${RULER_HEIGHT + bleedWidth - 0.5} ${RULER_HEIGHT + bleedHeight} L ${RULER_HEIGHT + bleedWidth} ${RULER_HEIGHT + bleedHeight} L ${RULER_HEIGHT + bleedWidth} ${RULER_HEIGHT + bleedHeight - 0.5}`} />
+        {/* VistaPrint-style Image resize handles */}
+        {imageUrl && !file?.isPdf && (
+          <g className="resize-handles">
+            {/* Corner resize handles with improved styling */}
+            <circle
+              cx={bannerOffsetX + (widthIn - (widthIn - 1) * (imageScale || 1)) / 2 + (imagePosition.x * 0.01) - 0.2}
+              cy={bannerOffsetY + (heightIn - (heightIn - 1) * imageScale) / 2 + (imagePosition.y * 0.01) - 0.2}
+              r="0.15"
+              fill="#ffffff"
+              stroke="#3b82f6"
+              strokeWidth="0.06"
+              style={{ cursor: "nw-resize" }}
+              className="resize-handle" onMouseDown={onImageMouseDown} onTouchStart={onImageTouchStart}
+              data-handle="nw"
+            />
+            <circle
+              cx={bannerOffsetX + (widthIn - (widthIn - 1) * imageScale) / 2 + (imagePosition.x * 0.01) + (widthIn - 1) * imageScale + 0.2}
+              cy={bannerOffsetY + (heightIn - (heightIn - 1) * imageScale) / 2 + (imagePosition.y * 0.01) - 0.2}
+              r="0.15"
+              fill="#ffffff"
+              stroke="#3b82f6"
+              strokeWidth="0.06"
+              style={{ cursor: "ne-resize" }}
+              className="resize-handle" onMouseDown={onImageMouseDown} onTouchStart={onImageTouchStart}
+              data-handle="ne"
+            />
+            <circle
+              cx={bannerOffsetX + (widthIn - (widthIn - 1) * (imageScale || 1)) / 2 + (imagePosition.x * 0.01) - 0.2}
+              cy={bannerOffsetY + (heightIn - (heightIn - 1) * imageScale) / 2 + (imagePosition.y * 0.01) + (heightIn - 1) * imageScale + 0.2}
+              r="0.15"
+              fill="#ffffff"
+              stroke="#3b82f6"
+              strokeWidth="0.06"
+              style={{ cursor: "sw-resize" }}
+              className="resize-handle" onMouseDown={onImageMouseDown} onTouchStart={onImageTouchStart}
+              data-handle="sw"
+            />
+            <circle
+              cx={bannerOffsetX + (widthIn - (widthIn - 1) * imageScale) / 2 + (imagePosition.x * 0.01) + (widthIn - 1) * imageScale + 0.2}
+              cy={bannerOffsetY + (heightIn - (heightIn - 1) * imageScale) / 2 + (imagePosition.y * 0.01) + (heightIn - 1) * imageScale + 0.2}
+              r="0.15"
+              fill="#ffffff"
+              stroke="#3b82f6"
+              strokeWidth="0.06"
+              style={{ cursor: "se-resize" }}
+              className="resize-handle" onMouseDown={onImageMouseDown} onTouchStart={onImageTouchStart}
+              data-handle="se"
+            />
           </g>
+        )}
 
-          {/* Safety labels */}
-          <text x={RULER_HEIGHT + bleedWidth/2} y={RULER_HEIGHT - 0.15} textAnchor="middle" fontSize="0.35" fill="#dc2626" fontWeight="700" opacity="0.9">
-            SAFETY AREA
-          </text>
-          <text x={RULER_HEIGHT + bleedWidth/2} y={RULER_HEIGHT + bleedHeight + 0.4} textAnchor="middle" fontSize="0.25" fill="#dc2626" fontWeight="600" opacity="0.7">
-            Keep important content within this area
-          </text>
-        </g>
         {/* Placeholder when no image */}
         {!imageUrl && !file?.isPdf && (
           <g>
@@ -314,16 +357,17 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
         )}
 
         <defs>
-          <clipPath id="bleed-clip">
+          <clipPath id="banner-clip">
             <rect
-              x={RULER_HEIGHT}
-              y={RULER_HEIGHT}
-              width={bleedWidth}
-              height={bleedHeight}
+              x={bannerOffsetX + 0.5}
+              y={bannerOffsetY + 0.5}
+              width={widthIn - 1}
+              height={heightIn - 1}
               rx="0.4"
               ry="0.4"
             />
-          </clipPath>        </defs>
+          </clipPath>
+        </defs>
 
         {/* PROFESSIONAL VISTAPRINT-STYLE GROMMETS */}
         {grommetPositions.map((point, index) => (
@@ -428,19 +472,19 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
       </div>
 
     {/* ENHANCED PROFESSIONAL INFO PANEL */}
-    <div className="mt-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 p-3 shadow-sm">
-      <div className="flex flex-wrap items-center gap-4 w-full">
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <span className="text-xs text-gray-700 font-semibold">Banner Size:</span>
-          <span className="text-sm font-bold text-blue-900 bg-blue-200 px-2 py-1 rounded whitespace-nowrap">
+    <div className="mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border-2 border-blue-200 p-6 shadow-md">
+      <div className="flex flex-wrap items-center gap-6 w-full">
+        <div className="flex items-center gap-3 flex-shrink-0">
+          <span className="text-sm text-gray-700 font-semibold">Banner Size:</span>
+          <span className="text-lg font-bold text-blue-900 bg-blue-200 px-3 py-2 rounded-lg whitespace-nowrap">
             {widthIn}″ × {heightIn}″
           </span>
         </div>
 
         {grommetPositions.length > 0 && (
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <span className="text-xs text-gray-700 font-semibold">Grommets:</span>
-            <span className="text-sm font-bold text-green-900 bg-green-200 px-2 py-1 rounded whitespace-nowrap">
+          <div className="flex items-center gap-3 flex-shrink-0">
+            <span className="text-sm text-gray-700 font-semibold">Grommets:</span>
+            <span className="text-lg font-bold text-green-900 bg-green-200 px-3 py-2 rounded-lg whitespace-nowrap">
               {grommetPositions.length} total
             </span>
           </div>
@@ -454,10 +498,10 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
               ) : (
                 <Image className="h-5 w-5 text-blue-600" />
               )}
-              <span className="text-xs text-gray-700 font-semibold">File:</span>
+              <span className="text-sm text-gray-700 font-semibold">File:</span>
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-xs font-bold text-gray-900 truncate max-w-[150px]" title={file.name}>
+              <div className="text-sm font-bold text-gray-900 truncate max-w-[150px]" title={file.name}>
                 {file.name}
               </div>
               <div className="text-xs text-gray-600 truncate max-w-[150px]">
