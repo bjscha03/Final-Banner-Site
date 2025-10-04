@@ -157,11 +157,11 @@ const Design: React.FC = () => {
             <div className="block lg:hidden space-y-6 md:space-y-8">
               <SizeQuantityCard />
               <LivePreviewCard onOpenAIModal={() => setAiModalOpen(true)} />
+              <MaterialCard />
+              <OptionsCard />
               <ErrorBoundary>
                 <PricingCard />
               </ErrorBoundary>
-              <MaterialCard />
-              <OptionsCard />
             </div>
 
             {/* VISTAPRINT-STYLE DESKTOP LAYOUT: Compact Sidebar + Dominant Preview */}

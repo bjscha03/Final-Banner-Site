@@ -9,6 +9,7 @@ import { validateMinimumOrder, canProceedToCheckout } from '@/lib/validation/min
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useScrollToTop } from '@/components/ScrollToTop';
+import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
 
 
 
@@ -18,6 +19,24 @@ const PricingCard: React.FC = () => {
   const { addFromQuote } = useCartStore();
   const { toast } = useToast();
   const { scrollToTopBeforeNavigate } = useScrollToTop();
+  
+  // Upsell modal state
+  const [showUpsellModal, setShowUpsellModal] = useState(false);
+  const [pendingAction, setPendingAction] = useState<'cart' | 'checkout' | null>(null);
+  const [dontShowUpsellAgain, setDontShowUpsellAgain] = useState(false);
+
+  // Check if user should see upsell (no grommets, rope, or pole pockets selected)
+  const shouldShowUpsell = useMemo(() => {
+    if (dontShowUpsellAgain) return false;
+    return quote.grommets === 'none' || !quote.addRope || quote.polePockets === 'none';
+  }, [quote.grommets, quote.addRope, quote.polePockets, dontShowUpsellAgain]);
+
+  // Load "don't show again" preference from localStorage
+  useEffect(() => {
+    const dontShow = localStorage.getItem('upsell-dont-show-again') === 'true';
+    setDontShowUpsellAgain(dontShow);
+  }, []);
+
   const { user } = useAuth();
   const [isAdminUser, setIsAdminUser] = useState(false);
   const { widthIn, heightIn, quantity, material, grommets, polePockets, addRope, file } = quote;
@@ -181,6 +200,14 @@ const PricingCard: React.FC = () => {
       return;
     }
 
+    // Show upsell modal if user should see it
+    if (shouldShowUpsell) {
+      setPendingAction('cart');
+      setShowUpsellModal(true);
+      return;
+    }
+
+    // Proceed directly to add to cart
     addFromQuote(quote);
     toast({
       title: "Added to Cart",
@@ -208,11 +235,77 @@ const PricingCard: React.FC = () => {
       return;
     }
 
+    // Show upsell modal if user should see it
+    if (shouldShowUpsell) {
+      setPendingAction('checkout');
+      setShowUpsellModal(true);
+      return;
+    }
+
+    // Proceed directly to checkout
     addFromQuote(quote);
-    // Pre-scroll before navigation to prevent flash
     scrollToTopBeforeNavigate();
     navigate('/checkout');
   };
+
+  // Handle upsell modal continue
+  const handleUpsellContinue = (selectedOptions: UpsellOption[], dontAskAgain: boolean) => {
+    // Save "don't ask again" preference
+    if (dontAskAgain) {
+      localStorage.setItem('upsell-dont-show-again', 'true');
+      setDontShowUpsellAgain(true);
+    }
+
+    // Apply selected options to quote
+    selectedOptions.forEach(option => {
+      if (option.selected) {
+        switch (option.id) {
+          case 'grommets':
+            if (option.grommetSelection) {
+              quote.setGrommets(option.grommetSelection as any);
+            }
+            break;
+          case 'rope':
+            quote.setAddRope(true);
+            break;
+          case 'polePockets':
+            if (option.polePocketSelection) {
+              quote.setPolePockets(option.polePocketSelection as any);
+            }
+            if (option.polePocketSize) {
+              quote.setPolePocketSize(option.polePocketSize as any);
+            }
+            break;
+        }
+      }
+    });
+
+    // Close modal
+    setShowUpsellModal(false);
+
+    // Execute the pending action
+    if (pendingAction === 'cart') {
+      addFromQuote(quote);
+      toast({
+        title: "Added to Cart",
+        description: "Your banner has been added to the cart.",
+      });
+    } else if (pendingAction === 'checkout') {
+      addFromQuote(quote);
+      scrollToTopBeforeNavigate();
+      navigate('/checkout');
+    }
+
+    // Reset pending action
+    setPendingAction(null);
+  };
+
+  // Handle upsell modal close
+  const handleUpsellClose = () => {
+    setShowUpsellModal(false);
+    setPendingAction(null);
+  };
+
   return (
     <div className="relative bg-gradient-to-br from-white via-green-50/20 to-emerald-50/10 border border-green-200/30 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-sm">
       {/* Decorative background elements */}
@@ -424,6 +517,15 @@ const PricingCard: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Upsell Modal */}
+      <UpsellModal
+        isOpen={showUpsellModal}
+        onClose={handleUpsellClose}
+        quote={quote}
+        onContinue={handleUpsellContinue}
+        actionType={pendingAction || 'cart'}
+      />
     </div>
   );
 };
