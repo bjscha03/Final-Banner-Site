@@ -157,11 +157,11 @@ const Design: React.FC = () => {
             <div className="block lg:hidden space-y-6 md:space-y-8">
               <SizeQuantityCard />
               <LivePreviewCard onOpenAIModal={() => setAiModalOpen(true)} />
-              <MaterialCard />
-              <OptionsCard />
               <ErrorBoundary>
                 <PricingCard />
               </ErrorBoundary>
+              <MaterialCard />
+              <OptionsCard />
             </div>
 
             {/* VISTAPRINT-STYLE DESKTOP LAYOUT: Compact Sidebar + Dominant Preview */}
@@ -171,21 +171,18 @@ const Design: React.FC = () => {
                 <SizeQuantityCard />
                 <MaterialCard />
                 <OptionsCard />
-                
-                {/* Pricing Card - Sticky */}
-                <div className="sticky top-6">
-                  <ErrorBoundary>
-                    <PricingCard />
-                  </ErrorBoundary>
-                </div>
               </div>
 
               {/* DOMINANT PREVIEW AREA - Vistaprint Style */}
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 space-y-8">
                 <LivePreviewCard 
                   onOpenAIModal={() => setAiModalOpen(true)} 
                   expanded={true}
                 />
+                {/* Pricing Card - Below Preview */}
+                <ErrorBoundary>
+                  <PricingCard />
+                </ErrorBoundary>
               </div>
             </div>
           </div>
