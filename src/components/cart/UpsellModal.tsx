@@ -173,8 +173,8 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
 
   // Handle continue with selected options
   const handleContinue = () => {
-    console.log('🔥 UpsellModal handleContinue clicked', { selectedOptions, dontAskAgain });
-    console.log('📞 Calling onContinue with:', { selectedOptions, dontAskAgain });
+
+
     onContinue(selectedOptions, dontAskAgain);
   };
 
