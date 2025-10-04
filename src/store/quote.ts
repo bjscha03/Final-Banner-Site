@@ -78,7 +78,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
   grommets: 'none',
   polePockets: 'none',
   polePocketSize: '2',
-  addRope: state.addRope, // Preserve rope selection
+  addRope: false, // Preserve rope selection
   previewScalePct: 100,
   file: undefined,
   set: (partial) => set((state) => ({ ...state, ...partial })),
