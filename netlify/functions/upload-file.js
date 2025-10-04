@@ -1,7 +1,5 @@
-import type { Handler } from '@netlify/functions';
-import * as multipart from 'parse-multipart';
-import { v2 as cloudinary } from 'cloudinary';
-
+const multipart = require('parse-multipart');
+const { v2: cloudinary } = require('cloudinary');
 // Increased limits for large PDF bitmaps
 const MAX_BYTES = 200 * 1024 * 1024; // 200MB to handle large PDF bitmaps
 const ALLOWED = ['application/pdf','image/jpeg','image/jpg','image/png'];
@@ -13,7 +11,7 @@ cloudinary.config({
   secure: true,
 });
 
-export const handler: Handler = async (event) => {
+exports.handler = async (event) => {
   console.log('🔄 Upload function started:', {
     method: event.httpMethod,
     contentType: event.headers['content-type'] || event.headers['Content-Type'],
@@ -57,7 +55,7 @@ export const handler: Handler = async (event) => {
     try {
       parts = multipart.Parse(buf, boundary);
       console.log('✅ Multipart parsed successfully, parts:', parts.length);
-    } catch (e: any) {
+    } catch (e) {
       console.error('❌ Multipart parse error:', e);
       return { statusCode: 400, body: `Multipart parse error: ${e?.message}` };
     }
@@ -92,7 +90,7 @@ export const handler: Handler = async (event) => {
     console.log('🔄 Starting Cloudinary upload...');
     const uploadStartTime = Date.now();
 
-    const result = await new Promise<{ secure_url: string; public_id: string }>((resolve, reject) => {
+    const result = await new Promise((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
         { 
           folder, 
@@ -115,7 +113,7 @@ export const handler: Handler = async (event) => {
               secure_url: res.secure_url,
               uploadTime: Date.now() - uploadStartTime + 'ms'
             });
-            resolve({ secure_url: res.secure_url!, public_id: res.public_id! });
+            resolve({ secure_url: res.secure_url, public_id: res.public_id });
           }
         }
       );
@@ -128,7 +126,7 @@ export const handler: Handler = async (event) => {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ secureUrl: result.secure_url, publicId: result.public_id, fileKey: result.public_id }),
     };
-  } catch (e: any) {
+  } catch (e) {
     console.error('❌ Upload function error:', {
       message: e?.message,
       stack: e?.stack,
@@ -138,6 +136,6 @@ export const handler: Handler = async (event) => {
   }
 };
 
-function sanitize(name: string) {
+function sanitize(name) {
   return name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 150);
 }
