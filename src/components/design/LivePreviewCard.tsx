@@ -677,6 +677,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
               <div
                 style={{
                   transform: `scale(${previewScalePct / 100})`,
+                  transformOrigin: 'center center',
                   width: '90%',
                   height: '90%',
                   display: 'flex',
@@ -698,7 +699,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
                   isDraggingImage={isDraggingImage}
                   imageScale={imageScale}
                   isUploading={isUploading}
-                  />
+                  isRenderingPdf={isRenderingPdf} />
                 {/* Quality Badge for DPI warnings */}
                 {file?.artworkWidth && file?.artworkHeight && (
                   <QualityBadge
