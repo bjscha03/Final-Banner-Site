@@ -250,6 +250,7 @@ const PricingCard: React.FC = () => {
 
   // Handle upsell modal continue
   const handleUpsellContinue = (selectedOptions: UpsellOption[], dontAskAgain: boolean) => {
+    console.log('🚀 handleUpsellContinue called', { selectedOptions, dontAskAgain, pendingAction });
     // Save "don't ask again" preference
     if (dontAskAgain) {
       localStorage.setItem('upsell-dont-show-again', 'true');
@@ -284,6 +285,7 @@ const PricingCard: React.FC = () => {
     setShowUpsellModal(false);
 
     // Execute the pending action
+    console.log('🎯 Executing pending action:', pendingAction);
     if (pendingAction === 'cart') {
       addFromQuote(quote);
       toast({
@@ -291,6 +293,7 @@ const PricingCard: React.FC = () => {
         description: "Your banner has been added to the cart.",
       });
     } else if (pendingAction === 'checkout') {
+      console.log('🛒 Adding to cart and navigating to checkout');
       addFromQuote(quote);
       scrollToTopBeforeNavigate();
       navigate('/checkout');

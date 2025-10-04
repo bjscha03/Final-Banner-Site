@@ -53,7 +53,7 @@ function createEmailContainer(content) {
   `;
 }
 
-const { createEmailLogoHeader, createEmailContainer } = require('../../src/lib/email');
+
 
 const headers = {
   'Content-Type': 'application/json',
