@@ -140,20 +140,34 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         previewUrl = URL.createObjectURL(file);
       }
 
-      // Upload actual file content to server
-      const form = new FormData();
-      form.append("file", file);
-      const response = await fetch("/.netlify/functions/upload-file", {
-        method: "POST",
-        body: form
-      });
+      // For local development, skip server upload and use local preview
+      let result;
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        // Local development - skip upload, use local preview
+        console.log('🔧 Local development mode: skipping server upload');
+        result = {
+          success: true,
+          fileUrl: previewUrl, // Use the local blob URL
+          fileName: file.name,
+          fileSize: file.size,
+          uploadedAt: new Date().toISOString(),
+          message: 'Local development - using client-side preview'
+        };
+      } else {
+        // Production - upload to server
+        const form = new FormData();
+        form.append("file", file);
+        const response = await fetch("/.netlify/functions/upload-file", {
+          method: "POST",
+          body: form
+        });
 
-      if (!response.ok) {
-        throw new Error(`Upload failed: ${response.statusText}`);
+        if (!response.ok) {
+          throw new Error(`Upload failed: ${response.statusText}`);
+        }
+
+        result = await response.json();
       }
-
-      const result = await response.json();
-
       set({
         file: {
           name: file.name,
@@ -786,7 +800,6 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                     bannerHeightInches={heightIn}
                     artworkPixelWidth={file.artworkWidth}
                     artworkPixelHeight={file.artworkHeight}
-                    className="absolute top-4 left-4 z-10"
                   />
                 )}            </div>
 

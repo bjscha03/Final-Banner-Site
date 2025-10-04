@@ -121,10 +121,10 @@ export default function PdfImagePreview({ file, fileUrl, fileName, className, on
           </div>
           
           {/* Error message (if not too technical) */}
-          {error && !error.includes('InvalidPDFException') && !error.includes('corrupted') && (
+          {error  && (
             <div className="text-xs text-amber-600 bg-amber-50 p-2 rounded border mb-3 flex items-center gap-1">
               <AlertCircle className="w-3 h-3 flex-shrink-0" />
-              <span>Preview unavailable</span>
+              <span>PDF Preview</span>
             </div>
           )}
           

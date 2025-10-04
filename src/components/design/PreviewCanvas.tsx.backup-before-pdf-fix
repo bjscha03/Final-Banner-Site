@@ -237,9 +237,9 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
         />
 
         {/* Image if provided - Extended to bleed area */}
-        {(imageUrl || (file?.isPdf && file?.url)) && (
-          <image key={imageUrl || file?.url}
-            href={imageUrl || file?.url}
+        {imageUrl && !file?.isPdf && (
+          <image key={imageUrl}
+            href={imageUrl}
             x={RULER_HEIGHT + (bleedWidth - bleedWidth * imageScale) / 2 + (imagePosition.x * 0.01)}
             y={RULER_HEIGHT + (bleedHeight - bleedHeight * imageScale) / 2 + (imagePosition.y * 0.01)}
             width={bleedWidth * (imageScale || 1)}
@@ -286,7 +286,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           </text>
         </g>
         {/* Placeholder when no image */}
-        {!imageUrl && !(file?.isPdf && file?.url) && (
+        {!imageUrl && !file?.isPdf && (
           <g>
             <rect
               x={bannerOffsetX + 2}
@@ -407,6 +407,24 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
         </defs>
       </svg>
 
+      {/* PDF Preview Overlay */}
+      {file?.isPdf && file.url && (
+        <div className="absolute top-8 left-8 right-8 bottom-8 flex items-center justify-center pointer-events-none">
+          {FEATURE_PDF_STATIC_PREVIEW ? (
+            <PdfImagePreview
+              fileUrl={file.url}
+              fileName={file.name}
+              className="w-full h-auto max-w-md max-h-80 object-contain"
+              onError={(e) => console.error('PDF preview error:', e)}
+            />
+          ) : (
+            <PDFPreview
+              url={file.url}
+              className="w-full h-auto max-w-md max-h-80"
+            />
+          )}
+        </div>
+      )}
       </div>
 
     {/* ENHANCED PROFESSIONAL INFO PANEL */}
