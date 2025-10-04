@@ -9,7 +9,7 @@ import { GrommetPicker } from '@/components/ui/GrommetPicker';
 import { useToast } from '@/components/ui/use-toast';
 import { loadPdfToBitmap } from '@/utils/pdf/loadPdfToBitmap';
 import QualityBadge from './QualityBadge';
-
+import PreviewCanvas from './PreviewCanvas';
 const grommetOptions = [
   { id: 'none', label: 'None', description: 'No grommets' },
   { id: 'every-2-3ft', label: 'Every 2–3 feet', description: 'Standard spacing' },

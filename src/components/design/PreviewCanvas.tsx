@@ -409,7 +409,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
 
       {/* PDF Preview Overlay */}
       {file?.isPdf && file.url && (
-        <div className="absolute inset-0 flex items-center justify-center p-4">
+        <div className="absolute top-8 left-8 right-8 bottom-8 flex items-center justify-center pointer-events-none">
           {FEATURE_PDF_STATIC_PREVIEW ? (
             <PdfImagePreview
               fileUrl={file.url}
