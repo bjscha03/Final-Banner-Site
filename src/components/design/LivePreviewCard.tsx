@@ -677,7 +677,6 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
               <div
                 style={{
                   transform: `scale(${previewScalePct / 100})`,
-                  transformOrigin: 'center center',
                   width: '90%',
                   height: '90%',
                   display: 'flex',
