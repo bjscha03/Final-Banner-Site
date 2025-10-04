@@ -7,8 +7,7 @@ import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { GrommetPicker } from '@/components/ui/GrommetPicker';
 import { useToast } from '@/components/ui/use-toast';
-import { loadPdfToBitmap } from '@/utils/pdf/loadPdfToBitmap';
-import QualityBadge from './QualityBadge';
+import PreviewCanvas from './PreviewCanvas';
 
 const grommetOptions = [
   { id: 'none', label: 'None', description: 'No grommets' },
@@ -50,7 +49,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
   const [uploadError, setUploadError] = useState('');
   
   const [isUploading, setIsUploading] = useState(false);  // Image interaction state
-  const [isRenderingPdf, setIsRenderingPdf] = useState(false);  const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
+  const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
   const [imageScale, setImageScale] = useState(1);
   const [isDraggingImage, setIsDraggingImage] = useState(false);
   const [isResizingImage, setIsResizingImage] = useState(false);
@@ -111,38 +110,14 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     }
 
     setUploadError('');
-    setIsUploading(true);
+    setIsUploading(true);    const isPdf = file.type === 'application/pdf';
+    // Create URL for preview
+    const url = URL.createObjectURL(file);
 
-    const isPdf = file.type === 'application/pdf';
-    let previewUrl = '';
-    let artworkWidth = 0;
-    let artworkHeight = 0;
-
+    // Upload actual file content to server
     try {
-      if (isPdf) {
-        // Handle PDF files
-        setIsRenderingPdf(true);
-        
-        const pdfResult = await loadPdfToBitmap(file, {
-          bannerWidthInches: widthIn,
-          bannerHeightInches: heightIn,
-          targetDPI: 200,
-          maxDimension: 8000
-        });
-        
-        previewUrl = pdfResult.blobUrl;
-        artworkWidth = pdfResult.width;
-        artworkHeight = pdfResult.height;
-        
-        setIsRenderingPdf(false);
-      } else {
-        // Handle regular image files
-        previewUrl = URL.createObjectURL(file);
-      }
-
-      // Upload actual file content to server
       const form = new FormData();
-      form.append("file", file);
+      form.append("file", file); // Append the actual File object
       const response = await fetch("/.netlify/functions/upload-file", {
         method: "POST",
         body: form
@@ -159,28 +134,18 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
           name: file.name,
           type: file.type,
           size: file.size,
-          url: previewUrl,
+          url,
           isPdf,
-          fileKey: result.fileKey,
-          artworkWidth: artworkWidth || undefined,
-          artworkHeight: artworkHeight || undefined
+          fileKey: result.fileKey // Store the server file key
         },
         // Reset scale to 100% when uploading a new file
         previewScalePct: 100
       });
-      
-      setIsUploading(false);
-    } catch (uploadError) {
+      setIsUploading(false);    } catch (uploadError) {
       console.error('File upload error:', uploadError);
-      setIsUploading(false);
-      setIsRenderingPdf(false);
-      toast({
-        title: "Upload Error",
-        description: isPdf ? "Failed to process PDF file. Please try again." : "Failed to upload file. Please try again.",
-        variant: "destructive",
-      });
-    }
+      setIsUploading(false);    }
   };
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setDragActive(false);
@@ -198,7 +163,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
   };
 
   const removeFile = () => {
-    if (file?.url) {
+    if (file?.url && !file.isPdf) {
       URL.revokeObjectURL(file.url);
     }
     set({ file: null });
@@ -777,18 +742,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                   imageScale={imageScale}
                   isUploading={isUploading || isGeneratingAI} />
               </div>
-
-                {/* Quality Badge for DPI warnings */}
-                {file?.artworkWidth && file?.artworkHeight && (
-                  <QualityBadge
-                    imageScale={imageScale}
-                    bannerWidthInches={widthIn}
-                    bannerHeightInches={heightIn}
-                    artworkPixelWidth={file.artworkWidth}
-                    artworkPixelHeight={file.artworkHeight}
-                    className="absolute top-4 left-4 z-10"
-                  />
-                )}            </div>
+            </div>
 
             {/* File controls */}
             <div className="absolute top-4 right-4">
