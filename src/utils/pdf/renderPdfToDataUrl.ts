@@ -127,9 +127,15 @@ export async function renderPdfToDataUrl(file: File, opts: PdfRenderOptions = {}
     return dataUrl;
   } catch (error) {
     console.error('PDF rendering error:', error);
+    console.error('Error type:', error.constructor.name);
+    console.error('Error message:', error.message);
+    if (error.name) console.error('Error name:', error.name);
 
     // Provide more specific error messages
     if (error instanceof Error) {
+      if (error.message.includes('Aborted') || error.message.includes('cancelled')) {
+        throw new Error('PDF rendering was cancelled');
+      }
       if (error.message.includes('Invalid PDF structure') || error.message.includes('Invalid PDF')) {
         throw new Error('PDF file is corrupted or invalid');
       }
@@ -138,9 +144,6 @@ export async function renderPdfToDataUrl(file: File, opts: PdfRenderOptions = {}
       }
       if (error.message.includes('network') || error.message.includes('fetch')) {
         throw new Error('Network error loading PDF worker');
-      }
-      if (error.message.includes('Aborted')) {
-        throw new Error('PDF rendering was cancelled');
       }
       if (error.message.includes('memory') || error.message.includes('out of memory')) {
         throw new Error('PDF file is too large to render');
