@@ -77,7 +77,14 @@ export const useCartStore = create<CartState>()(
         const unitPriceCents = Math.round(area * pricePerSqFt * 100);
         const ropeFeet = quote.addRope ? quote.widthIn / 12 : 0;
         const ropeCostCents = Math.round(ropeFeet * 2 * quote.quantity * 100);
-
+        
+        console.log("🛒 CART PRICING DEBUG:", {
+          addRope: quote.addRope,
+          widthIn: quote.widthIn,
+          ropeFeet,
+          ropeCostCents,
+          quantity: quote.quantity
+        });
         // Calculate pole pocket cost
         const polePocketCostCents = (() => {
           if (quote.polePockets === 'none') return 0;
@@ -107,6 +114,13 @@ export const useCartStore = create<CartState>()(
 
         const lineTotalCents = unitPriceCents * quote.quantity + ropeCostCents + polePocketCostCents;
         
+        console.log("🛒 CART LINE TOTAL DEBUG:", {
+          unitPriceCents,
+          ropeCostCents,
+          polePocketCostCents,
+          lineTotalCents,
+          quantity: quote.quantity
+        });        
         // Use the file key from the uploaded file
         const fileKey = quote.file?.fileKey;
 
