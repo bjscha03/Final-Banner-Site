@@ -64,7 +64,7 @@ export default function OrderConfirmation({ order, invoiceUrl }: OrderConfirmati
   const total = order.total || (order.totalCents ? order.totalCents / 100 : subtotal + tax);
 
   // Logo URL for email - use environment-aware URL
-  const logoUrl = `${process.env.NODE_ENV === 'development' ? 'http://localhost:8082' : 'https://www.bannersonthefly.com'}/images/logo-compact.svg`;
+  const logoUrl = 'https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto,q_auto,w_300/https://bannersonthefly.com/cld-assets/images/logo-compact.svg';
 
   return (
     <Html>

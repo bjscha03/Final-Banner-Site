@@ -1,54 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
-
-// Email-compatible logo header HTML
-function createEmailLogoHeader() {
-  const logoUrl = 'https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto,q_auto,w_300/https://bannersonthefly.com/cld-assets/images/logo-compact.svg';
-  
-  return `
-    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0; padding: 0;">
-      <tr>
-        <td style="padding: 20px 0 30px 0; text-align: center; background-color: #ffffff;">
-          <img src="${logoUrl}" 
-               alt="Banners on the Fly - Custom Banner Printing" 
-               width="200" 
-               height="auto" 
-               style="display: block; margin: 0 auto; max-width: 100%; height: auto; border: 0;" />
-        </td>
-      </tr>
-    </table>
-  `;
-}
-
-function createEmailContainer(content) {
-  return `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-      <title>Banners on the Fly</title>
-    </head>
-    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; line-height: 1.6; color: #333333; background-color: #f4f4f4;">
-      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0; padding: 0; background-color: #f4f4f4;">
-        <tr>
-          <td style="padding: 20px 0;">
-            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="margin: 0 auto; background-color: #ffffff; border-radius: 8px;" align="center">
-              <tr>
-                <td>
-                  ${createEmailLogoHeader()}
-                  ${content}
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-      </table>
-    </body>
-    </html>
-  `;
-}
-
+const { createEmailLogoHeader, createEmailContainer } = require('../../src/lib/email');
 
 const headers = {
   'Content-Type': 'application/json',
@@ -57,11 +8,44 @@ const headers = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
 };
 
+// Send email with retry logic for rate limiting
+async function sendEmailWithRetry(resendClient, emailData, maxAttempts = 3) {
+  let lastError;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const result = await resendClient.emails.send(emailData);
+      if (result.error) {
+        throw new Error(result.error);
+      }
+      return result;
+    } catch (error) {
+      lastError = error;
+
+      // Check if error is retryable (429 rate limit or 5xx server errors)
+      const isRetryable = error?.status === 429 || (error?.status >= 500 && error?.status < 600) ||
+                         error?.message?.includes('Too many requests');
+
+      if (!isRetryable || attempt === maxAttempts) {
+        throw error;
+      }
+
+      // Exponential backoff: 1s, 3s for rate limiting
+      const delay = attempt === 1 ? 1000 : 3000;
+      await new Promise(resolve => setTimeout(resolve, delay));
+
+      console.log(`Email send attempt ${attempt} failed (rate limited), retrying in ${delay}ms:`, error?.message);
+    }
+  }
+
+  throw lastError;
+}
+
 // Send email using existing email system
 async function sendEmail(type, payload) {
   try {
     const { Resend } = require('resend');
-    
+
     if (!process.env.RESEND_API_KEY) {
       return { ok: false, error: 'RESEND_API_KEY not configured' };
     }
@@ -76,8 +60,10 @@ async function sendEmail(type, payload) {
     if (type === 'order.confirmation') {
       subject = `Order Confirmation #${payload.order.number} - Banners On The Fly`;
       html = createEmailContainer(`
-        <div style="padding: 20px;">
-          <h2 style="color: #2563eb; text-align: center; margin: 0 0 20px 0;">Order Confirmation</h2>
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0; padding: 20px;">
+          <tr>
+            <td>
+              <h2 style="color: #2563eb; margin: 0 0 20px 0; font-size: 28px; text-align: center;">Order Confirmation</h2>
           <p>Hello ${payload.order.customerName},</p>
           <p>Thank you for your order! We've received your custom banner order and will begin processing it shortly.</p>
           
@@ -127,19 +113,81 @@ async function sendEmail(type, payload) {
             Custom Banner Printing Services<br>
             Questions? Reply to this email or contact support.
           </p>
-        </div>
+            </td>
+          </tr>
+        </table>
+      `);
+    } else if (type === 'order.admin_notification') {
+      subject = `🎉 New Order #${payload.order.number} - $${payload.order.total.toFixed(2)}`;
+      html = createEmailContainer(`
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0; padding: 20px;">
+          <tr>
+            <td>
+              <h2 style="color: #059669; margin: 0 0 20px 0; font-size: 28px; text-align: center;">🎉 New Order Received!</h2>
+          <p>A customer has placed a new order on Banners On The Fly</p>
+
+          <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
+            <h3 style="margin-top: 0; color: #374151;">Order Information</h3>
+            <p><strong>Order Number:</strong> #${payload.order.number}</p>
+            <p><strong>Order ID:</strong> ${payload.order.id}</p>
+            <p><strong>Customer:</strong> ${payload.order.customerName}</p>
+            <p><strong>Email:</strong> <a href="mailto:${payload.order.email}">${payload.order.email}</a></p>
+            <p><strong>Total Amount:</strong> <span style="color: #059669; font-weight: bold;">$${payload.order.total.toFixed(2)}</span></p>
+
+            <h4 style="color: #374151;">Items:</h4>
+            ${payload.order.items.map(item => `
+              <div style="border-bottom: 1px solid #e5e7eb; padding: 10px 0;">
+                <p style="margin: 5px 0;"><strong>${item.name}</strong></p>
+                <p style="margin: 5px 0; color: #6b7280;">Quantity: ${item.quantity}</p>
+                <p style="margin: 5px 0; color: #6b7280;">${item.options}</p>
+                <p style="margin: 5px 0;"><strong>$${item.price.toFixed(2)}</strong></p>
+              </div>
+            `).join('')}
+
+            <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #e5e7eb;">
+              <p style="margin: 5px 0;">Subtotal: $${payload.order.subtotal.toFixed(2)}</p>
+              ${payload.order.tax > 0 ? `<p style="margin: 5px 0;">Tax: $${payload.order.tax.toFixed(2)}</p>` : ''}
+              <p style="margin: 5px 0; font-size: 18px;"><strong>Total: $${payload.order.total.toFixed(2)}</strong></p>
+            </div>
+          </div>
+
+          ${payload.order.shippingAddress ? `
+            <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
+              <h3 style="margin-top: 0; color: #374151;">Shipping Address</h3>
+              <p style="margin: 5px 0;">${payload.order.shippingAddress}</p>
+            </div>
+          ` : ''}
+
+          <div style="text-align: center; margin: 30px 0;">
+            <a href="${payload.invoiceUrl}"
+               style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
+              View Full Order Details
+            </a>
+          </div>
+
+          <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
+          <p style="color: #6b7280; font-size: 12px;">
+            This is an automated notification from Banners On The Fly order system.<br>
+            <a href="mailto:${payload.order.email}">Contact customer</a> •
+            <a href="https://bannersonthefly.com">Visit website</a>
+          </p>
+            </td>
+          </tr>
+        </table>
       `);
     } else {
       return { ok: false, error: `Unknown email type: ${type}` };
     }
 
-    const result = await resend.emails.send({
+    const emailData = {
       from: emailFrom,
       to: payload.to,
       replyTo: emailReplyTo,
       subject,
       html
-    });
+    };
+
+    const result = await sendEmailWithRetry(resend, emailData);
 
     return { ok: true, id: result.data?.id };
   } catch (error) {
@@ -227,6 +275,16 @@ exports.handler = async (event) => {
     }
 
     const order = orderRows[0];
+
+    // Idempotency Check: If already sent, return success without sending
+    if (order.confirmation_email_status === 'sent' || order.confirmation_emailed_at) {
+      console.log(`Order ${orderId} confirmation email already sent, returning idempotent response`);
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ ok: true, idempotent: true })
+      };
+    }
     
     // Load order items
     const itemRows = await db`
@@ -266,7 +324,7 @@ exports.handler = async (event) => {
       invoiceUrl
     };
 
-    // Send the email
+    // Send confirmation email
     const emailResult = await sendEmail('order.confirmation', emailPayload);
     
     // Log email attempt
@@ -280,24 +338,80 @@ exports.handler = async (event) => {
     });
 
     if (emailResult.ok) {
-      // Update order confirmation email status
+      // Update order with confirmation email status
       await db`
-        UPDATE orders 
-        SET confirmation_email_status = 'sent', 
+        UPDATE orders
+        SET confirmation_email_status = 'sent',
             confirmation_emailed_at = NOW()
         WHERE id = ${orderId}
       `;
 
-      console.log(`Admin resend confirmation successful for order ${orderId}, email ID: ${emailResult.id}`);
-      
+      console.log(`Order confirmation email sent successfully for order ${orderId}, email ID: ${emailResult.id}`);
+
+      // Send admin notification email to info@bannersonthefly.com
+      const adminEmail = process.env.ADMIN_EMAIL || 'info@bannersonthefly.com';
+
+      try {
+        // Add delay to prevent rate limiting (Resend allows 2 requests per second)
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        const adminEmailPayload = {
+          to: adminEmail,
+          order: {
+            ...emailPayload.order,
+            email: order.email, // Add customer email to admin notification
+            created_at: order.created_at
+          },
+          invoiceUrl: emailPayload.invoiceUrl
+        };
+
+        const adminEmailResult = await sendEmail('order.admin_notification', adminEmailPayload);
+
+        // Log admin email attempt
+        await logEmailAttempt({
+          type: 'order.admin_notification',
+          to: adminEmail,
+          orderId: order.id,
+          status: adminEmailResult.ok ? 'sent' : 'error',
+          providerMsgId: adminEmailResult.ok ? adminEmailResult.id : undefined,
+          errorMessage: adminEmailResult.ok ? undefined : `${adminEmailResult.error} ${adminEmailResult.details ? JSON.stringify(adminEmailResult.details) : ''}`.trim()
+        });
+
+        if (adminEmailResult.ok) {
+          // Update order with admin notification status
+          await db`
+            UPDATE orders
+            SET admin_notification_status = 'sent',
+                admin_notification_sent_at = NOW()
+            WHERE id = ${orderId}
+          `;
+          console.log(`Admin notification email sent successfully for order ${orderId}, email ID: ${adminEmailResult.id}`);
+        } else {
+          console.error(`Admin notification email failed for order ${orderId}:`, adminEmailResult);
+          // Don't fail the main request if admin email fails
+        }
+      } catch (adminEmailError) {
+        console.error(`Admin notification email error for order ${orderId}:`, adminEmailError);
+        // Log the failed attempt
+        await logEmailAttempt({
+          type: 'order.admin_notification',
+          to: adminEmail,
+          orderId: order.id,
+          status: 'error',
+          errorMessage: adminEmailError.message || 'Unknown error'
+        });
+        // Don't fail the main request if admin email fails
+      }
+
       return {
         statusCode: 200,
         headers,
         body: JSON.stringify({ ok: true, id: emailResult.id })
       };
     } else {
-      console.error(`Admin resend confirmation failed for order ${orderId}:`, emailResult);
+      console.error(`Order confirmation email failed for order ${orderId}:`, emailResult);
       
+      // Don't update order status on failure, allowing for retry
       return {
         statusCode: 500,
         headers,
@@ -310,7 +424,7 @@ exports.handler = async (event) => {
     }
 
   } catch (error) {
-    console.error('Admin resend confirmation failed:', error);
+    console.error('Order notification failed:', error);
     
     return {
       statusCode: 500,

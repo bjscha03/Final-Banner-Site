@@ -711,7 +711,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       <div className="px-3 sm:px-6 py-4 border-b border-gray-100">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-4 sm:gap-4">
-            <span className="text-sm font-medium text-gray-700">Preview Scale:</span>
+            <span className="text-sm font-medium text-gray-700 hidden sm:inline">Preview Scale:</span>
             <div className="flex items-center gap-4">
               <Slider
                 value={[previewScalePct]}

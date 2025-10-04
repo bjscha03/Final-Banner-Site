@@ -1,0 +1,10 @@
+      {/* AI Generation Modal */}
+      <AIGenerationModal 
+        open={aiModalOpen} 
+        onOpenChange={setAiModalOpen} 
+      />
+    </Layout>
+  );
+};
+
+export default Design;

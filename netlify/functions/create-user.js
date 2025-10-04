@@ -1,5 +1,55 @@
 const { neon } = require('@neondatabase/serverless');
 
+// Email-compatible logo header HTML
+function createEmailLogoHeader() {
+  const logoUrl = 'https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto,q_auto,w_300/https://bannersonthefly.com/cld-assets/images/logo-compact.svg';
+  
+  return `
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0; padding: 0;">
+      <tr>
+        <td style="padding: 20px 0 30px 0; text-align: center; background-color: #ffffff;">
+          <img src="${logoUrl}" 
+               alt="Banners on the Fly - Custom Banner Printing" 
+               width="200" 
+               height="auto" 
+               style="display: block; margin: 0 auto; max-width: 100%; height: auto; border: 0;" />
+        </td>
+      </tr>
+    </table>
+  `;
+}
+
+function createEmailContainer(content) {
+  return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+      <title>Banners on the Fly</title>
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; line-height: 1.6; color: #333333; background-color: #f4f4f4;">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0; padding: 0; background-color: #f4f4f4;">
+        <tr>
+          <td style="padding: 20px 0;">
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="margin: 0 auto; background-color: #ffffff; border-radius: 8px;" align="center">
+              <tr>
+                <td>
+                  ${createEmailLogoHeader()}
+                  ${content}
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `;
+}
+
+
 // Neon database connection
 const sql = neon(process.env.NETLIFY_DATABASE_URL);
 
@@ -33,9 +83,9 @@ async function sendEmail(type, payload) {
 
     if (type === 'user.verify') {
       subject = 'Welcome to Banners On The Fly - Verify Your Email';
-      html = `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #2563eb;">Welcome to Banners On The Fly!</h2>
+      html = createEmailContainer(`
+        <div style="padding: 20px;">
+          <h2 style="color: #2563eb; text-align: center; margin: 0 0 20px 0;">Welcome to Banners On The Fly!</h2>
           <p>Hello ${payload.userName || 'there'},</p>
           <p>Thank you for signing up for Banners On The Fly! To complete your account setup and start creating custom banners, please verify your email address by clicking the button below.</p>
 
@@ -59,7 +109,7 @@ async function sendEmail(type, payload) {
             Banners On The Fly - Custom Banner Printing Services
           </p>
         </div>
-      `;
+      `);
     } else {
       return { ok: false, error: `Unknown email type: ${type}` };
     }

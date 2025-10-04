@@ -38,7 +38,7 @@ async function sendEmail(type, payload) {
     // For now, we'll use a simple HTML template since importing React components in Netlify functions is complex
     // In production, you'd want to use the actual OrderShipped React component
     const createShippingEmailHtml = (order, trackingNumber, trackingUrl) => {
-      const logoUrl = `${process.env.NODE_ENV === 'development' ? 'http://localhost:8082' : 'https://www.bannersonthefly.com'}/images/logo-compact.svg`;
+      const logoUrl = 'https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto,q_auto,w_300/https://bannersonthefly.com/cld-assets/images/logo-compact.svg';
       
       return `
         <!DOCTYPE html>

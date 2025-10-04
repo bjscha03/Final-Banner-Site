@@ -710,7 +710,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       {/* Scale Controls - responsive design */}
       <div className="px-3 sm:px-6 py-4 border-b border-gray-100">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-center gap-4 sm:gap-4">
+          <div className="flex items-center gap-3 sm:gap-4 sm:gap-4">
             <span className="text-sm font-medium text-gray-700">Preview Scale:</span>
             <div className="flex items-center gap-4">
               <Slider
@@ -791,7 +791,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                 )}
               </div>
               
-              <div className="mt-6 sm:mt-4 p-4 sm:p-3 bg-blue-50 border border-blue-200 rounded-lg text-left max-w-md mx-auto w-full">
+              <div className="mt-6 sm:mt-4 p-4 sm:p-3 bg-blue-50 border border-blue-200 rounded-lg text-left w-[calc(100%-2rem)] max-w-md mx-auto">
                 <p className="text-sm sm:text-xs text-blue-700 font-medium mb-2 sm:mb-1">File requirements:</p>
                 <p className="text-sm sm:text-xs text-blue-600 leading-relaxed">
                   High-resolution files (300 DPI) work best. We'll review your artwork and contact you if any adjustments are needed.

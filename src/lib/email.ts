@@ -12,6 +12,60 @@ import ContactReceived from '../emails/ContactReceived';
 import ContactAcknowledgment from '../emails/ContactAcknowledgment';
 import AdminOrderNotification from '../emails/AdminOrderNotification';
 
+// Email-compatible logo header HTML for inline templates
+export function createEmailLogoHeader(): string {
+  // Use Cloudinary URL for reliable email delivery
+  const logoUrl = 'https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto,q_auto,w_300/https://bannersonthefly.com/cld-assets/images/logo-compact.svg';
+  
+  return `
+    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0; padding: 0;">
+      <tr>
+        <td style="padding: 20px 0 30px 0; text-align: center; background-color: #ffffff;">
+          <img src="${logoUrl}" 
+               alt="Banners on the Fly - Custom Banner Printing" 
+               width="200" 
+               height="auto" 
+               style="display: block; margin: 0 auto; max-width: 100%; height: auto; border: 0;" />
+        </td>
+      </tr>
+    </table>
+  `;
+}
+
+// Email container wrapper with proper email client compatibility
+export function createEmailContainer(content: string): string {
+  return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+      <!--[if !mso]><!-->
+      <meta http-equiv="X-UA-Compatible" content="IE=edge">
+      <!--<![endif]-->
+      <title>Banners on the Fly</title>
+    </head>
+    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; line-height: 1.6; color: #333333; background-color: #f4f4f4;">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0; padding: 0; background-color: #f4f4f4;">
+        <tr>
+          <td style="padding: 20px 0;">
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="margin: 0 auto; background-color: #ffffff; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);" align="center">
+              <tr>
+                <td>
+                  ${createEmailLogoHeader()}
+                  ${content}
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `;
+}
+
 // Initialize Resend only when API key is available
 let resend: Resend | null = null;
 function getResend() {
