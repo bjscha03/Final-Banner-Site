@@ -1,4 +1,4 @@
-// renderPdfToDataUrl.ts
+// renderPdfToDataUrl.ts - Robust PDF rendering with multiple fallback strategies
 // Renders page 1 of a PDF File to a data URL for <img src="...">
 
 import { GlobalWorkerOptions } from 'pdfjs-dist';
@@ -6,7 +6,6 @@ import { GlobalWorkerOptions } from 'pdfjs-dist';
 GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 
 let _pdfjsLib: typeof import('pdfjs-dist') | null = null;
-let _pdfjsWorker: any | null = null;
 
 export type PdfRenderOptions = {
   scale?: number;                 // UI preview scale (1 = 100%)
@@ -32,13 +31,12 @@ export async function renderPdfToDataUrl(file: File, opts: PdfRenderOptions = {}
 
     // Use a more conservative scale for banner-sized PDFs to avoid memory issues
     const scale = Math.max(0.1, Math.min(2.0, opts.scale ?? 1));
-    const deviceScale = Math.max(1, Math.floor(opts.devicePixelRatio ?? (globalThis.window?.devicePixelRatio ?? 1)));
+    const deviceScale = Math.max(1, Math.floor(opts.deviceScale ?? (globalThis.window?.devicePixelRatio ?? 1)));
 
     // Lazy import pdfjs and set worker
     if (!_pdfjsLib) {
       console.log('Loading PDF.js library...');
       _pdfjsLib = await import('pdfjs-dist');
-      // PDF.js worker source is now set globally at the top of the file.
       console.log('PDF.js library loaded successfully');
     }
 
@@ -52,23 +50,81 @@ export async function renderPdfToDataUrl(file: File, opts: PdfRenderOptions = {}
 
     console.log('PDF file read successfully, size:', arrayBuffer.byteLength, 'bytes');
 
-    console.log('Loading PDF document...');
-    const loadingTask = (_pdfjsLib as any).getDocument({
-      data: arrayBuffer,
-      // Add more robust PDF parsing options
-      verbosity: 0, // Reduce console spam
-      isEvalSupported: false, // Disable eval for security
-      disableFontFace: false, // Allow font rendering
-      useSystemFonts: true, // Use system fonts as fallback
-      // Additional compatibility options for problematic PDFs
-      stopAtErrors: false, // Continue parsing despite minor errors
-      maxImageSize: 16777216, // 16MB max image size
-      disableAutoFetch: false, // Allow auto-fetching of missing data
-      disableStream: false, // Allow streaming
-      ignoreErrors: true, // Ignore non-critical errors
-    });
+    // Define multiple parsing strategies in order of preference
+    const strategies = [
+      {
+        name: 'Ultra Permissive',
+        config: {
+          data: arrayBuffer,
+          verbosity: 0,
+          isEvalSupported: true, // Allow eval for maximum compatibility
+          disableFontFace: true, // Disable font rendering to avoid font issues
+          useSystemFonts: false, // Don't use system fonts
+          stopAtErrors: false,
+          maxImageSize: -1, // No image size limit
+          disableAutoFetch: true, // Disable auto-fetch
+          disableStream: true, // Disable streaming
+          disableRange: true, // Disable range requests
+          ignoreErrors: true,
+          useWorkerFetch: false,
+          isOffscreenCanvasSupported: false,
+        }
+      },
+      {
+        name: 'No Streaming',
+        config: {
+          data: arrayBuffer,
+          verbosity: 0,
+          disableStream: true,
+          disableRange: true,
+          disableAutoFetch: true,
+          ignoreErrors: true,
+          stopAtErrors: false,
+          isEvalSupported: false,
+          disableFontFace: true,
+          useSystemFonts: false,
+        }
+      },
+      {
+        name: 'Minimal Features',
+        config: {
+          data: arrayBuffer,
+          verbosity: 0,
+          isEvalSupported: false,
+          disableFontFace: true,
+          useSystemFonts: false,
+          stopAtErrors: false,
+          ignoreErrors: true,
+          disableAutoFetch: true,
+          disableStream: true,
+          disableRange: true,
+          useWorkerFetch: false,
+        }
+      }
+    ];
 
-    const pdf = await loadingTask.promise;
+    let pdf = null;
+    let lastError = null;
+
+    // Try each strategy until one works
+    for (const strategy of strategies) {
+      try {
+        console.log(`Attempting PDF parsing with ${strategy.name} strategy...`);
+        const loadingTask = (_pdfjsLib as any).getDocument(strategy.config);
+        pdf = await loadingTask.promise;
+        console.log(`✅ ${strategy.name} strategy succeeded!`);
+        break;
+      } catch (error) {
+        console.warn(`${strategy.name} strategy failed:`, error);
+        lastError = error;
+        continue;
+      }
+    }
+
+    if (!pdf) {
+      throw lastError || new Error('All PDF parsing strategies failed');
+    }
+
     console.log('PDF document loaded, pages:', pdf.numPages);
 
     if (pdf.numPages === 0) {
@@ -77,79 +133,43 @@ export async function renderPdfToDataUrl(file: File, opts: PdfRenderOptions = {}
 
     console.log('Getting first page...');
     const page = await pdf.getPage(1);
-
     const viewport = page.getViewport({ scale: scale * deviceScale });
-    console.log('PDF viewport:', {
-      width: viewport.width,
-      height: viewport.height,
-      scale: scale * deviceScale
+
+    console.log('PDF bitmap conversion started:', {
+      scale,
+      deviceScale,
+      viewport: { width: viewport.width, height: viewport.height }
     });
 
-    // Limit canvas size to prevent memory issues with large banner PDFs
-    const maxCanvasSize = 4096; // 4K max dimension
-    let finalScale = scale * deviceScale;
-
-    if (viewport.width > maxCanvasSize || viewport.height > maxCanvasSize) {
-      const scaleDown = Math.min(maxCanvasSize / viewport.width, maxCanvasSize / viewport.height);
-      finalScale = finalScale * scaleDown;
-      console.log('Scaling down large PDF, new scale:', finalScale);
-    }
-
-    const finalViewport = page.getViewport({ scale: finalScale });
     const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d', { willReadFrequently: false });
+    const context = canvas.getContext('2d')!;
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
 
-    if (!ctx) {
-      throw new Error('Failed to create canvas rendering context');
-    }
+    console.log('PDF rendering started...');
+    await page.render({ canvasContext: context, viewport }).promise;
 
-    canvas.width = Math.floor(finalViewport.width);
-    canvas.height = Math.floor(finalViewport.height);
-
-    console.log('Canvas created:', { width: canvas.width, height: canvas.height });
-
-    console.log('Rendering PDF to canvas...');
-    const renderTask = page.render({ canvasContext: ctx as any, viewport: finalViewport });
-    if (opts.signal) {
-      opts.signal.addEventListener('abort', () => {
-        console.log('PDF rendering aborted by signal');
-        renderTask.cancel();
-      }, { once: true });
-    }
-    await renderTask.promise;
-    console.log('PDF rendered to canvas successfully');
-
-    console.log('Converting canvas to data URL...');
-    const dataUrl = canvas.toDataURL('image/png', 0.92);
-
-    if (!dataUrl || dataUrl === 'data:,') {
-      throw new Error('Failed to generate PDF preview image');
-    }
-
-    console.log('PDF preview generated successfully, data URL length:', dataUrl.length);
+    const dataUrl = canvas.toDataURL('image/png', 0.95);
+    console.log('PDF bitmap conversion completed:', {
+      dataUrlLength: dataUrl.length,
+      canvasSize: `${canvas.width}x${canvas.height}`
+    });
 
     // Clean up
     await pdf.destroy();
+
     return dataUrl;
+
   } catch (error) {
     console.error('PDF rendering error:', error);
-    console.error('Error type:', error.constructor.name);
-    console.error('Error message:', error.message);
-    if (error.name) console.error('Error name:', error.name);
-
+    
     // Provide more specific error messages
     if (error instanceof Error) {
-      if (error.message.includes('Aborted') || error.message.includes('cancelled')) {
-        throw new Error('PDF rendering was cancelled');
+      if (error.message.includes('InvalidPDFException') || error.message.includes('Invalid PDF structure')) {
+        throw new Error('PDF file format is not supported by this browser. Please try a different PDF or convert it to a standard format.');
       }
-      if (error.message.includes('Invalid PDF structure') || error.message.includes('Invalid PDF')) {
-        throw new Error('PDF file is corrupted or invalid');
-      }
-      if (error.message.includes('password') || error.message.includes('encrypted')) {
+      if (error.message.includes('PasswordException')) {
         throw new Error('PDF file is password protected');
-      }
-      if (error.message.includes('network') || error.message.includes('fetch')) {
-        throw new Error('Network error loading PDF worker');
       }
       if (error.message.includes('memory') || error.message.includes('out of memory')) {
         throw new Error('PDF file is too large to render');
@@ -157,6 +177,6 @@ export async function renderPdfToDataUrl(file: File, opts: PdfRenderOptions = {}
       // Re-throw with original message if it's already descriptive
       throw error;
     }
-    throw new Error('Unknown error rendering PDF preview');
+    throw new Error('PDF file cannot be processed - may be corrupted, encrypted, or use unsupported features');
   }
 }

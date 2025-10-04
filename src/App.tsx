@@ -23,7 +23,7 @@ import CheckEmail from "./pages/CheckEmail";
 import MyOrders from "./pages/MyOrders";
 import Checkout from "./pages/Checkout";
 import OrderConfirmation from "./pages/OrderConfirmation";
-import PaymentSuccess from "./pages/PaymentSuccess";
+import PdfDiagnostic from "./pages/PdfDiagnostic";import PaymentSuccess from "./pages/PaymentSuccess";
 import OrderDetail from "./pages/OrderDetail";
 import AdminOrders from "./pages/admin/Orders";
 import AdminSeed from "./pages/AdminSeed";
@@ -66,7 +66,7 @@ const App = () => (
             <Route path="/admin/setup" element={<AdminSetup />} />
             <Route path="/logo-showcase" element={<LogoShowcase />} />
             <Route path="/banner-designer-test" element={<BannerDesignerTest />} />
-          </Routes>
+            <Route path="/pdf-diagnostic" element={<PdfDiagnostic />} />          </Routes>
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
