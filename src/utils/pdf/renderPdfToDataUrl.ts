@@ -41,21 +41,23 @@ export async function renderPdfToDataUrl(file: File, opts: PdfRenderOptions = {}
     }
 
     console.log('Reading PDF file...');
-    const arrayBuffer = await file.arrayBuffer();
+    // Read file once to get the raw data
+    const fileData = await file.arrayBuffer();
     if (opts.signal?.aborted) throw new DOMException('Aborted', 'AbortError');
 
-    if (arrayBuffer.byteLength === 0) {
+    if (fileData.byteLength === 0) {
       throw new Error('PDF file contains no data');
     }
 
-    console.log('PDF file read successfully, size:', arrayBuffer.byteLength, 'bytes');
+    console.log('PDF file read successfully, size:', fileData.byteLength, 'bytes');
 
     // Define multiple parsing strategies in order of preference
+    // Each strategy gets a fresh copy of the ArrayBuffer to avoid detachment issues
     const strategies = [
       {
         name: 'Ultra Permissive',
-        config: {
-          data: arrayBuffer,
+        getConfig: () => ({
+          data: fileData.slice(), // Create fresh copy
           verbosity: 0,
           isEvalSupported: true, // Allow eval for maximum compatibility
           disableFontFace: true, // Disable font rendering to avoid font issues
@@ -68,12 +70,12 @@ export async function renderPdfToDataUrl(file: File, opts: PdfRenderOptions = {}
           ignoreErrors: true,
           useWorkerFetch: false,
           isOffscreenCanvasSupported: false,
-        }
+        })
       },
       {
         name: 'No Streaming',
-        config: {
-          data: arrayBuffer,
+        getConfig: () => ({
+          data: fileData.slice(), // Create fresh copy
           verbosity: 0,
           disableStream: true,
           disableRange: true,
@@ -83,12 +85,12 @@ export async function renderPdfToDataUrl(file: File, opts: PdfRenderOptions = {}
           isEvalSupported: false,
           disableFontFace: true,
           useSystemFonts: false,
-        }
+        })
       },
       {
         name: 'Minimal Features',
-        config: {
-          data: arrayBuffer,
+        getConfig: () => ({
+          data: fileData.slice(), // Create fresh copy
           verbosity: 0,
           isEvalSupported: false,
           disableFontFace: true,
@@ -99,7 +101,7 @@ export async function renderPdfToDataUrl(file: File, opts: PdfRenderOptions = {}
           disableStream: true,
           disableRange: true,
           useWorkerFetch: false,
-        }
+        })
       }
     ];
 
@@ -110,7 +112,8 @@ export async function renderPdfToDataUrl(file: File, opts: PdfRenderOptions = {}
     for (const strategy of strategies) {
       try {
         console.log(`Attempting PDF parsing with ${strategy.name} strategy...`);
-        const loadingTask = (_pdfjsLib as any).getDocument(strategy.config);
+        const config = strategy.getConfig(); // Get fresh config with new ArrayBuffer
+        const loadingTask = (_pdfjsLib as any).getDocument(config);
         pdf = await loadingTask.promise;
         console.log(`✅ ${strategy.name} strategy succeeded!`);
         break;
