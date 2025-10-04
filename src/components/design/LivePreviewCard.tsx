@@ -759,13 +759,20 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                   <p className="text-sm font-medium text-blue-700">Processing file...</p>
                 </div>
               </div>
-            )}            <div className="flex flex-col items-center">
-              <h3 className="text-lg font-medium text-gray-500 mb-3 sm:mb-2">Upload artwork to preview</h3>
-              <p className="text-gray-400 mb-4 sm:mb-3">Your banner will appear here</p>
-              <p className="text-sm text-gray-400 mb-6 sm:mb-4">Supports: JPG, PNG, JPEG, PDF</p>
+            )}            <div className="flex flex-col items-center space-y-6">
+              <div className="block sm:hidden text-center mb-4">
+                <div className="text-lg font-semibold text-gray-800 mb-2">
+                  Banner: {formatDimensions(widthIn, heightIn)}
+                </div>
+                <div className="w-16 h-px bg-gray-300 mx-auto"></div>
+              </div>
+              
+              <h3 className="text-xl sm:text-lg font-medium text-gray-500 mb-4 sm:mb-2">Upload artwork to preview</h3>
+              <p className="text-gray-400 mb-6 sm:mb-3 text-center">Your banner will appear here</p>
+              <p className="text-sm text-gray-400 mb-8 sm:mb-4 text-center">Supports: JPG, PNG, JPEG, PDF</p>
               
               {/* Button container with proper centering */}
-              <div className="flex flex-col items-center gap-4 w-full">
+              <div className="flex flex-col items-center gap-6 sm:gap-4 w-full">
                 <button
                   onClick={() => fileInputRef.current?.click()}
                   className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200 w-full max-w-xs h-12 flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
@@ -791,9 +798,9 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                 )}
               </div>
               
-              <div className="mt-6 sm:mt-4 p-4 sm:p-3 bg-blue-50 border border-blue-200 rounded-lg text-left max-w-md mx-auto w-full">
-                <p className="text-sm sm:text-xs text-blue-700 font-medium mb-2 sm:mb-1">File requirements:</p>
-                <p className="text-sm sm:text-xs text-blue-600 leading-relaxed">
+              <div className="mt-8 sm:mt-4 p-6 sm:p-3 bg-blue-50 border border-blue-200 rounded-lg text-left w-full max-w-sm mx-auto">
+                <p className="text-base sm:text-xs text-blue-700 font-semibold sm:font-medium mb-3 sm:mb-1">File requirements:</p>
+                <p className="text-base sm:text-xs text-blue-600 leading-relaxed">
                   High-resolution files (300 DPI) work best. We'll review your artwork and contact you if any adjustments are needed.
                 </p>
               </div>
