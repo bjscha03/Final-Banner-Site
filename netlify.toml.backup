@@ -1,6 +1,6 @@
 [build]
   publish = "dist"
-  command = "npm run build"
+  command = "rm -rf dist node_modules/.vite && npm run build"
 
 [build.environment]
   NODE_VERSION = "18"
@@ -119,3 +119,11 @@ for = "/*"
   Permissions-Policy = "geolocation=(), microphone=(), camera=()"
   Cross-Origin-Opener-Policy = "same-origin"
   Cross-Origin-Resource-Policy = "same-site"
+
+# Force cache busting for this deployment
+[[headers]]
+for = "/assets/*"
+  [headers.values]
+  Cache-Control = "no-cache, no-store, must-revalidate"
+  Pragma = "no-cache"
+  Expires = "0"

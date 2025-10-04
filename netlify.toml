@@ -11,6 +11,10 @@
   included_files = ["src/lib/**", "src/emails/**"]
   external_node_modules = ["@neondatabase/serverless", "resend", "aws-sdk", "uuid", "cloudinary"]
 
+# Function-specific configuration
+[functions."upload-file"]
+  timeout = 30
+  memory = 1008
 [dev]
   targetPort = 8080
   port = 8888

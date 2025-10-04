@@ -127,7 +127,9 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
           bannerWidthInches: widthIn,
           bannerHeightInches: heightIn,
           targetDPI: 200,
-          maxDimension: 8000
+          maxDimension: 6000,
+          compressionQuality: 0.85,
+          maxUploadSize: 50 * 1024 * 1024
         });
         
         previewUrl = pdfResult.blobUrl;
@@ -157,17 +159,35 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         // Production - upload to server
         const form = new FormData();
         form.append("file", file);
+        console.log("�� Starting upload to server...", {
+          fileName: file.name,
+          fileSize: file.size,
+          fileType: file.type
+        });
+        
         const response = await fetch("/.netlify/functions/upload-file", {
           method: "POST",
           body: form
         });
 
+        console.log("📡 Upload response:", {
+          status: response.status,
+          statusText: response.statusText,
+          ok: response.ok
+        });
+
         if (!response.ok) {
-          throw new Error(`Upload failed: ${response.statusText}`);
+          const errorText = await response.text();
+          console.error("❌ Upload failed:", {
+            status: response.status,
+            statusText: response.statusText,
+            errorBody: errorText
+          });
+          throw new Error(`Upload failed (${response.status}): ${errorText || response.statusText}`);
         }
 
         result = await response.json();
-      }
+        console.log("✅ Upload successful:", result);      }
       set({
         file: {
           name: file.name,
@@ -308,27 +328,35 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       console.log('Using public ID:', publicId);
 
       // Call the new AI image processor
-      const response = await fetch('/.netlify/functions/ai-image-processor', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'resize',
-          publicId: publicId,
-          widthIn: widthIn,
-          heightIn: heightIn
-        }),
-      });
+        console.log("�� Starting upload to server...", {
+          fileName: file.name,
+          fileSize: file.size,
+          fileType: file.type
+        });
+        
+        const response = await fetch("/.netlify/functions/upload-file", {
+          method: "POST",
+          body: form
+        });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('AI image processor error:', errorText);
-        throw new Error(`Processing failed: ${response.status} ${response.statusText}`);
-      }
+        console.log("📡 Upload response:", {
+          status: response.status,
+          statusText: response.statusText,
+          ok: response.ok
+        });
 
-      const result = await response.json();
-      console.log('AI image processor result:', result);
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("❌ Upload failed:", {
+            status: response.status,
+            statusText: response.statusText,
+            errorBody: errorText
+          });
+          throw new Error(`Upload failed (${response.status}): ${errorText || response.statusText}`);
+        }
+
+        result = await response.json();
+        console.log("✅ Upload successful:", result);      console.log('AI image processor result:', result);
 
       if (!result.success) {
         throw new Error(result.error || 'Image processing failed');
@@ -400,25 +428,35 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       console.log('Using public ID for reset:', publicId);
 
       // Call the AI image processor to get original version
-      const response = await fetch('/.netlify/functions/ai-image-processor', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'reset',
-          publicId: publicId
-        }),
-      });
+        console.log("�� Starting upload to server...", {
+          fileName: file.name,
+          fileSize: file.size,
+          fileType: file.type
+        });
+        
+        const response = await fetch("/.netlify/functions/upload-file", {
+          method: "POST",
+          body: form
+        });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('AI image processor error:', errorText);
-        throw new Error(`Reset failed: ${response.status} ${response.statusText}`);
-      }
+        console.log("📡 Upload response:", {
+          status: response.status,
+          statusText: response.statusText,
+          ok: response.ok
+        });
 
-      const result = await response.json();
-      console.log('AI image processor reset result:', result);
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error("❌ Upload failed:", {
+            status: response.status,
+            statusText: response.statusText,
+            errorBody: errorText
+          });
+          throw new Error(`Upload failed (${response.status}): ${errorText || response.statusText}`);
+        }
+
+        result = await response.json();
+        console.log("✅ Upload successful:", result);      console.log('AI image processor reset result:', result);
 
       if (!result.success) {
         throw new Error(result.error || 'Image reset failed');

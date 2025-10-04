@@ -1,6 +1,6 @@
 // loadPdfToBitmap.ts
 // Enhanced PDF rendering utility for banner design applications
-// Converts PDF to high-resolution bitmap with print-ready quality and optimized file size
+// Converts PDF to high-resolution bitmap with print-ready quality
 
 import { GlobalWorkerOptions } from 'pdfjs-dist';
 
@@ -15,8 +15,6 @@ export interface PdfRenderOptions {
   maxDimension?: number;        // Max pixel dimension to prevent memory issues
   pageNumber?: number;          // Which page to render (1-based), default 1
   signal?: AbortSignal;         // Allow cancellation
-  compressionQuality?: number;  // JPEG compression quality (0.1-1.0), default 0.85
-  maxUploadSize?: number;       // Max file size for upload in bytes, default 50MB
 }
 
 export interface PdfBitmapResult {
@@ -25,7 +23,6 @@ export interface PdfBitmapResult {
   height: number;               // Pixel height of rendered image
   pageCount: number;            // Total pages in PDF
   actualDPI: number;            // Actual DPI achieved
-  fileSize: number;             // Final file size in bytes
 }
 
 // Calculate optimal pixel dimensions based on banner size and target DPI
@@ -102,82 +99,6 @@ async function renderPdfPageToCanvas(
   context.restore();
 }
 
-// Convert canvas to optimized blob with size constraints
-async function canvasToOptimizedBlob(
-  canvas: HTMLCanvasElement,
-  maxUploadSize: number,
-  compressionQuality: number
-): Promise<{ blob: Blob; fileSize: number }> {
-  // Try JPEG first for better compression
-  let blob = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob((blob) => {
-      if (blob) {
-        resolve(blob);
-      } else {
-        reject(new Error('Failed to convert canvas to JPEG blob'));
-      }
-    }, 'image/jpeg', compressionQuality);
-  });
-
-  console.log(`Initial JPEG blob size: ${blob.size} bytes (${Math.round(blob.size / 1024 / 1024 * 100) / 100}MB)`);
-
-  // If still too large, try with lower quality
-  if (blob.size > maxUploadSize && compressionQuality > 0.3) {
-    const lowerQuality = Math.max(0.3, compressionQuality - 0.2);
-    console.log(`File too large, trying lower quality: ${lowerQuality}`);
-    
-    blob = await new Promise<Blob>((resolve, reject) => {
-      canvas.toBlob((blob) => {
-        if (blob) {
-          resolve(blob);
-        } else {
-          reject(new Error('Failed to convert canvas to lower quality JPEG blob'));
-        }
-      }, 'image/jpeg', lowerQuality);
-    });
-    
-    console.log(`Lower quality JPEG blob size: ${blob.size} bytes (${Math.round(blob.size / 1024 / 1024 * 100) / 100}MB)`);
-  }
-
-  // If still too large, scale down the canvas
-  if (blob.size > maxUploadSize) {
-    console.log('File still too large, scaling down canvas...');
-    const scaleFactor = Math.sqrt(maxUploadSize / blob.size * 0.8); // 80% of target to be safe
-    const newWidth = Math.round(canvas.width * scaleFactor);
-    const newHeight = Math.round(canvas.height * scaleFactor);
-    
-    const scaledCanvas = document.createElement('canvas');
-    const scaledContext = scaledCanvas.getContext('2d');
-    if (!scaledContext) {
-      throw new Error('Could not get scaled canvas 2D context');
-    }
-    
-    scaledCanvas.width = newWidth;
-    scaledCanvas.height = newHeight;
-    
-    // Fill with white background
-    scaledContext.fillStyle = '#FFFFFF';
-    scaledContext.fillRect(0, 0, newWidth, newHeight);
-    
-    // Draw scaled image
-    scaledContext.drawImage(canvas, 0, 0, newWidth, newHeight);
-    
-    blob = await new Promise<Blob>((resolve, reject) => {
-      scaledCanvas.toBlob((blob) => {
-        if (blob) {
-          resolve(blob);
-        } else {
-          reject(new Error('Failed to convert scaled canvas to blob'));
-        }
-      }, 'image/jpeg', compressionQuality);
-    });
-    
-    console.log(`Scaled JPEG blob size: ${blob.size} bytes (${Math.round(blob.size / 1024 / 1024 * 100) / 100}MB)`);
-  }
-
-  return { blob, fileSize: blob.size };
-}
-
 export async function loadPdfToBitmap(
   file: File,
   options: PdfRenderOptions
@@ -186,11 +107,9 @@ export async function loadPdfToBitmap(
     bannerWidthInches,
     bannerHeightInches,
     targetDPI = 200,
-    maxDimension = 6000, // Reduced from 8000 to help with file size
+    maxDimension = 8000,
     pageNumber = 1,
-    signal,
-    compressionQuality = 0.85, // Good balance of quality vs size
-    maxUploadSize = 50 * 1024 * 1024 // 50MB max for upload
+    signal
   } = options;
 
   try {
@@ -198,8 +117,7 @@ export async function loadPdfToBitmap(
       fileName: file.name,
       bannerSize: `${bannerWidthInches}" x ${bannerHeightInches}"`,
       targetDPI,
-      maxDimension,
-      maxUploadSize: `${Math.round(maxUploadSize / 1024 / 1024)}MB`
+      maxDimension
     });
 
     if (file.type !== 'application/pdf') {
@@ -266,12 +184,16 @@ export async function loadPdfToBitmap(
       throw new Error('PDF processing was cancelled');
     }
 
-    // Convert canvas to optimized blob
-    const { blob, fileSize } = await canvasToOptimizedBlob(
-      canvas,
-      maxUploadSize,
-      compressionQuality
-    );
+    // Convert canvas to blob
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((blob) => {
+        if (blob) {
+          resolve(blob);
+        } else {
+          reject(new Error('Failed to convert canvas to blob'));
+        }
+      }, 'image/png', 1.0);
+    });
 
     // Create object URL
     const blobUrl = URL.createObjectURL(blob);
@@ -280,8 +202,7 @@ export async function loadPdfToBitmap(
       dimensions,
       pageCount,
       actualPageNumber,
-      finalFileSize: `${Math.round(fileSize / 1024 / 1024 * 100) / 100}MB`,
-      compressionUsed: blob.type
+      blobSize: blob.size
     });
 
     return {
@@ -289,8 +210,7 @@ export async function loadPdfToBitmap(
       width: dimensions.width,
       height: dimensions.height,
       pageCount,
-      actualDPI: dimensions.actualDPI,
-      fileSize
+      actualDPI: dimensions.actualDPI
     };
 
   } catch (error) {
