@@ -8,8 +8,7 @@ import { Button } from '@/components/ui/button';
 import { GrommetPicker } from '@/components/ui/GrommetPicker';
 import { useToast } from '@/components/ui/use-toast';
 import PreviewCanvas from './PreviewCanvas';
-import { loadPdfToBitmap } from '@/utils/pdf/loadPdfToBitmap';
-import QualityBadge from './QualityBadge';
+
 const grommetOptions = [
   { id: 'none', label: 'None', description: 'No grommets' },
   { id: 'every-2-3ft', label: 'Every 2–3 feet', description: 'Standard spacing' },
@@ -21,6 +20,7 @@ const grommetOptions = [
 ];
 
 interface LivePreviewCardProps {
+  isGeneratingAI?: boolean;
   onOpenAIModal?: () => void;
 }
 // Helper function to create Cloudinary transformation URL for fitting to dimensions
@@ -41,7 +41,7 @@ const createFittedImageUrl = (originalUrl: string, targetWidthIn: number, target
 };
 
 
-const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
+const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGeneratingAI = false }) => {
   const { widthIn, heightIn, previewScalePct, grommets, file, set } = useQuoteStore();
   const { toast } = useToast();
 
@@ -49,7 +49,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
   const [uploadError, setUploadError] = useState('');
   
   const [isUploading, setIsUploading] = useState(false);  // Image interaction state
-  const [isRenderingPdf, setIsRenderingPdf] = useState(false);  const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
+  const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
   const [imageScale, setImageScale] = useState(1);
   const [isDraggingImage, setIsDraggingImage] = useState(false);
   const [isResizingImage, setIsResizingImage] = useState(false);
@@ -102,6 +102,48 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
     return null;
   };
 
+  const handleFile = async (file: File) => {
+    const error = validateFile(file);
+    if (error) {
+      setUploadError(error);
+      return;
+    }
+
+    setUploadError('');
+    setIsUploading(true);    const isPdf = file.type === 'application/pdf';
+    // Create URL for preview
+    const url = URL.createObjectURL(file);
+
+    // Upload actual file content to server
+    try {
+      const form = new FormData();
+      form.append("file", file); // Append the actual File object
+      const response = await fetch("/.netlify/functions/upload-file", {
+        method: "POST",
+        body: form
+      });
+
+      if (!response.ok) {
+        throw new Error(`Upload failed: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+
+      set({
+        file: {
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          url,
+          isPdf,
+          fileKey: result.fileKey // Store the server file key
+        },
+        // Reset scale to 100% when uploading a new file
+        previewScalePct: 100
+      });
+      setIsUploading(false);    } catch (uploadError) {
+      console.error('File upload error:', uploadError);
+      setIsUploading(false);    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
@@ -121,9 +163,9 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
   };
 
   const removeFile = () => {
-    if (file?.url) {
+    if (file?.url && !file.isPdf) {
       URL.revokeObjectURL(file.url);
-      // Revoke ObjectURL for both regular images and rendered PDF bitmaps    }
+    }
     set({ file: null });
     setUploadError('');
   };
@@ -432,7 +474,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
   };
   // Image interaction handlers
   const handleImageMouseDown = (e: React.MouseEvent) => {
-    if (!file?.url) return;
+    if (!file?.url || file.isPdf) return;
     
     e.preventDefault();
     e.stopPropagation();
@@ -457,7 +499,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
   };
   
   const handleImageTouchStart = (e: React.TouchEvent) => {
-    if (!file?.url) return;
+    if (!file?.url || file.isPdf) return;
     
     e.preventDefault();
     const rect = e.currentTarget.getBoundingClientRect();
@@ -689,7 +731,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
                   widthIn={widthIn}
                   heightIn={heightIn}
                   grommets={grommets}
-                  imageUrl={file?.url}
+                  imageUrl={file?.url && !file.isPdf ? file.url : undefined}
                   className="shadow-lg"
                   
                   file={file}
@@ -698,18 +740,8 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal }) => {
                   onImageTouchStart={handleImageTouchStart}
                   isDraggingImage={isDraggingImage}
                   imageScale={imageScale}
-                  isUploading={isUploading}
-                  isRenderingPdf={isRenderingPdf} />
-                {/* Quality Badge for DPI warnings */}
-                {file?.artworkWidth && file?.artworkHeight && (
-                  <QualityBadge
-                    imageScale={imageScale}
-                    bannerWidthInches={widthIn}
-                    bannerHeightInches={heightIn}
-                    artworkPixelWidth={file.artworkWidth}
-                    artworkPixelHeight={file.artworkHeight}
-                  />
-                )}              </div>
+                  isUploading={isUploading || isGeneratingAI} />
+              </div>
             </div>
 
             {/* File controls */}
