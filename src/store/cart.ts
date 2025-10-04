@@ -66,6 +66,26 @@ export const useCartStore = create<CartState>()(
       items: [],
       
       addFromQuote: (quote: QuoteState, aiMetadata?: any) => {
+        console.log('🛒 CART DEBUG: addFromQuote called with quote:', {
+          grommets: quote.grommets,
+          addRope: quote.addRope,
+          polePockets: quote.polePockets,
+          polePocketSize: quote.polePocketSize,
+          widthIn: quote.widthIn,
+          heightIn: quote.heightIn,
+          quantity: quote.quantity,
+          material: quote.material
+        });
+        console.log('🛒 CART DEBUG: addFromQuote called with quote:', {
+          grommets: quote.grommets,
+          addRope: quote.addRope,
+          polePockets: quote.polePockets,
+          polePocketSize: quote.polePocketSize,
+          widthIn: quote.widthIn,
+          heightIn: quote.heightIn,
+          quantity: quote.quantity,
+          material: quote.material
+        });
         const area = (quote.widthIn * quote.heightIn) / 144;
         const pricePerSqFt = {
           '13oz': 4.5,
@@ -110,6 +130,8 @@ export const useCartStore = create<CartState>()(
         // Use the file key from the uploaded file
         const fileKey = quote.file?.fileKey;
 
+        console.log('🛒 CART DEBUG: Creating cart item with grommets:', quote.grommets);
+        console.log('🛒 CART DEBUG: Creating cart item with grommets:', quote.grommets);
         const newItem: CartItem = {
           id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           width_in: quote.widthIn,
