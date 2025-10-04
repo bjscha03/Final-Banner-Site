@@ -78,7 +78,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
   grommets: 'none',
   polePockets: 'none',
   polePocketSize: '2',
-  addRope: state.addRope, // Preserve rope selection
+  addRope: false,
   previewScalePct: 100,
   file: undefined,
   set: (partial) => set((state) => ({ ...state, ...partial })),
@@ -88,12 +88,13 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
     heightIn: params.heightIn,
     quantity: params.quantity,
     material: params.material,
-    // Reset other options to defaults when coming from quick quote
-    grommets: 'none' as Grommets,
-    polePockets: 'none',
-    polePocketSize: '2',
+    // Only reset options to defaults if they haven't been customized
+    // Preserve user selections for upsells (grommets, polePockets, addRope)
+    grommets: state.grommets === 'none' ? 'none' as Grommets : state.grommets,
+    polePockets: state.polePockets === 'none' ? 'none' : state.polePockets,
+    polePocketSize: state.polePocketSize || '2',
     addRope: state.addRope, // Preserve rope selection
-    file: undefined,
+    file: undefined, // Always reset file when coming from quick quote
   })),
   // Computed validation methods
   getSquareFootage: () => {

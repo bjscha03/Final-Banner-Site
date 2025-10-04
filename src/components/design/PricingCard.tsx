@@ -250,7 +250,6 @@ const PricingCard: React.FC = () => {
 
   // Handle upsell modal continue
   const handleUpsellContinue = (selectedOptions: UpsellOption[], dontAskAgain: boolean) => {
-    console.log('🔍 UPSELL DEBUG: Starting handleUpsellContinue with options:', selectedOptions);
 
     // Save "don't ask again" preference
     if (dontAskAgain) {
@@ -263,56 +262,44 @@ const PricingCard: React.FC = () => {
     
     selectedOptions.forEach(option => {
       if (option.selected) {
-        console.log(`🔍 UPSELL DEBUG: Applying option ${option.id}:`, option);
         switch (option.id) {
           case 'grommets':
             if (option.grommetSelection) {
-              console.log(`🔍 UPSELL DEBUG: Setting grommets to: ${option.grommetSelection}`);
               updatedQuote.grommets = option.grommetSelection as any;
               quote.set({ grommets: option.grommetSelection as any });
             }
             break;
           case 'rope':
-            console.log('🔍 UPSELL DEBUG: Setting addRope to: true');
             updatedQuote.addRope = true;
             quote.set({ addRope: true });
+            setTimeout(() => {
+            }, 100);
             break;
           case 'polePockets':
             if (option.polePocketSelection) {
-              console.log(`🔍 UPSELL DEBUG: Setting polePockets to: ${option.polePocketSelection}`);
               updatedQuote.polePockets = option.polePocketSelection as any;
               quote.set({ polePockets: option.polePocketSelection as any });
             }
             if (option.polePocketSize) {
-              console.log(`🔍 UPSELL DEBUG: Setting polePocketSize to: ${option.polePocketSize}`);
               updatedQuote.polePocketSize = option.polePocketSize as any;
               quote.set({ polePocketSize: option.polePocketSize as any });
             }
             break;
         }
+
       }
     });
-
-    console.log('🔍 UPSELL DEBUG: Final updated quote:', {
-      grommets: updatedQuote.grommets,
-      addRope: updatedQuote.addRope,
-      polePockets: updatedQuote.polePockets,
-      polePocketSize: updatedQuote.polePocketSize
-    });
-
     // Close modal
     setShowUpsellModal(false);
 
     // Execute the pending action with updated quote
     if (pendingAction === 'cart') {
-      console.log('🔍 UPSELL DEBUG: Adding to cart with updated quote');
       addFromQuote(quote);
       toast({
         title: "Added to Cart",
         description: "Your banner has been added to the cart.",
       });
     } else if (pendingAction === 'checkout') {
-      console.log('🔍 UPSELL DEBUG: Going to checkout with updated quote');
       addFromQuote(quote);
       scrollToTopBeforeNavigate();
       navigate('/checkout');
