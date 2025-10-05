@@ -23,34 +23,9 @@ const calculateUnitPrice = (item: any) => {
   }
   // Order data needs calculation
   const ropeCost = (item.rope_feet || 0) * 2 * item.quantity * 100;
-  // Calculate pole pocket cost using correct logic from cart store
-  const polePocketCost = (() => {
-    if (!item.pole_pockets || item.pole_pockets === 'none') return 0;
+  const polePocketCost = 0; // Will be calculated separately using reverse calculation
+  return (item.line_total_cents - ropeCost - polePocketCost) / item.quantity;    }
     
-    const setupFee = 15.00;
-    const pricePerLinearFoot = 2.00;
-    
-    let linearFeet = 0;
-    switch (item.pole_pockets) {
-      case 'top':
-      case 'bottom':
-        linearFeet = item.width_in / 12;
-        break;
-      case 'left':
-      case 'right':
-        linearFeet = item.height_in / 12;
-        break;
-      case 'top-bottom':
-        linearFeet = (item.width_in / 12) * 2;
-        break;
-      default:
-        linearFeet = 0;
-    }
-    
-    return Math.round((setupFee + (linearFeet * pricePerLinearFoot * item.quantity)) * 100);
-  })();
-  return (item.line_total_cents - ropeCost - polePocketCost) / item.quantity;
-};
 
 interface OrderDetailsProps {
   order: Order;
@@ -304,33 +279,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                           {(() => {
                             const baseCost = calculateUnitPrice(item) * item.quantity;
                             const ropeCost = (item.rope_feet || 0) * 2 * item.quantity * 100;
-                            // Use correct pole pocket calculation
-                            const polePocketCost = (() => {
-                              if (!item.pole_pockets || item.pole_pockets === 'none') return 0;
-                              
-                              const setupFee = 15.00;
-                              const pricePerLinearFoot = 2.00;
-                              
-                              let linearFeet = 0;
-                              switch (item.pole_pockets) {
-                                case 'top':
-                                case 'bottom':
-                                  linearFeet = item.width_in / 12;
-                                  break;
-                                case 'left':
-                                case 'right':
-                                  linearFeet = item.height_in / 12;
-                                  break;
-                                case 'top-bottom':
-                                  linearFeet = (item.width_in / 12) * 2;
-                                  break;
-                                default:
-                                  linearFeet = 0;
-                              }
-                              
-                              return Math.round((setupFee + (linearFeet * pricePerLinearFoot * item.quantity)) * 100);
-                            })();
-                            return polePocketCost > 0 ? (
+                            const polePocketCost = item.line_total_cents - baseCost - ropeCost;                            return polePocketCost > 0 ? (
                               <div className="flex justify-between">
                                 <span className="text-gray-600">Pole pockets:</span>
                                 <span className="text-gray-900">{usd(polePocketCost / 100)}</span>
