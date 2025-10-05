@@ -30,11 +30,6 @@ interface OrderConfirmationProps {
       price?: number;
       size?: string;
       options?: string;
-      unitPriceCents?: number;
-      ropeFeet?: number;
-      ropeCostCents?: number;
-      polePocketCostCents?: number;
-      baseCostCents?: number;
     }>;
     subtotal?: number;
     subtotalCents?: number;
@@ -127,47 +122,15 @@ export default function OrderConfirmation({ order, invoiceUrl }: OrderConfirmati
               <div style={itemsContainer}>
                 {order.items.map((item, index) => {
                   const itemPrice = item.price || (item.unitPriceCents ? item.unitPriceCents / 100 : 0);
-                {order.items.map((item, index) => {
-                  const itemPrice = item.price || (item.unitPriceCents ? item.unitPriceCents / 100 : 0);
                   const itemQty = item.qty || item.quantity || 1;
-                  const itemName = item.name + (item.size ? ` ${item.size}` : "");
-                  
-                  // Check if we have cost breakdown data
-                  const hasBreakdown = item.unitPriceCents && (item.ropeFeet > 0 || item.polePocketCostCents > 0);
-                  
+                  const itemName = item.name + (item.size ? ` ${item.size}` : '');
+
                   return (
                     <div key={index} style={itemRow}>
                       <div style={itemInfo}>
                         <Text style={itemNameStyle}>{itemName}</Text>
                         {item.options && (
                           <Text style={itemOptions}>{item.options}</Text>
-                        )}
-                        
-                        {/* Cost Breakdown - only show if we have the data */}
-                        {hasBreakdown && (
-                          <div style={costBreakdown}>
-                            <Text style={breakdownTitle}>Price Breakdown</Text>
-                            <div style={breakdownRow}>
-                              <Text style={breakdownLabel}>Base banner:</Text>
-                              <Text style={breakdownValue}>${(item.unitPriceCents / 100).toFixed(2)} × {itemQty}</Text>
-                            </div>
-                            {item.ropeFeet > 0 && (
-                              <div style={breakdownRow}>
-                                <Text style={breakdownLabel}>Rope ({item.ropeFeet.toFixed(1)}ft):</Text>
-                                <Text style={breakdownValue}>${(item.ropeCostCents / 100).toFixed(2)}</Text>
-                              </div>
-                            )}
-                            {item.polePocketCostCents > 0 && (
-                              <div style={breakdownRow}>
-                                <Text style={breakdownLabel}>Pole pockets:</Text>
-                                <Text style={breakdownValue}>${(item.polePocketCostCents / 100).toFixed(2)}</Text>
-                              </div>
-                            )}
-                            <div style={breakdownTotalRow}>
-                              <Text style={breakdownTotalLabel}>Line total:</Text>
-                              <Text style={breakdownTotalValue}>${itemPrice.toFixed(2)}</Text>
-                            </div>
-                          </div>
                         )}
                       </div>
                       <div style={itemPricing}>
@@ -176,7 +139,7 @@ export default function OrderConfirmation({ order, invoiceUrl }: OrderConfirmati
                       </div>
                     </div>
                   );
-                })}                })}
+                })}
                 
                 {/* Totals */}
                 <Hr style={itemsHr} />
@@ -555,60 +518,4 @@ const footerText = {
   fontSize: '14px',
   color: '#6b7280',
   margin: '0 0 10px 0',
-};
-
-// Cost breakdown styles
-const costBreakdown = {
-  marginTop: "12px",
-  padding: "12px",
-  backgroundColor: "#f9fafb",
-  borderRadius: "6px",
-  border: "1px solid #e5e7eb",
-};
-
-const breakdownTitle = {
-  fontSize: "14px",
-  fontWeight: "600",
-  color: "#1f2937",
-  margin: "0 0 8px 0",
-};
-
-const breakdownRow = {
-  display: "flex",
-  justifyContent: "space-between",
-  marginBottom: "4px",
-};
-
-const breakdownLabel = {
-  fontSize: "13px",
-  color: "#6b7280",
-  margin: "0",
-};
-
-const breakdownValue = {
-  fontSize: "13px",
-  color: "#1f2937",
-  margin: "0",
-};
-
-const breakdownTotalRow = {
-  display: "flex",
-  justifyContent: "space-between",
-  marginTop: "8px",
-  paddingTop: "8px",
-  borderTop: "1px solid #e5e7eb",
-};
-
-const breakdownTotalLabel = {
-  fontSize: "13px",
-  fontWeight: "600",
-  color: "#1f2937",
-  margin: "0",
-};
-
-const breakdownTotalValue = {
-  fontSize: "13px",
-  fontWeight: "600",
-  color: "#1f2937",
-  margin: "0",
 };

@@ -359,14 +359,7 @@ exports.handler = async (event) => {
         id: order.id,
         number: order.id ? order.id.slice(-8).toUpperCase() : 'UNKNOWN',
         customerName: order.customer_name || 'Customer',
-        items: itemRows.map((item) => {
-          // Calculate cost breakdown
-          const ropeCost = (item.rope_feet || 0) * 2 * item.quantity * 100; // in cents
-          const polePocketCost = item.pole_pockets ? Math.max(0, item.line_total_cents - ropeCost) * 0.1 : 0;
-          const baseCost = item.line_total_cents - ropeCost - polePocketCost;
-          const unitPrice = baseCost / item.quantity;
-          
-          return {
+        items: itemRows.map((item) => ({
           name: `Custom Banner ${item.width_in}"×${item.height_in}"`,
           quantity: item.quantity,
           price: item.line_total_cents / 100,
@@ -375,15 +368,8 @@ exports.handler = async (event) => {
             item.grommets && item.grommets !== 'none' ? `Grommets: ${item.grommets}` : null,
             item.rope_feet && item.rope_feet > 0 ? `Rope: ${item.rope_feet.toFixed(1)} ft` : null,
             item.file_key ? `File: ${item.file_key}` : null
-          ].filter(Boolean).join(' • '),
-          // Cost breakdown data
-          unitPriceCents: Math.round(unitPrice),
-          ropeFeet: item.rope_feet || 0,
-          ropeCostCents: Math.round(ropeCost),
-          polePocketCostCents: Math.round(polePocketCost),
-          baseCostCents: Math.round(baseCost)
-          };
-        }),
+          ].filter(Boolean).join(' • ')
+        })),
         subtotal: (order.subtotal_cents || order.total_cents) / 100,
         tax: (order.tax_cents || 0) / 100,
         total: order.total_cents / 100,
