@@ -12,7 +12,7 @@ export interface CartItem {
   grommets: Grommets;
   pole_pockets: string;
   rope_feet: number;
-  area_sqft: number;
+  pole_pocket_cost_cents: number;  area_sqft: number;
   unit_price_cents: number;
   line_total_cents: number;
   file_key?: string;
@@ -121,7 +121,7 @@ export const useCartStore = create<CartState>()(
           grommets: quote.grommets,
           pole_pockets: quote.polePockets,
           rope_feet: ropeFeet,
-          area_sqft: area,
+          pole_pocket_cost_cents: polePocketCostCents,          area_sqft: area,
           unit_price_cents: unitPriceCents,
           line_total_cents: lineTotalCents,
           file_key: fileKey,
@@ -143,7 +143,7 @@ export const useCartStore = create<CartState>()(
               ? { 
                   ...item, 
                   quantity,
-                  line_total_cents: Math.round((item.unit_price_cents * quantity) + (item.rope_feet * 2 * quantity * 100))
+                  line_total_cents: Math.round((item.unit_price_cents * quantity) + (item.rope_feet * 2 * quantity * 100) + (item.pole_pocket_cost_cents / item.quantity * quantity))
                 }
               : item
           )

@@ -14,7 +14,7 @@ interface CartItem {
   grommets?: string;
   pole_pockets?: string;
   rope_feet?: number;
-  file_name?: string;
+  pole_pocket_cost_cents?: number;  file_name?: string;
   isPdf?: boolean;
 }
 
@@ -174,7 +174,7 @@ const CartModal: React.FC<CartModalProps> = ({
                             {item.pole_pockets && item.pole_pockets !== "none" && (
                               <div className="flex justify-between">
                                 <span className="text-gray-600">Pole pockets:</span>
-                                <span className="text-gray-900">Included</span>
+                                <span className="text-gray-900">${(item.pole_pocket_cost_cents / 100).toFixed(2)}</span>
                               </div>
                             )}
                           </div>

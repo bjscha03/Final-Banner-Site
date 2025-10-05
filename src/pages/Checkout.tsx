@@ -209,6 +209,32 @@ const Checkout: React.FC = () => {
                             {item.rope_feet > 0 && <p>Rope: {item.rope_feet.toFixed(1)} ft</p>}
                             {item.pole_pockets && item.pole_pockets !== "none" && <p>Pole Pockets: {item.pole_pockets}</p>}                            {item.file_name && <p>File: {item.file_name}</p>}
                           </div>
+                          
+                          {/* Cost Breakdown */}
+                          <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                            <h4 className="text-sm font-medium text-gray-900 mb-2">Price Breakdown</h4>
+                            <div className="space-y-1 text-sm">
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Base banner:</span>
+                                <span className="text-gray-900">{usd(item.unit_price_cents / 100)} × {item.quantity}</span>
+                              </div>
+                              {item.rope_feet > 0 && (
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Rope ({item.rope_feet.toFixed(1)}ft):</span>
+                                  <span className="text-gray-900">{usd((item.rope_feet * 2) / 100)}</span>
+                                </div>
+                              )}
+                              {item.pole_pockets !== "none" && (
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Pole pockets:</span>
+                                  <span className="text-gray-900">{usd((item.line_total_cents - item.unit_price_cents * item.quantity - (item.rope_feet * 2 * item.quantity * 100)) / 100)}</span>
+                                </div>
+                              )}
+                              <div className="flex justify-between font-medium border-t border-gray-200 pt-1 mt-2">
+                                <span className="text-gray-900">Line total:</span>
+                                <span className="text-gray-900">{usd(item.line_total_cents / 100)}</span>
+                              </div>
+                            </div>                          </div>
                         </div>
                         <div className="text-right">
                           <p className="font-semibold text-gray-900">
