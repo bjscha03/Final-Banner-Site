@@ -121,7 +121,8 @@ export const useCartStore = create<CartState>()(
           grommets: quote.grommets,
           pole_pockets: quote.polePockets,
           rope_feet: ropeFeet,
-          pole_pocket_cost_cents: polePocketCostCents,          area_sqft: area,
+          pole_pocket_cost_cents: polePocketCostCents,
+          area_sqft: area,
           unit_price_cents: unitPriceCents,
           line_total_cents: lineTotalCents,
           file_key: fileKey,
@@ -131,6 +132,12 @@ export const useCartStore = create<CartState>()(
           ...(aiMetadata || {}),
         };
         
+        console.log("🛒 CART STORE DEBUG - Adding item:", {
+          id: newItem.id,
+          line_total_cents: newItem.line_total_cents,
+          typeof_line_total: typeof newItem.line_total_cents,
+          calculated_value: lineTotalCents
+        });        
         set((state) => ({
           items: [...state.items, newItem]
         }));
