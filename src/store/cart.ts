@@ -1,19 +1,9 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { QuoteState, MaterialKey, Grommets } from './quote';
-import { 
-  computeCartTotals, 
-  formatMoney,
-  roundToCents,
-  type Cart,
-  type CartItem,
-  type CartOption,
-  type MoneyCents,
-  type CartTotals
-} from '@/lib/cart-pricing';
+import { calculateTax, calculateTotalWithTax, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
 
-// Legacy CartItem interface for migration
-export interface LegacyCartItem {
+export interface CartItem {
   id: string;
   width_in: number;
   height_in: number;
@@ -22,274 +12,224 @@ export interface LegacyCartItem {
   grommets: Grommets;
   pole_pockets: string;
   rope_feet: number;
-  pole_pocket_cost_cents: number;
-  area_sqft: number;
+  pole_pocket_cost_cents: number;  area_sqft: number;
   unit_price_cents: number;
   line_total_cents: number;
   file_key?: string;
   file_name?: string;
   file_url?: string;
-  aiDesign?: any;
+  // AI Design metadata (optional)
+  aiDesign?: {
+    prompt: string;
+    styles: string[];
+    colors: string[];
+    size: { wIn: number; hIn: number };
+    material: string;
+    options: {
+      grommets: string;
+      polePockets: string;
+      addRope: boolean;
+    };
+    ai: {
+      provider: string;
+      seed?: number;
+      draftPublicId: string;
+    };
+    layers: {
+      headline?: string;
+      subheadline?: string;
+      cta?: string;
+    };
+    assets: {
+      proofUrl: string;
+      finalUrl?: string;
+    };
+  };
   created_at: string;
 }
 
 export interface CartState {
-  // Core cart data using new schema
-  cart: Cart;
-  
-  // Actions
+  items: CartItem[];
   addFromQuote: (quote: QuoteState, aiMetadata?: any) => void;
   updateQuantity: (id: string, quantity: number) => void;
   removeItem: (id: string) => void;
   clearCart: () => void;
-  
-  // Computed values using single source of truth
-  getTotals: () => CartTotals;
   getSubtotalCents: () => number;
   getTaxCents: () => number;
   getTotalCents: () => number;
   getItemCount: () => number;
-  
-  // Migration helper
-  migrateLegacyItems: (legacyItems: LegacyCartItem[]) => void;
 }
-
-/**
- * Convert QuoteState to new CartItem with proper options
- */
-const createCartItemFromQuote = (quote: QuoteState, aiMetadata?: any): CartItem => {
-  const area = (quote.widthIn * quote.heightIn) / 144;
-  const pricePerSqFt = {
-    '13oz': 4.5,
-    '15oz': 6.0,
-    '18oz': 7.5,
-    'mesh': 6.0
-  }[quote.material] || 4.5;
-  
-  const unitPriceCents = roundToCents(area * pricePerSqFt * 100);
-  const title = `Custom Banner ${quote.widthIn}" x ${quote.heightIn}"`;
-  const sku = `banner-${quote.widthIn}x${quote.heightIn}-${quote.material}`;
-  
-  const options: CartOption[] = [];
-  
-  // Add rope option if selected
-  if (quote.addRope) {
-    const ropeFeet = quote.widthIn / 12;
-    options.push({
-      id: 'rope',
-      name: `Rope: ${ropeFeet.toFixed(1)}ft`,
-      priceCents: roundToCents(ropeFeet * 2 * 100), // $2 per foot
-      pricingMode: 'per_item',
-      quantityPerItem: 1,
-    });
-  }
-  
-  // Add pole pocket option if selected
-  if (quote.polePockets !== 'none') {
-    const setupFee = 15.00;
-    const pricePerLinearFoot = 2.00;
-    
-    let linearFeet = 0;
-    switch (quote.polePockets) {
-      case 'top':
-      case 'bottom':
-        linearFeet = quote.widthIn / 12;
-        break;
-      case 'left':
-      case 'right':
-        linearFeet = quote.heightIn / 12;
-        break;
-      case 'top-bottom':
-        linearFeet = (quote.widthIn / 12) * 2;
-        break;
-    }
-    
-    const polePocketCost = setupFee + (linearFeet * pricePerLinearFoot);
-    options.push({
-      id: 'pole_pockets',
-      name: `Pole Pockets: ${quote.polePockets}`,
-      priceCents: roundToCents(polePocketCost * 100),
-      pricingMode: 'per_item', // Per item for now, can be changed to per_order if needed
-      quantityPerItem: 1,
-    });
-  }
-  
-  return {
-    id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    sku,
-    title,
-    unitPriceCents,
-    qty: quote.quantity,
-    options,
-  };
-};
-
-/**
- * Migrate legacy cart item to new schema
- */
-const migrateLegacyCartItem = (legacyItem: LegacyCartItem): CartItem => {
-  const title = `Custom Banner ${legacyItem.width_in}" x ${legacyItem.height_in}"`;
-  const sku = `banner-${legacyItem.width_in}x${legacyItem.height_in}-${legacyItem.material}`;
-  
-  const options: CartOption[] = [];
-  
-  // Add rope option if present
-  if (legacyItem.rope_feet > 0) {
-    options.push({
-      id: 'rope',
-      name: `Rope: ${legacyItem.rope_feet}ft`,
-      priceCents: roundToCents(legacyItem.rope_feet * 2 * 100), // $2 per foot
-      pricingMode: 'per_item',
-      quantityPerItem: 1,
-    });
-  }
-  
-  // Add pole pocket option if present
-  if (legacyItem.pole_pocket_cost_cents > 0) {
-    options.push({
-      id: 'pole_pockets',
-      name: `Pole Pockets: ${legacyItem.pole_pockets}`,
-      priceCents: legacyItem.pole_pocket_cost_cents,
-      pricingMode: 'per_item',
-      quantityPerItem: 1,
-    });
-  }
-  
-  return {
-    id: legacyItem.id,
-    sku,
-    title,
-    unitPriceCents: legacyItem.unit_price_cents,
-    qty: legacyItem.quantity,
-    options,
-  };
-};
 
 export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
-      cart: {
-        items: [],
-        shippingCents: 0, // FREE shipping
-        taxRatePct: 6, // 6% tax rate
-        discountsCents: 0,
-      },
+      items: [],
       
       addFromQuote: (quote: QuoteState, aiMetadata?: any) => {
-        const newItem = createCartItemFromQuote(quote, aiMetadata);
+        console.log("DEBUG: addFromQuote called with addRope:", quote.addRope);
+        console.log("DEBUG: quote.material:", quote.material);        const area = (quote.widthIn * quote.heightIn) / 144;
+        console.log("DEBUG: area:", area);        const pricePerSqFt = {
+          '13oz': 4.5,
+          '15oz': 6.0,
+          '18oz': 7.5,
+          'mesh': 6.0
+        }[quote.material];
+        console.log("DEBUG: pricePerSqFt:", pricePerSqFt);
+        const unitPriceCents = Math.round(area * (pricePerSqFt || 4.5) * 100); // Fallback to 13oz price if material not found
+        console.log("DEBUG: unitPriceCents:", unitPriceCents);        const ropeFeet = quote.addRope ? quote.widthIn / 12 : 0;
+        const ropeCostCents = Math.round(ropeFeet * 2 * quote.quantity * 100);
+        console.log("DEBUG: Rope calculation - ropeFeet:", ropeFeet, "ropeCostCents:", ropeCostCents);
         
-        set((state) => ({
-          cart: {
-            ...state.cart,
-            items: [...state.cart.items, newItem]
+        // Calculate pole pocket cost
+        const polePocketCostCents = (() => {
+          if (quote.polePockets === 'none') return 0;
+
+          const setupFee = 15.00;
+          const pricePerLinearFoot = 2.00;
+
+          let linearFeet = 0;
+          switch (quote.polePockets) {
+            case 'top':
+            case 'bottom':
+              linearFeet = quote.widthIn / 12;
+              break;
+            case 'left':
+            case 'right':
+              linearFeet = quote.heightIn / 12;
+              break;
+            case 'top-bottom':
+              linearFeet = (quote.widthIn / 12) * 2;
+              break;
+            default:
+              linearFeet = 0;
           }
+
+          return Math.round((setupFee + (linearFeet * pricePerLinearFoot * quote.quantity)) * 100);
+        })();
+
+        const lineTotalCents = unitPriceCents * quote.quantity + ropeCostCents + polePocketCostCents;
+        
+        // Use the file key from the uploaded file
+        const fileKey = quote.file?.fileKey;
+
+        const newItem: CartItem = {
+          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          width_in: quote.widthIn,
+          height_in: quote.heightIn,
+          quantity: quote.quantity,
+          material: quote.material,
+          grommets: quote.grommets,
+          pole_pockets: quote.polePockets,
+          rope_feet: ropeFeet,
+          pole_pocket_cost_cents: polePocketCostCents,
+          area_sqft: area,
+          unit_price_cents: unitPriceCents,
+          line_total_cents: lineTotalCents,
+          file_key: fileKey,
+          file_name: quote.file?.name,
+          file_url: quote.file?.url,
+          created_at: new Date().toISOString(),
+          ...(aiMetadata || {}),
+        };
+        
+        console.log("🛒 CART STORE DEBUG - Adding item:", {
+          id: newItem.id,
+          line_total_cents: newItem.line_total_cents,
+          typeof_line_total: typeof newItem.line_total_cents,
+          calculated_value: lineTotalCents
+        });        
+        set((state) => ({
+          items: [...state.items, newItem]
         }));
       },
       
       updateQuantity: (id: string, quantity: number) => {
-        if (quantity <= 0) {
-          get().removeItem(id);
-          return;
-        }
-        
         set((state) => ({
-          cart: {
-            ...state.cart,
-            items: state.cart.items.map(item => 
-              item.id === id ? { ...item, qty: quantity } : item
-            )
-          }
+          items: state.items.map(item => 
+            item.id === id 
+              ? { 
+                  ...item, 
+                  quantity,
+                  line_total_cents: (() => {
+                    // Calculate properly scaled line total
+                    const baseCost = item.unit_price_cents * quantity;
+                    const ropeCost = item.rope_feet * 2 * quantity * 100;
+                    
+                    // Pole pocket scaling: setup fee ($15) + linear foot costs that scale with quantity
+                    // Original pole_pocket_cost_cents was for quantity 1, so we need to extract setup vs linear costs
+                    const originalPolePocketCost = item.pole_pocket_cost_cents;
+                    const setupFeeCents = 1500; // $15.00 setup fee (doesn't scale)
+                    const originalLinearCostCents = originalPolePocketCost - setupFeeCents;
+                    const scaledPolePocketCost = setupFeeCents + (originalLinearCostCents * quantity);
+                    
+                    return Math.round(baseCost + ropeCost + scaledPolePocketCost);
+                  })()
+                }
+              : item
+          )
         }));
       },
       
       removeItem: (id: string) => {
         set((state) => ({
-          cart: {
-            ...state.cart,
-            items: state.cart.items.filter(item => item.id !== id)
-          }
+          items: state.items.filter(item => item.id !== id)
         }));
       },
       
       clearCart: () => {
-        set((state) => ({
-          cart: {
-            ...state.cart,
-            items: []
-          }
-        }));
+        set({ items: [] });
       },
       
-      getTotals: () => {
-        const state = get();
-        if (!state.cart || !state.cart.items) {
-          return {
-            itemTotals: [],
-            subtotalCents: 0,
-            discountsCents: 0,
-            subtotalAfterDiscountsCents: 0,
-            taxCents: 0,
-            shippingCents: 0,
-            totalCents: 0,
-          };
-        }
-        return computeCartTotals(state.cart);
-      },      
       getSubtotalCents: () => {
-        return get().getTotals().subtotalCents;
+        const flags = getFeatureFlags();
+        const items = get().items;
+
+        if (flags.freeShipping || flags.minOrderFloor) {
+          const pricingOptions = getPricingOptions();
+          const pricingItems: PricingItem[] = items.map(item => ({ line_total_cents: item.line_total_cents }));
+          const totals = computeTotals(pricingItems, 0.06, pricingOptions);
+          return totals.adjusted_subtotal_cents;
+        }
+
+        return items.reduce((total, item) => total + item.line_total_cents, 0);
       },
-      
+
       getTaxCents: () => {
-        return get().getTotals().taxCents;
+        const flags = getFeatureFlags();
+        const items = get().items;
+
+        if (flags.freeShipping || flags.minOrderFloor) {
+          const pricingOptions = getPricingOptions();
+          const pricingItems: PricingItem[] = items.map(item => ({ line_total_cents: item.line_total_cents }));
+          const totals = computeTotals(pricingItems, 0.06, pricingOptions);
+          return totals.tax_cents;
+        }
+
+        const subtotal = get().getSubtotalCents();
+        return Math.round(calculateTax(subtotal / 100) * 100);
       },
-      
+
       getTotalCents: () => {
-        return get().getTotals().totalCents;
+        const flags = getFeatureFlags();
+        const items = get().items;
+
+        if (flags.freeShipping || flags.minOrderFloor) {
+          const pricingOptions = getPricingOptions();
+          const pricingItems: PricingItem[] = items.map(item => ({ line_total_cents: item.line_total_cents }));
+          const totals = computeTotals(pricingItems, 0.06, pricingOptions);
+          return totals.total_cents;
+        }
+
+        const subtotal = get().getSubtotalCents();
+        return Math.round(calculateTotalWithTax(subtotal / 100) * 100);
       },
-      
+
       getItemCount: () => {
-        return get().cart.items.reduce((sum, item) => sum + item.qty, 0);
-      },
-      
-      migrateLegacyItems: (legacyItems: LegacyCartItem[]) => {
-        const migratedItems = legacyItems.map(migrateLegacyCartItem);
-        set((state) => ({
-          cart: {
-            ...state.cart,
-            items: migratedItems
-          }
-        }));
-      },
+        return get().items.reduce((total, item) => total + item.quantity, 0);
+      }
     }),
     {
       name: 'cart-storage',
-      version: 2, // Increment version to trigger migration
-      migrate: (persistedState: any, version: number) => {
-        if (!persistedState) {
-          return {
-            cart: {
-              items: [],
-              shippingCents: 0,
-              taxRatePct: 6,
-              discountsCents: 0,
-            }
-          };
-        }        if (version < 2) {
-          // Migrate from legacy cart structure
-          const legacyItems = persistedState?.items || [];
-          const migratedItems = legacyItems.map(migrateLegacyCartItem);
-          
-          return {
-            cart: {
-              items: migratedItems,
-              shippingCents: 0,
-              taxRatePct: 6,
-              discountsCents: 0,
-            }
-          };
-        }
-        return persistedState;
-      },
     }
   )
 );

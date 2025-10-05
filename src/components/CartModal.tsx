@@ -1,208 +1,263 @@
 import React from 'react';
 import { X, Trash2, Plus, Minus, ShoppingBag, Package, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useCartStore } from '@/store/cart';
-import { formatMoney, type CartItem, type CartTotals } from '@/lib/cart-pricing';
+import { useCartStore, CartItem } from '@/store/cart';
+import { usd } from '@/lib/pricing';
+
+// Helper function to ensure cart items have valid line_total_cents
+const ensureLineTotalCents = (item: CartItem): CartItem => {
+  if (item.line_total_cents && !isNaN(Number(item.line_total_cents))) {
+  console.log("CART DEBUG - Item data:", {
+    id: item.id,
+    line_total_cents: item.line_total_cents,
+    typeof_line_total: typeof item.line_total_cents,
+    isNaN_check: isNaN(item.line_total_cents),
+    condition_result: (item.line_total_cents && !isNaN(Number(item.line_total_cents)))
+  });    return { ...item, line_total_cents: Number(item.line_total_cents) }; // Already has valid line_total_cents
+  }
+
+  // Calculate line_total_cents for legacy items or items with invalid values
+  // Add fallback values to prevent NaN
+  const unitPriceCents = item.unit_price_cents || 3600; // Default to $36.00 for 48x24
+  const quantity = item.quantity || 1;
+  const ropeFeet = item.rope_feet || 0;
+  const polePocketCostCents = item.pole_pocket_cost_cents || 0;
+  
+  const baseCost = unitPriceCents * quantity;
+  const ropeCost = ropeFeet * 2 * quantity * 100;
+  
+  // Pole pocket scaling: setup fee ($15) + linear foot costs that scale with quantity
+  const setupFeeCents = 1500; // $15.00 setup fee (doesn't scale)
+  const originalLinearCostCents = Math.max(0, polePocketCostCents - setupFeeCents);
+  const scaledPolePocketCost = setupFeeCents + (originalLinearCostCents * quantity);
+  
+  const calculatedLineTotalCents = Math.round(baseCost + ropeCost + scaledPolePocketCost);
+  
+  return {
+    ...item,
+    line_total_cents: calculatedLineTotalCents
+  };
+};
 
 interface CartModalProps {
   isOpen: boolean;
   onClose: () => void;
+  items: CartItem[];
+  onUpdateQuantity: (id: string, quantity: number) => void;
+  onRemoveItem: (id: string) => void;
 }
 
-const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
+const CartModal: React.FC<CartModalProps> = ({
+  isOpen,
+  onClose,
+  items,
+  onUpdateQuantity,
+  onRemoveItem
+}) => {
   const navigate = useNavigate();
-  const { cart, updateQuantity, removeItem, getTotals } = useCartStore();
-  
-  // Get computed totals using single source of truth
-  const totals: CartTotals = getTotals() || { itemTotals: [], subtotalCents: 0, discountsCents: 0, subtotalAfterDiscountsCents: 0, taxCents: 0, shippingCents: 0, totalCents: 0 };
-  
-  const handleCheckout = () => {
-    onClose();
-    navigate('/checkout');
-  };
+  const { getSubtotalCents, getTaxCents, getTotalCents } = useCartStore();
 
   if (!isOpen) return null;
 
-  // Safety checks for undefined arrays
-  const items = cart?.items || [];
-  const itemTotals = totals?.itemTotals || [];
+  const subtotalCents = getSubtotalCents();
+  const taxCents = getTaxCents();
+  const totalCents = getTotalCents();
+
+  const handleCheckout = () => {
+    onClose();
+    navigate('/checkout');
+    // Scroll to top of page
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
-      <div className="absolute inset-0 bg-black bg-opacity-50" onClick={onClose} />
+      <div className="absolute inset-0 bg-black bg-opacity-50" onClick={onClose}></div>
       
       <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-xl">
-        <div className="flex h-full flex-col">
+        <div className="flex flex-col h-full">
           {/* Header */}
-          <div className="flex items-center justify-between border-b border-gray-200 px-4 py-3">
-            <div className="flex items-center space-x-2">
-              <ShoppingBag className="h-5 w-5 text-gray-600" />
-              <h2 className="text-lg font-semibold text-gray-900">
-                Shopping Cart ({items.reduce((sum, item) => sum + (item.qty || 0), 0)})
-              </h2>
-            </div>
+          <div className="flex items-center justify-between p-6 border-b">
+            <h2 className="text-lg font-semibold text-gray-900 flex items-center">
+              <ShoppingBag className="h-5 w-5 mr-2" />
+              Shopping Cart ({items.length})
+            </h2>
             <button
               onClick={onClose}
-              className="rounded-full p-1 text-gray-400 hover:text-gray-600"
+              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
             >
               <X className="h-5 w-5" />
             </button>
           </div>
 
           {/* Cart Items */}
-          <div className="flex-1 overflow-y-auto px-4 py-4">
+          <div className="flex-1 overflow-y-auto p-6">
             {items.length === 0 ? (
-              <div className="flex h-full flex-col items-center justify-center text-center">
-                <Package className="h-12 w-12 text-gray-300 mb-4" />
-                <p className="text-gray-500 text-lg font-medium mb-2">Your cart is empty</p>
-                <p className="text-gray-400 text-sm">Add some banners to get started!</p>
+              <div className="text-center py-12">
+                <ShoppingBag className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-500">Your cart is empty</p>
+                <button
+                  onClick={onClose}
+                  className="mt-4 text-orange-500 hover:text-orange-600 font-medium"
+                >
+                  Continue Shopping
+                </button>
               </div>
             ) : (
               <div className="space-y-4">
-                {items.map((item, index) => {
-                  // Get the computed totals for this specific item
-                  const itemTotal = itemTotals.find(t => t.itemId === item.id);
-                  if (!itemTotal) return null;
-
-                  const options = item.options || [];
-
-                  return (
-                    <div key={item.id} className="border border-gray-200 rounded-lg p-4">
-                      <div className="flex items-start space-x-3">
-                        {/* Item Image Placeholder */}
-                        <div className="flex-shrink-0">
-                          <div className="w-16 h-16 bg-gray-100 rounded-lg flex items-center justify-center">
-                            <FileText className="h-8 w-8 text-gray-400" />
+                {items.map(ensureLineTotalCents).map((item) => (
+                  <div key={item.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                    <div className="flex gap-3">
+                      {/* Thumbnail */}
+                      <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
+                        {item.isPdf ? (
+                          <div className="w-full h-full bg-gradient-to-br from-red-100 to-red-200 flex items-center justify-center">
+                            <FileText className="h-6 w-6 text-red-600" />
                           </div>
-                        </div>
+                        ) : item.thumbnail ? (
+                          <img
+                            src={item.thumbnail}
+                            alt={item.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center">
+                            <Package className="h-6 w-6 text-blue-500" />
+                          </div>
+                        )}
+                      </div>
 
-                        {/* Item Details */}
-                        <div className="flex-1 min-w-0">
-                          <h3 className="text-sm font-medium text-gray-900 mb-1">
-                            {item.title || 'Custom Banner'}
-                          </h3>
-                          
-                          {/* Item Options */}
-                          {options.length > 0 && (
-                            <div className="space-y-1 text-xs text-gray-600 mb-3">
-                              {options.map(option => (
-                                <div key={option.id} className="flex justify-between">
-                                  <span>• {option.name}</span>
-                                  <span>
-                                    {option.pricingMode === 'per_item' 
-                                      ? `${formatMoney(option.priceCents)} × ${item.qty} = ${formatMoney(option.priceCents * item.qty)}`
-                                      : `${formatMoney(option.priceCents)} (per order)`
-                                    }
-                                  </span>
+                      {/* Item Details */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <h3 className="font-semibold text-gray-900 text-sm">{item.name}</h3>
+                            <p className="text-xs text-gray-500">{item.size} • {item.material}</p>
+
+                            {/* Options Display */}
+                            <div className="mt-1 space-y-1">
+                              {item.grommets && item.grommets !== 'none' && (
+                                <div className="inline-flex items-center bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full mr-1 mb-1">
+                                  <span className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-1.5"></span>
+                                  {item.grommets === 'every-2-3ft' ? 'Grommets: Every 2-3ft' :
+                                   item.grommets === 'every-1-2ft' ? 'Grommets: Every 1-2ft' :
+                                   item.grommets === '4-corners' ? 'Grommets: 4 corners' :
+                                   item.grommets === 'top-corners' ? 'Grommets: Top corners' :
+                                   item.grommets === 'right-corners' ? 'Grommets: Right corners' :
+                                   item.grommets === 'left-corners' ? 'Grommets: Left corners' :
+                                   `Grommets: ${item.grommets}`}
                                 </div>
-                              ))}
-                            </div>
-                          )}
+                              )}
 
-                          {/* Price Breakdown */}
-                          <div className="space-y-1 text-xs text-gray-600 mb-3">
-                            <div className="flex justify-between">
-                              <span>Base banner:</span>
-                              <span>{formatMoney(item.unitPriceCents)} × {item.qty} = {formatMoney(item.unitPriceCents * item.qty)}</span>
-                            </div>
-                            {options.filter(o => o.pricingMode === 'per_item').map(option => (
-                              <div key={option.id} className="flex justify-between">
-                                <span>{option.name}:</span>
-                                <span>{formatMoney(option.priceCents)} × {item.qty} = {formatMoney(option.priceCents * item.qty)}</span>
-                              </div>
-                            ))}
-                            {options.filter(o => o.pricingMode === 'per_order').map(option => (
-                              <div key={option.id} className="flex justify-between">
-                                <span>{option.name}:</span>
-                                <span>{formatMoney(option.priceCents)}</span>
-                              </div>
-                            ))}
-                          </div>
+                              {item.pole_pockets && item.pole_pockets !== 'none' && (
+                                <div className="inline-flex items-center bg-green-50 text-green-700 text-xs px-2 py-0.5 rounded-full mr-1 mb-1">
+                                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full mr-1.5"></span>
+                                  Pole Pockets: {item.pole_pockets}
+                                </div>
+                              )}
 
-                          {/* Quantity Controls */}
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center space-x-2">
-                              <button
-                                onClick={() => updateQuantity(item.id, item.qty - 1)}
-                                className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50"
-                              >
-                                <Minus className="h-3 w-3" />
-                              </button>
-                              <span className="w-8 text-center text-sm font-medium">{item.qty}</span>
-                              <button
-                                onClick={() => updateQuantity(item.id, item.qty + 1)}
-                                className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center hover:bg-gray-50"
-                              >
-                                <Plus className="h-3 w-3" />
-                              </button>
-                            </div>
-                            <div className="text-right">
-                              <p className="font-bold text-gray-900 text-sm">
-                                {formatMoney(itemTotal.lineTotalCents)}
-                              </p>
-                              <p className="text-xs text-gray-500">
-                                {formatMoney(itemTotal.unitEachCents)} each
-                              </p>
+                              {item.rope_feet && item.rope_feet > 0 && (
+                                <div className="inline-flex items-center bg-orange-50 text-orange-700 text-xs px-2 py-0.5 rounded-full mr-1 mb-1">
+                                  <span className="w-1.5 h-1.5 bg-orange-500 rounded-full mr-1.5"></span>
+                                  Rope: {item.rope_feet}ft
+                                </div>
+                              )}
+
+                              {item.file_name && (
+                                <div className="inline-flex items-center bg-purple-50 text-purple-700 text-xs px-2 py-0.5 rounded-full mr-1 mb-1">
+                                  <span className="w-1.5 h-1.5 bg-purple-500 rounded-full mr-1.5"></span>
+                                  File: {item.file_name.length > 15 ? `${item.file_name.substring(0, 15)}...` : item.file_name}
+                                </div>
+                              )}
                             </div>
                           </div>
+                          <button
+                            onClick={() => onRemoveItem(item.id)}
+                            className="p-1.5 hover:bg-red-50 rounded-lg text-red-500 transition-colors"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
                         </div>
 
-                        {/* Remove Button */}
-                        <button
-                          onClick={() => removeItem(item.id)}
-                          className="flex-shrink-0 p-1 text-gray-400 hover:text-red-500"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
+                        {/* Cost Breakdown */}
+                        <div className="mt-2 p-2 bg-gray-50 rounded-lg text-xs">
+                          <div className="space-y-1">
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Base banner:</span>
+                              <span className="text-gray-900">{usd((item.unit_price_cents || 3600) / 100)} × {item.quantity}</span>
+                            </div>
+                            {item.rope_feet && item.rope_feet > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Rope ({item.rope_feet}ft):</span>
+                                <span className="text-gray-900">${(item.rope_feet * 2 * item.quantity).toFixed(2)}</span>
+                              </div>
+                            )}
+                            {item.pole_pockets && item.pole_pockets !== "none" && (
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Pole pockets:</span>
+                                <span className="text-gray-900">${(item.pole_pocket_cost_cents / 100).toFixed(2)}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between mt-3">
+                          <div className="flex items-center bg-gray-50 rounded-lg p-1">
+                            <button
+                              onClick={() => onUpdateQuantity(item.id, Math.max(1, item.quantity - 1))}
+                              className="p-1.5 hover:bg-white rounded-md transition-colors"
+                            >
+                              <Minus className="h-3 w-3" />
+                            </button>
+                            <span className="w-8 text-center font-medium text-sm">{item.quantity}</span>
+                            <button
+                              onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
+                              className="p-1.5 hover:bg-white rounded-md transition-colors"
+                            >
+                              <Plus className="h-3 w-3" />
+                            </button>
+                          </div>
+                          <div className="text-right">
+                            <p className="font-bold text-gray-900 text-sm">
+                              ${(item.line_total_cents / 100).toFixed(2)}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              ${(item.line_total_cents / item.quantity / 100).toFixed(2)} each
+                            </p>
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  );
-                })}
+                  </div>
+                ))}
               </div>
             )}
           </div>
 
-          {/* Footer with Totals */}
+          {/* Footer */}
           {items.length > 0 && (
-            <div className="border-t border-gray-200 px-4 py-4 space-y-3">
-              {/* Subtotal */}
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Subtotal:</span>
-                <span className="font-medium">{formatMoney(totals?.subtotalCents || 0)}</span>
-              </div>
-
-              {/* Discounts */}
-              {(totals?.discountsCents || 0) > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-gray-600">Discounts:</span>
-                  <span className="font-medium text-green-600">-{formatMoney(totals.discountsCents)}</span>
+            <div className="border-t p-6">
+              <div className="space-y-2 mb-4">
+                <div className="flex justify-between">
+                  <span>Subtotal:</span>
+                  <span>${(subtotalCents / 100).toFixed(2)}</span>
                 </div>
-              )}
-
-              {/* Shipping */}
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Shipping:</span>
-                <span className="font-medium text-green-600">
-                  {(totals?.shippingCents || 0) === 0 ? 'FREE' : formatMoney(totals.shippingCents)}
-                </span>
+                <div className="flex justify-between text-green-600 font-medium">
+                  <span>Shipping:</span>
+                  <span>FREE</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Tax (6%):</span>
+                  <span>${(taxCents / 100).toFixed(2)}</span>
+                </div>
+                <div className="flex justify-between font-semibold text-lg border-t pt-2">
+                  <span>Total:</span>
+                  <span>${(totalCents / 100).toFixed(2)}</span>
+                </div>
               </div>
-
-              {/* Tax */}
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Tax ({cart?.taxRatePct || 6}%):</span>
-                <span className="font-medium">{formatMoney(totals?.taxCents || 0)}</span>
-              </div>
-
-              {/* Total */}
-              <div className="flex justify-between text-lg font-bold border-t border-gray-200 pt-3">
-                <span>Total:</span>
-                <span>{formatMoney(totals?.totalCents || 0)}</span>
-              </div>
-
-              {/* Checkout Button */}
+              
               <button
                 onClick={handleCheckout}
-                className="w-full bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-4 rounded-2xl font-semibold text-lg shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200"
               >
                 Proceed to Checkout
               </button>
