@@ -206,10 +206,10 @@ const CartModal: React.FC<CartModalProps> = ({
                           </div>
                           <div className="text-right">
                             <p className="font-bold text-gray-900 text-sm">
-                              ${(item.line_total_cents / 100).toFixed(2)}
+                              DEBUG: line_total_cents=${item.line_total_cents}
                             </p>
                             <p className="text-xs text-gray-500">
-                              ${(item.line_total_cents / item.quantity / 100).toFixed(2)} each
+                              DEBUG: per-item calc=${item.line_total_cents}/${item.quantity}
                             </p>
                           </div>
                         </div>
