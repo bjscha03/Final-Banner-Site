@@ -11,19 +11,13 @@ const ensureLineTotalCents = (item: CartItem): CartItem => {
   }
 
   // Calculate line_total_cents for legacy items or items with invalid values
-  // Add fallback values to prevent NaN
-  const unitPriceCents = item.unit_price_cents || 3600; // Default to $36.00 for 48x24
-  const quantity = item.quantity || 1;
-  const ropeFeet = item.rope_feet || 0;
-  const polePocketCostCents = item.pole_pocket_cost_cents || 0;
-  
-  const baseCost = unitPriceCents * quantity;
-  const ropeCost = ropeFeet * 2 * quantity * 100;
+  const baseCost = item.unit_price_cents * item.quantity;
+  const ropeCost = item.rope_feet * 2 * item.quantity * 100;
   
   // Pole pocket scaling: setup fee ($15) + linear foot costs that scale with quantity
   const setupFeeCents = 1500; // $15.00 setup fee (doesn't scale)
-  const originalLinearCostCents = Math.max(0, polePocketCostCents - setupFeeCents);
-  const scaledPolePocketCost = setupFeeCents + (originalLinearCostCents * quantity);
+  const originalLinearCostCents = Math.max(0, item.pole_pocket_cost_cents - setupFeeCents);
+  const scaledPolePocketCost = setupFeeCents + (originalLinearCostCents * item.quantity);
   
   const calculatedLineTotalCents = Math.round(baseCost + ropeCost + scaledPolePocketCost);
   
@@ -212,10 +206,10 @@ const CartModal: React.FC<CartModalProps> = ({
                           </div>
                           <div className="text-right">
                             <p className="font-bold text-gray-900 text-sm">
-                              ${(item.line_total_cents / 100).toFixed(2)}
+                              DEBUG: line_total_cents=${item.line_total_cents}
                             </p>
                             <p className="text-xs text-gray-500">
-                              ${(item.line_total_cents / item.quantity / 100).toFixed(2)} each
+                              DEBUG: per-item calc=${item.line_total_cents}/${item.quantity}
                             </p>
                           </div>
                         </div>
