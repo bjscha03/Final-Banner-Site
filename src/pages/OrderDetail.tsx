@@ -214,7 +214,32 @@ const OrderDetail: React.FC = () => {
                         <div className="space-y-1 text-sm">
                           {(() => {
                             const ropeCost = (item.rope_feet || 0) * 2 * item.quantity * 100;
-                            const polePocketCost = item.pole_pockets ? Math.max(0, item.line_total_cents - ropeCost) * 0.1 : 0;
+                            // Calculate pole pocket cost using correct logic from cart store
+                            const polePocketCost = (() => {
+                              if (!item.pole_pockets || item.pole_pockets === 'none') return 0;
+                              
+                              const setupFee = 15.00;
+                              const pricePerLinearFoot = 2.00;
+                              
+                              let linearFeet = 0;
+                              switch (item.pole_pockets) {
+                                case 'top':
+                                case 'bottom':
+                                  linearFeet = item.width_in / 12;
+                                  break;
+                                case 'left':
+                                case 'right':
+                                  linearFeet = item.height_in / 12;
+                                  break;
+                                case 'top-bottom':
+                                  linearFeet = (item.width_in / 12) * 2;
+                                  break;
+                                default:
+                                  linearFeet = 0;
+                              }
+                              
+                              return Math.round((setupFee + (linearFeet * pricePerLinearFoot * item.quantity)) * 100);
+                            })();
                             const baseCost = item.line_total_cents - ropeCost - polePocketCost;
                             const unitPrice = baseCost / item.quantity;
                             return (
