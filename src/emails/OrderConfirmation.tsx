@@ -126,7 +126,6 @@ export default function OrderConfirmation({ order, invoiceUrl }: OrderConfirmati
               <div style={itemsContainer}>
                 {order.items.map((item, index) => {
                   const itemPrice = item.price || (item.unitPriceCents ? item.unitPriceCents / 100 : 0);
-                  const itemPrice = item.price || (item.unitPriceCents ? item.unitPriceCents / 100 : 0);
                   const itemQty = item.qty || item.quantity || 1;
                   const itemName = item.name + (item.size ? ` ${item.size}` : "");
                   
@@ -174,7 +173,7 @@ export default function OrderConfirmation({ order, invoiceUrl }: OrderConfirmati
                       </div>
                     </div>
                   );
-                })}                })}
+                })}
                 
                 {/* Totals */}
                 <Hr style={itemsHr} />
