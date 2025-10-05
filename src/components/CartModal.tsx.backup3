@@ -1,8 +1,23 @@
 import React from 'react';
 import { X, Trash2, Plus, Minus, ShoppingBag, Package, FileText } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useCartStore, CartItem } from '@/store/cart';
+import { useCartStore } from '@/store/cart';
 import { usd } from '@/lib/pricing';
+interface CartItem {
+  id: string;
+  name: string;
+  size: string;
+  material: string;
+  quantity: number;
+  price: number;
+  thumbnail?: string;
+  grommets?: string;
+  pole_pockets?: string;
+  rope_feet?: number;
+  pole_pocket_cost_cents?: number;  file_name?: string;
+  isPdf?: boolean;
+}
+
 interface CartModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -182,10 +197,10 @@ const CartModal: React.FC<CartModalProps> = ({
                           </div>
                           <div className="text-right">
                             <p className="font-bold text-gray-900 text-sm">
-                              ${(item.line_total_cents / 100).toFixed(2)}
+                              ${(item.price * item.quantity).toFixed(2)}
                             </p>
                             <p className="text-xs text-gray-500">
-                              ${(item.line_total_cents / item.quantity / 100).toFixed(2)} each
+                              ${item.price.toFixed(2)} each
                             </p>
                           </div>
                         </div>
