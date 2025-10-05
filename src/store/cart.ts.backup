@@ -66,7 +66,6 @@ export const useCartStore = create<CartState>()(
       items: [],
       
       addFromQuote: (quote: QuoteState, aiMetadata?: any) => {
-        console.log("DEBUG: addFromQuote called with addRope:", quote.addRope);
         const area = (quote.widthIn * quote.heightIn) / 144;
         const pricePerSqFt = {
           '13oz': 4.5,
@@ -78,7 +77,6 @@ export const useCartStore = create<CartState>()(
         const unitPriceCents = Math.round(area * pricePerSqFt * 100);
         const ropeFeet = quote.addRope ? quote.widthIn / 12 : 0;
         const ropeCostCents = Math.round(ropeFeet * 2 * quote.quantity * 100);
-        console.log("DEBUG: Rope calculation - ropeFeet:", ropeFeet, "ropeCostCents:", ropeCostCents);
         
         // Calculate pole pocket cost
         const polePocketCostCents = (() => {

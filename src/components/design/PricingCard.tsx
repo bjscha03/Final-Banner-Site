@@ -208,7 +208,7 @@ const PricingCard: React.FC = () => {
     }
 
     // Proceed directly to add to cart
-    addFromQuote(quote);
+    addFromQuote(updatedQuote);
     toast({
       title: "Added to Cart",
       description: "Your banner has been added to the cart.",
@@ -243,7 +243,7 @@ const PricingCard: React.FC = () => {
     }
 
     // Proceed directly to checkout
-    addFromQuote(quote);
+    addFromQuote(updatedQuote);
     scrollToTopBeforeNavigate();
     navigate('/checkout');
   };
@@ -272,8 +272,6 @@ const PricingCard: React.FC = () => {
           case 'rope':
             updatedQuote.addRope = true;
             quote.set({ addRope: true });
-            setTimeout(() => {
-            }, 100);
             break;
           case 'polePockets':
             if (option.polePocketSelection) {
@@ -294,13 +292,13 @@ const PricingCard: React.FC = () => {
 
     // Execute the pending action with updated quote
     if (pendingAction === 'cart') {
-      addFromQuote(quote);
+      addFromQuote(updatedQuote);
       toast({
         title: "Added to Cart",
         description: "Your banner has been added to the cart.",
       });
     } else if (pendingAction === 'checkout') {
-      addFromQuote(quote);
+      addFromQuote(updatedQuote);
       scrollToTopBeforeNavigate();
       navigate('/checkout');
     }
