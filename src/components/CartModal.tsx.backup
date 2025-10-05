@@ -158,27 +158,6 @@ const CartModal: React.FC<CartModalProps> = ({
                           </button>
                         </div>
 
-                        {/* Cost Breakdown */}
-                        <div className="mt-2 p-2 bg-gray-50 rounded-lg text-xs">
-                          <div className="space-y-1">
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Base banner:</span>
-                              <span className="text-gray-900">${((item.price - (item.rope_feet || 0) * 2) / item.quantity).toFixed(2)} × {item.quantity}</span>
-                            </div>
-                            {item.rope_feet && item.rope_feet > 0 && (
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Rope ({item.rope_feet}ft):</span>
-                                <span className="text-gray-900">${(item.rope_feet * 2).toFixed(2)}</span>
-                              </div>
-                            )}
-                            {item.pole_pockets && item.pole_pockets !== "none" && (
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Pole pockets:</span>
-                                <span className="text-gray-900">Included</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
                         <div className="flex items-center justify-between mt-3">
                           <div className="flex items-center bg-gray-50 rounded-lg p-1">
                             <button

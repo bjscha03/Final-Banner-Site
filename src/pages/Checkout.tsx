@@ -207,7 +207,7 @@ const Checkout: React.FC = () => {
                             <p>Material: {item.material}</p>
                             <p>Grommets: {item.grommets}</p>
                             {item.rope_feet > 0 && <p>Rope: {item.rope_feet.toFixed(1)} ft</p>}
-                            {item.file_name && <p>File: {item.file_name}</p>}
+                            {item.pole_pockets && item.pole_pockets !== "none" && <p>Pole Pockets: {item.pole_pockets}</p>}                            {item.file_name && <p>File: {item.file_name}</p>}
                           </div>
                         </div>
                         <div className="text-right">
