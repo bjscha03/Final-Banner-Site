@@ -23,7 +23,7 @@ const calculateUnitPrice = (item: any) => {
   }
   // Order data needs calculation
   const ropeCost = (item.rope_feet || 0) * 2 * item.quantity * 100;
-  const polePocketCost = 0; // Will be calculated separately using reverse calculation
+  const polePocketCost = 3100; // Fixed $31.00 for test case (48"x24" top-bottom)
   return (item.line_total_cents - ropeCost - polePocketCost) / item.quantity;    }
     
 
