@@ -26,11 +26,8 @@ const ensureLineTotalCents = (item: CartItem): CartItem => {
   const baseCost = unitPriceCents * quantity;
   const ropeCost = ropeFeet * 2 * quantity * 100;
   
-  // Pole pocket scaling: setup fee ($15) + linear foot costs that scale with quantity
-  const setupFeeCents = 1500; // $15.00 setup fee (doesn't scale)
-  const originalLinearCostCents = Math.max(0, polePocketCostCents - setupFeeCents);
-  const scaledPolePocketCost = setupFeeCents + (originalLinearCostCents * quantity);
-  
+  // Pole pockets should be per-item (multiply by quantity)
+  const scaledPolePocketCost = polePocketCostCents * quantity;  
   const calculatedLineTotalCents = Math.round(baseCost + ropeCost + scaledPolePocketCost);
   
   return {
