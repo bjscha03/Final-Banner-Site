@@ -30,7 +30,6 @@ interface OrderConfirmationProps {
       price?: number;
       size?: string;
       options?: string;
-      unitPriceCents?: number;
       ropeFeet?: number;
       ropeCostCents?: number;
       polePocketCostCents?: number;
@@ -127,7 +126,6 @@ export default function OrderConfirmation({ order, invoiceUrl }: OrderConfirmati
               <div style={itemsContainer}>
                 {order.items.map((item, index) => {
                   const itemPrice = item.price || (item.unitPriceCents ? item.unitPriceCents / 100 : 0);
-                {order.items.map((item, index) => {
                   const itemPrice = item.price || (item.unitPriceCents ? item.unitPriceCents / 100 : 0);
                   const itemQty = item.qty || item.quantity || 1;
                   const itemName = item.name + (item.size ? ` ${item.size}` : "");

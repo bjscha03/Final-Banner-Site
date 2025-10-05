@@ -16,7 +16,7 @@ const calculateUnitPrice = (item: any) => {
   }
   // Order data needs calculation
   const ropeCost = (item.rope_feet || 0) * 2 * item.quantity * 100;
-  const polePocketCost = item.pole_pockets ? Math.max(0, item.line_total_cents - ropeCost) * 0.1 : 0;
+  const polePocketCost = 0; // Will be calculated separately
   return (item.line_total_cents - ropeCost - polePocketCost) / item.quantity;
 };
 const OrderConfirmation: React.FC = () => {
