@@ -143,7 +143,20 @@ export const useCartStore = create<CartState>()(
               ? { 
                   ...item, 
                   quantity,
-                  line_total_cents: Math.round((item.unit_price_cents * quantity) + (item.rope_feet * 2 * quantity * 100) + (item.pole_pocket_cost_cents / item.quantity * quantity))
+                  line_total_cents: (() => {
+                    // Calculate properly scaled line total
+                    const baseCost = item.unit_price_cents * quantity;
+                    const ropeCost = item.rope_feet * 2 * quantity * 100;
+                    
+                    // Pole pocket scaling: setup fee ($15) + linear foot costs that scale with quantity
+                    // Original pole_pocket_cost_cents was for quantity 1, so we need to extract setup vs linear costs
+                    const originalPolePocketCost = item.pole_pocket_cost_cents;
+                    const setupFeeCents = 1500; // $15.00 setup fee (doesn't scale)
+                    const originalLinearCostCents = originalPolePocketCost - setupFeeCents;
+                    const scaledPolePocketCost = setupFeeCents + (originalLinearCostCents * quantity);
+                    
+                    return Math.round(baseCost + ropeCost + scaledPolePocketCost);
+                  })()
                 }
               : item
           )

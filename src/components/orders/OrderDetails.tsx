@@ -1,6 +1,6 @@
 import React from 'react';
 import { Order } from '../../lib/orders/types';
-import { usd, formatDimensions } from '@/lib/pricing';
+import { usd, formatDimensions, calculatePolePocketCostFromOrder, calculateUnitPriceFromOrder } from '@/lib/pricing';
 import { Button } from '@/components/ui/button';
 import { useCartStore } from '@/store/cart';
 import { useToast } from '@/components/ui/use-toast';
@@ -17,14 +17,6 @@ import {
 
 
 // Helper function to calculate unit price from order data
-const calculateUnitPrice = (item: any) => {
-  if (item.unit_price_cents) {
-    return item.unit_price_cents; // Cart data has unit_price_cents
-  }
-  // Order data needs calculation
-  const ropeCost = (item.rope_feet || 0) * 2 * item.quantity * 100;
-  const polePocketCost = 3100; // Fixed $31.00 for test case (48"x24" top-bottom)
-  return (item.line_total_cents - ropeCost - polePocketCost) / item.quantity;    }
     
 
 interface OrderDetailsProps {
@@ -268,7 +260,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                         <div className="space-y-1 text-sm">
                           <div className="flex justify-between">
                             <span className="text-gray-600">Base banner:</span>
-                            <span className="text-gray-900">{usd(calculateUnitPrice(item) / 100)} × {item.quantity}</span>
+                            <span className="text-gray-900">{usd(calculateUnitPriceFromOrder(item) / 100)} × {item.quantity}</span>
                           </div>
                           {item.rope_feet && item.rope_feet > 0 && (
                             <div className="flex justify-between">
@@ -277,9 +269,9 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                             </div>
                           )}
                           {(() => {
-                            const baseCost = calculateUnitPrice(item) * item.quantity;
+                            const baseCost = calculateUnitPriceFromOrder(item) * item.quantity;
                             const ropeCost = (item.rope_feet || 0) * 2 * item.quantity * 100;
-                            const polePocketCost = 3100; // Fixed $31.00 for test case                            return polePocketCost > 0 ? (
+                            const polePocketCost = calculatePolePocketCostFromOrder(item);
                             return (
                               <div className="flex justify-between">
                                 <span className="text-gray-600">Pole pockets:</span>
@@ -298,7 +290,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                         {usd((item.line_total_cents || 0) / 100)}
                       </p>
                       <p className="text-sm text-gray-600">
-                        {usd((calculateUnitPrice(item) || 0) / 100)} each
+                        {usd((calculateUnitPriceFromOrder(item) || 0) / 100)} each
                       </p>
                       <div className="mt-2 space-y-2">
                         {/* Admin File Download Button */}
