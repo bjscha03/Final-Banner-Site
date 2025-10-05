@@ -280,7 +280,8 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                             <span className="text-gray-900">{usd(item.line_total_cents / 100)}</span>
                           </div>
                         </div>
-                      </div>                    </div>
+                      </div>
+                    </div>
                     <div className="text-right ml-4">
                       <p className="font-semibold text-gray-900">
                         {usd((item.line_total_cents || 0) / 100)}
