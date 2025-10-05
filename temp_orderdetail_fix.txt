@@ -1,4 +1,0 @@
-                            // Use utility functions for consistent calculation
-                            const polePocketCost = calculatePolePocketCostFromOrder(item);
-                            const unitPrice = calculateUnitPriceFromOrder(item);
-                            const ropeCost = (item.rope_feet || 0) * 2 * item.quantity * 100;

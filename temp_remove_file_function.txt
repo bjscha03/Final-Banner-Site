@@ -1,7 +1,0 @@
-  const removeFile = () => {
-    if (file?.url) {
-      URL.revokeObjectURL(file.url);
-    }
-    set({ file: null });
-    setUploadError('');
-  };

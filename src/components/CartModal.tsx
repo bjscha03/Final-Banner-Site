@@ -168,7 +168,7 @@ const CartModal: React.FC<CartModalProps> = ({
                             {item.rope_feet && item.rope_feet > 0 && (
                               <div className="flex justify-between">
                                 <span className="text-gray-600">Rope ({item.rope_feet}ft):</span>
-                                <span className="text-gray-900">${(item.rope_feet * 2).toFixed(2)}</span>
+                                <span className="text-gray-900">${(item.rope_feet * 2 * item.quantity).toFixed(2)}</span>
                               </div>
                             )}
                             {item.pole_pockets && item.pole_pockets !== "none" && (

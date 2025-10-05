@@ -333,36 +333,24 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
 
           {/* Order Total */}
           <div className="border-t border-gray-200 pt-4 space-y-2">
-            {(() => {
-              // Calculate correct subtotal and tax from line totals
-              // Database subtotal_cents and tax_cents are incorrect, so calculate from line_total_cents
-              const calculatedSubtotal = order.items.reduce((sum, item) => sum + item.line_total_cents, 0);
-              const calculatedTax = Math.round(calculatedSubtotal * 0.06);
-              const calculatedTotal = calculatedSubtotal + calculatedTax;
-              
-              return (
-                <>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-700">Subtotal</span>
-                    <span className="text-gray-900">
-                      {usd(calculatedSubtotal / 100)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-700">Tax (6%)</span>
-                    <span className="text-gray-900">
-                      {usd(calculatedTax / 100)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center border-t border-gray-200 pt-2">
-                    <span className="text-lg font-semibold text-gray-900">Total</span>
-                    <span className="text-xl font-bold text-gray-900">
-                      {usd(calculatedTotal / 100)}
-                    </span>
-                  </div>
-                </>
-              );
-            })()}
+            <div className="flex justify-between items-center">
+              <span className="text-gray-700">Subtotal</span>
+              <span className="text-gray-900">
+                {usd((order.subtotal_cents || order.total_cents) / 100)}
+              </span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-700">Tax (6%)</span>
+              <span className="text-gray-900">
+                {usd((order.tax_cents || 0) / 100)}
+              </span>
+            </div>
+            <div className="flex justify-between items-center border-t border-gray-200 pt-2">
+              <span className="text-lg font-semibold text-gray-900">Total</span>
+              <span className="text-xl font-bold text-gray-900">
+                {usd(order.total_cents / 100)}
+              </span>
+            </div>
           </div>
         </div>
       </DialogContent>
