@@ -4,4 +4,5 @@ A modern e-commerce platform for custom banner printing with real-time preview, 
 
 ## 🎯 Latest Features
 - **PDF Static Preview**: Eliminates Firefox native PDF controls by rendering PDFs as static images
-# Force rebuild Sat Oct  4 15:58:57 EDT 2025
+
+# Force Netlify build - cart.ts is fixed - Oct 5 2025
