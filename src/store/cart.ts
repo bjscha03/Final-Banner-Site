@@ -60,29 +60,6 @@ export interface CartState {
   getItemCount: () => number;
 }
 
-// Helper function to ensure cart items have valid line_total_cents
-const ensureLineTotalCents = (item: CartItem): CartItem => {
-  if (item.line_total_cents && !isNaN(item.line_total_cents)) {
-    return item; // Already has valid line_total_cents
-  }
-
-  // Calculate line_total_cents for legacy items or items with invalid values
-  const baseCost = item.unit_price_cents * item.quantity;
-  const ropeCost = item.rope_feet * 2 * item.quantity * 100;
-  
-  // Pole pocket scaling: setup fee ($15) + linear foot costs that scale with quantity
-  const setupFeeCents = 1500; // $15.00 setup fee (doesn't scale)
-  const originalLinearCostCents = Math.max(0, item.pole_pocket_cost_cents - setupFeeCents);
-  const scaledPolePocketCost = setupFeeCents + (originalLinearCostCents * item.quantity);
-  
-  const calculatedLineTotalCents = Math.round(baseCost + ropeCost + scaledPolePocketCost);
-  
-  return {
-    ...item,
-    line_total_cents: calculatedLineTotalCents
-  };
-};
-
 export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
@@ -198,7 +175,7 @@ export const useCartStore = create<CartState>()(
       
       getSubtotalCents: () => {
         const flags = getFeatureFlags();
-        const items = get().items.map(ensureLineTotalCents); // Ensure all items have valid line_total_cents
+        const items = get().items;
 
         if (flags.freeShipping || flags.minOrderFloor) {
           const pricingOptions = getPricingOptions();
@@ -212,7 +189,7 @@ export const useCartStore = create<CartState>()(
 
       getTaxCents: () => {
         const flags = getFeatureFlags();
-        const items = get().items.map(ensureLineTotalCents); // Ensure all items have valid line_total_cents
+        const items = get().items;
 
         if (flags.freeShipping || flags.minOrderFloor) {
           const pricingOptions = getPricingOptions();
@@ -227,7 +204,7 @@ export const useCartStore = create<CartState>()(
 
       getTotalCents: () => {
         const flags = getFeatureFlags();
-        const items = get().items.map(ensureLineTotalCents); // Ensure all items have valid line_total_cents
+        const items = get().items;
 
         if (flags.freeShipping || flags.minOrderFloor) {
           const pricingOptions = getPricingOptions();
