@@ -8,6 +8,7 @@ import { useAuth, isAdmin } from '@/lib/auth';
 import { ShoppingCart, Package, Calendar, CreditCard, Mail, User, Download, FileText } from 'lucide-react';
 import TrackingBadge from './TrackingBadge';
 import {
+  Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
