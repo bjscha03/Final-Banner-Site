@@ -216,7 +216,12 @@ const OrderDetail: React.FC = () => {
                             // Use exact same logic as PaymentSuccess.tsx
                             // Use robust pole pocket calculation with proper field handling
                             const ropeCost = (item.rope_feet || 0) * 2 * item.quantity * 100;
-                            
+                            console.log("🔍 DEBUG OrderDetail PAGE - Full item data:", item);
+                            console.log("🔍 DEBUG OrderDetail PAGE - item.pole_pockets:", item.pole_pockets);
+                            console.log("🔍 DEBUG OrderDetail PAGE - item.width_in:", item.width_in);
+                            console.log("🔍 DEBUG OrderDetail PAGE - item.height_in:", item.height_in);
+                            console.log("🔍 DEBUG OrderDetail PAGE - item.line_total_cents:", item.line_total_cents);
+                            console.log("🔍 DEBUG OrderDetail PAGE - ropeCost:", ropeCost);                            
                             // Calculate pole pocket cost using same logic as cart store
                             const polePocketCost = (() => {
                               if (!item.pole_pockets || item.pole_pockets === "none") return 0;
@@ -254,7 +259,9 @@ const OrderDetail: React.FC = () => {
                             })();
                             
                             const baseCost = item.line_total_cents - ropeCost - polePocketCost;
-                            const unitPrice = baseCost / item.quantity;                            return (
+                            console.log("🔍 DEBUG OrderDetail PAGE - polePocketCost:", polePocketCost);
+                            console.log("🔍 DEBUG OrderDetail PAGE - baseCost:", baseCost);
+                            console.log("🔍 DEBUG OrderDetail PAGE - unitPrice:", unitPrice);                            const unitPrice = baseCost / item.quantity;                            return (
                               <>
                                 <div className="flex justify-between">
                                   <span className="text-gray-600">Base banner:</span>
