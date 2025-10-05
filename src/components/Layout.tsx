@@ -26,7 +26,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       size: `${item.width_in}" × ${item.height_in}"`,
       material: item.material,
       quantity: item.quantity,
-      price: item.unit_price_cents / 100,
+      price: item.line_total_cents / 100,
       thumbnail: thumbnailUrl,
       grommets: item.grommets,
       pole_pockets: item.pole_pockets,

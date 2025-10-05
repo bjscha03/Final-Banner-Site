@@ -136,15 +136,45 @@ export const useCartStore = create<CartState>()(
       
       updateQuantity: (id: string, quantity: number) => {
         set((state) => ({
-          items: state.items.map(item => 
-            item.id === id 
-              ? { 
-                  ...item, 
-                  quantity,
-                  line_total_cents: Math.round((item.unit_price_cents * quantity) + (item.rope_feet * 2 * quantity * 100))
-                }
-              : item
-          )
+          items: state.items.map(item => {
+            if (item.id !== id) return item;
+            
+            // Recalculate rope cost
+            const ropeCostCents = Math.round(item.rope_feet * 2 * quantity * 100);
+            
+            // Recalculate pole pocket cost
+            const polePocketCostCents = (() => {
+              if (item.pole_pockets === 'none') return 0;
+
+              const setupFee = 15.00;
+              const pricePerLinearFoot = 2.00;
+
+              let linearFeet = 0;
+              switch (item.pole_pockets) {
+                case 'top':
+                case 'bottom':
+                  linearFeet = item.width_in / 12;
+                  break;
+                case 'left':
+                case 'right':
+                  linearFeet = item.height_in / 12;
+                  break;
+                case 'top-bottom':
+                  linearFeet = (item.width_in / 12) * 2;
+                  break;
+                default:
+                  linearFeet = 0;
+              }
+
+              return Math.round((setupFee + (linearFeet * pricePerLinearFoot * quantity)) * 100);
+            })();
+            
+            return {
+              ...item,
+              quantity,
+              line_total_cents: item.unit_price_cents * quantity + ropeCostCents + polePocketCostCents
+            };
+          })
         }));
       },
       
