@@ -11,8 +11,8 @@ const PaymentSuccess: React.FC = () => {
 
 // Helper function to calculate unit price from order data
 const calculateUnitPrice = (item: any) => {
-  if (calculateUnitPrice(item)) {
-    return calculateUnitPrice(item); // Cart data has unit_price_cents
+  if (item.unit_price_cents) {
+    return item.unit_price_cents; // Cart data has unit_price_cents
   }
   // Order data needs calculation
   const ropeCost = (item.rope_feet || 0) * 2 * item.quantity * 100;

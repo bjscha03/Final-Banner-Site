@@ -163,7 +163,7 @@ const CartModal: React.FC<CartModalProps> = ({
                           <div className="space-y-1">
                             <div className="flex justify-between">
                               <span className="text-gray-600">Base banner:</span>
-                              <span className="text-gray-900">${((item.price - (item.rope_feet || 0) * 2) / item.quantity).toFixed(2)} × {item.quantity}</span>
+                              <span className="text-gray-900">${(item.unit_price_cents / 100).toFixed(2)} × {item.quantity}</span>
                             </div>
                             {item.rope_feet && item.rope_feet > 0 && (
                               <div className="flex justify-between">
