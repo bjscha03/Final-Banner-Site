@@ -1,1 +1,1 @@
-Sun Oct  5 18:02:58 EDT 2025: Force deployment after pole pocket pricing fix
+Sun Oct  5 18:13:49 EDT 2025: Deploy cart store pole pocket fix
