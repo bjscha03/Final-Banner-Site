@@ -67,16 +67,16 @@ export const useCartStore = create<CartState>()(
       
       addFromQuote: (quote: QuoteState, aiMetadata?: any) => {
         console.log("DEBUG: addFromQuote called with addRope:", quote.addRope);
-        const area = (quote.widthIn * quote.heightIn) / 144;
-        const pricePerSqFt = {
+        console.log("DEBUG: quote.material:", quote.material);        const area = (quote.widthIn * quote.heightIn) / 144;
+        console.log("DEBUG: area:", area);        const pricePerSqFt = {
           '13oz': 4.5,
           '15oz': 6.0,
           '18oz': 7.5,
           'mesh': 6.0
         }[quote.material];
-
-        const unitPriceCents = Math.round(area * pricePerSqFt * 100);
-        const ropeFeet = quote.addRope ? quote.widthIn / 12 : 0;
+        console.log("DEBUG: pricePerSqFt:", pricePerSqFt);
+        const unitPriceCents = Math.round(area * (pricePerSqFt || 4.5) * 100); // Fallback to 13oz price if material not found
+        console.log("DEBUG: unitPriceCents:", unitPriceCents);        const ropeFeet = quote.addRope ? quote.widthIn / 12 : 0;
         const ropeCostCents = Math.round(ropeFeet * 2 * quote.quantity * 100);
         console.log("DEBUG: Rope calculation - ropeFeet:", ropeFeet, "ropeCostCents:", ropeCostCents);
         
