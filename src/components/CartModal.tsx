@@ -12,7 +12,7 @@ const ensureLineTotalCents = (item: CartItem): CartItem => {
     line_total_cents: item.line_total_cents,
     typeof_line_total: typeof item.line_total_cents,
     isNaN_check: isNaN(item.line_total_cents),
-    condition_result: typeof item.line_total_cents === "number" && !isNaN(item.line_total_cents)
+    condition_result: (item.line_total_cents && !isNaN(Number(item.line_total_cents)))
   });    return item; // Already has valid line_total_cents
   }
 
