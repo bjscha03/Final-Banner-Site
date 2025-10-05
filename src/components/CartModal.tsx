@@ -6,14 +6,14 @@ import { usd } from '@/lib/pricing';
 
 // Helper function to ensure cart items have valid line_total_cents
 const ensureLineTotalCents = (item: CartItem): CartItem => {
-  if (typeof item.line_total_cents === 'number' && !isNaN(item.line_total_cents)) {
+  if (item.line_total_cents && !isNaN(Number(item.line_total_cents))) {
   console.log("CART DEBUG - Item data:", {
     id: item.id,
     line_total_cents: item.line_total_cents,
     typeof_line_total: typeof item.line_total_cents,
     isNaN_check: isNaN(item.line_total_cents),
     condition_result: (item.line_total_cents && !isNaN(Number(item.line_total_cents)))
-  });    return item; // Already has valid line_total_cents
+  });    return { ...item, line_total_cents: Number(item.line_total_cents) }; // Already has valid line_total_cents
   }
 
   // Calculate line_total_cents for legacy items or items with invalid values
