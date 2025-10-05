@@ -7,7 +7,7 @@ import { OrderItem } from '../lib/orders/types';
 
 import { usd, formatDimensions, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
 import { validateMinimumOrder, canProceedToCheckout } from '@/lib/validation/minimumOrder';
-import { formatMoney, type CartTotals } from '@/lib/cart-pricing';import Layout from '@/components/Layout';
+import Layout from '@/components/Layout';
 import PayPalCheckout from '@/components/checkout/PayPalCheckout';
 import SignUpEncouragementModal from '@/components/checkout/SignUpEncouragementModal';
 import { Button } from '@/components/ui/button';
@@ -17,17 +17,15 @@ import { emailApi } from '@/lib/api';
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
-  const { cart, clearCart, getTotals, updateQuantity, removeItem } = useCartStore();
+  const { items, clearCart, getSubtotalCents, getTaxCents, getTotalCents, updateQuantity, removeItem } = useCartStore();
   const { user } = useAuth();
   const [isAdminUser, setIsAdminUser] = useState(false);  const { toast } = useToast();
   const [showSignUpModal, setShowSignUpModal] = useState(false);
   const [hasShownModal, setHasShownModal] = useState(false);
 
-  // Get computed totals using single source of truth
-  const totals: CartTotals = getTotals();
-  const subtotalCents = totals.subtotalCents;
-  const taxCents = totals.taxCents;
-  const totalCents = totals.totalCents;
+  const subtotalCents = getSubtotalCents();
+  const taxCents = getTaxCents();
+  const totalCents = getTotalCents();
 
   // Calculate feature flag pricing details
   const flags = getFeatureFlags();
@@ -41,7 +39,7 @@ const Checkout: React.FC = () => {
   const minimumOrderValidation = validateMinimumOrder(totalCents, adminContext);
   const canProceed = minimumOrderValidation.isValid;
   if (flags.freeShipping || flags.minOrderFloor) {
-    const pricingItems: PricingItem[] = cart.items.map(item => ({ line_total_cents: item.line_total_cents }));
+    const pricingItems: PricingItem[] = items.map(item => ({ line_total_cents: item.line_total_cents }));
     const totals = computeTotals(pricingItems, 0.06, pricingOptions);
 
     minOrderAdjustmentCents = totals.min_order_adjustment_cents;
@@ -71,14 +69,14 @@ const Checkout: React.FC = () => {
   }, [user?.email]);
   // Cart management functions
   const handleIncreaseQuantity = (itemId: string) => {
-    const item = cart.items.find(i => i.id === itemId);
+    const item = items.find(i => i.id === itemId);
     if (item && item.quantity < 999) {
       updateQuantity(itemId, item.quantity + 1);
     }
   };
 
   const handleDecreaseQuantity = (itemId: string) => {
-    const item = cart.items.find(i => i.id === itemId);
+    const item = items.find(i => i.id === itemId);
     if (item && item.quantity > 1) {
       updateQuantity(itemId, item.quantity - 1);
     }
@@ -94,7 +92,7 @@ const Checkout: React.FC = () => {
 
   // Show sign-up modal for non-authenticated users (only once per session)
   useEffect(() => {
-    if (!user && !hasShownModal && cart.items.length > 0) {
+    if (!user && !hasShownModal && items.length > 0) {
       const timer = setTimeout(() => {
         setShowSignUpModal(true);
         setHasShownModal(true);
@@ -102,10 +100,10 @@ const Checkout: React.FC = () => {
 
       return () => clearTimeout(timer);
     }
-  }, [user, hasShownModal, cart.items.length]);
+  }, [user, hasShownModal, items.length]);
 
   // Redirect if cart is empty
-  if (cart.items.length === 0) {
+  if (items.length === 0) {
     return (
       <Layout>
         <div className="bg-gray-50 py-8 min-h-[calc(100vh-4rem)]">
@@ -149,7 +147,7 @@ const Checkout: React.FC = () => {
         state: {
           fromCheckout: true,
           orderId: orderId,
-          items: cart.items,
+          items: items,
           total: getTotalCents()
         }
       });
@@ -198,7 +196,7 @@ const Checkout: React.FC = () => {
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">Order Summary</h2>
                 
                 <div className="space-y-4">
-                  {cart.items.map((item) => (
+                  {items.map((item) => (
                     <div key={item.id} className="border-b border-gray-200 pb-4 last:border-b-0">
                       <div className="flex justify-between items-start mb-3">
                         <div className="flex-1">
