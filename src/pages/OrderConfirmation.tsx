@@ -117,28 +117,66 @@ const OrderConfirmation: React.FC = () => {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+                {order.items.map((item, index) => (
+                  <div key={index} className="border border-gray-200 rounded-lg p-4">
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <h4 className="font-medium text-gray-900">
+                          Custom Banner {formatDimensions(item.width_in, item.height_in)}
+                        </h4>
+                        <div className="text-sm text-gray-600 mt-2 space-y-1">
+                          <p>Material: {item.material}</p>
+                          <p>Area: {item.area_sqft.toFixed(2)} sq ft</p>
+                          {item.grommets && <p>Grommets: {item.grommets}</p>}
+                          {item.rope_feet && item.rope_feet > 0 && (
+                            <p>Rope: {item.rope_feet.toFixed(1)} ft</p>
+                          )}
+                          {item.file_key && <p>File: {item.file_key}</p>}
+                        </div>
 
-  return (
-    <Layout>
-      <div className="min-h-screen bg-gray-50 py-12">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Success Header */}
-          <div className="text-center mb-8 print:mb-6">
-            <div className="flex justify-center mb-4">
-              <CheckCircle className="h-16 w-16 text-green-500" />
-            </div>
-            <h1
-              ref={titleRef}
-              tabIndex={-1}
-              className="text-3xl font-bold text-gray-900 mb-2"
-            >
-              Order Confirmed! 🎉
-            </h1>
-            <p className="text-gray-600">
-              Thank you for your order. We'll get started on your custom banners right away.
+                        {/* Cost Breakdown */}
+                        <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                          <h5 className="text-sm font-medium text-gray-900 mb-2">Price Breakdown</h5>
+                          <div className="space-y-1 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Base banner:</span>
+                              <span className="text-gray-900">{usd(item.unit_price_cents / 100)} × {item.quantity}</span>
+                            </div>
+                            {item.rope_feet && item.rope_feet > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Rope ({item.rope_feet.toFixed(1)}ft):</span>
+                                <span className="text-gray-900">{usd((item.rope_feet * 2 * item.quantity) / 100)}</span>
+                              </div>
+                            )}
+                            {(() => {
+                              const baseCost = item.unit_price_cents * item.quantity;
+                              const ropeCost = (item.rope_feet || 0) * 2 * item.quantity * 100;
+                              const polePocketCost = item.line_total_cents - baseCost - ropeCost;
+                              return polePocketCost > 0 ? (
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Pole pockets:</span>
+                                  <span className="text-gray-900">{usd(polePocketCost / 100)}</span>
+                                </div>
+                              ) : null;
+                            })()}
+                            <div className="flex justify-between font-medium border-t border-gray-200 pt-1 mt-2">
+                              <span className="text-gray-900">Line total:</span>
+                              <span className="text-gray-900">{usd(item.line_total_cents / 100)}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right ml-4">
+                        <p className="font-semibold text-gray-900">
+                          {usd(item.line_total_cents / 100)}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          Qty: {item.quantity} × {usd(item.unit_price_cents / 100)}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}              Thank you for your order. We'll get started on your custom banners right away.
             </p>
           </div>
 

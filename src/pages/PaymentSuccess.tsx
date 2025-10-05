@@ -75,17 +75,52 @@ const PaymentSuccess: React.FC = () => {
               <div className="flex justify-between items-start">
                 <div>
                   <h2 className="text-2xl font-bold text-blue-700">Banners On The Fly</h2>
-                  <p className="text-gray-600 mt-1">Payment Confirmation</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm text-gray-600">Payment ID</p>
-                  <p className="font-mono font-semibold">{orderId?.slice(-8).toUpperCase() || 'CONFIRMED'}</p>
-                  <p className="text-sm text-gray-600 mt-2">{new Date().toLocaleDateString()}</p>
-                </div>
-              </div>
-            </div>
+                  {items.map((item: any, index: number) => (
+                    <div key={index} className="border border-gray-200 rounded-lg p-4 mb-4">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <p className="font-medium">Custom Banner {item.width_in}"×{item.height_in}"</p>
+                          <p className="text-sm text-gray-600 mt-1">
+                            {item.material} • Qty: {item.quantity}
+                            {item.grommets && item.grommets !== "none" && ` • ${item.grommets} grommets`}
+                            {item.rope_feet && item.rope_feet > 0 && ` • Rope: ${item.rope_feet.toFixed(1)}ft`}
+                          </p>
 
-            {/* Order Summary */}
+                          {/* Cost Breakdown */}
+                          <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                            <h5 className="text-sm font-medium text-gray-900 mb-2">Price Breakdown</h5>
+                            <div className="space-y-1 text-sm">
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Base banner:</span>
+                                <span className="text-gray-900">{usd(item.unit_price_cents / 100)} × {item.quantity}</span>
+                              </div>
+                              {item.rope_feet && item.rope_feet > 0 && (
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Rope ({item.rope_feet.toFixed(1)}ft):</span>
+                                  <span className="text-gray-900">{usd((item.rope_feet * 2 * item.quantity) / 100)}</span>
+                                </div>
+                              )}
+                              {(() => {
+                                const baseCost = item.unit_price_cents * item.quantity;
+                                const ropeCost = (item.rope_feet || 0) * 2 * item.quantity * 100;
+                                const polePocketCost = item.line_total_cents - baseCost - ropeCost;
+                                return polePocketCost > 0 ? (
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-600">Pole pockets:</span>
+                                    <span className="text-gray-900">{usd(polePocketCost / 100)}</span>
+                                  </div>
+                                ) : null;
+                              })()}
+                              <div className="flex justify-between font-medium border-t border-gray-200 pt-1 mt-2">
+                                <span className="text-gray-900">Line total:</span>
+                                <span className="text-gray-900">{usd(item.line_total_cents / 100)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  ))}            {/* Order Summary */}
             {items.length > 0 && (
               <div className="mb-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Order Summary</h3>

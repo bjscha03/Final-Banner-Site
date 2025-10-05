@@ -187,17 +187,14 @@ const OrderDetail: React.FC = () => {
           </div>
 
           {/* Order Items */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Order Items</h2>
-            <div className="space-y-4">
               {order.items.map((item, index) => (
                 <div key={index} className="border border-gray-200 rounded-lg p-4">
-                  <div className="grid md:grid-cols-2 gap-4">
-                    <div>
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
                       <h3 className="font-medium text-gray-900 mb-2">
                         Custom Banner - {item.width_in}" × {item.height_in}"
                       </h3>
-                      <div className="space-y-1 text-sm text-gray-600">
+                      <div className="space-y-1 text-sm text-gray-600 mb-3">
                         <p><span className="font-medium">Material:</span> {item.material}</p>
                         <p><span className="font-medium">Quantity:</span> {item.quantity}</p>
                         <p><span className="font-medium">Grommets:</span> {item.grommets}</p>
@@ -208,7 +205,52 @@ const OrderDetail: React.FC = () => {
                           <p><span className="font-medium">Pole Pockets:</span> Yes</p>
                         )}
                       </div>
+
+                      {/* Cost Breakdown */}
+                      <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                        <h5 className="text-sm font-medium text-gray-900 mb-2">Price Breakdown</h5>
+                        <div className="space-y-1 text-sm">
+                          {(() => {
+                            // Calculate base cost from line total minus add-ons
+                            const ropeCost = (item.rope_feet || 0) * 2 * item.quantity * 100;
+                            const polePocketCost = item.pole_pockets ? 2300 : 0; // Estimated pole pocket cost
+                            const baseCost = item.line_total_cents - ropeCost - polePocketCost;
+                            return (
+                              <>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Base banner:</span>
+                                  <span className="text-gray-900">{formatCurrency(baseCost)} × {item.quantity}</span>
+                                </div>
+                                {item.rope_feet > 0 && (
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-600">Rope ({item.rope_feet}ft):</span>
+                                    <span className="text-gray-900">{formatCurrency(ropeCost)}</span>
+                                  </div>
+                                )}
+                                {item.pole_pockets && (
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-600">Pole pockets:</span>
+                                    <span className="text-gray-900">{formatCurrency(polePocketCost)}</span>
+                                  </div>
+                                )}
+                                <div className="flex justify-between font-medium border-t border-gray-200 pt-1 mt-2">
+                                  <span className="text-gray-900">Line total:</span>
+                                  <span className="text-gray-900">{formatCurrency(item.line_total_cents)}</span>
+                                </div>
+                              </>
+                            );
+                          })()}
+                        </div>
+                      </div>
                     </div>
+                    <div className="text-right ml-4">
+                      <p className="text-lg font-semibold text-gray-900">
+                        {formatCurrency(item.line_total_cents)}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}                    </div>
                     <div className="text-right">
                       <p className="text-lg font-semibold text-gray-900">
                         {formatCurrency(item.line_total_cents)}
