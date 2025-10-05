@@ -9,6 +9,16 @@ import { CheckCircle, Printer, Package, ArrowRight, Home } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useScrollToTop } from '@/components/ScrollToTop';
 
+// Helper function to calculate unit price from order data
+const calculateUnitPrice = (item: any) => {
+  if (calculateUnitPrice(item)) {
+    return calculateUnitPrice(item); // Cart data has unit_price_cents
+  }
+  // Order data needs calculation
+  const ropeCost = (item.rope_feet || 0) * 2 * item.quantity * 100;
+  const polePocketCost = item.pole_pockets ? Math.max(0, item.line_total_cents - ropeCost) * 0.1 : 0;
+  return (item.line_total_cents - ropeCost - polePocketCost) / item.quantity;
+};
 const OrderConfirmation: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -186,16 +196,16 @@ const OrderConfirmation: React.FC = () => {
                           <div className="space-y-1 text-sm">
                             <div className="flex justify-between">
                               <span className="text-gray-600">Base banner:</span>
-                              <span className="text-gray-900">{usd(item.unit_price_cents / 100)} × {item.quantity}</span>
+                              <span className="text-gray-900">{usd(calculateUnitPrice(item) / 100)} × {item.quantity}</span>
                             </div>
                             {item.rope_feet && item.rope_feet > 0 && (
                               <div className="flex justify-between">
                                 <span className="text-gray-600">Rope ({item.rope_feet.toFixed(1)}ft):</span>
-                                <span className="text-gray-900">{usd((item.rope_feet * 2 * item.quantity) / 100)}</span>
+                                <span className="text-gray-900">{usd(item.rope_feet * 2 * item.quantity)}</span>
                               </div>
                             )}
                             {(() => {
-                              const baseCost = item.unit_price_cents * item.quantity;
+                              const baseCost = calculateUnitPrice(item) * item.quantity;
                               const ropeCost = (item.rope_feet || 0) * 2 * item.quantity * 100;
                               const polePocketCost = item.line_total_cents - baseCost - ropeCost;
                               return polePocketCost > 0 ? (
@@ -217,7 +227,7 @@ const OrderConfirmation: React.FC = () => {
                           {usd(item.line_total_cents / 100)}
                         </p>
                         <p className="text-sm text-gray-600">
-                          Qty: {item.quantity} × {usd(item.unit_price_cents / 100)}
+                          Qty: {item.quantity} × {usd(calculateUnitPrice(item) / 100)}
                         </p>
                       </div>
                     </div>

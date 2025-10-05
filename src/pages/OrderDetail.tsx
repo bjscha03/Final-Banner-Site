@@ -212,31 +212,36 @@ const OrderDetail: React.FC = () => {
                       <div className="mt-3 p-3 bg-gray-50 rounded-lg">
                         <h5 className="text-sm font-medium text-gray-900 mb-2">Price Breakdown</h5>
                         <div className="space-y-1 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Base banner:</span>
-                            <span className="text-gray-900">{formatCurrency(item.unit_price_cents)} × {item.quantity}</span>
-                          </div>
-                          {item.rope_feet && item.rope_feet > 0 && (
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Rope ({item.rope_feet.toFixed(1)}ft):</span>
-                              <span className="text-gray-900">{formatCurrency((item.rope_feet * 2 * item.quantity) * 100)}</span>
-                            </div>
-                          )}
                           {(() => {
-                            const baseCost = item.unit_price_cents * item.quantity;
                             const ropeCost = (item.rope_feet || 0) * 2 * item.quantity * 100;
-                            const polePocketCost = item.line_total_cents - baseCost - ropeCost;
-                            return polePocketCost > 0 ? (
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Pole pockets:</span>
-                                <span className="text-gray-900">{formatCurrency(polePocketCost)}</span>
-                              </div>
-                            ) : null;
+                            const polePocketCost = item.pole_pockets ? Math.max(0, item.line_total_cents - ropeCost) * 0.1 : 0;
+                            const baseCost = item.line_total_cents - ropeCost - polePocketCost;
+                            const unitPrice = baseCost / item.quantity;
+                            return (
+                              <>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Base banner:</span>
+                                  <span className="text-gray-900">{formatCurrency(unitPrice)} × {item.quantity}</span>
+                                </div>
+                                {item.rope_feet && item.rope_feet > 0 && (
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-600">Rope ({item.rope_feet.toFixed(1)}ft):</span>
+                                    <span className="text-gray-900">{formatCurrency(ropeCost)}</span>
+                                  </div>
+                                )}
+                                {polePocketCost > 0 && (
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-600">Pole pockets:</span>
+                                    <span className="text-gray-900">{formatCurrency(polePocketCost)}</span>
+                                  </div>
+                                )}
+                                <div className="flex justify-between font-medium border-t border-gray-200 pt-1 mt-2">
+                                  <span className="text-gray-900">Line total:</span>
+                                  <span className="text-gray-900">{formatCurrency(item.line_total_cents)}</span>
+                                </div>
+                              </>
+                            );
                           })()}
-                          <div className="flex justify-between font-medium border-t border-gray-200 pt-1 mt-2">
-                            <span className="text-gray-900">Line total:</span>
-                            <span className="text-gray-900">{formatCurrency(item.line_total_cents)}</span>
-                          </div>
                         </div>
                       </div>                      </div>
                     </div>

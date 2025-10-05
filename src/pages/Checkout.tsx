@@ -221,7 +221,7 @@ const Checkout: React.FC = () => {
                               {item.rope_feet > 0 && (
                                 <div className="flex justify-between">
                                   <span className="text-gray-600">Rope ({item.rope_feet.toFixed(1)}ft):</span>
-                                  <span className="text-gray-900">{usd((item.rope_feet * 2) / 100)}</span>
+                                  <span className="text-gray-900">{usd(item.rope_feet * 2 * item.quantity)}</span>
                                 </div>
                               )}
                               {item.pole_pockets !== "none" && (
