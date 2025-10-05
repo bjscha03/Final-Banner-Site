@@ -35,7 +35,8 @@ export interface CartItem {
       seed?: number;
       draftPublicId: string;
     };
-    layers: {\n      headline?: string;
+    layers: {
+      headline?: string;
       subheadline?: string;
       cta?: string;
     };
