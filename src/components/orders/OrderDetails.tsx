@@ -50,7 +50,9 @@ const calculateUnitPrice = (item: any) => {
     return Math.round((setupFee + (linearFeet * pricePerLinearFoot * item.quantity)) * 100);
   })();
   return (item.line_total_cents - ropeCost - polePocketCost) / item.quantity;
-};interface OrderDetailsProps {
+};
+
+interface OrderDetailsProps {
   order: Order;
   trigger?: React.ReactNode;
 }

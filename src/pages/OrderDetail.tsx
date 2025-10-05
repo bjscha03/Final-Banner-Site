@@ -11,7 +11,7 @@ interface OrderItem {
   material: string;
   grommets: string;
   rope_feet: number;
-  pole_pockets: boolean;
+  pole_pockets: string;
   line_total_cents: number;
 }
 
@@ -154,7 +154,7 @@ const OrderDetail: React.FC = () => {
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">Order #{order.order_number}</h1>
+                <h1 className="text-2xl font-bold text-gray-900">Order #{order.id.slice(-8).toUpperCase()}</h1>
                 <p className="text-gray-600">Placed on {formatDate(order.created_at)}</p>
               </div>
               <div className="flex items-center space-x-2">

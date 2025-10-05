@@ -9,7 +9,7 @@ export interface OrderItem {
   material: MaterialKey;
   grommets?: string;
   rope_feet?: number;
-  area_sqft: number;
+  pole_pockets?: string;  area_sqft: number;
   unit_price_cents: number;
   line_total_cents: number;
   file_key?: string;
