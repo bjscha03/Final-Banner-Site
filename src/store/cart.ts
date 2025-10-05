@@ -221,9 +221,20 @@ export const useCartStore = create<CartState>()(
       },
       
       getTotals: () => {
-        return computeCartTotals(get().cart);
-      },
-      
+        const state = get();
+        if (!state.cart || !state.cart.items) {
+          return {
+            itemTotals: [],
+            subtotalCents: 0,
+            discountsCents: 0,
+            subtotalAfterDiscountsCents: 0,
+            taxCents: 0,
+            shippingCents: 0,
+            totalCents: 0,
+          };
+        }
+        return computeCartTotals(state.cart);
+      },      
       getSubtotalCents: () => {
         return get().getTotals().subtotalCents;
       },
@@ -254,9 +265,18 @@ export const useCartStore = create<CartState>()(
       name: 'cart-storage',
       version: 2, // Increment version to trigger migration
       migrate: (persistedState: any, version: number) => {
-        if (version < 2) {
+        if (!persistedState) {
+          return {
+            cart: {
+              items: [],
+              shippingCents: 0,
+              taxRatePct: 6,
+              discountsCents: 0,
+            }
+          };
+        }        if (version < 2) {
           // Migrate from legacy cart structure
-          const legacyItems = persistedState.items || [];
+          const legacyItems = persistedState?.items || [];
           const migratedItems = legacyItems.map(migrateLegacyCartItem);
           
           return {
