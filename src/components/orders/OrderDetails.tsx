@@ -19,16 +19,10 @@ import {
 // Helper function to calculate unit price from order data
 const calculateUnitPrice = (item: any) => {
   if (item.unit_price_cents) {
-  console.log("🔍 DEBUG OrderDetails calculateUnitPrice - Full item data:", item);
-  console.log("🔍 DEBUG OrderDetails - item.unit_price_cents:", item.unit_price_cents);
-  console.log("🔍 DEBUG OrderDetails - item.line_total_cents:", item.line_total_cents);
-  console.log("🔍 DEBUG OrderDetails - item.rope_feet:", item.rope_feet);
-  console.log("🔍 DEBUG OrderDetails - item.pole_pockets:", item.pole_pockets);
-  console.log("�� DEBUG OrderDetails - item.width_in:", item.width_in);
-  console.log("🔍 DEBUG OrderDetails - item.height_in:", item.height_in);    return item.unit_price_cents; // Cart data has unit_price_cents
+    return item.unit_price_cents; // Cart data has unit_price_cents
   }
   // Order data needs calculation
-    console.log("🔍 DEBUG OrderDetails - Using stored unit_price_cents:", item.unit_price_cents);  const ropeCost = (item.rope_feet || 0) * 2 * item.quantity * 100;
+  const ropeCost = (item.rope_feet || 0) * 2 * item.quantity * 100;
   const polePocketCost = 0; // Will be calculated separately using reverse calculation
   return (item.line_total_cents - ropeCost - polePocketCost) / item.quantity;    }
     
@@ -284,11 +278,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                           )}
                           {(() => {
                             const baseCost = calculateUnitPrice(item) * item.quantity;
-                            console.log("🔍 DEBUG OrderDetails DISPLAY - calculateUnitPrice result:", calculateUnitPrice(item));
-                            console.log("🔍 DEBUG OrderDetails DISPLAY - baseCost:", baseCost);
-                            console.log("🔍 DEBUG OrderDetails DISPLAY - ropeCost:", ropeCost);
-                            console.log("🔍 DEBUG OrderDetails DISPLAY - line_total_cents:", item.line_total_cents);
-                            console.log("🔍 DEBUG OrderDetails DISPLAY - polePocketCost:", polePocketCost);                            const ropeCost = (item.rope_feet || 0) * 2 * item.quantity * 100;
+                            const ropeCost = (item.rope_feet || 0) * 2 * item.quantity * 100;
                             const polePocketCost = item.line_total_cents - baseCost - ropeCost;                            return polePocketCost > 0 ? (
                               <div className="flex justify-between">
                                 <span className="text-gray-600">Pole pockets:</span>
