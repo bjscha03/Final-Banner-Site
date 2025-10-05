@@ -130,7 +130,7 @@ export default function OrderConfirmation({ order, invoiceUrl }: OrderConfirmati
                   const itemName = item.name + (item.size ? ` ${item.size}` : "");
                   
                   // Check if we have cost breakdown data
-                  const hasBreakdown = item.unitPriceCents && (item.ropeFeet > 0 || item.polePocketCostCents > 0);
+                  const hasBreakdown = item.unitPriceCents && item.unitPriceCents > 0; // Show breakdown if we have base banner price
                   
                   return (
                     <div key={index} style={itemRow}>
