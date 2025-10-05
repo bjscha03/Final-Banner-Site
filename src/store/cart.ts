@@ -104,7 +104,7 @@ export const useCartStore = create<CartState>()(
               linearFeet = 0;
           }
 
-          return Math.round((setupFee + (linearFeet * pricePerLinearFoot * quote.quantity)) * 100);
+          return Math.round((setupFee + (linearFeet * pricePerLinearFoot)) * quote.quantity * 100);
         })();
 
         const lineTotalCents = unitPriceCents * quote.quantity + ropeCostCents + polePocketCostCents;
