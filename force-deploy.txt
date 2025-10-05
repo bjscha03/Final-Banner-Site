@@ -1,1 +1,1 @@
-PDF upload fixes deployed Sat Oct  4 07:47:35 EDT 2025
+Sun Oct  5 18:02:58 EDT 2025: Force deployment after pole pocket pricing fix
