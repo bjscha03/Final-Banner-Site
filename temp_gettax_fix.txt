@@ -1,0 +1,14 @@
+      getTaxCents: () => {
+        const flags = getFeatureFlags();
+        const items = get().items.map(ensureLineTotalCents); // Ensure all items have valid line_total_cents
+
+        if (flags.freeShipping || flags.minOrderFloor) {
+          const pricingOptions = getPricingOptions();
+          const pricingItems: PricingItem[] = items.map(item => ({ line_total_cents: item.line_total_cents }));
+          const totals = computeTotals(pricingItems, 0.06, pricingOptions);
+          return totals.tax_cents;
+        }
+
+        const subtotal = get().getSubtotalCents();
+        return Math.round(calculateTax(subtotal / 100) * 100);
+      },

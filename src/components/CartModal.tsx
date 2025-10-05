@@ -3,6 +3,30 @@ import { X, Trash2, Plus, Minus, ShoppingBag, Package, FileText } from 'lucide-r
 import { useNavigate } from 'react-router-dom';
 import { useCartStore, CartItem } from '@/store/cart';
 import { usd } from '@/lib/pricing';
+
+// Helper function to ensure cart items have valid line_total_cents
+const ensureLineTotalCents = (item: CartItem): CartItem => {
+  if (item.line_total_cents && !isNaN(item.line_total_cents)) {
+    return item; // Already has valid line_total_cents
+  }
+
+  // Calculate line_total_cents for legacy items or items with invalid values
+  const baseCost = item.unit_price_cents * item.quantity;
+  const ropeCost = item.rope_feet * 2 * item.quantity * 100;
+  
+  // Pole pocket scaling: setup fee ($15) + linear foot costs that scale with quantity
+  const setupFeeCents = 1500; // $15.00 setup fee (doesn't scale)
+  const originalLinearCostCents = Math.max(0, item.pole_pocket_cost_cents - setupFeeCents);
+  const scaledPolePocketCost = setupFeeCents + (originalLinearCostCents * item.quantity);
+  
+  const calculatedLineTotalCents = Math.round(baseCost + ropeCost + scaledPolePocketCost);
+  
+  return {
+    ...item,
+    line_total_cents: calculatedLineTotalCents
+  };
+};
+
 interface CartModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -69,7 +93,7 @@ const CartModal: React.FC<CartModalProps> = ({
               </div>
             ) : (
               <div className="space-y-4">
-                {items.map((item) => (
+                {items.map(ensureLineTotalCents).map((item) => (
                   <div key={item.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
                     <div className="flex gap-3">
                       {/* Thumbnail */}
@@ -182,10 +206,10 @@ const CartModal: React.FC<CartModalProps> = ({
                           </div>
                           <div className="text-right">
                             <p className="font-bold text-gray-900 text-sm">
-                              ${(item.line_total_cents / 100).toFixed(2)}
+                              ${(item.price * item.quantity).toFixed(2)}
                             </p>
                             <p className="text-xs text-gray-500">
-                              ${(item.line_total_cents / item.quantity / 100).toFixed(2)} each
+                              ${item.price.toFixed(2)} each
                             </p>
                           </div>
                         </div>
