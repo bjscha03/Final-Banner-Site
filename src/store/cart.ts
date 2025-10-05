@@ -1,1 +1,212 @@
-import { create } from 'zustand';\nimport { persist } from 'zustand/middleware';\nimport { QuoteState, MaterialKey, Grommets } from './quote';\nimport { calculateTax, calculateTotalWithTax, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';\n\nexport interface CartItem {\n  id: string;\n  width_in: number;\n  height_in: number;\n  quantity: number;\n  material: MaterialKey;\n  grommets: Grommets;\n  pole_pockets: string;\n  rope_feet: number;\n  area_sqft: number;\n  unit_price_cents: number;\n  line_total_cents: number;\n  file_key?: string;\n  file_name?: string;\n  file_url?: string;\n  aiDesign?: {\n    prompt: string;\n    styles: string[];\n    colors: string[];\n    size: { wIn: number; hIn: number };\n    material: string;\n    options: {\n      grommets: string;\n      polePockets: string;\n      addRope: boolean;\n    };\n    ai: {\n      provider: string;\n      seed?: number;\n      draftPublicId: string;\n    };\n    layers: {\n      headline?: string;\n      subheadline?: string;\n      cta?: string;\n    };\n    assets: {\n      proofUrl: string;\n      finalUrl?: string;\n    };\n  };\n  created_at: string;\n}\n\nexport interface CartState {\n  items: CartItem[];\n  addFromQuote: (quote: QuoteState, aiMetadata?: any) => void;\n  updateQuantity: (id: string, quantity: number) => void;\n  removeItem: (id: string) => void;\n  clearCart: () => void;\n  getSubtotalCents: () => number;\n  getTaxCents: () => number;\n  getTotalCents: () => number;\n  getItemCount: () => number;\n}\n\nexport const useCartStore = create<CartState>()(\n  persist(\n    (set, get) => ({\n      items: [],\n      \n      addFromQuote: (quote: QuoteState, aiMetadata?: any) => {\n        const area = (quote.widthIn * quote.heightIn) / 144;\n        const pricePerSqFt = {\n          '13oz': 4.5,\n          '15oz': 6.0,\n          '18oz': 7.5,\n          'mesh': 6.0\n        }[quote.material];\n\n        const unitPriceCents = Math.round(area * pricePerSqFt * 100);\n        const ropeFeet = quote.addRope ? quote.widthIn / 12 : 0;\n        const ropeCostCents = Math.round(ropeFeet * 2 * quote.quantity * 100);\n        \n        const polePocketCostCents = (() => {\n          if (quote.polePockets === 'none') return 0;\n\n          const setupFee = 15.00;\n          const pricePerLinearFoot = 2.00;\n\n          let linearFeet = 0;\n          switch (quote.polePockets) {\n            case 'top':\n            case 'bottom':\n              linearFeet = quote.widthIn / 12;\n              break;\n            case 'left':\n            case 'right':\n              linearFeet = quote.heightIn / 12;\n              break;\n            case 'top-bottom':\n              linearFeet = (quote.widthIn / 12) * 2;\n              break;\n            default:\n              linearFeet = 0;\n          }\n\n          return Math.round((setupFee + (linearFeet * pricePerLinearFoot * quote.quantity)) * 100);\n        })();\n\n        const lineTotalCents = unitPriceCents * quote.quantity + ropeCostCents + polePocketCostCents;\n        \n        const fileKey = quote.file?.fileKey;\n\n        const newItem: CartItem = {\n          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,\n          width_in: quote.widthIn,\n          height_in: quote.heightIn,\n          quantity: quote.quantity,\n          material: quote.material,\n          grommets: quote.grommets,\n          pole_pockets: quote.polePockets,\n          rope_feet: ropeFeet,\n          area_sqft: area,\n          unit_price_cents: unitPriceCents,\n          line_total_cents: lineTotalCents,\n          file_key: fileKey,\n          file_name: quote.file?.name,\n          file_url: quote.file?.url,\n          created_at: new Date().toISOString(),\n          ...(aiMetadata || {})\n        };\n        \n        set((state) => ({\n          items: [...state.items, newItem]\n        }));\n      },\n      \n      updateQuantity: (id: string, quantity: number) => {\n        set((state) => ({\n          items: state.items.map(item => \n            item.id === id \n              ? { \n                  ...item, \n                  quantity,\n                  line_total_cents: Math.round((item.unit_price_cents * quantity) + (item.rope_feet * 2 * quantity * 100))\n                }\n              : item\n          )\n        }));\n      },\n      \n      removeItem: (id: string) => {\n        set((state) => ({\n          items: state.items.filter(item => item.id !== id)\n        }));\n      },\n      \n      clearCart: () => {\n        set({ items: [] });\n      },\n      \n      getSubtotalCents: () => {\n        const flags = getFeatureFlags();\n        const items = get().items;\n\n        if (flags.freeShipping || flags.minOrderFloor) {\n          const pricingOptions = getPricingOptions();\n          const pricingItems: PricingItem[] = items.map(item => ({ line_total_cents: item.line_total_cents }));\n          const totals = computeTotals(pricingItems, 0.06, pricingOptions);\n          return totals.adjusted_subtotal_cents;\n        }\n\n        return items.reduce((total, item) => total + item.line_total_cents, 0);\n      },\n\n      getTaxCents: () => {\n        const flags = getFeatureFlags();\n        const items = get().items;\n\n        if (flags.freeShipping || flags.minOrderFloor) {\n          const pricingOptions = getPricingOptions();\n          const pricingItems: PricingItem[] = items.map(item => ({ line_total_cents: item.line_total_cents }));\n          const totals = computeTotals(pricingItems, 0.06, pricingOptions);\n          return totals.tax_cents;\n        }\n\n        const subtotal = get().getSubtotalCents();\n        return Math.round(calculateTax(subtotal / 100) * 100);\n      },\n\n      getTotalCents: () => {\n        const flags = getFeatureFlags();\n        const items = get().items;\n\n        if (flags.freeShipping || flags.minOrderFloor) {\n          const pricingOptions = getPricingOptions();\n          const pricingItems: PricingItem[] = items.map(item => ({ line_total_cents: item.line_total_cents }));\n          const totals = computeTotals(pricingItems, 0.06, pricingOptions);\n          return totals.total_cents;\n        }\n\n        const subtotal = get().getSubtotalCents();\n        return Math.round(calculateTotalWithTax(subtotal / 100) * 100);\n      },\n\n      getItemCount: () => {\n        return get().items.reduce((total, item) => total + item.quantity, 0);\n      }\n    }),\n    {\n      name: 'cart-storage'\n    }\n  )\n);
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+import { QuoteState, MaterialKey, Grommets } from './quote';
+import { calculateTax, calculateTotalWithTax, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
+
+export interface CartItem {
+  id: string;
+  width_in: number;
+  height_in: number;
+  quantity: number;
+  material: MaterialKey;
+  grommets: Grommets;
+  pole_pockets: string;
+  rope_feet: number;
+  area_sqft: number;
+  unit_price_cents: number;
+  line_total_cents: number;
+  file_key?: string;
+  file_name?: string;
+  file_url?: string;
+  // AI Design metadata (optional)
+  aiDesign?: {
+    prompt: string;
+    styles: string[];
+    colors: string[];
+    size: { wIn: number; hIn: number };
+    material: string;
+    options: {
+      grommets: string;
+      polePockets: string;
+      addRope: boolean;
+    };
+    ai: {
+      provider: string;
+      seed?: number;
+      draftPublicId: string;
+    };
+    layers: {\n      headline?: string;
+      subheadline?: string;
+      cta?: string;
+    };
+    assets: {
+      proofUrl: string;
+      finalUrl?: string;
+    };
+  };
+  created_at: string;
+}
+
+export interface CartState {
+  items: CartItem[];
+  addFromQuote: (quote: QuoteState, aiMetadata?: any) => void;
+  updateQuantity: (id: string, quantity: number) => void;
+  removeItem: (id: string) => void;
+  clearCart: () => void;
+  getSubtotalCents: () => number;
+  getTaxCents: () => number;
+  getTotalCents: () => number;
+  getItemCount: () => number;
+}
+
+export const useCartStore = create<CartState>()(
+  persist(
+    (set, get) => ({
+      items: [],
+      
+      addFromQuote: (quote: QuoteState, aiMetadata?: any) => {
+        const area = (quote.widthIn * quote.heightIn) / 144;
+        const pricePerSqFt = {
+          '13oz': 4.5,
+          '15oz': 6.0,
+          '18oz': 7.5,
+          'mesh': 6.0
+        }[quote.material];
+
+        const unitPriceCents = Math.round(area * pricePerSqFt * 100);
+        const ropeFeet = quote.addRope ? quote.widthIn / 12 : 0;
+        const ropeCostCents = Math.round(ropeFeet * 2 * quote.quantity * 100);
+        
+        // Calculate pole pocket cost
+        const polePocketCostCents = (() => {
+          if (quote.polePockets === 'none') return 0;
+
+          const setupFee = 15.00;
+          const pricePerLinearFoot = 2.00;
+
+          let linearFeet = 0;
+          switch (quote.polePockets) {
+            case 'top':
+            case 'bottom':
+              linearFeet = quote.widthIn / 12;
+              break;
+            case 'left':
+            case 'right':
+              linearFeet = quote.heightIn / 12;
+              break;
+            case 'top-bottom':
+              linearFeet = (quote.widthIn / 12) * 2;
+              break;
+            default:
+              linearFeet = 0;
+          }
+
+          return Math.round((setupFee + (linearFeet * pricePerLinearFoot * quote.quantity)) * 100);
+        })();
+
+        const lineTotalCents = unitPriceCents * quote.quantity + ropeCostCents + polePocketCostCents;
+        
+        // Use the file key from the uploaded file
+        const fileKey = quote.file?.fileKey;
+
+        const newItem: CartItem = {
+          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          width_in: quote.widthIn,
+          height_in: quote.heightIn,
+          quantity: quote.quantity,
+          material: quote.material,
+          grommets: quote.grommets,
+          pole_pockets: quote.polePockets,
+          rope_feet: ropeFeet,
+          area_sqft: area,
+          unit_price_cents: unitPriceCents,
+          line_total_cents: lineTotalCents,
+          file_key: fileKey,
+          file_name: quote.file?.name,
+          file_url: quote.file?.url,
+          created_at: new Date().toISOString(),
+          ...(aiMetadata || {}),
+        };
+        
+        set((state) => ({
+          items: [...state.items, newItem]
+        }));
+      },
+      
+      updateQuantity: (id: string, quantity: number) => {
+        set((state) => ({
+          items: state.items.map(item => 
+            item.id === id 
+              ? { 
+                  ...item, 
+                  quantity,
+                  line_total_cents: Math.round((item.unit_price_cents * quantity) + (item.rope_feet * 2 * quantity * 100))
+                }
+              : item
+          )
+        }));
+      },
+      
+      removeItem: (id: string) => {
+        set((state) => ({
+          items: state.items.filter(item => item.id !== id)
+        }));
+      },
+      
+      clearCart: () => {
+        set({ items: [] });
+      },
+      
+      getSubtotalCents: () => {
+        const flags = getFeatureFlags();
+        const items = get().items;
+
+        if (flags.freeShipping || flags.minOrderFloor) {
+          const pricingOptions = getPricingOptions();
+          const pricingItems: PricingItem[] = items.map(item => ({ line_total_cents: item.line_total_cents }));
+          const totals = computeTotals(pricingItems, 0.06, pricingOptions);
+          return totals.adjusted_subtotal_cents;
+        }
+
+        return items.reduce((total, item) => total + item.line_total_cents, 0);
+      },
+
+      getTaxCents: () => {
+        const flags = getFeatureFlags();
+        const items = get().items;
+
+        if (flags.freeShipping || flags.minOrderFloor) {
+          const pricingOptions = getPricingOptions();
+          const pricingItems: PricingItem[] = items.map(item => ({ line_total_cents: item.line_total_cents }));
+          const totals = computeTotals(pricingItems, 0.06, pricingOptions);
+          return totals.tax_cents;
+        }
+
+        const subtotal = get().getSubtotalCents();
+        return Math.round(calculateTax(subtotal / 100) * 100);
+      },
+
+      getTotalCents: () => {
+        const flags = getFeatureFlags();
+        const items = get().items;
+
+        if (flags.freeShipping || flags.minOrderFloor) {
+          const pricingOptions = getPricingOptions();
+          const pricingItems: PricingItem[] = items.map(item => ({ line_total_cents: item.line_total_cents }));
+          const totals = computeTotals(pricingItems, 0.06, pricingOptions);
+          return totals.total_cents;
+        }
+
+        const subtotal = get().getSubtotalCents();
+        return Math.round(calculateTotalWithTax(subtotal / 100) * 100);
+      },
+
+      getItemCount: () => {
+        return get().items.reduce((total, item) => total + item.quantity, 0);
+      }
+    }),
+    {
+      name: 'cart-storage',
+    }
+  )
+);
