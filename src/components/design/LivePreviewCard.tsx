@@ -117,11 +117,19 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     let previewUrl = '';
     let artworkWidth = 0;
     let artworkHeight = 0;
+    let fileToUpload: File | Blob = file;
+    let uploadFileName = file.name;
 
     try {
       if (isPdf) {
-        // Handle PDF files
+        // Handle PDF files - convert to high-quality JPEG
         setIsRenderingPdf(true);
+        
+        console.log('📄 Processing PDF file:', {
+          fileName: file.name,
+          fileSize: `${Math.round(file.size / 1024 / 1024 * 100) / 100}MB`,
+          bannerSize: `${widthIn}" x ${heightIn}"`
+        });
         
         const pdfResult = await loadPdfToBitmap(file, {
           bannerWidthInches: widthIn,
@@ -136,10 +144,31 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         artworkWidth = pdfResult.width;
         artworkHeight = pdfResult.height;
         
+        // Convert blob URL to actual Blob for upload
+        const response = await fetch(pdfResult.blobUrl);
+        const blob = await response.blob();
+        
+        // Create a File object from the blob for upload
+        uploadFileName = file.name.replace(/\.pdf$/i, '.jpg');
+        fileToUpload = new File([blob], uploadFileName, { type: 'image/jpeg' });
+        
+        console.log('✅ PDF converted to JPEG:', {
+          originalSize: `${Math.round(file.size / 1024 / 1024 * 100) / 100}MB`,
+          convertedSize: `${Math.round(fileToUpload.size / 1024 / 1024 * 100) / 100}MB`,
+          dimensions: `${artworkWidth}x${artworkHeight}px`,
+          actualDPI: pdfResult.actualDPI
+        });
+        
         setIsRenderingPdf(false);
       } else {
         // Handle regular image files
         previewUrl = URL.createObjectURL(file);
+        
+        console.log('🖼️ Processing image file:', {
+          fileName: file.name,
+          fileSize: `${Math.round(file.size / 1024 / 1024 * 100) / 100}MB`,
+          fileType: file.type
+        });
       }
 
       // For local development, skip server upload and use local preview
@@ -150,19 +179,21 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         result = {
           success: true,
           fileUrl: previewUrl, // Use the local blob URL
-          fileName: file.name,
-          fileSize: file.size,
+          fileName: uploadFileName,
+          fileSize: fileToUpload.size,
           uploadedAt: new Date().toISOString(),
           message: 'Local development - using client-side preview'
         };
       } else {
         // Production - upload to server
         const form = new FormData();
-        form.append("file", file);
-        console.log("�� Starting upload to server...", {
-          fileName: file.name,
-          fileSize: file.size,
-          fileType: file.type
+        form.append("file", fileToUpload);
+        
+        console.log("🚀 Starting upload to server...", {
+          fileName: uploadFileName,
+          fileSize: `${Math.round(fileToUpload.size / 1024 / 1024 * 100) / 100}MB`,
+          fileType: fileToUpload.type,
+          isPdf: isPdf
         });
         
         const response = await fetch("/.netlify/functions/upload-file", {
@@ -183,15 +214,33 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
             statusText: response.statusText,
             errorBody: errorText
           });
-          throw new Error(`Upload failed (${response.status}): ${errorText || response.statusText}`);
+          
+          // Provide more specific error messages
+          let errorMessage = "Failed to upload file. Please try again.";
+          if (response.status === 413) {
+            errorMessage = "File is too large. Please use a smaller file or lower resolution PDF.";
+          } else if (response.status === 415) {
+            errorMessage = "File type not supported. Please use PDF, JPG, or PNG.";
+          } else if (response.status === 400) {
+            errorMessage = "Invalid file format. Please check your file and try again.";
+          } else if (response.status >= 500) {
+            errorMessage = "Server error. Please try again in a moment.";
+          }
+          
+          throw new Error(errorMessage);
         }
 
         result = await response.json();
-        console.log("✅ Upload successful:", result);      }
+        console.log("✅ Upload successful:", {
+          fileKey: result.fileKey,
+          secureUrl: result.secureUrl ? 'present' : 'missing'
+        });
+      }
+      
       set({
         file: {
           name: file.name,
-          type: file.type,
+          type: isPdf ? 'application/pdf' : file.type,
           size: file.size,
           url: previewUrl,
           isPdf,
@@ -204,13 +253,28 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       });
       
       setIsUploading(false);
+      
+      // Show success toast
+      toast({
+        title: "Upload Successful",
+        description: isPdf 
+          ? `PDF converted and uploaded successfully (${Math.round(fileToUpload.size / 1024 / 1024 * 100) / 100}MB)`
+          : "Image uploaded successfully",
+      });
+      
     } catch (uploadError) {
       console.error('File upload error:', uploadError);
       setIsUploading(false);
       setIsRenderingPdf(false);
+      
+      // Extract error message
+      const errorMessage = uploadError instanceof Error 
+        ? uploadError.message 
+        : (isPdf ? "Failed to process PDF file. Please try again." : "Failed to upload file. Please try again.");
+      
       toast({
         title: "Upload Error",
-        description: isPdf ? "Failed to process PDF file. Please try again." : "Failed to upload file. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     }
