@@ -737,6 +737,8 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     
     const handleTouchEnd = () => {
       setIsDraggingImage(false);
+      setIsResizingImage(false);
+      setResizeHandle(null);
     };
     
     if (isDraggingImage || isResizingImage) {
@@ -752,7 +754,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         document.removeEventListener("touchend", handleTouchEnd);
       };
     }
-  }, [isDraggingImage, isResizingImage, dragStart, initialImagePosition]);
+  }, [isDraggingImage, isResizingImage, dragStart, initialImagePosition, initialImageScale, imagePosition, imageScale, resizeHandle, widthIn, heightIn]);
 
 
   return (
