@@ -715,33 +715,41 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       const deltaY = e.clientY - dragStart.y;
       
       if (isDraggingImage) {
-        // Improved drag sensitivity - convert pixel movement to banner coordinate system
-        // Position is multiplied by 0.01 in rendering, so we need 100x sensitivity
-        const sensitivity = 150; // FIXED: Much higher sensitivity to account for 0.01 multiplier
-        const maxMove = Math.max(widthIn, heightIn) * 40; // FIXED: Bounds in position units (will be * 0.01)
+        // Smooth, fluid dragging with 1:1 pixel movement
+        // Position is multiplied by 0.01 in rendering, so we multiply by 100 for storage
+        const sensitivity = 100; // 1:1 pixel movement (100 storage units = 1 SVG unit)
+        
+        // Generous bounds - allow image to move far beyond visible area for flexibility
+        // This prevents snapping and allows free positioning
+        const maxMove = Math.max(widthIn, heightIn) * 100; // Very generous bounds
+        
         const newX = Math.max(-maxMove, Math.min(maxMove, initialImagePosition.x + (deltaX * sensitivity)));
         const newY = Math.max(-maxMove, Math.min(maxMove, initialImagePosition.y + (deltaY * sensitivity)));
         setImagePosition({ x: newX, y: newY });
       } else if (isResizingImage && resizeHandle) {
-        // Handle proportional resizing based on corner handle
-        // Higher sensitivity for smooth resizing
-        const sensitivity = 0.002; // Smooth resize sensitivity
+        // Smooth, centered resizing - image scales from center point
+        // Lower sensitivity for fine control, like professional design tools
+        const sensitivity = 0.0015; // Smooth, precise resize sensitivity
         let scaleChange = 0;
 
         // Calculate scale change based on handle direction
-        // SE and NW: drag right/down to grow, left/up to shrink
-        // NE and SW: drag right/up to grow, left/down to shrink
+        // All handles scale from center - drag away from center to grow
         if (resizeHandle === 'se') {
+          // Southeast: drag right/down to grow
           scaleChange = (deltaX + deltaY) * sensitivity;
         } else if (resizeHandle === 'nw') {
+          // Northwest: drag left/up to grow (away from center)
           scaleChange = -(deltaX + deltaY) * sensitivity;
         } else if (resizeHandle === 'ne') {
+          // Northeast: drag right/up to grow
           scaleChange = (deltaX - deltaY) * sensitivity;
         } else if (resizeHandle === 'sw') {
+          // Southwest: drag left/down to grow
           scaleChange = -(deltaX - deltaY) * sensitivity;
         }
 
-        const newScale = Math.max(0.2, Math.min(3, initialImageScale + scaleChange));
+        // Generous scale limits - allow very small to very large
+        const newScale = Math.max(0.1, Math.min(5, initialImageScale + scaleChange));
         console.log(`🔄 Resizing ${resizeHandle}: delta=(${deltaX.toFixed(0)}, ${deltaY.toFixed(0)}), scaleChange=${scaleChange.toFixed(3)}, newScale=${newScale.toFixed(3)}`);
         setImageScale(newScale);
       }
@@ -762,15 +770,15 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       const deltaY = touch.clientY - dragStart.y;
 
       if (isDraggingImage) {
-        // Match mouse drag sensitivity
-        const sensitivity = 150;
-        const maxMove = Math.max(widthIn, heightIn) * 40;
+        // Match mouse drag sensitivity - smooth 1:1 movement
+        const sensitivity = 100;
+        const maxMove = Math.max(widthIn, heightIn) * 100; // Very generous bounds
         const newX = Math.max(-maxMove, Math.min(maxMove, initialImagePosition.x + (deltaX * sensitivity)));
         const newY = Math.max(-maxMove, Math.min(maxMove, initialImagePosition.y + (deltaY * sensitivity)));
         setImagePosition({ x: newX, y: newY });
       } else if (isResizingImage && resizeHandle) {
-        // Match mouse resize sensitivity
-        const sensitivity = 0.002;
+        // Match mouse resize sensitivity - smooth, centered scaling
+        const sensitivity = 0.0015;
         let scaleChange = 0;
 
         if (resizeHandle === 'se') {
@@ -783,7 +791,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
           scaleChange = -(deltaX - deltaY) * sensitivity;
         }
 
-        const newScale = Math.max(0.2, Math.min(3, initialImageScale + scaleChange));
+        const newScale = Math.max(0.1, Math.min(5, initialImageScale + scaleChange));
         console.log(`🔄 Resizing ${resizeHandle}: delta=(${deltaX.toFixed(0)}, ${deltaY.toFixed(0)}), scaleChange=${scaleChange.toFixed(3)}, newScale=${newScale.toFixed(3)}`);
         setImageScale(newScale);
       }
