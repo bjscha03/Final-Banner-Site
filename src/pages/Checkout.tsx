@@ -218,18 +218,28 @@ const Checkout: React.FC = () => {
                             <div className="space-y-1 text-sm">
                               <div className="flex justify-between">
                                 <span className="text-gray-600">Base banner:</span>
-                                <span className="text-gray-900">{usd(item.unit_price_cents / 100)}  {item.quantity}</span>
+                                <span className="text-gray-900">{usd(item.unit_price_cents / 100)} × {item.quantity}</span>
                               </div>
-                              {item.rope_feet > 0 && (
+                              {(item.rope_cost_cents || 0) > 0 && (
                                 <div className="flex justify-between">
-                                  <span className="text-gray-600">Rope ({item.rope_feet.toFixed(1)}ft):</span>
-                                  <span className="text-gray-900">{usd(item.rope_feet * 2 * item.quantity)}</span>
+                                  <span className="text-gray-600">Rope{item.rope_pricing_mode === 'per_item' ? ` (${item.rope_feet?.toFixed(1)}ft)` : ''}:</span>
+                                  <span className="text-gray-900">
+                                    {item.rope_pricing_mode === 'per_item'
+                                      ? `${usd(((item.rope_cost_cents || 0) / Math.max(1, item.quantity)) / 100)} × ${item.quantity} = ${usd(((item.rope_cost_cents || 0)) / 100)}`
+                                      : usd(((item.rope_cost_cents || 0)) / 100)
+                                    }
+                                  </span>
                                 </div>
                               )}
-                              {item.pole_pockets !== "none" && (
+                              {item.pole_pockets !== "none" && (item.pole_pocket_cost_cents || 0) > 0 && (
                                 <div className="flex justify-between">
                                   <span className="text-gray-600">Pole pockets:</span>
-                                  <span className="text-gray-900">{usd((item.line_total_cents - item.unit_price_cents * item.quantity - (item.rope_feet * 2 * item.quantity * 100)) / 100)}</span>
+                                  <span className="text-gray-900">
+                                    {item.pole_pocket_pricing_mode === 'per_item'
+                                      ? `${usd(((item.pole_pocket_cost_cents || 0) / Math.max(1, item.quantity)) / 100)} × ${item.quantity} = ${usd(((item.pole_pocket_cost_cents || 0)) / 100)}`
+                                      : usd(((item.pole_pocket_cost_cents || 0)) / 100)
+                                    }
+                                  </span>
                                 </div>
                               )}
                               <div className="flex justify-between font-medium border-t border-gray-200 pt-1 mt-2">
@@ -243,7 +253,7 @@ const Checkout: React.FC = () => {
                             {usd(item.line_total_cents / 100)}
                           </p>
                           <p className="text-sm text-gray-600">
-                            {usd(item.unit_price_cents / 100)} each
+                            {usd(((item.line_total_cents - ((item.rope_pricing_mode === 'per_order' ? (item.rope_cost_cents || 0) : 0) + (item.pole_pocket_pricing_mode === 'per_order' ? (item.pole_pocket_cost_cents || 0) : 0))) / Math.max(1, item.quantity)) / 100)} each
                           </p>
                         </div>
                       </div>
