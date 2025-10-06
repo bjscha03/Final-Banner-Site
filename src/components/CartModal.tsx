@@ -22,47 +22,23 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, items, onUpdateQ
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  // Helper to compute rope cost with backward compatibility
-  const getRopeCost = (item: CartItem): number => {
-    // New items have rope_cost_cents stored
-    if (item.rope_cost_cents !== undefined && item.rope_cost_cents !== null) {
-      return item.rope_cost_cents;
-    }
-    // Old items: compute from rope_feet
-    if (item.rope_feet && item.rope_feet > 0) {
-      return Math.round(item.rope_feet * 2 * item.quantity * 100);
-    }
-    return 0;
-  };
-
-  // Helper to compute pole pocket cost with backward compatibility
-  const getPolePocketCost = (item: CartItem): number => {
-    // New items have pole_pocket_cost_cents stored
-    if (item.pole_pocket_cost_cents !== undefined && item.pole_pocket_cost_cents !== null) {
-      return item.pole_pocket_cost_cents;
-    }
-    // Old items: derive from line_total_cents
-    if (item.pole_pockets && item.pole_pockets !== 'none') {
-      const baseTotal = item.unit_price_cents * item.quantity;
-      const ropeTotal = getRopeCost(item);
-      const pocketTotal = Math.max(0, item.line_total_cents - baseTotal - ropeTotal);
-      return pocketTotal;
-    }
-    return 0;
-  };
-
   // Compute "each" price
   const computeEach = (item: CartItem): number => {
     const ropeMode = item.rope_pricing_mode || 'per_item';
     const pocketMode = item.pole_pocket_pricing_mode || 'per_item';
-    const ropeCost = getRopeCost(item);
-    const pocketCost = getPolePocketCost(item);
+    const ropeCost = item.rope_cost_cents || 0;
+    const pocketCost = item.pole_pocket_cost_cents || 0;
     
     // Subtract per-order costs from line total, then divide by quantity
     const perOrderCosts = (ropeMode === 'per_order' ? ropeCost : 0) + (pocketMode === 'per_order' ? pocketCost : 0);
     const each = Math.round((item.line_total_cents - perOrderCosts) / Math.max(1, item.quantity));
     return each;
   };
+
+  // Calculate totals
+  const subtotal = items.reduce((sum, item) => sum + item.line_total_cents, 0);
+  const tax = Math.round(subtotal * 0.06);
+  const total = subtotal + tax;
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
@@ -95,8 +71,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, items, onUpdateQ
                   const eachCents = computeEach(item);
                   const ropeMode = item.rope_pricing_mode || 'per_item';
                   const pocketMode = item.pole_pocket_pricing_mode || 'per_item';
-                  const ropeCost = getRopeCost(item);
-                  const pocketCost = getPolePocketCost(item);
+                  const ropeCost = item.rope_cost_cents || 0;
+                  const pocketCost = item.pole_pocket_cost_cents || 0;
                   const ropeEach = item.quantity > 0 ? Math.round(ropeCost / item.quantity) : 0;
                   const pocketEach = item.quantity > 0 ? Math.round(pocketCost / item.quantity) : 0;
 
@@ -181,7 +157,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, items, onUpdateQ
             <div className="border-t p-6 space-y-2">
               <div className="flex justify-between">
                 <span>Subtotal:</span>
-                <span>{usd(items.reduce((s, it) => s + it.line_total_cents, 0)/100)}</span>
+                <span>{usd(subtotal/100)}</span>
               </div>
               <div className="flex justify-between text-green-600 font-medium">
                 <span>Shipping:</span>
@@ -189,11 +165,11 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, items, onUpdateQ
               </div>
               <div className="flex justify-between">
                 <span>Tax (6%):</span>
-                <span>{usd(Math.round((items.reduce((s, it) => s + it.line_total_cents, 0) * 0.06))/100)}</span>
+                <span>{usd(tax/100)}</span>
               </div>
               <div className="flex justify-between font-semibold text-lg border-t pt-2">
                 <span>Total:</span>
-                <span>{usd(Math.round((items.reduce((s, it) => s + it.line_total_cents, 0) * 1.06))/100)}</span>
+                <span>{usd(total/100)}</span>
               </div>
 
               <button onClick={handleCheckout} className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-4 rounded-2xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-200">

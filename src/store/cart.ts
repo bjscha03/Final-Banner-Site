@@ -78,6 +78,73 @@ export interface CartState {
   getItemCount: () => number;
 }
 
+// Migration function to fix old cart items with missing or zero pricing fields
+const migrateCartItem = (item: CartItem): CartItem => {
+  // Check if this is an old item that needs migration
+  const needsMigration = 
+    item.line_total_cents === 0 || 
+    item.line_total_cents === undefined || 
+    item.unit_price_cents === 0 || 
+    item.unit_price_cents === undefined;
+
+  if (!needsMigration) {
+    return item;
+  }
+
+  console.log('🔧 Migrating old cart item:', item.id);
+
+  // Recompute pricing from scratch
+  const area = item.area_sqft || (item.width_in * item.height_in) / 144;
+  const pricePerSqFt = ({ '13oz': 4.5, '15oz': 6.0, '18oz': 7.5, 'mesh': 6.0 } as Record<MaterialKey, number>)[item.material];
+  const unit_price_cents = Math.round(area * (pricePerSqFt ?? 4.5) * 100);
+
+  // Compute rope cost
+  const ropeFeet = item.rope_feet || 0;
+  const rope_cost_cents = ropeFeet > 0 ? Math.round(ropeFeet * 2 * item.quantity * 100) : 0;
+
+  // Compute pole pocket cost
+  const pole_pocket_cost_cents = (() => {
+    if (!item.pole_pockets || item.pole_pockets === 'none') return 0;
+    const setupFee = 1500; // cents
+    const pricePerLinearFoot = 200; // cents
+    let linearFeet = 0;
+    switch (item.pole_pockets) {
+      case 'top':
+      case 'bottom':
+        linearFeet = item.width_in / 12; break;
+      case 'left':
+      case 'right':
+        linearFeet = item.height_in / 12; break;
+      case 'top-bottom':
+        linearFeet = (item.width_in / 12) * 2; break;
+      default:
+        linearFeet = 0;
+    }
+    return Math.round((setupFee + (linearFeet * pricePerLinearFoot)) * item.quantity);
+  })();
+
+  // Compute line total
+  const line_total_cents = unit_price_cents * item.quantity + rope_cost_cents + pole_pocket_cost_cents;
+
+  const migratedItem = {
+    ...item,
+    unit_price_cents,
+    rope_cost_cents,
+    rope_pricing_mode: (item.rope_pricing_mode || 'per_item') as PricingMode,
+    pole_pocket_cost_cents,
+    pole_pocket_pricing_mode: (item.pole_pocket_pricing_mode || 'per_item') as PricingMode,
+    line_total_cents,
+  };
+
+  console.log('✅ Migrated item:', {
+    id: item.id,
+    old: { unit: item.unit_price_cents, rope: item.rope_cost_cents, pole: item.pole_pocket_cost_cents, line: item.line_total_cents },
+    new: { unit: unit_price_cents, rope: rope_cost_cents, pole: pole_pocket_cost_cents, line: line_total_cents }
+  });
+
+  return migratedItem;
+};
+
 export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
@@ -153,29 +220,32 @@ export const useCartStore = create<CartState>()(
       
       updateQuantity: (id: string, quantity: number) => {
         set((state) => ({
-          items: state.items.map(item => 
-            item.id === id 
-              ? { 
-                  ...item, 
-                  quantity,
-                  // Recompute option totals using stored pricing modes; keep math consistent with design page
-                  rope_cost_cents: item.rope_pricing_mode === 'per_order'
-                    ? item.rope_cost_cents
-                    : Math.round((item.rope_cost_cents / Math.max(1, item.quantity)) * quantity),
-                  pole_pocket_cost_cents: item.pole_pocket_pricing_mode === 'per_order'
-                    ? item.pole_pocket_cost_cents
-                    : Math.round((item.pole_pocket_cost_cents / Math.max(1, item.quantity)) * quantity),
-                  line_total_cents: (() => {
-                    const perOrderRope = item.rope_pricing_mode === 'per_order' ? item.rope_cost_cents : 0;
-                    const perOrderPockets = item.pole_pocket_pricing_mode === 'per_order' ? item.pole_pocket_cost_cents : 0;
-                    const perItemRope = item.rope_pricing_mode === 'per_item' ? Math.round((item.rope_cost_cents / Math.max(1, item.quantity)) * quantity) : 0;
-                    const perItemPockets = item.pole_pocket_pricing_mode === 'per_item' ? Math.round((item.pole_pocket_cost_cents / Math.max(1, item.quantity)) * quantity) : 0;
-                    const baseCost = item.unit_price_cents * quantity;
-                    return Math.round(baseCost + perOrderRope + perOrderPockets + perItemRope + perItemPockets);
-                  })()
-                }
-              : item
-          )
+          items: state.items.map(item => {
+            if (item.id !== id) return item;
+
+            // Migrate old item if needed before updating quantity
+            const migratedItem = migrateCartItem(item);
+
+            return { 
+              ...migratedItem, 
+              quantity,
+              // Recompute option totals using stored pricing modes; keep math consistent with design page
+              rope_cost_cents: migratedItem.rope_pricing_mode === 'per_order'
+                ? migratedItem.rope_cost_cents
+                : Math.round((migratedItem.rope_cost_cents / Math.max(1, migratedItem.quantity)) * quantity),
+              pole_pocket_cost_cents: migratedItem.pole_pocket_pricing_mode === 'per_order'
+                ? migratedItem.pole_pocket_cost_cents
+                : Math.round((migratedItem.pole_pocket_cost_cents / Math.max(1, migratedItem.quantity)) * quantity),
+              line_total_cents: (() => {
+                const perOrderRope = migratedItem.rope_pricing_mode === 'per_order' ? migratedItem.rope_cost_cents : 0;
+                const perOrderPockets = migratedItem.pole_pocket_pricing_mode === 'per_order' ? migratedItem.pole_pocket_cost_cents : 0;
+                const perItemRope = migratedItem.rope_pricing_mode === 'per_item' ? Math.round((migratedItem.rope_cost_cents / Math.max(1, migratedItem.quantity)) * quantity) : 0;
+                const perItemPockets = migratedItem.rope_pricing_mode === 'per_item' ? Math.round((migratedItem.pole_pocket_cost_cents / Math.max(1, migratedItem.quantity)) * quantity) : 0;
+                const baseCost = migratedItem.unit_price_cents * quantity;
+                return Math.round(baseCost + perOrderRope + perOrderPockets + perItemRope + perItemPockets);
+              })()
+            };
+          })
         }));
       },
       
@@ -191,7 +261,7 @@ export const useCartStore = create<CartState>()(
       
       getSubtotalCents: () => {
         const flags = getFeatureFlags();
-        const items = get().items;
+        const items = get().items.map(migrateCartItem); // Migrate items before calculating
 
         if (flags.freeShipping || flags.minOrderFloor) {
           const pricingOptions = getPricingOptions();
@@ -205,7 +275,7 @@ export const useCartStore = create<CartState>()(
 
       getTaxCents: () => {
         const flags = getFeatureFlags();
-        const items = get().items;
+        const items = get().items.map(migrateCartItem); // Migrate items before calculating
 
         if (flags.freeShipping || flags.minOrderFloor) {
           const pricingOptions = getPricingOptions();
@@ -220,7 +290,7 @@ export const useCartStore = create<CartState>()(
 
       getTotalCents: () => {
         const flags = getFeatureFlags();
-        const items = get().items;
+        const items = get().items.map(migrateCartItem); // Migrate items before calculating
 
         if (flags.freeShipping || flags.minOrderFloor) {
           const pricingOptions = getPricingOptions();
@@ -239,6 +309,20 @@ export const useCartStore = create<CartState>()(
     }),
     {
       name: 'cart-storage',
+      // Migrate items when loading from localStorage
+      onRehydrateStorage: () => (state) => {
+        if (state?.items) {
+          console.log('🔄 Rehydrating cart, checking for items needing migration...');
+          const migratedItems = state.items.map(migrateCartItem);
+          const hadChanges = migratedItems.some((item, i) => item.line_total_cents !== state.items[i].line_total_cents);
+          if (hadChanges) {
+            console.log('✅ Cart migration complete, updating storage');
+            state.items = migratedItems;
+          } else {
+            console.log('✅ No migration needed');
+          }
+        }
+      },
     }
   )
 );
