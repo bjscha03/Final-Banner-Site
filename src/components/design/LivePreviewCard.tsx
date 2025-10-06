@@ -673,7 +673,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
   return (
     <div className="bg-white border border-gray-200/60 rounded-2xl overflow-hidden shadow-sm">
       {/* Header - responsive design */}
-      <div className="px-3 sm:px-6 py-4 border-b border-gray-100">
+      <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-100">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-sm">
@@ -685,8 +685,8 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
           <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-4">
             {/* Grommets Selector */}
             <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-gray-700 hidden sm:inline">Grommets:</span>
-              <div className="min-w-[140px]">
+              <span className="text-sm font-medium text-gray-700 whitespace-nowrap">Grommets:</span>
+              <div className="flex-1 sm:min-w-[160px]">
                 <GrommetPicker
                   value={grommets}
                   onChange={(value) => set({ grommets: value as Grommets })}
@@ -708,18 +708,18 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
 
 
       {/* Scale Controls - responsive design */}
-      <div className="px-3 sm:px-6 py-4 border-b border-gray-100">
+      <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-100">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-4 sm:gap-4">
             <span className="text-sm font-medium text-gray-700 hidden sm:inline">Preview Scale:</span>
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 sm:gap-4 flex-1">
               <Slider
                 value={[previewScalePct]}
                 onValueChange={(value) => set({ previewScalePct: value[0] })}
                 min={25}
                 max={100}
                 step={5}
-                className="w-24 sm:w-32"
+                className="w-full sm:w-32 max-w-[120px] sm:max-w-none"
               />
               <span className="text-sm font-medium text-blue-600 min-w-[50px]">
                 {previewScalePct}%
@@ -745,7 +745,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
               // Prevent drag events from interfering with mobile scrolling
               e.stopPropagation();
             }}
-            className={`relative drag-area mx-3 sm:mx-6 mb-4 sm:mb-6 border border-gray-300 rounded-2xl flex items-center justify-center text-center p-6 pb-8 sm:p-8 transition-all duration-200 h-80 sm:h-96 ${
+            className={`relative drag-area mx-4 sm:mx-6 mb-4 sm:mb-6 border-2 border-gray-300 rounded-2xl flex items-center justify-center text-center p-6 pb-8 sm:p-8 transition-all duration-200 min-h-[400px] sm:min-h-[480px] ${
               dragActive
                 ? 'bg-blue-50 border-blue-400 border-dashed'
                 : 'bg-gray-100 hover:bg-gray-50'
@@ -768,7 +768,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
               <div className="flex flex-col items-center gap-4 w-full">
                 <button
                   onClick={() => fileInputRef.current?.click()}
-                  className="px-6 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-colors duration-200 w-full max-w-xs h-12 flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
+                  className="px-6 py-3.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl font-medium transition-colors duration-200 w-full max-w-xs min-h-[48px] flex items-center justify-center gap-2 shadow-sm hover:shadow-md touch-manipulation"
                 >
                   <Upload className="w-5 h-5" />
                   Upload Artwork
@@ -778,7 +778,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                     <div className="text-gray-400 text-sm">or</div>
                     <button
                       onClick={onOpenAIModal}
-                      className="px-6 py-3 relative bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-300 hover:border-purple-400 hover:from-purple-100 hover:to-blue-100 text-purple-700 hover:text-purple-800 rounded-lg font-medium transition-all duration-200 w-full max-w-xs h-12 flex items-center justify-center gap-2 shadow-sm hover:shadow-md"
+                      className="px-6 py-3.5 relative bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-300 hover:border-purple-400 active:border-purple-500 hover:from-purple-100 hover:to-blue-100 text-purple-700 hover:text-purple-800 rounded-xl font-medium transition-all duration-200 w-full max-w-xs min-h-[48px] flex items-center justify-center gap-2 shadow-sm hover:shadow-md touch-manipulation"
                       data-cta="ai-generate-open"
                     >
                       <Wand2 className="w-5 h-5" />
@@ -791,7 +791,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                 )}
               </div>
               
-              <div className="mt-6 sm:mt-4 p-4 sm:p-3 bg-blue-50 border border-blue-200 rounded-lg text-left max-w-md mx-auto w-full mb-8">
+              <div className="mt-6 sm:mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl text-left max-w-md mx-auto w-full">
                 <p className="text-sm sm:text-xs text-blue-700 font-medium mb-2 sm:mb-1">File requirements:</p>
                 <p className="text-sm sm:text-xs text-blue-600 leading-relaxed">
                   High-resolution files (300 DPI) work best. We'll review your artwork and contact you if any adjustments are needed.
@@ -801,7 +801,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
           </div>
         ) : (
           /* Preview Canvas */
-          <div className="mx-3 sm:mx-6 mb-4 sm:mb-6 bg-gray-100 border border-gray-300 rounded-2xl overflow-hidden relative h-80 sm:h-[600px]">
+          <div className="mx-4 sm:mx-6 mb-4 sm:mb-6 bg-gray-100 border-2 border-gray-300 rounded-2xl overflow-hidden relative min-h-[500px] sm:min-h-[600px] h-auto">
             <div className="flex items-center justify-center h-full p-2">
               <div
                 style={{
@@ -845,7 +845,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
             <div className="absolute top-4 right-4">
               <button
                 onClick={removeFile}
-                className="flex items-center gap-2 px-3 py-2 bg-white/90 hover:bg-white text-gray-600 hover:text-red-600 rounded-lg transition-colors duration-150 shadow-sm"
+                className="flex items-center gap-2 px-4 py-2.5 bg-white/95 hover:bg-white active:bg-gray-50 text-gray-700 hover:text-red-600 rounded-xl transition-colors duration-150 shadow-md hover:shadow-lg min-h-[44px] min-w-[44px] touch-manipulation"
               >
                 <X className="w-4 h-4" />
                 Remove
@@ -853,15 +853,15 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
             </div>
             {/* AI Image Control Buttons - Enhanced with Resize and Reset */}
             {isAIImage && (
-              <div className="absolute bottom-4 left-4 right-4 flex justify-center">
-                <div className="flex gap-2 bg-white/95 backdrop-blur-sm rounded-lg p-2 shadow-lg border">
+              <div className="absolute bottom-4 left-4 right-4 flex justify-center px-2 sm:px-0">
+                <div className="flex flex-wrap gap-2 bg-white/95 backdrop-blur-sm rounded-xl p-3 shadow-lg border border-gray-200 max-w-full">
                   {/* Fit Image to Dimensions Button */}
                   <Button
                     onClick={handleFitImageToDimensions}
                     disabled={isFittingImage || isResizingImage || isResettingImage}
                     variant="outline"
                     size="sm"
-                    className="flex items-center gap-1.5 text-xs"
+                    className="flex items-center gap-1.5 text-xs sm:text-sm min-h-[40px] px-3 sm:px-4 touch-manipulation"
                   >
                     {isFittingImage ? (
                       <>
@@ -903,7 +903,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                     disabled={isFittingImage || isResizingImage || isResettingImage}
                     variant="outline"
                     size="sm"
-                    className="flex items-center gap-1.5 text-xs"
+                    className="flex items-center gap-1.5 text-xs sm:text-sm min-h-[40px] px-3 sm:px-4 touch-manipulation"
                   >
                     {isResettingImage ? (
                       <>
