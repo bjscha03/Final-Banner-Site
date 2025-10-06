@@ -21,7 +21,9 @@ interface PreviewCanvasProps {
   imagePosition?: { x: number; y: number };
   imageScale?: number;  onImageMouseDown?: (e: React.MouseEvent) => void;
   onImageTouchStart?: (e: React.TouchEvent) => void;
+  onCanvasClick?: (e: React.MouseEvent) => void;
   isDraggingImage?: boolean;
+  isImageSelected?: boolean;
   isUploading?: boolean;}
 
 interface Point {
@@ -102,7 +104,9 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   imagePosition = { x: 0, y: 0 },
   imageScale = 1,  onImageMouseDown,
   onImageTouchStart,
+  onCanvasClick,
   isDraggingImage = false,
+  isImageSelected = false,
   isUploading = false,}) => {
   const FEATURE_PDF_STATIC_PREVIEW = true;
   const grommetPositions = useMemo(() => {
@@ -148,6 +152,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
         )}        <svg
           viewBox={`0 0 ${totalWidth} ${totalHeight}`}
           className="border-2 border-gray-400 rounded-xl bg-white shadow-lg"
+          onClick={onCanvasClick}
           style={{
             maxWidth: "100%",
             maxHeight: "100%",
@@ -255,8 +260,8 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
             onTouchStart={onImageTouchStart}
           />
 
-            {/* Resize Handles - Only show when not dragging */}
-            {!isDraggingImage && (() => {
+            {/* Resize Handles - Only show when image is selected and not dragging */}
+            {isImageSelected && !isDraggingImage && (() => {
               const imgX = RULER_HEIGHT + (bleedWidth - bleedWidth * imageScale) / 2 + (imagePosition.x * 0.01);
               const imgY = RULER_HEIGHT + (bleedHeight - bleedHeight * imageScale) / 2 + (imagePosition.y * 0.01);
               const imgWidth = bleedWidth * (imageScale || 1);

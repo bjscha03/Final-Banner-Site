@@ -54,6 +54,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
   const [imageScale, setImageScale] = useState(1);
   const [isDraggingImage, setIsDraggingImage] = useState(false);
   const [isResizingImage, setIsResizingImage] = useState(false);
+  const [isImageSelected, setIsImageSelected] = useState(false);
   const [resizeHandle, setResizeHandle] = useState<string | null>(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [initialImagePosition, setInitialImagePosition] = useState({ x: 0, y: 0 });
@@ -255,6 +256,8 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       // Reset image manipulation state
       setImagePosition({ x: 0, y: 0 });
       setImageScale(1);
+      setIsImageSelected(false);
+      setIsImageSelected(false);
       
       setIsUploading(false);
       
@@ -646,6 +649,8 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       setResizeHandle(handle);
       setInitialImageScale(imageScale);
     } else {
+      // Clicking on image body - select it and enable dragging
+      setIsImageSelected(true);
       setIsDraggingImage(true);
     }
     
@@ -662,9 +667,19 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     const x = touch.clientX - rect.left;
     const y = touch.clientY - rect.top;
     
+    setIsImageSelected(true);
     setIsDraggingImage(true);
     setDragStart({ x, y });
     setInitialImagePosition({ ...imagePosition });
+  };
+  
+  // Canvas background click handler - deselect image
+  const handleCanvasClick = (e: React.MouseEvent) => {
+    const target = e.target as SVGElement;
+    // Only deselect if clicking on the canvas background (not on image or handles)
+    if (target.tagName === 'svg' || target.tagName === 'rect' && !target.classList.contains('resize-handle')) {
+      setIsImageSelected(false);
+    }
   };
   
   // Global mouse/touch handlers for dragging
