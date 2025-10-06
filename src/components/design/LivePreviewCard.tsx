@@ -642,14 +642,23 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     
+    console.log('🖱️ Mouse down on image', {
+      tagName: target.tagName,
+      classList: Array.from(target.classList),
+      dataHandle: target.getAttribute("data-handle")
+    });
+    
     // Check if clicking on a resize handle
     if (target.classList.contains("resize-handle") || target.getAttribute("data-handle")) {
       const handle = target.getAttribute("data-handle") || target.classList[1];
+      console.log('✅ Resize handle detected:', handle);
+      setIsImageSelected(true);  // FIXED: Must set this!
       setIsResizingImage(true);
       setResizeHandle(handle);
       setInitialImageScale(imageScale);
     } else {
       // Clicking on image body - select it and enable dragging
+      console.log('📍 Image body clicked (drag mode)');
       setIsImageSelected(true);
       setIsDraggingImage(true);
     }
@@ -731,6 +740,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         }
 
         const newScale = Math.max(0.2, Math.min(3, initialImageScale + scaleChange));
+        console.log(`🔄 Resizing ${resizeHandle}: delta=(${deltaX.toFixed(0)}, ${deltaY.toFixed(0)}), scaleChange=${scaleChange.toFixed(3)}, newScale=${newScale.toFixed(3)}`);
         setImageScale(newScale);
       }
     };
@@ -772,6 +782,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         }
 
         const newScale = Math.max(0.2, Math.min(3, initialImageScale + scaleChange));
+        console.log(`🔄 Resizing ${resizeHandle}: delta=(${deltaX.toFixed(0)}, ${deltaY.toFixed(0)}), scaleChange=${scaleChange.toFixed(3)}, newScale=${newScale.toFixed(3)}`);
         setImageScale(newScale);
       }
     };
