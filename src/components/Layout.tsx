@@ -4,6 +4,7 @@ import Header from './Header';
 import Footer from './Footer';
 import CartModal from './CartModal';
 import ScrollToTop from './ScrollToTop';
+import StickyCart from './StickyCart';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -28,6 +29,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
       />
+      <StickyCart onOpenCart={() => setIsCartOpen(true)} />
     </div>
   );
 };
