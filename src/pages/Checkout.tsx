@@ -5,6 +5,7 @@ import { useAuth, getCurrentUser } from '@/lib/auth';
 import { getOrdersAdapter } from '../lib/orders/adapter';
 import { OrderItem } from '../lib/orders/types';
 
+import Layout from '@/components/Layout';
 import { usd, formatDimensions, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
 import { validateMinimumOrder, canProceedToCheckout } from '@/lib/validation/minimumOrder';
 import PayPalCheckout from '@/components/checkout/PayPalCheckout';
@@ -22,8 +23,8 @@ const Checkout: React.FC = () => {
   const [showSignUpModal, setShowSignUpModal] = useState(false);
   const [hasShownModal, setHasShownModal] = useState(false);
 
-  // Get totals using original cart store methods
-  const totals: CartTotals = getTotals();
+  // Get totals from cart store methods
+  const subtotalCents = getSubtotalCents();
   const taxCents = getTaxCents();
   const totalCents = getTotalCents();
   
@@ -217,7 +218,7 @@ const Checkout: React.FC = () => {
                             <div className="space-y-1 text-sm">
                               <div className="flex justify-between">
                                 <span className="text-gray-600">Base banner:</span>
-                                <span className="text-gray-900">{usd(item.unit_price_cents / 100)} × {item.quantity}</span>
+                                <span className="text-gray-900">{usd(item.unit_price_cents / 100)}  {item.quantity}</span>
                               </div>
                               {item.rope_feet > 0 && (
                                 <div className="flex justify-between">

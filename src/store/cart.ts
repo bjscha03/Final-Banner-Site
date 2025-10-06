@@ -150,59 +150,19 @@ export const useCartStore = create<CartState>()(
               ? { 
                   ...item, 
                   quantity,
-                  // Keep pole_pocket_cost_cents in sync with quantity so the UI breakdown stays correct
-                  pole_pocket_cost_cents: (() => {
-                    const setupFeeCents = 1500;
-                    const pricePerLinearFootCents = 200;
-                    let linearFeet = 0;
-                    switch (item.pole_pockets) {
-                      case 'top':
-                      case 'bottom':
-                        linearFeet = item.width_in / 12;
-                        break;
-                      case 'left':
-                      case 'right':
-                        linearFeet = item.height_in / 12;
-                        break;
-                      case 'top-bottom':
-                        linearFeet = (item.width_in / 12) * 2;
-                        break;
-                      default:
-                        linearFeet = 0;
-                    }
-                    return (item.pole_pockets && item.pole_pockets !== 'none')
-                      ? Math.round((setupFeeCents + linearFeet * pricePerLinearFootCents) * quantity)
-                      : 0;
-                  })(),
                   line_total_cents: (() => {
-                    // Recompute from first principles for new quantity
+                    // Calculate properly scaled line total
                     const baseCost = item.unit_price_cents * quantity;
                     const ropeCost = item.rope_feet * 2 * quantity * 100;
-
-                    // Pole pocket cost: setup fee + linear feet priced, all scaled by quantity
-                    const setupFeeCents = 1500; // $15 setup fee per line item
-                    const pricePerLinearFootCents = 200; // $2.00 per linear foot
-                    let linearFeet = 0;
-                    switch (item.pole_pockets) {
-                      case 'top':
-                      case 'bottom':
-                        linearFeet = item.width_in / 12;
-                        break;
-                      case 'left':
-                      case 'right':
-                        linearFeet = item.height_in / 12;
-                        break;
-                      case 'top-bottom':
-                        linearFeet = (item.width_in / 12) * 2;
-                        break;
-                      default:
-                        linearFeet = 0;
-                    }
-                    const polePocketCostCents = (item.pole_pockets && item.pole_pockets !== 'none')
-                      ? Math.round((setupFeeCents + linearFeet * pricePerLinearFootCents) * quantity)
-                      : 0;
-
-                    return Math.round(baseCost + ropeCost + polePocketCostCents);
+                    
+                    // Pole pocket scaling: setup fee ($15) + linear foot costs that scale with quantity
+                    // Original pole_pocket_cost_cents was for quantity 1, so we need to extract setup vs linear costs
+                    const originalPolePocketCost = item.pole_pocket_cost_cents;
+                    const setupFeeCents = 1500; // $15.00 setup fee (doesn't scale)
+                    const originalLinearCostCents = originalPolePocketCost - setupFeeCents;
+                    const scaledPolePocketCost = setupFeeCents + (originalLinearCostCents * quantity);
+                    
+                    return Math.round(baseCost + ropeCost + scaledPolePocketCost);
                   })()
                 }
               : item
