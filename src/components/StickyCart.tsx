@@ -97,9 +97,9 @@ const StickyCart: React.FC<StickyCartProps> = ({ onOpenCart, isCartOpen = false 
     return (
       <>
         <div
-          className={`fixed bottom-4 right-4 z-40 transition-all duration-300 ${
+          className={`fixed bottom-20 right-4 z-40 transition-all duration-300 ${
             isVisible ? 'translate-y-0 opacity-100' : 'translate-y-20 opacity-0'
-          } ${justAdded ? 'animate-bounce' : ''}`}
+          } ${justAdded ? 'animate-bounce-subtle' : ''}`}
           style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
         >
           <button
@@ -118,45 +118,61 @@ const StickyCart: React.FC<StickyCartProps> = ({ onOpenCart, isCartOpen = false 
 
         {isExpanded && itemCount > 0 && (
           <div
-            className="fixed bottom-20 right-4 z-40 bg-white rounded-2xl shadow-2xl p-4 w-72 animate-slide-in"
+            className="fixed bottom-32 right-4 z-40 bg-white rounded-2xl shadow-2xl border border-gray-200 w-72 animate-slide-in overflow-hidden"
             style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
           >
-            <div className="flex justify-between items-center mb-3">
-              <h3 className="font-semibold text-gray-900">Cart Summary</h3>
-              <button
-                onClick={() => setIsExpanded(false)}
-                className="p-1 hover:bg-gray-100 rounded-lg transition-colors"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            </div>
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-gray-600">Items:</span>
-                <span className="font-medium">{itemCount}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-600">Total:</span>
-                <span className="font-bold text-lg">{usd(totalCents / 100)}</span>
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-3">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center space-x-2">
+                  <ShoppingCart className="h-4 w-4" />
+                  <h3 className="font-semibold text-sm">Shopping Cart</h3>
+                </div>
+                <button
+                  onClick={() => setIsExpanded(false)}
+                  className="p-1 hover:bg-white/20 rounded-lg transition-colors"
+                  aria-label="Close preview"
+                >
+                  <X className="h-4 w-4" />
+                </button>
               </div>
             </div>
-            <button
-              onClick={handleCheckout}
-              className="w-full mt-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-2 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center space-x-2"
-            >
-              <span>Checkout</span>
-              <ArrowRight className="h-4 w-4" />
-            </button>
+            <div className="p-4">
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600 text-sm">Items in cart:</span>
+                  <span className="font-semibold text-gray-900">{itemCount}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-600 text-sm">Total:</span>
+                  <span className="font-bold text-xl text-gray-900">{usd(totalCents / 100)}</span>
+                </div>
+              </div>
+              <div className="mt-3 space-y-2">
+                <button
+                  onClick={onOpenCart}
+                  className="w-full bg-gray-100 hover:bg-gray-200 text-gray-900 py-2 rounded-xl font-medium transition-colors text-sm"
+                >
+                  View Cart
+                </button>
+                <button
+                  onClick={handleCheckout}
+                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-2 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl text-sm"
+                >
+                  <span>Checkout</span>
+                  <ArrowRight className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
           </div>
         )}
-      </>
+</>
     );
   }
 
   if (isMinimized) {
     return (
       <div
-        className={`hidden md:block fixed bottom-8 right-8 z-40 transition-all duration-300 ${
+        className={`hidden md:block fixed bottom-24 right-8 z-40 transition-all duration-300 ${
           isVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
         }`}
       >
@@ -173,7 +189,7 @@ const StickyCart: React.FC<StickyCartProps> = ({ onOpenCart, isCartOpen = false 
 
   return (
     <div
-      className={`hidden md:block fixed bottom-8 right-8 z-40 transition-all duration-300 ${
+      className={`hidden md:block fixed bottom-24 right-8 z-40 transition-all duration-300 ${
         isVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
       } ${justAdded ? 'scale-105' : 'scale-100'}`}
     >
