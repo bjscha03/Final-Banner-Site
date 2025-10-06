@@ -252,6 +252,10 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         previewScalePct: 100
       });
       
+      // Reset image manipulation state
+      setImagePosition({ x: 0, y: 0 });
+      setImageScale(1);
+      
       setIsUploading(false);
       
       // Show success toast

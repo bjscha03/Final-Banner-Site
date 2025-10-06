@@ -238,6 +238,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
 
         {/* Image if provided - Extended to bleed area */}
         {(imageUrl || (file?.isPdf && file?.url)) && (
+          <>
           <image key={imageUrl || file?.url}
             href={imageUrl || file?.url}
             x={RULER_HEIGHT + (bleedWidth - bleedWidth * imageScale) / 2 + (imagePosition.x * 0.01)}
@@ -253,6 +254,64 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
             onMouseDown={onImageMouseDown}
             onTouchStart={onImageTouchStart}
           />
+
+            {/* Resize Handles - Only show when not dragging */}
+            {!isDraggingImage && (() => {
+              const imgX = RULER_HEIGHT + (bleedWidth - bleedWidth * imageScale) / 2 + (imagePosition.x * 0.01);
+              const imgY = RULER_HEIGHT + (bleedHeight - bleedHeight * imageScale) / 2 + (imagePosition.y * 0.01);
+              const imgWidth = bleedWidth * (imageScale || 1);
+              const imgHeight = bleedHeight * (imageScale || 1);
+              const handleSize = Math.min(0.6, Math.max(widthIn, heightIn) * 0.03);
+              
+              const handles = [
+                { id: 'nw', x: imgX, y: imgY, cursor: 'nwse-resize' },
+                { id: 'ne', x: imgX + imgWidth, y: imgY, cursor: 'nesw-resize' },
+                { id: 'sw', x: imgX, y: imgY + imgHeight, cursor: 'nesw-resize' },
+                { id: 'se', x: imgX + imgWidth, y: imgY + imgHeight, cursor: 'nwse-resize' },
+              ];
+              
+              return (
+                <g className="resize-handles">
+                  {handles.map(handle => (
+                    <g key={handle.id} className="resize-handle-group" data-handle={handle.id}>
+                      {/* Outer glow for visibility */}
+                      <circle
+                        cx={handle.x}
+                        cy={handle.y}
+                        r={handleSize * 1.5}
+                        fill="#3b82f6"
+                        opacity="0.2"
+                        className="resize-handle-glow"
+                        data-handle={handle.id}
+                      />
+                      {/* Main handle circle */}
+                      <circle
+                        cx={handle.x}
+                        cy={handle.y}
+                        r={handleSize}
+                        fill="#ffffff"
+                        stroke="#3b82f6"
+                        strokeWidth="0.08"
+                        className="resize-handle"
+                        data-handle={handle.id}
+                        style={{ cursor: handle.cursor }}
+                      />
+                      {/* Inner dot for better visibility */}
+                      <circle
+                        cx={handle.x}
+                        cy={handle.y}
+                        r={handleSize * 0.4}
+                        fill="#3b82f6"
+                        className="resize-handle-dot"
+                        data-handle={handle.id}
+                        style={{ cursor: handle.cursor, pointerEvents: 'none' }}
+                      />
+                    </g>
+                  ))}
+                </g>
+              );
+            })()}
+          </>
         )}
 
         {/* Safety Area (Red Line) - Rendered after image for visibility */}
