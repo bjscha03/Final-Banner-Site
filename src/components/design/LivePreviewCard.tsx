@@ -712,7 +712,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       if (isDraggingImage) {
         // Smooth, fluid dragging with 1:1 pixel movement
         // Position is multiplied by 0.01 in rendering, so we multiply by 100 for storage
-        const sensitivity = 100; // 1:1 pixel movement (100 storage units = 1 SVG unit)
+        const sensitivity = 30; // Reduced from 100 for slower, more precise dragging
         
         // Generous bounds - allow image to move far beyond visible area for flexibility
         // This prevents snapping and allows free positioning
@@ -765,8 +765,8 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       const deltaY = touch.clientY - dragStart.y;
 
       if (isDraggingImage) {
-        // Match mouse drag sensitivity - smooth 1:1 movement
-        const sensitivity = 100;
+        // Match mouse drag sensitivity - smooth, precise movement
+        const sensitivity = 30; // Reduced from 100 for slower, more precise dragging
         const maxMove = Math.max(widthIn, heightIn) * 100; // Very generous bounds
         const newX = Math.max(-maxMove, Math.min(maxMove, initialImagePosition.x + (deltaX * sensitivity)));
         const newY = Math.max(-maxMove, Math.min(maxMove, initialImagePosition.y + (deltaY * sensitivity)));

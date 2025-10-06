@@ -266,7 +266,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
               const imgY = RULER_HEIGHT + (bleedHeight - bleedHeight * imageScale) / 2 + (imagePosition.y * 0.01);
               const imgWidth = bleedWidth * (imageScale || 1);
               const imgHeight = bleedHeight * (imageScale || 1);
-              const handleSize = Math.min(0.6, Math.max(widthIn, heightIn) * 0.03);
+              const handleSize = Math.min(0.25, Math.max(widthIn, heightIn) * 0.015); // Smaller handles to avoid confusion with grommets
               
               const handles = [
                 { id: 'nw', x: imgX, y: imgY, cursor: 'nwse-resize' },
