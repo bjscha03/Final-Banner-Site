@@ -27,7 +27,9 @@ const StickyCart: React.FC<StickyCartProps> = ({ onOpenCart, isCartOpen = false 
   const totalCents = getTotalCents();
 
   useEffect(() => {
-    if (itemCount > prevItemCount) {
+  // FIX ISSUE 1: Only auto-expand on mobile when item is actually added (not on page navigation)
+  // Check that prevItemCount is not 0 to avoid expanding on initial mount/navigation
+    if (itemCount > prevItemCount && prevItemCount > 0) {
       setJustAdded(true);
       if (window.innerWidth < 768) {
         setIsExpanded(true);
@@ -178,10 +180,15 @@ const StickyCart: React.FC<StickyCartProps> = ({ onOpenCart, isCartOpen = false 
       >
         <button
           onClick={handleToggleMinimize}
-          className="bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-full p-3 shadow-2xl transition-all duration-300 hover:scale-110"
-          aria-label="Show cart"
+          className="relative bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-full p-3 shadow-2xl transition-all duration-300 hover:scale-110"
+          aria-label={`Show cart with ${itemCount} items`}
         >
           <ShoppingCart className="h-5 w-5" />
+          {itemCount > 0 && (
+            <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center shadow-lg">
+              {itemCount}
+            </span>
+          )}
         </button>
       </div>
     );
