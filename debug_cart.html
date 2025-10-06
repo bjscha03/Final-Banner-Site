@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html>
+<head><title>Debug Cart</title></head>
+<body>
+<h1>Cart Debug</h1>
+<div id="output"></div>
+<script>
+const cartData = localStorage.getItem('cart-storage');
+const output = document.getElementById('output');
+
+if (cartData) {
+  const parsed = JSON.parse(cartData);
+  output.innerHTML = '<pre>' + JSON.stringify(parsed, null, 2) + '</pre>';
+} else {
+  output.innerHTML = '<p>No cart data found</p>';
+}
+</script>
+</body>
+</html>

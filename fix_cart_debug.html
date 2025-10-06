@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head><title>Fix Cart Debug</title></head>
+<body>
+<h1>Cart Items Debug</h1>
+<div id="output"></div>
+<script>
+const cartData = localStorage.getItem('cart-storage');
+const output = document.getElementById('output');
+
+if (cartData) {
+  const parsed = JSON.parse(cartData);
+  output.innerHTML = '<h2>Raw Cart Data:</h2><pre>' + JSON.stringify(parsed, null, 2) + '</pre>';
+  
+  if (parsed.state && parsed.state.items) {
+    output.innerHTML += '<h2>Cart Items Analysis:</h2>';
+    parsed.state.items.forEach((item, index) => {
+      output.innerHTML += `<h3>Item ${index + 1}:</h3>`;
+      output.innerHTML += `<p>unit_price_cents: ${item.unit_price_cents}</p>`;
+      output.innerHTML += `<p>line_total_cents: ${item.line_total_cents}</p>`;
+      output.innerHTML += `<p>quantity: ${item.quantity}</p>`;
+      output.innerHTML += `<p>rope_feet: ${item.rope_feet}</p>`;
+      output.innerHTML += `<p>area_sqft: ${item.area_sqft}</p>`;
+      
+      // Calculate what the price should be
+      const basePrice = (item.unit_price_cents || 0) * (item.quantity || 1);
+      const ropePrice = (item.rope_feet || 0) * 2 * (item.quantity || 1) * 100;
+      const totalPrice = basePrice + ropePrice;
+      
+      output.innerHTML += `<p><strong>Calculated total: ${totalPrice} cents = $${(totalPrice/100).toFixed(2)}</strong></p>`;
+      output.innerHTML += '<hr>';
+    });
+  }
+} else {
+  output.innerHTML = '<p>No cart data found</p>';
+}
+</script>
+</body>
+</html>

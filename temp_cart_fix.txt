@@ -1,0 +1,39 @@
+      addFromQuote: (quote: QuoteState, aiMetadata?: any) => {
+        const area = (quote.widthIn * quote.heightIn) / 144;
+        const pricePerSqFt = {
+          '13oz': 4.5,
+          '15oz': 6.0,
+          '18oz': 7.5,
+          'mesh': 6.0
+        }[quote.material];
+
+        console.log("🛒 CART ADD FROM QUOTE DEBUG:", {
+          addRope: quote.addRope,
+          polePockets: quote.polePockets,
+          widthIn: quote.widthIn,
+          heightIn: quote.heightIn,
+          quantity: quote.quantity,
+          material: quote.material,
+          area: area,
+          pricePerSqFt: pricePerSqFt
+        });
+        
+        // Add validation to ensure we have valid values
+        if (!pricePerSqFt) {
+          console.error("🛒 ERROR: Invalid material or pricePerSqFt is undefined:", quote.material);
+          return;
+        }
+        
+        if (!area || area <= 0) {
+          console.error("🛒 ERROR: Invalid area calculation:", { widthIn: quote.widthIn, heightIn: quote.heightIn, area });
+          return;
+        }
+        
+        const unitPriceCents = Math.round(area * pricePerSqFt * 100);
+        
+        console.log("🛒 UNIT PRICE CALCULATION:", {
+          area,
+          pricePerSqFt,
+          calculation: area * pricePerSqFt * 100,
+          unitPriceCents
+        });

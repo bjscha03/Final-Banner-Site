@@ -639,7 +639,11 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     
     const target = e.target as SVGElement;
     
-    // Removed for performance
+    console.log('🖱️ Mouse down on image', {
+      tagName: target.tagName,
+      classList: Array.from(target.classList),
+      dataHandle: target.getAttribute("data-handle")
+    });
     
     // Check if clicking on a resize handle
     if (target.classList.contains("resize-handle") || target.getAttribute("data-handle")) {
@@ -741,7 +745,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
 
         // Generous scale limits - allow very small to very large
         const newScale = Math.max(0.1, Math.min(5, initialImageScale + scaleChange));
-        // Removed for performance
+        console.log(`🔄 Resizing ${resizeHandle}: delta=(${deltaX.toFixed(0)}, ${deltaY.toFixed(0)}), scaleChange=${scaleChange.toFixed(3)}, newScale=${newScale.toFixed(3)}`);
         setImageScale(newScale);
       }
     };
@@ -783,7 +787,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         }
 
         const newScale = Math.max(0.1, Math.min(5, initialImageScale + scaleChange));
-        // Removed for performance
+        console.log(`🔄 Resizing ${resizeHandle}: delta=(${deltaX.toFixed(0)}, ${deltaY.toFixed(0)}), scaleChange=${scaleChange.toFixed(3)}, newScale=${newScale.toFixed(3)}`);
         setImageScale(newScale);
       }
     };
@@ -811,7 +815,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
 
 
   return (
-    <div className="bg-white border border-gray-200/60 rounded-2xl overflow-hidden shadow-sm" style={{ touchAction: 'none' }}>
+    <div className="bg-white border border-gray-200/60 rounded-2xl overflow-hidden shadow-sm">
       {/* Header - responsive design */}
       <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-100">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">

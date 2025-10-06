@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<html>
+<head><title>Clear Cart</title></head>
+<body>
+<script>
+localStorage.removeItem('cart-storage');
+document.body.innerHTML = '<h1>Cart cleared! You can close this tab.</h1>';
+setTimeout(() => window.close(), 1000);
+</script>
+</body>
+</html>

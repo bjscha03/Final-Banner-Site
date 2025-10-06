@@ -54,7 +54,6 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
   const [imageScale, setImageScale] = useState(1);
   const [isDraggingImage, setIsDraggingImage] = useState(false);
   const [isResizingImage, setIsResizingImage] = useState(false);
-  const [isImageSelected, setIsImageSelected] = useState(false);
   const [resizeHandle, setResizeHandle] = useState<string | null>(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [initialImagePosition, setInitialImagePosition] = useState({ x: 0, y: 0 });
@@ -118,19 +117,11 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     let previewUrl = '';
     let artworkWidth = 0;
     let artworkHeight = 0;
-    let fileToUpload: File | Blob = file;
-    let uploadFileName = file.name;
 
     try {
       if (isPdf) {
-        // Handle PDF files - convert to high-quality JPEG
+        // Handle PDF files
         setIsRenderingPdf(true);
-        
-        console.log('📄 Processing PDF file:', {
-          fileName: file.name,
-          fileSize: `${Math.round(file.size / 1024 / 1024 * 100) / 100}MB`,
-          bannerSize: `${widthIn}" x ${heightIn}"`
-        });
         
         const pdfResult = await loadPdfToBitmap(file, {
           bannerWidthInches: widthIn,
@@ -145,31 +136,10 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         artworkWidth = pdfResult.width;
         artworkHeight = pdfResult.height;
         
-        // Convert blob URL to actual Blob for upload
-        const response = await fetch(pdfResult.blobUrl);
-        const blob = await response.blob();
-        
-        // Create a File object from the blob for upload
-        uploadFileName = file.name.replace(/\.pdf$/i, '.jpg');
-        fileToUpload = new File([blob], uploadFileName, { type: 'image/jpeg' });
-        
-        console.log('✅ PDF converted to JPEG:', {
-          originalSize: `${Math.round(file.size / 1024 / 1024 * 100) / 100}MB`,
-          convertedSize: `${Math.round(fileToUpload.size / 1024 / 1024 * 100) / 100}MB`,
-          dimensions: `${artworkWidth}x${artworkHeight}px`,
-          actualDPI: pdfResult.actualDPI
-        });
-        
         setIsRenderingPdf(false);
       } else {
         // Handle regular image files
         previewUrl = URL.createObjectURL(file);
-        
-        console.log('🖼️ Processing image file:', {
-          fileName: file.name,
-          fileSize: `${Math.round(file.size / 1024 / 1024 * 100) / 100}MB`,
-          fileType: file.type
-        });
       }
 
       // For local development, skip server upload and use local preview
@@ -180,21 +150,19 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         result = {
           success: true,
           fileUrl: previewUrl, // Use the local blob URL
-          fileName: uploadFileName,
-          fileSize: fileToUpload.size,
+          fileName: file.name,
+          fileSize: file.size,
           uploadedAt: new Date().toISOString(),
           message: 'Local development - using client-side preview'
         };
       } else {
         // Production - upload to server
         const form = new FormData();
-        form.append("file", fileToUpload);
-        
-        console.log("🚀 Starting upload to server...", {
-          fileName: uploadFileName,
-          fileSize: `${Math.round(fileToUpload.size / 1024 / 1024 * 100) / 100}MB`,
-          fileType: fileToUpload.type,
-          isPdf: isPdf
+        form.append("file", file);
+        console.log("�� Starting upload to server...", {
+          fileName: file.name,
+          fileSize: file.size,
+          fileType: file.type
         });
         
         const response = await fetch("/.netlify/functions/upload-file", {
@@ -215,33 +183,15 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
             statusText: response.statusText,
             errorBody: errorText
           });
-          
-          // Provide more specific error messages
-          let errorMessage = "Failed to upload file. Please try again.";
-          if (response.status === 413) {
-            errorMessage = "File is too large. Please use a smaller file or lower resolution PDF.";
-          } else if (response.status === 415) {
-            errorMessage = "File type not supported. Please use PDF, JPG, or PNG.";
-          } else if (response.status === 400) {
-            errorMessage = "Invalid file format. Please check your file and try again.";
-          } else if (response.status >= 500) {
-            errorMessage = "Server error. Please try again in a moment.";
-          }
-          
-          throw new Error(errorMessage);
+          throw new Error(`Upload failed (${response.status}): ${errorText || response.statusText}`);
         }
 
         result = await response.json();
-        console.log("✅ Upload successful:", {
-          fileKey: result.fileKey,
-          secureUrl: result.secureUrl ? 'present' : 'missing'
-        });
-      }
-      
+        console.log("✅ Upload successful:", result);      }
       set({
         file: {
           name: file.name,
-          type: isPdf ? 'application/pdf' : file.type,
+          type: file.type,
           size: file.size,
           url: previewUrl,
           isPdf,
@@ -253,35 +203,14 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         previewScalePct: 100
       });
       
-      // Reset image manipulation state
-      setImagePosition({ x: 0, y: 0 });
-      setImageScale(1);
-      setIsImageSelected(false);
-      setIsImageSelected(false);
-      
       setIsUploading(false);
-      
-      // Show success toast
-      toast({
-        title: "Upload Successful",
-        description: isPdf 
-          ? `PDF converted and uploaded successfully (${Math.round(fileToUpload.size / 1024 / 1024 * 100) / 100}MB)`
-          : "Image uploaded successfully",
-      });
-      
     } catch (uploadError) {
       console.error('File upload error:', uploadError);
       setIsUploading(false);
       setIsRenderingPdf(false);
-      
-      // Extract error message
-      const errorMessage = uploadError instanceof Error 
-        ? uploadError.message 
-        : (isPdf ? "Failed to process PDF file. Please try again." : "Failed to upload file. Please try again.");
-      
       toast({
         title: "Upload Error",
-        description: errorMessage,
+        description: isPdf ? "Failed to process PDF file. Please try again." : "Failed to upload file. Please try again.",
         variant: "destructive",
       });
     }
@@ -632,68 +561,42 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
   };
   // Image interaction handlers
   const handleImageMouseDown = (e: React.MouseEvent) => {
-    if (!file?.url) return; // Allow both images and PDFs to be dragged
+    if (!file?.url || file.isPdf) return;
     
     e.preventDefault();
     e.stopPropagation();
     
     const target = e.target as SVGElement;
-    
-    // Removed for performance
+    const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
     
     // Check if clicking on a resize handle
     if (target.classList.contains("resize-handle") || target.getAttribute("data-handle")) {
       const handle = target.getAttribute("data-handle") || target.classList[1];
-      console.log('✅ Resize handle detected:', handle);
-      setIsImageSelected(true);
       setIsResizingImage(true);
       setResizeHandle(handle);
       setInitialImageScale(imageScale);
-      console.log("📊 State after handle click:", { isImageSelected: true, isResizingImage: true, isDraggingImage: false, handle });
     } else {
-      // Clicking on image body - select it and enable dragging
-      console.log('📍 Image body clicked (drag mode)');
-      setIsImageSelected(true);
       setIsDraggingImage(true);
     }
     
-    // CRITICAL FIX: Use absolute coordinates for dragStart
-    // handleMouseMove uses e.clientX/Y which are absolute, so dragStart must also be absolute
-    setDragStart({ x: e.clientX, y: e.clientY });
+    setDragStart({ x, y });
     setInitialImagePosition({ ...imagePosition });
   };
   
   const handleImageTouchStart = (e: React.TouchEvent) => {
-    if (!file?.url) return; // Allow both images and PDFs to be dragged
-
+    if (!file?.url || file.isPdf) return;
+    
     e.preventDefault();
-    const target = e.target as SVGElement;
+    const rect = e.currentTarget.getBoundingClientRect();
     const touch = e.touches[0];
-
-    // Check if touching a resize handle
-    if (target.classList.contains("resize-handle") || target.getAttribute("data-handle")) {
-      const handle = target.getAttribute("data-handle") || target.classList[1];
-      setIsImageSelected(true);
-      setIsResizingImage(true);
-      setResizeHandle(handle);
-      setInitialImageScale(imageScale);
-    } else {
-      // Touching image body - select and enable dragging
-      setIsImageSelected(true);
-      setIsDraggingImage(true);
-    }
-
-    setDragStart({ x: touch.clientX, y: touch.clientY });
+    const x = touch.clientX - rect.left;
+    const y = touch.clientY - rect.top;
+    
+    setIsDraggingImage(true);
+    setDragStart({ x, y });
     setInitialImagePosition({ ...imagePosition });
-  };
-  
-  // Canvas background click handler - deselect image
-  const handleCanvasClick = (e: React.MouseEvent) => {
-    const target = e.target as SVGElement;
-    // Only deselect if clicking on the canvas background (not on image or handles)
-    if (target.tagName === 'svg' || target.tagName === 'rect' && !target.classList.contains('resize-handle')) {
-      setIsImageSelected(false);
-    }
   };
   
   // Global mouse/touch handlers for dragging
@@ -706,42 +609,24 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       const deltaY = e.clientY - dragStart.y;
       
       if (isDraggingImage) {
-        // Smooth, fluid dragging with 1:1 pixel movement
-        // Position is multiplied by 0.01 in rendering, so we multiply by 100 for storage
-        const sensitivity = 30; // Reduced from 100 for slower, more precise dragging
-        
-        // Generous bounds - allow image to move far beyond visible area for flexibility
-        // This prevents snapping and allows free positioning
-        const maxMove = Math.max(widthIn, heightIn) * 100; // Very generous bounds
-        
-        const newX = Math.max(-maxMove, Math.min(maxMove, initialImagePosition.x + (deltaX * sensitivity)));
-        const newY = Math.max(-maxMove, Math.min(maxMove, initialImagePosition.y + (deltaY * sensitivity)));
+        // Improved drag sensitivity - convert pixel movement to banner coordinate system
+        const sensitivity = 1.5; // FIXED: Improved drag sensitivity
+        const maxMove = Math.max(widthIn, heightIn) * 0.4; const newX = Math.max(-maxMove, Math.min(maxMove, initialImagePosition.x + (deltaX * sensitivity))); // FIXED: Dynamic bounds
+        const newY = Math.max(-maxMove, Math.min(maxMove, initialImagePosition.y + (deltaY * sensitivity))); // FIXED: Dynamic bounds Y
         setImagePosition({ x: newX, y: newY });
       } else if (isResizingImage && resizeHandle) {
-        // Smooth, centered resizing - image scales from center point
-        // Lower sensitivity for fine control, like professional design tools
-        const sensitivity = 0.0015; // Smooth, precise resize sensitivity
+        // Handle proportional resizing based on corner handle
+        const sensitivity = 0.004; // FIXED: Improved resize sensitivity
         let scaleChange = 0;
-
+        
         // Calculate scale change based on handle direction
-        // All handles scale from center - drag away from center to grow
-        if (resizeHandle === 'se') {
-          // Southeast: drag right/down to grow
+        if (resizeHandle === 'se' || resizeHandle === 'nw') {
           scaleChange = (deltaX + deltaY) * sensitivity;
-        } else if (resizeHandle === 'nw') {
-          // Northwest: drag left/up to grow (away from center)
-          scaleChange = -(deltaX + deltaY) * sensitivity;
-        } else if (resizeHandle === 'ne') {
-          // Northeast: drag right/up to grow
+        } else if (resizeHandle === 'ne' || resizeHandle === 'sw') {
           scaleChange = (deltaX - deltaY) * sensitivity;
-        } else if (resizeHandle === 'sw') {
-          // Southwest: drag left/down to grow
-          scaleChange = -(deltaX - deltaY) * sensitivity;
         }
-
-        // Generous scale limits - allow very small to very large
-        const newScale = Math.max(0.1, Math.min(5, initialImageScale + scaleChange));
-        // Removed for performance
+        
+        const newScale = Math.max(0.2, Math.min(3, initialImageScale + scaleChange)); // FIXED: Better min scale
         setImageScale(newScale);
       }
     };
@@ -753,45 +638,20 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     };
     
     const handleTouchMove = (e: TouchEvent) => {
-      if (!isDraggingImage && !isResizingImage) return;
-
+      if (!isDraggingImage) return;
+      
       e.preventDefault();
       const touch = e.touches[0];
       const deltaX = touch.clientX - dragStart.x;
       const deltaY = touch.clientY - dragStart.y;
-
-      if (isDraggingImage) {
-        // Match mouse drag sensitivity - smooth, precise movement
-        const sensitivity = 30; // Reduced from 100 for slower, more precise dragging
-        const maxMove = Math.max(widthIn, heightIn) * 100; // Very generous bounds
-        const newX = Math.max(-maxMove, Math.min(maxMove, initialImagePosition.x + (deltaX * sensitivity)));
-        const newY = Math.max(-maxMove, Math.min(maxMove, initialImagePosition.y + (deltaY * sensitivity)));
-        setImagePosition({ x: newX, y: newY });
-      } else if (isResizingImage && resizeHandle) {
-        // Match mouse resize sensitivity - smooth, centered scaling
-        const sensitivity = 0.0015;
-        let scaleChange = 0;
-
-        if (resizeHandle === 'se') {
-          scaleChange = (deltaX + deltaY) * sensitivity;
-        } else if (resizeHandle === 'nw') {
-          scaleChange = -(deltaX + deltaY) * sensitivity;
-        } else if (resizeHandle === 'ne') {
-          scaleChange = (deltaX - deltaY) * sensitivity;
-        } else if (resizeHandle === 'sw') {
-          scaleChange = -(deltaX - deltaY) * sensitivity;
-        }
-
-        const newScale = Math.max(0.1, Math.min(5, initialImageScale + scaleChange));
-        // Removed for performance
-        setImageScale(newScale);
-      }
+      
+      const newX = Math.max(-50, Math.min(50, initialImagePosition.x + (deltaX / 10)));
+      const newY = Math.max(-50, Math.min(50, initialImagePosition.y + (deltaY / 10)));
+      setImagePosition({ x: newX, y: newY });
     };
     
     const handleTouchEnd = () => {
       setIsDraggingImage(false);
-      setIsResizingImage(false);
-      setResizeHandle(null);
     };
     
     if (isDraggingImage || isResizingImage) {
@@ -807,11 +667,11 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         document.removeEventListener("touchend", handleTouchEnd);
       };
     }
-  }, [isDraggingImage, isResizingImage, dragStart, initialImagePosition, initialImageScale, imagePosition, imageScale, resizeHandle, widthIn, heightIn]);
+  }, [isDraggingImage, isResizingImage, dragStart, initialImagePosition]);
 
 
   return (
-    <div className="bg-white border border-gray-200/60 rounded-2xl overflow-hidden shadow-sm" style={{ touchAction: 'none' }}>
+    <div className="bg-white border border-gray-200/60 rounded-2xl overflow-hidden shadow-sm">
       {/* Header - responsive design */}
       <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-100">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -885,7 +745,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
               // Prevent drag events from interfering with mobile scrolling
               e.stopPropagation();
             }}
-            className={`relative drag-area mx-4 sm:mx-6 mb-4 sm:mb-6 border-2 border-gray-300 rounded-2xl flex items-center justify-center text-center p-6 pb-8 sm:p-8 transition-all duration-200 min-h-[400px] sm:min-h-[480px] ${
+            className={`relative drag-area mx-3 sm:mx-6 mb-4 sm:mb-6 border border-gray-300 rounded-2xl flex items-center justify-center text-center p-6 pb-8 sm:p-8 transition-all duration-200 h-80 sm:h-96 ${
               dragActive
                 ? 'bg-blue-50 border-blue-400 border-dashed'
                 : 'bg-gray-100 hover:bg-gray-50'
@@ -965,9 +825,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                   imagePosition={imagePosition}
                   onImageMouseDown={handleImageMouseDown}
                   onImageTouchStart={handleImageTouchStart}
-                  onCanvasClick={handleCanvasClick}
                   isDraggingImage={isDraggingImage}
-                  isImageSelected={isImageSelected}
                   imageScale={imageScale}
                   isUploading={isUploading || isGeneratingAI} />
               </div>

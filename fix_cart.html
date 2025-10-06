@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head><title>Fix Cart</title></head>
+<body>
+<h1>Fixing Cart Data</h1>
+<div id="output"></div>
+<script>
+// Get current cart data
+const cartData = localStorage.getItem('cart-storage');
+let output = document.getElementById('output');
+
+if (cartData) {
+  const parsed = JSON.parse(cartData);
+  output.innerHTML = '<h2>Before Fix:</h2><pre>' + JSON.stringify(parsed, null, 2) + '</pre>';
+  
+  // Fix each cart item
+  if (parsed.state && parsed.state.items) {
+    parsed.state.items.forEach(item => {
+      // Calculate missing fields
+      const area = (item.width_in * item.height_in) / 144;
+      const pricePerSqFt = {
+        '13oz': 4.5,
+        '15oz': 6.0, 
+        '18oz': 7.5,
+        'mesh': 6.0
+      }[item.material] || 4.5;
+      
+      item.unit_price_cents = item.unit_price_cents || Math.round(area * pricePerSqFt * 100);
+      item.rope_feet = item.rope_feet || 0;
+      item.area_sqft = item.area_sqft || area;
+      
+      // Calculate line total
+      const ropeCostCents = item.rope_feet * 2 * item.quantity * 100;
+      item.line_total_cents = (item.unit_price_cents * item.quantity) + ropeCostCents;
+    });
+    
+    // Save fixed data
+    localStorage.setItem('cart-storage', JSON.stringify(parsed));
+    output.innerHTML += '<h2>After Fix:</h2><pre>' + JSON.stringify(parsed, null, 2) + '</pre>';
+    output.innerHTML += '<p><strong>Cart fixed! Refresh the main page.</strong></p>';
+  }
+} else {
+  output.innerHTML = '<p>No cart data found</p>';
+}
+</script>
+</body>
+</html>
