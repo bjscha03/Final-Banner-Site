@@ -2,18 +2,17 @@ import React from 'react';
 import { X, Trash2, Plus, Minus, ShoppingBag } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { usd } from '@/lib/pricing';
-import { CartItem } from '@/store/cart';
+import { useCartStore } from '@/store/cart';
 
 interface CartModalProps {
   isOpen: boolean;
   onClose: () => void;
-  items: CartItem[];
-  onUpdateQuantity: (id: string, quantity: number) => void;
-  onRemoveItem: (id: string) => void;
 }
 
-const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, items, onUpdateQuantity, onRemoveItem }) => {
+const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
+  const { items, updateQuantity, removeItem, getSubtotalCents, getTaxCents, getTotalCents } = useCartStore();
+  
   if (!isOpen) return null;
 
   const handleCheckout = () => {
@@ -23,7 +22,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, items, onUpdateQ
   };
 
   // Compute "each" price
-  const computeEach = (item: CartItem): number => {
+  const computeEach = (item: any): number => {
     const ropeMode = item.rope_pricing_mode || 'per_item';
     const pocketMode = item.pole_pocket_pricing_mode || 'per_item';
     const ropeCost = item.rope_cost_cents || 0;
@@ -35,10 +34,10 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, items, onUpdateQ
     return each;
   };
 
-  // Calculate totals
-  const subtotal = items.reduce((sum, item) => sum + item.line_total_cents, 0);
-  const tax = Math.round(subtotal * 0.06);
-  const total = subtotal + tax;
+  // Use cart store methods which include migration logic
+  const subtotalCents = getSubtotalCents();
+  const taxCents = getTaxCents();
+  const totalCents = getTotalCents();
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
@@ -108,11 +107,25 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, items, onUpdateQ
                           {/* Quantity and remove */}
                           <div className="flex items-center justify-between mt-3">
                             <div className="flex items-center gap-2">
-                              <button onClick={() => onUpdateQuantity(item.id, Math.max(1, item.quantity - 1))} className="p-1.5 hover:bg-gray-100 rounded-md" disabled={item.quantity <= 1}><Minus className="h-3 w-3" /></button>
+                              <button 
+                                onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))} 
+                                className="p-1.5 hover:bg-gray-100 rounded-md" 
+                                disabled={item.quantity <= 1}
+                              >
+                                <Minus className="h-3 w-3" />
+                              </button>
                               <span className="w-8 text-center font-medium">{item.quantity}</span>
-                              <button onClick={() => onUpdateQuantity(item.id, item.quantity + 1)} className="p-1.5 hover:bg-gray-100 rounded-md"><Plus className="h-3 w-3" /></button>
+                              <button 
+                                onClick={() => updateQuantity(item.id, item.quantity + 1)} 
+                                className="p-1.5 hover:bg-gray-100 rounded-md"
+                              >
+                                <Plus className="h-3 w-3" />
+                              </button>
                             </div>
-                            <button onClick={() => onRemoveItem(item.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-600">
+                            <button 
+                              onClick={() => removeItem(item.id)} 
+                              className="p-1.5 hover:bg-red-50 rounded-lg text-red-600"
+                            >
                               <Trash2 className="h-4 w-4 inline mr-1" /> Remove
                             </button>
                           </div>
@@ -157,7 +170,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, items, onUpdateQ
             <div className="border-t p-6 space-y-2">
               <div className="flex justify-between">
                 <span>Subtotal:</span>
-                <span>{usd(subtotal/100)}</span>
+                <span>{usd(subtotalCents/100)}</span>
               </div>
               <div className="flex justify-between text-green-600 font-medium">
                 <span>Shipping:</span>
@@ -165,11 +178,11 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, items, onUpdateQ
               </div>
               <div className="flex justify-between">
                 <span>Tax (6%):</span>
-                <span>{usd(tax/100)}</span>
+                <span>{usd(taxCents/100)}</span>
               </div>
               <div className="flex justify-between font-semibold text-lg border-t pt-2">
                 <span>Total:</span>
-                <span>{usd(total/100)}</span>
+                <span>{usd(totalCents/100)}</span>
               </div>
 
               <button onClick={handleCheckout} className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-4 rounded-2xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-200">
