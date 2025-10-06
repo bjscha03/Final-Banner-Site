@@ -22,10 +22,45 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, items, onUpdateQ
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const computeEachFromStored = (item: CartItem): number => {
-    const perOrder = (item.rope_pricing_mode === 'per_order' ? (item.rope_cost_cents || 0) : 0) +
-                     (item.pole_pocket_pricing_mode === 'per_order' ? (item.pole_pocket_cost_cents || 0) : 0);
-    const each = Math.round((item.line_total_cents - perOrder) / Math.max(1, item.quantity));
+  // Helper to compute rope cost with backward compatibility
+  const getRopeCost = (item: CartItem): number => {
+    // New items have rope_cost_cents stored
+    if (item.rope_cost_cents !== undefined && item.rope_cost_cents !== null) {
+      return item.rope_cost_cents;
+    }
+    // Old items: compute from rope_feet
+    if (item.rope_feet && item.rope_feet > 0) {
+      return Math.round(item.rope_feet * 2 * item.quantity * 100);
+    }
+    return 0;
+  };
+
+  // Helper to compute pole pocket cost with backward compatibility
+  const getPolePocketCost = (item: CartItem): number => {
+    // New items have pole_pocket_cost_cents stored
+    if (item.pole_pocket_cost_cents !== undefined && item.pole_pocket_cost_cents !== null) {
+      return item.pole_pocket_cost_cents;
+    }
+    // Old items: derive from line_total_cents
+    if (item.pole_pockets && item.pole_pockets !== 'none') {
+      const baseTotal = item.unit_price_cents * item.quantity;
+      const ropeTotal = getRopeCost(item);
+      const pocketTotal = Math.max(0, item.line_total_cents - baseTotal - ropeTotal);
+      return pocketTotal;
+    }
+    return 0;
+  };
+
+  // Compute "each" price
+  const computeEach = (item: CartItem): number => {
+    const ropeMode = item.rope_pricing_mode || 'per_item';
+    const pocketMode = item.pole_pocket_pricing_mode || 'per_item';
+    const ropeCost = getRopeCost(item);
+    const pocketCost = getPolePocketCost(item);
+    
+    // Subtract per-order costs from line total, then divide by quantity
+    const perOrderCosts = (ropeMode === 'per_order' ? ropeCost : 0) + (pocketMode === 'per_order' ? pocketCost : 0);
+    const each = Math.round((item.line_total_cents - perOrderCosts) / Math.max(1, item.quantity));
     return each;
   };
 
@@ -57,13 +92,13 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, items, onUpdateQ
             ) : (
               <div className="space-y-4">
                 {items.map((item) => {
-                  const eachCents = computeEachFromStored(item);
+                  const eachCents = computeEach(item);
                   const ropeMode = item.rope_pricing_mode || 'per_item';
                   const pocketMode = item.pole_pocket_pricing_mode || 'per_item';
-                  const ropeTotal = item.rope_cost_cents || Math.round((item.rope_feet || 0) * 2 * item.quantity * 100);
-                  const pocketTotal = item.pole_pocket_cost_cents || 0;
-                  const ropeEach = Math.round(ropeTotal / Math.max(1, item.quantity));
-                  const pocketEach = Math.round(pocketTotal / Math.max(1, item.quantity));
+                  const ropeCost = getRopeCost(item);
+                  const pocketCost = getPolePocketCost(item);
+                  const ropeEach = item.quantity > 0 ? Math.round(ropeCost / item.quantity) : 0;
+                  const pocketEach = item.quantity > 0 ? Math.round(pocketCost / item.quantity) : 0;
 
                   return (
                     <div key={item.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
@@ -75,14 +110,14 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, items, onUpdateQ
                               <div className="text-xs text-gray-500 space-y-1 mt-1">
                                 <div>Material: {item.material}</div>
                                 {item.grommets && item.grommets !== 'none' && (<div>Grommets: {item.grommets}</div>)}
-                                {ropeTotal > 0 && (
+                                {ropeCost > 0 && (
                                   <div>
-                                    Rope: {ropeMode === 'per_item' ? `${usd(ropeEach/100)} × ${item.quantity} = ${usd(ropeTotal/100)}` : `${usd(ropeTotal/100)}`}
+                                    Rope: {ropeMode === 'per_item' ? `${usd(ropeEach/100)} × ${item.quantity} = ${usd(ropeCost/100)}` : `${usd(ropeCost/100)}`}
                                   </div>
                                 )}
-                                {item.pole_pockets && item.pole_pockets !== 'none' && pocketTotal > 0 && (
+                                {item.pole_pockets && item.pole_pockets !== 'none' && pocketCost > 0 && (
                                   <div>
-                                    Pole pockets: {pocketMode === 'per_item' ? `${usd(pocketEach/100)} × ${item.quantity} = ${usd(pocketTotal/100)}` : `${usd(pocketTotal/100)}`}
+                                    Pole pockets: {pocketMode === 'per_item' ? `${usd(pocketEach/100)} × ${item.quantity} = ${usd(pocketCost/100)}` : `${usd(pocketCost/100)}`}
                                   </div>
                                 )}
                                 {item.file_name && <div>File: {item.file_name}</div>}
@@ -97,7 +132,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, items, onUpdateQ
                           {/* Quantity and remove */}
                           <div className="flex items-center justify-between mt-3">
                             <div className="flex items-center gap-2">
-                              <button onClick={() => onUpdateQuantity(item.id, Math.max(1, item.quantity - 1))} className="p-1.5 hover:bg-gray-100 rounded-md"><Minus className="h-3 w-3" /></button>
+                              <button onClick={() => onUpdateQuantity(item.id, Math.max(1, item.quantity - 1))} className="p-1.5 hover:bg-gray-100 rounded-md" disabled={item.quantity <= 1}><Minus className="h-3 w-3" /></button>
                               <span className="w-8 text-center font-medium">{item.quantity}</span>
                               <button onClick={() => onUpdateQuantity(item.id, item.quantity + 1)} className="p-1.5 hover:bg-gray-100 rounded-md"><Plus className="h-3 w-3" /></button>
                             </div>
@@ -112,18 +147,18 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, items, onUpdateQ
                             <div className="space-y-1 text-sm">
                               <div className="flex justify-between">
                                 <span className="text-gray-600">Base banner:</span>
-                                <span className="text-gray-900">{usd((item.unit_price_cents/100))} × {item.quantity}</span>
+                                <span className="text-gray-900">{usd(item.unit_price_cents/100)} × {item.quantity}</span>
                               </div>
-                              {ropeTotal > 0 && (
+                              {ropeCost > 0 && (
                                 <div className="flex justify-between">
-                                  <span className="text-gray-600">Rope{ropeMode==='per_item' ? ` (${(item.rope_feet||0).toFixed(1)}ft)` : ''}:</span>
-                                  <span className="text-gray-900">{ropeMode==='per_item' ? `${usd(ropeEach/100)} × ${item.quantity} = ${usd(ropeTotal/100)}` : `${usd(ropeTotal/100)}`}</span>
+                                  <span className="text-gray-600">Rope{ropeMode==='per_item' && item.rope_feet ? ` (${item.rope_feet.toFixed(1)}ft)` : ''}:</span>
+                                  <span className="text-gray-900">{ropeMode==='per_item' ? `${usd(ropeEach/100)} × ${item.quantity} = ${usd(ropeCost/100)}` : `${usd(ropeCost/100)}`}</span>
                                 </div>
                               )}
-                              {pocketTotal > 0 && (
+                              {pocketCost > 0 && (
                                 <div className="flex justify-between">
                                   <span className="text-gray-600">Pole pockets:</span>
-                                  <span className="text-gray-900">{pocketMode==='per_item' ? `${usd(pocketEach/100)} × ${item.quantity} = ${usd(pocketTotal/100)}` : `${usd(pocketTotal/100)}`}</span>
+                                  <span className="text-gray-900">{pocketMode==='per_item' ? `${usd(pocketEach/100)} × ${item.quantity} = ${usd(pocketCost/100)}` : `${usd(pocketCost/100)}`}</span>
                                 </div>
                               )}
                               <div className="flex justify-between font-medium border-t border-gray-200 pt-1 mt-2">

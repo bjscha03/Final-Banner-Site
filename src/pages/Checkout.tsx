@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import { ArrowLeft, Package, Truck, Plus, Minus, Trash2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { emailApi } from '@/lib/api';
+import { CartItem } from '@/store/cart';
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
@@ -47,6 +48,43 @@ const Checkout: React.FC = () => {
     minOrderAdjustmentCents = totals.min_order_adjustment_cents;
     showMinOrderAdjustment = minOrderAdjustmentCents > 0;
   }
+
+  // Helper to compute rope cost with backward compatibility
+  const getRopeCost = (item: CartItem): number => {
+    if (item.rope_cost_cents !== undefined && item.rope_cost_cents !== null) {
+      return item.rope_cost_cents;
+    }
+    if (item.rope_feet && item.rope_feet > 0) {
+      return Math.round(item.rope_feet * 2 * item.quantity * 100);
+    }
+    return 0;
+  };
+
+  // Helper to compute pole pocket cost with backward compatibility
+  const getPolePocketCost = (item: CartItem): number => {
+    if (item.pole_pocket_cost_cents !== undefined && item.pole_pocket_cost_cents !== null) {
+      return item.pole_pocket_cost_cents;
+    }
+    if (item.pole_pockets && item.pole_pockets !== 'none') {
+      const baseTotal = item.unit_price_cents * item.quantity;
+      const ropeTotal = getRopeCost(item);
+      const pocketTotal = Math.max(0, item.line_total_cents - baseTotal - ropeTotal);
+      return pocketTotal;
+    }
+    return 0;
+  };
+
+  // Compute "each" price
+  const computeEach = (item: CartItem): number => {
+    const ropeMode = item.rope_pricing_mode || 'per_item';
+    const pocketMode = item.pole_pocket_pricing_mode || 'per_item';
+    const ropeCost = getRopeCost(item);
+    const pocketCost = getPolePocketCost(item);
+    
+    const perOrderCosts = (ropeMode === 'per_order' ? ropeCost : 0) + (pocketMode === 'per_order' ? pocketCost : 0);
+    const each = Math.round((item.line_total_cents - perOrderCosts) / Math.max(1, item.quantity));
+    return each;
+  };
 
   // Check admin status
   useEffect(() => {
@@ -198,7 +236,16 @@ const Checkout: React.FC = () => {
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">Order Summary</h2>
                 
                 <div className="space-y-4">
-                  {items.map((item) => (
+                  {items.map((item) => {
+                    const ropeMode = item.rope_pricing_mode || 'per_item';
+                    const pocketMode = item.pole_pocket_pricing_mode || 'per_item';
+                    const ropeCost = getRopeCost(item);
+                    const pocketCost = getPolePocketCost(item);
+                    const ropeEach = item.quantity > 0 ? Math.round(ropeCost / item.quantity) : 0;
+                    const pocketEach = item.quantity > 0 ? Math.round(pocketCost / item.quantity) : 0;
+                    const eachCents = computeEach(item);
+
+                    return (
                     <div key={item.id} className="border-b border-gray-200 pb-4 last:border-b-0">
                       <div className="flex justify-between items-start mb-3">
                         <div className="flex-1">
@@ -209,7 +256,8 @@ const Checkout: React.FC = () => {
                             <p>Material: {item.material}</p>
                             <p>Grommets: {item.grommets}</p>
                             {item.rope_feet > 0 && <p>Rope: {item.rope_feet.toFixed(1)} ft</p>}
-                            {item.pole_pockets && item.pole_pockets !== "none" && <p>Pole Pockets: {item.pole_pockets}</p>}                            {item.file_name && <p>File: {item.file_name}</p>}
+                            {item.pole_pockets && item.pole_pockets !== "none" && <p>Pole Pockets: {item.pole_pockets}</p>}
+                            {item.file_name && <p>File: {item.file_name}</p>}
                           </div>
                           
                           {/* Cost Breakdown */}
@@ -220,24 +268,24 @@ const Checkout: React.FC = () => {
                                 <span className="text-gray-600">Base banner:</span>
                                 <span className="text-gray-900">{usd(item.unit_price_cents / 100)} × {item.quantity}</span>
                               </div>
-                              {(item.rope_cost_cents || 0) > 0 && (
+                              {ropeCost > 0 && (
                                 <div className="flex justify-between">
-                                  <span className="text-gray-600">Rope{item.rope_pricing_mode === 'per_item' ? ` (${item.rope_feet?.toFixed(1)}ft)` : ''}:</span>
+                                  <span className="text-gray-600">Rope{ropeMode === 'per_item' && item.rope_feet ? ` (${item.rope_feet.toFixed(1)}ft)` : ''}:</span>
                                   <span className="text-gray-900">
-                                    {item.rope_pricing_mode === 'per_item'
-                                      ? `${usd(((item.rope_cost_cents || 0) / Math.max(1, item.quantity)) / 100)} × ${item.quantity} = ${usd(((item.rope_cost_cents || 0)) / 100)}`
-                                      : usd(((item.rope_cost_cents || 0)) / 100)
+                                    {ropeMode === 'per_item'
+                                      ? `${usd(ropeEach / 100)} × ${item.quantity} = ${usd(ropeCost / 100)}`
+                                      : usd(ropeCost / 100)
                                     }
                                   </span>
                                 </div>
                               )}
-                              {item.pole_pockets !== "none" && (item.pole_pocket_cost_cents || 0) > 0 && (
+                              {item.pole_pockets !== "none" && pocketCost > 0 && (
                                 <div className="flex justify-between">
                                   <span className="text-gray-600">Pole pockets:</span>
                                   <span className="text-gray-900">
-                                    {item.pole_pocket_pricing_mode === 'per_item'
-                                      ? `${usd(((item.pole_pocket_cost_cents || 0) / Math.max(1, item.quantity)) / 100)} × ${item.quantity} = ${usd(((item.pole_pocket_cost_cents || 0)) / 100)}`
-                                      : usd(((item.pole_pocket_cost_cents || 0)) / 100)
+                                    {pocketMode === 'per_item'
+                                      ? `${usd(pocketEach / 100)} × ${item.quantity} = ${usd(pocketCost / 100)}`
+                                      : usd(pocketCost / 100)
                                     }
                                   </span>
                                 </div>
@@ -246,14 +294,15 @@ const Checkout: React.FC = () => {
                                 <span className="text-gray-900">Line total:</span>
                                 <span className="text-gray-900">{usd(item.line_total_cents / 100)}</span>
                               </div>
-                            </div>                          </div>
+                            </div>
+                          </div>
                         </div>
                         <div className="text-right">
                           <p className="font-semibold text-gray-900">
                             {usd(item.line_total_cents / 100)}
                           </p>
                           <p className="text-sm text-gray-600">
-                            {usd(((item.line_total_cents - ((item.rope_pricing_mode === 'per_order' ? (item.rope_cost_cents || 0) : 0) + (item.pole_pocket_pricing_mode === 'per_order' ? (item.pole_pocket_cost_cents || 0) : 0))) / Math.max(1, item.quantity)) / 100)} each
+                            {usd(eachCents / 100)} each
                           </p>
                         </div>
                       </div>
@@ -296,7 +345,7 @@ const Checkout: React.FC = () => {
                         </Button>
                       </div>
                     </div>
-                  ))}
+                  );})}
                 </div>
 
                 <div className="border-t border-gray-200 pt-4 mt-4 space-y-2">
