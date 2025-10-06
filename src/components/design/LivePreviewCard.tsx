@@ -632,7 +632,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
   };
   // Image interaction handlers
   const handleImageMouseDown = (e: React.MouseEvent) => {
-    if (!file?.url || file.isPdf) return;
+    if (!file?.url) return; // Allow both images and PDFs to be dragged
     
     e.preventDefault();
     e.stopPropagation();
@@ -668,7 +668,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
   };
   
   const handleImageTouchStart = (e: React.TouchEvent) => {
-    if (!file?.url || file.isPdf) return;
+    if (!file?.url) return; // Allow both images and PDFs to be dragged
 
     e.preventDefault();
     const target = e.target as SVGElement;
