@@ -26,9 +26,9 @@ const ensureLineTotalCents = (item: CartItem): CartItem => {
   const baseCost = unitPriceCents * quantity;
   const ropeCost = ropeFeet * 2 * quantity * 100;
   
-  // Pole pockets should be per-item (multiply by quantity)
-  const scaledPolePocketCost = polePocketCostCents * quantity;  
-  const calculatedLineTotalCents = Math.round(baseCost + ropeCost + scaledPolePocketCost);
+  // Pole pocket cost is already stored for the current quantity; do not multiply again
+  const pocketsCost = polePocketCostCents;
+  const calculatedLineTotalCents = Math.round(baseCost + ropeCost + pocketsCost);
   
   return {
     ...item,
@@ -208,7 +208,7 @@ const CartModal: React.FC<CartModalProps> = ({
                             <span className="w-8 text-center font-medium text-sm">{item.quantity}</span>
                             <button
                               onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
-                              className="p-1.5 hover:bg-white rounded-md transition-colors"
+                              className="p-1.5 hover:bg白 rounded-md transition-colors"
                             >
                               <Plus className="h-3 w-3" />
                             </button>
