@@ -693,9 +693,11 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       
       if (isDraggingImage) {
         // Improved drag sensitivity - convert pixel movement to banner coordinate system
-        const sensitivity = 1.5; // FIXED: Improved drag sensitivity
-        const maxMove = Math.max(widthIn, heightIn) * 0.4; const newX = Math.max(-maxMove, Math.min(maxMove, initialImagePosition.x + (deltaX * sensitivity))); // FIXED: Dynamic bounds
-        const newY = Math.max(-maxMove, Math.min(maxMove, initialImagePosition.y + (deltaY * sensitivity))); // FIXED: Dynamic bounds Y
+        // Position is multiplied by 0.01 in rendering, so we need 100x sensitivity
+        const sensitivity = 150; // FIXED: Much higher sensitivity to account for 0.01 multiplier
+        const maxMove = Math.max(widthIn, heightIn) * 40; // FIXED: Bounds in position units (will be * 0.01)
+        const newX = Math.max(-maxMove, Math.min(maxMove, initialImagePosition.x + (deltaX * sensitivity)));
+        const newY = Math.max(-maxMove, Math.min(maxMove, initialImagePosition.y + (deltaY * sensitivity)));
         setImagePosition({ x: newX, y: newY });
       } else if (isResizingImage && resizeHandle) {
         // Handle proportional resizing based on corner handle
@@ -908,7 +910,9 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                   imagePosition={imagePosition}
                   onImageMouseDown={handleImageMouseDown}
                   onImageTouchStart={handleImageTouchStart}
+                  onCanvasClick={handleCanvasClick}
                   isDraggingImage={isDraggingImage}
+                  isImageSelected={isImageSelected}
                   imageScale={imageScale}
                   isUploading={isUploading || isGeneratingAI} />
               </div>
