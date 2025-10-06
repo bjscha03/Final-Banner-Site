@@ -638,9 +638,6 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     e.stopPropagation();
     
     const target = e.target as SVGElement;
-    const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
     
     console.log('🖱️ Mouse down on image', {
       tagName: target.tagName,
@@ -652,11 +649,10 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     if (target.classList.contains("resize-handle") || target.getAttribute("data-handle")) {
       const handle = target.getAttribute("data-handle") || target.classList[1];
       console.log('✅ Resize handle detected:', handle);
-      setIsImageSelected(true);  // FIXED: Must set this!
+      setIsImageSelected(true);
       setIsResizingImage(true);
       setResizeHandle(handle);
       setInitialImageScale(imageScale);
-      console.log("📊 State after handle click:", { isImageSelected: true, isResizingImage: true, isDraggingImage: false, handle });
       console.log("📊 State after handle click:", { isImageSelected: true, isResizingImage: true, isDraggingImage: false, handle });
     } else {
       // Clicking on image body - select it and enable dragging
@@ -665,7 +661,9 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       setIsDraggingImage(true);
     }
     
-    setDragStart({ x, y });
+    // CRITICAL FIX: Use absolute coordinates for dragStart
+    // handleMouseMove uses e.clientX/Y which are absolute, so dragStart must also be absolute
+    setDragStart({ x: e.clientX, y: e.clientY });
     setInitialImagePosition({ ...imagePosition });
   };
   
@@ -674,10 +672,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
 
     e.preventDefault();
     const target = e.target as SVGElement;
-    const rect = e.currentTarget.getBoundingClientRect();
     const touch = e.touches[0];
-    const x = touch.clientX - rect.left;
-    const y = touch.clientY - rect.top;
 
     // Check if touching a resize handle
     if (target.classList.contains("resize-handle") || target.getAttribute("data-handle")) {
@@ -692,7 +687,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       setIsDraggingImage(true);
     }
 
-    setDragStart({ x, y });
+    setDragStart({ x: touch.clientX, y: touch.clientY });
     setInitialImagePosition({ ...imagePosition });
   };
   
