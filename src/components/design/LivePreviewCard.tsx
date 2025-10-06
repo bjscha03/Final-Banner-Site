@@ -656,6 +656,8 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       setIsResizingImage(true);
       setResizeHandle(handle);
       setInitialImageScale(imageScale);
+      console.log("📊 State after handle click:", { isImageSelected: true, isResizingImage: true, isDraggingImage: false, handle });
+      console.log("📊 State after handle click:", { isImageSelected: true, isResizingImage: true, isDraggingImage: false, handle });
     } else {
       // Clicking on image body - select it and enable dragging
       console.log('📍 Image body clicked (drag mode)');

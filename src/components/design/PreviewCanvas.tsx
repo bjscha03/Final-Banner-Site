@@ -278,7 +278,14 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
               return (
                 <g className="resize-handles">
                   {handles.map(handle => (
-                    <g key={handle.id} className="resize-handle-group" data-handle={handle.id}>
+                    <g 
+                      key={handle.id} 
+                      className="resize-handle-group" 
+                      data-handle={handle.id}
+                      onMouseDown={onImageMouseDown}
+                      onTouchStart={onImageTouchStart}
+                      style={{ cursor: handle.cursor }}
+                    >
                       {/* Outer glow for visibility */}
                       <circle
                         cx={handle.x}
