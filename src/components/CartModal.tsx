@@ -1,40 +1,9 @@
 import React from 'react';
-import { X, Trash2, Plus, Minus, ShoppingBag, Package, FileText } from 'lucide-react';
+import { X, Trash2, Plus, Minus, ShoppingBag } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useCartStore, CartItem } from '@/store/cart';
 import { usd } from '@/lib/pricing';
-
-// Helper function to ensure cart items have valid line_total_cents
-const ensureLineTotalCents = (item: CartItem): CartItem => {
-  if (item.line_total_cents && !isNaN(Number(item.line_total_cents))) {
-  console.log("CART DEBUG - Item data:", {
-    id: item.id,
-    line_total_cents: item.line_total_cents,
-    typeof_line_total: typeof item.line_total_cents,
-    isNaN_check: isNaN(item.line_total_cents),
-    condition_result: (item.line_total_cents && !isNaN(Number(item.line_total_cents)))
-  });    return { ...item, line_total_cents: Number(item.line_total_cents) }; // Already has valid line_total_cents
-  }
-
-  // Calculate line_total_cents for legacy items or items with invalid values
-  // Add fallback values to prevent NaN
-  const unitPriceCents = item.unit_price_cents || 3600; // Default to $36.00 for 48x24
-  const quantity = item.quantity || 1;
-  const ropeFeet = item.rope_feet || 0;
-  const polePocketCostCents = item.pole_pocket_cost_cents || 0;
-  
-  const baseCost = unitPriceCents * quantity;
-  const ropeCost = ropeFeet * 2 * quantity * 100;
-  
-  // Pole pockets should be per-item (multiply by quantity)
-  const scaledPolePocketCost = polePocketCostCents * quantity;  
-  const calculatedLineTotalCents = Math.round(baseCost + ropeCost + scaledPolePocketCost);
-  
-  return {
-    ...item,
-    line_total_cents: calculatedLineTotalCents
-  };
-};
+import { computeCartTotals, Cart as UICart, CartItem as UICartItem, CartOption } from '@/lib/cart-pricing';
+import { CartItem } from '@/store/cart';
 
 interface CartModalProps {
   isOpen: boolean;
@@ -44,218 +13,165 @@ interface CartModalProps {
   onRemoveItem: (id: string) => void;
 }
 
-const CartModal: React.FC<CartModalProps> = ({
-  isOpen,
-  onClose,
-  items,
-  onUpdateQuantity,
-  onRemoveItem
-}) => {
-  const navigate = useNavigate();
-  const { getSubtotalCents, getTaxCents, getTotalCents } = useCartStore();
+function mapItemsToUICart(items: CartItem[]): { cart: UICart; unitEachById: Record<string, number>; lineTotalById: Record<string, number>; ropeOptById: Record<string, { mode: 'per_item'|'per_order'; priceCents: number }|undefined>; poleOptById: Record<string, number> } {
+  const uiItems: UICartItem[] = items.map((it) => {
+    const options: CartOption[] = [];
+    // Rope option
+    if ((it as any).rope_feet && (it as any).rope_feet > 0) {
+      const priceCents = Math.round(((it as any).rope_feet || 0) * 2 * 100);
+      const mode = ((it as any).rope_pricing_mode === 'per_order') ? 'per_order' : 'per_item';
+      options.push({ id: `rope:${it.id}`, name: 'Rope', priceCents, pricingMode: mode });
+    }
+    // Pole pocket option derived per-item from authoritative line value when available
+    if ((it as any).pole_pockets && (it as any).pole_pockets !== 'none') {
+      const qty = Math.max(1, it.quantity || 1);
+      const ropeLineCents = Math.round((((it as any).rope_feet || 0) * 2 * 100) * qty);
+      const baseLineCents = Math.round((it.unit_price_cents || 0) * qty);
+      const pocketLineCents = (it as any).pole_pocket_cost_cents ?? Math.max(0, (it.line_total_cents || 0) - baseLineCents - ropeLineCents);
+      const perItemPocketCents = Math.round(pocketLineCents / qty);
+      options.push({ id: `pole:${it.id}`, name: `Pole pockets: ${(it as any).pole_pockets}`, priceCents: perItemPocketCents, pricingMode: 'per_item' });
+    }
+    return {
+      id: it.id,
+      sku: it.id,
+      title: `Custom Banner ${it.width_in}" × ${it.height_in}"`,
+      unitPriceCents: it.unit_price_cents || 0,
+      qty: it.quantity || 1,
+      options,
+    };
+  });
 
+  const cart: UICart = { items: uiItems, shippingCents: 0, taxRatePct: 6, discountsCents: 0 };
+  const totals = computeCartTotals(cart);
+
+  const unitEachById: Record<string, number> = {};
+  const lineTotalById: Record<string, number> = {};
+  const ropeOptById: Record<string, { mode: 'per_item'|'per_order'; priceCents: number }|undefined> = {};
+  const poleOptById: Record<string, number> = {};
+
+  uiItems.forEach((ui, idx) => {
+    const t = totals.itemTotals[idx];
+    unitEachById[ui.id] = t.unitEachCents;
+    lineTotalById[ui.id] = t.lineTotalCents;
+    const rope = ui.options.find(o => o.id.startsWith('rope:'));
+    ropeOptById[ui.id] = rope ? { mode: rope.pricingMode, priceCents: rope.priceCents } : undefined;
+    const pole = ui.options.find(o => o.id.startsWith('pole:'));
+    poleOptById[ui.id] = pole ? pole.priceCents : 0;
+  });
+
+  return { cart: { ...cart, items: uiItems }, unitEachById, lineTotalById, ropeOptById, poleOptById };
+}
+
+const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose, items, onUpdateQuantity, onRemoveItem }) => {
+  const navigate = useNavigate();
   if (!isOpen) return null;
 
-  const subtotalCents = getSubtotalCents();
-  const taxCents = getTaxCents();
-  const totalCents = getTotalCents();
+  const { cart, unitEachById, lineTotalById, ropeOptById, poleOptById } = mapItemsToUICart(items);
+  const totals = computeCartTotals(cart);
 
   const handleCheckout = () => {
     onClose();
     navigate('/checkout');
-    // Scroll to top of page
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
       <div className="absolute inset-0 bg-black bg-opacity-50" onClick={onClose}></div>
-      
       <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-xl">
-        <div className="flex flex-col h-full">
+        <div className="flex h-full">
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b">
             <h2 className="text-lg font-semibold text-gray-900 flex items-center">
-              <ShoppingBag className="h-5 w-5 mr-2" />
-              Shopping Cart ({items.length})
+              <ShoppingBag className="h-5 w-5 mr-2" /> Shopping Cart ({items.length})
             </h2>
-            <button
-              onClick={onClose}
-              className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
-            >
+            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
               <X className="h-5 w-5" />
             </button>
           </div>
 
-          {/* Cart Items */}
+          {/* Items */}
           <div className="flex-1 overflow-y-auto p-6">
             {items.length === 0 ? (
               <div className="text-center py-12">
                 <ShoppingBag className="h-12 w-12 text-gray-300 mx-auto mb-4" />
                 <p className="text-gray-500">Your cart is empty</p>
-                <button
-                  onClick={onClose}
-                  className="mt-4 text-orange-500 hover:text-orange-600 font-medium"
-                >
+                <button onClick={onClose} className="mt-4 text-orange-500 hover:text-orange-600 font-medium">
                   Continue Shopping
                 </button>
               </div>
             ) : (
               <div className="space-y-4">
-                {items.map(ensureLineTotalCents).map((item) => (
-                  <div key={item.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                    <div className="flex gap-3">
-                      {/* Thumbnail */}
-                      <div className="w-16 h-16 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0">
-                        {item.isPdf ? (
-                          <div className="w-full h-full bg-gradient-to-br from-red-100 to-red-200 flex items-center justify-center">
-                            <FileText className="h-6 w-6 text-red-600" />
-                          </div>
-                        ) : item.thumbnail ? (
-                          <img
-                            src={item.thumbnail}
-                            alt={item.name}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="w-full h-full bg-gradient-to-br from-blue-100 to-indigo-100 flex items-center justify-center">
-                            <Package className="h-6 w-6 text-blue-500" />
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Item Details */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex justify-between items-start mb-2">
-                          <div>
-                            <h3 className="font-semibold text-gray-900 text-sm">{item.name}</h3>
-                            <p className="text-xs text-gray-500">{item.size} • {item.material}</p>
-
-                            {/* Options Display */}
-                            <div className="mt-1 space-y-1">
-                              {item.grommets && item.grommets !== 'none' && (
-                                <div className="inline-flex items-center bg-blue-50 text-blue-700 text-xs px-2 py-0.5 rounded-full mr-1 mb-1">
-                                  <span className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-1.5"></span>
-                                  {item.grommets === 'every-2-3ft' ? 'Grommets: Every 2-3ft' :
-                                   item.grommets === 'every-1-2ft' ? 'Grommets: Every 1-2ft' :
-                                   item.grommets === '4-corners' ? 'Grommets: 4 corners' :
-                                   item.grommets === 'top-corners' ? 'Grommets: Top corners' :
-                                   item.grommets === 'right-corners' ? 'Grommets: Right corners' :
-                                   item.grommets === 'left-corners' ? 'Grommets: Left corners' :
-                                   `Grommets: ${item.grommets}`}
-                                </div>
-                              )}
-
-                              {item.pole_pockets && item.pole_pockets !== 'none' && (
-                                <div className="inline-flex items-center bg-green-50 text-green-700 text-xs px-2 py-0.5 rounded-full mr-1 mb-1">
-                                  <span className="w-1.5 h-1.5 bg-green-500 rounded-full mr-1.5"></span>
-                                  Pole Pockets: {item.pole_pockets}
-                                </div>
-                              )}
-
-                              {item.rope_feet && item.rope_feet > 0 && (
-                                <div className="inline-flex items-center bg-orange-50 text-orange-700 text-xs px-2 py-0.5 rounded-full mr-1 mb-1">
-                                  <span className="w-1.5 h-1.5 bg-orange-500 rounded-full mr-1.5"></span>
-                                  Rope: {item.rope_feet}ft
-                                </div>
-                              )}
-
-                              {item.file_name && (
-                                <div className="inline-flex items-center bg-purple-50 text-purple-700 text-xs px-2 py-0.5 rounded-full mr-1 mb-1">
-                                  <span className="w-1.5 h-1.5 bg-purple-500 rounded-full mr-1.5"></span>
-                                  File: {item.file_name.length > 15 ? `${item.file_name.substring(0, 15)}...` : item.file_name}
-                                </div>
-                              )}
+                {items.map((item) => {
+                  const unitEach = unitEachById[item.id] || (item.unit_price_cents || 0);
+                  const lineTotal = lineTotalById[item.id] || (item.line_total_cents || 0);
+                  const ropeOpt = ropeOptById[item.id];
+                  const poleEach = poleOptById[item.id] || 0;
+                  return (
+                    <div key={item.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                      <div className="flex gap-3">
+                        <div className="flex-1">
+                          <div className="flex justify-between items-start mb-2">
+                            <div>
+                              <h3 className="font-semibold text-gray-900">Custom Banner {item.width_in}" × {item.height_in}"</h3>
+                              <div className="text-xs text-gray-500 space-y-1 mt-1">
+                                <div>Material: {item.material}</div>
+                                {item.grommets && item.grommets !== 'none' && (<div>Grommets: {item.grommets}</div>)}
+                                {item.rope_feet > 0 && (
+                                  <div>Rope: {ropeOpt?.mode === 'per_item' ? `${usd(ropeOpt.priceCents/100)} × ${item.quantity} = ${usd((ropeOpt.priceCents*item.quantity)/100)}` : `${usd((ropeOpt?.priceCents||0)/100)}`}</div>
+                                )}
+                                {item.pole_pockets && item.pole_pockets !== 'none' && (
+                                  <div>Pole pockets: {usd(poleEach/100)} × {item.quantity} = {usd((poleEach*item.quantity)/100)}</div>
+                                )}
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-bold text-gray-900">{usd(lineTotal/100)}</p>
+                              <p className="text-xs text-gray-500">{usd(unitEach/100)} each</p>
                             </div>
                           </div>
-                          <button
-                            onClick={() => onRemoveItem(item.id)}
-                            className="p-1.5 hover:bg-red-50 rounded-lg text-red-500 transition-colors"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
 
-                        {/* Cost Breakdown */}
-                        <div className="mt-2 p-2 bg-gray-50 rounded-lg text-xs">
-                          <div className="space-y-1">
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Base banner:</span>
-                              <span className="text-gray-900">{usd((item.unit_price_cents || 3600) / 100)} × {item.quantity}</span>
+                          {/* Quantity and remove */}
+                          <div className="flex items-center justify-between mt-3">
+                            <div className="flex items-center gap-2">
+                              <button onClick={() => onUpdateQuantity(item.id, Math.max(1, item.quantity - 1))} className="p-1.5 hover:bg-gray-100 rounded-md"><Minus className="h-3 w-3" /></button>
+                              <span className="w-8 text-center font-medium">{item.quantity}</span>
+                              <button onClick={() => onUpdateQuantity(item.id, item.quantity + 1)} className="p-1.5 hover:bg-gray-100 rounded-md"><Plus className="h-3 w-3" /></button>
                             </div>
-                            {item.rope_feet && item.rope_feet > 0 && (
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Rope ({item.rope_feet}ft):</span>
-                                <span className="text-gray-900">${(item.rope_feet * 2 * item.quantity).toFixed(2)}</span>
-                              </div>
-                            )}
-                            {item.pole_pockets && item.pole_pockets !== "none" && (
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Pole pockets:</span>
-                                <span className="text-gray-900">${(item.pole_pocket_cost_cents / 100).toFixed(2)}</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center justify-between mt-3">
-                          <div className="flex items-center bg-gray-50 rounded-lg p-1">
-                            <button
-                              onClick={() => onUpdateQuantity(item.id, Math.max(1, item.quantity - 1))}
-                              className="p-1.5 hover:bg-white rounded-md transition-colors"
-                            >
-                              <Minus className="h-3 w-3" />
+                            <button onClick={() => onRemoveItem(item.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-red-600">
+                              <Trash2 className="h-4 w-4 inline mr-1" /> Remove
                             </button>
-                            <span className="w-8 text-center font-medium text-sm">{item.quantity}</span>
-                            <button
-                              onClick={() => onUpdateQuantity(item.id, item.quantity + 1)}
-                              className="p-1.5 hover:bg-white rounded-md transition-colors"
-                            >
-                              <Plus className="h-3 w-3" />
-                            </button>
-                          </div>
-                          <div className="text-right">
-                            <p className="font-bold text-gray-900 text-sm">
-                              ${(item.line_total_cents / 100).toFixed(2)}
-                            </p>
-                            <p className="text-xs text-gray-500">
-                              ${(item.line_total_cents / item.quantity / 100).toFixed(2)} each
-                            </p>
                           </div>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
 
           {/* Footer */}
           {items.length > 0 && (
-            <div className="border-t p-6">
-              <div className="space-y-2 mb-4">
-                <div className="flex justify-between">
-                  <span>Subtotal:</span>
-                  <span>${(subtotalCents / 100).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between text-green-600 font-medium">
-                  <span>Shipping:</span>
-                  <span>FREE</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Tax (6%):</span>
-                  <span>${(taxCents / 100).toFixed(2)}</span>
-                </div>
-                <div className="flex justify-between font-semibold text-lg border-t pt-2">
-                  <span>Total:</span>
-                  <span>${(totalCents / 100).toFixed(2)}</span>
-                </div>
+            <div className="border-t p-6 space-y-2">
+              <div className="flex justify-between">
+                <span>Subtotal:</span>
+                <span>{usd(totals.subtotalCents/100)}</span>
               </div>
-              
-              <button
-                onClick={handleCheckout}
-                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-4 rounded-2xl font-semibold text-lg shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200"
-              >
+              <div className="flex justify-between text-green-600 font-medium">
+                <span>Shipping:</span>
+                <span>FREE</span>
+              </div>
+              <div className="flex justify-between">
+                <span>Tax (6%):</span>
+                <span>{usd(totals.taxCents/100)}</span>
+              </div>
+              <div className="flex justify-between font-semibold text-lg border-t pt-2">
+                <span>Total:</span>
+                <span>{usd(totals.totalCents/100)}</span>
+              </div>
+
+              <button onClick={handleCheckout} className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-4 rounded-2xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-200">
                 Proceed to Checkout
               </button>
             </div>
