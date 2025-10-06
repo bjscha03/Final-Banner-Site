@@ -44,6 +44,44 @@ const createFittedImageUrl = (originalUrl: string, targetWidthIn: number, target
 
 const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGeneratingAI = false }) => {
   const { widthIn, heightIn, previewScalePct, grommets, file, set } = useQuoteStore();
+  
+  // Sync local image manipulation state with store
+  React.useEffect(() => {
+    const storeState = useQuoteStore.getState();
+    if (storeState.imagePosition) {
+      setImagePosition(storeState.imagePosition);
+    }
+    if (storeState.imageScale !== undefined) {
+      setImageScale(storeState.imageScale);
+    }
+  }, []);
+  
+  // Persist image manipulation state to store when it changes
+  React.useEffect(() => {
+    set({
+      imagePosition,
+      imageScale
+    });
+  }, [imagePosition, imageScale, set]);
+  
+  // Sync local image manipulation state with store
+  React.useEffect(() => {
+    const storeState = useQuoteStore.getState();
+    if (storeState.imagePosition) {
+      setImagePosition(storeState.imagePosition);
+    }
+    if (storeState.imageScale !== undefined) {
+      setImageScale(storeState.imageScale);
+    }
+  }, []);
+  
+  // Persist image manipulation state to store when it changes
+  React.useEffect(() => {
+    set({
+      imagePosition,
+      imageScale
+    });
+  }, [imagePosition, imageScale, set]);
   const { toast } = useToast();
 
   const [dragActive, setDragActive] = useState(false);
@@ -248,9 +286,15 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
           artworkWidth: artworkWidth || undefined,
           artworkHeight: artworkHeight || undefined
         },
-        // Reset scale to 100% when uploading a new file
-        previewScalePct: 100
+        // Reset scale and image manipulation when uploading a new file
+        previewScalePct: 100,
+        imagePosition: { x: 0, y: 0 },
+        imageScale: 1
       });
+      
+      // Reset local image manipulation state
+      setImagePosition({ x: 0, y: 0 });
+      setImageScale(1);
       
       setIsUploading(false);
       

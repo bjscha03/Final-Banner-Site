@@ -46,6 +46,8 @@ export interface QuoteState {
       model?: string;
       aspectRatio?: string;
     };
+  imagePosition?: { x: number; y: number };
+  imageScale?: number;
   };
   set: (partial: Partial<QuoteState>) => void;
   setFromQuickQuote: (params: QuickQuoteParams) => void;
@@ -80,6 +82,8 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
   polePocketSize: '2',
   addRope: false, // Preserve rope selection
   previewScalePct: 100,
+  imagePosition: { x: 0, y: 0 },
+  imageScale: 1,
   file: undefined,
   set: (partial) => set((state) => ({ ...state, ...partial })),
   setFromQuickQuote: (params) => set((state) => ({
