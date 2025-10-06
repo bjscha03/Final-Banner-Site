@@ -6,9 +6,10 @@ import { usd } from '@/lib/pricing';
 
 interface StickyCartProps {
   onOpenCart: () => void;
+  isCartOpen?: boolean;
 }
 
-const StickyCart: React.FC<StickyCartProps> = ({ onOpenCart }) => {
+const StickyCart: React.FC<StickyCartProps> = ({ onOpenCart, isCartOpen = false }) => {
   const navigate = useNavigate();
   const { items, getItemCount, getTotalCents } = useCartStore();
   const [isExpanded, setIsExpanded] = useState(false);
@@ -75,6 +76,12 @@ const StickyCart: React.FC<StickyCartProps> = ({ onOpenCart }) => {
   if (itemCount === 0 && isMinimized) {
     return null;
   }
+
+  // Hide sticky cart when cart modal is open to prevent overlap/confusion
+  if (isCartOpen) {
+    return null;
+  }
+
 
   const handleCheckout = () => {
     navigate('/checkout');

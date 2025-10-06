@@ -29,7 +29,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
       />
-      <StickyCart onOpenCart={() => setIsCartOpen(true)} />
+      <StickyCart onOpenCart={() => setIsCartOpen(true)} isCartOpen={isCartOpen} />
     </div>
   );
 };
