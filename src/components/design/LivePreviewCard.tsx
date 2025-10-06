@@ -811,7 +811,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
 
 
   return (
-    <div className="bg-white border border-gray-200/60 rounded-2xl overflow-hidden shadow-sm" style={{ touchAction: 'none' }}>
+    <div className="bg-white border border-gray-200/60 rounded-2xl overflow-hidden shadow-sm" style={{ touchAction: 'pan-y' }}>
       {/* Header - responsive design */}
       <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-100">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
