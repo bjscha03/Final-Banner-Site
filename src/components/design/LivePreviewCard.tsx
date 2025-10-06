@@ -660,15 +660,27 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
   
   const handleImageTouchStart = (e: React.TouchEvent) => {
     if (!file?.url || file.isPdf) return;
-    
+
     e.preventDefault();
+    const target = e.target as SVGElement;
     const rect = e.currentTarget.getBoundingClientRect();
     const touch = e.touches[0];
     const x = touch.clientX - rect.left;
     const y = touch.clientY - rect.top;
-    
-    setIsImageSelected(true);
-    setIsDraggingImage(true);
+
+    // Check if touching a resize handle
+    if (target.classList.contains("resize-handle") || target.getAttribute("data-handle")) {
+      const handle = target.getAttribute("data-handle") || target.classList[1];
+      setIsImageSelected(true);
+      setIsResizingImage(true);
+      setResizeHandle(handle);
+      setInitialImageScale(imageScale);
+    } else {
+      // Touching image body - select and enable dragging
+      setIsImageSelected(true);
+      setIsDraggingImage(true);
+    }
+
     setDragStart({ x, y });
     setInitialImagePosition({ ...imagePosition });
   };
@@ -701,17 +713,24 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         setImagePosition({ x: newX, y: newY });
       } else if (isResizingImage && resizeHandle) {
         // Handle proportional resizing based on corner handle
-        const sensitivity = 0.004; // FIXED: Improved resize sensitivity
+        // Higher sensitivity for smooth resizing
+        const sensitivity = 0.002; // Smooth resize sensitivity
         let scaleChange = 0;
-        
+
         // Calculate scale change based on handle direction
-        if (resizeHandle === 'se' || resizeHandle === 'nw') {
+        // SE and NW: drag right/down to grow, left/up to shrink
+        // NE and SW: drag right/up to grow, left/down to shrink
+        if (resizeHandle === 'se') {
           scaleChange = (deltaX + deltaY) * sensitivity;
-        } else if (resizeHandle === 'ne' || resizeHandle === 'sw') {
+        } else if (resizeHandle === 'nw') {
+          scaleChange = -(deltaX + deltaY) * sensitivity;
+        } else if (resizeHandle === 'ne') {
           scaleChange = (deltaX - deltaY) * sensitivity;
+        } else if (resizeHandle === 'sw') {
+          scaleChange = -(deltaX - deltaY) * sensitivity;
         }
-        
-        const newScale = Math.max(0.2, Math.min(3, initialImageScale + scaleChange)); // FIXED: Better min scale
+
+        const newScale = Math.max(0.2, Math.min(3, initialImageScale + scaleChange));
         setImageScale(newScale);
       }
     };
@@ -723,16 +742,38 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     };
     
     const handleTouchMove = (e: TouchEvent) => {
-      if (!isDraggingImage) return;
-      
+      if (!isDraggingImage && !isResizingImage) return;
+
       e.preventDefault();
       const touch = e.touches[0];
       const deltaX = touch.clientX - dragStart.x;
       const deltaY = touch.clientY - dragStart.y;
-      
-      const newX = Math.max(-50, Math.min(50, initialImagePosition.x + (deltaX / 10)));
-      const newY = Math.max(-50, Math.min(50, initialImagePosition.y + (deltaY / 10)));
-      setImagePosition({ x: newX, y: newY });
+
+      if (isDraggingImage) {
+        // Match mouse drag sensitivity
+        const sensitivity = 150;
+        const maxMove = Math.max(widthIn, heightIn) * 40;
+        const newX = Math.max(-maxMove, Math.min(maxMove, initialImagePosition.x + (deltaX * sensitivity)));
+        const newY = Math.max(-maxMove, Math.min(maxMove, initialImagePosition.y + (deltaY * sensitivity)));
+        setImagePosition({ x: newX, y: newY });
+      } else if (isResizingImage && resizeHandle) {
+        // Match mouse resize sensitivity
+        const sensitivity = 0.002;
+        let scaleChange = 0;
+
+        if (resizeHandle === 'se') {
+          scaleChange = (deltaX + deltaY) * sensitivity;
+        } else if (resizeHandle === 'nw') {
+          scaleChange = -(deltaX + deltaY) * sensitivity;
+        } else if (resizeHandle === 'ne') {
+          scaleChange = (deltaX - deltaY) * sensitivity;
+        } else if (resizeHandle === 'sw') {
+          scaleChange = -(deltaX - deltaY) * sensitivity;
+        }
+
+        const newScale = Math.max(0.2, Math.min(3, initialImageScale + scaleChange));
+        setImageScale(newScale);
+      }
     };
     
     const handleTouchEnd = () => {
