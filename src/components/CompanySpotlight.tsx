@@ -102,7 +102,7 @@ const CompanySpotlight: React.FC = () => {
                   <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform duration-300" />
                 </a>
                 <a
-                  href="#quote"
+                  href="#quick-quote"
                   className="inline-flex items-center justify-center px-8 py-4 bg-transparent border-2 border-blue-600 text-blue-600 font-bold rounded-xl hover:bg-blue-50 transition-all duration-300 group"
                 >
                   Get Quick Quote
