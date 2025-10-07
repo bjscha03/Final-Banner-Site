@@ -4,9 +4,9 @@ import { Star, Quote } from 'lucide-react';
 const TestimonialsSection: React.FC = () => {
   const testimonials = [
     {
-      name: "Mike Rodriguez",
-      title: "Business Owner",
-      company: "Rodriguez Construction",
+      name: "Dan Oliver",
+      title: "Founder",
+      company: "Dan-O's Seasoning",
       image: "https://d64gsuwffb70l.cloudfront.net/68bb812d3c680d9a9bc2bdd7_1757118816938_db1b361b.webp",
       rating: 5,
       text: "Incredible quality and speed! Our trade show banners looked professional and arrived exactly when promised. The design tool made customization so easy."
