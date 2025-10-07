@@ -19,7 +19,7 @@ const HeroSection: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
           <div className="grid md:grid-cols-2 gap-8 items-center">
             {/* Left Content */}
-            <div>
+            <div className="order-1 md:order-1">
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4">
                 Custom Vinyl Banners
               </h1>
@@ -29,9 +29,10 @@ const HeroSection: React.FC = () => {
               <p className="text-lg text-slate-300 mb-8">
                 Professional quality banners at competitive prices. Free next-day air shipping on all orders.
               </p>
+              {/* Desktop button - hidden on mobile */}
               <button
                 onClick={handleStartDesigning}
-                className="inline-flex items-center px-8 py-3 bg-orange-500 hover:bg-orange-600 text-white text-lg font-semibold rounded-lg transition-colors duration-200"
+                className="hidden md:inline-flex items-center px-8 py-3 bg-orange-500 hover:bg-orange-600 text-white text-lg font-semibold rounded-lg transition-colors duration-200"
               >
                 Start Designing
                 <ArrowRight className="ml-2 h-5 w-5" />
@@ -39,7 +40,7 @@ const HeroSection: React.FC = () => {
             </div>
 
             {/* Right Content - Feature Highlights */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4 order-2 md:order-2">
               <div className="bg-white/10 backdrop-blur-sm p-6 rounded-lg border border-white/20">
                 <div className="text-3xl font-bold text-orange-500 mb-2">24hr</div>
                 <div className="text-sm text-slate-200">Production Time</div>
@@ -56,6 +57,17 @@ const HeroSection: React.FC = () => {
                 <div className="text-3xl font-bold text-orange-500 mb-2">100%</div>
                 <div className="text-sm text-slate-200">Satisfaction</div>
               </div>
+            </div>
+
+            {/* Mobile button - appears below feature boxes, centered */}
+            <div className="md:hidden order-3 col-span-full flex justify-center">
+              <button
+                onClick={handleStartDesigning}
+                className="inline-flex items-center px-8 py-3 bg-orange-500 hover:bg-orange-600 text-white text-lg font-semibold rounded-lg transition-colors duration-200"
+              >
+                Start Designing
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </button>
             </div>
           </div>
         </div>
