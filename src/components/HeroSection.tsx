@@ -1,9 +1,24 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const HeroSection: React.FC = () => {
   const navigate = useNavigate();
+  const [currentImage, setCurrentImage] = useState(0);
+  
+  const images = [
+    'https://res.cloudinary.com/dtrxl120u/image/upload/v1759857386/unnamed-2_fjdziv.jpg',
+    'https://res.cloudinary.com/dtrxl120u/image/upload/v1759858723/IMG_1994_oew8pc.jpg',
+    'https://res.cloudinary.com/dtrxl120u/image/upload/v1759800155/2019-07-19_10-03-03_cmg7im.png'
+  ];
+  
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentImage((prev) => (prev + 1) % images.length);
+    }, 5000); // Change image every 5 seconds
+    
+    return () => clearInterval(interval);
+  }, []);
 
   const handleStartDesigning = () => {
     navigate('/design');
@@ -16,7 +31,39 @@ const HeroSection: React.FC = () => {
     <section className="bg-white">
       {/* Main Hero Banner - Amazon style */}
       <div className="relative bg-slate-800 overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
+        {/* Background Image Carousel */}
+        {/* First Image - Full coverage */}
+        <div
+          className={`absolute inset-0 bg-cover bg-center bg-no-repeat transition-opacity duration-1000 ${
+            currentImage === 0 ? 'opacity-100' : 'opacity-0'
+          }`}
+          style={{
+            backgroundImage: `url(${images[0]})`,
+          }}
+        />
+        {/* Second Image - Full coverage */}
+        <div
+          className={`absolute inset-0 bg-cover bg-center bg-no-repeat transition-opacity duration-1000 ${
+            currentImage === 1 ? 'opacity-100' : 'opacity-0'
+          }`}
+          style={{
+            backgroundImage: `url(${images[1]})`,
+          }}
+        />
+        {/* Third Image - Full coverage */}
+        <div
+          className={`absolute inset-0 bg-cover bg-center bg-no-repeat transition-opacity duration-1000 ${
+            currentImage === 2 ? 'opacity-100' : 'opacity-0'
+          }`}
+          style={{
+            backgroundImage: `url(${images[2]})`,
+          }}
+        />
+        {/* Blue Overlay */}
+        <div className="absolute inset-0 bg-slate-800/80" />
+        
+        {/* Content */}
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 md:py-16">
           <div className="grid md:grid-cols-2 gap-8 items-center">
             {/* Left Content */}
             <div className="order-1 md:order-1">
