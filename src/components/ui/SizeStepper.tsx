@@ -63,7 +63,7 @@ export function SizeStepper({
       <label className="block text-xs font-medium text-gray-700 mb-2">
         {label}
       </label>
-      <div className="flex gap-2 items-center">
+      <div className="grid grid-cols-[auto_1fr_auto] gap-2 items-center">
         {/* Decrement Button */}
         <button 
           type="button"
@@ -76,12 +76,12 @@ export function SizeStepper({
         </button>
 
         {/* Input Field */}
-        <div className="relative flex-1">
+        <div className="relative">
           <input
             type="text"
             inputMode="numeric"
             pattern="[0-9]*"
-            className={`h-12 w-full rounded-lg border border-gray-300 text-center font-medium tabular-nums text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors duration-200 ${unit ? 'pl-2 pr-6' : 'px-3'}`}
+            className={`h-12 w-full rounded-lg border border-gray-300 text-center font-medium tabular-nums text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors duration-200 ${unit ? 'pr-6' : 'px-3'}`}
             value={value || ''}
             onChange={handleInputChange}
             onBlur={handleInputBlur}
