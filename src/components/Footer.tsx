@@ -84,7 +84,16 @@ const Footer: React.FC = () => {
   ];
 
   return (
-    <footer className="bg-gray-900 text-white">
+    <footer className="bg-black text-white relative">
+      {/* Decorative Image - Pushes up like ice cubes */}
+      <div className="w-full h-32 md:h-48 relative overflow-hidden">
+        <img 
+          src="https://res.cloudinary.com/dtrxl120u/image/upload/v1759862183/Gemini_Generated_Image_5hfhd65hfhd65hfh-Photoroom_bkbdml.png"
+          alt="Decorative footer element"
+          className="w-full h-full object-cover object-bottom"
+        />
+      </div>
+      
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid md:grid-cols-4 gap-8">
           {/* Company Info */}
