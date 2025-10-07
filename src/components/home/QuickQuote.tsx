@@ -702,6 +702,40 @@ const QuickQuote: React.FC = () => {
                   </div>
                 </div>
               </div>
+              {/* Mobile-only Button Section */}
+              <div className="lg:hidden flex justify-center">
+                <div className="w-full max-w-md space-y-4">
+                  <Button
+                    onClick={handleStartDesign}
+                    disabled={!isValid}
+                    className="w-full bg-orange-500 hover:bg-orange-600 text-white py-5 text-lg font-semibold shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed rounded-md"
+                    size="lg"
+                  >
+                    <div className="relative flex items-center justify-center gap-3">
+                      <span>Start My Design</span>
+                      <ArrowRight className="h-6 w-6" />
+                    </div>
+                  </Button>
+
+                  <Button
+                    onClick={handleReset}
+                    variant="outline"
+                    className="w-full border-2 border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-colors py-3 font-semibold rounded-md"
+                    size="sm"
+                  >
+                    Reset to Defaults
+                  </Button>
+
+                  {isValid && (
+                    <p className="text-center text-sm text-gray-600 font-medium">
+                      Continue with your selections
+                    </p>
+                  )}
+                </div>
+              </div>
+
+
+
 
 
 
@@ -749,38 +783,6 @@ const QuickQuote: React.FC = () => {
                   </p>
                 )}
               </div>
-            </div>
-          </div>
-
-          {/* Mobile-only Button Section */}
-          <div className="lg:hidden order-2 flex justify-center">
-            <div className="w-full max-w-md space-y-4">
-              <Button
-                onClick={handleStartDesign}
-                disabled={!isValid}
-                className="w-full bg-orange-500 hover:bg-orange-600 text-white py-5 text-lg font-semibold shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed rounded-md"
-                size="lg"
-              >
-                <div className="relative flex items-center justify-center gap-3">
-                  <span>Start My Design</span>
-                  <ArrowRight className="h-6 w-6" />
-                </div>
-              </Button>
-
-              <Button
-                onClick={handleReset}
-                variant="outline"
-                className="w-full border-2 border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-colors py-3 font-semibold rounded-md"
-                size="sm"
-              >
-                Reset to Defaults
-              </Button>
-
-              {isValid && (
-                <p className="text-center text-sm text-gray-600 font-medium">
-                  Continue with your selections
-                </p>
-              )}
             </div>
           </div>
 
