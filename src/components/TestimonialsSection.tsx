@@ -9,7 +9,7 @@ const TestimonialsSection: React.FC = () => {
       company: "Dan-O's Seasoning",
       image: "https://res.cloudinary.com/dtrxl120u/image/upload/v1759799151/dan-oliver_1200xx3163-3170-1048-0_zgphzw.jpg",
       rating: 5,
-      text: "I've been ordering banners from these guys since before they even launched their new website. They've handled every single one of my banner needs since the day I started my business — and I can honestly say, they're the best in the game."
+      text: "I've been ordering banners from these guys since before they even launched their new website. They've handled every single one of my banner needs since the day I started my business."
     },
     {
       name: "Sarah Johnson",
@@ -49,14 +49,14 @@ const TestimonialsSection: React.FC = () => {
 
         <div className="grid md:grid-cols-3 gap-8">
           {testimonials.map((testimonial, index) => (
-            <div key={index} className="testimonial-card p-8">
+            <div key={index} className="testimonial-card p-8 flex flex-col">
               <div className="flex items-center mb-6">
                 {[...Array(testimonial.rating)].map((_, i) => (
                   <Star key={i} className="h-5 w-5 text-yellow-400 fill-current group-hover:scale-110 transition-transform duration-300" style={{transitionDelay: `${i * 50}ms`}} />
                 ))}
               </div>
 
-              <div className="relative mb-8">
+              <div className="relative mb-8 flex-grow">
                 <Quote className="absolute -top-3 -left-3 h-10 w-10 text-blue-200 group-hover:text-blue-300 transition-colors duration-300" />
                 <p className="text-gray-700 leading-relaxed pl-8 text-lg">
                   "{testimonial.text}"
