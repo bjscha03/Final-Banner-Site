@@ -2,6 +2,7 @@
 import React from 'react';
 import Layout from '@/components/Layout';
 import HeroSection from '@/components/HeroSection';
+import CompanySpotlight from '@/components/CompanySpotlight';
 import QuickQuote from '@/components/home/QuickQuote';
 import TestimonialsSection from '@/components/TestimonialsSection';
 import WhyChooseUs from '@/components/WhyChooseUs';
@@ -11,6 +12,7 @@ const Index: React.FC = () => {
   return (
     <Layout>
       <HeroSection />
+      <CompanySpotlight />
       <QuickQuote />
       <TestimonialsSection />
       <WhyChooseUs />
