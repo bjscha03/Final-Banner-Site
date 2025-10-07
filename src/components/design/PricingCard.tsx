@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
-import { ShoppingCart, CreditCard, Check, Truck, AlertTriangle } from 'lucide-react';
+import { ShoppingCart, CreditCard, Check, Truck, AlertTriangle, Ruler, Maximize2, Palette, Hash, DollarSign } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useQuoteStore, ORDER_SIZE_LIMIT_SQFT } from '@/store/quote';
 import { useAuth } from '@/lib/auth';
@@ -351,28 +351,28 @@ const PricingCard: React.FC = () => {
   };
 
   return (
-    <div className="relative bg-gradient-to-br from-white via-green-50/20 to-emerald-50/10 border border-green-200/30 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-sm">
+    <div className="relative bg-white border border-green-200/30 rounded-lg overflow-hidden shadow-sm backdrop-blur-sm">
       {/* Decorative background elements */}
       <div className="absolute inset-0 opacity-20">
-        <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-bl from-green-300/15 to-transparent rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-emerald-300/15 to-transparent rounded-full blur-3xl"></div>
+        <div className="absolute top-0 right-0 w-40 h-40 bg-white rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 w-32 h-32 bg-white rounded-full blur-3xl"></div>
       </div>
 
       {/* Header with Single Prominent Price */}
-      <div className="relative bg-gradient-to-r from-green-600/8 via-emerald-600/8 to-teal-600/8 px-8 py-8 border-b border-green-200/25 backdrop-blur-sm text-center">
+      <div className="relative bg-white px-8 py-8 border-b border-green-200/25 backdrop-blur-sm text-center">
         <div className="relative">
           {/* Price Badge */}
           <div className="inline-flex items-center justify-center mb-4">
             <div className="relative">
-              <div className="w-14 h-14 bg-gradient-to-br from-green-500 via-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-xl">
-                <span className="text-xl">💰</span>
+              <div className="w-14 h-14 bg-orange-500 rounded-lg flex items-center justify-center shadow-sm">
+                <DollarSign className="w-6 h-6 text-white" />
               </div>
-              <div className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-r from-orange-400 to-red-500 rounded-full shadow-lg animate-pulse"></div>
+              <div className="absolute -top-1 -right-1 w-5 h-5 bg-orange-500 rounded-full shadow-sm animate-pulse"></div>
             </div>
           </div>
 
           {/* Main Price - Single Prominent Display */}
-          <div className="text-5xl md:text-6xl font-black bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 bg-clip-text text-transparent mb-2 drop-shadow-sm tracking-tight">
+          <div className="text-5xl md:text-6xl font-black text-slate-900 mb-2 drop-shadow-sm tracking-tight">
             {usd(finalTotals.totalWithTax)}
           </div>
 
@@ -392,9 +392,9 @@ const PricingCard: React.FC = () => {
       <div className="relative p-8">
         <div className="grid grid-cols-2 gap-6 mb-8">
           <div className="group">
-            <div className="bg-gradient-to-br from-blue-50/50 to-indigo-50/30 border border-blue-200/40 rounded-2xl p-5 text-center transition-all duration-200 hover:shadow-lg hover:scale-105">
-              <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg">
-                <span className="text-xl">📐</span>
+            <div className="bg-white border border-blue-200/40 rounded-lg p-5 text-center transition-all duration-200 hover:shadow-sm hover:scale-105">
+              <div className="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-sm">
+                <Ruler className="w-6 h-6 text-white" />
               </div>
               <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Size</p>
               <p className="text-lg font-black text-gray-900">{formatDimensions(widthIn, heightIn)}</p>
@@ -402,9 +402,9 @@ const PricingCard: React.FC = () => {
           </div>
 
           <div className="group">
-            <div className="bg-gradient-to-br from-purple-50/50 to-pink-50/30 border border-purple-200/40 rounded-2xl p-5 text-center transition-all duration-200 hover:shadow-lg hover:scale-105">
-              <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg">
-                <span className="text-xl">📏</span>
+            <div className="bg-white border border-purple-200/40 rounded-lg p-5 text-center transition-all duration-200 hover:shadow-sm hover:scale-105">
+              <div className="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-sm">
+                <Maximize2 className="w-6 h-6 text-white" />
               </div>
               <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Area</p>
               <p className="text-lg font-black text-gray-900">{formatArea(baseTotals.area)}</p>
@@ -412,9 +412,9 @@ const PricingCard: React.FC = () => {
           </div>
 
           <div className="group">
-            <div className="bg-gradient-to-br from-orange-50/50 to-red-50/30 border border-orange-200/40 rounded-2xl p-5 text-center transition-all duration-200 hover:shadow-lg hover:scale-105">
-              <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-600 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg">
-                <span className="text-xl">🎨</span>
+            <div className="bg-white border border-orange-200/40 rounded-lg p-5 text-center transition-all duration-200 hover:shadow-sm hover:scale-105">
+              <div className="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-sm">
+                <Palette className="w-6 h-6 text-white" />
               </div>
               <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Material</p>
               <p className="text-lg font-black text-gray-900">{materialName}</p>
@@ -422,9 +422,9 @@ const PricingCard: React.FC = () => {
           </div>
 
           <div className="group">
-            <div className="bg-gradient-to-br from-green-50/50 to-emerald-50/30 border border-green-200/40 rounded-2xl p-5 text-center transition-all duration-200 hover:shadow-lg hover:scale-105">
-              <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-lg">
-                <span className="text-xl">🔢</span>
+            <div className="bg-white border border-green-200/40 rounded-lg p-5 text-center transition-all duration-200 hover:shadow-sm hover:scale-105">
+              <div className="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center mx-auto mb-3 shadow-sm">
+                <Hash className="w-6 h-6 text-white" />
               </div>
               <p className="text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Quantity</p>
               <p className="text-lg font-black text-gray-900">{quantity}</p>
@@ -539,9 +539,9 @@ const PricingCard: React.FC = () => {
           {/* Add to Cart Button */}
           <button
             onClick={handleAddToCart} disabled={!finalCanProceed}
-            className={`w-full py-5 rounded-2xl font-bold text-xl shadow-2xl transition-all duration-300 flex items-center justify-center gap-3 relative overflow-hidden ${finalCanProceed ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 text-white hover:shadow-3xl transform hover:scale-105' : 'bg-gray-400 text-gray-600 cursor-not-allowed'}`}
+            className={`w-full py-5 rounded-lg font-bold text-xl shadow-sm transition-all duration-300 flex items-center justify-center gap-3 relative overflow-hidden ${finalCanProceed ? 'bg-orange-500 hover:bg-orange-600 text-white hover:shadow-sm transform hover:scale-105' : 'bg-gray-400 text-gray-600 cursor-not-allowed'}`}
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div className="relative flex items-center gap-3">
               <ShoppingCart className="h-6 w-6" />
               <span>Add to Cart</span>
@@ -551,9 +551,9 @@ const PricingCard: React.FC = () => {
           {/* Checkout Button */}
           <button
             onClick={handleCheckout}
-            className={`w-full py-5 rounded-2xl font-bold text-xl shadow-2xl transition-all duration-300 flex items-center justify-center gap-3 relative overflow-hidden ${finalCanProceed ? 'bg-gradient-to-r from-emerald-600 via-green-600 to-teal-600 hover:from-emerald-700 hover:via-green-700 hover:to-teal-700 text-white hover:shadow-3xl transform hover:scale-105' : 'bg-gray-400 text-gray-600 cursor-not-allowed'}`}
+            className={`w-full py-5 rounded-lg font-bold text-xl shadow-sm transition-all duration-300 flex items-center justify-center gap-3 relative overflow-hidden ${finalCanProceed ? 'bg-[#18448D] hover:bg-[#18448D]/90 text-white hover:shadow-sm transform hover:scale-105' : 'bg-gray-400 text-gray-600 cursor-not-allowed'}`}
           >
-            <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div className="relative flex items-center gap-3">
               <CreditCard className="h-6 w-6" />
               <span>Buy Now</span>

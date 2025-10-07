@@ -85,7 +85,7 @@ const OrderDetail: React.FC = () => {
       case 'paid':
         return <CheckCircle className="h-5 w-5 text-green-600" />;
       case 'shipped':
-        return <Truck className="h-5 w-5 text-blue-600" />;
+        return <Truck className="h-5 w-5 text-orange-500" />;
       case 'pending':
         return <Clock className="h-5 w-5 text-yellow-600" />;
       case 'failed':
@@ -100,7 +100,7 @@ const OrderDetail: React.FC = () => {
       case 'paid':
         return 'bg-green-100 text-green-800';
       case 'shipped':
-        return 'bg-blue-100 text-blue-800';
+        return 'bg-slate-100 text-blue-800';
       case 'pending':
         return 'bg-yellow-100 text-yellow-800';
       case 'failed':
@@ -116,7 +116,7 @@ const OrderDetail: React.FC = () => {
         <div className="min-h-screen bg-gray-50 py-12">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
               <p className="mt-4 text-gray-600">Loading order details...</p>
             </div>
           </div>
@@ -136,7 +136,7 @@ const OrderDetail: React.FC = () => {
               <p className="text-gray-600 mb-6">{error || 'The order you\'re looking for doesn\'t exist or has been removed.'}</p>
               <button
                 onClick={() => navigate('/')}
-                className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                className="bg-orange-500 text-white px-6 py-3 rounded-lg font-medium hover:bg-[#18448D] transition-colors"
               >
                 Return to Home
               </button>
@@ -295,7 +295,7 @@ const OrderDetail: React.FC = () => {
           <div className="mt-6 text-center">
             <button
               onClick={() => navigate('/my-orders')}
-              className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors mr-4"
+              className="bg-orange-500 text-white px-6 py-3 rounded-lg font-medium hover:bg-[#18448D] transition-colors mr-4"
             >
               View All Orders
             </button>

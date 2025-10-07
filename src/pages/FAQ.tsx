@@ -93,7 +93,7 @@ const FAQ: React.FC = () => {
           {/* Page Header */}
           <div className="text-center mb-12">
             <div className="flex items-center justify-center space-x-2 mb-4">
-              <HelpCircle className="h-8 w-8 text-blue-600" />
+              <HelpCircle className="h-8 w-8 text-orange-500" />
               <h1 className="text-4xl font-bold text-gray-900">
                 Frequently Asked Questions
               </h1>
@@ -123,7 +123,7 @@ const FAQ: React.FC = () => {
               onClick={() => setSearchTerm('')}
               className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                 searchTerm === '' 
-                  ? 'bg-blue-600 text-white' 
+                  ? 'bg-orange-500 text-white' 
                   : 'bg-white text-gray-600 hover:bg-gray-100'
               }`}
             >
@@ -135,7 +135,7 @@ const FAQ: React.FC = () => {
                 onClick={() => setSearchTerm(category)}
                 className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                   searchTerm.toLowerCase() === category.toLowerCase()
-                    ? 'bg-blue-600 text-white'
+                    ? 'bg-orange-500 text-white'
                     : 'bg-white text-gray-600 hover:bg-gray-100'
                 }`}
               >
@@ -157,7 +157,7 @@ const FAQ: React.FC = () => {
                     className="w-full px-6 py-4 text-left flex items-center justify-between hover:bg-gray-50 transition-colors"
                   >
                     <div className="flex items-center space-x-3">
-                      <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded">
+                      <span className="text-xs font-medium text-orange-500 bg-slate-100 px-2 py-1 rounded">
                         {faq.category}
                       </span>
                       <h3 className="text-lg font-semibold text-gray-900">
@@ -195,17 +195,17 @@ const FAQ: React.FC = () => {
 
           {/* Contact CTA */}
           <div className="mt-16 text-center">
-            <div className="bg-blue-50 rounded-xl p-8 border border-blue-200">
+            <div className="bg-slate-50 rounded-xl p-8 border border-slate-200">
               <h3 className="text-xl font-semibold text-blue-900 mb-4">
                 Still have questions?
               </h3>
-              <p className="text-blue-700 mb-6">
+              <p className="text-[#18448D] mb-6">
                 Our support team is here to help with any questions not covered in our FAQ.
               </p>
               <div className="flex justify-center">
                 <a
                   href="/contact"
-                  className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors"
+                  className="bg-orange-500 text-white px-6 py-3 rounded-lg font-medium hover:bg-[#18448D] transition-colors"
                 >
                   Contact Support
                 </a>

@@ -22,7 +22,7 @@ const About: React.FC = () => {
     navigate('/contact');
   };
   const stats = [
-    { icon: Clock, value: '24hr', label: 'Production Time', color: 'text-blue-600' },
+    { icon: Clock, value: '24hr', label: 'Production Time', color: 'text-white' },
     { icon: Shield, value: '100%', label: 'Satisfaction Rate', color: 'text-green-600' },
     { icon: Users, value: '10k+', label: 'Happy Customers', color: 'text-orange-600' },
     { icon: Award, value: 'Free', label: 'Shipping Over $100', color: 'text-purple-600' }
@@ -62,44 +62,37 @@ const About: React.FC = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50 relative overflow-hidden">
-        {/* Background Pattern */}
-        <div className="absolute inset-0 opacity-30">
-          <div className="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-blue-300/20 to-transparent rounded-full blur-3xl transform -translate-x-1/2 -translate-y-1/2"></div>
-          <div className="absolute top-1/3 right-0 w-80 h-80 bg-gradient-to-bl from-indigo-300/20 to-transparent rounded-full blur-3xl transform translate-x-1/2"></div>
-          <div className="absolute bottom-0 left-1/3 w-72 h-72 bg-gradient-to-tr from-purple-300/20 to-transparent rounded-full blur-3xl transform translate-y-1/2"></div>
-        </div>
-
+      <div className="min-h-screen bg-white relative overflow-hidden">
         {/* Hero Section */}
         <div className="relative pt-16 pb-20 px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-16">
-              <div className="inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 rounded-full border border-blue-100/50 shadow-sm mb-8">
-                <div className="w-2 h-2 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full mr-3 animate-pulse"></div>
+              <div className="inline-flex items-center justify-center px-6 py-3 bg-slate-50 rounded-full border border-slate-200 shadow-sm mb-8">
+                <div className="w-2 h-2 bg-orange-500 rounded-full mr-3 animate-pulse"></div>
                 <span className="text-sm font-semibold text-gray-700">About Our Company</span>
               </div>
 
-              <h1 className="text-5xl md:text-7xl font-black bg-gradient-to-r from-gray-900 via-blue-800 to-indigo-900 bg-clip-text text-transparent mb-8 tracking-tight">
+              <h1 className="text-5xl md:text-7xl font-black text-slate-900 mb-8 tracking-tight">
                 Banners On The Fly
               </h1>
 
               <p className="text-xl md:text-2xl text-gray-700 max-w-4xl mx-auto leading-relaxed mb-12">
-                Your trusted partner for <span className="font-bold text-blue-600">professional vinyl banners</span> with
-                <span className="font-bold text-indigo-600"> lightning-fast delivery</span> and
-                <span className="font-bold text-purple-600"> unmatched quality</span>
+                Your trusted partner for <span className="font-bold text-orange-500">professional vinyl banners</span> with
+                <span className="font-bold text-[#18448D]"> lightning-fast delivery</span> and
+                <span className="font-bold text-orange-600"> unmatched quality</span>
               </p>
 
               {/* Modern CTA */}
               <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-4 rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300">
+                <div className="bg-[#18448D] text-white px-8 py-4 rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300">
                   <div className="text-2xl font-bold">24hr</div>
                   <div className="text-sm opacity-90">Production</div>
                 </div>
-                <div className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-8 py-4 rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300">
+                <div className="bg-orange-500 text-white px-8 py-4 rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300">
                   <div className="text-2xl font-bold">100%</div>
                   <div className="text-sm opacity-90">Satisfaction</div>
                 </div>
-                <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-4 rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300">
+                <div className="bg-orange-600 text-white px-8 py-4 rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300">
                   <div className="text-2xl font-bold">10k+</div>
                   <div className="text-sm opacity-90">Happy Customers</div>
                 </div>
@@ -112,7 +105,7 @@ const About: React.FC = () => {
         <div className="relative py-20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-16">
-              <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-indigo-800 bg-clip-text text-transparent mb-6">
+              <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-6">
                 What Drives Us
               </h2>
               <p className="text-xl text-gray-600 max-w-3xl mx-auto">
@@ -124,14 +117,9 @@ const About: React.FC = () => {
               {values.map((value, index) => {
                 const IconComponent = value.icon;
                 return (
-                  <div key={index} className="relative bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/20 border border-blue-200/40 rounded-3xl p-8 shadow-2xl backdrop-blur-sm hover:shadow-3xl transform hover:-translate-y-2 transition-all duration-300">
-                    {/* Decorative background */}
-                    <div className="absolute inset-0 opacity-20">
-                      <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-bl from-blue-300/30 to-transparent rounded-full blur-xl"></div>
-                    </div>
-
+                  <div key={index} className="relative bg-white border border-slate-200 rounded-lg p-8 shadow-sm backdrop-blur-sm hover:shadow-sm transform hover:-translate-y-2 transition-all duration-300">
                     <div className="relative">
-                      <div className="w-16 h-16 bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg mb-6">
+                      <div className="w-16 h-16 bg-orange-500 rounded-lg flex items-center justify-center shadow-lg mb-6">
                         <IconComponent className="w-8 h-8 text-white" />
                       </div>
                       <h3 className="text-xl font-bold text-gray-900 mb-4">{value.title}</h3>
@@ -145,46 +133,43 @@ const About: React.FC = () => {
         </div>
 
         {/* Story Section */}
-        <div className="relative py-20 bg-gradient-to-br from-white via-gray-50/50 to-blue-50/30">
+        <div className="relative py-20 bg-slate-50">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid lg:grid-cols-2 gap-16 items-center">
               {/* Left Column - Content */}
               <div className="relative">
-                <div className="inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 rounded-full border border-blue-100/50 shadow-sm mb-8">
-                  <div className="w-2 h-2 bg-gradient-to-r from-blue-500 to-indigo-500 rounded-full mr-3 animate-pulse"></div>
+                <div className="inline-flex items-center justify-center px-6 py-3 bg-slate-50 rounded-full border border-slate-200 shadow-sm mb-8">
+                  <div className="w-2 h-2 bg-orange-500 rounded-full mr-3 animate-pulse"></div>
                   <span className="text-sm font-semibold text-gray-700">Our Journey</span>
                 </div>
 
-                <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-indigo-800 bg-clip-text text-transparent mb-8">
+                <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-8">
                   Our Story
                 </h2>
 
                 <div className="space-y-6 text-lg text-gray-700 leading-relaxed">
                   <p>
-                    Founded with a <span className="font-semibold text-blue-600">simple mission</span>: to provide businesses with high-quality vinyl banners
+                    Founded with a <span className="font-semibold text-orange-500">simple mission</span>: to provide businesses with high-quality vinyl banners
                     delivered faster than anyone else in the industry. We recognized that businesses needed
                     professional signage solutions without the long wait times.
                   </p>
                   <p>
-                    Our <span className="font-semibold text-indigo-600">state-of-the-art printing facility</span> operates 24/7, ensuring that your banners are
+                    Our <span className="font-semibold text-[#18448D]">state-of-the-art printing facility</span> operates 24/7, ensuring that your banners are
                     printed, finished, and shipped within 24 hours of order confirmation. We've served over
-                    <span className="font-semibold text-purple-600"> 10,000 satisfied customers</span> nationwide, from small local businesses to Fortune 500 companies.
+                    <span className="font-semibold text-orange-600"> 10,000 satisfied customers</span> nationwide, from small local businesses to Fortune 500 companies.
                   </p>
                   <p>
-                    What sets us apart is our commitment to <span className="font-semibold text-green-600">quality materials</span>,
-                    <span className="font-semibold text-orange-600"> competitive pricing</span>, and
-                    <span className="font-semibold text-red-600"> exceptional customer service</span>. Every banner is printed on premium vinyl materials and
+                    What sets us apart is our commitment to <span className="font-semibold text-orange-500">quality materials</span>,
+                    <span className="font-semibold text-orange-500"> competitive pricing</span>, and
+                    <span className="font-semibold text-[#18448D]"> exceptional customer service</span>. Every banner is printed on premium vinyl materials and
                     undergoes rigorous quality control before shipping.
                   </p>
                 </div>
 
                 {/* Mission Card */}
-                <div className="mt-10 relative bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 border border-blue-200/50 rounded-3xl p-8 shadow-xl backdrop-blur-sm">
-                  <div className="absolute inset-0 opacity-20">
-                    <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-bl from-blue-300/30 to-transparent rounded-full blur-xl"></div>
-                  </div>
+                <div className="mt-10 relative bg-white border border-slate-200 rounded-lg p-8 shadow-sm backdrop-blur-sm">
                   <div className="relative">
-                    <h3 className="text-xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent mb-4">Our Mission</h3>
+                    <h3 className="text-xl font-bold bg-[#18448D] bg-clip-text text-transparent mb-4">Our Mission</h3>
                     <p className="text-gray-700 leading-relaxed">
                       To empower businesses with professional-grade banners that help them stand out,
                       attract customers, and grow their brand - all delivered with unmatched speed and quality.
@@ -194,9 +179,9 @@ const About: React.FC = () => {
               </div>
 
               {/* Right Column - Image Placeholder */}
-              <div className="bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl p-8 text-center">
+              <div className="bg-slate-50 rounded-xl p-8 text-center">
                 <div className="bg-white rounded-lg p-8 shadow-md">
-                  <Award className="h-16 w-16 text-blue-600 mx-auto mb-4" />
+                  <Award className="h-16 w-16 text-orange-500 mx-auto mb-4" />
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">Industry Leader</h3>
                   <p className="text-gray-600">
                     Recognized for excellence in banner printing and customer satisfaction
@@ -220,8 +205,8 @@ const About: React.FC = () => {
             <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
               {values.map((value, index) => (
                 <div key={index} className="text-center">
-                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 mb-4">
-                    <value.icon className="h-8 w-8 text-blue-600" />
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-orange-500 mb-4">
+                    <value.icon className="h-8 w-8 text-white" />
                   </div>
                   <h3 className="text-xl font-semibold text-gray-900 mb-3">{value.title}</h3>
                   <p className="text-gray-600">{value.description}</p>
@@ -245,13 +230,13 @@ const About: React.FC = () => {
               {milestones.map((milestone, index) => (
                 <div key={index} className="flex items-start space-x-4">
                   <div className="flex-shrink-0">
-                    <div className="w-12 h-12 bg-blue-600 text-white rounded-full flex items-center justify-center font-bold">
+                    <div className="w-12 h-12 bg-orange-500 text-white rounded-full flex items-center justify-center font-bold">
                       {milestone.year.slice(-2)}
                     </div>
                   </div>
                   <div className="bg-white rounded-lg p-6 shadow-md border border-gray-200 flex-1">
                     <div className="flex items-center space-x-2 mb-2">
-                      <span className="text-sm font-medium text-blue-600">{milestone.year}</span>
+                      <span className="text-sm font-medium text-orange-500">{milestone.year}</span>
                       <CheckCircle className="h-4 w-4 text-green-500" />
                     </div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">{milestone.title}</h3>
@@ -264,24 +249,24 @@ const About: React.FC = () => {
         </div>
 
         {/* CTA Section */}
-        <div className="py-16 bg-blue-600">
+        <div className="py-16 bg-orange-500">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <h2 className="text-3xl font-bold text-white mb-4">
               Ready to Experience the Difference?
             </h2>
-            <p className="text-xl text-blue-100 mb-8">
+            <p className="text-xl text-white mb-8">
               Join thousands of satisfied customers who trust us with their banner needs.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center relative z-10">
               <button
                 onClick={handleStartDesigning}
-                className="bg-white text-blue-600 px-8 py-3 rounded-lg font-medium hover:bg-gray-100 transition-colors cursor-pointer relative z-10"
+                className="bg-white text-orange-500 px-8 py-3 rounded-lg font-medium hover:bg-gray-100 transition-colors cursor-pointer relative z-10"
               >
                 Start Designing
               </button>
               <button
                 onClick={handleContactUs}
-                className="bg-blue-700 text-white px-8 py-3 rounded-lg font-medium hover:bg-blue-800 transition-colors cursor-pointer relative z-10"
+                className="bg-[#18448D] text-white px-8 py-3 rounded-lg font-medium hover:bg-[#18448D]/90 transition-colors cursor-pointer relative z-10"
               >
                 Contact Us
               </button>

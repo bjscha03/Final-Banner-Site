@@ -42,7 +42,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
       <div className="absolute inset-0 bg-black bg-opacity-50" onClick={onClose}></div>
-      <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-xl">
+      <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-sm">
         <div className="flex h-full flex-col">
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b">
@@ -185,7 +185,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                 <span>{usd(totalCents/100)}</span>
               </div>
 
-              <button onClick={handleCheckout} className="w-full mt-4 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-4 rounded-2xl font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-200">
+              <button onClick={handleCheckout} className="w-full mt-4 bg-white hover:from-blue-700 hover:to-indigo-700 text-slate-900 py-4 rounded-lg font-semibold text-lg shadow-sm hover:shadow-sm transition-all duration-200">
                 Proceed to Checkout
               </button>
             </div>

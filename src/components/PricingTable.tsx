@@ -114,17 +114,17 @@ const PricingTable: React.FC = () => {
   };
 
   return (
-    <section className="py-20 bg-gradient-to-br from-gray-50 via-slate-50 to-gray-100 relative overflow-hidden">
+    <section className="py-20 bg-white relative overflow-hidden">
       {/* Background Pattern */}
       <div className="absolute inset-0 opacity-30">
-        <div className="absolute top-0 right-1/4 w-80 h-80 bg-gradient-to-bl from-gray-300/40 to-transparent rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 left-1/4 w-80 h-80 bg-gradient-to-tr from-slate-300/40 to-transparent rounded-full blur-3xl"></div>
+        <div className="absolute top-0 right-1/4 w-80 h-80 bg-white rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 left-1/4 w-80 h-80 bg-white rounded-full blur-3xl"></div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Header Section */}
         <div className="text-center mb-16">
-          <h2 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-slate-800 to-gray-800 bg-clip-text text-transparent mb-6">
+          <h2 className="text-4xl font-bold text-slate-900 mb-6">
             Material Pricing
           </h2>
           <p className="text-xl text-gray-700 max-w-2xl mx-auto leading-relaxed">
@@ -146,7 +146,7 @@ const PricingTable: React.FC = () => {
               {/* Popular Badge - Fixed Height */}
               <div className="h-12 flex items-center justify-center mb-2">
                 {material.popular && (
-                  <div className="bg-gradient-to-r from-orange-500 to-red-500 text-white px-4 py-2 rounded-full text-xs font-bold shadow-lg">
+                  <div className="bg-white text-slate-900 px-4 py-2 rounded-full text-xs font-bold shadow-sm">
                     <span className="flex items-center gap-1.5">
                       <span>⭐</span>
                       Most Popular
@@ -157,11 +157,11 @@ const PricingTable: React.FC = () => {
 
               {/* Header Section - Fixed Height */}
               <div className="text-center mb-8 px-6">
-                <h3 className="text-2xl font-bold bg-gradient-to-r from-gray-900 to-blue-800 bg-clip-text text-transparent mb-4 leading-tight min-h-[2rem] flex items-center justify-center">
+                <h3 className="text-2xl font-bold text-slate-900 mb-4 leading-tight min-h-[2rem] flex items-center justify-center">
                   {material.name}
                 </h3>
                 <div className="mb-6">
-                  <span className="text-5xl font-bold bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent leading-none">
+                  <span className="text-5xl font-bold text-slate-900 leading-none">
                     {material.price}
                   </span>
                   <span className="text-lg text-gray-500 font-medium ml-1 align-top">/sq ft</span>
@@ -187,7 +187,7 @@ const PricingTable: React.FC = () => {
               <div className="px-6 pb-6">
                 <button
                   onClick={() => handleMaterialSelect(material.key)}
-                  className={`w-full py-4 px-6 rounded-xl font-bold text-base transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-lg hover:shadow-xl ${
+                  className={`w-full py-4 px-6 rounded-xl font-bold text-base transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-sm hover:shadow-sm ${
                     material.popular
                       ? 'bg-gradient-to-r from-orange-500 via-orange-600 to-red-500 hover:from-orange-600 hover:via-red-500 hover:to-red-600 text-white'
                       : 'bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-800 hover:to-gray-900 text-white'
@@ -202,12 +202,12 @@ const PricingTable: React.FC = () => {
         </div>
 
         {/* Add-On Options Section */}
-        <div className="mt-16 bg-white rounded-2xl p-10 shadow-xl border border-gray-200/50">
+        <div className="mt-16 bg-white rounded-lg p-10 shadow-sm border border-gray-200/50">
           <h3 className="text-2xl font-bold text-gray-900 mb-8 text-center">
             Add-On Options
           </h3>
           <div className="grid md:grid-cols-3 gap-8">
-            <div className="text-center p-6 border border-gray-200 rounded-xl hover:border-blue-300 hover:shadow-lg transition-all duration-300">
+            <div className="text-center p-6 border border-gray-200 rounded-xl hover:border-blue-300 hover:shadow-sm transition-all duration-300">
               <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <Check className="h-6 w-6 text-green-600" />
               </div>
@@ -217,7 +217,7 @@ const PricingTable: React.FC = () => {
                 Included Free
               </div>
             </div>
-            <div className="text-center p-6 border border-gray-200 rounded-xl hover:border-blue-300 hover:shadow-lg transition-all duration-300">
+            <div className="text-center p-6 border border-gray-200 rounded-xl hover:border-blue-300 hover:shadow-sm transition-all duration-300">
               <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-blue-600 font-bold text-lg">$</span>
               </div>
@@ -228,7 +228,7 @@ const PricingTable: React.FC = () => {
                 <div className="text-sm">+$2.00/linear ft</div>
               </div>
             </div>
-            <div className="text-center p-6 border border-gray-200 rounded-xl hover:border-blue-300 hover:shadow-lg transition-all duration-300">
+            <div className="text-center p-6 border border-gray-200 rounded-xl hover:border-blue-300 hover:shadow-sm transition-all duration-300">
               <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <span className="text-orange-600 font-bold text-lg">$</span>
               </div>

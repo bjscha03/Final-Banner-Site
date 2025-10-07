@@ -106,17 +106,17 @@ const Contact: React.FC = () => {
           <div className="grid lg:grid-cols-2 gap-12">
             {/* Left Column - Contact Info */}
             <div className="space-y-8">
-              <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-8 text-white">
+              <div className="bg-white rounded-xl p-8 text-slate-900">
                 <h3 className="text-xl font-semibold mb-6">Get In Touch</h3>
                 
                 <div className="space-y-4">
                   <div className="flex items-center">
-                    <div className="bg-blue-500 p-2 rounded-lg mr-4">
-                      <Mail className="h-5 w-5" />
+                    <div className="bg-orange-500 p-2 rounded-lg mr-4">
+                      <Mail className="h-5 w-5 text-white" />
                     </div>
                     <div>
                       <p className="font-medium">Email Support</p>
-                      <p className="text-blue-100">support@bannersonthefly.com</p>
+                      <p className="text-slate-600">support@bannersonthefly.com</p>
                     </div>
                   </div>
                   
@@ -142,8 +142,8 @@ const Contact: React.FC = () => {
                   </div>
                   
                   <div className="flex items-start">
-                    <div className="bg-blue-100 p-2 rounded-lg mr-4 mt-1">
-                      <Shield className="h-5 w-5 text-blue-600" />
+                    <div className="bg-slate-100 p-2 rounded-lg mr-4 mt-1">
+                      <Shield className="h-5 w-5 text-orange-500" />
                     </div>
                     <div>
                       <h4 className="font-medium text-gray-900">Expert Support</h4>
@@ -244,7 +244,7 @@ const Contact: React.FC = () => {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
+                  className="w-full bg-orange-500 text-white py-3 px-6 rounded-lg font-medium hover:bg-[#18448D] disabled:bg-blue-400 disabled:cursor-not-allowed transition-colors flex items-center justify-center"
                 >
                   {isSubmitting ? (
                     <>

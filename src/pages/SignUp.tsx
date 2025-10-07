@@ -99,7 +99,7 @@ const SignUp: React.FC = () => {
       <Layout>
         <div className="bg-gray-50 flex items-center justify-center py-8 px-4 sm:px-6 lg:px-8 min-h-[calc(100vh-4rem)]">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
             <p className="mt-4 text-gray-600">Loading...</p>
           </div>
         </div>
@@ -117,8 +117,8 @@ const SignUp: React.FC = () => {
       <div className="bg-gray-50 flex items-center justify-center py-8 px-4 sm:px-6 lg:px-8 min-h-[calc(100vh-4rem)]">
         <div className="max-w-md w-full space-y-6">
           <div className="text-center">
-            <div className="mx-auto h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center">
-              <UserPlus className="h-6 w-6 text-blue-600" />
+            <div className="mx-auto h-12 w-12 bg-slate-100 rounded-full flex items-center justify-center">
+              <UserPlus className="h-6 w-6 text-orange-500" />
             </div>
             <h2 className="mt-6 text-3xl font-bold text-gray-900">
               Create your account
@@ -127,7 +127,7 @@ const SignUp: React.FC = () => {
               Or{' '}
               <button
                 onClick={() => navigate('/sign-in')}
-                className="font-medium text-blue-600 hover:text-blue-500"
+                className="font-medium text-orange-500 hover:text-blue-500"
               >
                 sign in to your existing account
               </button>

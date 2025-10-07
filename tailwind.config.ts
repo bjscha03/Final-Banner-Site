@@ -96,7 +96,14 @@ export default {
           '50%': { transform: 'scale(1.05)' },
         },
         'pulse-ring': {
-          '0%': { transform: 'scale(1)', opacity: '1' },
+          '0%': { transform: 'scale(1)',
+        'pulse-subtle': 'pulse-subtle 3s ease-in-out infinite',
+         opacity: '1' },
+        'pulse-subtle': {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.85' },
+        },
+        
           '100%': { transform: 'scale(1.5)', opacity: '0' },
         },
       },

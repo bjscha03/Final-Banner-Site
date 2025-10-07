@@ -5,13 +5,13 @@ import { Shield, AlertTriangle, Clock, FileText, Scale, Truck } from 'lucide-rea
 const Terms: React.FC = () => {
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50 pt-8 pb-16">
+      <div className="min-h-screen bg-slate-50 pt-8 pb-16">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
           <div className="text-center mb-12">
             <div className="flex items-center justify-center mb-4">
-              <FileText className="h-8 w-8 text-blue-600 mr-3" />
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-indigo-800 bg-clip-text text-transparent">
+              <FileText className="h-8 w-8 text-orange-500 mr-3" />
+              <h1 className="text-4xl font-bold bg-slate-50 bg-clip-text text-transparent">
                 Terms and Conditions
               </h1>
             </div>
@@ -42,7 +42,7 @@ const Terms: React.FC = () => {
           {/* Terms Sections */}
           <div className="space-y-8">
             {/* Limitation of Liability */}
-            <section className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
+            <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
               <div className="flex items-center mb-4">
                 <Shield className="h-6 w-6 text-red-500 mr-3" />
                 <h2 className="text-2xl font-bold text-gray-900">Limitation of Liability</h2>
@@ -53,7 +53,7 @@ const Terms: React.FC = () => {
             </section>
 
             {/* Hours of Operation */}
-            <section className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
+            <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
               <div className="flex items-center mb-4">
                 <Clock className="h-6 w-6 text-green-500 mr-3" />
                 <h2 className="text-2xl font-bold text-gray-900">Hours of Operation</h2>
@@ -64,7 +64,7 @@ const Terms: React.FC = () => {
             </section>
 
             {/* Turnaround Times */}
-            <section className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
+            <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
               <div className="flex items-center mb-4">
                 <Clock className="h-6 w-6 text-blue-500 mr-3" />
                 <h2 className="text-2xl font-bold text-gray-900">Turnaround Times</h2>
@@ -75,7 +75,7 @@ const Terms: React.FC = () => {
             </section>
 
             {/* Warranty / Returns / Refunds */}
-            <section className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
+            <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
               <div className="flex items-center mb-4">
                 <Shield className="h-6 w-6 text-purple-500 mr-3" />
                 <h2 className="text-2xl font-bold text-gray-900">Warranty / Returns / Refunds</h2>
@@ -91,7 +91,7 @@ const Terms: React.FC = () => {
             </section>
 
             {/* Customer Content */}
-            <section className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
+            <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
               <div className="flex items-center mb-4">
                 <FileText className="h-6 w-6 text-indigo-500 mr-3" />
                 <h2 className="text-2xl font-bold text-gray-900">Customer Content</h2>
@@ -102,7 +102,7 @@ const Terms: React.FC = () => {
             </section>
 
             {/* Order Approval */}
-            <section className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
+            <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
               <div className="flex items-center mb-4">
                 <AlertTriangle className="h-6 w-6 text-yellow-500 mr-3" />
                 <h2 className="text-2xl font-bold text-gray-900">Order Approval</h2>
@@ -149,7 +149,7 @@ const Terms: React.FC = () => {
             </section>
 
             {/* Customer Artwork Requirements */}
-            <section className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
+            <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
               <div className="flex items-center mb-4">
                 <FileText className="h-6 w-6 text-teal-500 mr-3" />
                 <h2 className="text-2xl font-bold text-gray-900">Customer Artwork Requirements</h2>
@@ -171,7 +171,7 @@ const Terms: React.FC = () => {
             </section>
 
             {/* Order Cancellation */}
-            <section className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
+            <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
               <div className="flex items-center mb-4">
                 <AlertTriangle className="h-6 w-6 text-red-500 mr-3" />
                 <h2 className="text-2xl font-bold text-gray-900">Order Cancellation</h2>
@@ -183,7 +183,7 @@ const Terms: React.FC = () => {
 
 
             {/* Shipping & Delivery */}
-            <section className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
+            <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
               <div className="flex items-center mb-4">
                 <Truck className="h-6 w-6 text-blue-500 mr-3" />
                 <h2 className="text-2xl font-bold text-gray-900">Shipping & Delivery</h2>
@@ -194,7 +194,7 @@ const Terms: React.FC = () => {
             </section>
 
             {/* Payment & Processing */}
-            <section className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
+            <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
               <div className="flex items-center mb-4">
                 <Scale className="h-6 w-6 text-green-500 mr-3" />
                 <h2 className="text-2xl font-bold text-gray-900">Payment & Processing</h2>
@@ -205,7 +205,7 @@ const Terms: React.FC = () => {
             </section>
 
             {/* Governing Law */}
-            <section className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
+            <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
               <div className="flex items-center mb-4">
                 <Scale className="h-6 w-6 text-purple-500 mr-3" />
                 <h2 className="text-2xl font-bold text-gray-900">Governing Law</h2>
@@ -216,7 +216,7 @@ const Terms: React.FC = () => {
             </section>
 
             {/* Indemnification */}
-            <section className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
+            <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
               <div className="flex items-center mb-4">
                 <Shield className="h-6 w-6 text-indigo-500 mr-3" />
                 <h2 className="text-2xl font-bold text-gray-900">Indemnification</h2>
@@ -227,7 +227,7 @@ const Terms: React.FC = () => {
             </section>
 
             {/* Force Majeure */}
-            <section className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
+            <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
               <div className="flex items-center mb-4">
                 <AlertTriangle className="h-6 w-6 text-gray-500 mr-3" />
                 <h2 className="text-2xl font-bold text-gray-900">Force Majeure</h2>
@@ -238,7 +238,7 @@ const Terms: React.FC = () => {
             </section>
 
             {/* Shipping Errors & Lost Packages */}
-            <section className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
+            <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
               <div className="flex items-center mb-4">
                 <Truck className="h-6 w-6 text-red-500 mr-3" />
                 <h2 className="text-2xl font-bold text-gray-900">Shipping Errors & Lost Packages</h2>
@@ -249,7 +249,7 @@ const Terms: React.FC = () => {
             </section>
 
             {/* Technical Issues */}
-            <section className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
+            <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
               <div className="flex items-center mb-4">
                 <AlertTriangle className="h-6 w-6 text-yellow-500 mr-3" />
                 <h2 className="text-2xl font-bold text-gray-900">Technical Issues</h2>
@@ -260,7 +260,7 @@ const Terms: React.FC = () => {
             </section>
 
             {/* Refusal of Service */}
-            <section className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
+            <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
               <div className="flex items-center mb-4">
                 <Shield className="h-6 w-6 text-gray-500 mr-3" />
                 <h2 className="text-2xl font-bold text-gray-900">Refusal of Service</h2>
@@ -279,7 +279,7 @@ const Terms: React.FC = () => {
               </p>
               <p className="text-gray-600 text-sm mt-2">
                 For questions about these terms, please contact us at{' '}
-                <a href="mailto:support@bannersonthefly.com" className="text-blue-600 hover:text-blue-800">
+                <a href="mailto:support@bannersonthefly.com" className="text-orange-500 hover:text-blue-800">
                   support@bannersonthefly.com
                 </a>
               </p>

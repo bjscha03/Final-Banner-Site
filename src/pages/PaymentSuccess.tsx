@@ -80,11 +80,11 @@ const calculateUnitPrice = (item: any) => {
           </div>
 
           {/* Payment Details */}
-          <div className="bg-white rounded-2xl shadow-lg p-8 mb-8">
+          <div className="bg-white rounded-lg shadow-sm p-8 mb-8">
             <div className="border-b border-gray-200 pb-6 mb-6">
               <div className="flex justify-between items-start">
                 <div>
-                  <h2 className="text-2xl font-bold text-blue-700">Banners On The Fly</h2>
+                  <h2 className="text-2xl font-bold text-[#18448D]">Banners On The Fly</h2>
                   <p className="text-gray-600 mt-1">Payment Confirmation</p>
                 </div>
                 <div className="text-right">
@@ -187,7 +187,7 @@ const calculateUnitPrice = (item: any) => {
             )}
 
             {/* Next Steps */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mt-6">
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-6 mt-6">
               <h3 className="font-semibold text-blue-900 mb-2">What's Next?</h3>
               <ul className="text-blue-800 text-sm space-y-1">
                 <li>• We'll process your order and begin production</li>

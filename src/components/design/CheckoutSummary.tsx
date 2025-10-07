@@ -65,7 +65,7 @@ const CheckoutSummary: React.FC = () => {
   };
 
   return (
-    <div className="bg-gradient-to-br from-gray-50 to-white border-t border-gray-200 p-6">
+    <div className="bg-white border-t border-gray-200 p-6">
       <div className="max-w-4xl mx-auto">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Order Summary</h3>
         
@@ -139,7 +139,7 @@ const CheckoutSummary: React.FC = () => {
           <Button
             onClick={handleAddToCart}
             disabled={isProcessing}
-            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3"
+            className="flex-1 bg-orange-500 hover:bg-orange-600 text-white py-3"
           >
             <ShoppingCart className="w-4 h-4 mr-2" />
             {isProcessing ? 'Adding...' : 'Add to Cart'}
@@ -148,7 +148,7 @@ const CheckoutSummary: React.FC = () => {
           <Button
             onClick={handleBuyNow}
             disabled={isProcessing}
-            className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3"
+            className="flex-1 bg-[#18448D] hover:bg-[#18448D]/90 text-white py-3"
           >
             <CreditCard className="w-4 h-4 mr-2" />
             {isProcessing ? 'Processing...' : 'Buy Now'}

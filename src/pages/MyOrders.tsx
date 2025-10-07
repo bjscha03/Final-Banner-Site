@@ -133,7 +133,7 @@ const MyOrders: React.FC = () => {
         <div className="bg-gray-50 py-8 min-h-[calc(100vh-4rem)]">
           <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
               <p className="mt-4 text-gray-600">Loading...</p>
             </div>
           </div>
@@ -156,7 +156,7 @@ const MyOrders: React.FC = () => {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center">
-                  <Package className="h-6 w-6 sm:h-8 sm:w-8 mr-2 sm:mr-3 text-blue-600" />
+                  <Package className="h-6 w-6 sm:h-8 sm:w-8 mr-2 sm:mr-3 text-orange-500" />
                   My Orders
                 </h1>
                 <p className="text-gray-600 mt-2 text-sm sm:text-base">
@@ -167,7 +167,7 @@ const MyOrders: React.FC = () => {
                     <span className="font-medium">Account:</span>{' '}
                     {user.username ? (
                       <>
-                        <span className="text-blue-600 font-medium">@{user.username}</span>
+                        <span className="text-orange-500 font-medium">@{user.username}</span>
                         <span className="mx-2">•</span>
                         <span className="break-all">{user.email}</span>
                       </>
@@ -198,7 +198,7 @@ const MyOrders: React.FC = () => {
           </div>
 
           {/* Account Info */}
-          <div className="bg-white rounded-2xl shadow-lg p-6 mb-8">
+          <div className="bg-white rounded-lg shadow-sm p-6 mb-8">
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="text-lg font-semibold text-gray-900">Account Information</h2>
@@ -216,7 +216,7 @@ const MyOrders: React.FC = () => {
 
           {/* Help Section */}
           {orders.length > 0 && (
-            <div className="mt-8 bg-blue-50 border border-blue-200 rounded-2xl p-6">
+            <div className="mt-8 bg-slate-50 border border-slate-200 rounded-lg p-6">
               <h3 className="font-semibold text-blue-900 mb-2">Need Help?</h3>
               <div className="text-blue-800 text-sm space-y-1">
                 <p>• Questions about your order? Contact us at support@bannersonthefly.com</p>

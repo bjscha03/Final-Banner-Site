@@ -106,12 +106,12 @@ const StickyCart: React.FC<StickyCartProps> = ({ onOpenCart, isCartOpen = false 
         >
           <button
             onClick={onOpenCart}
-            className="relative bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-full p-4 shadow-2xl transition-all duration-300 hover:scale-110 active:scale-95"
+            className="relative bg-white hover:from-blue-700 hover:to-indigo-700 text-slate-900 rounded-full p-4 shadow-sm transition-all duration-300 hover:scale-110 active:scale-95"
             aria-label={`Shopping cart with ${itemCount} items`}
           >
             <ShoppingCart className="h-6 w-6" />
             {itemCount > 0 && (
-              <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center shadow-lg animate-pulse">
+              <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center shadow-sm animate-pulse">
                 {itemCount}
               </span>
             )}
@@ -120,10 +120,10 @@ const StickyCart: React.FC<StickyCartProps> = ({ onOpenCart, isCartOpen = false 
 
         {isExpanded && itemCount > 0 && (
           <div
-            className="fixed bottom-32 right-4 z-40 bg-white rounded-2xl shadow-2xl border border-gray-200 w-72 animate-slide-in overflow-hidden"
+            className="fixed bottom-32 right-4 z-40 bg-white rounded-lg shadow-sm border border-gray-200 w-72 animate-slide-in overflow-hidden"
             style={{ paddingBottom: 'env(safe-area-inset-bottom)' }}
           >
-            <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-3">
+            <div className="bg-white text-slate-900 p-3">
               <div className="flex justify-between items-center">
                 <div className="flex items-center space-x-2">
                   <ShoppingCart className="h-4 w-4" />
@@ -158,7 +158,7 @@ const StickyCart: React.FC<StickyCartProps> = ({ onOpenCart, isCartOpen = false 
                 </button>
                 <button
                   onClick={handleCheckout}
-                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-2 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl text-sm"
+                  className="w-full bg-white hover:from-blue-700 hover:to-indigo-700 text-slate-900 py-2 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center space-x-2 shadow-sm hover:shadow-sm text-sm"
                 >
                   <span>Checkout</span>
                   <ArrowRight className="h-4 w-4" />
@@ -180,12 +180,12 @@ const StickyCart: React.FC<StickyCartProps> = ({ onOpenCart, isCartOpen = false 
       >
         <button
           onClick={handleToggleMinimize}
-          className="relative bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-full p-3 shadow-2xl transition-all duration-300 hover:scale-110"
+          className="relative bg-white hover:from-blue-700 hover:to-indigo-700 text-slate-900 rounded-full p-3 shadow-sm transition-all duration-300 hover:scale-110"
           aria-label={`Show cart with ${itemCount} items`}
         >
           <ShoppingCart className="h-5 w-5" />
           {itemCount > 0 && (
-            <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center shadow-lg">
+            <span className="absolute -top-2 -right-2 bg-orange-500 text-white text-xs font-bold rounded-full h-6 w-6 flex items-center justify-center shadow-sm">
               {itemCount}
             </span>
           )}
@@ -200,8 +200,8 @@ const StickyCart: React.FC<StickyCartProps> = ({ onOpenCart, isCartOpen = false 
         isVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
       } ${justAdded ? 'scale-105' : 'scale-100'}`}
     >
-      <div className="bg-white rounded-2xl shadow-2xl border border-gray-200 w-80 overflow-hidden">
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white p-4">
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 w-80 overflow-hidden">
+        <div className="bg-white text-slate-900 p-4">
           <div className="flex justify-between items-center">
             <div className="flex items-center space-x-2">
               <ShoppingCart className="h-5 w-5" />
@@ -278,7 +278,7 @@ const StickyCart: React.FC<StickyCartProps> = ({ onOpenCart, isCartOpen = false 
                 </button>
                 <button
                   onClick={handleCheckout}
-                  className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white py-2 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center space-x-2 shadow-lg hover:shadow-xl"
+                  className="w-full bg-white hover:from-blue-700 hover:to-indigo-700 text-slate-900 py-2 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center space-x-2 shadow-sm hover:shadow-sm"
                 >
                   <span>Checkout</span>
                   <ArrowRight className="h-4 w-4" />

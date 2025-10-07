@@ -140,10 +140,10 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
 
   return (
     <div className={`${className} w-full`}>
-      <div className="relative bg-gray-50 p-8 rounded-2xl overflow-hidden" style={{height: "500px", width: "100%", display: "flex", alignItems: "center", justifyContent: "center"}}>
+      <div className="relative bg-gray-50 p-8 rounded-lg overflow-hidden" style={{height: "500px", width: "100%", display: "flex", alignItems: "center", justifyContent: "center"}}>
         {/* Loading Spinner Overlay */}
         {isUploading && (
-          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 rounded-2xl">
+          <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 rounded-lg">
             <div className="flex flex-col items-center gap-3">
               <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
               <p className="text-sm font-medium text-blue-700">Processing file...</p>
@@ -151,7 +151,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           </div>
         )}        <svg
           viewBox={`0 0 ${totalWidth} ${totalHeight}`}
-          className="border-2 border-gray-400 rounded-xl bg-white shadow-lg"
+          className="border-2 border-gray-400 rounded-xl bg-white shadow-sm"
           onClick={onCanvasClick}
           style={{
             maxWidth: "100%",
@@ -481,7 +481,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
       </div>
 
     {/* ENHANCED PROFESSIONAL INFO PANEL */}
-    <div className="mt-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 p-3 shadow-sm">
+    <div className="mt-4 bg-white rounded-lg border border-blue-200 p-3 shadow-sm">
       <div className="flex flex-wrap items-center gap-4 w-full">
         <div className="flex items-center gap-2 flex-shrink-0">
           <span className="text-xs text-gray-700 font-semibold">Banner Size:</span>

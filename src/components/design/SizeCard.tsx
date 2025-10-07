@@ -98,10 +98,10 @@ const SizeCard: React.FC = () => {
   return (
     <div className="modern-card p-4 md:p-6 lg:p-8">
       <div className="flex items-center space-x-2 md:space-x-3 mb-4 md:mb-6">
-        <div className="p-1.5 md:p-2 bg-gradient-to-br from-blue-100 to-blue-200 rounded-xl">
+        <div className="p-1.5 md:p-2 bg-white rounded-xl">
           <Ruler className="h-4 w-4 md:h-5 md:w-5 text-blue-600" />
         </div>
-        <h3 className="text-lg md:text-xl font-bold bg-gradient-to-r from-gray-900 to-blue-800 bg-clip-text text-transparent">📐 Choose Size</h3>
+        <h3 className="text-lg md:text-xl font-bold text-slate-900">📐 Choose Size</h3>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">

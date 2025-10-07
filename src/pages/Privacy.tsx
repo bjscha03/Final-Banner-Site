@@ -5,13 +5,13 @@ import { Shield, Eye, Lock, Database, UserCheck, Globe } from 'lucide-react';
 const Privacy: React.FC = () => {
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50 pt-8 pb-16">
+      <div className="min-h-screen bg-slate-50 pt-8 pb-16">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
           <div className="text-center mb-12">
             <div className="flex items-center justify-center mb-4">
-              <Shield className="h-8 w-8 text-blue-600 mr-3" />
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-indigo-800 bg-clip-text text-transparent">
+              <Shield className="h-8 w-8 text-orange-500 mr-3" />
+              <h1 className="text-4xl font-bold bg-slate-50 bg-clip-text text-transparent">
                 Privacy Policy
               </h1>
             </div>
@@ -24,12 +24,12 @@ const Privacy: React.FC = () => {
           </div>
 
           {/* Introduction */}
-          <div className="bg-blue-50 border-l-4 border-blue-400 p-6 mb-8 rounded-r-lg">
+          <div className="bg-slate-50 border-l-4 border-slate-200 p-6 mb-8 rounded-r-lg">
             <div className="flex items-start">
               <Eye className="h-6 w-6 text-blue-400 mr-3 mt-0.5 flex-shrink-0" />
               <div>
                 <h2 className="text-lg font-bold text-blue-800 mb-2">Our Commitment to Privacy</h2>
-                <p className="text-blue-700 leading-relaxed">
+                <p className="text-[#18448D] leading-relaxed">
                   At Banners on the Fly, we are committed to protecting your privacy and ensuring the security of your personal information. This Privacy Policy explains how we collect, use, and safeguard your data when you use our website and services.
                 </p>
               </div>
@@ -39,7 +39,7 @@ const Privacy: React.FC = () => {
           {/* Privacy Sections */}
           <div className="space-y-8">
             {/* Information We Collect */}
-            <section className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
+            <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
               <div className="flex items-center mb-4">
                 <Database className="h-6 w-6 text-green-500 mr-3" />
                 <h2 className="text-2xl font-bold text-gray-900">Information We Collect</h2>
@@ -100,7 +100,7 @@ const Privacy: React.FC = () => {
             </section>
 
             {/* How We Use Your Information */}
-            <section className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
+            <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
               <div className="flex items-center mb-4">
                 <UserCheck className="h-6 w-6 text-blue-500 mr-3" />
                 <h2 className="text-2xl font-bold text-gray-900">How We Use Your Information</h2>
@@ -134,7 +134,7 @@ const Privacy: React.FC = () => {
             </section>
 
             {/* Information Sharing */}
-            <section className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
+            <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
               <div className="flex items-center mb-4">
                 <Globe className="h-6 w-6 text-purple-500 mr-3" />
                 <h2 className="text-2xl font-bold text-gray-900">Information Sharing</h2>
@@ -165,7 +165,7 @@ const Privacy: React.FC = () => {
             </section>
 
             {/* Data Security */}
-            <section className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
+            <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
               <div className="flex items-center mb-4">
                 <Lock className="h-6 w-6 text-red-500 mr-3" />
                 <h2 className="text-2xl font-bold text-gray-900">Data Security</h2>
@@ -196,7 +196,7 @@ const Privacy: React.FC = () => {
             </section>
 
             {/* Your Rights */}
-            <section className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
+            <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
               <div className="flex items-center mb-4">
                 <UserCheck className="h-6 w-6 text-indigo-500 mr-3" />
                 <h2 className="text-2xl font-bold text-gray-900">Your Rights</h2>
@@ -231,7 +231,7 @@ const Privacy: React.FC = () => {
             </section>
 
             {/* Cookies */}
-            <section className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
+            <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
               <div className="flex items-center mb-4">
                 <Database className="h-6 w-6 text-orange-500 mr-3" />
                 <h2 className="text-2xl font-bold text-gray-900">Cookies and Tracking</h2>
@@ -249,7 +249,7 @@ const Privacy: React.FC = () => {
             </section>
 
             {/* Contact Information */}
-            <section className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
+            <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
               <div className="flex items-center mb-4">
                 <Shield className="h-6 w-6 text-green-500 mr-3" />
                 <h2 className="text-2xl font-bold text-gray-900">Contact Us</h2>
@@ -259,7 +259,7 @@ const Privacy: React.FC = () => {
                   If you have questions about this Privacy Policy or wish to exercise your rights, please contact us:
                 </p>
                 <div className="bg-gray-50 p-4 rounded-lg">
-                  <p><strong>Email:</strong> <a href="mailto:support@bannersonthefly.com" className="text-blue-600 hover:text-blue-800">support@bannersonthefly.com</a></p>
+                  <p><strong>Email:</strong> <a href="mailto:support@bannersonthefly.com" className="text-orange-500 hover:text-blue-800">support@bannersonthefly.com</a></p>
                   <p><strong>Company:</strong> BPS Sales Group, Inc. DBA Banners on the Fly</p>
                   <p><strong>Response Time:</strong> We will respond to privacy requests within 30 days</p>
                 </div>

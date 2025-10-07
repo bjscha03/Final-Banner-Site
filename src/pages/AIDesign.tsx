@@ -381,7 +381,7 @@ const AIDesign: React.FC = () => {
           {/* Header */}
           <div className="mb-8">
             <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-2xl flex items-center justify-center">
+              <div className="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
                 <Sparkles className="w-5 h-5 text-white" />
               </div>
               <div>
@@ -397,10 +397,10 @@ const AIDesign: React.FC = () => {
             {/* Left Column - AI Inputs + Reused Components */}
             <div className="lg:col-span-3 space-y-6">
               {/* AI Prompt Section */}
-              <div className="bg-white border border-gray-200/60 rounded-2xl overflow-hidden shadow-sm">
-                <div className="bg-gradient-to-r from-purple-50/50 to-white px-6 py-4 border-b border-gray-100">
+              <div className="bg-white border border-gray-200/60 rounded-lg overflow-hidden shadow-sm">
+                <div className="bg-white px-6 py-4 border-b border-gray-100">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-sm">
+                    <div className="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center shadow-sm">
                       <Type className="w-5 h-5 text-white" />
                     </div>
                     <div>
@@ -424,10 +424,10 @@ const AIDesign: React.FC = () => {
               </div>
 
               {/* Style & Color Section */}
-              <div className="bg-white border border-gray-200/60 rounded-2xl overflow-hidden shadow-sm">
-                <div className="bg-gradient-to-r from-blue-50/50 to-white px-6 py-4 border-b border-gray-100">
+              <div className="bg-white border border-gray-200/60 rounded-lg overflow-hidden shadow-sm">
+                <div className="bg-white px-6 py-4 border-b border-gray-100">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-sm">
+                    <div className="w-10 h-10 bg-[#18448D] rounded-lg flex items-center justify-center shadow-sm">
                       <Palette className="w-5 h-5 text-white" />
                     </div>
                     <div>
@@ -475,10 +475,10 @@ const AIDesign: React.FC = () => {
               </div>
 
               {/* Text Layers Section */}
-              <div className="bg-white border border-gray-200/60 rounded-2xl overflow-hidden shadow-sm">
-                <div className="bg-gradient-to-r from-green-50/50 to-white px-6 py-4 border-b border-gray-100">
+              <div className="bg-white border border-gray-200/60 rounded-lg overflow-hidden shadow-sm">
+                <div className="bg-white px-6 py-4 border-b border-gray-100">
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-blue-600 rounded-xl flex items-center justify-center shadow-sm">
+                    <div className="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center shadow-sm">
                       <Layers className="w-5 h-5 text-white" />
                     </div>
                     <div>
@@ -530,11 +530,11 @@ const AIDesign: React.FC = () => {
 
             {/* Center Column - Live Preview */}
             <div className="lg:col-span-6">
-              <div className="bg-white border border-gray-200/60 rounded-2xl overflow-hidden shadow-sm">
-                <div className="bg-gradient-to-r from-gray-50/50 to-white px-6 py-4 border-b border-gray-100">
+              <div className="bg-white border border-gray-200/60 rounded-lg overflow-hidden shadow-sm">
+                <div className="bg-white px-6 py-4 border-b border-gray-100">
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gradient-to-br from-gray-500 to-blue-600 rounded-xl flex items-center justify-center shadow-sm">
+                      <div className="w-10 h-10 bg-slate-600 rounded-lg flex items-center justify-center shadow-sm">
                         <Eye className="w-5 h-5 text-white" />
                       </div>
                       <div>

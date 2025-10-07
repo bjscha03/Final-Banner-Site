@@ -40,7 +40,7 @@ const ContactSection: React.FC = () => {
         <div className="grid lg:grid-cols-2 gap-12">
           {/* Left Column - Contact Info */}
           <div className="space-y-8">
-            <div className="bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl p-8 text-white">
+            <div className="bg-white rounded-xl p-8 text-slate-900">
               <h3 className="text-xl font-semibold mb-6">Get In Touch</h3>
               
               <div className="space-y-4">

@@ -23,11 +23,11 @@ const QuantityCard: React.FC = () => {
   };
 
   return (
-    <div className="bg-white border border-gray-200/60 rounded-2xl overflow-hidden shadow-sm">
+    <div className="bg-white border border-gray-200/60 rounded-lg overflow-hidden shadow-sm">
       {/* Modern Header */}
-      <div className="bg-gradient-to-r from-gray-50/50 to-white px-6 py-4 border-b border-gray-100">
+      <div className="bg-white px-6 py-4 border-b border-gray-100">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl flex items-center justify-center shadow-sm">
+          <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center shadow-sm">
             <Hash className="w-5 h-5 text-white" />
           </div>
           <div>

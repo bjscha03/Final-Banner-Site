@@ -10,18 +10,18 @@ const AboutSection: React.FC = () => {
   ];
 
   return (
-    <section className="py-16 bg-gradient-to-br from-gray-50 via-blue-50/30 to-indigo-50/50 relative overflow-hidden">
+    <section className="py-16 bg-white relative overflow-hidden">
       {/* Background Pattern */}
       <div className="absolute inset-0 opacity-40">
-        <div className="absolute top-0 right-0 w-72 h-72 bg-gradient-to-bl from-blue-200/40 to-transparent rounded-full blur-3xl"></div>
-        <div className="absolute bottom-0 left-0 w-72 h-72 bg-gradient-to-tr from-indigo-200/40 to-transparent rounded-full blur-3xl"></div>
+        <div className="absolute top-0 right-0 w-72 h-72 bg-white rounded-full blur-3xl"></div>
+        <div className="absolute bottom-0 left-0 w-72 h-72 bg-white rounded-full blur-3xl"></div>
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Left Column - Content */}
           <div>
-            <h2 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-indigo-800 bg-clip-text text-transparent mb-6">
+            <h2 className="text-4xl font-bold text-slate-900 mb-6">
               The Story of Banners On The Fly
             </h2>
             <div className="space-y-4 text-gray-600">
@@ -42,8 +42,8 @@ const AboutSection: React.FC = () => {
               </p>
             </div>
 
-            <div className="mt-8 p-6 bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 rounded-xl border border-blue-200/50 shadow-sm">
-              <h3 className="text-lg font-semibold bg-gradient-to-r from-gray-900 to-blue-800 bg-clip-text text-transparent mb-3">Our Mission</h3>
+            <div className="mt-8 p-6 bg-white rounded-xl border border-blue-200/50 shadow-sm">
+              <h3 className="text-lg font-semibold text-slate-900 mb-3">Our Mission</h3>
               <p className="text-gray-700">
                 To empower businesses with professional-grade banners that help them stand out,
                 attract customers, and grow their brand - all delivered with unmatched speed and quality.
@@ -72,7 +72,7 @@ const AboutSection: React.FC = () => {
               })}
             </div>
 
-            <div className="bg-gradient-to-br from-orange-500 via-orange-600 to-red-500 rounded-xl p-6 text-white shadow-xl">
+            <div className="bg-white rounded-xl p-6 text-slate-900 shadow-sm">
               <h3 className="text-xl font-bold mb-4">Why Choose Us?</h3>
               <ul className="space-y-2 text-sm">
                 <li className="flex items-center">

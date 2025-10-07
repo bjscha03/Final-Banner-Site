@@ -30,71 +30,75 @@ const TestimonialsSection: React.FC = () => {
   ];
 
   return (
-    <section className="py-16 bg-gradient-to-br from-white via-gray-50/50 to-blue-50/30 relative overflow-hidden">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-30">
-        <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-gradient-to-br from-blue-200/30 to-transparent rounded-full blur-3xl"></div>
-        <div className="absolute bottom-1/4 right-1/4 w-64 h-64 bg-gradient-to-tl from-indigo-200/30 to-transparent rounded-full blur-3xl"></div>
-      </div>
-
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-indigo-800 bg-clip-text text-transparent mb-4">
-            Trusted by Business Owners on LinkedIn
+    <section className="bg-slate-50 py-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-10">
+          <h2 className="text-3xl font-bold text-slate-900 mb-3">
+            Customer Reviews
           </h2>
-          <p className="text-xl text-gray-700 max-w-2xl mx-auto">
-            Join thousands of satisfied customers who trust us for their banner printing needs
-          </p>
+          <div className="flex items-center justify-center gap-2">
+            <div className="flex">
+              {[...Array(5)].map((_, i) => (
+                <Star key={i} className="h-5 w-5 fill-orange-500 text-orange-500" />
+              ))}
+            </div>
+            <span className="text-slate-600 font-semibold">5.0 out of 5</span>
+            <span className="text-slate-500">• 10,000+ reviews</span>
+          </div>
         </div>
 
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid md:grid-cols-3 gap-6">
           {testimonials.map((testimonial, index) => (
-            <div key={index} className="testimonial-card p-8 flex flex-col">
-              <div className="flex items-center mb-6">
+            <div
+              key={index}
+              className="bg-white border border-slate-200 rounded-lg p-6 hover:shadow-lg transition-shadow"
+            >
+              <div className="flex items-center gap-1 mb-4">
                 {[...Array(testimonial.rating)].map((_, i) => (
-                  <Star key={i} className="h-5 w-5 text-yellow-400 fill-current group-hover:scale-110 transition-transform duration-300" style={{transitionDelay: `${i * 50}ms`}} />
+                  <Star key={i} className="h-4 w-4 fill-orange-500 text-orange-500" />
                 ))}
               </div>
-
-              <div className="relative mb-8 flex-grow">
-                <Quote className="absolute -top-3 -left-3 h-10 w-10 text-blue-200 group-hover:text-blue-300 transition-colors duration-300" />
-                <p className="text-gray-700 leading-relaxed pl-8 text-lg">
+              
+              <div className="relative mb-6">
+                <Quote className="absolute -top-2 -left-2 h-8 w-8 text-slate-200" />
+                <p className="text-slate-700 leading-relaxed pl-6">
                   "{testimonial.text}"
                 </p>
               </div>
-
-              <div className="flex items-center">
-                <img
-                  src={testimonial.image}
-                  alt={testimonial.name}
-                  className="w-14 h-14 rounded-full object-cover mr-4 group-hover:scale-110 transition-transform duration-300 shadow-lg"
-                />
-                <div>
-                  <h4 className="font-bold text-gray-900 text-lg">{testimonial.name}</h4>
-                  <p className="text-sm text-gray-600 font-medium">{testimonial.title}</p>
-                  <p className="text-sm bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent font-semibold">{testimonial.company}</p>
+              
+              <div className="border-t border-slate-200 pt-4">
+                <div className="flex items-center gap-3">
+                  <img
+                    src={testimonial.image}
+                    alt={testimonial.name}
+                    className="w-12 h-12 rounded-full object-cover border-2 border-slate-200"
+                  />
+                  <div>
+                    <div className="font-semibold text-slate-900">{testimonial.name}</div>
+                    <div className="text-sm text-slate-600">{testimonial.title}</div>
+                    <div className="text-sm text-orange-600 font-semibold">{testimonial.company}</div>
+                  </div>
                 </div>
               </div>
             </div>
           ))}
         </div>
 
-        <div className="text-center mt-16">
-          <div className="inline-flex items-center space-x-6 bg-gradient-to-r from-blue-50 via-indigo-50 to-blue-50 px-8 py-4 rounded-2xl shadow-lg border border-blue-200/50 hover:shadow-xl transition-all duration-300 group">
-            <div className="flex -space-x-3">
+        <div className="text-center mt-10">
+          <div className="inline-flex items-center gap-4 bg-white border border-slate-200 px-6 py-4 rounded-lg shadow-sm">
+            <div className="flex -space-x-2">
               {testimonials.map((testimonial, index) => (
                 <img
                   key={index}
                   src={testimonial.image}
                   alt=""
-                  className="w-10 h-10 rounded-full border-3 border-white object-cover shadow-md group-hover:scale-110 transition-transform duration-300"
-                  style={{transitionDelay: `${index * 100}ms`}}
+                  className="w-10 h-10 rounded-full border-2 border-white object-cover"
                 />
               ))}
             </div>
             <div className="text-left">
-              <p className="text-lg font-bold bg-gradient-to-r from-gray-900 to-blue-800 bg-clip-text text-transparent">10,000+ Happy Customers</p>
-              <p className="text-sm text-gray-600 font-medium">Join our growing community</p>
+              <p className="text-lg font-bold text-slate-900">10,000+ Happy Customers</p>
+              <p className="text-sm text-slate-600">Join our growing community</p>
             </div>
           </div>
         </div>

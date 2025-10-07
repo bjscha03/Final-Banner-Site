@@ -113,7 +113,7 @@ const MaterialCard: React.FC = () => {
           >
             {imageErrors.has(materialOption.key) ? (
               // Fallback placeholder if image fails to load
-              <div className="w-full h-full bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
+              <div className="w-full h-full bg-slate-100 flex items-center justify-center">
                 <Palette className="h-6 w-6 text-gray-400" />
               </div>
             ) : (
@@ -133,7 +133,7 @@ const MaterialCard: React.FC = () => {
                 {materialOption.name}
               </Label>
               {materialOption.popular && (
-                <Badge className="text-xs px-3 py-1 rounded-full bg-gradient-to-r from-orange-500 to-red-500 text-white font-bold shadow-lg border-0">
+                <Badge className="text-xs px-3 py-1 rounded-full bg-orange-500 text-white font-bold shadow-sm border-0">
                   Popular
                 </Badge>
               )}
@@ -153,24 +153,24 @@ const MaterialCard: React.FC = () => {
 
   return (
     <>
-      <div className="relative bg-gradient-to-br from-white via-purple-50/30 to-pink-50/20 border border-purple-200/40 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-sm">
+      <div className="relative bg-white border border-purple-200/40 rounded-lg overflow-hidden shadow-sm backdrop-blur-sm">
         {/* Decorative background elements */}
         <div className="absolute inset-0 opacity-30">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-purple-300/20 to-transparent rounded-full blur-2xl"></div>
-          <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-pink-300/20 to-transparent rounded-full blur-2xl"></div>
+          <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-2xl"></div>
+          <div className="absolute bottom-0 left-0 w-24 h-24 bg-orange-500/10 rounded-full blur-2xl"></div>
         </div>
 
         {/* Header */}
-        <div className="relative bg-gradient-to-r from-purple-600/5 via-pink-600/5 to-red-600/5 px-6 py-4 border-b border-purple-200/30 backdrop-blur-sm">
+        <div className="relative bg-slate-50 px-6 py-4 border-b border-slate-200 backdrop-blur-sm">
           <div className="flex items-center gap-4">
             <div className="relative">
-              <div className="w-12 h-12 bg-gradient-to-br from-purple-500 via-pink-500 to-red-600 rounded-2xl flex items-center justify-center shadow-lg">
+              <div className="w-12 h-12 bg-orange-500 rounded-lg flex items-center justify-center shadow-sm">
                 <Palette className="w-6 h-6 text-white" />
               </div>
-              <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-orange-400 to-red-500 rounded-full shadow-sm animate-pulse"></div>
+              <div className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 rounded-full shadow-sm animate-pulse"></div>
             </div>
             <div>
-              <h3 className="text-xl font-bold bg-gradient-to-r from-gray-900 via-purple-800 to-pink-800 bg-clip-text text-transparent tracking-tight">Material</h3>
+              <h3 className="text-xl font-bold text-slate-900 tracking-tight">Material</h3>
               <p className="text-sm text-gray-600 font-medium">Choose your banner material</p>
             </div>
           </div>
@@ -182,7 +182,7 @@ const MaterialCard: React.FC = () => {
             {/* VINYL Section */}
             <div className="space-y-4">
               <h4 className="text-base font-bold text-gray-800 flex items-center gap-2">
-                <div className="w-2 h-2 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full"></div>
+                <div className="w-2 h-2 bg-white rounded-full"></div>
                 VINYL MATERIALS
               </h4>
               <div className="space-y-2">
@@ -193,7 +193,7 @@ const MaterialCard: React.FC = () => {
             {/* SPECIALTY Section */}
             <div className="space-y-4">
               <h4 className="text-base font-bold text-gray-800 flex items-center gap-2">
-                <div className="w-2 h-2 bg-gradient-to-r from-pink-500 to-red-500 rounded-full"></div>
+                <div className="w-2 h-2 bg-white rounded-full"></div>
                 SPECIALTY MATERIALS
               </h4>
               <div className="space-y-2">

@@ -17,16 +17,16 @@ const AccordionSection: React.FC<AccordionSectionProps> = ({
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
-    <div className="bg-white border border-gray-200/60 rounded-2xl overflow-hidden shadow-sm">
+    <div className="bg-white border border-gray-200/60 rounded-lg overflow-hidden shadow-sm">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full px-6 py-4 flex items-center justify-between bg-gradient-to-r from-gray-50/50 to-white border-b border-gray-100 hover:bg-gray-50/80 transition-colors"
+        className="w-full px-6 py-4 flex items-center justify-between bg-white border-b border-gray-100 hover:bg-gray-50/80 transition-colors"
         aria-expanded={isOpen}
         aria-controls={`accordion-content-${title.replace(/\s+/g, '-').toLowerCase()}`}
       >
         <div className="flex items-center gap-3">
           {icon && (
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-sm">
+            <div className="w-8 h-8 bg-white rounded-xl flex items-center justify-center shadow-sm">
               {icon}
             </div>
           )}

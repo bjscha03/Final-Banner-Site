@@ -34,11 +34,11 @@ const OptionsCard: React.FC = () => {
   const linearFeet = widthIn / 12;
 
   return (
-    <div className="bg-white border border-gray-200/60 rounded-2xl overflow-hidden shadow-sm">
+    <div className="bg-white border border-gray-200/60 rounded-lg overflow-hidden shadow-sm">
       {/* Header */}
-      <div className="bg-gradient-to-r from-gray-50/50 to-white px-6 py-4 border-b border-gray-100">
+      <div className="bg-slate-50 px-6 py-4 border-b border-slate-200">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-sm">
+          <div className="w-10 h-10 bg-orange-500 rounded-xl flex items-center justify-center shadow-sm">
             <Circle className="w-5 h-5 text-white" />
           </div>
           <div>
@@ -63,7 +63,7 @@ const OptionsCard: React.FC = () => {
             >
               <HelpCircle className="w-3 h-3 text-gray-400 hover:text-gray-600" />
               {showPolePocketInfo && (
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-10">
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-sm z-10">
                   <div className="mb-2 font-medium">Pole Pockets</div>
                   <div>Create a sleeve for inserting poles or rods. Perfect for hanging banners from poles or creating a professional display setup.</div>
                   <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-gray-900"></div>
@@ -196,7 +196,7 @@ const OptionsCard: React.FC = () => {
             >
               <HelpCircle className="w-3 h-3 text-gray-400 hover:text-gray-600" />
               {showRopeInfo && (
-                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-lg z-10">
+                <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 w-64 p-3 bg-gray-900 text-white text-xs rounded-lg shadow-sm z-10">
                   <div className="mb-2 font-medium">Rope Details</div>
                   <div className="space-y-1">
                     <div>• $2 per linear foot of width</div>

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Minus, Plus, ArrowRight, Truck, Zap, Package, Palette } from 'lucide-react';
+import { Minus, Plus, ArrowRight, Truck, Zap, Package, Palette, DollarSign, Check, Hash, Ruler } from 'lucide-react';
 import { MaterialKey } from '@/store/quote';
 import { calcTotals, usd, formatArea, PRICE_PER_SQFT, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
 import { Button } from '@/components/ui/button';
@@ -319,44 +319,30 @@ const QuickQuote: React.FC = () => {
   const selectedMaterial = materials.find(m => m.key === material);
 
   return (
-    <section id="quick-quote" className="py-20 bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 relative overflow-hidden">
-      {/* Background Pattern */}
-      <div className="absolute inset-0 opacity-40">
-        <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-indigo-500/15 to-purple-500/10"></div>
-        <div className="absolute top-0 left-0 w-96 h-96 bg-gradient-to-br from-blue-500/20 to-transparent rounded-full blur-3xl transform -translate-x-1/2 -translate-y-1/2"></div>
-        <div className="absolute bottom-0 right-0 w-96 h-96 bg-gradient-to-tl from-indigo-500/20 to-transparent rounded-full blur-3xl transform translate-x-1/2 translate-y-1/2"></div>
-      </div>
-
-      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-        <div className="text-center mb-16">
-          <h2 className="text-5xl md:text-6xl font-bold bg-gradient-to-r from-slate-900 via-blue-800 to-indigo-900 bg-clip-text text-transparent mb-6">
+    <section id="quick-quote" className="py-16 bg-slate-50">
+<div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="text-center mb-12">
+          <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">
             Get Your Quote in Seconds
           </h2>
-          <p className="text-xl text-slate-700 max-w-3xl mx-auto leading-relaxed">
+          <p className="text-lg text-slate-600 max-w-2xl mx-auto">
             Professional vinyl banners with free next day air delivery. No hidden fees, no surprises.
           </p>
         </div>
 
         <div className="grid lg:grid-cols-2 gap-10">
           {/* Left Column - Configuration */}
-          <div className="relative bg-gradient-to-br from-white via-blue-50/30 to-indigo-50/20 border border-blue-200/40 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-sm">
-            {/* Decorative background elements */}
-            <div className="absolute inset-0 opacity-30">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-blue-300/20 to-transparent rounded-full blur-2xl"></div>
-              <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-indigo-300/20 to-transparent rounded-full blur-2xl"></div>
-            </div>
-
-            {/* Header */}
-            <div className="relative bg-gradient-to-r from-blue-600/5 via-indigo-600/5 to-purple-600/5 px-6 py-5 border-b border-blue-200/30 backdrop-blur-sm">
+          <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm">
+{/* Header */}
+            <div className="px-6 py-4 bg-slate-50 border-b border-slate-200">
               <div className="flex items-center gap-4">
                 <div className="relative">
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 via-indigo-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-lg">
-                    <span className="text-xl">📐</span>
+                  <div className="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
+                    <Ruler className="h-6 w-6 text-white" />
                   </div>
-                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-orange-400 to-red-500 rounded-full shadow-sm animate-pulse"></div>
-                </div>
+                  </div>
                 <div>
-                  <h3 className="text-xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-indigo-800 bg-clip-text text-transparent tracking-tight">Choose Size</h3>
+                  <h3 className="text-lg font-semibold text-slate-900">Choose Size</h3>
                   <p className="text-sm text-gray-600 font-medium">Configure your banner dimensions</p>
                 </div>
               </div>
@@ -379,7 +365,7 @@ const QuickQuote: React.FC = () => {
                         adjustWidth(-1);
                       }}
                       disabled={widthIn <= 1}
-                      className="group relative h-12 w-12 min-w-[44px] min-h-[44px] bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200/60 rounded-xl hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300/80 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-all duration-200 shadow-sm hover:shadow-md disabled:hover:shadow-sm touch-manipulation"
+                      className="h-10 w-10 bg-white border border-slate-300 rounded-md hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
                       type="button"
                     >
                       <Minus className="h-4 w-4 text-blue-600 group-hover:text-blue-700 transition-colors" />
@@ -390,7 +376,7 @@ const QuickQuote: React.FC = () => {
                       value={widthInput}
                       onChange={(e) => setWidthInput(e.target.value)}
                       onBlur={handleWidthBlur}
-                      className="flex-1 min-w-[5rem] sm:min-w-[6rem] text-center bg-gradient-to-br from-white to-blue-50/30 border border-blue-200/60 rounded-xl px-4 py-3 text-lg font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 transition-all duration-200 shadow-sm hover:shadow-md tabular-nums"
+                      className="flex-1 min-w-[5rem] text-center bg-white border border-slate-300 rounded-md px-4 py-2 text-base font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
                       min="1"
                       max="1000"
                     />
@@ -401,7 +387,7 @@ const QuickQuote: React.FC = () => {
                         adjustWidth(1);
                       }}
                       disabled={widthIn >= 1000}
-                      className="group relative h-12 w-12 min-w-[44px] min-h-[44px] bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200/60 rounded-xl hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300/80 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-all duration-200 shadow-sm hover:shadow-md disabled:hover:shadow-sm touch-manipulation"
+                      className="h-10 w-10 bg-white border border-slate-300 rounded-md hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
                       type="button"
                     >
                       <Plus className="h-4 w-4 text-blue-600 group-hover:text-blue-700 transition-colors" />
@@ -424,7 +410,7 @@ const QuickQuote: React.FC = () => {
                         adjustHeight(-1);
                       }}
                       disabled={heightIn <= 1}
-                      className="group relative h-12 w-12 min-w-[44px] min-h-[44px] bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200/60 rounded-xl hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300/80 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-all duration-200 shadow-sm hover:shadow-md disabled:hover:shadow-sm touch-manipulation"
+                      className="h-10 w-10 bg-white border border-slate-300 rounded-md hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
                       type="button"
                     >
                       <Minus className="h-4 w-4 text-blue-600 group-hover:text-blue-700 transition-colors" />
@@ -434,7 +420,7 @@ const QuickQuote: React.FC = () => {
                       value={heightInput}
                       onChange={(e) => setHeightInput(e.target.value)}
                       onBlur={handleHeightBlur}
-                      className="flex-1 min-w-[5rem] sm:min-w-[6rem] text-center bg-gradient-to-br from-white to-blue-50/30 border border-blue-200/60 rounded-xl px-4 py-3 text-lg font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-blue-500/40 focus:border-blue-400 transition-all duration-200 shadow-sm hover:shadow-md tabular-nums"
+                      className="flex-1 min-w-[5rem] text-center bg-white border border-slate-300 rounded-md px-4 py-2 text-base font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
                       min="1"
                       max="1000"
                     />
@@ -445,7 +431,7 @@ const QuickQuote: React.FC = () => {
                         adjustHeight(1);
                       }}
                       disabled={heightIn >= 1000}
-                      className="group relative h-12 w-12 min-w-[44px] min-h-[44px] bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200/60 rounded-xl hover:from-blue-100 hover:to-indigo-100 hover:border-blue-300/80 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-all duration-200 shadow-sm hover:shadow-md disabled:hover:shadow-sm touch-manipulation"
+                      className="h-10 w-10 bg-white border border-slate-300 rounded-md hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
                       type="button"
                     >
                       <Plus className="h-4 w-4 text-blue-600 group-hover:text-blue-700 transition-colors" />
@@ -458,13 +444,12 @@ const QuickQuote: React.FC = () => {
               </div>
 
               {/* Size Display */}
-              <div className="relative bg-gradient-to-br from-blue-50/50 via-indigo-50/30 to-purple-50/20 border border-blue-200/40 rounded-2xl p-6 text-center backdrop-blur-sm">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-indigo-500/5 rounded-2xl"></div>
+              <div className="bg-slate-50 border border-slate-200 rounded-md p-4 text-center">
                 <div className="relative">
                   <p className="text-sm font-medium text-gray-600 mb-2">
                     Total area: <span className="font-bold text-blue-700">{formatArea(totals.area)}</span>
                   </p>
-                  <p className="text-2xl font-bold bg-gradient-to-r from-blue-700 via-indigo-700 to-purple-700 bg-clip-text text-transparent">
+                  <p className="text-xl font-bold text-slate-900">
                     {widthIn}" × {heightIn}"
                   </p>
                 </div>
@@ -474,16 +459,15 @@ const QuickQuote: React.FC = () => {
             {/* Quantity Selection */}
             <div className="space-y-6">
               {/* Header */}
-              <div className="relative bg-gradient-to-r from-blue-600/5 via-indigo-600/5 to-purple-600/5 px-6 py-5 border border-blue-200/30 rounded-2xl backdrop-blur-sm -mx-8">
+              <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 -mx-8">
                 <div className="flex items-center gap-4">
                   <div className="relative">
-                    <div className="w-12 h-12 bg-gradient-to-br from-green-500 via-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-lg">
-                      <span className="text-xl">🔢</span>
-                    </div>
-                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-orange-400 to-red-500 rounded-full shadow-sm animate-pulse"></div>
+                    <div className="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
+                    <Hash className="h-6 w-6 text-white" />
                   </div>
-                  <div>
-                    <h3 className="text-xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-indigo-800 bg-clip-text text-transparent tracking-tight">Quantity</h3>
+                  </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900">Quantity</h3>
                     <p className="text-sm text-gray-600 font-medium">How many banners do you need?</p>
                   </div>
                 </div>
@@ -497,7 +481,7 @@ const QuickQuote: React.FC = () => {
                     adjustQuantity(-1);
                   }}
                   disabled={quantity <= 1}
-                  className="group relative h-12 w-12 bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200/60 rounded-xl hover:from-green-100 hover:to-emerald-100 hover:border-green-300/80 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-all duration-200 shadow-sm hover:shadow-md disabled:hover:shadow-sm"
+                  className="h-10 w-10 bg-white border border-slate-300 rounded-md hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
                   type="button"
                 >
                   <Minus className="h-5 w-5 text-green-600 group-hover:text-green-700 transition-colors" />
@@ -509,7 +493,7 @@ const QuickQuote: React.FC = () => {
                     value={quantityInput}
                     onChange={(e) => setQuantityInput(e.target.value)}
                     onBlur={handleQuantityBlur}
-                    className="text-center text-2xl font-bold w-24 h-14 bg-gradient-to-br from-white to-green-50/30 border border-green-200/60 rounded-xl focus:outline-none focus:ring-2 focus:ring-green-500/40 focus:border-green-400 transition-all duration-200 shadow-sm hover:shadow-md"
+                    className="text-center text-xl font-semibold w-20 h-12 bg-white border border-slate-300 rounded-md focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
                     min="1"
                     max="999"
                   />
@@ -528,7 +512,7 @@ const QuickQuote: React.FC = () => {
                     adjustQuantity(1);
                   }}
                   disabled={quantity >= 999}
-                  className="group relative h-12 w-12 bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200/60 rounded-xl hover:from-green-100 hover:to-emerald-100 hover:border-green-300/80 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-all duration-200 shadow-sm hover:shadow-md disabled:hover:shadow-sm"
+                  className="h-10 w-10 bg-white border border-slate-300 rounded-md hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
                   type="button"
                 >
                   <Plus className="h-5 w-5 text-green-600 group-hover:text-green-700 transition-colors" />
@@ -539,16 +523,15 @@ const QuickQuote: React.FC = () => {
             {/* Material Selection */}
             <div className="space-y-6">
               {/* Header */}
-              <div className="relative bg-gradient-to-r from-purple-600/5 via-pink-600/5 to-rose-600/5 px-6 py-5 border border-purple-200/30 rounded-2xl backdrop-blur-sm -mx-8">
+              <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 -mx-8">
                 <div className="flex items-center gap-4">
                   <div className="relative">
-                    <div className="w-12 h-12 bg-gradient-to-br from-purple-500 via-pink-500 to-rose-600 rounded-2xl flex items-center justify-center shadow-lg">
-                      <span className="text-xl">🎨</span>
-                    </div>
-                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-orange-400 to-red-500 rounded-full shadow-sm animate-pulse"></div>
+                    <div className="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
+                    <Palette className="h-6 w-6 text-white" />
                   </div>
-                  <div>
-                    <h3 className="text-xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-indigo-800 bg-clip-text text-transparent tracking-tight">Pick Material</h3>
+                  </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-slate-900">Pick Material</h3>
                     <p className="text-sm text-gray-600 font-medium">Choose your banner material</p>
                   </div>
                 </div>
@@ -557,10 +540,10 @@ const QuickQuote: React.FC = () => {
               <RadioGroup value={material} onValueChange={(value) => setMaterial(value as MaterialKey)}>
                 <div className="space-y-4">
                   {materials.map((materialOption) => (
-                    <div key={materialOption.key} className={`relative group p-5 rounded-2xl border-2 transition-all duration-300 cursor-pointer ${
+                    <div key={materialOption.key} className={`relative group p-5 rounded-md border-2 transition-all duration-300 cursor-pointer ${
                       material === materialOption.key
-                        ? 'border-purple-400/60 bg-gradient-to-br from-purple-50/50 via-pink-50/30 to-rose-50/20 shadow-lg'
-                        : 'border-gray-200/60 bg-gradient-to-br from-white to-gray-50/30 hover:border-purple-300/40 hover:shadow-md'
+                        ? 'border-orange-500 bg-orange-50 shadow-sm ring-2 ring-orange-500/20'
+                        : 'border-slate-200 bg-white hover:border-slate-300 hover:shadow-md'
                     }`}>
                       {/* Selection indicator */}
                       <div className="absolute top-4 left-4">
@@ -576,7 +559,7 @@ const QuickQuote: React.FC = () => {
                           type="button"
                         >
                           {imageErrors.has(materialOption.key) ? (
-                            <div className="w-full h-full bg-gradient-to-br from-purple-100 to-pink-100 flex items-center justify-center">
+                            <div className="w-full h-full bg-slate-100 flex items-center justify-center">
                               <Palette className="h-6 w-6 text-purple-400" />
                             </div>
                           ) : (
@@ -598,7 +581,7 @@ const QuickQuote: React.FC = () => {
                             </Label>
                             {materialOption.popular && (
                               <div className="relative">
-                                <Badge className="text-xs px-3 py-1.5 rounded-full bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 text-white font-bold shadow-lg border-0 animate-pulse">
+                                <Badge className="text-xs px-3 py-1 rounded-full bg-orange-500 text-white font-semibold shadow-sm border-0">
                                   Popular
                                 </Badge>
                                 <div className="absolute -top-1 -right-1 w-2 h-2 bg-yellow-400 rounded-full shadow-sm"></div>
@@ -617,21 +600,15 @@ const QuickQuote: React.FC = () => {
           </div>
 
           {/* Right Column - Price Summary */}
-          <div className="relative bg-gradient-to-br from-white via-green-50/20 to-emerald-50/10 border border-green-200/40 rounded-3xl overflow-hidden shadow-2xl backdrop-blur-sm">
-            {/* Decorative background elements */}
-            <div className="absolute inset-0 opacity-30">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-green-300/20 to-transparent rounded-full blur-2xl"></div>
-              <div className="absolute bottom-0 left-0 w-24 h-24 bg-gradient-to-tr from-emerald-300/20 to-transparent rounded-full blur-2xl"></div>
-            </div>
-
-            {/* Header */}
-            <div className="relative bg-gradient-to-r from-green-600/5 via-emerald-600/5 to-teal-600/5 px-8 py-6 border-b border-green-200/30 backdrop-blur-sm">
+          <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm">
+{/* Header */}
+            <div className="px-6 py-4 bg-slate-50 border-b border-slate-200">
               <div className="text-center">
                 <div className="inline-flex items-center gap-3 mb-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-green-500 via-emerald-500 to-teal-600 rounded-2xl flex items-center justify-center shadow-lg">
-                    <span className="text-xl">💰</span>
+                  <div className="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
+                    <DollarSign className="h-5 w-5 text-white" />
                   </div>
-                  <h3 className="text-2xl font-bold bg-gradient-to-r from-gray-900 via-green-800 to-emerald-800 bg-clip-text text-transparent tracking-tight">Your Instant Quote</h3>
+                  <h3 className="text-2xl font-bold text-slate-900">Your Instant Quote</h3>
                 </div>
                 <p className="text-sm text-gray-600 font-medium">Professional quality, instant pricing</p>
               </div>
@@ -641,13 +618,12 @@ const QuickQuote: React.FC = () => {
               {/* Price Display */}
               <div className="text-center mb-8">
                 <div className="relative inline-block">
-                  <div className="text-5xl md:text-6xl font-extrabold bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 bg-clip-text text-transparent mb-4 drop-shadow-sm">
+                  <div className="text-5xl md:text-6xl font-bold text-slate-900 mb-4">
                     {usd(totals.totalWithTax)}
                   </div>
-                  <div className="absolute -top-2 -right-2 w-6 h-6 bg-gradient-to-r from-orange-400 to-red-500 rounded-full shadow-sm animate-pulse"></div>
-                </div>
+                  </div>
 
-                <div className="bg-gradient-to-r from-green-50/50 to-emerald-50/30 border border-green-200/40 rounded-xl p-4 space-y-2">
+                <div className="bg-slate-50 border border-slate-200 rounded-md p-4 space-y-2">
                   <p className="font-bold text-gray-800">{formatArea(totals.area)} • {usd(PRICE_PER_SQFT[material])} per sq ft</p>
                   <p className="text-sm text-gray-600 font-medium">for {quantity} {quantity === 1 ? 'banner' : 'banners'}</p>
 
@@ -680,19 +656,15 @@ const QuickQuote: React.FC = () => {
               </div>
 
               {/* Shipping & Production Features */}
-              <div className="bg-gradient-to-br from-green-50/50 via-emerald-50/30 to-teal-50/20 border border-green-200/40 rounded-2xl p-6 mb-8 backdrop-blur-sm">
+              <div className="bg-slate-50 border border-slate-200 rounded-md p-5 mb-6">
                 <div className="space-y-4">
                   <div className="flex items-center gap-4 group">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-200">
-                      <Zap className="h-6 w-6 text-white" />
-                    </div>
+                    <Zap className="h-8 w-8 text-slate-600" />
                     <span className="font-bold text-blue-800 text-lg">24 Hour Production</span>
                   </div>
 
                   <div className="flex items-center gap-4 group">
-                    <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform duration-200">
-                      <Package className="h-6 w-6 text-white" />
-                    </div>
+                    <Package className="h-8 w-8 text-slate-600" />
                     <span className="font-bold text-purple-800 text-lg">Free Next Day Air Shipping</span>
                   </div>
                 </div>
@@ -700,11 +672,11 @@ const QuickQuote: React.FC = () => {
 
               {/* What's Included */}
               <div className="mb-8">
-                <h4 className="text-lg font-bold bg-gradient-to-r from-gray-900 to-green-800 bg-clip-text text-transparent mb-4">What's included:</h4>
+                <h4 className="text-lg font-semibold text-slate-900 mb-3">What's included:</h4>
                 <div className="space-y-3">
                   <div className="flex items-center gap-3 group">
-                    <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-lg flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-200">
-                      <span className="text-white font-bold text-sm">✓</span>
+                    <div className="w-8 h-8 bg-orange-500 rounded-md flex items-center justify-center">
+                      <Check className="h-4 w-4 text-white" />
                     </div>
                     <span className="text-gray-800 font-medium">
                       Professional printing on {selectedMaterial?.name}
@@ -712,15 +684,15 @@ const QuickQuote: React.FC = () => {
                   </div>
 
                   <div className="flex items-center gap-3 group">
-                    <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-200">
-                      <span className="text-white font-bold text-sm">✓</span>
+                    <div className="w-8 h-8 bg-orange-500 rounded-md flex items-center justify-center">
+                      <Check className="h-4 w-4 text-white" />
                     </div>
                     <span className="text-gray-800 font-medium">Grommets every 24 inches</span>
                   </div>
 
                   <div className="flex items-center gap-3 group">
-                    <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-600 rounded-lg flex items-center justify-center shadow-sm group-hover:scale-110 transition-transform duration-200">
-                      <span className="text-white font-bold text-sm">✓</span>
+                    <div className="w-8 h-8 bg-orange-500 rounded-md flex items-center justify-center">
+                      <Check className="h-4 w-4 text-white" />
                     </div>
                     <span className="text-gray-800 font-medium">Weather-resistant materials</span>
                   </div>
@@ -736,10 +708,9 @@ const QuickQuote: React.FC = () => {
                         <Button
                           onClick={handleStartDesign}
                           disabled={!isValid}
-                          className="w-full relative bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-700 hover:via-indigo-700 hover:to-purple-700 text-white py-6 text-xl font-bold shadow-2xl hover:shadow-3xl transform hover:scale-105 transition-all duration-300 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none group rounded-2xl overflow-hidden"
+                          className="w-full bg-orange-500 hover:bg-orange-600 text-white py-5 text-lg font-semibold shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed rounded-md"
                           size="lg"
                         >
-                          <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                           <div className="relative flex items-center justify-center gap-3">
                             <span>Start My Design</span>
                             <ArrowRight className="h-6 w-6 transition-transform duration-300 group-hover:translate-x-2" />
@@ -759,7 +730,7 @@ const QuickQuote: React.FC = () => {
                 <Button
                   onClick={handleReset}
                   variant="outline"
-                  className="w-full border-2 border-gray-300/60 text-gray-700 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 hover:border-gray-400/60 transition-all duration-200 py-3 font-semibold rounded-xl"
+                  className="w-full border-2 border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-colors py-3 font-semibold rounded-md"
                   size="sm"
                 >
                   Reset to Defaults

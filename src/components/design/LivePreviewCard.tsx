@@ -811,12 +811,12 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
 
 
   return (
-    <div className="bg-white border border-gray-200/60 rounded-2xl overflow-hidden shadow-sm" style={{ touchAction: 'pan-y' }}>
+    <div className="bg-white border border-gray-200/60 rounded-lg overflow-hidden shadow-sm" style={{ touchAction: 'pan-y' }}>
       {/* Header - responsive design */}
       <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-100">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-sm">
+            <div className="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center shadow-sm">
               <Eye className="w-5 h-5 text-white" />
             </div>
             <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Live Preview</h2>
@@ -885,7 +885,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
               // Prevent drag events from interfering with mobile scrolling
               e.stopPropagation();
             }}
-            className={`relative drag-area mx-4 sm:mx-6 mb-4 sm:mb-6 border-2 border-gray-300 rounded-2xl flex items-center justify-center text-center p-6 pb-8 sm:p-8 transition-all duration-200 min-h-[400px] sm:min-h-[480px] ${
+            className={`relative drag-area mx-4 sm:mx-6 mb-4 sm:mb-6 border-2 border-gray-300 rounded-lg flex items-center justify-center text-center p-6 pb-8 sm:p-8 transition-all duration-200 min-h-[400px] sm:min-h-[480px] ${
               dragActive
                 ? 'bg-blue-50 border-blue-400 border-dashed'
                 : 'bg-gray-100 hover:bg-gray-50'
@@ -893,7 +893,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
           >
             {/* Loading Spinner Overlay for Upload Area */}
             {isUploading && (
-              <div className="absolute inset-0 bg-white/90 backdrop-blur-sm flex items-center justify-center z-50 rounded-2xl">
+              <div className="absolute inset-0 bg-white/90 backdrop-blur-sm flex items-center justify-center z-50 rounded-lg">
                 <div className="flex flex-col items-center gap-4">
                   <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
                   <p className="text-sm font-medium text-blue-700">Processing file...</p>
@@ -918,7 +918,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                     <div className="text-gray-400 text-sm">or</div>
                     <button
                       onClick={onOpenAIModal}
-                      className="px-6 py-3.5 relative bg-gradient-to-r from-purple-50 to-blue-50 border-2 border-purple-300 hover:border-purple-400 active:border-purple-500 hover:from-purple-100 hover:to-blue-100 text-purple-700 hover:text-purple-800 rounded-xl font-medium transition-all duration-200 w-full max-w-xs min-h-[48px] flex items-center justify-center gap-2 shadow-sm hover:shadow-md touch-manipulation"
+                      className="px-6 py-3.5 relative bg-white border-2 border-purple-300 hover:border-purple-400 active:border-purple-500 hover:from-purple-100 hover:to-blue-100 text-purple-700 hover:text-purple-800 rounded-xl font-medium transition-all duration-200 w-full max-w-xs min-h-[48px] flex items-center justify-center gap-2 shadow-sm hover:shadow-md touch-manipulation"
                       data-cta="ai-generate-open"
                     >
                       <Wand2 className="w-5 h-5" />
@@ -941,7 +941,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
           </div>
         ) : (
           /* Preview Canvas */
-          <div className="mx-4 sm:mx-6 mb-4 sm:mb-6 bg-gray-100 border-2 border-gray-300 rounded-2xl overflow-hidden relative min-h-[500px] sm:min-h-[600px] h-auto">
+          <div className="mx-4 sm:mx-6 mb-4 sm:mb-6 bg-gray-100 border-2 border-gray-300 rounded-lg overflow-hidden relative min-h-[500px] sm:min-h-[600px] h-auto">
             <div className="flex items-center justify-center h-full p-2">
               <div
                 style={{
@@ -959,7 +959,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                   heightIn={heightIn}
                   grommets={grommets}
                   imageUrl={file?.url && !file.isPdf ? file.url : undefined}
-                  className="shadow-lg"
+                  className="shadow-sm"
                   
                   file={file}
                   imagePosition={imagePosition}
@@ -987,7 +987,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
             <div className="absolute top-4 right-4">
               <button
                 onClick={removeFile}
-                className="flex items-center gap-2 px-4 py-2.5 bg-white/95 hover:bg-white active:bg-gray-50 text-gray-700 hover:text-red-600 rounded-xl transition-colors duration-150 shadow-md hover:shadow-lg min-h-[44px] min-w-[44px] touch-manipulation"
+                className="flex items-center gap-2 px-4 py-2.5 bg-white/95 hover:bg-white active:bg-gray-50 text-gray-700 hover:text-red-600 rounded-xl transition-colors duration-150 shadow-md hover:shadow-sm min-h-[44px] min-w-[44px] touch-manipulation"
               >
                 <X className="w-4 h-4" />
                 Remove
@@ -996,7 +996,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
             {/* AI Image Control Buttons - Enhanced with Resize and Reset */}
             {isAIImage && (
               <div className="absolute bottom-4 left-4 right-4 flex justify-center px-2 sm:px-0">
-                <div className="flex flex-wrap gap-2 bg-white/95 backdrop-blur-sm rounded-xl p-3 shadow-lg border border-gray-200 max-w-full">
+                <div className="flex flex-wrap gap-2 bg-white/95 backdrop-blur-sm rounded-xl p-3 shadow-sm border border-gray-200 max-w-full">
                   {/* Fit Image to Dimensions Button */}
                   <Button
                     onClick={handleFitImageToDimensions}

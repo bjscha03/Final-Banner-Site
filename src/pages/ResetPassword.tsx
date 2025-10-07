@@ -220,8 +220,8 @@ const ResetPassword: React.FC = () => {
         <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
           <Card className="w-full max-w-md">
             <CardHeader className="text-center">
-              <div className="mx-auto w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-                <Mail className="w-6 h-6 text-blue-600" />
+              <div className="mx-auto w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+                <Mail className="w-6 h-6 text-orange-500" />
               </div>
               <CardTitle className="text-2xl font-bold text-gray-900">
                 Reset Your Password
@@ -280,7 +280,7 @@ const ResetPassword: React.FC = () => {
               <div className="text-center pt-4 border-t">
                 <Link
                   to="/sign-in"
-                  className="inline-flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 transition-colors"
+                  className="inline-flex items-center gap-2 text-sm text-orange-500 hover:text-[#18448D] transition-colors"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   Back to Sign In
@@ -299,8 +299,8 @@ const ResetPassword: React.FC = () => {
       <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <div className="mx-auto w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-              <Lock className="w-6 h-6 text-blue-600" />
+            <div className="mx-auto w-12 h-12 bg-slate-100 rounded-full flex items-center justify-center mb-4">
+              <Lock className="w-6 h-6 text-orange-500" />
             </div>
             <CardTitle className="text-2xl font-bold text-gray-900">
               Set New Password
@@ -364,7 +364,7 @@ const ResetPassword: React.FC = () => {
             </form>
 
             <div className="mt-6 text-center">
-              <Link to="/sign-in" className="text-sm text-blue-600 hover:text-blue-500">
+              <Link to="/sign-in" className="text-sm text-orange-500 hover:text-blue-500">
                 <ArrowLeft className="w-4 h-4 inline mr-1" />
                 Back to Sign In
               </Link>

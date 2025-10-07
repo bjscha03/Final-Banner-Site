@@ -52,8 +52,8 @@ export function CheckEmail() {
           <Card>
             <CardHeader className="text-center">
               <div className="flex justify-center mb-4">
-                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
-                  <Mail className="h-8 w-8 text-blue-600" />
+                <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center">
+                  <Mail className="h-8 w-8 text-orange-500" />
                 </div>
               </div>
               <CardTitle className="text-2xl font-bold">
@@ -64,7 +64,7 @@ export function CheckEmail() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="p-4 rounded-md bg-blue-50 text-blue-800 border border-blue-200">
+              <div className="p-4 rounded-md bg-slate-50 text-blue-800 border border-slate-200">
                 <p className="text-sm">
                   Please check your email and click the verification link to activate your account. 
                   The link will expire in 24 hours for security reasons.
@@ -116,7 +116,7 @@ export function CheckEmail() {
                 <div className="text-center">
                   <Link 
                     to="/sign-in" 
-                    className="text-sm text-blue-600 hover:text-blue-500"
+                    className="text-sm text-orange-500 hover:text-blue-500"
                   >
                     Back to Sign In
                   </Link>

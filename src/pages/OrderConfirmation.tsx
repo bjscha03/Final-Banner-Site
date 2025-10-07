@@ -89,7 +89,7 @@ const OrderConfirmation: React.FC = () => {
         <div className="min-h-screen bg-gray-50 py-12">
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
               <p className="mt-4 text-gray-600">Loading order details...</p>
             </div>
           </div>
@@ -153,12 +153,12 @@ const OrderConfirmation: React.FC = () => {
           </div>
 
           {/* Invoice */}
-          <div className="bg-white rounded-2xl shadow-lg p-8 print:shadow-none print:rounded-none">
+          <div className="bg-white rounded-lg shadow-sm p-8 print:shadow-none print:rounded-none">
             {/* Invoice Header */}
             <div className="border-b border-gray-200 pb-6 mb-6">
               <div className="flex justify-between items-start">
                 <div>
-                  <h2 className="text-2xl font-bold text-blue-700">Banners On The Fly</h2>
+                  <h2 className="text-2xl font-bold text-[#18448D]">Banners On The Fly</h2>
                   <p className="text-gray-600 mt-1">Custom Banner Invoice</p>
                 </div>
                 <div className="text-right">
@@ -262,7 +262,7 @@ const OrderConfirmation: React.FC = () => {
             </div>
 
             {/* Next Steps */}
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mt-6 print:bg-gray-50 print:border-gray-300">
+            <div className="bg-slate-50 border border-slate-200 rounded-lg p-6 mt-6 print:bg-gray-50 print:border-gray-300">
               <h3 className="font-semibold text-blue-900 mb-2">What's Next?</h3>
               <ul className="text-blue-800 text-sm space-y-1">
                 <li>• You'll receive tracking information once shipped</li>

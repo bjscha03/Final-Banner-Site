@@ -26,13 +26,13 @@ const Shipping: React.FC = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/50 pt-8 pb-16">
+      <div className="min-h-screen bg-slate-50 pt-8 pb-16">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
           <div className="text-center mb-12">
             <div className="flex items-center justify-center mb-4">
-              <Truck className="h-8 w-8 text-blue-600 mr-3" />
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 via-blue-800 to-indigo-800 bg-clip-text text-transparent">
+              <Truck className="h-8 w-8 text-orange-500 mr-3" />
+              <h1 className="text-4xl font-bold bg-slate-50 bg-clip-text text-transparent">
                 Shipping Information
               </h1>
             </div>
@@ -43,7 +43,7 @@ const Shipping: React.FC = () => {
 
           {/* Top Badge */}
           <div className="text-center mb-8">
-            <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-green-500 to-blue-500 text-white text-sm font-medium rounded-full shadow-lg">
+            <div className="inline-flex items-center px-4 py-2 bg-white text-slate-900 text-sm font-medium rounded-full shadow-sm">
               <Clock className="h-4 w-4 mr-2" />
               {flags.siteBadge || 'FREE Next-Day Air • 24-Hour Production'}
             </div>
@@ -67,7 +67,7 @@ const Shipping: React.FC = () => {
           {/* Shipping Sections */}
           <div className="space-y-8">
             {/* Production & Shipping Times */}
-            <section className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
+            <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
               <div className="flex items-center mb-4">
                 <Clock className="h-6 w-6 text-blue-500 mr-3" />
                 <h2 className="text-2xl font-bold text-gray-900">Production & Shipping Times</h2>
@@ -111,7 +111,7 @@ const Shipping: React.FC = () => {
             </section>
 
             {/* Free Shipping */}
-            <section className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl shadow-lg p-8 border-2 border-green-200">
+            <section className="bg-white rounded-xl shadow-sm p-8 border-2 border-green-200">
               <div className="flex items-center mb-4">
                 <DollarSign className="h-6 w-6 text-green-600 mr-3" />
                 <h2 className="text-2xl font-bold text-gray-900">🎉 FREE Shipping on ALL Orders!</h2>
@@ -146,10 +146,10 @@ const Shipping: React.FC = () => {
                       <td className="border border-green-200 px-4 py-3 text-green-700 font-bold text-lg">FREE</td>
                       <td className="border border-green-200 px-4 py-3 text-gray-700">1 business day (next-day air)</td>
                     </tr>
-                    <tr className="bg-blue-50">
-                      <td className="border border-blue-200 px-4 py-3 text-gray-700">Same-Day Processing</td>
-                      <td className="border border-blue-200 px-4 py-3 text-green-700 font-bold">FREE</td>
-                      <td className="border border-blue-200 px-4 py-3 text-gray-700">Same day + next-day air</td>
+                    <tr className="bg-slate-50">
+                      <td className="border border-slate-200 px-4 py-3 text-gray-700">Same-Day Processing</td>
+                      <td className="border border-slate-200 px-4 py-3 text-green-700 font-bold">FREE</td>
+                      <td className="border border-slate-200 px-4 py-3 text-gray-700">Same day + next-day air</td>
                     </tr>
                   </tbody>
                 </table>
@@ -170,7 +170,7 @@ const Shipping: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <div className="bg-blue-50 rounded-lg p-4 border-2 border-blue-300">
+                <div className="bg-slate-50 rounded-lg p-4 border-2 border-slate-200">
                   <div className="font-semibold text-gray-900 mb-2">Same-Day Processing</div>
                   <div className="text-sm text-gray-700">
                     <div className="flex justify-between mb-1">
@@ -194,7 +194,7 @@ const Shipping: React.FC = () => {
             </section>
 
             {/* Shipping Coverage */}
-            <section className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
+            <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
               <div className="flex items-center mb-4">
                 <MapPin className="h-6 w-6 text-purple-500 mr-3" />
                 <h2 className="text-2xl font-bold text-gray-900">Shipping Coverage</h2>
@@ -238,7 +238,7 @@ const Shipping: React.FC = () => {
             </section>
 
             {/* Packaging */}
-            <section className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
+            <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
               <div className="flex items-center mb-4">
                 <Package className="h-6 w-6 text-orange-500 mr-3" />
                 <h2 className="text-2xl font-bold text-gray-900">Packaging & Protection</h2>
@@ -269,7 +269,7 @@ const Shipping: React.FC = () => {
             </section>
 
             {/* Tracking & Delivery */}
-            <section className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
+            <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
               <div className="flex items-center mb-4">
                 <Truck className="h-6 w-6 text-indigo-500 mr-3" />
                 <h2 className="text-2xl font-bold text-gray-900">Tracking & Delivery</h2>
@@ -313,7 +313,7 @@ const Shipping: React.FC = () => {
             </section>
 
             {/* Important Notes */}
-            <section className="bg-white rounded-xl shadow-lg p-8 border border-gray-200">
+            <section className="bg-white rounded-xl shadow-sm p-8 border border-gray-200">
               <div className="flex items-center mb-4">
                 <AlertTriangle className="h-6 w-6 text-red-500 mr-3" />
                 <h2 className="text-2xl font-bold text-gray-900">Important Shipping Notes</h2>
@@ -331,9 +331,9 @@ const Shipping: React.FC = () => {
                     We are not liable for shipping delays due to weather conditions, carrier issues, or other circumstances beyond our control.
                   </p>
                 </div>
-                <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-r-lg">
+                <div className="bg-slate-50 border-l-4 border-slate-200 p-4 rounded-r-lg">
                   <h3 className="font-semibold text-blue-800 mb-2">Lost or Damaged Packages</h3>
-                  <p className="text-blue-700 text-sm">
+                  <p className="text-[#18448D] text-sm">
                     Report lost or damaged packages immediately. We will work with the carrier to resolve issues and may reprint your order if necessary.
                   </p>
                 </div>
@@ -349,7 +349,7 @@ const Shipping: React.FC = () => {
                 Our customer service team is here to help with any shipping questions or concerns.
               </p>
               <div className="flex flex-col sm:flex-row items-center justify-center space-y-2 sm:space-y-0 sm:space-x-6">
-                <a href="mailto:support@bannersonthefly.com" className="text-blue-600 hover:text-blue-800 text-sm">
+                <a href="mailto:support@bannersonthefly.com" className="text-orange-500 hover:text-blue-800 text-sm">
                   support@bannersonthefly.com
                 </a>
                 <span className="text-gray-400 hidden sm:block">|</span>
