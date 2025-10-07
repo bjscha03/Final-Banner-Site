@@ -27,6 +27,13 @@ const HeroSection: React.FC = () => {
     }, 100);
   };
 
+  const handleQuickQuote = () => {
+    const quickQuoteSection = document.getElementById('quick-quote');
+    if (quickQuoteSection) {
+      quickQuoteSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   return (
     <section className="bg-white">
       {/* Main Hero Banner - Amazon style */}
@@ -76,14 +83,22 @@ const HeroSection: React.FC = () => {
               <p className="text-lg text-slate-300 mb-8">
                 Professional quality banners at competitive prices. Free next-day air shipping on all orders.
               </p>
-              {/* Desktop button - hidden on mobile */}
-              <button
-                onClick={handleStartDesigning}
-                className="hidden md:inline-flex items-center px-8 py-3 bg-orange-500 hover:bg-orange-600 text-white text-lg font-semibold rounded-lg transition-colors duration-200"
-              >
-                Start Designing
-                <ArrowRight className="ml-2 h-5 w-5" />
-              </button>
+              {/* Desktop buttons - hidden on mobile */}
+              <div className="hidden md:flex flex-col gap-3">
+                <button
+                  onClick={handleStartDesigning}
+                  className="inline-flex items-center justify-center px-8 py-3 bg-orange-500 hover:bg-orange-600 text-white text-lg font-semibold rounded-lg transition-colors duration-200"
+                >
+                  Start Designing
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </button>
+                <button
+                  onClick={handleQuickQuote}
+                  className="inline-flex items-center justify-center px-8 py-3 bg-white hover:bg-slate-50 text-slate-900 text-lg font-semibold rounded-lg transition-colors duration-200 border-2 border-slate-200"
+                >
+                  Quick Quote
+                </button>
+              </div>
             </div>
 
             {/* Right Content - Feature Highlights */}
@@ -107,13 +122,19 @@ const HeroSection: React.FC = () => {
             </div>
 
             {/* Mobile button - appears below feature boxes, centered */}
-            <div className="md:hidden order-3 col-span-full flex justify-center">
+            <div className="md:hidden order-3 col-span-full flex flex-col gap-3 items-center">
               <button
                 onClick={handleStartDesigning}
-                className="inline-flex items-center px-8 py-3 bg-orange-500 hover:bg-orange-600 text-white text-lg font-semibold rounded-lg transition-colors duration-200"
+                className="inline-flex items-center justify-center px-8 py-3 bg-orange-500 hover:bg-orange-600 text-white text-lg font-semibold rounded-lg transition-colors duration-200 w-full max-w-xs"
               >
                 Start Designing
                 <ArrowRight className="ml-2 h-5 w-5" />
+              </button>
+              <button
+                onClick={handleQuickQuote}
+                className="inline-flex items-center justify-center px-8 py-3 bg-white hover:bg-slate-50 text-slate-900 text-lg font-semibold rounded-lg transition-colors duration-200 border-2 border-slate-200 w-full max-w-xs"
+              >
+                Quick Quote
               </button>
             </div>
           </div>

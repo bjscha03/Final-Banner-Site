@@ -57,7 +57,7 @@ const CompanySpotlight: React.FC = () => {
 
               <a
                 href="/design"
-                className="inline-flex items-center text-orange-600 hover:text-orange-700 font-semibold text-lg group"
+                className="inline-flex items-center justify-center bg-orange-500 hover:bg-orange-600 text-white font-semibold text-lg px-8 py-4 rounded-md shadow-sm transition-colors group"
               >
                 Start your order
                 <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />

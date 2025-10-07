@@ -15,7 +15,9 @@ const Index: React.FC = () => {
       <PromoBanner />
       <HeroSection />
       <CompanySpotlight />
-      <QuickQuote />
+      <div id="quick-quote">
+        <QuickQuote />
+      </div>
       <TestimonialsSection />
       <WhyChooseUs />
       <PricingTable />
