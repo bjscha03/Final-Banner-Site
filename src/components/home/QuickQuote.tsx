@@ -600,35 +600,23 @@ const QuickQuote: React.FC = () => {
           </div>
 
 
-          {/* Mobile-only Button Section - Appears between inputs and price summary */}
-          <div className="lg:hidden order-2 bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm p-6">
-            <div className="space-y-4">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div>
-                      <Button
-                        onClick={handleStartDesign}
-                        disabled={!isValid}
-                        className="w-full bg-orange-500 hover:bg-orange-600 text-white py-5 text-lg font-semibold shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed rounded-md"
-                        size="lg"
-                      >
-                        <div className="relative flex items-center justify-center gap-3">
-                          <span>Start My Design</span>
-                          <ArrowRight className="h-6 w-6 transition-transform duration-300 group-hover:translate-x-2" />
-                        </div>
-                      </Button>
-                    </div>
-                  </TooltipTrigger>
-                  {!isValid && (
-                    <TooltipContent>
-                      <p>Please enter valid dimensions (1-1000 inches) to continue</p>
-                    </TooltipContent>
-                  )}
-                </Tooltip>
-              </TooltipProvider>
+          
 
-              {/* Reset Button */}
+          {/* Mobile-only Button Section */}
+          <div className="lg:hidden order-2 flex justify-center">
+            <div className="w-full max-w-md space-y-4">
+              <Button
+                onClick={handleStartDesign}
+                disabled={!isValid}
+                className="w-full bg-orange-500 hover:bg-orange-600 text-white py-5 text-lg font-semibold shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed rounded-md"
+                size="lg"
+              >
+                <div className="relative flex items-center justify-center gap-3">
+                  <span>Start My Design</span>
+                  <ArrowRight className="h-6 w-6" />
+                </div>
+              </Button>
+
               <Button
                 onClick={handleReset}
                 variant="outline"
@@ -647,35 +635,21 @@ const QuickQuote: React.FC = () => {
           </div>
 
 
-          {/* Mobile-only Button Section - Appears between inputs and price summary */}
-          <div className="lg:hidden order-2 bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm p-6">
-            <div className="space-y-4">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <div>
-                      <Button
-                        onClick={handleStartDesign}
-                        disabled={!isValid}
-                        className="w-full bg-orange-500 hover:bg-orange-600 text-white py-5 text-lg font-semibold shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed rounded-md"
-                        size="lg"
-                      >
-                        <div className="relative flex items-center justify-center gap-3">
-                          <span>Start My Design</span>
-                          <ArrowRight className="h-6 w-6 transition-transform duration-300 group-hover:translate-x-2" />
-                        </div>
-                      </Button>
-                    </div>
-                  </TooltipTrigger>
-                  {!isValid && (
-                    <TooltipContent>
-                      <p>Please enter valid dimensions (1-1000 inches) to continue</p>
-                    </TooltipContent>
-                  )}
-                </Tooltip>
-              </TooltipProvider>
+          {/* Mobile-only Button Section */}
+          <div className="lg:hidden order-2 flex justify-center">
+            <div className="w-full max-w-md space-y-4">
+              <Button
+                onClick={handleStartDesign}
+                disabled={!isValid}
+                className="w-full bg-orange-500 hover:bg-orange-600 text-white py-5 text-lg font-semibold shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed rounded-md"
+                size="lg"
+              >
+                <div className="relative flex items-center justify-center gap-3">
+                  <span>Start My Design</span>
+                  <ArrowRight className="h-6 w-6" />
+                </div>
+              </Button>
 
-              {/* Reset Button */}
               <Button
                 onClick={handleReset}
                 variant="outline"
@@ -694,7 +668,7 @@ const QuickQuote: React.FC = () => {
           </div>
 
           {/* Right Column - Price Summary */}
-          <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm order-3 lg:order-2">
+          <div className="hidden lg:block bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm order-3 lg:order-2">
 {/* Header */}
             <div className="px-6 py-4 bg-slate-50 border-b border-slate-200">
               <div className="text-center">
