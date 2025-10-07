@@ -7,7 +7,7 @@ const TestimonialsSection: React.FC = () => {
       name: "Dan Oliver",
       title: "Founder",
       company: "Dan-O's Seasoning",
-      image: "https://d64gsuwffb70l.cloudfront.net/68bb812d3c680d9a9bc2bdd7_1757118816938_db1b361b.webp",
+      image: "https://res.cloudinary.com/dtrxl120u/image/upload/v1759799151/dan-oliver_1200xx3163-3170-1048-0_zgphzw.jpg",
       rating: 5,
       text: "Incredible quality and speed! Our trade show banners looked professional and arrived exactly when promised. The design tool made customization so easy."
     },
