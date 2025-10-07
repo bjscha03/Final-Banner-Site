@@ -199,6 +199,16 @@ const SignIn: React.FC = () => {
           </form>
         </div>
       </div>
+      
+      {/* Bottom Banner Image */}
+      <div className="w-full mt-auto">
+        <img 
+          src="https://res.cloudinary.com/dtrxl120u/image/upload/v1759860839/unnamed-3_fxck8r.jpg"
+          alt="Banner printing services"
+          className="w-full h-auto object-cover"
+          style={{ maxHeight: '300px' }}
+        />
+      </div>
     </Layout>
   );
 };
