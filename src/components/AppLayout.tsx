@@ -3,6 +3,7 @@ import { useAppContext } from '@/contexts/AppContext';
 import { useIsMobile } from '@/hooks/use-mobile';
 import Header from './Header';
 import HeroSection from './HeroSection';
+import CompanySpotlight from './CompanySpotlight';
 import QuickQuote from './home/QuickQuote';
 import TestimonialsSection from './TestimonialsSection';
 import WhyChooseUs from './WhyChooseUs';
@@ -89,6 +90,7 @@ const AppLayout: React.FC = () => {
         return (
           <>
             <HeroSection />
+            <CompanySpotlight />
             <QuickQuote />
             <TestimonialsSection />
             <WhyChooseUs />
