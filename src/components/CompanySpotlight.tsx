@@ -95,7 +95,7 @@ const CompanySpotlight: React.FC = () => {
               {/* CTA Buttons */}
               <div className="flex flex-col sm:flex-row gap-4">
                 <a
-                  href="#design"
+                  href="https://bannersonthefly.com/design"
                   className="inline-flex items-center justify-center px-8 py-4 bg-gradient-to-r from-orange-500 to-red-600 text-white font-bold rounded-xl shadow-lg hover:shadow-xl hover:scale-105 transition-all duration-300 group"
                 >
                   Start Designing Now
