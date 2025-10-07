@@ -146,7 +146,7 @@ const PricingTable: React.FC = () => {
               {/* Popular Badge - Fixed Height */}
               <div className="h-12 flex items-center justify-center mb-2">
                 {material.popular && (
-                  <div className="bg-white text-slate-900 px-4 py-2 rounded-full text-xs font-bold shadow-sm">
+                  <div className="bg-orange-500 text-white px-4 py-2 rounded-full text-xs font-bold shadow-sm">
                     <span className="flex items-center gap-1.5">
                       <span>⭐</span>
                       Most Popular
@@ -157,11 +157,11 @@ const PricingTable: React.FC = () => {
 
               {/* Header Section - Fixed Height */}
               <div className="text-center mb-8 px-6">
-                <h3 className="text-2xl font-bold text-slate-900 mb-4 leading-tight min-h-[2rem] flex items-center justify-center">
+                <h3 className="text-2xl font-bold text-orange-500 mb-4 leading-tight min-h-[2rem] flex items-center justify-center">
                   {material.name}
                 </h3>
                 <div className="mb-6">
-                  <span className="text-5xl font-bold text-slate-900 leading-none">
+                  <span className="text-5xl font-bold text-[#18448D] leading-none">
                     {material.price}
                   </span>
                   <span className="text-lg text-gray-500 font-medium ml-1 align-top">/sq ft</span>

@@ -102,35 +102,6 @@ const About: React.FC = () => {
         </div>
 
         {/* Our Values Section */}
-        <div className="relative py-20">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center mb-16">
-              <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-6">
-                What Drives Us
-              </h2>
-              <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-                Our core values shape everything we do, from the quality of our products to the service we provide
-              </p>
-            </div>
-
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-              {values.map((value, index) => {
-                const IconComponent = value.icon;
-                return (
-                  <div key={index} className="relative bg-white border border-slate-200 rounded-lg p-8 shadow-sm backdrop-blur-sm hover:shadow-sm transform hover:-translate-y-2 transition-all duration-300">
-                    <div className="relative">
-                      <div className="w-16 h-16 bg-orange-500 rounded-lg flex items-center justify-center shadow-lg mb-6">
-                        <IconComponent className="w-8 h-8 text-white" />
-                      </div>
-                      <h3 className="text-xl font-bold text-gray-900 mb-4">{value.title}</h3>
-                      <p className="text-gray-600 leading-relaxed">{value.description}</p>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
 
         {/* Story Section */}
         <div className="relative py-20 bg-slate-50">

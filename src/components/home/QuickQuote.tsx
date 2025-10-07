@@ -484,7 +484,7 @@ const QuickQuote: React.FC = () => {
                   className="h-10 w-10 bg-white border border-slate-300 rounded-md hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
                   type="button"
                 >
-                  <Minus className="h-5 w-5 text-green-600 group-hover:text-green-700 transition-colors" />
+                  <Minus className="h-5 w-5 text-green-600 group-hover:text-[#18448D] transition-colors" />
                 </button>
 
                 <div className="text-center space-y-2">
@@ -515,7 +515,7 @@ const QuickQuote: React.FC = () => {
                   className="h-10 w-10 bg-white border border-slate-300 rounded-md hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
                   type="button"
                 >
-                  <Plus className="h-5 w-5 text-green-600 group-hover:text-green-700 transition-colors" />
+                  <Plus className="h-5 w-5 text-green-600 group-hover:text-[#18448D] transition-colors" />
                 </button>
               </div>
             </div>
@@ -634,39 +634,6 @@ const QuickQuote: React.FC = () => {
             </div>
           </div>
 
-
-          {/* Mobile-only Button Section */}
-          <div className="lg:hidden order-2 flex justify-center">
-            <div className="w-full max-w-md space-y-4">
-              <Button
-                onClick={handleStartDesign}
-                disabled={!isValid}
-                className="w-full bg-orange-500 hover:bg-orange-600 text-white py-5 text-lg font-semibold shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed rounded-md"
-                size="lg"
-              >
-                <div className="relative flex items-center justify-center gap-3">
-                  <span>Start My Design</span>
-                  <ArrowRight className="h-6 w-6" />
-                </div>
-              </Button>
-
-              <Button
-                onClick={handleReset}
-                variant="outline"
-                className="w-full border-2 border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-colors py-3 font-semibold rounded-md"
-                size="sm"
-              >
-                Reset to Defaults
-              </Button>
-
-              {isValid && (
-                <p className="text-center text-sm text-gray-600 font-medium">
-                  Continue with your selections
-                </p>
-              )}
-            </div>
-          </div>
-
           {/* Right Column - Price Summary */}
           <div className="hidden lg:block bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm order-3 lg:order-2">
 {/* Header */}
@@ -717,7 +684,7 @@ const QuickQuote: React.FC = () => {
                     </div>
                     <div className="flex justify-between">
                       <span className="font-bold text-gray-800">Total with tax:</span>
-                      <span className="font-bold text-green-700">{usd(totals.totalWithTax)}</span>
+                      <span className="font-bold text-[#18448D]">{usd(totals.totalWithTax)}</span>
                     </div>
                   </div>
                 </div>

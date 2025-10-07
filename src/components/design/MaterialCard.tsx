@@ -100,7 +100,7 @@ const MaterialCard: React.FC = () => {
   };
 
   const renderMaterialOption = (materialOption: MaterialOption) => (
-    <div key={materialOption.key} className="flex items-center space-x-2 md:space-x-3 p-2 md:p-3 rounded-lg hover:bg-gray-50 transition-colors">
+    <div key={materialOption.key} className="flex items-center space-x-2 md:space-x-3 p-2 md:p-3 rounded-lg transition-colors border-2 ${material === materialOption.key ? "border-orange-500 bg-orange-50" : "border-transparent hover:bg-gray-50"}">
       <RadioGroupItem value={materialOption.key} id={materialOption.key} />
       <div className="flex-1 flex items-center justify-between">
         <div className="flex items-center space-x-3">
