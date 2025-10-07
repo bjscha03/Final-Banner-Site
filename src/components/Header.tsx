@@ -56,9 +56,9 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
   return (
     <header className="bg-white shadow-lg sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center gap-3 h-16">
+        <div className="flex md:justify-between justify-center items-center gap-3 h-16 relative">
           {/* Logo */}
-          <div className="flex-shrink-0">
+          <div className="flex-shrink-0 md:static absolute left-1/2 md:left-auto -translate-x-1/2 md:translate-x-0">
             <ScrollToTopLink to="/" className="flex items-center">
               <Logo variant="compact" height={32} className="h-8 max-w-[200px] object-contain" animated />
             </ScrollToTopLink>
@@ -82,7 +82,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
           </nav>
 
           {/* Right Side Actions */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-4 md:static absolute right-4">
             <button
               onClick={onCartClick}
               className="relative p-2 text-gray-700 hover:text-blue-700 transition-colors"

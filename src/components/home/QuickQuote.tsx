@@ -330,9 +330,9 @@ const QuickQuote: React.FC = () => {
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-10">
+        <div className="grid lg:grid-cols-2 gap-10 lg:gap-10">
           {/* Left Column - Configuration */}
-          <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm">
+          <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm order-1 lg:order-1">
 {/* Header */}
             <div className="px-6 py-4 bg-slate-50 border-b border-slate-200">
               <div className="flex items-center gap-4">
@@ -599,8 +599,102 @@ const QuickQuote: React.FC = () => {
             </div>
           </div>
 
+
+          {/* Mobile-only Button Section - Appears between inputs and price summary */}
+          <div className="lg:hidden order-2 bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm p-6">
+            <div className="space-y-4">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div>
+                      <Button
+                        onClick={handleStartDesign}
+                        disabled={!isValid}
+                        className="w-full bg-orange-500 hover:bg-orange-600 text-white py-5 text-lg font-semibold shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed rounded-md"
+                        size="lg"
+                      >
+                        <div className="relative flex items-center justify-center gap-3">
+                          <span>Start My Design</span>
+                          <ArrowRight className="h-6 w-6 transition-transform duration-300 group-hover:translate-x-2" />
+                        </div>
+                      </Button>
+                    </div>
+                  </TooltipTrigger>
+                  {!isValid && (
+                    <TooltipContent>
+                      <p>Please enter valid dimensions (1-1000 inches) to continue</p>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              </TooltipProvider>
+
+              {/* Reset Button */}
+              <Button
+                onClick={handleReset}
+                variant="outline"
+                className="w-full border-2 border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-colors py-3 font-semibold rounded-md"
+                size="sm"
+              >
+                Reset to Defaults
+              </Button>
+
+              {isValid && (
+                <p className="text-center text-sm text-gray-600 font-medium">
+                  Continue with your selections
+                </p>
+              )}
+            </div>
+          </div>
+
+
+          {/* Mobile-only Button Section - Appears between inputs and price summary */}
+          <div className="lg:hidden order-2 bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm p-6">
+            <div className="space-y-4">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <div>
+                      <Button
+                        onClick={handleStartDesign}
+                        disabled={!isValid}
+                        className="w-full bg-orange-500 hover:bg-orange-600 text-white py-5 text-lg font-semibold shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed rounded-md"
+                        size="lg"
+                      >
+                        <div className="relative flex items-center justify-center gap-3">
+                          <span>Start My Design</span>
+                          <ArrowRight className="h-6 w-6 transition-transform duration-300 group-hover:translate-x-2" />
+                        </div>
+                      </Button>
+                    </div>
+                  </TooltipTrigger>
+                  {!isValid && (
+                    <TooltipContent>
+                      <p>Please enter valid dimensions (1-1000 inches) to continue</p>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
+              </TooltipProvider>
+
+              {/* Reset Button */}
+              <Button
+                onClick={handleReset}
+                variant="outline"
+                className="w-full border-2 border-slate-300 text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-colors py-3 font-semibold rounded-md"
+                size="sm"
+              >
+                Reset to Defaults
+              </Button>
+
+              {isValid && (
+                <p className="text-center text-sm text-gray-600 font-medium">
+                  Continue with your selections
+                </p>
+              )}
+            </div>
+          </div>
+
           {/* Right Column - Price Summary */}
-          <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm">
+          <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm order-3 lg:order-2">
 {/* Header */}
             <div className="px-6 py-4 bg-slate-50 border-b border-slate-200">
               <div className="text-center">
@@ -700,7 +794,7 @@ const QuickQuote: React.FC = () => {
               </div>
 
               {/* Call-to-Action */}
-              <div className="space-y-4">
+              <div className="hidden lg:block space-y-4">
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
