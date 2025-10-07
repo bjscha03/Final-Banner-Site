@@ -203,7 +203,7 @@ const SignIn: React.FC = () => {
       {/* Bottom Banner Image */}
       <div className="w-full mt-auto">
         <img 
-          src="https://res.cloudinary.com/dtrxl120u/image/upload/v1759861550/Screenshot_2025-10-07_at_2.25.43_PM_vhkshg.png"
+          src="https://res.cloudinary.com/dtrxl120u/image/upload/v1759861799/Screenshot_2025-10-07_at_2.29.47_PM_wegqxg.png"
           alt="Banner printing services"
           className="w-full h-auto object-contain"
         />
