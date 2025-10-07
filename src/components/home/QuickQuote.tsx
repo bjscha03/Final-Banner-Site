@@ -635,7 +635,7 @@ const QuickQuote: React.FC = () => {
           </div>
 
           {/* Right Column - Price Summary */}
-          <div className="hidden lg:block bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm order-3 lg:order-2">
+          <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm order-3 lg:order-2">
 {/* Header */}
             <div className="px-6 py-4 bg-slate-50 border-b border-slate-200">
               <div className="text-center">
