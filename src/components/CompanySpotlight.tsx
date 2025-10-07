@@ -43,8 +43,8 @@ const CompanySpotlight: React.FC = () => {
             {/* Image Section - Left on Desktop, Top on Mobile */}
             <div className="relative h-64 lg:h-auto">
               <img
-                src="https://res.cloudinary.com/dtrxl120u/image/upload/v1759800155/2019-07-19_10-03-03_cmg7im.png"
-                alt="Dan-O's Seasoning banner display"
+                src="https://res.cloudinary.com/dtrxl120u/image/upload/v1759799151/dan-oliver_1200xx3163-3170-1048-0_zgphzw.jpg"
+                alt="Dan Oliver, Founder of Dan-O's Seasoning"
                 className="w-full h-full object-cover"
               />
               {/* Gradient Overlay for better text contrast on mobile */}
