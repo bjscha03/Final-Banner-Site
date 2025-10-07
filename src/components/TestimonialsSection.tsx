@@ -9,7 +9,7 @@ const TestimonialsSection: React.FC = () => {
       company: "Dan-O's Seasoning",
       image: "https://res.cloudinary.com/dtrxl120u/image/upload/v1759799151/dan-oliver_1200xx3163-3170-1048-0_zgphzw.jpg",
       rating: 5,
-      text: "Incredible quality and speed! Our trade show banners looked professional and arrived exactly when promised. The design tool made customization so easy."
+      text: "I've been ordering banners from these guys since before they even launched their new website. They've handled every single one of my banner needs since the day I started my business — and I can honestly say, they're the best in the game."
     },
     {
       name: "Sarah Johnson",
