@@ -238,12 +238,57 @@ exports.handler = async (event) => {
       .png()
       .toBuffer();
 
+    // Get actual dimensions of resized image
+    const resizedMeta = await sharp(resizedBuffer).metadata();
+    const resizedW = resizedMeta.width || scaledImageW;
+    const resizedH = resizedMeta.height || scaledImageH;
+    
+    console.log(`[PDF] Canvas: ${targetPxW}×${targetPxH}px, Image: ${resizedW}×${resizedH}px, Position: (${translateX}, ${translateY})`);
+    
+    // Ensure the image fits within canvas bounds
+    // If image extends beyond canvas, we need to extract/crop it
+    let compositeInput = resizedBuffer;
+    let compositeTop = translateY;
+    let compositeLeft = translateX;
+    
+    // Check if we need to crop the image to fit within canvas
+    const needsCrop = (
+      translateX < 0 || 
+      translateY < 0 || 
+      translateX + resizedW > targetPxW || 
+      translateY + resizedH > targetPxH
+    );
+    
+    if (needsCrop) {
+      console.log('[PDF] Image extends beyond canvas, cropping to fit');
+      
+      // Calculate crop region
+      const cropLeft = Math.max(0, -translateX);
+      const cropTop = Math.max(0, -translateY);
+      const cropWidth = Math.min(resizedW - cropLeft, targetPxW - Math.max(0, translateX));
+      const cropHeight = Math.min(resizedH - cropTop, targetPxH - Math.max(0, translateY));
+      
+      console.log(`[PDF] Crop region: ${cropWidth}×${cropHeight}px from (${cropLeft}, ${cropTop})`);
+      
+      compositeInput = await sharp(resizedBuffer)
+        .extract({
+          left: cropLeft,
+          top: cropTop,
+          width: Math.max(1, Math.floor(cropWidth)),
+          height: Math.max(1, Math.floor(cropHeight))
+        })
+        .toBuffer();
+      
+      compositeTop = Math.max(0, translateY);
+      compositeLeft = Math.max(0, translateX);
+    }
+
     const merged = await sharp(whiteCanvas)
       .composite([
         {
-          input: resizedBuffer,
-          top: translateY,
-          left: translateX,
+          input: compositeInput,
+          top: compositeTop,
+          left: compositeLeft,
         },
       ])
       .png()
