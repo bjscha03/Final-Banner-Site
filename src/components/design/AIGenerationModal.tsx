@@ -53,8 +53,6 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
   const [showSelection, setShowSelection] = useState(false);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
-  const [showDisclaimer, setShowDisclaimer] = useState(false);
-  const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
 
   const handleStyleToggle = (styleId: string) => {
     setSelectedStyles(prev =>
@@ -235,23 +233,7 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
   };
 
 
-  const handleDisclaimerAccept = () => {
-    setDisclaimerAccepted(true);
-    setShowDisclaimer(false);
-    // Trigger generation after accepting
-    setTimeout(() => {
-      handleGenerate();
-    }, 100);
-  };
 
-  const handleDisclaimerDecline = () => {
-    setShowDisclaimer(false);
-    toast({
-      title: 'Terms Required',
-      description: 'You must accept the terms to use AI generation.',
-      variant: 'destructive'
-    });
-  };
 
   return <>
     <Dialog open={open} onOpenChange={onOpenChange}>
