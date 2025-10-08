@@ -151,41 +151,16 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
         description: "Creating your print-ready PDF...",
       });
 
-      // Get the file URL - use the download-file function to get the actual URL
       console.log('[PDF Download] File key:', item.file_key);
-      
-      // First, fetch the file through our download function to get the actual blob
-      const downloadUrl = `/.netlify/functions/download-file?key=${encodeURIComponent(item.file_key)}&order=${order.id}`;
-      console.log('[PDF Download] Fetching file from:', downloadUrl);
-      
-      const fileResponse = await fetch(downloadUrl);
-      if (!fileResponse.ok) {
-        throw new Error(`Failed to fetch file: ${fileResponse.statusText}`);
-      }
-      
-      // Get the blob and create a temporary URL
-      const fileBlob = await fileResponse.blob();
-      const tempFileUrl = window.URL.createObjectURL(fileBlob);
-      
-      // Upload to a temporary location or use the blob directly
-      // For now, we'll need to convert blob to base64 or upload it
-      // Let's use a different approach - get the signed URL from Cloudinary
-      
-      // Actually, let's just use the file_key directly if it's a Cloudinary public_id
-      const cloudinaryUrl = item.file_key.startsWith('http') 
-        ? item.file_key 
-        : `https://res.cloudinary.com/dqiwqlu0y/image/upload/${item.file_key}`;
-
-      console.log('[PDF Download] Cloudinary URL:', cloudinaryUrl);
       console.log('[PDF Download] Banner dimensions:', item.width_in, 'x', item.height_in);
 
       const requestBody = {
         orderId: order.id,
+        fileKey: item.file_key,
         bannerWidthIn: item.width_in,
         bannerHeightIn: item.height_in,
         bleedIn: 0.125,
         previewCanvasPx: { width: 800, height: 400 },
-        imageUrl: cloudinaryUrl,
         imageSource: 'upload',
         transform: {
           scale: 1.0,
@@ -209,31 +184,31 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
       if (!response.ok) {
         const errorText = await response.text();
         console.error('[PDF Download] Error response:', errorText);
-        throw new Error(errorText || 'PDF generation failed');
+        throw new Error(errorText);
       }
 
       const result = await response.json();
       console.log('[PDF Download] PDF generated successfully:', result);
 
       // Download the PDF
-      const link = document.createElement('a');
-      link.href = result.finalPdfUrl;
-      link.download = `banner-${order.id.slice(-8)}-item-${itemIndex + 1}.pdf`;
-      link.target = '_blank';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
+      if (result.finalPdfUrl) {
+        const link = document.createElement('a');
+        link.href = result.finalPdfUrl;
+        link.download = `order-${order.id}-banner-${itemIndex + 1}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
 
-      toast({
-        title: "PDF Ready",
-        description: "Your print-ready PDF has been downloaded.",
-      });
-
+        toast({
+          title: "PDF Ready",
+          description: "Your print-ready PDF has been downloaded.",
+        });
+      }
     } catch (error) {
       console.error('[PDF Download] Error generating PDF:', error);
       toast({
         title: "PDF Generation Failed",
-        description: error.message || "Could not generate PDF. Please try again.",
+        description: error instanceof Error ? error.message : "Failed to generate PDF",
         variant: "destructive",
       });
     }
