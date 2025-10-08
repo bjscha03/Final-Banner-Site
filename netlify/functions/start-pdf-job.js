@@ -71,7 +71,7 @@ exports.handler = async (event) => {
 
     console.log('[PDF Job] Job status uploaded');
 
-    // Trigger background processing by importing and calling the handler
+    // Trigger background processing
     const backgroundPayload = {
       ...req,
       jobId,
@@ -80,17 +80,22 @@ exports.handler = async (event) => {
 
     console.log('[PDF Job] Triggering background function');
     
-    // Import and call the background function (don't await - fire and forget)
-    const backgroundHandler = require('./render-order-pdf-background.js');
-    const backgroundEvent = {
-      httpMethod: 'POST',
-      body: JSON.stringify(backgroundPayload),
-      headers: event.headers
-    };
+    // Call background function via HTTP (fire and forget)
+    // Use the full Netlify URL
+    const siteUrl = process.env.URL || 'https://final-banner-site.netlify.app';
+    const backgroundUrl = `${siteUrl}/.netlify/functions/render-order-pdf-background`;
     
-    // Fire and forget - don't wait for completion
-    backgroundHandler.handler(backgroundEvent).catch(err => {
-      console.error('[PDF Job] Background function error:', err);
+    console.log('[PDF Job] Background URL:', backgroundUrl);
+    
+    // Fire and forget - don't await
+    fetch(backgroundUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(backgroundPayload)
+    }).then(() => {
+      console.log('[PDF Job] Background function triggered');
+    }).catch(err => {
+      console.error('[PDF Job] Error triggering background:', err.message);
     });
 
     // Return immediately with job ID
