@@ -336,28 +336,14 @@ exports.handler = async (event) => {
     const pdfBuffer = await rasterToPdfBuffer(merged, finalWidthIn, finalHeightIn);
     console.log(`[PDF] PDF generated: ${pdfBuffer.length} bytes`);
 
-    const publicId = `final_banners/order_${req.orderId}_final`;
-    console.log(`[PDF] Uploading to Cloudinary: ${publicId}`);
-
-    const uploadResult = await new Promise((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream(
-        {
-          resource_type: 'raw',
-          folder: 'final_banners',
-          public_id: publicId,
-          format: 'pdf',
-          overwrite: true,
-        },
-        (error, result) => {
-          if (error) reject(error);
-          else resolve(result);
-        }
-      );
-      stream.end(pdfBuffer);
-    });
-
-    const finalPdfUrl = uploadResult.secure_url;
-    console.log(`[PDF] Uploaded successfully: ${finalPdfUrl}`);
+    // Return PDF as base64 data URL for immediate download
+    // Skip Cloudinary upload to avoid timeout
+    console.log('[PDF] Converting to base64 for direct download');
+    const base64Pdf = pdfBuffer.toString('base64');
+    const dataUrl = `data:application/pdf;base64,${base64Pdf}`;
+    console.log(`[PDF] Data URL created, length: ${dataUrl.length} chars`);
+    
+    const finalPdfUrl = dataUrl;
 
     const meta = {
       dpi: targetDpi,
