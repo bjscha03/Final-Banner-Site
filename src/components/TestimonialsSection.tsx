@@ -12,10 +12,10 @@ const TestimonialsSection: React.FC = () => {
       text: "I've been ordering banners from these guys since before they even launched their new website. They've handled every single one of my banner needs since the day I started my business."
     },
     {
-      name: "Sarah Johnson",
-      title: "Marketing Director",
-      company: "TechStart Inc.",
-      image: "https://d64gsuwffb70l.cloudfront.net/68bb812d3c680d9a9bc2bdd7_1757118818687_27f339aa.webp",
+      name: "Brandon Schaefer",
+      title: "Founder",
+      company: "HempRise LLC",
+      image: "https://res.cloudinary.com/dtrxl120u/image/upload/v1759933582/1758106259564_oysdje.jpg",
       rating: 5,
       text: "Best banner service I've used. The 24-hour turnaround saved our grand opening event. Quality exceeded expectations and pricing was very competitive."
     },
