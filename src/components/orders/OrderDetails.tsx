@@ -144,6 +144,8 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
   };
   const handlePdfDownload = async (item: any, itemIndex: number) => {
     try {
+      console.log('[PDF Download] Starting PDF generation for item:', item);
+      
       toast({
         title: "Generating PDF",
         description: "Creating your print-ready PDF...",
@@ -154,33 +156,44 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
         ? item.file_key 
         : `https://res.cloudinary.com/dqiwqlu0y/image/upload/${item.file_key}`;
 
+      console.log('[PDF Download] Cloudinary URL:', cloudinaryUrl);
+      console.log('[PDF Download] Banner dimensions:', item.width_in, 'x', item.height_in);
+
+      const requestBody = {
+        orderId: order.id,
+        bannerWidthIn: item.width_in,
+        bannerHeightIn: item.height_in,
+        bleedIn: 0.125,
+        previewCanvasPx: { width: 800, height: 400 },
+        imageUrl: cloudinaryUrl,
+        imageSource: 'upload',
+        transform: {
+          scale: 1.0,
+          translateXpx: 0,
+          translateYpx: 0,
+          rotationDeg: 0
+        }
+      };
+
+      console.log('[PDF Download] Request body:', requestBody);
+
       // Call the PDF rendering function
       const response = await fetch('/.netlify/functions/render-order-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderId: order.id,
-          bannerWidthIn: item.width_in,
-          bannerHeightIn: item.height_in,
-          bleedIn: 0.125,
-          previewCanvasPx: { width: 800, height: 400 },
-          imageUrl: cloudinaryUrl,
-          imageSource: 'upload',
-          transform: {
-            scale: 1.0,
-            translateXpx: 0,
-            translateYpx: 0,
-            rotationDeg: 0
-          }
-        })
+        body: JSON.stringify(requestBody)
       });
 
+      console.log('[PDF Download] Response status:', response.status);
+
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'PDF generation failed');
+        const errorText = await response.text();
+        console.error('[PDF Download] Error response:', errorText);
+        throw new Error(errorText || 'PDF generation failed');
       }
 
       const result = await response.json();
+      console.log('[PDF Download] PDF generated successfully:', result);
 
       // Download the PDF
       const link = document.createElement('a');
@@ -197,7 +210,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
       });
 
     } catch (error) {
-      console.error('Error generating PDF:', error);
+      console.error('[PDF Download] Error generating PDF:', error);
       toast({
         title: "PDF Generation Failed",
         description: error.message || "Could not generate PDF. Please try again.",
