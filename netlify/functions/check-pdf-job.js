@@ -34,8 +34,11 @@ exports.handler = async (event) => {
     });
 
     console.log('[PDF Job Check] Fetching status from:', statusUrl);
+    console.log('[PDF Job Check] Status public ID:', statusPublicId);
 
     const response = await fetch(statusUrl);
+    console.log('[PDF Job Check] Response status:', response.status);
+    console.log('[PDF Job Check] Response headers:', Object.fromEntries(response.headers.entries()));
     
     if (!response.ok) {
       if (response.status === 404) {
