@@ -15,6 +15,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import AIDisclaimerDialog from './AIDisclaimerDialog';
 
 const STYLE_CHIPS = [
   { id: 'modern', label: 'Modern' },
@@ -50,6 +51,10 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [showSelection, setShowSelection] = useState(false);
+  const [showDisclaimer, setShowDisclaimer] = useState(false);
+  const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
+  const [showDisclaimer, setShowDisclaimer] = useState(false);
+  const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
 
   const handleStyleToggle = (styleId: string) => {
     setSelectedStyles(prev =>
@@ -70,6 +75,12 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
         description: 'Please describe your banner background.',
         variant: 'destructive'
       });
+      return;
+    }
+
+    // Show disclaimer if not yet accepted
+    if (!disclaimerAccepted) {
+      setShowDisclaimer(true);
       return;
     }
 
@@ -204,7 +215,45 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
     optionsSummary.push(`Rope: ${(widthIn / 12).toFixed(1)} ft`);
   }
 
-  return (
+
+  const handleDisclaimerAccept = () => {
+    setDisclaimerAccepted(true);
+    setShowDisclaimer(false);
+    // Trigger generation after accepting
+    setTimeout(() => {
+      handleGenerate();
+    }, 100);
+  };
+
+  const handleDisclaimerDecline = () => {
+    setShowDisclaimer(false);
+    toast({
+      title: 'Terms Required',
+      description: 'You must accept the terms to use AI generation.',
+      variant: 'destructive'
+    });
+  };
+
+
+  const handleDisclaimerAccept = () => {
+    setDisclaimerAccepted(true);
+    setShowDisclaimer(false);
+    // Trigger generation after accepting
+    setTimeout(() => {
+      handleGenerate();
+    }, 100);
+  };
+
+  const handleDisclaimerDecline = () => {
+    setShowDisclaimer(false);
+    toast({
+      title: 'Terms Required',
+      description: 'You must accept the terms to use AI generation.',
+      variant: 'destructive'
+    });
+  };
+
+  return <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -379,7 +428,14 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
         </div>
       </DialogContent>
     </Dialog>
-  );
+
+    {/* AI Disclaimer Dialog */}
+    <AIDisclaimerDialog
+      open={showDisclaimer}
+      onAccept={handleDisclaimerAccept}
+      onDecline={handleDisclaimerDecline}
+    />
+  </>;
 };
 
 export default AIGenerationModal;
