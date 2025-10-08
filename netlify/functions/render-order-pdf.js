@@ -35,15 +35,38 @@ function clamp(val, min, max) {
 /**
  * Fetch image from URL and return as Buffer
  */
-async function fetchImage(url) {
-  console.log('[PDF] Fetching image from:', url);
-  const response = await fetch(url);
-  if (!response.ok) {
-    throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+async function fetchImage(urlOrKey, isFileKey = false) {
+  if (isFileKey) {
+    console.log('[PDF] Fetching from Cloudinary with key:', urlOrKey);
+    const cloudinaryUrl = cloudinary.url(urlOrKey, {
+      resource_type: 'image',
+      secure: true
+    });
+    console.log('[PDF] Generated Cloudinary URL:', cloudinaryUrl);
+    const response = await fetch(cloudinaryUrl);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+    }
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
+  } else {
+    console.log('[PDF] Fetching image from URL:', urlOrKey);
+    const response = await fetch(urlOrKey);
+    if (!response.ok) {
+      throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+    }
+    const arrayBuffer = await response.arrayBuffer();
+    return Buffer.from(arrayBuffer);
   }
-  const arrayBuffer = await response.arrayBuffer();
-  return Buffer.from(arrayBuffer);
 }
+
+
+
+
+
+
+
+
 
 /**
  * Upscale image if needed to meet target resolution
@@ -157,7 +180,10 @@ exports.handler = async (event) => {
 
     console.log(`[PDF] Final dimensions: ${finalWidthIn}×${finalHeightIn} in = ${targetPxW}×${targetPxH}px`);
 
-    const sourceBuffer = await fetchImage(req.imageUrl);
+    // Fetch image using fileKey if available, otherwise imageUrl
+    const sourceBuffer = req.fileKey 
+      ? await fetchImage(req.fileKey, true)
+      : await fetchImage(req.imageUrl, false);
     
     let rotatedBuffer = sourceBuffer;
     if (req.transform.rotationDeg && req.transform.rotationDeg !== 0) {
