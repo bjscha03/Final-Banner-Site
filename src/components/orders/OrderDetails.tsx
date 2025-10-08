@@ -117,6 +117,31 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
     }
   };
 
+  const handleReorder = (itemIndex: number) => {
+    const item = order.items[itemIndex];
+    
+    // Convert order item back to quote format for cart
+    const quoteData = {
+      widthIn: item.width_in,
+      heightIn: item.height_in,
+      quantity: item.quantity,
+      material: item.material,
+      grommets: item.grommets || 'none',
+      polePockets: 'none',
+      addRope: item.rope_feet > 0,
+      previewScalePct: 150,
+      file: item.file_key ? { name: item.file_key, type: '', size: 0 } : undefined,
+      set: () => {},
+      setFromQuickQuote: () => {},
+    };
+
+    addFromQuote(quoteData);
+    
+    toast({
+      title: "Added to Cart",
+      description: `${item.quantity} banner${item.quantity > 1 ? 's' : ''} added to your cart.`,
+    });
+  };
   const handlePdfDownload = async (item: any, itemIndex: number) => {
     try {
       toast({
@@ -181,30 +206,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
     }
   };
 
-    const item = order.items[itemIndex];
-    
-    // Convert order item back to quote format for cart
-    const quoteData = {
-      widthIn: item.width_in,
-      heightIn: item.height_in,
-      quantity: item.quantity,
-      material: item.material,
-      grommets: item.grommets || 'none',
-      polePockets: 'none',
-      addRope: item.rope_feet > 0,
-      previewScalePct: 150,
-      file: item.file_key ? { name: item.file_key, type: '', size: 0 } : undefined,
-      set: () => {},
-      setFromQuickQuote: () => {},
-    };
 
-    addFromQuote(quoteData);
-    
-    toast({
-      title: "Added to Cart",
-      description: `${item.quantity} banner${item.quantity > 1 ? 's' : ''} added to your cart.`,
-    });
-  };
 
   const defaultTrigger = (
     <Button variant="outline" size="sm">
