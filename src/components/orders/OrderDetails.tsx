@@ -151,7 +151,27 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
         description: "Creating your print-ready PDF...",
       });
 
-      // Build Cloudinary URL from file_key
+      // Get the file URL - use the download-file function to get the actual URL
+      console.log('[PDF Download] File key:', item.file_key);
+      
+      // First, fetch the file through our download function to get the actual blob
+      const downloadUrl = `/.netlify/functions/download-file?key=${encodeURIComponent(item.file_key)}&order=${order.id}`;
+      console.log('[PDF Download] Fetching file from:', downloadUrl);
+      
+      const fileResponse = await fetch(downloadUrl);
+      if (!fileResponse.ok) {
+        throw new Error(`Failed to fetch file: ${fileResponse.statusText}`);
+      }
+      
+      // Get the blob and create a temporary URL
+      const fileBlob = await fileResponse.blob();
+      const tempFileUrl = window.URL.createObjectURL(fileBlob);
+      
+      // Upload to a temporary location or use the blob directly
+      // For now, we'll need to convert blob to base64 or upload it
+      // Let's use a different approach - get the signed URL from Cloudinary
+      
+      // Actually, let's just use the file_key directly if it's a Cloudinary public_id
       const cloudinaryUrl = item.file_key.startsWith('http') 
         ? item.file_key 
         : `https://res.cloudinary.com/dqiwqlu0y/image/upload/${item.file_key}`;
