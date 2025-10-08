@@ -5,7 +5,7 @@ const TestimonialsSection: React.FC = () => {
   const testimonials = [
     {
       name: "Dan Oliver",
-      title: "Founder",
+      title: "Marketing Manager",
       company: "Dan-O's Seasoning",
       image: "https://res.cloudinary.com/dtrxl120u/image/upload/v1759799151/dan-oliver_1200xx3163-3170-1048-0_zgphzw.jpg",
       rating: 5,
@@ -13,7 +13,7 @@ const TestimonialsSection: React.FC = () => {
     },
     {
       name: "Brandon Schaefer",
-      title: "Founder",
+      title: "Marketing Manager",
       company: "HempRise LLC",
       image: "https://res.cloudinary.com/dtrxl120u/image/upload/v1759933582/1758106259564_oysdje.jpg",
       rating: 5,
