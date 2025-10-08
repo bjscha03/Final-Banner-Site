@@ -4,6 +4,8 @@
  */
 
 const cloudinary = require('cloudinary').v2;
+const https = require('https');
+const { URL } = require('url');
 
 // Configure Cloudinary
 cloudinary.config({
@@ -88,15 +90,30 @@ exports.handler = async (event) => {
     console.log('[PDF Job] Background URL:', backgroundUrl);
     
     // Fire and forget - don't await
-    fetch(backgroundUrl, {
+    const url = new URL(backgroundUrl);
+    const postData = JSON.stringify(backgroundPayload);
+    
+    const options = {
+      hostname: url.hostname,
+      port: url.port || 443,
+      path: url.pathname,
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(backgroundPayload)
-    }).then(() => {
-      console.log('[PDF Job] Background function triggered');
-    }).catch(err => {
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(postData)
+      }
+    };
+    
+    const bgReq = https.request(options, (res) => {
+      console.log('[PDF Job] Background function triggered, status:', res.statusCode);
+    });
+    
+    bgReq.on('error', (err) => {
       console.error('[PDF Job] Error triggering background:', err.message);
     });
+    
+    bgReq.write(postData);
+    bgReq.end();
 
     // Return immediately with job ID
     return {

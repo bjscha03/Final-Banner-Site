@@ -4,6 +4,7 @@
  */
 
 const cloudinary = require('cloudinary').v2;
+const https = require('https');
 
 // Configure Cloudinary
 cloudinary.config({
@@ -29,31 +30,34 @@ exports.handler = async (event) => {
     // Fetch job status from Cloudinary
     const statusPublicId = `job_status/${jobId}_status`;
     
-    // Construct URL manually to avoid cloudinary.url() issues
+    // Construct URL manually
     const cloudName = process.env.CLOUDINARY_CLOUD_NAME || 'dtrxl120u';
     const statusUrl = `https://res.cloudinary.com/${cloudName}/raw/upload/${statusPublicId}`;
 
     console.log('[PDF Job Check] Fetching status from:', statusUrl);
-    console.log('[PDF Job Check] Status public ID:', statusPublicId);
 
-    const response = await fetch(statusUrl);
-    console.log('[PDF Job Check] Response status:', response.status);
-    console.log('[PDF Job Check] Response headers:', Object.fromEntries(response.headers.entries()));
-    
-    if (!response.ok) {
-      if (response.status === 404) {
-        return {
-          statusCode: 404,
-          body: JSON.stringify({ 
-            error: 'Job not found',
-            jobId 
-          })
-        };
-      }
-      throw new Error(`Failed to fetch job status: ${response.status}`);
-    }
+    // Use https module instead of fetch
+    const content = await new Promise((resolve, reject) => {
+      https.get(statusUrl, (res) => {
+        console.log('[PDF Job Check] Response status:', res.statusCode);
+        
+        if (res.statusCode === 404) {
+          reject(new Error('Job not found'));
+          return;
+        }
+        
+        if (res.statusCode !== 200) {
+          reject(new Error(`HTTP ${res.statusCode}`));
+          return;
+        }
+        
+        let data = '';
+        res.on('data', chunk => data += chunk);
+        res.on('end', () => resolve(data));
+      }).on('error', reject);
+    });
 
-    const jobStatus = await response.json();
+    const jobStatus = JSON.parse(content);
     console.log('[PDF Job Check] Status:', jobStatus.status);
 
     return {
@@ -65,7 +69,18 @@ exports.handler = async (event) => {
     };
 
   } catch (error) {
-    console.error('[PDF Job Check] Error:', error);
+    console.error('[PDF Job Check] Error:', error.message);
+    
+    if (error.message === 'Job not found') {
+      return {
+        statusCode: 404,
+        body: JSON.stringify({
+          error: 'Job not found',
+          jobId
+        })
+      };
+    }
+    
     return {
       statusCode: 500,
       body: JSON.stringify({

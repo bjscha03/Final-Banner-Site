@@ -21,8 +21,7 @@ const sql = neon(process.env.NETLIFY_DATABASE_URL);
  * Choose target DPI based on banner size
  */
 function chooseTargetDpi(wIn, hIn) {
-  const maxDim = Math.max(wIn, hIn);
-  return maxDim > 24 ? 150 : 300;
+  return 150; // Always 150 DPI for speed
 }
 
 /**
@@ -128,7 +127,7 @@ async function maybeUpscaleToFit(imgBuffer, needW, needH) {
 
   return await sharp(imgBuffer)
     .resize(newW, newH, {
-      kernel: 'lanczos3',
+      kernel: 'cubic',
       fit: 'fill',
     })
     .toBuffer();

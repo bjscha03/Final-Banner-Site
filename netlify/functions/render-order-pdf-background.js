@@ -6,6 +6,7 @@
 const sharp = require('sharp');
 const PDFDocument = require('pdfkit');
 const cloudinary = require('cloudinary').v2;
+const https = require('https');
 const { neon } = require('@neondatabase/serverless');
 
 // Configure Cloudinary
@@ -28,8 +29,23 @@ async function updateJobStatus(statusPublicId, updates) {
     const cloudName = process.env.CLOUDINARY_CLOUD_NAME || 'dtrxl120u';
     const statusUrl = `https://res.cloudinary.com/${cloudName}/raw/upload/${statusPublicId}`;
     
-    const response = await fetch(statusUrl);
-    const currentStatus = response.ok ? await response.json() : {};
+    let currentStatus = {};
+    try {
+      const content = await new Promise((resolve, reject) => {
+        https.get(statusUrl, (res) => {
+          if (res.statusCode !== 200) {
+            resolve('{}');
+            return;
+          }
+          let data = '';
+          res.on('data', chunk => data += chunk);
+          res.on('end', () => resolve(data));
+        }).on('error', () => resolve('{}'));
+      });
+      currentStatus = JSON.parse(content);
+    } catch (e) {
+      currentStatus = {};
+    }
     
     // Merge updates
     const newStatus = {
