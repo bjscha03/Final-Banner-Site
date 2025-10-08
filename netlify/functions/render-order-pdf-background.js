@@ -24,12 +24,9 @@ async function updateJobStatus(statusPublicId, updates) {
   if (!statusPublicId) return; // Skip if no job tracking
   
   try {
-    // Fetch current status
-    const statusUrl = cloudinary.url(statusPublicId, {
-      resource_type: 'raw',
-      secure: true,
-      // format: 'json' - removed, causes 404
-    });
+    // Fetch current status - construct URL manually
+    const cloudName = process.env.CLOUDINARY_CLOUD_NAME || 'dtrxl120u';
+    const statusUrl = `https://res.cloudinary.com/${cloudName}/raw/upload/${statusPublicId}`;
     
     const response = await fetch(statusUrl);
     const currentStatus = response.ok ? await response.json() : {};
