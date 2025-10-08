@@ -58,7 +58,7 @@ exports.handler = async (event) => {
           resource_type: 'raw',
           folder: 'pdf_jobs',
           public_id: statusPublicId,
-          format: 'json',
+          // format: 'json', - removed to avoid extension
           overwrite: true,
         },
         (error, result) => {
@@ -71,9 +71,7 @@ exports.handler = async (event) => {
 
     console.log('[PDF Job] Job status uploaded');
 
-    // Trigger background function via fetch (fire and forget)
-    const backgroundUrl = `${event.headers.origin || 'https://final-banner-site.netlify.app'}/.netlify/functions/render-order-pdf-background`;
-    
+    // Trigger background processing by importing and calling the handler
     const backgroundPayload = {
       ...req,
       jobId,
@@ -82,13 +80,17 @@ exports.handler = async (event) => {
 
     console.log('[PDF Job] Triggering background function');
     
-    // Fire and forget - don't wait for response
-    fetch(backgroundUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(backgroundPayload)
-    }).catch(err => {
-      console.error('[PDF Job] Error triggering background function:', err);
+    // Import and call the background function (don't await - fire and forget)
+    const backgroundHandler = require('./render-order-pdf-background.js');
+    const backgroundEvent = {
+      httpMethod: 'POST',
+      body: JSON.stringify(backgroundPayload),
+      headers: event.headers
+    };
+    
+    // Fire and forget - don't wait for completion
+    backgroundHandler.handler(backgroundEvent).catch(err => {
+      console.error('[PDF Job] Background function error:', err);
     });
 
     // Return immediately with job ID
