@@ -146,7 +146,7 @@ async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn) {
     const doc = new PDFDocument({
       size: [pageWidthPt, pageHeightPt],
       margins: { top: 0, bottom: 0, left: 0, right: 0 },
-      compress: true,
+      compress: false, // Disable compression for speed
     });
 
     doc.on('data', (chunk) => chunks.push(chunk));
@@ -259,9 +259,10 @@ exports.handler = async (event) => {
 
     const resizedBuffer = await sharp(upscaledBuffer)
       .resize(scaledImageW, scaledImageH, {
-        kernel: 'lanczos3',
+        kernel: 'cubic', // Faster than lanczos3
         fit: 'fill',
       })
+      .jpeg({ quality: 90 })
       .toBuffer();
 
     const whiteCanvas = await sharp({
