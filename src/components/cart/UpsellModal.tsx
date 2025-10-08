@@ -79,8 +79,9 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
 
     const options: UpsellOption[] = [];
     
-    // Add grommets if none selected
-    if (quote.grommets === 'none') {
+    // MUTUAL EXCLUSIVITY: Only show grommets if pole pockets are not selected
+    // Add grommets if none selected AND pole pockets are not selected
+    if (quote.grommets === 'none' && quote.polePockets === 'none') {
       options.push({
         id: 'grommets',
         label: 'Grommets',
@@ -103,8 +104,9 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
       });
     }
 
-    // Add pole pockets if none selected
-    if (quote.polePockets === 'none') {
+    // MUTUAL EXCLUSIVITY: Only show pole pockets if grommets are not selected
+    // Add pole pockets if none selected AND grommets are not selected
+    if (quote.polePockets === 'none' && quote.grommets === 'none') {
       const defaultPolePocketSelection = 'top-bottom';
       const pocketCost = polePocketCost(quote.widthIn, quote.heightIn, defaultPolePocketSelection, quote.quantity);
       options.push({
@@ -121,14 +123,25 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
     setSelectedOptions(options);
   }, [isOpen, quote]);
 
-  // Handle option toggle
+  // Handle option toggle with mutual exclusivity
   const toggleOption = (optionId: string) => {
     setSelectedOptions(prev => 
-      prev.map(option => 
-        option.id === optionId 
-          ? { ...option, selected: !option.selected }
-          : option
-      )
+      prev.map(option => {
+        if (option.id === optionId) {
+          // Toggle the clicked option
+          return { ...option, selected: !option.selected };
+        }
+        
+        // MUTUAL EXCLUSIVITY: If selecting grommets, deselect pole pockets (and vice versa)
+        if (optionId === 'grommets' && option.id === 'polePockets') {
+          return { ...option, selected: false };
+        }
+        if (optionId === 'polePockets' && option.id === 'grommets') {
+          return { ...option, selected: false };
+        }
+        
+        return option;
+      })
     );
   };
 
