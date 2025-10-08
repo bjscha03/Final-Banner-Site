@@ -262,7 +262,6 @@ exports.handler = async (event) => {
         kernel: 'cubic', // Faster than lanczos3
         fit: 'fill',
       })
-      .jpeg({ quality: 90 })
       .toBuffer();
 
     const whiteCanvas = await sharp({
