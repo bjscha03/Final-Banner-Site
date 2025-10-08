@@ -36,6 +36,8 @@ function clamp(val, min, max) {
  * Fetch image from URL and return as Buffer
  */
 async function fetchImage(urlOrKey, isFileKey = false) {
+  const startTime = Date.now();
+  
   if (isFileKey) {
     console.log('[PDF] Fetching from Cloudinary with key:', urlOrKey);
     const cloudinaryUrl = cloudinary.url(urlOrKey, {
@@ -43,20 +45,55 @@ async function fetchImage(urlOrKey, isFileKey = false) {
       secure: true
     });
     console.log('[PDF] Generated Cloudinary URL:', cloudinaryUrl);
-    const response = await fetch(cloudinaryUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+    
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+    
+    try {
+      const response = await fetch(cloudinaryUrl, { signal: controller.signal });
+      clearTimeout(timeout);
+      
+      console.log(`[PDF] Fetch completed in ${Date.now() - startTime}ms, status: ${response.status}`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+      }
+      
+      const arrayBuffer = await response.arrayBuffer();
+      console.log(`[PDF] Image downloaded: ${arrayBuffer.byteLength} bytes`);
+      return Buffer.from(arrayBuffer);
+    } catch (error) {
+      clearTimeout(timeout);
+      if (error.name === 'AbortError') {
+        throw new Error('Image fetch timed out after 8 seconds');
+      }
+      throw error;
     }
-    const arrayBuffer = await response.arrayBuffer();
-    return Buffer.from(arrayBuffer);
   } else {
     console.log('[PDF] Fetching image from URL:', urlOrKey);
-    const response = await fetch(urlOrKey);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    
+    try {
+      const response = await fetch(urlOrKey, { signal: controller.abort });
+      clearTimeout(timeout);
+      
+      console.log(`[PDF] Fetch completed in ${Date.now() - startTime}ms, status: ${response.status}`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+      }
+      
+      const arrayBuffer = await response.arrayBuffer();
+      console.log(`[PDF] Image downloaded: ${arrayBuffer.byteLength} bytes`);
+      return Buffer.from(arrayBuffer);
+    } catch (error) {
+      clearTimeout(timeout);
+      if (error.name === 'AbortError') {
+        throw new Error('Image fetch timed out after 8 seconds');
+      }
+      throw error;
     }
-    const arrayBuffer = await response.arrayBuffer();
-    return Buffer.from(arrayBuffer);
   }
 }
 
