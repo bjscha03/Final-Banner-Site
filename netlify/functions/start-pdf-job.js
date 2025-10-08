@@ -51,12 +51,12 @@ exports.handler = async (event) => {
     };
 
     // Upload job status to Cloudinary as JSON
-    const statusPublicId = `pdf_jobs/${jobId}_status`;
+    const statusPublicId = `job_status/${jobId}_status`;
     await new Promise((resolve, reject) => {
       const stream = cloudinary.uploader.upload_stream(
         {
           resource_type: 'raw',
-          folder: 'pdf_jobs',
+          folder: 'job_status',
           public_id: statusPublicId,
           // format: 'json', - removed to avoid extension
           overwrite: true,

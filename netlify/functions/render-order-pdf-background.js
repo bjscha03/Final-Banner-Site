@@ -43,7 +43,7 @@ async function updateJobStatus(statusPublicId, updates) {
       const stream = cloudinary.uploader.upload_stream(
         {
           resource_type: 'raw',
-          folder: 'pdf_jobs',
+          folder: 'job_status',
           public_id: statusPublicId,
           // format: 'json' - removed, causes 404,
           overwrite: true,

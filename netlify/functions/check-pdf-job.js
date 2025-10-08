@@ -27,7 +27,7 @@ exports.handler = async (event) => {
     console.log('[PDF Job Check] Checking status for job:', jobId);
 
     // Fetch job status from Cloudinary
-    const statusPublicId = `pdf_jobs/${jobId}_status`;
+    const statusPublicId = `job_status/${jobId}_status`;
     
     // Construct URL manually to avoid cloudinary.url() issues
     const cloudName = process.env.CLOUDINARY_CLOUD_NAME || 'dtrxl120u';
