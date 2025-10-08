@@ -161,7 +161,15 @@ exports.handler = async (event) => {
     const req = JSON.parse(event.body);
     console.log('[PDF] Request:', JSON.stringify(req, null, 2));
 
-    if (!req.orderId || !req.bannerWidthIn || !req.bannerHeightIn || !req.imageUrl) {
+    // Accept either fileKey (preferred) or imageUrl (legacy)
+    if (!req.orderId || !req.bannerWidthIn || !req.bannerHeightIn || (!req.fileKey && !req.imageUrl)) {
+      console.error('[PDF] Missing required fields:', {
+        orderId: !!req.orderId,
+        bannerWidthIn: !!req.bannerWidthIn,
+        bannerHeightIn: !!req.bannerHeightIn,
+        fileKey: !!req.fileKey,
+        imageUrl: !!req.imageUrl
+      });
       return {
         statusCode: 400,
         body: JSON.stringify({ error: 'Missing required fields' }),
