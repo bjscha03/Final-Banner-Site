@@ -30,8 +30,7 @@ exports.handler = async (event) => {
     const statusPublicId = `pdf_jobs/${jobId}_status`;
     const statusUrl = cloudinary.url(statusPublicId, {
       resource_type: 'raw',
-      secure: true,
-      format: 'json'
+      secure: true
     });
 
     console.log('[PDF Job Check] Fetching status from:', statusUrl);

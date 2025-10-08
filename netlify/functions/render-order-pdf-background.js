@@ -28,7 +28,7 @@ async function updateJobStatus(statusPublicId, updates) {
     const statusUrl = cloudinary.url(statusPublicId, {
       resource_type: 'raw',
       secure: true,
-      format: 'json'
+      // format: 'json' - removed, causes 404
     });
     
     const response = await fetch(statusUrl);
@@ -48,7 +48,7 @@ async function updateJobStatus(statusPublicId, updates) {
           resource_type: 'raw',
           folder: 'pdf_jobs',
           public_id: statusPublicId,
-          format: 'json',
+          // format: 'json' - removed, causes 404,
           overwrite: true,
         },
         (error, result) => {
