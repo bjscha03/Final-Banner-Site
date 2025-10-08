@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Order } from '../../lib/orders/types';
 import { usd, formatDimensions, calculatePolePocketCostFromOrder, calculateUnitPriceFromOrder } from '@/lib/pricing';
 import { Button } from '@/components/ui/button';
@@ -28,6 +28,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
   const { addFromQuote } = useCartStore();
   const { toast } = useToast();
   const { user } = useAuth();
+  const [pdfGenerating, setPdfGenerating] = useState<Record<number, boolean>>({});
   const isAdminUser = user && isAdmin(user);
 
 
@@ -143,12 +144,19 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
     });
   };
   const handlePdfDownload = async (item: any, itemIndex: number) => {
+    // Prevent multiple simultaneous requests
+    if (pdfGenerating[itemIndex]) {
+      console.log('[PDF Download] Already generating PDF for this item');
+      return;
+    }
+
     try {
+      setPdfGenerating(prev => ({ ...prev, [itemIndex]: true }));
       console.log('[PDF Download] Starting PDF generation for item:', item);
       
       toast({
         title: "Generating PDF",
-        description: "Creating your print-ready PDF...",
+        description: "Creating your print-ready PDF... This may take 10-20 seconds.",
       });
 
       console.log('[PDF Download] File key:', item.file_key);
@@ -211,6 +219,8 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
         description: error instanceof Error ? error.message : "Failed to generate PDF",
         variant: "destructive",
       });
+    } finally {
+      setPdfGenerating(prev => ({ ...prev, [itemIndex]: false }));
     }
   };
 
@@ -379,6 +389,8 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                             variant="outline"
                             size="sm"
                             onClick={() => handlePdfDownload(item, index)}
+                            disabled={pdfGenerating[index]}
+                            disabled={pdfGenerating[index]}
                             className="w-full"
                           >
                             <Download className="h-3 w-3 mr-1" />
