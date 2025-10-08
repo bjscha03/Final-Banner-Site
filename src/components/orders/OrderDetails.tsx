@@ -117,6 +117,134 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
     }
   };
 
+  const handlePdfDownload = async (item: any, itemIndex: number) => {
+    try {
+      toast({
+        title: "Generating PDF",
+        description: "Creating your print-ready PDF...",
+      });
+
+      // Build Cloudinary URL from file_key
+      const cloudinaryUrl = item.file_key.startsWith('http') 
+        ? item.file_key 
+        : `https://res.cloudinary.com/dqiwqlu0y/image/upload/${item.file_key}`;
+
+      // Call the PDF rendering function
+      const response = await fetch('/.netlify/functions/render-order-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: order.id,
+          bannerWidthIn: item.width_in,
+          bannerHeightIn: item.height_in,
+          bleedIn: 0.125,
+          previewCanvasPx: { width: 800, height: 400 },
+          imageUrl: cloudinaryUrl,
+          imageSource: 'upload',
+          transform: {
+            scale: 1.0,
+            translateXpx: 0,
+            translateYpx: 0,
+            rotationDeg: 0
+          }
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'PDF generation failed');
+      }
+
+      const result = await response.json();
+
+      // Download the PDF
+      const link = document.createElement('a');
+      link.href = result.finalPdfUrl;
+      link.download = `banner-${order.id.slice(-8)}-item-${itemIndex + 1}.pdf`;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast({
+        title: "PDF Ready",
+        description: "Your print-ready PDF has been downloaded.",
+      });
+
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast({
+        title: "PDF Generation Failed",
+        description: error.message || "Could not generate PDF. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handlePdfDownload = async (item: any, itemIndex: number) => {
+    try {
+      toast({
+        title: "Generating PDF",
+        description: "Creating your print-ready PDF...",
+      });
+
+      // Build Cloudinary URL from file_key
+      const cloudinaryUrl = item.file_key.startsWith('http') 
+        ? item.file_key 
+        : `https://res.cloudinary.com/dqiwqlu0y/image/upload/${item.file_key}`;
+
+      // Call the PDF rendering function
+      const response = await fetch('/.netlify/functions/render-order-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: order.id,
+          bannerWidthIn: item.width_in,
+          bannerHeightIn: item.height_in,
+          bleedIn: 0.125,
+          previewCanvasPx: { width: 800, height: 400 },
+          imageUrl: cloudinaryUrl,
+          imageSource: 'upload',
+          transform: {
+            scale: 1.0,
+            translateXpx: 0,
+            translateYpx: 0,
+            rotationDeg: 0
+          }
+        })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'PDF generation failed');
+      }
+
+      const result = await response.json();
+
+      // Download the PDF
+      const link = document.createElement('a');
+      link.href = result.finalPdfUrl;
+      link.download = `banner-${order.id.slice(-8)}-item-${itemIndex + 1}.pdf`;
+      link.target = '_blank';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast({
+        title: "PDF Ready",
+        description: "Your print-ready PDF has been downloaded.",
+      });
+
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast({
+        title: "PDF Generation Failed",
+        description: error.message || "Could not generate PDF. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleReorder = (itemIndex: number) => {
     const item = order.items[itemIndex];
     
@@ -293,16 +421,16 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                         {usd((calculateUnitPriceFromOrder(item) || 0) / 100)} each
                       </p>
                       <div className="mt-2 space-y-2">
-                        {/* Admin File Download Button */}
+                        {/* Admin PDF Download Button */}
                         {isAdminUser && item.file_key && (
                           <Button
                             variant="outline"
                             size="sm"
-                            onClick={() => handleFileDownload(item.file_key!, index)}
+                            onClick={() => handlePdfDownload(item, index)}
                             className="w-full"
                           >
                             <Download className="h-3 w-3 mr-1" />
-                            Download File
+                            Download PDF
                           </Button>
                         )}
                         {isAdminUser && !item.file_key && (
