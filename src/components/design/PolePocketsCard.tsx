@@ -1,7 +1,8 @@
 import React from 'react';
-import { Minus } from 'lucide-react';
+import { Minus, AlertCircle } from 'lucide-react';
 import { useQuoteStore } from '@/store/quote';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const polePocketOptions = [
   { value: 'none', label: 'None' },
@@ -13,10 +14,15 @@ const polePocketOptions = [
 ];
 
 const PolePocketsCard: React.FC = () => {
-  const { polePockets, set } = useQuoteStore();
+  const { polePockets, grommets, set } = useQuoteStore();
+  
+  // Check if grommets are selected (mutual exclusivity)
+  const isDisabled = grommets !== 'none';
 
   const handlePolePocketsChange = (value: string) => {
-    set({ polePockets: value });
+    if (!isDisabled) {
+      set({ polePockets: value });
+    }
   };
 
   return (
@@ -27,11 +33,24 @@ const PolePocketsCard: React.FC = () => {
       </div>
 
       <div className="space-y-4">
-        <div>
+        {/* Warning banner when disabled */}
+        {isDisabled && (
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-amber-600" />
+              <p className="text-sm font-medium text-amber-800">
+                Pole pockets cannot be selected when grommets are active. 
+                Set grommets to "None" to enable pole pockets.
+              </p>
+            </div>
+          </div>
+        )}
+        
+        <div className={isDisabled ? 'opacity-50 pointer-events-none' : ''}>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Select pole pocket configuration
           </label>
-          <Select value={polePockets} onValueChange={handlePolePocketsChange}>
+          <Select value={polePockets} onValueChange={handlePolePocketsChange} disabled={isDisabled}>
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Choose pole pocket option" />
             </SelectTrigger>
@@ -45,14 +64,16 @@ const PolePocketsCard: React.FC = () => {
           </Select>
         </div>
 
-        <div className="p-3 bg-blue-50 rounded-lg">
-          <p className="text-sm text-blue-700">
-            <strong>Note:</strong> Pole pockets create a sleeve for inserting poles or rods. 
-            This option doesn't affect pricing but will be noted in your order specifications.
-          </p>
-        </div>
+        {!isDisabled && (
+          <div className="p-3 bg-blue-50 rounded-lg">
+            <p className="text-sm text-blue-700">
+              <strong>Note:</strong> Pole pockets create a sleeve for inserting poles or rods. 
+              This option doesn't affect pricing but will be noted in your order specifications.
+            </p>
+          </div>
+        )}
 
-        {polePockets !== 'none' && (
+        {polePockets !== 'none' && !isDisabled && (
           <div className="p-3 bg-gray-50 rounded-lg">
             <p className="text-sm text-gray-600">
               <strong>Selected:</strong> {polePocketOptions.find(opt => opt.value === polePockets)?.label}

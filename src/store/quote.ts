@@ -81,7 +81,22 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
   addRope: false, // Preserve rope selection
   previewScalePct: 100,
   file: undefined,
-  set: (partial) => set((state) => ({ ...state, ...partial })),
+  set: (partial) => set((state) => {
+    // Handle mutual exclusivity between grommets and pole pockets
+    const updates = { ...partial };
+    
+    // If grommets is being set to a non-'none' value, reset pole pockets
+    if (updates.grommets && updates.grommets !== 'none') {
+      updates.polePockets = 'none';
+    }
+    
+    // If pole pockets is being set to a non-'none' value, reset grommets
+    if (updates.polePockets && updates.polePockets !== 'none') {
+      updates.grommets = 'none' as Grommets;
+    }
+    
+    return { ...state, ...updates };
+  }),
   setFromQuickQuote: (params) => set((state) => ({
     ...state,
     widthIn: params.widthIn,

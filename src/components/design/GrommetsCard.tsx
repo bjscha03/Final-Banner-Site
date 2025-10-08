@@ -1,7 +1,8 @@
 import React from 'react';
-import { Circle, Check } from 'lucide-react';
+import { Circle, Check, AlertCircle } from 'lucide-react';
 import { useQuoteStore, Grommets } from '@/store/quote';
 import { GrommetPicker } from '@/components/ui/GrommetPicker';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 const grommetOptions = [
   {
@@ -42,10 +43,15 @@ const grommetOptions = [
 ];
 
 const GrommetsCard: React.FC = () => {
-  const { grommets, set } = useQuoteStore();
+  const { grommets, polePockets, set } = useQuoteStore();
+  
+  // Check if pole pockets are selected (mutual exclusivity)
+  const isDisabled = polePockets !== 'none';
 
   const handleGrommetChange = (value: string) => {
-    set({ grommets: value as Grommets });
+    if (!isDisabled) {
+      set({ grommets: value as Grommets });
+    }
   };
 
   return (
@@ -65,24 +71,41 @@ const GrommetsCard: React.FC = () => {
 
       {/* Responsive Grommet Picker */}
       <div className="p-6">
-        <GrommetPicker
-          value={grommets}
-          onChange={handleGrommetChange}
-          options={grommetOptions}
-          placeholder="Choose grommet placement"
-        />
+        {/* Warning banner when disabled */}
+        {isDisabled && (
+          <div className="mb-4 p-4 bg-amber-50 border border-amber-200 rounded-xl">
+            <div className="flex items-center gap-2">
+              <AlertCircle className="w-5 h-5 text-amber-600" />
+              <p className="text-sm font-medium text-amber-800">
+                Grommets cannot be selected when pole pockets are active. 
+                Set pole pockets to "None" to enable grommets.
+              </p>
+            </div>
+          </div>
+        )}
+        
+        <div className={isDisabled ? 'opacity-50 pointer-events-none' : ''}>
+          <GrommetPicker
+            value={grommets}
+            onChange={handleGrommetChange}
+            options={grommetOptions}
+            placeholder="Choose grommet placement"
+          />
+        </div>
 
         {/* Info Banner */}
-        <div className="mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
-          <div className="flex items-center gap-2">
-            <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center">
-              <Check className="w-3 h-3 text-white" />
+        {!isDisabled && (
+          <div className="mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl">
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center">
+                <Check className="w-3 h-3 text-white" />
+              </div>
+              <p className="text-sm font-medium text-emerald-700">
+                All grommet options included at no extra cost
+              </p>
             </div>
-            <p className="text-sm font-medium text-emerald-700">
-              All grommet options included at no extra cost
-            </p>
           </div>
-        </div>
+        )}
       </div>
     </div>
   );
