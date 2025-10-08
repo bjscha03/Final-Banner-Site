@@ -49,9 +49,8 @@ const GrommetsCard: React.FC = () => {
   const isDisabled = polePockets !== 'none';
 
   const handleGrommetChange = (value: string) => {
-    if (!isDisabled) {
-      set({ grommets: value as Grommets });
-    }
+    // Always call set() - the store handles mutual exclusivity
+    set({ grommets: value as Grommets });
   };
 
   return (
@@ -84,7 +83,7 @@ const GrommetsCard: React.FC = () => {
           </div>
         )}
         
-        <div className={isDisabled ? 'opacity-50 pointer-events-none' : ''}>
+        <div className={isDisabled ? 'opacity-60' : ''}>
           <GrommetPicker
             value={grommets}
             onChange={handleGrommetChange}

@@ -20,9 +20,8 @@ const PolePocketsCard: React.FC = () => {
   const isDisabled = grommets !== 'none';
 
   const handlePolePocketsChange = (value: string) => {
-    if (!isDisabled) {
-      set({ polePockets: value });
-    }
+    // Always call set() - the store handles mutual exclusivity
+    set({ polePockets: value });
   };
 
   return (
@@ -46,11 +45,11 @@ const PolePocketsCard: React.FC = () => {
           </div>
         )}
         
-        <div className={isDisabled ? 'opacity-50 pointer-events-none' : ''}>
+        <div className={isDisabled ? 'opacity-60' : ''}>
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Select pole pocket configuration
           </label>
-          <Select value={polePockets} onValueChange={handlePolePocketsChange} disabled={isDisabled}>
+          <Select value={polePockets} onValueChange={handlePolePocketsChange}>
             <SelectTrigger className="w-full">
               <SelectValue placeholder="Choose pole pocket option" />
             </SelectTrigger>
