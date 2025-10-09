@@ -353,14 +353,27 @@ exports.handler = async (event) => {
     const pdfBuffer = await rasterToPdfBuffer(merged, finalWidthIn, finalHeightIn);
     console.log(`[PDF] PDF generated: ${pdfBuffer.length} bytes`);
 
-    // Return PDF as base64 data URL for immediate download
-    // Skip Cloudinary upload to avoid timeout
-    console.log('[PDF] Converting to base64 for direct download');
-    const base64Pdf = pdfBuffer.toString('base64');
-    const dataUrl = `data:application/pdf;base64,${base64Pdf}`;
-    console.log(`[PDF] Data URL created, length: ${dataUrl.length} chars`);
+    // Upload PDF to Cloudinary
+    console.log('[PDF] Uploading PDF to Cloudinary...');
+    const uploadResult = await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          resource_type: 'raw',
+          folder: 'final_pdfs',
+          public_id: `order_${req.orderId}_${Date.now()}`,
+          format: 'pdf',
+        },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        }
+      );
+      stream.end(pdfBuffer);
+    });
     
-    const finalPdfUrl = dataUrl;
+    const finalPdfUrl = uploadResult.secure_url;
+    const publicId = uploadResult.public_id;
+    console.log(`[PDF] Uploaded to Cloudinary: ${publicId}`);
 
     const meta = {
       dpi: targetDpi,
@@ -371,7 +384,7 @@ exports.handler = async (event) => {
       transform: req.transform,
     };
 
-    // Skip database update - PDF is returned directly as base64
+    // Skip database update - PDF URL returned from Cloudinary
     console.log('[PDF] Skipping database update (PDF returned as base64)');
 
     const response = {
