@@ -362,8 +362,7 @@ exports.handler = async (event) => {
 
     try {
       await updateOrder(req.orderId, {
-        final_pdf_url: finalPdfUrl,
-        final_pdf_public_id: publicId,
+        final_pdf_url: 'base64_data_url',
         rendered_at: new Date().toISOString(),
         render_meta: JSON.stringify(meta),
       });
@@ -373,8 +372,7 @@ exports.handler = async (event) => {
     }
 
     const response = {
-      finalPdfUrl,
-      publicId,
+      pdfUrl: finalPdfUrl,
       dpi: targetDpi,
       bleedIn,
       renderedAt: new Date().toISOString(),
