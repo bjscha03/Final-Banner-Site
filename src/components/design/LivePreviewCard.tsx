@@ -1,5 +1,7 @@
 import React, { useState, useRef, useMemo } from 'react';
-import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image, X, ChevronDown, ChevronUp, Wand2, Crop, RefreshCw, Loader2 } from 'lucide-react';
+import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image, X, ChevronDown, ChevronUp, Wand2, Crop, RefreshCw, Loader2, Type } from 'lucide-react';
+import DraggableText from './DraggableText';
+import TextStylePanel from './TextStylePanel';
 import { useQuoteStore, Grommets } from '@/store/quote';
 import { formatDimensions } from '@/lib/pricing';
 import { grommetPoints } from '@/lib/preview/grommets';
@@ -43,7 +45,7 @@ const createFittedImageUrl = (originalUrl: string, targetWidthIn: number, target
 
 
 const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGeneratingAI = false }) => {
-  const { widthIn, heightIn, previewScalePct, grommets, file, set } = useQuoteStore();
+  const { widthIn, heightIn, previewScalePct, grommets, file, textElements, set, addTextElement, updateTextElement, deleteTextElement } = useQuoteStore();
   const { toast } = useToast();
 
   const [dragActive, setDragActive] = useState(false);
@@ -61,6 +63,8 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
   const [initialImageScale, setInitialImageScale] = useState(1);
   const [isFittingImage, setIsFittingImage] = useState(false);
   const [isResettingImage, setIsResettingImage] = useState(false);
+  const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
+  const [showTextPanel, setShowTextPanel] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Calculate grommet info
@@ -308,6 +312,33 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     }
     set({ file: null });
     setUploadError('');
+  };
+
+  // Text handling functions
+  const handleAddText = () => {
+    const newText = {
+      content: 'New Text',
+      x: widthIn / 2 - 1, // Center horizontally (approximate)
+      y: heightIn / 2 - 0.5, // Center vertically (approximate)
+      fontSize: 48,
+      fontFamily: 'Arial, sans-serif',
+      color: '#000000',
+      fontWeight: 'normal' as const,
+      textAlign: 'center' as const,
+    };
+    addTextElement(newText);
+    const newId = `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    setTimeout(() => {
+      setSelectedTextId(newId);
+      setShowTextPanel(true);
+    }, 50);
+  };
+
+  const handleCanvasClick = (e: React.MouseEvent) => {
+    // Deselect text if clicking on canvas background
+    if (e.target === e.currentTarget) {
+      setSelectedTextId(null);
+    }
   };
 
   const handleScaleChange = (value: number[]) => {
@@ -688,13 +719,6 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
   };
   
   // Canvas background click handler - deselect image
-  const handleCanvasClick = (e: React.MouseEvent) => {
-    const target = e.target as SVGElement;
-    // Only deselect if clicking on the canvas background (not on image or handles)
-    if (target.tagName === 'svg' || target.tagName === 'rect' && !target.classList.contains('resize-handle')) {
-      setIsImageSelected(false);
-    }
-  };
   
   // Global mouse/touch handlers for dragging
   React.useEffect(() => {
@@ -929,6 +953,16 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                     </button>
                   </>
                 )}
+                
+                {/* Add Text Button */}
+                <div className="text-gray-400 text-sm">or</div>
+                <button
+                  onClick={handleAddText}
+                  className="px-6 py-3.5 bg-white border-2 border-gray-300 hover:border-orange-400 text-gray-700 hover:text-orange-700 rounded-xl font-medium transition-all duration-200 w-full max-w-xs min-h-[48px] flex items-center justify-center gap-2 shadow-sm hover:shadow-md touch-manipulation"
+                >
+                  <Type className="w-5 h-5" />
+                  Add Text to Banner
+                </button>
               </div>
               
               <div className="mt-6 sm:mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl text-left max-w-md mx-auto w-full">
@@ -981,10 +1015,43 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                     artworkPixelWidth={file.artworkWidth}
                     artworkPixelHeight={file.artworkHeight}
                   />
-                )}            </div>
+                )}
+
+                {/* Text Elements Overlay */}
+                {textElements.map((element) => (
+                  <DraggableText
+                    key={element.id}
+                    element={element}
+                    bannerWidthIn={widthIn}
+                    bannerHeightIn={heightIn}
+                    scale={previewScalePct / 100}
+                    isSelected={selectedTextId === element.id}
+                    onSelect={() => {
+                      setSelectedTextId(element.id);
+                      setShowTextPanel(true);
+                    }}
+                    onUpdate={(updates) => updateTextElement(element.id, updates)}
+                    onDelete={() => {
+                      deleteTextElement(element.id);
+                      if (selectedTextId === element.id) {
+                        setSelectedTextId(null);
+                        setShowTextPanel(false);
+                      }
+                    }}
+                  />
+                ))}
+            </div>
 
             {/* File controls */}
-            <div className="absolute top-4 right-4">
+            <div className="absolute top-4 right-4 flex gap-2">
+              <button
+                onClick={handleAddText}
+                className="flex items-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white rounded-xl transition-colors duration-150 shadow-md hover:shadow-lg min-h-[44px] min-w-[44px] touch-manipulation"
+                title="Add text to banner"
+              >
+                <Type className="w-4 h-4" />
+                Add Text
+              </button>
               <button
                 onClick={removeFile}
                 className="flex items-center gap-2 px-4 py-2.5 bg-white/95 hover:bg-white active:bg-gray-50 text-gray-700 hover:text-red-600 rounded-xl transition-colors duration-150 shadow-md hover:shadow-sm min-h-[44px] min-w-[44px] touch-manipulation"
@@ -1009,6 +1076,34 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       </div>
 
 
+
+      {/* Text Style Panel */}
+      {showTextPanel && selectedTextId && (
+        <div className="mx-6 mb-6">
+          <TextStylePanel
+            selectedElement={textElements.find(el => el.id === selectedTextId) || null}
+            onUpdate={(updates) => {
+              if (selectedTextId) {
+                updateTextElement(selectedTextId, updates);
+              }
+            }}
+          />
+        </div>
+      )}
+
+      {/* Text Style Panel */}
+      {showTextPanel && selectedTextId && (
+        <div className="mx-6 mb-6">
+          <TextStylePanel
+            selectedElement={textElements.find(el => el.id === selectedTextId) || null}
+            onUpdate={(updates) => {
+              if (selectedTextId) {
+                updateTextElement(selectedTextId, updates);
+              }
+            }}
+          />
+        </div>
+      )}
 
       {/* Hidden File Input */}
       <input

@@ -19,6 +19,18 @@ export interface QuickQuoteParams {
 
 export type PolePocketSize = '1' | '2' | '3' | '4';
 
+export interface TextElement {
+  id: string;
+  content: string;
+  x: number; // Position in inches from left
+  y: number; // Position in inches from top
+  fontSize: number; // Font size in points
+  fontFamily: string;
+  color: string; // Hex color
+  fontWeight: 'normal' | 'bold';
+  textAlign: 'left' | 'center' | 'right';
+}
+
 export interface QuoteState {
   widthIn: number;
   heightIn: number;
@@ -29,6 +41,7 @@ export interface QuoteState {
   polePocketSize: PolePocketSize;
   addRope: boolean;
   previewScalePct: number;
+  textElements: TextElement[];
   file?: {
     name: string;
     type: string;
@@ -49,6 +62,9 @@ export interface QuoteState {
   };
   set: (partial: Partial<QuoteState>) => void;
   setFromQuickQuote: (params: QuickQuoteParams) => void;
+  addTextElement: (element: Omit<TextElement, 'id'>) => void;
+  updateTextElement: (id: string, updates: Partial<TextElement>) => void;
+  deleteTextElement: (id: string) => void;
   // Computed properties for validation
   getSquareFootage: () => number;
   isOverSizeLimit: () => boolean;
@@ -80,6 +96,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
   polePocketSize: '2',
   addRope: false, // Preserve rope selection
   previewScalePct: 100,
+  textElements: [],
   file: undefined,
   set: (partial) => set((state) => {
     // Handle mutual exclusivity between grommets and pole pockets
@@ -122,5 +139,25 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
   getSizeLimitMessage: () => {
     const sqft = get().getSquareFootage();
     return getSizeLimitMessage(sqft);
-  }
+  },
+  addTextElement: (element) => set((state) => ({
+    ...state,
+    textElements: [
+      ...state.textElements,
+      {
+        ...element,
+        id: `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      }
+    ]
+  })),
+  updateTextElement: (id, updates) => set((state) => ({
+    ...state,
+    textElements: state.textElements.map(el =>
+      el.id === id ? { ...el, ...updates } : el
+    )
+  })),
+  deleteTextElement: (id) => set((state) => ({
+    ...state,
+    textElements: state.textElements.filter(el => el.id !== id)
+  }))
 }));
