@@ -20,8 +20,14 @@ const AIDisclaimerDialog: React.FC<AIDisclaimerDialogProps> = ({
   onAccept,
   onDecline,
 }) => {
+  const handleAcceptClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onAccept();
+  };
+
   return (
-    <Dialog open={open} onOpenChange={(isOpen) => !isOpen && onDecline()}>
+    <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onDecline(); }}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <div className="flex items-center gap-3 mb-2">
@@ -76,7 +82,7 @@ const AIDisclaimerDialog: React.FC<AIDisclaimerDialogProps> = ({
             Decline
           </Button>
           <Button
-            onClick={onAccept}
+            onClick={handleAcceptClick}
             className="bg-orange-600 hover:bg-orange-700"
           >
             I Agree & Continue

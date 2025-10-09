@@ -993,75 +993,8 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                 Remove
               </button>
             </div>
-            {/* AI Image Control Buttons - Enhanced with Resize and Reset */}
-            {isAIImage && (
-              <div className="absolute bottom-4 left-4 right-4 flex justify-center px-2 sm:px-0">
-                <div className="flex flex-wrap gap-2 bg-white/95 backdrop-blur-sm rounded-xl p-3 shadow-sm border border-gray-200 max-w-full">
-                  {/* Fit Image to Dimensions Button */}
-                  <Button
-                    onClick={handleFitImageToDimensions}
-                    disabled={isFittingImage || isResizingImage || isResettingImage}
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-1.5 text-xs sm:text-sm min-h-[40px] px-3 sm:px-4 touch-manipulation"
-                  >
-                    {isFittingImage ? (
-                      <>
-                        <div className="w-3 h-3 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600" />
-                        Fitting...
-                      </>
-                    ) : (
-                      <>
-                        <Crop className="w-3 h-3" />
-                        Fit to Size
-                      </>
-                    )}
-                  </Button>
-
-                  {/* NEW: Resize Image Button */}
-                  <Button
-                    onClick={handleResizeImage}
-                    disabled={isFittingImage || isResizingImage || isResettingImage}
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-1.5 text-xs bg-blue-50 hover:bg-blue-100 border-blue-200"
-                  >
-                    {isResizingImage ? (
-                      <>
-                        <div className="w-3 h-3 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600" />
-                        Resizing...
-                      </>
-                    ) : (
-                      <>
-                        <Wand2 className="w-3 h-3" />
-                        Resize Image
-                      </>
-                    )}
-                  </Button>
-
-                  {/* NEW: Reset Image Button */}
-                  <Button
-                    onClick={handleResetImage}
-                    disabled={isFittingImage || isResizingImage || isResettingImage}
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-1.5 text-xs sm:text-sm min-h-[40px] px-3 sm:px-4 touch-manipulation"
-                  >
-                    {isResettingImage ? (
-                      <>
-                        <div className="w-3 h-3 animate-spin rounded-full border-2 border-gray-300 border-t-blue-600" />
-                        Resetting...
-                      </>
-                    ) : (
-                      <>
-                        <RefreshCw className="w-3 h-3" />
-                        Reset
-                      </>
-                    )}
-                  </Button>
-                </div>
-              </div>
-            )}
+            {/* AI Image Control Buttons - REMOVED per user request */}
+            {/* The Fit to Size, Resize Image, and Reset buttons have been removed for AI images */}
           </div>
         )}
 
