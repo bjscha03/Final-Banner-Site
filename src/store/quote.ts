@@ -22,13 +22,17 @@ export type PolePocketSize = '1' | '2' | '3' | '4';
 export interface TextElement {
   id: string;
   content: string;
-  x: number; // Position in inches from left
-  y: number; // Position in inches from top
+  xPercent: number; // Position as percentage from left (0-100)
+  yPercent: number; // Position as percentage from top (0-100)
   fontSize: number; // Font size in points
   fontFamily: string;
   color: string; // Hex color
   fontWeight: 'normal' | 'bold';
   textAlign: 'left' | 'center' | 'right';
+  lineHeight: number; // Line height multiplier (1.0 = normal, 1.5 = 1.5x spacing)
+  // Legacy fields for backward compatibility - will be migrated to percentages
+  x?: number; // DEPRECATED: Position in inches from left
+  y?: number; // DEPRECATED: Position in inches from top
 }
 
 export interface QuoteState {

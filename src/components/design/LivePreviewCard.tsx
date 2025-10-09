@@ -2,6 +2,7 @@ import React, { useState, useRef, useMemo } from 'react';
 import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image, X, ChevronDown, ChevronUp, Wand2, Crop, RefreshCw, Loader2, Type } from 'lucide-react';
 import DraggableText from './DraggableText';
 import TextStylePanel from './TextStylePanel';
+import AlignmentGuides from './AlignmentGuides';
 import { useQuoteStore, Grommets } from '@/store/quote';
 import { formatDimensions } from '@/lib/pricing';
 import { grommetPoints } from '@/lib/preview/grommets';
@@ -65,6 +66,9 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
   const [isResettingImage, setIsResettingImage] = useState(false);
   const [selectedTextId, setSelectedTextId] = useState<string | null>(null);
   const [showTextPanel, setShowTextPanel] = useState(false);
+  // Alignment guide states (shared across all text elements)
+  const [showVerticalCenterGuide, setShowVerticalCenterGuide] = useState(false);
+  const [showHorizontalCenterGuide, setShowHorizontalCenterGuide] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Calculate grommet info
@@ -318,13 +322,14 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
   const handleAddText = () => {
     const newText = {
       content: 'New Text',
-      x: (widthIn / 2), // Center horizontally (position is top-left of text)
-      y: (heightIn / 2), // Center vertically (position is top-left of text)
+      xPercent: 50, // Center horizontally (50% from left)
+      yPercent: 50, // Center vertically (50% from top)
       fontSize: 24, // Reasonable starting size
       fontFamily: 'Arial, sans-serif',
       color: '#000000', // Black text
       fontWeight: 'normal' as const,
       textAlign: 'center' as const,
+      lineHeight: 1.5, // Default line spacing
     };
     
     // Add to store - this will generate an ID
@@ -1023,6 +1028,14 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                     imageScale={imageScale}
                     isUploading={isUploading || isGeneratingAI} />
 
+                  {/* Alignment Guides - Canva-style smart guides */}
+                  <AlignmentGuides
+                    showVerticalCenter={showVerticalCenterGuide}
+                    showHorizontalCenter={showHorizontalCenterGuide}
+                  />
+
+                  {/* Alignment Guides - Canva-style smart guides */}
+
                   {/* Text Elements Overlay - Using DraggableText with percentage positioning */}
                   {textElements.map((element) => (
                     <DraggableText
@@ -1030,7 +1043,8 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                       element={element}
                       bannerWidthIn={widthIn}
                       bannerHeightIn={heightIn}
-                      scale={1}
+                      scale={previewScalePct / 100}
+                      previewScale={previewScalePct}
                       isSelected={selectedTextId === element.id}
                       onSelect={() => {
                         setSelectedTextId(element.id);
@@ -1048,6 +1062,8 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                         setSelectedTextId(null);
                         setShowTextPanel(false);
                       }}
+                      onShowVerticalCenterGuide={setShowVerticalCenterGuide}
+                      onShowHorizontalCenterGuide={setShowHorizontalCenterGuide}
                     />
                   ))}
                 </div>
