@@ -179,12 +179,30 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
       const result = await response.json();
 
       if (result.pdfUrl) {
-        const link = document.createElement('a');
-        link.href = result.pdfUrl;
-        link.download = `order-${order.id}-banner-${itemIndex + 1}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+        // If it's a data URL, download directly
+        if (result.pdfUrl.startsWith('data:')) {
+          const link = document.createElement('a');
+          link.href = result.pdfUrl;
+          link.download = `order-${order.id}-banner-${itemIndex + 1}.pdf`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+        } else {
+          // If it's a Cloudinary URL, fetch and download
+          const pdfResponse = await fetch(result.pdfUrl);
+          const pdfBlob = await pdfResponse.blob();
+          const blobUrl = URL.createObjectURL(pdfBlob);
+          
+          const link = document.createElement('a');
+          link.href = blobUrl;
+          link.download = `order-${order.id}-banner-${itemIndex + 1}.pdf`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          
+          // Clean up blob URL
+          setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+        }
 
         toast({
           title: "PDF Ready",
