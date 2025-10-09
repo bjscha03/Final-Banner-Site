@@ -371,16 +371,8 @@ exports.handler = async (event) => {
       transform: req.transform,
     };
 
-    try {
-      await updateOrder(req.orderId, {
-        final_pdf_url: 'base64_data_url',
-        rendered_at: new Date().toISOString(),
-        render_meta: JSON.stringify(meta),
-      });
-      console.log('[PDF] Order updated in database');
-    } catch (dbError) {
-      console.error('[PDF] Database update failed:', dbError);
-    }
+    // Skip database update - PDF is returned directly as base64
+    console.log('[PDF] Skipping database update (PDF returned as base64)');
 
     const response = {
       pdfUrl: finalPdfUrl,
