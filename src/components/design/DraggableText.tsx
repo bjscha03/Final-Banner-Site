@@ -11,6 +11,7 @@ interface DraggableTextProps {
   onSelect: () => void;
   onUpdate: (updates: Partial<TextElement>) => void;
   onDelete: () => void;
+  onDeselect?: () => void;
 }
 
 const DraggableText: React.FC<DraggableTextProps> = ({
@@ -22,6 +23,7 @@ const DraggableText: React.FC<DraggableTextProps> = ({
   onSelect,
   onUpdate,
   onDelete,
+  onDeselect,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [isResizing, setIsResizing] = useState(false);
@@ -32,12 +34,10 @@ const DraggableText: React.FC<DraggableTextProps> = ({
   const textRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const inchesToPx = (inches: number) => inches * 96 * scale;
-  const pxToInches = (px: number) => px / (96 * scale);
-
-  const left = inchesToPx(element.x);
-  const top = inchesToPx(element.y);
-  const fontSize = element.fontSize * scale;
+  // Convert position from inches to percentage of banner dimensions
+  const leftPercent = (element.x / bannerWidthIn) * 100;
+  const topPercent = (element.y / bannerHeightIn) * 100;
+  const fontSize = element.fontSize; // Don't scale font size - parent container handles scaling
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -58,25 +58,43 @@ const DraggableText: React.FC<DraggableTextProps> = ({
   const handleResizeMouseDown = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
+    onSelect(); // Select the text when starting resize
     setIsResizing(true);
     setDragStart({ x: e.clientX, y: e.clientY });
     setInitialFontSize(element.fontSize);
   };
-
-  const handleResizeMouseDown = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    e.preventDefault();
-    setIsResizing(true);
-    setDragStart({ x: e.clientX, y: e.clientY });
-    setInitialFontSize(element.fontSize);
+  
+  const handleResizeMouseMove = (e: MouseEvent) => {
+    if (!isResizing) return;
+    const deltaX = e.clientX - dragStart.x;
+    const deltaY = e.clientY - dragStart.y;
+    const delta = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+    const direction = deltaX + deltaY > 0 ? 1 : -1;
+    const newFontSize = Math.max(12, Math.min(200, initialFontSize + (delta * direction * 0.5)));
+    onUpdate({ fontSize: newFontSize });
+  };
+  
+  const handleResizeMouseUp = () => {
+    setIsResizing(false);
   };
 
   const handleMouseMove = (e: MouseEvent) => {
     if (!isDragging) return;
-    const deltaX = pxToInches(e.clientX - dragStart.x);
-    const deltaY = pxToInches(e.clientY - dragStart.y);
-    let newX = Math.max(0, Math.min(initialPos.x + deltaX, bannerWidthIn - 1));
-    let newY = Math.max(0, Math.min(initialPos.y + deltaY, bannerHeightIn - 1));
+    // Get the container element to calculate relative movement
+    if (!textRef.current) return;
+    const container = textRef.current.parentElement;
+    if (!container) return;
+    
+    const containerRect = container.getBoundingClientRect();
+    const deltaX = e.clientX - dragStart.x;
+    const deltaY = e.clientY - dragStart.y;
+    
+    // Convert pixel delta to inches based on container size
+    const deltaXInches = (deltaX / containerRect.width) * bannerWidthIn;
+    const deltaYInches = (deltaY / containerRect.height) * bannerHeightIn;
+    
+    let newX = Math.max(0, Math.min(initialPos.x + deltaXInches, bannerWidthIn - 1));
+    let newY = Math.max(0, Math.min(initialPos.y + deltaYInches, bannerHeightIn - 1));
     onUpdate({ x: newX, y: newY });
   };
 
@@ -92,14 +110,59 @@ const DraggableText: React.FC<DraggableTextProps> = ({
       };
     }
   }, [isDragging, dragStart, initialPos]);
+  
+  useEffect(() => {
+    if (isResizing) {
+      window.addEventListener('mousemove', handleResizeMouseMove);
+      window.addEventListener('mouseup', handleResizeMouseUp);
+      return () => {
+        window.removeEventListener('mousemove', handleResizeMouseMove);
+        window.removeEventListener('mouseup', handleResizeMouseUp);
+      };
+    }
+  }, [isResizing, dragStart, initialFontSize]);
 
+  // Handle clicking outside to exit edit mode and deselect
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      
+      // Check if click is inside the text element
+      if (textRef.current && textRef.current.contains(target)) {
+        return;
+      }
+      
+      // Check if click is inside the TextStylePanel (ignore clicks on the panel)
+      const textStylePanel = document.querySelector('[data-text-style-panel="true"]');
+      if (textStylePanel && textStylePanel.contains(target)) {
+        return;
+      }
+      
+      // Click is outside both text element and panel
+      if (isEditing) {
+        setIsEditing(false);
+      }
+      if (isSelected && onDeselect) {
+        onDeselect();
+      }
+    };
+
+    if (isEditing || isSelected) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [isEditing, isSelected, onDeselect]);
+
+  
   return (
     <div
       ref={textRef}
       style={{
         position: 'absolute',
-        left: `${left}px`,
-        top: `${top}px`,
+        left: `${leftPercent}%`,
+        top: `${topPercent}%`,
         fontSize: `${fontSize}px`,
         fontFamily: element.fontFamily,
         color: element.color,
@@ -109,9 +172,10 @@ const DraggableText: React.FC<DraggableTextProps> = ({
         userSelect: isEditing ? 'text' : 'none',
         whiteSpace: 'pre-wrap',
         minWidth: '50px',
-        outline: isSelected ? '2px solid #3b82f6' : 'none',
+        outline: (isSelected && !isEditing) ? '2px solid #3b82f6' : 'none',
         padding: '4px',
-        backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+        backgroundColor: (isSelected && !isEditing) ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+        zIndex: 9999,
       }}
       onMouseDown={handleMouseDown}
       onDoubleClick={(e) => { e.stopPropagation(); setIsEditing(true); }}
@@ -145,33 +209,15 @@ const DraggableText: React.FC<DraggableTextProps> = ({
       )}
       {isSelected && !isEditing && (
         <>
-          <button
-            onClick={(e) => { e.stopPropagation(); onDelete(); }}
-            style={{
-              position: 'absolute',
-              top: '-12px',
-              right: '-12px',
-              width: '24px',
-              height: '24px',
-              borderRadius: '50%',
-              backgroundColor: '#ef4444',
-              color: 'white',
-              border: 'none',
-              cursor: 'pointer',
-              zIndex: 10,
-            }}
-          >
-            <X size={14} />
-          </button>
           {/* Resize handle - bottom right corner */}
           <div
             onMouseDown={handleResizeMouseDown}
             style={{
               position: 'absolute',
               bottom: '-8px',
-              right: '-8px',
-              width: '16px',
-              height: '16px',
+              right: '-10px',
+              width: '12px',
+              height: '12px',
               backgroundColor: '#3b82f6',
               border: '2px solid white',
               borderRadius: '50%',

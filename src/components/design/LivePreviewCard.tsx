@@ -318,11 +318,11 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
   const handleAddText = () => {
     const newText = {
       content: 'New Text',
-      x: widthIn / 2 - 2, // Center horizontally
-      y: heightIn / 2 - 1, // Center vertically
-      fontSize: 48,
+      x: (widthIn / 2), // Center horizontally (position is top-left of text)
+      y: (heightIn / 2), // Center vertically (position is top-left of text)
+      fontSize: 24, // Reasonable starting size
       fontFamily: 'Arial, sans-serif',
-      color: '#000000',
+      color: '#000000', // Black text
       fontWeight: 'normal' as const,
       textAlign: 'center' as const,
     };
@@ -996,7 +996,16 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                   justifyContent: 'center'
                 }}
               >
-                <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                <div 
+                  style={{ position: 'relative', width: '100%', height: '100%' }}
+                  onClick={(e) => {
+                    // Deselect text when clicking on the container background
+                    if (e.target === e.currentTarget) {
+                      setSelectedTextId(null);
+                      setShowTextPanel(false);
+                    }
+                  }}
+                >
                   <PreviewCanvas
                     widthIn={widthIn}
                     heightIn={heightIn}
@@ -1014,14 +1023,14 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                     imageScale={imageScale}
                     isUploading={isUploading || isGeneratingAI} />
 
-                  {/* Text Elements Overlay - Now inside scaled container */}
+                  {/* Text Elements Overlay - Using DraggableText with percentage positioning */}
                   {textElements.map((element) => (
                     <DraggableText
                       key={element.id}
                       element={element}
                       bannerWidthIn={widthIn}
                       bannerHeightIn={heightIn}
-                      scale={1} // Scale is already applied by parent container
+                      scale={1}
                       isSelected={selectedTextId === element.id}
                       onSelect={() => {
                         setSelectedTextId(element.id);
@@ -1034,6 +1043,10 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                           setSelectedTextId(null);
                           setShowTextPanel(false);
                         }
+                      }}
+                      onDeselect={() => {
+                        setSelectedTextId(null);
+                        setShowTextPanel(false);
                       }}
                     />
                   ))}
@@ -1098,7 +1111,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
 
       {/* Text Style Panel */}
       {showTextPanel && selectedTextId && (
-        <div className="mx-6 mb-6">
+        <div className="mx-6 mb-6" data-text-style-panel="true">
           <TextStylePanel
             selectedElement={textElements.find(el => el.id === selectedTextId) || null}
             onUpdate={(updates) => {
