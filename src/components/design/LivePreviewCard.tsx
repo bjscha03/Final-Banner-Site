@@ -318,8 +318,8 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
   const handleAddText = () => {
     const newText = {
       content: 'New Text',
-      x: widthIn / 2 - 1, // Center horizontally (approximate)
-      y: heightIn / 2 - 0.5, // Center vertically (approximate)
+      x: widthIn / 2 - 2, // Center horizontally
+      y: heightIn / 2 - 1, // Center vertically
       fontSize: 48,
       fontFamily: 'Arial, sans-serif',
       color: '#000000',
@@ -996,22 +996,48 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                   justifyContent: 'center'
                 }}
               >
-                <PreviewCanvas
-                  widthIn={widthIn}
-                  heightIn={heightIn}
-                  grommets={grommets}
-                  imageUrl={file?.url && !file.isPdf ? file.url : undefined}
-                  className="shadow-sm"
-                  
-                  file={file}
-                  imagePosition={imagePosition}
-                  onImageMouseDown={handleImageMouseDown}
-                  onImageTouchStart={handleImageTouchStart}
-                  onCanvasClick={handleCanvasClick}
-                  isDraggingImage={isDraggingImage}
-                  isImageSelected={isImageSelected}
-                  imageScale={imageScale}
-                  isUploading={isUploading || isGeneratingAI} />
+                <div style={{ position: 'relative', width: '100%', height: '100%' }}>
+                  <PreviewCanvas
+                    widthIn={widthIn}
+                    heightIn={heightIn}
+                    grommets={grommets}
+                    imageUrl={file?.url && !file.isPdf ? file.url : undefined}
+                    className="shadow-sm"
+                    
+                    file={file}
+                    imagePosition={imagePosition}
+                    onImageMouseDown={handleImageMouseDown}
+                    onImageTouchStart={handleImageTouchStart}
+                    onCanvasClick={handleCanvasClick}
+                    isDraggingImage={isDraggingImage}
+                    isImageSelected={isImageSelected}
+                    imageScale={imageScale}
+                    isUploading={isUploading || isGeneratingAI} />
+
+                  {/* Text Elements Overlay - Now inside scaled container */}
+                  {textElements.map((element) => (
+                    <DraggableText
+                      key={element.id}
+                      element={element}
+                      bannerWidthIn={widthIn}
+                      bannerHeightIn={heightIn}
+                      scale={1} // Scale is already applied by parent container
+                      isSelected={selectedTextId === element.id}
+                      onSelect={() => {
+                        setSelectedTextId(element.id);
+                        setShowTextPanel(true);
+                      }}
+                      onUpdate={(updates) => updateTextElement(element.id, updates)}
+                      onDelete={() => {
+                        deleteTextElement(element.id);
+                        if (selectedTextId === element.id) {
+                          setSelectedTextId(null);
+                          setShowTextPanel(false);
+                        }
+                      }}
+                    />
+                  ))}
+                </div>
               </div>
 
                 {/* Quality Badge for DPI warnings */}
@@ -1024,30 +1050,6 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                     artworkPixelHeight={file.artworkHeight}
                   />
                 )}
-
-                {/* Text Elements Overlay */}
-                {textElements.map((element) => (
-                  <DraggableText
-                    key={element.id}
-                    element={element}
-                    bannerWidthIn={widthIn}
-                    bannerHeightIn={heightIn}
-                    scale={previewScalePct / 100}
-                    isSelected={selectedTextId === element.id}
-                    onSelect={() => {
-                      setSelectedTextId(element.id);
-                      setShowTextPanel(true);
-                    }}
-                    onUpdate={(updates) => updateTextElement(element.id, updates)}
-                    onDelete={() => {
-                      deleteTextElement(element.id);
-                      if (selectedTextId === element.id) {
-                        setSelectedTextId(null);
-                        setShowTextPanel(false);
-                      }
-                    }}
-                  />
-                ))}
             </div>
 
             {/* File controls */}
@@ -1060,15 +1062,6 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                 <Type className="w-4 h-4" />
                 Add Text
               </button>
-              {textElements.length > 0 && (
-                <button
-                  onClick={handleClearAllText}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white rounded-xl transition-colors duration-150 shadow-md hover:shadow-lg min-h-[44px] min-w-[44px] touch-manipulation"
-                  title="Clear all text elements"
-                >
-                  Clear All Text ({textElements.length})
-                </button>
-              )}
               {textElements.length > 0 && (
                 <button
                   onClick={handleClearAllText}

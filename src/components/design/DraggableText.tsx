@@ -24,9 +24,11 @@ const DraggableText: React.FC<DraggableTextProps> = ({
   onDelete,
 }) => {
   const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [initialPos, setInitialPos] = useState({ x: 0, y: 0 });
+  const [initialFontSize, setInitialFontSize] = useState(48);
   const textRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -51,6 +53,22 @@ const DraggableText: React.FC<DraggableTextProps> = ({
     setIsDragging(true);
     setDragStart({ x: e.clientX, y: e.clientY });
     setInitialPos({ x: element.x, y: element.y });
+  };
+
+  const handleResizeMouseDown = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setIsResizing(true);
+    setDragStart({ x: e.clientX, y: e.clientY });
+    setInitialFontSize(element.fontSize);
+  };
+
+  const handleResizeMouseDown = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setIsResizing(true);
+    setDragStart({ x: e.clientX, y: e.clientY });
+    setInitialFontSize(element.fontSize);
   };
 
   const handleMouseMove = (e: MouseEvent) => {
@@ -126,23 +144,43 @@ const DraggableText: React.FC<DraggableTextProps> = ({
         <div>{element.content || 'Double-click to edit'}</div>
       )}
       {isSelected && !isEditing && (
-        <button
-          onClick={(e) => { e.stopPropagation(); onDelete(); }}
-          style={{
-            position: 'absolute',
-            top: '-12px',
-            right: '-12px',
-            width: '24px',
-            height: '24px',
-            borderRadius: '50%',
-            backgroundColor: '#ef4444',
-            color: 'white',
-            border: 'none',
-            cursor: 'pointer',
-          }}
-        >
-          <X size={14} />
-        </button>
+        <>
+          <button
+            onClick={(e) => { e.stopPropagation(); onDelete(); }}
+            style={{
+              position: 'absolute',
+              top: '-12px',
+              right: '-12px',
+              width: '24px',
+              height: '24px',
+              borderRadius: '50%',
+              backgroundColor: '#ef4444',
+              color: 'white',
+              border: 'none',
+              cursor: 'pointer',
+              zIndex: 10,
+            }}
+          >
+            <X size={14} />
+          </button>
+          {/* Resize handle - bottom right corner */}
+          <div
+            onMouseDown={handleResizeMouseDown}
+            style={{
+              position: 'absolute',
+              bottom: '-8px',
+              right: '-8px',
+              width: '16px',
+              height: '16px',
+              backgroundColor: '#3b82f6',
+              border: '2px solid white',
+              borderRadius: '50%',
+              cursor: 'nwse-resize',
+              zIndex: 10,
+            }}
+            title="Drag to resize text"
+          />
+        </>
       )}
     </div>
   );
