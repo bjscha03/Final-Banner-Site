@@ -185,9 +185,13 @@ async function updateOrder(orderId, fields) {
 
 exports.handler = async (event) => {
   console.log('[PDF] === Starting PDF render request ===');
+  console.log('[PDF] Event method:', event.httpMethod);
+  console.log('[PDF] Event body type:', typeof event.body);
+  console.log('[PDF] Event body:', event.body);
   
   try {
     if (!event.body) {
+      console.error('[PDF] ERROR: No request body provided');
       return {
         statusCode: 400,
         body: JSON.stringify({ error: 'Missing request body' }),
@@ -195,7 +199,8 @@ exports.handler = async (event) => {
     }
 
     const req = JSON.parse(event.body);
-    console.log('[PDF] Request:', JSON.stringify(req, null, 2));
+    console.log('[PDF] Parsed request:', JSON.stringify(req, null, 2));
+    console.log('[PDF] Request keys:', Object.keys(req));
 
     // Accept either fileKey (preferred) or imageUrl (legacy)
     if (!req.orderId || !req.bannerWidthIn || !req.bannerHeightIn || (!req.fileKey && !req.imageUrl)) {
