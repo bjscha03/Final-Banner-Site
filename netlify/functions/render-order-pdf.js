@@ -251,8 +251,19 @@ exports.handler = async (event) => {
     const pxScale = targetPxW / previewW;
 
     console.log(`[PDF] Preview canvas: ${previewW}×${previewH}px, scale factor: ${pxScale.toFixed(2)}`);
-    // Use default transform if not provided (no scaling, no translation)
-    const transform = req.transform || { scale: 1, translateXpx: 0, translateYpx: 0 };
+    
+    // Calculate default transform if not provided
+    // Scale image to fill the banner (cover mode)
+    let transform = req.transform;
+    if (!transform) {
+      const scaleX = previewW / srcW;
+      const scaleY = previewH / srcH;
+      const scale = Math.max(scaleX, scaleY); // Cover mode - fill entire banner
+      const translateXpx = (previewW - srcW * scale) / 2; // Center horizontally
+      const translateYpx = (previewH - srcH * scale) / 2; // Center vertically
+      transform = { scale, translateXpx, translateYpx };
+      console.log(`[PDF] Auto-calculated transform: scale=${scale.toFixed(2)}, translate=(${translateXpx.toFixed(0)}, ${translateYpx.toFixed(0)})`);
+    }
 
     const scaledImageW = Math.round(srcW * transform.scale * pxScale);
     const scaledImageH = Math.round(srcH * transform.scale * pxScale);
