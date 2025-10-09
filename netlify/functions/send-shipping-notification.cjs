@@ -1,5 +1,4 @@
 const { neon } = require('@neondatabase/serverless');
-const { titleCaseName } = require('./lib/strings');
 
 // Neon database connection
 function getDbUrl() {
@@ -242,7 +241,7 @@ exports.handler = async (event, context) => {
     }
 
     // Get customer name - title-case it
-    const customerName = titleCaseName(order.full_name || 'Valued Customer');
+    const customerName = order.full_name || 'Valued Customer';
 
     // Get order items
     const itemsResult = await sql`
