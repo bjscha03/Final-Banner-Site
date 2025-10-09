@@ -1,6 +1,6 @@
 /**
- * Netlify Function: render-order-pdf
- * Generates press-ready PDF from banner design
+ * Netlify Function: render-order-pdf-background
+ * Generates press-ready PDF from banner design (background job)
  */
 
 const sharp = require('sharp');
@@ -18,19 +18,56 @@ cloudinary.config({
 const sql = neon(process.env.NETLIFY_DATABASE_URL);
 
 /**
- * Choose target DPI based on banner size
+ * Update job status in Cloudinary
  */
-function chooseTargetDpi(wIn, hIn) {
-  return 150; // Always 150 DPI for speed
+async function updateJobStatus(statusPublicId, updates) {
+  if (!statusPublicId) return; // Skip if no job tracking
+  
+  try {
+    // Fetch current status
+    const statusUrl = cloudinary.url(statusPublicId, {
+      resource_type: 'raw',
+      secure: true,
+      format: 'json'
+    });
+    
+    const response = await fetch(statusUrl);
+    const currentStatus = response.ok ? await response.json() : {};
+    
+    // Merge updates
+    const newStatus = {
+      ...currentStatus,
+      ...updates,
+      updatedAt: new Date().toISOString()
+    };
+    
+    // Upload updated status
+    await new Promise((resolve, reject) => {
+      const stream = cloudinary.uploader.upload_stream(
+        {
+          resource_type: 'raw',
+          folder: 'pdf_jobs',
+          public_id: statusPublicId,
+          format: 'json',
+          overwrite: true,
+        },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        }
+      );
+      stream.end(Buffer.from(JSON.stringify(newStatus)));
+    });
+    
+    console.log('[PDF Background] Status updated:', updates.status || updates.message);
+  } catch (error) {
+    console.error('[PDF Background] Failed to update status:', error);
+  }
 }
 
 /**
- * Clamp a value between min and max
+ * Update job status in Cloudinary
  */
-function clamp(val, min, max) {
-  return Math.max(min, Math.min(max, val));
-}
-
 /**
  * Fetch image from URL and return as Buffer
  */
@@ -60,6 +97,8 @@ async function fetchImage(urlOrKey, isFileKey = false) {
       
       const arrayBuffer = await response.arrayBuffer();
       console.log(`[PDF] Image downloaded: ${arrayBuffer.byteLength} bytes`);
+    await updateJobStatus(statusPublicId, { progress: 30, message: 'Image downloaded, processing...' });
+    await updateJobStatus(statusPublicId, { progress: 30, message: 'Image downloaded, processing...' });
       return Buffer.from(arrayBuffer);
     } catch (error) {
       clearTimeout(timeout);
@@ -127,7 +166,7 @@ async function maybeUpscaleToFit(imgBuffer, needW, needH) {
 
   return await sharp(imgBuffer)
     .resize(newW, newH, {
-      kernel: 'cubic',
+      kernel: 'lanczos3',
       fit: 'fill',
     })
     .toBuffer();
@@ -185,13 +224,11 @@ async function updateOrder(orderId, fields) {
 
 exports.handler = async (event) => {
   console.log('[PDF] === Starting PDF render request ===');
-  console.log('[PDF] Event method:', event.httpMethod);
-  console.log('[PDF] Event body type:', typeof event.body);
-  console.log('[PDF] Event body:', event.body);
+    await updateJobStatus(statusPublicId, { status: 'processing', progress: 10, message: 'Starting PDF generation' });
+    await updateJobStatus(statusPublicId, { status: 'processing', progress: 10, message: 'Starting PDF generation' });
   
   try {
     if (!event.body) {
-      console.error('[PDF] ERROR: No request body provided');
       return {
         statusCode: 400,
         body: JSON.stringify({ error: 'Missing request body' }),
@@ -199,8 +236,7 @@ exports.handler = async (event) => {
     }
 
     const req = JSON.parse(event.body);
-    console.log('[PDF] Parsed request:', JSON.stringify(req, null, 2));
-    console.log('[PDF] Request keys:', Object.keys(req));
+    console.log('[PDF] Request:', JSON.stringify(req, null, 2));
 
     // Accept either fileKey (preferred) or imageUrl (legacy)
     if (!req.orderId || !req.bannerWidthIn || !req.bannerHeightIn || (!req.fileKey && !req.imageUrl)) {
@@ -235,7 +271,7 @@ exports.handler = async (event) => {
       : await fetchImage(req.imageUrl, false);
     
     let rotatedBuffer = sourceBuffer;
-    if (req.transform?.rotationDeg && req.transform.rotationDeg !== 0) {
+    if (req.transform.rotationDeg && req.transform.rotationDeg !== 0) {
       console.log(`[PDF] Rotating image ${req.transform.rotationDeg}°`);
       rotatedBuffer = await sharp(sourceBuffer)
         .rotate(req.transform.rotationDeg)
@@ -246,8 +282,8 @@ exports.handler = async (event) => {
     const srcW = rotatedMeta.width || 1;
     const srcH = rotatedMeta.height || 1;
 
-    const previewW = Math.max(1, req.previewCanvasPx?.width || targetPxW);
-    const previewH = Math.max(1, req.previewCanvasPx?.height || targetPxH);
+    const previewW = Math.max(1, req.previewCanvasPx.width);
+    const previewH = Math.max(1, req.previewCanvasPx.height);
     const pxScale = targetPxW / previewW;
 
     console.log(`[PDF] Preview canvas: ${previewW}×${previewH}px, scale factor: ${pxScale.toFixed(2)}`);
@@ -259,6 +295,8 @@ exports.handler = async (event) => {
 
     console.log(`[PDF] Scaled image: ${scaledImageW}×${scaledImageH}px at (${translateX}, ${translateY})`);
 
+    await updateJobStatus(statusPublicId, { progress: 40, message: 'Upscaling image...' });
+    await updateJobStatus(statusPublicId, { progress: 40, message: 'Upscaling image...' });
     const upscaledBuffer = await maybeUpscaleToFit(rotatedBuffer, scaledImageW, scaledImageH);
 
     const resizedBuffer = await sharp(upscaledBuffer)
@@ -336,9 +374,13 @@ exports.handler = async (event) => {
       .toBuffer();
 
     console.log('[PDF] Image composited onto canvas');
+    await updateJobStatus(statusPublicId, { progress: 70, message: 'Creating PDF...' });
+    await updateJobStatus(statusPublicId, { progress: 70, message: 'Creating PDF...' });
 
     const pdfBuffer = await rasterToPdfBuffer(merged, finalWidthIn, finalHeightIn);
     console.log(`[PDF] PDF generated: ${pdfBuffer.length} bytes`);
+    await updateJobStatus(statusPublicId, { progress: 85, message: 'Uploading PDF...' });
+    await updateJobStatus(statusPublicId, { progress: 85, message: 'Uploading PDF...' });
 
     // Return PDF as base64 data URL for immediate download
     // Skip Cloudinary upload to avoid timeout
@@ -380,6 +422,20 @@ exports.handler = async (event) => {
     };
 
     console.log('[PDF] === PDF render complete ===');
+    await updateJobStatus(statusPublicId, { 
+      status: 'complete', 
+      progress: 100, 
+      message: 'PDF ready for download',
+      pdfUrl: finalPdfUrl,
+      completedAt: new Date().toISOString()
+    });
+    await updateJobStatus(statusPublicId, { 
+      status: 'complete', 
+      progress: 100, 
+      message: 'PDF ready for download',
+      pdfUrl: finalPdfUrl,
+      completedAt: new Date().toISOString()
+    });
 
     return {
       statusCode: 200,
@@ -388,6 +444,18 @@ exports.handler = async (event) => {
     };
   } catch (error) {
     console.error('[PDF] Error:', error);
+    await updateJobStatus(statusPublicId, { 
+      status: 'error', 
+      progress: 0, 
+      message: error.message || String(error),
+      error: error.message || String(error)
+    });
+    await updateJobStatus(statusPublicId, { 
+      status: 'error', 
+      progress: 0, 
+      message: error.message || String(error),
+      error: error.message || String(error)
+    });
     return {
       statusCode: 500,
       headers: { 'Content-Type': 'application/json' },

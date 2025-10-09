@@ -21,8 +21,7 @@ const sql = neon(process.env.NETLIFY_DATABASE_URL);
  * Choose target DPI based on banner size
  */
 function chooseTargetDpi(wIn, hIn) {
-  const maxDim = Math.max(wIn, hIn);
-  return maxDim > 24 ? 150 : 300;
+  return 150; // Always 150 DPI for speed
 }
 
 /**
@@ -36,6 +35,8 @@ function clamp(val, min, max) {
  * Fetch image from URL and return as Buffer
  */
 async function fetchImage(urlOrKey, isFileKey = false) {
+  const startTime = Date.now();
+  
   if (isFileKey) {
     console.log('[PDF] Fetching from Cloudinary with key:', urlOrKey);
     const cloudinaryUrl = cloudinary.url(urlOrKey, {
@@ -43,20 +44,55 @@ async function fetchImage(urlOrKey, isFileKey = false) {
       secure: true
     });
     console.log('[PDF] Generated Cloudinary URL:', cloudinaryUrl);
-    const response = await fetch(cloudinaryUrl);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+    
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+    
+    try {
+      const response = await fetch(cloudinaryUrl, { signal: controller.signal });
+      clearTimeout(timeout);
+      
+      console.log(`[PDF] Fetch completed in ${Date.now() - startTime}ms, status: ${response.status}`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+      }
+      
+      const arrayBuffer = await response.arrayBuffer();
+      console.log(`[PDF] Image downloaded: ${arrayBuffer.byteLength} bytes`);
+      return Buffer.from(arrayBuffer);
+    } catch (error) {
+      clearTimeout(timeout);
+      if (error.name === 'AbortError') {
+        throw new Error('Image fetch timed out after 8 seconds');
+      }
+      throw error;
     }
-    const arrayBuffer = await response.arrayBuffer();
-    return Buffer.from(arrayBuffer);
   } else {
     console.log('[PDF] Fetching image from URL:', urlOrKey);
-    const response = await fetch(urlOrKey);
-    if (!response.ok) {
-      throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    
+    try {
+      const response = await fetch(urlOrKey, { signal: controller.abort });
+      clearTimeout(timeout);
+      
+      console.log(`[PDF] Fetch completed in ${Date.now() - startTime}ms, status: ${response.status}`);
+      
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+      }
+      
+      const arrayBuffer = await response.arrayBuffer();
+      console.log(`[PDF] Image downloaded: ${arrayBuffer.byteLength} bytes`);
+      return Buffer.from(arrayBuffer);
+    } catch (error) {
+      clearTimeout(timeout);
+      if (error.name === 'AbortError') {
+        throw new Error('Image fetch timed out after 8 seconds');
+      }
+      throw error;
     }
-    const arrayBuffer = await response.arrayBuffer();
-    return Buffer.from(arrayBuffer);
   }
 }
 
@@ -67,7 +103,6 @@ async function fetchImage(urlOrKey, isFileKey = false) {
 
 
 
-}
 
 /**
  * Upscale image if needed to meet target resolution
@@ -92,7 +127,7 @@ async function maybeUpscaleToFit(imgBuffer, needW, needH) {
 
   return await sharp(imgBuffer)
     .resize(newW, newH, {
-      kernel: 'lanczos3',
+      kernel: 'cubic',
       fit: 'fill',
     })
     .toBuffer();
@@ -110,7 +145,7 @@ async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn) {
     const doc = new PDFDocument({
       size: [pageWidthPt, pageHeightPt],
       margins: { top: 0, bottom: 0, left: 0, right: 0 },
-      compress: true,
+      compress: false, // Disable compression for speed
     });
 
     doc.on('data', (chunk) => chunks.push(chunk));
@@ -150,9 +185,13 @@ async function updateOrder(orderId, fields) {
 
 exports.handler = async (event) => {
   console.log('[PDF] === Starting PDF render request ===');
+  console.log('[PDF] Event method:', event.httpMethod);
+  console.log('[PDF] Event body type:', typeof event.body);
+  console.log('[PDF] Event body:', event.body);
   
   try {
     if (!event.body) {
+      console.error('[PDF] ERROR: No request body provided');
       return {
         statusCode: 400,
         body: JSON.stringify({ error: 'Missing request body' }),
@@ -160,9 +199,18 @@ exports.handler = async (event) => {
     }
 
     const req = JSON.parse(event.body);
-    console.log('[PDF] Request:', JSON.stringify(req, null, 2));
+    console.log('[PDF] Parsed request:', JSON.stringify(req, null, 2));
+    console.log('[PDF] Request keys:', Object.keys(req));
 
-    if (!req.orderId || !req.bannerWidthIn || !req.bannerHeightIn || !req.imageUrl) {
+    // Accept either fileKey (preferred) or imageUrl (legacy)
+    if (!req.orderId || !req.bannerWidthIn || !req.bannerHeightIn || (!req.fileKey && !req.imageUrl)) {
+      console.error('[PDF] Missing required fields:', {
+        orderId: !!req.orderId,
+        bannerWidthIn: !!req.bannerWidthIn,
+        bannerHeightIn: !!req.bannerHeightIn,
+        fileKey: !!req.fileKey,
+        imageUrl: !!req.imageUrl
+      });
       return {
         statusCode: 400,
         body: JSON.stringify({ error: 'Missing required fields' }),
@@ -187,7 +235,7 @@ exports.handler = async (event) => {
       : await fetchImage(req.imageUrl, false);
     
     let rotatedBuffer = sourceBuffer;
-    if (req.transform.rotationDeg && req.transform.rotationDeg !== 0) {
+    if (req.transform?.rotationDeg && req.transform.rotationDeg !== 0) {
       console.log(`[PDF] Rotating image ${req.transform.rotationDeg}°`);
       rotatedBuffer = await sharp(sourceBuffer)
         .rotate(req.transform.rotationDeg)
@@ -198,11 +246,13 @@ exports.handler = async (event) => {
     const srcW = rotatedMeta.width || 1;
     const srcH = rotatedMeta.height || 1;
 
-    const previewW = Math.max(1, req.previewCanvasPx.width);
-    const previewH = Math.max(1, req.previewCanvasPx.height);
+    const previewW = Math.max(1, req.previewCanvasPx?.width || targetPxW);
+    const previewH = Math.max(1, req.previewCanvasPx?.height || targetPxH);
     const pxScale = targetPxW / previewW;
 
     console.log(`[PDF] Preview canvas: ${previewW}×${previewH}px, scale factor: ${pxScale.toFixed(2)}`);
+    // Use default transform if not provided (no scaling, no translation)
+    const transform = req.transform || { scale: 1, translateXpx: 0, translateYpx: 0 };
 
     const scaledImageW = Math.round(srcW * req.transform.scale * pxScale);
     const scaledImageH = Math.round(srcH * req.transform.scale * pxScale);
@@ -215,7 +265,7 @@ exports.handler = async (event) => {
 
     const resizedBuffer = await sharp(upscaledBuffer)
       .resize(scaledImageW, scaledImageH, {
-        kernel: 'lanczos3',
+        kernel: 'cubic', // Faster than lanczos3
         fit: 'fill',
       })
       .toBuffer();
@@ -231,12 +281,57 @@ exports.handler = async (event) => {
       .png()
       .toBuffer();
 
+    // Get actual dimensions of resized image
+    const resizedMeta = await sharp(resizedBuffer).metadata();
+    const resizedW = resizedMeta.width || scaledImageW;
+    const resizedH = resizedMeta.height || scaledImageH;
+    
+    console.log(`[PDF] Canvas: ${targetPxW}×${targetPxH}px, Image: ${resizedW}×${resizedH}px, Position: (${translateX}, ${translateY})`);
+    
+    // Ensure the image fits within canvas bounds
+    // If image extends beyond canvas, we need to extract/crop it
+    let compositeInput = resizedBuffer;
+    let compositeTop = translateY;
+    let compositeLeft = translateX;
+    
+    // Check if we need to crop the image to fit within canvas
+    const needsCrop = (
+      translateX < 0 || 
+      translateY < 0 || 
+      translateX + resizedW > targetPxW || 
+      translateY + resizedH > targetPxH
+    );
+    
+    if (needsCrop) {
+      console.log('[PDF] Image extends beyond canvas, cropping to fit');
+      
+      // Calculate crop region
+      const cropLeft = Math.max(0, -translateX);
+      const cropTop = Math.max(0, -translateY);
+      const cropWidth = Math.min(resizedW - cropLeft, targetPxW - Math.max(0, translateX));
+      const cropHeight = Math.min(resizedH - cropTop, targetPxH - Math.max(0, translateY));
+      
+      console.log(`[PDF] Crop region: ${cropWidth}×${cropHeight}px from (${cropLeft}, ${cropTop})`);
+      
+      compositeInput = await sharp(resizedBuffer)
+        .extract({
+          left: cropLeft,
+          top: cropTop,
+          width: Math.max(1, Math.floor(cropWidth)),
+          height: Math.max(1, Math.floor(cropHeight))
+        })
+        .toBuffer();
+      
+      compositeTop = Math.max(0, translateY);
+      compositeLeft = Math.max(0, translateX);
+    }
+
     const merged = await sharp(whiteCanvas)
       .composite([
         {
-          input: resizedBuffer,
-          top: translateY,
-          left: translateX,
+          input: compositeInput,
+          top: compositeTop,
+          left: compositeLeft,
         },
       ])
       .png()
@@ -247,28 +342,14 @@ exports.handler = async (event) => {
     const pdfBuffer = await rasterToPdfBuffer(merged, finalWidthIn, finalHeightIn);
     console.log(`[PDF] PDF generated: ${pdfBuffer.length} bytes`);
 
-    const publicId = `final_banners/order_${req.orderId}_final`;
-    console.log(`[PDF] Uploading to Cloudinary: ${publicId}`);
-
-    const uploadResult = await new Promise((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream(
-        {
-          resource_type: 'raw',
-          folder: 'final_banners',
-          public_id: publicId,
-          format: 'pdf',
-          overwrite: true,
-        },
-        (error, result) => {
-          if (error) reject(error);
-          else resolve(result);
-        }
-      );
-      stream.end(pdfBuffer);
-    });
-
-    const finalPdfUrl = uploadResult.secure_url;
-    console.log(`[PDF] Uploaded successfully: ${finalPdfUrl}`);
+    // Return PDF as base64 data URL for immediate download
+    // Skip Cloudinary upload to avoid timeout
+    console.log('[PDF] Converting to base64 for direct download');
+    const base64Pdf = pdfBuffer.toString('base64');
+    const dataUrl = `data:application/pdf;base64,${base64Pdf}`;
+    console.log(`[PDF] Data URL created, length: ${dataUrl.length} chars`);
+    
+    const finalPdfUrl = dataUrl;
 
     const meta = {
       dpi: targetDpi,
