@@ -164,6 +164,9 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
         imageUrl: item.image_url
       };
 
+      console.log('[PDF Download] Sending request:', requestBody);
+      console.log('[PDF Download] Item data:', { width: item.width, height: item.height, file_key: item.file_key, image_url: item.image_url });
+
       const response = await fetch('/.netlify/functions/render-order-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
