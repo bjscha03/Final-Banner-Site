@@ -144,106 +144,38 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
     });
   };
   const handlePdfDownload = async (item: any, itemIndex: number) => {
-    // Prevent multiple simultaneous requests
     if (pdfGenerating[itemIndex]) {
-      console.log('[PDF Download] Already generating PDF for this item');
       return;
     }
 
     try {
       setPdfGenerating(prev => ({ ...prev, [itemIndex]: true }));
-      console.log('[PDF Download] Starting PDF generation for item:', item);
       
       toast({
-        title: "Starting PDF Generation",
-        description: "This will take 30-60 seconds. You'll be notified when it's ready.",
+        title: "Generating PDF",
+        description: "This may take 20-30 seconds...",
       });
-
-      console.log('[PDF Download] File key:', item.file_key);
-      console.log('[PDF Download] Banner dimensions:', item.width_in, 'x', item.height_in);
 
       const requestBody = {
         orderId: order.id,
+        bannerWidthIn: item.width,
+        bannerHeightIn: item.height,
         fileKey: item.file_key,
-        bannerWidthIn: item.width_in,
-        bannerHeightIn: item.height_in,
-        bleedIn: 0.125,
-        previewCanvasPx: { width: 800, height: 400 },
-        imageSource: 'upload',
-        transform: {
-          scale: 1.0,
-          translateXpx: 0,
-          translateYpx: 0,
-          rotationDeg: 0
-        }
+        imageUrl: item.image_url
       };
 
-      console.log('[PDF Download] Request body:', requestBody);
-
-      // Start the PDF job
-      const startResponse = await fetch('/.netlify/functions/start-pdf-job', {
+      const response = await fetch('/.netlify/functions/render-order-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody)
       });
 
-      console.log('[PDF Download] Start response status:', startResponse.status);
-
-      if (!startResponse.ok) {
-        const errorText = await startResponse.text();
-        console.error('[PDF Download] Error starting job:', errorText);
-        throw new Error(errorText);
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
       }
 
-      const jobInfo = await startResponse.json();
-      console.log('[PDF Download] Job started:', jobInfo);
+      const result = await response.json();
 
-      // Poll for completion
-      const pollInterval = 2000; // Poll every 2 seconds
-      const maxAttempts = 60; // Max 2 minutes
-      let attempts = 0;
-      let lastProgress = 0;
-
-      const poll = async (): Promise<any> => {
-        attempts++;
-        
-        if (attempts > maxAttempts) {
-          throw new Error('PDF generation timed out');
-        }
-
-        const checkResponse = await fetch(`/.netlify/functions/check-pdf-job?jobId=${jobInfo.jobId}`);
-        
-        if (!checkResponse.ok) {
-          throw new Error('Failed to check job status');
-        }
-
-        const status = await checkResponse.json();
-        console.log('[PDF Download] Job status:', status);
-
-        // Update progress toast if progress changed
-        if (status.progress && status.progress !== lastProgress) {
-          lastProgress = status.progress;
-          toast({
-            title: "Generating PDF",
-            description: `${status.message} (${status.progress}%)`,
-          });
-        }
-
-        if (status.status === 'complete') {
-          return status;
-        } else if (status.status === 'error') {
-          throw new Error(status.error || 'PDF generation failed');
-        }
-
-        // Still processing, poll again
-        await new Promise(resolve => setTimeout(resolve, pollInterval));
-        return poll();
-      };
-
-      const result = await poll();
-      console.log('[PDF Download] PDF generated successfully:', result);
-
-      // Download the PDF
       if (result.pdfUrl) {
         const link = document.createElement('a');
         link.href = result.pdfUrl;
@@ -258,7 +190,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
         });
       }
     } catch (error) {
-      console.error('[PDF Download] Error generating PDF:', error);
+      console.error('[PDF Download] Error:', error);
       toast({
         title: "PDF Generation Failed",
         description: error instanceof Error ? error.message : "Failed to generate PDF",
