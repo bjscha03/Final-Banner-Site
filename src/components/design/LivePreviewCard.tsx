@@ -2,7 +2,6 @@ import React, { useState, useRef, useMemo } from 'react';
 import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image, X, ChevronDown, ChevronUp, Wand2, Crop, RefreshCw, Loader2, Type } from 'lucide-react';
 import DraggableText from './DraggableText';
 import TextStylePanel from './TextStylePanel';
-import AlignmentGuides from './AlignmentGuides';
 import { useQuoteStore, Grommets } from '@/store/quote';
 import { formatDimensions } from '@/lib/pricing';
 import { grommetPoints } from '@/lib/preview/grommets';
@@ -1026,40 +1025,10 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                     isDraggingImage={isDraggingImage}
                     isImageSelected={isImageSelected}
                     imageScale={imageScale}
-                    isUploading={isUploading || isGeneratingAI} />
-
-                  {/* Alignment Guides - Canva-style smart guides */}
-                  {(() => {
-                    // Calculate banner dimensions as percentages of the container
-                    // PreviewCanvas SVG structure:
-                    // - BLEED_SIZE = 0.25 inches on each side
-                    // - RULER_HEIGHT = 1.2 inches on each side
-                    // - Total offset = 1.45 inches from each edge
-                    const BLEED_SIZE = 0.25;
-                    const RULER_HEIGHT = 1.2;
-                    const totalWidth = widthIn + (BLEED_SIZE * 2) + (RULER_HEIGHT * 2);
-                    const totalHeight = heightIn + (BLEED_SIZE * 2) + (RULER_HEIGHT * 2);
-                    const bannerOffset = RULER_HEIGHT + BLEED_SIZE; // 1.45 inches
-                    
-                    // Calculate percentages
-                    const bannerWidthPercent = (widthIn / totalWidth) * 100;
-                    const bannerHeightPercent = (heightIn / totalHeight) * 100;
-                    const bannerOffsetXPercent = (bannerOffset / totalWidth) * 100;
-                    const bannerOffsetYPercent = (bannerOffset / totalHeight) * 100;
-                    
-                    return (
-                      <AlignmentGuides
-                        showVerticalCenter={showVerticalCenterGuide}
-                        showHorizontalCenter={showHorizontalCenterGuide}
-                        bannerWidthPercent={bannerWidthPercent}
-                        bannerHeightPercent={bannerHeightPercent}
-                        bannerOffsetXPercent={bannerOffsetXPercent}
-                        bannerOffsetYPercent={bannerOffsetYPercent}
-                      />
-                    );
-                  })()}
-
-                  {/* Alignment Guides - Canva-style smart guides */}
+                    isUploading={isUploading || isGeneratingAI}
+                    showVerticalCenterGuide={showVerticalCenterGuide}
+                    showHorizontalCenterGuide={showHorizontalCenterGuide}
+                  />
 
                   {/* Text Elements Overlay - Using DraggableText with percentage positioning */}
                   {textElements.map((element) => (

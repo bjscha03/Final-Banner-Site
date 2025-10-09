@@ -24,7 +24,10 @@ interface PreviewCanvasProps {
   onCanvasClick?: (e: React.MouseEvent) => void;
   isDraggingImage?: boolean;
   isImageSelected?: boolean;
-  isUploading?: boolean;}
+  isUploading?: boolean;
+  showVerticalCenterGuide?: boolean;
+  showHorizontalCenterGuide?: boolean;
+}
 
 interface Point {
   x: number;
@@ -476,6 +479,32 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
             <stop offset="100%" stopColor="#4a5568" />
           </radialGradient>
         </defs>
+
+        {/* Alignment Guides - Canva-style smart guides rendered as SVG */}
+        {showVerticalCenterGuide && (
+          <line
+            x1={totalWidth / 2}
+            y1={0}
+            x2={totalWidth / 2}
+            y2={totalHeight}
+            stroke="#FF00FF"
+            strokeWidth={0.05}
+            style={{ filter: 'drop-shadow(0 0 0.1 rgba(255, 0, 255, 0.5))' }}
+            pointerEvents="none"
+          />
+        )}
+        {showHorizontalCenterGuide && (
+          <line
+            x1={0}
+            y1={totalHeight / 2}
+            x2={totalWidth}
+            y2={totalHeight / 2}
+            stroke="#FF00FF"
+            strokeWidth={0.05}
+            style={{ filter: 'drop-shadow(0 0 0.1 rgba(255, 0, 255, 0.5))' }}
+            pointerEvents="none"
+          />
+        )}
       </svg>
 
       </div>
