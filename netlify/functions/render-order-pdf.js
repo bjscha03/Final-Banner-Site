@@ -235,7 +235,7 @@ exports.handler = async (event) => {
       : await fetchImage(req.imageUrl, false);
     
     let rotatedBuffer = sourceBuffer;
-    if (req.transform.rotationDeg && req.transform.rotationDeg !== 0) {
+    if (req.transform?.rotationDeg && req.transform.rotationDeg !== 0) {
       console.log(`[PDF] Rotating image ${req.transform.rotationDeg}°`);
       rotatedBuffer = await sharp(sourceBuffer)
         .rotate(req.transform.rotationDeg)
@@ -246,8 +246,8 @@ exports.handler = async (event) => {
     const srcW = rotatedMeta.width || 1;
     const srcH = rotatedMeta.height || 1;
 
-    const previewW = Math.max(1, req.previewCanvasPx.width);
-    const previewH = Math.max(1, req.previewCanvasPx.height);
+    const previewW = Math.max(1, req.previewCanvasPx?.width || targetPxW);
+    const previewH = Math.max(1, req.previewCanvasPx?.height || targetPxH);
     const pxScale = targetPxW / previewW;
 
     console.log(`[PDF] Preview canvas: ${previewW}×${previewH}px, scale factor: ${pxScale.toFixed(2)}`);
