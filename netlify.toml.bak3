@@ -1,6 +1,6 @@
 [build]
   publish = "dist"
-  command = "rm -rf dist node_modules/.vite && npm run build"
+  command = "rm -rf dist node_modules/.vite && npm rebuild sharp --platform=linux --arch=x64 && npm run build"
 
 [build.environment]
   NODE_VERSION = "20"

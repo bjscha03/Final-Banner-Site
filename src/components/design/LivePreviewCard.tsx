@@ -316,10 +316,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
 
   // Text handling functions
   const handleAddText = () => {
-    // Generate ID first so we can track it
-    const newId = `text-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     const newText = {
-      id: newId,
       content: 'New Text',
       x: widthIn / 2 - 1, // Center horizontally (approximate)
       y: heightIn / 2 - 0.5, // Center vertically (approximate)
@@ -330,17 +327,25 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       textAlign: 'center' as const,
     };
     
-    // Add to store
-    set((state) => ({
-      ...state,
-      textElements: [...state.textElements, newText]
-    }));
+    // Add to store - this will generate an ID
+    addTextElement(newText);
     
-    // Select the new text element
+    // Get the ID that was just created (it's the last element)
     setTimeout(() => {
-      setSelectedTextId(newId);
-      setShowTextPanel(true);
+      const allElements = useQuoteStore.getState().textElements;
+      const lastElement = allElements[allElements.length - 1];
+      if (lastElement) {
+        setSelectedTextId(lastElement.id);
+        setShowTextPanel(true);
+      }
     }, 50);
+  };
+
+  const handleClearAllText = () => {
+    // Clear all text elements from the store
+    set({ textElements: [] });
+    setSelectedTextId(null);
+    setShowTextPanel(false);
   };
 
   const handleCanvasClick = (e: React.MouseEvent) => {
@@ -1055,6 +1060,24 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                 <Type className="w-4 h-4" />
                 Add Text
               </button>
+              {textElements.length > 0 && (
+                <button
+                  onClick={handleClearAllText}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white rounded-xl transition-colors duration-150 shadow-md hover:shadow-lg min-h-[44px] min-w-[44px] touch-manipulation"
+                  title="Clear all text elements"
+                >
+                  Clear All Text ({textElements.length})
+                </button>
+              )}
+              {textElements.length > 0 && (
+                <button
+                  onClick={handleClearAllText}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white rounded-xl transition-colors duration-150 shadow-md hover:shadow-lg min-h-[44px] min-w-[44px] touch-manipulation"
+                  title="Clear all text elements"
+                >
+                  Clear All Text ({textElements.length})
+                </button>
+              )}
               <button
                 onClick={removeFile}
                 className="flex items-center gap-2 px-4 py-2.5 bg-white/95 hover:bg-white active:bg-gray-50 text-gray-700 hover:text-red-600 rounded-xl transition-colors duration-150 shadow-md hover:shadow-sm min-h-[44px] min-w-[44px] touch-manipulation"
@@ -1079,20 +1102,6 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       </div>
 
 
-
-      {/* Text Style Panel */}
-      {showTextPanel && selectedTextId && (
-        <div className="mx-6 mb-6">
-          <TextStylePanel
-            selectedElement={textElements.find(el => el.id === selectedTextId) || null}
-            onUpdate={(updates) => {
-              if (selectedTextId) {
-                updateTextElement(selectedTextId, updates);
-              }
-            }}
-          />
-        </div>
-      )}
 
       {/* Text Style Panel */}
       {showTextPanel && selectedTextId && (
