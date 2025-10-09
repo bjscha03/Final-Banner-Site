@@ -1029,10 +1029,35 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                     isUploading={isUploading || isGeneratingAI} />
 
                   {/* Alignment Guides - Canva-style smart guides */}
-                  <AlignmentGuides
-                    showVerticalCenter={showVerticalCenterGuide}
-                    showHorizontalCenter={showHorizontalCenterGuide}
-                  />
+                  {(() => {
+                    // Calculate banner dimensions as percentages of the container
+                    // PreviewCanvas SVG structure:
+                    // - BLEED_SIZE = 0.25 inches on each side
+                    // - RULER_HEIGHT = 1.2 inches on each side
+                    // - Total offset = 1.45 inches from each edge
+                    const BLEED_SIZE = 0.25;
+                    const RULER_HEIGHT = 1.2;
+                    const totalWidth = widthIn + (BLEED_SIZE * 2) + (RULER_HEIGHT * 2);
+                    const totalHeight = heightIn + (BLEED_SIZE * 2) + (RULER_HEIGHT * 2);
+                    const bannerOffset = RULER_HEIGHT + BLEED_SIZE; // 1.45 inches
+                    
+                    // Calculate percentages
+                    const bannerWidthPercent = (widthIn / totalWidth) * 100;
+                    const bannerHeightPercent = (heightIn / totalHeight) * 100;
+                    const bannerOffsetXPercent = (bannerOffset / totalWidth) * 100;
+                    const bannerOffsetYPercent = (bannerOffset / totalHeight) * 100;
+                    
+                    return (
+                      <AlignmentGuides
+                        showVerticalCenter={showVerticalCenterGuide}
+                        showHorizontalCenter={showHorizontalCenterGuide}
+                        bannerWidthPercent={bannerWidthPercent}
+                        bannerHeightPercent={bannerHeightPercent}
+                        bannerOffsetXPercent={bannerOffsetXPercent}
+                        bannerOffsetYPercent={bannerOffsetYPercent}
+                      />
+                    );
+                  })()}
 
                   {/* Alignment Guides - Canva-style smart guides */}
 
