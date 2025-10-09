@@ -14,7 +14,17 @@ const AlignmentGuides: React.FC<AlignmentGuidesProps> = ({
   showHorizontalCenter,
 }) => {
   return (
-    <>
+    <div
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        pointerEvents: 'none',
+        zIndex: 9998,
+      }}
+    >
       {/* Vertical Center Guide (50% horizontal) */}
       {showVerticalCenter && (
         <div
@@ -27,7 +37,6 @@ const AlignmentGuides: React.FC<AlignmentGuidesProps> = ({
             backgroundColor: '#FF00FF', // Bright magenta
             transform: 'translateX(-50%)',
             pointerEvents: 'none',
-            zIndex: 9998,
             boxShadow: '0 0 4px rgba(255, 0, 255, 0.5)',
           }}
           aria-label="Vertical center alignment guide"
@@ -46,13 +55,12 @@ const AlignmentGuides: React.FC<AlignmentGuidesProps> = ({
             backgroundColor: '#FF00FF', // Bright magenta
             transform: 'translateY(-50%)',
             pointerEvents: 'none',
-            zIndex: 9998,
             boxShadow: '0 0 4px rgba(255, 0, 255, 0.5)',
           }}
           aria-label="Horizontal center alignment guide"
         />
       )}
-    </>
+    </div>
   );
 };
 

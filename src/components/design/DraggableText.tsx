@@ -36,6 +36,7 @@ const DraggableText: React.FC<DraggableTextProps> = ({
   const [isResizing, setIsResizing] = useState(false);
   const [resizeDirection, setResizeDirection] = useState<string>('');
   const [isEditing, setIsEditing] = useState(false);
+  const [lastTapTime, setLastTapTime] = useState(0); // For mobile double-tap detection
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [initialPos, setInitialPos] = useState({ x: 0, y: 0 });
   const [initialSize, setInitialSize] = useState({ width: 0, height: 0 });
@@ -63,6 +64,71 @@ const DraggableText: React.FC<DraggableTextProps> = ({
     setIsDragging(true);
     setDragStart({ x: e.clientX, y: e.clientY });
     setInitialPos({ x: leftPercent, y: topPercent });
+  };
+
+  // Touch event handlers for mobile support
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (isEditing) return;
+    
+    const now = Date.now();
+    const DOUBLE_TAP_DELAY = 300; // ms
+    
+    if (lastTapTime && (now - lastTapTime) < DOUBLE_TAP_DELAY) {
+      // Double tap detected - enter edit mode
+      e.stopPropagation();
+      setIsEditing(true);
+      setLastTapTime(0);
+      return;
+    }
+    
+    // Single tap - start drag
+    setLastTapTime(now);
+    e.stopPropagation();
+    onSelect();
+    setIsDragging(true);
+    const touch = e.touches[0];
+    setDragStart({ x: touch.clientX, y: touch.clientY });
+    setInitialPos({ x: leftPercent, y: topPercent });
+  };
+
+  const handleResizeTouchStart = (e: React.TouchEvent, direction: string) => {
+    e.stopPropagation();
+    e.preventDefault();
+    onSelect();
+    setIsResizing(true);
+    setResizeDirection(direction);
+    const touch = e.touches[0];
+    setDragStart({ x: touch.clientX, y: touch.clientY });
+    setInitialFontSize(element.fontSize);
+    
+    if (textRef.current) {
+      const rect = textRef.current.getBoundingClientRect();
+      setInitialSize({ width: rect.width, height: rect.height });
+    }
+  };
+
+  const handleTouchMove = (e: TouchEvent) => {
+    if (!isDragging) return;
+    const touch = e.touches[0];
+    handleMouseMove({ clientX: touch.clientX, clientY: touch.clientY } as MouseEvent);
+  };
+
+  const handleResizeTouchMove = (e: TouchEvent) => {
+    if (!isResizing) return;
+    const touch = e.touches[0];
+    handleResizeMouseMove({ clientX: touch.clientX, clientY: touch.clientY } as MouseEvent);
+  };
+
+  const handleTouchEnd = () => {
+    if (isDragging) {
+      setIsDragging(false);
+      onShowVerticalCenterGuide?.(false);
+      onShowHorizontalCenterGuide?.(false);
+    }
+    if (isResizing) {
+      setIsResizing(false);
+      setResizeDirection('');
+    }
   };
 
   const handleResizeMouseDown = (e: React.MouseEvent, direction: string) => {
@@ -197,9 +263,13 @@ const DraggableText: React.FC<DraggableTextProps> = ({
     if (isDragging) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
+      window.addEventListener('touchmove', handleTouchMove);
+      window.addEventListener('touchend', handleTouchEnd);
       return () => {
         window.removeEventListener('mousemove', handleMouseMove);
         window.removeEventListener('mouseup', handleMouseUp);
+        window.removeEventListener('touchmove', handleTouchMove);
+        window.removeEventListener('touchend', handleTouchEnd);
       };
     }
   }, [isDragging, dragStart, initialPos]);
@@ -208,9 +278,13 @@ const DraggableText: React.FC<DraggableTextProps> = ({
     if (isResizing) {
       window.addEventListener('mousemove', handleResizeMouseMove);
       window.addEventListener('mouseup', handleResizeMouseUp);
+      window.addEventListener('touchmove', handleResizeTouchMove);
+      window.addEventListener('touchend', handleTouchEnd);
       return () => {
         window.removeEventListener('mousemove', handleResizeMouseMove);
         window.removeEventListener('mouseup', handleResizeMouseUp);
+        window.removeEventListener('touchmove', handleResizeTouchMove);
+        window.removeEventListener('touchend', handleTouchEnd);
       };
     }
   }, [isResizing, dragStart, initialFontSize]);
@@ -292,21 +366,7 @@ const DraggableText: React.FC<DraggableTextProps> = ({
       }}
       onMouseDown={handleMouseDown}
       onDoubleClick={(e) => { e.stopPropagation(); setIsEditing(true); }}
-      onTouchStart={(e) => {
-        // Handle touch for mobile - detect double tap
-        const now = Date.now();
-        const DOUBLE_TAP_DELAY = 300; // ms
-        if (lastTapTime && (now - lastTapTime) < DOUBLE_TAP_DELAY) {
-          // Double tap detected - enter edit mode
-          e.stopPropagation();
-          setIsEditing(true);
-          setLastTapTime(0);
-        } else {
-          // Single tap - select and start potential drag
-          setLastTapTime(now);
-          handleMouseDown(e as any);
-        }
-      }}
+      onTouchStart={handleTouchStart}
       onClick={(e) => { e.stopPropagation(); onSelect(); }}
     >
       {isEditing ? (
@@ -341,6 +401,7 @@ const DraggableText: React.FC<DraggableTextProps> = ({
           {/* Top-left corner */}
           <div
             onMouseDown={(e) => handleResizeMouseDown(e, 'nw')}
+            onTouchStart={(e) => handleResizeTouchStart(e, 'nw')}
             style={{
               position: 'absolute',
               top: '-8px',
@@ -359,6 +420,7 @@ const DraggableText: React.FC<DraggableTextProps> = ({
           {/* Top-right corner */}
           <div
             onMouseDown={(e) => handleResizeMouseDown(e, 'ne')}
+            onTouchStart={(e) => handleResizeTouchStart(e, 'ne')}
             style={{
               position: 'absolute',
               top: '-8px',
@@ -377,6 +439,7 @@ const DraggableText: React.FC<DraggableTextProps> = ({
           {/* Bottom-left corner */}
           <div
             onMouseDown={(e) => handleResizeMouseDown(e, 'sw')}
+            onTouchStart={(e) => handleResizeTouchStart(e, 'sw')}
             style={{
               position: 'absolute',
               bottom: '-8px',
@@ -395,6 +458,7 @@ const DraggableText: React.FC<DraggableTextProps> = ({
           {/* Bottom-right corner */}
           <div
             onMouseDown={(e) => handleResizeMouseDown(e, 'se')}
+            onTouchStart={(e) => handleResizeTouchStart(e, 'se')}
             style={{
               position: 'absolute',
               bottom: '-8px',
@@ -414,6 +478,7 @@ const DraggableText: React.FC<DraggableTextProps> = ({
           {/* Top side */}
           <div
             onMouseDown={(e) => handleResizeMouseDown(e, 'n')}
+            onTouchStart={(e) => handleResizeTouchStart(e, 'n')}
             style={{
               position: 'absolute',
               top: '-8px',
@@ -433,6 +498,7 @@ const DraggableText: React.FC<DraggableTextProps> = ({
           {/* Bottom side */}
           <div
             onMouseDown={(e) => handleResizeMouseDown(e, 's')}
+            onTouchStart={(e) => handleResizeTouchStart(e, 's')}
             style={{
               position: 'absolute',
               bottom: '-8px',
@@ -452,6 +518,7 @@ const DraggableText: React.FC<DraggableTextProps> = ({
           {/* Left side */}
           <div
             onMouseDown={(e) => handleResizeMouseDown(e, 'w')}
+            onTouchStart={(e) => handleResizeTouchStart(e, 'w')}
             style={{
               position: 'absolute',
               left: '-8px',
@@ -471,6 +538,7 @@ const DraggableText: React.FC<DraggableTextProps> = ({
           {/* Right side */}
           <div
             onMouseDown={(e) => handleResizeMouseDown(e, 'e')}
+            onTouchStart={(e) => handleResizeTouchStart(e, 'e')}
             style={{
               position: 'absolute',
               right: '-8px',
