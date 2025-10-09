@@ -14,8 +14,6 @@ import {
   Column,
   Img
 } from '@react-email/components';
-import { fmtUSD } from '../lib/money';
-import { titleCaseName } from '../lib/strings';
 
 import { fmtUSD } from '../lib/money';
 import { titleCaseName } from '../lib/strings';
@@ -57,14 +55,6 @@ export default function OrderShipped({ order, trackingNumber, trackingUrl, carri
     month: 'long',
     day: 'numeric',
   });
-
-  // Title-case the customer name
-  const customerName = titleCaseName(order.customerName || 'Valued Customer');
-
-  // Use cents if available, otherwise fall back to dollar amounts
-  const subtotalCents = order.subtotalCents ?? (order.subtotal ? Math.round(order.subtotal * 100) : 0);
-  const taxCents = order.taxCents ?? (order.tax ? Math.round(order.tax * 100) : 0);
-  const totalCents = order.totalCents ?? (order.total ? Math.round(order.total * 100) : subtotalCents + taxCents);
 
   // Logo URL for email - use environment-aware URL
   const logoUrl = 'https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto,q_auto,w_300/https://bannersonthefly.com/cld-assets/images/logo-compact.svg';
@@ -111,7 +101,7 @@ export default function OrderShipped({ order, trackingNumber, trackingUrl, carri
           {/* Main Content */}
           <Section style={content}>
             <Text style={greeting}>
-              Hi {customerName},
+              Hi {order.customerName},
             </Text>
             
             <Text style={paragraph}>
@@ -174,20 +164,7 @@ export default function OrderShipped({ order, trackingNumber, trackingUrl, carri
                   </div>
                 ))}
                 
-                {/* Pricing Breakdown */}
-                <Hr style={itemsHr} />
-                <div style={pricingRow}>
-                  <Text style={pricingLabel}>Subtotal</Text>
-                  <Text style={pricingValue}>{fmtUSD(subtotalCents)}</Text>
-                </div>
-                <div style={pricingRow}>
-                  <Text style={pricingLabel}>Tax</Text>
-                  <Text style={pricingValue}>{fmtUSD(taxCents)}</Text>
-                </div>
-                <div style={pricingTotalRow}>
-                  <Text style={pricingTotalLabel}>Total</Text>
-                  <Text style={pricingTotalValue}>{fmtUSD(totalCents)}</Text>
-                </div>
+
               </div>
             </Section>
 
@@ -479,50 +456,4 @@ const footerText = {
   fontSize: '14px',
   color: '#6b7280',
   margin: '0 0 10px 0',
-};
-
-const itemsHr = {
-  borderColor: '#e5e7eb',
-  margin: '15px 0',
-};
-
-const pricingRow = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  padding: '8px 0',
-};
-
-const pricingLabel = {
-  fontSize: '14px',
-  color: '#6b7280',
-  margin: '0',
-};
-
-const pricingValue = {
-  fontSize: '14px',
-  color: '#1f2937',
-  fontWeight: '600',
-  margin: '0',
-};
-
-const pricingTotalRow = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  padding: '12px 0',
-  marginTop: '8px',
-  borderTop: '2px solid #059669',
-};
-
-const pricingTotalLabel = {
-  fontSize: '16px',
-  fontWeight: 'bold',
-  color: '#1f2937',
-  margin: '0',
-};
-
-const pricingTotalValue = {
-  fontSize: '16px',
-  fontWeight: 'bold',
-  color: '#059669',
-  margin: '0',
 };

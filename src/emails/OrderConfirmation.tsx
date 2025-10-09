@@ -14,8 +14,6 @@ import {
   Column,
   Img
 } from '@react-email/components';
-import { fmtUSD } from '../lib/money';
-import { titleCaseName } from '../lib/strings';
 
 interface OrderConfirmationProps {
   to: string;
@@ -64,14 +62,10 @@ export default function OrderConfirmation({ order, invoiceUrl }: OrderConfirmati
 
   // Handle different prop formats
   const orderNumber = order.number || order.orderNumber || (order.id ? order.id.slice(-8).toUpperCase() : 'UNKNOWN');
-  
-  // Title-case the customer name
-  const customerName = titleCaseName(order.customerName || 'Customer');
-  
-  // Use cents if available, otherwise fall back to dollar amounts
-  const subtotalCents = order.subtotalCents ?? (order.subtotal ? Math.round(order.subtotal * 100) : 0);
-  const taxCents = order.taxCents ?? (order.tax ? Math.round(order.tax * 100) : 0);
-  const totalCents = order.totalCents ?? (order.total ? Math.round(order.total * 100) : subtotalCents + taxCents);
+  const customerName = order.customerName || 'Customer';
+  const subtotal = order.subtotal || (order.subtotalCents ? order.subtotalCents / 100 : 0);
+  const tax = order.tax || (order.taxCents ? order.taxCents / 100 : 0);
+  const total = order.total || (order.totalCents ? order.totalCents / 100 : subtotal + tax);
 
   // Logo URL for email - use environment-aware URL
   const logoUrl = 'https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto,q_auto,w_300/https://bannersonthefly.com/cld-assets/images/logo-compact.svg';
@@ -185,17 +179,17 @@ export default function OrderConfirmation({ order, invoiceUrl }: OrderConfirmati
                 <Hr style={itemsHr} />
                 <div style={totalRow}>
                   <Text style={totalLabel}>Subtotal</Text>
-                  <Text style={totalValue}>{fmtUSD(subtotalCents)}</Text>
+                  <Text style={totalValue}>${subtotal.toFixed(2)}</Text>
                 </div>
-                {taxCents > 0 && (
+                {tax > 0 && (
                   <div style={totalRow}>
                     <Text style={totalLabel}>Tax</Text>
-                    <Text style={totalValue}>{fmtUSD(taxCents)}</Text>
+                    <Text style={totalValue}>${tax.toFixed(2)}</Text>
                   </div>
                 )}
                 <div style={finalTotalRow}>
                   <Text style={finalTotalLabel}>Total Paid</Text>
-                  <Text style={finalTotalValue}>{fmtUSD(totalCents)}</Text>
+                  <Text style={finalTotalValue}>${total.toFixed(2)}</Text>
                 </div>
               </div>
             </Section>

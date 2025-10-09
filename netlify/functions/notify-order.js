@@ -139,9 +139,9 @@ async function sendEmail(type, payload) {
             `).join('')}
             
             <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #e5e7eb;">
-              <p style="margin: 5px 0;">Subtotal: ${fmtUSD(payload.order.subtotalCents || 0)}</p>
-              ${(payload.order.taxCents || 0) > 0 ? `<p style="margin: 5px 0;">Tax: ${fmtUSD(payload.order.taxCents)}</p>` : ''}
-              <p style="margin: 5px 0; font-size: 18px;"><strong>Total: ${fmtUSD(payload.order.totalCents || 0)}</strong></p>
+              <p style="margin: 5px 0;">Subtotal: ${payload.order.subtotal ? '$' + payload.order.subtotal.toFixed(2) : fmtUSD(payload.order.subtotalCents || 0)}</p>
+              ${(payload.order.tax || payload.order.taxCents) > 0 ? `<p style="margin: 5px 0;">Tax: ${payload.order.tax ? '$' + payload.order.tax.toFixed(2) : fmtUSD(payload.order.taxCents || 0)}</p>` : ''}
+              <p style="margin: 5px 0; font-size: 18px;"><strong>Total: ${payload.order.total ? '$' + payload.order.total.toFixed(2) : fmtUSD(payload.order.totalCents || 0)}</strong></p>
             </div>
           </div>
           
@@ -174,7 +174,7 @@ async function sendEmail(type, payload) {
         </table>
       `);
     } else if (type === 'order.admin_notification') {
-      subject = `🎉 New Order #${payload.order.number} - ${fmtUSD(payload.order.totalCents || 0)}`;
+      subject = `🎉 New Order #${payload.order.number} - ${payload.order.total ? '$' + payload.order.total.toFixed(2) : fmtUSD(payload.order.totalCents || 0)}`;
       html = createEmailContainer(`
         <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0; padding: 20px;">
           <tr>
@@ -188,7 +188,7 @@ async function sendEmail(type, payload) {
             <p><strong>Order ID:</strong> ${payload.order.id}</p>
             <p><strong>Customer:</strong> ${titleCaseName(payload.order.customerName || 'Valued Customer')}</p>
             <p><strong>Email:</strong> <a href="mailto:${payload.order.email}">${payload.order.email}</a></p>
-            <p><strong>Total Amount:</strong> <span style="color: #059669; font-weight: bold;">${fmtUSD(payload.order.totalCents || 0)}</span></p>
+            <p><strong>Total Amount:</strong> <span style="color: #059669; font-weight: bold;">${payload.order.total ? '$' + payload.order.total.toFixed(2) : fmtUSD(payload.order.totalCents || 0)}</span></p>
 
             <h4 style="color: #374151;">Items:</h4>
             ${payload.order.items.map(item => `
@@ -201,9 +201,9 @@ async function sendEmail(type, payload) {
             `).join('')}
 
             <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #e5e7eb;">
-              <p style="margin: 5px 0;">Subtotal: ${fmtUSD(payload.order.subtotalCents || 0)}</p>
-              ${(payload.order.taxCents || 0) > 0 ? `<p style="margin: 5px 0;">Tax: ${fmtUSD(payload.order.taxCents)}</p>` : ''}
-              <p style="margin: 5px 0; font-size: 18px;"><strong>Total: ${fmtUSD(payload.order.totalCents || 0)}</strong></p>
+              <p style="margin: 5px 0;">Subtotal: ${payload.order.subtotal ? '$' + payload.order.subtotal.toFixed(2) : fmtUSD(payload.order.subtotalCents || 0)}</p>
+              ${(payload.order.tax || payload.order.taxCents) > 0 ? `<p style="margin: 5px 0;">Tax: ${payload.order.tax ? '$' + payload.order.tax.toFixed(2) : fmtUSD(payload.order.taxCents || 0)}</p>` : ''}
+              <p style="margin: 5px 0; font-size: 18px;"><strong>Total: ${payload.order.total ? '$' + payload.order.total.toFixed(2) : fmtUSD(payload.order.totalCents || 0)}</strong></p>
             </div>
           </div>
 
@@ -411,6 +411,9 @@ exports.handler = async (event) => {
           baseCostCents: Math.round(baseCost)
           };
         }),
+        subtotal: (order.subtotal_cents || order.total_cents || 0) / 100,
+        tax: (order.tax_cents || 0) / 100,
+        total: (order.total_cents || 0) / 100,
         subtotalCents: order.subtotal_cents || order.total_cents || 0,
         taxCents: order.tax_cents || 0,
         totalCents: order.total_cents || 0,
