@@ -138,29 +138,37 @@ async function maybeUpscaleToFit(imgBuffer, needW, needH) {
  */
 async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn) {
   return new Promise((resolve, reject) => {
-    const chunks = [];
-    const pageWidthPt = pageWidthIn * 72;
-    const pageHeightPt = pageHeightIn * 72;
+    try {
+      const chunks = [];
+      const pageWidthPt = pageWidthIn * 72;
+      const pageHeightPt = pageHeightIn * 72;
 
-    const doc = new PDFDocument({
-      size: [pageWidthPt, pageHeightPt],
-      margins: { top: 0, bottom: 0, left: 0, right: 0 },
-      compress: false, // Disable compression for speed
-    });
+      const doc = new PDFDocument({
+        size: [pageWidthPt, pageHeightPt],
+        margins: { top: 0, bottom: 0, left: 0, right: 0 },
+        compress: false, // Disable compression for speed
+      });
 
-    doc.on('data', (chunk) => chunks.push(chunk));
-    doc.on('end', () => resolve(Buffer.concat(chunks)));
-    doc.on('error', reject);
+      doc.on('data', (chunk) => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', (err) => {
+        console.error('[PDF] PDFDocument error:', err);
+        reject(err);
+      });
 
-    doc.image(imgBuffer, 0, 0, {
-      width: pageWidthPt,
-      height: pageHeightPt,
-      fit: [pageWidthPt, pageHeightPt],
-      align: 'center',
-      valign: 'center',
-    });
+      doc.image(imgBuffer, 0, 0, {
+        width: pageWidthPt,
+        height: pageHeightPt,
+        fit: [pageWidthPt, pageHeightPt],
+        align: 'center',
+        valign: 'center',
+      });
 
-    doc.end();
+      doc.end();
+    } catch (err) {
+      console.error('[PDF] Synchronous error in rasterToPdfBuffer:', err);
+      reject(err);
+    }
   });
 }
 
@@ -356,20 +364,35 @@ exports.handler = async (event) => {
     // Upload PDF to Cloudinary
     console.log('[PDF] Uploading PDF to Cloudinary...');
     const uploadResult = await new Promise((resolve, reject) => {
-      const stream = cloudinary.uploader.upload_stream(
-        {
-          resource_type: 'raw',
-          folder: 'final_pdfs',
-          public_id: `order_${req.orderId}_${Date.now()}`,
-          format: 'pdf',
-          access_mode: 'public',
-        },
-        (error, result) => {
-          if (error) reject(error);
-          else resolve(result);
-        }
-      );
-      stream.end(pdfBuffer);
+      try {
+        const stream = cloudinary.uploader.upload_stream(
+          {
+            resource_type: 'raw',
+            folder: 'final_pdfs',
+            public_id: `order_${req.orderId}_${Date.now()}`,
+            format: 'pdf',
+            access_mode: 'public',
+          },
+          (error, result) => {
+            if (error) {
+              console.error('[PDF] Cloudinary upload error:', error);
+              reject(error);
+            } else {
+              resolve(result);
+            }
+          }
+        );
+        
+        stream.on('error', (err) => {
+          console.error('[PDF] Stream error:', err);
+          reject(err);
+        });
+        
+        stream.end(pdfBuffer);
+      } catch (err) {
+        console.error('[PDF] Error setting up Cloudinary upload:', err);
+        reject(err);
+      }
     });
     
     const finalPdfUrl = uploadResult.secure_url;
