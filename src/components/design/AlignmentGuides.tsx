@@ -12,6 +12,9 @@ interface AlignmentGuidesProps {
 /**
  * AlignmentGuides - Canva-style alignment guides for text positioning
  * Shows visual guide lines when dragging text elements near alignment points
+ * 
+ * IMPORTANT: Text elements are positioned relative to the CONTAINER, not the banner area.
+ * Therefore, guides must also be at 50% of the CONTAINER to match where text snaps.
  */
 const AlignmentGuides: React.FC<AlignmentGuidesProps> = ({
   showVerticalCenter,
@@ -21,9 +24,8 @@ const AlignmentGuides: React.FC<AlignmentGuidesProps> = ({
   bannerOffsetXPercent = 0,
   bannerOffsetYPercent = 0,
 }) => {
-  // Calculate the actual center position of the banner area
-  const bannerCenterX = bannerOffsetXPercent + (bannerWidthPercent / 2);
-  const bannerCenterY = bannerOffsetYPercent + (bannerHeightPercent / 2);
+  // Text elements snap to 50% of the container, so guides should be at 50% too
+  // The banner dimension props are kept for backward compatibility but not used
   
   return (
     <div
@@ -37,14 +39,14 @@ const AlignmentGuides: React.FC<AlignmentGuidesProps> = ({
         zIndex: 9998,
       }}
     >
-      {/* Vertical Center Guide (50% horizontal of BANNER, not container) */}
+      {/* Vertical Center Guide (50% horizontal of CONTAINER) */}
       {showVerticalCenter && (
         <div
           style={{
             position: 'absolute',
-            left: `${bannerCenterX}%`,
-            top: `${bannerOffsetYPercent}%`,
-            height: `${bannerHeightPercent}%`,
+            left: '50%',
+            top: 0,
+            bottom: 0,
             width: '2px',
             backgroundColor: '#FF00FF', // Bright magenta
             transform: 'translateX(-50%)',
@@ -55,14 +57,14 @@ const AlignmentGuides: React.FC<AlignmentGuidesProps> = ({
         />
       )}
 
-      {/* Horizontal Center Guide (50% vertical of BANNER, not container) */}
+      {/* Horizontal Center Guide (50% vertical of CONTAINER) */}
       {showHorizontalCenter && (
         <div
           style={{
             position: 'absolute',
-            top: `${bannerCenterY}%`,
-            left: `${bannerOffsetXPercent}%`,
-            width: `${bannerWidthPercent}%`,
+            top: '50%',
+            left: 0,
+            right: 0,
             height: '2px',
             backgroundColor: '#FF00FF', // Bright magenta
             transform: 'translateY(-50%)',
