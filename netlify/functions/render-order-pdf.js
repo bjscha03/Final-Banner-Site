@@ -251,11 +251,13 @@ exports.handler = async (event) => {
     const pxScale = targetPxW / previewW;
 
     console.log(`[PDF] Preview canvas: ${previewW}×${previewH}px, scale factor: ${pxScale.toFixed(2)}`);
+    // Use default transform if not provided (no scaling, no translation)
+    const transform = req.transform || { scale: 1, translateXpx: 0, translateYpx: 0 };
 
-    const scaledImageW = Math.round(srcW * req.transform.scale * pxScale);
-    const scaledImageH = Math.round(srcH * req.transform.scale * pxScale);
-    const translateX = Math.round(req.transform.translateXpx * pxScale);
-    const translateY = Math.round(req.transform.translateYpx * pxScale);
+    const scaledImageW = Math.round(srcW * transform.scale * pxScale);
+    const scaledImageH = Math.round(srcH * transform.scale * pxScale);
+    const translateX = Math.round(transform.translateXpx * pxScale);
+    const translateY = Math.round(transform.translateYpx * pxScale);
 
     console.log(`[PDF] Scaled image: ${scaledImageW}×${scaledImageH}px at (${translateX}, ${translateY})`);
 
