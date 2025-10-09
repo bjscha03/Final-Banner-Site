@@ -117,8 +117,19 @@ async function sendEmail(type, payload) {
                 ${item.options ? `<p style="margin: 5px 0; color: #666; font-size: 14px;">${item.options}</p>` : ''}
               </div>
             `).join('')}
-            <div style="text-align: right; margin-top: 15px; padding-top: 15px; border-top: 2px solid #ff6b35;">
-              <p style="margin: 0; font-size: 18px; font-weight: bold;">Total: $${order.total.toFixed(2)}</p>
+            <div style="margin-top: 15px; padding-top: 15px; border-top: 2px solid #ddd;">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <span style="color: #666;">Subtotal:</span>
+                <span style="font-weight: 500;">$${order.subtotal.toFixed(2)}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                <span style="color: #666;">Tax (6%):</span>
+                <span style="font-weight: 500;">$${order.tax.toFixed(2)}</span>
+              </div>
+              <div style="display: flex; justify-content: space-between; padding-top: 8px; border-top: 2px solid #ff6b35;">
+                <span style="font-size: 18px; font-weight: bold;">Total:</span>
+                <span style="font-size: 18px; font-weight: bold; color: #ff6b35;">$${order.total.toFixed(2)}</span>
+              </div>
             </div>
           </div>
           
@@ -260,12 +271,35 @@ exports.handler = async (event, context) => {
         price: item.line_total_cents / 100 / item.quantity, // Calculate unit price from line total
         options: `${item.material} material${item.grommets && item.grommets !== 'none' ? `, ${item.grommets} grommets` : ''}${item.rope_feet > 0 ? `, ${item.rope_feet}ft rope` : ''}`
       })),
-      subtotal: order.subtotal_cents / 100,
-      tax: order.tax_cents / 100,
-      total: order.total_cents / 100,
-      subtotalCents: order.subtotal_cents,
-      taxCents: order.tax_cents,
-      totalCents: order.total_cents,
+      // FIX: Calculate correct subtotal, tax, and total from line_total_cents
+      // Database values may be incorrect, so recalculate from item totals
+      get subtotal() {
+        const calculatedSubtotal = itemsResult.reduce((sum, item) => sum + item.line_total_cents, 0);
+        return calculatedSubtotal / 100;
+      },
+      get tax() {
+        const calculatedSubtotal = itemsResult.reduce((sum, item) => sum + item.line_total_cents, 0);
+        const calculatedTax = Math.round(calculatedSubtotal * 0.06);
+        return calculatedTax / 100;
+      },
+      get total() {
+        const calculatedSubtotal = itemsResult.reduce((sum, item) => sum + item.line_total_cents, 0);
+        const calculatedTax = Math.round(calculatedSubtotal * 0.06);
+        const calculatedTotal = calculatedSubtotal + calculatedTax;
+        return calculatedTotal / 100;
+      },
+      get subtotalCents() {
+        return itemsResult.reduce((sum, item) => sum + item.line_total_cents, 0);
+      },
+      get taxCents() {
+        const calculatedSubtotal = itemsResult.reduce((sum, item) => sum + item.line_total_cents, 0);
+        return Math.round(calculatedSubtotal * 0.06);
+      },
+      get totalCents() {
+        const calculatedSubtotal = itemsResult.reduce((sum, item) => sum + item.line_total_cents, 0);
+        const calculatedTax = Math.round(calculatedSubtotal * 0.06);
+        return calculatedSubtotal + calculatedTax;
+      },
       shippingAddress: undefined // No shipping address table in current schema
     };
 
