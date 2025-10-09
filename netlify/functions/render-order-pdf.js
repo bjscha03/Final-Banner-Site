@@ -21,7 +21,7 @@ const sql = neon(process.env.NETLIFY_DATABASE_URL);
  * Choose target DPI based on banner size
  */
 function chooseTargetDpi(wIn, hIn) {
-  return 150; // Always 150 DPI for speed
+  return 100; // 100 DPI for smaller file size (under 10MB Cloudinary limit)
 }
 
 /**
@@ -146,7 +146,7 @@ async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn) {
       const doc = new PDFDocument({
         size: [pageWidthPt, pageHeightPt],
         margins: { top: 0, bottom: 0, left: 0, right: 0 },
-        compress: false, // Disable compression for speed
+        compress: true, // Enable compression to reduce file size
       });
 
       doc.on('data', (chunk) => chunks.push(chunk));
@@ -353,7 +353,7 @@ exports.handler = async (event) => {
           left: compositeLeft,
         },
       ])
-      .png()
+      .jpeg({ quality: 85, chromaSubsampling: '4:4:4' }) // JPEG compression to reduce PDF size
       .toBuffer();
 
     console.log('[PDF] Image composited onto canvas');
