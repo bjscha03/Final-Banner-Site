@@ -362,6 +362,7 @@ exports.handler = async (event) => {
           folder: 'final_pdfs',
           public_id: `order_${req.orderId}_${Date.now()}`,
           format: 'pdf',
+          access_mode: 'public',
         },
         (error, result) => {
           if (error) reject(error);
