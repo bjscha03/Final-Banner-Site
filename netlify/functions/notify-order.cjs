@@ -409,12 +409,35 @@ exports.handler = async (event) => {
           baseCostCents: Math.round(baseCost)
           };
         }),
-        subtotal: (order.subtotal_cents || order.total_cents || 0) / 100,
-        tax: (order.tax_cents || 0) / 100,
-        total: (order.total_cents || 0) / 100,
-        subtotalCents: order.subtotal_cents || order.total_cents || 0,
-        taxCents: order.tax_cents || 0,
-        totalCents: order.total_cents || 0,
+        // FIX: Calculate correct subtotal, tax, and total from line_total_cents
+        // Database values may be incorrect, so recalculate from item totals
+        get subtotal() {
+          const calculatedSubtotal = itemRows.reduce((sum, item) => sum + item.line_total_cents, 0);
+          return calculatedSubtotal / 100;
+        },
+        get tax() {
+          const calculatedSubtotal = itemRows.reduce((sum, item) => sum + item.line_total_cents, 0);
+          const calculatedTax = Math.round(calculatedSubtotal * 0.06);
+          return calculatedTax / 100;
+        },
+        get total() {
+          const calculatedSubtotal = itemRows.reduce((sum, item) => sum + item.line_total_cents, 0);
+          const calculatedTax = Math.round(calculatedSubtotal * 0.06);
+          const calculatedTotal = calculatedSubtotal + calculatedTax;
+          return calculatedTotal / 100;
+        },
+        get subtotalCents() {
+          return itemRows.reduce((sum, item) => sum + item.line_total_cents, 0);
+        },
+        get taxCents() {
+          const calculatedSubtotal = itemRows.reduce((sum, item) => sum + item.line_total_cents, 0);
+          return Math.round(calculatedSubtotal * 0.06);
+        },
+        get totalCents() {
+          const calculatedSubtotal = itemRows.reduce((sum, item) => sum + item.line_total_cents, 0);
+          const calculatedTax = Math.round(calculatedSubtotal * 0.06);
+          return calculatedSubtotal + calculatedTax;
+        },
         shippingAddress: order.shipping_address
       },
       invoiceUrl
