@@ -1,4 +1,6 @@
 const { neon } = require('@neondatabase/serverless');
+const { titleCaseName } = require('./lib/strings');
+const { fmtUSD } = require('./lib/money');
 
 // Email-compatible logo header HTML
 function createEmailLogoHeader() {
@@ -118,7 +120,7 @@ async function sendEmail(type, payload) {
           <tr>
             <td>
               <h2 style="color: #2563eb; margin: 0 0 20px 0; font-size: 28px; text-align: center;">Order Confirmation</h2>
-          <p>Hello ${payload.order.customerName},</p>
+          <p>Hello ${titleCaseName(payload.order.customerName || 'Valued Customer')},</p>
           <p>Thank you for your order! We've received your custom banner order and will begin processing it shortly.</p>
           
           <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
@@ -137,9 +139,9 @@ async function sendEmail(type, payload) {
             `).join('')}
             
             <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #e5e7eb;">
-              <p style="margin: 5px 0;">Subtotal: $${payload.order.subtotal.toFixed(2)}</p>
-              ${payload.order.tax > 0 ? `<p style="margin: 5px 0;">Tax: $${payload.order.tax.toFixed(2)}</p>` : ''}
-              <p style="margin: 5px 0; font-size: 18px;"><strong>Total: $${payload.order.total.toFixed(2)}</strong></p>
+              <p style="margin: 5px 0;">Subtotal: ${fmtUSD(payload.order.subtotalCents || 0)}</p>
+              ${(payload.order.taxCents || 0) > 0 ? `<p style="margin: 5px 0;">Tax: ${fmtUSD(payload.order.taxCents)}</p>` : ''}
+              <p style="margin: 5px 0; font-size: 18px;"><strong>Total: ${fmtUSD(payload.order.totalCents || 0)}</strong></p>
             </div>
           </div>
           
@@ -172,7 +174,7 @@ async function sendEmail(type, payload) {
         </table>
       `);
     } else if (type === 'order.admin_notification') {
-      subject = `🎉 New Order #${payload.order.number} - $${payload.order.total.toFixed(2)}`;
+      subject = `🎉 New Order #${payload.order.number} - ${fmtUSD(payload.order.totalCents || 0)}`;
       html = createEmailContainer(`
         <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0; padding: 20px;">
           <tr>
@@ -184,9 +186,9 @@ async function sendEmail(type, payload) {
             <h3 style="margin-top: 0; color: #374151;">Order Information</h3>
             <p><strong>Order Number:</strong> #${payload.order.number}</p>
             <p><strong>Order ID:</strong> ${payload.order.id}</p>
-            <p><strong>Customer:</strong> ${payload.order.customerName}</p>
+            <p><strong>Customer:</strong> ${titleCaseName(payload.order.customerName || 'Valued Customer')}</p>
             <p><strong>Email:</strong> <a href="mailto:${payload.order.email}">${payload.order.email}</a></p>
-            <p><strong>Total Amount:</strong> <span style="color: #059669; font-weight: bold;">$${payload.order.total.toFixed(2)}</span></p>
+            <p><strong>Total Amount:</strong> <span style="color: #059669; font-weight: bold;">${fmtUSD(payload.order.totalCents || 0)}</span></p>
 
             <h4 style="color: #374151;">Items:</h4>
             ${payload.order.items.map(item => `
@@ -199,9 +201,9 @@ async function sendEmail(type, payload) {
             `).join('')}
 
             <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #e5e7eb;">
-              <p style="margin: 5px 0;">Subtotal: $${payload.order.subtotal.toFixed(2)}</p>
-              ${payload.order.tax > 0 ? `<p style="margin: 5px 0;">Tax: $${payload.order.tax.toFixed(2)}</p>` : ''}
-              <p style="margin: 5px 0; font-size: 18px;"><strong>Total: $${payload.order.total.toFixed(2)}</strong></p>
+              <p style="margin: 5px 0;">Subtotal: ${fmtUSD(payload.order.subtotalCents || 0)}</p>
+              ${(payload.order.taxCents || 0) > 0 ? `<p style="margin: 5px 0;">Tax: ${fmtUSD(payload.order.taxCents)}</p>` : ''}
+              <p style="margin: 5px 0; font-size: 18px;"><strong>Total: ${fmtUSD(payload.order.totalCents || 0)}</strong></p>
             </div>
           </div>
 
@@ -358,7 +360,7 @@ exports.handler = async (event) => {
       order: {
         id: order.id,
         number: order.id ? order.id.slice(-8).toUpperCase() : 'UNKNOWN',
-        customerName: order.customer_name || 'Customer',
+        customerName: titleCaseName(order.customer_name || 'Customer'),
         items: itemRows.map((item) => {
           // Calculate cost breakdown
           const ropeCost = (item.rope_feet || 0) * 2 * item.quantity * 100; // in cents
@@ -409,9 +411,9 @@ exports.handler = async (event) => {
           baseCostCents: Math.round(baseCost)
           };
         }),
-        subtotal: (order.subtotal_cents || order.total_cents) / 100,
-        tax: (order.tax_cents || 0) / 100,
-        total: order.total_cents / 100,
+        subtotalCents: order.subtotal_cents || order.total_cents || 0,
+        taxCents: order.tax_cents || 0,
+        totalCents: order.total_cents || 0,
         shippingAddress: order.shipping_address
       },
       invoiceUrl

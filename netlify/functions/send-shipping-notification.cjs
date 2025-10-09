@@ -1,4 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
+const { titleCaseName } = require('./lib/strings');
 
 // Neon database connection
 function getDbUrl() {
@@ -240,15 +241,15 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Get customer name
-    const customerName = order.full_name || 'Valued Customer';
+    // Get customer name - title-case it
+    const customerName = titleCaseName(order.full_name || 'Valued Customer');
 
     // Get order items
     const itemsResult = await sql`
       SELECT * FROM order_items WHERE order_id = ${orderId}
     `;
 
-    // Format order data for email
+    // Format order data for email - use cents for precision
     const emailOrder = {
       id: order.id,
       orderNumber: order.id.slice(-8).toUpperCase(),
@@ -260,9 +261,9 @@ exports.handler = async (event, context) => {
         price: item.line_total_cents / 100 / item.quantity, // Calculate unit price from line total
         options: `${item.material} material${item.grommets && item.grommets !== 'none' ? `, ${item.grommets} grommets` : ''}${item.rope_feet > 0 ? `, ${item.rope_feet}ft rope` : ''}`
       })),
-      subtotal: order.subtotal_cents / 100,
-      tax: order.tax_cents / 100,
-      total: order.total_cents / 100,
+      subtotalCents: order.subtotal_cents,
+      taxCents: order.tax_cents,
+      totalCents: order.total_cents,
       shippingAddress: undefined // No shipping address table in current schema
     };
 

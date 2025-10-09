@@ -46,8 +46,7 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
   const [prompt, setPrompt] = useState('');
   const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
   const [colors, setColors] = useState(['#1e40af', '#ffffff', '#f3f4f6']);
-  const [variations, setVariations] = useState<'1' | '3'>('1');
-  const [quality, setQuality] = useState<'fast' | 'standard'>('fast');
+  const [variations, setVariations] = useState<'1' | '3'>('3'); // Always 3 images
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
   const [showSelection, setShowSelection] = useState(false);
@@ -95,8 +94,8 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
           styles: selectedStyles,
           colors,
           size: { wIn: widthIn, hIn: heightIn },
-          variations: parseInt(variations),
-          quality,
+          variations: 3, // Always generate 3 images
+          quality: 'high', // Always use high quality
           preset: 'loft_hero'
         })
       });
@@ -121,19 +120,9 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
         throw new Error('Invalid response from server. Please try again.');
       }
       
-      if (variations === '1') {
-        // Single image - apply directly
-        const firstImage = result.images[0];
-        applyGeneratedImage({
-          url: firstImage.url,
-          cloudinary_public_id: firstImage.cloudinary_public_id,
-          model: result.metadata?.model || 'imagen-4',
-          aspectRatio: `${firstImage.width}:${firstImage.height}`
-        });      } else {
-        // Multiple images - show selection
-        setGeneratedImages(result.images || []);
-        setShowSelection(true);
-      }
+      // Always show selection (we always generate 3 images)
+      setGeneratedImages(result.images || []);
+      setShowSelection(true);
 
     } catch (error) {
       console.error('Generation error:', error);
@@ -301,31 +290,12 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
 
               <div>
                 <Label className="text-base font-medium mb-3 block">Variations</Label>
-                <RadioGroup value={variations} onValueChange={(value: '1' | '3') => setVariations(value)}>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="1" id="var1" />
-                    <Label htmlFor="var1">1 image (faster)</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="3" id="var3" />
-                    <Label htmlFor="var3">3 images (choose best)</Label>
-                  </div>
-                </RadioGroup>
+                <p className="text-sm text-gray-600">
+                  Always generates 3 high-quality images for you to choose from
+                </p>
               </div>
 
-              <div>
-                <Label className="text-base font-medium mb-3 block">Quality</Label>
-                <RadioGroup value={quality} onValueChange={(value: 'fast' | 'standard') => setQuality(value)}>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="fast" id="fast" />
-                    <Label htmlFor="fast">Fast (default)</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem value="standard" id="standard" />
-                    <Label htmlFor="standard">Standard + 2K</Label>
-                  </div>
-                </RadioGroup>
-              </div>
+
             </div>
 
             {/* Right Column - Summary */}
@@ -360,7 +330,27 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
         ) : (
           // Image Selection View
           <div className="space-y-4">
-            <h3 className="text-lg font-medium">Choose your favorite:</h3>
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg font-medium">Choose your favorite:</h3>
+              <Button
+                variant="outline"
+                onClick={handleGenerate}
+                disabled={isGenerating}
+                data-cta="ai-refresh-3"
+              >
+                {isGenerating ? (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Refresh 3
+                  </>
+                )}
+              </Button>
+            </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               {generatedImages.map((image, index) => (
                 <div key={index} className="relative group cursor-pointer" onClick={() => applyGeneratedImage(image)}>

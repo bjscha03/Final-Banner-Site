@@ -162,7 +162,12 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const { prompt, styles = [], colors = [], size, variations = 3, quality = 'fast', debugMode = false } = JSON.parse(event.body);
+    const body = JSON.parse(event.body);
+    const { prompt, styles = [], colors = [], size, debugMode = false } = body;
+    
+    // FORCE high quality and 3 variations - ignore client params
+    const variations = 3;
+    const quality = 'high';
 
     if (!prompt) {
       return {
