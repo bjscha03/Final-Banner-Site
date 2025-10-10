@@ -42,10 +42,12 @@ interface OrderCanceledProps {
 }
 
 export default function OrderCanceled({ order }: OrderCanceledProps) {
+  // Get current date/time in US Eastern timezone
   const cancelDate = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
+    timeZone: 'America/New_York',
   });
 
   // Logo URL for email - use environment-aware URL

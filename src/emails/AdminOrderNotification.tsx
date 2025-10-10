@@ -40,14 +40,16 @@ export default function AdminOrderNotification({ order, invoiceUrl }: AdminOrder
         month: 'long',
         day: 'numeric',
         hour: '2-digit',
-        minute: '2-digit'
+        minute: '2-digit',
+        timeZone: 'America/New_York'
       })
     : new Date().toLocaleDateString('en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
         hour: '2-digit',
-        minute: '2-digit'
+        minute: '2-digit',
+        timeZone: 'America/New_York'
       });
 
   // Logo URL for email - use environment-aware URL

@@ -50,10 +50,12 @@ interface OrderShippedProps {
 }
 
 export default function OrderShipped({ order, trackingNumber, trackingUrl, carrier = 'FedEx' }: OrderShippedProps) {
+  // Get current date/time in US Eastern timezone
   const shipDate = new Date().toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
+    timeZone: 'America/New_York',
   });
 
   // Logo URL for email - use environment-aware URL
@@ -219,7 +221,7 @@ const container = {
 
 const logoSection = {
   textAlign: 'center' as const,
-  padding: '10px 30px 5px',
+  padding: '10px 30px 0px',
   backgroundColor: '#ffffff',
 };
 
@@ -233,7 +235,7 @@ const logoStyle = {
 const header = {
   background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
   borderRadius: '12px 12px 0 0',
-  padding: '40px 30px',
+  padding: '20px 30px',
   textAlign: 'center' as const,
   color: '#ffffff',
 };

@@ -24,12 +24,14 @@ interface ContactReceivedProps {
 }
 
 export default function ContactReceived({ contact }: ContactReceivedProps) {
+  // Get date/time in US Eastern timezone
   const formattedDate = new Date(contact.created_at).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
     hour: '2-digit',
-    minute: '2-digit'
+    minute: '2-digit',
+    timeZone: 'America/New_York'
   });
 
   // Logo URL for email - use environment-aware URL
