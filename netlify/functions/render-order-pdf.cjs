@@ -171,6 +171,24 @@ async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textEleme
         
         textElements.forEach((textEl, index) => {
           try {
+            console.log(`[PDF] Processing text element ${index + 1}/${textElements.length}: "${textEl.content}"`);
+            console.log(`[PDF] Text element data:`, JSON.stringify({ xPercent: textEl.xPercent, yPercent: textEl.yPercent, fontSize: textEl.fontSize, color: textEl.color, textAlign: textEl.textAlign }));
+            
+            // CRITICAL CHECK: Ensure xPercent and yPercent exist
+            if (textEl.xPercent === undefined || textEl.yPercent === undefined) {
+              console.error(`[PDF] CRITICAL: Text element missing position data!`, textEl);
+              return; // Skip this element
+            }
+            
+            console.log(`[PDF] Processing text element ${index + 1}/${textElements.length}: "${textEl.content}"`);
+            console.log(`[PDF] Text element data:`, JSON.stringify({ xPercent: textEl.xPercent, yPercent: textEl.yPercent, fontSize: textEl.fontSize, color: textEl.color, textAlign: textEl.textAlign }));
+            
+            // CRITICAL CHECK: Ensure xPercent and yPercent exist
+            if (textEl.xPercent === undefined || textEl.yPercent === undefined) {
+              console.error(`[PDF] CRITICAL: Text element missing position data!`, textEl);
+              return; // Skip this element
+            }
+            
             // Convert percentage positions to points
             // CRITICAL: Convert preview coordinates to banner coordinates
             // The preview SVG includes rulers (1.2" each side) and bleed (0.25" each side)
@@ -240,16 +258,51 @@ async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textEleme
             doc.fontSize(fontSize);
             doc.fillColor(textEl.color || '#000000');
             
+            // SAFETY CHECK: Ensure coordinates are valid
+            if (isNaN(xPt) || isNaN(yPt)) {
+              console.error(`[PDF] Invalid coordinates for text "${textEl.content}": xPt=${xPt}, yPt=${yPt}`);
+              console.error(`[PDF] Debug values: bannerX=${bannerX}, bannerY=${bannerY}, bannerXPercent=${bannerXPercent}, bannerYPercent=${bannerYPercent}`);
+              return; // Skip this text element
+            }
+            
+            // SAFETY CHECK: Ensure coordinates are within page bounds
+            if (xPt < 0 || xPt > pageWidthPt || yPt < 0 || yPt > pageHeightPt) {
+              console.warn(`[PDF] Text "${textEl.content}" is outside page bounds: (${xPt.toFixed(2)}, ${yPt.toFixed(2)})`);
+              console.warn(`[PDF] Page bounds: (0, 0) to (${pageWidthPt}, ${pageHeightPt})`);
+              // Clamp to page bounds
+              const clampedX = Math.max(0, Math.min(xPt, pageWidthPt - 100));
+              const clampedY = Math.max(0, Math.min(yPt, pageHeightPt - 100));
+              console.warn(`[PDF] Clamping to: (${clampedX.toFixed(2)}, ${clampedY.toFixed(2)})`);
+              // Actually use the clamped values
+              xPt = clampedX;
+              yPt = clampedY;
+              // Actually use the clamped values
+              xPt = clampedX;
+              yPt = clampedY;
+            }
+            
             // Calculate text alignment
             const textAlign = textEl.textAlign || 'left';
+            
+            // SAFETY CHECK: Calculate text width safely
+            let textWidth = pageWidthPt - xPt - 20;
+            if (textWidth <= 0) {
+              console.warn(`[PDF] Calculated text width is ${textWidth}, using minimum width of 100pt`);
+              textWidth = 100;
+            }
+            
             const textOptions = {
               align: textAlign,
               lineBreak: true,
-              width: pageWidthPt - xPt - 20, // Leave some margin
+              width: textWidth,
             };
+            
+            console.log(`[PDF] About to render text: "${textEl.content.substring(0, 50)}" at (${xPt.toFixed(2)}, ${yPt.toFixed(2)}) with width ${textWidth.toFixed(2)}pt, align: ${textAlign}, fontSize: ${fontSize.toFixed(2)}pt, color: ${textEl.color || '#000000'}`);
             
             // Render the text
             doc.text(textEl.content, xPt, yPt, textOptions);
+            
+            console.log(`[PDF] ✓ Successfully rendered text "${textEl.content.substring(0, 30)}..."`);
             
             console.log(`[PDF] Rendered text layer ${index + 1}: "${textEl.content.substring(0, 30)}..." at (${xPt.toFixed(1)}, ${yPt.toFixed(1)}) - fontSize: ${textEl.fontSize}px → ${fontSize.toFixed(1)}pt (scale: ${scaleFactor.toFixed(2)}x)`);
           } catch (textError) {
