@@ -216,8 +216,21 @@ const PricingCard: React.FC = () => {
       pole_pocket_pricing_mode: 'per_item' as const,
       line_total_cents: Math.round(baseTotals.materialTotal * 100),
     };
-    const updatedQuote = { ...quote };
-    addFromQuote(updatedQuote, undefined, pricing);
+    // Extract only data fields from quote store, not methods
+    const quoteData = {
+      widthIn: quote.widthIn,
+      heightIn: quote.heightIn,
+      quantity: quote.quantity,
+      material: quote.material,
+      grommets: quote.grommets,
+      polePockets: quote.polePockets,
+      polePocketSize: quote.polePocketSize,
+      addRope: quote.addRope,
+      previewScalePct: quote.previewScalePct,
+      textElements: quote.textElements,
+      file: quote.file,
+    };
+    addFromQuote(quoteData as any, undefined, pricing);
     toast({
       title: "Added to Cart",
       description: "Your banner has been added to the cart.",
@@ -260,8 +273,21 @@ const PricingCard: React.FC = () => {
       pole_pocket_pricing_mode: 'per_item' as const,
       line_total_cents: Math.round(baseTotals.materialTotal * 100),
     };
-    const updatedQuote = { ...quote };
-    addFromQuote(updatedQuote, undefined, pricing);
+    // Extract only data fields from quote store, not methods
+    const quoteData = {
+      widthIn: quote.widthIn,
+      heightIn: quote.heightIn,
+      quantity: quote.quantity,
+      material: quote.material,
+      grommets: quote.grommets,
+      polePockets: quote.polePockets,
+      polePocketSize: quote.polePocketSize,
+      addRope: quote.addRope,
+      previewScalePct: quote.previewScalePct,
+      textElements: quote.textElements,
+      file: quote.file,
+    };
+    addFromQuote(quoteData as any, undefined, pricing);
     scrollToTopBeforeNavigate();
     navigate('/checkout');
   };
@@ -275,8 +301,20 @@ const PricingCard: React.FC = () => {
       setDontShowUpsellAgain(true);
     }
 
-    // Build updated quote object with selected options
-    let updatedQuote = { ...quote };
+    // Build updated quote object with selected options - extract only data fields
+    let updatedQuote = {
+      widthIn: quote.widthIn,
+      heightIn: quote.heightIn,
+      quantity: quote.quantity,
+      material: quote.material,
+      grommets: quote.grommets,
+      polePockets: quote.polePockets,
+      polePocketSize: quote.polePocketSize,
+      addRope: quote.addRope,
+      previewScalePct: quote.previewScalePct,
+      textElements: quote.textElements,
+      file: quote.file,
+    };
     
     selectedOptions.forEach(option => {
       if (option.selected) {
