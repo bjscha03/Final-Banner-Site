@@ -109,12 +109,14 @@ const DraggableText: React.FC<DraggableTextProps> = ({
 
   const handleTouchMove = (e: TouchEvent) => {
     if (!isDragging) return;
+    e.preventDefault(); // Prevent scrolling while dragging
     const touch = e.touches[0];
     handleMouseMove({ clientX: touch.clientX, clientY: touch.clientY } as MouseEvent);
   };
 
   const handleResizeTouchMove = (e: TouchEvent) => {
     if (!isResizing) return;
+    e.preventDefault(); // Prevent scrolling while resizing
     const touch = e.touches[0];
     handleResizeMouseMove({ clientX: touch.clientX, clientY: touch.clientY } as MouseEvent);
   };
@@ -149,26 +151,9 @@ const DraggableText: React.FC<DraggableTextProps> = ({
   
   const handleResizeMouseMove = (e: MouseEvent) => {
     if (!isResizing) return;
+    
     const deltaX = e.clientX - dragStart.x;
     const deltaY = e.clientY - dragStart.y;
-
-    // Find the SVG element to get its actual position within the container
-    // The SVG guide is at the SVG's center, not the container's center
-    const svgElement = container.querySelector('svg');
-    let svgCenterXPercent = 50; // Default to 50% if SVG not found
-    let svgCenterYPercent = 50;
-    
-    if (svgElement) {
-      const svgRect = svgElement.getBoundingClientRect();
-      // Calculate where the SVG's center is as a percentage of the container
-      const svgCenterX = svgRect.left + (svgRect.width / 2);
-      const svgCenterY = svgRect.top + (svgRect.height / 2);
-      const containerLeft = containerRect.left;
-      const containerTop = containerRect.top;
-      
-      svgCenterXPercent = ((svgCenterX - containerLeft) / containerRect.width) * 100;
-      svgCenterYPercent = ((svgCenterY - containerTop) / containerRect.height) * 100;
-    }
     
     // Calculate font size change based on resize direction
     let fontSizeChange = 0;
@@ -300,7 +285,7 @@ const DraggableText: React.FC<DraggableTextProps> = ({
     if (isDragging) {
       window.addEventListener('mousemove', handleMouseMove);
       window.addEventListener('mouseup', handleMouseUp);
-      window.addEventListener('touchmove', handleTouchMove);
+      window.addEventListener('touchmove', handleTouchMove, { passive: false });
       window.addEventListener('touchend', handleTouchEnd);
       return () => {
         window.removeEventListener('mousemove', handleMouseMove);
@@ -315,7 +300,7 @@ const DraggableText: React.FC<DraggableTextProps> = ({
     if (isResizing) {
       window.addEventListener('mousemove', handleResizeMouseMove);
       window.addEventListener('mouseup', handleResizeMouseUp);
-      window.addEventListener('touchmove', handleResizeTouchMove);
+      window.addEventListener('touchmove', handleResizeTouchMove, { passive: false });
       window.addEventListener('touchend', handleTouchEnd);
       return () => {
         window.removeEventListener('mousemove', handleResizeMouseMove);
@@ -325,6 +310,33 @@ const DraggableText: React.FC<DraggableTextProps> = ({
       };
     }
   }, [isResizing, dragStart, initialFontSize]);
+
+  // Handle orientation changes on mobile devices
+  useEffect(() => {
+    const handleOrientationChange = () => {
+      // Force a re-render to recalculate positions based on new container dimensions
+      // The percentage-based positioning will automatically adjust
+      if (textRef.current) {
+        // Trigger a small update to force recalculation
+        const currentXPercent = element.xPercent ?? ((element.x ?? 50) / bannerWidthIn) * 100;
+        const currentYPercent = element.yPercent ?? ((element.y ?? 50) / bannerHeightIn) * 100;
+        
+        // Only update if we have percentage values
+        if (element.xPercent !== undefined && element.yPercent !== undefined) {
+          onUpdate({ xPercent: currentXPercent, yPercent: currentYPercent });
+        }
+      }
+    };
+
+    // Listen for both resize and orientationchange events
+    window.addEventListener('resize', handleOrientationChange);
+    window.addEventListener('orientationchange', handleOrientationChange);
+    
+    return () => {
+      window.removeEventListener('resize', handleOrientationChange);
+      window.removeEventListener('orientationchange', handleOrientationChange);
+    };
+  }, [element.xPercent, element.yPercent, element.x, element.y, bannerWidthIn, bannerHeightIn]);
 
   // Handle clicking outside to exit edit mode and deselect
   useEffect(() => {
@@ -400,6 +412,7 @@ const DraggableText: React.FC<DraggableTextProps> = ({
         boxSizing: 'border-box', // Ensure padding is included in dimensions
         backgroundColor: (isSelected && !isEditing) ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
         zIndex: 9999,
+        touchAction: 'none', // Prevent default touch behaviors
       }}
       onMouseDown={handleMouseDown}
       onDoubleClick={(e) => { e.stopPropagation(); setIsEditing(true); }}
@@ -443,13 +456,14 @@ const DraggableText: React.FC<DraggableTextProps> = ({
               position: 'absolute',
               top: '-8px',
               left: '-8px',
-              width: '12px',
-              height: '12px',
+              width: '20px',
+              height: '20px',
               backgroundColor: '#3b82f6',
               border: '2px solid white',
               borderRadius: '50%',
               cursor: 'nwse-resize',
               zIndex: 10,
+              touchAction: 'none',
             }}
             title="Drag to resize"
           />
@@ -462,13 +476,14 @@ const DraggableText: React.FC<DraggableTextProps> = ({
               position: 'absolute',
               top: '-8px',
               right: '-8px',
-              width: '12px',
-              height: '12px',
+              width: '20px',
+              height: '20px',
               backgroundColor: '#3b82f6',
               border: '2px solid white',
               borderRadius: '50%',
               cursor: 'nesw-resize',
               zIndex: 10,
+              touchAction: 'none',
             }}
             title="Drag to resize"
           />
@@ -481,13 +496,14 @@ const DraggableText: React.FC<DraggableTextProps> = ({
               position: 'absolute',
               bottom: '-8px',
               left: '-8px',
-              width: '12px',
-              height: '12px',
+              width: '20px',
+              height: '20px',
               backgroundColor: '#3b82f6',
               border: '2px solid white',
               borderRadius: '50%',
               cursor: 'nesw-resize',
               zIndex: 10,
+              touchAction: 'none',
             }}
             title="Drag to resize"
           />
@@ -500,13 +516,14 @@ const DraggableText: React.FC<DraggableTextProps> = ({
               position: 'absolute',
               bottom: '-8px',
               right: '-8px',
-              width: '12px',
-              height: '12px',
+              width: '20px',
+              height: '20px',
               backgroundColor: '#3b82f6',
               border: '2px solid white',
               borderRadius: '50%',
               cursor: 'nwse-resize',
               zIndex: 10,
+              touchAction: 'none',
             }}
             title="Drag to resize"
           />
@@ -521,13 +538,14 @@ const DraggableText: React.FC<DraggableTextProps> = ({
               top: '-8px',
               left: '50%',
               transform: 'translateX(-50%)',
-              width: '12px',
-              height: '12px',
+              width: '20px',
+              height: '20px',
               backgroundColor: '#3b82f6',
               border: '2px solid white',
               borderRadius: '50%',
               cursor: 'ns-resize',
               zIndex: 10,
+              touchAction: 'none',
             }}
             title="Drag to resize"
           />
@@ -541,13 +559,14 @@ const DraggableText: React.FC<DraggableTextProps> = ({
               bottom: '-8px',
               left: '50%',
               transform: 'translateX(-50%)',
-              width: '12px',
-              height: '12px',
+              width: '20px',
+              height: '20px',
               backgroundColor: '#3b82f6',
               border: '2px solid white',
               borderRadius: '50%',
               cursor: 'ns-resize',
               zIndex: 10,
+              touchAction: 'none',
             }}
             title="Drag to resize"
           />
@@ -561,13 +580,14 @@ const DraggableText: React.FC<DraggableTextProps> = ({
               left: '-8px',
               top: '50%',
               transform: 'translateY(-50%)',
-              width: '12px',
-              height: '12px',
+              width: '20px',
+              height: '20px',
               backgroundColor: '#3b82f6',
               border: '2px solid white',
               borderRadius: '50%',
               cursor: 'ew-resize',
               zIndex: 10,
+              touchAction: 'none',
             }}
             title="Drag to resize"
           />
@@ -581,13 +601,14 @@ const DraggableText: React.FC<DraggableTextProps> = ({
               right: '-8px',
               top: '50%',
               transform: 'translateY(-50%)',
-              width: '12px',
-              height: '12px',
+              width: '20px',
+              height: '20px',
               backgroundColor: '#3b82f6',
               border: '2px solid white',
               borderRadius: '50%',
               cursor: 'ew-resize',
               zIndex: 10,
+              touchAction: 'none',
             }}
             title="Drag to resize"
           />
