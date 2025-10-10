@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { QuoteState, MaterialKey, Grommets } from './quote';
+import { QuoteState, MaterialKey, Grommets, TextElement } from './quote';
 import { calculateTax, calculateTotalWithTax, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
 
 export type PricingMode = 'per_item' | 'per_order';
@@ -27,6 +27,7 @@ export interface CartItem {
   file_key?: string;
   file_name?: string;
   file_url?: string;
+  text_elements?: TextElement[];      // Text layers added in design tool
   // AI Design metadata (optional)
   aiDesign?: {
     prompt: string;
@@ -210,6 +211,7 @@ export const useCartStore = create<CartState>()(
           file_key: fileKey,
           file_name: quote.file?.name,
           file_url: quote.file?.url,
+          text_elements: quote.textElements && quote.textElements.length > 0 ? quote.textElements : undefined,
           created_at: new Date().toISOString(),
           ...(aiMetadata || {}),
         };

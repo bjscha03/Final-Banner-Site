@@ -170,7 +170,8 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
         bleedIn: 0.125, // Standard 1/8" bleed
         targetDpi: 150, // High quality for print
         transform: item.transform || null, // Use stored transform if available
-        previewCanvasPx: item.preview_canvas_px || null
+        previewCanvasPx: item.preview_canvas_px || null,
+        textElements: item.text_elements || [] // Include text layers for rendering
       };
 
       console.log('[PDF Download] Sending request:', requestBody);

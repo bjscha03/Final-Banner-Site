@@ -134,9 +134,9 @@ async function maybeUpscaleToFit(imgBuffer, needW, needH) {
 }
 
 /**
- * Convert raster image to PDF
+ * Convert raster image to PDF with optional text layers
  */
-async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn) {
+async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textElements = []) {
   return new Promise((resolve, reject) => {
     try {
       const chunks = [];
@@ -156,6 +156,7 @@ async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn) {
         reject(err);
       });
 
+      // Add the base image
       doc.image(imgBuffer, 0, 0, {
         width: pageWidthPt,
         height: pageHeightPt,
@@ -163,6 +164,55 @@ async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn) {
         align: 'center',
         valign: 'center',
       });
+
+      // Render text layers on top of the image
+      if (textElements && textElements.length > 0) {
+        console.log(`[PDF] Rendering ${textElements.length} text layers`);
+        
+        textElements.forEach((textEl, index) => {
+          try {
+            // Convert percentage positions to points
+            const xPt = (textEl.xPercent / 100) * pageWidthPt;
+            const yPt = (textEl.yPercent / 100) * pageHeightPt;
+            
+            // Set font properties
+            const fontFamily = textEl.fontFamily || 'Helvetica';
+            const fontSize = textEl.fontSize || 24;
+            const fontWeight = textEl.fontWeight === 'bold' ? 'bold' : 'normal';
+            
+            // Map font family to PDFKit built-in fonts
+            let pdfFont = 'Helvetica';
+            if (fontFamily.toLowerCase().includes('times')) {
+              pdfFont = fontWeight === 'bold' ? 'Times-Bold' : 'Times-Roman';
+            } else if (fontFamily.toLowerCase().includes('courier')) {
+              pdfFont = fontWeight === 'bold' ? 'Courier-Bold' : 'Courier';
+            } else {
+              pdfFont = fontWeight === 'bold' ? 'Helvetica-Bold' : 'Helvetica';
+            }
+            
+            // Set font and color
+            doc.font(pdfFont);
+            doc.fontSize(fontSize);
+            doc.fillColor(textEl.color || '#000000');
+            
+            // Calculate text alignment
+            const textAlign = textEl.textAlign || 'left';
+            const textOptions = {
+              align: textAlign,
+              lineBreak: true,
+              width: pageWidthPt - xPt - 20, // Leave some margin
+            };
+            
+            // Render the text
+            doc.text(textEl.content, xPt, yPt, textOptions);
+            
+            console.log(`[PDF] Rendered text layer ${index + 1}: "${textEl.content.substring(0, 30)}..." at (${xPt.toFixed(1)}, ${yPt.toFixed(1)})`);
+          } catch (textError) {
+            console.error(`[PDF] Error rendering text layer ${index + 1}:`, textError);
+            // Continue rendering other text layers even if one fails
+          }
+        });
+      }
 
       doc.end();
     } catch (err) {
@@ -358,7 +408,7 @@ exports.handler = async (event) => {
 
     console.log('[PDF] Image composited onto canvas');
 
-    const pdfBuffer = await rasterToPdfBuffer(merged, finalWidthIn, finalHeightIn);
+    const pdfBuffer = await rasterToPdfBuffer(merged, finalWidthIn, finalHeightIn, req.textElements);
     console.log(`[PDF] PDF generated: ${pdfBuffer.length} bytes`);
 
     // Return PDF as base64 data URL for immediate download
