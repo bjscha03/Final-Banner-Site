@@ -361,43 +361,12 @@ exports.handler = async (event) => {
     const pdfBuffer = await rasterToPdfBuffer(merged, finalWidthIn, finalHeightIn);
     console.log(`[PDF] PDF generated: ${pdfBuffer.length} bytes`);
 
-    // Upload PDF to Cloudinary
-    console.log('[PDF] Uploading PDF to Cloudinary...');
-    const uploadResult = await new Promise((resolve, reject) => {
-      try {
-        const stream = cloudinary.uploader.upload_stream(
-          {
-            resource_type: 'raw',
-            folder: 'final_pdfs',
-            public_id: `order_${req.orderId}_${Date.now()}`,
-            format: 'pdf',
-            access_mode: 'public',
-          },
-          (error, result) => {
-            if (error) {
-              console.error('[PDF] Cloudinary upload error:', error);
-              reject(error);
-            } else {
-              resolve(result);
-            }
-          }
-        );
-        
-        stream.on('error', (err) => {
-          console.error('[PDF] Stream error:', err);
-          reject(err);
-        });
-        
-        stream.end(pdfBuffer);
-      } catch (err) {
-        console.error('[PDF] Error setting up Cloudinary upload:', err);
-        reject(err);
-      }
-    });
+    // Return PDF as base64 data URL for immediate download
+    // This avoids Cloudinary authentication issues with raw files
+    const pdfBase64 = pdfBuffer.toString('base64');
+    const pdfDataUrl = `data:application/pdf;base64,${pdfBase64}`;
     
-    const finalPdfUrl = uploadResult.secure_url;
-    const publicId = uploadResult.public_id;
-    console.log(`[PDF] Uploaded to Cloudinary: ${publicId}`);
+    console.log('[PDF] PDF converted to base64 data URL');
 
     const meta = {
       dpi: targetDpi,
@@ -408,11 +377,8 @@ exports.handler = async (event) => {
       transform: req.transform,
     };
 
-    // Skip database update - PDF URL returned from Cloudinary
-    console.log('[PDF] Skipping database update (PDF returned as base64)');
-
     const response = {
-      pdfUrl: finalPdfUrl,
+      pdfUrl: pdfDataUrl,
       dpi: targetDpi,
       bleedIn,
       renderedAt: new Date().toISOString(),
