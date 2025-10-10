@@ -376,7 +376,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                         </div>
                         
                         {/* Admin PDF Download Button */}
-                        {isAdminUser && item.file_key && (
+                        {isAdminUser && (item.file_key || item.print_ready_url || item.web_preview_url) && (
                           <Button
                             variant="outline"
                             size="sm"
@@ -388,7 +388,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                             Download PDF
                           </Button>
                         )}
-                        {isAdminUser && !item.file_key && (
+                        {isAdminUser && !item.file_key && !item.print_ready_url && !item.web_preview_url && (
                           <div className="text-xs text-gray-500 text-center py-1">
                             <FileText className="h-3 w-3 inline mr-1" />
                             No file uploaded
