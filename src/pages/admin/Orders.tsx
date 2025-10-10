@@ -665,7 +665,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                       // For AI items, download directly from the URL (print-ready files)
                       const link = document.createElement('a');
                       link.href = downloadInfo.url;
-                      link.download = `banner-${order.id}-item-${index + 1}-${downloadInfo.type}.${downloadInfo.type === 'print_ready' ? 'tiff' : 'jpg'}`;
+                      link.download = `banner-${order.id}-item-${index + 1}-${downloadInfo.type}.${downloadInfo.type === 'print_ready' ? 'pdf' : 'jpg'}`;
                       document.body.appendChild(link);
                       link.click();
                       document.body.removeChild(link);
