@@ -105,12 +105,16 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   scale = 1,
   file,
   imagePosition = { x: 0, y: 0 },
-  imageScale = 1,  onImageMouseDown,
+  imageScale = 1,
+  onImageMouseDown,
   onImageTouchStart,
   onCanvasClick,
   isDraggingImage = false,
   isImageSelected = false,
-  isUploading = false,}) => {
+  isUploading = false,
+  showVerticalCenterGuide = false,
+  showHorizontalCenterGuide = false,
+}) => {
   const FEATURE_PDF_STATIC_PREVIEW = true;
   const grommetPositions = useMemo(() => {
     return grommetPoints(widthIn, heightIn, grommets);
@@ -489,7 +493,6 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
             y2={totalHeight}
             stroke="#FF00FF"
             strokeWidth={0.05}
-            style={{ filter: 'drop-shadow(0 0 0.1 rgba(255, 0, 255, 0.5))' }}
             pointerEvents="none"
           />
         )}
@@ -501,7 +504,6 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
             y2={totalHeight / 2}
             stroke="#FF00FF"
             strokeWidth={0.05}
-            style={{ filter: 'drop-shadow(0 0 0.1 rgba(255, 0, 255, 0.5))' }}
             pointerEvents="none"
           />
         )}

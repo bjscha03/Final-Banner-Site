@@ -31,6 +31,104 @@
 
     <!-- Expertise.ai Chatbot Widget -->
     <chat-bot platform_id="6e24fd05-6847-41bf-a35c-9957bb112f7a" user_id="a9d9d153-7d83-4814-84c8-9f1c62b3c5f9" chatbot_id="117347dc-5164-4f55-9ec6-91f227ee8a85" auto-open="false"><a href="https://www.expertise.ai/?utm_source=widget&utm_medium=referral">expertise.ai - AI SDR Agent</a></chat-bot><script src="https://cdn.chatsimple.ai/chat-bot-loader.js" defer></script>
+    
+    <!-- Force chat widget to stay collapsed on page load -->
+    <script>
+      // Ensure chat widget stays collapsed on page load
+      window.addEventListener('DOMContentLoaded', function() {
+        // Wait for chat widget to load
+        setTimeout(function() {
+          // Find the chat widget iframe or container
+          const chatWidget = document.querySelector('chat-bot');
+          const chatIframe = document.querySelector('iframe[src*="chatsimple"]');
+          const chatContainer = document.querySelector('[class*="chat"]');
+          
+          // Force close any auto-opened chat
+          if (chatWidget) {
+            chatWidget.setAttribute('auto-open', 'false');
+          }
+          
+          // Try to find and close the chat widget using various methods
+          if (window.ChatSimple && window.ChatSimple.close) {
+            window.ChatSimple.close();
+          }
+          
+          // Look for common chat widget close buttons and click them
+          const closeButtons = document.querySelectorAll('[class*="close"], [class*="minimize"], [aria-label*="close" i], [aria-label*="minimize" i]');
+          closeButtons.forEach(function(btn) {
+            if (btn.offsetParent !== null) { // Check if visible
+              btn.click();
+            }
+          });
+        }, 1000);
+        
+        // Also check after a longer delay in case widget loads slowly
+        setTimeout(function() {
+          const chatWidget = document.querySelector('chat-bot');
+          if (chatWidget) {
+            chatWidget.setAttribute('auto-open', 'false');
+          }
+        }, 3000);
+      });
+      
+      // Prevent auto-open on any page navigation
+      window.addEventListener('load', function() {
+        setTimeout(function() {
+          if (window.ChatSimple && window.ChatSimple.close) {
+            window.ChatSimple.close();
+          }
+        }, 500);
+      });
+    </script>
+    
+    <!-- Force chat widget to stay collapsed on page load -->
+    <script>
+      // Ensure chat widget stays collapsed on page load
+      window.addEventListener('DOMContentLoaded', function() {
+        // Wait for chat widget to load
+        setTimeout(function() {
+          // Find the chat widget iframe or container
+          const chatWidget = document.querySelector('chat-bot');
+          const chatIframe = document.querySelector('iframe[src*="chatsimple"]');
+          const chatContainer = document.querySelector('[class*="chat"]');
+          
+          // Force close any auto-opened chat
+          if (chatWidget) {
+            chatWidget.setAttribute('auto-open', 'false');
+          }
+          
+          // Try to find and close the chat widget using various methods
+          if (window.ChatSimple && window.ChatSimple.close) {
+            window.ChatSimple.close();
+          }
+          
+          // Look for common chat widget close buttons and click them
+          const closeButtons = document.querySelectorAll('[class*="close"], [class*="minimize"], [aria-label*="close" i], [aria-label*="minimize" i]');
+          closeButtons.forEach(function(btn) {
+            if (btn.offsetParent !== null) { // Check if visible
+              btn.click();
+            }
+          });
+        }, 1000);
+        
+        // Also check after a longer delay in case widget loads slowly
+        setTimeout(function() {
+          const chatWidget = document.querySelector('chat-bot');
+          if (chatWidget) {
+            chatWidget.setAttribute('auto-open', 'false');
+          }
+        }, 3000);
+      });
+      
+      // Prevent auto-open on any page navigation
+      window.addEventListener('load', function() {
+        setTimeout(function() {
+          if (window.ChatSimple && window.ChatSimple.close) {
+            window.ChatSimple.close();
+          }
+        }, 500);
+      });
+    </script>
 
 
 

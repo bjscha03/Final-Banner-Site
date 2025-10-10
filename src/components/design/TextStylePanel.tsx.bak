@@ -93,6 +93,11 @@ const TextStylePanel: React.FC<TextStylePanelProps> = ({ selectedElement, onUpda
       </div>
 
       <div className="space-y-2">
+        <div className="flex justify-between items-center">
+        />
+      </div>
+
+      <div className="space-y-2">
         <Label className="text-xs font-medium">Text Color</Label>
         <div className="flex items-center gap-2">
           <input

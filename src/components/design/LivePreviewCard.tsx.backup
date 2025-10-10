@@ -316,16 +316,18 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
 
   // Text handling functions
   const handleAddText = () => {
+    console.log('🟢 Adding text with dimensions:', { widthIn, heightIn });
     const newText = {
-      content: 'New Text',
-      x: (widthIn / 2), // Center horizontally (position is top-left of text)
-      y: (heightIn / 2), // Center vertically (position is top-left of text)
-      fontSize: 24, // Reasonable starting size
+      content: 'HELLO WORLD',
+      x: 5, // Fixed position - 5 inches from left
+      y: 5, // Fixed position - 5 inches from top
+      fontSize: 96, // Very large
       fontFamily: 'Arial, sans-serif',
-      color: '#000000', // Black text
-      fontWeight: 'normal' as const,
-      textAlign: 'center' as const,
+      color: '#FF0000', // Bright red
+      fontWeight: 'bold' as const,
+      textAlign: 'left' as const,
     };
+    console.log('🟢 New text config:', newText);
     
     // Add to store - this will generate an ID
     addTextElement(newText);
@@ -1014,29 +1016,35 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                     imageScale={imageScale}
                     isUploading={isUploading || isGeneratingAI} />
 
-                  {/* Text Elements Overlay - Using DraggableText with percentage positioning */}
-                  {textElements.map((element) => (
-                    <DraggableText
-                      key={element.id}
-                      element={element}
-                      bannerWidthIn={widthIn}
-                      bannerHeightIn={heightIn}
-                      scale={1}
-                      isSelected={selectedTextId === element.id}
-                      onSelect={() => {
-                        setSelectedTextId(element.id);
-                        setShowTextPanel(true);
-                      }}
-                      onUpdate={(updates) => updateTextElement(element.id, updates)}
-                      onDelete={() => {
-                        deleteTextElement(element.id);
-                        if (selectedTextId === element.id) {
-                          setSelectedTextId(null);
-                          setShowTextPanel(false);
-                        }
-                      }}
-                    />
-                  ))}
+                  {/* Text Elements Overlay - Now inside scaled container */}
+                  {(() => {
+                    console.log('🎨 Rendering text elements:', textElements.length, textElements);
+                    return textElements.map((element) => {
+                      console.log('🎨 Rendering element:', element);
+                      return (
+                        <DraggableText
+                          key={element.id}
+                          element={element}
+                          bannerWidthIn={widthIn}
+                          bannerHeightIn={heightIn}
+                          scale={1} // Scale is already applied by parent container
+                          isSelected={selectedTextId === element.id}
+                          onSelect={() => {
+                            setSelectedTextId(element.id);
+                            setShowTextPanel(true);
+                          }}
+                          onUpdate={(updates) => updateTextElement(element.id, updates)}
+                          onDelete={() => {
+                            deleteTextElement(element.id);
+                            if (selectedTextId === element.id) {
+                              setSelectedTextId(null);
+                              setShowTextPanel(false);
+                            }
+                          }}
+                        />
+                      );
+                    });
+                  })()}
                 </div>
               </div>
 
