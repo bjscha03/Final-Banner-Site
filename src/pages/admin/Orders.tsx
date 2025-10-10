@@ -662,13 +662,40 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                   const downloadInfo = getBestDownloadUrl(item);
                   if (downloadInfo) {
                     if (downloadInfo.isAI) {
-                      // For AI items, download directly from the URL (print-ready files)
-                      const link = document.createElement('a');
-                      link.href = downloadInfo.url;
-                      link.download = `banner-${order.id}-item-${index + 1}-${downloadInfo.type}.${downloadInfo.type === 'print_ready' ? 'pdf' : 'jpg'}`;
-                      document.body.appendChild(link);
-                      link.click();
-                      document.body.removeChild(link);
+                      // For AI items, fetch and download as blob for better compatibility
+                      const fileName = `banner-${order.id}-item-${index + 1}-${downloadInfo.type}.${downloadInfo.type === 'print_ready' ? 'pdf' : 'jpg'}`;
+                      
+                      // Check if it's a data URL (legacy format)
+                      if (downloadInfo.url.startsWith('data:')) {
+                        // Direct download for data URLs
+                        const link = document.createElement('a');
+                        link.href = downloadInfo.url;
+                        link.download = fileName;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                      } else {
+                        // Fetch from Cloudinary and download as blob
+                        fetch(downloadInfo.url)
+                          .then(response => {
+                            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                            return response.blob();
+                          })
+                          .then(blob => {
+                            const blobUrl = URL.createObjectURL(blob);
+                            const link = document.createElement('a');
+                            link.href = blobUrl;
+                            link.download = fileName;
+                            document.body.appendChild(link);
+                            link.click();
+                            document.body.removeChild(link);
+                            URL.revokeObjectURL(blobUrl);
+                          })
+                          .catch(error => {
+                            console.error('Download failed:', error);
+                            alert(`Failed to download ${fileName}. Please try again.`);
+                          });
+                      }
                     } else {
                       // For regular items, use the existing download function
                       onFileDownload(downloadInfo.url, order.id, index);
