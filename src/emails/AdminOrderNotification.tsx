@@ -35,7 +35,7 @@ interface AdminOrderNotificationProps {
 
 export default function AdminOrderNotification({ order, invoiceUrl }: AdminOrderNotificationProps) {
   const formattedDate = order.created_at 
-    ? new Date(order.created_at).toLocaleDateString('en-US', {
+    ? new Date(order.created_at).toLocaleString('en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',
@@ -43,7 +43,7 @@ export default function AdminOrderNotification({ order, invoiceUrl }: AdminOrder
         minute: '2-digit',
         timeZone: 'America/New_York'
       })
-    : new Date().toLocaleDateString('en-US', {
+    : new Date().toLocaleString('en-US', {
         year: 'numeric',
         month: 'long',
         day: 'numeric',

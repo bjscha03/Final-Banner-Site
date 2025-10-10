@@ -43,7 +43,7 @@ interface OrderCanceledProps {
 
 export default function OrderCanceled({ order }: OrderCanceledProps) {
   // Get current date/time in US Eastern timezone
-  const cancelDate = new Date().toLocaleDateString('en-US', {
+  const cancelDate = new Date().toLocaleString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',

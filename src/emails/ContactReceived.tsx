@@ -25,7 +25,7 @@ interface ContactReceivedProps {
 
 export default function ContactReceived({ contact }: ContactReceivedProps) {
   // Get date/time in US Eastern timezone
-  const formattedDate = new Date(contact.created_at).toLocaleDateString('en-US', {
+  const formattedDate = new Date(contact.created_at).toLocaleString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',

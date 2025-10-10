@@ -54,8 +54,9 @@ interface OrderConfirmationProps {
 }
 
 export default function OrderConfirmation({ order, invoiceUrl }: OrderConfirmationProps) {
-  // Get current date/time in US Eastern timezone
-  const orderDate = new Date().toLocaleDateString('en-US', {
+  // Format date in US Eastern timezone - use toLocaleString for proper formatting
+  const now = new Date();
+  const orderDate = now.toLocaleString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',

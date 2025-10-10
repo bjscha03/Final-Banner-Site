@@ -53,16 +53,17 @@ interface OrderShippedProps {
 // CACHE BUST: Updated 2025-10-10 - Fixed timezone and spacing issues
 // This comment forces Netlify to rebuild the email template
 export default function OrderShipped({ order, trackingNumber, trackingUrl, carrier = 'FedEx' }: OrderShippedProps) {
-  // Get current date/time in US Eastern timezone
-  const shipDate = new Date().toLocaleDateString('en-US', {
+  // Format date in US Eastern timezone - use toLocaleString for proper formatting
+  const now = new Date();
+  const shipDate = now.toLocaleString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
     timeZone: 'America/New_York',
   });
 
-  // Logo URL for email - use environment-aware URL
-  const logoUrl = 'https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto,q_auto,w_300/https://bannersonthefly.com/cld-assets/images/logo-compact.svg';
+  // Use direct logo URL - works better in email clients
+  const logoUrl = 'https://bannersonthefly.com/cld-assets/images/logo-compact.svg';
 
   return (
     <Html>
