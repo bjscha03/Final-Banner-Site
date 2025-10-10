@@ -105,6 +105,18 @@ exports.handler = async (event, context) => {
     orderData = JSON.parse(event.body);
     console.log('Creating order with data:', orderData);
     console.log('Database URL available:', !!databaseUrl);
+    console.log('📦 Items received:', orderData.items?.length || 0);
+    if (orderData.items && orderData.items.length > 0) {
+      orderData.items.forEach((item, index) => {
+        console.log(`Item ${index + 1}:`, {
+          width_in: item.width_in,
+          height_in: item.height_in,
+          file_key: item.file_key,
+          text_elements: item.text_elements,
+          pole_pockets: item.pole_pockets
+        });
+      });
+    }
 
     // Apply feature flag pricing logic if enabled
     const flags = getFeatureFlags();
@@ -255,6 +267,7 @@ exports.handler = async (event, context) => {
     if (orderData.items && Array.isArray(orderData.items)) {
       for (const item of orderData.items) {
         console.log('Inserting order item:', JSON.stringify(item, null, 2));
+        console.log('Item details - width_in:', item.width_in, 'height_in:', item.height_in, 'file_key:', item.file_key, 'text_elements:', item.text_elements);
         try {
           // Convert pole_pockets to boolean for database (boolean column)
           const polePocketsValue = item.pole_pockets &&
@@ -262,26 +275,57 @@ exports.handler = async (event, context) => {
             item.pole_pockets !== 'false' &&
             item.pole_pockets !== false;
 
-          await sql`
-            INSERT INTO order_items (
-              id, order_id, width_in, height_in, quantity, material,
-              grommets, rope_feet, pole_pockets, line_total_cents, file_key, text_elements
-            )
-            VALUES (
-              ${randomUUID()},
-              ${orderId},
-              ${item.width_in || 0},
-              ${item.height_in || 0},
-              ${item.quantity || 1},
-              ${item.material || '13oz'},
-              ${item.grommets || 'none'},
-              ${item.rope_feet || 0},
-              ${polePocketsValue},
-              ${item.line_total_cents || 0},
-              ${item.file_key || null},
-              ${item.text_elements ? JSON.stringify(item.text_elements) : '[]'}
-            )
-          `;
+          // Try to insert with text_elements column first
+          try {
+            await sql`
+              INSERT INTO order_items (
+                id, order_id, width_in, height_in, quantity, material,
+                grommets, rope_feet, pole_pockets, line_total_cents, file_key, text_elements
+              )
+              VALUES (
+                ${randomUUID()},
+                ${orderId},
+                ${item.width_in || 0},
+                ${item.height_in || 0},
+                ${item.quantity || 1},
+                ${item.material || '13oz'},
+                ${item.grommets || 'none'},
+                ${item.rope_feet || 0},
+                ${polePocketsValue},
+                ${item.line_total_cents || 0},
+                ${item.file_key || null},
+                ${item.text_elements ? JSON.stringify(item.text_elements) : '[]'}
+              )
+            `;
+            console.log('Order item inserted successfully with text_elements');
+          } catch (textElementsError) {
+            // If text_elements column doesn't exist, try without it
+            if (textElementsError.message && textElementsError.message.includes('column "text_elements" does not exist')) {
+              console.warn('⚠️  text_elements column does not exist! Inserting without it. Please run: database-add-text-elements.sql');
+              await sql`
+                INSERT INTO order_items (
+                  id, order_id, width_in, height_in, quantity, material,
+                  grommets, rope_feet, pole_pockets, line_total_cents, file_key
+                )
+                VALUES (
+                  ${randomUUID()},
+                  ${orderId},
+                  ${item.width_in || 0},
+                  ${item.height_in || 0},
+                  ${item.quantity || 1},
+                  ${item.material || '13oz'},
+                  ${item.grommets || 'none'},
+                  ${item.rope_feet || 0},
+                  ${polePocketsValue},
+                  ${item.line_total_cents || 0},
+                  ${item.file_key || null}
+                )
+              `;
+              console.log('Order item inserted successfully WITHOUT text_elements (column missing)');
+            } else {
+              throw textElementsError;
+            }
+          }
         } catch (itemError) {
           console.error('Error inserting order item:', itemError);
           throw new Error(`Failed to insert order item: ${itemError.message}`);
