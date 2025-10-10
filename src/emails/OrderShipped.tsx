@@ -49,6 +49,9 @@ interface OrderShippedProps {
   carrier?: string;
 }
 
+
+// CACHE BUST: Updated 2025-10-10 - Fixed timezone and spacing issues
+// This comment forces Netlify to rebuild the email template
 export default function OrderShipped({ order, trackingNumber, trackingUrl, carrier = 'FedEx' }: OrderShippedProps) {
   // Get current date/time in US Eastern timezone
   const shipDate = new Date().toLocaleDateString('en-US', {
