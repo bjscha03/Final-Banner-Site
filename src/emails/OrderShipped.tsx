@@ -219,7 +219,7 @@ const container = {
 
 const logoSection = {
   textAlign: 'center' as const,
-  padding: '20px 30px 10px',
+  padding: '10px 30px 5px',
   backgroundColor: '#ffffff',
 };
 

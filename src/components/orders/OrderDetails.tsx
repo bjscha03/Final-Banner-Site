@@ -387,7 +387,6 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                             size="sm"
                             onClick={() => handlePdfDownload(item, index)}
                             disabled={pdfGenerating[index]}
-                            disabled={pdfGenerating[index]}
                             className="w-full"
                           >
                             <Download className="h-3 w-3 mr-1" />

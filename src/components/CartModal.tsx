@@ -185,7 +185,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                 <span>{usd(totalCents/100)}</span>
               </div>
 
-              <button onClick={handleCheckout} className="w-full mt-4 bg-white hover:from-blue-700 hover:to-indigo-700 text-slate-900 py-4 rounded-lg font-semibold text-lg shadow-sm hover:shadow-sm transition-all duration-200">
+              <button onClick={handleCheckout} className="w-full mt-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white py-4 rounded-lg font-semibold text-lg shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200">
                 Proceed to Checkout
               </button>
             </div>
