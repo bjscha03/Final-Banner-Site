@@ -177,7 +177,17 @@ async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textEleme
             
             // Set font properties
             const fontFamily = textEl.fontFamily || 'Helvetica';
-            const fontSize = textEl.fontSize || 24;
+            
+            // CRITICAL: Scale fontSize for print output
+            // The fontSize is stored as screen pixels (for preview at ~600-800px wide)
+            // But the PDF is much larger (e.g., 48" = 3456 points)
+            // Scale factor: Assume preview canvas is ~600px for a 48" banner
+            // So for a 48" banner: scaleFactor = 3456pt / 600px ≈ 5.76
+            // General formula: scaleFactor = pageWidthPt / 600
+            const PREVIEW_CANVAS_WIDTH_PX = 600; // Approximate preview canvas width
+            const scaleFactor = pageWidthPt / PREVIEW_CANVAS_WIDTH_PX;
+            const fontSize = (textEl.fontSize || 24) * scaleFactor;
+            
             const fontWeight = textEl.fontWeight === 'bold' ? 'bold' : 'normal';
             
             // Map font family to PDFKit built-in fonts
@@ -206,7 +216,7 @@ async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textEleme
             // Render the text
             doc.text(textEl.content, xPt, yPt, textOptions);
             
-            console.log(`[PDF] Rendered text layer ${index + 1}: "${textEl.content.substring(0, 30)}..." at (${xPt.toFixed(1)}, ${yPt.toFixed(1)})`);
+            console.log(`[PDF] Rendered text layer ${index + 1}: "${textEl.content.substring(0, 30)}..." at (${xPt.toFixed(1)}, ${yPt.toFixed(1)}) - fontSize: ${textEl.fontSize}px → ${fontSize.toFixed(1)}pt (scale: ${scaleFactor.toFixed(2)}x)`);
           } catch (textError) {
             console.error(`[PDF] Error rendering text layer ${index + 1}:`, textError);
             // Continue rendering other text layers even if one fails
