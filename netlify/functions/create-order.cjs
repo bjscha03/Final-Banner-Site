@@ -103,6 +103,19 @@ exports.handler = async (event, context) => {
     }
 
     orderData = JSON.parse(event.body);
+    
+    // AUTO-MIGRATE: Ensure text_elements column exists before processing order
+    try {
+      await sql`
+        ALTER TABLE order_items
+        ADD COLUMN IF NOT EXISTS text_elements JSONB DEFAULT '[]'::jsonb
+      `;
+      console.log('✅ Database migration: text_elements column verified/created');
+    } catch (migrationError) {
+      console.warn('⚠️ Database migration warning:', migrationError.message);
+      // Continue anyway - column might already exist
+    }
+    
     console.log('Creating order with data:', orderData);
     console.log('Database URL available:', !!databaseUrl);
     console.log('📦 Items received:', orderData.items?.length || 0);
