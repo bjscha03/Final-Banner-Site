@@ -180,15 +180,6 @@ async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textEleme
               return; // Skip this element
             }
             
-            console.log(`[PDF] Processing text element ${index + 1}/${textElements.length}: "${textEl.content}"`);
-            console.log(`[PDF] Text element data:`, JSON.stringify({ xPercent: textEl.xPercent, yPercent: textEl.yPercent, fontSize: textEl.fontSize, color: textEl.color, textAlign: textEl.textAlign }));
-            
-            // CRITICAL CHECK: Ensure xPercent and yPercent exist
-            if (textEl.xPercent === undefined || textEl.yPercent === undefined) {
-              console.error(`[PDF] CRITICAL: Text element missing position data!`, textEl);
-              return; // Skip this element
-            }
-            
             // Convert percentage positions to points
             // CRITICAL: Convert preview coordinates to banner coordinates
             // The preview SVG includes rulers (1.2" each side) and bleed (0.25" each side)
@@ -219,8 +210,8 @@ async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textEleme
             const bannerYPercent = (bannerY / heightIn) * 100;
             
             // Calculate position in points using corrected percentages
-            const xPt = (bannerXPercent / 100) * pageWidthPt;
-            const yPt = (bannerYPercent / 100) * pageHeightPt;
+            let xPt = (bannerXPercent / 100) * pageWidthPt;
+            let yPt = (bannerYPercent / 100) * pageHeightPt;
             
             console.log(`[PDF] Coordinate conversion for "${textEl.content.substring(0, 30)}...":
               SVG coords: ${textEl.xPercent.toFixed(2)}%, ${textEl.yPercent.toFixed(2)}% → ${svgX.toFixed(2)}", ${svgY.toFixed(2)}"
@@ -273,9 +264,6 @@ async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textEleme
               const clampedX = Math.max(0, Math.min(xPt, pageWidthPt - 100));
               const clampedY = Math.max(0, Math.min(yPt, pageHeightPt - 100));
               console.warn(`[PDF] Clamping to: (${clampedX.toFixed(2)}, ${clampedY.toFixed(2)})`);
-              // Actually use the clamped values
-              xPt = clampedX;
-              yPt = clampedY;
               // Actually use the clamped values
               xPt = clampedX;
               yPt = clampedY;
