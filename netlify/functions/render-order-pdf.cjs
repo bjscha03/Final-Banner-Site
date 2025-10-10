@@ -206,15 +206,39 @@ async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textEleme
             doc.fillColor(textEl.color || '#000000');
             
             // Calculate text alignment
+            // CRITICAL FIX: Text positioning must match the preview exactly
+            // 
+            // In the preview (CSS):
+            // - left: xPercent% → positions the LEFT EDGE of the text element
+            // - textAlign: center/left/right → aligns text WITHIN the element
+            // - The element has auto-width based on content
+            // 
+            // In PDFKit, we need to replicate this behavior:
+            // - For textAlign: 'left' → text starts at xPt (simple)
+            // - For textAlign: 'center' → we need to measure text width and center it at xPt
+            // - For textAlign: 'right' → we need to measure text width and right-align at xPt
             const textAlign = textEl.textAlign || 'left';
-            const textOptions = {
-              align: textAlign,
-              lineBreak: true,
-              width: pageWidthPt - xPt - 20, // Leave some margin
-            };
+            
+            // Measure the text width to calculate proper positioning
+            const textWidth = doc.widthOfString(textEl.content, {
+              lineBreak: false,
+            });
+            
+            // Calculate the x position based on text alignment
+            let textX = xPt;
+            if (textAlign === 'center') {
+              // Center the text at xPt
+              textX = xPt - (textWidth / 2);
+            } else if (textAlign === 'right') {
+              // Right-align the text at xPt
+              textX = xPt - textWidth;
+            }
+            // For 'left', textX = xPt (no change needed)
             
             // Render the text
-            doc.text(textEl.content, xPt, yPt, textOptions);
+            doc.text(textEl.content, textX, yPt, {
+              lineBreak: false, // Don't wrap - match preview behavior
+            });
             
             console.log(`[PDF] Rendered text layer ${index + 1}: "${textEl.content.substring(0, 30)}..." at (${xPt.toFixed(1)}, ${yPt.toFixed(1)}) - fontSize: ${textEl.fontSize}px → ${fontSize.toFixed(1)}pt (scale: ${scaleFactor.toFixed(2)}x)`);
           } catch (textError) {
