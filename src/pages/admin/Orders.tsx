@@ -537,7 +537,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
 }) => {
   const [trackingNumber, setTrackingNumber] = useState('');
   const [isAddingTracking, setIsAddingTracking] = useState(false);
-  // Helper function to get the best download URL for an item
+  // Helper function to get the best download URL for an item (AI or uploaded)
   const getBestDownloadUrl = (item) => {
     // For AI-generated items, prioritize print_ready_url for high-quality downloads
     if (item.print_ready_url) {
