@@ -72,7 +72,8 @@ exports.handler = async (event, context) => {
                    'area_sqft', (oi.width_in * oi.height_in / 144.0),
                    'unit_price_cents', (oi.line_total_cents / oi.quantity),
                    'line_total_cents', oi.line_total_cents,
-                   'file_key', oi.file_key
+                   'file_key', oi.file_key,
+                   'text_elements', COALESCE(oi.text_elements, '[]'::jsonb)
                  )
                ) as items
         FROM orders o
@@ -100,7 +101,8 @@ exports.handler = async (event, context) => {
                    'area_sqft', (oi.width_in * oi.height_in / 144.0),
                    'unit_price_cents', (oi.line_total_cents / oi.quantity),
                    'line_total_cents', oi.line_total_cents,
-                   'file_key', oi.file_key
+                   'file_key', oi.file_key,
+                   'text_elements', COALESCE(oi.text_elements, '[]'::jsonb)
                  )
                ) as items
         FROM orders o
