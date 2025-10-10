@@ -560,146 +560,110 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   // Helper function to get download label based on item type
   const getDownloadLabel = (item, index) => {
     const downloadInfo = getBestDownloadUrl(item);
-    if (!downloadInfo) return `Item ${index + 1}`;
-    
-    if (downloadInfo.isAI) {
-      return downloadInfo.type === 'print_ready' 
-        ? `🎨 Print File ${index + 1}` 
-        : `🎨 Preview ${index + 1}`;
-    }
-    
-    return `Item ${index + 1}`;
-  };
-
-  const [isEditingTracking, setIsEditingTracking] = useState(false);
-  const [editTrackingNumber, setEditTrackingNumber] = useState('');
-  const [isSendingNotification, setIsSendingNotification] = useState(false);
-
-  const handleAddTracking = () => {
-    if (trackingNumber.trim()) {
-      onAddTracking(order.id, 'fedex', trackingNumber.trim());
-      setTrackingNumber('');
-      setIsAddingTracking(false);
-    }
-  };
-
-  const handleEditTracking = () => {
-    setEditTrackingNumber(order.tracking_number || '');
-    setIsEditingTracking(true);
-  };
-
-  const handleSaveTracking = () => {
-    if (editTrackingNumber.trim()) {
-      onUpdateTracking(order.id, 'fedex', editTrackingNumber.trim());
-      setIsEditingTracking(false);
-    }
-  };
-
-  const handleCancelEdit = () => {
-    setEditTrackingNumber('');
-    setIsEditingTracking(false);
-  };
-
-  const handleSendNotification = async () => {
-    setIsSendingNotification(true);
-    try {
-      await onSendShippingNotification(order.id);
-    } finally {
-      setIsSendingNotification(false);
-    }
-  };
-
-  const getFilesWithDownload = () => {
-    const filesWithDownload = order.items
-      .map((item, index) => ({ item, index }))
-      .filter(({ item }) => item.file_key || item.print_ready_url || item.web_preview_url);
-
-    return filesWithDownload;
-  };
-
-  return (
-    <tr className="hover:bg-gray-50">
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="text-sm font-medium text-gray-900">
-          #{order.id ? order.id.slice(-8).toUpperCase() : 'UNKNOWN'}
-        </div>
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="text-sm text-gray-900">
-          {order.user_id ? (order.user_id.slice(0, 8) + '...') : 'Guest'}
-        </div>
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="text-sm text-gray-900">
-          {new Date(order.created_at).toLocaleDateString()}
-        </div>
-      </td>
-      <td className="px-6 py-4">
-        <div className="text-sm text-gray-900">
-          {getItemsSummary(order)}
-        </div>
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="text-sm font-semibold text-gray-900">
-          {usd(order.total_cents / 100)}
-        </div>
-      </td>
-      <td className="px-6 py-4 whitespace-nowrap">
-        <Badge className={`${getStatusColor(order.status)} capitalize`}>
-          {order.status}
-        </Badge>
-      </td>
-      {/* Files Column */}
-      <td className="px-6 py-4 whitespace-nowrap">
-        <div className="flex flex-col space-y-1">
-          {getFilesWithDownload().length > 0 ? (
-            getFilesWithDownload().map(({ item, index }) => (
-              <Button
-                key={index}
-                size="sm"
-                variant="outline"
-                onClick={() => {
-                  const downloadInfo = getBestDownloadUrl(item);
                   if (downloadInfo) {
-                    if (downloadInfo.isAI) {
-                      // For AI items, fetch and download as blob for better compatibility
-                      const fileName = `banner-${order.id}-item-${index + 1}-${downloadInfo.type}.${downloadInfo.type === 'print_ready' ? 'pdf' : 'jpg'}`;
-                      
-                      // Check if it's a data URL (legacy format)
-                      if (downloadInfo.url.startsWith('data:')) {
-                        // Direct download for data URLs
-                        const link = document.createElement('a');
-                        link.href = downloadInfo.url;
+                    // Always regenerate PDFs on-demand for reliability
+                    const fileName = `banner-${order.id}-item-${index + 1}.pdf`;
+                    
+                    toast({
+                      title: "Generating PDF",
+                      description: "Please wait while we generate your print-ready PDF...",
+                    });
+                    
+                    // Call render-order-pdf to generate fresh PDF
+                    fetch("/.netlify/functions/render-order-pdf", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        orderId: order.id,
+                        itemIndex: index,
+                      }),
+                    })
+                      .then(response => response.json())
+                      .then(result => {
+                        if (result.pdfUrl) {
+                          // Download the generated PDF
+                          return fetch(result.pdfUrl);
+                        } else {
+                          throw new Error("No PDF URL returned");
+                        }
+                      })
+                      .then(response => response.blob())
+                      .then(blob => {
+                        const blobUrl = URL.createObjectURL(blob);
+                        const link = document.createElement("a");
+                        link.href = blobUrl;
                         link.download = fileName;
                         document.body.appendChild(link);
                         link.click();
                         document.body.removeChild(link);
-                      } else {
-                        // Fetch from Cloudinary and download as blob
-                        fetch(downloadInfo.url)
-                          .then(response => {
-                            if (!response.ok) throw new Error(`HTTP ${response.status}`);
-                            return response.blob();
-                          })
-                          .then(blob => {
-                            const blobUrl = URL.createObjectURL(blob);
-                            const link = document.createElement('a');
-                            link.href = blobUrl;
-                            link.download = fileName;
-                            document.body.appendChild(link);
-                            link.click();
-                            document.body.removeChild(link);
-                            URL.revokeObjectURL(blobUrl);
-                          })
-                          .catch(error => {
-                            console.error('Download failed:', error);
-                            alert(`Failed to download ${fileName}. Please try again.`);
-                          });
-                      }
-                    } else {
-                      // For regular items, use the existing download function
-                      onFileDownload(downloadInfo.url, order.id, index);
-                    }
+                        URL.revokeObjectURL(blobUrl);
+                        
+                        toast({
+                          title: "PDF Downloaded",
+                          description: "Your print-ready PDF has been downloaded successfully.",
+                        });
+                      })
+                      .catch(error => {
+                        console.error("PDF generation failed:", error);
+                        toast({
+                          title: "PDF Generation Failed",
+                          description: "Could not generate PDF. Please try again.",
+                          variant: "destructive",
+                        });
+                      });
+                  }
+                  const downloadInfo = getBestDownloadUrl(item);
+                  if (downloadInfo) {
+                    // Always regenerate PDFs on-demand for reliability
+                    const fileName = `banner-${order.id}-item-${index + 1}.pdf`;
+                    
+                    toast({
+                      title: "Generating PDF",
+                      description: "Please wait while we generate your print-ready PDF...",
+                    });
+                    
+                    // Call render-order-pdf to generate fresh PDF
+                    fetch("/.netlify/functions/render-order-pdf", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({
+                        orderId: order.id,
+                        itemIndex: index,
+                      }),
+                    })
+                      .then(response => response.json())
+                      .then(result => {
+                        if (result.pdfUrl) {
+                          // Download the generated PDF
+                          return fetch(result.pdfUrl);
+                        } else {
+                          throw new Error("No PDF URL returned");
+                        }
+                      })
+                      .then(response => response.blob())
+                      .then(blob => {
+                        const blobUrl = URL.createObjectURL(blob);
+                        const link = document.createElement("a");
+                        link.href = blobUrl;
+                        link.download = fileName;
+                        document.body.appendChild(link);
+                        link.click();
+                        document.body.removeChild(link);
+                        URL.revokeObjectURL(blobUrl);
+                        
+                        toast({
+                          title: "PDF Downloaded",
+                          description: "Your print-ready PDF has been downloaded successfully.",
+                        });
+                      })
+                      .catch(error => {
+                        console.error("PDF generation failed:", error);
+                        toast({
+                          title: "PDF Generation Failed",
+                          description: "Could not generate PDF. Please try again.",
+                          variant: "destructive",
+                        });
+                      });
                   }
                 }}
                 className="text-xs h-6 px-2"
