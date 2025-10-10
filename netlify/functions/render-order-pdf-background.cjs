@@ -395,14 +395,43 @@ exports.handler = async (event) => {
     await updateJobStatus(statusPublicId, { progress: 85, message: 'Uploading PDF...' });
     await updateJobStatus(statusPublicId, { progress: 85, message: 'Uploading PDF...' });
 
-    // Return PDF as base64 data URL for immediate download
-    // Skip Cloudinary upload to avoid timeout
-    console.log('[PDF] Converting to base64 for direct download');
-    const base64Pdf = pdfBuffer.toString('base64');
-    const dataUrl = `data:application/pdf;base64,${base64Pdf}`;
-    console.log(`[PDF] Data URL created, length: ${dataUrl.length} chars`);
+    // Upload PDF to Cloudinary for permanent storage
+    console.log('[PDF] Uploading PDF to Cloudinary...');
+    const uploadResult = await new Promise((resolve, reject) => {
+      try {
+        const stream = cloudinary.uploader.upload_stream(
+          {
+            resource_type: 'raw',
+            folder: 'final_pdfs',
+            public_id: `order_${req.orderId}_${Date.now()}`,
+            format: 'pdf',
+            access_mode: 'public',
+          },
+          (error, result) => {
+            if (error) {
+              console.error('[PDF] Cloudinary upload error:', error);
+              reject(error);
+            } else {
+              resolve(result);
+            }
+          }
+        );
+        
+        stream.on('error', (err) => {
+          console.error('[PDF] Stream error:', err);
+          reject(err);
+        });
+        
+        stream.end(pdfBuffer);
+      } catch (err) {
+        console.error('[PDF] Error setting up Cloudinary upload:', err);
+        reject(err);
+      }
+    });
     
-    const finalPdfUrl = dataUrl;
+    const finalPdfUrl = uploadResult.secure_url;
+    const publicId = uploadResult.public_id;
+    console.log(`[PDF] Uploaded to Cloudinary: ${publicId}`);
 
     const meta = {
       dpi: targetDpi,
