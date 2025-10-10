@@ -169,6 +169,24 @@ const DraggableText: React.FC<DraggableTextProps> = ({
       svgCenterXPercent = ((svgCenterX - containerLeft) / containerRect.width) * 100;
       svgCenterYPercent = ((svgCenterY - containerTop) / containerRect.height) * 100;
     }
+
+    // Find the SVG element to get its actual position within the container
+    // The SVG guide is at the SVG's center, not the container's center
+    const svgElement = container.querySelector('svg');
+    let svgCenterXPercent = 50; // Default to 50% if SVG not found
+    let svgCenterYPercent = 50;
+    
+    if (svgElement) {
+      const svgRect = svgElement.getBoundingClientRect();
+      // Calculate where the SVG's center is as a percentage of the container
+      const svgCenterX = svgRect.left + (svgRect.width / 2);
+      const svgCenterY = svgRect.top + (svgRect.height / 2);
+      const containerLeft = containerRect.left;
+      const containerTop = containerRect.top;
+      
+      svgCenterXPercent = ((svgCenterX - containerLeft) / containerRect.width) * 100;
+      svgCenterYPercent = ((svgCenterY - containerTop) / containerRect.height) * 100;
+    }
     
     // Calculate font size change based on resize direction
     let fontSizeChange = 0;
@@ -206,6 +224,24 @@ const DraggableText: React.FC<DraggableTextProps> = ({
     const textRect = textRef.current.getBoundingClientRect();
     const deltaX = e.clientX - dragStart.x;
     const deltaY = e.clientY - dragStart.y;
+
+    // Find the SVG element to get its actual position within the container
+    // The SVG guide is at the SVG's center, not the container's center
+    const svgElement = container.querySelector('svg');
+    let svgCenterXPercent = 50; // Default to 50% if SVG not found
+    let svgCenterYPercent = 50;
+    
+    if (svgElement) {
+      const svgRect = svgElement.getBoundingClientRect();
+      // Calculate where the SVG's center is as a percentage of the container
+      const svgCenterX = svgRect.left + (svgRect.width / 2);
+      const svgCenterY = svgRect.top + (svgRect.height / 2);
+      const containerLeft = containerRect.left;
+      const containerTop = containerRect.top;
+      
+      svgCenterXPercent = ((svgCenterX - containerLeft) / containerRect.width) * 100;
+      svgCenterYPercent = ((svgCenterY - containerTop) / containerRect.height) * 100;
+    }
 
     // Find the SVG element to get its actual position within the container
     // The SVG guide is at the SVG's center, not the container's center

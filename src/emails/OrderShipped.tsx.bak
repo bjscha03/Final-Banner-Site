@@ -1,0 +1,459 @@
+import React from 'react';
+import {
+  Html,
+  Head,
+  Body,
+  Container,
+  Section,
+  Text,
+  Button,
+  Heading,
+  Hr,
+  Link,
+  Row,
+  Column,
+  Img
+} from '@react-email/components';
+
+import { fmtUSD } from '../lib/money';
+import { titleCaseName } from '../lib/strings';
+interface OrderShippedProps {
+  to: string;
+  order: {
+    id: string;
+    orderNumber: string;
+    customerName: string;
+    items: Array<{
+      name: string;
+      quantity: number;
+      price: number;
+      options?: string;
+    }>;
+    subtotal?: number;
+    tax?: number;
+    total?: number;
+    subtotalCents?: number;
+    taxCents?: number;
+    totalCents?: number;
+    shippingAddress?: {
+      name: string;
+      address1: string;
+      address2?: string;
+      city: string;
+      state: string;
+      zip: string;
+    };
+  };
+  trackingNumber?: string;
+  trackingUrl?: string;
+  carrier?: string;
+}
+
+export default function OrderShipped({ order, trackingNumber, trackingUrl, carrier = 'FedEx' }: OrderShippedProps) {
+  const shipDate = new Date().toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+
+  // Logo URL for email - use environment-aware URL
+  const logoUrl = 'https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto,q_auto,w_300/https://bannersonthefly.com/cld-assets/images/logo-compact.svg';
+
+  return (
+    <Html>
+      <Head />
+      <Body style={main}>
+        <Container style={container}>
+          {/* Logo */}
+          <Section style={logoSection}>
+            <Img
+              src={logoUrl}
+              alt="Banners On The Fly"
+              width="200"
+              height="60"
+              style={logoStyle}
+            />
+          </Section>
+
+          {/* Header */}
+          <Section style={header}>
+            <Heading style={headerTitle}>Your Order is On The Way!</Heading>
+            <Text style={headerSubtitle}>
+              Your custom banners have shipped and are heading your way
+            </Text>
+          </Section>
+
+          {/* Shipping Info */}
+          <Section style={shippingInfo}>
+            <Row>
+              <Column>
+                <Heading style={companyName}>Banners On The Fly</Heading>
+                <Text style={orderType}>Order Shipped</Text>
+              </Column>
+              <Column style={orderDetails}>
+                <Text style={orderLabel}>Order #</Text>
+                <Text style={orderNumber}>{order.orderNumber}</Text>
+                <Text style={orderDate}>Shipped {shipDate}</Text>
+              </Column>
+            </Row>
+          </Section>
+
+          {/* Main Content */}
+          <Section style={content}>
+            <Text style={greeting}>
+              Hi {order.customerName},
+            </Text>
+            
+            <Text style={paragraph}>
+              Great news! Your custom banner order has been completed and shipped. 
+              Your package is now on its way to you.
+            </Text>
+
+            {/* Tracking Information */}
+            <Section style={trackingSection}>
+              <Heading style={sectionTitle}>Tracking Information</Heading>
+              <div style={trackingContainer}>
+                <Row>
+                  <Column>
+                    <Text style={trackingLabel}>Carrier</Text>
+                    <Text style={trackingValue}>{carrier}</Text>
+                  </Column>
+                  {trackingNumber && (
+                    <Column>
+                      <Text style={trackingLabel}>Tracking Number</Text>
+                      <Text style={trackingNumber}>{trackingNumber}</Text>
+                    </Column>
+                  )}
+                </Row>
+                
+                {trackingUrl && (
+                  <Section style={buttonContainer}>
+                    <Button style={button} href={trackingUrl}>
+                      Track Your Package
+                    </Button>
+                  </Section>
+                )}
+              </div>
+            </Section>
+
+            {/* Shipping Address */}
+            {order.shippingAddress && (
+              <Section style={addressSection}>
+                <Heading style={sectionTitle}>Shipping To</Heading>
+                <div style={addressContainer}>
+                  <Text style={addressText}>{order.shippingAddress.name}</Text>
+                  <Text style={addressText}>{order.shippingAddress.address1}</Text>
+                  {order.shippingAddress.address2 && (
+                    <Text style={addressText}>{order.shippingAddress.address2}</Text>
+                  )}
+                  <Text style={addressText}>
+                    {order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zip}
+                  </Text>
+                </div>
+              </Section>
+            )}
+
+            {/* Order Summary */}
+            <Section style={summarySection}>
+              <Heading style={sectionTitle}>Order Summary</Heading>
+              <div style={summaryContainer}>
+                {order.items.map((item, index) => (
+                  <div key={index} style={summaryItem}>
+                    <Text style={itemName}>{item.name}</Text>
+                    <Text style={itemQuantity}>Qty: {item.quantity}</Text>
+                  </div>
+                ))}
+                
+
+              </div>
+            </Section>
+
+            {/* Delivery Info */}
+            <Section style={deliverySection}>
+              <Heading style={sectionTitle}>Delivery Information</Heading>
+              <ul style={deliveryList}>
+                <li style={deliveryItem}>Standard shipping typically takes 3-7 business days</li>
+                <li style={deliveryItem}>You'll receive delivery confirmation once your package arrives</li>
+                <li style={deliveryItem}>Someone should be available to receive the package</li>
+                <li style={deliveryItem}>Questions about delivery? Contact {carrier} directly or reach out to us</li>
+              </ul>
+            </Section>
+          </Section>
+
+          <Hr style={hr} />
+
+          {/* Footer */}
+          <Section style={footer}>
+            <Text style={footerText}>
+              Thank you for choosing Banners On The Fly!
+            </Text>
+            <Text style={footerText}>
+              <Link href="https://bannersonthefly.com" style={link}>
+                Visit our website
+              </Link>
+              {' • '}
+              <Link href="mailto:support@bannersonthefly.com" style={link}>
+                Contact Support
+              </Link>
+            </Text>
+          </Section>
+        </Container>
+      </Body>
+    </Html>
+  );
+}
+
+// Styles
+const main = {
+  backgroundColor: '#f6f9fc',
+  fontFamily: '-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Ubuntu,sans-serif',
+};
+
+const container = {
+  backgroundColor: '#ffffff',
+  margin: '0 auto',
+  padding: '20px 0 48px',
+  marginBottom: '64px',
+  maxWidth: '600px',
+};
+
+const logoSection = {
+  textAlign: 'center' as const,
+  padding: '20px 30px 10px',
+  backgroundColor: '#ffffff',
+};
+
+const logoStyle = {
+  display: 'block',
+  margin: '0 auto',
+  maxWidth: '200px',
+  height: 'auto',
+};
+
+const header = {
+  background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+  borderRadius: '12px 12px 0 0',
+  padding: '40px 30px',
+  textAlign: 'center' as const,
+  color: '#ffffff',
+};
+
+const headerTitle = {
+  fontSize: '28px',
+  fontWeight: 'bold',
+  margin: '0 0 10px 0',
+  color: '#ffffff',
+};
+
+const headerSubtitle = {
+  fontSize: '16px',
+  margin: '0',
+  opacity: '0.9',
+  color: '#ffffff',
+};
+
+const shippingInfo = {
+  backgroundColor: '#f0fdf4',
+  padding: '20px 30px',
+  borderRadius: '0 0 8px 8px',
+  marginBottom: '30px',
+};
+
+const companyName = {
+  fontSize: '24px',
+  fontWeight: 'bold',
+  color: '#059669',
+  margin: '0 0 5px 0',
+};
+
+const orderType = {
+  fontSize: '14px',
+  color: '#6b7280',
+  margin: '0',
+};
+
+const orderDetails = {
+  textAlign: 'right' as const,
+};
+
+const orderLabel = {
+  fontSize: '14px',
+  color: '#6b7280',
+  margin: '0',
+};
+
+const orderNumber = {
+  fontSize: '16px',
+  fontWeight: 'bold',
+  fontFamily: 'monospace',
+  margin: '0',
+};
+
+const orderDate = {
+  fontSize: '14px',
+  color: '#6b7280',
+  margin: '5px 0 0 0',
+};
+
+const content = {
+  padding: '0 30px',
+};
+
+const greeting = {
+  fontSize: '18px',
+  fontWeight: '600',
+  color: '#1f2937',
+  margin: '0 0 20px 0',
+};
+
+const paragraph = {
+  fontSize: '16px',
+  lineHeight: '1.6',
+  color: '#374151',
+  margin: '0 0 30px 0',
+};
+
+const sectionTitle = {
+  fontSize: '18px',
+  fontWeight: '600',
+  color: '#1f2937',
+  margin: '0 0 15px 0',
+};
+
+const trackingSection = {
+  margin: '30px 0',
+};
+
+const trackingContainer = {
+  backgroundColor: '#f0fdf4',
+  border: '1px solid #bbf7d0',
+  borderRadius: '8px',
+  padding: '20px',
+};
+
+const trackingLabel = {
+  fontSize: '14px',
+  color: '#6b7280',
+  margin: '0 0 5px 0',
+};
+
+const trackingValue = {
+  fontSize: '16px',
+  fontWeight: '600',
+  color: '#1f2937',
+  margin: '0',
+};
+
+const trackingNumber = {
+  fontSize: '16px',
+  fontWeight: '600',
+  fontFamily: 'monospace',
+  color: '#1f2937',
+  margin: '0',
+};
+
+const buttonContainer = {
+  textAlign: 'center' as const,
+  margin: '20px 0 0 0',
+};
+
+const button = {
+  backgroundColor: '#059669',
+  borderRadius: '8px',
+  color: '#ffffff',
+  fontSize: '16px',
+  fontWeight: '600',
+  textDecoration: 'none',
+  textAlign: 'center' as const,
+  display: 'inline-block',
+  padding: '14px 28px',
+  border: 'none',
+};
+
+const addressSection = {
+  margin: '30px 0',
+};
+
+const addressContainer = {
+  backgroundColor: '#f9fafb',
+  border: '1px solid #e5e7eb',
+  borderRadius: '8px',
+  padding: '20px',
+};
+
+const addressText = {
+  fontSize: '14px',
+  color: '#374151',
+  margin: '0 0 5px 0',
+};
+
+const summarySection = {
+  margin: '30px 0',
+};
+
+const summaryContainer = {
+  backgroundColor: '#f9fafb',
+  border: '1px solid #e5e7eb',
+  borderRadius: '8px',
+  padding: '20px',
+};
+
+const summaryItem = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  margin: '0 0 10px 0',
+};
+
+const itemName = {
+  fontSize: '14px',
+  color: '#374151',
+  margin: '0',
+};
+
+const itemQuantity = {
+  fontSize: '14px',
+  color: '#6b7280',
+  margin: '0',
+};
+
+const deliverySection = {
+  backgroundColor: '#eff6ff',
+  border: '1px solid #93c5fd',
+  borderRadius: '8px',
+  padding: '20px',
+  margin: '30px 0',
+};
+
+const deliveryList = {
+  margin: '0',
+  paddingLeft: '20px',
+  color: '#1e40af',
+};
+
+const deliveryItem = {
+  fontSize: '14px',
+  lineHeight: '1.6',
+  margin: '0 0 8px 0',
+};
+
+const link = {
+  color: '#1e40af',
+  textDecoration: 'underline',
+};
+
+const hr = {
+  borderColor: '#e5e7eb',
+  margin: '30px 0 20px 0',
+};
+
+const footer = {
+  padding: '0 30px',
+  textAlign: 'center' as const,
+};
+
+const footerText = {
+  fontSize: '14px',
+  color: '#6b7280',
+  margin: '0 0 10px 0',
+};
