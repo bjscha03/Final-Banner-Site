@@ -152,16 +152,25 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
       setPdfGenerating(prev => ({ ...prev, [itemIndex]: true }));
       
       toast({
-        title: "Generating PDF",
-        description: "This may take 20-30 seconds...",
+        title: "Generating Print-Ready PDF",
+        description: "Creating high-quality PDF with proper dimensions and bleed...",
       });
+
+      // Determine the best image source
+      const imageSource = item.print_ready_url || item.web_preview_url || item.file_key;
+      const isCloudinaryKey = !imageSource?.startsWith('http');
 
       const requestBody = {
         orderId: order.id,
         bannerWidthIn: item.width_in,
         bannerHeightIn: item.height_in,
-        fileKey: item.file_key,
-        imageUrl: item.image_url
+        fileKey: isCloudinaryKey ? imageSource : null,
+        imageUrl: isCloudinaryKey ? null : imageSource,
+        imageSource: item.print_ready_url ? 'print_ready' : (item.web_preview_url ? 'web_preview' : 'uploaded'),
+        bleedIn: 0.125, // Standard 1/8" bleed
+        targetDpi: 150, // High quality for print
+        transform: item.transform || null, // Use stored transform if available
+        previewCanvasPx: item.preview_canvas_px || null
       };
 
       console.log('[PDF Download] Sending request:', requestBody);
@@ -179,35 +188,32 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
       const result = await response.json();
 
       if (result.pdfUrl) {
-        // If it's a data URL, download directly
-        if (result.pdfUrl.startsWith('data:')) {
-          const link = document.createElement('a');
-          link.href = result.pdfUrl;
-          link.download = `order-${order.id}-banner-${itemIndex + 1}.pdf`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-        } else {
-          // If it's a Cloudinary URL, fetch and download
-          const pdfResponse = await fetch(result.pdfUrl);
-          const pdfBlob = await pdfResponse.blob();
-          const blobUrl = URL.createObjectURL(pdfBlob);
-          
-          const link = document.createElement('a');
-          link.href = blobUrl;
-          link.download = `order-${order.id}-banner-${itemIndex + 1}.pdf`;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          
-          // Clean up blob URL
-          setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
+        // Download the PDF from Cloudinary
+        const pdfResponse = await fetch(result.pdfUrl);
+        
+        if (!pdfResponse.ok) {
+          throw new Error('Failed to download PDF from Cloudinary');
         }
+        
+        const pdfBlob = await pdfResponse.blob();
+        const blobUrl = URL.createObjectURL(pdfBlob);
+        
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = `order-${order.id.slice(-8)}-banner-${itemIndex + 1}-print-ready.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Clean up blob URL
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 100);
 
         toast({
-          title: "PDF Ready",
-          description: "Your print-ready PDF has been downloaded.",
+          title: "PDF Downloaded",
+          description: `Print-ready PDF (${result.dpi} DPI with ${result.bleedIn}" bleed) ready for production.`,
         });
+      } else {
+        throw new Error('No PDF URL in response');
       }
     } catch (error) {
       console.error('[PDF Download] Error:', error);
