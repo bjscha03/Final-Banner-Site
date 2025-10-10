@@ -169,8 +169,6 @@ const DraggableText: React.FC<DraggableTextProps> = ({
       svgCenterXPercent = ((svgCenterX - containerLeft) / containerRect.width) * 100;
       svgCenterYPercent = ((svgCenterY - containerTop) / containerRect.height) * 100;
     }
-
-    }
     
     // Calculate font size change based on resize direction
     let fontSizeChange = 0;
@@ -209,8 +207,22 @@ const DraggableText: React.FC<DraggableTextProps> = ({
     const deltaX = e.clientX - dragStart.x;
     const deltaY = e.clientY - dragStart.y;
 
-    }
-
+    // Find the SVG element to get its actual position within the container
+    // The SVG guide is at the SVG's center, not the container's center
+    const svgElement = container.querySelector('svg');
+    let svgCenterXPercent = 50; // Default to 50% if SVG not found
+    let svgCenterYPercent = 50;
+    
+    if (svgElement) {
+      const svgRect = svgElement.getBoundingClientRect();
+      // Calculate where the SVG's center is as a percentage of the container
+      const svgCenterX = svgRect.left + (svgRect.width / 2);
+      const svgCenterY = svgRect.top + (svgRect.height / 2);
+      const containerLeft = containerRect.left;
+      const containerTop = containerRect.top;
+      
+      svgCenterXPercent = ((svgCenterX - containerLeft) / containerRect.width) * 100;
+      svgCenterYPercent = ((svgCenterY - containerTop) / containerRect.height) * 100;
     }
     
     // Convert pixel delta to percentage based on container size
@@ -230,7 +242,6 @@ const DraggableText: React.FC<DraggableTextProps> = ({
     const textCenterYPercent = newYPercent + (textHeightPercent / 2);
     
     // ALIGNMENT SNAPPING - Canva-style smart guides
-    // Snap to the ACTUAL SVG center, not the container's 50%
     // Snap to the ACTUAL SVG center, not the container's 50%
     const snapThreshold = 2; // 2% snap threshold (~10-20px depending on banner size)
     
