@@ -172,8 +172,43 @@ async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textEleme
         textElements.forEach((textEl, index) => {
           try {
             // Convert percentage positions to points
-            const xPt = (textEl.xPercent / 100) * pageWidthPt;
-            const yPt = (textEl.yPercent / 100) * pageHeightPt;
+            // CRITICAL: Convert preview coordinates to banner coordinates
+            // The preview SVG includes rulers (1.2" each side) and bleed (0.25" each side)
+            // Text percentages are stored relative to the ENTIRE SVG, not just the banner
+            // We need to convert these to percentages relative to the actual banner area
+            
+            const RULER_HEIGHT = 1.2;  // inches
+            const BLEED_SIZE = 0.25;   // inches
+            const bannerOffsetX = RULER_HEIGHT + BLEED_SIZE;  // 1.45"
+            const bannerOffsetY = RULER_HEIGHT + BLEED_SIZE;  // 1.45"
+            
+            // Calculate total SVG dimensions (same as PreviewCanvas.tsx)
+            const bleedWidth = widthIn + (BLEED_SIZE * 2);
+            const bleedHeight = heightIn + (BLEED_SIZE * 2);
+            const totalWidth = bleedWidth + (RULER_HEIGHT * 2);
+            const totalHeight = bleedHeight + (RULER_HEIGHT * 2);
+            
+            // Convert stored percentages (relative to SVG) to SVG inches
+            const svgX = (textEl.xPercent / 100) * totalWidth;
+            const svgY = (textEl.yPercent / 100) * totalHeight;
+            
+            // Subtract offset to get position relative to banner origin
+            const bannerX = svgX - bannerOffsetX;
+            const bannerY = svgY - bannerOffsetY;
+            
+            // Convert to percentage of actual banner
+            const bannerXPercent = (bannerX / widthIn) * 100;
+            const bannerYPercent = (bannerY / heightIn) * 100;
+            
+            // Calculate position in points using corrected percentages
+            const xPt = (bannerXPercent / 100) * pageWidthPt;
+            const yPt = (bannerYPercent / 100) * pageHeightPt;
+            
+            console.log(`[PDF] Coordinate conversion for "${textEl.content.substring(0, 30)}...":
+              SVG coords: ${textEl.xPercent.toFixed(2)}%, ${textEl.yPercent.toFixed(2)}% → ${svgX.toFixed(2)}", ${svgY.toFixed(2)}"
+              Banner coords: ${bannerX.toFixed(2)}", ${bannerY.toFixed(2)}" → ${bannerXPercent.toFixed(2)}%, ${bannerYPercent.toFixed(2)}%
+              PDF points: ${xPt.toFixed(2)}pt, ${yPt.toFixed(2)}pt
+            `);
             
             // Set font properties
             const fontFamily = textEl.fontFamily || 'Helvetica';
@@ -206,39 +241,15 @@ async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textEleme
             doc.fillColor(textEl.color || '#000000');
             
             // Calculate text alignment
-            // CRITICAL FIX: Text positioning must match the preview exactly
-            // 
-            // In the preview (CSS):
-            // - left: xPercent% → positions the LEFT EDGE of the text element
-            // - textAlign: center/left/right → aligns text WITHIN the element
-            // - The element has auto-width based on content
-            // 
-            // In PDFKit, we need to replicate this behavior:
-            // - For textAlign: 'left' → text starts at xPt (simple)
-            // - For textAlign: 'center' → we need to measure text width and center it at xPt
-            // - For textAlign: 'right' → we need to measure text width and right-align at xPt
             const textAlign = textEl.textAlign || 'left';
-            
-            // Measure the text width to calculate proper positioning
-            const textWidth = doc.widthOfString(textEl.content, {
-              lineBreak: false,
-            });
-            
-            // Calculate the x position based on text alignment
-            let textX = xPt;
-            if (textAlign === 'center') {
-              // Center the text at xPt
-              textX = xPt - (textWidth / 2);
-            } else if (textAlign === 'right') {
-              // Right-align the text at xPt
-              textX = xPt - textWidth;
-            }
-            // For 'left', textX = xPt (no change needed)
+            const textOptions = {
+              align: textAlign,
+              lineBreak: true,
+              width: pageWidthPt - xPt - 20, // Leave some margin
+            };
             
             // Render the text
-            doc.text(textEl.content, textX, yPt, {
-              lineBreak: false, // Don't wrap - match preview behavior
-            });
+            doc.text(textEl.content, xPt, yPt, textOptions);
             
             console.log(`[PDF] Rendered text layer ${index + 1}: "${textEl.content.substring(0, 30)}..." at (${xPt.toFixed(1)}, ${yPt.toFixed(1)}) - fontSize: ${textEl.fontSize}px → ${fontSize.toFixed(1)}pt (scale: ${scaleFactor.toFixed(2)}x)`);
           } catch (textError) {
