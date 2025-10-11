@@ -32,11 +32,17 @@ const MyOrders: React.FC = () => {
   }, [user, authLoading, navigate]);
 
   const loadCreditPurchases = async () => {
-    if (!user) return;
+    if (!user) {
+      console.log('⚠️ loadCreditPurchases: No user, skipping');
+      return;
+    }
 
     try {
-      console.log('🔍 Loading credit purchases for user:', user.id);
-      const response = await fetch(`/.netlify/functions/get-credit-purchases?user_id=${user.id}`, {
+      console.log('🔍 Loading credit purchases for user:', user.id, 'email:', user.email);
+      const url = `/.netlify/functions/get-credit-purchases?user_id=${user.id}`;
+      console.log('📡 Fetching from:', url);
+      
+      const response = await fetch(url, {
         headers: {
           'Cache-Control': 'no-cache',
           'Pragma': 'no-cache'
@@ -44,33 +50,33 @@ const MyOrders: React.FC = () => {
       });
       
       console.log('📡 Credit purchases response status:', response.status);
+      console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
       
       if (response.ok) {
         const purchases = await response.json();
-        console.log('✅ Loaded credit purchases:', purchases.length, purchases);
+        console.log('✅ Loaded credit purchases:', purchases.length, 'purchases');
+        console.log('📦 Purchase data:', JSON.stringify(purchases, null, 2));
         setCreditPurchases(purchases);
+        console.log('✅ State updated with', purchases.length, 'purchases');
       } else {
         const errorText = await response.text();
         console.error('❌ Failed to load credit purchases:', response.status, errorText);
+        toast({
+          title: 'Error Loading Credit Purchases',
+          description: `Status: ${response.status}. ${errorText}`,
+          variant: 'destructive',
+        });
       }
     } catch (error) {
       console.error('❌ Error loading credit purchases:', error);
+      console.error('❌ Error stack:', error.stack);
+      toast({
+        title: 'Error Loading Credit Purchases',
+        description: error.message,
+        variant: 'destructive',
+      });
     }
   };
-
-  // Reload credit purchases when page becomes visible (e.g., after purchase)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden && user) {
-        console.log('📄 Page became visible, reloading credit purchases...');
-        loadCreditPurchases();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [user, loadCreditPurchases]);
-
 
   // Reload credit purchases when page becomes visible (e.g., after purchase)
   useEffect(() => {
@@ -272,10 +278,13 @@ const MyOrders: React.FC = () => {
           </div>
 
           {/* Credit Purchases */}
-          {creditPurchases.length > 0 && (
+          {console.log('🎨 Rendering credit purchases section. Count:', creditPurchases.length, 'Data:', creditPurchases)}
+          {creditPurchases.length > 0 ? (
             <div className="mb-8">
               <CreditPurchasesList purchases={creditPurchases} />
             </div>
+          ) : (
+            console.log('⚠️ No credit purchases to display')
           )}
 
           {/* Orders Table */}
