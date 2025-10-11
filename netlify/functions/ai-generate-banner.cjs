@@ -141,8 +141,15 @@ async function uploadToCloudinary(imageUrl, index) {
       height: result.height
     };
   } catch (error) {
-    console.error(`[AI-Gen] Cloudinary upload error for image ${index}:`, error);
-    throw new Error(`Failed to upload image ${index} to Cloudinary: ${error.message}`);
+    console.error(`[AI-Gen] ========================================`);
+    console.error(`[AI-Gen] CLOUDINARY UPLOAD ERROR (image ${index})`);
+    console.error(`[AI-Gen] ========================================`);
+    console.error(`[AI-Gen] Error object:`, error);
+    console.error(`[AI-Gen] Error message:`, error.message);
+    console.error(`[AI-Gen] Error name:`, error.name);
+    console.error(`[AI-Gen] Error stack:`, error.stack);
+    console.error(`[AI-Gen] ========================================`);
+    throw new Error(`Failed to upload image ${index} to Cloudinary: ${error.message || JSON.stringify(error)}`);
   }
 }
 
@@ -173,8 +180,23 @@ async function generateSingleImage(openai, prompt, dalleSize, index) {
     
     return cloudinaryResult;
   } catch (error) {
-    console.error(`[AI-Gen] Error generating variation ${index + 1}:`, error);
-    throw new Error(`Failed to generate image ${index + 1}: ${error.message}`);
+    console.error(`[AI-Gen] ========================================`);
+    console.error(`[AI-Gen] ERROR in generateSingleImage (variation ${index + 1})`);
+    console.error(`[AI-Gen] ========================================`);
+    console.error(`[AI-Gen] Error object:`, error);
+    console.error(`[AI-Gen] Error message:`, error.message);
+    console.error(`[AI-Gen] Error name:`, error.name);
+    console.error(`[AI-Gen] Error stack:`, error.stack);
+    if (error.response) {
+      console.error(`[AI-Gen] Error response:`, error.response);
+      console.error(`[AI-Gen] Error response data:`, error.response.data);
+      console.error(`[AI-Gen] Error response status:`, error.response.status);
+    }
+    if (error.error) {
+      console.error(`[AI-Gen] OpenAI error object:`, error.error);
+    }
+    console.error(`[AI-Gen] ========================================`);
+    throw new Error(`Failed to generate image ${index + 1}: ${error.message || JSON.stringify(error)}`);
   }
 }
 
