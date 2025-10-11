@@ -75,7 +75,12 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
       setPurchaseData(receiptData);
       setShowReceipt(true);
       console.log('✅ Receipt modal opened via custom event');
-      // DO NOT close purchase modal - let user close receipt manually
+      
+      // Close purchase modal after showing receipt
+      setTimeout(() => {
+        console.log('🔄 Closing purchase modal');
+        onOpenChange(false);
+      }, 500);
     };
 
     window.addEventListener('show-credit-receipt', handleShowReceipt);
@@ -86,8 +91,6 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
       console.log('🔇 Stopped listening for show-credit-receipt event');
     };
   }, [onOpenChange]);
-
-  
 
   // Load PayPal SDK
   useEffect(() => {
@@ -223,14 +226,21 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
                 
                 console.log('📋 Receipt data prepared:', receiptData);
                 
-                // Dispatch custom event (works in PayPal callback context)
-                console.log('🚀 Dispatching show-credit-receipt event');
-                const event = new CustomEvent('show-credit-receipt', {
-                  detail: receiptData,
-                  bubbles: true,
+                // Force state update by using functional form and logging
+                setPurchaseData(prev => {
+                  console.log('🔄 setPurchaseData called - prev:', prev);
+                  console.log('🔄 setPurchaseData called - new:', receiptData);
+                  return receiptData;
                 });
-                window.dispatchEvent(event);
-                console.log('✅ Event dispatched successfully');
+                
+                console.log('✅ Purchase data state updated');
+                
+                // Also directly show receipt as backup
+                setTimeout(() => {
+                  console.log('⏰ Timeout: Checking if receipt should be shown');
+                  setShowReceipt(true);
+                  console.log('⏰ Timeout: setShowReceipt(true) called');
+                }, 100);
                 
                 toast({
                   title: '✅ Credits Purchased!',
@@ -393,15 +403,7 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
       {/* Receipt Modal */}
       <CreditPurchaseReceipt
         open={showReceipt}
-        onOpenChange={(open) => {
-          console.log('📋 Receipt onOpenChange:', open);
-          setShowReceipt(open);
-          if (!open) {
-            // User closed receipt, also close purchase modal
-            console.log('🔄 Receipt closed, closing purchase modal');
-            onOpenChange(false);
-          }
-        }}
+        onOpenChange={setShowReceipt}
         purchase={purchaseData}
       />
     </>
