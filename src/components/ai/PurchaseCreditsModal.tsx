@@ -118,6 +118,7 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
             createOrder: () => orderID,
             onApprove: async (data: any) => {
               try {
+                console.log('🔄 Capturing PayPal payment...', data.orderID);
                 // Capture the payment
                 const captureResponse = await fetch('/.netlify/functions/paypal-capture-credits-order', {
                   method: 'POST',
@@ -138,8 +139,10 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
                 }
 
                 const result = await captureResponse.json();
+                console.log('📦 Capture response:', result);
                 console.log('✅ Payment captured successfully:', result);
 
+                console.log('🧾 Preparing receipt data...');
                 // Store purchase data for receipt
                 setPurchaseData({
                   id: result.purchaseId,
@@ -156,16 +159,18 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
                   description: `${pkg.credits} credits have been added to your account.`,
                 });
 
-                // Close purchase modal
-                onOpenChange(false);
-
-                // Show receipt
+                // Show receipt FIRST
                 setShowReceipt(true);
 
                 // Refresh credits
                 if (onPurchaseComplete) {
                   onPurchaseComplete();
                 }
+
+                // Close purchase modal after a delay to allow receipt to render
+                setTimeout(() => {
+                  onOpenChange(false);
+                }, 100);
               } catch (error) {
                 console.error('Payment capture error:', error);
                 toast({

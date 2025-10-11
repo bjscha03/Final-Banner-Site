@@ -131,6 +131,7 @@ exports.handler = async (event) => {
       };
     }
     const sql = neon(dbUrl);
+    console.log('✅ Database connected, attempting to capture PayPal order:', orderID);
 
     // Get PayPal OAuth token
     const tokenResponse = await fetch(`${baseUrl}/v1/oauth2/token`, {
@@ -192,6 +193,7 @@ exports.handler = async (event) => {
     }
 
     const purchaseId = randomUUID();
+    console.log('💳 Starting database transaction for purchase:', purchaseId);
 
     // Database transaction: Create purchase record and add credits
     await sql.transaction(async (tx) => {
@@ -248,6 +250,7 @@ exports.handler = async (event) => {
     });
 
     console.log('✅ Credits purchase completed:', purchaseId, `${credits} credits added to user ${userId}`);
+    console.log('📧 Sending email notifications to:', finalEmail);
 
     // Send notifications (fire-and-forget)
     sendCreditPurchaseEmail(purchaseId, finalEmail, credits, capturedAmount.toFixed(2));
