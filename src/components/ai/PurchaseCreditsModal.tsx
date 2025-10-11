@@ -66,6 +66,7 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
   const [showReceipt, setShowReceipt] = useState(false);
   const [purchaseData, setPurchaseData] = useState<any>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   // Load PayPal SDK
   useEffect(() => {
@@ -161,14 +162,14 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
                   description: `${pkg.credits} credits have been added to your account.`,
                 });
 
-                // Close purchase modal FIRST
-                onOpenChange(false);
-
-                // Show receipt AFTER modal closes (with small delay to ensure clean transition)
+                // Show receipt modal immediately (it will overlay the purchase modal)
+                setShowReceipt(true);
+                
+                // Close purchase modal after receipt is shown
                 setTimeout(() => {
-                  console.log('🧾 Opening receipt modal with data:', receiptData);
-                  setShowReceipt(true);
-                }, 300);
+                  console.log('🔄 Closing purchase modal after receipt is displayed');
+                  onOpenChange(false);
+                }, 500);
 
                 // Refresh credits
                 if (onPurchaseComplete) {

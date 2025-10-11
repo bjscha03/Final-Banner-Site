@@ -13,8 +13,8 @@ async function sendCreditPurchaseEmail(purchaseId, email, credits, amountUSD) {
     console.log('Triggering credit purchase notification:', purchaseId);
     const siteURL = process.env.URL || 'https://bannersonthefly.com';
     const notifyURL = `${siteURL}/.netlify/functions/notify-credit-purchase`;
-
-    fetch(notifyURL, {
+    
+    await fetch(notifyURL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ purchaseId, email, credits, amountUSD }),
@@ -32,7 +32,7 @@ async function sendAdminNotification(purchaseId, email, credits, amountUSD) {
     const siteURL = process.env.URL || 'https://bannersonthefly.com';
     const adminEmail = process.env.ADMIN_EMAIL || 'support@bannersonthefly.com';
     
-    fetch(`${siteURL}/.netlify/functions/send-email`, {
+    await fetch(`${siteURL}/.netlify/functions/send-email`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -251,9 +251,21 @@ exports.handler = async (event) => {
     console.log('✅ Credits purchase completed:', purchaseId, `${credits} credits added to user ${userId}`);
     console.log('📧 Sending email notifications to:', finalEmail);
 
-    // Send notifications (fire-and-forget)
-    sendCreditPurchaseEmail(purchaseId, finalEmail, credits, capturedAmount.toFixed(2));
-    sendAdminNotification(purchaseId, finalEmail, credits, capturedAmount.toFixed(2));
+    // Send notifications (with proper await to ensure they execute)
+    console.log('📧 Sending email notifications...');
+    try {
+      await sendCreditPurchaseEmail(purchaseId, finalEmail, credits, capturedAmount.toFixed(2));
+      console.log('✅ Customer email sent');
+    } catch (emailError) {
+      console.error('❌ Customer email failed:', emailError);
+    }
+    
+    try {
+      await sendAdminNotification(purchaseId, finalEmail, credits, capturedAmount.toFixed(2));
+      console.log('✅ Admin email sent');
+    } catch (emailError) {
+      console.error('❌ Admin email failed:', emailError);
+    }
 
     return {
       statusCode: 200,
