@@ -144,7 +144,7 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
 
                 console.log('🧾 Preparing receipt data...');
                 // Store purchase data for receipt
-                setPurchaseData({
+                const receiptData = {
                   id: result.purchaseId,
                   credits_purchased: pkg.credits,
                   amount_cents: Math.round(pkg.price * 100),
@@ -152,25 +152,28 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
                   customer_name: userEmail || 'Customer',
                   email: userEmail || '',
                   created_at: new Date().toISOString(),
-                });
+                };
+                
+                setPurchaseData(receiptData);
 
                 toast({
                   title: '✅ Credits Purchased!',
                   description: `${pkg.credits} credits have been added to your account.`,
                 });
 
-                // Show receipt FIRST
-                setShowReceipt(true);
+                // Close purchase modal FIRST
+                onOpenChange(false);
+
+                // Show receipt AFTER modal closes (with small delay to ensure clean transition)
+                setTimeout(() => {
+                  console.log('🧾 Opening receipt modal with data:', receiptData);
+                  setShowReceipt(true);
+                }, 300);
 
                 // Refresh credits
                 if (onPurchaseComplete) {
                   onPurchaseComplete();
                 }
-
-                // Close purchase modal after a delay to allow receipt to render
-                setTimeout(() => {
-                  onOpenChange(false);
-                }, 100);
               } catch (error) {
                 console.error('Payment capture error:', error);
                 toast({
