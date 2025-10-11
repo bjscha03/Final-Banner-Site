@@ -129,20 +129,20 @@ export const CreditCounter: React.FC<CreditCounterProps> = ({
             </div>
           )}
 
-          {/* Purchase Credits Button - Always Visible */}
-          <button
-            onClick={handlePurchaseCredits}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors font-medium"
-          >
-            <ShoppingCart className="w-4 h-4" />
-            Purchase Credits
-          </button>
-
-          {/* No Credits Warning */}
+          {/* No Credits Warning + Purchase Button */}
           {hasNoCredits && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-50 text-yellow-700 rounded-full">
-              <span className="font-medium">⚠️ No credits remaining</span>
-            </div>
+            <>
+              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-50 text-yellow-700 rounded-full">
+                <span className="font-medium">No credits remaining</span>
+              </div>
+              <button
+                onClick={handlePurchaseCredits}
+                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors font-medium"
+              >
+                <ShoppingCart className="w-4 h-4" />
+                Purchase Credits
+              </button>
+            </>
           )}
         </div>
 
