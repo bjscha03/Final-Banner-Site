@@ -256,11 +256,15 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
       let result;
       try {
         result = await response.json();
+        console.log('AI Generation API Response:', result);
+        console.log('Generated Images:', result.images);
+        if (result.images && result.images.length > 0) {
+          console.log('Image URLs:', result.images.map(img => img.url));
+        }
       } catch (parseError) {
         console.error('Failed to parse response JSON:', parseError);
         throw new Error('Invalid response from server. Please try again.');
       }
-      
       // Always show selection (we always generate 3 images)
       setGeneratedImages(result.images || []);
       setShowSelection(true);
@@ -423,6 +427,14 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
                     src={image.url}
                     alt={`Generated option ${index + 1}`}
                     className="w-full h-48 object-cover rounded-lg border-2 border-transparent group-hover:border-blue-500 transition-colors"
+                    crossOrigin="anonymous"
+                    onError={(e) => {
+                      console.error('Image failed to load:', image.url);
+                      e.currentTarget.style.backgroundColor = '#f3f4f6';
+                    }}
+                    onLoad={() => {
+                      console.log('Image loaded successfully:', image.url);
+                    }}
                   />
                   <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 rounded-lg transition-opacity" />
                   <Button
