@@ -55,23 +55,18 @@ const NewAIGenerationModal: React.FC<NewAIGenerationModalProps> = ({
         name: `ai-generated-${tier}-${Date.now()}.jpg`,
         type: 'image/jpeg',
         size: 0,
-        lastModified: Date.now(),
-        arrayBuffer: async () => new ArrayBuffer(0),
-        slice: () => new Blob(),
-        stream: () => new ReadableStream(),
-        text: async () => '',
-        webkitRelativePath: '',
-        aiGenerated: true,
+        url: imageUrl, // ✅ FIX: Set the URL so LivePreviewCard can display it
+        isAI: true,
+        isPdf: false,
+        fileKey: imageUrl,
         aiMetadata: {
           tier,
           timestamp: new Date().toISOString(),
         }
-      } as File & { aiGenerated?: boolean; aiMetadata?: any },
+      },
       previewScalePct: 100,
       // CRITICAL: Explicitly preserve text elements
       textElements: currentTextElements,
-      // Store the Cloudinary URL for later use
-      fileKey: imageUrl,
     });
 
     console.log('[NewAIModal] Text elements after applying background:', useQuoteStore.getState().textElements);
