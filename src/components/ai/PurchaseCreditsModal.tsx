@@ -85,6 +85,24 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
     document.body.appendChild(newScript);
   }, [open]);
 
+  // Show receipt modal when purchaseData is set
+  useEffect(() => {
+    if (purchaseData && !showReceipt) {
+      console.log('🎫 purchaseData updated, showing receipt modal...');
+      console.log('📋 Purchase data for receipt:', purchaseData);
+      setShowReceipt(true);
+      console.log('✅ Receipt modal opened');
+      
+      // Close purchase modal after receipt is shown
+      setTimeout(() => {
+        console.log('🔄 Closing purchase modal after receipt is displayed');
+        onOpenChange(false);
+      }, 500);
+    }
+  }, [purchaseData, showReceipt, onOpenChange]);
+
+
+
   const handlePurchase = async (pkg: CreditPackage) => {
     setSelectedPackage(pkg);
     setIsProcessing(true);
@@ -157,23 +175,14 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
                 console.log('📋 Receipt data prepared:', receiptData);
                 setPurchaseData(receiptData);
                 console.log('✅ Purchase data state updated');
-                console.log('✅ Purchase data state updated');
-
+                
                 toast({
                   title: '✅ Credits Purchased!',
                   description: `${pkg.credits} credits have been added to your account.`,
                 });
 
-                // Show receipt modal immediately (it will overlay the purchase modal)
-                console.log('🎫 Setting showReceipt to true...');
-                setShowReceipt(true);
-                console.log('✅ showReceipt state updated to true');
-                
-                // Close purchase modal after receipt is shown
-                setTimeout(() => {
-                  console.log('🔄 Closing purchase modal after receipt is displayed');
-                  onOpenChange(false);
-                }, 500);
+                // Don't set showReceipt here - let useEffect handle it after state updates
+                // useEffect will handle showing receipt and closing purchase modal
 
                 // Refresh credits
                 if (onPurchaseComplete) {
