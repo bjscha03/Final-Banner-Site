@@ -8,6 +8,80 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
+// Convert hex color to descriptive color name
+function hexToColorName(hex) {
+  // Normalize hex color
+  hex = hex.toUpperCase().replace('#', '');
+  
+  // Parse RGB values
+  const r = parseInt(hex.substr(0, 2), 16);
+  const g = parseInt(hex.substr(2, 2), 16);
+  const b = parseInt(hex.substr(4, 2), 16);
+  
+  // Calculate HSL for better color description
+  const rNorm = r / 255;
+  const gNorm = g / 255;
+  const bNorm = b / 255;
+  
+  const max = Math.max(rNorm, gNorm, bNorm);
+  const min = Math.min(rNorm, gNorm, bNorm);
+  const lightness = (max + min) / 2;
+  
+  // Determine if color is light, dark, or medium
+  let brightness = '';
+  if (lightness > 0.8) brightness = 'very light ';
+  else if (lightness > 0.6) brightness = 'light ';
+  else if (lightness < 0.2) brightness = 'very dark ';
+  else if (lightness < 0.4) brightness = 'dark ';
+  
+  // Determine saturation
+  let saturation = '';
+  if (max !== min) {
+    const s = lightness > 0.5 ? (max - min) / (2 - max - min) : (max - min) / (max + min);
+    if (s > 0.8) saturation = 'vibrant ';
+    else if (s > 0.5) saturation = 'rich ';
+    else if (s < 0.2) saturation = 'muted ';
+  }
+  
+  // Determine base color
+  let colorName = '';
+  
+  // Check for grayscale
+  if (Math.abs(r - g) < 10 && Math.abs(g - b) < 10 && Math.abs(r - b) < 10) {
+    if (lightness > 0.95) return 'white';
+    if (lightness < 0.05) return 'black';
+    if (lightness > 0.7) return 'light gray';
+    if (lightness < 0.3) return 'dark gray';
+    return 'gray';
+  }
+  
+  // Determine hue
+  let hue = 0;
+  if (max !== min) {
+    if (max === rNorm) {
+      hue = ((gNorm - bNorm) / (max - min)) % 6;
+    } else if (max === gNorm) {
+      hue = (bNorm - rNorm) / (max - min) + 2;
+    } else {
+      hue = (rNorm - gNorm) / (max - min) + 4;
+    }
+    hue = Math.round(hue * 60);
+    if (hue < 0) hue += 360;
+  }
+  
+  // Map hue to color name
+  if (hue >= 345 || hue < 15) colorName = 'red';
+  else if (hue >= 15 && hue < 45) colorName = 'orange';
+  else if (hue >= 45 && hue < 70) colorName = 'yellow';
+  else if (hue >= 70 && hue < 150) colorName = 'green';
+  else if (hue >= 150 && hue < 200) colorName = 'cyan';
+  else if (hue >= 200 && hue < 260) colorName = 'blue';
+  else if (hue >= 260 && hue < 300) colorName = 'purple';
+  else if (hue >= 300 && hue < 345) colorName = 'magenta';
+  
+  return `${brightness}${saturation}${colorName}`.trim();
+}
+
 function enhancePrompt(prompt, styles = [], colors = [], size) {
   let enhancedPrompt = `High-quality professional banner background image: ${prompt}`;
   
@@ -19,25 +93,20 @@ function enhancePrompt(prompt, styles = [], colors = [], size) {
       'modern': 'contemporary, sleek, minimalist, cutting-edge',
       'vintage': 'retro, classic, nostalgic, timeless',
       'playful': 'fun, energetic, vibrant, lively, dynamic',
-      'minimalist': 'clean, simple, uncluttered, spacious'
+      'minimalist': 'clean, simple, uncluttered, spacious',
+      'bold': 'striking, dramatic, eye-catching, powerful',
+      'minimal': 'simple, understated, clean lines, uncluttered',
+      'retro': 'vintage, nostalgic, classic, throwback',
+      'seasonal': 'timely, festive, appropriate for the season'
     };
     const styleText = styles.map(style => styleDescriptions[style] || style).join(', ');
     enhancedPrompt += `. Style: ${styleText}`;
   }
   
   if (colors && colors.length > 0) {
-    const colorNames = colors.map(color => {
-      const colorMap = {
-        '#FF0000': 'bright red', '#00FF00': 'bright green', '#0000FF': 'bright blue',
-        '#FFFF00': 'bright yellow', '#FF00FF': 'bright magenta', '#00FFFF': 'bright cyan',
-        '#FFA500': 'orange', '#800080': 'purple', '#FFC0CB': 'pink',
-        '#FF69B4': 'hot pink', '#32CD32': 'lime green', '#87CEEB': 'sky blue',
-        '#FFD700': 'gold', '#FF1493': 'deep pink', '#00CED1': 'dark turquoise',
-        '#FF4500': 'orange red', '#9370DB': 'medium purple', '#20B2AA': 'light sea green'
-      };
-      return colorMap[color.toUpperCase()] || `vibrant ${color} color`;
-    });
-    enhancedPrompt += `. Colors: prominently featuring ${colorNames.join(', ')} as the main color scheme`;
+    const colorNames = colors.map(color => hexToColorName(color));
+    const uniqueColors = [...new Set(colorNames)]; // Remove duplicates
+    enhancedPrompt += `. Color palette: prominently featuring ${uniqueColors.join(', ')} as the dominant colors throughout the composition`;
   }
   
   enhancedPrompt += '. Requirements: wide landscape banner format, suitable for large format printing, ultra high quality, professional commercial photography style, vibrant colors, sharp details, no text or logos, clean composition';

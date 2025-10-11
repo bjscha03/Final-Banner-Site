@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Sparkles, Wand2, RefreshCw, X } from 'lucide-react';
 import { useQuoteStore } from '@/store/quote';
 import { useToast } from '@/components/ui/use-toast';
@@ -81,11 +81,25 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
       return;
     }
 
+    await proceedWithGeneration();
+  };
+
+  const proceedWithGeneration = async () => {
+    if (!prompt.trim()) {
+      toast({
+        title: 'Prompt required',
+        description: 'Please describe your banner background.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
     setIsGenerating(true);
     setGeneratedImages([]);
     setShowSelection(false);
 
     try {
+      console.log('Sending AI generation request with colors:', colors);
       const response = await fetch('/.netlify/functions/ai-generate-banner', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -115,6 +129,11 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
       let result;
       try {
         result = await response.json();
+        console.log('AI Generation API Response:', result);
+        console.log('Generated Images:', result.images);
+        if (result.images && result.images.length > 0) {
+          console.log('Image URLs:', result.images.map(img => img.url));
+        }
       } catch (parseError) {
         console.error('Failed to parse response JSON:', parseError);
         throw new Error('Invalid response from server. Please try again.');
@@ -171,8 +190,7 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
     setPrompt('');
     setSelectedStyles([]);
     setColors(['#1e40af', '#ffffff', '#f3f4f6']);
-    setVariations('1');
-    setQuality('fast');
+    setVariations('3');
     setGeneratedImages([]);
     setShowSelection(false);
   };
@@ -181,6 +199,13 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
     onOpenChange(false);
     resetForm();
   };
+
+  // Reset form when modal opens (Issue #2 fix)
+  useEffect(() => {
+    if (open) {
+      resetForm();
+    }
+  }, [open]);
 
   // Format options summary
   const optionsSummary = [];
@@ -210,75 +235,6 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
     // Directly trigger generation without calling handleGenerate
     // This avoids the race condition where disclaimerAccepted state hasn't updated yet
     proceedWithGeneration();
-  };
-
-  const proceedWithGeneration = async () => {
-    if (!prompt.trim()) {
-      toast({
-        title: 'Prompt required',
-        description: 'Please describe your banner background.',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    setIsGenerating(true);
-    setGeneratedImages([]);
-    setShowSelection(false);
-
-    try {
-      const response = await fetch('/.netlify/functions/ai-generate-banner', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: prompt.trim(),
-          styles: selectedStyles,
-          colors,
-          size: { wIn: widthIn, hIn: heightIn },
-          variations: 3, // Always generate 3 images
-          quality: 'high', // Always use high quality
-          preset: 'loft_hero'
-        })
-      });
-
-      if (!response.ok) {
-        let errorMessage = 'Generation failed';
-        try {
-          const error = await response.json();
-          errorMessage = error.error || errorMessage;
-        } catch (parseError) {
-          // If we can't parse the error response, use the status text
-          errorMessage = response.statusText || `HTTP ${response.status}`;
-        }
-        throw new Error(errorMessage);
-      }
-
-      let result;
-      try {
-        result = await response.json();
-        console.log('AI Generation API Response:', result);
-        console.log('Generated Images:', result.images);
-        if (result.images && result.images.length > 0) {
-          console.log('Image URLs:', result.images.map(img => img.url));
-        }
-      } catch (parseError) {
-        console.error('Failed to parse response JSON:', parseError);
-        throw new Error('Invalid response from server. Please try again.');
-      }
-      // Always show selection (we always generate 3 images)
-      setGeneratedImages(result.images || []);
-      setShowSelection(true);
-
-    } catch (error) {
-      console.error('Generation error:', error);
-      toast({
-        title: 'Generation failed',
-        description: error instanceof Error ? error.message : 'Please try again or continue with manual upload.',
-        variant: 'destructive'
-      });
-    } finally {
-      setIsGenerating(false);
-    }
   };
 
   const handleDisclaimerDecline = () => {
