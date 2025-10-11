@@ -7,9 +7,9 @@
 
 [functions]
   directory = "netlify/functions"
-  node_bundler = "nft"
+  node_bundler = "esbuild"
   included_files = ["src/lib/**", "src/emails/**"]
-  external_node_modules = ["@neondatabase/serverless", "resend", "aws-sdk", "uuid", "cloudinary", "sharp", "pdfkit"]
+  external_node_modules = ["@neondatabase/serverless", "resend", "aws-sdk", "uuid", "cloudinary", "sharp", "pdfkit", "openai"]
 
 # Function-specific configuration
 [functions."upload-file"]
