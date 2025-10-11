@@ -67,6 +67,33 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
   const [purchaseData, setPurchaseData] = useState<any>(null);
   const { toast } = useToast();
 
+  // Listen for custom event to show receipt (works in PayPal callback context)
+  useEffect(() => {
+    const handleShowReceipt = (event: any) => {
+      console.log('🎯 Custom event received: show-credit-receipt', event.detail);
+      const receiptData = event.detail;
+      setPurchaseData(receiptData);
+      setShowReceipt(true);
+      console.log('✅ Receipt modal opened via custom event');
+      
+      // Close purchase modal after showing receipt
+      setTimeout(() => {
+        console.log('🔄 Closing purchase modal');
+        onOpenChange(false);
+      }, 500);
+    };
+
+    window.addEventListener('show-credit-receipt', handleShowReceipt);
+    console.log('👂 Listening for show-credit-receipt event');
+
+    return () => {
+      window.removeEventListener('show-credit-receipt', handleShowReceipt);
+      console.log('🔇 Stopped listening for show-credit-receipt event');
+    };
+  }, [onOpenChange]);
+
+  
+
   // Load PayPal SDK
   useEffect(() => {
     if (!open) return;
@@ -201,21 +228,14 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
                 
                 console.log('📋 Receipt data prepared:', receiptData);
                 
-                // Force state update by using functional form and logging
-                setPurchaseData(prev => {
-                  console.log('🔄 setPurchaseData called - prev:', prev);
-                  console.log('🔄 setPurchaseData called - new:', receiptData);
-                  return receiptData;
+                // Dispatch custom event (works in PayPal callback context)
+                console.log('🚀 Dispatching show-credit-receipt event');
+                const event = new CustomEvent('show-credit-receipt', {
+                  detail: receiptData,
+                  bubbles: true,
                 });
-                
-                console.log('✅ Purchase data state updated');
-                
-                // Also directly show receipt as backup
-                setTimeout(() => {
-                  console.log('⏰ Timeout: Checking if receipt should be shown');
-                  setShowReceipt(true);
-                  console.log('⏰ Timeout: setShowReceipt(true) called');
-                }, 100);
+                window.dispatchEvent(event);
+                console.log('✅ Event dispatched successfully');
                 
                 toast({
                   title: '✅ Credits Purchased!',
