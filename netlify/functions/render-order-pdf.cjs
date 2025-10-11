@@ -74,7 +74,7 @@ async function fetchImage(urlOrKey, isFileKey = false) {
     const timeout = setTimeout(() => controller.abort(), 8000);
     
     try {
-      const response = await fetch(urlOrKey, { signal: controller.abort });
+      const response = await fetch(urlOrKey, { signal: controller.signal });
       clearTimeout(timeout);
       
       console.log(`[PDF] Fetch completed in ${Date.now() - startTime}ms, status: ${response.status}`);
@@ -91,6 +91,8 @@ async function fetchImage(urlOrKey, isFileKey = false) {
       if (error.name === 'AbortError') {
         throw new Error('Image fetch timed out after 8 seconds');
       }
+      console.error('[PDF] Error fetching image from URL:', error);
+      console.error('[PDF] Error fetching image from URL:', error);
       throw error;
     }
   }
