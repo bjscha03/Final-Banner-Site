@@ -4,7 +4,7 @@
  * Allows users to purchase AI generation credits via PayPal
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ShoppingCart, Sparkles, Check, Loader2, X } from 'lucide-react';
 import {
   Dialog,
@@ -67,6 +67,9 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
   const [purchaseData, setPurchaseData] = useState<any>(null);
   const { toast } = useToast();
 
+  // Use ref to store handler so it doesn't get recreated
+  const receiptHandlerRef = useRef<((event: any) => void) | null>(null);
+
   // Listen for custom event to show receipt (works in PayPal callback context)
   useEffect(() => {
     const handleShowReceipt = (event: any) => {
@@ -79,27 +82,26 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
         return;
       }
       
-      console.log('📋 Setting purchase data:', receiptData);
+      console.log('📋 Valid receipt data received:', receiptData);
+      
+      // Set both states immediately - React will batch them
       setPurchaseData(receiptData);
+      setShowReceipt(true);
       
-      // Use setTimeout to ensure state update completes before opening modal
-      setTimeout(() => {
-        console.log('✅ Opening receipt modal');
-        setShowReceipt(true);
-      }, 50);
-      
-      console.log('✅ Receipt modal will open after state update');
-      // DO NOT close purchase modal - let user close receipt manually
+      console.log('✅ Receipt modal state updated');
     };
 
+    receiptHandlerRef.current = handleShowReceipt;
     window.addEventListener('show-credit-receipt', handleShowReceipt);
     console.log('👂 Listening for show-credit-receipt event');
 
     return () => {
-      window.removeEventListener('show-credit-receipt', handleShowReceipt);
-      console.log('🔇 Stopped listening for show-credit-receipt event');
+      if (receiptHandlerRef.current) {
+        window.removeEventListener('show-credit-receipt', receiptHandlerRef.current);
+        console.log('🔇 Stopped listening for show-credit-receipt event');
+      }
     };
-  }, []);  // Only cleanup on unmount, not when modal state changes
+  }, []);  // Only setup/cleanup on mount/unmount
 
   
 
@@ -414,6 +416,12 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
       </Dialog>
 
       {/* Receipt Modal */}
+      {/* Debug logging */}
+      {showReceipt && console.log('🔍 Rendering CreditPurchaseReceipt with purchaseData:', purchaseData)}
+      
+      {/* Debug logging */}
+      {showReceipt && console.log('🔍 Rendering CreditPurchaseReceipt with purchaseData:', purchaseData)}
+      
       <CreditPurchaseReceipt
         open={showReceipt}
         onOpenChange={(open) => {
