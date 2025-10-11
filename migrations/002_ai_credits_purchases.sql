@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS credit_purchases (
   payment_method TEXT DEFAULT 'paypal',
   paypal_order_id TEXT,
   paypal_capture_id TEXT,
-  status TEXT DEFAULT 'pending', -- pending, completed, failed, refunded
+  status TEXT DEFAULT 'pending',
   customer_name TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -19,13 +19,11 @@ CREATE TABLE IF NOT EXISTS credit_purchases (
 
 -- Indexes for credit purchases
 CREATE INDEX IF NOT EXISTS idx_credit_purchases_user_id ON credit_purchases(user_id);
-CREATE INDEX IF NOT EXISTS idx_credit_purchases_email ON credit_purchases(email);
-CREATE INDEX IF NOT EXISTS idx_credit_purchases_status ON credit_purchases(status);
-CREATE INDEX IF NOT EXISTS idx_credit_purchases_created_at ON credit_purchases(created_at);
-CREATE INDEX IF NOT EXISTS idx_credit_purchases_paypal_order ON credit_purchases(paypal_order_id);
 
--- Add comment for documentation
-COMMENT ON TABLE credit_purchases IS 'Tracks all AI credit purchases made by users';
-COMMENT ON COLUMN credit_purchases.credits_purchased IS 'Number of AI generation credits purchased';
-COMMENT ON COLUMN credit_purchases.amount_cents IS 'Amount paid in cents (USD)';
-COMMENT ON COLUMN credit_purchases.status IS 'Payment status: pending, completed, failed, refunded';
+CREATE INDEX IF NOT EXISTS idx_credit_purchases_email ON credit_purchases(email);
+
+CREATE INDEX IF NOT EXISTS idx_credit_purchases_status ON credit_purchases(status);
+
+CREATE INDEX IF NOT EXISTS idx_credit_purchases_created_at ON credit_purchases(created_at);
+
+CREATE INDEX IF NOT EXISTS idx_credit_purchases_paypal_order ON credit_purchases(paypal_order_id);
