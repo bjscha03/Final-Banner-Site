@@ -136,7 +136,7 @@ async function maybeUpscaleToFit(imgBuffer, needW, needH) {
 /**
  * Convert raster image to PDF with optional text layers
  */
-async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textElements = []) {
+async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textElements = [], bannerWidthIn, bannerHeightIn, previewCanvasPx) {
   return new Promise((resolve, reject) => {
     try {
       const chunks = [];
@@ -168,6 +168,9 @@ async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textEleme
       // Render text layers on top of the image
       if (textElements && textElements.length > 0) {
         console.log(`[PDF] Rendering ${textElements.length} text layers`);
+        console.log(`[PDF] Banner dimensions: ${bannerWidthIn}" × ${bannerHeightIn}"`);
+        console.log(`[PDF] PDF page dimensions: ${pageWidthPt}pt × ${pageHeightPt}pt`);
+        console.log(`[PDF] Preview canvas: ${previewCanvasPx?.width || 'unknown'}px × ${previewCanvasPx?.height || 'unknown'}px`);
         
         textElements.forEach((textEl, index) => {
           try {
@@ -192,8 +195,8 @@ async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textEleme
             const bannerOffsetY = RULER_HEIGHT + BLEED_SIZE;  // 1.45"
             
             // Calculate total SVG dimensions (same as PreviewCanvas.tsx)
-            const bleedWidth = widthIn + (BLEED_SIZE * 2);
-            const bleedHeight = heightIn + (BLEED_SIZE * 2);
+            const bleedWidth = bannerWidthIn + (BLEED_SIZE * 2);
+            const bleedHeight = bannerHeightIn + (BLEED_SIZE * 2);
             const totalWidth = bleedWidth + (RULER_HEIGHT * 2);
             const totalHeight = bleedHeight + (RULER_HEIGHT * 2);
             
@@ -206,8 +209,8 @@ async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textEleme
             const bannerY = svgY - bannerOffsetY;
             
             // Convert to percentage of actual banner
-            const bannerXPercent = (bannerX / widthIn) * 100;
-            const bannerYPercent = (bannerY / heightIn) * 100;
+            const bannerXPercent = (bannerX / bannerWidthIn) * 100;
+            const bannerYPercent = (bannerY / bannerHeightIn) * 100;
             
             // Calculate position in points using corrected percentages
             let xPt = (bannerXPercent / 100) * pageWidthPt;
@@ -228,7 +231,7 @@ async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textEleme
             // Scale factor: Assume preview canvas is ~600px for a 48" banner
             // So for a 48" banner: scaleFactor = 3456pt / 600px ≈ 5.76
             // General formula: scaleFactor = pageWidthPt / 600
-            const PREVIEW_CANVAS_WIDTH_PX = 600; // Approximate preview canvas width
+            const PREVIEW_CANVAS_WIDTH_PX = previewCanvasPx?.width || 600; // Use actual preview canvas width
             const scaleFactor = pageWidthPt / PREVIEW_CANVAS_WIDTH_PX;
             const fontSize = (textEl.fontSize || 24) * scaleFactor;
             
@@ -496,7 +499,7 @@ exports.handler = async (event) => {
 
     console.log('[PDF] Image composited onto canvas');
 
-    const pdfBuffer = await rasterToPdfBuffer(merged, finalWidthIn, finalHeightIn, req.textElements);
+    const pdfBuffer = await rasterToPdfBuffer(merged, finalWidthIn, finalHeightIn, req.textElements, req.bannerWidthIn, req.bannerHeightIn, req.previewCanvasPx);
     console.log(`[PDF] PDF generated: ${pdfBuffer.length} bytes`);
 
     // Return PDF as base64 data URL for immediate download
