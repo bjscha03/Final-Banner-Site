@@ -35,14 +35,26 @@ const MyOrders: React.FC = () => {
     if (!user) return;
 
     try {
-      const response = await fetch(`/.netlify/functions/get-credit-purchases?user_id=${user.id}`);
+      console.log('🔍 Loading credit purchases for user:', user.id);
+      const response = await fetch(`/.netlify/functions/get-credit-purchases?user_id=${user.id}`, {
+        headers: {
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        }
+      });
+      
+      console.log('📡 Credit purchases response status:', response.status);
+      
       if (response.ok) {
         const purchases = await response.json();
-        console.log('Loaded credit purchases:', purchases.length);
+        console.log('✅ Loaded credit purchases:', purchases.length, purchases);
         setCreditPurchases(purchases);
+      } else {
+        const errorText = await response.text();
+        console.error('❌ Failed to load credit purchases:', response.status, errorText);
       }
     } catch (error) {
-      console.error('Error loading credit purchases:', error);
+      console.error('❌ Error loading credit purchases:', error);
     }
   };
 
