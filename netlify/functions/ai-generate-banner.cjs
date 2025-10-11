@@ -47,7 +47,7 @@ function generateDemoImages(variations, size) {
   
   for (let i = 0; i < variations; i++) {
     const scheme = colorSchemes[i % colorSchemes.length];
-    const dummyImageUrl = `https://dummyimage.com/${width}x${height}/${scheme.bg}/${scheme.fg}.png&text=${encodeURIComponent(scheme.text)}`;
+    const dummyImageUrl = `https://dummyimage.com/${width}x${height}/${scheme.bg}/${scheme.fg}.png?text=${encodeURIComponent(scheme.text)}`;
     
     images.push({
       url: dummyImageUrl,
