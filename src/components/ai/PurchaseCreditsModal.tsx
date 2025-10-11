@@ -198,11 +198,20 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
                     amountCents: Math.round(pkg.price * 100),
                   }),
                 });
+                console.log('📡 Backend response status:', captureResponse.status);
+                console.log('📡 Backend response status:', captureResponse.status);
 
                 if (!captureResponse.ok) {
-                  const errorData = await captureResponse.json();
-                  console.error('Capture error:', errorData);
-                  throw new Error('Payment capture failed');
+                  const errorText = await captureResponse.text();
+                  console.error('❌ Backend capture failed:', captureResponse.status, errorText);
+                  
+                  toast({
+                    title: "Payment Processing Error",
+                    description: `Backend error: ${captureResponse.status}. Check console for details.`,
+                    variant: "destructive"
+                  });
+                  
+                  throw new Error(`Backend capture failed: ${captureResponse.status}`);
                 }
 
                 const result = await captureResponse.json();
