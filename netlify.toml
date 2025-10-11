@@ -20,6 +20,10 @@
   timeout = 60
   memory = 2048
 
+[functions."ai-generate-banner"]
+  timeout = 120
+  memory = 1024
+
 [dev]
   targetPort = 8080
   port = 8888
