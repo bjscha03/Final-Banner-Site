@@ -1,3 +1,13 @@
+const OpenAI = require('openai');
+const cloudinary = require('cloudinary').v2;
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
 function enhancePrompt(prompt, styles = [], colors = [], size) {
   let enhancedPrompt = `High-quality professional banner background image: ${prompt}`;
   
@@ -34,28 +44,70 @@ function enhancePrompt(prompt, styles = [], colors = [], size) {
   return enhancedPrompt;
 }
 
-function generateDemoImages(variations, size) {
+async function uploadToCloudinary(imageUrl, index) {
+  try {
+    const result = await cloudinary.uploader.upload(imageUrl, {
+      folder: 'ai-generated-banners',
+      public_id: `banner-${Date.now()}-${index}`,
+      resource_type: 'image'
+    });
+    
+    return {
+      url: result.secure_url,
+      cloudinary_public_id: result.public_id,
+      width: result.width,
+      height: result.height
+    };
+  } catch (error) {
+    console.error('Cloudinary upload error:', error);
+    throw error;
+  }
+}
+
+async function generateWithDallE(prompt, size, variations = 3) {
+  const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY
+  });
+
   const images = [];
-  const width = Math.round(size.wIn * 100);
-  const height = Math.round(size.hIn * 100);
   
-  const colorSchemes = [
-    { bg: '4A90E2', fg: 'FFFFFF', text: 'AI Demo 1' },
-    { bg: 'E24A90', fg: 'FFFFFF', text: 'AI Demo 2' },
-    { bg: '90E24A', fg: 'FFFFFF', text: 'AI Demo 3' }
-  ];
+  // Calculate dimensions at 150 DPI for print quality
+  const widthPx = Math.round(size.wIn * 150);
+  const heightPx = Math.round(size.hIn * 150);
+  
+  // DALL-E 3 only supports specific sizes, so we'll use 1792x1024 (landscape) and crop/resize later
+  const dalleSize = '1792x1024';
+  
+  console.log(`Generating ${variations} images with DALL-E 3...`);
+  console.log(`Target size: ${widthPx}x${heightPx}px (${size.wIn}x${size.hIn} inches at 150 DPI)`);
   
   for (let i = 0; i < variations; i++) {
-    const scheme = colorSchemes[i % colorSchemes.length];
-    const dummyImageUrl = `https://dummyimage.com/${width}x${height}/${scheme.bg}/${scheme.fg}.png?text=${encodeURIComponent(scheme.text)}`;
-    
-    images.push({
-      url: dummyImageUrl,
-      cloudinary_public_id: `demo-${scheme.bg}-${i}`,
-      width: width,
-      height: height,
-      placeholder: true
-    });
+    try {
+      console.log(`Generating variation ${i + 1}/${variations}...`);
+      
+      const response = await openai.images.generate({
+        model: 'dall-e-3',
+        prompt: prompt,
+        n: 1,
+        size: dalleSize,
+        quality: 'hd',
+        style: 'vivid'
+      });
+      
+      const imageUrl = response.data[0].url;
+      console.log(`Generated image ${i + 1}: ${imageUrl}`);
+      
+      // Upload to Cloudinary
+      console.log(`Uploading image ${i + 1} to Cloudinary...`);
+      const cloudinaryResult = await uploadToCloudinary(imageUrl, i);
+      
+      images.push(cloudinaryResult);
+      console.log(`Successfully uploaded image ${i + 1} to Cloudinary`);
+      
+    } catch (error) {
+      console.error(`Error generating variation ${i + 1}:`, error);
+      throw error;
+    }
   }
   
   return images;
@@ -101,12 +153,36 @@ exports.handler = async (event, context) => {
       };
     }
 
+    // Check for OpenAI API key
+    if (!process.env.OPENAI_API_KEY) {
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ 
+          error: 'OpenAI API key not configured',
+          details: 'Please set OPENAI_API_KEY environment variable in Netlify'
+        })
+      };
+    }
+
+    // Check for Cloudinary credentials
+    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({ 
+          error: 'Cloudinary not configured',
+          details: 'Please set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET environment variables in Netlify'
+        })
+      };
+    }
+
     const enhancedPrompt = enhancePrompt(prompt, styles, colors, size);
     console.log('Enhanced prompt:', enhancedPrompt);
-    console.log('Generating demo images using DummyImage');
+    console.log('Generating images with DALL-E 3...');
     
-    const images = generateDemoImages(variations, size);
-    console.log('Generated image URLs:', images.map(img => img.url));
+    const images = await generateWithDallE(enhancedPrompt, size, variations);
+    console.log('Successfully generated and uploaded all images');
 
     return {
       statusCode: 200,
@@ -116,9 +192,10 @@ exports.handler = async (event, context) => {
         images: images,
         prompt: enhancedPrompt,
         metadata: {
-          model: 'demo-mode',
+          model: 'dall-e-3',
           variations: variations,
-          note: 'Using demo images. Configure REPLICATE_API_KEY for AI generation.'
+          quality: 'hd',
+          style: 'vivid'
         }
       })
     };
