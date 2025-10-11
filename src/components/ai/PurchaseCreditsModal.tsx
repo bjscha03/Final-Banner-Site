@@ -86,10 +86,19 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
   }, [open]);
 
   // Show receipt modal when purchaseData is set
+  // Use a ref to track if we've already shown the receipt for this purchase
+  const lastPurchaseIdRef = React.useRef<string | null>(null);
+  
   useEffect(() => {
-    if (purchaseData && !showReceipt) {
+    if (purchaseData && purchaseData.id && purchaseData.id !== lastPurchaseIdRef.current) {
       console.log('🎫 purchaseData updated, showing receipt modal...');
       console.log('📋 Purchase data for receipt:', purchaseData);
+      console.log('📋 Purchase ID:', purchaseData.id);
+      console.log('📋 Last shown purchase ID:', lastPurchaseIdRef.current);
+      
+      // Mark this purchase as shown
+      lastPurchaseIdRef.current = purchaseData.id;
+      
       setShowReceipt(true);
       console.log('✅ Receipt modal opened');
       
@@ -98,12 +107,31 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
         console.log('🔄 Closing purchase modal after receipt is displayed');
         onOpenChange(false);
       }, 500);
+    } else if (purchaseData) {
+      console.log('⚠️  purchaseData exists but not showing receipt:');
+      console.log('   - purchaseData.id:', purchaseData.id);
+      console.log('   - lastPurchaseIdRef.current:', lastPurchaseIdRef.current);
+      console.log('   - Already shown:', purchaseData.id === lastPurchaseIdRef.current);
     }
-  }, [purchaseData, showReceipt, onOpenChange]);
+  }, [purchaseData, onOpenChange]);
 
 
 
   const handlePurchase = async (pkg: CreditPackage) => {
+    // Check if user is authenticated
+    if (!userId || userId === 'null' || userId === 'undefined') {
+      console.error('❌ User not authenticated, cannot purchase credits');
+      toast({
+        title: '🔒 Authentication Required',
+        description: 'Please sign up or log in to purchase AI credits.',
+        variant: 'destructive',
+      });
+      setIsProcessing(false);
+      onOpenChange(false);
+      // TODO: Redirect to login/signup page
+      return;
+    }
+
     setSelectedPackage(pkg);
     setIsProcessing(true);
 
