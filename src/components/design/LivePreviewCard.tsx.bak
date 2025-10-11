@@ -1,8 +1,8 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image, X, ChevronDown, ChevronUp, Wand2, Crop, RefreshCw, Loader2, Type } from 'lucide-react';
 import DraggableText from './DraggableText';
-import TextStylePanel from './TextStylePanel';
 import AlignmentGuides from './AlignmentGuides';
+import TextStylePanel from './TextStylePanel';
 import { useQuoteStore, Grommets } from '@/store/quote';
 import { formatDimensions } from '@/lib/pricing';
 import { grommetPoints } from '@/lib/preview/grommets';
