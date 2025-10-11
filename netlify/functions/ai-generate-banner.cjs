@@ -82,8 +82,11 @@ function hexToColorName(hex) {
   return `${brightness}${saturation}${colorName}`.trim();
 }
 
+// ISSUE #1 FIX: Rewritten to avoid "banner" and "mockup" language
 function enhancePrompt(prompt, styles = [], colors = [], size) {
-  let enhancedPrompt = `High-quality professional banner background image: ${prompt}`;
+  // Start with a clean prompt that focuses on the scene/background itself
+  // Avoid words like "banner", "sign", "mockup" that cause DALL-E to generate product shots
+  let enhancedPrompt = `Professional high-resolution photograph: ${prompt}`;
   
   if (styles && styles.length > 0) {
     const styleDescriptions = {
@@ -109,20 +112,28 @@ function enhancePrompt(prompt, styles = [], colors = [], size) {
     enhancedPrompt += `. Color palette: prominently featuring ${uniqueColors.join(', ')} as the dominant colors throughout the composition`;
   }
   
-  enhancedPrompt += '. Requirements: wide landscape banner format, suitable for large format printing, ultra high quality, professional commercial photography style, vibrant colors, sharp details, no text or logos, clean composition';
+  // Focus on what makes a good background: wide composition, no text, suitable for printing
+  // Use "landscape orientation" instead of "banner format"
+  enhancedPrompt += '. Composition: wide landscape orientation filling the entire frame, ultra high resolution suitable for large format printing, professional commercial photography quality, vibrant saturated colors, sharp focus, no text, no logos, no watermarks, clean uncluttered composition';
+  
   return enhancedPrompt;
 }
 
 async function uploadToCloudinary(imageUrl, index) {
   try {
-    console.log(`Uploading image ${index} to Cloudinary from URL: ${imageUrl}`);
+    console.log(`[AI-Gen] Uploading image ${index} to Cloudinary from URL: ${imageUrl}`);
+    const uploadStart = Date.now();
+    
     const result = await cloudinary.uploader.upload(imageUrl, {
       folder: 'ai-generated-banners',
       public_id: `banner-${Date.now()}-${index}`,
-      resource_type: 'image'
+      resource_type: 'image',
+      timeout: 60000 // 60 second timeout for upload
     });
     
-    console.log(`Successfully uploaded image ${index} to Cloudinary: ${result.secure_url}`);
+    const uploadTime = Date.now() - uploadStart;
+    console.log(`[AI-Gen] Successfully uploaded image ${index} to Cloudinary in ${uploadTime}ms: ${result.secure_url}`);
+    
     return {
       url: result.secure_url,
       cloudinary_public_id: result.public_id,
@@ -130,14 +141,16 @@ async function uploadToCloudinary(imageUrl, index) {
       height: result.height
     };
   } catch (error) {
-    console.error(`Cloudinary upload error for image ${index}:`, error);
+    console.error(`[AI-Gen] Cloudinary upload error for image ${index}:`, error);
     throw new Error(`Failed to upload image ${index} to Cloudinary: ${error.message}`);
   }
 }
 
 async function generateSingleImage(openai, prompt, dalleSize, index) {
   try {
-    console.log(`Generating variation ${index + 1} with DALL-E 3...`);
+    const genStart = Date.now();
+    console.log(`[AI-Gen] Generating variation ${index + 1} with DALL-E 3...`);
+    console.log(`[AI-Gen] Prompt for variation ${index + 1}: ${prompt}`);
     
     const response = await openai.images.generate({
       model: 'dall-e-3',
@@ -148,21 +161,27 @@ async function generateSingleImage(openai, prompt, dalleSize, index) {
       style: 'vivid'
     });
     
+    const genTime = Date.now() - genStart;
     const imageUrl = response.data[0].url;
-    console.log(`Generated image ${index + 1}: ${imageUrl}`);
+    console.log(`[AI-Gen] Generated image ${index + 1} in ${genTime}ms: ${imageUrl}`);
     
     // Upload to Cloudinary
     const cloudinaryResult = await uploadToCloudinary(imageUrl, index);
-    console.log(`Successfully processed image ${index + 1}`);
+    
+    const totalTime = Date.now() - genStart;
+    console.log(`[AI-Gen] Successfully processed image ${index + 1} in ${totalTime}ms total`);
     
     return cloudinaryResult;
   } catch (error) {
-    console.error(`Error generating variation ${index + 1}:`, error);
+    console.error(`[AI-Gen] Error generating variation ${index + 1}:`, error);
     throw new Error(`Failed to generate image ${index + 1}: ${error.message}`);
   }
 }
 
+// ISSUE #2 FIX: Parallel generation with detailed timing
 async function generateWithDallE(prompt, size, variations = 3) {
+  const totalStart = Date.now();
+  
   const openai = new OpenAI({
     apiKey: process.env.OPENAI_API_KEY
   });
@@ -174,10 +193,13 @@ async function generateWithDallE(prompt, size, variations = 3) {
   // DALL-E 3 only supports specific sizes, so we'll use 1792x1024 (landscape)
   const dalleSize = '1792x1024';
   
-  console.log(`Generating ${variations} images with DALL-E 3 in parallel...`);
-  console.log(`Target size: ${widthPx}x${heightPx}px (${size.wIn}x${size.hIn} inches at 150 DPI)`);
+  console.log(`[AI-Gen] ========================================`);
+  console.log(`[AI-Gen] Starting parallel generation of ${variations} images`);
+  console.log(`[AI-Gen] Target size: ${widthPx}x${heightPx}px (${size.wIn}x${size.hIn} inches at 150 DPI)`);
+  console.log(`[AI-Gen] DALL-E size: ${dalleSize}`);
+  console.log(`[AI-Gen] ========================================`);
   
-  // Generate all images in parallel
+  // Generate all images in parallel (ISSUE #2 FIX)
   const imagePromises = [];
   for (let i = 0; i < variations; i++) {
     imagePromises.push(generateSingleImage(openai, prompt, dalleSize, i));
@@ -185,7 +207,13 @@ async function generateWithDallE(prompt, size, variations = 3) {
   
   // Wait for all images to complete
   const images = await Promise.all(imagePromises);
-  console.log(`Successfully generated and uploaded all ${variations} images`);
+  
+  const totalTime = Date.now() - totalStart;
+  console.log(`[AI-Gen] ========================================`);
+  console.log(`[AI-Gen] Successfully generated and uploaded all ${variations} images`);
+  console.log(`[AI-Gen] Total time: ${totalTime}ms (${(totalTime / 1000).toFixed(1)}s)`);
+  console.log(`[AI-Gen] Average per image: ${(totalTime / variations).toFixed(0)}ms`);
+  console.log(`[AI-Gen] ========================================`);
   
   return images;
 }
@@ -214,31 +242,56 @@ exports.handler = async (event, context) => {
     const { prompt, styles = [], colors = [], size } = body;
     const variations = 3;
 
-    console.log('=== AI Banner Generation Request ===');
-    console.log('Prompt:', prompt);
-    console.log('Styles:', styles);
-    console.log('Colors:', colors);
-    console.log('Size:', size);
+    console.log('[AI-Gen] ========================================');
+    console.log('[AI-Gen] AI Banner Generation Request');
+    console.log('[AI-Gen] ========================================');
+    console.log('[AI-Gen] Raw prompt:', prompt);
+    console.log('[AI-Gen] Prompt length:', prompt ? prompt.length : 0);
+    console.log('[AI-Gen] Styles:', styles);
+    console.log('[AI-Gen] Colors:', colors);
+    console.log('[AI-Gen] Size:', size);
 
-    if (!prompt) {
+    // ISSUE #4 FIX: Better validation and error messages
+    if (!prompt || typeof prompt !== 'string') {
+      console.error('[AI-Gen] Invalid prompt:', prompt);
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ error: 'Prompt is required' })
+        body: JSON.stringify({ 
+          error: 'Prompt is required',
+          details: 'Please provide a valid text prompt'
+        })
+      };
+    }
+
+    const trimmedPrompt = prompt.trim();
+    if (trimmedPrompt.length === 0) {
+      console.error('[AI-Gen] Empty prompt after trimming');
+      return {
+        statusCode: 400,
+        headers,
+        body: JSON.stringify({ 
+          error: 'Prompt cannot be empty',
+          details: 'Please describe what you want to generate'
+        })
       };
     }
 
     if (!size || !size.wIn || !size.hIn) {
+      console.error('[AI-Gen] Invalid size:', size);
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ error: 'Size with wIn and hIn is required' })
+        body: JSON.stringify({ 
+          error: 'Size with wIn and hIn is required',
+          details: 'Banner dimensions are missing'
+        })
       };
     }
 
     // Check for OpenAI API key
     if (!process.env.OPENAI_API_KEY) {
-      console.error('OpenAI API key not configured');
+      console.error('[AI-Gen] OpenAI API key not configured');
       return {
         statusCode: 500,
         headers,
@@ -251,7 +304,7 @@ exports.handler = async (event, context) => {
 
     // Check for Cloudinary credentials
     if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
-      console.error('Cloudinary credentials not configured');
+      console.error('[AI-Gen] Cloudinary credentials not configured');
       return {
         statusCode: 500,
         headers,
@@ -262,13 +315,19 @@ exports.handler = async (event, context) => {
       };
     }
 
-    const enhancedPrompt = enhancePrompt(prompt, styles, colors, size);
-    console.log('Enhanced prompt:', enhancedPrompt);
-    console.log('Starting parallel image generation...');
+    const enhancedPrompt = enhancePrompt(trimmedPrompt, styles, colors, size);
+    console.log('[AI-Gen] Enhanced prompt:', enhancedPrompt);
+    console.log('[AI-Gen] Enhanced prompt length:', enhancedPrompt.length);
+    console.log('[AI-Gen] Starting parallel image generation...');
     
     const images = await generateWithDallE(enhancedPrompt, size, variations);
-    console.log('=== Generation Complete ===');
-    console.log('Generated images:', images.length);
+    
+    console.log('[AI-Gen] ========================================');
+    console.log('[AI-Gen] Generation Complete');
+    console.log('[AI-Gen] Generated images:', images.length);
+    console.log('[AI-Gen] Image URLs:', images.map(img => img.url));
+    console.log('[AI-Gen] Cloudinary IDs:', images.map(img => img.cloudinary_public_id));
+    console.log('[AI-Gen] ========================================');
 
     return {
       statusCode: 200,
@@ -287,9 +346,13 @@ exports.handler = async (event, context) => {
     };
 
   } catch (error) {
-    console.error('=== Handler Error ===');
-    console.error('Error:', error);
-    console.error('Stack:', error.stack);
+    console.error('[AI-Gen] ========================================');
+    console.error('[AI-Gen] Handler Error');
+    console.error('[AI-Gen] ========================================');
+    console.error('[AI-Gen] Error:', error);
+    console.error('[AI-Gen] Error message:', error.message);
+    console.error('[AI-Gen] Error stack:', error.stack);
+    console.error('[AI-Gen] ========================================');
     
     return {
       statusCode: 500,
