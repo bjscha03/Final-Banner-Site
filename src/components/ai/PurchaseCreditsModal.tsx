@@ -66,7 +66,6 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
   const [showReceipt, setShowReceipt] = useState(false);
   const [purchaseData, setPurchaseData] = useState<any>(null);
   const { toast } = useToast();
-  const navigate = useNavigate();
 
   // Load PayPal SDK
   useEffect(() => {
