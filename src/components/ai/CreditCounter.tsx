@@ -5,7 +5,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Sparkles, Coins, TrendingUp } from 'lucide-react';
+import { Sparkles, Coins, TrendingUp, ShoppingCart } from 'lucide-react';
 import type { CreditsStatusResponse } from '../../types/ai-generation';
 
 interface CreditCounterProps {
@@ -62,6 +62,11 @@ export const CreditCounter: React.FC<CreditCounterProps> = ({
     }
   }, [onRefresh]);
 
+  const handlePurchaseCredits = () => {
+    // Open contact page or show purchase modal
+    window.open('mailto:support@bannersonthefly.com?subject=Purchase AI Credits&body=I would like to purchase additional AI generation credits. My User ID: ' + userId, '_blank');
+  };
+
   if (loading) {
     return (
       <div className={`flex items-center gap-2 text-sm text-gray-500 ${className}`}>
@@ -91,16 +96,17 @@ export const CreditCounter: React.FC<CreditCounterProps> = ({
 
   const budgetPercentage = (status.monthlySpend / status.monthlyCap) * 100;
   const budgetColor = budgetPercentage > 90 ? 'text-red-600' : budgetPercentage > 70 ? 'text-yellow-600' : 'text-green-600';
+  const hasNoCredits = status.freeRemainingToday === 0 && status.paidCredits === 0;
 
   return (
     <div className={`flex flex-col gap-2 ${className}`}>
       {/* Credits Display */}
-      <div className="flex items-center gap-4 text-sm">
+      <div className="flex items-center gap-4 text-sm flex-wrap">
         {/* Free Credits */}
         {status.freeRemainingToday > 0 && (
           <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full">
             <Sparkles className="w-4 h-4" />
-            <span className="font-medium">{status.freeRemainingToday}</span>
+            <span className="font-medium">🎁 {status.freeRemainingToday}</span>
             <span className="text-blue-600">free today</span>
           </div>
         )}
@@ -114,11 +120,20 @@ export const CreditCounter: React.FC<CreditCounterProps> = ({
           </div>
         )}
 
-        {/* No Credits Warning */}
-        {status.freeRemainingToday === 0 && status.paidCredits === 0 && (
-          <div className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-50 text-yellow-700 rounded-full">
-            <span className="font-medium">No credits remaining</span>
-          </div>
+        {/* No Credits Warning + Purchase Button */}
+        {hasNoCredits && (
+          <>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-50 text-yellow-700 rounded-full">
+              <span className="font-medium">No credits remaining</span>
+            </div>
+            <button
+              onClick={handlePurchaseCredits}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors font-medium"
+            >
+              <ShoppingCart className="w-4 h-4" />
+              Purchase Credits
+            </button>
+          </>
         )}
       </div>
 
