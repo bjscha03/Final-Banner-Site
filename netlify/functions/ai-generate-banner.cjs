@@ -250,6 +250,16 @@ exports.handler = async (event, context) => {
     console.log('[AI-Gen] Styles:', styles);
     console.log('[AI-Gen] Colors:', colors);
     console.log('[AI-Gen] Size:', size);
+    
+    // DIAGNOSTIC: Check environment variables
+    console.log('[AI-Gen] ========================================');
+    console.log('[AI-Gen] Environment Variables Check');
+    console.log('[AI-Gen] ========================================');
+    console.log('[AI-Gen] OPENAI_API_KEY:', process.env.OPENAI_API_KEY ? `SET (${process.env.OPENAI_API_KEY.substring(0, 10)}...)` : '❌ NOT SET');
+    console.log('[AI-Gen] CLOUDINARY_CLOUD_NAME:', process.env.CLOUDINARY_CLOUD_NAME || '❌ NOT SET');
+    console.log('[AI-Gen] CLOUDINARY_API_KEY:', process.env.CLOUDINARY_API_KEY ? '✅ SET' : '❌ NOT SET');
+    console.log('[AI-Gen] CLOUDINARY_API_SECRET:', process.env.CLOUDINARY_API_SECRET ? '✅ SET' : '❌ NOT SET');
+    console.log('[AI-Gen] ========================================');
 
     // ISSUE #4 FIX: Better validation and error messages
     if (!prompt || typeof prompt !== 'string') {
