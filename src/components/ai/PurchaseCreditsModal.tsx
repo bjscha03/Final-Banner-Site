@@ -85,7 +85,7 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
       window.removeEventListener('show-credit-receipt', handleShowReceipt);
       console.log('🔇 Stopped listening for show-credit-receipt event');
     };
-  }, [onOpenChange]);
+  }, []);  // Only cleanup on unmount, not when modal state changes
 
   
 
