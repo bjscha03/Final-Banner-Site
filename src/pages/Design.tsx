@@ -9,7 +9,7 @@ import PricingCard from '@/components/design/PricingCard';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useQuoteStore, MaterialKey } from '@/store/quote';
 import { useToast } from '@/components/ui/use-toast';
-import AIGenerationModal from '@/components/design/AIGenerationModal';
+import NewAIGenerationModal from '@/components/design/NewAIGenerationModal';
 
 const Design: React.FC = () => {
   const navigate = useNavigate();
@@ -183,7 +183,7 @@ const Design: React.FC = () => {
         </div>
       </div>
       {/* AI Generation Modal */}
-      <AIGenerationModal 
+      <NewAIGenerationModal 
         open={aiModalOpen} 
         onOpenChange={setAiModalOpen} 
       />
