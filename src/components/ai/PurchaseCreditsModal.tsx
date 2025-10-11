@@ -51,6 +51,10 @@ interface PurchaseCreditsModalProps {
   userId: string;
   userEmail?: string;
   onPurchaseComplete?: () => void;
+  showReceipt: boolean;
+  setShowReceipt: (show: boolean) => void;
+  purchaseData: any;
+  setPurchaseData: (data: any) => void;
 }
 
 export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
@@ -59,12 +63,14 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
   userId,
   userEmail,
   onPurchaseComplete,
+  showReceipt,
+  setShowReceipt,
+  purchaseData,
+  setPurchaseData,
 }) => {
   const [selectedPackage, setSelectedPackage] = useState<CreditPackage | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [paypalLoaded, setPaypalLoaded] = useState(false);
-  const [showReceipt, setShowReceipt] = useState(false);
-  const [purchaseData, setPurchaseData] = useState<any>(null);
   const { toast } = useToast();
 
   // Use ref to store handler so it doesn't get recreated

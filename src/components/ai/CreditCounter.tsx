@@ -26,6 +26,8 @@ export const CreditCounter: React.FC<CreditCounterProps> = ({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [purchaseData, setPurchaseData] = useState<any>(null);
 
   const fetchStatus = async () => {
     if (!userId) {
@@ -187,6 +189,10 @@ export const CreditCounter: React.FC<CreditCounterProps> = ({
         userId={userId}
         userEmail={userEmail}
         onPurchaseComplete={handlePurchaseComplete}
+        showReceipt={showReceipt}
+        setShowReceipt={setShowReceipt}
+        purchaseData={purchaseData}
+        setPurchaseData={setPurchaseData}
       />
     </>
   );
