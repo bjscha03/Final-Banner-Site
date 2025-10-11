@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
+import { CreditPurchaseReceipt } from '../orders/CreditPurchaseReceipt';
 
 interface CreditPackage {
   id: string;
@@ -62,6 +63,8 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
   const [selectedPackage, setSelectedPackage] = useState<CreditPackage | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
   const [paypalLoaded, setPaypalLoaded] = useState(false);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [purchaseData, setPurchaseData] = useState<any>(null);
   const { toast } = useToast();
 
   // Load PayPal SDK
@@ -129,21 +132,40 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
                 });
 
                 if (!captureResponse.ok) {
+                  const errorData = await captureResponse.json();
+                  console.error('Capture error:', errorData);
                   throw new Error('Payment capture failed');
                 }
 
                 const result = await captureResponse.json();
+                console.log('✅ Payment captured successfully:', result);
+
+                // Store purchase data for receipt
+                setPurchaseData({
+                  id: result.purchaseId,
+                  credits_purchased: pkg.credits,
+                  amount_cents: Math.round(pkg.price * 100),
+                  paypal_capture_id: result.purchaseId,
+                  customer_name: userEmail || 'Customer',
+                  email: userEmail || '',
+                  created_at: new Date().toISOString(),
+                });
 
                 toast({
                   title: '✅ Credits Purchased!',
                   description: `${pkg.credits} credits have been added to your account.`,
                 });
 
-                // Refresh credits and close modal
+                // Close purchase modal
+                onOpenChange(false);
+
+                // Show receipt
+                setShowReceipt(true);
+
+                // Refresh credits
                 if (onPurchaseComplete) {
                   onPurchaseComplete();
                 }
-                onOpenChange(false);
               } catch (error) {
                 console.error('Payment capture error:', error);
                 toast({
@@ -186,108 +208,117 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-2xl">
-            <ShoppingCart className="w-6 h-6 text-blue-600" />
-            Purchase AI Credits
-          </DialogTitle>
-        </DialogHeader>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-2xl">
+              <ShoppingCart className="w-6 h-6 text-blue-600" />
+              Purchase AI Credits
+            </DialogTitle>
+          </DialogHeader>
 
-        <div className="mt-4">
-          {!selectedPackage ? (
-            <>
-              <p className="text-gray-600 mb-6">
-                Choose a credit package to continue generating AI banner images
-              </p>
+          <div className="mt-4">
+            {!selectedPackage ? (
+              <>
+                <p className="text-gray-600 mb-6">
+                  Choose a credit package to continue generating AI banner images
+                </p>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {CREDIT_PACKAGES.map((pkg) => (
-                  <div
-                    key={pkg.id}
-                    className={`relative border-2 rounded-lg p-6 cursor-pointer transition-all hover:shadow-lg ${
-                      pkg.popular
-                        ? 'border-blue-600 bg-blue-50'
-                        : 'border-gray-200 hover:border-blue-400'
-                    }`}
-                    onClick={() => handlePurchase(pkg)}
-                  >
-                    {pkg.popular && (
-                      <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-bold">
-                        MOST POPULAR
-                      </div>
-                    )}
-
-                    <div className="text-center">
-                      <div className="flex items-center justify-center gap-2 mb-2">
-                        <Sparkles className="w-5 h-5 text-blue-600" />
-                        <span className="text-3xl font-bold">{pkg.credits}</span>
-                      </div>
-                      <p className="text-sm text-gray-600 mb-4">Credits</p>
-
-                      <div className="text-2xl font-bold text-gray-900 mb-2">
-                        ${pkg.price.toFixed(2)}
-                      </div>
-
-                      {pkg.savings && (
-                        <div className="text-sm font-medium text-green-600 mb-4">
-                          {pkg.savings}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {CREDIT_PACKAGES.map((pkg) => (
+                    <div
+                      key={pkg.id}
+                      className={`relative border-2 rounded-lg p-6 cursor-pointer transition-all hover:shadow-lg ${
+                        pkg.popular
+                          ? 'border-blue-600 bg-blue-50'
+                          : 'border-gray-200 hover:border-blue-400'
+                      }`}
+                      onClick={() => handlePurchase(pkg)}
+                    >
+                      {pkg.popular && (
+                        <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-bold">
+                          MOST POPULAR
                         </div>
                       )}
 
-                      <div className="text-xs text-gray-500">
-                        ${(pkg.price / pkg.credits).toFixed(2)} per credit
+                      <div className="text-center">
+                        <div className="flex items-center justify-center gap-2 mb-2">
+                          <Sparkles className="w-5 h-5 text-blue-600" />
+                          <span className="text-3xl font-bold">{pkg.credits}</span>
+                        </div>
+                        <p className="text-sm text-gray-600 mb-4">Credits</p>
+
+                        <div className="text-2xl font-bold text-gray-900 mb-2">
+                          ${pkg.price.toFixed(2)}
+                        </div>
+
+                        {pkg.savings && (
+                          <div className="text-sm font-medium text-green-600 mb-4">
+                            {pkg.savings}
+                          </div>
+                        )}
+
+                        <div className="text-xs text-gray-500">
+                          ${(pkg.price / pkg.credits).toFixed(2)} per credit
+                        </div>
                       </div>
+
+                      <Button
+                        className="w-full mt-4"
+                        variant={pkg.popular ? 'default' : 'outline'}
+                      >
+                        Select Package
+                      </Button>
                     </div>
+                  ))}
+                </div>
 
-                    <Button
-                      className="w-full mt-4"
-                      variant={pkg.popular ? 'default' : 'outline'}
-                    >
-                      Select Package
-                    </Button>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                <h4 className="font-medium text-sm mb-2">What you get:</h4>
-                <ul className="text-sm text-gray-600 space-y-1">
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-green-600" />
-                    Premium quality AI-generated images
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-green-600" />
-                    Credits never expire
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Check className="w-4 h-4 text-green-600" />
-                    Instant delivery after payment
-                  </li>
-                </ul>
-              </div>
-            </>
-          ) : (
-            <div className="text-center py-8">
-              {isProcessing ? (
-                <>
-                  <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
-                  <p className="text-lg font-medium mb-2">Processing your purchase...</p>
-                  <p className="text-sm text-gray-600">
-                    {selectedPackage.credits} credits for ${selectedPackage.price.toFixed(2)}
-                  </p>
+                <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+                  <h4 className="font-medium text-sm mb-2">What you get:</h4>
+                  <ul className="text-sm text-gray-600 space-y-1">
+                    <li className="flex items-center gap-2">
+                      <Check className="w-4 h-4 text-green-600" />
+                      Premium quality AI-generated images
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-4 h-4 text-green-600" />
+                      Credits never expire
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <Check className="w-4 h-4 text-green-600" />
+                      Instant delivery after payment
+                    </li>
+                  </ul>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-8">
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+                    <p className="text-lg font-medium mb-2">Processing your purchase...</p>
+                    <p className="text-sm text-gray-600">
+                      {selectedPackage.credits} credits for ${selectedPackage.price.toFixed(2)}
+                    </p>
+                    <div id="paypal-button-container" className="mt-6"></div>
+                  </>
+                ) : (
                   <div id="paypal-button-container" className="mt-6"></div>
-                </>
-              ) : (
-                <div id="paypal-button-container" className="mt-6"></div>
-              )}
-            </div>
-          )}
-        </div>
-      </DialogContent>
-    </Dialog>
+                )}
+              </div>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Receipt Modal */}
+      <CreditPurchaseReceipt
+        open={showReceipt}
+        onOpenChange={setShowReceipt}
+        purchase={purchaseData}
+      />
+    </>
   );
 };
 

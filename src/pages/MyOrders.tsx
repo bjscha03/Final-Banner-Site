@@ -9,11 +9,13 @@ import ScrollToTopLink from '@/components/ScrollToTopLink';
 import { Button } from '@/components/ui/button';
 import { Package, Plus, ArrowLeft } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { CreditPurchasesList } from '@/components/orders/CreditPurchasesList';
 
 const MyOrders: React.FC = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
+  const [creditPurchases, setCreditPurchases] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -28,6 +30,21 @@ const MyOrders: React.FC = () => {
       loadOrders();
     }
   }, [user, authLoading, navigate]);
+
+  const loadCreditPurchases = async () => {
+    if (!user) return;
+
+    try {
+      const response = await fetch(`/.netlify/functions/get-credit-purchases?user_id=${user.id}`);
+      if (response.ok) {
+        const purchases = await response.json();
+        console.log('Loaded credit purchases:', purchases.length);
+        setCreditPurchases(purchases);
+      }
+    } catch (error) {
+      console.error('Error loading credit purchases:', error);
+    }
+  };
 
   const loadOrders = async () => {
     if (!user) return;
@@ -92,6 +109,9 @@ const MyOrders: React.FC = () => {
       }
 
       setOrders(userOrders);
+      
+      // Also load credit purchases
+      await loadCreditPurchases();
       console.log('Final orders set:', userOrders.length);
 
       // Debug: If no orders found, try to fetch all orders to see what's in the database
@@ -210,6 +230,13 @@ const MyOrders: React.FC = () => {
               </div>
             </div>
           </div>
+
+          {/* Credit Purchases */}
+          {creditPurchases.length > 0 && (
+            <div className="mb-8">
+              <CreditPurchasesList purchases={creditPurchases} />
+            </div>
+          )}
 
           {/* Orders Table */}
           <OrdersTable orders={orders} loading={loading} />
