@@ -35,14 +35,22 @@ export const CreditPurchaseReceipt: React.FC<CreditPurchaseReceiptProps> = ({
   onOpenChange,
   purchase,
 }) => {
-  if (!purchase) return null;
+  if (!purchase) {
+    console.log('⚠️  CreditPurchaseReceipt: No purchase data provided');
+    return null;
+  }
+  
+  console.log('✅ CreditPurchaseReceipt rendering with data:', purchase);
 
   const handlePrint = () => {
     window.print();
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(newOpen) => {
+        console.log('🎫 CreditPurchaseReceipt Dialog open state changing:', open, '->', newOpen);
+        onOpenChange(newOpen);
+      }}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-2xl">

@@ -10,17 +10,23 @@ const { randomUUID } = require('crypto');
 // Helper to send email notification
 async function sendCreditPurchaseEmail(purchaseId, email, credits, amountUSD) {
   try {
-    console.log('Triggering credit purchase notification:', purchaseId);
+    console.log('📧 Triggering credit purchase notification:', purchaseId);
     const siteURL = process.env.URL || 'https://bannersonthefly.com';
     const notifyURL = `${siteURL}/.netlify/functions/notify-credit-purchase`;
     
-    await fetch(notifyURL, {
+    const response = await fetch(notifyURL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ purchaseId, email, credits, amountUSD }),
     });
 
-    console.log('Credit purchase notification sent:', purchaseId);
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Credit purchase notification failed:', response.status, errorText);
+      throw new Error(`Email notification failed: ${response.status}`);
+    }
+
+    console.log('✅ Credit purchase notification sent successfully:', purchaseId);
   } catch (error) {
     console.error('Failed to send credit purchase notification:', purchaseId, error);
   }
@@ -29,10 +35,11 @@ async function sendCreditPurchaseEmail(purchaseId, email, credits, amountUSD) {
 // Helper to send admin notification
 async function sendAdminNotification(purchaseId, email, credits, amountUSD) {
   try {
+    console.log('📧 Sending admin notification for purchase:', purchaseId);
     const siteURL = process.env.URL || 'https://bannersonthefly.com';
     const adminEmail = process.env.ADMIN_EMAIL || 'support@bannersonthefly.com';
     
-    await fetch(`${siteURL}/.netlify/functions/send-email`, {
+    const response = await fetch(`${siteURL}/.netlify/functions/send-email`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -43,11 +50,19 @@ async function sendAdminNotification(purchaseId, email, credits, amountUSD) {
           <p><strong>Purchase ID:</strong> ${purchaseId}</p>
           <p><strong>Customer Email:</strong> ${email}</p>
           <p><strong>Credits Purchased:</strong> ${credits}</p>
-          <p><strong>Amount:</strong> $${amountUSD}</p>
+          <p><strong>Amount:</strong> ${amountUSD}</p>
           <p><strong>Time:</strong> ${new Date().toISOString()}</p>
         `,
       }),
     });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('❌ Admin notification failed:', response.status, errorText);
+      throw new Error(`Admin email failed: ${response.status}`);
+    }
+
+    console.log('✅ Admin notification sent successfully');
   } catch (error) {
     console.error('Failed to send admin notification:', error);
   }

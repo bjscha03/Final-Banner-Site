@@ -154,7 +154,10 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
                   created_at: new Date().toISOString(),
                 };
                 
+                console.log('📋 Receipt data prepared:', receiptData);
                 setPurchaseData(receiptData);
+                console.log('✅ Purchase data state updated');
+                console.log('✅ Purchase data state updated');
 
                 toast({
                   title: '✅ Credits Purchased!',
@@ -162,7 +165,9 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
                 });
 
                 // Show receipt modal immediately (it will overlay the purchase modal)
+                console.log('🎫 Setting showReceipt to true...');
                 setShowReceipt(true);
+                console.log('✅ showReceipt state updated to true');
                 
                 // Close purchase modal after receipt is shown
                 setTimeout(() => {

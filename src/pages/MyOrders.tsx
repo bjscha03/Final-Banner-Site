@@ -12,32 +12,6 @@ import { useToast } from '@/components/ui/use-toast';
 import { CreditPurchasesList } from '@/components/orders/CreditPurchasesList';
 
 const MyOrders: React.FC = () => {
-  // Reload credit purchases when page becomes visible (e.g., after purchase)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden && user) {
-        console.log('📄 Page became visible, reloading credit purchases...');
-        loadCreditPurchases();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [user]);
-
-  // Reload credit purchases when page becomes visible (e.g., after purchase)
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (!document.hidden && user) {
-        console.log('📄 Page became visible, reloading credit purchases...');
-        loadCreditPurchases();
-      }
-    };
-
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
-  }, [user]);
-
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
@@ -83,6 +57,34 @@ const MyOrders: React.FC = () => {
       console.error('❌ Error loading credit purchases:', error);
     }
   };
+
+  // Reload credit purchases when page becomes visible (e.g., after purchase)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && user) {
+        console.log('📄 Page became visible, reloading credit purchases...');
+        loadCreditPurchases();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [user, loadCreditPurchases]);
+
+
+  // Reload credit purchases when page becomes visible (e.g., after purchase)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (!document.hidden && user) {
+        console.log('📄 Page became visible, reloading credit purchases...');
+        loadCreditPurchases();
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [user, loadCreditPurchases]);
+
 
   const loadOrders = async () => {
     if (!user) return;
