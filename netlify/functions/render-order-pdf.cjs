@@ -345,6 +345,8 @@ exports.handler = async (event) => {
     const req = JSON.parse(event.body);
     console.log('[PDF] Parsed request:', JSON.stringify(req, null, 2));
     console.log('[PDF] Request keys:', Object.keys(req));
+    console.log('[PDF] CRITICAL - textElements received:', req.textElements);
+    console.log('[PDF] CRITICAL - textElements count:', req.textElements ? req.textElements.length : 0);
 
     // Accept either fileKey (preferred) or imageUrl (legacy)
     if (!req.orderId || !req.bannerWidthIn || !req.bannerHeightIn || (!req.fileKey && !req.imageUrl)) {

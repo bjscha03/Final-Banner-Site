@@ -157,6 +157,13 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
 
   const applyGeneratedImage = (image: GeneratedImage) => {
     // Apply the AI-generated image as the background using existing preview system
+    // CRITICAL: Preserve existing text elements when applying AI background
+    const currentTextElements = useQuoteStore.getState().textElements;
+    
+    console.log('[AI Modal] Applying AI-generated image');
+    console.log('[AI Modal] Current text elements:', currentTextElements);
+    console.log('[AI Modal] Cloudinary public ID:', image.cloudinary_public_id);
+    
     set({
       file: {
         name: `ai-generated-${Date.now()}.jpg`,
@@ -174,8 +181,12 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
           aspectRatio: image.aspectRatio
         }
       },
-      previewScalePct: 100
+      previewScalePct: 100,
+      // CRITICAL FIX: Explicitly preserve text elements
+      textElements: currentTextElements
     });
+
+    console.log('[AI Modal] Text elements after applying background:', useQuoteStore.getState().textElements);
 
     toast({
       title: 'Background applied!',
