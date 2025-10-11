@@ -196,58 +196,57 @@ exports.handler = async (event) => {
     console.log('💳 Starting database transaction for purchase:', purchaseId);
 
     // Database transaction: Create purchase record and add credits
-    await sql.transaction(async (tx) => {
-      // Insert purchase record
-      await tx`
-        INSERT INTO credit_purchases (
-          id, user_id, email, credits_purchased, amount_cents,
-          payment_method, paypal_order_id, paypal_capture_id,
-          status, customer_name
-        ) VALUES (
-          ${purchaseId}, ${userId}, ${finalEmail}, ${credits}, ${amountCents},
-          'paypal', ${orderID}, ${capture.id},
-          'completed', ${customerName}
-        )
-      `;
+    // Execute queries sequentially (Neon serverless doesn't support traditional transactions)
+    // Insert purchase record
+    await sql`
+      INSERT INTO credit_purchases (
+        id, user_id, email, credits_purchased, amount_cents,
+        payment_method, paypal_order_id, paypal_capture_id,
+        status, customer_name
+      ) VALUES (
+        ${purchaseId}, ${userId}, ${finalEmail}, ${credits}, ${amountCents},
+        'paypal', ${orderID}, ${capture.id},
+        'completed', ${customerName}
+      )
+    `;
 
-      // Ensure user exists
-      await tx`
-        INSERT INTO users (id, email)
-        VALUES (${userId}, ${finalEmail})
-        ON CONFLICT (id) DO UPDATE SET email = ${finalEmail}
-      `;
+    // Ensure user exists
+    await sql`
+      INSERT INTO users (id, email)
+      VALUES (${userId}, ${finalEmail})
+      ON CONFLICT (id) DO UPDATE SET email = ${finalEmail}
+    `;
 
-      // Ensure user_credits record exists
-      await tx`
-        INSERT INTO user_credits (user_id, credits)
-        VALUES (${userId}, 0)
-        ON CONFLICT (user_id) DO NOTHING
-      `;
+    // Ensure user_credits record exists
+    await sql`
+      INSERT INTO user_credits (user_id, credits)
+      VALUES (${userId}, 0)
+      ON CONFLICT (user_id) DO NOTHING
+    `;
 
-      // Add credits to user's account
-      await tx`
-        UPDATE user_credits
-        SET credits = credits + ${credits},
-            updated_at = CURRENT_TIMESTAMP
-        WHERE user_id = ${userId}
-      `;
+    // Add credits to user's account
+    await sql`
+      UPDATE user_credits
+      SET credits = credits + ${credits},
+          updated_at = CURRENT_TIMESTAMP
+      WHERE user_id = ${userId}
+    `;
 
-      // Log the purchase in usage_log
-      await tx`
-        INSERT INTO usage_log (user_id, event, meta)
-        VALUES (
-          ${userId},
-          'CREDITS_PURCHASED',
-          ${JSON.stringify({
-            purchaseId,
-            credits,
-            amountUSD: capturedAmount,
-            paypalOrderId: orderID,
-            paypalCaptureId: capture.id,
-          })}
-        )
-      `;
-    });
+    // Log the purchase in usage_log
+    await sql`
+      INSERT INTO usage_log (user_id, event, meta)
+      VALUES (
+        ${userId},
+        'CREDITS_PURCHASED',
+        ${JSON.stringify({
+          purchaseId,
+          credits,
+          amountUSD: capturedAmount,
+          paypalOrderId: orderID,
+          paypalCaptureId: capture.id,
+        })}
+      )
+    `;
 
     console.log('✅ Credits purchase completed:', purchaseId, `${credits} credits added to user ${userId}`);
     console.log('📧 Sending email notifications to:', finalEmail);
