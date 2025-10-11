@@ -1,13 +1,11 @@
 const cloudinary = require('cloudinary').v2;
 
-// Configure Cloudinary
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-// Enhanced prompt engineering
 function enhancePrompt(prompt, styles = [], colors = [], size) {
   let enhancedPrompt = `High-quality professional banner background image: ${prompt}`;
   
@@ -21,7 +19,6 @@ function enhancePrompt(prompt, styles = [], colors = [], size) {
       'playful': 'fun, energetic, vibrant, lively, dynamic',
       'minimalist': 'clean, simple, uncluttered, spacious'
     };
-    
     const styleText = styles.map(style => styleDescriptions[style] || style).join(', ');
     enhancedPrompt += `. Style: ${styleText}`;
   }
@@ -42,30 +39,27 @@ function enhancePrompt(prompt, styles = [], colors = [], size) {
   }
   
   enhancedPrompt += '. Requirements: wide landscape banner format, suitable for large format printing, ultra high quality, professional commercial photography style, vibrant colors, sharp details, no text or logos, clean composition';
-  
   return enhancedPrompt;
 }
 
-// Generate demo images using Picsum (Lorem Picsum - reliable placeholder service)
 function generateDemoImages(variations, size) {
   const images = [];
-  
   const width = Math.round(size.wIn * 100);
   const height = Math.round(size.hIn * 100);
   
-  // Use Lorem Picsum which is reliable and returns actual images
-  // Different image IDs for variety
-  const imageIds = [237, 431, 659]; // Curated colorful images
+  const colorSchemes = [
+    { bg: '4A90E2', fg: 'FFFFFF', text: 'AI Demo 1' },
+    { bg: 'E24A90', fg: 'FFFFFF', text: 'AI Demo 2' },
+    { bg: '90E24A', fg: 'FFFFFF', text: 'AI Demo 3' }
+  ];
   
   for (let i = 0; i < variations; i++) {
-    const imageId = imageIds[i % imageIds.length];
-    // Add random seed to get different images each time
-    const seed = Date.now() + i;
-    const picsumUrl = `https://picsum.photos/seed/${seed}/${width}/${height}`;
+    const scheme = colorSchemes[i % colorSchemes.length];
+    const dummyImageUrl = `https://dummyimage.com/${width}x${height}/${scheme.bg}/${scheme.fg}.png&text=${encodeURIComponent(scheme.text)}`;
     
     images.push({
-      url: picsumUrl,
-      cloudinary_public_id: `demo-picsum-${imageId}-${i}`,
+      url: dummyImageUrl,
+      cloudinary_public_id: `demo-${scheme.bg}-${i}`,
       width: width,
       height: height,
       placeholder: true
@@ -97,7 +91,6 @@ exports.handler = async (event, context) => {
   try {
     const body = JSON.parse(event.body);
     const { prompt, styles = [], colors = [], size } = body;
-    
     const variations = 3;
 
     if (!prompt) {
@@ -118,10 +111,9 @@ exports.handler = async (event, context) => {
 
     const enhancedPrompt = enhancePrompt(prompt, styles, colors, size);
     console.log('Enhanced prompt:', enhancedPrompt);
-    console.log('Generating demo images using Picsum');
+    console.log('Generating demo images using DummyImage');
     
     const images = generateDemoImages(variations, size);
-    
     console.log('Generated image URLs:', images.map(img => img.url));
 
     return {
@@ -134,7 +126,7 @@ exports.handler = async (event, context) => {
         metadata: {
           model: 'demo-mode',
           variations: variations,
-          note: 'Using demo images from Picsum. Configure REPLICATE_API_KEY for AI generation.'
+          note: 'Using demo images. Configure REPLICATE_API_KEY for AI generation.'
         }
       })
     };
