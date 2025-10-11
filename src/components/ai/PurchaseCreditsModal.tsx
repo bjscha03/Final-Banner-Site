@@ -72,9 +72,23 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
     const handleShowReceipt = (event: any) => {
       console.log('🎯 Custom event received: show-credit-receipt', event.detail);
       const receiptData = event.detail;
+      
+      // Validate receipt data
+      if (!receiptData || !receiptData.id) {
+        console.error('❌ Invalid receipt data received:', receiptData);
+        return;
+      }
+      
+      console.log('📋 Setting purchase data:', receiptData);
       setPurchaseData(receiptData);
-      setShowReceipt(true);
-      console.log('✅ Receipt modal opened via custom event');
+      
+      // Use setTimeout to ensure state update completes before opening modal
+      setTimeout(() => {
+        console.log('✅ Opening receipt modal');
+        setShowReceipt(true);
+      }, 50);
+      
+      console.log('✅ Receipt modal will open after state update');
       // DO NOT close purchase modal - let user close receipt manually
     };
 
