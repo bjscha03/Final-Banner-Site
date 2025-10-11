@@ -200,8 +200,22 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
                 };
                 
                 console.log('📋 Receipt data prepared:', receiptData);
-                setPurchaseData(receiptData);
+                
+                // Force state update by using functional form and logging
+                setPurchaseData(prev => {
+                  console.log('🔄 setPurchaseData called - prev:', prev);
+                  console.log('🔄 setPurchaseData called - new:', receiptData);
+                  return receiptData;
+                });
+                
                 console.log('✅ Purchase data state updated');
+                
+                // Also directly show receipt as backup
+                setTimeout(() => {
+                  console.log('⏰ Timeout: Checking if receipt should be shown');
+                  setShowReceipt(true);
+                  console.log('⏰ Timeout: setShowReceipt(true) called');
+                }, 100);
                 
                 toast({
                   title: '✅ Credits Purchased!',
