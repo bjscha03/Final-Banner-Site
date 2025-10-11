@@ -11,7 +11,6 @@ cloudinary.config({
 function enhancePrompt(prompt, styles = [], colors = [], size) {
   let enhancedPrompt = `High-quality professional banner background image: ${prompt}`;
   
-  // Add style influences
   if (styles && styles.length > 0) {
     const styleDescriptions = {
       'corporate': 'clean, professional, business-appropriate, polished',
@@ -27,7 +26,6 @@ function enhancePrompt(prompt, styles = [], colors = [], size) {
     enhancedPrompt += `. Style: ${styleText}`;
   }
   
-  // Add color influences
   if (colors && colors.length > 0) {
     const colorNames = colors.map(color => {
       const colorMap = {
@@ -48,27 +46,26 @@ function enhancePrompt(prompt, styles = [], colors = [], size) {
   return enhancedPrompt;
 }
 
-// Fallback: Generate sample images using Unsplash
-function generatePlaceholderImages(variations, size) {
+// Generate demo images using Picsum (Lorem Picsum - reliable placeholder service)
+function generateDemoImages(variations, size) {
   const images = [];
-  
-  // Use Unsplash's random image API with specific themes
-  const themes = [
-    'abstract,colorful,gradient',
-    'pattern,geometric,modern',
-    'texture,vibrant,background'
-  ];
   
   const width = Math.round(size.wIn * 100);
   const height = Math.round(size.hIn * 100);
   
+  // Use Lorem Picsum which is reliable and returns actual images
+  // Different image IDs for variety
+  const imageIds = [237, 431, 659]; // Curated colorful images
+  
   for (let i = 0; i < variations; i++) {
-    const theme = themes[i % themes.length];
-    const unsplashUrl = `https://source.unsplash.com/${width}x${height}/?${theme}&sig=${Date.now() + i}`;
+    const imageId = imageIds[i % imageIds.length];
+    // Add random seed to get different images each time
+    const seed = Date.now() + i;
+    const picsumUrl = `https://picsum.photos/seed/${seed}/${width}/${height}`;
     
     images.push({
-      url: unsplashUrl,
-      cloudinary_public_id: `demo-${theme.split(',')[0]}-${i}`,
+      url: picsumUrl,
+      cloudinary_public_id: `demo-picsum-${imageId}-${i}`,
       width: width,
       height: height,
       placeholder: true
@@ -121,9 +118,11 @@ exports.handler = async (event, context) => {
 
     const enhancedPrompt = enhancePrompt(prompt, styles, colors, size);
     console.log('Enhanced prompt:', enhancedPrompt);
-    console.log('Generating placeholder images (AI generation not yet configured)');
+    console.log('Generating demo images using Picsum');
     
-    const images = generatePlaceholderImages(variations, size);
+    const images = generateDemoImages(variations, size);
+    
+    console.log('Generated image URLs:', images.map(img => img.url));
 
     return {
       statusCode: 200,
@@ -135,7 +134,7 @@ exports.handler = async (event, context) => {
         metadata: {
           model: 'demo-mode',
           variations: variations,
-          note: 'Using demo images. Configure REPLICATE_API_KEY for AI generation.'
+          note: 'Using demo images from Picsum. Configure REPLICATE_API_KEY for AI generation.'
         }
       })
     };
