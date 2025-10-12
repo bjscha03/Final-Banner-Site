@@ -63,13 +63,13 @@ export function SizeStepper({
       <label className="block text-xs font-medium text-gray-700 mb-2">
         {label}
       </label>
-      <div className="grid grid-cols-[auto_1fr_auto_auto] gap-2 items-center">
+      <div className="flex items-center gap-3">
         {/* Decrement Button */}
         <button 
           type="button"
           onClick={decrement}
           disabled={value <= min}
-          className="h-12 w-12 shrink-0 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 font-bold text-gray-700 touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center transition-colors duration-200"
+          className="h-10 w-10 bg-white border border-slate-300 rounded-md hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
           aria-label={`Decrease ${label.toLowerCase()}`}
         >
           <Minus className="h-4 w-4" />
@@ -80,7 +80,7 @@ export function SizeStepper({
           type="text"
           inputMode="numeric"
           pattern="[0-9]*"
-          className="h-12 w-full rounded-lg border border-gray-300 text-center font-medium tabular-nums text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors duration-200 px-3"
+          className="flex-1 min-w-[5rem] text-center bg-white border border-slate-300 rounded-md px-4 py-2 text-base font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
           value={value || ''}
           onChange={handleInputChange}
           onBlur={handleInputBlur}
@@ -99,7 +99,7 @@ export function SizeStepper({
           type="button"
           onClick={increment}
           disabled={value >= max}
-          className="h-12 w-12 shrink-0 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 font-bold text-gray-700 touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center transition-colors duration-200"
+          className="h-10 w-10 bg-white border border-slate-300 rounded-md hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
           aria-label={`Increase ${label.toLowerCase()}`}
         >
           <Plus className="h-4 w-4" />
