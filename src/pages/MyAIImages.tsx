@@ -10,6 +10,8 @@ import { Sparkles, Trash2, Download, Image as ImageIcon, Loader2 } from 'lucide-
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
+import Layout from '@/components/Layout';
+import Layout from '@/components/Layout';
 
 interface SavedImage {
   id: string;
@@ -143,17 +145,20 @@ export default function MyAIImages() {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
-          <p className="text-gray-600">Loading your saved images...</p>
+      <Layout>
+        <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+            <p className="text-gray-600">Loading your saved images...</p>
+          </div>
         </div>
-      </div>
+      </Layout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12">
+    <Layout>
+      <div className="min-h-screen bg-gray-50 py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
@@ -264,6 +269,7 @@ export default function MyAIImages() {
           </div>
         )}
       </div>
-    </div>
+      </div>
+    </Layout>
   );
 }

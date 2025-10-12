@@ -5,7 +5,10 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Sparkles, Coins, TrendingUp, ShoppingCart } from 'lucide-react';
+import { useAuth } from '@/lib/auth';
+import { useToast } from '@/components/ui/use-toast';
 import type { CreditsStatusResponse } from '../../types/ai-generation';
 import { PurchaseCreditsModal } from './PurchaseCreditsModal';
 
@@ -22,10 +25,15 @@ export const CreditCounter: React.FC<CreditCounterProps> = ({
   onRefresh,
   className = '' 
 }) => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [status, setStatus] = useState<CreditsStatusResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showPurchaseModal, setShowPurchaseModal] = useState(false);
+  const [showReceipt, setShowReceipt] = useState(false);
+  const [purchaseData, setPurchaseData] = useState<any>(null);
 
   const fetchStatus = async () => {
     if (!userId) {
@@ -67,6 +75,18 @@ export const CreditCounter: React.FC<CreditCounterProps> = ({
   }, [onRefresh]);
 
   const handlePurchaseCredits = () => {
+    // Check if user is authenticated before showing purchase modal
+    if (!user) {
+      toast({
+        title: '🔒 Sign In Required',
+        description: 'Please sign in to purchase AI credits.',
+        variant: 'destructive',
+      });
+      // Redirect to sign-in page with return URL
+      navigate('/sign-in?next=/design&action=purchase-credits');
+      return;
+    }
+    
     setShowPurchaseModal(true);
   };
 
@@ -129,20 +149,20 @@ export const CreditCounter: React.FC<CreditCounterProps> = ({
             </div>
           )}
 
-          {/* No Credits Warning + Purchase Button */}
+          {/* Purchase Credits Button - Always Visible */}
+          <button
+            onClick={handlePurchaseCredits}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors font-medium"
+          >
+            <ShoppingCart className="w-4 h-4" />
+            Purchase Credits
+          </button>
+
+          {/* No Credits Warning */}
           {hasNoCredits && (
-            <>
-              <div className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-50 text-yellow-700 rounded-full">
-                <span className="font-medium">No credits remaining</span>
-              </div>
-              <button
-                onClick={handlePurchaseCredits}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors font-medium"
-              >
-                <ShoppingCart className="w-4 h-4" />
-                Purchase Credits
-              </button>
-            </>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-50 text-yellow-700 rounded-full">
+              <span className="font-medium">⚠️ No credits remaining</span>
+            </div>
           )}
         </div>
 
@@ -187,6 +207,10 @@ export const CreditCounter: React.FC<CreditCounterProps> = ({
         userId={userId}
         userEmail={userEmail}
         onPurchaseComplete={handlePurchaseComplete}
+        showReceipt={showReceipt}
+        setShowReceipt={setShowReceipt}
+        purchaseData={purchaseData}
+        setPurchaseData={setPurchaseData}
       />
     </>
   );
