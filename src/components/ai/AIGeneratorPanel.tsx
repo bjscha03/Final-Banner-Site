@@ -317,7 +317,7 @@ export const AIGeneratorPanel: React.FC<AIGeneratorPanelProps> = ({
               <li>Be specific about colors, style, and subject</li>
               <li>Mention "professional photograph" for realistic images</li>
               <li>Avoid text or logos in the prompt (add those later)</li>
-              <li>First generation is free, more variations use credits</li>
+              <li>New users get 3 free credits. Each generation uses 1 credit.</li>
             </ul>
           </div>
         </div>
