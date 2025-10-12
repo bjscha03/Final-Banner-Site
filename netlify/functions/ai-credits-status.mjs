@@ -19,29 +19,42 @@ export const handler = async (event) => {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Missing userId' }) };
     }
 
+    console.log('[AI-Credits-Status] Processing request for userId:', userId);
+
     // Ensure user exists
     await sql`INSERT INTO users (id) VALUES (${userId}) ON CONFLICT (id) DO NOTHING`;
     await sql`INSERT INTO user_credits (user_id, credits) VALUES (${userId}, 0) ON CONFLICT (user_id) DO NOTHING`;
 
-    // Get total credits purchased (from credit_purchases table)
+    // Get current paid credits balance from user_credits table (this is the source of truth)
+    const creditsBalanceResult = await sql`
+      SELECT credits
+      FROM user_credits
+      WHERE user_id = ${userId}
+    `;
+    const paidCreditsRemaining = parseInt(creditsBalanceResult[0]?.credits || '0', 10);
+    console.log('[AI-Credits-Status] Paid credits balance from user_credits:', paidCreditsRemaining);
+
+    // Get total credits purchased (for display purposes only)
     const purchasesResult = await sql`
       SELECT COALESCE(SUM(credits_purchased), 0) as total_purchased
       FROM credit_purchases
       WHERE user_id = ${userId} AND status = 'completed'
     `;
     const totalPurchased = parseInt(purchasesResult[0]?.total_purchased || '0', 10);
+    console.log('[AI-Credits-Status] Total purchased from credit_purchases:', totalPurchased);
 
-    // Get total credits used (from usage_log where credits were debited)
-    const usageResult = await sql`
+    // Get total paid credits used (count of generations that used paid credits)
+    const paidUsageResult = await sql`
       SELECT COUNT(*) as count
       FROM usage_log
       WHERE user_id = ${userId}
         AND event = 'GEN_SUCCESS'
         AND (meta->>'used_free')::boolean = false
     `;
-    const creditsUsed = parseInt(usageResult[0]?.count || '0', 10);
+    const paidCreditsUsed = parseInt(paidUsageResult[0]?.count || '0', 10);
+    console.log('[AI-Credits-Status] Paid credits used from usage_log:', paidCreditsUsed);
 
-    // Get free credits used
+    // Get free credits used (count of generations that used free credits)
     const freeUsedResult = await sql`
       SELECT COUNT(*) as count
       FROM usage_log
@@ -50,29 +63,37 @@ export const handler = async (event) => {
         AND (meta->>'used_free')::boolean = true
     `;
     const freeCreditsUsed = parseInt(freeUsedResult[0]?.count || '0', 10);
+    console.log('[AI-Credits-Status] Free credits used from usage_log:', freeCreditsUsed);
 
-    // Calculate remaining
+    // Calculate free credits remaining
     const freeCreditsRemaining = Math.max(0, FREE_CREDITS_INITIAL - freeCreditsUsed);
-    const paidCreditsRemaining = Math.max(0, totalPurchased - creditsUsed);
+    console.log('[AI-Credits-Status] Free credits remaining:', freeCreditsRemaining);
+
+    // Total credits remaining = free + paid balance
     const totalCreditsRemaining = freeCreditsRemaining + paidCreditsRemaining;
+    console.log('[AI-Credits-Status] Total credits remaining:', totalCreditsRemaining);
+
+    const response = {
+      // New simplified credit system
+      freeCreditsTotal: FREE_CREDITS_INITIAL,
+      freeCreditsUsed: freeCreditsUsed,
+      freeCreditsRemaining: freeCreditsRemaining,
+      paidCreditsPurchased: totalPurchased,
+      paidCreditsUsed: paidCreditsUsed,
+      paidCreditsRemaining: paidCreditsRemaining,
+      totalCreditsRemaining: totalCreditsRemaining,
+      
+      // Legacy fields for backward compatibility
+      freeRemainingToday: freeCreditsRemaining,
+      paidCredits: paidCreditsRemaining,
+    };
+
+    console.log('[AI-Credits-Status] Response:', JSON.stringify(response, null, 2));
 
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({
-        // New simplified credit system
-        freeCreditsTotal: FREE_CREDITS_INITIAL,
-        freeCreditsUsed: freeCreditsUsed,
-        freeCreditsRemaining: freeCreditsRemaining,
-        paidCreditsPurchased: totalPurchased,
-        paidCreditsUsed: creditsUsed,
-        paidCreditsRemaining: paidCreditsRemaining,
-        totalCreditsRemaining: totalCreditsRemaining,
-        
-        // Legacy fields for backward compatibility (will be removed later)
-        freeRemainingToday: freeCreditsRemaining,
-        paidCredits: paidCreditsRemaining,
-      }),
+      body: JSON.stringify(response),
     };
   } catch (error) {
     console.error('[AI-Credits-Status] Error:', error);
