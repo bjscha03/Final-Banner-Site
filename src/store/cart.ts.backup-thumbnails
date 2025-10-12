@@ -210,7 +210,7 @@ export const useCartStore = create<CartState>()(
           line_total_cents,
           file_key: fileKey,
           file_name: quote.file?.name,
-          file_url: quote.file?.url || aiMetadata?.assets?.proofUrl || null,
+          file_url: quote.file?.url,
           text_elements: quote.textElements && quote.textElements.length > 0 ? quote.textElements : undefined,
           created_at: new Date().toISOString(),
           ...(aiMetadata || {}),
