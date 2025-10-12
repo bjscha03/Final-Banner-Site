@@ -1,12 +1,19 @@
 /**
- * LinkedIn OAuth - Callback Handler
+ * LinkedIn OAuth - Callback Handler (FIXED VERSION with Account Linking)
  * 
  * This function handles the callback from LinkedIn after user authorization,
  * exchanges the authorization code for an access token, fetches user profile,
- * and creates/signs in the user.
+ * and creates/links the user account.
+ * 
+ * KEY FEATURES:
+ * - Checks database for existing users with same email
+ * - Links LinkedIn OAuth to existing email/password accounts
+ * - Prevents duplicate accounts for same email
+ * - Ensures AI credits and orders are preserved
  */
 
 import { Handler } from '@netlify/functions';
+import { neon } from '@neondatabase/serverless';
 
 export const handler: Handler = async (event) => {
   const headers = {
@@ -121,18 +128,93 @@ export const handler: Handler = async (event) => {
       name: profile.name,
     });
 
-    // Step 3: Create or sign in user
-    const user = {
-      id: `linkedin_${profile.sub}`,
-      email: profile.email,
-      full_name: profile.name || profile.given_name + ' ' + profile.family_name,
-      username: profile.email?.split('@')[0],
-      is_admin: false,
-      oauth_provider: 'linkedin',
-      oauth_id: profile.sub,
-    };
+    // Step 3: Check database for existing user with same email (ACCOUNT LINKING)
+    const dbUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
+    if (!dbUrl) {
+      console.error('❌ Database URL not configured');
+      return {
+        statusCode: 302,
+        headers: {
+          Location: '/sign-in?error=Database not configured',
+        },
+        body: '',
+      };
+    }
 
-    console.log('✅ User authenticated via LinkedIn:', user.email);
+    const db = neon(dbUrl);
+    const normalizedEmail = profile.email.toLowerCase().trim();
+
+    // Check if user already exists with this email
+    const existingUsers = await db`
+      SELECT id, email, full_name, username, is_admin, oauth_provider, oauth_id
+      FROM profiles
+      WHERE email = ${normalizedEmail}
+    `;
+
+    let user;
+
+    if (existingUsers.length > 0) {
+      // USER EXISTS - Link LinkedIn to existing account
+      const existingUser = existingUsers[0];
+      console.log('🔗 Linking LinkedIn to existing account:', existingUser.id);
+
+      // Update the existing user with LinkedIn OAuth info
+      await db`
+        UPDATE profiles
+        SET 
+          oauth_provider = 'linkedin',
+          oauth_id = ${profile.sub},
+          full_name = COALESCE(full_name, ${profile.name || profile.given_name + ' ' + profile.family_name})
+        WHERE id = ${existingUser.id}
+      `;
+
+      user = {
+        id: existingUser.id, // IMPORTANT: Use existing user ID to preserve orders and credits
+        email: existingUser.email,
+        full_name: existingUser.full_name || profile.name,
+        username: existingUser.username,
+        is_admin: existingUser.is_admin || false,
+        oauth_provider: 'linkedin',
+        oauth_id: profile.sub,
+      };
+
+      console.log('✅ Account linked successfully - existing user ID:', user.id);
+    } else {
+      // NEW USER - Create new account
+      console.log('🆕 Creating new user account for:', normalizedEmail);
+
+      const newUserId = `linkedin_${profile.sub}`;
+      
+      // Insert new user into database
+      await db`
+        INSERT INTO profiles (id, email, full_name, username, is_admin, oauth_provider, oauth_id, email_verified)
+        VALUES (
+          ${newUserId},
+          ${normalizedEmail},
+          ${profile.name || profile.given_name + ' ' + profile.family_name},
+          ${profile.email?.split('@')[0]},
+          false,
+          'linkedin',
+          ${profile.sub},
+          true
+        )
+        ON CONFLICT (id) DO UPDATE SET
+          oauth_provider = 'linkedin',
+          oauth_id = ${profile.sub}
+      `;
+
+      user = {
+        id: newUserId,
+        email: normalizedEmail,
+        full_name: profile.name || profile.given_name + ' ' + profile.family_name,
+        username: profile.email?.split('@')[0],
+        is_admin: false,
+        oauth_provider: 'linkedin',
+        oauth_id: profile.sub,
+      };
+
+      console.log('✅ New user created:', user.id);
+    }
 
     // Return HTML that stores user in localStorage and redirects
     const htmlResponse = `
@@ -145,7 +227,7 @@ export const handler: Handler = async (event) => {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       display: flex;
       align-items: center;
-      justify-center;
+      justify-content: center;
       min-height: 100vh;
       margin: 0;
       background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -173,19 +255,21 @@ export const handler: Handler = async (event) => {
     }
     h2 { color: #333; margin: 0 0 0.5rem; }
     p { color: #666; margin: 0; }
+    .success { color: #0077b5; font-weight: 600; }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="spinner"></div>
-    <h2>Signing you in...</h2>
-    <p>Please wait while we complete your LinkedIn sign-in.</p>
+    <h2 class="success">Welcome back!</h2>
+    <p>Signing you in with LinkedIn...</p>
   </div>
   <script>
     try {
       const user = ${JSON.stringify(user)};
       localStorage.setItem('banners_current_user', JSON.stringify(user));
       console.log('✅ User stored in localStorage:', user.email);
+      console.log('✅ User ID:', user.id);
       
       // Redirect to design page after successful sign-in
       setTimeout(() => {
