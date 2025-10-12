@@ -71,6 +71,8 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
   const overlayFileInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+
+
   // Calculate grommet info
   const grommetInfo = useMemo(() => {
     const points = grommetPoints(widthIn, heightIn, grommets);
@@ -436,25 +438,82 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
 
   const handleRemoveOverlay = () => {
     set({ overlayImage: undefined });
+    setIsOverlaySelected(false);
     toast({
       title: 'Overlay Removed',
       description: 'Logo/image overlay has been removed',
     });
   };
 
+  // Overlay image interaction handlers
+  const handleOverlayMouseDown = (e: React.MouseEvent) => {
+    if (!overlayImage) return;
+    
+    e.preventDefault();
+    e.stopPropagation();
+    
+    const target = e.target as SVGElement;
+    
+    // Check if clicking on a resize handle
+    if (target.classList.contains("overlay-resize-handle") || target.getAttribute("data-overlay-handle")) {
+      const handle = target.getAttribute("data-overlay-handle") || target.classList[1];
+      console.log('✅ Overlay resize handle detected:', handle);
+      setIsOverlaySelected(true);
+      setIsResizingOverlay(true);
+      setOverlayResizeHandle(handle);
+      setInitialOverlayScale(overlayImage.scale);
+      setInitialOverlayPosition({ ...overlayImage.position });
+    } else {
+      // Clicking on overlay body - select it and enable dragging
+      console.log('📍 Overlay body clicked (drag mode)');
+      setIsOverlaySelected(true);
+      setIsDraggingOverlay(true);
+      setInitialOverlayPosition({ ...overlayImage.position });
+    }
+    
+    setDragStart({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleOverlayTouchStart = (e: React.TouchEvent) => {
+    if (!overlayImage) return;
+
+    e.preventDefault();
+    const target = e.target as SVGElement;
+    const touch = e.touches[0];
+
+    // Check if touching a resize handle
+    if (target.classList.contains("overlay-resize-handle") || target.getAttribute("data-overlay-handle")) {
+      const handle = target.getAttribute("data-overlay-handle") || target.classList[1];
+      setIsOverlaySelected(true);
+      setIsResizingOverlay(true);
+      setOverlayResizeHandle(handle);
+      setInitialOverlayScale(overlayImage.scale);
+      setInitialOverlayPosition({ ...overlayImage.position });
+    } else {
+      setIsOverlaySelected(true);
+      setIsDraggingOverlay(true);
+      setInitialOverlayPosition({ ...overlayImage.position });
+    }
+
+    setDragStart({ x: touch.clientX, y: touch.clientY });
+  };
+
   const handleCanvasClick = (e: React.MouseEvent) => {
-    // Deselect text and image when clicking on canvas background
-    // Check if the click target is NOT the image element
+    // Deselect text, image, and overlay when clicking on canvas background
+    // Check if the click target is NOT an interactive element
     const target = e.target as HTMLElement;
     const isImageClick = target.tagName === 'image' || 
                         target.classList?.contains('resize-handle') ||
+                        target.classList?.contains('overlay-resize-handle') ||
                         target.classList?.contains('resize-handle-group') ||
-                        target.getAttribute?.('data-handle');
+                        target.getAttribute?.('data-handle') ||
+                        target.getAttribute?.('data-overlay-handle');
     
     if (!isImageClick) {
       setSelectedTextId(null);
       setIsImageSelected(false);
-      console.log('🔵 Deselected image - clicked on canvas background');
+      setIsOverlaySelected(false);
+      console.log('🔵 Deselected all - clicked on canvas background');
     }
   };
 
@@ -840,7 +899,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
   // Global mouse/touch handlers for dragging
   React.useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {
-      if (!isDraggingImage && !isResizingImage) return;
+      if (!isDraggingImage && !isResizingImage && !isDraggingOverlay && !isResizingOverlay) return;
       
       e.preventDefault();
       const deltaX = e.clientX - dragStart.x;
@@ -885,16 +944,57 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         // Removed for performance
         setImageScale(newScale);
       }
+
+      // Handle overlay dragging and resizing
+      if (isDraggingOverlay && overlayImage) {
+        // Drag overlay - update position in store
+        const sensitivity = 0.05; // Percentage-based movement
+        const newX = Math.max(0, Math.min(100, initialOverlayPosition.x + (deltaX * sensitivity)));
+        const newY = Math.max(0, Math.min(100, initialOverlayPosition.y + (deltaY * sensitivity)));
+        
+        set({
+          overlayImage: {
+            ...overlayImage,
+            position: { x: newX, y: newY }
+          }
+        });
+      } else if (isResizingOverlay && overlayResizeHandle && overlayImage) {
+        // Resize overlay - update scale in store
+        const sensitivity = 0.0015;
+        let scaleChange = 0;
+
+        if (overlayResizeHandle === 'se') {
+          scaleChange = (deltaX + deltaY) * sensitivity;
+        } else if (overlayResizeHandle === 'nw') {
+          scaleChange = -(deltaX + deltaY) * sensitivity;
+        } else if (overlayResizeHandle === 'ne') {
+          scaleChange = (deltaX - deltaY) * sensitivity;
+        } else if (overlayResizeHandle === 'sw') {
+          scaleChange = -(deltaX - deltaY) * sensitivity;
+        }
+
+        const newScale = Math.max(0.05, Math.min(2, initialOverlayScale + scaleChange));
+        
+        set({
+          overlayImage: {
+            ...overlayImage,
+            scale: newScale
+          }
+        });
+      }
     };
     
     const handleMouseUp = () => {
       setIsDraggingImage(false);
       setIsResizingImage(false);
       setResizeHandle(null);
+      setIsDraggingOverlay(false);
+      setIsResizingOverlay(false);
+      setOverlayResizeHandle(null);
     };
     
     const handleTouchMove = (e: TouchEvent) => {
-      if (!isDraggingImage && !isResizingImage) return;
+      if (!isDraggingImage && !isResizingImage && !isDraggingOverlay && !isResizingOverlay) return;
 
       e.preventDefault();
       const touch = e.touches[0];
@@ -927,15 +1027,56 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         // Removed for performance
         setImageScale(newScale);
       }
+
+      // Handle overlay dragging and resizing
+      if (isDraggingOverlay && overlayImage) {
+        // Drag overlay - update position in store
+        const sensitivity = 0.05; // Percentage-based movement
+        const newX = Math.max(0, Math.min(100, initialOverlayPosition.x + (deltaX * sensitivity)));
+        const newY = Math.max(0, Math.min(100, initialOverlayPosition.y + (deltaY * sensitivity)));
+        
+        set({
+          overlayImage: {
+            ...overlayImage,
+            position: { x: newX, y: newY }
+          }
+        });
+      } else if (isResizingOverlay && overlayResizeHandle && overlayImage) {
+        // Resize overlay - update scale in store
+        const sensitivity = 0.0015;
+        let scaleChange = 0;
+
+        if (overlayResizeHandle === 'se') {
+          scaleChange = (deltaX + deltaY) * sensitivity;
+        } else if (overlayResizeHandle === 'nw') {
+          scaleChange = -(deltaX + deltaY) * sensitivity;
+        } else if (overlayResizeHandle === 'ne') {
+          scaleChange = (deltaX - deltaY) * sensitivity;
+        } else if (overlayResizeHandle === 'sw') {
+          scaleChange = -(deltaX - deltaY) * sensitivity;
+        }
+
+        const newScale = Math.max(0.05, Math.min(2, initialOverlayScale + scaleChange));
+        
+        set({
+          overlayImage: {
+            ...overlayImage,
+            scale: newScale
+          }
+        });
+      }
     };
     
     const handleTouchEnd = () => {
       setIsDraggingImage(false);
       setIsResizingImage(false);
       setResizeHandle(null);
+      setIsDraggingOverlay(false);
+      setIsResizingOverlay(false);
+      setOverlayResizeHandle(null);
     };
     
-    if (isDraggingImage || isResizingImage) {
+    if (isDraggingImage || isResizingImage || isDraggingOverlay || isResizingOverlay) {
       document.addEventListener("mousemove", handleMouseMove);
       document.addEventListener("mouseup", handleMouseUp);
       document.addEventListener("touchmove", handleTouchMove, { passive: false });
@@ -1133,9 +1274,12 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                     overlayImage={overlayImage}
                     onImageMouseDown={handleImageMouseDown}
                     onImageTouchStart={handleImageTouchStart}
+                    onOverlayMouseDown={handleOverlayMouseDown}
+                    onOverlayTouchStart={handleOverlayTouchStart}
                     onCanvasClick={handleCanvasClick}
                     isDraggingImage={isDraggingImage}
                     isImageSelected={isImageSelected}
+                    isOverlaySelected={isOverlaySelected}
                     imageScale={imageScale}
                     isUploading={isUploading || isGeneratingAI}
                     showVerticalCenterGuide={showVerticalCenterGuide}

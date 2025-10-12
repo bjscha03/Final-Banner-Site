@@ -27,9 +27,12 @@ interface PreviewCanvasProps {
   };
   onImageMouseDown?: (e: React.MouseEvent) => void;
   onImageTouchStart?: (e: React.TouchEvent) => void;
+  onOverlayMouseDown?: (e: React.MouseEvent) => void;
+  onOverlayTouchStart?: (e: React.TouchEvent) => void;
   onCanvasClick?: (e: React.MouseEvent) => void;
   isDraggingImage?: boolean;
   isImageSelected?: boolean;
+  isOverlaySelected?: boolean;
   isUploading?: boolean;
   showVerticalCenterGuide?: boolean;
   showHorizontalCenterGuide?: boolean;
@@ -115,9 +118,12 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   overlayImage,
   onImageMouseDown,
   onImageTouchStart,
+  onOverlayMouseDown,
+  onOverlayTouchStart,
   onCanvasClick,
   isDraggingImage = false,
   isImageSelected = false,
+  isOverlaySelected = false,
   isUploading = false,
   showVerticalCenterGuide = false,
   showHorizontalCenterGuide = false,
@@ -251,7 +257,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
             onTouchStart={onImageTouchStart}
           />
 
-            {/* Overlay Image (Logo/Image on top of AI background) */}
+            {/* Overlay Image (Logo/Image on top of AI background) - INTERACTIVE */}
             {overlayImage && (() => {
               // Calculate overlay position and size
               // Position is percentage-based (0-100) relative to banner area
@@ -263,19 +269,107 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
               const overlayX = RULER_HEIGHT + BLEED_SIZE + (widthIn * overlayImage.position.x / 100) - (overlayWidth / 2);
               const overlayY = RULER_HEIGHT + BLEED_SIZE + (heightIn * overlayImage.position.y / 100) - (overlayHeight / 2);
               
+              // Calculate center point for resize handles
+              const overlayCenterX = overlayX + overlayWidth / 2;
+              const overlayCenterY = overlayY + overlayHeight / 2;
+              
               return (
-                <image
-                  href={overlayImage.url}
-                  x={overlayX}
-                  y={overlayY}
-                  width={overlayWidth}
-                  height={overlayHeight}
-                  preserveAspectRatio="xMidYMid meet"
-                  style={{
-                    pointerEvents: 'none', // For now, overlay is not interactive
-                    opacity: 0.95
-                  }}
-                />
+                <g>
+                  {/* Overlay Image */}
+                  <image
+                    href={overlayImage.url}
+                    x={overlayX}
+                    y={overlayY}
+                    width={overlayWidth}
+                    height={overlayHeight}
+                    preserveAspectRatio="xMidYMid meet"
+                    style={{
+                      cursor: isOverlaySelected ? 'move' : 'pointer',
+                      opacity: 0.95
+                    }}
+                    onMouseDown={onOverlayMouseDown}
+                    onTouchStart={onOverlayTouchStart}
+                  />
+                  
+                  {/* Selection Handles - Only show when overlay is selected */}
+                  {isOverlaySelected && (
+                    <>
+                      {/* Selection Rectangle */}
+                      <rect
+                        x={overlayX}
+                        y={overlayY}
+                        width={overlayWidth}
+                        height={overlayHeight}
+                        fill="none"
+                        stroke="#3b82f6"
+                        strokeWidth="0.05"
+                        strokeDasharray="0.2 0.1"
+                        pointerEvents="none"
+                      />
+                      
+                      {/* Resize Handles - 4 corners */}
+                      {/* Northwest Handle */}
+                      <circle
+                        cx={overlayX}
+                        cy={overlayY}
+                        r="0.15"
+                        fill="#3b82f6"
+                        stroke="white"
+                        strokeWidth="0.03"
+                        className="overlay-resize-handle"
+                        data-overlay-handle="nw"
+                        style={{ cursor: 'nwse-resize' }}
+                        onMouseDown={onOverlayMouseDown}
+                        onTouchStart={onOverlayTouchStart}
+                      />
+                      
+                      {/* Northeast Handle */}
+                      <circle
+                        cx={overlayX + overlayWidth}
+                        cy={overlayY}
+                        r="0.15"
+                        fill="#3b82f6"
+                        stroke="white"
+                        strokeWidth="0.03"
+                        className="overlay-resize-handle"
+                        data-overlay-handle="ne"
+                        style={{ cursor: 'nesw-resize' }}
+                        onMouseDown={onOverlayMouseDown}
+                        onTouchStart={onOverlayTouchStart}
+                      />
+                      
+                      {/* Southeast Handle */}
+                      <circle
+                        cx={overlayX + overlayWidth}
+                        cy={overlayY + overlayHeight}
+                        r="0.15"
+                        fill="#3b82f6"
+                        stroke="white"
+                        strokeWidth="0.03"
+                        className="overlay-resize-handle"
+                        data-overlay-handle="se"
+                        style={{ cursor: 'nwse-resize' }}
+                        onMouseDown={onOverlayMouseDown}
+                        onTouchStart={onOverlayTouchStart}
+                      />
+                      
+                      {/* Southwest Handle */}
+                      <circle
+                        cx={overlayX}
+                        cy={overlayY + overlayHeight}
+                        r="0.15"
+                        fill="#3b82f6"
+                        stroke="white"
+                        strokeWidth="0.03"
+                        className="overlay-resize-handle"
+                        data-overlay-handle="sw"
+                        style={{ cursor: 'nesw-resize' }}
+                        onMouseDown={onOverlayMouseDown}
+                        onTouchStart={onOverlayTouchStart}
+                      />
+                    </>
+                  )}
+                </g>
               );
             })()}
 
