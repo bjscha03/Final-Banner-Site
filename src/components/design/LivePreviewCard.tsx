@@ -71,6 +71,15 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
   const overlayFileInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Overlay image interaction state
+  const [isOverlaySelected, setIsOverlaySelected] = useState(false);
+  const [isDraggingOverlay, setIsDraggingOverlay] = useState(false);
+  const [isResizingOverlay, setIsResizingOverlay] = useState(false);
+  const [overlayResizeHandle, setOverlayResizeHandle] = useState<string | null>(null);
+  const [initialOverlayPosition, setInitialOverlayPosition] = useState({ x: 50, y: 50 });
+  const [initialOverlayScale, setInitialOverlayScale] = useState(0.3);
+
+
 
 
   // Calculate grommet info
