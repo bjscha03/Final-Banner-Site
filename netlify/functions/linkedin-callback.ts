@@ -37,7 +37,7 @@ export const handler: Handler = async (event) => {
       return {
         statusCode: 302,
         headers: {
-          Location: \`/sign-in?error=\${encodeURIComponent(error_description || error)}\`,
+          Location: '/sign-in?error=' + encodeURIComponent(error_description || error) + '',
         },
         body: '',
       };
@@ -102,7 +102,7 @@ export const handler: Handler = async (event) => {
     // Step 2: Fetch user profile from LinkedIn
     const profileResponse = await fetch('https://api.linkedin.com/v2/userinfo', {
       headers: {
-        Authorization: \`Bearer \${accessToken}\`,
+        Authorization: `Bearer ${accessToken}`,
       },
     });
 
@@ -126,11 +126,11 @@ export const handler: Handler = async (event) => {
     const normalizedEmail = profile.email?.toLowerCase();
 
     // Check if user already exists with this email
-    const existingUsers = await sql\`
+    const existingUsers = await sql`
       SELECT * FROM profiles
-      WHERE email = \${normalizedEmail}
+      WHERE email = ${normalizedEmail}
       LIMIT 1
-    \`;
+    `;
 
     let user: any;
 
@@ -139,21 +139,21 @@ export const handler: Handler = async (event) => {
       const existingUser = existingUsers[0];
 
       // Update the existing user with LinkedIn OAuth info
-      await sql\`
+      await sql`
         UPDATE profiles
         SET
           oauth_provider = 'linkedin',
-          oauth_id = \${profile.sub},
-          name = COALESCE(name, \${profile.name}),
-          avatar_url = COALESCE(avatar_url, \${profile.picture}),
+          oauth_id = ${profile.sub},
+          name = COALESCE(name, ${profile.name}),
+          avatar_url = COALESCE(avatar_url, ${profile.picture}),
           updated_at = NOW()
-        WHERE id = \${existingUser.id}
-      \`;
+        WHERE id = ${existingUser.id}
+      `;
 
       user = existingUser;
     } else {
       // NEW USER - Create account
-      const newUsers = await sql\`
+      const newUsers = await sql`
         INSERT INTO profiles (
           email,
           name,
@@ -165,39 +165,39 @@ export const handler: Handler = async (event) => {
           updated_at
         )
         VALUES (
-          \${normalizedEmail},
-          \${profile.name},
+          ${normalizedEmail},
+          ${profile.name},
           'linkedin',
-          \${profile.sub},
-          \${profile.picture},
+          ${profile.sub},
+          ${profile.picture},
           true,
           NOW(),
           NOW()
         )
         RETURNING *
-      \`;
+      `;
 
       user = newUsers[0];
 
       // Initialize AI credits for new user (10 free credits)
-      await sql\`
+      await sql`
         INSERT INTO ai_credits (user_id, credits_remaining, credits_total, created_at, updated_at)
-        VALUES (\${user.id}, 10, 10, NOW(), NOW())
+        VALUES (${user.id}, 10, 10, NOW(), NOW())
         ON CONFLICT (user_id) DO NOTHING
-      \`;
+      `;
     }
 
     // Step 4: Create session token
     const sessionToken = Math.random().toString(36).substring(2) + Date.now().toString(36);
     const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
 
-    await sql\`
+    await sql`
       INSERT INTO sessions (user_id, token, expires_at, created_at)
-      VALUES (\${user.id}, \${sessionToken}, \${expiresAt.toISOString()}, NOW())
-    \`;
+      VALUES (${user.id}, ${sessionToken}, ${expiresAt.toISOString()}, NOW())
+    `;
 
     // Step 5: Return HTML page that stores user in localStorage and redirects
-    const html = \`
+    const html = `
 <!DOCTYPE html>
 <html>
 <head>
@@ -253,7 +253,7 @@ export const handler: Handler = async (event) => {
   </div>
   <script>
     try {
-      const user = \${JSON.stringify(user)};
+      const user = ${JSON.stringify(user)};
       
       // Store user in localStorage
       localStorage.setItem('banners_current_user', JSON.stringify(user));
@@ -269,7 +269,7 @@ export const handler: Handler = async (event) => {
   </script>
 </body>
 </html>
-    \`;
+    `;
 
     return {
       statusCode: 200,
@@ -283,7 +283,7 @@ export const handler: Handler = async (event) => {
     return {
       statusCode: 302,
       headers: {
-        Location: \`/sign-in?error=\${encodeURIComponent(error.message || 'LinkedIn authentication failed')}\`,
+        Location: '/sign-in?error=' + encodeURIComponent(error.message || 'LinkedIn authentication failed') + '',
       },
       body: '',
     };
