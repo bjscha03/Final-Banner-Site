@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/lib/auth';
 import Layout from '@/components/Layout';
@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
-import { UserPlus, Eye, EyeOff } from 'lucide-react';
+import { Sparkles, Eye, EyeOff, ArrowRight, Check } from 'lucide-react';
+import { useScrollToTop } from '@/components/ScrollToTop';
 import { LinkedInButton } from '@/components/auth/LinkedInButton';
 
 const SignUp: React.FC = () => {
@@ -14,58 +15,48 @@ const SignUp: React.FC = () => {
   const [searchParams] = useSearchParams();
   const { user, loading: authLoading, signUp } = useAuth();
   const { toast } = useToast();
+  const { scrollToTop } = useScrollToTop();
+  const titleRef = useRef<HTMLHeadingElement>(null);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [username, setUsername] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const nextUrl = searchParams.get('next') || '/my-orders';
+  const nextUrl = searchParams.get('next') || '/design';
 
   useEffect(() => {
-    // Redirect if already signed in
     if (!authLoading && user) {
       navigate(nextUrl);
     }
   }, [user, authLoading, navigate, nextUrl]);
 
+  useEffect(() => {
+    scrollToTop();
+    if (titleRef.current) {
+      setTimeout(() => {
+        titleRef.current?.focus();
+      }, 100);
+    }
+  }, [scrollToTop]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!email || !password) {
+    if (!email || !password || !fullName) {
       toast({
         title: "Missing Information",
-        description: "Please enter email and password. Username is optional.",
+        description: "Please fill in all fields.",
         variant: "destructive",
       });
       return;
     }
 
-    if (password.length < 6) {
+    if (password.length < 8) {
       toast({
         title: "Password Too Short",
-        description: "Password must be at least 6 characters long.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    // Validate username format (only if username is provided)
-    if (username && !/^[a-zA-Z0-9_-]+$/.test(username)) {
-      toast({
-        title: "Invalid Username",
-        description: "Username can only contain letters, numbers, underscores, and dashes.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (username && username.length < 3) {
-      toast({
-        title: "Username Too Short",
-        description: "Username must be at least 3 characters long.",
+        description: "Password must be at least 8 characters long.",
         variant: "destructive",
       });
       return;
@@ -74,19 +65,18 @@ const SignUp: React.FC = () => {
     setLoading(true);
 
     try {
-      await signUp(email, password, fullName, username);
+      await signUp(email, password, fullName);
 
       toast({
         title: "Account Created!",
-        description: "Please check your email to verify your account before signing in.",
+        description: "Please check your email to verify your account.",
       });
 
-      // Redirect to check email page instead of auto-signing in
       navigate(`/check-email?email=${encodeURIComponent(email)}`);
     } catch (error: any) {
       toast({
         title: "Sign Up Failed",
-        description: error.message || "There was an error creating your account. Please try again.",
+        description: error.message || "Unable to create account. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -94,13 +84,12 @@ const SignUp: React.FC = () => {
     }
   };
 
-  // Show loading state while checking authentication
   if (authLoading) {
     return (
       <Layout>
-        <div className="bg-gray-50 flex items-center justify-center py-8 px-4 sm:px-6 lg:px-8 min-h-[calc(100vh-4rem)]">
+        <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-orange-500 mx-auto"></div>
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#18448D] mx-auto"></div>
             <p className="mt-4 text-gray-600">Loading...</p>
           </div>
         </div>
@@ -108,72 +97,69 @@ const SignUp: React.FC = () => {
     );
   }
 
-  // Don't render form if user is already signed in (will redirect)
   if (user) {
     return null;
   }
 
   return (
     <Layout>
-      <div className="bg-gray-50 flex items-center justify-center py-8 px-4 sm:px-6 lg:px-8 min-h-[calc(100vh-4rem)]">
-        <div className="max-w-md w-full space-y-6">
+      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-blue-50 via-white to-indigo-50 relative overflow-hidden">
+        {/* Animated background elements */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute -top-40 -right-40 w-80 h-80 bg-[#18448D]/5 rounded-full blur-3xl animate-pulse"></div>
+          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-indigo-500/5 rounded-full blur-3xl animate-pulse delay-1000"></div>
+        </div>
+
+        <div className="max-w-md w-full space-y-8 relative z-10">
+          {/* Header */}
           <div className="text-center">
-            <div className="mx-auto h-12 w-12 bg-slate-100 rounded-full flex items-center justify-center">
-              <UserPlus className="h-6 w-6 text-orange-500" />
+            <div className="mx-auto h-16 w-16 bg-gradient-to-br from-[#18448D] to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg transform hover:scale-110 transition-transform duration-300">
+              <Sparkles className="h-8 w-8 text-white" />
             </div>
-            <h2 className="mt-6 text-3xl font-bold text-gray-900">
+            <h2
+              ref={titleRef}
+              tabIndex={-1}
+              className="mt-6 text-4xl font-extrabold text-gray-900 tracking-tight"
+            >
               Create your account
             </h2>
-            <p className="mt-2 text-sm text-gray-600">
-              Or{' '}
+            <p className="mt-3 text-base text-gray-600">
+              Start creating professional banners in minutes
+            </p>
+            <p className="mt-2 text-sm text-gray-500">
+              Already have an account?{' '}
               <button
                 onClick={() => navigate('/sign-in')}
-                className="font-medium text-orange-500 hover:text-blue-500"
+                className="font-semibold text-[#18448D] hover:text-indigo-600 transition-colors duration-200"
               >
-                sign in to your existing account
+                Sign in →
               </button>
             </p>
           </div>
 
-          <form className="mt-6 space-y-4" onSubmit={handleSubmit}>
-            <div className="space-y-4">
+          {/* Main Card */}
+          <div className="bg-white rounded-2xl shadow-2xl p-8 space-y-6 border border-gray-100">
+            <form className="space-y-5" onSubmit={handleSubmit}>
               <div>
-                <Label htmlFor="fullName" className="text-sm font-medium text-gray-700">
-                  Full Name (Optional)
+                <Label htmlFor="fullName" className="text-sm font-semibold text-gray-700 mb-2 block">
+                  Full Name
                 </Label>
                 <Input
                   id="fullName"
                   name="fullName"
                   type="text"
+                  autoComplete="name"
+                  required
                   value={fullName}
                   onChange={(e) => setFullName(e.target.value)}
-                  className="mt-1 h-12 text-base"
-                  placeholder="Enter your full name"
+                  placeholder="John Doe"
+                  className="h-12 text-base border-gray-300 focus:border-[#18448D] focus:ring-[#18448D] rounded-xl transition-all duration-200"
                 />
               </div>
 
               <div>
-                <Label htmlFor="username" className="text-sm font-medium text-gray-700">
-                  Username (Optional)
-                </Label>
-                <Input
-                  id="username"
-                  name="username"
-                  type="text"
-                  autoComplete="username"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value.toLowerCase())}
-                  className="mt-1 h-12 text-base"
-                  placeholder="Enter your username (optional)"
-                />
-                <p className="mt-1 text-xs text-gray-500">
-                  Optional: Username must be at least 3 characters (letters, numbers, _, -)
-                </p>
-              </div>
-
-              <div>
-                <Label htmlFor="email" className="text-sm font-medium text-gray-700">
-                  Email Address
+                <Label htmlFor="email" className="text-sm font-semibold text-gray-700 mb-2 block">
+                  Email address
                 </Label>
                 <Input
                   id="email"
@@ -183,79 +169,89 @@ const SignUp: React.FC = () => {
                   required
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="mt-1 h-12 text-base"
-                  placeholder="Enter your email"
+                  placeholder="you@example.com"
+                  className="h-12 text-base border-gray-300 focus:border-[#18448D] focus:ring-[#18448D] rounded-xl transition-all duration-200"
                 />
               </div>
 
               <div>
-                <Label htmlFor="password">Password</Label>
-                <div className="mt-1 relative">
+                <Label htmlFor="password" className="text-sm font-semibold text-gray-700 mb-2 block">
+                  Password
+                </Label>
+                <div className="relative">
                   <Input
                     id="password"
                     name="password"
-                    type={showPassword ? "text" : "password"}
+                    type={showPassword ? 'text' : 'password'}
                     autoComplete="new-password"
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="pr-10"
-                    placeholder="Enter your password"
+                    placeholder="At least 8 characters"
+                    className="pr-12 h-12 text-base border-gray-300 focus:border-[#18448D] focus:ring-[#18448D] rounded-xl transition-all duration-200"
                   />
                   <button
                     type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                    className="absolute inset-y-0 right-0 pr-3 flex items-center touch-manipulation min-w-[44px] min-h-[44px] justify-center hover:bg-gray-50 rounded-r-xl transition-colors duration-200"
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? (
-                      <EyeOff className="h-4 w-4 text-gray-400" />
+                      <EyeOff className="h-5 w-5 text-gray-400" />
                     ) : (
-                      <Eye className="h-4 w-4 text-gray-400" />
+                      <Eye className="h-5 w-5 text-gray-400" />
                     )}
                   </button>
                 </div>
-                <p className="mt-1 text-xs text-gray-500">
-                  Password must be at least 6 characters long
-                </p>
+                {password && (
+                  <div className="mt-2 space-y-1">
+                    <div className={`flex items-center gap-2 text-xs ${password.length >= 8 ? 'text-green-600' : 'text-gray-500'}`}>
+                      <Check className={`h-3 w-3 ${password.length >= 8 ? 'opacity-100' : 'opacity-30'}`} />
+                      <span>At least 8 characters</span>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
 
-            <div>
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full"
+                className="w-full h-14 text-base font-semibold bg-gradient-to-r from-[#18448D] to-indigo-600 hover:from-[#0f2d5c] hover:to-indigo-700 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 group"
               >
                 {loading ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                    Creating Account...
-                  </>
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                    <span>Creating account...</span>
+                  </div>
                 ) : (
-                  <>
-                    <UserPlus className="h-4 w-4 mr-2" />
-                    Create Account
-                  </>
+                  <div className="flex items-center justify-center gap-2">
+                    <span>Create Account</span>
+                    <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform duration-200" />
+                  </div>
                 )}
               </Button>
-            </div>
-          </form>
+            </form>
 
-          {/* Social Sign-In Options */}
-          <div className="mt-6">
-            <div className="relative">
+            {/* Divider */}
+            <div className="relative my-6">
               <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-300"></div>
+                <div className="w-full border-t border-gray-200"></div>
               </div>
               <div className="relative flex justify-center text-sm">
-                <span className="px-2 bg-gray-50 text-gray-500">Or continue with</span>
+                <span className="px-4 bg-white text-gray-500 font-medium">Or continue with</span>
               </div>
             </div>
 
-            <div className="mt-6">
-              <LinkedInButton />
-            </div>
+            {/* LinkedIn Button */}
+            <LinkedInButton />
           </div>
+
+          {/* Footer */}
+          <p className="text-center text-xs text-gray-500">
+            By creating an account, you agree to our{' '}
+            <a href="/terms" className="text-[#18448D] hover:underline">Terms of Service</a>
+            {' '}and{' '}
+            <a href="/privacy" className="text-[#18448D] hover:underline">Privacy Policy</a>
+          </p>
         </div>
       </div>
     </Layout>

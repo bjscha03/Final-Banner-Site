@@ -1,11 +1,11 @@
 /**
- * LinkedIn OAuth Button Component
+ * LinkedIn OAuth Button Component - PREMIUM DESIGN
  * 
  * Initiates LinkedIn OAuth flow when clicked
+ * Features: Gradient hover effect, smooth animations, professional styling
  */
 
 import React, { useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 
 interface LinkedInButtonProps {
@@ -51,27 +51,43 @@ export const LinkedInButton: React.FC<LinkedInButtonProps> = ({ className = '' }
   };
 
   return (
-    <Button
+    <button
       type="button"
-      variant="outline"
       onClick={handleLinkedInSignIn}
       disabled={loading}
-      className={`w-full h-12 text-base font-medium touch-manipulation flex items-center justify-center gap-2 ${className}`}
+      className={`
+        group relative w-full h-14 
+        bg-gradient-to-r from-[#0077b5] to-[#00a0dc]
+        hover:from-[#006399] hover:to-[#0088b8]
+        text-white font-semibold text-base
+        rounded-xl shadow-lg hover:shadow-xl
+        transition-all duration-300 ease-in-out
+        transform hover:scale-[1.02] active:scale-[0.98]
+        disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none
+        overflow-hidden
+        ${className}
+      `}
     >
-      {loading ? (
-        <>
-          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-current"></div>
-          Connecting to LinkedIn...
-        </>
-      ) : (
-        <>
-          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-            <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-          </svg>
-          Continue with LinkedIn
-        </>
-      )}
-    </Button>
+      {/* Animated background shimmer effect */}
+      <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent translate-x-[-200%] group-hover:translate-x-[200%] transition-transform duration-1000"></div>
+      
+      {/* Button content */}
+      <div className="relative flex items-center justify-center gap-3">
+        {loading ? (
+          <>
+            <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+            <span>Connecting to LinkedIn...</span>
+          </>
+        ) : (
+          <>
+            <svg className="w-6 h-6 drop-shadow-md" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
+            </svg>
+            <span className="drop-shadow-sm">Continue with LinkedIn</span>
+          </>
+        )}
+      </div>
+    </button>
   );
 };
 
