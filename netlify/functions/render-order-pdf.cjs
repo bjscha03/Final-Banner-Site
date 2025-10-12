@@ -185,43 +185,20 @@ async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textEleme
               return; // Skip this element
             }
             
-            // Convert percentage positions to points
-            // CRITICAL: Convert preview coordinates to banner coordinates
-            // The preview SVG includes rulers (1.2" each side) and bleed (0.25" each side)
-            // Text percentages are stored relative to the ENTIRE SVG, not just the banner
-            // We need to convert these to percentages relative to the actual banner area
+            // SIMPLIFIED COORDINATE CONVERSION
+            // Text percentages are stored relative to the container div (which shows the banner area)
+            // They are NOT relative to the SVG viewBox (which includes rulers and bleed)
+            // Therefore, we can use them directly to position text on the PDF page
             
-            const RULER_HEIGHT = 1.2;  // inches
-            const BLEED_SIZE = 0.25;   // inches
-            const bannerOffsetX = RULER_HEIGHT + BLEED_SIZE;  // 1.45"
-            const bannerOffsetY = RULER_HEIGHT + BLEED_SIZE;  // 1.45"
+            // Convert percentage positions directly to PDF points
+            // The percentages represent position within the banner area (0-100%)
+            let xPt = (textEl.xPercent / 100) * pageWidthPt;
+            let yPt = (textEl.yPercent / 100) * pageHeightPt;
             
-            // Calculate total SVG dimensions (same as PreviewCanvas.tsx)
-            const bleedWidth = bannerWidthIn + (BLEED_SIZE * 2);
-            const bleedHeight = bannerHeightIn + (BLEED_SIZE * 2);
-            const totalWidth = bleedWidth + (RULER_HEIGHT * 2);
-            const totalHeight = bleedHeight + (RULER_HEIGHT * 2);
-            
-            // Convert stored percentages (relative to SVG) to SVG inches
-            const svgX = (textEl.xPercent / 100) * totalWidth;
-            const svgY = (textEl.yPercent / 100) * totalHeight;
-            
-            // Subtract offset to get position relative to banner origin
-            const bannerX = svgX - bannerOffsetX;
-            const bannerY = svgY - bannerOffsetY;
-            
-            // Convert to percentage of actual banner
-            const bannerXPercent = (bannerX / bannerWidthIn) * 100;
-            const bannerYPercent = (bannerY / bannerHeightIn) * 100;
-            
-            // Calculate position in points using corrected percentages
-            let xPt = (bannerXPercent / 100) * pageWidthPt;
-            let yPt = (bannerYPercent / 100) * pageHeightPt;
-            
-            console.log(`[PDF] Coordinate conversion for "${textEl.content.substring(0, 30)}...":
-              SVG coords: ${textEl.xPercent.toFixed(2)}%, ${textEl.yPercent.toFixed(2)}% → ${svgX.toFixed(2)}", ${svgY.toFixed(2)}"
-              Banner coords: ${bannerX.toFixed(2)}", ${bannerY.toFixed(2)}" → ${bannerXPercent.toFixed(2)}%, ${bannerYPercent.toFixed(2)}%
+            console.log(`[PDF] Text positioning for "${textEl.content.substring(0, 30)}...":
+              Stored: ${textEl.xPercent.toFixed(2)}%, ${textEl.yPercent.toFixed(2)}%
               PDF points: ${xPt.toFixed(2)}pt, ${yPt.toFixed(2)}pt
+              Page size: ${pageWidthPt.toFixed(2)}pt × ${pageHeightPt.toFixed(2)}pt
             `);
             
             // Set font properties
