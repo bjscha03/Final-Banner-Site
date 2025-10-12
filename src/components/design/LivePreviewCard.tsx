@@ -511,7 +511,8 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     // Deselect text, image, and overlay when clicking on canvas background
     // Check if the click target is NOT an interactive element
     const target = e.target as HTMLElement;
-    const isImageClick = target.tagName === 'image' || 
+    const tagName = target.tagName?.toLowerCase();
+    const isImageClick = tagName === 'image' || 
                         target.classList?.contains('resize-handle') ||
                         target.classList?.contains('overlay-resize-handle') ||
                         target.classList?.contains('resize-handle-group') ||
@@ -956,8 +957,8 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
 
       // Handle overlay dragging and resizing
       if (isDraggingOverlay && overlayImage) {
-        // Drag overlay - update position in store
-        const sensitivity = 0.05; // Percentage-based movement
+        // Drag overlay - update position in store (matches image drag sensitivity)
+        const sensitivity = 0.3; // Increased from 0.05 for responsive dragging
         const newX = Math.max(0, Math.min(100, initialOverlayPosition.x + (deltaX * sensitivity)));
         const newY = Math.max(0, Math.min(100, initialOverlayPosition.y + (deltaY * sensitivity)));
         
@@ -1039,8 +1040,8 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
 
       // Handle overlay dragging and resizing
       if (isDraggingOverlay && overlayImage) {
-        // Drag overlay - update position in store
-        const sensitivity = 0.05; // Percentage-based movement
+        // Drag overlay - update position in store (matches image drag sensitivity)
+        const sensitivity = 0.3; // Increased from 0.05 for responsive dragging
         const newX = Math.max(0, Math.min(100, initialOverlayPosition.x + (deltaX * sensitivity)));
         const newY = Math.max(0, Math.min(100, initialOverlayPosition.y + (deltaY * sensitivity)));
         

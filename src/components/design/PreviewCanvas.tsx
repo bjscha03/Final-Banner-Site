@@ -292,83 +292,90 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
                   />
                   
                   {/* Selection Handles - Only show when overlay is selected */}
-                  {isOverlaySelected && (
-                    <>
-                      {/* Selection Rectangle */}
-                      <rect
-                        x={overlayX}
-                        y={overlayY}
-                        width={overlayWidth}
-                        height={overlayHeight}
-                        fill="none"
-                        stroke="#3b82f6"
-                        strokeWidth="0.05"
-                        strokeDasharray="0.2 0.1"
-                        pointerEvents="none"
-                      />
-                      
-                      {/* Resize Handles - 4 corners */}
-                      {/* Northwest Handle */}
-                      <circle
-                        cx={overlayX}
-                        cy={overlayY}
-                        r="0.15"
-                        fill="#3b82f6"
-                        stroke="white"
-                        strokeWidth="0.03"
-                        className="overlay-resize-handle"
-                        data-overlay-handle="nw"
-                        style={{ cursor: 'nwse-resize' }}
-                        onMouseDown={onOverlayMouseDown}
-                        onTouchStart={onOverlayTouchStart}
-                      />
-                      
-                      {/* Northeast Handle */}
-                      <circle
-                        cx={overlayX + overlayWidth}
-                        cy={overlayY}
-                        r="0.15"
-                        fill="#3b82f6"
-                        stroke="white"
-                        strokeWidth="0.03"
-                        className="overlay-resize-handle"
-                        data-overlay-handle="ne"
-                        style={{ cursor: 'nesw-resize' }}
-                        onMouseDown={onOverlayMouseDown}
-                        onTouchStart={onOverlayTouchStart}
-                      />
-                      
-                      {/* Southeast Handle */}
-                      <circle
-                        cx={overlayX + overlayWidth}
-                        cy={overlayY + overlayHeight}
-                        r="0.15"
-                        fill="#3b82f6"
-                        stroke="white"
-                        strokeWidth="0.03"
-                        className="overlay-resize-handle"
-                        data-overlay-handle="se"
-                        style={{ cursor: 'nwse-resize' }}
-                        onMouseDown={onOverlayMouseDown}
-                        onTouchStart={onOverlayTouchStart}
-                      />
-                      
-                      {/* Southwest Handle */}
-                      <circle
-                        cx={overlayX}
-                        cy={overlayY + overlayHeight}
-                        r="0.15"
-                        fill="#3b82f6"
-                        stroke="white"
-                        strokeWidth="0.03"
-                        className="overlay-resize-handle"
-                        data-overlay-handle="sw"
-                        style={{ cursor: 'nesw-resize' }}
-                        onMouseDown={onOverlayMouseDown}
-                        onTouchStart={onOverlayTouchStart}
-                      />
-                    </>
-                  )}
+                  {isOverlaySelected && (() => {
+                    // Calculate handle size based on scale (similar to image handles)
+                    const handleRadius = Math.max(0.1, Math.min(0.25, widthIn * 0.02));
+                    const strokeWidth = handleRadius * 0.2;
+                    const dashArray = handleRadius * 1.5 + " " + handleRadius * 0.75;
+                    
+                    return (
+                      <>
+                        {/* Selection Rectangle */}
+                        <rect
+                          x={overlayX}
+                          y={overlayY}
+                          width={overlayWidth}
+                          height={overlayHeight}
+                          fill="none"
+                          stroke="#3b82f6"
+                          strokeWidth={strokeWidth}
+                          strokeDasharray={dashArray}
+                          pointerEvents="none"
+                        />
+                        
+                        {/* Resize Handles - 4 corners */}
+                        {/* Northwest Handle */}
+                        <circle
+                          cx={overlayX}
+                          cy={overlayY}
+                          r={handleRadius}
+                          fill="#3b82f6"
+                          stroke="white"
+                          strokeWidth={strokeWidth}
+                          className="overlay-resize-handle"
+                          data-overlay-handle="nw"
+                          style={{ cursor: 'nwse-resize' }}
+                          onMouseDown={onOverlayMouseDown}
+                          onTouchStart={onOverlayTouchStart}
+                        />
+                        
+                        {/* Northeast Handle */}
+                        <circle
+                          cx={overlayX + overlayWidth}
+                          cy={overlayY}
+                          r={handleRadius}
+                          fill="#3b82f6"
+                          stroke="white"
+                          strokeWidth={strokeWidth}
+                          className="overlay-resize-handle"
+                          data-overlay-handle="ne"
+                          style={{ cursor: 'nesw-resize' }}
+                          onMouseDown={onOverlayMouseDown}
+                          onTouchStart={onOverlayTouchStart}
+                        />
+                        
+                        {/* Southeast Handle */}
+                        <circle
+                          cx={overlayX + overlayWidth}
+                          cy={overlayY + overlayHeight}
+                          r={handleRadius}
+                          fill="#3b82f6"
+                          stroke="white"
+                          strokeWidth={strokeWidth}
+                          className="overlay-resize-handle"
+                          data-overlay-handle="se"
+                          style={{ cursor: 'nwse-resize' }}
+                          onMouseDown={onOverlayMouseDown}
+                          onTouchStart={onOverlayTouchStart}
+                        />
+                        
+                        {/* Southwest Handle */}
+                        <circle
+                          cx={overlayX}
+                          cy={overlayY + overlayHeight}
+                          r={handleRadius}
+                          fill="#3b82f6"
+                          stroke="white"
+                          strokeWidth={strokeWidth}
+                          className="overlay-resize-handle"
+                          data-overlay-handle="sw"
+                          style={{ cursor: 'nesw-resize' }}
+                          onMouseDown={onOverlayMouseDown}
+                          onTouchStart={onOverlayTouchStart}
+                        />
+                      </>
+                    );
+                  })()}
                 </g>
               );
             })()}
