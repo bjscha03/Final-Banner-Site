@@ -8,6 +8,8 @@ import React, { useState } from 'react';
 import { X } from 'lucide-react';
 import { useQuoteStore } from '@/store/quote';
 import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '@/lib/auth';
+import { useAuth } from '@/lib/auth';
 import {
   Dialog,
   DialogContent,
@@ -45,15 +47,10 @@ const NewAIGenerationModal: React.FC<NewAIGenerationModalProps> = ({
       setShowDisclaimer(true);
     }
   }, [open, disclaimerAccepted]);
-  const [userId] = useState(() => {
-    // Get or create user ID from localStorage
-    let id = localStorage.getItem('ai_user_id');
-    if (!id) {
-      id = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      localStorage.setItem('ai_user_id', id);
-    }
-    return id;
-  });
+  const { user } = useAuth();
+  
+  // Use authenticated user's ID (this should always exist since we require login)
+  const userId = user?.id || '';
 
   const handleImageApply = (imageUrl: string, tier: 'premium' | 'standard') => {
     // Preserve existing text elements when applying AI background
