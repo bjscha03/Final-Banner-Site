@@ -1,5 +1,5 @@
 /**
- * LinkedIn OAuth Button Component - PREMIUM DESIGN WITH EXTENSIVE DEBUG LOGGING
+ * LinkedIn OAuth Button Component - PRODUCTION VERSION - Debug Logging Removed
  * 
  * Initiates LinkedIn OAuth flow when clicked
  * Features: Gradient hover effect, smooth animations, professional styling
@@ -18,23 +18,14 @@ export const LinkedInButton: React.FC<LinkedInButtonProps> = ({ className = '' }
 
   const handleLinkedInSignIn = async () => {
     setLoading(true);
-    console.log('🔵 ========================================');
-    console.log('🔵 LinkedIn button clicked - starting OAuth flow...');
-    console.log('🔵 ========================================');
 
     try {
       // Call the linkedin-auth function to get the authorization URL
-      console.log('🔵 Calling /.netlify/functions/linkedin-auth...');
-      console.log('🔵 Current URL:', window.location.href);
       
       const response = await fetch('/.netlify/functions/linkedin-auth', {
         method: 'POST',
       });
 
-      console.log('🔵 Response received!');
-      console.log('🔵 Response status:', response.status);
-      console.log('🔵 Response OK:', response.ok);
-      console.log('🔵 Response headers:', Object.fromEntries(response.headers.entries()));
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -44,10 +35,6 @@ export const LinkedInButton: React.FC<LinkedInButtonProps> = ({ className = '' }
       }
 
       const result = await response.json();
-      console.log('🔵 Response data:', result);
-      console.log('🔵 Auth URL:', result.authUrl);
-      console.log('🔵 State:', result.state);
-      console.log('🔵 OK flag:', result.ok);
 
       if (!result.ok || !result.authUrl) {
         console.error('❌ Invalid response structure:', result);
@@ -57,14 +44,9 @@ export const LinkedInButton: React.FC<LinkedInButtonProps> = ({ className = '' }
       // Store state for CSRF protection
       if (result.state) {
         sessionStorage.setItem('linkedin_oauth_state', result.state);
-        console.log('🔵 Stored OAuth state in sessionStorage:', result.state);
       }
 
       // Redirect to LinkedIn authorization page
-      console.log('🔵 ========================================');
-      console.log('🔵 REDIRECTING TO LINKEDIN NOW!');
-      console.log('🔵 Target URL:', result.authUrl);
-      console.log('🔵 ========================================');
       
       window.location.href = result.authUrl;
 
