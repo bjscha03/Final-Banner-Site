@@ -197,78 +197,71 @@ export const handler: Handler = async (event) => {
     `;
 
     // Step 5: Return HTML page that stores user in localStorage and redirects
-        const html = 
-`<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Signing in...</title>
-  <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      min-height: 100vh;
-      margin: 0;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    }
-    .container {
-      background: white;
-      padding: 3rem;
-      border-radius: 1rem;
-      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-      text-align: center;
-      max-width: 400px;
-    }
-    .spinner {
-      border: 4px solid #f3f3f3;
-      border-top: 4px solid #667eea;
-      border-radius: 50%;
-      width: 50px;
-      height: 50px;
-      animation: spin 1s linear infinite;
-      margin: 0 auto 1.5rem;
-    }
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
-    }
-    h2 {
-      color: #333;
-      margin: 0 0 0.5rem;
-    }
-    p {
-      color: #666;
-      margin: 0;
-    }
-  </style>
-</head>
-<body>
-  <div class="container">
-    <div class="spinner"></div>
-    <h2>Welcome!</h2>
-    <p>Completing your sign-in...</p>
-  </div>
-  <script>
-    try {
-      const user = ` + JSON.stringify(user) + `;
-      
-      // Store user in localStorage
-      localStorage.setItem('banners_current_user', JSON.stringify(user));
-      
-      // Redirect to home page immediately
-      window.location.href = '/';
-      
-    } catch (error) {
-      console.error('Error storing user:', error);
-      // Redirect anyway
-      window.location.href = '/';
-    }
-  </script>
-</body>
-</html>`;
+            const html = '<!DOCTYPE html>' +
+'<html>' +
+'<head>' +
+'  <meta charset="UTF-8">' +
+'  <meta name="viewport" content="width=device-width, initial-scale=1.0">' +
+'  <title>Signing in...</title>' +
+'  <style>' +
+'    body {' +
+'      font-family: -apple-system, BlinkMacSystemFont, \'Segoe UI\', Roboto, sans-serif;' +
+'      display: flex;' +
+'      align-items: center;' +
+'      justify-content: center;' +
+'      min-height: 100vh;' +
+'      margin: 0;' +
+'      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);' +
+'    }' +
+'    .container {' +
+'      background: white;' +
+'      padding: 3rem;' +
+'      border-radius: 1rem;' +
+'      box-shadow: 0 20px 60px rgba(0,0,0,0.3);' +
+'      text-align: center;' +
+'      max-width: 400px;' +
+'    }' +
+'    .spinner {' +
+'      border: 4px solid #f3f3f3;' +
+'      border-top: 4px solid #667eea;' +
+'      border-radius: 50%;' +
+'      width: 50px;' +
+'      height: 50px;' +
+'      animation: spin 1s linear infinite;' +
+'      margin: 0 auto 1.5rem;' +
+'    }' +
+'    @keyframes spin {' +
+'      0% { transform: rotate(0deg); }' +
+'      100% { transform: rotate(360deg); }' +
+'    }' +
+'    h2 {' +
+'      color: #333;' +
+'      margin: 0 0 0.5rem;' +
+'    }' +
+'    p {' +
+'      color: #666;' +
+'      margin: 0;' +
+'    }' +
+'  </style>' +
+'</head>' +
+'<body>' +
+'  <div class="container">' +
+'    <div class="spinner"></div>' +
+'    <h2>Welcome!</h2>' +
+'    <p>Completing your sign-in...</p>' +
+'  </div>' +
+'  <script>' +
+'    try {' +
+'      const user = ' + JSON.stringify(user) + ';' +
+'      localStorage.setItem(\'banners_current_user\', JSON.stringify(user));' +
+'      window.location.href = \'/\';' +
+'    } catch (error) {' +
+'      console.error(\'Error storing user:\', error);' +
+'      window.location.href = \'/\';' +
+'    }' +
+'  </script>' +
+'</body>' +
+'</html>';
 
     return {
       statusCode: 200,
