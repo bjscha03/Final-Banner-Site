@@ -55,33 +55,47 @@ const Design: React.FC = () => {
 
   // Check for pending AI image from "Use in Design" button
   useEffect(() => {
-    const pendingImage = localStorage.getItem('pending_ai_image');
-    if (pendingImage) {
-      console.log('[Design] Loading pending AI image:', pendingImage);
-      
-      // Load the AI image into the design canvas as the background image
-      const { set } = useQuoteStore.getState();
-      set({
-        file: {
-          url: pendingImage,
-          name: 'AI Generated Banner',
-          isPdf: false,
-          fileKey: `ai-image-${Date.now()}`
-        }
-      });
-      
-      // Clear the pending image from localStorage
-      localStorage.removeItem('pending_ai_image');
-      
-      // Show success toast
-      toast({
-        title: 'AI Image Loaded',
-        description: 'Your saved AI image has been loaded into the design canvas.',
-      });
-      
-      console.log('[Design] Pending AI image loaded successfully');
+    try {
+      const pendingImage = localStorage.getItem('pending_ai_image');
+      if (pendingImage) {
+        console.log('[Design] Loading pending AI image:', pendingImage);
+        
+        // Small delay to ensure store is ready
+        setTimeout(() => {
+          try {
+            // Load the AI image into the design canvas as the background image
+            const { set } = useQuoteStore.getState();
+            set({
+              file: {
+                url: pendingImage,
+                name: 'AI Generated Banner',
+                isPdf: false,
+                fileKey: `ai-image-${Date.now()}`
+              }
+            });
+            
+            // Clear the pending image from localStorage
+            localStorage.removeItem('pending_ai_image');
+            
+            // Show success toast
+            if (toast) {
+              toast({
+                title: 'AI Image Loaded',
+                description: 'Your saved AI image has been loaded into the design canvas.',
+              });
+            }
+            
+            console.log('[Design] Pending AI image loaded successfully');
+          } catch (error) {
+            console.error('[Design] Error loading pending AI image:', error);
+            localStorage.removeItem('pending_ai_image');
+          }
+        }, 100);
+      }
+    } catch (error) {
+      console.error('[Design] Error in pending AI image effect:', error);
     }
-  }, [toast]);
+  }, []);
 
 
 
