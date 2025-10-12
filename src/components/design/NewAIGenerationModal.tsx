@@ -105,7 +105,7 @@ const NewAIGenerationModal: React.FC<NewAIGenerationModalProps> = ({
 
   return (
     <>
-      <Dialog open={open} onOpenChange={handleOpenChange}>
+      <Dialog open={open && disclaimerAccepted} onOpenChange={handleOpenChange}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
