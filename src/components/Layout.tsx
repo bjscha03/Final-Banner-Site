@@ -24,6 +24,16 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <main className="w-full max-w-[100vw] overflow-x-hidden">
         {children}
       </main>
+      
+      {/* Decorative Banner Image - Sits above footer */}
+      <div className="w-full">
+        <img 
+          src="https://res.cloudinary.com/dtrxl120u/image/upload/v1759861799/Screenshot_2025-10-07_at_2.29.47_PM_wegqxg.png"
+          alt="Banner printing services"
+          className="w-full h-auto object-contain"
+        />
+      </div>
+      
       <Footer />
       <CartModal
         isOpen={isCartOpen}

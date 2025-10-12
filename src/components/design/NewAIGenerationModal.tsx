@@ -31,6 +31,20 @@ const NewAIGenerationModal: React.FC<NewAIGenerationModalProps> = ({
 
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
+  
+  // Show disclaimer when modal is opened and disclaimer not yet accepted
+  React.useEffect(() => {
+    if (open && !disclaimerAccepted) {
+      setShowDisclaimer(true);
+    }
+  }, [open, disclaimerAccepted]);
+  
+  // Show disclaimer when modal is opened and disclaimer not yet accepted
+  React.useEffect(() => {
+    if (open && !disclaimerAccepted) {
+      setShowDisclaimer(true);
+    }
+  }, [open, disclaimerAccepted]);
   const [userId] = useState(() => {
     // Get or create user ID from localStorage
     let id = localStorage.getItem('ai_user_id');
@@ -94,12 +108,21 @@ const NewAIGenerationModal: React.FC<NewAIGenerationModalProps> = ({
   };
 
   const handleOpenChange = (newOpen: boolean) => {
+    if (!newOpen) {
+      // User is closing the modal
+      onOpenChange(false);
+      return;
+    }
+    
     if (newOpen && !disclaimerAccepted) {
       // Show disclaimer immediately when opening modal
       setShowDisclaimer(true);
-      // Don't open the main modal yet
+      // Keep the modal "open" state in parent so it can be controlled
+      // but don't show the Dialog yet
       return;
     }
+    
+    // If disclaimer already accepted, open normally
     onOpenChange(newOpen);
   };
 
