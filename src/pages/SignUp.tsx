@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
 import { UserPlus, Eye, EyeOff } from 'lucide-react';
+import { LinkedInButton } from '@/components/auth/LinkedInButton';
 
 const SignUp: React.FC = () => {
   const navigate = useNavigate();
