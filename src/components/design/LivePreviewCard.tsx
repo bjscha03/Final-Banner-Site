@@ -353,6 +353,78 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     setShowTextPanel(false);
   };
 
+  // Handle overlay image upload (for AI-generated backgrounds)
+  const handleOverlayUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const overlayFile = files[0];
+    
+    // Validate file type
+    if (!overlayFile.type.startsWith('image/')) {
+      toast({
+        title: 'Invalid File Type',
+        description: 'Please upload an image file (JPG, PNG, etc.)',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      // Upload to Cloudinary
+      const formData = new FormData();
+      formData.append('file', overlayFile);
+      formData.append('fileName', overlayFile.name);
+
+      const response = await fetch('/.netlify/functions/upload-file', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to upload overlay image');
+      }
+
+      const result = await response.json();
+
+      // Add overlay to store with default position (centered) and scale
+      set({
+        overlayImage: {
+          name: overlayFile.name,
+          url: result.secureUrl,
+          fileKey: result.fileKey,
+          position: { x: 50, y: 50 }, // Center of banner
+          scale: 0.3, // 30% of banner size by default
+        },
+      });
+
+      toast({
+        title: 'Overlay Added',
+        description: 'Logo/image overlay added successfully.',
+      });
+    } catch (error) {
+      console.error('Overlay upload error:', error);
+      toast({
+        title: 'Upload Failed',
+        description: error instanceof Error ? error.message : 'Failed to upload overlay image',
+        variant: 'destructive',
+      });
+    }
+
+    // Reset input
+    if (e.target) {
+      e.target.value = '';
+    }
+  };
+
+  const handleRemoveOverlay = () => {
+    set({ overlayImage: undefined });
+    toast({
+      title: 'Overlay Removed',
+      description: 'Logo/image overlay has been removed',
+    });
+  };
+
   const handleCanvasClick = (e: React.MouseEvent) => {
     // Deselect text and image when clicking on canvas background
     // Check if the click target is NOT the image element
