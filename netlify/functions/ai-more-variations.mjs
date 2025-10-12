@@ -183,7 +183,7 @@ export const handler = async (event) => {
   }
 
   try {
-    const { prompt, aspect, style = {}, count = 3, userId, tier: requestedTier = 'premium' } = JSON.parse(event.body || '{}');
+    const { prompt, aspect, style = {}, count = 2, userId, tier: requestedTier = 'premium' } = JSON.parse(event.body || '{}');
 
     if (!prompt || !aspect || !userId) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Missing required fields' }) };
@@ -217,11 +217,10 @@ export const handler = async (event) => {
       console.log(`[AI-More-Variations] Tier downgraded to ${tier} due to monthly cap`);
     }
 
-    // Generate images
-    const generatedUrls = [];
-    const costs = [];
+    // Generate images in parallel to avoid timeout
+    console.log(`[AI-More-Variations] Generating ${count} images in parallel...`);
     
-    for (let i = 0; i < count; i++) {
+    const generateImage = async (index) => {
       try {
         let imageUrl;
         let cost = 0;
@@ -238,15 +237,23 @@ export const handler = async (event) => {
         
         // Upload to Cloudinary
         const { url } = await uploadToCloudinary(imageUrl);
-        generatedUrls.push(url);
-        costs.push(cost);
-        
-        console.log(`[AI-More-Variations] Generated image ${i + 1}/${count}: ${url}`);
+        console.log(`[AI-More-Variations] Generated image ${index + 1}/${count}: ${url}`);
+        return { url, cost };
       } catch (error) {
-        console.error(`[AI-More-Variations] Failed to generate image ${i + 1}:`, error);
-        // Continue with other images
+        console.error(`[AI-More-Variations] Failed to generate image ${index + 1}:`, error);
+        return null;
       }
-    }
+    };
+    
+    // Generate all images in parallel
+    const results = await Promise.all(
+      Array.from({ length: count }, (_, i) => generateImage(i))
+    );
+    
+    // Filter out failed generations
+    const successfulResults = results.filter(r => r !== null);
+    const generatedUrls = successfulResults.map(r => r.url);
+    const costs = successfulResults.map(r => r.cost);
 
     if (generatedUrls.length === 0) {
       throw new Error('Failed to generate any images');

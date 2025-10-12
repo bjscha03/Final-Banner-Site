@@ -142,7 +142,7 @@ export const AIGeneratorPanel: React.FC<AIGeneratorPanelProps> = ({
           prompt,
           aspect,
           style,
-          count: 3, // Request 3 total (we already have 1)
+          count: 2, // Request 2 more variations
           userId,
         }),
       });
