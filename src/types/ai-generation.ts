@@ -57,10 +57,18 @@ export interface FinalizeResponse {
 }
 
 export interface CreditsStatusResponse {
+  // New simplified credit system
+  freeCreditsTotal: number;
+  freeCreditsUsed: number;
+  freeCreditsRemaining: number;
+  paidCreditsPurchased: number;
+  paidCreditsUsed: number;
+  paidCreditsRemaining: number;
+  totalCreditsRemaining: number;
+  
+  // Legacy fields for backward compatibility
   freeRemainingToday: number;
   paidCredits: number;
-  monthlySpend: number;
-  monthlyCap: number;
 }
 
 export interface AddCreditsRequest {

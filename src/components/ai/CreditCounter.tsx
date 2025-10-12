@@ -1,12 +1,12 @@
 /**
  * CreditCounter Component
  * 
- * Displays user's AI generation credits and monthly spending
+ * Displays user's AI generation credits with simple, clear balance
  */
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sparkles, Coins, TrendingUp, ShoppingCart } from 'lucide-react';
+import { Sparkles, Coins, ShoppingCart } from 'lucide-react';
 import { useAuth } from '@/lib/auth';
 import { useToast } from '@/components/ui/use-toast';
 import type { CreditsStatusResponse } from '../../types/ai-generation';
@@ -122,82 +122,69 @@ export const CreditCounter: React.FC<CreditCounterProps> = ({
     return null;
   }
 
-  const budgetPercentage = (status.monthlySpend / status.monthlyCap) * 100;
-  const budgetColor = budgetPercentage > 90 ? 'text-red-600' : budgetPercentage > 70 ? 'text-yellow-600' : 'text-green-600';
-  const hasNoCredits = status.freeRemainingToday === 0 && status.paidCredits === 0;
+  const hasNoCredits = status.totalCreditsRemaining === 0;
+  const hasFreeCredits = status.freeCreditsRemaining > 0;
+  const hasPaidCredits = status.paidCreditsRemaining > 0;
 
   return (
     <>
-      <div className={`flex flex-col gap-2 ${className}`}>
-        {/* Credits Display */}
-        <div className="flex items-center gap-4 text-sm flex-wrap">
-          {/* Free Credits */}
-          {status.freeRemainingToday > 0 && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 rounded-full">
-              <Sparkles className="w-4 h-4" />
-              <span className="font-medium">🎁 {status.freeRemainingToday}</span>
-              <span className="text-blue-600">free today</span>
+      <div className={`flex flex-col gap-3 ${className}`}>
+        {/* Simple Credit Display */}
+        <div className="flex items-center gap-3 text-sm flex-wrap">
+          {/* Total Credits Remaining - Primary Display */}
+          <div className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg">
+            <Sparkles className="w-5 h-5 text-blue-600" />
+            <div className="flex flex-col">
+              <span className="text-xs text-gray-600 font-medium">Credits Available</span>
+              <span className="text-lg font-bold text-gray-900">{status.totalCreditsRemaining}</span>
+            </div>
+          </div>
+
+          {/* Breakdown (if user has both free and paid) */}
+          {hasFreeCredits && hasPaidCredits && (
+            <div className="flex items-center gap-2 text-xs text-gray-600">
+              <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-full font-medium">
+                {status.freeCreditsRemaining} free
+              </span>
+              <span className="text-gray-400">+</span>
+              <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full font-medium">
+                {status.paidCreditsRemaining} purchased
+              </span>
             </div>
           )}
 
-          {/* Paid Credits */}
-          {status.paidCredits > 0 && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-green-50 text-green-700 rounded-full">
-              <Coins className="w-4 h-4" />
-              <span className="font-medium">{status.paidCredits}</span>
-              <span className="text-green-600">credits</span>
-            </div>
-          )}
-
-          {/* Purchase Credits Button - Always Visible */}
+          {/* Purchase Credits Button */}
           <button
             onClick={handlePurchaseCredits}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-blue-600 text-white rounded-full hover:bg-blue-700 transition-colors font-medium"
+            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium shadow-sm hover:shadow-md"
           >
             <ShoppingCart className="w-4 h-4" />
-            Purchase Credits
+            Buy More Credits
           </button>
-
-          {/* No Credits Warning */}
-          {hasNoCredits && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-yellow-50 text-yellow-700 rounded-full">
-              <span className="font-medium">⚠️ No credits remaining</span>
-            </div>
-          )}
         </div>
 
-        {/* Monthly Budget Indicator */}
-        <div className="flex items-center gap-2 text-xs">
-          <TrendingUp className={`w-3 h-3 ${budgetColor}`} />
-          <span className="text-gray-600">
-            Monthly spend: 
-            <span className={`font-medium ml-1 ${budgetColor}`}>
-              ${status.monthlySpend.toFixed(2)}
-            </span>
-            <span className="text-gray-500 ml-1">
-              / ${status.monthlyCap.toFixed(0)}
-            </span>
-          </span>
-          
-          {/* Budget Warning */}
-          {budgetPercentage > 90 && (
-            <span className="text-red-600 font-medium">
-              (⚠️ {(100 - budgetPercentage).toFixed(0)}% remaining)
-            </span>
-          )}
-        </div>
+        {/* Usage Stats - Compact */}
+        {(status.freeCreditsUsed > 0 || status.paidCreditsUsed > 0) && (
+          <div className="flex items-center gap-4 text-xs text-gray-500 px-2">
+            {status.freeCreditsUsed > 0 && (
+              <span>
+                Free: <span className="font-medium text-gray-700">{status.freeCreditsUsed} of {status.freeCreditsTotal} used</span>
+              </span>
+            )}
+            {status.paidCreditsUsed > 0 && (
+              <span>
+                Purchased: <span className="font-medium text-gray-700">{status.paidCreditsUsed} of {status.paidCreditsPurchased} used</span>
+              </span>
+            )}
+          </div>
+        )}
 
-        {/* Budget Progress Bar */}
-        <div className="w-full bg-gray-200 rounded-full h-1.5">
-          <div
-            className={`h-1.5 rounded-full transition-all ${
-              budgetPercentage > 90 ? 'bg-red-600' : 
-              budgetPercentage > 70 ? 'bg-yellow-600' : 
-              'bg-green-600'
-            }`}
-            style={{ width: `${Math.min(budgetPercentage, 100)}%` }}
-          />
-        </div>
+        {/* No Credits Warning */}
+        {hasNoCredits && (
+          <div className="flex items-center gap-2 px-3 py-2 bg-yellow-50 border border-yellow-200 text-yellow-800 rounded-lg text-sm">
+            <span className="font-medium">⚠️ No credits remaining. Purchase more to continue generating AI banners.</span>
+          </div>
+        )}
       </div>
 
       {/* Purchase Credits Modal */}

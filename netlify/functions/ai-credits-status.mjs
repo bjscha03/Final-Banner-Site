@@ -1,8 +1,7 @@
 import { neon } from '@neondatabase/serverless';
 
 const sql = neon(process.env.DATABASE_URL || process.env.NETLIFY_DATABASE_URL || '');
-const FREE_IMGS_PER_DAY = parseInt(process.env.FREE_IMGS_PER_DAY || '3', 10);
-const MONTHLY_SOFT_CAP = parseFloat(process.env.IMG_MONTHLY_SOFT_CAP_USD || '100');
+const FREE_CREDITS_INITIAL = 3; // New users get 3 free credits total
 
 export const handler = async (event) => {
   const headers = {
@@ -24,37 +23,55 @@ export const handler = async (event) => {
     await sql`INSERT INTO users (id) VALUES (${userId}) ON CONFLICT (id) DO NOTHING`;
     await sql`INSERT INTO user_credits (user_id, credits) VALUES (${userId}, 0) ON CONFLICT (user_id) DO NOTHING`;
 
-    // Get free remaining
-    const freeResult = await sql`
-      SELECT COUNT(*) as count FROM usage_log
-      WHERE user_id = ${userId} AND event = 'GEN_SUCCESS'
-      AND created_at >= CURRENT_DATE AND (meta->>'used_free')::boolean = true
+    // Get total credits purchased (from credit_purchases table)
+    const purchasesResult = await sql`
+      SELECT COALESCE(SUM(credits_purchased), 0) as total_purchased
+      FROM credit_purchases
+      WHERE user_id = ${userId} AND status = 'completed'
     `;
-    const usedToday = parseInt(freeResult[0]?.count || '0', 10);
-    const freeRemainingToday = Math.max(0, FREE_IMGS_PER_DAY - usedToday);
+    const totalPurchased = parseInt(purchasesResult[0]?.total_purchased || '0', 10);
 
-    // Get paid credits
-    const creditsResult = await sql`SELECT credits FROM user_credits WHERE user_id = ${userId}`;
-    const paidCredits = creditsResult[0]?.credits || 0;
-
-    // Get monthly spend
-    const startOfMonth = new Date();
-    startOfMonth.setDate(1);
-    startOfMonth.setHours(0, 0, 0, 0);
-    const spendResult = await sql`
-      SELECT COALESCE(SUM((meta->>'cost')::numeric), 0) as total FROM usage_log
-      WHERE user_id = ${userId} AND event = 'GEN_SUCCESS' AND created_at >= ${startOfMonth.toISOString()}
+    // Get total credits used (from usage_log where credits were debited)
+    const usageResult = await sql`
+      SELECT COUNT(*) as count
+      FROM usage_log
+      WHERE user_id = ${userId}
+        AND event = 'GEN_SUCCESS'
+        AND (meta->>'used_free')::boolean = false
     `;
-    const monthlySpend = parseFloat(spendResult[0]?.total || '0');
+    const creditsUsed = parseInt(usageResult[0]?.count || '0', 10);
+
+    // Get free credits used
+    const freeUsedResult = await sql`
+      SELECT COUNT(*) as count
+      FROM usage_log
+      WHERE user_id = ${userId}
+        AND event = 'GEN_SUCCESS'
+        AND (meta->>'used_free')::boolean = true
+    `;
+    const freeCreditsUsed = parseInt(freeUsedResult[0]?.count || '0', 10);
+
+    // Calculate remaining
+    const freeCreditsRemaining = Math.max(0, FREE_CREDITS_INITIAL - freeCreditsUsed);
+    const paidCreditsRemaining = Math.max(0, totalPurchased - creditsUsed);
+    const totalCreditsRemaining = freeCreditsRemaining + paidCreditsRemaining;
 
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
-        freeRemainingToday,
-        paidCredits,
-        monthlySpend,
-        monthlyCap: MONTHLY_SOFT_CAP,
+        // New simplified credit system
+        freeCreditsTotal: FREE_CREDITS_INITIAL,
+        freeCreditsUsed: freeCreditsUsed,
+        freeCreditsRemaining: freeCreditsRemaining,
+        paidCreditsPurchased: totalPurchased,
+        paidCreditsUsed: creditsUsed,
+        paidCreditsRemaining: paidCreditsRemaining,
+        totalCreditsRemaining: totalCreditsRemaining,
+        
+        // Legacy fields for backward compatibility (will be removed later)
+        freeRemainingToday: freeCreditsRemaining,
+        paidCredits: paidCreditsRemaining,
       }),
     };
   } catch (error) {
