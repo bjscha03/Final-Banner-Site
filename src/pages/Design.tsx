@@ -70,7 +70,9 @@ const Design: React.FC = () => {
                 url: pendingImage,
                 name: 'AI Generated Banner',
                 isPdf: false,
-                fileKey: `ai-image-${Date.now()}`
+                fileKey: `ai-image-${Date.now()}`,
+                type: 'image/jpeg',
+                size: 0
               }
             });
             

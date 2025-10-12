@@ -682,7 +682,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
                 {file.name}
               </div>
               <div className="text-xs text-gray-600 truncate max-w-[150px]">
-                {file.type.split('/')[1].toUpperCase()} • {formatFileSize(file.size)}
+                {file.type?.split('/')[1]?.toUpperCase() || 'IMAGE'} • {formatFileSize(file.size || 0 || 0)}
               </div>
             </div>
           </div>

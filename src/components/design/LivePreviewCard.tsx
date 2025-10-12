@@ -28,6 +28,7 @@ interface LivePreviewCardProps {
 }
 // Helper function to create Cloudinary transformation URL for fitting to dimensions
 const createFittedImageUrl = (originalUrl: string, targetWidthIn: number, targetHeightIn: number): string => {
+  if (!originalUrl) return "";
   // Extract Cloudinary public ID from URL
   const urlParts = originalUrl.split('/');
   const uploadIndex = urlParts.findIndex(part => part === 'upload');
