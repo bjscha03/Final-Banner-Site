@@ -329,6 +329,10 @@ exports.handler = async (event) => {
     console.log('[PDF] Request keys:', Object.keys(req));
     console.log('[PDF] CRITICAL - textElements received:', req.textElements);
     console.log('[PDF] CRITICAL - textElements count:', req.textElements ? req.textElements.length : 0);
+    console.log('[PDF] CRITICAL - overlayImage received:', req.overlayImage);
+    console.log('[PDF] CRITICAL - overlayImage exists:', !!req.overlayImage);
+    console.log('[PDF] CRITICAL - overlayImage received:', req.overlayImage);
+    console.log('[PDF] CRITICAL - overlayImage exists:', !!req.overlayImage);
 
     // Accept either fileKey (preferred) or imageUrl (legacy)
     if (!req.orderId || !req.bannerWidthIn || !req.bannerHeightIn || (!req.fileKey && !req.imageUrl)) {
@@ -465,18 +469,92 @@ exports.handler = async (event) => {
       compositeLeft = Math.max(0, translateX);
     }
 
+    // Build composite layers array - background first, then overlay if exists
+    const compositeLayers = [
+      {
+        input: compositeInput,
+        top: compositeTop,
+        left: compositeLeft,
+      },
+    ];
+
+    // Add overlay image if provided
+    if (req.overlayImage && req.overlayImage.url) {
+      console.log('[PDF] Processing overlay image:', req.overlayImage.name);
+      console.log('[PDF] Overlay position:', req.overlayImage.position);
+      console.log('[PDF] Overlay scale:', req.overlayImage.scale);
+      
+      try {
+        // Fetch overlay image from Cloudinary
+        const overlayBuffer = req.overlayImage.fileKey
+          ? await fetchImage(req.overlayImage.fileKey, true)
+          : await fetchImage(req.overlayImage.url, false);
+        
+        console.log('[PDF] Overlay image fetched successfully');
+        
+        // Get overlay image metadata
+        const overlayMeta = await sharp(overlayBuffer).metadata();
+        const overlaySourceW = overlayMeta.width || 1;
+        const overlaySourceH = overlayMeta.height || 1;
+        
+        console.log('[PDF] Overlay source dimensions:', overlaySourceW, 'x', overlaySourceH);
+        
+        // Calculate overlay dimensions and position
+        // overlayImage.scale is relative to banner dimensions (e.g., 0.3 = 30% of banner width)
+        // overlayImage.position is percentage-based (0-100) relative to banner area
+        
+        const overlayWidthPx = Math.round(req.bannerWidthIn * targetDpi * req.overlayImage.scale);
+        const overlayHeightPx = Math.round(req.bannerHeightIn * targetDpi * req.overlayImage.scale);
+        
+        console.log('[PDF] Overlay target dimensions:', overlayWidthPx, 'x', overlayHeightPx, 'px');
+        
+        // Position is percentage-based (0-100) and represents the CENTER of the overlay
+        // Convert to pixel coordinates on the final canvas (which includes bleed)
+        const bannerAreaWidthPx = req.bannerWidthIn * targetDpi;
+        const bannerAreaHeightPx = req.bannerHeightIn * targetDpi;
+        const bleedPx = bleedIn * targetDpi;
+        
+        // Calculate center position of overlay within banner area
+        const overlayCenterX = (req.overlayImage.position.x / 100) * bannerAreaWidthPx;
+        const overlayCenterY = (req.overlayImage.position.y / 100) * bannerAreaHeightPx;
+        
+        // Convert to top-left position (accounting for bleed offset)
+        const overlayLeft = Math.round(bleedPx + overlayCenterX - (overlayWidthPx / 2));
+        const overlayTop = Math.round(bleedPx + overlayCenterY - (overlayHeightPx / 2));
+        
+        console.log('[PDF] Overlay position on canvas:', overlayLeft, ',', overlayTop);
+        
+        // Resize overlay to target dimensions while maintaining aspect ratio
+        const overlayResized = await sharp(overlayBuffer)
+          .resize(overlayWidthPx, overlayHeightPx, {
+            fit: 'contain', // Maintain aspect ratio
+            background: { r: 0, g: 0, b: 0, alpha: 0 } // Transparent background
+          })
+          .toBuffer();
+        
+        console.log('[PDF] Overlay resized successfully');
+        
+        // Add overlay to composite layers
+        compositeLayers.push({
+          input: overlayResized,
+          top: overlayTop,
+          left: overlayLeft,
+        });
+        
+        console.log('[PDF] Overlay added to composite layers');
+      } catch (overlayError) {
+        console.error('[PDF] Error processing overlay image:', overlayError);
+        console.error('[PDF] Continuing without overlay...');
+        // Continue without overlay - don't fail the entire PDF generation
+      }
+    }
+
     const merged = await sharp(whiteCanvas)
-      .composite([
-        {
-          input: compositeInput,
-          top: compositeTop,
-          left: compositeLeft,
-        },
-      ])
+      .composite(compositeLayers)
       .jpeg({ quality: 85, chromaSubsampling: '4:4:4' }) // JPEG compression to reduce PDF size
       .toBuffer();
 
-    console.log('[PDF] Image composited onto canvas');
+    console.log('[PDF] Image composited onto canvas (with overlay if provided)');
 
     const pdfBuffer = await rasterToPdfBuffer(merged, finalWidthIn, finalHeightIn, req.textElements, req.bannerWidthIn, req.bannerHeightIn, req.previewCanvasPx);
     console.log(`[PDF] PDF generated: ${pdfBuffer.length} bytes`);
