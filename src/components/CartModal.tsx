@@ -1,6 +1,6 @@
 import React from 'react';
 import { X, Trash2, Plus, Minus, ShoppingBag } from 'lucide-react';
-import BannerThumbnail from './cart/BannerThumbnail.tsx';
+import BannerThumbnail from './cart/BannerThumbnail';
 import { useNavigate } from 'react-router-dom';
 import { usd } from '@/lib/pricing';
 import { useCartStore } from '@/store/cart';

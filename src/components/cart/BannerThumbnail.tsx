@@ -33,9 +33,23 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
   const imageUrl = fileUrl || aiDesignUrl;
   const hasTextLayers = textElements && textElements.length > 0;
 
+  // Debug logging
+  useEffect(() => {
+    console.log('🖼️ BannerThumbnail render:', {
+      imageUrl,
+      hasTextLayers,
+      textElementsCount: textElements?.length || 0,
+      widthIn,
+      heightIn,
+      imageLoaded,
+      imageError
+    });
+  }, [imageUrl, hasTextLayers, textElements, widthIn, heightIn, imageLoaded, imageError]);
+
   // Render text layers on canvas when image loads
   useEffect(() => {
     if (!imageLoaded || !hasTextLayers || !canvasRef.current || !imgRef.current) {
+      console.log('⏭️ Skipping canvas render:', { imageLoaded, hasTextLayers, hasCanvas: !!canvasRef.current, hasImg: !!imgRef.current });
       return;
     }
 
@@ -43,7 +57,12 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
     const ctx = canvas.getContext('2d');
     const img = imgRef.current;
 
-    if (!ctx || !img.complete) return;
+    if (!ctx || !img.complete) {
+      console.log('⏭️ Canvas or image not ready:', { hasCtx: !!ctx, imgComplete: img?.complete });
+      return;
+    }
+
+    console.log('🎨 Rendering canvas with text layers:', textElements);
 
     // Set canvas size to match the container
     const rect = canvas.getBoundingClientRect();
@@ -59,13 +78,20 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
     const scaleX = rect.width / widthIn;
     const scaleY = rect.height / heightIn;
 
+    console.log('📐 Canvas scale factors:', { scaleX, scaleY, canvasSize: { width: rect.width, height: rect.height }, bannerSize: { widthIn, heightIn } });
+
     // Draw text layers
-    textElements.forEach((textEl) => {
-      if (!textEl.text || textEl.text.trim() === '') return;
+    textElements.forEach((textEl, index) => {
+      if (!textEl.text || textEl.text.trim() === '') {
+        console.log(`⏭️ Skipping empty text element ${index}`);
+        return;
+      }
 
       const x = textEl.x * scaleX;
       const y = textEl.y * scaleY;
       const fontSize = (textEl.fontSize || 24) * Math.min(scaleX, scaleY) / 72; // Convert from points to pixels
+
+      console.log(`✍️ Drawing text ${index}:`, { text: textEl.text, x, y, fontSize, color: textEl.color });
 
       ctx.save();
       
@@ -86,22 +112,27 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
       
       ctx.restore();
     });
+
+    console.log('✅ Canvas rendering complete');
   }, [imageLoaded, hasTextLayers, textElements, widthIn, heightIn]);
 
   // Handle image load error
   const handleImageError = () => {
+    console.log('❌ Image load error:', imageUrl);
     setImageError(true);
     setImageLoaded(false);
   };
 
   // Handle image load success
   const handleImageLoad = () => {
+    console.log('✅ Image loaded successfully:', imageUrl);
     setImageError(false);
     setImageLoaded(true);
   };
 
   // Show placeholder if no image or image failed to load
   if (!imageUrl || imageError) {
+    console.log('📦 Showing placeholder:', { imageUrl, imageError });
     return (
       <div className={`${className} bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg border border-gray-200 flex items-center justify-center flex-shrink-0`}>
         <div className="text-center">

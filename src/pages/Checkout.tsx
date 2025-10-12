@@ -15,7 +15,7 @@ import { ArrowLeft, Package, Truck, Plus, Minus, Trash2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { emailApi } from '@/lib/api';
 import { CartItem } from '@/store/cart';
-import BannerThumbnail from '@/components/cart/BannerThumbnail.tsx';
+import BannerThumbnail from '@/components/cart/BannerThumbnail';
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
