@@ -7,7 +7,6 @@ import { OrderItem } from '../lib/orders/types';
 
 import Layout from '@/components/Layout';
 import { usd, formatDimensions, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
-import OrderItemBreakdown from '@/components/orders/OrderItemBreakdown';
 import { validateMinimumOrder, canProceedToCheckout } from '@/lib/validation/minimumOrder';
 import PayPalCheckout from '@/components/checkout/PayPalCheckout';
 import SignUpEncouragementModal from '@/components/checkout/SignUpEncouragementModal';
@@ -261,8 +260,43 @@ const Checkout: React.FC = () => {
                             {item.file_name && <p>File: {item.file_name}</p>}
                           </div>
                           
-                          {/* Cost Breakdown - Using Unified Pricing Module */}
-                          <OrderItemBreakdown item={item} variant="compact" />
+                          {/* Cost Breakdown */}
+                          <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                            <h4 className="text-sm font-medium text-gray-900 mb-2">Price Breakdown</h4>
+                            <div className="space-y-1 text-sm">
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Base banner:</span>
+                                <span className="text-gray-900">{usd(item.unit_price_cents / 100)} × {item.quantity}</span>
+                              </div>
+                              {ropeCost > 0 && (
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Rope{ropeMode === 'per_item' && item.rope_feet ? ` (${item.rope_feet.toFixed(1)}ft)` : ''}:</span>
+                                  <span className="text-gray-900">
+                                    {ropeMode === 'per_item'
+                                      ? `${usd(ropeEach / 100)} × ${item.quantity} = ${usd(ropeCost / 100)}`
+                                      : usd(ropeCost / 100)
+                                    }
+                                  </span>
+                                </div>
+                              )}
+                              {item.pole_pockets !== "none" && pocketCost > 0 && (
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Pole pockets:</span>
+                                  <span className="text-gray-900">
+                                    {pocketMode === 'per_item'
+                                      ? `${usd(pocketEach / 100)} × ${item.quantity} = ${usd(pocketCost / 100)}`
+                                      : usd(pocketCost / 100)
+                                    }
+                                  </span>
+                                </div>
+                              )}
+                              <div className="flex justify-between font-medium border-t border-gray-200 pt-1 mt-2">
+                                <span className="text-gray-900">Line total:</span>
+                                <span className="text-gray-900">{usd(item.line_total_cents / 100)}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
                         <div className="text-right">
                           <p className="font-semibold text-gray-900">
                             {usd(item.line_total_cents / 100)}

@@ -14,7 +14,6 @@ import {
   Column,
   Img
 } from '@react-email/components';
-import OrderItemBreakdownEmail from '@/components/orders/OrderItemBreakdownEmail';
 
 interface OrderConfirmationProps {
   to: string;
@@ -144,8 +143,33 @@ export default function OrderConfirmation({ order, invoiceUrl }: OrderConfirmati
                           <Text style={itemOptions}>{item.options}</Text>
                         )}
                         
-                        {/* Cost Breakdown - Using Unified Pricing Module */}
-                        <OrderItemBreakdownEmail item={item} />
+                        {/* Cost Breakdown - only show if we have the data */}
+                        {hasBreakdown && (
+                          <div style={costBreakdown}>
+                            <Text style={breakdownTitle}>Price Breakdown</Text>
+                            <div style={breakdownRow}>
+                              <Text style={breakdownLabel}>Base banner:</Text>
+                              <Text style={breakdownValue}>${(item.unitPriceCents / 100).toFixed(2)} × {itemQty}</Text>
+                            </div>
+                            {item.ropeFeet > 0 && (
+                              <div style={breakdownRow}>
+                                <Text style={breakdownLabel}>Rope ({item.ropeFeet.toFixed(1)}ft):</Text>
+                                <Text style={breakdownValue}>${(item.ropeCostCents / 100).toFixed(2)}</Text>
+                              </div>
+                            )}
+                            {item.polePocketCostCents > 0 && (
+                              <div style={breakdownRow}>
+                                <Text style={breakdownLabel}>Pole pockets:</Text>
+                                <Text style={breakdownValue}>${(item.polePocketCostCents / 100).toFixed(2)}</Text>
+                              </div>
+                            )}
+                            <div style={breakdownTotalRow}>
+                              <Text style={breakdownTotalLabel}>Line total:</Text>
+                              <Text style={breakdownTotalValue}>${itemPrice.toFixed(2)}</Text>
+                            </div>
+                          </div>
+                        )}
+                      </div>
                       <div style={itemPricing}>
                         <Text style={itemPriceStyle}>${itemPrice.toFixed(2)}</Text>
                         <Text style={itemQuantity}>Qty: {itemQty}</Text>
