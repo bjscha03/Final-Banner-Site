@@ -10,6 +10,7 @@
  * - Links LinkedIn OAuth to existing email/password accounts
  * - Prevents duplicate accounts for same email
  * - Ensures AI credits and orders are preserved
+ * - Redirects to HOME PAGE after successful sign-in
  */
 
 import { Handler } from '@netlify/functions';
@@ -216,7 +217,7 @@ export const handler: Handler = async (event) => {
       console.log('✅ New user created:', user.id);
     }
 
-    // Return HTML that stores user in localStorage and redirects
+    // Return HTML that stores user in localStorage and redirects to HOME PAGE
     const htmlResponse = `
 <!DOCTYPE html>
 <html>
@@ -230,54 +231,106 @@ export const handler: Handler = async (event) => {
       justify-content: center;
       min-height: 100vh;
       margin: 0;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: linear-gradient(135deg, #0077b5 0%, #00a0dc 100%);
     }
     .container {
       background: white;
-      padding: 2rem;
-      border-radius: 12px;
-      box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+      padding: 2.5rem;
+      border-radius: 16px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.3);
       text-align: center;
-      max-width: 400px;
+      max-width: 450px;
     }
     .spinner {
-      border: 4px solid #f3f3f3;
-      border-top: 4px solid #0077b5;
+      border: 5px solid #f3f3f3;
+      border-top: 5px solid #0077b5;
       border-radius: 50%;
-      width: 40px;
-      height: 40px;
+      width: 50px;
+      height: 50px;
       animation: spin 1s linear infinite;
-      margin: 0 auto 1rem;
+      margin: 0 auto 1.5rem;
     }
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
-    h2 { color: #333; margin: 0 0 0.5rem; }
-    p { color: #666; margin: 0; }
-    .success { color: #0077b5; font-weight: 600; }
+    h2 { 
+      color: #0077b5; 
+      margin: 0 0 0.5rem; 
+      font-size: 1.75rem;
+      font-weight: 700;
+    }
+    p { 
+      color: #666; 
+      margin: 0;
+      font-size: 1.1rem;
+    }
+    .debug {
+      margin-top: 1rem;
+      padding: 1rem;
+      background: #f5f5f5;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      color: #333;
+      text-align: left;
+      font-family: monospace;
+      max-height: 200px;
+      overflow-y: auto;
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="spinner"></div>
-    <h2 class="success">Welcome back!</h2>
-    <p>Signing you in with LinkedIn...</p>
+    <h2>Welcome!</h2>
+    <p>Completing your sign-in...</p>
+    <div class="debug" id="debug"></div>
   </div>
   <script>
+    const debugEl = document.getElementById('debug');
+    
+    function log(message) {
+      console.log(message);
+      debugEl.innerHTML += message + '<br>';
+    }
+    
     try {
-      const user = ${JSON.stringify(user)};
-      localStorage.setItem('banners_current_user', JSON.stringify(user));
-      console.log('✅ User stored in localStorage:', user.email);
-      console.log('✅ User ID:', user.id);
+      log('🔵 Starting localStorage storage...');
       
-      // Redirect to design page after successful sign-in
+      const user = ${JSON.stringify(user)};
+      log('🔵 User object: ' + JSON.stringify(user, null, 2));
+      
+      // Check if localStorage is available
+      if (typeof localStorage === 'undefined') {
+        throw new Error('localStorage is not available');
+      }
+      log('✅ localStorage is available');
+      
+      // Store user
+      localStorage.setItem('banners_current_user', JSON.stringify(user));
+      log('✅ User stored in localStorage');
+      
+      // Verify storage
+      const storedUser = localStorage.getItem('banners_current_user');
+      if (!storedUser) {
+        throw new Error('Failed to verify localStorage storage');
+      }
+      log('✅ Verified: ' + storedUser.substring(0, 50) + '...');
+      
+      log('🔵 Redirecting to home page in 2 seconds...');
+      
+      // Redirect to HOME PAGE after successful sign-in
       setTimeout(() => {
-        window.location.href = '/design';
-      }, 1000);
+        log('🔵 Redirecting now...');
+        window.location.href = '/';
+      }, 2000);
+      
     } catch (error) {
+      log('❌ Error: ' + error.message);
       console.error('❌ Error storing user:', error);
-      window.location.href = '/sign-in?error=Failed to complete sign-in';
+      setTimeout(() => {
+        window.location.href = '/sign-in?error=' + encodeURIComponent('Failed to complete sign-in: ' + error.message);
+      }, 3000);
     }
   </script>
 </body>
