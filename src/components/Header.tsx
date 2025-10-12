@@ -113,12 +113,14 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
                         <ScrollToTopLink to="/my-orders" className="flex items-center">
                           <Package className="h-4 w-4 mr-2" />
                           My Orders
-                        </ScrollToTopLink>                      </DropdownMenuItem>
+                        </ScrollToTopLink>
+                      </DropdownMenuItem>
                       <DropdownMenuItem asChild>
                         <ScrollToTopLink to="/my-ai-images" className="flex items-center">
                           <Sparkles className="h-4 w-4 mr-2" />
                           My AI Images
                         </ScrollToTopLink>
+                      </DropdownMenuItem>
                       {isAdmin(user) && (
                         <>
                           <DropdownMenuSeparator />
@@ -199,7 +201,8 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
                           onClick={() => setIsMenuOpen(false)}
                         >
                           <Package className="h-5 w-5" />
-                          <span>My Orders</span>                        </ScrollToTopLink>
+                          <span>My Orders</span>
+                        </ScrollToTopLink>
                         <ScrollToTopLink
                           to="/my-ai-images"
                           className="flex items-center space-x-2 text-gray-700 hover:text-blue-700 w-full px-3 py-2 text-base font-medium"
@@ -207,6 +210,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
                         >
                           <Sparkles className="h-5 w-5" />
                           <span>My AI Images</span>
+                        </ScrollToTopLink>
                         {isAdmin(user) && (
                           <ScrollToTopLink
                             to="/admin/orders"
