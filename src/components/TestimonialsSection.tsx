@@ -60,7 +60,7 @@ const TestimonialsSection: React.FC = () => {
               </div>
               
               <div className="relative mb-6">
-                <Quote className="absolute -top-2 -left-2 h-8 w-8 text-slate-200" />
+                <Quote className="absolute -top-2 -left-2 h-8 w-8 text-[#18448D]" />
                 <p className="text-slate-700 leading-relaxed pl-6">
                   "{testimonial.text}"
                 </p>
