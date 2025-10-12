@@ -132,9 +132,13 @@ export const AIGeneratorPanel: React.FC<AIGeneratorPanelProps> = ({
   };
 
   const handleLoadMore = async () => {
+    console.log('[AIGeneratorPanel] Load More clicked - Starting generation...');
+    console.log('[AIGeneratorPanel] Current state:', { prompt, aspect, userId, currentImages: generatedImages.length });
+    
     try {
       setIsLoadingMore(true);
 
+      console.log('[AIGeneratorPanel] Calling ai-more-variations function...');
       const response = await fetch('/.netlify/functions/ai-more-variations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -147,8 +151,11 @@ export const AIGeneratorPanel: React.FC<AIGeneratorPanelProps> = ({
         }),
       });
 
+      console.log('[AIGeneratorPanel] Response status:', response.status);
+
       if (!response.ok) {
         const errorData = await response.json();
+        console.error('[AIGeneratorPanel] Error response:', errorData);
         
         if (errorData.code === 'INSUFFICIENT_CREDITS') {
           toast({
@@ -163,8 +170,14 @@ export const AIGeneratorPanel: React.FC<AIGeneratorPanelProps> = ({
       }
 
       const data: MoreVariationsResponse = await response.json();
+      console.log('[AIGeneratorPanel] Success! Received data:', data);
+      console.log('[AIGeneratorPanel] New URLs:', data.urls);
 
-      setGeneratedImages(prev => [...prev, ...data.urls]);
+      setGeneratedImages(prev => {
+        const updated = [...prev, ...data.urls];
+        console.log('[AIGeneratorPanel] Updated images array:', updated);
+        return updated;
+      });
       setTier(data.tier);
       setCached(data.cached);
       setShowMoreButton(false); // Hide button after loading more
@@ -176,8 +189,11 @@ export const AIGeneratorPanel: React.FC<AIGeneratorPanelProps> = ({
         title: 'More Variations Loaded!',
         description: `${data.urls.length} new images added${data.cached ? ' (some from cache)' : ''}.`,
       });
+      
+      console.log('[AIGeneratorPanel] Load More completed successfully!');
     } catch (error: any) {
       console.error('[AIGeneratorPanel] Load more error:', error);
+      console.error('[AIGeneratorPanel] Error stack:', error.stack);
       toast({
         title: 'Failed to Load More',
         description: error.message || 'Failed to generate more variations. Please try again.',
@@ -235,7 +251,7 @@ export const AIGeneratorPanel: React.FC<AIGeneratorPanelProps> = ({
 
       {/* Aspect Ratio Selector */}
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium text-gray-700">
+        <label className="text-sm font-semibold text-gray-800">
           Aspect Ratio
         </label>
         <Select value={aspect} onValueChange={setAspect} disabled={isGenerating}>
@@ -259,7 +275,8 @@ export const AIGeneratorPanel: React.FC<AIGeneratorPanelProps> = ({
       <Button
         onClick={handleGenerate}
         disabled={isGenerating || !prompt.trim()}
-        className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white"
+        className="w-full text-white font-semibold shadow-lg hover:shadow-xl transition-all duration-200"
+        style={{ backgroundColor: isGenerating || !prompt.trim() ? '#9CA3AF' : '#18448D' }}
       >
         {isGenerating ? (
           <>
@@ -313,9 +330,9 @@ export const AIGeneratorPanel: React.FC<AIGeneratorPanelProps> = ({
 
       {/* Help Text */}
       {generatedImages.length === 0 && !isGenerating && (
-        <div className="flex items-start gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-          <AlertCircle className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
-          <div className="text-xs text-blue-700">
+        <div className="flex items-start gap-2 p-4 bg-blue-50 border-2 border-blue-200 rounded-lg shadow-sm">
+          <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" style={{ color: '#18448D' }} />
+          <div className="text-xs" style={{ color: '#18448D' }}>
             <p className="font-medium mb-1">Tips for best results:</p>
             <ul className="list-disc list-inside space-y-0.5">
               <li>Be specific about colors, style, and subject</li>

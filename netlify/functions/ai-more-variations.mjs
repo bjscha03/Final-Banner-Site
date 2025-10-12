@@ -225,14 +225,17 @@ export const handler = async (event) => {
         let imageUrl;
         let cost = 0;
         
-        if (tier === 'premium') {
-          // Use DALL-E 3 for premium
-          imageUrl = await generateWithOpenAI(prompt, aspect);
-          cost = 0.04; // DALL-E 3 HD cost
-        } else {
-          // Use Fal.ai for standard
+        // SPEED OPTIMIZATION: Use Fal.ai for variations (much faster than DALL-E 3)
+        // Fal.ai Flux Schnell generates in ~2-3 seconds vs DALL-E 3's ~10-15 seconds
+        // This makes "Generate 2 More Options" significantly faster
+        if (tier === 'standard' || process.env.USE_FAL_FOR_VARIATIONS === 'true') {
+          // Use Fal.ai for fast generation
           imageUrl = await generateWithFal(prompt, aspect);
           cost = 0.003; // Fal.ai cost
+        } else {
+          // Use DALL-E 3 for premium (slower but higher quality)
+          imageUrl = await generateWithOpenAI(prompt, aspect);
+          cost = 0.04; // DALL-E 3 HD cost
         }
         
         // Upload to Cloudinary
