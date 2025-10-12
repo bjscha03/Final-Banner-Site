@@ -182,6 +182,28 @@ export const AIImageSelector: React.FC<AIImageSelectorProps> = ({
             <div className="absolute top-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
               #{index + 1}
             </div>
+
+            {/* Save Button */}
+            {userId && (
+              <button
+                onClick={(e) => handleSaveImage(url, e)}
+                disabled={savingStates[url]}
+                className={`absolute top-2 right-2 p-2 rounded-full transition-all ${
+                  savedStates[url]
+                    ? 'bg-green-600 text-white'
+                    : 'bg-white bg-opacity-90 text-gray-700 hover:bg-opacity-100 hover:text-blue-600'
+                }`}
+                title={savedStates[url] ? 'Saved!' : 'Save image'}
+              >
+                {savingStates[url] ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : savedStates[url] ? (
+                  <Check className="w-4 h-4" />
+                ) : (
+                  <Bookmark className="w-4 h-4" />
+                )}
+              </button>
+            )}
           </div>
         ))}
       </div>
@@ -209,4 +231,3 @@ export const AIImageSelector: React.FC<AIImageSelectorProps> = ({
   );
 };
 
-export default AIImageSelector;
