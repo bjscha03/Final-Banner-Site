@@ -360,6 +360,12 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
 
     const overlayFile = files[0];
     
+    console.log('📤 Overlay upload started:', {
+      name: overlayFile.name,
+      type: overlayFile.type,
+      size: overlayFile.size
+    });
+    
     // Validate file type
     if (!overlayFile.type.startsWith('image/')) {
       toast({
@@ -373,19 +379,30 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     try {
       // Upload to Cloudinary
       const formData = new FormData();
-      formData.append('file', overlayFile);
-      formData.append('fileName', overlayFile.name);
+      formData.append('file', overlayFile, overlayFile.name);
+      
+      console.log('📤 Sending FormData to upload-file function...');
 
       const response = await fetch('/.netlify/functions/upload-file', {
         method: 'POST',
         body: formData,
+        // Don't set Content-Type header - browser will set it with boundary
+      });
+
+      console.log('📥 Upload response:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
       });
 
       if (!response.ok) {
-        throw new Error('Failed to upload overlay image');
+        const errorText = await response.text();
+        console.error('❌ Upload failed:', errorText);
+        throw new Error(`Upload failed: ${response.status} - ${errorText}`);
       }
 
       const result = await response.json();
+      console.log('✅ Upload successful:', result);
 
       // Add overlay to store with default position (centered) and scale
       set({
@@ -403,7 +420,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         description: 'Logo/image overlay added successfully.',
       });
     } catch (error) {
-      console.error('Overlay upload error:', error);
+      console.error('❌ Overlay upload error:', error);
       toast({
         title: 'Upload Failed',
         description: error instanceof Error ? error.message : 'Failed to upload overlay image',
@@ -1180,26 +1197,6 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                 <Type className="w-4 h-4" />
                 Add Text
               </button>
-              {isAIImage && !overlayImage && (
-                <button
-                  onClick={() => overlayFileInputRef.current?.click()}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white rounded-xl transition-colors duration-150 shadow-md hover:shadow-lg min-h-[44px] min-w-[44px] touch-manipulation"
-                  title="Add logo or image overlay"
-                >
-                  <Image className="w-4 h-4" />
-                  Add Logo/Image
-                </button>
-              )}
-              {overlayImage && (
-                <button
-                  onClick={handleRemoveOverlay}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white rounded-xl transition-colors duration-150 shadow-md hover:shadow-lg min-h-[44px] min-w-[44px] touch-manipulation"
-                  title="Remove overlay image"
-                >
-                  <X className="w-4 h-4" />
-                  Remove Overlay
-                </button>
-              )}
               {isAIImage && !overlayImage && (
                 <button
                   onClick={() => overlayFileInputRef.current?.click()}
