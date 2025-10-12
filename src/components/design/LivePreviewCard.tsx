@@ -1089,7 +1089,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         document.removeEventListener("touchend", handleTouchEnd);
       };
     }
-  }, [isDraggingImage, isResizingImage, dragStart, initialImagePosition, initialImageScale, imagePosition, imageScale, resizeHandle, widthIn, heightIn]);
+  }, [isDraggingImage, isResizingImage, isDraggingOverlay, isResizingOverlay, dragStart, initialImagePosition, initialImageScale, initialOverlayPosition, initialOverlayScale, imagePosition, imageScale, resizeHandle, overlayResizeHandle, widthIn, heightIn, overlayImage, set]);
 
 
   return (
