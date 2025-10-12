@@ -167,30 +167,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
             height: "auto"
           }}
         >
-        {/* PROFESSIONAL PRINT GUIDELINES - ALWAYS VISIBLE */}
-        <g className="print-rulers">
-          <rect x="0" y="0" width={totalWidth} height={RULER_HEIGHT} fill="#f1f5f9" stroke="#64748b" strokeWidth="0.02"/>
-          <text x={totalWidth/2} y={RULER_HEIGHT/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.5" fill="#1e293b" fontWeight="600">
-            {/* Ruler tick marks */}
-            {Array.from({length: Math.floor(widthIn)}, (_, i) => (
-              <line key={i} x1={RULER_HEIGHT + BLEED_SIZE + i} y1={RULER_HEIGHT - TICK_SIZE} x2={RULER_HEIGHT + BLEED_SIZE + i} y2={RULER_HEIGHT} stroke="#64748b" strokeWidth="0.02" />
-            ))}            {`${widthIn}"`}
-          </text>
-          <rect x="0" y={totalHeight - RULER_HEIGHT} width={totalWidth} height={RULER_HEIGHT} fill="#f1f5f9" stroke="#64748b" strokeWidth="0.02"/>
-          <text x={totalWidth/2} y={totalHeight - RULER_HEIGHT/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.5" fill="#1e293b" fontWeight="600">
-            {`${widthIn}"`}
-          </text>
-          <rect x="0" y="0" width={RULER_HEIGHT} height={totalHeight} fill="#f1f5f9" stroke="#64748b" strokeWidth="0.02"/>
-          <text x={RULER_HEIGHT/2} y={totalHeight/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.5" fill="#1e293b" fontWeight="600" transform={`rotate(-90, ${RULER_HEIGHT/2}, ${totalHeight/2})`}>
-            {`${heightIn}"`}
-          </text>
-          <rect x={totalWidth - RULER_HEIGHT} y="0" width={RULER_HEIGHT} height={totalHeight} fill="#f1f5f9" stroke="#64748b" strokeWidth="0.02"/>
-          <text x={totalWidth - RULER_HEIGHT/2} y={totalHeight/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.5" fill="#1e293b" fontWeight="600" transform={`rotate(90, ${totalWidth - RULER_HEIGHT/2}, ${totalHeight/2})`}>
-            {`${heightIn}"`}
-          </text>
-        </g>
-
-        {/* PROFESSIONAL PRINT GUIDELINES - VISTAPRINT STYLE */}
+        {/* RULERS MOVED TO END FOR Z-INDEX FIX */}
         
 
         {/* Safety Area - Enhanced with professional styling */}
@@ -507,6 +484,30 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
             pointerEvents="none"
           />
         )}
+
+        {/* PROFESSIONAL PRINT GUIDELINES - ALWAYS VISIBLE - RENDERED LAST FOR TOP Z-INDEX */}
+        <g className="print-rulers" style={{ pointerEvents: 'none' }}>
+          <rect x="0" y="0" width={totalWidth} height={RULER_HEIGHT} fill="#f1f5f9" stroke="#64748b" strokeWidth="0.02"/>
+          <text x={totalWidth/2} y={RULER_HEIGHT/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.5" fill="#1e293b" fontWeight="600">
+            {/* Ruler tick marks */}
+            {Array.from({length: Math.floor(widthIn)}, (_, i) => (
+              <line key={i} x1={RULER_HEIGHT + BLEED_SIZE + i} y1={RULER_HEIGHT - TICK_SIZE} x2={RULER_HEIGHT + BLEED_SIZE + i} y2={RULER_HEIGHT} stroke="#64748b" strokeWidth="0.02" />
+            ))}            {`${widthIn}"`}
+          </text>
+          <rect x="0" y={totalHeight - RULER_HEIGHT} width={totalWidth} height={RULER_HEIGHT} fill="#f1f5f9" stroke="#64748b" strokeWidth="0.02"/>
+          <text x={totalWidth/2} y={totalHeight - RULER_HEIGHT/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.5" fill="#1e293b" fontWeight="600">
+            {`${widthIn}"`}
+          </text>
+          <rect x="0" y="0" width={RULER_HEIGHT} height={totalHeight} fill="#f1f5f9" stroke="#64748b" strokeWidth="0.02"/>
+          <text x={RULER_HEIGHT/2} y={totalHeight/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.5" fill="#1e293b" fontWeight="600" transform={`rotate(-90, ${RULER_HEIGHT/2}, ${totalHeight/2})`}>
+            {`${heightIn}"`}
+          </text>
+          <rect x={totalWidth - RULER_HEIGHT} y="0" width={RULER_HEIGHT} height={totalHeight} fill="#f1f5f9" stroke="#64748b" strokeWidth="0.02"/>
+          <text x={totalWidth - RULER_HEIGHT/2} y={totalHeight/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.5" fill="#1e293b" fontWeight="600" transform={`rotate(90, ${totalWidth - RULER_HEIGHT/2}, ${totalHeight/2})`}>
+            {`${heightIn}"`}
+          </text>
+        </g>
+
       </svg>
 
       </div>
