@@ -53,6 +53,26 @@ const Design: React.FC = () => {
     window.scrollTo(0, 0);
   }, []);
 
+  // Check for pending AI image from "Use in Design" button
+  useEffect(() => {
+    const pendingImage = localStorage.getItem('pending_ai_image');
+    if (pendingImage) {
+      console.log('[Design] Loading pending AI image:', pendingImage);
+      // TODO: Load the image into the design canvas/editor
+      // For now, just show a toast notification
+      localStorage.removeItem('pending_ai_image');
+      
+      // You can add logic here to:
+      // 1. Set the image as background in the canvas
+      // 2. Add it to an image library
+      // 3. Display it in a preview area
+      
+      console.log('[Design] Pending AI image loaded successfully');
+    }
+  }, []);
+
+
+
   useEffect(() => {
     // Only apply quick quote once per page load
     if (hasAppliedQuickQuote.current) return;

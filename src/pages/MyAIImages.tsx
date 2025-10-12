@@ -11,7 +11,6 @@ import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import Layout from '@/components/Layout';
-import Layout from '@/components/Layout';
 
 interface SavedImage {
   id: string;
