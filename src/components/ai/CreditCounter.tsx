@@ -5,7 +5,10 @@
  */
 
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Sparkles, Coins, TrendingUp, ShoppingCart } from 'lucide-react';
+import { useAuth } from '@/lib/auth';
+import { useToast } from '@/components/ui/use-toast';
 import type { CreditsStatusResponse } from '../../types/ai-generation';
 import { PurchaseCreditsModal } from './PurchaseCreditsModal';
 
@@ -22,6 +25,9 @@ export const CreditCounter: React.FC<CreditCounterProps> = ({
   onRefresh,
   className = '' 
 }) => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [status, setStatus] = useState<CreditsStatusResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -69,6 +75,18 @@ export const CreditCounter: React.FC<CreditCounterProps> = ({
   }, [onRefresh]);
 
   const handlePurchaseCredits = () => {
+    // Check if user is authenticated before showing purchase modal
+    if (!user) {
+      toast({
+        title: '🔒 Sign In Required',
+        description: 'Please sign in to purchase AI credits.',
+        variant: 'destructive',
+      });
+      // Redirect to sign-in page with return URL
+      navigate('/sign-in?next=/design&action=purchase-credits');
+      return;
+    }
+    
     setShowPurchaseModal(true);
   };
 

@@ -268,13 +268,17 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
                   description: `${pkg.credits} credits have been added to your account.`,
                 });
 
-                // Don't set showReceipt here - let useEffect handle it after state updates
-                // useEffect will handle showing receipt and closing purchase modal
+                // Reset processing state and selected package
+                setIsProcessing(false);
+                setSelectedPackage(null);
 
                 // Refresh credits
                 if (onPurchaseComplete) {
                   onPurchaseComplete();
                 }
+                
+                // Don't set showReceipt here - let useEffect handle it after state updates
+                // useEffect will handle showing receipt and closing purchase modal
               } catch (error) {
                 console.error('Payment capture error:', error);
                 toast({
@@ -282,8 +286,8 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
                   description: 'There was an error processing your payment. Please try again.',
                   variant: 'destructive',
                 });
-              } finally {
                 setIsProcessing(false);
+                setSelectedPackage(null);
               }
             },
             onError: (err: any) => {
@@ -294,6 +298,7 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
                 variant: 'destructive',
               });
               setIsProcessing(false);
+              setSelectedPackage(null);
             },
             onCancel: () => {
               toast({
@@ -301,6 +306,7 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
                 description: 'You cancelled the payment.',
               });
               setIsProcessing(false);
+              setSelectedPackage(null);
             },
           }).render('#paypal-button-container');
         }

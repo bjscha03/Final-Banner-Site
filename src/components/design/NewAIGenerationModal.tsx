@@ -82,6 +82,8 @@ const NewAIGenerationModal: React.FC<NewAIGenerationModalProps> = ({
   const handleDisclaimerAccept = () => {
     setDisclaimerAccepted(true);
     setShowDisclaimer(false);
+    // Open the main modal after accepting disclaimer
+    onOpenChange(true);
   };
 
   const handleDisclaimerDecline = () => {
@@ -93,7 +95,9 @@ const NewAIGenerationModal: React.FC<NewAIGenerationModalProps> = ({
 
   const handleOpenChange = (newOpen: boolean) => {
     if (newOpen && !disclaimerAccepted) {
+      // Show disclaimer immediately when opening modal
       setShowDisclaimer(true);
+      // Don't open the main modal yet
       return;
     }
     onOpenChange(newOpen);
@@ -111,23 +115,11 @@ const NewAIGenerationModal: React.FC<NewAIGenerationModalProps> = ({
           </DialogHeader>
 
           <div className="mt-4">
-            {disclaimerAccepted ? (
+            {disclaimerAccepted && (
               <AIGeneratorPanel
                 userId={userId}
                 onImageApply={handleImageApply}
               />
-            ) : (
-              <div className="text-center py-8">
-                <p className="text-gray-600 mb-4">
-                  Please accept the AI disclaimer to continue
-                </p>
-                <button
-                  onClick={() => setShowDisclaimer(true)}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-                >
-                  View Disclaimer
-                </button>
-              </div>
             )}
           </div>
         </DialogContent>
