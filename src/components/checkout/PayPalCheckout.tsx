@@ -133,6 +133,8 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
             line_total_cents: item.line_total_cents,
             file_key: item.file_key,
             text_elements: item.text_elements,
+            overlay_image: item.overlay_image,
+            overlay_image: item.overlay_image,
           })),
         }),
       });
@@ -225,6 +227,8 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
             line_total_cents: item.line_total_cents,
             file_key: item.file_key,
             text_elements: item.text_elements,
+            overlay_image: item.overlay_image,
+            overlay_image: item.overlay_image,
           })),
           email: user?.email || `guest-${Date.now()}@bannersonthefly.com`,
         }),
@@ -320,6 +324,8 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
             line_total_cents: item.line_total_cents,
             file_key: item.file_key,
             text_elements: item.text_elements,
+            overlay_image: item.overlay_image,
+            overlay_image: item.overlay_image,
           })),
         }),
       });

@@ -104,13 +104,24 @@ exports.handler = async (event, context) => {
 
     orderData = JSON.parse(event.body);
     
-    // AUTO-MIGRATE: Ensure text_elements column exists before processing order
+    // AUTO-MIGRATE: Ensure text_elements and overlay_image columns exist before processing order
     try {
       await sql`
         ALTER TABLE order_items
         ADD COLUMN IF NOT EXISTS text_elements JSONB DEFAULT '[]'::jsonb
       `;
       console.log('✅ Database migration: text_elements column verified/created');
+    } catch (migrationError) {
+      console.warn('⚠️ Database migration warning:', migrationError.message);
+      // Continue anyway - column might already exist
+    }
+    
+    try {
+      await sql`
+        ALTER TABLE order_items
+        ADD COLUMN IF NOT EXISTS overlay_image JSONB DEFAULT NULL
+      `;
+      console.log('✅ Database migration: overlay_image column verified/created');
     } catch (migrationError) {
       console.warn('⚠️ Database migration warning:', migrationError.message);
       // Continue anyway - column might already exist
@@ -288,12 +299,12 @@ exports.handler = async (event, context) => {
             item.pole_pockets !== 'false' &&
             item.pole_pockets !== false;
 
-          // Try to insert with text_elements column first
+          // Try to insert with text_elements and overlay_image columns
           try {
             await sql`
               INSERT INTO order_items (
                 id, order_id, width_in, height_in, quantity, material,
-                grommets, rope_feet, pole_pockets, line_total_cents, file_key, text_elements
+                grommets, rope_feet, pole_pockets, line_total_cents, file_key, text_elements, overlay_image
               )
               VALUES (
                 ${randomUUID()},
@@ -307,10 +318,11 @@ exports.handler = async (event, context) => {
                 ${polePocketsValue},
                 ${item.line_total_cents || 0},
                 ${item.file_key || null},
-                ${item.text_elements ? JSON.stringify(item.text_elements) : '[]'}
+                ${item.text_elements ? JSON.stringify(item.text_elements) : '[]'},
+                ${item.overlay_image ? JSON.stringify(item.overlay_image) : null}
               )
             `;
-            console.log('Order item inserted successfully with text_elements');
+            console.log('Order item inserted successfully with text_elements and overlay_image');
           } catch (textElementsError) {
             // If text_elements column doesn't exist, try without it
             if (textElementsError.message && textElementsError.message.includes('column "text_elements" does not exist')) {
