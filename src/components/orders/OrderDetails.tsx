@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { Order } from '../../lib/orders/types';
-import { usd, formatDimensions, calculatePolePocketCostFromOrder, calculateUnitPriceFromOrder } from '@/lib/pricing';
+import { usd } from "@/lib/pricing";
+import { formatDimensions, calculateOrderTotals } from "@/lib/order-pricing";
+import OrderItemBreakdown from "./OrderItemBreakdown";
 import { Button } from '@/components/ui/button';
 import { useCartStore } from '@/store/cart';
 import { useToast } from '@/components/ui/use-toast';
@@ -330,36 +332,8 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                         )}
                       </div>
 
-                      {/* Cost Breakdown */}
-                      <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                        <h5 className="text-sm font-medium text-gray-900 mb-2">Price Breakdown</h5>
-                        <div className="space-y-1 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-gray-600">Base banner:</span>
-                            <span className="text-gray-900">{usd(calculateUnitPriceFromOrder(item) / 100)} × {item.quantity}</span>
-                          </div>
-                          {item.rope_feet && item.rope_feet > 0 && (
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Rope ({item.rope_feet.toFixed(1)}ft):</span>
-                              <span className="text-gray-900">{usd(item.rope_feet * 2 * item.quantity)}</span>
-                            </div>
-                          )}
-                          {(() => {
-                            const baseCost = calculateUnitPriceFromOrder(item) * item.quantity;
-                            const ropeCost = (item.rope_feet || 0) * 2 * item.quantity * 100;
-                            const polePocketCost = calculatePolePocketCostFromOrder(item);
-                            return (
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Pole pockets:</span>
-                                <span className="text-gray-900">{usd(polePocketCost / 100)}</span>
-                              </div>
-                            );                          })()}
-                          <div className="flex justify-between font-medium border-t border-gray-200 pt-1 mt-2">
-                            <span className="text-gray-900">Line total:</span>
-                            <span className="text-gray-900">{usd(item.line_total_cents / 100)}</span>
-                          </div>
-                        </div>
-                      </div>
+                      {/* Cost Breakdown - Using Unified Pricing Module */}
+                      <OrderItemBreakdown item={item} />
                     </div>
                     <div className="text-right ml-4">
                       <p className="font-semibold text-gray-900">
@@ -418,30 +392,27 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
           {/* Order Total */}
           <div className="border-t border-gray-200 pt-4 space-y-2">
             {(() => {
-              // Calculate correct subtotal and tax from line totals
-              // Database subtotal_cents and tax_cents are incorrect, so calculate from line_total_cents
-              const calculatedSubtotal = order.items.reduce((sum, item) => sum + item.line_total_cents, 0);
-              const calculatedTax = Math.round(calculatedSubtotal * 0.06);
-              const calculatedTotal = calculatedSubtotal + calculatedTax;
+              // Calculate totals using unified pricing module
+              const totals = calculateOrderTotals(order.items);
               
               return (
                 <>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-700">Subtotal</span>
                     <span className="text-gray-900">
-                      {usd(calculatedSubtotal / 100)}
+                      {usd(totals.subtotal_cents / 100)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
                     <span className="text-gray-700">Tax (6%)</span>
                     <span className="text-gray-900">
-                      {usd(calculatedTax / 100)}
+                      {usd(totals.tax_cents / 100)}
                     </span>
                   </div>
                   <div className="flex justify-between items-center border-t border-gray-200 pt-2">
                     <span className="text-lg font-semibold text-gray-900">Total</span>
                     <span className="text-xl font-bold text-gray-900">
-                      {usd(calculatedTotal / 100)}
+                      {usd(totals.total_cents / 100)}
                     </span>
                   </div>
                 </>
