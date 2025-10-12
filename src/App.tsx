@@ -57,6 +57,8 @@ const App = () => (
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/check-email" element={<CheckEmail />} />
             <Route path="/my-orders" element={<MyOrders />} />
+            <Route path="/my-ai-images" element={<MyAIImages />} />
+            <Route path="/my-ai-images" element={<MyAIImages />} />
             <Route path="/orders/:id" element={<OrderDetail />} />
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/payment-success" element={<PaymentSuccess />} />

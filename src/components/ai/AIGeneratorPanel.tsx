@@ -282,6 +282,10 @@ export const AIGeneratorPanel: React.FC<AIGeneratorPanelProps> = ({
           cached={cached}
           onSelect={handleImageSelect}
           onApply={handleImageApply}
+          userId={userId}
+          prompt={prompt}
+          aspect={aspect}
+          generationId={genId || undefined}
         />
       )}
 

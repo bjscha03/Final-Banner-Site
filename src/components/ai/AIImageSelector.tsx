@@ -5,7 +5,7 @@
  */
 
 import React, { useState } from 'react';
-import { Check, Loader2, Sparkles, Crown } from 'lucide-react';
+import { Check, Loader2, Sparkles, Crown, Bookmark } from 'lucide-react';
 import { Button } from '../ui/button';
 
 interface AIImageSelectorProps {
@@ -14,6 +14,10 @@ interface AIImageSelectorProps {
   cached: boolean;
   onSelect: (imageUrl: string) => void;
   onApply?: (imageUrl: string) => void;
+  userId?: string;
+  prompt?: string;
+  aspect?: string;
+  generationId?: string;
   className?: string;
 }
 
@@ -23,10 +27,102 @@ export const AIImageSelector: React.FC<AIImageSelectorProps> = ({
   cached,
   onSelect,
   onApply,
+  userId,
+  prompt,
+  aspect,
+  generationId,
   className = '',
 }) => {
   const [selectedUrl, setSelectedUrl] = useState<string | null>(null);
   const [loadingStates, setLoadingStates] = useState<Record<string, boolean>>({});
+  const [savingStates, setSavingStates] = useState<Record<string, boolean>>({});
+  const [savedStates, setSavedStates] = useState<Record<string, boolean>>({});
+
+  const handleSaveImage = async (imageUrl: string, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent image selection
+    
+    if (!userId) {
+      alert('Please sign in to save images');
+      return;
+    }
+
+    try {
+      setSavingStates(prev => ({ ...prev, [imageUrl]: true }));
+      
+      const response = await fetch('/.netlify/functions/save-ai-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          imageUrl,
+          prompt,
+          aspect,
+          tier,
+          generationId,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      setSavedStates(prev => ({ ...prev, [imageUrl]: true }));
+      
+      // Show success for 2 seconds
+      setTimeout(() => {
+        setSavedStates(prev => ({ ...prev, [imageUrl]: false }));
+      }, 2000);
+    } catch (error) {
+      console.error('[AIImageSelector] Error saving image:', error);
+      alert('Failed to save image');
+    } finally {
+      setSavingStates(prev => ({ ...prev, [imageUrl]: false }));
+    }
+  };
+  const [savingStates, setSavingStates] = useState<Record<string, boolean>>({});
+  const [savedStates, setSavedStates] = useState<Record<string, boolean>>({});
+
+  const handleSaveImage = async (imageUrl: string, event: React.MouseEvent) => {
+    event.stopPropagation(); // Prevent image selection
+    
+    if (!userId) {
+      alert('Please sign in to save images');
+      return;
+    }
+
+    try {
+      setSavingStates(prev => ({ ...prev, [imageUrl]: true }));
+      
+      const response = await fetch('/.netlify/functions/save-ai-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          imageUrl,
+          prompt,
+          aspect,
+          tier,
+          generationId,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      setSavedStates(prev => ({ ...prev, [imageUrl]: true }));
+      
+      // Show success for 2 seconds
+      setTimeout(() => {
+        setSavedStates(prev => ({ ...prev, [imageUrl]: false }));
+      }, 2000);
+    } catch (error) {
+      console.error('[AIImageSelector] Error saving image:', error);
+      alert('Failed to save image');
+    } finally {
+      setSavingStates(prev => ({ ...prev, [imageUrl]: false }));
+    }
+  };
 
   const handleImageClick = (url: string) => {
     setSelectedUrl(url);
@@ -131,6 +227,50 @@ export const AIImageSelector: React.FC<AIImageSelectorProps> = ({
             <div className="absolute top-2 left-2 bg-black bg-opacity-50 text-white text-xs px-2 py-1 rounded">
               #{index + 1}
             </div>
+
+            {/* Save Button */}
+            {userId && (
+              <button
+                onClick={(e) => handleSaveImage(url, e)}
+                disabled={savingStates[url]}
+                className={`absolute top-2 right-2 p-2 rounded-full transition-all ${
+                  savedStates[url]
+                    ? 'bg-green-600 text-white'
+                    : 'bg-white bg-opacity-90 text-gray-700 hover:bg-opacity-100 hover:text-blue-600'
+                }`}
+                title={savedStates[url] ? 'Saved!' : 'Save image'}
+              >
+                {savingStates[url] ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : savedStates[url] ? (
+                  <Check className="w-4 h-4" />
+                ) : (
+                  <Bookmark className="w-4 h-4" />
+                )}
+              </button>
+            )}
+
+            {/* Save Button */}
+            {userId && (
+              <button
+                onClick={(e) => handleSaveImage(url, e)}
+                disabled={savingStates[url]}
+                className={`absolute top-2 right-2 p-2 rounded-full transition-all ${
+                  savedStates[url]
+                    ? 'bg-green-600 text-white'
+                    : 'bg-white bg-opacity-90 text-gray-700 hover:bg-opacity-100 hover:text-blue-600'
+                }`}
+                title={savedStates[url] ? 'Saved!' : 'Save image'}
+              >
+                {savingStates[url] ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : savedStates[url] ? (
+                  <Check className="w-4 h-4" />
+                ) : (
+                  <Bookmark className="w-4 h-4" />
+                )}
+              </button>
+            )}
           </div>
         ))}
       </div>
