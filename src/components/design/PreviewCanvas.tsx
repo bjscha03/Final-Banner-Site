@@ -255,13 +255,13 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
             {overlayImage && (() => {
               // Calculate overlay position and size
               // Position is percentage-based (0-100) relative to banner area
-              const overlayWidth = bannerWidthIn * overlayImage.scale;
-              const overlayHeight = bannerHeightIn * overlayImage.scale;
+              const overlayWidth = widthIn * overlayImage.scale;
+              const overlayHeight = heightIn * overlayImage.scale;
               
               // Convert percentage position to SVG coordinates
               // Position represents the CENTER of the overlay
-              const overlayX = RULER_HEIGHT + BLEED_SIZE + (bannerWidthIn * overlayImage.position.x / 100) - (overlayWidth / 2);
-              const overlayY = RULER_HEIGHT + BLEED_SIZE + (bannerHeightIn * overlayImage.position.y / 100) - (overlayHeight / 2);
+              const overlayX = RULER_HEIGHT + BLEED_SIZE + (widthIn * overlayImage.position.x / 100) - (overlayWidth / 2);
+              const overlayY = RULER_HEIGHT + BLEED_SIZE + (heightIn * overlayImage.position.y / 100) - (overlayHeight / 2);
               
               return (
                 <image
