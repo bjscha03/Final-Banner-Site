@@ -26,6 +26,12 @@ const AIDisclaimerDialog: React.FC<AIDisclaimerDialogProps> = ({
     onAccept();
   };
 
+  const handleDeclineClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onDecline();
+  };
+
   return (
     <Dialog open={open} onOpenChange={(isOpen) => { if (!isOpen) onDecline(); }}>
       <DialogContent className="max-w-2xl">
@@ -76,7 +82,7 @@ const AIDisclaimerDialog: React.FC<AIDisclaimerDialogProps> = ({
         <DialogFooter className="gap-2">
           <Button
             variant="outline"
-            onClick={onDecline}
+            onClick={handleDeclineClick}
             className="border-gray-300"
           >
             Decline

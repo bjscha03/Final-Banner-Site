@@ -84,6 +84,13 @@ const NewAIGenerationModal: React.FC<NewAIGenerationModalProps> = ({
     setShowDisclaimer(false);
   };
 
+  const handleDisclaimerDecline = () => {
+    setShowDisclaimer(false);
+    setDisclaimerAccepted(false);
+    // Close the main modal when user declines
+    onOpenChange(false);
+  };
+
   const handleOpenChange = (newOpen: boolean) => {
     if (newOpen && !disclaimerAccepted) {
       setShowDisclaimer(true);
@@ -128,8 +135,8 @@ const NewAIGenerationModal: React.FC<NewAIGenerationModalProps> = ({
 
       <AIDisclaimerDialog
         open={showDisclaimer}
-        onOpenChange={setShowDisclaimer}
         onAccept={handleDisclaimerAccept}
+        onDecline={handleDisclaimerDecline}
       />
     </>
   );
