@@ -25,7 +25,7 @@ interface SavedImage {
 
 export default function MyAIImages() {
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
   
   const [images, setImages] = useState<SavedImage[]>([]);
@@ -33,13 +33,16 @@ export default function MyAIImages() {
   const [deleting, setDeleting] = useState<string | null>(null);
 
   useEffect(() => {
+    // Wait for auth to finish loading before redirecting
+    if (authLoading) return;
+    
     if (!user) {
       navigate('/sign-in?next=/my-ai-images');
       return;
     }
     
     fetchImages();
-  }, [user, navigate]);
+  }, [user, authLoading, navigate]);
 
   const fetchImages = async () => {
     if (!user) return;
@@ -142,13 +145,15 @@ export default function MyAIImages() {
     });
   };
 
-  if (loading) {
+  if (authLoading || loading) {
     return (
       <Layout>
         <div className="min-h-screen bg-gray-50 flex items-center justify-center">
           <div className="text-center">
             <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
-            <p className="text-gray-600">Loading your saved images...</p>
+            <p className="text-gray-600">
+              {authLoading ? 'Checking authentication...' : 'Loading your saved images...'}
+            </p>
           </div>
         </div>
       </Layout>
