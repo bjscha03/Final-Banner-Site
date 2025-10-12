@@ -1,10 +1,10 @@
 /**
- * LinkedIn OAuth - Callback Handler (FIXED VERSION with Account Linking)
- * 
+ * LinkedIn OAuth - Callback Handler (PRODUCTION VERSION)
+ *
  * This function handles the callback from LinkedIn after user authorization,
  * exchanges the authorization code for an access token, fetches user profile,
  * and creates/links the user account.
- * 
+ *
  * KEY FEATURES:
  * - Checks database for existing users with same email
  * - Links LinkedIn OAuth to existing email/password accounts
@@ -20,9 +20,10 @@ export const handler: Handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
-    'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
   };
 
+  // Handle CORS preflight
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers, body: '' };
   }
@@ -32,18 +33,18 @@ export const handler: Handler = async (event) => {
 
     // Check for LinkedIn OAuth errors
     if (error) {
-      console.error('❌ LinkedIn OAuth error:', error, error_description);
+      console.error('LinkedIn OAuth error:', error, error_description);
       return {
         statusCode: 302,
         headers: {
-          Location: `/sign-in?error=${encodeURIComponent(error_description || error)}`,
+          Location: \`/sign-in?error=\${encodeURIComponent(error_description || error)}\`,
         },
         body: '',
       };
     }
 
     if (!code) {
-      console.error('❌ No authorization code received');
+      console.error('No authorization code received');
       return {
         statusCode: 302,
         headers: {
@@ -58,7 +59,7 @@ export const handler: Handler = async (event) => {
     const redirectUri = process.env.LINKEDIN_REDIRECT_URI;
 
     if (!clientId || !clientSecret || !redirectUri) {
-      console.error('❌ LinkedIn OAuth credentials not configured');
+      console.error('LinkedIn OAuth credentials not configured');
       return {
         statusCode: 302,
         headers: {
@@ -67,8 +68,6 @@ export const handler: Handler = async (event) => {
         body: '',
       };
     }
-
-    console.log('🔗 LinkedIn OAuth: Exchanging code for access token');
 
     // Step 1: Exchange authorization code for access token
     const tokenResponse = await fetch('https://www.linkedin.com/oauth/v2/accessToken', {
@@ -82,12 +81,12 @@ export const handler: Handler = async (event) => {
         client_id: clientId,
         client_secret: clientSecret,
         redirect_uri: redirectUri,
-      }).toString(),
+      }),
     });
 
     if (!tokenResponse.ok) {
-      const errorText = await tokenResponse.text();
-      console.error('❌ Token exchange failed:', errorText);
+      const errorData = await tokenResponse.text();
+      console.error('Token exchange failed:', errorData);
       return {
         statusCode: 302,
         headers: {
@@ -100,129 +99,111 @@ export const handler: Handler = async (event) => {
     const tokenData = await tokenResponse.json();
     const accessToken = tokenData.access_token;
 
-    console.log('✅ Access token obtained');
-
     // Step 2: Fetch user profile from LinkedIn
     const profileResponse = await fetch('https://api.linkedin.com/v2/userinfo', {
       headers: {
-        'Authorization': `Bearer ${accessToken}`,
+        Authorization: \`Bearer \${accessToken}\`,
       },
     });
 
     if (!profileResponse.ok) {
-      const errorText = await profileResponse.text();
-      console.error('❌ Profile fetch failed:', errorText);
+      console.error('Failed to fetch LinkedIn profile');
       return {
         statusCode: 302,
         headers: {
-          Location: '/sign-in?error=Failed to fetch LinkedIn profile',
+          Location: '/sign-in?error=Failed to fetch user profile',
         },
         body: '',
       };
     }
 
     const profile = await profileResponse.json();
-    
-    console.log('✅ LinkedIn profile fetched:', {
-      sub: profile.sub,
-      email: profile.email,
-      name: profile.name,
-    });
 
-    // Step 3: Check database for existing user with same email (ACCOUNT LINKING)
+    // Step 3: Create or update user in database
     const dbUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
-    if (!dbUrl) {
-      console.error('❌ Database URL not configured');
-      return {
-        statusCode: 302,
-        headers: {
-          Location: '/sign-in?error=Database not configured',
-        },
-        body: '',
-      };
-    }
+    const sql = neon(dbUrl);
 
-    const db = neon(dbUrl);
-    const normalizedEmail = profile.email.toLowerCase().trim();
+    const normalizedEmail = profile.email?.toLowerCase();
 
     // Check if user already exists with this email
-    const existingUsers = await db`
-      SELECT id, email, full_name, username, is_admin, oauth_provider, oauth_id
-      FROM profiles
-      WHERE email = ${normalizedEmail}
-    `;
+    const existingUsers = await sql\`
+      SELECT * FROM profiles
+      WHERE email = \${normalizedEmail}
+      LIMIT 1
+    \`;
 
-    let user;
+    let user: any;
 
     if (existingUsers.length > 0) {
       // USER EXISTS - Link LinkedIn to existing account
       const existingUser = existingUsers[0];
-      console.log('🔗 Linking LinkedIn to existing account:', existingUser.id);
 
       // Update the existing user with LinkedIn OAuth info
-      await db`
+      await sql\`
         UPDATE profiles
-        SET 
+        SET
           oauth_provider = 'linkedin',
-          oauth_id = ${profile.sub},
-          full_name = COALESCE(full_name, ${profile.name || profile.given_name + ' ' + profile.family_name})
-        WHERE id = ${existingUser.id}
-      `;
+          oauth_id = \${profile.sub},
+          name = COALESCE(name, \${profile.name}),
+          avatar_url = COALESCE(avatar_url, \${profile.picture}),
+          updated_at = NOW()
+        WHERE id = \${existingUser.id}
+      \`;
 
-      user = {
-        id: existingUser.id, // IMPORTANT: Use existing user ID to preserve orders and credits
-        email: existingUser.email,
-        full_name: existingUser.full_name || profile.name,
-        username: existingUser.username,
-        is_admin: existingUser.is_admin || false,
-        oauth_provider: 'linkedin',
-        oauth_id: profile.sub,
-      };
-
-      console.log('✅ Account linked successfully - existing user ID:', user.id);
+      user = existingUser;
     } else {
-      // NEW USER - Create new account
-      console.log('🆕 Creating new user account for:', normalizedEmail);
-
-      const newUserId = `linkedin_${profile.sub}`;
-      
-      // Insert new user into database
-      await db`
-        INSERT INTO profiles (id, email, full_name, username, is_admin, oauth_provider, oauth_id, email_verified)
-        VALUES (
-          ${newUserId},
-          ${normalizedEmail},
-          ${profile.name || profile.given_name + ' ' + profile.family_name},
-          ${profile.email?.split('@')[0]},
-          false,
-          'linkedin',
-          ${profile.sub},
-          true
+      // NEW USER - Create account
+      const newUsers = await sql\`
+        INSERT INTO profiles (
+          email,
+          name,
+          oauth_provider,
+          oauth_id,
+          avatar_url,
+          email_verified,
+          created_at,
+          updated_at
         )
-        ON CONFLICT (id) DO UPDATE SET
-          oauth_provider = 'linkedin',
-          oauth_id = ${profile.sub}
-      `;
+        VALUES (
+          \${normalizedEmail},
+          \${profile.name},
+          'linkedin',
+          \${profile.sub},
+          \${profile.picture},
+          true,
+          NOW(),
+          NOW()
+        )
+        RETURNING *
+      \`;
 
-      user = {
-        id: newUserId,
-        email: normalizedEmail,
-        full_name: profile.name || profile.given_name + ' ' + profile.family_name,
-        username: profile.email?.split('@')[0],
-        is_admin: false,
-        oauth_provider: 'linkedin',
-        oauth_id: profile.sub,
-      };
+      user = newUsers[0];
 
-      console.log('✅ New user created:', user.id);
+      // Initialize AI credits for new user (10 free credits)
+      await sql\`
+        INSERT INTO ai_credits (user_id, credits_remaining, credits_total, created_at, updated_at)
+        VALUES (\${user.id}, 10, 10, NOW(), NOW())
+        ON CONFLICT (user_id) DO NOTHING
+      \`;
     }
 
-    // Return HTML that stores user in localStorage and redirects to HOME PAGE
-    const htmlResponse = `
+    // Step 4: Create session token
+    const sessionToken = Math.random().toString(36).substring(2) + Date.now().toString(36);
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
+
+    await sql\`
+      INSERT INTO sessions (user_id, token, expires_at, created_at)
+      VALUES (\${user.id}, \${sessionToken}, \${expiresAt.toISOString()}, NOW())
+    \`;
+
+    // Step 5: Return HTML page that stores user in localStorage and redirects
+    const html = \`
 <!DOCTYPE html>
 <html>
 <head>
-  <title>LinkedIn Sign In</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Signing in...</title>
   <style>
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -231,19 +212,19 @@ export const handler: Handler = async (event) => {
       justify-content: center;
       min-height: 100vh;
       margin: 0;
-      background: linear-gradient(135deg, #0077b5 0%, #00a0dc 100%);
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     }
     .container {
       background: white;
-      padding: 2.5rem;
-      border-radius: 16px;
+      padding: 3rem;
+      border-radius: 1rem;
       box-shadow: 0 20px 60px rgba(0,0,0,0.3);
       text-align: center;
-      max-width: 450px;
+      max-width: 400px;
     }
     .spinner {
-      border: 5px solid #f3f3f3;
-      border-top: 5px solid #0077b5;
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #667eea;
       border-radius: 50%;
       width: 50px;
       height: 50px;
@@ -254,28 +235,13 @@ export const handler: Handler = async (event) => {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
-    h2 { 
-      color: #0077b5; 
-      margin: 0 0 0.5rem; 
-      font-size: 1.75rem;
-      font-weight: 700;
-    }
-    p { 
-      color: #666; 
-      margin: 0;
-      font-size: 1.1rem;
-    }
-    .debug {
-      margin-top: 1rem;
-      padding: 1rem;
-      background: #f5f5f5;
-      border-radius: 8px;
-      font-size: 0.85rem;
+    h2 {
       color: #333;
-      text-align: left;
-      font-family: monospace;
-      max-height: 200px;
-      overflow-y: auto;
+      margin: 0 0 0.5rem;
+    }
+    p {
+      color: #666;
+      margin: 0;
     }
   </style>
 </head>
@@ -284,73 +250,40 @@ export const handler: Handler = async (event) => {
     <div class="spinner"></div>
     <h2>Welcome!</h2>
     <p>Completing your sign-in...</p>
-    <div class="debug" id="debug"></div>
   </div>
   <script>
-    const debugEl = document.getElementById('debug');
-    
-    function log(message) {
-      console.log(message);
-      debugEl.innerHTML += message + '<br>';
-    }
-    
     try {
-      log('🔵 Starting localStorage storage...');
+      const user = \${JSON.stringify(user)};
       
-      const user = ${JSON.stringify(user)};
-      log('🔵 User object: ' + JSON.stringify(user, null, 2));
-      
-      // Check if localStorage is available
-      if (typeof localStorage === 'undefined') {
-        throw new Error('localStorage is not available');
-      }
-      log('✅ localStorage is available');
-      
-      // Store user
+      // Store user in localStorage
       localStorage.setItem('banners_current_user', JSON.stringify(user));
-      log('✅ User stored in localStorage');
       
-      // Verify storage
-      const storedUser = localStorage.getItem('banners_current_user');
-      if (!storedUser) {
-        throw new Error('Failed to verify localStorage storage');
-      }
-      log('✅ Verified: ' + storedUser.substring(0, 50) + '...');
-      
-      log('🔵 Redirecting to home page in 2 seconds...');
-      
-      // Redirect to HOME PAGE after successful sign-in
-      setTimeout(() => {
-        log('🔵 Redirecting now...');
-        window.location.href = '/';
-      }, 2000);
+      // Redirect to home page immediately
+      window.location.href = '/';
       
     } catch (error) {
-      log('❌ Error: ' + error.message);
-      console.error('❌ Error storing user:', error);
-      setTimeout(() => {
-        window.location.href = '/sign-in?error=' + encodeURIComponent('Failed to complete sign-in: ' + error.message);
-      }, 3000);
+      console.error('Error storing user:', error);
+      // Redirect anyway
+      window.location.href = '/';
     }
   </script>
 </body>
 </html>
-    `;
+    \`;
 
     return {
       statusCode: 200,
       headers: {
         'Content-Type': 'text/html',
       },
-      body: htmlResponse,
+      body: html,
     };
-
   } catch (error: any) {
-    console.error('❌ LinkedIn callback error:', error);
+    console.error('LinkedIn callback error:', error);
     return {
       statusCode: 302,
       headers: {
-        Location: `/sign-in?error=${encodeURIComponent(error.message || 'LinkedIn authentication failed')}`,
+        Location: \`/sign-in?error=\${encodeURIComponent(error.message || 'LinkedIn authentication failed')}\`,
       },
       body: '',
     };
