@@ -9,12 +9,29 @@ import PricingCard from '@/components/design/PricingCard';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { useQuoteStore, MaterialKey } from '@/store/quote';
 import { useToast } from '@/components/ui/use-toast';
+import { useAuth } from '@/lib/auth';
 import NewAIGenerationModal from '@/components/design/NewAIGenerationModal';
 
 const Design: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const { user } = useAuth();
+  const { toast } = useToast();
   const [aiModalOpen, setAiModalOpen] = useState(false);
+
+  // Handle AI modal opening with authentication check
+  const handleOpenAIModal = () => {
+    if (!user) {
+      toast({
+        title: 'Sign in required',
+        description: 'Please sign in or create an account to use AI banner generation.',
+        variant: 'default',
+      });
+      navigate('/sign-in?next=/design?ai=true');
+      return;
+    }
+    setAiModalOpen(true);
+  };
   
   // Check for AI auto-open parameter
   useEffect(() => {
@@ -150,7 +167,7 @@ const Design: React.FC = () => {
             {/* Mobile Layout: Vertical stack with optimal order */}
             <div className="block lg:hidden space-y-6 md:space-y-8">
               <SizeQuantityCard />
-              <LivePreviewCard onOpenAIModal={() => setAiModalOpen(true)} />
+              <LivePreviewCard onOpenAIModal={handleOpenAIModal} />
               <MaterialCard />
               <OptionsCard />
               <ErrorBoundary>
@@ -170,7 +187,7 @@ const Design: React.FC = () => {
               {/* DOMINANT PREVIEW AREA - Vistaprint Style */}
               <div className="flex-1 min-w-0 space-y-8">
                 <LivePreviewCard 
-                  onOpenAIModal={() => setAiModalOpen(true)} 
+                  onOpenAIModal={handleOpenAIModal} 
                   expanded={true}
                 />
                 {/* Pricing Card - Below Preview */}
