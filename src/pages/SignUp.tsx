@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/components/ui/use-toast';
-import { Sparkles, Eye, EyeOff, ArrowRight, Check } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight, Check } from 'lucide-react';
 import { useScrollToTop } from '@/components/ScrollToTop';
 import { LinkedInButton } from '@/components/auth/LinkedInButton';
 
@@ -113,8 +113,8 @@ const SignUp: React.FC = () => {
         <div className="max-w-md w-full space-y-8 relative z-10">
           {/* Header */}
           <div className="text-center">
-            <div className="mx-auto h-16 w-16 bg-gradient-to-br from-[#18448D] to-indigo-600 rounded-2xl flex items-center justify-center shadow-lg transform hover:scale-110 transition-transform duration-300">
-              <Sparkles className="h-8 w-8 text-white" />
+            <div className="mx-auto h-20 w-20 flex items-center justify-center">
+              <img src="/images/logo-icon.svg" alt="Banners on the Fly" className="h-20 w-20" />
             </div>
             <h2
               ref={titleRef}
@@ -215,7 +215,7 @@ const SignUp: React.FC = () => {
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full h-14 text-base font-semibold bg-gradient-to-r from-[#18448D] to-indigo-600 hover:from-[#0f2d5c] hover:to-indigo-700 text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 group"
+                className="w-full h-14 text-base font-semibold bg-gradient-to-r from-[#e16629] to-[#cf452b] hover:from-[#cf452b] hover:to-[#b33a23] text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 group"
               >
                 {loading ? (
                   <div className="flex items-center justify-center gap-2">
