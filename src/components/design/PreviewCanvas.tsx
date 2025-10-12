@@ -19,7 +19,13 @@ interface PreviewCanvasProps {
     isPdf?: boolean;
   };
   imagePosition?: { x: number; y: number };
-  imageScale?: number;  onImageMouseDown?: (e: React.MouseEvent) => void;
+  imageScale?: number;
+  overlayImage?: {
+    url: string;
+    position: { x: number; y: number };
+    scale: number;
+  };
+  onImageMouseDown?: (e: React.MouseEvent) => void;
   onImageTouchStart?: (e: React.TouchEvent) => void;
   onCanvasClick?: (e: React.MouseEvent) => void;
   isDraggingImage?: boolean;
@@ -106,6 +112,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   file,
   imagePosition = { x: 0, y: 0 },
   imageScale = 1,
+  overlayImage,
   onImageMouseDown,
   onImageTouchStart,
   onCanvasClick,
@@ -243,6 +250,34 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
             onMouseDown={onImageMouseDown}
             onTouchStart={onImageTouchStart}
           />
+
+            {/* Overlay Image (Logo/Image on top of AI background) */}
+            {overlayImage && (() => {
+              // Calculate overlay position and size
+              // Position is percentage-based (0-100) relative to banner area
+              const overlayWidth = bannerWidthIn * overlayImage.scale;
+              const overlayHeight = bannerHeightIn * overlayImage.scale;
+              
+              // Convert percentage position to SVG coordinates
+              // Position represents the CENTER of the overlay
+              const overlayX = RULER_HEIGHT + BLEED_SIZE + (bannerWidthIn * overlayImage.position.x / 100) - (overlayWidth / 2);
+              const overlayY = RULER_HEIGHT + BLEED_SIZE + (bannerHeightIn * overlayImage.position.y / 100) - (overlayHeight / 2);
+              
+              return (
+                <image
+                  href={overlayImage.url}
+                  x={overlayX}
+                  y={overlayY}
+                  width={overlayWidth}
+                  height={overlayHeight}
+                  preserveAspectRatio="xMidYMid meet"
+                  style={{
+                    pointerEvents: 'none', // For now, overlay is not interactive
+                    opacity: 0.95
+                  }}
+                />
+              );
+            })()}
 
             {/* Resize Handles - Only show when image is selected and not dragging */}
             {isImageSelected && !isDraggingImage && (() => {

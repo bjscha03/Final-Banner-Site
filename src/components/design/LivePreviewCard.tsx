@@ -1041,6 +1041,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                     
                     file={file}
                     imagePosition={imagePosition}
+                    overlayImage={overlayImage}
                     onImageMouseDown={handleImageMouseDown}
                     onImageTouchStart={handleImageTouchStart}
                     onCanvasClick={handleCanvasClick}
