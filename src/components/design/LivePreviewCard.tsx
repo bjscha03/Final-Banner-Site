@@ -45,7 +45,7 @@ const createFittedImageUrl = (originalUrl: string, targetWidthIn: number, target
 
 
 const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGeneratingAI = false }) => {
-  const { widthIn, heightIn, previewScalePct, grommets, file, textElements, set, addTextElement, updateTextElement, deleteTextElement } = useQuoteStore();
+  const { widthIn, heightIn, previewScalePct, grommets, file, overlayImage, textElements, set, addTextElement, updateTextElement, deleteTextElement } = useQuoteStore();
   const { toast } = useToast();
 
   const [dragActive, setDragActive] = useState(false);
@@ -68,6 +68,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
   // Alignment guide states (shared across all text elements)
   const [showVerticalCenterGuide, setShowVerticalCenterGuide] = useState(false);
   const [showHorizontalCenterGuide, setShowHorizontalCenterGuide] = useState(false);
+  const overlayFileInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Calculate grommet info
@@ -862,7 +863,17 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
 
 
   return (
-    <div className="bg-white border border-gray-200/60 rounded-lg overflow-hidden shadow-sm" style={{ touchAction: 'pan-y' }}>
+    <>
+      {/* Hidden file input for overlay image upload */}
+      <input
+        ref={overlayFileInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleOverlayUpload}
+        className="hidden"
+      />
+      
+      <div className="bg-white border border-gray-200/60 rounded-lg overflow-hidden shadow-sm" style={{ touchAction: 'pan-y' }}>
       {/* Header - responsive design */}
       <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-100">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -1096,6 +1107,46 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                 <Type className="w-4 h-4" />
                 Add Text
               </button>
+              {isAIImage && !overlayImage && (
+                <button
+                  onClick={() => overlayFileInputRef.current?.click()}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white rounded-xl transition-colors duration-150 shadow-md hover:shadow-lg min-h-[44px] min-w-[44px] touch-manipulation"
+                  title="Add logo or image overlay"
+                >
+                  <Image className="w-4 h-4" />
+                  Add Logo/Image
+                </button>
+              )}
+              {overlayImage && (
+                <button
+                  onClick={handleRemoveOverlay}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white rounded-xl transition-colors duration-150 shadow-md hover:shadow-lg min-h-[44px] min-w-[44px] touch-manipulation"
+                  title="Remove overlay image"
+                >
+                  <X className="w-4 h-4" />
+                  Remove Overlay
+                </button>
+              )}
+              {isAIImage && !overlayImage && (
+                <button
+                  onClick={() => overlayFileInputRef.current?.click()}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white rounded-xl transition-colors duration-150 shadow-md hover:shadow-lg min-h-[44px] min-w-[44px] touch-manipulation"
+                  title="Add logo or image overlay"
+                >
+                  <Image className="w-4 h-4" />
+                  Add Logo/Image
+                </button>
+              )}
+              {overlayImage && (
+                <button
+                  onClick={handleRemoveOverlay}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white rounded-xl transition-colors duration-150 shadow-md hover:shadow-lg min-h-[44px] min-w-[44px] touch-manipulation"
+                  title="Remove overlay image"
+                >
+                  <X className="w-4 h-4" />
+                  Remove Overlay
+                </button>
+              )}
               {textElements.length > 0 && (
                 <button
                   onClick={handleClearAllText}
@@ -1153,6 +1204,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         className="hidden"
       />
     </div>
+    </>
   );
 };
 

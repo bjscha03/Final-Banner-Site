@@ -64,6 +64,13 @@ export interface QuoteState {
       aspectRatio?: string;
     };
   };
+  overlayImage?: {
+    name: string;
+    url: string;
+    fileKey: string;
+    position: { x: number; y: number }; // Percentage-based position (0-100)
+    scale: number; // Scale factor (1 = 100%)
+  };
   set: (partial: Partial<QuoteState>) => void;
   setFromQuickQuote: (params: QuickQuoteParams) => void;
   addTextElement: (element: Omit<TextElement, 'id'>) => void;
