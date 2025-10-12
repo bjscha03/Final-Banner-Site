@@ -60,8 +60,8 @@ export function SizeStepper({
 
   return (
     <div className={`w-full ${className}`}>
-      <label className="block text-xs font-medium text-gray-700 mb-2">
-        {label}
+      <label className="block text-sm font-semibold text-gray-800 tracking-wide mb-3">
+        {label} {unit && `(${unit})`}
       </label>
       <div className="flex items-center gap-3">
         {/* Decrement Button */}
@@ -80,19 +80,12 @@ export function SizeStepper({
           type="text"
           inputMode="numeric"
           pattern="[0-9]*"
-          className="flex-1 min-w-[5rem] text-center bg-white border border-slate-300 rounded-md px-4 py-2 text-base font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+          className="flex-1 min-w-[5rem] text-center bg-white border border-slate-300 rounded-md px-4 py-2 text-base font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
           value={value || ''}
           onChange={handleInputChange}
           onBlur={handleInputBlur}
           aria-label={`${label} value`}
         />
-        
-        {/* Unit label - displayed between input and increment button */}
-        {unit && (
-          <span className="text-sm text-gray-600 font-medium">
-            {unit}
-          </span>
-        )}
 
         {/* Increment Button */}
         <button 

@@ -140,7 +140,7 @@ const SizeQuantityCard: React.FC = () => {
               onChange={(value) => set({ widthIn: value })}
               min={1}
               max={1000}
-              unit="in"
+              unit="inches"
             />
             <SizeStepper
               label="Height"
@@ -148,7 +148,7 @@ const SizeQuantityCard: React.FC = () => {
               onChange={(value) => set({ heightIn: value })}
               min={1}
               max={1000}
-              unit="in"
+              unit="inches"
             />
           </div>
 
