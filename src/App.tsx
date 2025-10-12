@@ -21,6 +21,7 @@ import ResetPassword from "./pages/ResetPassword";
 import { VerifyEmail } from "./pages/VerifyEmail";
 import CheckEmail from "./pages/CheckEmail";
 import MyOrders from "./pages/MyOrders";
+import MyAIImages from "./pages/MyAIImages";
 import Checkout from "./pages/Checkout";
 import OrderConfirmation from "./pages/OrderConfirmation";
 import PdfDiagnostic from "./pages/PdfDiagnostic";import PaymentSuccess from "./pages/PaymentSuccess";
@@ -57,7 +58,6 @@ const App = () => (
             <Route path="/verify-email" element={<VerifyEmail />} />
             <Route path="/check-email" element={<CheckEmail />} />
             <Route path="/my-orders" element={<MyOrders />} />
-            <Route path="/my-ai-images" element={<MyAIImages />} />
             <Route path="/my-ai-images" element={<MyAIImages />} />
             <Route path="/orders/:id" element={<OrderDetail />} />
             <Route path="/checkout" element={<Checkout />} />
