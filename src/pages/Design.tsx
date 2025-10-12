@@ -45,7 +45,6 @@ const Design: React.FC = () => {
     }
   }, [location, navigate]);
   const { setFromQuickQuote } = useQuoteStore();
-  const { toast } = useToast();
   const hasAppliedQuickQuote = useRef(false);
   const configuratorRef = useRef<HTMLDivElement>(null);
 
