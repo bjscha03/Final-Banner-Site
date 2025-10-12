@@ -63,7 +63,7 @@ export function SizeStepper({
       <label className="block text-xs font-medium text-gray-700 mb-2">
         {label}
       </label>
-      <div className="grid grid-cols-[auto_1fr_auto_auto] gap-2 items-center">
+      <div className="grid grid-cols-[auto_1fr_auto] gap-2 items-center">
         {/* Decrement Button */}
         <button 
           type="button"
@@ -76,23 +76,23 @@ export function SizeStepper({
         </button>
 
         {/* Input Field */}
-        <input
-          type="text"
-          inputMode="numeric"
-          pattern="[0-9]*"
-          className="h-12 w-full rounded-lg border border-gray-300 text-center font-medium tabular-nums text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors duration-200 px-3"
-          value={value || ''}
-          onChange={handleInputChange}
-          onBlur={handleInputBlur}
-          aria-label={`${label} value`}
-        />
-        
-        {/* Unit label displayed outside input */}
-        {unit && (
-          <span className="text-sm text-gray-600 font-medium flex items-center justify-center">
-            {unit}
-          </span>
-        )}
+        <div className="relative">
+          <input
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            className={`h-12 w-full rounded-lg border border-gray-300 text-center font-medium tabular-nums text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors duration-200 ${unit ? 'pr-6' : 'px-3'}`}
+            value={value || ''}
+            onChange={handleInputChange}
+            onBlur={handleInputBlur}
+            aria-label={`${label} value`}
+          />
+          {unit && (
+            <span className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none font-medium">
+              {unit}
+            </span>
+          )}
+        </div>
 
         {/* Increment Button */}
         <button 
