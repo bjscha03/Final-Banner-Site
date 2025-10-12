@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShoppingCart, Menu, X, User, LogOut, Package, Shield } from 'lucide-react';
+import { ShoppingCart, Menu, X, User, LogOut, Package, Shield, Sparkles } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import ScrollToTopLink from './ScrollToTopLink';
 import Logo from './Logo';
