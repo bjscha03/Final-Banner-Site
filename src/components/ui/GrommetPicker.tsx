@@ -98,17 +98,19 @@ export function GrommetPicker({
   };
 
   const renderMobileSheet = () => (
-    <div className="fixed inset-0 z-[999999] flex items-end">
+    <div className="fixed inset-0 z-[999999] flex items-end" style={{ touchAction: 'none' }}>
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={() => setIsOpen(false)}
+        style={{ touchAction: 'auto' }}
       />
 
       {/* Bottom Sheet */}
       <div
         data-grommet-sheet
         className="relative w-full bg-white rounded-t-2xl shadow-2xl max-h-[80vh] flex flex-col animate-in slide-in-from-bottom duration-300"
+        style={{ touchAction: 'auto' }}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-gray-200">
@@ -168,7 +170,8 @@ export function GrommetPicker({
       style={{
         top: dropdownPosition.top,
         left: dropdownPosition.left,
-        width: Math.max(dropdownPosition.width, 300)
+        width: Math.max(dropdownPosition.width, 300),
+        touchAction: 'auto'
       }}
     >
       {options.map((option) => (
