@@ -197,8 +197,8 @@ export const handler: Handler = async (event) => {
     `;
 
     // Step 5: Return HTML page that stores user in localStorage and redirects
-    const html = `
-<!DOCTYPE html>
+        const html = 
+`<!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
@@ -253,7 +253,7 @@ export const handler: Handler = async (event) => {
   </div>
   <script>
     try {
-      const user = ${JSON.stringify(user)};
+      const user = ` + JSON.stringify(user) + `;
       
       // Store user in localStorage
       localStorage.setItem('banners_current_user', JSON.stringify(user));
@@ -268,8 +268,7 @@ export const handler: Handler = async (event) => {
     }
   </script>
 </body>
-</html>
-    `;
+</html>`;
 
     return {
       statusCode: 200,
