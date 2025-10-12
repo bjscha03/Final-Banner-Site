@@ -164,7 +164,7 @@ export const AIGeneratorPanel: React.FC<AIGeneratorPanelProps> = ({
 
       const data: MoreVariationsResponse = await response.json();
 
-      setGeneratedImages(data.urls);
+      setGeneratedImages(prev => [...prev, ...data.urls]);
       setTier(data.tier);
       setCached(data.cached);
       setShowMoreButton(false); // Hide button after loading more
@@ -174,7 +174,7 @@ export const AIGeneratorPanel: React.FC<AIGeneratorPanelProps> = ({
 
       toast({
         title: 'More Variations Loaded!',
-        description: `${data.urls.length} images now available${data.cached ? ' (some from cache)' : ''}.`,
+        description: `${data.urls.length} new images added${data.cached ? ' (some from cache)' : ''}.`,
       });
     } catch (error: any) {
       console.error('[AIGeneratorPanel] Load more error:', error);
