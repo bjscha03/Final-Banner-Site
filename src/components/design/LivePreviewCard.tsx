@@ -353,9 +353,18 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
   };
 
   const handleCanvasClick = (e: React.MouseEvent) => {
-    // Deselect text if clicking on canvas background
-    if (e.target === e.currentTarget) {
+    // Deselect text and image when clicking on canvas background
+    // Check if the click target is NOT the image element
+    const target = e.target as HTMLElement;
+    const isImageClick = target.tagName === 'image' || 
+                        target.classList?.contains('resize-handle') ||
+                        target.classList?.contains('resize-handle-group') ||
+                        target.getAttribute?.('data-handle');
+    
+    if (!isImageClick) {
       setSelectedTextId(null);
+      setIsImageSelected(false);
+      console.log('🔵 Deselected image - clicked on canvas background');
     }
   };
 
@@ -1003,10 +1012,12 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                 <div 
                   style={{ position: 'relative', width: '100%', height: '100%' }}
                   onClick={(e) => {
-                    // Deselect text when clicking on the container background
+                    // Deselect text and image when clicking on the container background
                     if (e.target === e.currentTarget) {
                       setSelectedTextId(null);
                       setShowTextPanel(false);
+                      setIsImageSelected(false);
+                      console.log('🔵 Deselected image - clicked outside preview area');
                     }
                   }}
                 >
