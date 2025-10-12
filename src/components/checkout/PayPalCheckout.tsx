@@ -102,6 +102,34 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
     try {
       setIsCreatingOrder(true);
 
+      // Log user state for debugging
+      console.log('🔍 PayPal Create Order - User:', {
+        hasUser: !!user,
+        userId: user?.id,
+        userEmail: user?.email
+      });
+
+      // Log user state for debugging
+      console.log('🔍 PayPal Create Order - User:', {
+        hasUser: !!user,
+        userId: user?.id,
+        userEmail: user?.email
+      });
+
+      // Log user state for debugging
+      console.log('🔍 PayPal Create Order - User:', {
+        hasUser: !!user,
+        userId: user?.id,
+        userEmail: user?.email
+      });
+
+      // Log user state for debugging
+      console.log('🔍 PayPal Create Order - User:', {
+        hasUser: !!user,
+        userId: user?.id,
+        userEmail: user?.email
+      });
+
       toast({
         title: "Test Payment Processed",
         description: "This is an admin test payment. Order will be created with test payment provider.",
@@ -205,6 +233,13 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
     try {
       setIsCreatingOrder(true);
 
+      // Log user state for debugging
+      console.log("🔍 PayPal Create Order - User:", {
+        hasUser: !!user,
+        userId: user?.id,
+        userEmail: user?.email
+      });
+
       // Development fallback - if functions aren't available, return a mock order ID
       const isDev = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
       
@@ -231,6 +266,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
             overlay_image: item.overlay_image,
           })),
           email: user?.email || `guest-${Date.now()}@bannersonthefly.com`,
+          user_id: user?.id || null,
         }),
       });
 
