@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Order } from '../../lib/orders/types';
-import { usd } from "@/lib/pricing";
+import { usd, calculateUnitPriceFromOrder } from "@/lib/pricing";
 import { formatDimensions, calculateOrderTotals } from "@/lib/order-pricing";
 import OrderItemBreakdown from "./OrderItemBreakdown";
 import { Button } from '@/components/ui/button';
