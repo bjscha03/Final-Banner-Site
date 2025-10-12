@@ -58,7 +58,7 @@ async function sendOrderConfirmationEmail(orderId) {
 }
 
 // Neon database connection
-const sql = neon(process.env.VITE_DATABASE_URL || process.env.NETLIFY_DATABASE_URL);
+const sql = neon(process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL);
 
 exports.handler = async (event, context) => {
   // Set CORS headers
@@ -89,7 +89,7 @@ exports.handler = async (event, context) => {
 
   try {
     // Check if database URL is available
-    const databaseUrl = process.env.VITE_DATABASE_URL || process.env.NETLIFY_DATABASE_URL;
+    const databaseUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
     if (!databaseUrl) {
       console.error('Database URL not found in environment variables');
       return {
@@ -97,7 +97,7 @@ exports.handler = async (event, context) => {
         headers,
         body: JSON.stringify({
           error: 'Database configuration missing',
-          details: 'VITE_DATABASE_URL or NETLIFY_DATABASE_URL environment variable not set'
+          details: 'NETLIFY_DATABASE_URL or DATABASE_URL environment variable not set'
         }),
       };
     }
