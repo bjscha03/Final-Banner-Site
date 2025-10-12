@@ -1248,7 +1248,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
           </div>
         ) : (
           /* Preview Canvas */
-          <div className="mx-4 sm:mx-6 mb-4 sm:mb-6 bg-gray-100 border-2 border-gray-300 rounded-lg overflow-hidden relative min-h-[500px] sm:min-h-[600px] h-auto">
+          <div className="mx-4 sm:mx-6 mb-4 sm:mb-6 bg-gray-100 border-2 border-gray-300 rounded-lg overflow-hidden relative min-h-[500px] sm:min-h-[600px] h-auto touch-pan-x touch-pan-y touch-pinch-zoom">
             <div className="flex items-center justify-center h-full p-2">
               <div
                 style={{
@@ -1342,55 +1342,59 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                 )}
             </div>
 
-            {/* File controls */}
-            <div className="absolute top-4 right-4 flex gap-2">
+            {/* File controls - Mobile Responsive */}
+            <div className="absolute top-2 left-2 right-2 sm:top-4 sm:left-auto sm:right-4 flex flex-wrap gap-2 justify-center sm:justify-end">
               <button
                 onClick={handleAddText}
-                className="flex items-center gap-2 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white rounded-xl transition-colors duration-150 shadow-md hover:shadow-lg min-h-[44px] min-w-[44px] touch-manipulation"
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-orange-500 hover:bg-orange-600 active:bg-orange-700 text-white rounded-lg sm:rounded-xl transition-colors duration-150 shadow-md hover:shadow-lg min-h-[44px] min-w-[44px] touch-manipulation text-sm sm:text-base"
                 title="Add text to banner"
               >
-                <Type className="w-4 h-4" />
-                Add Text
+                <Type className="w-4 h-4 flex-shrink-0" />
+                <span className="whitespace-nowrap">Add Text</span>
               </button>
               {isAIImage && !overlayImage && (
                 <button
                   onClick={() => overlayFileInputRef.current?.click()}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white rounded-xl transition-colors duration-150 shadow-md hover:shadow-lg min-h-[44px] min-w-[44px] touch-manipulation"
+                  className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white rounded-lg sm:rounded-xl transition-colors duration-150 shadow-md hover:shadow-lg min-h-[44px] min-w-[44px] touch-manipulation text-sm sm:text-base"
                   title="Add logo or image overlay"
                 >
-                  <Image className="w-4 h-4" />
-                  Add Logo/Image
+                  <Image className="w-4 h-4 flex-shrink-0" />
+                  <span className="hidden sm:inline whitespace-nowrap">Add Logo/Image</span>
+                  <span className="sm:hidden whitespace-nowrap">Logo</span>
                 </button>
               )}
               {overlayImage && (
                 <button
                   onClick={handleRemoveOverlay}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white rounded-xl transition-colors duration-150 shadow-md hover:shadow-lg min-h-[44px] min-w-[44px] touch-manipulation"
+                  className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white rounded-lg sm:rounded-xl transition-colors duration-150 shadow-md hover:shadow-lg min-h-[44px] min-w-[44px] touch-manipulation text-sm sm:text-base"
                   title="Remove overlay image"
                 >
-                  <X className="w-4 h-4" />
-                  Remove Overlay
+                  <X className="w-4 h-4 flex-shrink-0" />
+                  <span className="hidden sm:inline whitespace-nowrap">Remove Overlay</span>
+                  <span className="sm:hidden whitespace-nowrap">Overlay</span>
                 </button>
               )}
               {textElements.length > 0 && (
                 <button
                   onClick={handleClearAllText}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white rounded-xl transition-colors duration-150 shadow-md hover:shadow-lg min-h-[44px] min-w-[44px] touch-manipulation"
+                  className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-red-500 hover:bg-red-600 active:bg-red-700 text-white rounded-lg sm:rounded-xl transition-colors duration-150 shadow-md hover:shadow-lg min-h-[44px] min-w-[44px] touch-manipulation text-sm sm:text-base"
                   title="Clear all text elements"
                 >
-                  Clear All Text ({textElements.length})
+                  <span className="whitespace-nowrap">Clear Text ({textElements.length})</span>
                 </button>
               )}
               <button
                 onClick={removeFile}
-                className="flex items-center gap-2 px-4 py-2.5 bg-white/95 hover:bg-white active:bg-gray-50 text-gray-700 hover:text-red-600 rounded-xl transition-colors duration-150 shadow-md hover:shadow-sm min-h-[44px] min-w-[44px] touch-manipulation"
+                className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-white/95 hover:bg-white active:bg-gray-50 text-gray-700 hover:text-red-600 rounded-lg sm:rounded-xl transition-colors duration-150 shadow-md hover:shadow-sm min-h-[44px] min-w-[44px] touch-manipulation text-sm sm:text-base"
+                title="Remove uploaded file"
               >
-                <X className="w-4 h-4" />
-                Remove
+                <X className="w-4 h-4 flex-shrink-0" />
+                <span className="whitespace-nowrap">Remove</span>
               </button>
             </div>
             {/* AI Image Control Buttons - REMOVED per user request */}
             {/* The Fit to Size, Resize Image, and Reset buttons have been removed for AI images */}
+
           </div>
         )}
 

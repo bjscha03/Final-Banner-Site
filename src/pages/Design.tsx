@@ -197,7 +197,7 @@ const Design: React.FC = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-white pt-8 pb-4 sm:pt-12 sm:pb-6 md:pt-16 md:pb-8 relative" style={{ touchAction: 'pan-y' }}>
+      <div className="min-h-screen bg-white pt-8 pb-4 sm:pt-12 sm:pb-6 md:pt-16 md:pb-8 relative" style={{ touchAction: 'pan-y pinch-zoom' }}>
 
         <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 relative z-10">
           <div className="text-center mb-8 md:mb-12">
