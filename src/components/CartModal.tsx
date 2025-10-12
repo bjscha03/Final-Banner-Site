@@ -1,5 +1,6 @@
 import React from 'react';
 import { X, Trash2, Plus, Minus, ShoppingBag } from 'lucide-react';
+import BannerThumbnail from './cart/BannerThumbnail.tsx';
 import { useNavigate } from 'react-router-dom';
 import { usd } from '@/lib/pricing';
 import { useCartStore } from '@/store/cart';
@@ -79,30 +80,14 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                     <div key={item.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
                       <div className="flex gap-3">
                         {/* Thumbnail */}
-                        <div className="flex-shrink-0">
-                          {item.file_url || item.aiDesign?.assets?.proofUrl ? (
-                            <img
-                              src={item.file_url || item.aiDesign?.assets?.proofUrl}
-                              alt={`Banner ${item.width_in}x${item.height_in}`}
-                              className="w-20 h-20 sm:w-24 sm:h-24 object-cover rounded-lg border border-gray-200"
-                              onError={(e) => {
-                                // Fallback to placeholder if image fails to load
-                                e.currentTarget.style.display = 'none';
-                                const placeholder = e.currentTarget.nextElementSibling as HTMLElement;
-                                if (placeholder) placeholder.style.display = 'flex';
-                              }}
-                            />
-                          ) : null}
-                          <div 
-                            className={`w-20 h-20 sm:w-24 sm:h-24 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg border border-gray-200 flex items-center justify-center ${item.file_url || item.aiDesign?.assets?.proofUrl ? 'hidden' : 'flex'}`}
-                          >
-                            <div className="text-center">
-                              <div className="text-xs font-medium text-gray-600">{item.width_in}"</div>
-                              <div className="text-xs text-gray-400">×</div>
-                              <div className="text-xs font-medium text-gray-600">{item.height_in}"</div>
-                            </div>
-                          </div>
-                        </div>
+                        <BannerThumbnail
+                          fileUrl={item.file_url}
+                          aiDesignUrl={item.aiDesign?.assets?.proofUrl}
+                          textElements={item.text_elements}
+                          widthIn={item.width_in}
+                          heightIn={item.height_in}
+                          className="w-20 h-20 sm:w-24 sm:h-24"
+                        />
                         
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between items-start mb-2">

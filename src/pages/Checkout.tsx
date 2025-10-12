@@ -15,6 +15,7 @@ import { ArrowLeft, Package, Truck, Plus, Minus, Trash2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { emailApi } from '@/lib/api';
 import { CartItem } from '@/store/cart';
+import BannerThumbnail from '@/components/cart/BannerThumbnail.tsx';
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
@@ -247,8 +248,20 @@ const Checkout: React.FC = () => {
 
                     return (
                     <div key={item.id} className="border-b border-gray-200 pb-4 last:border-b-0">
-                      <div className="flex justify-between items-start mb-3">
+                      <div className="flex gap-3 mb-3">
+                        {/* Thumbnail */}
+                        <BannerThumbnail
+                          fileUrl={item.file_url}
+                          aiDesignUrl={item.aiDesign?.assets?.proofUrl}
+                          textElements={item.text_elements}
+                          widthIn={item.width_in}
+                          heightIn={item.height_in}
+                          className="w-20 h-20 sm:w-24 sm:h-24"
+                        />
+                        
                         <div className="flex-1">
+                          <div className="flex justify-between items-start mb-2">
+                            <div className="flex-1">
                           <h3 className="font-medium text-gray-900">
                             Custom Banner {formatDimensions(item.width_in, item.height_in)}
                           </h3>
@@ -296,14 +309,16 @@ const Checkout: React.FC = () => {
                               </div>
                             </div>
                           </div>
-                        </div>
-                        <div className="text-right">
+                            </div>
+                            <div className="text-right">
                           <p className="font-semibold text-gray-900">
                             {usd(item.line_total_cents / 100)}
                           </p>
                           <p className="text-sm text-gray-600">
                             {usd(eachCents / 100)} each
                           </p>
+                            </div>
+                          </div>
                         </div>
                       </div>
 
