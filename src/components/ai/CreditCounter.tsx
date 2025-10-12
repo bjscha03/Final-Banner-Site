@@ -74,6 +74,44 @@ export const CreditCounter: React.FC<CreditCounterProps> = ({
     }
   }, [onRefresh]);
 
+  // Listen for credit purchase events
+  useEffect(() => {
+    const handleCreditReceipt = (event: any) => {
+      console.log('🎫 CreditCounter received show-credit-receipt event:', event.detail);
+      if (event.detail) {
+        setPurchaseData(event.detail);
+        setShowReceipt(true);
+        // Refresh credits after purchase
+        fetchStatus();
+      }
+    };
+
+    window.addEventListener('show-credit-receipt', handleCreditReceipt);
+    
+    return () => {
+      window.removeEventListener('show-credit-receipt', handleCreditReceipt);
+    };
+  }, []);
+
+  // Listen for credit purchase events
+  useEffect(() => {
+    const handleCreditReceipt = (event: any) => {
+      console.log('🎫 CreditCounter received show-credit-receipt event:', event.detail);
+      if (event.detail) {
+        setPurchaseData(event.detail);
+        setShowReceipt(true);
+        // Refresh credits after purchase
+        fetchStatus();
+      }
+    };
+
+    window.addEventListener('show-credit-receipt', handleCreditReceipt);
+    
+    return () => {
+      window.removeEventListener('show-credit-receipt', handleCreditReceipt);
+    };
+  }, []);
+
   const handlePurchaseCredits = () => {
     // Check if user is authenticated before showing purchase modal
     if (!user) {
