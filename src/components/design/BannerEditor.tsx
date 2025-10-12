@@ -74,7 +74,7 @@
                   x={widthPx / 2}
                   y={-20}
                   textAnchor="middle"
-                  fontSize="24"
+                  fontSize={24 / (previewScale / 100)}
                   fill="#374151"
                   fontWeight="600"
                 >
@@ -85,7 +85,7 @@
                   x={-30}
                   y={heightPx / 2}
                   textAnchor="middle"
-                  fontSize="24"
+                  fontSize={24 / (previewScale / 100)}
                   fill="#374151"
                   fontWeight="600"
                   transform={`rotate(-90, -30, ${heightPx / 2})`}
