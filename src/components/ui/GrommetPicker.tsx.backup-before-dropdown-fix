@@ -50,30 +50,14 @@ export function GrommetPicker({
 
   // Calculate dropdown position for desktop
   useEffect(() => {
-    if (!isOpen || isMobile || !triggerRef.current) return;
-
-    const updatePosition = () => {
-      if (triggerRef.current) {
-        const rect = triggerRef.current.getBoundingClientRect();
-        setDropdownPosition({
-          top: rect.bottom + window.scrollY + 8,
-          left: rect.left + window.scrollX,
-          width: rect.width
-        });
-      }
-    };
-
-    // Initial position calculation
-    updatePosition();
-
-    // Update position on scroll and resize
-    window.addEventListener('scroll', updatePosition, true);
-    window.addEventListener('resize', updatePosition);
-
-    return () => {
-      window.removeEventListener('scroll', updatePosition, true);
-      window.removeEventListener('resize', updatePosition);
-    };
+    if (isOpen && !isMobile && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + window.scrollY + 8,
+        left: rect.left + window.scrollX,
+        width: rect.width
+      });
+    }
   }, [isOpen, isMobile]);
 
   // Close on outside click
@@ -89,11 +73,7 @@ export function GrommetPicker({
             setIsOpen(false);
           }
         } else {
-          // For desktop, check if click is outside the dropdown
-          const dropdown = document.querySelector('[data-grommet-dropdown]');
-          if (dropdown && !dropdown.contains(event.target as Node)) {
-            setIsOpen(false);
-          }
+          setIsOpen(false);
         }
       }
     };
@@ -186,11 +166,10 @@ export function GrommetPicker({
 
   const renderDesktopDropdown = () => (
     <div
-      data-grommet-dropdown
       className="fixed bg-white border border-gray-200 rounded-xl shadow-xl z-[999999] overflow-hidden max-h-[60vh] overflow-y-auto min-w-[300px]"
       style={{
-        top: `${dropdownPosition.top}px`,
-        left: `${dropdownPosition.left}px`,
+        top: dropdownPosition.top,
+        left: dropdownPosition.left,
         width: Math.max(dropdownPosition.width, 300),
         touchAction: 'auto',
         pointerEvents: 'auto'
