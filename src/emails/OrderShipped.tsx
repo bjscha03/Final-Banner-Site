@@ -169,14 +169,9 @@ export default function OrderShipped({ order, trackingNumber, trackingUrl, carri
                 {order.items.map((item, index) => (
                   <div key={index} style={summaryItem}>
                     <Text style={itemName}>{item.name}</Text>
-                    <Text style={itemQuantity}>Qty: {item.quantity}</Text>
-                    {item.material && (
-                      <Text style={itemDetails}>Material: {item.material}</Text>
-                    )}
-                    {(item.polePocketPosition && item.polePocketPosition !== 'none') && (
-                      <Text style={itemDetails}>
-                        Pole Pockets: {item.polePocketPosition}{item.polePocketSize ? ` (${item.polePocketSize} inch)` : ''}
-                      </Text>
+                    <Text style={itemQuantity}>Qty: {item.quantity} | Price: {fmtUSD(item.price)}</Text>
+                    {item.options && (
+                      <Text style={itemDetails}>{item.options}</Text>
                     )}
                   </div>
                 ))}
