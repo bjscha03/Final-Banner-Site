@@ -271,7 +271,12 @@ const Checkout: React.FC = () => {
                             <p className="break-words">Material: {item.material}</p>
                             <p className="break-words">Grommets: {item.grommets}</p>
                             {item.rope_feet > 0 && <p className="break-words">Rope: {item.rope_feet.toFixed(1)} ft</p>}
-                            {item.pole_pockets && item.pole_pockets !== "none" && <p className="break-words">Pole Pockets: {item.pole_pockets}</p>}
+                            {item.pole_pocket_position && item.pole_pocket_position !== "none" && (
+                              <p className="break-words">
+                                Pole Pockets: {item.pole_pocket_position}
+                                {item.pole_pocket_size && ` (${item.pole_pocket_size} inch)`}
+                              </p>
+                            )}
                             {item.file_name && (
                               <p className="break-all overflow-hidden" title={item.file_name}>
                                 File: {item.file_name}

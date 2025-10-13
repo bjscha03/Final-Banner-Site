@@ -328,19 +328,26 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                         Custom Banner {formatDimensions(item.width_in, item.height_in)}
                       </h4>
                       <div className="text-sm text-gray-600 mt-2 grid grid-cols-2 gap-2">
-                        <p>Material: {item.material}</p>
-                        <p>Quantity: {item.quantity}</p>
-                        <p>Area: {(item.area_sqft || 0).toFixed(2)} sq ft</p>
-                        {item.grommets && <p>Grommets: {item.grommets}</p>}
+                        <p className="break-words">Material: {item.material}</p>
+                        <p className="break-words">Quantity: {item.quantity}</p>
+                        <p className="break-words">Area: {(item.area_sqft || 0).toFixed(2)} sq ft</p>
+                        {item.grommets && <p className="break-words">Grommets: {item.grommets}</p>}
                         {item.rope_feet && item.rope_feet > 0 && (
-                          <p>Rope: {(item.rope_feet || 0).toFixed(1)} ft</p>
+                          <p className="break-words">Rope: {(item.rope_feet || 0).toFixed(1)} ft</p>
+                        )}
+                        {item.pole_pocket_position && item.pole_pocket_position !== 'none' && (
+                          <p className="break-words">
+                            Pole Pockets: {item.pole_pocket_position}
+                            {item.pole_pocket_size && ` (${item.pole_pocket_size} inch)`}
+                          </p>
                         )}
                         {item.file_key && (
-                          <p>
+                          <p className="break-words overflow-hidden">
                             File: <a 
                               href="#" 
                               onClick={(e) => { e.preventDefault(); handleFileDownload(item.file_key!, index); }}
-                              className="text-blue-600 hover:underline"
+                              className="text-blue-600 hover:underline break-all"
+                              title={item.file_name || item.file_key.split('/').pop() || 'Download File'}
                             >
                               {item.file_name || item.file_key.split('/').pop() || 'Download File'}
                             </a>

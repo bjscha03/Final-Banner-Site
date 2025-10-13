@@ -46,8 +46,28 @@ export const neonOrdersAdapter: OrdersAdapter = {
       for (const item of orderData.items) {
         console.log('Inserting order item:', item);
         await db`
-          INSERT INTO order_items (order_id, width_in, height_in, quantity, material, grommets, rope_feet, line_total_cents)
-          VALUES (${order.id}, ${item.width_in}, ${item.height_in}, ${item.quantity}, ${item.material}, ${item.grommets || 'none'}, ${item.rope_feet || 0}, ${item.line_total_cents})
+          INSERT INTO order_items (
+            order_id, width_in, height_in, quantity, material, grommets, rope_feet, 
+            pole_pockets, pole_pocket_size, pole_pocket_position, pole_pocket_cost_cents, pole_pocket_pricing_mode,
+            rope_cost_cents, rope_pricing_mode,
+            area_sqft, unit_price_cents, line_total_cents,
+            file_key, file_name, file_url, print_ready_url, web_preview_url,
+            text_elements, overlay_image, transform, preview_canvas_px
+          )
+          VALUES (
+            ${order.id}, ${item.width_in}, ${item.height_in}, ${item.quantity}, ${item.material}, 
+            ${item.grommets || 'none'}, ${item.rope_feet || 0},
+            ${item.pole_pockets || 'none'}, ${item.pole_pocket_size || null}, ${item.pole_pocket_position || null}, 
+            ${item.pole_pocket_cost_cents || 0}, ${item.pole_pocket_pricing_mode || 'per_item'},
+            ${item.rope_cost_cents || 0}, ${item.rope_pricing_mode || 'per_item'},
+            ${item.area_sqft || 0}, ${item.unit_price_cents || 0}, ${item.line_total_cents},
+            ${item.file_key || null}, ${item.file_name || null}, ${item.file_url || null}, 
+            ${item.print_ready_url || null}, ${item.web_preview_url || null},
+            ${item.text_elements ? JSON.stringify(item.text_elements) : null}, 
+            ${item.overlay_image ? JSON.stringify(item.overlay_image) : null},
+            ${item.transform ? JSON.stringify(item.transform) : null},
+            ${item.preview_canvas_px ? JSON.stringify(item.preview_canvas_px) : null}
+          )
         `;
       }
 
@@ -89,7 +109,24 @@ export const neonOrdersAdapter: OrdersAdapter = {
                    'grommets', oi.grommets,
                    'rope_feet', oi.rope_feet,
                    'pole_pockets', oi.pole_pockets,
-                   'line_total_cents', oi.line_total_cents
+                   'pole_pocket_size', oi.pole_pocket_size,
+                   'pole_pocket_position', oi.pole_pocket_position,
+                   'pole_pocket_cost_cents', oi.pole_pocket_cost_cents,
+                   'pole_pocket_pricing_mode', oi.pole_pocket_pricing_mode,
+                   'rope_cost_cents', oi.rope_cost_cents,
+                   'rope_pricing_mode', oi.rope_pricing_mode,
+                   'area_sqft', oi.width_in * oi.height_in / 144.0,
+                   'unit_price_cents', oi.unit_price_cents,
+                   'line_total_cents', oi.line_total_cents,
+                   'file_key', oi.file_key,
+                   'file_name', oi.file_name,
+                   'file_url', oi.file_url,
+                   'print_ready_url', oi.print_ready_url,
+                   'web_preview_url', oi.web_preview_url,
+                   'text_elements', oi.text_elements,
+                   'overlay_image', oi.overlay_image,
+                   'transform', oi.transform,
+                   'preview_canvas_px', oi.preview_canvas_px
                  )
                ) as items
         FROM orders o
@@ -126,7 +163,25 @@ export const neonOrdersAdapter: OrdersAdapter = {
                    'material', oi.material,
                    'grommets', oi.grommets,
                    'rope_feet', oi.rope_feet,
-                   'line_total_cents', oi.line_total_cents
+                   'pole_pockets', oi.pole_pockets,
+                   'pole_pocket_size', oi.pole_pocket_size,
+                   'pole_pocket_position', oi.pole_pocket_position,
+                   'pole_pocket_cost_cents', oi.pole_pocket_cost_cents,
+                   'pole_pocket_pricing_mode', oi.pole_pocket_pricing_mode,
+                   'rope_cost_cents', oi.rope_cost_cents,
+                   'rope_pricing_mode', oi.rope_pricing_mode,
+                   'area_sqft', oi.width_in * oi.height_in / 144.0,
+                   'unit_price_cents', oi.unit_price_cents,
+                   'line_total_cents', oi.line_total_cents,
+                   'file_key', oi.file_key,
+                   'file_name', oi.file_name,
+                   'file_url', oi.file_url,
+                   'print_ready_url', oi.print_ready_url,
+                   'web_preview_url', oi.web_preview_url,
+                   'text_elements', oi.text_elements,
+                   'overlay_image', oi.overlay_image,
+                   'transform', oi.transform,
+                   'preview_canvas_px', oi.preview_canvas_px
                  )
                ) as items
         FROM orders o
@@ -182,9 +237,25 @@ export const neonOrdersAdapter: OrdersAdapter = {
                    'material', oi.material,
                    'grommets', oi.grommets,
                    'rope_feet', oi.rope_feet,
+                   'pole_pockets', oi.pole_pockets,
+                   'pole_pocket_size', oi.pole_pocket_size,
+                   'pole_pocket_position', oi.pole_pocket_position,
+                   'pole_pocket_cost_cents', oi.pole_pocket_cost_cents,
+                   'pole_pocket_pricing_mode', oi.pole_pocket_pricing_mode,
+                   'rope_cost_cents', oi.rope_cost_cents,
+                   'rope_pricing_mode', oi.rope_pricing_mode,
                    'area_sqft', oi.width_in * oi.height_in / 144.0,
-                   'unit_price_cents', oi.line_total_cents / oi.quantity,
-                   'line_total_cents', oi.line_total_cents
+                   'unit_price_cents', oi.unit_price_cents,
+                   'line_total_cents', oi.line_total_cents,
+                   'file_key', oi.file_key,
+                   'file_name', oi.file_name,
+                   'file_url', oi.file_url,
+                   'print_ready_url', oi.print_ready_url,
+                   'web_preview_url', oi.web_preview_url,
+                   'text_elements', oi.text_elements,
+                   'overlay_image', oi.overlay_image,
+                   'transform', oi.transform,
+                   'preview_canvas_px', oi.preview_canvas_px
                  )
                ) as items
         FROM orders o

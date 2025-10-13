@@ -107,7 +107,7 @@ export default function OrderShipped({ order, trackingNumber, trackingUrl, carri
           {/* Main Content */}
           <Section style={content}>
             <Text style={greeting}>
-              Hi {order.customerName},
+              Hi {titleCaseName(order.customerName)},
             </Text>
             
             <Text style={paragraph}>

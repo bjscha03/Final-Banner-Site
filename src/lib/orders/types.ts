@@ -9,10 +9,25 @@ export interface OrderItem {
   material: MaterialKey;
   grommets?: string;
   rope_feet?: number;
-  pole_pockets?: string;  area_sqft: number;
+  pole_pockets?: string;
+  pole_pocket_size?: string;
+  pole_pocket_position?: string;
+  pole_pocket_cost_cents?: number;
+  pole_pocket_pricing_mode?: 'per_item' | 'per_order';
+  rope_cost_cents?: number;
+  rope_pricing_mode?: 'per_item' | 'per_order';
+  area_sqft: number;
   unit_price_cents: number;
   line_total_cents: number;
   file_key?: string;
+  file_name?: string;
+  file_url?: string;
+  print_ready_url?: string;
+  web_preview_url?: string;
+  text_elements?: any[];
+  overlay_image?: any;
+  transform?: any;
+  preview_canvas_px?: any;
 }
 
 export interface Order {

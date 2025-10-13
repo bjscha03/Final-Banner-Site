@@ -13,6 +13,8 @@ export interface CartItem {
   material: MaterialKey;
   grommets: Grommets;
   pole_pockets: string;
+  pole_pocket_size?: string;          // pole pocket size (e.g., "2", "3", "4")
+  pole_pocket_position?: string;      // pole pocket position (e.g., "top", "bottom", "top-bottom")
   rope_feet: number;
   area_sqft: number;
 
@@ -208,6 +210,8 @@ export const useCartStore = create<CartState>()(
           material: quote.material,
           grommets: quote.grommets,
           pole_pockets: quote.polePockets,
+          pole_pocket_size: quote.polePocketSize,
+          pole_pocket_position: quote.polePockets,
           rope_feet: ropeFeet,
           area_sqft: area,
           unit_price_cents,
