@@ -186,7 +186,12 @@ export const handler: Handler = async (event) => {
         VALUES (${user.id}, 10, 10, NOW(), NOW())
         ON CONFLICT (user_id) DO NOTHING
       `;
+      
+      console.log('🔵 New LinkedIn user created with 10 free AI credits');
+      console.log('🔵 New user details:', { id: user.id, email: user.email, email_verified: user.email_verified });
     }
+
+    console.log('🔵 Final user object before creating safeUser:', { id: user.id, email: user.email, email_verified: user.email_verified, is_admin: user.is_admin });
 
     // Step 4: Create safe user object (exclude password)
     const safeUser = {
@@ -259,9 +264,20 @@ export const handler: Handler = async (event) => {
 '      console.log(\'✅ LinkedIn OAuth: Storing user\', user.email);' +
 '      console.log(\'✅ LinkedIn OAuth: Storing user\', user.email);' +
 '      localStorage.setItem(\'banners_current_user\', JSON.stringify(user));' +
+'      ' +
+'      // Verify storage was successful' +
+'      const stored = localStorage.getItem(\'banners_current_user\');' +
+'      if (!stored) {' +
+'        throw new Error(\'Failed to store user in localStorage\');' +
+'      }' +
+'      ' +
+'      console.log(\'✅ LinkedIn OAuth: User stored successfully, verified\');' +
 '      console.log(\'✅ LinkedIn OAuth: Redirecting to home\');' +
 '      console.log(\'✅ LinkedIn OAuth: Redirecting to home\');' +
-'      window.location.href = \'/\';' +
+'      // Small delay to ensure localStorage is fully written' +
+'      setTimeout(() => {' +
+'        window.location.href = \'/\';' +
+'      }, 100);' +
 '    } catch (error) {' +
 '      console.error(\'❌ LinkedIn OAuth: Error storing user:\', error);' +
 '      alert(\'Error completing sign-in: \' + error.message);' +

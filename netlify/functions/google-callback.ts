@@ -160,11 +160,13 @@ export const handler: Handler = async (event) => {
         INSERT INTO profiles (
           email,
           google_id,
+          email_verified,
           created_at,
           updated_at
         ) VALUES (
           ${normalizedEmail},
           ${googleUser.id},
+          true,
           NOW(),
           NOW()
         )
@@ -180,7 +182,21 @@ export const handler: Handler = async (event) => {
       `;
 
       console.log('🔵 New user created with 10 free AI credits');
+      console.log('🔵 New user details:', { id: user.id, email: user.email, email_verified: user.email_verified });
     }
+
+    console.log('🔵 Final user object before creating safeUser:', { id: user.id, email: user.email, email_verified: user.email_verified, is_admin: user.is_admin });
+
+    // Create safe user object (exclude sensitive fields)
+    const safeUser = {
+      id: user.id,
+      email: user.email,
+      full_name: user.full_name,
+      email_verified: user.email_verified || true,
+      is_admin: user.is_admin || false,
+      created_at: user.created_at,
+      updated_at: user.updated_at
+    };
 
     // Return HTML page that stores user in localStorage and redirects
     const html = `<!DOCTYPE html>
@@ -232,13 +248,26 @@ export const handler: Handler = async (event) => {
   </div>
   <script>
     try {
-      const user = ${JSON.stringify(user)};
-      console.log('✅ Storing user in localStorage:', user);
+      const user = ${JSON.stringify(safeUser)};
+      console.log('✅ Google OAuth: Storing user in localStorage:', user);
       localStorage.setItem('banners_current_user', JSON.stringify(user));
-      console.log('✅ Redirecting to home page');
-      window.location.href = '/';
+      
+      // Verify storage was successful
+      const stored = localStorage.getItem('banners_current_user');
+      if (!stored) {
+        throw new Error('Failed to store user in localStorage');
+      }
+      
+      console.log('✅ Google OAuth: User stored successfully, verified');
+      console.log('✅ Google OAuth: Redirecting to home page');
+      
+      // Small delay to ensure localStorage is fully written
+      setTimeout(() => {
+        window.location.href = '/';
+      }, 100);
     } catch (error) {
-      console.error('❌ Error storing user:', error);
+      console.error('❌ Google OAuth: Error storing user:', error);
+      alert('Error completing sign-in: ' + error.message);
       window.location.href = '/sign-in?error=Failed to complete sign-in';
     }
   </script>
