@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { TextElement } from '@/store/quote';
 import PdfImagePreview from '@/components/preview/PdfImagePreview';
 
@@ -13,11 +13,14 @@ interface BannerThumbnailProps {
 }
 
 /**
- * BannerThumbnail component
- * Displays a thumbnail of the banner design including:
- * - Base image (uploaded file or AI-generated)
- * - Text layers overlaid on the image
- * - Fallback placeholder with dimensions
+ * BannerThumbnail component - ROBUST VERSION
+ * Displays a thumbnail of the banner design with maximum reliability
+ * 
+ * Key improvements:
+ * - Simplified state management
+ * - Better error handling
+ * - Proper image loading detection
+ * - Fallback to placeholder on any issue
  */
 const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
   fileUrl,
@@ -28,38 +31,34 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
   heightIn,
   className = 'w-20 h-20 sm:w-24 sm:h-24'
 }) => {
-  const [imageError, setImageError] = useState(false);
-  const [imageLoaded, setImageLoaded] = useState(false);
+  const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
+  const mountedRef = useRef(true);
 
-  const imageUrl = fileUrl || aiDesignUrl;
+  // Memoize the image URL
+  const imageUrl = useMemo(() => fileUrl || aiDesignUrl, [fileUrl, aiDesignUrl]);
   const hasTextLayers = textElements && textElements.length > 0;
 
-  // Reset image state when URL changes
+  // Track component mount status
   useEffect(() => {
-    console.log('🔄 Image URL changed, resetting state:', imageUrl);
-    setImageError(false);
-    setImageLoaded(false);
-  }, [imageUrl]);
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
 
-  // Debug logging
+  // Reset status when URL changes
   useEffect(() => {
-    console.log('🖼️ BannerThumbnail render:', {
-      imageUrl,
-      hasTextLayers,
-      textElementsCount: textElements?.length || 0,
-      widthIn,
-      heightIn,
-      imageLoaded,
-      imageError
-    });
-  }, [imageUrl, hasTextLayers, textElements, widthIn, heightIn, imageLoaded, imageError]);
+    console.log('🔄 BannerThumbnail URL changed:', { imageUrl, isPdf, hasTextLayers });
+    if (mountedRef.current) {
+      setStatus('loading');
+    }
+  }, [imageUrl, isPdf, hasTextLayers]);
 
   // Render text layers on canvas when image loads
   useEffect(() => {
-    if (!imageLoaded || !hasTextLayers || !canvasRef.current || !imgRef.current) {
-      console.log('⏭️ Skipping canvas render:', { imageLoaded, hasTextLayers, hasCanvas: !!canvasRef.current, hasImg: !!imgRef.current });
+    if (status !== 'loaded' || !hasTextLayers || !canvasRef.current || !imgRef.current) {
       return;
     }
 
@@ -67,80 +66,93 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
     const ctx = canvas.getContext('2d');
     const img = imgRef.current;
 
-    if (!ctx || !img.complete) {
-      console.log('⏭️ Canvas or image not ready:', { hasCtx: !!ctx, imgComplete: img?.complete });
+    if (!ctx || !img.complete || !img.naturalWidth) {
+      console.log('⏭️ Canvas render skipped - image not ready');
       return;
     }
 
-    console.log('🎨 Rendering canvas with text layers:', textElements);
+    try {
+      console.log('🎨 Rendering canvas with text layers');
 
-    // Set canvas size to match the container
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * window.devicePixelRatio;
-    canvas.height = rect.height * window.devicePixelRatio;
-    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-
-    // Draw the base image
-    ctx.drawImage(img, 0, 0, rect.width, rect.height);
-
-    // Calculate scale factor for text positioning
-    // Text positions are in inches, we need to scale to canvas pixels
-    const scaleX = rect.width / widthIn;
-    const scaleY = rect.height / heightIn;
-
-    console.log('📐 Canvas scale factors:', { scaleX, scaleY, canvasSize: { width: rect.width, height: rect.height }, bannerSize: { widthIn, heightIn } });
-
-    // Draw text layers
-    textElements.forEach((textEl, index) => {
-      if (!textEl.text || textEl.text.trim() === '') {
-        console.log(`⏭️ Skipping empty text element ${index}`);
+      // Set canvas size to match the container
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) {
+        console.log('⏭️ Canvas render skipped - zero dimensions');
         return;
       }
 
-      const x = textEl.x * scaleX;
-      const y = textEl.y * scaleY;
-      const fontSize = (textEl.fontSize || 24) * Math.min(scaleX, scaleY) / 72; // Convert from points to pixels
+      canvas.width = rect.width * window.devicePixelRatio;
+      canvas.height = rect.height * window.devicePixelRatio;
+      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
 
-      console.log(`✍️ Drawing text ${index}:`, { text: textEl.text, x, y, fontSize, color: textEl.color });
+      // Draw the base image
+      ctx.drawImage(img, 0, 0, rect.width, rect.height);
 
-      ctx.save();
-      
-      // Set text properties
-      ctx.font = `${textEl.fontWeight || 'normal'} ${fontSize}px ${textEl.fontFamily || 'Arial'}`;
-      ctx.fillStyle = textEl.color || '#000000';
-      ctx.textAlign = (textEl.align as CanvasTextAlign) || 'left';
-      ctx.textBaseline = 'top';
+      // Calculate scale factor for text positioning
+      const scaleX = rect.width / widthIn;
+      const scaleY = rect.height / heightIn;
 
-      // Add text shadow for better visibility
-      ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
-      ctx.shadowBlur = 2;
-      ctx.shadowOffsetX = 1;
-      ctx.shadowOffsetY = 1;
+      // Draw text layers
+      textElements.forEach((textEl) => {
+        if (!textEl.text || textEl.text.trim() === '') return;
 
-      // Draw the text
-      ctx.fillText(textEl.text, x, y);
-      
-      ctx.restore();
-    });
+        const x = textEl.x * scaleX;
+        const y = textEl.y * scaleY;
+        const fontSize = (textEl.fontSize || 24) * Math.min(scaleX, scaleY) / 72;
 
-    console.log('✅ Canvas rendering complete');
-  }, [imageLoaded, hasTextLayers, textElements, widthIn, heightIn]);
+        ctx.save();
+        ctx.font = `${textEl.fontWeight || 'normal'} ${fontSize}px ${textEl.fontFamily || 'Arial'}`;
+        ctx.fillStyle = textEl.color || '#000000';
+        ctx.textAlign = (textEl.align as CanvasTextAlign) || 'left';
+        ctx.textBaseline = 'top';
+        ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+        ctx.shadowBlur = 2;
+        ctx.shadowOffsetX = 1;
+        ctx.shadowOffsetY = 1;
+        ctx.fillText(textEl.text, x, y);
+        ctx.restore();
+      });
 
-  // Handle image load error
-  const handleImageError = () => {
-    console.log('❌ Image load error:', imageUrl);
-    setImageError(true);
-    setImageLoaded(false);
-  };
+      console.log('✅ Canvas rendering complete');
+    } catch (error) {
+      console.error('❌ Canvas rendering error:', error);
+    }
+  }, [status, hasTextLayers, textElements, widthIn, heightIn]);
 
   // Handle image load success
   const handleImageLoad = () => {
-    console.log('✅ Image loaded successfully:', imageUrl);
-    setImageError(false);
-    setImageLoaded(true);
+    console.log('✅ Image loaded:', imageUrl);
+    if (mountedRef.current) {
+      setStatus('loaded');
+    }
   };
 
-  // Handle PDF files with PdfImagePreview
+  // Handle image load error
+  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    console.log('❌ Image load error:', imageUrl, e);
+    if (mountedRef.current) {
+      setStatus('error');
+    }
+  };
+
+  // Render placeholder
+  const renderPlaceholder = (isLoading = false) => (
+    <div className={`${className} bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg border border-gray-200 flex items-center justify-center flex-shrink-0 ${isLoading ? 'animate-pulse' : ''}`}>
+      <div className="text-center">
+        {isLoading ? (
+          <div className="text-xs text-gray-400">Loading...</div>
+        ) : (
+          <>
+            <div className="text-xs font-medium text-gray-600">{widthIn}"</div>
+            <div className="text-xs text-gray-400">×</div>
+            <div className="text-xs font-medium text-gray-600">{heightIn}"</div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+
+  // Handle PDF files
   if (isPdf && fileUrl) {
     console.log('📄 Rendering PDF thumbnail:', fileUrl);
     return (
@@ -154,21 +166,19 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
     );
   }
 
-  // Show placeholder if no image or image failed to load
-  if (!imageUrl || imageError) {
-    console.log('📦 Showing placeholder:', { imageUrl, imageError });
-    return (
-      <div className={`${className} bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg border border-gray-200 flex items-center justify-center flex-shrink-0`}>
-        <div className="text-center">
-          <div className="text-xs font-medium text-gray-600">{widthIn}"</div>
-          <div className="text-xs text-gray-400">×</div>
-          <div className="text-xs font-medium text-gray-600">{heightIn}"</div>
-        </div>
-      </div>
-    );
+  // Show placeholder if no image URL
+  if (!imageUrl) {
+    console.log('📦 No image URL - showing placeholder');
+    return renderPlaceholder();
   }
 
-  // If we have text layers, use canvas to composite them
+  // Show placeholder if error
+  if (status === 'error') {
+    console.log('📦 Image error - showing placeholder');
+    return renderPlaceholder();
+  }
+
+  // Render with text layers (canvas)
   if (hasTextLayers) {
     return (
       <div className={`${className} relative flex-shrink-0`}>
@@ -180,21 +190,16 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
           className="hidden"
           onLoad={handleImageLoad}
           onError={handleImageError}
-          crossOrigin="anonymous"
         />
         
         {/* Canvas for rendering image + text */}
         <canvas
           ref={canvasRef}
-          className={`${className} object-cover rounded-lg border border-gray-200 ${imageLoaded ? 'block' : 'hidden'}`}
+          className={`${className} object-cover rounded-lg border border-gray-200 ${status === 'loaded' ? 'block' : 'hidden'}`}
         />
         
         {/* Loading placeholder */}
-        {!imageLoaded && !imageError && (
-          <div className={`${className} bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg border border-gray-200 flex items-center justify-center animate-pulse`}>
-            <div className="text-xs text-gray-400">Loading...</div>
-          </div>
-        )}
+        {status === 'loading' && renderPlaceholder(true)}
       </div>
     );
   }
@@ -202,20 +207,18 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
   // Simple image without text layers
   return (
     <div className={`${className} relative flex-shrink-0`}>
+      {status === 'loading' && (
+        <div className="absolute inset-0 z-10">
+          {renderPlaceholder(true)}
+        </div>
+      )}
       <img
         src={imageUrl}
         alt={`Banner ${widthIn}x${heightIn}`}
-        className={`${className} object-cover rounded-lg border border-gray-200`}
+        className={`${className} object-cover rounded-lg border border-gray-200 ${status === 'loaded' ? 'opacity-100' : 'opacity-0'}`}
         onError={handleImageError}
         onLoad={handleImageLoad}
       />
-      
-      {/* Loading placeholder */}
-      {!imageLoaded && !imageError && (
-        <div className={`${className} absolute inset-0 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg border border-gray-200 flex items-center justify-center animate-pulse`}>
-          <div className="text-xs text-gray-400">Loading...</div>
-        </div>
-      )}
     </div>
   );
 };
