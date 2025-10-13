@@ -251,6 +251,7 @@ const Checkout: React.FC = () => {
                       <div className="flex gap-3 mb-3">
                         {/* Thumbnail */}
                         <BannerThumbnail
+                          key={item.id}
                           fileUrl={item.file_url}
                           aiDesignUrl={item.aiDesign?.assets?.proofUrl}
                           textElements={item.text_elements}

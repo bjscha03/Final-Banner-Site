@@ -33,6 +33,13 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
   const imageUrl = fileUrl || aiDesignUrl;
   const hasTextLayers = textElements && textElements.length > 0;
 
+  // Reset image state when URL changes
+  useEffect(() => {
+    console.log('🔄 Image URL changed, resetting state:', imageUrl);
+    setImageError(false);
+    setImageLoaded(false);
+  }, [imageUrl]);
+
   // Debug logging
   useEffect(() => {
     console.log('🖼️ BannerThumbnail render:', {

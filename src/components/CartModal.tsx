@@ -81,6 +81,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                       <div className="flex gap-3">
                         {/* Thumbnail */}
                         <BannerThumbnail
+                          key={item.id}
                           fileUrl={item.file_url}
                           aiDesignUrl={item.aiDesign?.assets?.proofUrl}
                           textElements={item.text_elements}
