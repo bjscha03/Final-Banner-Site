@@ -458,35 +458,35 @@ const AdminOrders: React.FC = () => {
                 </p>
               </div>
             ) : (
-              <div className="overflow-visible">
+              <div className="overflow-x-auto">
                 <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
+                  <thead className="bg-gray-50 sticky top-0 z-10">
                     <tr>
-                      <th className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-[10px] sm:text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                         Order
                       </th>
-                      <th className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-[10px] sm:text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                         Customer
                       </th>
-                      <th className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-[10px] sm:text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                         Date
                       </th>
-                      <th className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-[10px] sm:text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                         Items
                       </th>
-                      <th className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-[10px] sm:text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                         Total
                       </th>
-                      <th className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-[10px] sm:text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                         Status
                       </th>
-                      <th className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-[10px] sm:text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                         Files
                       </th>
-                      <th className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-[10px] sm:text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                         Tracking
                       </th>
-                      <th className="px-2 sm:px-4 lg:px-6 py-2 sm:py-3 text-left text-[10px] sm:text-[10px] sm:text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                         Actions
                       </th>
                     </tr>
@@ -619,38 +619,38 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
 
   return (
     <tr className="hover:bg-gray-50">
-      <td className="px-6 py-4 whitespace-nowrap">
+      <td className="px-3 py-3 whitespace-nowrap">
         <div className="text-sm font-medium text-gray-900">
           #{order.id ? order.id.slice(-8).toUpperCase() : 'UNKNOWN'}
         </div>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap">
+      <td className="px-3 py-3 whitespace-nowrap">
         <div className="text-sm text-gray-900">
           {order.user_id ? (order.user_id.slice(0, 8) + '...') : 'Guest'}
         </div>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap">
+      <td className="px-3 py-3 whitespace-nowrap">
         <div className="text-sm text-gray-900">
           {new Date(order.created_at).toLocaleDateString()}
         </div>
       </td>
-      <td className="px-6 py-4">
+      <td className="px-3 py-3">
         <div className="text-sm text-gray-900">
           {getItemsSummary(order)}
         </div>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap">
+      <td className="px-3 py-3 whitespace-nowrap">
         <div className="text-sm font-semibold text-gray-900">
           {usd(order.total_cents / 100)}
         </div>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap">
+      <td className="px-3 py-3 whitespace-nowrap">
         <Badge className={`${getStatusColor(order.status)} capitalize`}>
           {order.status}
         </Badge>
       </td>
       {/* Files Column */}
-      <td className="px-6 py-4 whitespace-nowrap">
+      <td className="px-3 py-3">
         <div className="flex flex-col space-y-1">
           {getFilesWithDownload().length > 0 ? (
             getFilesWithDownload().map(({ item, index }) => (
@@ -689,7 +689,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
           )}
         </div>
       </td>
-      <td className="px-6 py-4 whitespace-nowrap">
+      <td className="px-3 py-3 whitespace-nowrap">
         {order.tracking_number ? (
           <div className="flex flex-col space-y-2">
             {isEditingTracking ? (
@@ -772,7 +772,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
           </div>
         )}
       </td>
-      <td className="pr-4 sm:pr-5 py-4 whitespace-nowrap text-sm font-medium">
+      <td className="px-3 py-3 whitespace-nowrap text-sm font-medium">
         <div className="flex items-center justify-end gap-2 sm:gap-3">
           <OrderDetails
             order={order}
