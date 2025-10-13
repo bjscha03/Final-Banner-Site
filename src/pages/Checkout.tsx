@@ -263,16 +263,20 @@ const Checkout: React.FC = () => {
                         
                         <div className="flex-1">
                           <div className="flex justify-between items-start mb-2">
-                            <div className="flex-1">
+                            <div className="flex-1 min-w-0">
                           <h3 className="font-medium text-gray-900">
                             Custom Banner {formatDimensions(item.width_in, item.height_in)}
                           </h3>
-                          <div className="text-sm text-gray-600 space-y-1">
+                          <div className="text-sm text-gray-600 space-y-1 overflow-hidden">
                             <p>Material: {item.material}</p>
                             <p>Grommets: {item.grommets}</p>
                             {item.rope_feet > 0 && <p>Rope: {item.rope_feet.toFixed(1)} ft</p>}
                             {item.pole_pockets && item.pole_pockets !== "none" && <p>Pole Pockets: {item.pole_pockets}</p>}
-                            {item.file_name && <p>File: {item.file_name}</p>}
+                            {item.file_name && (
+                              <p className="truncate max-w-full" title={item.file_name}>
+                                File: {item.file_name}
+                              </p>
+                            )}
                           </div>
                           
                           {/* Cost Breakdown */}

@@ -340,6 +340,7 @@ const QuickQuote: React.FC = () => {
                   <div className="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
                     <Ruler className="h-6 w-6 text-white" />
                   </div>
+                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full shadow-sm animate-pulse"></div>
                   </div>
                 <div>
                   <h3 className="text-lg font-semibold text-slate-900">Choose Size</h3>
@@ -465,6 +466,7 @@ const QuickQuote: React.FC = () => {
                     <div className="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
                     <Hash className="h-6 w-6 text-white" />
                   </div>
+                  <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full shadow-sm animate-pulse"></div>
                   </div>
                 <div>
                   <h3 className="text-lg font-semibold text-slate-900">Quantity</h3>
@@ -526,13 +528,13 @@ const QuickQuote: React.FC = () => {
               <div className="px-6 py-4 bg-slate-50 border-t border-slate-200 -mx-8">
                 <div className="flex items-center gap-4">
                   <div className="relative">
-                    <div className="w-12 h-12 bg-orange-500 rounded-lg flex items-center justify-center shadow-sm">
-                      <Palette className="w-6 h-6 text-white" />
+                    <div className="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
+                      <Palette className="h-6 w-6 text-white" />
                     </div>
-                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 rounded-full shadow-sm animate-pulse"></div>
+                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full shadow-sm animate-pulse"></div>
                   </div>
                   <div>
-                    <h3 className="text-xl font-bold text-slate-900 tracking-tight">Material</h3>
+                    <h3 className="text-lg font-semibold text-slate-900">Material</h3>
                     <p className="text-sm text-gray-600 font-medium">Choose your banner material</p>
                   </div>
                 </div>
@@ -610,8 +612,11 @@ const QuickQuote: React.FC = () => {
             <div className="px-6 py-4 bg-slate-50 border-b border-slate-200">
               <div className="text-center">
                 <div className="inline-flex items-center gap-3 mb-3">
-                  <div className="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
-                    <DollarSign className="h-5 w-5 text-white" />
+                  <div className="relative">
+                    <div className="w-10 h-10 bg-orange-500 rounded-lg flex items-center justify-center">
+                      <DollarSign className="h-5 w-5 text-white" />
+                    </div>
+                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full shadow-sm animate-pulse"></div>
                   </div>
                   <h3 className="text-2xl font-bold text-slate-900">Your Instant Quote</h3>
                 </div>

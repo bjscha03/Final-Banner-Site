@@ -425,7 +425,7 @@ const PricingCard: React.FC = () => {
               <div className="w-14 h-14 bg-orange-500 rounded-lg flex items-center justify-center shadow-sm">
                 <DollarSign className="w-6 h-6 text-white" />
               </div>
-              <div className="absolute -top-1 -right-1 w-5 h-5 bg-orange-500 rounded-full shadow-sm animate-pulse"></div>
+              <div className="absolute -top-1 -right-1 w-5 h-5 bg-green-500 rounded-full shadow-sm animate-pulse"></div>
             </div>
           </div>
 
@@ -539,10 +539,19 @@ const PricingCard: React.FC = () => {
             </div>
           )}
 
-          {/* Shipping Row */}
-          <div className="flex justify-between items-center py-2">
-            <span className="text-sm text-gray-700">{flags.freeShipping ? flags.shippingMethodLabel : 'Shipping'}</span>
-            <span className="text-sm font-semibold text-gray-900">$0</span>
+          {/* Shipping Row - Highlighted */}
+          <div className="flex justify-between items-center py-3 px-4 bg-green-50 border border-green-200 rounded-lg">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-bold text-green-700">
+                {flags.freeShipping ? flags.shippingMethodLabel : 'Shipping'}
+              </span>
+              {flags.freeShipping && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold bg-green-500 text-white">
+                  FREE
+                </span>
+              )}
+            </div>
+            <span className="text-sm font-bold text-green-700">$0</span>
           </div>
 
           {/* Tax Row */}

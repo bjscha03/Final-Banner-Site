@@ -325,7 +325,7 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-2xl">
               <ShoppingCart className="w-6 h-6 text-blue-600" />

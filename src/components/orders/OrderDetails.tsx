@@ -359,12 +359,6 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                         {usd((calculateUnitPriceFromOrder(item) || 0) / 100)} each
                       </p>
                       <div className="mt-2 space-y-2">
-                        {/* DEBUG INFO */}
-                        <div className="text-xs bg-yellow-100 p-2 rounded">
-                          <div>Admin: {isAdminUser ? 'YES' : 'NO'}</div>
-                          <div>File Key: {item.file_key ? 'YES' : 'NO'}</div>
-                          <div>User: {user?.email || 'Not logged in'}</div>
-                        </div>
                         
                         {/* Admin PDF Download Button */}
                         {isAdminUser && (item.file_key || item.print_ready_url || item.web_preview_url) && (

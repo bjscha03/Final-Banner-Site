@@ -95,7 +95,7 @@ const SizeQuantityCard: React.FC = () => {
             <div className="w-12 h-12 bg-orange-500 rounded-lg flex items-center justify-center shadow-sm">
               <Ruler className="w-6 h-6 text-white" />
             </div>
-            <div className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 rounded-full shadow-sm animate-pulse"></div>
+            <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full shadow-sm animate-pulse"></div>
           </div>
           <div>
             <h2 className="text-xl font-bold text-slate-900 tracking-tight">Size & Quantity</h2>
