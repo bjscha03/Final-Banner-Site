@@ -79,7 +79,10 @@ exports.handler = async (event, context) => {
         material, 
         grommets, 
         rope_feet, 
-        pole_pockets, 
+        pole_pockets,
+        pole_pocket_position,
+        pole_pocket_size,
+        pole_pocket_cost_cents,
         line_total_cents,
         file_key,
         text_elements
