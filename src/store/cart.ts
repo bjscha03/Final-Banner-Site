@@ -29,6 +29,13 @@ export interface CartItem {
   file_url?: string;
   is_pdf?: boolean;                    // Whether the file is a PDF
   text_elements?: TextElement[];      // Text layers added in design tool
+  overlay_image?: {                   // Logo/graphic overlay
+    name: string;
+    url: string;
+    fileKey: string;
+    position: { x: number; y: number };
+    scale: number;
+  };
   // AI Design metadata (optional)
   aiDesign?: {
     prompt: string;
@@ -214,6 +221,7 @@ export const useCartStore = create<CartState>()(
           file_url: quote.file?.url || aiMetadata?.assets?.proofUrl || null,
           is_pdf: quote.file?.isPdf || false,
           text_elements: quote.textElements && quote.textElements.length > 0 ? quote.textElements : undefined,
+          overlay_image: quote.overlayImage,
           created_at: new Date().toISOString(),
           ...(aiMetadata || {}),
         };

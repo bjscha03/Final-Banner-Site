@@ -513,14 +513,22 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     // Check if the click target is NOT an interactive element
     const target = e.target as HTMLElement;
     const tagName = target.tagName?.toLowerCase();
-    const isImageClick = tagName === 'image' || 
-                        target.classList?.contains('resize-handle') ||
-                        target.classList?.contains('overlay-resize-handle') ||
-                        target.classList?.contains('resize-handle-group') ||
-                        target.getAttribute?.('data-handle') ||
-                        target.getAttribute?.('data-overlay-handle');
     
-    if (!isImageClick) {
+    // Check if clicking on an interactive element (image, text, handles, etc.)
+    const isInteractiveElement = tagName === 'image' || 
+                                 tagName === 'text' ||
+                                 tagName === 'tspan' ||
+                                 target.classList?.contains('resize-handle') ||
+                                 target.classList?.contains('overlay-resize-handle') ||
+                                 target.classList?.contains('resize-handle-group') ||
+                                 target.classList?.contains('text-element') ||
+                                 target.getAttribute?.('data-handle') ||
+                                 target.getAttribute?.('data-overlay-handle') ||
+                                 target.getAttribute?.('data-text-element') ||
+                                 target.closest?.('[data-text-element]') !== null;
+    
+    // Only deselect if clicking on empty canvas area (not on interactive elements)
+    if (!isInteractiveElement) {
       setSelectedTextId(null);
       setIsImageSelected(false);
       setIsOverlaySelected(false);
@@ -1119,8 +1127,11 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-100">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 bg-orange-500 rounded-lg flex items-center justify-center shadow-sm">
-              <Eye className="w-5 h-5 text-white" />
+            <div className="relative">
+              <div className="w-12 h-12 bg-orange-500 rounded-lg flex items-center justify-center shadow-sm">
+                <Eye className="w-5 h-5 text-white" />
+              </div>
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full shadow-sm animate-pulse"></div>
             </div>
             <h2 className="text-lg sm:text-xl font-semibold text-gray-900">Live Preview</h2>
           </div>

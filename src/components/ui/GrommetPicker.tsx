@@ -67,9 +67,9 @@ export function GrommetPicker({
     // Initial position calculation
     updatePosition();
 
-    // Update position on scroll and resize
+    // Close dropdown on scroll (better UX than repositioning)
     const handleScroll = () => {
-      updatePosition();
+      setIsOpen(false);
     };
 
     const handleResize = () => {

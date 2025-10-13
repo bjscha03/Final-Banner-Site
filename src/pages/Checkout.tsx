@@ -263,17 +263,17 @@ const Checkout: React.FC = () => {
                         
                         <div className="flex-1">
                           <div className="flex justify-between items-start mb-2">
-                            <div className="flex-1 min-w-0">
-                          <h3 className="font-medium text-gray-900">
+                            <div className="flex-1 min-w-0 overflow-hidden">
+                          <h3 className="font-medium text-gray-900 break-words">
                             Custom Banner {formatDimensions(item.width_in, item.height_in)}
                           </h3>
-                          <div className="text-sm text-gray-600 space-y-1 overflow-hidden">
-                            <p>Material: {item.material}</p>
-                            <p>Grommets: {item.grommets}</p>
-                            {item.rope_feet > 0 && <p>Rope: {item.rope_feet.toFixed(1)} ft</p>}
-                            {item.pole_pockets && item.pole_pockets !== "none" && <p>Pole Pockets: {item.pole_pockets}</p>}
+                          <div className="text-sm text-gray-600 space-y-1">
+                            <p className="break-words">Material: {item.material}</p>
+                            <p className="break-words">Grommets: {item.grommets}</p>
+                            {item.rope_feet > 0 && <p className="break-words">Rope: {item.rope_feet.toFixed(1)} ft</p>}
+                            {item.pole_pockets && item.pole_pockets !== "none" && <p className="break-words">Pole Pockets: {item.pole_pockets}</p>}
                             {item.file_name && (
-                              <p className="truncate max-w-full" title={item.file_name}>
+                              <p className="break-all overflow-hidden" title={item.file_name}>
                                 File: {item.file_name}
                               </p>
                             )}

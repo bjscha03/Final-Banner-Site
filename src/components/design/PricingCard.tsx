@@ -248,6 +248,7 @@ const PricingCard: React.FC = () => {
       addRope: quote.addRope,
       previewScalePct: quote.previewScalePct,
       textElements: quote.textElements,
+      overlayImage: quote.overlayImage,
       file: quote.file,
     };
     addFromQuote(quoteData as any, undefined, pricing);
@@ -305,6 +306,7 @@ const PricingCard: React.FC = () => {
       addRope: quote.addRope,
       previewScalePct: quote.previewScalePct,
       textElements: quote.textElements,
+      overlayImage: quote.overlayImage,
       file: quote.file,
     };
     addFromQuote(quoteData as any, undefined, pricing);
