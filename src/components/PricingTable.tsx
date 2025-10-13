@@ -1,5 +1,5 @@
 import React from 'react';
-import { Check } from 'lucide-react';
+import { Check, Columns3, Cable } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { MaterialKey } from '@/store/quote';
 
@@ -219,7 +219,7 @@ const PricingTable: React.FC = () => {
             </div>
             <div className="text-center p-6 border border-gray-200 rounded-xl hover:border-blue-300 hover:shadow-sm transition-all duration-300">
               <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-blue-600 font-bold text-lg">$</span>
+                <Columns3 className="h-6 w-6 text-blue-600" />
               </div>
               <h4 className="font-bold text-gray-900 mb-3 text-lg">Pole Pockets</h4>
               <p className="text-gray-600 mb-4 leading-relaxed">Sewn pockets for pole mounting (1", 2", 3", 4" sizes)</p>
@@ -230,7 +230,7 @@ const PricingTable: React.FC = () => {
             </div>
             <div className="text-center p-6 border border-gray-200 rounded-xl hover:border-blue-300 hover:shadow-sm transition-all duration-300">
               <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <span className="text-orange-600 font-bold text-lg">$</span>
+                <Cable className="h-6 w-6 text-orange-600" />
               </div>
               <h4 className="font-bold text-gray-900 mb-3 text-lg">Rope</h4>
               <p className="text-gray-600 mb-4 leading-relaxed">Nylon rope for secure mounting</p>
