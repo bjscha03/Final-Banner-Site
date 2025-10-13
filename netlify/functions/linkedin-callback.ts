@@ -17,6 +17,9 @@ import { Handler } from '@netlify/functions';
 import { neon } from '@neondatabase/serverless';
 
 export const handler: Handler = async (event) => {
+  console.log('🔵 LinkedIn callback triggered');
+  console.log('🔵 Query params:', event.queryStringParameters);
+  
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
@@ -30,6 +33,8 @@ export const handler: Handler = async (event) => {
 
   try {
     const { code, state, error, error_description } = event.queryStringParameters || {};
+    console.log('🔵 Code:', code ? 'present' : 'missing');
+    console.log('🔵 Error:', error);
 
     // Check for LinkedIn OAuth errors
     if (error) {
@@ -70,6 +75,7 @@ export const handler: Handler = async (event) => {
     }
 
     // Step 1: Exchange authorization code for access token
+    console.log('🔵 Exchanging code for access token...');
     const tokenResponse = await fetch('https://www.linkedin.com/oauth/v2/accessToken', {
       method: 'POST',
       headers: {
@@ -86,7 +92,8 @@ export const handler: Handler = async (event) => {
 
     if (!tokenResponse.ok) {
       const errorData = await tokenResponse.text();
-      console.error('Token exchange failed:', errorData);
+      console.error('❌ Token exchange failed. Status:', tokenResponse.status);
+      console.error('❌ Error data:', errorData);
       return {
         statusCode: 302,
         headers: {
@@ -98,6 +105,7 @@ export const handler: Handler = async (event) => {
 
     const tokenData = await tokenResponse.json();
     const accessToken = tokenData.access_token;
+    console.log('🔵 Access token received');
 
     // Step 2: Fetch user profile from LinkedIn
     const profileResponse = await fetch('https://api.linkedin.com/v2/userinfo', {
@@ -196,8 +204,22 @@ export const handler: Handler = async (event) => {
       VALUES (${user.id}, ${sessionToken}, ${expiresAt.toISOString()}, NOW())
     `;
 
-    // Step 5: Return HTML page that stores user in localStorage and redirects
-            const html = '<!DOCTYPE html>' +
+    // Step 5: Create safe user object (exclude password)
+    const safeUser = {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      avatar_url: user.avatar_url,
+      oauth_provider: user.oauth_provider,
+      oauth_id: user.oauth_id,
+      email_verified: user.email_verified,
+      is_admin: user.is_admin || false,
+      created_at: user.created_at,
+      updated_at: user.updated_at
+    };
+
+    // Step 6: Return HTML page that stores user in localStorage and redirects
+    const html = '<!DOCTYPE html>' +
 '<html>' +
 '<head>' +
 '  <meta charset="UTF-8">' +
@@ -252,12 +274,17 @@ export const handler: Handler = async (event) => {
 '  </div>' +
 '  <script>' +
 '    try {' +
-'      const user = ' + JSON.stringify(user) + ';' +
+'      const user = ' + JSON.stringify(safeUser) + ';' +
+'      console.log(\'✅ LinkedIn OAuth: Storing user\', user.email);' +
+'      console.log(\'✅ LinkedIn OAuth: Storing user\', user.email);' +
 '      localStorage.setItem(\'banners_current_user\', JSON.stringify(user));' +
-'      window.location.href = \'/\';' +
+'      console.log(\'✅ LinkedIn OAuth: Redirecting to home\');' +
+'      console.log(\'✅ LinkedIn OAuth: Redirecting to home\');' +
+'      window.location.href = \'/sign-in?error=\' + encodeURIComponent(error.message);' +
 '    } catch (error) {' +
-'      console.error(\'Error storing user:\', error);' +
-'      window.location.href = \'/\';' +
+'      console.error(\'❌ LinkedIn OAuth: Error storing user:\', error);' +
+'      alert(\'Error completing sign-in: \' + error.message);' +
+'      window.location.href = \'/sign-in?error=\' + encodeURIComponent(error.message);' +
 '    }' +
 '  </script>' +
 '</body>' +
