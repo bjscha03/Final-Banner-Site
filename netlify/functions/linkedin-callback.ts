@@ -150,10 +150,7 @@ export const handler: Handler = async (event) => {
       await sql`
         UPDATE profiles
         SET
-          oauth_provider = 'linkedin',
-          oauth_id = ${profile.sub},
           full_name = COALESCE(full_name, ${profile.name}),
-          avatar_url = COALESCE(avatar_url, ${profile.picture}),
           updated_at = NOW()
         WHERE id = ${existingUser.id}
       `;
@@ -166,9 +163,6 @@ export const handler: Handler = async (event) => {
           id,
           email,
           full_name,
-          oauth_provider,
-          oauth_id,
-          avatar_url,
           email_verified,
           created_at,
           updated_at
@@ -177,9 +171,6 @@ export const handler: Handler = async (event) => {
           gen_random_uuid(),
           ${normalizedEmail},
           ${profile.name},
-          'linkedin',
-          ${profile.sub},
-          ${profile.picture},
           true,
           NOW(),
           NOW()
@@ -211,9 +202,6 @@ export const handler: Handler = async (event) => {
       id: user.id,
       email: user.email,
       full_name: user.full_name,
-      avatar_url: user.avatar_url,
-      oauth_provider: user.oauth_provider,
-      oauth_id: user.oauth_id,
       email_verified: user.email_verified,
       is_admin: user.is_admin || false,
       created_at: user.created_at,
