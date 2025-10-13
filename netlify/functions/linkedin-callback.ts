@@ -152,7 +152,7 @@ export const handler: Handler = async (event) => {
         SET
           oauth_provider = 'linkedin',
           oauth_id = ${profile.sub},
-          name = COALESCE(name, ${profile.name}),
+          full_name = COALESCE(full_name, ${profile.name}),
           avatar_url = COALESCE(avatar_url, ${profile.picture}),
           updated_at = NOW()
         WHERE id = ${existingUser.id}
@@ -163,8 +163,9 @@ export const handler: Handler = async (event) => {
       // NEW USER - Create account
       const newUsers = await sql`
         INSERT INTO profiles (
+          id,
           email,
-          name,
+          full_name,
           oauth_provider,
           oauth_id,
           avatar_url,
@@ -173,6 +174,7 @@ export const handler: Handler = async (event) => {
           updated_at
         )
         VALUES (
+          gen_random_uuid(),
           ${normalizedEmail},
           ${profile.name},
           'linkedin',
@@ -208,7 +210,7 @@ export const handler: Handler = async (event) => {
     const safeUser = {
       id: user.id,
       email: user.email,
-      name: user.name,
+      full_name: user.full_name,
       avatar_url: user.avatar_url,
       oauth_provider: user.oauth_provider,
       oauth_id: user.oauth_id,
