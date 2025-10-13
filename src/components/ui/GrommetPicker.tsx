@@ -64,10 +64,17 @@ export function GrommetPicker({
       setIsOpen(false);
     };
 
+    // Close dropdown on window resize (prevents misalignment)
+    const handleResize = () => {
+      setIsOpen(false);
+    };
+
     window.addEventListener('scroll', handleScroll, true);
+    window.addEventListener('resize', handleResize);
 
     return () => {
       window.removeEventListener('scroll', handleScroll, true);
+      window.removeEventListener('resize', handleResize);
     };
   }, [isOpen, isMobile]);
 
