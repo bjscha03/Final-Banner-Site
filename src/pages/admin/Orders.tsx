@@ -207,6 +207,70 @@ const AdminOrders: React.FC = () => {
     }
   };
 
+  const handlePdfDownload = async (item: any, itemIndex: number, orderId: string) => {
+    try {
+      toast({
+        title: "Generating Print-Ready PDF",
+        description: "Creating high-quality PDF with proper dimensions and bleed...",
+      });
+
+      // Determine the best image source
+      const imageSource = item.print_ready_url || item.web_preview_url || item.file_key;
+      const isCloudinaryKey = !imageSource?.startsWith('http');
+
+      const requestBody = {
+        orderId: orderId,
+        bannerWidthIn: item.width_in,
+        bannerHeightIn: item.height_in,
+        fileKey: isCloudinaryKey ? imageSource : null,
+        imageUrl: isCloudinaryKey ? null : imageSource,
+        imageSource: item.print_ready_url ? 'print_ready' : (item.web_preview_url ? 'web_preview' : 'uploaded'),
+        bleedIn: 0.125,
+        targetDpi: 150,
+        transform: item.transform || null,
+        previewCanvasPx: item.preview_canvas_px || null,
+        textElements: item.text_elements || [],
+        overlayImage: item.overlay_image || null
+      };
+
+      const response = await fetch('/.netlify/functions/render-order-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const result = await response.json();
+
+      if (result.pdfUrl) {
+        const link = document.createElement('a');
+        link.href = result.pdfUrl;
+        link.download = `order-${orderId.slice(-8)}-banner-${itemIndex + 1}-print-ready.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+
+        toast({
+          title: "PDF Downloaded",
+          description: `Print-ready PDF ready for production.`,
+        });
+      } else {
+        throw new Error('No PDF URL in response');
+      }
+    } catch (error) {
+      console.error('PDF Download Error:', error);
+      toast({
+        title: "PDF Generation Failed",
+        description: error instanceof Error ? error.message : "Failed to generate PDF",
+        variant: "destructive",
+      });
+    }
+  };
+
+
   const handleSendShippingNotification = async (orderId: string) => {
     try {
       const response = await fetch('/.netlify/functions/send-shipping-notification', {
@@ -481,7 +545,7 @@ const AdminOrders: React.FC = () => {
                         Status
                       </th>
                       <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                        Files
+                        PDF
                       </th>
                       <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                         Tracking
@@ -499,6 +563,7 @@ const AdminOrders: React.FC = () => {
                         onAddTracking={handleAddTracking}
                         onUpdateTracking={handleUpdateTracking}
                         onFileDownload={handleFileDownload}
+                        onPdfDownload={handlePdfDownload}
                         onSendShippingNotification={handleSendShippingNotification}
                         getStatusColor={getStatusColor}
                         getItemsSummary={getItemsSummary}
@@ -521,6 +586,7 @@ interface AdminOrderRowProps {
   onAddTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string) => void;
   onUpdateTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string) => void;
   onFileDownload: (fileKey: string, orderId: string, itemIndex: number) => void;
+  onPdfDownload: (item: any, itemIndex: number, orderId: string) => void;
   onSendShippingNotification: (orderId: string) => void;
   getStatusColor: (status: string) => string;
   getItemsSummary: (order: Order) => string;
@@ -531,6 +597,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   onAddTracking,
   onUpdateTracking,
   onFileDownload,
+  onPdfDownload,
   onSendShippingNotification,
   getStatusColor,
   getItemsSummary
@@ -649,7 +716,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
           {order.status}
         </Badge>
       </td>
-      {/* Files Column */}
+      {/* PDF Column */}
       <td className="px-3 py-3">
         <div className="flex flex-col space-y-1">
           {getFilesWithDownload().length > 0 ? (
@@ -658,27 +725,11 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                 key={index}
                 size="sm"
                 variant="outline"
-                onClick={() => {
-                  const downloadInfo = getBestDownloadUrl(item);
-                  if (downloadInfo) {
-                    if (downloadInfo.isAI) {
-                      // For AI items, download directly from the URL (print-ready files)
-                      const link = document.createElement('a');
-                      link.href = downloadInfo.url;
-                      link.download = `banner-${order.id}-item-${index + 1}-${downloadInfo.type}.${downloadInfo.type === 'print_ready' ? 'tiff' : 'jpg'}`;
-                      document.body.appendChild(link);
-                      link.click();
-                      document.body.removeChild(link);
-                    } else {
-                      // For regular items, use the existing download function
-                      onFileDownload(downloadInfo.url, order.id, index);
-                    }
-                  }
-                }}
+                onClick={() => onPdfDownload(item, index, order.id)}
                 className="text-xs h-6 px-2"
               >
-                <Download className="h-3 w-3 mr-1" />
-                {getDownloadLabel(item, index)}
+                <FileText className="h-3 w-3 mr-1" />
+                PDF
               </Button>
             ))
           ) : (

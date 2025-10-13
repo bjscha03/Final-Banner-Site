@@ -33,9 +33,25 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
   const [pdfGenerating, setPdfGenerating] = useState<Record<number, boolean>>({});
   const isAdminUser = user && isAdmin(user);
 
-
-
-
+  // Helper function to get the best download URL for an item (AI or uploaded)
+  const getBestDownloadUrl = (item: any) => {
+    // For AI-generated items, prioritize print_ready_url for high-quality downloads
+    if (item.print_ready_url) {
+      return { url: item.print_ready_url, type: 'print_ready', isAI: true };
+    }
+    
+    // Fallback to web_preview_url if available
+    if (item.web_preview_url) {
+      return { url: item.web_preview_url, type: 'web_preview', isAI: true };
+    }
+    
+    // Fallback to original file_key for non-AI items
+    if (item.file_key) {
+      return { url: item.file_key, type: 'file_key', isAI: false };
+    }
+    
+    return null;
+  };
 
   const orderDate = new Date(order.created_at).toLocaleDateString('en-US', {
     year: 'numeric',
@@ -363,6 +379,36 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                             Download PDF
                           </Button>
                         )}
+                        
+                        {/* Admin File Download Button */}
+                        {isAdminUser && (item.file_key || item.print_ready_url || item.web_preview_url) && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              const downloadInfo = getBestDownloadUrl(item);
+                              if (downloadInfo) {
+                                if (downloadInfo.isAI) {
+                                  // For AI items, download directly from the URL
+                                  const link = document.createElement('a');
+                                  link.href = downloadInfo.url;
+                                  link.download = `banner-${order.id}-item-${index + 1}-${downloadInfo.type}.${downloadInfo.type === 'print_ready' ? 'tiff' : 'jpg'}`;
+                                  document.body.appendChild(link);
+                                  link.click();
+                                  document.body.removeChild(link);
+                                } else {
+                                  // For regular items, use the file download function
+                                  handleFileDownload(downloadInfo.url, index);
+                                }
+                              }
+                            }}
+                            className="w-full"
+                          >
+                            <Download className="h-3 w-3 mr-1" />
+                            Download Image File
+                          </Button>
+                        )}
+                        
                         {isAdminUser && !item.file_key && !item.print_ready_url && !item.web_preview_url && (
                           <div className="text-xs text-gray-500 text-center py-1">
                             <FileText className="h-3 w-3 inline mr-1" />

@@ -230,10 +230,10 @@ const Checkout: React.FC = () => {
             <p className="text-gray-600 mt-2">Review your order and complete payment</p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
             {/* Order Summary */}
-            <div className="space-y-6">
-              <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="space-y-6 w-full">
+              <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-4">Order Summary</h2>
                 
                 <div className="space-y-4">
@@ -442,8 +442,8 @@ const Checkout: React.FC = () => {
               </div>
             )}
             {/* Payment */}
-            <div className="space-y-6">
-              <div className="bg-white rounded-lg shadow-sm p-6">
+            <div className="space-y-6 w-full">
+              <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
                 <h2 className="text-xl font-semibold text-gray-900 mb-6">Payment</h2>
                 
                 <PayPalCheckout disabled={!canProceed}
