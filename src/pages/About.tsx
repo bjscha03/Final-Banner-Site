@@ -26,7 +26,7 @@ const About: React.FC = () => {
     { icon: Clock, value: '24hr', label: 'Production Time', color: 'from-blue-500 to-blue-600', iconColor: 'text-blue-600' },
     { icon: Shield, value: '100%', label: 'Satisfaction Rate', color: 'from-green-500 to-green-600', iconColor: 'text-green-600' },
     { icon: Users, value: '10k+', label: 'Happy Customers', color: 'from-orange-500 to-orange-600', iconColor: 'text-orange-600' },
-    { icon: Award, value: 'Free', label: 'Shipping Over $100', color: 'from-purple-500 to-purple-600', iconColor: 'text-purple-600' }
+    { icon: Award, value: 'Free', label: 'Next-Day Air Shipping', color: 'from-purple-500 to-purple-600', iconColor: 'text-purple-600' }
   ];
 
   const values = [
