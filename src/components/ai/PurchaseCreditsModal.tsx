@@ -309,9 +309,6 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
               setSelectedPackage(null);
             },
           }).render('#paypal-button-container');
-          
-          // Hide spinner once PayPal buttons are rendered
-          setIsProcessing(false);
         }
       }
     } catch (error) {
