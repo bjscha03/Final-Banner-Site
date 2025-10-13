@@ -261,7 +261,7 @@ export const handler: Handler = async (event) => {
 '      localStorage.setItem(\'banners_current_user\', JSON.stringify(user));' +
 '      console.log(\'✅ LinkedIn OAuth: Redirecting to home\');' +
 '      console.log(\'✅ LinkedIn OAuth: Redirecting to home\');' +
-'      window.location.href = \'/sign-in?error=\' + encodeURIComponent(error.message);' +
+'      window.location.href = \'/\'; +
 '    } catch (error) {' +
 '      console.error(\'❌ LinkedIn OAuth: Error storing user:\', error);' +
 '      alert(\'Error completing sign-in: \' + error.message);' +
