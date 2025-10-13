@@ -25,10 +25,30 @@ const PricingCard: React.FC = () => {
   const [pendingAction, setPendingAction] = useState<'cart' | 'checkout' | null>(null);
   const [dontShowUpsellAgain, setDontShowUpsellAgain] = useState(false);
 
-  // Check if user should see upsell (no grommets, rope, or pole pockets selected)
+  // Check if user should see upsell (only if there are actually options to upsell)
   const shouldShowUpsell = useMemo(() => {
     if (dontShowUpsellAgain) return false;
-    return quote.grommets === 'none' || !quote.addRope || quote.polePockets === 'none';
+    
+    // Count how many upsell options are available
+    let availableOptions = 0;
+    
+    // Grommets available if none selected AND pole pockets not selected (mutual exclusivity)
+    if (quote.grommets === 'none' && quote.polePockets === 'none') {
+      availableOptions++;
+    }
+    
+    // Rope available if not selected
+    if (!quote.addRope) {
+      availableOptions++;
+    }
+    
+    // Pole pockets available if none selected AND grommets not selected (mutual exclusivity)
+    if (quote.polePockets === 'none' && quote.grommets === 'none') {
+      availableOptions++;
+    }
+    
+    // Only show upsell if there are actually options to offer
+    return availableOptions > 0;
   }, [quote.grommets, quote.addRope, quote.polePockets, dontShowUpsellAgain]);
 
   // Load "don't show again" preference from localStorage
