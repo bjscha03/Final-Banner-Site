@@ -30,7 +30,7 @@ export function GrommetPicker({
 }: GrommetPickerProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
-  const [dropdownPosition, setDropdownPosition] = useState<{ top: number; left: number; width: number } | null>(null);
+  const [dropdownPosition, setDropdownPosition] = useState({ top: 0, left: 0, width: 0 });
   const triggerRef = useRef<HTMLButtonElement>(null);
 
   const selectedOption = options.find(option => option.id === value);
@@ -96,8 +96,6 @@ export function GrommetPicker({
     onChange(optionId);
     setIsOpen(false);
   };
-
-
 
   const renderMobileSheet = () => (
     <div className="fixed inset-0 z-[999999] flex items-end" style={{ touchAction: 'none', pointerEvents: 'auto' }}>
@@ -166,9 +164,7 @@ export function GrommetPicker({
     </div>
   );
 
-  const renderDesktopDropdown = () => {
-    if (!dropdownPosition) return null;
-    return (
+  const renderDesktopDropdown = () => (
     <div
       className="fixed bg-white border border-gray-200 rounded-xl shadow-xl z-[999999] overflow-hidden max-h-[60vh] overflow-y-auto min-w-[300px]"
       style={{
