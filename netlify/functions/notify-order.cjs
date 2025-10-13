@@ -399,7 +399,11 @@ exports.handler = async (event) => {
             `Material: ${item.material}`,
             item.grommets && item.grommets !== 'none' ? `Grommets: ${item.grommets}` : null,
             item.rope_feet && item.rope_feet > 0 ? `Rope: ${item.rope_feet.toFixed(1)} ft` : null,
-            (item.pole_pocket_position && item.pole_pocket_position !== 'none') ? `Pole Pockets: ${item.pole_pocket_position}${item.pole_pocket_size ? ` (${item.pole_pocket_size} inch)` : ''}` : null,
+            (item.pole_pocket_position && item.pole_pocket_position !== 'none') 
+              ? `Pole Pockets: ${item.pole_pocket_position}${item.pole_pocket_size ? ` (${item.pole_pocket_size} inch)` : ''}`
+              : (item.pole_pockets && item.pole_pockets !== 'none' && item.pole_pockets !== false && item.pole_pockets !== 'false')
+                ? 'Pole Pockets: Yes'
+                : null,
             item.file_key ? `File: ${item.file_key}` : null
           ].filter(Boolean).join(' • '),
           // Cost breakdown data

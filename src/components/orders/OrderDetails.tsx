@@ -335,10 +335,15 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                         {item.rope_feet && item.rope_feet > 0 && (
                           <p className="break-words">Rope: {(item.rope_feet || 0).toFixed(1)} ft</p>
                         )}
-                        {item.pole_pocket_position && item.pole_pocket_position !== 'none' && (
+                        {(item.pole_pockets || item.pole_pocket_position) && (
                           <p className="break-words">
-                            Pole Pockets: {item.pole_pocket_position}
-                            {item.pole_pocket_size && ` (${item.pole_pocket_size} inch)`}
+                            Pole Pockets: {
+                              item.pole_pocket_position && item.pole_pocket_position !== 'none'
+                                ? `${item.pole_pocket_position}${item.pole_pocket_size ? ` (${item.pole_pocket_size} inch)` : ''}`
+                                : item.pole_pockets && item.pole_pockets !== 'none' && item.pole_pockets !== 'false'
+                                  ? 'Yes'
+                                  : 'None'
+                            }
                           </p>
                         )}
                         {item.file_key && (
