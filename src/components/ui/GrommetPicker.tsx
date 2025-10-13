@@ -241,4 +241,3 @@ export function GrommetPicker({
   );
 }
 
-export default GrommetPicker;
