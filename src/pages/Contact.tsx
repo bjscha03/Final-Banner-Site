@@ -154,54 +154,7 @@ const Contact: React.FC = () => {
                       </div>
                     </div>
                   </div>
-                </div>
-
-                {/* Support Features */}
-                <div className="relative group">
-                  
-                  <div className="relative bg-white rounded-3xl p-8 shadow-xl border border-gray-100">
-                    <h3 className="text-2xl font-bold mb-6 text-gray-900">Why Contact Us?</h3>
-                    
-                    <div className="space-y-5">
-                      <div className="flex items-start group/item">
-                        <div className="flex-shrink-0">
-                          <div className="w-12 h-12 bg-green-500 rounded-xl flex items-center justify-center shadow-md transform group-hover/item:scale-110 transition-transform">
-                            <Clock className="h-6 w-6 text-white" />
-                          </div>
-                        </div>
-                        <div className="ml-4">
-                          <h4 className="font-bold text-gray-900 mb-1">Fast Response</h4>
-                          <p className="text-gray-600 text-sm leading-relaxed">Average response time under 2 hours</p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-start group/item">
-                        <div className="flex-shrink-0">
-                          <div className="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center shadow-md transform group-hover/item:scale-110 transition-transform">
-                            <Shield className="h-6 w-6 text-white" />
-                          </div>
-                        </div>
-                        <div className="ml-4">
-                          <h4 className="font-bold text-gray-900 mb-1">Expert Support</h4>
-                          <p className="text-gray-600 text-sm leading-relaxed">Banner specialists ready to help</p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-start group/item">
-                        <div className="flex-shrink-0">
-                          <div className="w-12 h-12 bg-blue-500 rounded-xl flex items-center justify-center shadow-md transform group-hover/item:scale-110 transition-transform">
-                            <Zap className="h-6 w-6 text-white" />
-                          </div>
-                        </div>
-                        <div className="ml-4">
-                          <h4 className="font-bold text-gray-900 mb-1">Order Updates</h4>
-                          <p className="text-gray-600 text-sm leading-relaxed">Real-time status on your orders</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
+                </div></div>
 
               {/* Right Column - Contact Form (3 columns) */}
               <div className="lg:col-span-3">
