@@ -261,7 +261,7 @@ async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textEleme
             // SAFETY CHECK: Ensure coordinates are valid
             if (isNaN(xPt) || isNaN(yPt)) {
               console.error(`[PDF] Invalid coordinates for text "${textEl.content}": xPt=${xPt}, yPt=${yPt}`);
-              console.error(`[PDF] Debug values: bannerX=${bannerX}, bannerY=${bannerY}, bannerXPercent=${bannerXPercent}, bannerYPercent=${bannerYPercent}`);
+              console.error(`[PDF] Debug values: xPercent=${textEl.xPercent}, yPercent=${textEl.yPercent}, bannerWidth=${bannerWidthIn}, bannerHeight=${bannerHeightIn}`);
               return; // Skip this text element
             }
             
