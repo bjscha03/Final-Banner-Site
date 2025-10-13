@@ -281,11 +281,38 @@ async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textEleme
             // Calculate text alignment
             const textAlign = textEl.textAlign || 'left';
             
-            // SAFETY CHECK: Calculate text width safely
-            let textWidth = pageWidthPt - xPt - 20;
-            if (textWidth <= 0) {
-              console.warn(`[PDF] Calculated text width is ${textWidth}, using minimum width of 100pt`);
-              textWidth = 100;
+            // CRITICAL FIX: Text positioning in preview vs PDF
+            // In the preview, text uses CSS: position: absolute; left: X%; top: Y%; text-align: center;
+            // The X%, Y% represent the TOP-LEFT corner of the text element's bounding box
+            // The text-align: center centers the text WITHIN that bounding box
+            //
+            // In PDFKit, doc.text(content, x, y, {align: 'center', width: W}) centers the text
+            // within a box that starts at (x, y) and has width W.
+            //
+            // PROBLEM: If we use the preview's top-left position as x and then center within
+            // a box from x to the page edge, the text shifts to the right!
+            //
+            // SOLUTION: For center-aligned text, use the full page width starting at x=0
+            
+            let textX = xPt;
+            let textWidth;
+            
+            if (textAlign === 'center') {
+              // For centered text, use the full page width
+              // This will center the text horizontally on the page
+              textX = 0;
+              textWidth = pageWidthPt;
+            } else if (textAlign === 'right') {
+              // For right-aligned text, the box should extend from left edge to xPt
+              textX = 0;
+              textWidth = xPt;
+            } else {
+              // For left-aligned text, the box extends from xPt to the right edge
+              textWidth = pageWidthPt - xPt - 20;
+              if (textWidth <= 0) {
+                console.warn(`[PDF] Calculated text width is ${textWidth}, using minimum width of 100pt`);
+                textWidth = 100;
+              }
             }
             
             const textOptions = {
@@ -294,10 +321,11 @@ async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textEleme
               width: textWidth,
             };
             
-            console.log(`[PDF] About to render text: "${textEl.content.substring(0, 50)}" at (${xPt.toFixed(2)}, ${yPt.toFixed(2)}) with width ${textWidth.toFixed(2)}pt, align: ${textAlign}, fontSize: ${fontSize.toFixed(2)}pt, color: ${textEl.color || '#000000'}`);
+            console.log(`[PDF] About to render text: "${textEl.content.substring(0, 50)}" at (${textX.toFixed(2)}, ${yPt.toFixed(2)}) with width ${textWidth.toFixed(2)}pt, align: ${textAlign}, fontSize: ${fontSize.toFixed(2)}pt, color: ${textEl.color || '#000000'}`);
             
             // Render the text
-            doc.text(textEl.content, xPt, yPt, textOptions);
+            doc.text(textEl.content, textX, yPt, textOptions);
+
             
             console.log(`[PDF] ✓ Successfully rendered text "${textEl.content.substring(0, 30)}..."`);
             
