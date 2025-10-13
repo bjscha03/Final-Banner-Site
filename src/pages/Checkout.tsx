@@ -254,6 +254,8 @@ const Checkout: React.FC = () => {
                           key={item.id}
                           fileUrl={item.file_url}
                           aiDesignUrl={item.aiDesign?.assets?.proofUrl}
+                          webPreviewUrl={item.web_preview_url}
+                          printReadyUrl={item.print_ready_url}
                           isPdf={item.is_pdf}
                           textElements={item.text_elements}
                           widthIn={item.width_in}

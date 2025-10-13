@@ -73,6 +73,7 @@ export interface QuoteState {
   };
   set: (partial: Partial<QuoteState>) => void;
   setFromQuickQuote: (params: QuickQuoteParams) => void;
+  loadFromCartItem: (item: any) => void;
   addTextElement: (element: Omit<TextElement, 'id'>) => void;
   updateTextElement: (id: string, updates: Partial<TextElement>) => void;
   deleteTextElement: (id: string) => void;
@@ -81,8 +82,6 @@ export interface QuoteState {
   isOverSizeLimit: () => boolean;
   getSizeLimitMessage: () => string | null;
 }
-
-
 // Helper functions for order size validation
 export const calculateSquareFootage = (widthIn: number, heightIn: number): number => {
   return (widthIn * heightIn) / 144; // Convert square inches to square feet
@@ -137,6 +136,28 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
     polePocketSize: '2',
     addRope: state.addRope, // Preserve rope selection
     file: undefined,
+  })),
+  loadFromCartItem: (item: any) => set((state) => ({
+    ...state,
+    widthIn: item.width_in,
+    heightIn: item.height_in,
+    quantity: item.quantity,
+    material: item.material,
+    grommets: item.grommets || 'none',
+    polePockets: item.pole_pocket_position || item.pole_pockets || 'none',
+    polePocketSize: item.pole_pocket_size || '2',
+    addRope: item.rope_feet > 0,
+    textElements: item.text_elements || [],
+    file: item.file_key || item.file_url || item.web_preview_url ? {
+      name: item.file_name || 'Uploaded file',
+      type: item.is_pdf ? 'application/pdf' : 'image/*',
+      size: 0,
+      url: item.file_url || item.web_preview_url || item.print_ready_url,
+      fileKey: item.file_key,
+      isPdf: item.is_pdf,
+      isAI: !!item.aiDesign,
+    } : undefined,
+    overlayImage: item.overlay_image,
   })),
   // Computed validation methods
   getSquareFootage: () => {

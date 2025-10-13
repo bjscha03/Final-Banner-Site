@@ -5,6 +5,8 @@ import PdfImagePreview from '@/components/preview/PdfImagePreview';
 interface BannerThumbnailProps {
   fileUrl?: string;
   aiDesignUrl?: string;
+  webPreviewUrl?: string;
+  printReadyUrl?: string;
   isPdf?: boolean;
   textElements?: TextElement[];
   widthIn: number;
@@ -25,6 +27,8 @@ interface BannerThumbnailProps {
 const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
   fileUrl,
   aiDesignUrl,
+  webPreviewUrl,
+  printReadyUrl,
   isPdf = false,
   textElements = [],
   widthIn,
@@ -36,8 +40,15 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
   const imgRef = useRef<HTMLImageElement>(null);
   const mountedRef = useRef(true);
 
-  // Memoize the image URL
-  const imageUrl = useMemo(() => fileUrl || aiDesignUrl, [fileUrl, aiDesignUrl]);
+  // Memoize the image URL - prioritize permanent URLs over temporary blob URLs
+  const imageUrl = useMemo(() => {
+    // For AI images, use permanent Cloudinary URLs
+    if (webPreviewUrl) return webPreviewUrl;
+    if (printReadyUrl) return printReadyUrl;
+    if (aiDesignUrl) return aiDesignUrl;
+    // For uploaded files, use the file URL (may be blob or Cloudinary)
+    return fileUrl || null;
+  }, [webPreviewUrl, printReadyUrl, aiDesignUrl, fileUrl]);
   const hasTextLayers = textElements && textElements.length > 0;
 
   // Track component mount status

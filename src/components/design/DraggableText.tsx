@@ -313,19 +313,29 @@ const DraggableText: React.FC<DraggableTextProps> = ({
 
   // Handle orientation changes on mobile devices
   useEffect(() => {
+    let resizeTimeout: NodeJS.Timeout;
+    
     const handleOrientationChange = () => {
-      // Force a re-render to recalculate positions based on new container dimensions
-      // The percentage-based positioning will automatically adjust
-      if (textRef.current) {
-        // Trigger a small update to force recalculation
-        const currentXPercent = element.xPercent ?? ((element.x ?? 50) / bannerWidthIn) * 100;
-        const currentYPercent = element.yPercent ?? ((element.y ?? 50) / bannerHeightIn) * 100;
-        
-        // Only update if we have percentage values
-        if (element.xPercent !== undefined && element.yPercent !== undefined) {
-          onUpdate({ xPercent: currentXPercent, yPercent: currentYPercent });
+      // Debounce to avoid excessive updates during resize
+      clearTimeout(resizeTimeout);
+      resizeTimeout = setTimeout(() => {
+        // Force a re-render to recalculate positions based on new container dimensions
+        // The percentage-based positioning will automatically adjust
+        if (textRef.current) {
+          // Ensure we're using percentage-based positioning
+          const currentXPercent = element.xPercent ?? ((element.x ?? 50) / bannerWidthIn) * 100;
+          const currentYPercent = element.yPercent ?? ((element.y ?? 50) / bannerHeightIn) * 100;
+          
+          // Always update to ensure percentage values are stored
+          onUpdate({ 
+            xPercent: currentXPercent, 
+            yPercent: currentYPercent,
+            // Clear legacy pixel values to ensure percentage is used
+            x: undefined,
+            y: undefined
+          });
         }
-      }
+      }, 100); // 100ms debounce
     };
 
     // Listen for both resize and orientationchange events
@@ -333,10 +343,11 @@ const DraggableText: React.FC<DraggableTextProps> = ({
     window.addEventListener('orientationchange', handleOrientationChange);
     
     return () => {
+      clearTimeout(resizeTimeout);
       window.removeEventListener('resize', handleOrientationChange);
       window.removeEventListener('orientationchange', handleOrientationChange);
     };
-  }, [element.xPercent, element.yPercent, element.x, element.y, bannerWidthIn, bannerHeightIn]);
+  }, [element.xPercent, element.yPercent, element.x, element.y, bannerWidthIn, bannerHeightIn, onUpdate]);
 
   // Handle clicking outside to exit edit mode and deselect
   useEffect(() => {

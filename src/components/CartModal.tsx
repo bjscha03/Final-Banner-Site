@@ -1,9 +1,10 @@
 import React from 'react';
-import { X, Trash2, Plus, Minus, ShoppingBag } from 'lucide-react';
+import { X, Trash2, Plus, Minus, ShoppingBag, Edit } from 'lucide-react';
 import BannerThumbnail from './cart/BannerThumbnail';
 import { useNavigate } from 'react-router-dom';
 import { usd } from '@/lib/pricing';
 import { useCartStore } from '@/store/cart';
+import { useQuoteStore } from '@/store/quote';
 
 interface CartModalProps {
   isOpen: boolean;
@@ -12,7 +13,8 @@ interface CartModalProps {
 
 const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
-  const { items, updateQuantity, removeItem, getSubtotalCents, getTaxCents, getTotalCents } = useCartStore();
+  const { items, updateQuantity, removeItem, loadItemIntoQuote, getSubtotalCents, getTaxCents, getTotalCents } = useCartStore();
+  const { loadFromCartItem } = useQuoteStore();
   
   if (!isOpen) return null;
 
@@ -84,6 +86,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                           key={item.id}
                           fileUrl={item.file_url}
                           aiDesignUrl={item.aiDesign?.assets?.proofUrl}
+                          webPreviewUrl={item.web_preview_url}
+                          printReadyUrl={item.print_ready_url}
                           isPdf={item.is_pdf}
                           textElements={item.text_elements}
                           widthIn={item.width_in}
@@ -135,6 +139,12 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                                 <Plus className="h-3 w-3" />
                               </button>
                             </div>
+                            <button 
+                              onClick={() => handleEdit(item.id)} 
+                              className="p-1.5 hover:bg-blue-50 rounded-lg text-blue-600 mr-2"
+                            >
+                              <Edit className="h-4 w-4 inline mr-1" /> Edit
+                            </button>
                             <button 
                               onClick={() => removeItem(item.id)} 
                               className="p-1.5 hover:bg-red-50 rounded-lg text-red-600"

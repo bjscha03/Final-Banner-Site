@@ -29,6 +29,8 @@ export interface CartItem {
   file_key?: string;
   file_name?: string;
   file_url?: string;
+  web_preview_url?: string;            // Permanent Cloudinary URL for web preview (AI images)
+  print_ready_url?: string;            // Permanent Cloudinary URL for print-ready file (AI images)
   is_pdf?: boolean;                    // Whether the file is a PDF
   text_elements?: TextElement[];      // Text layers added in design tool
   overlay_image?: {                   // Logo/graphic overlay
@@ -80,6 +82,7 @@ export interface AuthoritativePricing {
 export interface CartState {
   items: CartItem[];
   addFromQuote: (quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => void;
+  loadItemIntoQuote: (itemId: string) => CartItem | null;
   updateQuantity: (id: string, quantity: number) => void;
   removeItem: (id: string) => void;
   clearCart: () => void;
@@ -223,6 +226,8 @@ export const useCartStore = create<CartState>()(
           file_key: fileKey,
           file_name: quote.file?.name,
           file_url: quote.file?.url || aiMetadata?.assets?.proofUrl || null,
+          web_preview_url: aiMetadata?.assets?.proofUrl || null,
+          print_ready_url: aiMetadata?.assets?.finalUrl || null,
           is_pdf: quote.file?.isPdf || false,
           text_elements: quote.textElements && quote.textElements.length > 0 ? quote.textElements : undefined,
           overlay_image: quote.overlayImage,
@@ -265,6 +270,14 @@ export const useCartStore = create<CartState>()(
         }));
       },
       
+      loadItemIntoQuote: (itemId: string) => {
+        const item = get().items.find(i => i.id === itemId);
+        if (!item) return null;
+        
+        // Return the item so the caller can load it into quote store
+        return item;
+      },
+
       removeItem: (id: string) => {
         set((state) => ({
           items: state.items.filter(item => item.id !== id)
