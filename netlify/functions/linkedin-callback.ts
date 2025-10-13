@@ -188,16 +188,7 @@ export const handler: Handler = async (event) => {
       `;
     }
 
-    // Step 4: Create session token
-    const sessionToken = Math.random().toString(36).substring(2) + Date.now().toString(36);
-    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days
-
-    await sql`
-      INSERT INTO sessions (user_id, token, expires_at, created_at)
-      VALUES (${user.id}, ${sessionToken}, ${expiresAt.toISOString()}, NOW())
-    `;
-
-    // Step 5: Create safe user object (exclude password)
+    // Step 4: Create safe user object (exclude password)
     const safeUser = {
       id: user.id,
       email: user.email,
