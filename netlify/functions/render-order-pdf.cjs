@@ -220,6 +220,30 @@ async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textEleme
             let xPt = textXInBanner * 72;
             let yPt = textYInBanner * 72;
             
+            // DETAILED COORDINATE DEBUGGING
+            console.log(`[PDF] ========== COORDINATE TRANSFORMATION DEBUG ==========`);
+            console.log(`[PDF] Input percentages: xPercent=${textEl.xPercent}%, yPercent=${textEl.yPercent}%`);
+            console.log(`[PDF] Banner size: ${bannerWidthIn}" × ${bannerHeightIn}"`);
+            console.log(`[PDF] SVG total size: ${svgTotalWidthIn}" × ${svgTotalHeightIn}"`);
+            console.log(`[PDF] Ruler+Bleed offset: ${OFFSET_INCHES}"`);
+            console.log(`[PDF] Position in SVG: (${textXInSvg}", ${textYInSvg}")`);
+            console.log(`[PDF] Position in banner: (${textXInBanner}", ${textYInBanner}")`);
+            console.log(`[PDF] Final PDF points: (${xPt}pt, ${yPt}pt)`);
+            console.log(`[PDF] Page size: ${pageWidthPt}pt × ${pageHeightPt}pt`);
+            console.log(`[PDF] ===================================================`);
+            
+            // DETAILED COORDINATE DEBUGGING
+            console.log(`[PDF] ========== COORDINATE TRANSFORMATION DEBUG ==========`);
+            console.log(`[PDF] Input percentages: xPercent=${textEl.xPercent}%, yPercent=${textEl.yPercent}%`);
+            console.log(`[PDF] Banner size: ${bannerWidthIn}" × ${bannerHeightIn}"`);
+            console.log(`[PDF] SVG total size: ${svgTotalWidthIn}" × ${svgTotalHeightIn}"`);
+            console.log(`[PDF] Ruler+Bleed offset: ${OFFSET_INCHES}"`);
+            console.log(`[PDF] Position in SVG: (${textXInSvg}", ${textYInSvg}")`);
+            console.log(`[PDF] Position in banner: (${textXInBanner}", ${textYInBanner}")`);
+            console.log(`[PDF] Final PDF points: (${xPt}pt, ${yPt}pt)`);
+            console.log(`[PDF] Page size: ${pageWidthPt}pt × ${pageHeightPt}pt`);
+            console.log(`[PDF] ===================================================`);
+            
             console.log(`[PDF] Text positioning for "${textEl.content.substring(0, 30)}...":
               Stored: ${textEl.xPercent.toFixed(2)}%, ${textEl.yPercent.toFixed(2)}% (relative to SVG viewBox)
               SVG dimensions: ${svgTotalWidthIn.toFixed(2)}" × ${svgTotalHeightIn.toFixed(2)}"
