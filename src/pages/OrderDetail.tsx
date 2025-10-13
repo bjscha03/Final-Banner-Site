@@ -217,6 +217,7 @@ const OrderDetail: React.FC = () => {
                                 : 'None'
                           }</p>
                         )}
+                      </div>
 
                       {/* Cost Breakdown */}
                       <div className="mt-3 p-3 bg-gray-50 rounded-lg">
@@ -254,7 +255,7 @@ const OrderDetail: React.FC = () => {
                             );
                           })()}
                         </div>
-                      </div>                      </div>
+                      </div>
                     </div>
                     <div className="text-right">
                       <p className="text-lg font-semibold text-gray-900">
