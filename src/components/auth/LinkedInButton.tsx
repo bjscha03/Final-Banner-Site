@@ -18,14 +18,22 @@ export const LinkedInButton: React.FC<LinkedInButtonProps> = ({ className = '' }
 
   const handleLinkedInSignIn = async () => {
     setLoading(true);
+    console.log('🔵 LinkedIn button clicked - starting OAuth flow...');
 
     try {
       // Call the linkedin-auth function to get the authorization URL
+      console.log('🔵 Fetching authorization URL from /.netlify/functions/linkedin-auth');
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
       
       const response = await fetch('/.netlify/functions/linkedin-auth', {
         method: 'POST',
+        signal: controller.signal,
       });
-
+      
+      clearTimeout(timeoutId);
+      console.log('🔵 Response received. Status:', response.status);
 
       if (!response.ok) {
         const errorText = await response.text();
@@ -35,6 +43,7 @@ export const LinkedInButton: React.FC<LinkedInButtonProps> = ({ className = '' }
       }
 
       const result = await response.json();
+      console.log('🔵 Response data:', result);
 
       if (!result.ok || !result.authUrl) {
         console.error('❌ Invalid response structure:', result);
@@ -44,10 +53,11 @@ export const LinkedInButton: React.FC<LinkedInButtonProps> = ({ className = '' }
       // Store state for CSRF protection
       if (result.state) {
         sessionStorage.setItem('linkedin_oauth_state', result.state);
+        console.log('🔵 State stored in sessionStorage');
       }
 
       // Redirect to LinkedIn authorization page
-      
+      console.log('🔵 Redirecting to LinkedIn:', result.authUrl);
       window.location.href = result.authUrl;
 
     } catch (error: any) {
@@ -58,9 +68,17 @@ export const LinkedInButton: React.FC<LinkedInButtonProps> = ({ className = '' }
       console.error('❌ Error stack:', error.stack);
       console.error('❌ ========================================');
       
+      let errorMessage = 'Unable to connect to LinkedIn. Please try again.';
+      
+      if (error.name === 'AbortError') {
+        errorMessage = 'Request timed out. Please check your connection and try again.';
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      
       toast({
         title: 'LinkedIn Sign-In Failed',
-        description: error.message || 'Unable to connect to LinkedIn. Please try again.',
+        description: errorMessage,
         variant: 'destructive',
       });
       setLoading(false);
