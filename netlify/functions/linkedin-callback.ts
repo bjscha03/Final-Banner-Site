@@ -180,12 +180,18 @@ export const handler: Handler = async (event) => {
 
       user = newUsers[0];
 
-      // Initialize AI credits for new user (10 free credits)
-      await sql`
-        INSERT INTO ai_credits (user_id, credits_remaining, credits_total, created_at, updated_at)
-        VALUES (${user.id}, 10, 10, NOW(), NOW())
-        ON CONFLICT (user_id) DO NOTHING
-      `;
+      // Initialize AI credits for new user (10 free credits) - if table exists
+      try {
+        await sql`
+          INSERT INTO ai_credits (user_id, credits_remaining, credits_total, created_at, updated_at)
+          VALUES (${user.id}, 10, 10, NOW(), NOW())
+          ON CONFLICT (user_id) DO NOTHING
+        `;
+        console.log('🔵 New LinkedIn user created with 10 free AI credits');
+      } catch (creditsError: any) {
+        console.warn('⚠️ Could not grant AI credits (table may not exist):', creditsError.message);
+        console.log('🔵 New LinkedIn user created (AI credits skipped)');
+      }
       
       console.log('🔵 New LinkedIn user created with 10 free AI credits');
       console.log('🔵 New user details:', { id: user.id, email: user.email, email_verified: user.email_verified });

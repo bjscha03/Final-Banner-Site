@@ -175,14 +175,19 @@ export const handler: Handler = async (event) => {
 
       user = newUsers[0];
 
-      // Grant 10 free AI credits for new users
-      await sql`
-        INSERT INTO ai_credits (user_id, credits_remaining, credits_total, created_at, updated_at)
-        VALUES (${user.id}, 10, 10, NOW(), NOW())
-      `;
-
-      console.log('🔵 New user created with 10 free AI credits');
-      console.log('🔵 New user details:', { id: user.id, email: user.email, email_verified: user.email_verified });
+      // Grant 10 free AI credits for new users (if table exists)
+      try {
+        await sql`
+          INSERT INTO ai_credits (user_id, credits_remaining, credits_total, created_at, updated_at)
+          VALUES (${user.id}, 10, 10, NOW(), NOW())
+        `;
+        console.log('🔵 New user created with 10 free AI credits');
+      } catch (creditsError: any) {
+        console.warn('⚠️ Could not grant AI credits (table may not exist):', creditsError.message);
+        console.log('🔵 New user created (AI credits skipped)');
+      }
+      
+      console.log('�� New user details:', { id: user.id, email: user.email, email_verified: user.email_verified });
     }
 
     console.log('🔵 Final user object before creating safeUser:', { id: user.id, email: user.email, email_verified: user.email_verified, is_admin: user.is_admin });
