@@ -262,9 +262,10 @@ export const handler: Handler = async (event) => {
       console.log('✅ Google OAuth: Redirecting to home page');
       
       // Small delay to ensure localStorage is fully written
+      // Also add URL parameter to signal successful OAuth
       setTimeout(() => {
-        window.location.href = '/';
-      }, 100);
+        window.location.href = '/?oauth=success&provider=google';
+      }, 250);
     } catch (error) {
       console.error('❌ Google OAuth: Error storing user:', error);
       alert('Error completing sign-in: ' + error.message);

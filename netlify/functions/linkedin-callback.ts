@@ -276,8 +276,8 @@ export const handler: Handler = async (event) => {
 '      console.log(\'✅ LinkedIn OAuth: Redirecting to home\');' +
 '      // Small delay to ensure localStorage is fully written' +
 '      setTimeout(() => {' +
-'        window.location.href = \'/\';' +
-'      }, 100);' +
+'        window.location.href = \'/?oauth=success&provider=linkedin\';' +
+'      }, 250);' +
 '    } catch (error) {' +
 '      console.error(\'❌ LinkedIn OAuth: Error storing user:\', error);' +
 '      alert(\'Error completing sign-in: \' + error.message);' +
