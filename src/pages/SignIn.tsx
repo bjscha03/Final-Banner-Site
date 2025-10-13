@@ -86,7 +86,7 @@ const SignIn: React.FC = () => {
   if (authLoading) {
     return (
       <Layout>
-        <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50">
+        <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center bg-gray-50">
           <div className="text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#18448D] mx-auto"></div>
             <p className="mt-4 text-gray-600">Loading...</p>
@@ -102,12 +102,8 @@ const SignIn: React.FC = () => {
 
   return (
     <Layout>
-      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-blue-50 via-white to-indigo-50 relative overflow-hidden">
-        {/* Animated background elements */}
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute -top-40 -right-40 w-80 h-80 bg-[#18448D]/5 rounded-full blur-3xl animate-pulse"></div>
-          <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-indigo-500/5 rounded-full blur-3xl animate-pulse delay-1000"></div>
-        </div>
+      <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 bg-gray-50 relative overflow-hidden">
+
 
         <div className="max-w-md w-full space-y-8 relative z-10">
           {/* Header */}
@@ -197,7 +193,7 @@ const SignIn: React.FC = () => {
               <Button
                 type="submit"
                 disabled={loading}
-                className="w-full h-14 text-base font-semibold bg-gradient-to-r from-[#e16629] to-[#cf452b] hover:from-[#cf452b] hover:to-[#b33a23] text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 group"
+                className="w-full h-14 text-base font-semibold bg-[#e16629] hover:bg-[#cf452b] text-white rounded-xl shadow-lg hover:shadow-xl transform hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 group"
               >
                 {loading ? (
                   <div className="flex items-center justify-center gap-2">

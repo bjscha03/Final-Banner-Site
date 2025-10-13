@@ -187,10 +187,10 @@ const PricingTable: React.FC = () => {
               <div className="px-6 pb-6">
                 <button
                   onClick={() => handleMaterialSelect(material.key)}
-                  className={`w-full py-4 px-6 rounded-xl font-bold text-base transition-all duration-300 transform hover:scale-[1.02] active:scale-[0.98] shadow-sm hover:shadow-sm ${
+                  className={`w-full py-4 px-6 rounded-xl font-bold text-base transition-all duration-200 shadow-lg hover:shadow-xl ${
                     material.popular
-                      ? 'bg-gradient-to-r from-orange-500 via-orange-600 to-red-500 hover:from-orange-600 hover:via-red-500 hover:to-red-600 text-white'
-                      : 'bg-gradient-to-r from-gray-700 to-gray-800 hover:from-gray-800 hover:to-gray-900 text-white'
+                      ? 'bg-orange-500 hover:bg-orange-600 text-white'
+                      : 'bg-[#18448D] hover:bg-[#0f2d5c] text-white'
                   }`}
                   aria-label={`Select ${material.name} and go to design tool`}
                 >

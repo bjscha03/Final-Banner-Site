@@ -58,7 +58,7 @@ const AboutSection: React.FC = () => {
                 const IconComponent = stat.icon;
                 return (
                   <div key={index} className="modern-card p-6 text-center">
-                    <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br from-gray-100 to-gray-200 mb-4 shadow-sm`}>
+                    <div className={`inline-flex items-center justify-center w-12 h-12 rounded-xl bg-gray-100 mb-4 shadow-sm`}>
                       <IconComponent className={`h-6 w-6 ${stat.color}`} />
                     </div>
                     <div className={`text-3xl font-bold ${stat.color} mb-1`}>
