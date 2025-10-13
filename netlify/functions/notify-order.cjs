@@ -399,13 +399,17 @@ exports.handler = async (event) => {
             `Material: ${item.material}`,
             item.grommets && item.grommets !== 'none' ? `Grommets: ${item.grommets}` : null,
             item.rope_feet && item.rope_feet > 0 ? `Rope: ${item.rope_feet.toFixed(1)} ft` : null,
+            (item.pole_pocket_position && item.pole_pocket_position !== 'none') ? `Pole Pockets: ${item.pole_pocket_position}${item.pole_pocket_size ? ` (${item.pole_pocket_size} inch)` : ''}` : null,
             item.file_key ? `File: ${item.file_key}` : null
           ].filter(Boolean).join(' • '),
           // Cost breakdown data
+          material: item.material,
           unitPriceCents: Math.round(unitPrice),
           ropeFeet: item.rope_feet || 0,
           ropeCostCents: Math.round(ropeCost),
           polePocketCostCents: Math.round(polePocketCost),
+          polePocketPosition: item.pole_pocket_position || item.pole_pockets,
+          polePocketSize: item.pole_pocket_size,
           baseCostCents: Math.round(baseCost)
           };
         }),

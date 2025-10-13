@@ -28,6 +28,9 @@ interface OrderShippedProps {
       quantity: number;
       price: number;
       options?: string;
+      material?: string;
+      polePocketPosition?: string;
+      polePocketSize?: string;
     }>;
     subtotal?: number;
     tax?: number;
@@ -167,6 +170,14 @@ export default function OrderShipped({ order, trackingNumber, trackingUrl, carri
                   <div key={index} style={summaryItem}>
                     <Text style={itemName}>{item.name}</Text>
                     <Text style={itemQuantity}>Qty: {item.quantity}</Text>
+                    {item.material && (
+                      <Text style={itemDetails}>Material: {item.material}</Text>
+                    )}
+                    {(item.polePocketPosition && item.polePocketPosition !== 'none') && (
+                      <Text style={itemDetails}>
+                        Pole Pockets: {item.polePocketPosition}{item.polePocketSize ? ` (${item.polePocketSize} inch)` : ''}
+                      </Text>
+                    )}
                   </div>
                 ))}
                 

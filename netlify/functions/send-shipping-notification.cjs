@@ -269,7 +269,10 @@ exports.handler = async (event, context) => {
         name: `Custom Banner (${item.width_in}" x ${item.height_in}")`,
         quantity: item.quantity,
         price: item.line_total_cents / 100 / item.quantity, // Calculate unit price from line total
-        options: `${item.material} material${item.grommets && item.grommets !== 'none' ? `, ${item.grommets} grommets` : ''}${item.rope_feet > 0 ? `, ${item.rope_feet}ft rope` : ''}`
+        options: `${item.material} material${item.grommets && item.grommets !== 'none' ? `, ${item.grommets} grommets` : ''}${item.rope_feet > 0 ? `, ${item.rope_feet}ft rope` : ''}${(item.pole_pocket_position && item.pole_pocket_position !== 'none') ? `, Pole Pockets: ${item.pole_pocket_position}${item.pole_pocket_size ? ` (${item.pole_pocket_size} inch)` : ''}` : ''}`,
+        material: item.material,
+        polePocketPosition: item.pole_pocket_position || item.pole_pockets,
+        polePocketSize: item.pole_pocket_size
       })),
       // FIX: Calculate correct subtotal, tax, and total from line_total_cents
       // Database values may be incorrect, so recalculate from item totals

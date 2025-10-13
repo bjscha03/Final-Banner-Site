@@ -13,6 +13,9 @@ interface OrderItem {
   grommets: string;
   rope_feet: number;
   pole_pockets: string;
+  pole_pocket_position?: string;
+  pole_pocket_size?: string;
+  pole_pocket_cost_cents?: number;
   line_total_cents: number;
 }
 
@@ -205,8 +208,14 @@ const OrderDetail: React.FC = () => {
                         {item.rope_feet > 0 && (
                           <p><span className="font-medium">Rope:</span> {item.rope_feet} feet</p>
                         )}
-                        {item.pole_pockets && (
-                          <p><span className="font-medium">Pole Pockets:</span> Yes</p>
+                        {(item.pole_pockets || item.pole_pocket_position) && (
+                          <p><span className="font-medium">Pole Pockets:</span> {
+                            item.pole_pocket_position && item.pole_pocket_position !== 'none' 
+                              ? `${item.pole_pocket_position}${item.pole_pocket_size ? ` (${item.pole_pocket_size} inch)` : ''}`
+                              : item.pole_pockets && item.pole_pockets !== 'none' && item.pole_pockets !== 'false'
+                                ? 'Yes'
+                                : 'None'
+                          }</p>
                         )}
 
                       {/* Cost Breakdown */}

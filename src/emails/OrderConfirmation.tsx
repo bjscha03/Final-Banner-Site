@@ -33,6 +33,10 @@ interface OrderConfirmationProps {
       ropeFeet?: number;
       ropeCostCents?: number;
       polePocketCostCents?: number;
+      polePocketPosition?: string;
+      polePocketSize?: string;
+      polePocketPosition?: string;
+      polePocketSize?: string;
       baseCostCents?: number;
     }>;
     subtotal?: number;
