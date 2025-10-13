@@ -52,27 +52,22 @@ export function GrommetPicker({
   useEffect(() => {
     if (!isOpen || isMobile || !triggerRef.current) return;
 
-    const updatePosition = () => {
-      if (triggerRef.current) {
-        const rect = triggerRef.current.getBoundingClientRect();
-        setDropdownPosition({
-          top: rect.bottom + window.scrollY + 8,
-          left: rect.left + window.scrollX,
-          width: rect.width
-        });
-      }
+    const rect = triggerRef.current.getBoundingClientRect();
+    setDropdownPosition({
+      top: rect.bottom + window.scrollY + 8,
+      left: rect.left + window.scrollX,
+      width: rect.width
+    });
+
+    // Close dropdown on scroll (standard dropdown behavior)
+    const handleScroll = () => {
+      setIsOpen(false);
     };
 
-    // Initial position calculation
-    updatePosition();
-
-    // Update position on scroll and resize
-    window.addEventListener('scroll', updatePosition, true);
-    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', handleScroll, true);
 
     return () => {
-      window.removeEventListener('scroll', updatePosition, true);
-      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', handleScroll, true);
     };
   }, [isOpen, isMobile]);
 
