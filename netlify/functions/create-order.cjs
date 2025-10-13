@@ -126,6 +126,37 @@ exports.handler = async (event, context) => {
       console.warn('⚠️ Database migration warning:', migrationError.message);
       // Continue anyway - column might already exist
     }
+
+    // AUTO-MIGRATE: Ensure pole pocket columns exist
+    try {
+      await sql`
+        ALTER TABLE order_items
+        ADD COLUMN IF NOT EXISTS pole_pocket_position TEXT DEFAULT NULL
+      `;
+      console.log('✅ Database migration: pole_pocket_position column verified/created');
+    } catch (migrationError) {
+      console.warn('⚠️ Database migration warning:', migrationError.message);
+    }
+
+    try {
+      await sql`
+        ALTER TABLE order_items
+        ADD COLUMN IF NOT EXISTS pole_pocket_size TEXT DEFAULT NULL
+      `;
+      console.log('✅ Database migration: pole_pocket_size column verified/created');
+    } catch (migrationError) {
+      console.warn('⚠️ Database migration warning:', migrationError.message);
+    }
+
+    try {
+      await sql`
+        ALTER TABLE order_items
+        ADD COLUMN IF NOT EXISTS pole_pocket_cost_cents INTEGER DEFAULT 0
+      `;
+      console.log('✅ Database migration: pole_pocket_cost_cents column verified/created');
+    } catch (migrationError) {
+      console.warn('⚠️ Database migration warning:', migrationError.message);
+    }
     
     console.log('Creating order with data:', orderData);
     console.log('Database URL available:', !!databaseUrl);
@@ -304,7 +335,8 @@ exports.handler = async (event, context) => {
             await sql`
               INSERT INTO order_items (
                 id, order_id, width_in, height_in, quantity, material,
-                grommets, rope_feet, pole_pockets, line_total_cents, file_key, text_elements, overlay_image
+                grommets, rope_feet, pole_pockets, pole_pocket_position, pole_pocket_size, pole_pocket_cost_cents,
+                line_total_cents, file_key, text_elements, overlay_image
               )
               VALUES (
                 ${randomUUID()},
@@ -316,6 +348,9 @@ exports.handler = async (event, context) => {
                 ${item.grommets || 'none'},
                 ${item.rope_feet || 0},
                 ${polePocketsValue},
+                ${item.pole_pocket_position || null},
+                ${item.pole_pocket_size || null},
+                ${item.pole_pocket_cost_cents || 0},
                 ${item.line_total_cents || 0},
                 ${item.file_key || null},
                 ${item.text_elements ? JSON.stringify(item.text_elements) : '[]'},
@@ -330,7 +365,8 @@ exports.handler = async (event, context) => {
               await sql`
                 INSERT INTO order_items (
                   id, order_id, width_in, height_in, quantity, material,
-                  grommets, rope_feet, pole_pockets, line_total_cents, file_key
+                  grommets, rope_feet, pole_pockets, pole_pocket_position, pole_pocket_size, pole_pocket_cost_cents,
+                  line_total_cents, file_key
                 )
                 VALUES (
                   ${randomUUID()},
@@ -342,6 +378,9 @@ exports.handler = async (event, context) => {
                   ${item.grommets || 'none'},
                   ${item.rope_feet || 0},
                   ${polePocketsValue},
+                  ${item.pole_pocket_position || null},
+                  ${item.pole_pocket_size || null},
+                  ${item.pole_pocket_cost_cents || 0},
                   ${item.line_total_cents || 0},
                   ${item.file_key || null}
                 )
