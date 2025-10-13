@@ -48,25 +48,32 @@ export function GrommetPicker({
     return () => mediaQuery.removeEventListener('change', handleChange);
   }, []);
 
-  // Calculate dropdown position for desktop
+  // Calculate and update dropdown position for desktop
   useEffect(() => {
     if (!isOpen || isMobile || !triggerRef.current) return;
 
-    const rect = triggerRef.current.getBoundingClientRect();
-    setDropdownPosition({
-      top: rect.bottom + window.scrollY + 8,
-      left: rect.left + window.scrollX,
-      width: rect.width
-    });
-
-    // Close dropdown on scroll (standard dropdown behavior)
-    const handleScroll = () => {
-      setIsOpen(false);
+    // Function to update dropdown position
+    const updatePosition = () => {
+      if (!triggerRef.current) return;
+      
+      const rect = triggerRef.current.getBoundingClientRect();
+      setDropdownPosition({
+        top: rect.bottom + window.scrollY + 8,
+        left: rect.left + window.scrollX,
+        width: rect.width
+      });
     };
 
-    // Close dropdown on window resize (prevents misalignment)
+    // Initial position calculation
+    updatePosition();
+
+    // Update position on scroll and resize
+    const handleScroll = () => {
+      updatePosition();
+    };
+
     const handleResize = () => {
-      setIsOpen(false);
+      updatePosition();
     };
 
     window.addEventListener('scroll', handleScroll, true);
