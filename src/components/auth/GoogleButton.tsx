@@ -23,7 +23,7 @@ const GoogleButton: React.FC<GoogleButtonProps> = ({ mode = 'signin', className 
     try {
       // Call the google-auth function to get the authorization URL
       const response = await fetch('/.netlify/functions/google-auth', {
-        method: 'POST',
+        method: 'GET',
       });
 
       if (!response.ok) {

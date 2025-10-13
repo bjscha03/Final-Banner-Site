@@ -1,5 +1,6 @@
 /**
  * Google OAuth - Initiate Authentication Flow
+ * Fixed: Better error logging and state management
  */
 
 import { Handler } from '@netlify/functions';
@@ -17,6 +18,7 @@ export const handler: Handler = async (event) => {
   }
 
   if (event.httpMethod !== 'GET') {
+    console.error(`❌ Invalid HTTP method: ${event.httpMethod}`);
     return {
       statusCode: 405,
       headers,
@@ -28,18 +30,32 @@ export const handler: Handler = async (event) => {
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const redirectUri = process.env.GOOGLE_REDIRECT_URI;
 
-    if (!clientId || !redirectUri) {
-      console.error('Google OAuth credentials not configured');
+    // Detailed error logging for missing credentials
+    if (!clientId) {
+      console.error('❌ GOOGLE_CLIENT_ID environment variable is not set');
       return {
         statusCode: 500,
         headers,
         body: JSON.stringify({
           ok: false,
-          error: 'Google OAuth not configured. Please contact support.',
+          error: 'Google OAuth not configured. Missing GOOGLE_CLIENT_ID.',
         }),
       };
     }
 
+    if (!redirectUri) {
+      console.error('❌ GOOGLE_REDIRECT_URI environment variable is not set');
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({
+          ok: false,
+          error: 'Google OAuth not configured. Missing GOOGLE_REDIRECT_URI.',
+        }),
+      };
+    }
+
+    // Generate CSRF protection state
     const state = Math.random().toString(36).substring(2, 15) +
                   Math.random().toString(36).substring(2, 15);
 
@@ -53,16 +69,21 @@ export const handler: Handler = async (event) => {
     authUrl.searchParams.append('access_type', 'offline');
     authUrl.searchParams.append('prompt', 'select_account');
 
+    console.log('✅ Google OAuth URL generated successfully');
+    console.log('   Redirect URI:', redirectUri);
+    console.log('   State:', state);
+
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
         ok: true,
         authUrl: authUrl.toString(),
+        state: state, // Return state so frontend can store it
       }),
     };
   } catch (error: any) {
-    console.error('Google auth error:', error);
+    console.error('❌ Google auth error:', error);
     return {
       statusCode: 500,
       headers,
