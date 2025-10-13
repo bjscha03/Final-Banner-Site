@@ -200,59 +200,34 @@ async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textEleme
             // 2. We need to extract the position WITHIN the banner area
             // 3. Then convert to PDF points
             
-            const RULER_SIZE = 1.2; // inches
-            const BLEED_SIZE = 0.25; // inches
-            const OFFSET_INCHES = RULER_SIZE + BLEED_SIZE; // 1.45 inches
-            
-            // Calculate SVG dimensions (in inches)
-            const svgTotalWidthIn = bannerWidthIn + (OFFSET_INCHES * 2);
-            const svgTotalHeightIn = bannerHeightIn + (OFFSET_INCHES * 2);
-            
-            // Convert text percentages (relative to SVG) to inches (relative to SVG)
-            const textXInSvg = (textEl.xPercent / 100) * svgTotalWidthIn;
-            const textYInSvg = (textEl.yPercent / 100) * svgTotalHeightIn;
-            
-            // Subtract the offset to get position relative to banner area
-            const textXInBanner = textXInSvg - OFFSET_INCHES;
-            const textYInBanner = textYInSvg - OFFSET_INCHES;
+            // CRITICAL COORDINATE CONVERSION FIX V2
+            // DISCOVERY: Text percentages are NOT relative to the SVG viewBox!
+            // They are relative to the CONTAINER that wraps the SVG.
+            // Simply convert percentages directly to banner inches (no offset needed)
+            const textXInBanner = (textEl.xPercent / 100) * bannerWidthIn;
+            const textYInBanner = (textEl.yPercent / 100) * bannerHeightIn;
             
             // Convert to PDF points (72 points per inch)
             let xPt = textXInBanner * 72;
             let yPt = textYInBanner * 72;
             
             // DETAILED COORDINATE DEBUGGING
-            console.log(`[PDF] ========== COORDINATE TRANSFORMATION DEBUG ==========`);
+            console.log(`[PDF] ========== COORDINATE TRANSFORMATION DEBUG V2 ==========`);
             console.log(`[PDF] Input percentages: xPercent=${textEl.xPercent}%, yPercent=${textEl.yPercent}%`);
             console.log(`[PDF] Banner size: ${bannerWidthIn}" × ${bannerHeightIn}"`);
-            console.log(`[PDF] SVG total size: ${svgTotalWidthIn}" × ${svgTotalHeightIn}"`);
-            console.log(`[PDF] Ruler+Bleed offset: ${OFFSET_INCHES}"`);
-            console.log(`[PDF] Position in SVG: (${textXInSvg}", ${textYInSvg}")`);
-            console.log(`[PDF] Position in banner: (${textXInBanner}", ${textYInBanner}")`);
+            console.log(`[PDF] Direct conversion (no offset): Position in banner: (${textXInBanner}", ${textYInBanner}")`);
             console.log(`[PDF] Final PDF points: (${xPt}pt, ${yPt}pt)`);
             console.log(`[PDF] Page size: ${pageWidthPt}pt × ${pageHeightPt}pt`);
-            console.log(`[PDF] ===================================================`);
-            
-            // DETAILED COORDINATE DEBUGGING
-            console.log(`[PDF] ========== COORDINATE TRANSFORMATION DEBUG ==========`);
-            console.log(`[PDF] Input percentages: xPercent=${textEl.xPercent}%, yPercent=${textEl.yPercent}%`);
-            console.log(`[PDF] Banner size: ${bannerWidthIn}" × ${bannerHeightIn}"`);
-            console.log(`[PDF] SVG total size: ${svgTotalWidthIn}" × ${svgTotalHeightIn}"`);
-            console.log(`[PDF] Ruler+Bleed offset: ${OFFSET_INCHES}"`);
-            console.log(`[PDF] Position in SVG: (${textXInSvg}", ${textYInSvg}")`);
-            console.log(`[PDF] Position in banner: (${textXInBanner}", ${textYInBanner}")`);
-            console.log(`[PDF] Final PDF points: (${xPt}pt, ${yPt}pt)`);
-            console.log(`[PDF] Page size: ${pageWidthPt}pt × ${pageHeightPt}pt`);
-            console.log(`[PDF] ===================================================`);
-            
+            console.log(`[PDF] ============================================================`);
             console.log(`[PDF] Text positioning for "${textEl.content.substring(0, 30)}...":
               Stored: ${textEl.xPercent.toFixed(2)}%, ${textEl.yPercent.toFixed(2)}% (relative to SVG viewBox)
-              SVG dimensions: ${svgTotalWidthIn.toFixed(2)}" × ${svgTotalHeightIn.toFixed(2)}"
-              Position in SVG: ${textXInSvg.toFixed(2)}", ${textYInSvg.toFixed(2)}"
               Position in banner: ${textXInBanner.toFixed(2)}", ${textYInBanner.toFixed(2)}"
               PDF points: ${xPt.toFixed(2)}pt, ${yPt.toFixed(2)}pt
               Page size: ${pageWidthPt.toFixed(2)}pt × ${pageHeightPt.toFixed(2)}pt
             `);
             
+
+
             // Set font properties
             const fontFamily = textEl.fontFamily || 'Helvetica';
             
