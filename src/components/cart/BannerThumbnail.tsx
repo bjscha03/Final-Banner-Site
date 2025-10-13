@@ -1,9 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { TextElement } from '@/store/quote';
+import PdfImagePreview from '@/components/preview/PdfImagePreview';
 
 interface BannerThumbnailProps {
   fileUrl?: string;
   aiDesignUrl?: string;
+  isPdf?: boolean;
   textElements?: TextElement[];
   widthIn: number;
   heightIn: number;
@@ -20,6 +22,7 @@ interface BannerThumbnailProps {
 const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
   fileUrl,
   aiDesignUrl,
+  isPdf = false,
   textElements = [],
   widthIn,
   heightIn,
@@ -136,6 +139,20 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
     setImageError(false);
     setImageLoaded(true);
   };
+
+  // Handle PDF files with PdfImagePreview
+  if (isPdf && fileUrl) {
+    console.log('📄 Rendering PDF thumbnail:', fileUrl);
+    return (
+      <div className={`${className} relative flex-shrink-0`}>
+        <PdfImagePreview
+          fileUrl={fileUrl}
+          fileName="Banner PDF"
+          className={`${className} object-cover rounded-lg border border-gray-200`}
+        />
+      </div>
+    );
+  }
 
   // Show placeholder if no image or image failed to load
   if (!imageUrl || imageError) {

@@ -84,6 +84,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                           key={item.id}
                           fileUrl={item.file_url}
                           aiDesignUrl={item.aiDesign?.assets?.proofUrl}
+                          isPdf={item.is_pdf}
                           textElements={item.text_elements}
                           widthIn={item.width_in}
                           heightIn={item.height_in}

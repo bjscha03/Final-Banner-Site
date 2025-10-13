@@ -27,6 +27,7 @@ export interface CartItem {
   file_key?: string;
   file_name?: string;
   file_url?: string;
+  is_pdf?: boolean;                    // Whether the file is a PDF
   text_elements?: TextElement[];      // Text layers added in design tool
   // AI Design metadata (optional)
   aiDesign?: {
@@ -211,6 +212,7 @@ export const useCartStore = create<CartState>()(
           file_key: fileKey,
           file_name: quote.file?.name,
           file_url: quote.file?.url || aiMetadata?.assets?.proofUrl || null,
+          is_pdf: quote.file?.isPdf || false,
           text_elements: quote.textElements && quote.textElements.length > 0 ? quote.textElements : undefined,
           created_at: new Date().toISOString(),
           ...(aiMetadata || {}),
