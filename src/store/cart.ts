@@ -483,10 +483,30 @@ export const useCartStore = create<CartState>()(
       name: 'cart-storage',
       // Migrate items when loading from localStorage
       onRehydrateStorage: () => (state) => {
-        console.log('💾 CART STORAGE: Rehydrating from localStorage...');
+        console.log('�� CART STORAGE: Rehydrating from localStorage...');
         
-        // NOTE: Cart ownership is handled in useCartSync hook, not here
-        // This callback only handles migration of old cart items
+        // SAFETY CHECK: Clear cart if it belongs to a different user
+        // This is a backup in case useCartSync doesn't run
+        try {
+          const currentUser = localStorage.getItem('banners_current_user');
+          const cartOwnerId = localStorage.getItem('cart_owner_user_id');
+          
+          if (currentUser && cartOwnerId) {
+            const currentUserId = JSON.parse(currentUser)?.id;
+            console.log('🔒 SAFETY: Current user ID:', currentUserId);
+            console.log('🔒 SAFETY: Cart owner ID:', cartOwnerId);
+            
+            if (currentUserId && currentUserId !== cartOwnerId) {
+              console.log('🚨 SAFETY: Cart belongs to different user, CLEARING');
+              if (state) {
+                state.items = [];
+              }
+              localStorage.setItem('cart_owner_user_id', currentUserId);
+            }
+          }
+        } catch (error) {
+          console.error('❌ Safety check error:', error);
+        }
         
         // Migrate cart items if needed
         if (state?.items) {

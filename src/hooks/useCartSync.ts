@@ -22,6 +22,26 @@ export function useCartSync() {
     console.log('🔍 User object:', user);
     console.log('🔍 User email:', user?.email);
     
+    // SAFETY: Clear cart IMMEDIATELY if user changed (before any async operations)
+    // This prevents User B from seeing User A's cart even if database fails
+    if (prevUserId && currentUserId && prevUserId !== currentUserId) {
+      console.log('🚨 SAFETY CLEAR: User changed detected, clearing cart IMMEDIATELY');
+      console.log('🚨 Previous user:', prevUserId);
+      console.log('🚨 New user:', currentUserId);
+      clearCart(); // Clear synchronously, right now
+      localStorage.setItem('cart_owner_user_id', currentUserId);
+    }
+    
+    // SAFETY: Clear cart IMMEDIATELY if user changed (before any async operations)
+    // This prevents User B from seeing User A's cart even if database fails
+    if (prevUserId && currentUserId && prevUserId !== currentUserId) {
+      console.log('🚨 SAFETY CLEAR: User changed detected, clearing cart IMMEDIATELY');
+      console.log('🚨 Previous user:', prevUserId);
+      console.log('🚨 New user:', currentUserId);
+      clearCart(); // Clear synchronously, right now
+      localStorage.setItem('cart_owner_user_id', currentUserId);
+    }
+    
     // User changed (different user logged in)
     if (prevUserId && currentUserId && prevUserId !== currentUserId) {
       console.log('⚠️  USER CHANGED: Different user logging in');
