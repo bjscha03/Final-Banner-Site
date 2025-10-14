@@ -71,7 +71,7 @@ export interface QuoteState {
     url: string;
     fileKey: string;
     position: { x: number; y: number }; // Percentage-based position (0-100)
-    aspectRatio: number; // width / height of the original image
+    aspectRatio?: number; // width / height of the original image
     scale: number; // Scale factor (1 = 100%)
   };
   set: (partial: Partial<QuoteState>) => void;
@@ -165,6 +165,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
         isPdf: item.is_pdf,
         isAI: !!item.aiDesign,
       } : undefined,
+    console.log('🔍 QUOTE STORE: After set, overlayImage is now:', get().overlayImage);
       overlayImage: item.overlay_image,
     }));
   },

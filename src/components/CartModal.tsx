@@ -46,6 +46,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
       // Load the item data into quote store
       console.log('🛒 CART MODAL: Loading item into quote store...');
       loadFromCartItem(item);
+      console.log('🛒 CART MODAL: item.overlay_image:', item.overlay_image);
       
       // Set the editingItemId so the Design page knows we're editing
       console.log('🛒 CART MODAL: Setting editingItemId:', itemId);
