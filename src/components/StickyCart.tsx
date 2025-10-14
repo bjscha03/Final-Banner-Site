@@ -27,13 +27,10 @@ const StickyCart: React.FC<StickyCartProps> = ({ onOpenCart, isCartOpen = false 
   const totalCents = getTotalCents();
 
   useEffect(() => {
-  // FIX ISSUE 1: Only auto-expand on mobile when item is actually added (not on page navigation)
-  // Check that prevItemCount is not 0 to avoid expanding on initial mount/navigation
+  // Track item count changes for animation only - NO AUTO-EXPAND
     if (itemCount > prevItemCount && prevItemCount > 0) {
       setJustAdded(true);
-      if (window.innerWidth < 768) {
-        setIsExpanded(true);
-      }
+      // Removed auto-expand - user must click to expand
       setTimeout(() => setJustAdded(false), 1000);
     }
     setPrevItemCount(itemCount);
