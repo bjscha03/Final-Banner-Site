@@ -15,9 +15,12 @@ export function useCartSync() {
     const currentUserId = user?.id || null;
     const prevUserId = prevUserIdRef.current;
     
+    console.log('═══════════════════════════════════════════════');
     console.log('🔍 CART SYNC HOOK: User effect triggered');
     console.log('🔍 Previous user ID:', prevUserId);
     console.log('🔍 Current user ID:', currentUserId);
+    console.log('🔍 User object:', user);
+    console.log('🔍 User email:', user?.email);
     
     // User changed (different user logged in)
     if (prevUserId && currentUserId && prevUserId !== currentUserId) {
@@ -32,8 +35,12 @@ export function useCartSync() {
     if (!prevUserId && currentUserId) {
       console.log('👤 User logged in, syncing cart from Neon...');
       console.log('👤 User ID:', currentUserId);
+      console.log('👤 User email:', user?.email);
+      console.log('👤 Setting cart owner in localStorage...');
       localStorage.setItem('cart_owner_user_id', currentUserId);
+      console.log('👤 About to call loadFromServer()...');
       loadFromServer();
+      console.log('�� loadFromServer() called');
     }
     
     // User logged out
@@ -45,5 +52,6 @@ export function useCartSync() {
     
     // Update the ref
     prevUserIdRef.current = currentUserId;
+    console.log('═══════════════════════════════════════════════');
   }, [user, loadFromServer, clearCart]);
 }

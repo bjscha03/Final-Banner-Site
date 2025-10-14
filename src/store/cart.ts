@@ -406,15 +406,28 @@ export const useCartStore = create<CartState>()(
 
       // Load cart from Neon database and merge with local
       loadFromServer: async () => {
+        console.log('🔵 STORE: loadFromServer called');
         const userId = cartSync.getUserId();
+        console.log('🔵 STORE: Got user ID:', userId);
+        
         if (!userId) {
-          console.log('👤 No user logged in, skipping server load');
+          console.log('❌ STORE: No user logged in, skipping server load');
           return;
         }
 
+        console.log('🔵 STORE: Getting local items...');
         const localItems = get().items;
+        console.log('🔵 STORE: Local items count:', localItems.length);
+        console.log('🔵 STORE: Local items:', localItems.map(i => ({ id: i.id, name: i.banner_name })));
+        
+        console.log('🔵 STORE: Calling cartSync.mergeAndSyncCart...');
         const mergedItems = await cartSync.mergeAndSyncCart(userId, localItems);
+        console.log('🔵 STORE: Merge complete, merged items count:', mergedItems.length);
+        console.log('🔵 STORE: Merged items:', mergedItems.map(i => ({ id: i.id, name: i.banner_name })));
+        
+        console.log('🔵 STORE: Setting merged items to store...');
         set({ items: mergedItems });
+        console.log('🔵 STORE: Store updated with merged items');
       },
 
       getSubtotalCents: () => {

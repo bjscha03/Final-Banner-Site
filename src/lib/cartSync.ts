@@ -46,13 +46,20 @@ export const cartSync = {
    * Load cart from Neon database for a user
    */
   async loadCart(userId: string): Promise<CartItem[]> {
+    console.log('🔄 LOAD START: loadCart called');
+    console.log('🔄 LOAD: User ID:', userId);
+    
     if (!this.isAvailable()) {
-      console.log('💾 Database not available, skipping cart load');
+      console.log('❌ LOAD: Database not available, skipping cart load');
+      console.log('❌ LOAD: db value:', db);
       return [];
     }
 
+    console.log('✅ LOAD: Database is available');
+
     try {
       console.log(`🔄 Loading cart from Neon for user: ${userId}...`);
+      console.log('🔄 LOAD: About to execute SQL SELECT...');
       
       const result = await db!`
         SELECT cart_data 
@@ -60,13 +67,20 @@ export const cartSync = {
         WHERE user_id = ${userId}
       `;
 
+      console.log('🔄 LOAD: SQL executed, result:', result);
+      console.log('🔄 LOAD: Result length:', result?.length);
+      console.log('🔄 LOAD: Result data:', result);
+
       if (result && result.length > 0) {
         const cartData = result[0].cart_data as CartItem[];
+        console.log(`✅ LOAD: Found cart data, ${cartData.length} items`);
+        console.log('✅ LOAD: Cart items:', cartData.map(i => ({ id: i.id, name: i.banner_name })));
         console.log(`✅ Loaded cart from Neon: ${cartData.length} items`);
         return cartData;
       }
 
-      console.log('📭 No cart found in Neon for this user');
+      console.log('📭 LOAD: No cart found in Neon for this user');
+      console.log('📭 LOAD: This is normal for first-time users');
       return [];
     } catch (error) {
       console.error('❌ CART SYNC ERROR: Failed to load cart from Neon');
@@ -82,13 +96,22 @@ export const cartSync = {
    * Save cart to Neon database for a user
    */
   async saveCart(userId: string, items: CartItem[]): Promise<boolean> {
+    console.log('💾 SAVE START: saveCart called');
+    console.log('💾 SAVE: User ID:', userId);
+    console.log('💾 SAVE: Items count:', items.length);
+    console.log('💾 SAVE: Items:', items.map(i => ({ id: i.id, name: i.banner_name })));
+    
     if (!this.isAvailable()) {
-      console.log('💾 Database not available, skipping cart save');
+      console.log('❌ SAVE: Database not available, skipping cart save');
+      console.log('❌ SAVE: db value:', db);
       return false;
     }
 
+    console.log('✅ SAVE: Database is available, proceeding with save');
+
     try {
       console.log(`💾 Saving cart to Neon for user: ${userId} - ${items.length} items`);
+      console.log('💾 SAVE: About to execute SQL INSERT...');
       
       // Use INSERT ... ON CONFLICT to upsert
       await db!`
@@ -100,7 +123,15 @@ export const cartSync = {
           updated_at = NOW()
       `;
 
+      console.log('✅ SAVE: SQL executed successfully');
       console.log('✅ Cart saved to Neon');
+      console.log('✅ SAVE: Verifying save by reading back...');
+      
+      // Verify the save worked
+      const verification = await db!`SELECT cart_data FROM user_carts WHERE user_id = ${userId}`;
+      console.log('✅ SAVE: Verification result:', verification);
+      console.log('✅ SAVE: Saved items count:', verification[0]?.cart_data?.length || 0);
+      
       return true;
     } catch (error) {
       console.error('❌ CART SYNC ERROR: Failed to save cart to Neon');
