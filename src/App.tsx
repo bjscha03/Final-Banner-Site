@@ -31,13 +31,6 @@ import AdminSeed from "./pages/AdminSeed";
 import AdminSetup from "./pages/AdminSetup";
 import LogoShowcase from "./pages/LogoShowcase";
 import BannerDesignerTest from "./pages/BannerDesignerTest";
-import { useCartSync } from "./hooks/useCartSync";
-
-// Wrapper to sync cart when user logs in
-const CartSyncWrapper = ({ children }: { children: React.ReactNode }) => {
-  useCartSync();
-  return <>{children}</>;
-};
 
 const queryClient = new QueryClient();
 
@@ -47,8 +40,7 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
-        <CartSyncWrapper>
-          <BrowserRouter>
+        <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/design" element={<Design />} />
@@ -77,8 +69,7 @@ const App = () => (
             <Route path="/logo-showcase" element={<LogoShowcase />} />
             <Route path="/banner-designer-test" element={<BannerDesignerTest />} />
             <Route path="/pdf-diagnostic" element={<PdfDiagnostic />} />          </Routes>
-          </BrowserRouter>
-        </CartSyncWrapper>
+        </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
   </ThemeProvider>

@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { QuoteState, MaterialKey, Grommets, TextElement } from './quote';
 import { calculateTax, calculateTotalWithTax, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
-import { cartSync } from '@/lib/cartSync';
 
 export type PricingMode = 'per_item' | 'per_order';
 
@@ -90,8 +89,6 @@ export interface CartState {
   getSubtotalCents: () => number;
   getTaxCents: () => number;
   getTotalCents: () => number;
-  syncToServer: () => Promise<void>;
-  loadFromServer: () => Promise<void>;
   getItemCount: () => number;
 }
 
@@ -242,9 +239,6 @@ export const useCartStore = create<CartState>()(
         console.log('💾 CART STORAGE: Item added, will persist to localStorage');
         console.log('💾 CART STORAGE: Item added, will persist to localStorage');
         set((state) => ({ items: [...state.items, newItem] }));
-      
-      // Sync to server after adding
-      setTimeout(() => get().syncToServer(), 100);
       },
       
       updateQuantity: (id: string, quantity: number) => {
@@ -379,18 +373,6 @@ export const useCartStore = create<CartState>()(
       
       clearCart: () => {
         set({ items: [] });
-      
-      // Sync to server after clearing
-      setTimeout(async () => {
-        const userId = await cartSync.getUserId();
-        if (userId) await cartSync.clearCart(userId);
-      }, 100);
-      
-      // Sync to server after clearing
-      setTimeout(async () => {
-        const userId = await cartSync.getUserId();
-        if (userId) await cartSync.clearCart(userId);
-      }, 100);
       },
       
       getSubtotalCents: () => {
@@ -439,32 +421,7 @@ export const useCartStore = create<CartState>()(
 
       getItemCount: () => {
         return get().items.reduce((total, item) => total + item.quantity, 0);
-      },
-      
-      // Sync cart to Supabase for logged-in users
-      syncToServer: async () => {
-        const userId = await cartSync.getUserId();
-        if (!userId) {
-          console.log('👤 No user logged in, skipping server sync');
-          return;
-        }
-        
-        const items = get().items;
-        await cartSync.saveCart(userId, items);
-      },
-
-      // Load cart from Supabase for logged-in users
-      loadFromServer: async () => {
-        const userId = await cartSync.getUserId();
-        if (!userId) {
-          console.log('👤 No user logged in, skipping server load');
-          return;
-        }
-        
-        const localItems = get().items;
-        const mergedItems = await cartSync.mergeAndSyncCart(userId, localItems);
-        set({ items: mergedItems });
-      },
+      }
     }),
     {
       name: 'cart-storage',
