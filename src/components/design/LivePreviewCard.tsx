@@ -633,6 +633,9 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     const target = e.target as HTMLElement;
     const tagName = target.tagName?.toLowerCase();
     
+    console.log('👆 Canvas touch end - target:', tagName, 'classList:', target.classList);
+    console.log('👆 isOverlaySelected before check:', isOverlaySelected);
+    
     const isInteractiveElement = tagName === 'image' || 
                                  tagName === 'text' ||
                                  tagName === 'tspan' ||
@@ -644,6 +647,8 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                                  target.getAttribute?.('data-overlay-handle') ||
                                  target.getAttribute?.('data-text-element') ||
                                  target.closest?.('[data-text-element]') !== null;
+    
+    console.log('👆 Is interactive element?', isInteractiveElement);
     
     if (!isInteractiveElement) {
       setSelectedTextId(null);
