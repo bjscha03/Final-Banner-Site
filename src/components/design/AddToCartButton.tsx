@@ -103,7 +103,11 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
       });
       
       // Reset design area after successful update
+      console.log('🔄 RESET: About to call resetDesign() after update');
+      console.log('🔄 RESET: Current file before reset:', quote.file);
       quote.resetDesign();
+      console.log('🔄 RESET: resetDesign() called');
+      console.log('🔄 RESET: Current file after reset:', quote.file);
     } else {
       // ADD new item to cart
       addFromQuote(pricing);
@@ -114,7 +118,11 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
       });
       
       // Reset design area after successful add
+      console.log('🔄 RESET: About to call resetDesign() after add');
+      console.log('🔄 RESET: Current file before reset:', quote.file);
       quote.resetDesign();
+      console.log('🔄 RESET: resetDesign() called');
+      console.log('🔄 RESET: Current file after reset:', quote.file);
     }
   };
 

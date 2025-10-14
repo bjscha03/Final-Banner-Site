@@ -197,7 +197,10 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
     textElements: state.textElements.filter(el => el.id !== id)
   })),
   // Reset design area to default values
-  resetDesign: () => set({
+  resetDesign: () => {
+    console.log('🔄 QUOTE STORE: resetDesign() called');
+    console.log('🔄 QUOTE STORE: Setting file to undefined');
+    return set({
     widthIn: 48,
     heightIn: 24,
     quantity: 1,
@@ -211,5 +214,6 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
     editingItemId: null,
     file: undefined,
     overlayImage: undefined,
-  })
+  });
+  }
 }));

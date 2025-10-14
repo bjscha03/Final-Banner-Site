@@ -74,13 +74,18 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
 
   // Reset image position and scale when file is cleared
   React.useEffect(() => {
+    console.log('🔄 PREVIEW USEEFFECT: File changed, file is now:', file);
     if (!file) {
+      console.log('🔄 PREVIEW USEEFFECT: File is undefined, resetting image state');
       setImagePosition({ x: 0, y: 0 });
       setImageScale(1);
       setIsImageSelected(false);
       setIsDraggingImage(false);
       setIsResizingImage(false);
       setResizeHandle(null);
+      console.log('🔄 PREVIEW USEEFFECT: Image state reset complete');
+    } else {
+      console.log('🔄 PREVIEW USEEFFECT: File exists, not resetting');
     }
   }, [file]);
 
