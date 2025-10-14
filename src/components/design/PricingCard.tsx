@@ -17,6 +17,8 @@ const PricingCard: React.FC = () => {
   const navigate = useNavigate();
   const quote = useQuoteStore();
   const isEditing = quote.editingItemId !== null && quote.editingItemId !== undefined;
+  console.log("🔍 PricingCard - isEditing:", isEditing, "editingItemId:", quote.editingItemId);
+  console.log("🔍 PricingCard - isEditing:", isEditing, "editingItemId:", quote.editingItemId);
   const { addFromQuote, updateCartItem } = useCartStore();
   const { toast } = useToast();
   const { scrollToTopBeforeNavigate } = useScrollToTop();
