@@ -72,6 +72,18 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
   const overlayFileInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Reset image position and scale when file is cleared
+  React.useEffect(() => {
+    if (!file) {
+      setImagePosition({ x: 0, y: 0 });
+      setImageScale(1);
+      setIsImageSelected(false);
+      setIsDraggingImage(false);
+      setIsResizingImage(false);
+      setResizeHandle(null);
+    }
+  }, [file]);
+
   // Overlay image interaction state
   const [isOverlaySelected, setIsOverlaySelected] = useState(false);
   const [isDraggingOverlay, setIsDraggingOverlay] = useState(false);
