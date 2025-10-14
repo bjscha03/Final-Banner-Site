@@ -479,7 +479,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       console.log('✅ Upload successful:', result);
 
       // Load image to get dimensions
-      const img = new Image();
+      const img = document.createElement('img');
       img.onload = () => {
         const aspectRatio = img.width / img.height;
         console.log('📐 Overlay image dimensions:', { width: img.width, height: img.height, aspectRatio });
