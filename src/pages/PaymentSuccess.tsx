@@ -117,7 +117,7 @@ const calculateUnitPrice = (item: any) => {
                             <div className="space-y-1 text-sm">
                               <div className="flex justify-between">
                                 <span className="text-gray-600">Base banner:</span>
-                                <span className="text-gray-900">{usd(calculateUnitPrice(item) / 100)} × {item.quantity}</span>
+                                <span className="text-gray-900">{usd((calculateUnitPrice(item) * item.quantity) / 100)}</span>
                               </div>
                               {item.rope_feet && item.rope_feet > 0 && (
                                 <div className="flex justify-between">

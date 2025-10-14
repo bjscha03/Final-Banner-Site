@@ -263,7 +263,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
           name: file.name,
           type: isPdf ? 'application/pdf' : file.type,
           size: file.size,
-          url: previewUrl,
+          url: result.secureUrl || previewUrl, // Use permanent Cloudinary URL instead of blob URL
           isPdf,
           fileKey: result.fileKey,
           artworkWidth: artworkWidth || undefined,

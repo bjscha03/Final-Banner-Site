@@ -252,7 +252,7 @@ export function generateItemBreakdown(item: OrderItemInput): BreakdownLine[] {
     lines.push({
       label: 'Banner cost',
       value_cents: breakdown.base_banner_cents,
-      description: `${formatArea(area)} × $${pricePerSqFt.toFixed(2)}/sq ft`,
+      // description removed - no math equations
     });
     
     lines.push({
@@ -269,7 +269,7 @@ export function generateItemBreakdown(item: OrderItemInput): BreakdownLine[] {
     lines.push({
       label: 'Rope',
       value_cents: breakdown.rope_cents,
-      description: `${item.rope_feet.toFixed(2)} ft × ${multiplier} × $${(ROPE_PRICE_PER_FOOT_CENTS / 100).toFixed(2)}`,
+      description: `${item.rope_feet.toFixed(2)} ft`,
     });
   }
   
@@ -291,7 +291,7 @@ export function generateItemBreakdown(item: OrderItemInput): BreakdownLine[] {
     lines.push({
       label: 'Poles',
       value_cents: breakdown.poles_cents,
-      description: `${item.poles_quantity} × $${(unitPrice / 100).toFixed(2)}`,
+      description: `${item.poles_quantity} poles`,
     });
   }
   

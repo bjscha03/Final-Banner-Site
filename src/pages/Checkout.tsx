@@ -292,16 +292,13 @@ const Checkout: React.FC = () => {
                             <div className="space-y-1 text-sm">
                               <div className="flex justify-between">
                                 <span className="text-gray-600">Base banner:</span>
-                                <span className="text-gray-900">{usd(item.unit_price_cents / 100)} × {item.quantity}</span>
+                                <span className="text-gray-900">{usd((item.unit_price_cents * item.quantity) / 100)}</span>
                               </div>
                               {ropeCost > 0 && (
                                 <div className="flex justify-between">
                                   <span className="text-gray-600">Rope{ropeMode === 'per_item' && item.rope_feet ? ` (${item.rope_feet.toFixed(1)}ft)` : ''}:</span>
                                   <span className="text-gray-900">
-                                    {ropeMode === 'per_item'
-                                      ? `${usd(ropeEach / 100)} × ${item.quantity} = ${usd(ropeCost / 100)}`
-                                      : usd(ropeCost / 100)
-                                    }
+                                    {usd(ropeCost / 100)}
                                   </span>
                                 </div>
                               )}
@@ -309,10 +306,7 @@ const Checkout: React.FC = () => {
                                 <div className="flex justify-between">
                                   <span className="text-gray-600">Pole pockets:</span>
                                   <span className="text-gray-900">
-                                    {pocketMode === 'per_item'
-                                      ? `${usd(pocketEach / 100)} × ${item.quantity} = ${usd(pocketCost / 100)}`
-                                      : usd(pocketCost / 100)
-                                    }
+                                    {usd(pocketCost / 100)}
                                   </span>
                                 </div>
                               )}
