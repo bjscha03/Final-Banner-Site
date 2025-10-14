@@ -122,6 +122,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   onOverlayMouseDown,
   onOverlayTouchStart,
   onCanvasClick,
+  onCanvasTouchEnd,
   isDraggingImage = false,
   isImageSelected = false,
   isOverlaySelected = false,
