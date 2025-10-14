@@ -284,6 +284,8 @@ export const useCartStore = create<CartState>()(
       
       loadItemIntoQuote: (itemId: string) => {
         const item = get().items.find(i => i.id === itemId);
+        console.log('🛒 CART STORE: loadItemIntoQuote found item:', item);
+        console.log('🛒 CART STORE: item.overlay_image:', item?.overlay_image);
         if (!item) return null;
         
         // Return the item so the caller can load it into quote store
