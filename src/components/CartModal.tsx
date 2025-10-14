@@ -4,6 +4,7 @@ import BannerThumbnail from './cart/BannerThumbnail';
 import { useNavigate } from 'react-router-dom';
 import { usd } from '@/lib/pricing';
 import { useCartStore } from '@/store/cart';
+import { useToast } from '@/hooks/use-toast';
 import { useQuoteStore } from '@/store/quote';
 
 interface CartModalProps {
@@ -14,6 +15,7 @@ interface CartModalProps {
 const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const { items, updateQuantity, removeItem, loadItemIntoQuote, getSubtotalCents, getTaxCents, getTotalCents } = useCartStore();
+  const { toast } = useToast();
   const { loadFromCartItem } = useQuoteStore();
   
   if (!isOpen) return null;
@@ -25,14 +27,50 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
   };
 
   const handleEdit = (itemId: string) => {
-    const item = loadItemIntoQuote(itemId);
-    if (item) {
+    console.log('🛒 CART MODAL: handleEdit called with itemId:', itemId);
+    
+    try {
+      const item = loadItemIntoQuote(itemId);
+      console.log('�� CART MODAL: loadItemIntoQuote returned:', item);
+      
+      if (!item) {
+        console.error('❌ CART MODAL: Item not found in cart:', itemId);
+        toast({
+          title: "Error",
+          description: "Could not find the item to edit.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Load the item data into quote store
+      console.log('🛒 CART MODAL: Loading item into quote store...');
       loadFromCartItem(item);
+      
       // Set the editingItemId so the Design page knows we're editing
+      console.log('🛒 CART MODAL: Setting editingItemId:', itemId);
       useQuoteStore.getState().set({ editingItemId: itemId });
+      
+      // Close modal
+      console.log('🛒 CART MODAL: Closing modal and navigating to /design');
       onClose();
+      
+      // Navigate to design page
       navigate('/design');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      
+      // Scroll to top
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        console.log('✅ CART MODAL: Navigation complete, editingItemId should be set');
+      }, 100);
+      
+    } catch (error) {
+      console.error('❌ CART MODAL: Error in handleEdit:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load item for editing. Please try again.",
+        variant: "destructive",
+      });
     }
   };
 

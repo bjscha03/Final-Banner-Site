@@ -236,6 +236,8 @@ export const useCartStore = create<CartState>()(
         };
 
         console.log('🧮 CART: addFromQuote', { usingAuthoritative, pricing, computed: { unit: computedUnit, rope: computedRope, pole: computedPole, line: computedLine }, stored: newItem });
+        console.log('💾 CART STORAGE: Item added, will persist to localStorage');
+        console.log('💾 CART STORAGE: Item added, will persist to localStorage');
         set((state) => ({ items: [...state.items, newItem] }));
       },
       
@@ -425,7 +427,9 @@ export const useCartStore = create<CartState>()(
       name: 'cart-storage',
       // Migrate items when loading from localStorage
       onRehydrateStorage: () => (state) => {
+        console.log('💾 CART STORAGE: Rehydrating from localStorage...');
         if (state?.items) {
+          console.log('💾 CART STORAGE: Found', state.items.length, 'items in storage');
           console.log('🔄 Rehydrating cart, checking for items needing migration...');
           const migratedItems = state.items.map(migrateCartItem);
           const hadChanges = migratedItems.some((item, i) => item.line_total_cents !== state.items[i].line_total_cents);
