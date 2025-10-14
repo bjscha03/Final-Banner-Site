@@ -50,6 +50,8 @@ const AdminOrders: React.FC = () => {
   const [filteredOrders, setFilteredOrders] = useState<Order[]>([]);
   const [showAccessDenied, setShowAccessDenied] = useState(false);
   const { toast } = useToast();
+  const [pdfLoadingStates, setPdfLoadingStates] = useState<Record<string, boolean>>({});
+  const [pdfLoadingStates, setPdfLoadingStates] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
 
@@ -208,7 +210,12 @@ const AdminOrders: React.FC = () => {
   };
 
   const handlePdfDownload = async (item: any, itemIndex: number, orderId: string) => {
+    const loadingKey = `${orderId}-${itemIndex}`;
+    
     try {
+      // Set loading state for this specific PDF button
+      setPdfLoadingStates(prev => ({ ...prev, [loadingKey]: true }));
+      
       toast({
         title: "Generating Print-Ready PDF",
         description: "Creating high-quality PDF with proper dimensions and bleed...",
@@ -267,6 +274,9 @@ const AdminOrders: React.FC = () => {
         description: error instanceof Error ? error.message : "Failed to generate PDF",
         variant: "destructive",
       });
+    } finally {
+      // Clear loading state for this PDF button
+      setPdfLoadingStates(prev => ({ ...prev, [loadingKey]: false }));
     }
   };
 
@@ -726,10 +736,20 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                 size="sm"
                 variant="outline"
                 onClick={() => onPdfDownload(item, index, order.id)}
+                disabled={pdfLoadingStates[`${order.id}-${index}`]}
                 className="text-xs h-6 px-2"
               >
-                <FileText className="h-3 w-3 mr-1" />
-                PDF
+                {pdfLoadingStates[`${order.id}-${index}`] ? (
+                  <>
+                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <FileText className="h-3 w-3 mr-1" />
+                    PDF
+                  </>
+                )}
               </Button>
             ))
           ) : (

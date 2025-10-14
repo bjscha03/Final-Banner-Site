@@ -558,7 +558,31 @@ exports.handler = async (event) => {
     ];
 
     // Add overlay image if provided
-    if (req.overlayImage && req.overlayImage.url) {
+    console.log('[PDF] ========== OVERLAY IMAGE DEBUG ==========');
+    console.log('[PDF] req.overlayImage exists:', !!req.overlayImage);
+    console.log('[PDF] req.overlayImage full object:', JSON.stringify(req.overlayImage, null, 2));
+    
+    if (req.overlayImage) {
+      console.log('[PDF] Overlay image data received:');
+      console.log('[PDF]   - name:', req.overlayImage.name);
+      console.log('[PDF]   - url:', req.overlayImage.url);
+      console.log('[PDF]   - fileKey:', req.overlayImage.fileKey);
+      console.log('[PDF]   - position:', req.overlayImage.position);
+      console.log('[PDF]   - scale:', req.overlayImage.scale);
+      console.log('[PDF]   - aspectRatio:', req.overlayImage.aspectRatio);
+      
+      // Check if we have either url or fileKey
+      if (!req.overlayImage.url && !req.overlayImage.fileKey) {
+        console.error('[PDF] ERROR: Overlay image has neither url nor fileKey!');
+      } else {
+        console.log('[PDF] ✅ Overlay image has valid source, proceeding with rendering...');
+      }
+    } else {
+      console.log('[PDF] ℹ️ No overlay image in request');
+    }
+    console.log('[PDF] ==========================================');
+    
+    if (req.overlayImage && (req.overlayImage.url || req.overlayImage.fileKey)) {
       console.log('[PDF] Processing overlay image:', req.overlayImage.name);
       console.log('[PDF] Overlay position:', req.overlayImage.position);
       console.log('[PDF] Overlay scale:', req.overlayImage.scale);
