@@ -478,10 +478,24 @@ const PricingCard: React.FC = () => {
         title: "Added to Cart",
         description: "Your banner has been added to the cart.",
       });
+      
+      // Reset design area after successful add
+      console.log('🔄 RESET: About to call resetDesign() after add (from upsell modal)');
+      console.log('🔄 RESET: Current file before reset:', quote.file);
+      quote.resetDesign();
+      console.log('🔄 RESET: resetDesign() called');
+      console.log('🔄 RESET: Current file after reset:', quote.file);
     } else if (pendingAction === 'checkout') {
       addFromQuote(updatedQuote, undefined, pricing);
       scrollToTopBeforeNavigate();
       navigate('/checkout');
+      
+      // Reset design area after navigating to checkout
+      console.log('🔄 RESET: About to call resetDesign() after checkout (from upsell modal)');
+      console.log('🔄 RESET: Current file before reset:', quote.file);
+      quote.resetDesign();
+      console.log('🔄 RESET: resetDesign() called');
+      console.log('🔄 RESET: Current file after reset:', quote.file);
     } else if (pendingAction === 'update' && quote.editingItemId) {
       updateCartItem(quote.editingItemId, updatedQuote as any, undefined, pricing);
       quote.set({ editingItemId: null });
@@ -489,15 +503,13 @@ const PricingCard: React.FC = () => {
         title: "Cart Updated",
         description: "Your banner design has been updated in the cart.",
       });
-    // Stay on the design page after updating
-    } else if (pendingAction === 'update' && quote.editingItemId) {
-      updateCartItem(quote.editingItemId, updatedQuote as any, undefined, pricing);
-      quote.set({ editingItemId: null });
-      toast({
-        title: "Cart Updated",
-        description: "Your banner design has been updated in the cart.",
-      });
-    // Stay on the design page after updating
+      
+      // Reset design area after successful update
+      console.log('🔄 RESET: About to call resetDesign() after update (from upsell modal)');
+      console.log('🔄 RESET: Current file before reset:', quote.file);
+      quote.resetDesign();
+      console.log('🔄 RESET: resetDesign() called');
+      console.log('🔄 RESET: Current file after reset:', quote.file);
     }
 
     // Reset pending action
