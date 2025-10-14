@@ -509,7 +509,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
           variant: 'destructive',
         });
       };
-      });
+      img.src = result.secureUrl;
     } catch (error) {
       console.error('❌ Overlay upload error:', error);
       toast({
