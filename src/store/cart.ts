@@ -391,6 +391,32 @@ export const useCartStore = create<CartState>()(
       setTimeout(() => get().syncToServer(), 100);
       },
       
+
+      // Sync cart to Neon database (for logged-in users)
+      syncToServer: async () => {
+        const userId = cartSync.getUserId();
+        if (!userId) {
+          console.log('👤 No user logged in, skipping server sync');
+          return;
+        }
+        
+        const items = get().items;
+        await cartSync.saveCart(userId, items);
+      },
+
+      // Load cart from Neon database and merge with local
+      loadFromServer: async () => {
+        const userId = cartSync.getUserId();
+        if (!userId) {
+          console.log('👤 No user logged in, skipping server load');
+          return;
+        }
+
+        const localItems = get().items;
+        const mergedItems = await cartSync.mergeAndSyncCart(userId, localItems);
+        set({ items: mergedItems });
+      },
+
       getSubtotalCents: () => {
         const flags = getFeatureFlags();
         const items = get().items.map(migrateCartItem); // Migrate items before calculating
