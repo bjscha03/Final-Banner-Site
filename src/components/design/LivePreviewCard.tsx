@@ -1248,6 +1248,12 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     };
     
     const handleTouchEnd = () => {
+      // Auto-deselect overlay after drag/resize on mobile for better UX
+      if (isDraggingOverlay || isResizingOverlay) {
+        setIsOverlaySelected(false);
+        console.log('🔵 Auto-deselected overlay after touch drag/resize');
+      }
+      
       setIsDraggingImage(false);
       setIsResizingImage(false);
       setResizeHandle(null);
