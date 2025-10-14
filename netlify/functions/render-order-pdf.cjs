@@ -281,47 +281,71 @@ async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textEleme
             // Calculate text alignment
             const textAlign = textEl.textAlign || 'left';
             
-            // CRITICAL FIX: Text positioning in preview vs PDF
-            // In the preview, text uses CSS: position: absolute; left: X%; top: Y%; text-align: center;
-            // The X%, Y% represent the TOP-LEFT corner of the text element's bounding box
-            // The text-align: center centers the text WITHIN that bounding box
+            // CRITICAL FIX V3: Text positioning to match preview EXACTLY
+            // 
+            // Preview behavior (DraggableText.tsx):
+            // - CSS: position: absolute; left: X%; top: Y%; text-align: center;
+            // - X%, Y% = top-left corner of the text element's bounding box
+            // - text-align centers the text WITHIN that bounding box
+            // - The text element has natural width based on content
             //
-            // In PDFKit, doc.text(content, x, y, {align: 'center', width: W}) centers the text
-            // within a box that starts at (x, y) and has width W.
+            // PDF behavior (PDFKit):
+            // - doc.text(content, x, y, {align, width}) renders text in a box
+            // - For center align: text is centered within the specified width
+            // - y coordinate is the BASELINE, not the top edge
             //
-            // PROBLEM: If we use the preview's top-left position as x and then center within
-            // a box from x to the page edge, the text shifts to the right!
-            //
-            // SOLUTION: For center-aligned text, use the full page width starting at x=0
+            // Solution:
+            // 1. Calculate the natural width of the text
+            // 2. For center-aligned text, adjust x so text appears at same visual position
+            // 3. Adjust y for baseline offset
+            
+            // Calculate natural text width
+            doc.font(pdfFont);
+            doc.fontSize(fontSize);
+            const textWidth = doc.widthOfString(textEl.content);
+            
+            console.log(`[PDF] Text "${textEl.content.substring(0, 30)}" natural width: ${textWidth.toFixed(2)}pt`);
             
             let textX = xPt;
-            let textWidth;
+            let renderWidth = textWidth + 20; // Add some padding
+            
+            // Adjust Y coordinate for font baseline
+            // In CSS, top: Y% positions the top edge of the element
+            // In PDFKit, y is the baseline position
+            // Font ascent is approximately 75% of fontSize
+            const fontAscent = fontSize * 0.75;
+            yPt = yPt + fontAscent;
             
             if (textAlign === 'center') {
-              // For centered text, use the full page width
-              // This will center the text horizontally on the page
-              textX = 0;
-              textWidth = pageWidthPt;
+              // For centered text in preview:
+              // - xPercent is the left edge of the text element
+              // - Text is centered within its natural width
+              // - So the visual center is at: xPercent + (naturalWidth / 2)
+              //
+              // In PDF, to center text at the same visual position:
+              // - We need the text box to be centered at the same point
+              // - Use the text's natural width and center it around the visual center point
+              
+              // Don't change textX - it's already the left edge where text should start
+              // Just use the natural width for rendering
+              renderWidth = textWidth + 40; // Extra padding for center-aligned text
             } else if (textAlign === 'right') {
-              // For right-aligned text, the box should extend from left edge to xPt
-              textX = 0;
-              textWidth = xPt;
+              // For right-aligned text, xPercent is still the left edge of the element
+              // Text extends leftward from the right edge of the element
+              // Keep the same logic
+              renderWidth = textWidth + 20;
             } else {
-              // For left-aligned text, the box extends from xPt to the right edge
-              textWidth = pageWidthPt - xPt - 20;
-              if (textWidth <= 0) {
-                console.warn(`[PDF] Calculated text width is ${textWidth}, using minimum width of 100pt`);
-                textWidth = 100;
-              }
+              // Left-aligned: straightforward
+              renderWidth = textWidth + 20;
             }
             
             const textOptions = {
               align: textAlign,
               lineBreak: true,
-              width: textWidth,
+              width: renderWidth,
             };
             
-            console.log(`[PDF] About to render text: "${textEl.content.substring(0, 50)}" at (${textX.toFixed(2)}, ${yPt.toFixed(2)}) with width ${textWidth.toFixed(2)}pt, align: ${textAlign}, fontSize: ${fontSize.toFixed(2)}pt, color: ${textEl.color || '#000000'}`);
+            console.log(`[PDF] Rendering text at (${textX.toFixed(2)}, ${yPt.toFixed(2)}) with width ${renderWidth.toFixed(2)}pt, align: ${textAlign}, fontSize: ${fontSize.toFixed(2)}pt`);
             
             // Render the text
             doc.text(textEl.content, textX, yPt, textOptions);
