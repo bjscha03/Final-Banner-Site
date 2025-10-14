@@ -478,20 +478,37 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       const result = await response.json();
       console.log('✅ Upload successful:', result);
 
-      // Add overlay to store with default position (centered) and scale
-      set({
-        overlayImage: {
-          name: overlayFile.name,
-          url: result.secureUrl,
-          fileKey: result.fileKey,
-          position: { x: 50, y: 50 }, // Center of banner
-          scale: 0.3, // 30% of banner size by default
-        },
-      });
+      // Load image to get dimensions
+      const img = new Image();
+      img.onload = () => {
+        const aspectRatio = img.width / img.height;
+        console.log('📐 Overlay image dimensions:', { width: img.width, height: img.height, aspectRatio });
+        
+        // Add overlay to store with default position (centered) and scale
+        set({
+          overlayImage: {
+            name: overlayFile.name,
+            url: result.secureUrl,
+            fileKey: result.fileKey,
+            position: { x: 50, y: 50 }, // Center of banner
+            scale: 0.3, // 30% of banner size by default
+            aspectRatio,
+          },
+        });
 
-      toast({
-        title: 'Overlay Added',
-        description: 'Logo/image overlay added successfully.',
+        toast({
+          title: 'Overlay Added',
+          description: 'Logo/image overlay added successfully.',
+        });
+      };
+      img.onerror = () => {
+        console.error('❌ Failed to load overlay image');
+        toast({
+          title: 'Error',
+          description: 'Failed to load overlay image',
+          variant: 'destructive',
+        });
+      };
       });
     } catch (error) {
       console.error('❌ Overlay upload error:', error);

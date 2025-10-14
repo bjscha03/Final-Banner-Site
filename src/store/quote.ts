@@ -71,6 +71,7 @@ export interface QuoteState {
     url: string;
     fileKey: string;
     position: { x: number; y: number }; // Percentage-based position (0-100)
+    aspectRatio: number; // width / height of the original image
     scale: number; // Scale factor (1 = 100%)
   };
   set: (partial: Partial<QuoteState>) => void;

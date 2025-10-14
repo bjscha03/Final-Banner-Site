@@ -40,6 +40,7 @@ export interface CartItem {
     fileKey: string;
     position: { x: number; y: number };
     scale: number;
+    aspectRatio: number;
   };
   // AI Design metadata (optional)
   aiDesign?: {

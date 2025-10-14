@@ -264,8 +264,22 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
             {overlayImage && (() => {
               // Calculate overlay position and size
               // Position is percentage-based (0-100) relative to banner area
-              const overlayWidth = widthIn * overlayImage.scale;
-              const overlayHeight = heightIn * overlayImage.scale;
+              // Calculate overlay dimensions maintaining aspect ratio
+              // Use the smaller banner dimension as the base for scaling
+              const baseDimension = Math.min(widthIn, heightIn);
+              const aspectRatio = overlayImage.aspectRatio || 1; // Default to square if not set
+              
+              // Calculate dimensions based on aspect ratio
+              let overlayWidth, overlayHeight;
+              if (aspectRatio >= 1) {
+                // Landscape or square image
+                overlayWidth = baseDimension * overlayImage.scale * aspectRatio;
+                overlayHeight = baseDimension * overlayImage.scale;
+              } else {
+                // Portrait image
+                overlayWidth = baseDimension * overlayImage.scale;
+                overlayHeight = baseDimension * overlayImage.scale / aspectRatio;
+              }
               
               // Convert percentage position to SVG coordinates
               // Position represents the CENTER of the overlay
@@ -285,7 +299,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
                     y={overlayY}
                     width={overlayWidth}
                     height={overlayHeight}
-                    preserveAspectRatio="xMidYMid meet"
+                    preserveAspectRatio="none"
                     style={{
                       cursor: isOverlaySelected ? 'move' : 'pointer',
                       opacity: 0.95
