@@ -574,7 +574,8 @@ const AdminOrders: React.FC = () => {
                         onPdfDownload={handlePdfDownload}
                         onSendShippingNotification={handleSendShippingNotification}
                         getStatusColor={getStatusColor}
-                        getItemsSummary={getItemsSummary}
+                        pdfLoadingStates={pdfLoadingStates}                        getItemsSummary={getItemsSummary}
+                        pdfLoadingStates={pdfLoadingStates}
                       />
                     ))}
                   </tbody>
@@ -598,6 +599,7 @@ interface AdminOrderRowProps {
   onSendShippingNotification: (orderId: string) => void;
   getStatusColor: (status: string) => string;
   getItemsSummary: (order: Order) => string;
+  pdfLoadingStates: Record<string, boolean>;
 }
 
 const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
@@ -608,7 +610,8 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   onPdfDownload,
   onSendShippingNotification,
   getStatusColor,
-  getItemsSummary
+  getItemsSummary,
+  pdfLoadingStates
 }) => {
   const [trackingNumber, setTrackingNumber] = useState('');
   const [isAddingTracking, setIsAddingTracking] = useState(false);
