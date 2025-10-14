@@ -110,7 +110,8 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
       console.log('🔄 RESET: Current file after reset:', quote.file);
     } else {
       // ADD new item to cart
-      addFromQuote(pricing);
+      // Pass the entire quote state, not just pricing
+      addFromQuote(quote, undefined, pricing);
       
       toast({
         title: "Added to Cart",
