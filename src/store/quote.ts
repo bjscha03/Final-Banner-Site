@@ -151,7 +151,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
     file: item.file_key || item.file_url || item.web_preview_url ? {
       name: item.file_name || 'Uploaded file',
       type: item.is_pdf ? 'application/pdf' : 'image/*',
-      size: 0,
+      size: 1024, // Non-zero to indicate file exists
       url: item.file_url || item.web_preview_url || item.print_ready_url,
       fileKey: item.file_key,
       isPdf: item.is_pdf,

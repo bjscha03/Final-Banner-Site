@@ -85,12 +85,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
               <div className="space-y-4">
                 {items.map((item) => {
                   const eachCents = computeEach(item);
-                  const ropeMode = item.rope_pricing_mode || 'per_item';
-                  const pocketMode = item.pole_pocket_pricing_mode || 'per_item';
                   const ropeCost = item.rope_cost_cents || 0;
                   const pocketCost = item.pole_pocket_cost_cents || 0;
-                  const ropeEach = item.quantity > 0 ? Math.round(ropeCost / item.quantity) : 0;
-                  const pocketEach = item.quantity > 0 ? Math.round(pocketCost / item.quantity) : 0;
 
                   return (
                     <div key={item.id} className="bg-white rounded-xl p-4 shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
@@ -118,19 +114,11 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                                 {item.grommets && item.grommets !== 'none' && (
                                   <div>Grommets: <span className="text-gray-800">{item.grommets}</span></div>
                                 )}
-                                {ropeCost > 0 && (
-                                  <div>
-                                    Rope: <span className="text-gray-800">
-                                      {ropeMode === 'per_item' ? `${usd(ropeEach/100)} × ${item.quantity} = ${usd(ropeCost/100)}` : `${usd(ropeCost/100)}`}
-                                    </span>
-                                  </div>
+                                {ropeCost > 0 && item.rope_feet && (
+                                  <div>Rope: <span className="text-gray-800">{item.rope_feet.toFixed(1)}ft</span></div>
                                 )}
-                                {item.pole_pockets && item.pole_pockets !== 'none' && pocketCost > 0 && (
-                                  <div>
-                                    Pole pockets: <span className="text-gray-800">
-                                      {pocketMode === 'per_item' ? `${usd(pocketEach/100)} × ${item.quantity} = ${usd(pocketCost/100)}` : `${usd(pocketCost/100)}`}
-                                    </span>
-                                  </div>
+                                {item.pole_pockets && item.pole_pockets !== 'none' && (
+                                  <div>Pole pockets: <span className="text-gray-800">{item.pole_pockets}</span></div>
                                 )}
                                 {item.file_name && <div className="truncate" title={item.file_name}>File: <span className="text-gray-800">{item.file_name}</span></div>}
                               </div>
@@ -142,7 +130,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                           </div>
 
                           {/* Quantity and Actions */}
-                          <div className="flex items-center justify-between mt-3 gap-2">
+                          <div className="flex items-center justify-between mt-3 gap-2 flex-wrap">
                             <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
                               <button 
                                 onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))} 
@@ -162,48 +150,44 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                               </button>
                             </div>
                             
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5">
                               <button 
                                 onClick={() => handleEdit(item.id)} 
-                                className="flex items-center gap-1 px-3 py-2 bg-[#18448D] hover:bg-[#0f2d5c] text-white rounded-lg text-xs font-medium transition-colors shadow-sm hover:shadow-md"
+                                className="flex items-center gap-1 px-2.5 py-1.5 bg-[#18448D] hover:bg-[#0f2d5c] text-white rounded-lg text-xs font-medium transition-colors shadow-sm hover:shadow-md"
                                 aria-label="Edit banner"
                               >
                                 <Edit className="h-3.5 w-3.5" />
-                                <span className="hidden sm:inline">Edit</span>
+                                <span>Edit</span>
                               </button>
                               <button 
                                 onClick={() => removeItem(item.id)} 
-                                className="flex items-center gap-1 px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-xs font-medium transition-colors"
+                                className="flex items-center gap-1 px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-xs font-medium transition-colors"
                                 aria-label="Remove from cart"
                               >
                                 <Trash2 className="h-3.5 w-3.5" />
-                                <span className="hidden sm:inline">Remove</span>
+                                <span>Remove</span>
                               </button>
                             </div>
                           </div>
 
-                          {/* Cost Breakdown card */}
+                          {/* Cost Breakdown - SIMPLIFIED */}
                           <div className="mt-3 p-3 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg border border-gray-200">
                             <h4 className="text-xs font-bold text-gray-700 mb-2 uppercase tracking-wide">Price Breakdown</h4>
                             <div className="space-y-1.5 text-sm">
                               <div className="flex justify-between">
                                 <span className="text-gray-600">Base banner:</span>
-                                <span className="text-gray-900 font-medium">{usd(item.unit_price_cents/100)} × {item.quantity}</span>
+                                <span className="text-gray-900 font-medium">{usd((item.unit_price_cents * item.quantity)/100)}</span>
                               </div>
                               {ropeCost > 0 && (
                                 <div className="flex justify-between">
-                                  <span className="text-gray-600">Rope{ropeMode==='per_item' && item.rope_feet ? ` (${item.rope_feet.toFixed(1)}ft)` : ''}:</span>
-                                  <span className="text-gray-900 font-medium">
-                                    {ropeMode==='per_item' ? `${usd(ropeEach/100)} × ${item.quantity} = ${usd(ropeCost/100)}` : `${usd(ropeCost/100)}`}
-                                  </span>
+                                  <span className="text-gray-600">Rope{item.rope_feet ? ` (${item.rope_feet.toFixed(1)}ft)` : ''}:</span>
+                                  <span className="text-gray-900 font-medium">{usd(ropeCost/100)}</span>
                                 </div>
                               )}
                               {pocketCost > 0 && (
                                 <div className="flex justify-between">
                                   <span className="text-gray-600">Pole pockets:</span>
-                                  <span className="text-gray-900 font-medium">
-                                    {pocketMode==='per_item' ? `${usd(pocketEach/100)} × ${item.quantity} = ${usd(pocketCost/100)}` : `${usd(pocketCost/100)}`}
-                                  </span>
+                                  <span className="text-gray-900 font-medium">{usd(pocketCost/100)}</span>
                                 </div>
                               )}
                               <div className="flex justify-between font-bold border-t border-gray-300 pt-2 mt-2">
