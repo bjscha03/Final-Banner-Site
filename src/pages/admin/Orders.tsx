@@ -51,8 +51,6 @@ const AdminOrders: React.FC = () => {
   const [showAccessDenied, setShowAccessDenied] = useState(false);
   const { toast } = useToast();
   const [pdfLoadingStates, setPdfLoadingStates] = useState<Record<string, boolean>>({});
-  const [pdfLoadingStates, setPdfLoadingStates] = useState<Record<string, boolean>>({});
-
   useEffect(() => {
 
     // Show access denied message instead of immediate redirect
