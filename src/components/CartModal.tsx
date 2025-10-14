@@ -108,8 +108,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                         />
                         
                         <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-start mb-2">
-                            <div className="flex-1">
+                          <div className="flex justify-between items-start mb-2 gap-2">
+                            <div className="flex-1 min-w-0">
                               <h3 className="font-bold text-gray-900 text-base">Custom Banner {item.width_in}" × {item.height_in}"</h3>
                               <div className="text-xs text-gray-600 space-y-0.5 mt-1.5">
                                 <div className="font-medium">Material: <span className="text-gray-800">{item.material}</span></div>
@@ -126,7 +126,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                               </div>
                             </div>
                             <div className="text-right ml-3 flex-shrink-0">
-                              <p className="font-bold text-[#18448D] text-lg">{usd(item.line_total_cents/100)}</p>
+                              <p className="font-bold text-[#18448D] text-lg whitespace-nowrap">{usd(item.line_total_cents/100)}</p>
                             </div>
                           </div>
 

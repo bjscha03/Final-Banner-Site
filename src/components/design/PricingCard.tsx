@@ -259,6 +259,80 @@ const PricingCard: React.FC = () => {
     });
   };
 
+  const handleUpdateCartItem = () => {
+    if (!quote.editingItemId) {
+      console.error('No editingItemId found');
+      return;
+    }
+
+    // Check minimum order requirement
+    if (!canProceed) {
+      toast({
+        title: "Minimum Order Required",
+        description: minimumOrderValidation.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (!file) {
+      toast({
+        title: "Upload Required",
+        description: "Please upload your artwork before updating.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    // Show upsell modal if user should see it
+    if (shouldShowUpsell) {
+      setPendingAction('update');
+      setShowUpsellModal(true);
+      return;
+    }
+
+    // Proceed to update cart item with authoritative pricing
+    const pricing = {
+      unit_price_cents: Math.round(baseTotals.unit * 100),
+      rope_cost_cents: Math.round(baseTotals.rope * 100),
+      rope_pricing_mode: 'per_item' as const,
+      pole_pocket_cost_cents: Math.round(baseTotals.polePocket * 100),
+      pole_pocket_pricing_mode: 'per_item' as const,
+      line_total_cents: Math.round(baseTotals.materialTotal * 100),
+    };
+
+    // Extract only data fields from quote store
+    const quoteData = {
+      widthIn: quote.widthIn,
+      heightIn: quote.heightIn,
+      quantity: quote.quantity,
+      material: quote.material,
+      grommets: quote.grommets,
+      polePockets: quote.polePockets,
+      polePocketSize: quote.polePocketSize,
+      addRope: quote.addRope,
+      previewScalePct: quote.previewScalePct,
+      textElements: quote.textElements,
+      overlayImage: quote.overlayImage,
+      file: quote.file,
+    };
+
+    updateCartItem(quote.editingItemId, quoteData as any, undefined, pricing);
+    
+    // Clear the editingItemId
+    quote.set({ editingItemId: null });
+    
+    toast({
+      title: "Cart Updated",
+      description: "Your banner design has been updated in the cart.",
+    });
+    
+    scrollToTopBeforeNavigate('/cart');
+  };
+
+
+
+
   const handleCheckout = () => {
     // Check minimum order requirement
     if (!canProceed) {
