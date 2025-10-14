@@ -24,6 +24,16 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleEdit = (itemId: string) => {
+    const item = loadItemIntoQuote(itemId);
+    if (item) {
+      loadFromCartItem(item);
+      onClose();
+      navigate('/design');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
   // Compute "each" price
   const computeEach = (item: any): number => {
     const ropeMode = item.rope_pricing_mode || 'per_item';
@@ -45,25 +55,29 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
       <div className="absolute inset-0 bg-black bg-opacity-50" onClick={onClose}></div>
-      <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-sm">
+      <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-xl">
         <div className="flex h-full flex-col">
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b">
-            <h2 className="text-lg font-semibold text-gray-900 flex items-center">
-              <ShoppingBag className="h-5 w-5 mr-2" /> Shopping Cart ({items.length})
+          <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-white">
+            <h2 className="text-xl font-bold text-gray-900 flex items-center">
+              <ShoppingBag className="h-6 w-6 mr-2 text-[#18448D]" /> Shopping Cart ({items.length})
             </h2>
             <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
-              <X className="h-5 w-5" />
+              <X className="h-6 w-6 text-gray-600" />
             </button>
           </div>
 
           {/* Items */}
-          <div className="flex-1 overflow-y-auto p-6">
+          <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
             {items.length === 0 ? (
               <div className="text-center py-12">
-                <ShoppingBag className="h-12 w-12 text-gray-300 mx-auto mb-4" />
-                <p className="text-gray-500">Your cart is empty</p>
-                <button onClick={onClose} className="mt-4 text-orange-500 hover:text-orange-600 font-medium">
+                <ShoppingBag className="h-16 w-16 text-gray-300 mx-auto mb-4" />
+                <p className="text-gray-600 text-lg mb-2">Your cart is empty</p>
+                <p className="text-gray-500 text-sm mb-6">Add some banners to get started!</p>
+                <button 
+                  onClick={onClose} 
+                  className="bg-[#ff6b35] hover:bg-[#e16629] text-white px-6 py-3 rounded-lg font-semibold transition-colors shadow-md hover:shadow-lg"
+                >
                   Continue Shopping
                 </button>
               </div>
@@ -79,11 +93,11 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                   const pocketEach = item.quantity > 0 ? Math.round(pocketCost / item.quantity) : 0;
 
                   return (
-                    <div key={item.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                      <div className="flex gap-3">
+                    <div key={item.id} className="bg-white rounded-xl p-4 shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
+                      <div className="flex gap-4">
                         {/* Thumbnail */}
                         <BannerThumbnail
-                          key={item.id}
+                          key={`thumbnail-${item.id}`}
                           fileUrl={item.file_url}
                           aiDesignUrl={item.aiDesign?.assets?.proofUrl}
                           webPreviewUrl={item.web_preview_url}
@@ -92,90 +106,109 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                           textElements={item.text_elements}
                           widthIn={item.width_in}
                           heightIn={item.height_in}
-                          className="w-20 h-20 sm:w-24 sm:h-24"
+                          className="w-24 h-24 flex-shrink-0"
                         />
                         
                         <div className="flex-1 min-w-0">
                           <div className="flex justify-between items-start mb-2">
-                            <div>
-                              <h3 className="font-semibold text-gray-900">Custom Banner {item.width_in}" × {item.height_in}"</h3>
-                              <div className="text-xs text-gray-500 space-y-1 mt-1">
-                                <div>Material: {item.material}</div>
-                                {item.grommets && item.grommets !== 'none' && (<div>Grommets: {item.grommets}</div>)}
+                            <div className="flex-1">
+                              <h3 className="font-bold text-gray-900 text-base">Custom Banner {item.width_in}" × {item.height_in}"</h3>
+                              <div className="text-xs text-gray-600 space-y-0.5 mt-1.5">
+                                <div className="font-medium">Material: <span className="text-gray-800">{item.material}</span></div>
+                                {item.grommets && item.grommets !== 'none' && (
+                                  <div>Grommets: <span className="text-gray-800">{item.grommets}</span></div>
+                                )}
                                 {ropeCost > 0 && (
                                   <div>
-                                    Rope: {ropeMode === 'per_item' ? `${usd(ropeEach/100)} × ${item.quantity} = ${usd(ropeCost/100)}` : `${usd(ropeCost/100)}`}
+                                    Rope: <span className="text-gray-800">
+                                      {ropeMode === 'per_item' ? `${usd(ropeEach/100)} × ${item.quantity} = ${usd(ropeCost/100)}` : `${usd(ropeCost/100)}`}
+                                    </span>
                                   </div>
                                 )}
                                 {item.pole_pockets && item.pole_pockets !== 'none' && pocketCost > 0 && (
                                   <div>
-                                    Pole pockets: {pocketMode === 'per_item' ? `${usd(pocketEach/100)} × ${item.quantity} = ${usd(pocketCost/100)}` : `${usd(pocketCost/100)}`}
+                                    Pole pockets: <span className="text-gray-800">
+                                      {pocketMode === 'per_item' ? `${usd(pocketEach/100)} × ${item.quantity} = ${usd(pocketCost/100)}` : `${usd(pocketCost/100)}`}
+                                    </span>
                                   </div>
                                 )}
-                                {item.file_name && <div>File: {item.file_name}</div>}
+                                {item.file_name && <div className="truncate" title={item.file_name}>File: <span className="text-gray-800">{item.file_name}</span></div>}
                               </div>
                             </div>
-                            <div className="text-right">
-                              <p className="font-bold text-gray-900">{usd(item.line_total_cents/100)}</p>
+                            <div className="text-right ml-3">
+                              <p className="font-bold text-[#18448D] text-lg">{usd(item.line_total_cents/100)}</p>
                               <p className="text-xs text-gray-500">{usd(eachCents/100)} each</p>
                             </div>
                           </div>
 
-                          {/* Quantity and remove */}
-                          <div className="flex items-center justify-between mt-3">
-                            <div className="flex items-center gap-2">
+                          {/* Quantity and Actions */}
+                          <div className="flex items-center justify-between mt-3 gap-2">
+                            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
                               <button 
                                 onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))} 
-                                className="p-1.5 hover:bg-gray-100 rounded-md" 
+                                className="p-1.5 hover:bg-white rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
                                 disabled={item.quantity <= 1}
+                                aria-label="Decrease quantity"
                               >
-                                <Minus className="h-3 w-3" />
+                                <Minus className="h-4 w-4 text-gray-700" />
                               </button>
-                              <span className="w-8 text-center font-medium">{item.quantity}</span>
+                              <span className="w-10 text-center font-semibold text-gray-900">{item.quantity}</span>
                               <button 
                                 onClick={() => updateQuantity(item.id, item.quantity + 1)} 
-                                className="p-1.5 hover:bg-gray-100 rounded-md"
+                                className="p-1.5 hover:bg-white rounded-md transition-colors"
+                                aria-label="Increase quantity"
                               >
-                                <Plus className="h-3 w-3" />
+                                <Plus className="h-4 w-4 text-gray-700" />
                               </button>
                             </div>
-                            <button 
-                              onClick={() => handleEdit(item.id)} 
-                              className="p-1.5 hover:bg-blue-50 rounded-lg text-blue-600 mr-2"
-                            >
-                              <Edit className="h-4 w-4 inline mr-1" /> Edit
-                            </button>
-                            <button 
-                              onClick={() => removeItem(item.id)} 
-                              className="p-1.5 hover:bg-red-50 rounded-lg text-red-600"
-                            >
-                              <Trash2 className="h-4 w-4 inline mr-1" /> Remove
-                            </button>
+                            
+                            <div className="flex items-center gap-2">
+                              <button 
+                                onClick={() => handleEdit(item.id)} 
+                                className="flex items-center gap-1 px-3 py-2 bg-[#18448D] hover:bg-[#0f2d5c] text-white rounded-lg text-xs font-medium transition-colors shadow-sm hover:shadow-md"
+                                aria-label="Edit banner"
+                              >
+                                <Edit className="h-3.5 w-3.5" />
+                                <span className="hidden sm:inline">Edit</span>
+                              </button>
+                              <button 
+                                onClick={() => removeItem(item.id)} 
+                                className="flex items-center gap-1 px-3 py-2 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-xs font-medium transition-colors"
+                                aria-label="Remove from cart"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                                <span className="hidden sm:inline">Remove</span>
+                              </button>
+                            </div>
                           </div>
 
                           {/* Cost Breakdown card */}
-                          <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                            <h4 className="text-sm font-medium text-gray-900 mb-2">Price Breakdown</h4>
-                            <div className="space-y-1 text-sm">
+                          <div className="mt-3 p-3 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg border border-gray-200">
+                            <h4 className="text-xs font-bold text-gray-700 mb-2 uppercase tracking-wide">Price Breakdown</h4>
+                            <div className="space-y-1.5 text-sm">
                               <div className="flex justify-between">
                                 <span className="text-gray-600">Base banner:</span>
-                                <span className="text-gray-900">{usd(item.unit_price_cents/100)} × {item.quantity}</span>
+                                <span className="text-gray-900 font-medium">{usd(item.unit_price_cents/100)} × {item.quantity}</span>
                               </div>
                               {ropeCost > 0 && (
                                 <div className="flex justify-between">
                                   <span className="text-gray-600">Rope{ropeMode==='per_item' && item.rope_feet ? ` (${item.rope_feet.toFixed(1)}ft)` : ''}:</span>
-                                  <span className="text-gray-900">{ropeMode==='per_item' ? `${usd(ropeEach/100)} × ${item.quantity} = ${usd(ropeCost/100)}` : `${usd(ropeCost/100)}`}</span>
+                                  <span className="text-gray-900 font-medium">
+                                    {ropeMode==='per_item' ? `${usd(ropeEach/100)} × ${item.quantity} = ${usd(ropeCost/100)}` : `${usd(ropeCost/100)}`}
+                                  </span>
                                 </div>
                               )}
                               {pocketCost > 0 && (
                                 <div className="flex justify-between">
                                   <span className="text-gray-600">Pole pockets:</span>
-                                  <span className="text-gray-900">{pocketMode==='per_item' ? `${usd(pocketEach/100)} × ${item.quantity} = ${usd(pocketCost/100)}` : `${usd(pocketCost/100)}`}</span>
+                                  <span className="text-gray-900 font-medium">
+                                    {pocketMode==='per_item' ? `${usd(pocketEach/100)} × ${item.quantity} = ${usd(pocketCost/100)}` : `${usd(pocketCost/100)}`}
+                                  </span>
                                 </div>
                               )}
-                              <div className="flex justify-between font-medium border-t border-gray-200 pt-1 mt-2">
+                              <div className="flex justify-between font-bold border-t border-gray-300 pt-2 mt-2">
                                 <span className="text-gray-900">Line total:</span>
-                                <span className="text-gray-900">{usd(item.line_total_cents/100)}</span>
+                                <span className="text-[#18448D]">{usd(item.line_total_cents/100)}</span>
                               </div>
                             </div>
                           </div>
@@ -190,25 +223,28 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
 
           {/* Footer */}
           {items.length > 0 && (
-            <div className="border-t p-6 space-y-2">
-              <div className="flex justify-between">
-                <span>Subtotal:</span>
-                <span>{usd(subtotalCents/100)}</span>
+            <div className="border-t border-gray-200 p-6 space-y-3 bg-white shadow-lg">
+              <div className="flex justify-between text-gray-700">
+                <span className="font-medium">Subtotal:</span>
+                <span className="font-semibold">{usd(subtotalCents/100)}</span>
               </div>
-              <div className="flex justify-between text-green-600 font-medium">
+              <div className="flex justify-between text-green-600 font-semibold">
                 <span>Shipping:</span>
                 <span>FREE</span>
               </div>
-              <div className="flex justify-between">
-                <span>Tax (6%):</span>
-                <span>{usd(taxCents/100)}</span>
+              <div className="flex justify-between text-gray-700">
+                <span className="font-medium">Tax (6%):</span>
+                <span className="font-semibold">{usd(taxCents/100)}</span>
               </div>
-              <div className="flex justify-between font-semibold text-lg border-t pt-2">
-                <span>Total:</span>
-                <span>{usd(totalCents/100)}</span>
+              <div className="flex justify-between font-bold text-xl border-t border-gray-300 pt-3">
+                <span className="text-gray-900">Total:</span>
+                <span className="text-[#18448D]">{usd(totalCents/100)}</span>
               </div>
 
-              <button onClick={handleCheckout} className="w-full mt-4 bg-orange-500 hover:bg-orange-600 text-white py-4 rounded-lg font-semibold text-lg shadow-lg hover:shadow-xl transition-all duration-200">
+              <button 
+                onClick={handleCheckout} 
+                className="w-full mt-4 bg-[#ff6b35] hover:bg-[#e16629] text-white py-4 rounded-lg font-bold text-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]"
+              >
                 Proceed to Checkout
               </button>
             </div>
