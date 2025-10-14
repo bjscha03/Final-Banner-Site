@@ -277,6 +277,92 @@ export const useCartStore = create<CartState>()(
         // Return the item so the caller can load it into quote store
         return item;
       },
+      
+      updateCartItem: (itemId: string, quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => {
+        console.log('🔄 CART: updateCartItem called', { itemId, quote, pricing });
+        
+        // Find the existing item
+        const existingItem = get().items.find(i => i.id === itemId);
+        if (!existingItem) {
+          console.error('❌ CART: Item not found:', itemId);
+          return;
+        }
+
+        // Capture design-page authoritative pricing when provided
+        const usingAuthoritative = !!pricing;
+
+        // Compute fallbacks if not provided
+        const area = (quote.widthIn * quote.heightIn) / 144;
+        const pricePerSqFt = ({ '13oz': 4.5, '15oz': 6.0, '18oz': 7.5, 'mesh': 6.0 } as Record<MaterialKey, number>)[quote.material];
+        const computedUnit = Math.round(area * (pricePerSqFt ?? 4.5) * 100);
+        const ropeFeet = quote.addRope ? quote.widthIn / 12 : 0;
+        const computedRope = Math.round(ropeFeet * 2 * quote.quantity * 100);
+        const computedPole = (() => {
+          if (quote.polePockets === 'none') return 0;
+          const setupFee = 1500; // cents
+          const pricePerLinearFoot = 200; // cents
+          let linearFeet = 0;
+          switch (quote.polePockets) {
+            case 'top':
+            case 'bottom':
+              linearFeet = quote.widthIn / 12; break;
+            case 'left':
+            case 'right':
+              linearFeet = quote.heightIn / 12; break;
+            case 'top-bottom':
+              linearFeet = (quote.widthIn / 12) * 2; break;
+            default:
+              linearFeet = 0;
+          }
+          return Math.round((setupFee + (linearFeet * pricePerLinearFoot)) * quote.quantity);
+        })();
+        const computedLine = computedUnit * quote.quantity + computedRope + computedPole;
+
+        const unit_price_cents = pricing?.unit_price_cents ?? computedUnit;
+        const rope_cost_cents = pricing?.rope_cost_cents ?? computedRope;
+        const rope_pricing_mode: PricingMode = pricing?.rope_pricing_mode ?? 'per_item';
+        const pole_pocket_cost_cents = pricing?.pole_pocket_cost_cents ?? computedPole;
+        const pole_pocket_pricing_mode: PricingMode = pricing?.pole_pocket_pricing_mode ?? 'per_item';
+        const line_total_cents = pricing?.line_total_cents ?? computedLine;
+
+        // Use the file key from the uploaded file
+        const fileKey = quote.file?.fileKey;
+
+        // Update the item with new data
+        const updatedItem: CartItem = {
+          ...existingItem,
+          width_in: quote.widthIn,
+          height_in: quote.heightIn,
+          quantity: quote.quantity,
+          material: quote.material,
+          grommets: quote.grommets,
+          pole_pockets: quote.polePockets,
+          pole_pocket_size: quote.polePocketSize,
+          pole_pocket_position: quote.polePockets,
+          rope_feet: ropeFeet,
+          area_sqft: area,
+          unit_price_cents,
+          rope_cost_cents,
+          rope_pricing_mode,
+          pole_pocket_cost_cents,
+          pole_pocket_pricing_mode,
+          line_total_cents,
+          file_key: fileKey,
+          file_name: quote.file?.name,
+          file_url: quote.file?.url || aiMetadata?.assets?.proofUrl || existingItem.file_url,
+          web_preview_url: aiMetadata?.assets?.proofUrl || existingItem.web_preview_url,
+          print_ready_url: aiMetadata?.assets?.finalUrl || existingItem.print_ready_url,
+          is_pdf: quote.file?.isPdf || false,
+          text_elements: quote.textElements && quote.textElements.length > 0 ? quote.textElements : undefined,
+          overlay_image: quote.overlayImage,
+          ...(aiMetadata || {}),
+        };
+
+        console.log('✅ CART: updateCartItem success', { updatedItem });
+        set((state) => ({
+          items: state.items.map(item => item.id === itemId ? updatedItem : item)
+        }));
+      },
       removeItem: (id: string) => {
         set((state) => ({
           items: state.items.filter(item => item.id !== id)

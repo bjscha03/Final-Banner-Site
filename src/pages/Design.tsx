@@ -112,7 +112,9 @@ const Design: React.FC = () => {
     const material = searchParams.get('material');
 
     // Check URL parameters first
+    console.log('🟢 DESIGN PAGE: URL params:', { width, height, qty, material });
     if (width && height && qty && material) {
+      console.log('🟢 DESIGN PAGE: All params present, applying...');
       const widthIn = parseFloat(width);
       const heightIn = parseFloat(height);
       const quantity = parseInt(qty);
@@ -123,12 +125,16 @@ const Design: React.FC = () => {
           ['13oz', '15oz', '18oz', 'mesh'].includes(material)) {
 
         // Apply the quick quote data to the store
+        console.log('🟢 DESIGN PAGE: Calling setFromQuickQuote with:', { widthIn, heightIn, quantity, material });
+        console.log('🟢 DESIGN PAGE: Calling setFromQuickQuote with:', { widthIn, heightIn, quantity, material });
         setFromQuickQuote({
           widthIn,
           heightIn,
           quantity,
           material: material as MaterialKey
         });
+        console.log('🟢 DESIGN PAGE: setFromQuickQuote called successfully');
+        console.log('🟢 DESIGN PAGE: setFromQuickQuote called successfully');
 
         const materialName = {
           '13oz': '13oz Vinyl',

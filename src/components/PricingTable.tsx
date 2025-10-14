@@ -69,6 +69,8 @@ const PricingTable: React.FC = () => {
   ];
 
   const handleMaterialSelect = (materialKey: MaterialKey) => {
+    console.log('🔵 HOMEPAGE: handleMaterialSelect called with:', materialKey);
+    console.log('🔵 HOMEPAGE: handleMaterialSelect called with:', materialKey);
     // Get current Quick Quote selections or use defaults
     const quickQuoteData = sessionStorage.getItem('quickQuote');
     let widthIn = 48;
@@ -105,7 +107,11 @@ const PricingTable: React.FC = () => {
       material: materialKey
     });
 
+    console.log('🔵 HOMEPAGE: Navigating to:', `/design?${params.toString()}`);
+    console.log('🔵 HOMEPAGE: Navigating to:', `/design?${params.toString()}`);
     navigate(`/design?${params.toString()}`);
+    console.log('🔵 HOMEPAGE: Navigate called');
+    console.log('🔵 HOMEPAGE: Navigate called');
 
     // Scroll to top after navigation
     setTimeout(() => {
