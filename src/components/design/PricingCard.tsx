@@ -18,7 +18,6 @@ const PricingCard: React.FC = () => {
   const quote = useQuoteStore();
   const isEditing = quote.editingItemId !== null && quote.editingItemId !== undefined;
   console.log("🔍 PricingCard - isEditing:", isEditing, "editingItemId:", quote.editingItemId);
-  console.log("🔍 PricingCard - isEditing:", isEditing, "editingItemId:", quote.editingItemId);
   const { addFromQuote, updateCartItem } = useCartStore();
   const { toast } = useToast();
   const { scrollToTopBeforeNavigate } = useScrollToTop();
@@ -329,7 +328,7 @@ const PricingCard: React.FC = () => {
       description: "Your banner design has been updated in the cart.",
     });
     
-    scrollToTopBeforeNavigate('/cart');
+    // Stay on the design page after updating
   };
 
 
@@ -482,7 +481,7 @@ const PricingCard: React.FC = () => {
         title: "Cart Updated",
         description: "Your banner design has been updated in the cart.",
       });
-      scrollToTopBeforeNavigate('/cart');
+    // Stay on the design page after updating
     } else if (pendingAction === 'update' && quote.editingItemId) {
       updateCartItem(quote.editingItemId, updatedQuote as any, undefined, pricing);
       quote.set({ editingItemId: null });
@@ -490,7 +489,7 @@ const PricingCard: React.FC = () => {
         title: "Cart Updated",
         description: "Your banner design has been updated in the cart.",
       });
-      scrollToTopBeforeNavigate('/cart');
+    // Stay on the design page after updating
     }
 
     // Reset pending action

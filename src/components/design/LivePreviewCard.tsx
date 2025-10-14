@@ -12,6 +12,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { loadPdfToBitmap } from '@/utils/pdf/loadPdfToBitmap';
 import QualityBadge from './QualityBadge';
 import PreviewCanvas from './PreviewCanvas';
+import AddToCartButton from './AddToCartButton';
 const grommetOptions = [
   { id: 'none', label: 'None', description: 'No grommets' },
   { id: 'every-2-3ft', label: 'Every 2–3 feet', description: 'Standard spacing' },
@@ -1409,6 +1410,12 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
           </div>
         )}
 
+        {/* Add to Cart / Update Cart Item Button - Visible near preview */}
+        {file && (
+          <div className="mx-6 mb-6">
+            <AddToCartButton size="large" />
+          </div>
+        )}
 
 
         {/* Upload error */}
