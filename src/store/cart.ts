@@ -83,7 +83,7 @@ export interface CartState {
   items: CartItem[];
   addFromQuote: (quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => void;
   loadItemIntoQuote: (itemId: string) => CartItem | null;
-  updateQuantity: (id: string, quantity: number) => void;
+  updateCartItem: (itemId: string, quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => void;
   removeItem: (id: string) => void;
   clearCart: () => void;
   getSubtotalCents: () => number;
@@ -277,7 +277,6 @@ export const useCartStore = create<CartState>()(
         // Return the item so the caller can load it into quote store
         return item;
       },
-
       removeItem: (id: string) => {
         set((state) => ({
           items: state.items.filter(item => item.id !== id)

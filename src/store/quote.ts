@@ -46,6 +46,8 @@ export interface QuoteState {
   addRope: boolean;
   previewScalePct: number;
   textElements: TextElement[];
+  editingItemId?: string | null; // ID of cart item being edited, if any
+  editingItemId?: string | null; // ID of cart item being edited, if any
   file?: {
     name: string;
     type: string;
@@ -107,6 +109,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
   addRope: false, // Preserve rope selection
   previewScalePct: 100,
   textElements: [],
+  editingItemId: null,
   file: undefined,
   set: (partial) => set((state) => {
     // Handle mutual exclusivity between grommets and pole pockets

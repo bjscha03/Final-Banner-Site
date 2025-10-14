@@ -16,7 +16,8 @@ import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
 const PricingCard: React.FC = () => {
   const navigate = useNavigate();
   const quote = useQuoteStore();
-  const { addFromQuote } = useCartStore();
+  const isEditing = quote.editingItemId !== null && quote.editingItemId !== undefined;
+  const { addFromQuote, updateCartItem } = useCartStore();
   const { toast } = useToast();
   const { scrollToTopBeforeNavigate } = useScrollToTop();
   
@@ -398,6 +399,22 @@ const PricingCard: React.FC = () => {
       addFromQuote(updatedQuote, undefined, pricing);
       scrollToTopBeforeNavigate();
       navigate('/checkout');
+    } else if (pendingAction === 'update' && quote.editingItemId) {
+      updateCartItem(quote.editingItemId, updatedQuote as any, undefined, pricing);
+      quote.set({ editingItemId: null });
+      toast({
+        title: "Cart Updated",
+        description: "Your banner design has been updated in the cart.",
+      });
+      scrollToTopBeforeNavigate('/cart');
+    } else if (pendingAction === 'update' && quote.editingItemId) {
+      updateCartItem(quote.editingItemId, updatedQuote as any, undefined, pricing);
+      quote.set({ editingItemId: null });
+      toast({
+        title: "Cart Updated",
+        description: "Your banner design has been updated in the cart.",
+      });
+      scrollToTopBeforeNavigate('/cart');
     }
 
     // Reset pending action
@@ -607,13 +624,14 @@ const PricingCard: React.FC = () => {
         <div className="space-y-4 mt-8">
           {/* Add to Cart Button */}
           <button
-            onClick={handleAddToCart} disabled={!finalCanProceed}
+            onClick={isEditing ? handleUpdateCartItem : handleAddToCart} 
+            disabled={!finalCanProceed}
             className={`w-full py-5 rounded-lg font-bold text-xl shadow-sm transition-all duration-300 flex items-center justify-center gap-3 relative overflow-hidden ${finalCanProceed ? 'bg-orange-500 hover:bg-orange-600 text-white hover:shadow-sm transform hover:scale-105' : 'bg-gray-400 text-gray-600 cursor-not-allowed'}`}
           >
             <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div className="relative flex items-center gap-3">
               <ShoppingCart className="h-6 w-6" />
-              <span>Add to Cart</span>
+              <span>{isEditing ? 'Update Cart Item' : 'Add to Cart'}</span>
             </div>
           </button>
 

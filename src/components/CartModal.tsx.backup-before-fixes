@@ -28,8 +28,6 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
     const item = loadItemIntoQuote(itemId);
     if (item) {
       loadFromCartItem(item);
-      // Set the editingItemId so the Design page knows we're editing
-      useQuoteStore.getState().set({ editingItemId: itemId });
       onClose();
       navigate('/design');
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -125,8 +123,9 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                                 {item.file_name && <div className="truncate" title={item.file_name}>File: <span className="text-gray-800">{item.file_name}</span></div>}
                               </div>
                             </div>
-                            <div className="text-right ml-3 flex-shrink-0">
+                            <div className="text-right ml-3">
                               <p className="font-bold text-[#18448D] text-lg">{usd(item.line_total_cents/100)}</p>
+                              <p className="text-xs text-gray-500">{usd(eachCents/100)} each</p>
                             </div>
                           </div>
 
