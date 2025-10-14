@@ -46,7 +46,7 @@ const createFittedImageUrl = (originalUrl: string, targetWidthIn: number, target
 
 
 const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGeneratingAI = false }) => {
-  const { widthIn, heightIn, previewScalePct, grommets, file, overlayImage, textElements, set, addTextElement, updateTextElement, deleteTextElement } = useQuoteStore();
+  const { widthIn, heightIn, previewScalePct, grommets, file, overlayImage, textElements, editingItemId, set, addTextElement, updateTextElement, deleteTextElement } = useQuoteStore();
   const { toast } = useToast();
 
   const [dragActive, setDragActive] = useState(false);
@@ -328,6 +328,12 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     }
     set({ file: null });
     setUploadError('');
+    
+    // If we were editing a cart item, clear editingItemId since we're starting fresh
+    if (editingItemId) {
+      console.log('🔄 LivePreviewCard: File removed while editing, clearing editingItemId');
+      set({ editingItemId: null });
+    }
   };
 
   // Text handling functions

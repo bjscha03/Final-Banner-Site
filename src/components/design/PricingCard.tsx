@@ -16,7 +16,15 @@ import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
 const PricingCard: React.FC = () => {
   const navigate = useNavigate();
   const quote = useQuoteStore();
-  const isEditing = quote.editingItemId !== null && quote.editingItemId !== undefined;
+  const isEditing = quote.editingItemId !== null && quote.editingItemId !== undefined && quote.file !== null;
+  
+  // If we were editing but file was deleted, clear editingItemId to revert to "Add to Cart" mode
+  React.useEffect(() => {
+    if (quote.editingItemId && !quote.file) {
+      console.log('🔄 PricingCard: File deleted while editing, clearing editingItemId');
+      quote.set({ editingItemId: null });
+    }
+  }, [quote.file, quote.editingItemId]);
   console.log("🔍 PricingCard - isEditing:", isEditing, "editingItemId:", quote.editingItemId);
   const { addFromQuote, updateCartItem } = useCartStore();
   const { toast } = useToast();
