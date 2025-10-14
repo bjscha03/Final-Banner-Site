@@ -101,6 +101,12 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
         title: "Cart Updated",
         description: "Your banner design has been updated in the cart.",
       });
+      
+      // Reset design area after successful update
+      quote.resetDesign();
+      
+      // Reset design area after successful update
+      quote.resetDesign();
     } else {
       // ADD new item to cart
       addFromQuote(pricing);
@@ -109,6 +115,12 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
         title: "Added to Cart",
         description: "Your banner design has been added to the cart.",
       });
+      
+      // Reset design area after successful add
+      quote.resetDesign();
+      
+      // Reset design area after successful add
+      quote.resetDesign();
     }
   };
 

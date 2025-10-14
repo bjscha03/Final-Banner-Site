@@ -79,6 +79,7 @@ export interface QuoteState {
   addTextElement: (element: Omit<TextElement, 'id'>) => void;
   updateTextElement: (id: string, updates: Partial<TextElement>) => void;
   deleteTextElement: (id: string) => void;
+  resetDesign: () => void;
   // Computed properties for validation
   getSquareFootage: () => number;
   isOverSizeLimit: () => boolean;
@@ -194,5 +195,21 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
   deleteTextElement: (id) => set((state) => ({
     ...state,
     textElements: state.textElements.filter(el => el.id !== id)
-  }))
+  })),
+  // Reset design area to default values
+  resetDesign: () => set({
+    widthIn: 48,
+    heightIn: 24,
+    quantity: 1,
+    material: '13oz',
+    grommets: 'none',
+    polePockets: 'none',
+    polePocketSize: '2',
+    addRope: false,
+    previewScalePct: 100,
+    textElements: [],
+    editingItemId: null,
+    file: undefined,
+    overlayImage: undefined,
+  })
 }));
