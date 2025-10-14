@@ -14,21 +14,23 @@ export function useCartSync() {
   useEffect(() => {
     const currentUserId = user?.id || null;
     const prevUserId = prevUserIdRef.current;
+    const cartOwnerId = localStorage.getItem('cart_owner_user_id');
     
     console.log('═══════════════════════════════════════════════');
     console.log('🔍 CART SYNC HOOK: User effect triggered');
     console.log('🔍 Previous user ID:', prevUserId);
     console.log('🔍 Current user ID:', currentUserId);
+    console.log('🔍 Cart owner ID:', cartOwnerId);
     console.log('🔍 User object:', user);
     console.log('🔍 User email:', user?.email);
     
-    // SAFETY: Clear cart IMMEDIATELY if user changed (before any async operations)
-    // This prevents User B from seeing User A's cart even if database fails
-    if (prevUserId && currentUserId && prevUserId !== currentUserId) {
-      console.log('🚨 SAFETY CLEAR: User changed detected, clearing cart IMMEDIATELY');
-      console.log('🚨 Previous user:', prevUserId);
-      console.log('🚨 New user:', currentUserId);
-      clearCart(); // Clear synchronously, right now
+    // NUCLEAR OPTION: If current user doesn't match cart owner, CLEAR IMMEDIATELY
+    if (currentUserId && cartOwnerId && currentUserId !== cartOwnerId) {
+      console.log('🚨🚨🚨 NUCLEAR CLEAR: Cart owner mismatch detected!');
+      console.log('🚨 Current user:', currentUserId);
+      console.log('🚨 Cart owner:', cartOwnerId);
+      console.log('🚨 CLEARING CART IMMEDIATELY');
+      clearCart();
       localStorage.setItem('cart_owner_user_id', currentUserId);
     }
     
@@ -63,14 +65,24 @@ export function useCartSync() {
     
     // User logged in (from logged out state)
     if (!prevUserId && currentUserId) {
-      console.log('👤 User logged in, syncing cart from Neon...');
+      console.log('👤 User logged in from logged out state');
       console.log('👤 User ID:', currentUserId);
       console.log('👤 User email:', user?.email);
-      console.log('👤 Setting cart owner in localStorage...');
+      console.log('👤 Cart owner ID:', cartOwnerId);
+      
+      // CRITICAL: Check if cart belongs to this user
+      if (cartOwnerId && cartOwnerId !== currentUserId) {
+        console.log('🚨 CRITICAL: Cart belongs to different user!');
+        console.log('🚨 Cart owner:', cartOwnerId);
+        console.log('🚨 Current user:', currentUserId);
+        console.log('🚨 CLEARING CART NOW');
+        clearCart();
+      }
+      
       localStorage.setItem('cart_owner_user_id', currentUserId);
       console.log('👤 About to call loadFromServer()...');
       loadFromServer();
-      console.log('�� loadFromServer() called');
+      console.log('✅ loadFromServer() called');
     }
     
     // User logged out
@@ -85,6 +97,7 @@ export function useCartSync() {
     
     // Update the ref
     prevUserIdRef.current = currentUserId;
+    console.log('🔍 Updated prevUserIdRef to:', currentUserId);
     console.log('═══════════════════════════════════════════════');
   }, [user, loadFromServer, clearCart]);
 }
