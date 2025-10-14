@@ -22,11 +22,22 @@ export const cartSync = {
   getUserId(): string | null {
     try {
       const userStr = localStorage.getItem('banners_current_user');
-      if (!userStr) return null;
+      console.log('🔍 CART SYNC: Getting user ID from localStorage');
+      console.log('🔍 CART SYNC: Raw user string:', userStr ? userStr.substring(0, 100) + '...' : 'null');
+      
+      if (!userStr) {
+        console.log('❌ CART SYNC: No user found in localStorage');
+        return null;
+      }
+      
       const user = JSON.parse(userStr);
-      return user?.id || null;
+      console.log('🔍 CART SYNC: Parsed user:', { id: user?.id, email: user?.email });
+      
+      const userId = user?.id || null;
+      console.log('✅ CART SYNC: Returning user ID:', userId);
+      return userId;
     } catch (error) {
-      console.error('Error getting user ID:', error);
+      console.error('❌ CART SYNC: Error getting user ID:', error);
       return null;
     }
   },
@@ -58,7 +69,11 @@ export const cartSync = {
       console.log('📭 No cart found in Neon for this user');
       return [];
     } catch (error) {
-      console.error('❌ Error loading cart from Neon:', error);
+      console.error('❌ CART SYNC ERROR: Failed to load cart from Neon');
+      console.error('❌ CART SYNC ERROR: User ID:', userId);
+      console.error('❌ CART SYNC ERROR: Error details:', error);
+      console.error('❌ CART SYNC ERROR: This likely means the user_carts table does not exist in Neon database');
+      console.error('❌ CART SYNC ERROR: Run the SQL migration from database-migrations/add-user-carts.sql');
       return [];
     }
   },
@@ -88,7 +103,12 @@ export const cartSync = {
       console.log('✅ Cart saved to Neon');
       return true;
     } catch (error) {
-      console.error('❌ Error saving cart to Neon:', error);
+      console.error('❌ CART SYNC ERROR: Failed to save cart to Neon');
+      console.error('❌ CART SYNC ERROR: User ID:', userId);
+      console.error('❌ CART SYNC ERROR: Items count:', items.length);
+      console.error('❌ CART SYNC ERROR: Error details:', error);
+      console.error('❌ CART SYNC ERROR: This likely means the user_carts table does not exist in Neon database');
+      console.error('❌ CART SYNC ERROR: Run the SQL migration from database-migrations/add-user-carts.sql');
       return false;
     }
   },
