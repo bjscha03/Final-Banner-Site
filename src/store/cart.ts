@@ -80,6 +80,8 @@ export interface AuthoritativePricing {
 }
 
 export interface CartState {
+  syncToServer: () => Promise<void>;
+  loadFromServer: () => Promise<void>;
   items: CartItem[];
   addFromQuote: (quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => void;
   loadItemIntoQuote: (itemId: string) => CartItem | null;
@@ -239,6 +241,10 @@ export const useCartStore = create<CartState>()(
         console.log('💾 CART STORAGE: Item added, will persist to localStorage');
         console.log('💾 CART STORAGE: Item added, will persist to localStorage');
         set((state) => ({ items: [...state.items, newItem] }));
+      // Sync to Neon database
+      setTimeout(() => get().syncToServer(), 100);
+      // Sync to Neon database
+      setTimeout(() => get().syncToServer(), 100);
       },
       
       updateQuantity: (id: string, quantity: number) => {
@@ -270,6 +276,8 @@ export const useCartStore = create<CartState>()(
             };
           })
         }));
+      // Sync to Neon database
+      setTimeout(() => get().syncToServer(), 100);
       },
       
       loadItemIntoQuote: (itemId: string) => {
@@ -364,15 +372,23 @@ export const useCartStore = create<CartState>()(
         set((state) => ({
           items: state.items.map(item => item.id === itemId ? updatedItem : item)
         }));
+      // Sync to Neon database
+      setTimeout(() => get().syncToServer(), 100);
+      // Sync to Neon database
+      setTimeout(() => get().syncToServer(), 100);
       },
       removeItem: (id: string) => {
         set((state) => ({
           items: state.items.filter(item => item.id !== id)
         }));
+      // Sync to Neon database
+      setTimeout(() => get().syncToServer(), 100);
       },
       
       clearCart: () => {
         set({ items: [] });
+      // Sync to Neon database
+      setTimeout(() => get().syncToServer(), 100);
       },
       
       getSubtotalCents: () => {
