@@ -48,7 +48,7 @@ export interface UpsellModalProps {
   onClose: () => void;
   quote: QuoteState;
   onContinue: (selectedOptions: UpsellOption[], dontAskAgain: boolean) => void;
-  actionType: 'cart' | 'checkout';
+  actionType: 'cart' | 'checkout' | 'update';
 }
 
 const UpsellModal: React.FC<UpsellModalProps> = ({
@@ -217,8 +217,18 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
   if (!isOpen) return null;
 
   const hasSelectedOptions = selectedOptions.some(option => option.selected);
-  const actionIcon = actionType === 'cart' ? ShoppingCart : CreditCard;
-  const actionText = actionType === 'cart' ? 'Add to Cart' : 'Buy Now';
+  
+  // Determine icon and text based on action type
+  let actionIcon = ShoppingCart;
+  let actionText = 'Add to Cart';
+  
+  if (actionType === 'checkout') {
+    actionIcon = CreditCard;
+    actionText = 'Buy Now';
+  } else if (actionType === 'update') {
+    actionIcon = ShoppingCart;
+    actionText = 'Update Cart Item';
+  }
 
   // Custom dropdown component for options
   const OptionDropdown: React.FC<{

@@ -266,6 +266,13 @@ const PricingCard: React.FC = () => {
       title: "Added to Cart",
       description: "Your banner has been added to the cart.",
     });
+    
+    // Reset design area after successful add
+    console.log('🔄 RESET: About to call resetDesign() after direct add (no upsell)');
+    console.log('🔄 RESET: Current file before reset:', quote.file);
+    quote.resetDesign();
+    console.log('🔄 RESET: resetDesign() called');
+    console.log('🔄 RESET: Current file after reset:', quote.file);
   };
 
   const handleUpdateCartItem = () => {
@@ -336,7 +343,12 @@ const PricingCard: React.FC = () => {
       description: "Your banner design has been updated in the cart.",
     });
     
-    // Stay on the design page after updating
+    // Reset design area after successful update
+    console.log('🔄 RESET: About to call resetDesign() after direct update (no upsell)');
+    console.log('🔄 RESET: Current file before reset:', quote.file);
+    quote.resetDesign();
+    console.log('🔄 RESET: resetDesign() called');
+    console.log('🔄 RESET: Current file after reset:', quote.file);
   };
 
 
@@ -394,6 +406,14 @@ const PricingCard: React.FC = () => {
       file: quote.file,
     };
     addFromQuote(quoteData as any, undefined, pricing);
+    
+    // Reset design area after navigating to checkout
+    console.log('🔄 RESET: About to call resetDesign() after direct checkout (no upsell)');
+    console.log('🔄 RESET: Current file before reset:', quote.file);
+    quote.resetDesign();
+    console.log('🔄 RESET: resetDesign() called');
+    console.log('🔄 RESET: Current file after reset:', quote.file);
+    
     scrollToTopBeforeNavigate();
     navigate('/checkout');
   };
