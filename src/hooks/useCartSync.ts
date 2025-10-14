@@ -45,9 +45,12 @@ export function useCartSync() {
     
     // User logged out
     if (prevUserId && !currentUserId) {
-      console.log('🚪 User logged out, clearing cart ownership');
+      console.log('🚪 User logged out');
+      console.log('🚪 Cart will remain in localStorage for next login');
+      console.log('🚪 Removing cart ownership tracking');
       localStorage.removeItem('cart_owner_user_id');
-      clearCart(); // Clear cart on logout
+      // DO NOT clear cart - it should persist in localStorage
+      // When user logs back in, it will merge with server cart
     }
     
     // Update the ref
