@@ -24,11 +24,21 @@ export function useCartSync() {
     
     // User changed (different user logged in)
     if (prevUserId && currentUserId && prevUserId !== currentUserId) {
-      console.log('⚠️  USER CHANGED: Clearing cart for new user');
-      console.log('⚠️  Old user:', prevUserId);
+      console.log('⚠️  USER CHANGED: Different user logging in');
+      console.log('⚠️  Previous user:', prevUserId);
       console.log('⚠️  New user:', currentUserId);
-      clearCart(); // Clear the old user's cart
+      console.log('⚠️  Clearing localStorage cart for new user');
+      
+      // Clear the cart in localStorage (it belongs to the previous user)
+      // The previous user's cart is already saved to Neon database
+      clearCart();
+      
+      // Update ownership tracking
       localStorage.setItem('cart_owner_user_id', currentUserId);
+      
+      // Load the new user's cart from Neon
+      console.log('👤 Loading new user cart from Neon...');
+      loadFromServer();
     }
     
     // User logged in (from logged out state)
