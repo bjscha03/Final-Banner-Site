@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { QuoteState, MaterialKey, Grommets, TextElement } from './quote';
 import { calculateTax, calculateTotalWithTax, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
+import { cartSync } from '@/lib/cartSync';
 
 export type PricingMode = 'per_item' | 'per_order';
 
@@ -483,6 +484,40 @@ export const useCartStore = create<CartState>()(
       // Migrate items when loading from localStorage
       onRehydrateStorage: () => (state) => {
         console.log('💾 CART STORAGE: Rehydrating from localStorage...');
+        
+        // Check cart ownership - clear cart if user changed
+        try {
+          const currentUserId = cartSync.getUserId();
+          const cartUserId = localStorage.getItem('cart_owner_user_id');
+          
+          console.log('🔍 CART REHYDRATION: Checking cart ownership');
+          console.log('🔍 Current user ID:', currentUserId);
+          console.log('🔍 Cart owner ID:', cartUserId);
+          
+          // If user has changed, clear the cart
+          if (currentUserId && cartUserId && currentUserId !== cartUserId) {
+            console.log('⚠️  CART OWNERSHIP MISMATCH: User changed, clearing cart');
+            console.log('⚠️  Old user:', cartUserId);
+            console.log('⚠️  New user:', currentUserId);
+            if (state) {
+              state.items = [];
+            }
+          }
+          
+          // Update the cart owner
+          if (currentUserId) {
+            localStorage.setItem('cart_owner_user_id', currentUserId);
+            console.log('✅ Updated cart owner to:', currentUserId);
+          } else if (!currentUserId && cartUserId) {
+            // User logged out, clear ownership
+            localStorage.removeItem('cart_owner_user_id');
+            console.log('🚪 User logged out, cleared cart ownership');
+          }
+        } catch (error) {
+          console.error('❌ Error checking cart ownership:', error);
+        }
+        
+        // Migrate cart items if needed
         if (state?.items) {
           console.log('💾 CART STORAGE: Found', state.items.length, 'items in storage');
           console.log('🔄 Rehydrating cart, checking for items needing migration...');
