@@ -54,6 +54,7 @@ const getTouchDistance = (touch1: React.Touch, touch2: React.Touch): number => {
 
 const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGeneratingAI = false }) => {
   const { widthIn, heightIn, previewScalePct, grommets, file, overlayImage, textElements, editingItemId, set, addTextElement, updateTextElement, deleteTextElement } = useQuoteStore();
+  console.log('🔍 LIVE PREVIEW: overlayImage from quote store:', overlayImage);
   const { toast } = useToast();
 
   const [dragActive, setDragActive] = useState(false);
