@@ -79,6 +79,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
   const [showHorizontalCenterGuide, setShowHorizontalCenterGuide] = useState(false);
   const overlayFileInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const previewContainerRef = useRef<HTMLDivElement>(null);
   
   // Pinch-to-zoom state for main image
   const [isPinchingImage, setIsPinchingImage] = useState(false);
@@ -106,6 +107,51 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       console.log('🔄 PREVIEW USEEFFECT: File exists, not resetting');
     }
   }, [file]);
+
+  // Responsive scale factor based on container dimensions
+  const [responsiveScale, setResponsiveScale] = useState(100);
+
+  // Calculate responsive scale based on container size
+  const calculateResponsiveScale = useCallback(() => {
+    if (!previewContainerRef.current) return;
+    
+    const container = previewContainerRef.current;
+    const containerWidth = container.clientWidth;
+    
+    // Base calculation: scale text proportionally based on actual container width
+    // Reference width: 800px for desktop = 100% scale
+    const referenceWidth = 800;
+    const calculatedScale = (containerWidth / referenceWidth) * 100;
+    
+    // Clamp between reasonable bounds (30% to 150%)
+    const clampedScale = Math.max(30, Math.min(150, calculatedScale));
+    
+    console.log('📏 Responsive scale calculated:', {
+      containerWidth,
+      calculatedScale: calculatedScale.toFixed(1),
+      clampedScale: clampedScale.toFixed(1)
+    });
+    
+    setResponsiveScale(clampedScale);
+  }, []);
+
+  // Measure container on mount and when it changes
+  useEffect(() => {
+    calculateResponsiveScale();
+    
+    // Use ResizeObserver for accurate container size tracking
+    const resizeObserver = new ResizeObserver(() => {
+      calculateResponsiveScale();
+    });
+    
+    if (previewContainerRef.current) {
+      resizeObserver.observe(previewContainerRef.current);
+    }
+    
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [calculateResponsiveScale]);
 
   // Handle orientation changes and window resize
   useEffect(() => {
@@ -1357,7 +1403,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       </div>
 
       {/* Preview Area */}
-      <div className="relative flex-1 pb-8">
+      <div ref={previewContainerRef} className="relative flex-1 pb-8">
         {!file ? (
           /* Upload State - matching the design with drag and drop */
           <div
@@ -1486,8 +1532,8 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                       element={element}
                       bannerWidthIn={widthIn}
                       bannerHeightIn={heightIn}
-                      scale={previewScalePct / 100}
-                      previewScale={previewScalePct}
+                      scale={responsiveScale / 100}
+                      previewScale={responsiveScale}
                       isSelected={selectedTextId === element.id}
                       onSelect={() => {
                         setSelectedTextId(element.id);
