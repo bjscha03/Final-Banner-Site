@@ -165,9 +165,9 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
         isPdf: item.is_pdf,
         isAI: !!item.aiDesign,
       } : undefined,
-    console.log('🔍 QUOTE STORE: After set, overlayImage is now:', get().overlayImage);
       overlayImage: item.overlay_image,
     }));
+    console.log('🔍 QUOTE STORE: After set, overlayImage is now:', get().overlayImage);
   },
   // Computed validation methods
   getSquareFootage: () => {
