@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo } from 'react';
+import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image, X, ChevronDown, ChevronUp, Wand2, Crop, RefreshCw, Loader2, Type } from 'lucide-react';
 import DraggableText from './DraggableText';
 import TextStylePanel from './TextStylePanel';
@@ -45,6 +45,13 @@ const createFittedImageUrl = (originalUrl: string, targetWidthIn: number, target
 };
 
 
+// Helper function to calculate distance between two touch points
+const getTouchDistance = (touch1: React.Touch, touch2: React.Touch): number => {
+  const dx = touch1.clientX - touch2.clientX;
+  const dy = touch1.clientY - touch2.clientY;
+  return Math.sqrt(dx * dx + dy * dy);
+};
+
 const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGeneratingAI = false }) => {
   const { widthIn, heightIn, previewScalePct, grommets, file, overlayImage, textElements, editingItemId, set, addTextElement, updateTextElement, deleteTextElement } = useQuoteStore();
   const { toast } = useToast();
@@ -71,6 +78,16 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
   const [showHorizontalCenterGuide, setShowHorizontalCenterGuide] = useState(false);
   const overlayFileInputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Pinch-to-zoom state for main image
+  const [isPinchingImage, setIsPinchingImage] = useState(false);
+  const [initialPinchDistance, setInitialPinchDistance] = useState(0);
+  const [pinchStartScale, setPinchStartScale] = useState(1);
+  
+  // Pinch-to-zoom state for overlay
+  const [isPinchingOverlay, setIsPinchingOverlay] = useState(false);
+  const [initialOverlayPinchDistance, setInitialOverlayPinchDistance] = useState(0);
+  const [pinchStartOverlayScale, setPinchStartOverlayScale] = useState(0.3);
 
   // Reset image position and scale when file is cleared
   React.useEffect(() => {
@@ -88,6 +105,27 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       console.log('🔄 PREVIEW USEEFFECT: File exists, not resetting');
     }
   }, [file]);
+
+  // Handle orientation changes and window resize
+  useEffect(() => {
+    const handleOrientationChange = () => {
+      console.log('📱 Orientation changed - recalculating preview layout');
+      // Force a re-render to recalculate dimensions
+      // The preview canvas will automatically adjust based on container size
+    };
+    
+    const handleResize = () => {
+      console.log('📐 Window resized - preview will adjust automatically');
+    };
+    
+    window.addEventListener('orientationchange', handleOrientationChange);
+    window.addEventListener('resize', handleResize);
+    
+    return () => {
+      window.removeEventListener('orientationchange', handleOrientationChange);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   // Overlay image interaction state
   const [isOverlaySelected, setIsOverlaySelected] = useState(false);
@@ -512,6 +550,18 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
 
     e.preventDefault();
     const target = e.target as SVGElement;
+    
+    // Detect two-finger pinch gesture for zoom
+    if (e.touches.length === 2) {
+      console.log('📌 Two-finger pinch detected on overlay');
+      const distance = getTouchDistance(e.touches[0], e.touches[1]);
+      setIsPinchingOverlay(true);
+      setInitialOverlayPinchDistance(distance);
+      setPinchStartOverlayScale(overlayImage.scale);
+      setIsOverlaySelected(true);
+      return;
+    }
+    
     const touch = e.touches[0];
 
     // Check if touching a resize handle
@@ -556,6 +606,31 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       setIsImageSelected(false);
       setIsOverlaySelected(false);
       console.log('🔵 Deselected all - clicked on canvas background');
+    }
+  };
+
+  const handleCanvasTouchEnd = (e: React.TouchEvent) => {
+    // Deselect on tap (touch equivalent of handleCanvasClick)
+    const target = e.target as HTMLElement;
+    const tagName = target.tagName?.toLowerCase();
+    
+    const isInteractiveElement = tagName === 'image' || 
+                                 tagName === 'text' ||
+                                 tagName === 'tspan' ||
+                                 target.classList?.contains('resize-handle') ||
+                                 target.classList?.contains('overlay-resize-handle') ||
+                                 target.classList?.contains('resize-handle-group') ||
+                                 target.classList?.contains('text-element') ||
+                                 target.getAttribute?.('data-handle') ||
+                                 target.getAttribute?.('data-overlay-handle') ||
+                                 target.getAttribute?.('data-text-element') ||
+                                 target.closest?.('[data-text-element]') !== null;
+    
+    if (!isInteractiveElement) {
+      setSelectedTextId(null);
+      setIsImageSelected(false);
+      setIsOverlaySelected(false);
+      console.log('🔵 Deselected all - tapped on canvas background');
     }
   };
 
@@ -917,6 +992,18 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
 
     e.preventDefault();
     const target = e.target as SVGElement;
+    
+    // Detect two-finger pinch gesture for zoom
+    if (e.touches.length === 2) {
+      console.log('📌 Two-finger pinch detected on main image');
+      const distance = getTouchDistance(e.touches[0], e.touches[1]);
+      setIsPinchingImage(true);
+      setInitialPinchDistance(distance);
+      setPinchStartScale(imageScale);
+      setIsImageSelected(true);
+      return;
+    }
+    
     const touch = e.touches[0];
 
     // Check if touching a resize handle
@@ -1036,6 +1123,33 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     };
     
     const handleTouchMove = (e: TouchEvent) => {
+      // Handle pinch-to-zoom for main image
+      if (isPinchingImage && e.touches.length === 2) {
+        e.preventDefault();
+        const currentDistance = getTouchDistance(e.touches[0], e.touches[1]);
+        const scaleFactor = currentDistance / initialPinchDistance;
+        const newScale = Math.max(0.1, Math.min(5, pinchStartScale * scaleFactor));
+        setImageScale(newScale);
+        console.log('🔍 Pinching main image - scale:', newScale.toFixed(2));
+        return;
+      }
+      
+      // Handle pinch-to-zoom for overlay
+      if (isPinchingOverlay && e.touches.length === 2 && overlayImage) {
+        e.preventDefault();
+        const currentDistance = getTouchDistance(e.touches[0], e.touches[1]);
+        const scaleFactor = currentDistance / initialOverlayPinchDistance;
+        const newScale = Math.max(0.05, Math.min(2, pinchStartOverlayScale * scaleFactor));
+        set({
+          overlayImage: {
+            ...overlayImage,
+            scale: newScale
+          }
+        });
+        console.log('🔍 Pinching overlay - scale:', newScale.toFixed(2));
+        return;
+      }
+      
       if (!isDraggingImage && !isResizingImage && !isDraggingOverlay && !isResizingOverlay) return;
 
       e.preventDefault();
@@ -1116,9 +1230,11 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       setIsDraggingOverlay(false);
       setIsResizingOverlay(false);
       setOverlayResizeHandle(null);
+      setIsPinchingImage(false);
+      setIsPinchingOverlay(false);
     };
     
-    if (isDraggingImage || isResizingImage || isDraggingOverlay || isResizingOverlay) {
+    if (isDraggingImage || isResizingImage || isDraggingOverlay || isResizingOverlay || isPinchingImage || isPinchingOverlay) {
       document.addEventListener("mousemove", handleMouseMove);
       document.addEventListener("mouseup", handleMouseUp);
       document.addEventListener("touchmove", handleTouchMove, { passive: false });
@@ -1131,7 +1247,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         document.removeEventListener("touchend", handleTouchEnd);
       };
     }
-  }, [isDraggingImage, isResizingImage, isDraggingOverlay, isResizingOverlay, dragStart, initialImagePosition, initialImageScale, initialOverlayPosition, initialOverlayScale, imagePosition, imageScale, resizeHandle, overlayResizeHandle, widthIn, heightIn, overlayImage, set]);
+  }, [isDraggingImage, isResizingImage, isDraggingOverlay, isResizingOverlay, isPinchingImage, isPinchingOverlay, dragStart, initialImagePosition, initialImageScale, initialOverlayPosition, initialOverlayScale, imagePosition, imageScale, resizeHandle, overlayResizeHandle, widthIn, heightIn, overlayImage, set, initialPinchDistance, pinchStartScale, initialOverlayPinchDistance, pinchStartOverlayScale]);
 
 
   return (
@@ -1323,6 +1439,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                     onOverlayMouseDown={handleOverlayMouseDown}
                     onOverlayTouchStart={handleOverlayTouchStart}
                     onCanvasClick={handleCanvasClick}
+                    onCanvasTouchEnd={handleCanvasTouchEnd}
                     isDraggingImage={isDraggingImage}
                     isImageSelected={isImageSelected}
                     isOverlaySelected={isOverlaySelected}

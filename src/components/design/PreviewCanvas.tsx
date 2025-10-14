@@ -30,6 +30,7 @@ interface PreviewCanvasProps {
   onOverlayMouseDown?: (e: React.MouseEvent) => void;
   onOverlayTouchStart?: (e: React.TouchEvent) => void;
   onCanvasClick?: (e: React.MouseEvent) => void;
+  onCanvasTouchEnd?: (e: React.TouchEvent) => void;
   isDraggingImage?: boolean;
   isImageSelected?: boolean;
   isOverlaySelected?: boolean;
@@ -173,6 +174,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           viewBox={`0 0 ${totalWidth} ${totalHeight}`}
           className="border-2 border-gray-400 rounded-xl bg-white shadow-sm"
           onClick={onCanvasClick}
+          onTouchEnd={onCanvasTouchEnd}
           style={{
             maxWidth: "100%",
             maxHeight: "100%",
@@ -294,7 +296,9 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
                   {/* Selection Handles - Only show when overlay is selected */}
                   {isOverlaySelected && (() => {
                     // Calculate handle size based on scale (similar to image handles)
-                    const handleRadius = Math.max(0.1, Math.min(0.25, widthIn * 0.02));
+                    // Ensure minimum 44px touch target for mobile (0.46 inches at 96 DPI)
+                    // Increased minimum from 0.1 to 0.3 for better mobile usability
+                    const handleRadius = Math.max(0.3, Math.min(0.5, widthIn * 0.03));
                     const strokeWidth = handleRadius * 0.2;
                     const dashArray = handleRadius * 1.5 + " " + handleRadius * 0.75;
                     
