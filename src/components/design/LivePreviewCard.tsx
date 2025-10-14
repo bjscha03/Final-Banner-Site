@@ -549,6 +549,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     if (!overlayImage) return;
 
     e.preventDefault();
+    e.stopPropagation(); // Prevent touch event from bubbling to canvas
     const target = e.target as SVGElement;
     
     // Detect two-finger pinch gesture for zoom
