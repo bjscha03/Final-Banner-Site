@@ -1303,6 +1303,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                   }}
                 >
                   <PreviewCanvas
+                    key={file?.url || file?.fileKey || "no-file"}
                     widthIn={widthIn}
                     heightIn={heightIn}
                     grommets={grommets}
