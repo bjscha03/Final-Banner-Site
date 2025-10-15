@@ -485,21 +485,40 @@ export const useCartStore = create<CartState>()(
         
         // SAFETY CHECK: Clear cart if it belongs to a different user
         // This is a backup in case useCartSync doesn't run
+        // EXCEPTION: Don't clear if we're in a checkout flow (cart will be merged by useCartSync)
         try {
           const currentUser = localStorage.getItem('banners_current_user');
           const cartOwnerId = localStorage.getItem('cart_owner_user_id');
+          const checkoutContext = localStorage.getItem('checkout-context-storage');
+          
+          // Check if we're in a checkout flow
+          let isInCheckoutFlow = false;
+          if (checkoutContext) {
+            try {
+              const context = JSON.parse(checkoutContext);
+              isInCheckoutFlow = context?.state?.isInCheckoutFlow === true;
+            } catch (e) {
+              // Ignore parse errors
+            }
+          }
           
           if (currentUser && cartOwnerId) {
             const currentUserId = JSON.parse(currentUser)?.id;
             console.log('🔒 SAFETY: Current user ID:', currentUserId);
             console.log('🔒 SAFETY: Cart owner ID:', cartOwnerId);
+            console.log('🔒 SAFETY: In checkout flow:', isInCheckoutFlow);
             
             if (currentUserId && currentUserId !== cartOwnerId) {
-              console.log('🚨 SAFETY: Cart belongs to different user, CLEARING');
-              if (state) {
-                state.items = [];
+              if (isInCheckoutFlow) {
+                console.log('✅ SAFETY: In checkout flow, preserving cart for merge');
+                // Don't clear - let useCartSync handle the merge
+              } else {
+                console.log('🚨 SAFETY: Cart belongs to different user, CLEARING');
+                if (state) {
+                  state.items = [];
+                }
+                localStorage.setItem('cart_owner_user_id', currentUserId);
               }
-              localStorage.setItem('cart_owner_user_id', currentUserId);
             }
           }
         } catch (error) {
