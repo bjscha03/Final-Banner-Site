@@ -131,22 +131,21 @@ export const AIGeneratorPanel: React.FC<AIGeneratorPanelProps> = ({
     }
   };
 
-  const handleLoadMore = async () => {
-    console.log('[AIGeneratorPanel] Load More clicked - Starting generation...');
+  const handleGenerateAgain = async () => {
+    console.log('[AIGeneratorPanel] Generate Again clicked - Starting generation...');
     console.log('[AIGeneratorPanel] Current state:', { prompt, aspect, userId, currentImages: generatedImages.length });
     
     try {
       setIsLoadingMore(true);
 
-      console.log('[AIGeneratorPanel] Calling ai-more-variations function...');
-      const response = await fetch('/.netlify/functions/ai-more-variations', {
+      console.log('[AIGeneratorPanel] Calling ai-preview-image function...');
+      const response = await fetch('/.netlify/functions/ai-preview-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           prompt,
           aspect,
           style,
-          count: 2, // Request 2 more variations
           userId,
         }),
       });
@@ -160,7 +159,7 @@ export const AIGeneratorPanel: React.FC<AIGeneratorPanelProps> = ({
         if (errorData.code === 'INSUFFICIENT_CREDITS') {
           toast({
             title: 'Insufficient Credits',
-            description: 'You need more credits to generate additional variations.',
+            description: 'You need more credits to generate additional images.',
             variant: 'destructive',
           });
           return;
@@ -169,34 +168,31 @@ export const AIGeneratorPanel: React.FC<AIGeneratorPanelProps> = ({
         throw new Error(errorData.message || `HTTP ${response.status}`);
       }
 
-      const data: MoreVariationsResponse = await response.json();
+      const data: PreviewImageResponse = await response.json();
       console.log('[AIGeneratorPanel] Success! Received data:', data);
       console.log('[AIGeneratorPanel] New URLs:', data.urls);
 
-      setGeneratedImages(prev => {
-        const updated = [...prev, ...data.urls];
-        console.log('[AIGeneratorPanel] Updated images array:', updated);
-        return updated;
-      });
+      // Replace the current image with the new one
+      setGeneratedImages(data.urls);
       setTier(data.tier);
       setCached(data.cached);
-      setShowMoreButton(false); // Hide button after loading more
+      setGenId(data.genId);
 
       // Refresh credit counter
       setCreditRefreshTrigger(prev => prev + 1);
 
       toast({
-        title: 'More Variations Loaded!',
-        description: `${data.urls.length} new images added${data.cached ? ' (some from cache)' : ''}.`,
+        title: 'New Image Generated!',
+        description: `${data.tier === 'premium' ? '👑 Premium' : '⚡ Standard'} quality image ready${data.cached ? ' (from cache)' : ''}.`,
       });
       
-      console.log('[AIGeneratorPanel] Load More completed successfully!');
+      console.log('[AIGeneratorPanel] Generate Again completed successfully!');
     } catch (error: any) {
-      console.error('[AIGeneratorPanel] Load more error:', error);
+      console.error('[AIGeneratorPanel] Generate again error:', error);
       console.error('[AIGeneratorPanel] Error stack:', error.stack);
       toast({
-        title: 'Failed to Load More',
-        description: error.message || 'Failed to generate more variations. Please try again.',
+        title: 'Generation Failed',
+        description: error.message || 'Failed to generate image. Please try again.',
         variant: 'destructive',
       });
     } finally {
@@ -307,9 +303,9 @@ export const AIGeneratorPanel: React.FC<AIGeneratorPanelProps> = ({
       )}
 
       {/* Load More Button */}
-      {showMoreButton && generatedImages.length === 1 && (
+      {showMoreButton && generatedImages.length > 0 && (
         <Button
-          onClick={handleLoadMore}
+          onClick={handleGenerateAgain}
           disabled={isLoadingMore}
           variant="outline"
           className="w-full"
@@ -322,7 +318,7 @@ export const AIGeneratorPanel: React.FC<AIGeneratorPanelProps> = ({
           ) : (
             <>
               <Plus className="w-4 h-4 mr-2" />
-              Generate 2 More Options
+              Generate Again
             </>
           )}
         </Button>

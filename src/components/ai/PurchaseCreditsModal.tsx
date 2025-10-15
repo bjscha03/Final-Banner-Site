@@ -427,26 +427,22 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
         </DialogContent>
       </Dialog>
 
-      {/* Receipt Modal */}
-      {/* Debug logging */}
-      {showReceipt && console.log('🔍 Rendering CreditPurchaseReceipt with purchaseData:', purchaseData)}
-      
-      {/* Debug logging */}
-      {showReceipt && console.log('🔍 Rendering CreditPurchaseReceipt with purchaseData:', purchaseData)}
-      
-      <CreditPurchaseReceipt
-        open={showReceipt}
-        onOpenChange={(open) => {
-          console.log('📋 Receipt onOpenChange:', open);
-          setShowReceipt(open);
-          if (!open) {
-            // User closed receipt, also close purchase modal
-            console.log('🔄 Receipt closed, closing purchase modal');
-            onOpenChange(false);
-          }
-        }}
-        purchase={purchaseData}
-      />
+      {/* Credit Purchase Receipt Modal - Only render when purchaseData exists */}
+      {purchaseData && (
+        <CreditPurchaseReceipt
+          open={showReceipt}
+          onOpenChange={(open) => {
+            console.log('📋 Receipt onOpenChange:', open);
+            setShowReceipt(open);
+            if (!open) {
+              // User closed receipt, also close purchase modal
+              console.log('🔄 Receipt closed, closing purchase modal');
+              onOpenChange(false);
+            }
+          }}
+          purchase={purchaseData}
+        />
+      )}
     </>
   );
 };
