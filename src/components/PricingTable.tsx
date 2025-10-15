@@ -70,7 +70,14 @@ const PricingTable: React.FC = () => {
 
   const handleMaterialSelect = (materialKey: MaterialKey) => {
     console.log('🔵 HOMEPAGE: handleMaterialSelect called with:', materialKey);
-    console.log('🔵 HOMEPAGE: handleMaterialSelect called with:', materialKey);
+    console.log('🔵 HOMEPAGE: Material key type:', typeof materialKey);
+    console.log('🔵 HOMEPAGE: Material key value:', JSON.stringify(materialKey));
+    
+    // Special logging for 15oz to debug the issue
+    if (materialKey === '15oz') {
+      console.log('✅ 15OZ BUTTON CLICKED - Function is being called correctly!');
+      console.log('✅ This proves the button click handler is working');
+    }
     // Get current Quick Quote selections or use defaults
     const quickQuoteData = sessionStorage.getItem('quickQuote');
     let widthIn = 48;
