@@ -614,8 +614,10 @@ exports.handler = async (event) => {
         const overlayAspectRatio = req.overlayImage.aspectRatio || (overlaySourceW / overlaySourceH);
         console.log('[PDF] Overlay aspect ratio:', overlayAspectRatio);
         
-        // Calculate base dimension (using banner width as reference, matching preview logic)
-        const baseDimension = req.bannerWidthIn * targetDpi;
+        // Calculate base dimension (MUST match PreviewCanvas.tsx logic exactly)
+        // PreviewCanvas uses Math.min(widthIn, heightIn) as the base dimension
+        const baseDimension = Math.min(req.bannerWidthIn, req.bannerHeightIn) * targetDpi;
+        console.log('[PDF] Base dimension (min of width/height):', baseDimension, 'px');
         
         // Calculate dimensions based on aspect ratio (matching PreviewCanvas.tsx logic)
         let overlayWidthPx, overlayHeightPx;
