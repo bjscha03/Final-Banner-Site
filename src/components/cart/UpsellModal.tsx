@@ -3,6 +3,7 @@ import { X, ShoppingCart, CreditCard, Check, ChevronDown } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { QuoteState, Grommets, PolePocketSize } from '@/store/quote';
 import { formatDimensions, usd, ropeCost, polePocketCost } from '@/lib/pricing';
+import BannerPreview from './BannerPreview';
 
 export interface UpsellOption {
   id: 'grommets' | 'rope' | 'polePockets';
@@ -300,19 +301,23 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
-          {/* Product Info */}
+          {/* Product Info with Live Preview */}
           <div className="bg-gray-50 rounded-xl p-4">
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-xl flex items-center justify-center">
-                <span className="text-white font-bold">
-                  {quote.widthIn}"×{quote.heightIn}"
-                </span>
-              </div>
-              <div>
+              {/* Live Banner Preview */}
+              <BannerPreview
+                widthIn={quote.widthIn}
+                heightIn={quote.heightIn}
+                grommets={selectedOptions.find(opt => opt.id === 'grommets' && opt.selected)?.grommetSelection as Grommets || quote.grommets}
+                imageUrl={quote.file?.url}
+                material={quote.material}
+                className="flex-shrink-0"
+              />
+              <div className="flex-1 min-w-0">
                 <h3 className="font-semibold text-gray-900 text-lg">
                   {formatDimensions(quote.widthIn, quote.heightIn)} Banner
                 </h3>
-                <p className="text-gray-600">
+                <p className="text-gray-600 text-sm">
                   {quote.quantity} {quote.quantity === 1 ? 'banner' : 'banners'} • {quote.material} vinyl
                 </p>
               </div>
