@@ -445,11 +445,17 @@ const DraggableText: React.FC<DraggableTextProps> = ({
             color: element.color,
             fontWeight: element.fontWeight,
             lineHeight: element.lineHeight || 1.5,
+            textAlign: element.textAlign,
             border: 'none',
             background: 'transparent',
             resize: 'none',
             width: '100%',
-            minWidth: '200px',
+            height: 'auto',
+            overflow: 'hidden',
+            outline: 'none',
+            padding: '0',
+            margin: '0',
+            boxSizing: 'border-box',
           }}
           rows={element.content.split('\n').length || 1}
         />
