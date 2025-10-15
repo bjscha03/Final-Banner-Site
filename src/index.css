@@ -237,6 +237,7 @@
     content: '';
     @apply absolute inset-0 opacity-0 transition-opacity duration-300;
     background: linear-gradient(135deg, rgba(59, 130, 246, 0.08) 0%, rgba(99, 102, 241, 0.12) 50%, rgba(139, 92, 246, 0.08) 100%);
+    pointer-events: none;
   }
 
   .material-card-popular:hover::before {
@@ -246,6 +247,7 @@
   .material-card-popular::after {
     content: '';
     @apply absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500;
+    pointer-events: none;
   }
 
   .design-tool-card {
