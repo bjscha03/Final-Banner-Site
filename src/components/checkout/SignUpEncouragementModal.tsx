@@ -4,8 +4,6 @@ import { X, User, ShoppingBag, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCheckoutContext } from '@/store/checkoutContext';
 import { cartSyncService } from '@/lib/cartSync';
-import { useCheckoutContext } from '@/store/checkoutContext';
-import { cartSyncService } from '@/lib/cartSync';
 
 interface SignUpEncouragementModalProps {
   isOpen: boolean;

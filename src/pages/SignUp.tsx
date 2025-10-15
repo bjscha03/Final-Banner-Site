@@ -11,7 +11,6 @@ import { useScrollToTop } from '@/components/ScrollToTop';
 import { LinkedInButton } from '@/components/auth/LinkedInButton';
 import GoogleButton from '@/components/auth/GoogleButton';
 import { useCheckoutContext } from '@/store/checkoutContext';
-import { useCheckoutContext } from '@/store/checkoutContext';
 
 const SignUp: React.FC = () => {
   const navigate = useNavigate();

@@ -11,7 +11,6 @@ import { useScrollToTop } from '@/components/ScrollToTop';
 import { LinkedInButton } from '@/components/auth/LinkedInButton';
 import GoogleButton from '@/components/auth/GoogleButton';
 import { useCheckoutContext } from '@/store/checkoutContext';
-import { useCheckoutContext } from '@/store/checkoutContext';
 
 const SignIn: React.FC = () => {
   const navigate = useNavigate();
@@ -39,13 +38,8 @@ const SignIn: React.FC = () => {
     finalNextUrl: nextUrl
   });
   
-  console.log('🔍 SIGN IN PAGE: Redirect calculation', {
-    fromCheckout,
-    queryNextUrl,
-    isContextValid: isContextValid(),
-    returnUrl: getReturnUrl(),
-    finalNextUrl: nextUrl
-  });
+
+  
 
   useEffect(() => {
     if (!authLoading && user) {
