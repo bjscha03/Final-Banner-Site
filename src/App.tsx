@@ -32,10 +32,20 @@ import AdminSetup from "./pages/AdminSetup";
 import LogoShowcase from "./pages/LogoShowcase";
 import BannerDesignerTest from "./pages/BannerDesignerTest";
 import { useCartSync } from "@/hooks/useCartSync";
+import { useCartRevalidation } from "@/hooks/useCartRevalidation";
 
-// Wrapper to sync cart when user logs in
+// Wrapper to sync cart when user logs in and enable cross-device revalidation
 const CartSyncWrapper = ({ children }: { children: React.ReactNode }) => {
   useCartSync();
+  
+  // Enable cross-device cart revalidation
+  useCartRevalidation({
+    onFocus: true,        // Revalidate when tab gains focus
+    onReconnect: true,    // Revalidate when network reconnects
+    pollingInterval: 0,   // Disable periodic polling (set to 30000 for 30s polling)
+    debounceMs: 1000,     // Debounce revalidation calls
+  });
+  
   return <>{children}</>;
 };
 

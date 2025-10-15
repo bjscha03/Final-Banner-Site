@@ -9,7 +9,6 @@ import { X } from 'lucide-react';
 import { useQuoteStore } from '@/store/quote';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/lib/auth';
-import { useAuth } from '@/lib/auth';
 import {
   Dialog,
   DialogContent,
