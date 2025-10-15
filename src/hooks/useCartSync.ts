@@ -7,10 +7,13 @@ import { useEffect, useRef } from 'react';
 import { useAuth } from '@/lib/auth';
 import { useCartStore } from '@/store/cart';
 import { cartSyncService } from '@/lib/cartSync';
+import { useCheckoutContext } from '@/store/checkoutContext';
+import { useCheckoutContext } from '@/store/checkoutContext';
 
 export function useCartSync() {
   const { user } = useAuth();
   const { loadFromServer, clearCart } = useCartStore();
+  const { guestSessionId: checkoutGuestSessionId } = useCheckoutContext();
   const prevUserIdRef = useRef<string | null>(null);
   const hasMergedRef = useRef<boolean>(false);
 
@@ -99,11 +102,20 @@ export function useCartSync() {
       // Merge guest cart with user cart on login
       if (!hasMergedRef.current) {
         console.log('🔄 MERGE: Merging guest cart with user cart...');
+        console.log('🔄 MERGE: Checkout guest session ID:', checkoutGuestSessionId ? `${checkoutGuestSessionId.substring(0, 12)}...` : 'none');
         hasMergedRef.current = true;
         
         (async () => {
           try {
-            const mergedItems = await cartSyncService.mergeGuestCartOnLogin(currentUserId);
+            // Use checkout context session ID if available (user came from checkout)
+            // This ensures we merge the correct guest cart even if cookies were cleared
+            const sessionIdToUse = checkoutGuestSessionId || cartSyncService.getSessionId();
+            console.log('🔄 MERGE: Using session ID:', sessionIdToUse ? `${sessionIdToUse.substring(0, 12)}...` : 'current');
+            
+            const mergedItems = await cartSyncService.mergeGuestCartOnLogin(
+              currentUserId,
+              checkoutGuestSessionId || undefined
+            );
             console.log('✅ MERGE: Guest cart merged successfully');
             console.log('✅ MERGE: Merged items count:', mergedItems.length);
             

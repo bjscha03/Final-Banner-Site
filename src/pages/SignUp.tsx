@@ -10,6 +10,8 @@ import { Eye, EyeOff, ArrowRight, Check } from 'lucide-react';
 import { useScrollToTop } from '@/components/ScrollToTop';
 import { LinkedInButton } from '@/components/auth/LinkedInButton';
 import GoogleButton from '@/components/auth/GoogleButton';
+import { useCheckoutContext } from '@/store/checkoutContext';
+import { useCheckoutContext } from '@/store/checkoutContext';
 
 const SignUp: React.FC = () => {
   const navigate = useNavigate();
@@ -18,6 +20,7 @@ const SignUp: React.FC = () => {
   const { toast } = useToast();
   const { scrollToTop } = useScrollToTop();
   const titleRef = useRef<HTMLHeadingElement>(null);
+  const { isInCheckoutFlow, getReturnUrl, clearCheckoutContext, isContextValid } = useCheckoutContext();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -25,7 +28,10 @@ const SignUp: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const nextUrl = searchParams.get('next') || '/design';
+  // Determine redirect URL: checkout context > query param > default
+  const fromCheckout = searchParams.get('from') === 'checkout';
+  const queryNextUrl = searchParams.get('next');
+  const nextUrl = (fromCheckout && isContextValid()) ? getReturnUrl() : (queryNextUrl || '/design');
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -73,7 +79,19 @@ const SignUp: React.FC = () => {
         description: "Please check your email to verify your account.",
       });
 
-      navigate(`/check-email?email=${encodeURIComponent(email)}`);
+      // Clear checkout context after successful sign-up
+      if (fromCheckout && isContextValid()) {
+        console.log('🛒 SIGN UP: User came from checkout, preserving context for email verification');
+        // Note: We keep the context so after email verification they can return to checkout
+      }
+
+      // Redirect to email verification page
+      // Pass the nextUrl so after verification they can continue to checkout
+      const emailCheckUrl = fromCheckout && isContextValid() 
+        ? `/check-email?email=${encodeURIComponent(email)}&next=${encodeURIComponent(nextUrl)}`
+        : `/check-email?email=${encodeURIComponent(email)}`;
+      
+      navigate(emailCheckUrl);
     } catch (error: any) {
       toast({
         title: "Sign Up Failed",

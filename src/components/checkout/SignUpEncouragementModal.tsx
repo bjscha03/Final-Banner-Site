@@ -2,6 +2,10 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X, User, ShoppingBag, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useCheckoutContext } from '@/store/checkoutContext';
+import { cartSyncService } from '@/lib/cartSync';
+import { useCheckoutContext } from '@/store/checkoutContext';
+import { cartSyncService } from '@/lib/cartSync';
 
 interface SignUpEncouragementModalProps {
   isOpen: boolean;
@@ -15,16 +19,35 @@ const SignUpEncouragementModal: React.FC<SignUpEncouragementModalProps> = ({
   onContinueAsGuest
 }) => {
   const navigate = useNavigate();
+  const { setCheckoutContext } = useCheckoutContext();
 
   if (!isOpen) return null;
 
   const handleSignUp = () => {
-    navigate('/sign-up?next=/checkout');
+    // Preserve checkout context before redirecting to sign-up
+    const guestSessionId = cartSyncService.getSessionId();
+    setCheckoutContext('/checkout', guestSessionId);
+    
+    console.log('🛒 CHECKOUT MODAL: Redirecting to sign-up with checkout context', {
+      returnUrl: '/checkout',
+      guestSessionId: guestSessionId ? `${guestSessionId.substring(0, 12)}...` : 'none',
+    });
+    
+    navigate('/sign-up?from=checkout');
     onClose();
   };
 
   const handleSignIn = () => {
-    navigate('/sign-in?next=/checkout');
+    // Preserve checkout context before redirecting to sign-in
+    const guestSessionId = cartSyncService.getSessionId();
+    setCheckoutContext('/checkout', guestSessionId);
+    
+    console.log('🛒 CHECKOUT MODAL: Redirecting to sign-in with checkout context', {
+      returnUrl: '/checkout',
+      guestSessionId: guestSessionId ? `${guestSessionId.substring(0, 12)}...` : 'none',
+    });
+    
+    navigate('/sign-in?from=checkout');
     onClose();
   };
 

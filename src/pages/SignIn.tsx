@@ -10,6 +10,8 @@ import { Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { useScrollToTop } from '@/components/ScrollToTop';
 import { LinkedInButton } from '@/components/auth/LinkedInButton';
 import GoogleButton from '@/components/auth/GoogleButton';
+import { useCheckoutContext } from '@/store/checkoutContext';
+import { useCheckoutContext } from '@/store/checkoutContext';
 
 const SignIn: React.FC = () => {
   const navigate = useNavigate();
@@ -22,8 +24,12 @@ const SignIn: React.FC = () => {
   const { toast } = useToast();
   const { scrollToTop } = useScrollToTop();
   const titleRef = useRef<HTMLHeadingElement>(null);
+  const { isInCheckoutFlow, getReturnUrl, clearCheckoutContext, isContextValid } = useCheckoutContext();
 
-  const nextUrl = searchParams.get('next') || '/';
+  // Determine redirect URL: checkout context > query param > default
+  const fromCheckout = searchParams.get('from') === 'checkout';
+  const queryNextUrl = searchParams.get('next');
+  const nextUrl = (fromCheckout && isContextValid()) ? getReturnUrl() : (queryNextUrl || '/');
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -62,7 +68,16 @@ const SignIn: React.FC = () => {
         description: "You have been signed in successfully.",
       });
 
-      navigate(nextUrl);
+      // Clear checkout context after successful sign-in
+      if (fromCheckout && isContextValid()) {
+        console.log('🛒 SIGN IN: Clearing checkout context and redirecting to:', nextUrl);
+        clearCheckoutContext();
+      }
+
+      // Small delay to allow cart sync to complete
+      setTimeout(() => {
+        navigate(nextUrl);
+      }, 100);
     } catch (error: any) {
       if (error.message && error.message.includes('email verification')) {
         toast({

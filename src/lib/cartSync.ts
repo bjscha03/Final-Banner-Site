@@ -378,9 +378,16 @@ class CartSyncService {
    * - Clears guest session cookie
    * - Saves merged cart to user's account
    */
-  async mergeGuestCartOnLogin(userId: string): Promise<CartItem[]> {
+  async mergeGuestCartOnLogin(userId: string, explicitSessionId?: string): Promise<CartItem[]> {
     const requestId = this.generateRequestId();
-    const sessionId = this.getSessionId();
+    // Use explicit session ID if provided (from checkout context), otherwise get current session
+    const sessionId = explicitSessionId || this.getSessionId();
+    
+    console.log('🔄 CART SYNC: mergeGuestCartOnLogin called', {
+      userId: `${userId.substring(0, 8)}...`,
+      sessionId: sessionId ? `${sessionId.substring(0, 12)}...` : 'none',
+      isExplicit: !!explicitSessionId,
+    });
 
     try {
       // Load guest cart
