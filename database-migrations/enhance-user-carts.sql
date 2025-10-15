@@ -1,6 +1,11 @@
 -- Enhanced User Carts Migration
 -- Adds session_id, status, and last_accessed_at columns for robust cart synchronization
 
+
+-- Drop the old unique constraint on user_id
+-- This allows users to have multiple carts with different statuses (active, archived, merged)
+ALTER TABLE user_carts 
+DROP CONSTRAINT IF EXISTS user_carts_user_id_key;
 -- Add session_id column for guest cart tracking
 ALTER TABLE user_carts 
 ADD COLUMN IF NOT EXISTS session_id VARCHAR(255);
