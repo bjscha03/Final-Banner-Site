@@ -30,6 +30,22 @@ const SignIn: React.FC = () => {
   const fromCheckout = searchParams.get('from') === 'checkout';
   const queryNextUrl = searchParams.get('next');
   const nextUrl = (fromCheckout && isContextValid()) ? getReturnUrl() : (queryNextUrl || '/');
+  
+  console.log('🔍 SIGN IN PAGE: Redirect calculation', {
+    fromCheckout,
+    queryNextUrl,
+    isContextValid: isContextValid(),
+    returnUrl: getReturnUrl(),
+    finalNextUrl: nextUrl
+  });
+  
+  console.log('🔍 SIGN IN PAGE: Redirect calculation', {
+    fromCheckout,
+    queryNextUrl,
+    isContextValid: isContextValid(),
+    returnUrl: getReturnUrl(),
+    finalNextUrl: nextUrl
+  });
 
   useEffect(() => {
     if (!authLoading && user) {
