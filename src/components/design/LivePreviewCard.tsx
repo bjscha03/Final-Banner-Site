@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
-import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image, X, ChevronDown, ChevronUp, Wand2, Crop, RefreshCw, Loader2, Type } from 'lucide-react';
+import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image as ImageIcon, X, ChevronDown, ChevronUp, Wand2, Crop, RefreshCw, Loader2, Type } from 'lucide-react';
 import DraggableText from './DraggableText';
 import TextStylePanel from './TextStylePanel';
 import { useQuoteStore, Grommets } from '@/store/quote';
@@ -441,6 +441,17 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
           bannerAspect: bannerAspect.toFixed(2),
           fitScale: fitScale.toFixed(2)
         });
+        
+        // Update the file in store with actual image dimensions
+        if (!isPdf) {
+          set({
+            file: {
+              ...useQuoteStore.getState().file!,
+              artworkWidth: img.width,
+              artworkHeight: img.height
+            }
+          });
+        }
         
         setImageScale(fitScale);
         setImagePosition({ x: 0, y: 0 });
@@ -1659,7 +1670,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                   className="flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 bg-blue-500 hover:bg-blue-600 active:bg-blue-700 text-white rounded-lg sm:rounded-xl transition-colors duration-150 shadow-md hover:shadow-lg min-h-[44px] min-w-[44px] touch-manipulation text-sm sm:text-base"
                   title="Add logo or image overlay"
                 >
-                  <Image className="w-4 h-4 flex-shrink-0" />
+                  <ImageIcon className="w-4 h-4 flex-shrink-0" />
                   <span className="hidden sm:inline whitespace-nowrap">Add Logo/Image</span>
                   <span className="sm:hidden whitespace-nowrap">Logo</span>
                 </button>
