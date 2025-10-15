@@ -108,6 +108,41 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     }
   }, [file]);
 
+  // Handle banner dimension changes - recalculate image fit
+  useEffect(() => {
+    if (file?.url && imageScale !== 1) {
+      console.log('📐 Banner dimensions changed, recalculating image fit');
+      
+      const img = new Image();
+      img.onload = () => {
+        const imgAspect = img.width / img.height;
+        const bannerAspect = widthIn / heightIn;
+        
+        // Calculate scale to fit image within banner (no clipping)
+        let fitScale = 1;
+        if (imgAspect > bannerAspect) {
+          // Image is wider than banner - fit to width
+          fitScale = 1;
+        } else {
+          // Image is taller than banner - fit to height
+          fitScale = bannerAspect / imgAspect;
+        }
+        
+        console.log('📐 Dimension change - new fit scale:', {
+          bannerSize: `${widthIn}"x${heightIn}"`,
+          bannerAspect: bannerAspect.toFixed(2),
+          imageAspect: imgAspect.toFixed(2),
+          newFitScale: fitScale.toFixed(2),
+          oldScale: imageScale.toFixed(2)
+        });
+        
+        setImageScale(fitScale);
+        setImagePosition({ x: 0, y: 0 });
+      };
+      img.src = file.url;
+    }
+  }, [widthIn, heightIn]); // Re-run when banner dimensions change
+
   // Responsive scale factor based on container dimensions
   const [responsiveScale, setResponsiveScale] = useState(100);
 
@@ -375,11 +410,43 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         previewScalePct: 100
       });
       
-      // Reset image manipulation state
-      setImagePosition({ x: 0, y: 0 });
-      setImageScale(1);
-      setIsImageSelected(false);
-      setIsImageSelected(false);
+      // Calculate fit-to-size scale for the uploaded image
+      // This ensures the image fits within the banner without clipping
+      const img = new Image();
+      img.onload = () => {
+        const imgAspect = img.width / img.height;
+        const bannerAspect = widthIn / heightIn;
+        
+        // Calculate scale to fit image within banner (no clipping)
+        // Use "meet" behavior - scale to fit entirely within bounds
+        let fitScale = 1;
+        if (imgAspect > bannerAspect) {
+          // Image is wider than banner - fit to width
+          fitScale = 1;
+        } else {
+          // Image is taller than banner - fit to height  
+          fitScale = bannerAspect / imgAspect;
+        }
+        
+        console.log('📐 Image fit calculation:', {
+          imageSize: `${img.width}x${img.height}`,
+          imageAspect: imgAspect.toFixed(2),
+          bannerSize: `${widthIn}"x${heightIn}"`,
+          bannerAspect: bannerAspect.toFixed(2),
+          fitScale: fitScale.toFixed(2)
+        });
+        
+        setImageScale(fitScale);
+        setImagePosition({ x: 0, y: 0 });
+        setIsImageSelected(false);
+      };
+      img.onerror = () => {
+        console.error('Failed to load image for fit calculation');
+        setImagePosition({ x: 0, y: 0 });
+        setImageScale(1);
+        setIsImageSelected(false);
+      };
+      img.src = result.secureUrl || previewUrl;
       
       setIsUploading(false);
       

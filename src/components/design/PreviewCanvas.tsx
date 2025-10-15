@@ -250,7 +250,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
             y={RULER_HEIGHT + (bleedHeight - bleedHeight * imageScale) / 2 + (imagePosition.y * 0.01)}
             width={bleedWidth * (imageScale || 1)}
             height={bleedHeight * (imageScale || 1)}
-            preserveAspectRatio="xMidYMid slice"
+            preserveAspectRatio="xMidYMid meet"
             clipPath="url(#bleed-clip)"
             style={{
               cursor: isDraggingImage ? 'grabbing' : 'grab',
