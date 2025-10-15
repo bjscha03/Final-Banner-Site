@@ -238,11 +238,6 @@ const AdminOrders: React.FC = () => {
         overlayImage: item.overlay_image || null
       };
 
-      console.log('🔴 PDF REQUEST DEBUG:');
-      console.log('🔴 item.overlay_image:', item.overlay_image);
-      console.log('🔴 requestBody.overlayImage:', requestBody.overlayImage);
-      console.log('🔴 Full requestBody:', JSON.stringify(requestBody, null, 2));
-
       const response = await fetch('/.netlify/functions/render-order-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -579,7 +574,7 @@ const AdminOrders: React.FC = () => {
                         onPdfDownload={handlePdfDownload}
                         onSendShippingNotification={handleSendShippingNotification}
                         getStatusColor={getStatusColor}
-                        pdfLoadingStates={pdfLoadingStates}                        getItemsSummary={getItemsSummary}
+                        getItemsSummary={getItemsSummary}
                         pdfLoadingStates={pdfLoadingStates}
                       />
                     ))}

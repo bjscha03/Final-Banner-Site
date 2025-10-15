@@ -238,11 +238,6 @@ const AdminOrders: React.FC = () => {
         overlayImage: item.overlay_image || null
       };
 
-      console.log('🔴 PDF REQUEST DEBUG:');
-      console.log('🔴 item.overlay_image:', item.overlay_image);
-      console.log('🔴 requestBody.overlayImage:', requestBody.overlayImage);
-      console.log('🔴 Full requestBody:', JSON.stringify(requestBody, null, 2));
-
       const response = await fetch('/.netlify/functions/render-order-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -579,8 +574,7 @@ const AdminOrders: React.FC = () => {
                         onPdfDownload={handlePdfDownload}
                         onSendShippingNotification={handleSendShippingNotification}
                         getStatusColor={getStatusColor}
-                        pdfLoadingStates={pdfLoadingStates}                        getItemsSummary={getItemsSummary}
-                        pdfLoadingStates={pdfLoadingStates}
+                        getItemsSummary={getItemsSummary}
                       />
                     ))}
                   </tbody>
@@ -604,7 +598,6 @@ interface AdminOrderRowProps {
   onSendShippingNotification: (orderId: string) => void;
   getStatusColor: (status: string) => string;
   getItemsSummary: (order: Order) => string;
-  pdfLoadingStates: Record<string, boolean>;
 }
 
 const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
@@ -615,8 +608,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   onPdfDownload,
   onSendShippingNotification,
   getStatusColor,
-  getItemsSummary,
-  pdfLoadingStates
+  getItemsSummary
 }) => {
   const [trackingNumber, setTrackingNumber] = useState('');
   const [isAddingTracking, setIsAddingTracking] = useState(false);
