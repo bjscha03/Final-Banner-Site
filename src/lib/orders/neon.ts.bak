@@ -210,20 +210,6 @@ export const neonOrdersAdapter: OrdersAdapter = {
       });
       
       return mappedOrders;
-      
-      // DEBUG: Log overlay data
-      console.log('🟢 [NEON] listAll() returning orders:' , mappedOrders.length);
-      mappedOrders.forEach((order, i) => {
-        if (order.items && order.items.length > 0) {
-          console.log(`🟢 [NEON] Order ${i + 1} (${order.id}):`, {
-            itemCount: order.items.length,
-            firstItemHasOverlay: !!order.items[0].overlay_image,
-            overlayData: order.items[0].overlay_image
-          });
-        }
-      });
-      
-      return mappedOrders;
     } catch (error) {
       console.error('Error fetching email orders:', error);
       return [];
