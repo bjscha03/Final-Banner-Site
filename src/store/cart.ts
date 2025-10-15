@@ -419,19 +419,14 @@ export const useCartStore = create<CartState>()(
           return;
         }
 
-        console.log('🔵 STORE: Getting local items...');
-        const localItems = get().items;
-        console.log('🔵 STORE: Local items count:', localItems.length);
-        console.log('🔵 STORE: Local items:', localItems.map(i => ({ id: i.id, name: i.banner_name })));
+        console.log('🔵 STORE: Loading cart from server (no merge)...');
+        const serverItems = await cartSync.loadCart(userId);
+        console.log('🔵 STORE: Server items count:', serverItems.length);
+        console.log('🔵 STORE: Server items:', serverItems.map(i => ({ id: i.id, name: i.banner_name, quantity: i.quantity })));
         
-        console.log('🔵 STORE: Calling cartSync.mergeAndSyncCart...');
-        const mergedItems = await cartSync.mergeAndSyncCart(userId, localItems);
-        console.log('🔵 STORE: Merge complete, merged items count:', mergedItems.length);
-        console.log('🔵 STORE: Merged items:', mergedItems.map(i => ({ id: i.id, name: i.banner_name })));
-        
-        console.log('🔵 STORE: Setting merged items to store...');
-        set({ items: mergedItems });
-        console.log('🔵 STORE: Store updated with merged items');
+        console.log('🔵 STORE: Replacing local cart with server cart...');
+        set({ items: serverItems });
+        console.log('🔵 STORE: Store updated with server items');
       },
 
       getSubtotalCents: () => {
