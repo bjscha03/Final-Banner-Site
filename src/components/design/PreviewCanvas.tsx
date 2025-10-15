@@ -400,18 +400,43 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
             })()}
 
             {/* Resize Handles - Only show when image is selected and not dragging */}
-            {isImageSelected && !isDraggingImage && (() => {
-              const imgX = RULER_HEIGHT + (bleedWidth - bleedWidth * imageScale) / 2 + (imagePosition.x * 0.01);
-              const imgY = RULER_HEIGHT + (bleedHeight - bleedHeight * imageScale) / 2 + (imagePosition.y * 0.01);
-              const imgWidth = bleedWidth * (imageScale || 1);
-              const imgHeight = bleedHeight * (imageScale || 1);
-              const handleSize = Math.min(0.25, Math.max(widthIn, heightIn) * 0.015); // Smaller handles to avoid confusion with grommets
+            {isImageSelected && !isDraggingImage && file?.url && (() => {
+              // Container dimensions (the space allocated for the image)
+              const containerX = RULER_HEIGHT + (bleedWidth - bleedWidth * imageScale) / 2 + (imagePosition.x * 0.01);
+              const containerY = RULER_HEIGHT + (bleedHeight - bleedHeight * imageScale) / 2 + (imagePosition.y * 0.01);
+              const containerWidth = bleedWidth * (imageScale || 1);
+              const containerHeight = bleedHeight * (imageScale || 1);
+              
+              // Calculate actual rendered image dimensions with "meet" behavior
+              // The image maintains aspect ratio and fits within the container
+              const containerAspect = containerWidth / containerHeight;
+              const imageAspect = (file.artworkWidth && file.artworkHeight) 
+                ? file.artworkWidth / file.artworkHeight 
+                : containerAspect; // Fallback to container aspect if dimensions unknown
+              
+              let actualImgWidth, actualImgHeight, actualImgX, actualImgY;
+              
+              if (imageAspect > containerAspect) {
+                // Image is wider - fits to width, letterbox top/bottom
+                actualImgWidth = containerWidth;
+                actualImgHeight = containerWidth / imageAspect;
+                actualImgX = containerX;
+                actualImgY = containerY + (containerHeight - actualImgHeight) / 2;
+              } else {
+                // Image is taller - fits to height, pillarbox left/right
+                actualImgWidth = containerHeight * imageAspect;
+                actualImgHeight = containerHeight;
+                actualImgX = containerX + (containerWidth - actualImgWidth) / 2;
+                actualImgY = containerY;
+              }
+              
+              const handleSize = Math.min(0.25, Math.max(widthIn, heightIn) * 0.015);
               
               const handles = [
-                { id: 'nw', x: imgX, y: imgY, cursor: 'nwse-resize' },
-                { id: 'ne', x: imgX + imgWidth, y: imgY, cursor: 'nesw-resize' },
-                { id: 'sw', x: imgX, y: imgY + imgHeight, cursor: 'nesw-resize' },
-                { id: 'se', x: imgX + imgWidth, y: imgY + imgHeight, cursor: 'nwse-resize' },
+                { id: 'nw', x: actualImgX, y: actualImgY, cursor: 'nwse-resize' },
+                { id: 'ne', x: actualImgX + actualImgWidth, y: actualImgY, cursor: 'nesw-resize' },
+                { id: 'sw', x: actualImgX, y: actualImgY + actualImgHeight, cursor: 'nesw-resize' },
+                { id: 'se', x: actualImgX + actualImgWidth, y: actualImgY + actualImgHeight, cursor: 'nwse-resize' },
               ];
               
               return (
