@@ -138,7 +138,7 @@ export const AIGeneratorPanel: React.FC<AIGeneratorPanelProps> = ({
     try {
       setIsLoadingMore(true);
 
-      console.log('[AIGeneratorPanel] Calling ai-preview-image function...');
+      console.log('[AIGeneratorPanel] Calling ai-preview-image function with skipCache=true...');
       const response = await fetch('/.netlify/functions/ai-preview-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -147,6 +147,7 @@ export const AIGeneratorPanel: React.FC<AIGeneratorPanelProps> = ({
           aspect,
           style,
           userId,
+          skipCache: true, // Force new generation, don't use cached result
         }),
       });
 

@@ -151,19 +151,22 @@ export const handler = async (event) => {
   }
 
   try {
-    const { prompt, aspect, style = {}, userId, tier: requestedTier = 'premium' } = JSON.parse(event.body || '{}');
+    const { prompt, aspect, style = {}, userId, tier: requestedTier = 'premium', skipCache = false } = JSON.parse(event.body || '{}');
 
     if (!prompt || !aspect || !userId) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'Missing required fields' }) };
     }
 
     console.log(`[AI-Preview] User ${userId}: ${prompt.substring(0, 50)}...`);
+    if (skipCache) {
+      console.log(`[AI-Preview] skipCache=true - Forcing new generation`);
+    }
 
     const size = '768x768';
     const promptHash = generatePromptHash(prompt, aspect, style, size);
 
-    // Check cache
-    const cached = await sql`
+    // Check cache (skip if skipCache is true)
+    const cached = skipCache ? [] : await sql`
       SELECT id, image_urls, tier, cost_usd FROM generations
       WHERE prompt_hash = ${promptHash} AND aspect = ${aspect} AND size = ${size}
       ORDER BY created_at DESC LIMIT 1
