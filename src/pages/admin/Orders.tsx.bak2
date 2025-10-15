@@ -218,6 +218,8 @@ const AdminOrders: React.FC = () => {
         title: "Generating Print-Ready PDF",
         description: "Creating high-quality PDF with proper dimensions and bleed...",
       });
+      console.log("🟢🟢🟢 ORDERS.TSX VERSION: 2025-01-15-FIX-v3 🟢🟢🟢");
+      console.log("🟢 Item data received from database:", item);
 
       // Determine the best image source
       const imageSource = item.print_ready_url || item.web_preview_url || item.file_key;
@@ -237,6 +239,11 @@ const AdminOrders: React.FC = () => {
         textElements: item.text_elements || [],
         overlayImage: item.overlay_image || null
       };
+
+      console.log('🔴 PDF REQUEST DEBUG:');
+      console.log('🔴 item.overlay_image:', item.overlay_image);
+      console.log('🔴 requestBody.overlayImage:', requestBody.overlayImage);
+      console.log('🔴 Full requestBody:', JSON.stringify(requestBody, null, 2));
 
       const response = await fetch('/.netlify/functions/render-order-pdf', {
         method: 'POST',
@@ -574,7 +581,8 @@ const AdminOrders: React.FC = () => {
                         onPdfDownload={handlePdfDownload}
                         onSendShippingNotification={handleSendShippingNotification}
                         getStatusColor={getStatusColor}
-                        getItemsSummary={getItemsSummary}
+                        pdfLoadingStates={pdfLoadingStates}                        getItemsSummary={getItemsSummary}
+                        pdfLoadingStates={pdfLoadingStates}
                       />
                     ))}
                   </tbody>
@@ -598,6 +606,7 @@ interface AdminOrderRowProps {
   onSendShippingNotification: (orderId: string) => void;
   getStatusColor: (status: string) => string;
   getItemsSummary: (order: Order) => string;
+  pdfLoadingStates: Record<string, boolean>;
 }
 
 const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
@@ -608,7 +617,8 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   onPdfDownload,
   onSendShippingNotification,
   getStatusColor,
-  getItemsSummary
+  getItemsSummary,
+  pdfLoadingStates
 }) => {
   const [trackingNumber, setTrackingNumber] = useState('');
   const [isAddingTracking, setIsAddingTracking] = useState(false);

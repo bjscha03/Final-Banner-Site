@@ -218,6 +218,10 @@ const AdminOrders: React.FC = () => {
         title: "Generating Print-Ready PDF",
         description: "Creating high-quality PDF with proper dimensions and bleed...",
       });
+      console.log("🟢🟢🟢 ORDERS.TSX VERSION: 2025-01-15-FIX-v3 🟢🟢🟢");
+      console.log("🟢 Item data received from database:", item);
+      console.log("🟢🟢🟢 ORDERS.TSX VERSION: 2025-01-15-FIX-v3 🟢🟢🟢");
+      console.log("🟢 Item data received from database:", item);
 
       // Determine the best image source
       const imageSource = item.print_ready_url || item.web_preview_url || item.file_key;
