@@ -586,6 +586,10 @@ exports.handler = async (event) => {
       console.log('[PDF] Processing overlay image:', req.overlayImage.name);
       console.log('[PDF] Overlay position:', req.overlayImage.position);
       console.log('[PDF] Overlay scale:', req.overlayImage.scale);
+      console.log('[PDF] Overlay URL:', req.overlayImage.url);
+      console.log('[PDF] Overlay fileKey:', req.overlayImage.fileKey);
+      console.log('[PDF] Overlay URL:', req.overlayImage.url);
+      console.log('[PDF] Overlay fileKey:', req.overlayImage.fileKey);
       
       try {
         // Fetch overlay image from Cloudinary
@@ -660,7 +664,14 @@ exports.handler = async (event) => {
           left: overlayLeft,
         });
         
-        console.log('[PDF] Overlay added to composite layers');
+        console.log('[PDF] ✅ Overlay added to composite layers');
+        console.log('[PDF] Total composite layers:', compositeLayers.length);
+        console.log('[PDF] Overlay layer details:', {
+          top: overlayTop,
+          left: overlayLeft,
+          width: overlayWidthPx,
+          height: overlayHeightPx
+        });
       } catch (overlayError) {
         console.error('[PDF] Error processing overlay image:', overlayError);
         console.error('[PDF] Continuing without overlay...');
