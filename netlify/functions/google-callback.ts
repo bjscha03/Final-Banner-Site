@@ -264,12 +264,37 @@ export const handler: Handler = async (event) => {
       }
       
       console.log('✅ Google OAuth: User stored successfully, verified');
-      console.log('✅ Google OAuth: Redirecting to home page');
+      
+      // Check for checkout context to determine redirect
+      let redirectUrl = '/?oauth=success&provider=google';
+      try {
+        const checkoutContext = localStorage.getItem('checkout-context-storage');
+        if (checkoutContext) {
+          const context = JSON.parse(checkoutContext);
+          if (context?.state?.isInCheckoutFlow && context?.state?.returnUrl) {
+            const contextAge = Date.now() - (context.state.contextSetAt || 0);
+            const maxAge = 30 * 60 * 1000; // 30 minutes
+            
+            if (contextAge < maxAge) {
+              redirectUrl = context.state.returnUrl + '?oauth=success&provider=google';
+              console.log('✅ Google OAuth: Checkout context found, redirecting to:', redirectUrl);
+              
+              // Clear checkout context after using it
+              localStorage.removeItem('checkout-context-storage');
+            } else {
+              console.log('⏰ Google OAuth: Checkout context expired, using default redirect');
+            }
+          }
+        }
+      } catch (e) {
+        console.error('❌ Google OAuth: Error checking checkout context:', e);
+      }
+      
+      console.log('✅ Google OAuth: Redirecting to:', redirectUrl);
       
       // Small delay to ensure localStorage is fully written
-      // Also add URL parameter to signal successful OAuth
       setTimeout(() => {
-        window.location.href = '/?oauth=success&provider=google';
+        window.location.href = redirectUrl;
       }, 250);
     } catch (error) {
       console.error('❌ Google OAuth: Error storing user:', error);
