@@ -90,6 +90,8 @@ const AdminOrders: React.FC = () => {
         console.log('🔵 [Orders.tsx] First order items:', allOrders[0].items);
         if (allOrders[0].items && allOrders[0].items.length > 0) {
           console.log('🔵 [Orders.tsx] First item overlay_image:', allOrders[0].items[0].overlay_image);
+          console.log('🔵🔵🔵 CRITICAL: overlay_image from DB:', JSON.stringify(allOrders[0].items[0].overlay_image, null, 2));
+          console.log('🔵🔵🔵 CRITICAL: overlay_image from DB:', JSON.stringify(allOrders[0].items[0].overlay_image, null, 2));
         }
       }
       
