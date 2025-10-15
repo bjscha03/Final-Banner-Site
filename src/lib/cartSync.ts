@@ -321,25 +321,29 @@ class CartSyncService {
 
       if (userId) {
         // Save authenticated user's cart
+        // Use two-step approach: archive old carts, then insert new one
+        await db!`
+          UPDATE user_carts
+          SET status = 'archived', updated_at = NOW()
+          WHERE user_id = ${userId} AND status = 'active'
+        `;
+        
         await db!`
           INSERT INTO user_carts (user_id, cart_data, status, updated_at, last_accessed_at)
           VALUES (${userId}, ${cartDataJson}::jsonb, 'active', NOW(), NOW())
-          ON CONFLICT ON CONSTRAINT idx_user_carts_unique_active_user
-          DO UPDATE SET
-            cart_data = ${cartDataJson}::jsonb,
-            updated_at = NOW(),
-            last_accessed_at = NOW()
         `;
       } else if (sessionId) {
         // Save guest cart
+        // Use two-step approach: archive old carts, then insert new one
+        await db!`
+          UPDATE user_carts
+          SET status = 'archived', updated_at = NOW()
+          WHERE session_id = ${sessionId} AND status = 'active'
+        `;
+        
         await db!`
           INSERT INTO user_carts (session_id, cart_data, status, updated_at, last_accessed_at)
           VALUES (${sessionId}, ${cartDataJson}::jsonb, 'active', NOW(), NOW())
-          ON CONFLICT ON CONSTRAINT idx_user_carts_unique_active_session
-          DO UPDATE SET
-            cart_data = ${cartDataJson}::jsonb,
-            updated_at = NOW(),
-            last_accessed_at = NOW()
         `;
       }
 
