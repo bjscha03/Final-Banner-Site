@@ -606,8 +606,24 @@ exports.handler = async (event) => {
         // overlayImage.scale is relative to banner dimensions (e.g., 0.3 = 30% of banner width)
         // overlayImage.position is percentage-based (0-100) relative to banner area
         
-        const overlayWidthPx = Math.round(req.bannerWidthIn * targetDpi * req.overlayImage.scale);
-        const overlayHeightPx = Math.round(req.bannerHeightIn * targetDpi * req.overlayImage.scale);
+        // Get aspect ratio from overlay metadata or stored value
+        const overlayAspectRatio = req.overlayImage.aspectRatio || (overlaySourceW / overlaySourceH);
+        console.log('[PDF] Overlay aspect ratio:', overlayAspectRatio);
+        
+        // Calculate base dimension (using banner width as reference, matching preview logic)
+        const baseDimension = req.bannerWidthIn * targetDpi;
+        
+        // Calculate dimensions based on aspect ratio (matching PreviewCanvas.tsx logic)
+        let overlayWidthPx, overlayHeightPx;
+        if (overlayAspectRatio >= 1) {
+          // Landscape or square image
+          overlayWidthPx = Math.round(baseDimension * req.overlayImage.scale * overlayAspectRatio);
+          overlayHeightPx = Math.round(baseDimension * req.overlayImage.scale);
+        } else {
+          // Portrait image
+          overlayWidthPx = Math.round(baseDimension * req.overlayImage.scale);
+          overlayHeightPx = Math.round(baseDimension * req.overlayImage.scale / overlayAspectRatio);
+        }
         
         console.log('[PDF] Overlay target dimensions:', overlayWidthPx, 'x', overlayHeightPx, 'px');
         
