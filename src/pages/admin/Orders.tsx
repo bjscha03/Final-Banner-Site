@@ -231,6 +231,14 @@ const AdminOrders: React.FC = () => {
       });
       console.log("🟢🟢🟢 ORDERS.TSX VERSION: 2025-01-15-FIX-v3 🟢🟢🟢");
       console.log("🟢 Item data received from database:", item);
+      console.log("🟢 Item properties:", Object.keys(item));
+      console.log("�� item.overlay_image:", item.overlay_image);
+      console.log("🟢 item.overlayImage:", item.overlayImage);
+      console.log("🟢 Full item:", JSON.stringify(item, null, 2));
+      console.log("🟢 Item properties:", Object.keys(item));
+      console.log("�� item.overlay_image:", item.overlay_image);
+      console.log("🟢 item.overlayImage:", item.overlayImage);
+      console.log("🟢 Full item:", JSON.stringify(item, null, 2));
       console.log("🟢🟢🟢 ORDERS.TSX VERSION: 2025-01-15-FIX-v3 🟢🟢🟢");
       console.log("🟢 Item data received from database:", item);
 
