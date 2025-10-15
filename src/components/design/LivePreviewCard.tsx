@@ -136,8 +136,14 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
           oldScale: imageScale.toFixed(2)
         });
         
-        setImageScale(fitScale);
-        setImagePosition({ x: 0, y: 0 });
+        // Only update if scale actually changed to prevent infinite loops
+        if (Math.abs(fitScale - imageScale) > 0.001) {
+          setImageScale(fitScale);
+          setImagePosition({ x: 0, y: 0 });
+        }
+      };
+      img.onerror = () => {
+        console.error('Failed to load image for dimension change recalculation');
       };
       img.src = file.url;
     }
