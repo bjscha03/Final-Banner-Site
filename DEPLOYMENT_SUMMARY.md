@@ -1,167 +1,58 @@
-# 🚀 Deployment Complete - Alignment Guides & Mobile Support
+# Deployment Summary - October 15, 2025
 
-## ✅ Successfully Deployed to Production
+## Commits Deployed
 
-**Live Site**: https://bannersonthefly.com
-**Deploy Time**: October 9, 2025
-**Deployment ID**: 68e82fb7a704a369b2a6a1a4
+### 1. Checkout Cart Persistence (c70b69e)
+- New checkout context store
+- Cart merge on authentication
+- 30-minute context expiration
+- 7 files changed, 286 insertions(+)
 
----
+### 2. Cart Safety Check Fix (c5cebbc)
+- Preserves cart during checkout flow
+- Prevents premature cart clearing
+- 1 file changed, 23 insertions(+), 4 deletions(-)
 
-## 🎯 Changes Deployed
+### 3. SignIn Debug Logging (5f9afca)
+- Added redirect debugging
+- 1 file changed, 16 insertions(+)
 
-### 1. Fixed Alignment Guide Positioning
+### 4. Google Analytics CSP & OAuth Fix (edf257b)
+- Fixed CSP blocking Google Analytics
+- OAuth now respects checkout context
+- 2 files changed, 29 insertions(+), 4 deletions(-)
 
-**Problem**: The horizontal alignment guide (magenta horizontal line) was appearing way too low on the canvas, especially noticeable on mobile devices.
+## Key Features
 
-**Root Cause**: Incorrect offset calculation was being applied, which moved the guide far below where it should be.
+✅ Seamless cart persistence during checkout authentication
+✅ Automatic guest cart merging
+✅ Google Analytics tracking working
+✅ OAuth redirects to checkout after sign-in
+✅ 30-minute context expiration for security
 
-**Solution**: 
-- Removed the incorrect `visualCenterOffset` calculation
-- Reverted to simple geometric center calculation
-- The guide now appears at the banner's 50% mark
-- Text snaps so its center aligns with the 50% mark
+## Testing Requirements
 
-**Result**: ✅ Alignment guides now position correctly on both desktop and mobile
+**CRITICAL:** Must be signed out when adding items!
 
-### 2. Added Mobile Touch Support for Text Editing
+1. Sign out completely
+2. Clear localStorage
+3. Add items as guest (verify session ID)
+4. Go to checkout
+5. Sign in
+6. Verify redirect to /checkout with cart intact
 
-**Problem**: Users couldn't edit text on mobile devices - double-click doesn't work on touch screens.
+See CHECKOUT_CART_TESTING_GUIDE.md for details.
 
-**Solution**:
-- Added `onTouchStart` event handler to detect touch events
-- Implemented double-tap detection (300ms window)
-- Double-tap on text element now enters edit mode
-- Single tap selects and allows dragging
+## Expected Impact
 
-**Code Added**:
-```typescript
-const [lastTapTime, setLastTapTime] = useState(0); // Track taps
+- Reduced cart abandonment
+- Higher checkout completion rate
+- Better user experience
+- Improved analytics tracking
 
-onTouchStart={(e) => {
-  const now = Date.now();
-  const DOUBLE_TAP_DELAY = 300; // ms
-  if (lastTapTime && (now - lastTapTime) < DOUBLE_TAP_DELAY) {
-    // Double tap detected - enter edit mode
-    e.stopPropagation();
-    setIsEditing(true);
-    setLastTapTime(0);
-  } else {
-    // Single tap - select and start potential drag
-    setLastTapTime(now);
-    handleMouseDown(e as any);
-  }
-}}
-```
+## Status
 
-**Result**: ✅ Users can now edit text on mobile by double-tapping
-
-### 3. Improved CSS Box Model
-
-**Change**: Added `boxSizing: 'border-box'` to text elements
-
-**Benefit**: More consistent dimension calculations across browsers
-
----
-
-## 📱 Mobile Features Now Working
-
-1. ✅ **Text Editing**: Double-tap any text element to edit
-2. ✅ **Text Dragging**: Single tap and drag to move text
-3. ✅ **Alignment Guides**: Guides appear correctly when dragging
-4. ✅ **Text Selection**: Tap to select text elements
-5. ✅ **Responsive Design**: All features work on mobile screens
-
----
-
-## 🧪 Testing Instructions
-
-### Desktop Testing
-1. Go to https://bannersonthefly.com
-2. Navigate to banner designer
-3. Add text element
-4. Drag text vertically - verify horizontal guide passes through text center
-5. Drag text horizontally - verify vertical guide passes through text center
-6. Double-click text to edit
-
-### Mobile Testing
-1. Open https://bannersonthefly.com on mobile device
-2. Navigate to banner designer
-3. Add text element
-4. **Single tap** text to select it
-5. **Drag** text around - verify alignment guides appear correctly
-6. **Double-tap** text to enter edit mode
-7. Type to edit text
-8. Tap outside to exit edit mode
-
----
-
-## 📁 Files Modified
-
-- `src/components/design/DraggableText.tsx` - Main fixes
-- `src/components/design/AlignmentGuides.tsx` - Guide rendering
-- `src/components/design/LivePreviewCard.tsx` - Parent component
-- `src/store/quote.ts` - State management
-
----
-
-## 🔧 Technical Details
-
-### Alignment Guide Logic
-```typescript
-// Calculate text center
-const textCenterXPercent = newXPercent + (textWidthPercent / 2);
-const textCenterYPercent = newYPercent + (textHeightPercent / 2);
-
-// Check if center is near 50%
-if (Math.abs(textCenterYPercent - 50) < snapThreshold) {
-  // Position text so its center is at 50%
-  newYPercent = 50 - (textHeightPercent / 2);
-  onShowHorizontalCenterGuide?.(true);
-}
-```
-
-### Mobile Touch Detection
-- **Double-tap window**: 300ms
-- **First tap**: Records timestamp, selects element
-- **Second tap within 300ms**: Enters edit mode
-- **Second tap after 300ms**: Treated as new first tap
-
----
-
-## ✅ Quality Checks
-
-- ✅ No TypeScript errors
-- ✅ No runtime errors
-- ✅ Build successful (6.09s)
-- ✅ All functions deployed (62 functions)
-- ✅ CDN cache updated
-- ✅ Production deployment verified
-
----
-
-## 🎉 Status: LIVE
-
-All changes are now live on production at **https://bannersonthefly.com**
-
-Users can now:
-- Use alignment guides that position correctly
-- Edit text on mobile devices
-- Enjoy a better mobile experience overall
-
----
-
-## 📝 Notes
-
-- The alignment guide fix removes the complex offset calculation that was causing issues
-- Mobile support uses standard touch events compatible with all modern mobile browsers
-- Changes are backward compatible - desktop functionality unchanged
-- No breaking changes to existing features
-
----
-
-**Deployed by**: AI Assistant
-**Date**: October 9, 2025
-**Commit**: 05721e9
-**Build Time**: 36 seconds
-**Status**: ✅ Successfully Deployed
+- GitHub: ✅ Pushed
+- Netlify: 🔄 Deploying
+- Database: ✅ Migration applied
+- Testing: ⏳ Awaiting user testing
