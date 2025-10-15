@@ -15,7 +15,7 @@ const netlifyDbUrl = getEnvVar('NETLIFY_DATABASE_URL');
 const viteDbUrl = getEnvVar('VITE_DATABASE_URL');
 const databaseUrl = netlifyDbUrl || viteDbUrl;
 
-console.log('Environment check:');
+console.log('🔍 Database Environment Check (Updated):');
 console.log('NETLIFY_DATABASE_URL:', netlifyDbUrl ? 'SET' : 'NOT SET');
 console.log('VITE_DATABASE_URL:', viteDbUrl ? 'SET' : 'NOT SET');
 console.log('Final databaseUrl:', databaseUrl ? 'SET' : 'NOT SET');
