@@ -76,7 +76,10 @@ exports.handler = async (event, context) => {
                    'unit_price_cents', (oi.line_total_cents / oi.quantity),
                    'line_total_cents', oi.line_total_cents,
                    'file_key', oi.file_key,
-                   'text_elements', COALESCE(oi.text_elements, '[]'::jsonb)
+                   'print_ready_url', oi.print_ready_url,
+                   'web_preview_url', oi.web_preview_url,
+                   'text_elements', COALESCE(oi.text_elements, '[]'::jsonb),
+                   'overlay_image', oi.overlay_image
                  )
                ) as items
         FROM orders o
@@ -108,7 +111,10 @@ exports.handler = async (event, context) => {
                    'unit_price_cents', (oi.line_total_cents / oi.quantity),
                    'line_total_cents', oi.line_total_cents,
                    'file_key', oi.file_key,
-                   'text_elements', COALESCE(oi.text_elements, '[]'::jsonb)
+                   'print_ready_url', oi.print_ready_url,
+                   'web_preview_url', oi.web_preview_url,
+                   'text_elements', COALESCE(oi.text_elements, '[]'::jsonb),
+                   'overlay_image', oi.overlay_image
                  )
                ) as items
         FROM orders o

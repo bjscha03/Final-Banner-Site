@@ -85,7 +85,10 @@ exports.handler = async (event, context) => {
         pole_pocket_cost_cents,
         line_total_cents,
         file_key,
-        text_elements
+        print_ready_url,
+        web_preview_url,
+        text_elements,
+        overlay_image
       FROM order_items 
       WHERE order_id = ${orderId}
       ORDER BY created_at
