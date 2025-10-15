@@ -82,17 +82,6 @@ const AdminOrders: React.FC = () => {
       setLoading(true);
       const ordersAdapter = await getOrdersAdapter();
       const allOrders = await ordersAdapter.listAll();
-      
-      // DEBUG: Log what we got from database
-      console.log('🔵 [Orders.tsx] loadOrders() received:', allOrders.length, 'orders');
-      if (allOrders.length > 0) {
-        console.log('🔵 [Orders.tsx] First order:', allOrders[0].id);
-        console.log('🔵 [Orders.tsx] First order items:', allOrders[0].items);
-        if (allOrders[0].items && allOrders[0].items.length > 0) {
-          console.log('🔵 [Orders.tsx] First item overlay_image:', allOrders[0].items[0].overlay_image);
-        }
-      }
-      
       setOrders(allOrders);
     } catch (error) {
       console.error('Error loading orders:', error);
