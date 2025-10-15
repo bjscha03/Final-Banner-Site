@@ -24,6 +24,11 @@
   timeout = 120
   memory = 1024
 
+[functions."ai-preview-image"]
+  timeout = 60
+  memory = 1024
+
+
 [dev]
   targetPort = 8080
   port = 8888
