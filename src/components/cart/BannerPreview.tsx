@@ -246,18 +246,16 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
           {textElements.map((textEl) => (
             <text
               key={textEl.id}
-              x={widthIn * textEl.position.x / 100}
-              y={heightIn * textEl.position.y / 100}
+              x={widthIn * textEl.xPercent / 100}
+              y={heightIn * textEl.yPercent / 100}
               fontSize={textEl.fontSize * 0.8} // Scale down slightly for preview
               fontFamily={textEl.fontFamily}
               fill={textEl.color}
               textAnchor="middle"
               dominantBaseline="middle"
-              transform={`rotate(${textEl.rotation || 0}, ${widthIn * textEl.position.x / 100}, ${heightIn * textEl.position.y / 100})`}
               fontWeight={textEl.fontWeight || 'normal'}
-              fontStyle={textEl.fontStyle || 'normal'}
             >
-              {textEl.text}
+              {textEl.content}
             </text>
           ))}
 
@@ -294,18 +292,16 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
           {textElements.map((textEl) => (
             <text
               key={textEl.id}
-              x={widthIn * textEl.position.x / 100}
-              y={heightIn * textEl.position.y / 100}
+              x={widthIn * textEl.xPercent / 100}
+              y={heightIn * textEl.yPercent / 100}
               fontSize={textEl.fontSize * 0.8} // Scale down slightly for preview
               fontFamily={textEl.fontFamily}
               fill={textEl.color}
               textAnchor="middle"
               dominantBaseline="middle"
-              transform={`rotate(${textEl.rotation || 0}, ${widthIn * textEl.position.x / 100}, ${heightIn * textEl.position.y / 100})`}
               fontWeight={textEl.fontWeight || 'normal'}
-              fontStyle={textEl.fontStyle || 'normal'}
             >
-              {textEl.text}
+              {textEl.content}
             </text>
           ))}
 
