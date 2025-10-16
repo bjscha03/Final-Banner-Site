@@ -254,11 +254,17 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
             const ESTIMATED_PREVIEW_BANNER_HEIGHT_PX = 400;
             const fontSizeInInches = textEl.fontSize * (heightIn / ESTIMATED_PREVIEW_BANNER_HEIGHT_PX);
             
-            // Map CSS textAlign to SVG textAnchor
-            let textAnchor: 'start' | 'middle' | 'end' = 'start';
-            if (textEl.textAlign === 'center') textAnchor = 'middle';
-            else if (textEl.textAlign === 'right') textAnchor = 'end';
+            // DEBUG
+            console.log('BannerPreview text:', {
+              content: textEl.content,
+              xPercent: textEl.xPercent,
+              yPercent: textEl.yPercent,
+              textAlign: textEl.textAlign,
+              fontSize: textEl.fontSize
+            });
             
+            // The stored xPercent/yPercent represent the TOP-LEFT corner of the text div
+            // We always use textAnchor="start" to match this
             return (
               <text
                 key={textEl.id}
@@ -267,7 +273,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
                 fontSize={fontSizeInInches}
                 fontFamily={textEl.fontFamily}
                 fill={textEl.color}
-                textAnchor={textAnchor}
+                textAnchor="start"
                 dominantBaseline="hanging"
                 fontWeight={textEl.fontWeight || 'normal'}
               >
