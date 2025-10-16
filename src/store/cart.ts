@@ -234,7 +234,10 @@ export const useCartStore = create<CartState>()(
           print_ready_url: aiMetadata?.assets?.finalUrl || null,
           is_pdf: quote.file?.isPdf || false,
           text_elements: quote.textElements && quote.textElements.length > 0 ? quote.textElements : undefined,
-          overlay_image: quote.overlayImage,
+          overlay_image: quote.overlayImage ? {
+            ...quote.overlayImage,
+            position: quote.overlayImage.position || { x: 50, y: 50 }
+          } : undefined,
           image_scale: quote.imageScale || 1,
           image_position: quote.imagePosition || { x: 0, y: 0 },
           image_scale: quote.imageScale || 1,
@@ -372,7 +375,10 @@ export const useCartStore = create<CartState>()(
           print_ready_url: aiMetadata?.assets?.finalUrl || existingItem.print_ready_url,
           is_pdf: quote.file?.isPdf || false,
           text_elements: quote.textElements && quote.textElements.length > 0 ? quote.textElements : undefined,
-          overlay_image: quote.overlayImage,
+          overlay_image: quote.overlayImage ? {
+            ...quote.overlayImage,
+            position: quote.overlayImage.position || { x: 50, y: 50 }
+          } : undefined,
           image_scale: quote.imageScale || 1,
           image_position: quote.imagePosition || { x: 0, y: 0 },
           image_scale: quote.imageScale || 1,
