@@ -144,9 +144,13 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
   })),
   loadFromCartItem: (item: any) => {
     console.log('🔍 QUOTE STORE: loadFromCartItem called with item:', item);
+    console.log('🔍 QUOTE STORE: item.image_scale:', item.image_scale);
+    console.log('🔍 QUOTE STORE: item.image_position:', item.image_position);
     console.log('🔍 QUOTE STORE: item.overlay_image:', item.overlay_image);
-    return set((state) => ({
-      ...state,
+    console.log('🔍 QUOTE STORE: item.text_elements:', item.text_elements);
+    
+    const newState = {
+      ...get(),
       widthIn: item.width_in,
       heightIn: item.height_in,
       quantity: item.quantity,
@@ -171,8 +175,19 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
         ...item.overlay_image,
         position: item.overlay_image.position || { x: 50, y: 50 }
       } : undefined,
-    }));
-    console.log('🔍 QUOTE STORE: After set, overlayImage is now:', get().overlayImage);
+    };
+    
+    console.log('🔍 QUOTE STORE: Setting new state with imageScale:', newState.imageScale);
+    console.log('🔍 QUOTE STORE: Setting new state with imagePosition:', newState.imagePosition);
+    console.log('🔍 QUOTE STORE: Setting new state with overlayImage:', newState.overlayImage);
+    
+    set(newState);
+    
+    // Verify the state was set correctly
+    const currentState = get();
+    console.log('✅ QUOTE STORE: After set, imageScale is:', currentState.imageScale);
+    console.log('✅ QUOTE STORE: After set, imagePosition is:', currentState.imagePosition);
+    console.log('✅ QUOTE STORE: After set, overlayImage is:', currentState.overlayImage);
   },
   // Computed validation methods
   getSquareFootage: () => {
