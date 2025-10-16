@@ -207,11 +207,11 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
             <g clipPath={`url(#banner-clip-${widthIn}-${heightIn})`}>
               <image
                 href={imageUrl}
-                x={imagePosition.x * 0.01}
-                y={imagePosition.y * 0.01}
+                x={(viewBoxWidth - viewBoxWidth * imageScale) / 2 + (imagePosition.x * 0.01)}
+                y={(viewBoxHeight - viewBoxHeight * imageScale) / 2 + (imagePosition.y * 0.01)}
                 width={viewBoxWidth * imageScale}
                 height={viewBoxHeight * imageScale}
-                preserveAspectRatio="xMidYMid meet"
+                preserveAspectRatio="none"
               />
             </g>
           ) : (
