@@ -139,6 +139,7 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
       console.error('❌ Canvas rendering error:', error);
     }
 
+  }, [status, hasTextLayers, textElements, widthIn, heightIn]);
   // Handle image load success
   const handleImageLoad = () => {
     console.log('✅ Image loaded:', imageUrl);
