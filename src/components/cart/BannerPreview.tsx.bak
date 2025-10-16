@@ -250,7 +250,12 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
 
           {/* Text Elements */}
           {textElements.map((textEl) => {
-            // Calculate font size in inches to match the preview canvas
+            // FIXED: Match the live preview text size
+            // The fontSize is stored in pixels (e.g., 48px)
+            // The live preview renders text at: fontSize * (previewScale / 100) pixels
+            // At 100% scale, a 48px font on a ~400px tall banner preview = 12% of height
+            // In the thumbnail SVG, we need the same 12% of banner height in inches
+            // Formula: (fontSize / estimated_preview_height_px) * banner_height_inches
             const ESTIMATED_PREVIEW_BANNER_HEIGHT_PX = 400;
             const fontSizeInInches = textEl.fontSize * (heightIn / ESTIMATED_PREVIEW_BANNER_HEIGHT_PX);
             
@@ -270,6 +275,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
               </text>
             );
           })}
+
           {/* Overlay Image (Logo) */}
           {overlayImage && overlayImage.position && typeof overlayImage.position.x === 'number' && typeof overlayImage.position.y === 'number' && (() => {
             const aspectRatio = overlayImage.aspectRatio || 1;

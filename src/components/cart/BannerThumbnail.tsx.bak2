@@ -103,12 +103,13 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
       const scaleX = rect.width / widthIn;
       const scaleY = rect.height / heightIn;
 
-
       // Draw text layers
       textElements.forEach((textEl) => {
         if (!textEl.content || textEl.content.trim() === '') return;
 
         // Convert percentage position to pixels
+        // IMPORTANT: DraggableText positions the TOP-LEFT corner of the text at the percentage position
+        // So we need to use textBaseline = 'top' and textAlign = 'left' to match
         const x = (textEl.xPercent / 100) * rect.width;
         const y = (textEl.yPercent / 100) * rect.height;
         
@@ -135,7 +136,7 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
 
       console.log('✅ Canvas rendering complete');
     } catch (error) {
-      console.error('❌ Canvas rendering error:' , error);
+      console.error('❌ Canvas rendering error:', error);
     }
 
   }, [status, hasTextLayers, textElements, widthIn, heightIn]);

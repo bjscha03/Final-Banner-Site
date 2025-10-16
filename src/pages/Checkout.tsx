@@ -15,7 +15,7 @@ import { ArrowLeft, Package, Truck, Plus, Minus, Trash2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { emailApi } from '@/lib/api';
 import { CartItem } from '@/store/cart';
-import BannerThumbnail from '@/components/cart/BannerThumbnail';
+import BannerPreview from '@/components/cart/BannerPreview';
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
@@ -250,16 +250,13 @@ const Checkout: React.FC = () => {
                     <div key={item.id} className="border-b border-gray-200 pb-4 last:border-b-0">
                       <div className="flex gap-3 mb-3">
                         {/* Thumbnail */}
-                        <BannerThumbnail
-                          key={item.id}
-                          fileUrl={item.file_url}
-                          aiDesignUrl={item.aiDesign?.assets?.proofUrl}
-                          webPreviewUrl={item.web_preview_url}
-                          printReadyUrl={item.print_ready_url}
-                          isPdf={item.is_pdf}
-                          textElements={item.text_elements}
+                        <BannerPreview
                           widthIn={item.width_in}
                           heightIn={item.height_in}
+                          grommets={item.grommets}
+                          imageUrl={item.file_url || item.aiDesign?.assets?.proofUrl || item.web_preview_url || item.print_ready_url}
+                          material={item.material}
+                          textElements={item.text_elements}
                           className="w-20 h-20 sm:w-24 sm:h-24"
                         />
                         
