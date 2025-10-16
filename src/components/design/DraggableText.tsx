@@ -49,37 +49,6 @@ const DraggableText: React.FC<DraggableTextProps> = ({
   const leftPercent = element.xPercent ?? ((element.x ?? 50) / bannerWidthIn) * 100;
   const topPercent = element.yPercent ?? ((element.y ?? 50) / bannerHeightIn) * 100;
   const fontSize = element.fontSize * (previewScale / 100);
-  
-  const [adjustedLeftPercent, setAdjustedLeftPercent] = useState(leftPercent);
-  const [adjustedTopPercent, setAdjustedTopPercent] = useState(topPercent);
-  
-  useEffect(() => {
-    if (!textRef.current) return;
-    const container = textRef.current.parentElement;
-    if (!container) return;
-    
-    const svgElement = container.querySelector('svg');
-    if (!svgElement) {
-      setAdjustedLeftPercent(leftPercent);
-      setAdjustedTopPercent(topPercent);
-      return;
-    }
-    
-    const svgRect = svgElement.getBoundingClientRect();
-    const containerRect = container.getBoundingClientRect();
-    
-    const svgLeftOffset = svgRect.left - containerRect.left;
-    const svgTopOffset = svgRect.top - containerRect.top;
-    
-    const leftPx = svgLeftOffset + (leftPercent / 100) * svgRect.width;
-    const topPx = svgTopOffset + (topPercent / 100) * svgRect.height;
-    
-    const newLeftPercent = (leftPx / containerRect.width) * 100;
-    const newTopPercent = (topPx / containerRect.height) * 100;
-    
-    setAdjustedLeftPercent(newLeftPercent);
-    setAdjustedTopPercent(newTopPercent);
-  }, [leftPercent, topPercent, previewScale]);
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
@@ -437,8 +406,8 @@ const DraggableText: React.FC<DraggableTextProps> = ({
       ref={textRef}
       style={{
         position: 'absolute',
-        left: `${adjustedLeftPercent}%`,
-        top: `${adjustedTopPercent}%`,
+        left: `${leftPercent}%`,
+        top: `${topPercent}%`,
         fontSize: `${fontSize}px`,
         fontFamily: element.fontFamily,
         color: element.color,
