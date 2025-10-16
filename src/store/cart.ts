@@ -413,7 +413,13 @@ export const useCartStore = create<CartState>()(
         }
         
         const items = get().items;
-        await cartSync.saveCart(userId, items);
+        console.log('💾 STORE: Syncing cart to server...', { userId, itemCount: items.length });
+        const success = await cartSync.saveCart(userId, items);
+        if (success) {
+          console.log('✅ STORE: Cart synced to server successfully');
+        } else {
+          console.error('❌ STORE: Failed to sync cart to server - cart will remain in localStorage');
+        }
       },
 
       // Load cart from Neon database and merge with local
@@ -427,12 +433,24 @@ export const useCartStore = create<CartState>()(
           return;
         }
 
-        console.log('🔵 STORE: Loading cart from server (no merge)...');
+        console.log('🔵 STORE: Loading cart from server...');
         const serverItems = await cartSync.loadCart(userId);
+        const localItems = get().items;
         console.log('🔵 STORE: Server items count:', serverItems.length);
+        console.log('🔵 STORE: Local items count:', localItems.length);
         console.log('🔵 STORE: Server items:', serverItems.map(i => ({ id: i.id, name: i.banner_name, quantity: i.quantity })));
         
-        console.log('🔵 STORE: Replacing local cart with server cart...');
+        // CRITICAL FIX: Don't replace local cart with empty server cart
+        // This prevents losing user's cart when server save fails
+        if (serverItems.length === 0 && localItems.length > 0) {
+          console.log('⚠️ STORE: Server cart is empty but local cart has items - preserving local cart');
+          console.log('⚠️ STORE: This likely means the last save failed - will retry sync');
+          // Try to save the local cart to server
+          setTimeout(() => get().syncToServer(), 1000);
+          return;
+        }
+        
+        console.log('🔵 STORE: Updating cart with server items...');
         set({ items: serverItems });
         console.log('🔵 STORE: Store updated with server items');
       },
