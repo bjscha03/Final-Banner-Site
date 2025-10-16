@@ -100,8 +100,11 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     console.log('🔄 PREVIEW USEEFFECT: File changed, file is now:', file);
     if (!file) {
       console.log('🔄 PREVIEW USEEFFECT: File is undefined, resetting image state');
-      setImagePosition({ x: 0, y: 0 });
-      setImageScale(1);
+      // Only reset if NOT editing from cart
+      if (!editingItemId) {
+        setImagePosition({ x: 0, y: 0 });
+        setImageScale(1);
+      }
       setIsImageSelected(false);
       setIsDraggingImage(false);
       setIsResizingImage(false);
@@ -110,11 +113,12 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     } else {
       console.log('🔄 PREVIEW USEEFFECT: File exists, not resetting');
     }
-  }, [file]);
+  }, [file, editingItemId]);
 
   // Handle banner dimension changes - recalculate image fit
+  // SKIP auto-fit when editing from cart to preserve user's saved scale/position
   useEffect(() => {
-    if (file?.url && imageScale !== 1) {
+    if (file?.url && imageScale !== 1 && !editingItemId) {
       console.log('📐 Banner dimensions changed, recalculating image fit');
       
       const img = new Image();
@@ -150,8 +154,10 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         console.error('Failed to load image for dimension change recalculation');
       };
       img.src = file.url;
+    } else if (editingItemId) {
+      console.log('📐 Editing from cart - preserving saved imageScale and imagePosition');
     }
-  }, [widthIn, heightIn]); // Re-run when banner dimensions change
+  }, [widthIn, heightIn, editingItemId]); // Re-run when banner dimensions change
 
   // Responsive scale factor based on container dimensions
   const [responsiveScale, setResponsiveScale] = useState(100);

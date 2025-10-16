@@ -311,6 +311,8 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
                 grommets={selectedOptions.find(opt => opt.id === 'grommets' && opt.selected)?.grommetSelection as Grommets || quote.grommets}
                 imageUrl={quote.file?.url}
                 material={quote.material}
+                textElements={quote.textElements}
+                overlayImage={quote.overlayImage}
                 className="flex-shrink-0"
               />
               <div className="flex-1 min-w-0">

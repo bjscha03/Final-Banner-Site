@@ -17,6 +17,8 @@ import React, { useMemo } from 'react';
 import { Grommets } from '@/store/quote';
 import { Image as ImageIcon, Loader2 } from 'lucide-react';
 
+import { TextElement } from '@/store/quote';
+
 interface BannerPreviewProps {
   widthIn: number;
   heightIn: number;
@@ -25,6 +27,13 @@ interface BannerPreviewProps {
   material?: string;
   isLoading?: boolean;
   className?: string;
+  textElements?: TextElement[];
+  overlayImage?: {
+    url: string;
+    position: { x: number; y: number };
+    scale: number;
+    aspectRatio?: number;
+  };
 }
 
 interface Point {
@@ -107,7 +116,9 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   imageUrl,
   material = '13oz',
   isLoading = false,
-  className = ''
+  className = '',
+  textElements = [],
+  overlayImage
 }) => {
   // Calculate aspect ratio and determine container dimensions
   const aspectRatio = widthIn / heightIn;
@@ -230,6 +241,102 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
               </text>
             </g>
           )}
+
+          {/* Text Elements */}
+          {textElements.map((textEl) => (
+            <text
+              key={textEl.id}
+              x={widthIn * textEl.position.x / 100}
+              y={heightIn * textEl.position.y / 100}
+              fontSize={textEl.fontSize * 0.8} // Scale down slightly for preview
+              fontFamily={textEl.fontFamily}
+              fill={textEl.color}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              transform={`rotate(${textEl.rotation || 0}, ${widthIn * textEl.position.x / 100}, ${heightIn * textEl.position.y / 100})`}
+              fontWeight={textEl.fontWeight || 'normal'}
+              fontStyle={textEl.fontStyle || 'normal'}
+            >
+              {textEl.text}
+            </text>
+          ))}
+
+          {/* Overlay Image (Logo) */}
+          {overlayImage && (() => {
+            const aspectRatio = overlayImage.aspectRatio || 1;
+            const baseDimension = Math.min(widthIn, heightIn);
+            
+            let overlayWidth, overlayHeight;
+            if (aspectRatio >= 1) {
+              overlayWidth = baseDimension * overlayImage.scale * aspectRatio;
+              overlayHeight = baseDimension * overlayImage.scale;
+            } else {
+              overlayWidth = baseDimension * overlayImage.scale;
+              overlayHeight = baseDimension * overlayImage.scale / aspectRatio;
+            }
+            
+            const overlayX = (widthIn * overlayImage.position.x / 100) - (overlayWidth / 2);
+            const overlayY = (heightIn * overlayImage.position.y / 100) - (overlayHeight / 2);
+            
+            return (
+              <image
+                href={overlayImage.url}
+                x={overlayX}
+                y={overlayY}
+                width={overlayWidth}
+                height={overlayHeight}
+                preserveAspectRatio="xMidYMid meet"
+              />
+            );
+          })()}
+
+          {/* Text Elements */}
+          {textElements.map((textEl) => (
+            <text
+              key={textEl.id}
+              x={widthIn * textEl.position.x / 100}
+              y={heightIn * textEl.position.y / 100}
+              fontSize={textEl.fontSize * 0.8} // Scale down slightly for preview
+              fontFamily={textEl.fontFamily}
+              fill={textEl.color}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              transform={`rotate(${textEl.rotation || 0}, ${widthIn * textEl.position.x / 100}, ${heightIn * textEl.position.y / 100})`}
+              fontWeight={textEl.fontWeight || 'normal'}
+              fontStyle={textEl.fontStyle || 'normal'}
+            >
+              {textEl.text}
+            </text>
+          ))}
+
+          {/* Overlay Image (Logo) */}
+          {overlayImage && (() => {
+            const aspectRatio = overlayImage.aspectRatio || 1;
+            const baseDimension = Math.min(widthIn, heightIn);
+            
+            let overlayWidth, overlayHeight;
+            if (aspectRatio >= 1) {
+              overlayWidth = baseDimension * overlayImage.scale * aspectRatio;
+              overlayHeight = baseDimension * overlayImage.scale;
+            } else {
+              overlayWidth = baseDimension * overlayImage.scale;
+              overlayHeight = baseDimension * overlayImage.scale / aspectRatio;
+            }
+            
+            const overlayX = (widthIn * overlayImage.position.x / 100) - (overlayWidth / 2);
+            const overlayY = (heightIn * overlayImage.position.y / 100) - (overlayHeight / 2);
+            
+            return (
+              <image
+                href={overlayImage.url}
+                x={overlayX}
+                y={overlayY}
+                width={overlayWidth}
+                height={overlayHeight}
+                preserveAspectRatio="xMidYMid meet"
+              />
+            );
+          })()}
 
           {/* Grommets */}
           {grommetPositions.map((point, index) => (
