@@ -4,7 +4,7 @@
  * Main UI for AI banner generation with prompt input, aspect selection, and generation controls
  */
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Sparkles, Loader2, AlertCircle, Plus } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Textarea } from '../ui/textarea';
