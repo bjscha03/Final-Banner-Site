@@ -157,7 +157,8 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         });
         
         // Only update if scale actually changed to prevent infinite loops
-        if (Math.abs(fitScale - imageScale) > 0.001) {
+        // CRITICAL: Don't reset position when editing from cart
+        if (Math.abs(fitScale - imageScale) > 0.001 && !editingItemId) {
           setImageScale(fitScale);
           setImagePosition({ x: 0, y: 0 });
         }
