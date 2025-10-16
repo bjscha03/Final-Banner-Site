@@ -254,6 +254,11 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
             const ESTIMATED_PREVIEW_BANNER_HEIGHT_PX = 400;
             const fontSizeInInches = textEl.fontSize * (heightIn / ESTIMATED_PREVIEW_BANNER_HEIGHT_PX);
             
+            // Map CSS textAlign to SVG textAnchor
+            let textAnchor: 'start' | 'middle' | 'end' = 'start';
+            if (textEl.textAlign === 'center') textAnchor = 'middle';
+            else if (textEl.textAlign === 'right') textAnchor = 'end';
+            
             return (
               <text
                 key={textEl.id}
@@ -262,7 +267,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
                 fontSize={fontSizeInInches}
                 fontFamily={textEl.fontFamily}
                 fill={textEl.color}
-                textAnchor="start"
+                textAnchor={textAnchor}
                 dominantBaseline="hanging"
                 fontWeight={textEl.fontWeight || 'normal'}
               >

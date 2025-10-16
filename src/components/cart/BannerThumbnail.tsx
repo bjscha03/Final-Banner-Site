@@ -113,18 +113,17 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
         const y = (textEl.yPercent / 100) * rect.height;
         
         // Calculate font size to match preview canvas rendering
-        // The scale represents how much the banner is scaled down to fit the thumbnail
-        // This matches DraggableText which uses: fontSize * (previewScale / 100)
         const scale = Math.min(scaleX, scaleY);
         const fontSize = (textEl.fontSize || 24) * scale;
 
         ctx.save();
         ctx.font = `${textEl.fontWeight || 'normal'} ${fontSize}px ${textEl.fontFamily || 'Arial'}`;
         ctx.fillStyle = textEl.color || '#000000';
-        // CRITICAL FIX: Use 'left' and 'top' to match DraggableText positioning
-        // DraggableText uses CSS positioning with left/top which positions the top-left corner
-        ctx.textAlign = 'left';
+        
+        // Map CSS textAlign to Canvas textAlign
+        ctx.textAlign = (textEl.textAlign || 'left') as CanvasTextAlign;
         ctx.textBaseline = 'top';
+        
         ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
         ctx.shadowBlur = 2;
         ctx.shadowOffsetX = 1;

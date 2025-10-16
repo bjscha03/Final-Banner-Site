@@ -257,6 +257,9 @@ const Checkout: React.FC = () => {
                           imageUrl={item.file_url || item.aiDesign?.assets?.proofUrl || item.web_preview_url || item.print_ready_url}
                           material={item.material}
                           textElements={item.text_elements}
+                          overlayImage={item.overlay_image}
+                          imageScale={item.image_scale}
+                          imagePosition={item.image_position}
                           className="w-20 h-20 sm:w-24 sm:h-24"
                         />
                         
