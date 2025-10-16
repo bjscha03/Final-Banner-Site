@@ -280,7 +280,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
               xPosition += estimatedTextWidth;
             }
             
-            // Adjustable Y offset (in pixels at 400px preview height)
+            // Y offset to match DraggableText positioning (in pixels at 400px preview height)
             const Y_OFFSET_PX = 32;
             const yOffsetInches = (Y_OFFSET_PX / ESTIMATED_PREVIEW_BANNER_HEIGHT_PX) * heightIn;
             const yPosition = (heightIn * textEl.yPercent / 100) + yOffsetInches;

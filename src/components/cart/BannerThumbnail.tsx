@@ -108,13 +108,14 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
       textElements.forEach((textEl) => {
         if (!textEl.content || textEl.content.trim() === '') return;
 
-        // DraggableText has 4px padding on all sides
-        const PADDING_PX = 4;
-        const paddingScaled = PADDING_PX * Math.min(scaleX, scaleY);
+        // Y offset to match DraggableText positioning
+        const Y_OFFSET_PX = 32;
+        const ESTIMATED_PREVIEW_HEIGHT_PX = 400;
+        const yOffsetScaled = Y_OFFSET_PX * Math.min(scaleX, scaleY);
         
-        // Convert percentage position to pixels and add padding
-        let x = (textEl.xPercent / 100) * rect.width + paddingScaled;
-        const y = (textEl.yPercent / 100) * rect.height + paddingScaled;
+        // Convert percentage position to pixels
+        let x = (textEl.xPercent / 100) * rect.width;
+        const y = (textEl.yPercent / 100) * rect.height + yOffsetScaled;
         
         // Calculate font size to match preview canvas rendering
         const scale = Math.min(scaleX, scaleY);
