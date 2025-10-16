@@ -34,6 +34,8 @@ interface BannerPreviewProps {
     scale: number;
     aspectRatio?: number;
   };
+  imageScale?: number;
+  imagePosition?: { x: number; y: number };
 }
 
 interface Point {
