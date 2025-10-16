@@ -304,63 +304,6 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
             );
           })()}
 
-          {/* Text Elements */}
-          {textElements.map((textEl) => {
-            const thumbnailFontScale = 3;
-            const scaledFontSize = (textEl.fontSize / 72) * thumbnailFontScale;
-            
-            // Match HTML positioning: xPercent/yPercent are top-left of text container
-            const textAnchor = textEl.textAlign === 'left' ? 'start' 
-                             : textEl.textAlign === 'right' ? 'end' 
-                             : 'middle';
-            
-            return (
-              <text
-                key={textEl.id}
-                x={widthIn * textEl.xPercent / 100}
-                y={heightIn * textEl.yPercent / 100}
-                fontSize={scaledFontSize}
-                fontFamily={textEl.fontFamily}
-                fill={textEl.color}
-                textAnchor={textAnchor}
-                dominantBaseline="hanging"
-                fontWeight={textEl.fontWeight || 'normal'}
-              >
-                {textEl.content}
-              </text>
-            );
-          })}
-
-          {/* Overlay Image (Logo) */}
-          {overlayImage && overlayImage.position && typeof overlayImage.position.x === 'number' && typeof overlayImage.position.y === 'number' && (() => {
-            const aspectRatio = overlayImage.aspectRatio || 1;
-            const baseDimension = Math.min(widthIn, heightIn);
-            
-            let overlayWidth, overlayHeight;
-            if (aspectRatio >= 1) {
-              overlayWidth = baseDimension * overlayImage.scale * aspectRatio;
-              overlayHeight = baseDimension * overlayImage.scale;
-            } else {
-              overlayWidth = baseDimension * overlayImage.scale;
-              overlayHeight = baseDimension * overlayImage.scale / aspectRatio;
-            }
-            
-            const overlayX = (widthIn * overlayImage.position.x / 100) - (overlayWidth / 2);
-            const overlayY = (heightIn * overlayImage.position.y / 100) - (overlayHeight / 2);
-            
-            return (
-              <image
-                href={overlayImage.url}
-                x={overlayX}
-                y={overlayY}
-                width={overlayWidth}
-                height={overlayHeight}
-                preserveAspectRatio="xMidYMid meet"
-              />
-            );
-          })()}
-
-          {/* Grommets */}
           {grommetPositions.map((point, index) => (
             <g key={index}>
               {/* Drop shadow */}

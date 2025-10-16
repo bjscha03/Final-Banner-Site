@@ -314,6 +314,8 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
                 textElements={quote.textElements}
                 overlayImage={quote.overlayImage}
                 className="flex-shrink-0"
+                imageScale={quote.imageScale}
+                imagePosition={quote.imagePosition}
               />
               <div className="flex-1 min-w-0">
                 <h3 className="font-semibold text-gray-900 text-lg">
