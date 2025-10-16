@@ -267,7 +267,11 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
             const estimatedCharWidth = fontSizeInInches * 0.6;
             const estimatedTextWidth = textEl.content.length * estimatedCharWidth;
             
-            let xPosition = widthIn * textEl.xPercent / 100;
+            // DraggableText has 4px padding on all sides
+            const PADDING_PX = 4;
+            const paddingInches = (PADDING_PX / ESTIMATED_PREVIEW_BANNER_HEIGHT_PX) * heightIn;
+            
+            let xPosition = (widthIn * textEl.xPercent / 100) + paddingInches;
             
             // Adjust X position based on text alignment
             if (textEl.textAlign === 'center') {
@@ -280,11 +284,13 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
               xPosition += estimatedTextWidth;
             }
             
+            const yPosition = (heightIn * textEl.yPercent / 100) + paddingInches;
+            
             return (
               <text
                 key={textEl.id}
                 x={xPosition}
-                y={heightIn * textEl.yPercent / 100}
+                y={yPosition}
                 fontSize={fontSizeInInches}
                 fontFamily={textEl.fontFamily}
                 fill={textEl.color}
