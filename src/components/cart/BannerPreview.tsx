@@ -267,7 +267,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
             const estimatedCharWidth = fontSizeInInches * 0.6;
             const estimatedTextWidth = textEl.content.length * estimatedCharWidth;
             
-            // DraggableText has 4px padding - stored xPercent is div edge, text starts 4px inward
+            // DraggableText has 4px padding - stored xPercent/yPercent is div edge, text starts 4px inward
             const DRAGGABLE_TEXT_PADDING_PX = 4;
             const paddingOffsetInches = (DRAGGABLE_TEXT_PADDING_PX / ESTIMATED_PREVIEW_BANNER_HEIGHT_PX) * heightIn;
             
@@ -284,9 +284,6 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
               xPosition += estimatedTextWidth;
             }
             
-            // DraggableText has 4px padding - stored yPercent is div edge, text starts 4px below
-            const DRAGGABLE_TEXT_PADDING_PX = 4;
-            const paddingOffsetInches = (DRAGGABLE_TEXT_PADDING_PX / ESTIMATED_PREVIEW_BANNER_HEIGHT_PX) * heightIn;
             const yPosition = (heightIn * textEl.yPercent / 100) + paddingOffsetInches;
             
             return (
