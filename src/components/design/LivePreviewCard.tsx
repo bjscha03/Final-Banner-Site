@@ -124,6 +124,8 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
   }, [imagePosition, imageScale, editingItemId, file]);
   // Handle banner dimension changes - recalculate image fit
   // SKIP auto-fit when editing from cart to preserve user's saved scale/position
+  // Handle banner dimension changes - recalculate image fit
+  // SKIP auto-fit when editing from cart to preserve user's saved scale/position
   useEffect(() => {
     // Don't auto-fit if editing from cart - preserve saved scale/position
     if (editingItemId) {
@@ -163,8 +165,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       };
       img.src = file.url;
     }
-  }, [widthIn, heightIn, editingItemId]); // Re-run when banner dimensions change
-
+  }, [widthIn, heightIn]); // Only re-run when banner dimensions change, NOT when editingItemId changes
   // Responsive scale factor based on container dimensions
   const [responsiveScale, setResponsiveScale] = useState(100);
 

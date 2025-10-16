@@ -250,8 +250,10 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
 
           {/* Text Elements */}
           {textElements.map((textEl) => {
-            const thumbnailFontScale = 3;
-            const scaledFontSize = (textEl.fontSize / 72) * thumbnailFontScale;
+            // Convert fontSize from pixels to inches for SVG viewBox
+            // Assuming 72 DPI: 72 pixels = 1 inch
+            // Scale up for better visibility in thumbnail
+            const fontSizeInInches = (textEl.fontSize / 72);
             
             // Match HTML positioning: xPercent/yPercent are top-left of text container
             // In HTML, the text container's top-left is at xPercent/yPercent regardless of textAlign
@@ -263,7 +265,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
                 key={textEl.id}
                 x={widthIn * textEl.xPercent / 100}
                 y={heightIn * textEl.yPercent / 100}
-                fontSize={scaledFontSize}
+                fontSize={fontSizeInInches}
                 fontFamily={textEl.fontFamily}
                 fill={textEl.color}
                 textAnchor={textAnchor}
