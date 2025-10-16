@@ -165,6 +165,8 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
         isPdf: item.is_pdf,
         isAI: !!item.aiDesign,
       } : undefined,
+      imageScale: item.image_scale || 1,
+      imagePosition: item.image_position || { x: 0, y: 0 },
       overlayImage: item.overlay_image,
     }));
     console.log('🔍 QUOTE STORE: After set, overlayImage is now:', get().overlayImage);
@@ -220,6 +222,8 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
     editingItemId: null,
     file: undefined,
     overlayImage: undefined,
+    imageScale: 1,
+    imagePosition: { x: 0, y: 0 },
   });
   }
 }));

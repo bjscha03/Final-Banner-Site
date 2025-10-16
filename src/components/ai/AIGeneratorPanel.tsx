@@ -325,10 +325,7 @@ export const AIGeneratorPanel: React.FC<AIGeneratorPanelProps> = ({
           <SelectContent>
             {ASPECT_RATIOS.map((ratio) => (
               <SelectItem key={ratio.value} value={ratio.value}>
-                <div className="flex flex-col">
-                  <span className="font-medium">{ratio.label}</span>
-                  <span className="text-xs text-gray-500">{ratio.description}</span>
-                </div>
+                {ratio.label} - {ratio.description}
               </SelectItem>
             ))}
           </SelectContent>

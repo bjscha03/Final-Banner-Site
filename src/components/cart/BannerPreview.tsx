@@ -195,7 +195,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
               y="0"
               width={viewBoxWidth}
               height={viewBoxHeight}
-              preserveAspectRatio="xMidYMid meet"
+              preserveAspectRatio="xMidYMid slice"
             />
           ) : (
             <g>

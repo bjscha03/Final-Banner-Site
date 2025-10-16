@@ -61,8 +61,12 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
   const [uploadError, setUploadError] = useState('');
   
   const [isUploading, setIsUploading] = useState(false);  // Image interaction state
-  const [isRenderingPdf, setIsRenderingPdf] = useState(false);  const [imagePosition, setImagePosition] = useState({ x: 0, y: 0 });
-  const [imageScale, setImageScale] = useState(1);
+  const [isRenderingPdf, setIsRenderingPdf] = useState(false);  
+  // Use quote store for imagePosition and imageScale so they persist when editing from cart
+  const imagePosition = useQuoteStore((state) => state.imagePosition || { x: 0, y: 0 });
+  const imageScale = useQuoteStore((state) => state.imageScale || 1);
+  const setImagePosition = (pos: { x: number; y: number }) => set({ imagePosition: pos });
+  const setImageScale = (scale: number) => set({ imageScale: scale });
   const [isDraggingImage, setIsDraggingImage] = useState(false);
   const [isResizingImage, setIsResizingImage] = useState(false);
   const [isImageSelected, setIsImageSelected] = useState(false);
