@@ -262,7 +262,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
           ))}
 
           {/* Overlay Image (Logo) */}
-          {overlayImage && (() => {
+          {overlayImage && overlayImage.position && (() => {
             const aspectRatio = overlayImage.aspectRatio || 1;
             const baseDimension = Math.min(widthIn, heightIn);
             
@@ -310,7 +310,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
           ))}
 
           {/* Overlay Image (Logo) */}
-          {overlayImage && (() => {
+          {overlayImage && overlayImage.position && (() => {
             const aspectRatio = overlayImage.aspectRatio || 1;
             const baseDimension = Math.min(widthIn, heightIn);
             
