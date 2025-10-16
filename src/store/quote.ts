@@ -168,9 +168,9 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
       imageScale: item.image_scale || 1,
       imagePosition: item.image_position || { x: 0, y: 0 },
       overlayImage: item.overlay_image ? {
-      ...item.overlay_image,
-      position: item.overlay_image.position || { x: 50, y: 50 }
-    } : undefined,
+        ...item.overlay_image,
+        position: item.overlay_image.position || { x: 50, y: 50 }
+      } : undefined,
     }));
     console.log('🔍 QUOTE STORE: After set, overlayImage is now:', get().overlayImage);
   },

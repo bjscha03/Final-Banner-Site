@@ -605,7 +605,6 @@ const AdminOrders: React.FC = () => {
                         onSendShippingNotification={handleSendShippingNotification}
                         getStatusColor={getStatusColor}
                         pdfLoadingStates={pdfLoadingStates}                        getItemsSummary={getItemsSummary}
-                        pdfLoadingStates={pdfLoadingStates}
                       />
                     ))}
                   </tbody>

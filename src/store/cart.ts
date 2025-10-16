@@ -240,8 +240,6 @@ export const useCartStore = create<CartState>()(
           } : undefined,
           image_scale: quote.imageScale || 1,
           image_position: quote.imagePosition || { x: 0, y: 0 },
-          image_scale: quote.imageScale || 1,
-          image_position: quote.imagePosition || { x: 0, y: 0 },
           created_at: new Date().toISOString(),
           ...(aiMetadata || {}),
         };
@@ -379,8 +377,6 @@ export const useCartStore = create<CartState>()(
             ...quote.overlayImage,
             position: quote.overlayImage.position || { x: 50, y: 50 }
           } : undefined,
-          image_scale: quote.imageScale || 1,
-          image_position: quote.imagePosition || { x: 0, y: 0 },
           image_scale: quote.imageScale || 1,
           image_position: quote.imagePosition || { x: 0, y: 0 },
           ...(aiMetadata || {}),
