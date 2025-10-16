@@ -250,13 +250,11 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
 
           {/* Text Elements */}
           {textElements.map((textEl) => {
-            const thumbnailFontScale = 3;
+            // Scale fontSize for thumbnail visibility
+            // viewBox uses actual banner dimensions, so text needs to be scaled up
+            // Base fontSize is in points, convert to inches (/72), then scale for thumbnail
+            const thumbnailFontScale = 3; // Make text 3x larger for visibility in thumbnails
             const scaledFontSize = (textEl.fontSize / 72) * thumbnailFontScale;
-            
-            // Match HTML positioning: xPercent/yPercent are top-left of text container
-            const textAnchor = textEl.textAlign === 'left' ? 'start' 
-                             : textEl.textAlign === 'right' ? 'end' 
-                             : 'middle';
             
             return (
               <text
@@ -266,8 +264,8 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
                 fontSize={scaledFontSize}
                 fontFamily={textEl.fontFamily}
                 fill={textEl.color}
-                textAnchor={textAnchor}
-                dominantBaseline="hanging"
+                textAnchor="middle"
+                dominantBaseline="middle"
                 fontWeight={textEl.fontWeight || 'normal'}
               >
                 {textEl.content}
@@ -306,13 +304,11 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
 
           {/* Text Elements */}
           {textElements.map((textEl) => {
-            const thumbnailFontScale = 3;
+            // Scale fontSize for thumbnail visibility
+            // viewBox uses actual banner dimensions, so text needs to be scaled up
+            // Base fontSize is in points, convert to inches (/72), then scale for thumbnail
+            const thumbnailFontScale = 3; // Make text 3x larger for visibility in thumbnails
             const scaledFontSize = (textEl.fontSize / 72) * thumbnailFontScale;
-            
-            // Match HTML positioning: xPercent/yPercent are top-left of text container
-            const textAnchor = textEl.textAlign === 'left' ? 'start' 
-                             : textEl.textAlign === 'right' ? 'end' 
-                             : 'middle';
             
             return (
               <text
@@ -322,8 +318,8 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
                 fontSize={scaledFontSize}
                 fontFamily={textEl.fontFamily}
                 fill={textEl.color}
-                textAnchor={textAnchor}
-                dominantBaseline="hanging"
+                textAnchor="middle"
+                dominantBaseline="middle"
                 fontWeight={textEl.fontWeight || 'normal'}
               >
                 {textEl.content}

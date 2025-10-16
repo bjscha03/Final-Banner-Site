@@ -96,23 +96,24 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
   const [pinchStartOverlayScale, setPinchStartOverlayScale] = useState(0.3);
 
   // Reset image position and scale when file is cleared
+  // Only reset image state when file is actually removed, not when it changes
+  const prevFileRef = React.useRef(file);
+  
   React.useEffect(() => {
-    console.log('🔄 PREVIEW USEEFFECT: File changed, file is now:', file);
-    if (!file) {
-      console.log('🔄 PREVIEW USEEFFECT: File is undefined, resetting image state');
-      // Only reset if NOT editing from cart
-      if (!editingItemId) {
-        setImagePosition({ x: 0, y: 0 });
-        setImageScale(1);
-      }
+    const hadFile = prevFileRef.current !== undefined;
+    const hasFile = file !== undefined;
+    
+    // Only reset if we HAD a file and now we DON'T (file was removed)
+    if (hadFile && !hasFile && !editingItemId) {
+      setImagePosition({ x: 0, y: 0 });
+      setImageScale(1);
       setIsImageSelected(false);
       setIsDraggingImage(false);
       setIsResizingImage(false);
       setResizeHandle(null);
-      console.log('🔄 PREVIEW USEEFFECT: Image state reset complete');
-    } else {
-      console.log('🔄 PREVIEW USEEFFECT: File exists, not resetting');
     }
+    
+    prevFileRef.current = file;
   }, [file, editingItemId]);
 
   // Handle banner dimension changes - recalculate image fit
