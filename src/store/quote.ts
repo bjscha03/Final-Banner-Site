@@ -77,7 +77,7 @@ export interface QuoteState {
   imagePosition?: { x: number; y: number }; // Background image position (for uploaded images)
   set: (partial: Partial<QuoteState>) => void;
   setFromQuickQuote: (params: QuickQuoteParams) => void;
-  loadFromCartItem: (item: any) => void;
+  loadFromCartItem: (item: any, editingItemId?: string) => void;
   addTextElement: (element: Omit<TextElement, 'id'>) => void;
   updateTextElement: (id: string, updates: Partial<TextElement>) => void;
   deleteTextElement: (id: string) => void;
@@ -145,7 +145,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
     addRope: state.addRope, // Preserve rope selection
     file: undefined,
   })),
-  loadFromCartItem: (item: any) => {
+  loadFromCartItem: (item: any, editingItemId?: string) => {
     console.log('🔍 QUOTE STORE: loadFromCartItem called with item:', item);
     console.log('🔍 QUOTE STORE: item.image_scale:', item.image_scale);
     console.log('🔍 QUOTE STORE: item.image_position:', item.image_position);
