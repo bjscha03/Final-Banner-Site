@@ -494,63 +494,7 @@ export const useCartStore = create<CartState>()(
       // Migrate items when loading from localStorage
       onRehydrateStorage: () => (state) => {
         console.log('�� CART STORAGE: Rehydrating from localStorage...');
-        
-        // SAFETY CHECK: Clear cart if it belongs to a different user
-        // This is a backup in case useCartSync doesn't run
-        // EXCEPTION: Don't clear if we're in a checkout flow (cart will be merged by useCartSync)
-        try {
-          const currentUser = localStorage.getItem('banners_current_user');
-          const cartOwnerId = localStorage.getItem('cart_owner_user_id');
-          const checkoutContext = localStorage.getItem('checkout-context-storage');
-          
-          // Check if we're in a checkout flow
-          let isInCheckoutFlow = false;
-          if (checkoutContext) {
-            try {
-              const context = JSON.parse(checkoutContext);
-              isInCheckoutFlow = context?.state?.isInCheckoutFlow === true;
-            } catch (e) {
-              // Ignore parse errors
-            }
-          }
-          
-          if (currentUser && cartOwnerId) {
-            const currentUserId = JSON.parse(currentUser)?.id;
-            console.log('🔒 SAFETY: Current user ID:', currentUserId);
-            console.log('🔒 SAFETY: Cart owner ID:', cartOwnerId);
-            console.log('🔒 SAFETY: In checkout flow:', isInCheckoutFlow);
-            
-            if (currentUserId && currentUserId !== cartOwnerId) {
-              if (isInCheckoutFlow) {
-                console.log('✅ SAFETY: In checkout flow, preserving cart for merge');
-                // Don't clear - let useCartSync handle the merge
-              } else {
-                console.log('🚨 SAFETY: Cart belongs to different user, CLEARING');
-                if (state) {
-                  state.items = [];
-                }
-                localStorage.setItem('cart_owner_user_id', currentUserId);
-              }
-            }
-          }
-        } catch (error) {
-          console.error('❌ Safety check error:', error);
-        }
-        
-        // Migrate cart items if needed
-        if (state?.items) {
-          console.log('💾 CART STORAGE: Found', state.items.length, 'items in storage');
-          console.log('🔄 Rehydrating cart, checking for items needing migration...');
-          const migratedItems = state.items.map(migrateCartItem);
-          const hadChanges = migratedItems.some((item, i) => item.line_total_cents !== state.items[i].line_total_cents);
-          if (hadChanges) {
-            console.log('✅ Cart migration complete, updating storage');
-            state.items = migratedItems;
-          } else {
-            console.log('✅ No migration needed');
-          }
-        }
-      },
-    }
-  )
-);
+        // SAFETY CHECK: DISABLED - useCartSync handles all cart clearing
+        // This was causing duplicate clears and race conditions  
+        // useCartSync is the single source of truth for cart ownership
+        console.log('💾 CART STORAGE: Rehydration complete, useCartSync will handle ownership');
