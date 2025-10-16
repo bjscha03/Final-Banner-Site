@@ -31,6 +31,8 @@ export function useCartSync() {
     console.log('🔍 Has merged:', hasMergedRef.current);
     
     // NUCLEAR OPTION: If current user doesn't match cart owner, CLEAR IMMEDIATELY
+    // FIXED: Only clear if cartOwnerId is explicitly set AND different
+    // If cartOwnerId is null, it means cart was cleared on logout - don't clear again
     if (currentUserId && cartOwnerId && currentUserId !== cartOwnerId) {
       console.log('🚨🚨🚨 NUCLEAR CLEAR: Cart owner mismatch detected!');
       console.log('🚨 Current user:', currentUserId);
@@ -41,6 +43,8 @@ export function useCartSync() {
         localStorage.setItem('cart_owner_user_id', currentUserId);
       }
       hasMergedRef.current = false;
+    } else if (currentUserId && !cartOwnerId) {
+      console.log('ℹ️  No cart owner set (cart was cleared on logout) - will load from server');
     }
     
     // SAFETY: Clear cart IMMEDIATELY if user changed (before any async operations)
@@ -76,6 +80,11 @@ export function useCartSync() {
       console.log('👤 Loading new user cart from Neon...');
       loadFromServer();
       hasMergedRef.current = false;
+      
+      // Update ref and exit early to prevent duplicate processing
+      prevUserIdRef.current = currentUserId;
+      console.log('═══════════════════════════════════════════════');
+      return;
     }
     
     // User logged in (from logged out state)
@@ -85,15 +94,19 @@ export function useCartSync() {
       console.log('👤 User email:', user?.email);
       console.log('👤 Cart owner ID:', cartOwnerId);
       
-      // CRITICAL: Check if cart belongs to this user
+      // FIXED: Only clear if cart explicitly belongs to a DIFFERENT user
+      // If cartOwnerId is null, the cart was already cleared on logout - don't clear again
       if (cartOwnerId && cartOwnerId !== currentUserId) {
         console.log('🚨 CRITICAL: Cart belongs to different user!');
         console.log('🚨 Cart owner:', cartOwnerId);
         console.log('🚨 Current user:', currentUserId);
         console.log('🚨 CLEARING CART NOW');
         clearCart();
+      } else if (!cartOwnerId) {
+        console.log('ℹ️  No cart owner set - cart was cleared on logout, will load from server');
       }
       
+      // Set ownership BEFORE loading from server
       if (typeof localStorage !== 'undefined') {
         localStorage.setItem('cart_owner_user_id', currentUserId);
       }
