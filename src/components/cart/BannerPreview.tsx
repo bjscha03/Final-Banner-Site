@@ -120,7 +120,9 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   isLoading = false,
   className = '',
   textElements = [],
-  overlayImage
+  overlayImage,
+  imageScale = 1,
+  imagePosition = { x: 0, y: 0 }
 }) => {
   // Calculate aspect ratio and determine container dimensions
   const aspectRatio = widthIn / heightIn;
@@ -202,14 +204,16 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
               </text>
             </g>
           ) : imageUrl ? (
-            <image
-              href={imageUrl}
-              x="0"
-              y="0"
-              width={viewBoxWidth}
-              height={viewBoxHeight}
-              preserveAspectRatio="xMidYMid slice"
-            />
+            <g clipPath={`url(#banner-clip-${widthIn}-${heightIn})`}>
+              <image
+                href={imageUrl}
+                x={imagePosition.x * 0.01}
+                y={imagePosition.y * 0.01}
+                width={viewBoxWidth * imageScale}
+                height={viewBoxHeight * imageScale}
+                preserveAspectRatio="xMidYMid meet"
+              />
+            </g>
           ) : (
             <g>
               <rect
@@ -244,7 +248,24 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
             </g>
           )}
 
-          {/* Overlay Image (Logo) - render first so text appears on top */}
+          {/* Text Elements */}
+          {textElements.map((textEl) => (
+            <text
+              key={textEl.id}
+              x={widthIn * textEl.xPercent / 100}
+              y={heightIn * textEl.yPercent / 100}
+              fontSize={textEl.fontSize / 96}
+              fontFamily={textEl.fontFamily}
+              fill={textEl.color}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontWeight={textEl.fontWeight || 'normal'}
+            >
+              {textEl.content}
+            </text>
+          ))}
+
+          {/* Overlay Image (Logo) */}
           {overlayImage && overlayImage.position && typeof overlayImage.position.x === 'number' && typeof overlayImage.position.y === 'number' && (() => {
             const aspectRatio = overlayImage.aspectRatio || 1;
             const baseDimension = Math.min(widthIn, heightIn);
@@ -279,7 +300,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
               key={textEl.id}
               x={widthIn * textEl.xPercent / 100}
               y={heightIn * textEl.yPercent / 100}
-              fontSize={textEl.fontSize / 72}
+              fontSize={textEl.fontSize / 96}
               fontFamily={textEl.fontFamily}
               fill={textEl.color}
               textAnchor="middle"
@@ -289,6 +310,35 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
               {textEl.content}
             </text>
           ))}
+
+          {/* Overlay Image (Logo) */}
+          {overlayImage && overlayImage.position && typeof overlayImage.position.x === 'number' && typeof overlayImage.position.y === 'number' && (() => {
+            const aspectRatio = overlayImage.aspectRatio || 1;
+            const baseDimension = Math.min(widthIn, heightIn);
+            
+            let overlayWidth, overlayHeight;
+            if (aspectRatio >= 1) {
+              overlayWidth = baseDimension * overlayImage.scale * aspectRatio;
+              overlayHeight = baseDimension * overlayImage.scale;
+            } else {
+              overlayWidth = baseDimension * overlayImage.scale;
+              overlayHeight = baseDimension * overlayImage.scale / aspectRatio;
+            }
+            
+            const overlayX = (widthIn * overlayImage.position.x / 100) - (overlayWidth / 2);
+            const overlayY = (heightIn * overlayImage.position.y / 100) - (overlayHeight / 2);
+            
+            return (
+              <image
+                href={overlayImage.url}
+                x={overlayX}
+                y={overlayY}
+                width={overlayWidth}
+                height={overlayHeight}
+                preserveAspectRatio="xMidYMid meet"
+              />
+            );
+          })()}
 
           {/* Grommets */}
           {grommetPositions.map((point, index) => (
@@ -344,6 +394,9 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
 
           {/* Gradient definitions */}
           <defs>
+            <clipPath id={`banner-clip-${widthIn}-${heightIn}`}>
+              <rect x="0" y="0" width={viewBoxWidth} height={viewBoxHeight} />
+            </clipPath>
             <radialGradient id="grommetGradient" cx="30%" cy="30%">
               <stop offset="0%" stopColor="#e2e8f0" />
               <stop offset="50%" stopColor="#a0aec0" />
