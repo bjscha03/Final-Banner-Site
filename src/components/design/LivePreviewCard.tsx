@@ -133,14 +133,9 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         const bannerAspect = widthIn / heightIn;
         
         // Calculate scale to fit image within banner (no clipping)
+        // With preserveAspectRatio="meet", the image will automatically fit within the container
+        // So we always use fitScale = 1 to use the full banner dimensions as the container
         let fitScale = 1;
-        if (imgAspect > bannerAspect) {
-          // Image is wider than banner - fit to width
-          fitScale = 1;
-        } else {
-          // Image is taller than banner - fit to height
-          fitScale = bannerAspect / imgAspect;
-        }
         
         console.log('📐 Dimension change - new fit scale:', {
           bannerSize: `${widthIn}"x${heightIn}"`,
@@ -438,15 +433,9 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         const bannerAspect = widthIn / heightIn;
         
         // Calculate scale to fit image within banner (no clipping)
-        // Use "meet" behavior - scale to fit entirely within bounds
+        // With preserveAspectRatio="meet", the image will automatically fit within the container
+        // So we always use fitScale = 1 to use the full banner dimensions as the container
         let fitScale = 1;
-        if (imgAspect > bannerAspect) {
-          // Image is wider than banner - fit to width
-          fitScale = 1;
-        } else {
-          // Image is taller than banner - fit to height  
-          fitScale = bannerAspect / imgAspect;
-        }
         
         console.log('📐 Image fit calculation:', {
           imageSize: `${img.width}x${img.height}`,
