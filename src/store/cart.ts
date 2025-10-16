@@ -423,6 +423,7 @@ export const useCartStore = create<CartState>()(
       },
 
       // Load cart from Neon database and merge with local
+      // Load cart from Neon database and merge with local
       loadFromServer: async () => {
         console.log('🔵 STORE: loadFromServer called');
         const userId = cartSync.getUserId();
@@ -436,18 +437,28 @@ export const useCartStore = create<CartState>()(
         console.log('🔵 STORE: Loading cart from server...');
         const serverItems = await cartSync.loadCart(userId);
         const localItems = get().items;
+        const cartOwnerId = typeof localStorage !== 'undefined' ? localStorage.getItem('cart_owner_user_id') : null;
+        
         console.log('🔵 STORE: Server items count:', serverItems.length);
         console.log('🔵 STORE: Local items count:', localItems.length);
-        console.log('🔵 STORE: Server items:', serverItems.map(i => ({ id: i.id, name: i.banner_name, quantity: i.quantity })));
+        console.log('🔵 STORE: Cart owner ID:', cartOwnerId);
+        console.log('🔵 STORE: Current user ID:', userId);
         
-        // CRITICAL FIX: Don't replace local cart with empty server cart
-        // This prevents losing user's cart when server save fails
+        // IMPROVED LOGIC: Only preserve local cart if it belongs to the current user
+        // and the server cart is empty (indicating a failed save)
         if (serverItems.length === 0 && localItems.length > 0) {
-          console.log('⚠️ STORE: Server cart is empty but local cart has items - preserving local cart');
-          console.log('⚠️ STORE: This likely means the last save failed - will retry sync');
-          // Try to save the local cart to server
-          setTimeout(() => get().syncToServer(), 1000);
-          return;
+          // Check if local cart belongs to this user
+          if (cartOwnerId === userId) {
+            console.log('⚠️ STORE: Server cart is empty but local cart belongs to this user - preserving local cart');
+            console.log('⚠️ STORE: This likely means the last save failed - will retry sync');
+            // Try to save the local cart to server
+            setTimeout(() => get().syncToServer(), 1000);
+            return;
+          } else {
+            console.log('⚠️ STORE: Server cart is empty and local cart belongs to different user - clearing local cart');
+            set({ items: [] });
+            return;
+          }
         }
         
         console.log('🔵 STORE: Updating cart with server items...');

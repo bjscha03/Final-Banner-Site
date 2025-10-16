@@ -152,6 +152,22 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
     console.log('🔍 QUOTE STORE: item.overlay_image:', item.overlay_image);
     console.log('🔍 QUOTE STORE: item.text_elements:', item.text_elements);
     
+    // Migrate text elements to ensure they have xPercent and yPercent
+    const migratedTextElements = (item.text_elements || []).map((textEl: any) => {
+      // If xPercent/yPercent are missing, calculate from x/y (legacy format)
+      // or default to center if both are missing
+      const xPercent = textEl.xPercent ?? (textEl.x != null ? (textEl.x / item.width_in) * 100 : 50);
+      const yPercent = textEl.yPercent ?? (textEl.y != null ? (textEl.y / item.height_in) * 100 : 50);
+      
+      return {
+        ...textEl,
+        xPercent,
+        yPercent,
+      };
+    });
+    
+    console.log('🔍 QUOTE STORE: Migrated text elements:', migratedTextElements);
+    
     const newState = {
       ...get(),
       widthIn: item.width_in,
@@ -162,7 +178,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
       polePockets: item.pole_pocket_position || item.pole_pockets || 'none',
       polePocketSize: item.pole_pocket_size || '2',
       addRope: item.rope_feet > 0,
-      textElements: item.text_elements || [],
+      textElements: migratedTextElements,
       file: item.file_key || item.file_url || item.web_preview_url ? {
         name: item.file_name || 'Uploaded file',
         type: item.is_pdf ? 'application/pdf' : 'image/*',
@@ -183,6 +199,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
     console.log('🔍 QUOTE STORE: Setting new state with imageScale:', newState.imageScale);
     console.log('🔍 QUOTE STORE: Setting new state with imagePosition:', newState.imagePosition);
     console.log('🔍 QUOTE STORE: Setting new state with overlayImage:', newState.overlayImage);
+    console.log('�� QUOTE STORE: Setting new state with textElements:', newState.textElements);
     
     set(newState);
     
@@ -191,8 +208,8 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
     console.log('✅ QUOTE STORE: After set, imageScale is:', currentState.imageScale);
     console.log('✅ QUOTE STORE: After set, imagePosition is:', currentState.imagePosition);
     console.log('✅ QUOTE STORE: After set, overlayImage is:', currentState.overlayImage);
+    console.log('✅ QUOTE STORE: After set, textElements is:', currentState.textElements);
   },
-  // Computed validation methods
   getSquareFootage: () => {
     const state = get();
     return calculateSquareFootage(state.widthIn, state.heightIn);

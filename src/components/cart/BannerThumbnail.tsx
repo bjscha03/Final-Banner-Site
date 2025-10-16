@@ -108,8 +108,11 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
         if (!textEl.content || textEl.content.trim() === '') return;
 
         // Convert percentage position to pixels
+        // IMPORTANT: DraggableText positions the TOP-LEFT corner of the text at the percentage position
+        // So we need to use textBaseline = 'top' and textAlign = 'left' to match
         const x = (textEl.xPercent / 100) * rect.width;
         const y = (textEl.yPercent / 100) * rect.height;
+        
         // Calculate font size to match preview canvas rendering
         // The scale represents how much the banner is scaled down to fit the thumbnail
         // This matches DraggableText which uses: fontSize * (previewScale / 100)
@@ -119,8 +122,10 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
         ctx.save();
         ctx.font = `${textEl.fontWeight || 'normal'} ${fontSize}px ${textEl.fontFamily || 'Arial'}`;
         ctx.fillStyle = textEl.color || '#000000';
-        ctx.textAlign = (textEl.textAlign as CanvasTextAlign) || 'center';
-        ctx.textBaseline = 'middle';
+        // CRITICAL FIX: Use 'left' and 'top' to match DraggableText positioning
+        // DraggableText uses CSS positioning with left/top which positions the top-left corner
+        ctx.textAlign = 'left';
+        ctx.textBaseline = 'top';
         ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
         ctx.shadowBlur = 2;
         ctx.shadowOffsetX = 1;
@@ -133,7 +138,6 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
     } catch (error) {
       console.error('❌ Canvas rendering error:', error);
     }
-  }, [status, hasTextLayers, textElements, widthIn, heightIn]);
 
   // Handle image load success
   const handleImageLoad = () => {

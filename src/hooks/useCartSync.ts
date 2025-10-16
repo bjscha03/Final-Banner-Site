@@ -8,7 +8,6 @@ import { useAuth } from '@/lib/auth';
 import { useCartStore } from '@/store/cart';
 import { cartSyncService } from '@/lib/cartSync';
 import { useCheckoutContext } from '@/store/checkoutContext';
-import { useCheckoutContext } from '@/store/checkoutContext';
 
 export function useCartSync() {
   const { user } = useAuth();
@@ -137,6 +136,22 @@ export function useCartSync() {
     // User logged out
     if (prevUserId && !currentUserId) {
       console.log('🚪 User logged out');
+      console.log('🚪 Saving cart to database before logout...');
+      
+      // CRITICAL FIX: Save cart to database before user logs out
+      // This ensures the cart is persisted and will be available when they log back in
+      const currentItems = useCartStore.getState().items;
+      if (currentItems.length > 0) {
+        console.log('🚪 Saving', currentItems.length, 'items to database for user:', prevUserId);
+        cartSyncService.saveCart(currentItems, prevUserId).then((success) => {
+          if (success) {
+            console.log('✅ Cart saved successfully before logout');
+          } else {
+            console.error('❌ Failed to save cart before logout');
+          }
+        });
+      }
+      
       console.log('🚪 Cart will remain in localStorage for next login');
       console.log('🚪 Removing cart ownership tracking');
       if (typeof localStorage !== 'undefined') {
