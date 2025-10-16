@@ -429,7 +429,7 @@ class CartSyncService {
           )
           INSERT INTO user_carts (user_id, cart_data, status, updated_at, last_accessed_at)
           VALUES (${userId}, ${cartDataJson}::jsonb, 'active', NOW(), NOW())
-          ON CONFLICT ON CONSTRAINT idx_user_carts_unique_active_user
+          ON CONFLICT (user_id) WHERE status = 'active' AND user_id IS NOT NULL
           DO UPDATE SET
             cart_data = EXCLUDED.cart_data,
             updated_at = EXCLUDED.updated_at,
@@ -447,7 +447,7 @@ class CartSyncService {
           )
           INSERT INTO user_carts (session_id, cart_data, status, updated_at, last_accessed_at)
           VALUES (${sessionId}, ${cartDataJson}::jsonb, 'active', NOW(), NOW())
-          ON CONFLICT ON CONSTRAINT idx_user_carts_unique_active_session
+          ON CONFLICT (session_id) WHERE status = 'active' AND session_id IS NOT NULL
           DO UPDATE SET
             cart_data = EXCLUDED.cart_data,
             updated_at = EXCLUDED.updated_at,
