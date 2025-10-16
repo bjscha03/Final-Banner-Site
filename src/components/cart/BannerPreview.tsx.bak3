@@ -254,9 +254,9 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
             const scaledFontSize = (textEl.fontSize / 72) * thumbnailFontScale;
             
             // Match HTML positioning: xPercent/yPercent are top-left of text container
-            // In HTML, the text container's top-left is at xPercent/yPercent regardless of textAlign
-            // So in SVG, we always use textAnchor="start" (left-aligned) to position from the left edge
-            const textAnchor = 'start';
+            const textAnchor = textEl.textAlign === 'left' ? 'start' 
+                             : textEl.textAlign === 'right' ? 'end' 
+                             : 'middle';
             
             return (
               <text
