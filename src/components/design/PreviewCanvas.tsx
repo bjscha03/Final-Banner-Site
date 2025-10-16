@@ -261,7 +261,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           />
 
             {/* Overlay Image (Logo/Image on top of AI background) - INTERACTIVE */}
-            {overlayImage && (() => {
+            {overlayImage && overlayImage.position && typeof overlayImage.position.x === 'number' && typeof overlayImage.position.y === 'number' && (() => {
               // Calculate overlay position and size
               // Position is percentage-based (0-100) relative to banner area
               // Calculate overlay dimensions maintaining aspect ratio
