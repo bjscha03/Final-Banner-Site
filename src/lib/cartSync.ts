@@ -317,7 +317,38 @@ class CartSyncService {
     }
 
     try {
-      const cartDataJson = JSON.stringify(items);
+      // Sanitize cart items before saving to prevent JSON serialization errors
+      const sanitizedItems = items.map(item => {
+        const sanitized = { ...item };
+        
+        // Remove any circular references or non-serializable data
+        // Ensure file URLs are strings
+        if (sanitized.file_url && typeof sanitized.file_url !== 'string') {
+          delete sanitized.file_url;
+        }
+        if (sanitized.web_preview_url && typeof sanitized.web_preview_url !== 'string') {
+          delete sanitized.web_preview_url;
+        }
+        if (sanitized.print_ready_url && typeof sanitized.print_ready_url !== 'string') {
+          delete sanitized.print_ready_url;
+        }
+        
+        return sanitized;
+      });
+      
+      const cartDataJson = JSON.stringify(sanitizedItems);
+      
+      // Validate JSON size (Neon has limits)
+      if (cartDataJson.length > 1000000) { // 1MB limit
+        console.error('❌ Cart data too large:', cartDataJson.length, 'bytes');
+        this.logEvent({
+          event: 'CART_SAVE',
+          requestId,
+          success: false,
+          error: `Cart data too large: ${cartDataJson.length} bytes`,
+        });
+        return false;
+      }
 
       if (userId) {
         // Save authenticated user's cart using atomic CTE to prevent race conditions
