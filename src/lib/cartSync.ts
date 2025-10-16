@@ -319,20 +319,33 @@ class CartSyncService {
     try {
       // AGGRESSIVE sanitization to prevent JSON serialization errors
       const sanitizedItems = items.map(item => {
-        // Only keep the fields we actually need for the database
+        // Create a clean copy with only serializable fields
         const sanitized: any = {
           id: item.id,
-          type: item.type,
+          width_in: item.width_in,
+          height_in: item.height_in,
           quantity: item.quantity,
-          price: item.price,
           material: item.material,
-          width: item.width,
-          height: item.height,
-          finishing: item.finishing,
           grommets: item.grommets,
-          hemming: item.hemming,
-          poles: item.poles,
+          pole_pockets: item.pole_pockets,
+          pole_pocket_size: item.pole_pocket_size,
+          pole_pocket_position: item.pole_pocket_position,
+          rope_feet: item.rope_feet,
+          area_sqft: item.area_sqft,
+          unit_price_cents: item.unit_price_cents,
+          rope_cost_cents: item.rope_cost_cents,
+          rope_pricing_mode: item.rope_pricing_mode,
+          pole_pocket_cost_cents: item.pole_pocket_cost_cents,
+          pole_pocket_pricing_mode: item.pole_pocket_pricing_mode,
+          line_total_cents: item.line_total_cents,
         };
+        
+        // Optional fields
+        if (item.file_key) sanitized.file_key = item.file_key;
+        if (item.file_name) sanitized.file_name = item.file_name;
+        if (item.is_pdf !== undefined) sanitized.is_pdf = item.is_pdf;
+        if (item.image_scale) sanitized.image_scale = item.image_scale;
+        if (item.image_position) sanitized.image_position = item.image_position;
 
         // Only add URLs if they're valid strings
         if (item.file_url && typeof item.file_url === 'string') {
@@ -343,6 +356,28 @@ class CartSyncService {
         }
         if (item.print_ready_url && typeof item.print_ready_url === 'string') {
           sanitized.print_ready_url = item.print_ready_url;
+        }
+
+        // Add text elements if present
+        if (item.text_elements && Array.isArray(item.text_elements)) {
+          sanitized.text_elements = item.text_elements;
+        }
+        
+        // Add overlay image if present
+        if (item.overlay_image && typeof item.overlay_image === 'object') {
+          sanitized.overlay_image = {
+            name: item.overlay_image.name,
+            url: item.overlay_image.url,
+            fileKey: item.overlay_image.fileKey,
+            position: item.overlay_image.position,
+            scale: item.overlay_image.scale,
+            aspectRatio: item.overlay_image.aspectRatio
+          };
+        }
+        
+        // Add AI design data if present
+        if (item.aiDesign && typeof item.aiDesign === 'object') {
+          sanitized.aiDesign = item.aiDesign;
         }
 
         // Add AI generation data if present
