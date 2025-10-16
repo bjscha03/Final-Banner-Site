@@ -250,35 +250,31 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
 
           {/* Text Elements */}
           {textElements.map((textEl) => {
-            // Convert fontSize from pixels to inches for SVG rendering
+            // The fontSize is stored as a base pixel value (e.g., 48)
+            // We need to convert this to SVG inches proportional to the banner size
             // 
-            // In the live preview (DraggableText):
-            // - fontSize is rendered as: element.fontSize * (previewScale / 100) pixels
-            // - At 100% scale, 48px font = 48 CSS pixels on screen
+            // Key insight: The fontSize represents the visual size on screen at 100% preview scale
+            // For a typical banner, a 48px font should be roughly 5-10% of the banner height
             // 
-            // In the live preview SVG (PreviewCanvas):
-            // - The SVG viewBox is in inches (e.g., "0 0 48 24" for 48"×24" banner)
-            // - The SVG is scaled to fit a container (~600px tall on desktop)
-            // - So for a 24" tall banner: 24 inches in viewBox = ~600px on screen
-            // - Therefore: 1 inch in viewBox = 600/24 = 25 pixels on screen
-            // 
-            // To match the live preview size in the thumbnail:
-            // - fontSize (pixels) / pixels-per-inch = fontSize in inches
-            // - pixels-per-inch = containerHeightPx / heightIn
-            // - For 48px font on 24" banner: 48 / (600/24) = 48 / 25 = 1.92 inches
-            
-            const containerHeightPx = 600; // Live preview container height on desktop
-            const pixelsPerInch = containerHeightPx / heightIn;
-            const fontSizeInInches = textEl.fontSize / pixelsPerInch;
+            // Let's use a scaling factor based on banner dimensions:
+            // - Assume the fontSize is meant for a ~600px tall preview at 100% scale
+            // - Scale it proportionally to the banner height in inches
+            const referencePreviewHeight = 600; // pixels - typical preview height
+            const fontSizeInInches = (textEl.fontSize / referencePreviewHeight) * heightIn;
             
             console.log('🔤 BannerPreview text:', {
               content: textEl.content,
               storedFontSize: textEl.fontSize,
-              bannerSize: `${widthIn}" × ${heightIn}"`,
-              pixelsPerInch: pixelsPerInch.toFixed(2),
-              fontSizeInInches: fontSizeInInches.toFixed(3),
-              position: `${textEl.xPercent}%, ${textEl.yPercent}%`
+              bannerHeight: heightIn,
+              calculatedInches: fontSizeInInches,
+              xPercent: textEl.xPercent,
+              yPercent: textEl.yPercent
             });
+            
+            // Match HTML positioning: xPercent/yPercent are top-left of text container
+            // In HTML, the text container's top-left is at xPercent/yPercent regardless of textAlign
+            // So in SVG, we always use textAnchor="start" (left-aligned) to position from the left edge
+            const textAnchor = 'start';
             
             return (
               <text
@@ -288,7 +284,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
                 fontSize={fontSizeInInches}
                 fontFamily={textEl.fontFamily}
                 fill={textEl.color}
-                textAnchor="start"
+                textAnchor={textAnchor}
                 dominantBaseline="hanging"
                 fontWeight={textEl.fontWeight || 'normal'}
               >
