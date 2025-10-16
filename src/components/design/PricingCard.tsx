@@ -441,6 +441,8 @@ const PricingCard: React.FC = () => {
       textElements: quote.textElements,
       overlayImage: quote.overlayImage,
       file: quote.file,
+      imageScale: quote.imageScale,
+      imagePosition: quote.imagePosition,
     };
     
     selectedOptions.forEach(option => {
