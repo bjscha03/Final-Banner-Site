@@ -179,6 +179,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
       polePocketSize: item.pole_pocket_size || '2',
       addRope: item.rope_feet > 0,
       textElements: migratedTextElements,
+      editingItemId: editingItemId || null, // Preserve editingItemId if provided
       file: item.file_key || item.file_url || item.web_preview_url ? {
         name: item.file_name || 'Uploaded file',
         type: item.is_pdf ? 'application/pdf' : 'image/*',

@@ -43,14 +43,10 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
         return;
       }
 
-      // CRITICAL FIX: Set editingItemId FIRST, then load item data
-      // This ensures the LivePreviewCard useEffect sees editingItemId and skips auto-fit
-      console.log('🛒 CART MODAL: Setting editingItemId FIRST:', itemId);
-      useQuoteStore.getState().set({ editingItemId: itemId });
-      
-      // Load the item data into quote store
-      console.log('🛒 CART MODAL: Loading item into quote store...');
-      loadFromCartItem(item);
+      // CRITICAL FIX: Pass editingItemId to loadFromCartItem
+      // This ensures it's set atomically with all other state in a single update
+      console.log('🛒 CART MODAL: Loading item into quote store with editingItemId:', itemId);
+      loadFromCartItem(item, itemId);
       console.log('🛒 CART MODAL: item.overlay_image:', item.overlay_image);
       
       // Close modal
