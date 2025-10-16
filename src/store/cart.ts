@@ -494,7 +494,27 @@ export const useCartStore = create<CartState>()(
       // Migrate items when loading from localStorage
       onRehydrateStorage: () => (state) => {
         console.log('�� CART STORAGE: Rehydrating from localStorage...');
+        
         // SAFETY CHECK: DISABLED - useCartSync handles all cart clearing
-        // This was causing duplicate clears and race conditions  
+        // This was causing duplicate clears and race conditions
         // useCartSync is the single source of truth for cart ownership
         console.log('💾 CART STORAGE: Rehydration complete, useCartSync will handle ownership');
+        
+        
+        // Migrate cart items if needed
+        if (state?.items) {
+          console.log('💾 CART STORAGE: Found', state.items.length, 'items in storage');
+          console.log('🔄 Rehydrating cart, checking for items needing migration...');
+          const migratedItems = state.items.map(migrateCartItem);
+          const hadChanges = migratedItems.some((item, i) => item.line_total_cents !== state.items[i].line_total_cents);
+          if (hadChanges) {
+            console.log('✅ Cart migration complete, updating storage');
+            state.items = migratedItems;
+          } else {
+            console.log('✅ No migration needed');
+          }
+        }
+      },
+    }
+  )
+);
