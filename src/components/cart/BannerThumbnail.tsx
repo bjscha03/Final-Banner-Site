@@ -105,22 +105,23 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
 
       // Draw text layers
       textElements.forEach((textEl) => {
-        if (!textEl.text || textEl.text.trim() === '') return;
+        if (!textEl.content || textEl.content.trim() === '') return;
 
-        const x = textEl.x * scaleX;
-        const y = textEl.y * scaleY;
+        // Convert percentage position to pixels
+        const x = (textEl.xPercent / 100) * rect.width;
+        const y = (textEl.yPercent / 100) * rect.height;
         const fontSize = (textEl.fontSize || 24) * Math.min(scaleX, scaleY) / 72;
 
         ctx.save();
         ctx.font = `${textEl.fontWeight || 'normal'} ${fontSize}px ${textEl.fontFamily || 'Arial'}`;
         ctx.fillStyle = textEl.color || '#000000';
-        ctx.textAlign = (textEl.align as CanvasTextAlign) || 'left';
-        ctx.textBaseline = 'top';
+        ctx.textAlign = (textEl.textAlign as CanvasTextAlign) || 'center';
+        ctx.textBaseline = 'middle';
         ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
         ctx.shadowBlur = 2;
         ctx.shadowOffsetX = 1;
         ctx.shadowOffsetY = 1;
-        ctx.fillText(textEl.text, x, y);
+        ctx.fillText(textEl.content, x, y);
         ctx.restore();
       });
 
