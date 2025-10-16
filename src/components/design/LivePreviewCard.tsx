@@ -133,8 +133,10 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       return;
     }
     
-    if (file?.url && imageScale !== 1) {
-      console.log('📐 Banner dimensions changed, recalculating image fit');
+    // Don't auto-fit if user has manually scaled the image
+    // Only auto-fit when dimensions change AND image is at default scale
+    if (file?.url && imageScale === 1) {
+      console.log('📐 Banner dimensions changed with default scale, recalculating image fit');
       
       const img = new Image();
       img.onload = () => {
@@ -164,8 +166,10 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         console.error('Failed to load image for dimension change recalculation');
       };
       img.src = file.url;
+    } else if (file?.url && imageScale !== 1) {
+      console.log('📐 Banner dimensions changed but image has custom scale - preserving user adjustments');
     }
-  }, [widthIn, heightIn]); // Only re-run when banner dimensions change, NOT when editingItemId changes
+  }, [widthIn, heightIn, file, imageScale, editingItemId]); // Include all dependencies
   // Responsive scale factor based on container dimensions
   const [responsiveScale, setResponsiveScale] = useState(100);
 
