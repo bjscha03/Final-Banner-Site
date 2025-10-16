@@ -54,6 +54,7 @@ const NewAIGenerationModal: React.FC<NewAIGenerationModalProps> = ({
   const handleImageApply = (imageUrl: string, tier: 'premium' | 'standard') => {
     // Preserve existing text elements when applying AI background
     const currentTextElements = useQuoteStore.getState().textElements;
+    const { widthIn, heightIn } = useQuoteStore.getState();
 
     console.log('[NewAIModal] Applying AI-generated image');
     console.log('[NewAIModal] Current text elements:', currentTextElements);

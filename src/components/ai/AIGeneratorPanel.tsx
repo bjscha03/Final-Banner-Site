@@ -18,7 +18,38 @@ interface AIGeneratorPanelProps {
   userId: string;
   onImageApply: (imageUrl: string, tier: 'premium' | 'standard') => void;
   className?: string;
+  bannerWidth?: number;
+  bannerHeight?: number;
 }
+
+
+// Helper function to calculate the best matching aspect ratio for banner dimensions
+const getBestAspectRatio = (width: number, height: number): string => {
+  const ratio = width / height;
+  
+  // Map of aspect ratios to their decimal values
+  const aspectMap = {
+    '1:1': 1.0,
+    '4:3': 1.333,
+    '3:2': 1.5,
+    '16:9': 1.778,
+    '2:3': 0.667,
+  };
+  
+  // Find closest match
+  let closest = '3:2'; // default
+  let minDiff = Infinity;
+  
+  for (const [key, value] of Object.entries(aspectMap)) {
+    const diff = Math.abs(ratio - value);
+    if (diff < minDiff) {
+      minDiff = diff;
+      closest = key;
+    }
+  }
+  
+  return closest;
+};
 
 const ASPECT_RATIOS = [
   { value: '3:2', label: '3:2 (Landscape)', description: 'Standard banner' },
@@ -32,12 +63,22 @@ export const AIGeneratorPanel: React.FC<AIGeneratorPanelProps> = ({
   userId,
   onImageApply,
   className = '',
+  bannerWidth,
+  bannerHeight,
 }) => {
   const { toast } = useToast();
 
   // Form state
   const [prompt, setPrompt] = useState('');
-  const [aspect, setAspect] = useState('3:2');
+  // Calculate initial aspect ratio from banner dimensions if provided
+  const initialAspect = useMemo(() => {
+    if (bannerWidth && bannerHeight) {
+      return getBestAspectRatio(bannerWidth, bannerHeight);
+    }
+    return '3:2';
+  }, [bannerWidth, bannerHeight]);
+  
+  const [aspect, setAspect] = useState(initialAspect);
   const [style, setStyle] = useState({});
 
   // Generation state
@@ -245,6 +286,32 @@ export const AIGeneratorPanel: React.FC<AIGeneratorPanelProps> = ({
           <span>{prompt.length} / {MAX_PROMPT_LENGTH}</span>
         </div>
       </div>
+
+
+      {/* Banner Size Info */}
+      {bannerWidth && bannerHeight && (
+        <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="text-sm text-blue-900">
+            <span className="font-semibold">Banner Size:</span> {bannerWidth}" × {bannerHeight}"
+            <span className="text-blue-700 ml-2">
+              (Aspect: {aspect})
+            </span>
+          </div>
+        </div>
+      )}
+
+
+      {/* Banner Size Info */}
+      {bannerWidth && bannerHeight && (
+        <div className="flex items-center gap-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="text-sm text-blue-900">
+            <span className="font-semibold">Banner Size:</span> {bannerWidth}" × {bannerHeight}"
+            <span className="text-blue-700 ml-2">
+              (Aspect: {aspect})
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Aspect Ratio Selector */}
       <div className="flex flex-col gap-2">
