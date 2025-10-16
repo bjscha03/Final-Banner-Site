@@ -102,6 +102,8 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
         description: "Your banner design has been updated in the cart.",
       });
       
+      // Scroll to top so user can see the cart
+      window.scrollTo({ top: 0, behavior: 'smooth' });      
       // Reset design area after successful update
       console.log('🔄 RESET: About to call resetDesign() after update');
       console.log('🔄 RESET: Current file before reset:', quote.file);
@@ -119,7 +121,10 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
       });
       
       // Reset design area after successful add
-      console.log('🔄 RESET: About to call resetDesign() after add');
+      
+      // Scroll to top so user can see the cart
+      window.scrollTo({ top: 0, behavior: 'smooth' });      console.log('🔄 RESET: About to call resetDesign() after add');
+
       console.log('🔄 RESET: Current file before reset:', quote.file);
       quote.resetDesign();
       console.log('🔄 RESET: resetDesign() called');
