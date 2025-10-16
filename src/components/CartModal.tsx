@@ -134,7 +134,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                       <div className="flex gap-4">
                         {/* Thumbnail */}
                         <BannerPreview
-                          key={`thumbnail-${item.id}`}
+                          key={`thumbnail-${item.id}-${item.text_elements?.length || 0}-${item.image_scale || 1}`}
                           widthIn={item.width_in}
                           heightIn={item.height_in}
                           grommets={item.grommets}

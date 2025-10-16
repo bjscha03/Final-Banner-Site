@@ -118,7 +118,13 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
   // Handle banner dimension changes - recalculate image fit
   // SKIP auto-fit when editing from cart to preserve user's saved scale/position
   useEffect(() => {
-    if (file?.url && imageScale !== 1 && !editingItemId) {
+    // Don't auto-fit if editing from cart - preserve saved scale/position
+    if (editingItemId) {
+      console.log('📐 Editing from cart - skipping auto-fit, preserving saved imageScale and imagePosition');
+      return;
+    }
+    
+    if (file?.url && imageScale !== 1) {
       console.log('📐 Banner dimensions changed, recalculating image fit');
       
       const img = new Image();
@@ -154,8 +160,6 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         console.error('Failed to load image for dimension change recalculation');
       };
       img.src = file.url;
-    } else if (editingItemId) {
-      console.log('📐 Editing from cart - preserving saved imageScale and imagePosition');
     }
   }, [widthIn, heightIn, editingItemId]); // Re-run when banner dimensions change
 

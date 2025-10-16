@@ -110,7 +110,11 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
         // Convert percentage position to pixels
         const x = (textEl.xPercent / 100) * rect.width;
         const y = (textEl.yPercent / 100) * rect.height;
-        const fontSize = (textEl.fontSize || 24) * Math.min(scaleX, scaleY) / 72;
+        // Calculate font size to match preview canvas rendering
+        // The scale represents how much the banner is scaled down to fit the thumbnail
+        // This matches DraggableText which uses: fontSize * (previewScale / 100)
+        const scale = Math.min(scaleX, scaleY);
+        const fontSize = (textEl.fontSize || 24) * scale;
 
         ctx.save();
         ctx.font = `${textEl.fontWeight || 'normal'} ${fontSize}px ${textEl.fontFamily || 'Arial'}`;

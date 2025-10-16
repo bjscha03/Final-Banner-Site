@@ -252,8 +252,6 @@ export const useCartStore = create<CartState>()(
         set((state) => ({ items: [...state.items, newItem] }));
       // Sync to Neon database
       setTimeout(() => get().syncToServer(), 100);
-      // Sync to Neon database
-      setTimeout(() => get().syncToServer(), 100);
       },
       
       updateQuantity: (id: string, quantity: number) => {
@@ -388,8 +386,6 @@ export const useCartStore = create<CartState>()(
         set((state) => ({
           items: state.items.map(item => item.id === itemId ? updatedItem : item)
         }));
-      // Sync to Neon database
-      setTimeout(() => get().syncToServer(), 100);
       // Sync to Neon database
       setTimeout(() => get().syncToServer(), 100);
       },
