@@ -113,6 +113,13 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       setResizeHandle(null);
     }
     
+    // CRITICAL FIX: Auto-select image when file is loaded (upload or edit from cart)
+    // This ensures resize handles appear immediately
+    if (!hadFile && hasFile) {
+      console.log('✅ File loaded - auto-selecting image to show resize handles');
+      setIsImageSelected(true);
+    }
+    
     prevFileRef.current = file;
   }, [file, editingItemId]);
 
