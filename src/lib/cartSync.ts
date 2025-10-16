@@ -317,26 +317,58 @@ class CartSyncService {
     }
 
     try {
-      // Sanitize cart items before saving to prevent JSON serialization errors
+      // AGGRESSIVE sanitization to prevent JSON serialization errors
       const sanitizedItems = items.map(item => {
-        const sanitized = { ...item };
-        
-        // Remove any circular references or non-serializable data
-        // Ensure file URLs are strings
-        if (sanitized.file_url && typeof sanitized.file_url !== 'string') {
-          delete sanitized.file_url;
+        // Only keep the fields we actually need for the database
+        const sanitized: any = {
+          id: item.id,
+          type: item.type,
+          quantity: item.quantity,
+          price: item.price,
+          material: item.material,
+          width: item.width,
+          height: item.height,
+          finishing: item.finishing,
+          grommets: item.grommets,
+          hemming: item.hemming,
+          poles: item.poles,
+        };
+
+        // Only add URLs if they're valid strings
+        if (item.file_url && typeof item.file_url === 'string') {
+          sanitized.file_url = item.file_url;
         }
-        if (sanitized.web_preview_url && typeof sanitized.web_preview_url !== 'string') {
-          delete sanitized.web_preview_url;
+        if (item.web_preview_url && typeof item.web_preview_url === 'string') {
+          sanitized.web_preview_url = item.web_preview_url;
         }
-        if (sanitized.print_ready_url && typeof sanitized.print_ready_url !== 'string') {
-          delete sanitized.print_ready_url;
+        if (item.print_ready_url && typeof item.print_ready_url === 'string') {
+          sanitized.print_ready_url = item.print_ready_url;
         }
-        
+
+        // Add AI generation data if present
+        if (item.ai_generation_id && typeof item.ai_generation_id === 'string') {
+          sanitized.ai_generation_id = item.ai_generation_id;
+        }
+        if (item.ai_prompt && typeof item.ai_prompt === 'string') {
+          sanitized.ai_prompt = item.ai_prompt;
+        }
+        if (item.ai_selected_variation && typeof item.ai_selected_variation === 'number') {
+          sanitized.ai_selected_variation = item.ai_selected_variation;
+        }
+
         return sanitized;
       });
       
       const cartDataJson = JSON.stringify(sanitizedItems);
+      
+      // Log what we're about to save for debugging
+      console.log('💾 Saving cart:', {
+        userId,
+        sessionId,
+        itemCount: sanitizedItems.length,
+        dataSize: cartDataJson.length,
+        preview: cartDataJson.substring(0, 200) + '...'
+      });
       
       // Validate JSON size (Neon has limits)
       if (cartDataJson.length > 1000000) { // 1MB limit
@@ -387,6 +419,14 @@ class CartSyncService {
 
       return true;
     } catch (error) {
+      console.error('❌ CART_SAVE ERROR:', error);
+      console.error('Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown',
+        stack: error instanceof Error ? error.stack : undefined,
+        userId,
+        sessionId,
+        itemCount: items.length
+      });
       this.logEvent({
         event: 'CART_SAVE',
         userId,
@@ -398,7 +438,6 @@ class CartSyncService {
       return false;
     }
   }
-
   /**
    * Merge guest cart into authenticated user's cart on login
    * - Loads both guest and user carts
