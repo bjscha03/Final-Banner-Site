@@ -151,8 +151,6 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
     console.log('🔍 QUOTE STORE: item.image_position:', item.image_position);
     console.log('🔍 QUOTE STORE: item.overlay_image:', item.overlay_image);
     console.log('🔍 QUOTE STORE: item.text_elements:', item.text_elements);
-    console.log('🚨 DEBUG: editingItemId parameter:', editingItemId);
-    console.log('🚨 DEBUG: editingItemId parameter:', editingItemId);
     
     // Migrate text elements to ensure they have xPercent and yPercent
     const migratedTextElements = (item.text_elements || []).map((textEl: any) => {

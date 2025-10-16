@@ -65,14 +65,8 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
   // Use quote store for imagePosition and imageScale so they persist when editing from cart
   const imagePosition = useQuoteStore((state) => state.imagePosition || { x: 0, y: 0 });
   const imageScale = useQuoteStore((state) => state.imageScale || 1);
-  const setImagePosition = (pos: { x: number; y: number }) => {
-    console.log('🚨 DEBUG: setImagePosition called with:', pos, 'Stack:', new Error().stack?.split('\n')[2]);
-    set({ imagePosition: pos });
-  };
-  const setImageScale = (scale: number) => {
-    console.log('🚨 DEBUG: setImageScale called with:', scale, 'Stack:', new Error().stack?.split('\n')[2]);
-    set({ imageScale: scale });
-  };
+  const setImagePosition = (pos: { x: number; y: number }) => set({ imagePosition: pos });
+  const setImageScale = (scale: number) => set({ imageScale: scale });
   const [isDraggingImage, setIsDraggingImage] = useState(false);
   const [isResizingImage, setIsResizingImage] = useState(false);
   const [isImageSelected, setIsImageSelected] = useState(false);
