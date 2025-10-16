@@ -244,24 +244,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
             </g>
           )}
 
-          {/* Text Elements */}
-          {textElements.map((textEl) => (
-            <text
-              key={textEl.id}
-              x={widthIn * textEl.xPercent / 100}
-              y={heightIn * textEl.yPercent / 100}
-              fontSize={textEl.fontSize / 96}
-              fontFamily={textEl.fontFamily}
-              fill={textEl.color}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fontWeight={textEl.fontWeight || 'normal'}
-            >
-              {textEl.content}
-            </text>
-          ))}
-
-          {/* Overlay Image (Logo) */}
+          {/* Overlay Image (Logo) - render first so text appears on top */}
           {overlayImage && overlayImage.position && typeof overlayImage.position.x === 'number' && typeof overlayImage.position.y === 'number' && (() => {
             const aspectRatio = overlayImage.aspectRatio || 1;
             const baseDimension = Math.min(widthIn, heightIn);
@@ -296,7 +279,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
               key={textEl.id}
               x={widthIn * textEl.xPercent / 100}
               y={heightIn * textEl.yPercent / 100}
-              fontSize={textEl.fontSize / 96}
+              fontSize={textEl.fontSize / 72}
               fontFamily={textEl.fontFamily}
               fill={textEl.color}
               textAnchor="middle"
@@ -306,35 +289,6 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
               {textEl.content}
             </text>
           ))}
-
-          {/* Overlay Image (Logo) */}
-          {overlayImage && overlayImage.position && typeof overlayImage.position.x === 'number' && typeof overlayImage.position.y === 'number' && (() => {
-            const aspectRatio = overlayImage.aspectRatio || 1;
-            const baseDimension = Math.min(widthIn, heightIn);
-            
-            let overlayWidth, overlayHeight;
-            if (aspectRatio >= 1) {
-              overlayWidth = baseDimension * overlayImage.scale * aspectRatio;
-              overlayHeight = baseDimension * overlayImage.scale;
-            } else {
-              overlayWidth = baseDimension * overlayImage.scale;
-              overlayHeight = baseDimension * overlayImage.scale / aspectRatio;
-            }
-            
-            const overlayX = (widthIn * overlayImage.position.x / 100) - (overlayWidth / 2);
-            const overlayY = (heightIn * overlayImage.position.y / 100) - (overlayHeight / 2);
-            
-            return (
-              <image
-                href={overlayImage.url}
-                x={overlayX}
-                y={overlayY}
-                width={overlayWidth}
-                height={overlayHeight}
-                preserveAspectRatio="xMidYMid meet"
-              />
-            );
-          })()}
 
           {/* Grommets */}
           {grommetPositions.map((point, index) => (
