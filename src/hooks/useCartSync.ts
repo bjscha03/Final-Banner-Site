@@ -39,8 +39,9 @@ export function useCartSync() {
       console.log('🚨 Cart owner:', cartOwnerId);
       console.log('🚨 CLEARING CART IMMEDIATELY');
       clearCart();
+      // CRITICAL: Remove the old cart owner ID - don't set new one yet
       if (typeof localStorage !== 'undefined') {
-        localStorage.setItem('cart_owner_user_id', currentUserId);
+        localStorage.removeItem('cart_owner_user_id');
       }
       hasMergedRef.current = false;
     } else if (currentUserId && !cartOwnerId) {
@@ -54,8 +55,9 @@ export function useCartSync() {
       console.log('🚨 Previous user:', prevUserId);
       console.log('🚨 New user:', currentUserId);
       clearCart(); // Clear synchronously, right now
+      // CRITICAL: Remove the old cart owner ID
       if (typeof localStorage !== 'undefined') {
-        localStorage.setItem('cart_owner_user_id', currentUserId);
+        localStorage.removeItem('cart_owner_user_id');
       }
       hasMergedRef.current = false;
     }
@@ -71,9 +73,9 @@ export function useCartSync() {
       // The previous user's cart is already saved to Neon database
       clearCart();
       
-      // Update ownership tracking
+      // CRITICAL: Remove the old cart owner ID
       if (typeof localStorage !== 'undefined') {
-        localStorage.setItem('cart_owner_user_id', currentUserId);
+        localStorage.removeItem('cart_owner_user_id');
       }
       
       // Load the new user's cart from Neon
@@ -104,11 +106,6 @@ export function useCartSync() {
         clearCart();
       } else if (!cartOwnerId) {
         console.log('ℹ️  No cart owner set - cart was cleared on logout, will load from server');
-      }
-      
-      // Set ownership BEFORE loading from server
-      if (typeof localStorage !== 'undefined') {
-        localStorage.setItem('cart_owner_user_id', currentUserId);
       }
       
       // Merge guest cart with user cart on login
