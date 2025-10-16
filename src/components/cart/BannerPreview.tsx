@@ -249,21 +249,29 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
           )}
 
           {/* Text Elements */}
-          {textElements.map((textEl) => (
-            <text
-              key={textEl.id}
-              x={widthIn * textEl.xPercent / 100}
-              y={heightIn * textEl.yPercent / 100}
-              fontSize={textEl.fontSize / 72}
-              fontFamily={textEl.fontFamily}
-              fill={textEl.color}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fontWeight={textEl.fontWeight || 'normal'}
-            >
-              {textEl.content}
-            </text>
-          ))}
+          {textElements.map((textEl) => {
+            // Scale fontSize for thumbnail visibility
+            // viewBox uses actual banner dimensions, so text needs to be scaled up
+            // Base fontSize is in points, convert to inches (/72), then scale for thumbnail
+            const thumbnailFontScale = 3; // Make text 3x larger for visibility in thumbnails
+            const scaledFontSize = (textEl.fontSize / 72) * thumbnailFontScale;
+            
+            return (
+              <text
+                key={textEl.id}
+                x={widthIn * textEl.xPercent / 100}
+                y={heightIn * textEl.yPercent / 100}
+                fontSize={scaledFontSize}
+                fontFamily={textEl.fontFamily}
+                fill={textEl.color}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontWeight={textEl.fontWeight || 'normal'}
+              >
+                {textEl.content}
+              </text>
+            );
+          })}
 
           {/* Overlay Image (Logo) */}
           {overlayImage && overlayImage.position && typeof overlayImage.position.x === 'number' && typeof overlayImage.position.y === 'number' && (() => {
@@ -295,21 +303,29 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
           })()}
 
           {/* Text Elements */}
-          {textElements.map((textEl) => (
-            <text
-              key={textEl.id}
-              x={widthIn * textEl.xPercent / 100}
-              y={heightIn * textEl.yPercent / 100}
-              fontSize={textEl.fontSize / 72}
-              fontFamily={textEl.fontFamily}
-              fill={textEl.color}
-              textAnchor="middle"
-              dominantBaseline="middle"
-              fontWeight={textEl.fontWeight || 'normal'}
-            >
-              {textEl.content}
-            </text>
-          ))}
+          {textElements.map((textEl) => {
+            // Scale fontSize for thumbnail visibility
+            // viewBox uses actual banner dimensions, so text needs to be scaled up
+            // Base fontSize is in points, convert to inches (/72), then scale for thumbnail
+            const thumbnailFontScale = 3; // Make text 3x larger for visibility in thumbnails
+            const scaledFontSize = (textEl.fontSize / 72) * thumbnailFontScale;
+            
+            return (
+              <text
+                key={textEl.id}
+                x={widthIn * textEl.xPercent / 100}
+                y={heightIn * textEl.yPercent / 100}
+                fontSize={scaledFontSize}
+                fontFamily={textEl.fontFamily}
+                fill={textEl.color}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fontWeight={textEl.fontWeight || 'normal'}
+              >
+                {textEl.content}
+              </text>
+            );
+          })}
 
           {/* Overlay Image (Logo) */}
           {overlayImage && overlayImage.position && typeof overlayImage.position.x === 'number' && typeof overlayImage.position.y === 'number' && (() => {

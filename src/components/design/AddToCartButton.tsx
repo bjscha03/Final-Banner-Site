@@ -90,6 +90,8 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
         textElements: quote.textElements,
         overlayImage: quote.overlayImage,
         file: quote.file,
+        imageScale: quote.imageScale,
+        imagePosition: quote.imagePosition,
       };
 
       updateCartItem(quote.editingItemId, quoteData as any, undefined, pricing);
