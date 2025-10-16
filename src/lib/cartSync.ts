@@ -418,30 +418,40 @@ class CartSyncService {
       }
 
       if (userId) {
-        // Archive any existing active carts for this user
+        // Use CTE with ON CONFLICT to handle race conditions atomically
+        // The CTE archives old carts, then INSERT with ON CONFLICT ensures no duplicate key errors
         await db!`
-          UPDATE user_carts
-          SET status = 'archived', updated_at = NOW()
-          WHERE user_id = ${userId} AND status = 'active'
-        `;
-        
-        // Insert new active cart
-        await db!`
+          WITH archived AS (
+            UPDATE user_carts
+            SET status = 'archived', updated_at = NOW()
+            WHERE user_id = ${userId} AND status = 'active'
+            RETURNING id
+          )
           INSERT INTO user_carts (user_id, cart_data, status, updated_at, last_accessed_at)
           VALUES (${userId}, ${cartDataJson}::jsonb, 'active', NOW(), NOW())
+          ON CONFLICT ON CONSTRAINT idx_user_carts_unique_active_user
+          DO UPDATE SET
+            cart_data = EXCLUDED.cart_data,
+            updated_at = EXCLUDED.updated_at,
+            last_accessed_at = EXCLUDED.last_accessed_at
         `;
       } else if (sessionId) {
-        // Archive any existing active carts for this session
+        // Use CTE with ON CONFLICT to handle race conditions atomically
+        // The CTE archives old carts, then INSERT with ON CONFLICT ensures no duplicate key errors
         await db!`
-          UPDATE user_carts
-          SET status = 'archived', updated_at = NOW()
-          WHERE session_id = ${sessionId} AND status = 'active'
-        `;
-        
-        // Insert new active cart
-        await db!`
+          WITH archived AS (
+            UPDATE user_carts
+            SET status = 'archived', updated_at = NOW()
+            WHERE session_id = ${sessionId} AND status = 'active'
+            RETURNING id
+          )
           INSERT INTO user_carts (session_id, cart_data, status, updated_at, last_accessed_at)
           VALUES (${sessionId}, ${cartDataJson}::jsonb, 'active', NOW(), NOW())
+          ON CONFLICT ON CONSTRAINT idx_user_carts_unique_active_session
+          DO UPDATE SET
+            cart_data = EXCLUDED.cart_data,
+            updated_at = EXCLUDED.updated_at,
+            last_accessed_at = EXCLUDED.last_accessed_at
         `;
       }
 
