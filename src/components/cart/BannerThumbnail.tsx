@@ -109,7 +109,7 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
         if (!textEl.content || textEl.content.trim() === '') return;
 
         // Convert percentage position to pixels
-        const x = (textEl.xPercent / 100) * rect.width;
+        let x = (textEl.xPercent / 100) * rect.width;
         const y = (textEl.yPercent / 100) * rect.height;
         
         // Calculate font size to match preview canvas rendering
@@ -120,8 +120,20 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
         ctx.font = `${textEl.fontWeight || 'normal'} ${fontSize}px ${textEl.fontFamily || 'Arial'}`;
         ctx.fillStyle = textEl.color || '#000000';
         
-        // Map CSS textAlign to Canvas textAlign
-        ctx.textAlign = (textEl.textAlign || 'left') as CanvasTextAlign;
+        // The stored xPercent represents the left edge of the text div
+        // We need to adjust based on textAlign
+        const textWidth = ctx.measureText(textEl.content).width;
+        
+        if (textEl.textAlign === 'center') {
+          x += textWidth / 2;
+          ctx.textAlign = 'center';
+        } else if (textEl.textAlign === 'right') {
+          x += textWidth;
+          ctx.textAlign = 'right';
+        } else {
+          ctx.textAlign = 'left';
+        }
+        
         ctx.textBaseline = 'top';
         
         ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';

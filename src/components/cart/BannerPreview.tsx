@@ -254,26 +254,41 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
             const ESTIMATED_PREVIEW_BANNER_HEIGHT_PX = 400;
             const fontSizeInInches = textEl.fontSize * (heightIn / ESTIMATED_PREVIEW_BANNER_HEIGHT_PX);
             
-            // DEBUG
-            console.log('BannerPreview text:', {
-              content: textEl.content,
-              xPercent: textEl.xPercent,
-              yPercent: textEl.yPercent,
-              textAlign: textEl.textAlign,
-              fontSize: textEl.fontSize
-            });
-            
             // The stored xPercent/yPercent represent the TOP-LEFT corner of the text div
-            // We always use textAnchor="start" to match this
+            // But the text inside may be aligned left/center/right within that div
+            // For SVG, we need to use textAnchor to match the CSS textAlign behavior
+            let textAnchor: 'start' | 'middle' | 'end' = 'start';
+            if (textEl.textAlign === 'center') textAnchor = 'middle';
+            else if (textEl.textAlign === 'right') textAnchor = 'end';
+            
+            // When text is centered or right-aligned, we need to estimate the div width
+            // and adjust the X position accordingly
+            // Rough estimate: character width is about 60% of font size for most fonts
+            const estimatedCharWidth = fontSizeInInches * 0.6;
+            const estimatedTextWidth = textEl.content.length * estimatedCharWidth;
+            
+            let xPosition = widthIn * textEl.xPercent / 100;
+            
+            // Adjust X position based on text alignment
+            if (textEl.textAlign === 'center') {
+              // For centered text, the anchor point should be at the center of where the text would be
+              // The div starts at xPercent, and text is centered within it
+              // We need to add half the estimated text width to get to the center
+              xPosition += estimatedTextWidth / 2;
+            } else if (textEl.textAlign === 'right') {
+              // For right-aligned text, the anchor point should be at the right edge
+              xPosition += estimatedTextWidth;
+            }
+            
             return (
               <text
                 key={textEl.id}
-                x={widthIn * textEl.xPercent / 100}
+                x={xPosition}
                 y={heightIn * textEl.yPercent / 100}
                 fontSize={fontSizeInInches}
                 fontFamily={textEl.fontFamily}
                 fill={textEl.color}
-                textAnchor="start"
+                textAnchor={textAnchor}
                 dominantBaseline="hanging"
                 fontWeight={textEl.fontWeight || 'normal'}
               >
