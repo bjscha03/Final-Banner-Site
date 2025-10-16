@@ -280,7 +280,10 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
               xPosition += estimatedTextWidth;
             }
             
-            const yPosition = heightIn * textEl.yPercent / 100;
+            // Adjustable Y offset (in pixels at 400px preview height)
+            const Y_OFFSET_PX = 0;
+            const yOffsetInches = (Y_OFFSET_PX / ESTIMATED_PREVIEW_BANNER_HEIGHT_PX) * heightIn;
+            const yPosition = (heightIn * textEl.yPercent / 100) + yOffsetInches;
             
             return (
               <text
