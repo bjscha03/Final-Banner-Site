@@ -1,6 +1,6 @@
 import React from 'react';
 import { X, Trash2, Plus, Minus, ShoppingBag, Edit } from 'lucide-react';
-import BannerThumbnail from './cart/BannerThumbnail';
+import BannerPreview from './cart/BannerPreview';
 import { useNavigate } from 'react-router-dom';
 import { usd } from '@/lib/pricing';
 import { useCartStore } from '@/store/cart';
@@ -133,16 +133,15 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                     <div key={item.id} className="bg-white rounded-xl p-4 shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
                       <div className="flex gap-4">
                         {/* Thumbnail */}
-                        <BannerThumbnail
+                        <BannerPreview
                           key={`thumbnail-${item.id}`}
-                          fileUrl={item.file_url}
-                          aiDesignUrl={item.aiDesign?.assets?.proofUrl}
-                          webPreviewUrl={item.web_preview_url}
-                          printReadyUrl={item.print_ready_url}
-                          isPdf={item.is_pdf}
-                          textElements={item.text_elements}
                           widthIn={item.width_in}
                           heightIn={item.height_in}
+                          grommets={item.grommets}
+                          imageUrl={item.file_url || item.web_preview_url || item.print_ready_url}
+                          material={item.material}
+                          textElements={item.text_elements}
+                          overlayImage={item.overlay_image}
                           className="w-24 h-24 flex-shrink-0"
                         />
                         

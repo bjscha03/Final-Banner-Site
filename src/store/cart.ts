@@ -43,6 +43,8 @@ export interface CartItem {
     aspectRatio?: number;
   };
   // AI Design metadata (optional)
+  image_scale?: number;                // Background image scale (for uploaded images)
+  image_position?: { x: number; y: number }; // Background image position (for uploaded images)
   aiDesign?: {
     prompt: string;
     styles: string[];
