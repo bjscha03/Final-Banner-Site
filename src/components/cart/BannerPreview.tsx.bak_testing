@@ -250,14 +250,35 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
 
           {/* Text Elements */}
           {textElements.map((textEl) => {
-            // FIXED: Match the live preview text size
-            // The fontSize is stored in pixels (e.g., 48px)
-            // The live preview renders text at: fontSize * (previewScale / 100) pixels
-            // At 100% scale, a 48px font on a ~400px tall banner preview = 12% of height
-            // In the thumbnail SVG, we need the same 12% of banner height in inches
-            // Formula: (fontSize / estimated_preview_height_px) * banner_height_inches
-            const ESTIMATED_PREVIEW_BANNER_HEIGHT_PX = 400;
-            const fontSizeInInches = textEl.fontSize * (heightIn / ESTIMATED_PREVIEW_BANNER_HEIGHT_PX);
+            // Convert fontSize from pixels to inches for SVG rendering
+            // 
+            // In the live preview (DraggableText):
+            // - fontSize is rendered as: element.fontSize * (previewScale / 100) pixels
+            // - At 100% scale, 48px font = 48 CSS pixels on screen
+            // 
+            // In the live preview SVG (PreviewCanvas):
+            // - The SVG viewBox is in inches (e.g., "0 0 48 24" for 48"×24" banner)
+            // - The SVG is scaled to fit a container (~600px tall on desktop)
+            // - So for a 24" tall banner: 24 inches in viewBox = ~600px on screen
+            // - Therefore: 1 inch in viewBox = 600/24 = 25 pixels on screen
+            // 
+            // To match the live preview size in the thumbnail:
+            // - fontSize (pixels) / pixels-per-inch = fontSize in inches
+            // - pixels-per-inch = containerHeightPx / heightIn
+            // - For 48px font on 24" banner: 48 / (600/24) = 48 / 25 = 1.92 inches
+            
+            const containerHeightPx = 600; // Live preview container height on desktop
+            const pixelsPerInch = containerHeightPx / heightIn;
+            const fontSizeInInches = textEl.fontSize / pixelsPerInch;
+            
+            console.log('🔤 BannerPreview text:', {
+              content: textEl.content,
+              storedFontSize: textEl.fontSize,
+              bannerSize: `${widthIn}" × ${heightIn}"`,
+              pixelsPerInch: pixelsPerInch.toFixed(2),
+              fontSizeInInches: fontSizeInInches.toFixed(3),
+              position: `${textEl.xPercent}%, ${textEl.yPercent}%`
+            });
             
             return (
               <text
