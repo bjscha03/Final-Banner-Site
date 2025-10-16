@@ -418,26 +418,28 @@ class CartSyncService {
       }
 
       if (userId) {
-        // Save authenticated user's cart using atomic CTE to prevent race conditions
+        // Archive any existing active carts for this user
         await db!`
-          WITH archived AS (
-            UPDATE user_carts
-            SET status = 'archived', updated_at = NOW()
-            WHERE user_id = ${userId} AND status = 'active'
-            RETURNING id
-          )
+          UPDATE user_carts
+          SET status = 'archived', updated_at = NOW()
+          WHERE user_id = ${userId} AND status = 'active'
+        `;
+        
+        // Insert new active cart
+        await db!`
           INSERT INTO user_carts (user_id, cart_data, status, updated_at, last_accessed_at)
           VALUES (${userId}, ${cartDataJson}::jsonb, 'active', NOW(), NOW())
         `;
       } else if (sessionId) {
-        // Save guest cart using atomic CTE to prevent race conditions
+        // Archive any existing active carts for this session
         await db!`
-          WITH archived AS (
-            UPDATE user_carts
-            SET status = 'archived', updated_at = NOW()
-            WHERE session_id = ${sessionId} AND status = 'active'
-            RETURNING id
-          )
+          UPDATE user_carts
+          SET status = 'archived', updated_at = NOW()
+          WHERE session_id = ${sessionId} AND status = 'active'
+        `;
+        
+        // Insert new active cart
+        await db!`
           INSERT INTO user_carts (session_id, cart_data, status, updated_at, last_accessed_at)
           VALUES (${sessionId}, ${cartDataJson}::jsonb, 'active', NOW(), NOW())
         `;
