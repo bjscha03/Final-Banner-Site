@@ -242,6 +242,8 @@ export const useCartStore = create<CartState>()(
           } : undefined,
           image_scale: quote.imageScale || 1,
           image_position: quote.imagePosition || { x: 0, y: 0 },
+          artwork_width: quote.file?.artworkWidth,
+          artwork_height: quote.file?.artworkHeight,
           created_at: new Date().toISOString(),
           ...(aiMetadata || {}),
         };

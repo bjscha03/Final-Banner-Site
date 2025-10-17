@@ -188,6 +188,9 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
         fileKey: item.file_key,
         isPdf: item.is_pdf,
         isAI: !!item.aiDesign,
+        // CRITICAL FIX: Include artwork dimensions for proper resize handle positioning
+        artworkWidth: item.artwork_width,
+        artworkHeight: item.artwork_height,
       } : undefined,
       imageScale: item.image_scale || 1,
       imagePosition: item.image_position || { x: 0, y: 0 },
