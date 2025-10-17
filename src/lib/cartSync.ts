@@ -255,12 +255,20 @@ class CartSyncService {
         `;
       } else if (sessionId) {
         // Load guest cart
+        console.log('🔍 CART SYNC: Loading guest cart from database with sessionId:', sessionId ? `${sessionId.substring(0, 12)}...` : 'none');
         result = await db!`
           SELECT cart_data, updated_at
           FROM user_carts
           WHERE session_id = ${sessionId} AND status = 'active'
           LIMIT 1
         `;
+        console.log('🔍 CART SYNC: Database query result:', result ? result.length : 0, 'rows');
+        if (result && result.length > 0) {
+          console.log('�� CART SYNC: Found guest cart in database');
+          console.log('🔍 CART SYNC: Cart data:', result[0].cart_data);
+        } else {
+          console.log('⚠️ CART SYNC: No guest cart found in database for this session ID');
+        }
       } else {
         throw new Error('Either userId or sessionId must be provided');
       }
