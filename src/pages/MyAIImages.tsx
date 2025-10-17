@@ -11,6 +11,7 @@ import { useAuth } from '@/lib/auth';
 import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import Layout from '@/components/Layout';
+import { OptimizedImage } from '@/components/ui/OptimizedImage';
 
 interface SavedImage {
   id: string;
@@ -199,10 +200,11 @@ export default function MyAIImages() {
                 className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow"
               >
                 <div className="aspect-video bg-gray-100 relative group">
-                  <img
+                  <OptimizedImage
                     src={image.image_url}
                     alt={image.prompt || 'AI Generated Image'}
                     className="w-full h-full object-cover"
+                    width={600}
                   />
                   
                   <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-40 transition-all flex items-center justify-center opacity-0 group-hover:opacity-100">

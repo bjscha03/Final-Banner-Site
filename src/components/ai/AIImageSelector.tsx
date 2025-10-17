@@ -7,6 +7,7 @@
 import React, { useState } from 'react';
 import { Check, Loader2, Sparkles, Crown, Bookmark } from 'lucide-react';
 import { Button } from '../ui/button';
+import { OptimizedImage } from '../ui/OptimizedImage';
 
 interface AIImageSelectorProps {
   images: string[];
@@ -156,11 +157,12 @@ export const AIImageSelector: React.FC<AIImageSelectorProps> = ({
               </div>
             )}
 
-            {/* Image */}
-            <img
+            {/* Image - Using OptimizedImage for Cloudinary URLs */}
+            <OptimizedImage
               src={url}
               alt={`AI generated option ${index + 1}`}
               className="w-full h-auto aspect-[3/2] object-cover"
+              width={800}
               onLoadStart={() => handleImageLoadStart(url)}
               onLoad={() => handleImageLoad(url)}
               onError={() => handleImageLoad(url)}

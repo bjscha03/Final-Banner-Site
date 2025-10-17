@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { TextElement } from '@/store/quote';
 import PdfImagePreview from '@/components/preview/PdfImagePreview';
+import OptimizedImage from '@/components/ui/OptimizedImage';
 
 interface BannerThumbnailProps {
   fileUrl?: string;
@@ -15,10 +16,11 @@ interface BannerThumbnailProps {
 }
 
 /**
- * BannerThumbnail component - ROBUST VERSION
+ * BannerThumbnail component - OPTIMIZED VERSION with Cloudinary CDN
  * Displays a thumbnail of the banner design with maximum reliability
  * 
  * Key improvements:
+ * - Cloudinary CDN optimization for fast loading
  * - Simplified state management
  * - Better error handling
  * - Proper image loading detection
@@ -49,6 +51,7 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
     // For uploaded files, use the file URL (may be blob or Cloudinary)
     return fileUrl || null;
   }, [webPreviewUrl, printReadyUrl, aiDesignUrl, fileUrl]);
+  
   const hasTextLayers = textElements && textElements.length > 0;
 
   // Track component mount status
@@ -102,7 +105,6 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
       // Calculate scale factor for text positioning
       const scaleX = rect.width / widthIn;
       const scaleY = rect.height / heightIn;
-
 
       // Draw text layers
       textElements.forEach((textEl) => {
@@ -168,10 +170,11 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
 
       console.log('✅ Canvas rendering complete');
     } catch (error) {
-      console.error('❌ Canvas rendering error:' , error);
+      console.error('❌ Canvas rendering error:', error);
     }
 
   }, [status, hasTextLayers, textElements, widthIn, heightIn]);
+
   // Handle image load success
   const handleImageLoad = () => {
     console.log('✅ Image loaded:', imageUrl);
@@ -181,7 +184,7 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
   };
 
   // Handle image load error
-  const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+  const handleImageError = (e?: React.SyntheticEvent<HTMLImageElement>) => {
     console.log('❌ Image load error:', imageUrl, e);
     if (mountedRef.current) {
       setStatus('error');
@@ -235,7 +238,21 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
   if (hasTextLayers) {
     return (
       <div className={`${className} relative flex-shrink-0`}>
-        {/* Hidden image for loading */}
+        {/* Hidden OptimizedImage for loading - uses Cloudinary optimization */}
+        <div className="hidden">
+          <OptimizedImage
+            src={imageUrl}
+            alt={`Banner ${widthIn}x${heightIn}`}
+            role="thumbnail"
+            width={160}
+            height={160}
+            onLoad={handleImageLoad}
+            onError={handleImageError}
+            showPlaceholder={false}
+          />
+        </div>
+        
+        {/* Also keep hidden img ref for canvas drawing */}
         <img
           ref={imgRef}
           src={imageUrl}
@@ -257,7 +274,7 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
     );
   }
 
-  // Simple image without text layers
+  // Simple image without text layers - use OptimizedImage
   return (
     <div className={`${className} relative flex-shrink-0`}>
       {status === 'loading' && (
@@ -265,12 +282,16 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
           {renderPlaceholder(true)}
         </div>
       )}
-      <img
+      <OptimizedImage
         src={imageUrl}
         alt={`Banner ${widthIn}x${heightIn}`}
+        role="thumbnail"
+        width={160}
+        height={160}
         className={`${className} object-cover rounded-lg border border-gray-200 ${status === 'loaded' ? 'opacity-100' : 'opacity-0'}`}
-        onError={handleImageError}
         onLoad={handleImageLoad}
+        onError={handleImageError}
+        showPlaceholder={false}
       />
     </div>
   );
