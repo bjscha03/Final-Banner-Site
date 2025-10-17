@@ -700,8 +700,9 @@ const cartSyncService = new CartSyncService();
 export const cartSync = {
   isAvailable: () => cartSyncService.isAvailable(),
   getUserId: () => cartSyncService.getUserId(),
+  getSessionId: () => cartSyncService.getSessionId(),
   loadCart: (userId: string) => cartSyncService.loadCart(userId),
-  saveCart: (userId: string, items: CartItem[]) => cartSyncService.saveCart(items, userId),
+  saveCart: (items: CartItem[], userId?: string, sessionId?: string) => cartSyncService.saveCart(items, userId, sessionId),
   mergeAndSyncCart: (userId: string, localItems: CartItem[]) => cartSyncService.mergeAndSyncCart(userId, localItems),
   clearCart: (userId: string) => cartSyncService.clearCart(userId),
 };
