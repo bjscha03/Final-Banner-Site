@@ -12,7 +12,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { loadPdfToBitmap } from '@/utils/pdf/loadPdfToBitmap';
 import QualityBadge from './QualityBadge';
 import PreviewCanvas from './PreviewCanvas';
-import { getBannerPreviewUrl } from '@/lib/cloudinary-transforms';
+import { getOptimizedCloudinaryUrl } from '../ui/OptimizedImage';
 const grommetOptions = [
   { id: 'none', label: 'None', description: 'No grommets' },
   { id: 'every-2-3ft', label: 'Every 2–3 feet', description: 'Standard spacing' },
@@ -34,7 +34,7 @@ const createFittedImageUrl = (originalUrl: string, targetWidthIn: number, target
   
   // Use Cloudinary optimization for preview (not for print)
   // This applies f_auto, q_auto, and responsive sizing
-  return getBannerPreviewUrl(originalUrl, 1600); // Max 1600px for previews
+  return getOptimizedCloudinaryUrl(originalUrl, { width: 1600 }); // Max 1600px for previews
 };
 
 // Helper function to calculate distance between two touch points
