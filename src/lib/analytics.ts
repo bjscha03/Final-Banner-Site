@@ -429,3 +429,30 @@ export const trackFBLead = () => {
 export const trackFBCompleteRegistration = () => {
   fbq('track', 'CompleteRegistration');
 };
+
+// ============================================================================
+// LINKEDIN INSIGHT TAG EVENTS
+// ============================================================================
+
+/**
+ * Helper to safely call LinkedIn Insight Tag
+ */
+const lintrk = (...args: any[]) => {
+  if (typeof window !== 'undefined' && (window as any).lintrk) {
+    (window as any).lintrk(...args);
+  }
+};
+
+/**
+ * Track LinkedIn conversion event
+ */
+export const trackLinkedInConversion = (conversionId: number) => {
+  lintrk('track', { conversion_id: conversionId });
+};
+
+/**
+ * Track LinkedIn custom event
+ */
+export const trackLinkedInEvent = (eventName: string) => {
+  lintrk('track', { event_name: eventName });
+};
