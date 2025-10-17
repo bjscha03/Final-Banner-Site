@@ -22,29 +22,23 @@ const SignUpEncouragementModal: React.FC<SignUpEncouragementModalProps> = ({
   if (!isOpen) return null;
 
   const handleSignUp = () => {
-    // Preserve checkout context before redirecting to sign-up
+    // CRITICAL FIX: Set checkout context with guest session ID before navigating
     const guestSessionId = cartSyncService.getSessionId();
-    setCheckoutContext('/checkout', guestSessionId);
-    
-    console.log('🛒 CHECKOUT MODAL: Redirecting to sign-up with checkout context', {
-      returnUrl: '/checkout',
-      guestSessionId: guestSessionId ? `${guestSessionId.substring(0, 12)}...` : 'none',
+    console.log('🛒 MODAL: Setting checkout context before sign-up', {
+      guestSessionId: guestSessionId ? `${guestSessionId.substring(0, 12)}...` : 'none'
     });
-    
+    setCheckoutContext('/checkout', guestSessionId);
     navigate('/sign-up?from=checkout');
     onClose();
   };
 
   const handleSignIn = () => {
-    // Preserve checkout context before redirecting to sign-in
+    // CRITICAL FIX: Set checkout context with guest session ID before navigating
     const guestSessionId = cartSyncService.getSessionId();
-    setCheckoutContext('/checkout', guestSessionId);
-    
-    console.log('🛒 CHECKOUT MODAL: Redirecting to sign-in with checkout context', {
-      returnUrl: '/checkout',
-      guestSessionId: guestSessionId ? `${guestSessionId.substring(0, 12)}...` : 'none',
+    console.log('🛒 MODAL: Setting checkout context before sign-in', {
+      guestSessionId: guestSessionId ? `${guestSessionId.substring(0, 12)}...` : 'none'
     });
-    
+    setCheckoutContext('/checkout', guestSessionId);
     navigate('/sign-in?from=checkout');
     onClose();
   };

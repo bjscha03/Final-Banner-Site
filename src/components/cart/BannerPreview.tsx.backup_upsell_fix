@@ -250,24 +250,59 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
 
           {/* Text Elements */}
           {textElements.map((textEl) => {
-            // FIXED: Match the live preview text size
-            // The fontSize is stored in pixels (e.g., 48px)
-            // The live preview renders text at: fontSize * (previewScale / 100) pixels
-            // At 100% scale, a 48px font on a ~400px tall banner preview = 12% of height
-            // In the thumbnail SVG, we need the same 12% of banner height in inches
-            // Formula: (fontSize / estimated_preview_height_px) * banner_height_inches
+            // Calculate font size in inches to match the preview canvas
             const ESTIMATED_PREVIEW_BANNER_HEIGHT_PX = 400;
             const fontSizeInInches = textEl.fontSize * (heightIn / ESTIMATED_PREVIEW_BANNER_HEIGHT_PX);
+            
+            // The stored xPercent/yPercent represent the TOP-LEFT corner of the text div
+            // But the text inside may be aligned left/center/right within that div
+            // For SVG, we need to use textAnchor to match the CSS textAlign behavior
+            let textAnchor: 'start' | 'middle' | 'end' = 'start';
+            if (textEl.textAlign === 'center') textAnchor = 'middle';
+            else if (textEl.textAlign === 'right') textAnchor = 'end';
+            
+            // xPercent/yPercent represent the top-left corner of the text div
+            let xPosition = (widthIn * textEl.xPercent / 100);
+            const yPosition = (heightIn * textEl.yPercent / 100);
+            
+            // DraggableText has padding: 4px and boxSizing: border-box
+            // The text content starts 4px inward from the div edges
+            const DRAGGABLE_TEXT_PADDING_PX = 4;
+            const ESTIMATED_PREVIEW_HEIGHT_PX = 300;
+            const paddingInches = (DRAGGABLE_TEXT_PADDING_PX / ESTIMATED_PREVIEW_HEIGHT_PX) * heightIn;
+            
+            // For textAlign="center", the text is centered within the div
+            // The div width is minWidth (50px) or text width + padding, whichever is larger
+            // We need to estimate the div width to find where the text center actually is
+            
+            // Estimate text width based on font size and character count
+            // Average character width is roughly 0.5-0.6 of font size
+            const avgCharWidthRatio = 0.55;
+            const estimatedTextWidthInches = textEl.content.length * fontSizeInInches * avgCharWidthRatio;
+            
+            // Div width = max(minWidth, textWidth + 2*padding)
+            const minWidthInches = (50 / ESTIMATED_PREVIEW_HEIGHT_PX) * heightIn;
+            const divWidthInches = Math.max(minWidthInches, estimatedTextWidthInches + 2 * paddingInches);
+            
+            // For centered text with textAnchor="middle", position at the center of the div
+            if (textEl.textAlign === 'center') {
+              xPosition += divWidthInches / 2;
+            } else if (textEl.textAlign === 'right') {
+              xPosition += divWidthInches - paddingInches;
+            } else {
+              // left-aligned: add padding to get to where text starts
+              xPosition += paddingInches;
+            }
             
             return (
               <text
                 key={textEl.id}
-                x={widthIn * textEl.xPercent / 100}
-                y={heightIn * textEl.yPercent / 100}
+                x={xPosition}
+                y={yPosition}
                 fontSize={fontSizeInInches}
                 fontFamily={textEl.fontFamily}
                 fill={textEl.color}
-                textAnchor="start"
+                textAnchor={textAnchor}
                 dominantBaseline="hanging"
                 fontWeight={textEl.fontWeight || 'normal'}
               >
@@ -275,7 +310,6 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
               </text>
             );
           })}
-
           {/* Overlay Image (Logo) */}
           {overlayImage && overlayImage.position && typeof overlayImage.position.x === 'number' && typeof overlayImage.position.y === 'number' && (() => {
             const aspectRatio = overlayImage.aspectRatio || 1;

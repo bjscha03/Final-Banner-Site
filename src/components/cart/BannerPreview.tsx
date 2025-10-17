@@ -261,30 +261,10 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
             if (textEl.textAlign === 'center') textAnchor = 'middle';
             else if (textEl.textAlign === 'right') textAnchor = 'end';
             
-            // When text is centered or right-aligned, we need to estimate the div width
-            // and adjust the X position accordingly
-            // Rough estimate: character width is about 60% of font size for most fonts
-            const estimatedCharWidth = fontSizeInInches * 0.6;
-            const estimatedTextWidth = textEl.content.length * estimatedCharWidth;
-            
-            // DraggableText has 4px padding - stored xPercent/yPercent is div edge, text starts 4px inward
-            const DRAGGABLE_TEXT_PADDING_PX = 4;
-            const paddingOffsetInches = (DRAGGABLE_TEXT_PADDING_PX / ESTIMATED_PREVIEW_BANNER_HEIGHT_PX) * heightIn;
-            
-            let xPosition = (widthIn * textEl.xPercent / 100) + paddingOffsetInches;
-            
-            // Adjust X position based on text alignment
-            if (textEl.textAlign === 'center') {
-              // For centered text, the anchor point should be at the center of where the text would be
-              // The div starts at xPercent, and text is centered within it
-              // We need to add half the estimated text width to get to the center
-              xPosition += estimatedTextWidth / 2;
-            } else if (textEl.textAlign === 'right') {
-              // For right-aligned text, the anchor point should be at the right edge
-              xPosition += estimatedTextWidth;
-            }
-            
-            const yPosition = (heightIn * textEl.yPercent / 100) + paddingOffsetInches;
+            // xPercent/yPercent represent the CENTER position of the text
+            // (50, 50) means centered both horizontally and vertically
+            const xPosition = (widthIn * textEl.xPercent / 100);
+            const yPosition = (heightIn * textEl.yPercent / 100);
             
             return (
               <text
@@ -295,7 +275,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
                 fontFamily={textEl.fontFamily}
                 fill={textEl.color}
                 textAnchor={textAnchor}
-                dominantBaseline="hanging"
+                dominantBaseline="middle"
                 fontWeight={textEl.fontWeight || 'normal'}
               >
                 {textEl.content}

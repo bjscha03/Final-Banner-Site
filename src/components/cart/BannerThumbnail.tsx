@@ -108,32 +108,49 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
       textElements.forEach((textEl) => {
         if (!textEl.content || textEl.content.trim() === '') return;
 
-        // DraggableText has 4px padding - the stored xPercent/yPercent is the position
-        // of the div's edge, but text content starts 4px inward due to padding
+        // Use the same conversion logic as BannerPreview
+        const LIVE_PREVIEW_PIXELS_PER_INCH = 400 / 24; // ~16.67 px/inch
         const DRAGGABLE_TEXT_PADDING_PX = 4;
-        const paddingOffset = DRAGGABLE_TEXT_PADDING_PX * Math.min(scaleX, scaleY);
         
-        // Convert percentage position to pixels and add padding offset
-        let x = (textEl.xPercent / 100) * rect.width + paddingOffset;
-        const y = (textEl.yPercent / 100) * rect.height + paddingOffset;
+        // Calculate font size in inches, then convert to thumbnail pixels
+        const fontSizeInInches = textEl.fontSize / LIVE_PREVIEW_PIXELS_PER_INCH;
+        const paddingInches = DRAGGABLE_TEXT_PADDING_PX / LIVE_PREVIEW_PIXELS_PER_INCH;
         
-        // Calculate font size to match preview canvas rendering
+        // Estimate text width in inches
+        const avgCharWidthRatio = 0.55;
+        const estimatedTextWidthInches = textEl.content.length * fontSizeInInches * avgCharWidthRatio;
+        
+        // Div width in inches = max(minWidth, textWidth + 2*padding)
+        const minWidthInches = 50 / LIVE_PREVIEW_PIXELS_PER_INCH;
+        const divWidthInches = Math.max(minWidthInches, estimatedTextWidthInches + 2 * paddingInches);
+        
+        // Convert to thumbnail pixels
         const scale = Math.min(scaleX, scaleY);
-        const fontSize = (textEl.fontSize || 24) * scale;
+        const fontSize = fontSizeInInches * scaleX; // Use scaleX for horizontal measurements
+        const divWidthPx = divWidthInches * scaleX;
+        const paddingPx = paddingInches * scaleX;
+        
+        // Position calculation - xPercent is the left edge of the div
+        let x = (textEl.xPercent / 100) * rect.width;
+        const y = (textEl.yPercent / 100) * rect.height;
+        
+        // Adjust x position based on alignment (same logic as BannerPreview)
+        if (textEl.textAlign === 'center') {
+          x += divWidthPx / 2;
+        } else if (textEl.textAlign === 'right') {
+          x += divWidthPx - paddingPx;
+        } else {
+          x += paddingPx;
+        }
 
         ctx.save();
         ctx.font = `${textEl.fontWeight || 'normal'} ${fontSize}px ${textEl.fontFamily || 'Arial'}`;
         ctx.fillStyle = textEl.color || '#000000';
         
-        // The stored xPercent represents the left edge of the text div
-        // We need to adjust based on textAlign
-        const textWidth = ctx.measureText(textEl.content).width;
-        
+        // Set text alignment for canvas rendering
         if (textEl.textAlign === 'center') {
-          x += textWidth / 2;
           ctx.textAlign = 'center';
         } else if (textEl.textAlign === 'right') {
-          x += textWidth;
           ctx.textAlign = 'right';
         } else {
           ctx.textAlign = 'left';

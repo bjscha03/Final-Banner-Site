@@ -16,12 +16,16 @@ import { useToast } from '@/components/ui/use-toast';
 import { emailApi } from '@/lib/api';
 import { CartItem } from '@/store/cart';
 import BannerPreview from '@/components/cart/BannerPreview';
+import { useCheckoutContext } from '@/store/checkoutContext';
+import { cartSyncService } from '@/lib/cartSync';
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
   const { items, clearCart, getSubtotalCents, getTaxCents, getTotalCents, updateQuantity, removeItem } = useCartStore();
   const { user } = useAuth();
-  const [isAdminUser, setIsAdminUser] = useState(false);  const { toast } = useToast();
+  const { setCheckoutContext } = useCheckoutContext();
+  const [isAdminUser, setIsAdminUser] = useState(false);
+  const { toast } = useToast();
   const [showSignUpModal, setShowSignUpModal] = useState(false);
   const [hasShownModal, setHasShownModal] = useState(false);
 
@@ -486,7 +490,15 @@ const Checkout: React.FC = () => {
                     </Button>
                     <Button
                       variant="link"
-                      onClick={() => navigate('/sign-in?next=/checkout')}
+                      onClick={() => {
+                        // CRITICAL FIX: Set checkout context with guest session ID before navigating
+                        const guestSessionId = cartSyncService.getSessionId();
+                        console.log('🛒 CHECKOUT: Setting checkout context before sign-in', {
+                          guestSessionId: guestSessionId ? `${guestSessionId.substring(0, 12)}...` : 'none'
+                        });
+                        setCheckoutContext('/checkout', guestSessionId);
+                        navigate('/sign-in?from=checkout&next=/checkout');
+                      }}
                       className="p-0 h-auto text-[#18448D] underline text-sm"
                     >
                       Sign In

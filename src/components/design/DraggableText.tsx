@@ -49,6 +49,28 @@ const DraggableText: React.FC<DraggableTextProps> = ({
   const leftPercent = element.xPercent ?? ((element.x ?? 50) / bannerWidthIn) * 100;
   const topPercent = element.yPercent ?? ((element.y ?? 50) / bannerHeightIn) * 100;
   const fontSize = element.fontSize * (previewScale / 100);
+  
+  // DEBUG: Log positioning values
+  console.log('📍 DraggableText positioning:', {
+    id: element.id,
+    content: element.content,
+    xPercent: element.xPercent,
+    yPercent: element.yPercent,
+    leftPercent,
+    topPercent,
+    textAlign: element.textAlign
+  });
+  
+  // DEBUG: Log positioning values
+  console.log('📍 DraggableText positioning:', {
+    id: element.id,
+    content: element.content,
+    xPercent: element.xPercent,
+    yPercent: element.yPercent,
+    leftPercent,
+    topPercent,
+    textAlign: element.textAlign
+  });
 
   useEffect(() => {
     if (isEditing && inputRef.current) {
