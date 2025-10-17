@@ -398,7 +398,6 @@ export const AIGeneratorPanel: React.FC<AIGeneratorPanelProps> = ({
             <ul className="list-disc list-inside space-y-0.5">
               <li>Be specific about colors, style, and subject</li>
               <li>Mention "professional photograph" for realistic images</li>
-              <li>Avoid text or logos in the prompt (add those later)</li>
               <li>New users get 3 free credits. Each generation uses 1 credit.</li>
             </ul>
           </div>
