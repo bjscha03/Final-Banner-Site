@@ -39,7 +39,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
         setPaypalConfig({
           enabled: true,
           clientId: fallbackClientId,
-          environment: 'sandbox', // Or determine from another env var
+          environment: 'live', // Or determine from another env var
         });
       } else {
         console.error('PayPal fallback failed: NEXT_PUBLIC_PAYPAL_CLIENT_ID is not set.');
