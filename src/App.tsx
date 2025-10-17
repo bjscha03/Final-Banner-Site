@@ -4,6 +4,8 @@ import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { HelmetProvider } from "react-helmet-async";
+import { HelmetProvider } from "react-helmet-async";
 import { ThemeProvider } from "@/components/theme-provider";
 import Index from "./pages/Index";
 import AIDesign from "./pages/AIDesign";
@@ -31,6 +33,9 @@ import AdminSeed from "./pages/AdminSeed";
 import AdminSetup from "./pages/AdminSetup";
 import LogoShowcase from "./pages/LogoShowcase";
 import BannerDesignerTest from "./pages/BannerDesignerTest";
+import Blog from "./pages/Blog";
+import BlogPostPage from "./pages/BlogPostPage";
+import BlogTagPage from "./pages/BlogTagPage";
 import { useCartSync } from "@/hooks/useCartSync";
 import { useCartRevalidation } from "@/hooks/useCartRevalidation";
 
@@ -52,6 +57,8 @@ const CartSyncWrapper = ({ children }: { children: React.ReactNode }) => {
 const queryClient = new QueryClient();
 
 const App = () => (
+  <HelmetProvider>
+  <HelmetProvider>
   <ThemeProvider defaultTheme="light">
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -87,11 +94,19 @@ const App = () => (
             <Route path="/logo-showcase" element={<LogoShowcase />} />
             <Route path="/banner-designer-test" element={<BannerDesignerTest />} />
             <Route path="/pdf-diagnostic" element={<PdfDiagnostic />} />          </Routes>
+            <Route path="/blog" element={<Blog />} />
+            <Route path="/blog/:slug" element={<BlogPostPage />} />
+            <Route path="/blog/tags/:tag" element={<BlogTagPage />} />
+            <Route path="/blog" element={<Blog />} />
+            <Route path="/blog/:slug" element={<BlogPostPage />} />
+            <Route path="/blog/tags/:tag" element={<BlogTagPage />} />
           </BrowserRouter>
         </CartSyncWrapper>
       </TooltipProvider>
     </QueryClientProvider>
   </ThemeProvider>
+  </HelmetProvider>
+  </HelmetProvider>
 );
 
 export default App;
