@@ -86,13 +86,16 @@ export function useCartSync() {
       }
       
       // Merge guest cart with user cart on login
-      if (!hasMergedRef.current) {
-        console.log('🔄 MERGE: Merging guest cart with user cart...');
+      // CRITICAL FIX: Only merge if there's actually a guest session to merge
+      // Otherwise just load the user's cart from the database
+      const hasGuestSession = checkoutGuestSessionId || (typeof document !== 'undefined' && document.cookie.includes('guest_session_id'));
+      
+      if (hasGuestSession && !hasMergedRef.current) {
+        console.log('🔄 MERGE: Guest session detected, merging guest cart with user cart...');
         hasMergedRef.current = true;
         
         (async () => {
           try {
-            const sessionIdToUse = checkoutGuestSessionId || cartSyncService.getSessionId();
             console.log('🔄 MERGE: Calling mergeGuestCartOnLogin...');
             
             const mergedItems = await cartSyncService.mergeGuestCartOnLogin(
@@ -111,10 +114,13 @@ export function useCartSync() {
           }
         })();
       } else {
-        console.log('👤 Loading cart from server...');
+        console.log('👤 No guest session detected, loading user cart from database...');
+        hasMergedRef.current = false;
         loadFromServer();
       }
-    }
+        hasMergedRef.current = false;
+        loadFromServer();
+      }
     
     // User logged out
     if (prevUserId && !currentUserId) {
