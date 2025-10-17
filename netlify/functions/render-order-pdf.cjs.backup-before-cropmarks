@@ -32,59 +32,6 @@ function clamp(val, min, max) {
 }
 
 /**
- * Draw crop marks on PDF for print cutting guides
- * Crop marks are placed at the corners of the banner area (inside the bleed)
- */
-function drawCropMarks(doc, bannerWidthIn, bannerHeightIn, bleedIn) {
-  const bleedPt = bleedIn * 72;
-  const bannerWidthPt = bannerWidthIn * 72;
-  const bannerHeightPt = bannerHeightIn * 72;
-  
-  const markLength = 18; // Length of crop mark in points (0.25 inch)
-  const markOffset = 9;  // Distance from corner in points
-  
-  // Set crop mark style
-  doc.strokeColor('#000000');
-  doc.lineWidth(0.5);
-  
-  console.log('[PDF] Drawing crop marks at bleed boundary');
-  
-  // Top-left corner
-  doc.moveTo(bleedPt - markOffset, bleedPt)
-     .lineTo(bleedPt - markOffset - markLength, bleedPt)
-     .stroke();
-  doc.moveTo(bleedPt, bleedPt - markOffset)
-     .lineTo(bleedPt, bleedPt - markOffset - markLength)
-     .stroke();
-  
-  // Top-right corner
-  doc.moveTo(bleedPt + bannerWidthPt + markOffset, bleedPt)
-     .lineTo(bleedPt + bannerWidthPt + markOffset + markLength, bleedPt)
-     .stroke();
-  doc.moveTo(bleedPt + bannerWidthPt, bleedPt - markOffset)
-     .lineTo(bleedPt + bannerWidthPt, bleedPt - markOffset - markLength)
-     .stroke();
-  
-  // Bottom-left corner
-  doc.moveTo(bleedPt - markOffset, bleedPt + bannerHeightPt)
-     .lineTo(bleedPt - markOffset - markLength, bleedPt + bannerHeightPt)
-     .stroke();
-  doc.moveTo(bleedPt, bleedPt + bannerHeightPt + markOffset)
-     .lineTo(bleedPt, bleedPt + bannerHeightPt + markOffset + markLength)
-     .stroke();
-  
-  // Bottom-right corner
-  doc.moveTo(bleedPt + bannerWidthPt + markOffset, bleedPt + bannerHeightPt)
-     .lineTo(bleedPt + bannerWidthPt + markOffset + markLength, bleedPt + bannerHeightPt)
-     .stroke();
-  doc.moveTo(bleedPt + bannerWidthPt, bleedPt + bannerHeightPt + markOffset)
-     .lineTo(bleedPt + bannerWidthPt, bleedPt + bannerHeightPt + markOffset + markLength)
-     .stroke();
-  
-  console.log('[PDF] Crop marks drawn successfully');
-}
-
-/**
  * Fetch image from URL and return as Buffer
  */
 async function fetchImage(urlOrKey, isFileKey = false) {
@@ -191,7 +138,7 @@ async function maybeUpscaleToFit(imgBuffer, needW, needH) {
 /**
  * Convert raster image to PDF with optional text layers
  */
-async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textElements = [], bannerWidthIn, bannerHeightIn, previewCanvasPx, bleedIn = 0.125) {
+async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textElements = [], bannerWidthIn, bannerHeightIn, previewCanvasPx) {
   return new Promise((resolve, reject) => {
     try {
       const chunks = [];
@@ -413,9 +360,6 @@ async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textEleme
           }
         });
       }
-
-      // Draw crop marks for print cutting guides
-      drawCropMarks(doc, bannerWidthIn, bannerHeightIn, bleedIn);
 
       doc.end();
     } catch (err) {
@@ -744,7 +688,7 @@ exports.handler = async (event) => {
 
     console.log('[PDF] Image composited onto canvas (with overlay if provided)');
 
-    const pdfBuffer = await rasterToPdfBuffer(merged, finalWidthIn, finalHeightIn, req.textElements, req.bannerWidthIn, req.bannerHeightIn, req.previewCanvasPx, bleedIn);
+    const pdfBuffer = await rasterToPdfBuffer(merged, finalWidthIn, finalHeightIn, req.textElements, req.bannerWidthIn, req.bannerHeightIn, req.previewCanvasPx);
     console.log(`[PDF] PDF generated: ${pdfBuffer.length} bytes`);
 
     // Return PDF as base64 data URL for immediate download
