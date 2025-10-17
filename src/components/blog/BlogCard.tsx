@@ -15,11 +15,15 @@ interface BlogCardProps {
 export function BlogCard({ post }: BlogCardProps) {
   const { frontmatter, excerpt, readingTime } = post;
   
+  // Handle both 'hero' and 'heroImage' field names
+  // Handle both 'hero' and 'heroImage' field names
+  const heroImageUrl = (frontmatter as any).heroImage || (frontmatter as any).hero || 'https://via.placeholder.com/640x360/18448D/ffffff?text=Blog+Post';
+  
   return (
     <article className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-xl transition-shadow duration-300">
       <Link to={`/blog/${frontmatter.slug}`} className="block">
         <OptimizedImage
-          src={frontmatter.hero}
+          src={heroImageUrl}
           alt={frontmatter.alt}
           width={640}
           className="w-full h-48 object-cover"
