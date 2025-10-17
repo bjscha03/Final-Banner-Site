@@ -20,6 +20,9 @@ interface BlogPostProps {
 export function BlogPost({ post, relatedPosts }: BlogPostProps) {
   const { frontmatter, html, readingTime } = post;
   
+  // Handle both 'hero' and 'heroImage' field names
+  const heroImageUrl = (frontmatter as any).heroImage || (frontmatter as any).hero || 'https://via.placeholder.com/1200x600/18448D/ffffff?text=Blog+Post+Image';
+  
   useEffect(() => {
     if (typeof window !== 'undefined' && (window as any).gtag) {
       (window as any).gtag('event', 'blog_view', {
@@ -62,7 +65,7 @@ export function BlogPost({ post, relatedPosts }: BlogPostProps) {
         </Link>
         
         <OptimizedImage
-          src={frontmatter.hero}
+          src={heroImageUrl}
           alt={frontmatter.alt}
           width={1200}
           className="w-full h-96 rounded-lg mb-8"
