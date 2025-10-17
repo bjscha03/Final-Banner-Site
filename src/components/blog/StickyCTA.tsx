@@ -33,7 +33,7 @@ export function StickyCTA({ position = 'sticky' }: StickyCTAProps) {
           Design Your Banner
         </Link>
         <Link
-          to="/ai-design"
+          to="/design"
           onClick={handleClick}
           className="inline-block px-6 py-3 bg-[#ff6b35] text-white font-semibold rounded-lg hover:bg-[#f7931e] transition-colors text-center"
         >

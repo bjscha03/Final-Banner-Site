@@ -7,7 +7,6 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { ThemeProvider } from "@/components/theme-provider";
 import Index from "./pages/Index";
-import AIDesign from "./pages/AIDesign";
 import Design from "./pages/Design";
 import About from "./pages/About";
 import FAQ from "./pages/FAQ";
@@ -66,9 +65,7 @@ const App = () => (
           <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
-            <Route path="/design" element={<Design />} />
-            <Route path="/ai-design" element={<AIDesign />} />
-            <Route path="/about" element={<About />} />
+            <Route path="/design" element={<Design />} />            <Route path="/about" element={<About />} />
             <Route path="/faq" element={<FAQ />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/terms" element={<Terms />} />
