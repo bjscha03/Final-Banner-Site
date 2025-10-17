@@ -74,9 +74,12 @@ export default function BlogPostPage() {
   
   const { frontmatter } = post;
   const canonicalUrl = frontmatter.canonical || `https://bannersonthefly.com/blog/${frontmatter.slug}`;
-  const heroImage = frontmatter.hero.includes('cloudinary.com')
-    ? frontmatter.hero
-    : `https://bannersonthefly.com${frontmatter.hero}`;
+  
+  // Handle both 'hero' and 'heroImage' field names, with fallback to placeholder
+  const heroImageUrl = (frontmatter as any).heroImage || frontmatter.hero || 'https://via.placeholder.com/1200x600/18448D/ffffff?text=Blog+Post+Image';
+  const heroImage = heroImageUrl.includes('cloudinary.com') || heroImageUrl.includes('placeholder.com')
+    ? heroImageUrl
+    : `https://bannersonthefly.com${heroImageUrl}`;
   
   // JSON-LD Schema
   const schema = {
