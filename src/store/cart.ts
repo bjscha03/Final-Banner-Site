@@ -523,11 +523,6 @@ export const useCartStore = create<CartState>()(
         // Both server and local are empty
         console.log('ℹ️  STORE: Both server and local carts are empty');
         set({ items: [] });
-        }
-        
-        console.log('🔵 STORE: Updating cart with server items...');
-        set({ items: serverItems });
-        console.log('🔵 STORE: Store updated with server items');
       },
 
       getSubtotalCents: () => {
