@@ -21,7 +21,7 @@ const sql = neon(process.env.NETLIFY_DATABASE_URL);
  * Choose target DPI based on banner size
  */
 function chooseTargetDpi(wIn, hIn) {
-  return 150; // 150 DPI for print-ready quality (was 100 DPI)
+  return 100; // 100 DPI for smaller file size (under 10MB Cloudinary limit)
 }
 
 /**
@@ -683,7 +683,7 @@ exports.handler = async (event) => {
 
     const merged = await sharp(whiteCanvas)
       .composite(compositeLayers)
-      .jpeg({ quality: 95, chromaSubsampling: '4:4:4' }) // JPEG compression to reduce PDF size
+      .jpeg({ quality: 85, chromaSubsampling: '4:4:4' }) // JPEG compression to reduce PDF size
       .toBuffer();
 
     console.log('[PDF] Image composited onto canvas (with overlay if provided)');
