@@ -159,12 +159,12 @@ const Checkout: React.FC = () => {
         price: item.line_total_cents,
         quantity: item.quantity,
       }));
-      trackBeginCheckout(analyticsItems, totals.grandTotal);
-      trackViewCart(analyticsItems, totals.grandTotal);
+      trackBeginCheckout(analyticsItems, totalCents);
+      trackViewCart(analyticsItems, totalCents);
       
       // Track Facebook Pixel InitiateCheckout
       trackFBInitiateCheckout({
-        value: totals.grandTotal,
+        value: totalCents,
         num_items: items.length,
       });
     }
