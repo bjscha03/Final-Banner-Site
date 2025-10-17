@@ -5,7 +5,7 @@
 import React, { useState } from 'react';
 
 interface OptimizedImageProps {
-  src: string;
+  src?: string;
   alt: string;
   width?: number;
   height?: number;
@@ -14,9 +14,14 @@ interface OptimizedImageProps {
 }
 
 function getCloudinaryUrl(
-  url: string,
+  url: string | undefined,
   options: { width?: number; height?: number; quality?: string; format?: string }
 ): string {
+  // Return placeholder if URL is missing
+  if (!url) {
+    return 'https://via.placeholder.com/1200x600/18448D/ffffff?text=Blog+Post+Image';
+  }
+  
   if (!url.includes('cloudinary.com')) {
     return url;
   }
@@ -35,7 +40,12 @@ function getCloudinaryUrl(
   return url.replace('/upload/', `/upload/${transformations}/`);
 }
 
-function getLQIPUrl(url: string): string {
+function getLQIPUrl(url: string | undefined): string {
+  // Return placeholder if URL is missing
+  if (!url) {
+    return 'https://via.placeholder.com/40x20/18448D/ffffff?text=...';
+  }
+  
   if (!url.includes('cloudinary.com')) {
     return url;
   }
