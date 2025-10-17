@@ -12,7 +12,6 @@ import { useToast } from '@/components/ui/use-toast';
 import { loadPdfToBitmap } from '@/utils/pdf/loadPdfToBitmap';
 import QualityBadge from './QualityBadge';
 import PreviewCanvas from './PreviewCanvas';
-import { getOptimizedCloudinaryUrl } from '../ui/OptimizedImage';
 const grommetOptions = [
   { id: 'none', label: 'None', description: 'No grommets' },
   { id: 'every-2-3ft', label: 'Every 2–3 feet', description: 'Standard spacing' },
@@ -28,14 +27,23 @@ interface LivePreviewCardProps {
   onOpenAIModal?: () => void;
 }
 // Helper function to create Cloudinary transformation URL for fitting to dimensions
-// Helper function to create optimized Cloudinary URL for banner previews
 const createFittedImageUrl = (originalUrl: string, targetWidthIn: number, targetHeightIn: number): string => {
   if (!originalUrl) return "";
+  // Extract Cloudinary public ID from URL
+  const urlParts = originalUrl.split('/');
+  const uploadIndex = urlParts.findIndex(part => part === 'upload');
+  if (uploadIndex === -1) return originalUrl;
   
-  // Use Cloudinary optimization for preview (not for print)
-  // This applies f_auto, q_auto, and responsive sizing
-  return getOptimizedCloudinaryUrl(originalUrl, { width: 1600 }); // Max 1600px for previews
+  const publicIdWithExtension = urlParts.slice(uploadIndex + 1).join('/');
+  const publicId = publicIdWithExtension.replace(/\.[^/.]+$/, ''); // Remove extension
+  const baseUrl = urlParts.slice(0, uploadIndex + 1).join('/');
+  
+  // Use Cloudinary transformations to fit the image to exact dimensions
+  const transformation = `ar_${targetWidthIn}:${targetHeightIn},c_fill,q_auto:best`;
+  
+  return `${baseUrl}/${transformation}/${publicId}.jpg`;
 };
+
 
 // Helper function to calculate distance between two touch points
 const getTouchDistance = (touch1: React.Touch, touch2: React.Touch): number => {

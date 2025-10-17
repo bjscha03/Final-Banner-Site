@@ -27,8 +27,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       
       {/* Decorative Banner Image - Sits above footer */}
       <div className="w-full">
-        <OptimizedImage 
-          src="https://res.cloudinary.com/dtrxl120u/image/upload/v1759861799/Screenshot_2025-10-07_at_2.29.47_PM_wegqxg.png" width={1600} width={1600}
+        <img 
+          src="https://res.cloudinary.com/dtrxl120u/image/upload/v1759861799/Screenshot_2025-10-07_at_2.29.47_PM_wegqxg.png"
           alt="Banner printing services"
           className="w-full h-auto object-contain"
         />

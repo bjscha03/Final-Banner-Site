@@ -9,11 +9,11 @@ const CompanySpotlight: React.FC = () => {
           <div className="grid md:grid-cols-2 gap-0">
             {/* Image */}
             <div className="relative h-64 md:h-full min-h-[400px] bg-slate-100">
-              <OptimizedImage
+              <img
                 src="https://res.cloudinary.com/dtrxl120u/image/upload/v1759799151/dan-oliver_1200xx3163-3170-1048-0_zgphzw.jpg"
                 alt="Dan Oliver - Dan-O's Seasoning"
                 className="w-full h-full object-cover"
-                width={1200}
+                loading="eager"
                 onError={(e) => {
                   console.error('Image failed to load:', e);
                   const target = e.currentTarget as HTMLImageElement;
