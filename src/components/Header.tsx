@@ -28,6 +28,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
 
   const navItems = [
     { name: 'Home', href: '/' },
+    { name: 'Blog', href: '/blog' },
     { name: 'Design Tool', href: '/design' },
     { name: 'About', href: '/about' },
     { name: 'FAQ', href: '/faq' },
