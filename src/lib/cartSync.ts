@@ -506,16 +506,26 @@ class CartSyncService {
 
     try {
       // Load guest cart
+      console.log('🔄 CART SYNC: Loading guest cart with sessionId:', sessionId ? `${sessionId.substring(0, 12)}...` : 'none');
       const guestItems = await this.loadCart(undefined, sessionId);
+      console.log('🔄 CART SYNC: Guest cart loaded:', guestItems.length, 'items');
+      console.log('🔄 CART SYNC: Guest items:', guestItems);
       
       // Load user's existing cart
+      console.log('🔄 CART SYNC: Loading user cart for userId:', userId ? `${userId.substring(0, 8)}...` : 'none');
       const userItems = await this.loadCart(userId);
+      console.log('🔄 CART SYNC: User cart loaded:', userItems.length, 'items');
 
       // Merge carts
+      console.log('🔄 CART SYNC: Merging carts...');
       const mergedItems = this.mergeCartItems(guestItems, userItems);
+      console.log('🔄 CART SYNC: Merged result:', mergedItems.length, 'items');
+      console.log('🔄 CART SYNC: Merged items:', mergedItems);
 
       // Save merged cart to user's account
+      console.log('🔄 CART SYNC: Saving merged cart to database...');
       await this.saveCart(mergedItems, userId);
+      console.log('✅ CART SYNC: Merged cart saved to database');
 
       // Archive guest cart (mark as merged, don't delete)
       if (guestItems.length > 0 && this.isAvailable()) {
