@@ -1,3 +1,5 @@
+import { neon } from '@neondatabase/serverless';
+
 // Safe environment variable access
 const getEnvVar = (key: string): string | undefined => {
   try {
@@ -32,9 +34,8 @@ let demoLoggedIn = false;
 let authStateListeners: Array<(event: string, session: any) => void> = [];
 
 // Create Neon database client
-// Create Neon database client - REMOVED to avoid bundling @neondatabase/serverless in browser
-// This should only be used in Netlify Functions, not client-side code
-const sql = null;
+
+const sql = databaseUrl ? neon(databaseUrl) : null;
 
 // Create a mock client if database URL is not set
 const createMockClient = () => ({
