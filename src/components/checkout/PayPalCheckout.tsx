@@ -414,6 +414,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
     currency: "USD",
     intent: "capture" as const,
     commit: true,
+    vault: false,
   };
 
   return (

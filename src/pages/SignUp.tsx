@@ -11,6 +11,7 @@ import { useScrollToTop } from '@/components/ScrollToTop';
 import { LinkedInButton } from '@/components/auth/LinkedInButton';
 import GoogleButton from '@/components/auth/GoogleButton';
 import { useCheckoutContext } from '@/store/checkoutContext';
+import { trackSignUp } from '@/lib/analytics';
 
 const SignUp: React.FC = () => {
   const navigate = useNavigate();
@@ -73,6 +74,9 @@ const SignUp: React.FC = () => {
     try {
       await signUp(email, password, fullName);
 
+      
+      // Track sign up event
+      trackSignUp('email');
       toast({
         title: "Account Created!",
         description: "Please check your email to verify your account.",

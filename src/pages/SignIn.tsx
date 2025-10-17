@@ -11,6 +11,7 @@ import { useScrollToTop } from '@/components/ScrollToTop';
 import { LinkedInButton } from '@/components/auth/LinkedInButton';
 import GoogleButton from '@/components/auth/GoogleButton';
 import { useCheckoutContext } from '@/store/checkoutContext';
+import { trackLogin } from '@/lib/analytics';
 
 const SignIn: React.FC = () => {
   const navigate = useNavigate();
@@ -73,6 +74,9 @@ const SignIn: React.FC = () => {
     try {
       await signIn(email, password);
 
+      
+      // Track login event
+      trackLogin('email');
       toast({
         title: "Welcome back!",
         description: "You have been signed in successfully.",

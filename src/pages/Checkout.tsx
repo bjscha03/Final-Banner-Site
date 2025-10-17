@@ -18,6 +18,7 @@ import { CartItem } from '@/store/cart';
 import BannerPreview from '@/components/cart/BannerPreview';
 import { useCheckoutContext } from '@/store/checkoutContext';
 import { cartSyncService } from '@/lib/cartSync';
+import { trackBeginCheckout, trackViewCart } from '@/lib/analytics';
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
@@ -146,6 +147,22 @@ const Checkout: React.FC = () => {
       return () => clearTimeout(timer);
     }
   }, [user, hasShownModal, items.length]);
+
+  // Track begin checkout event
+  useEffect(() => {
+    if (items.length > 0) {
+      const analyticsItems = items.map(item => ({
+        item_id: item.id,
+        item_name: `${item.width_in}x${item.height_in} ${item.material} Banner`,
+        item_category: 'Banner',
+        item_variant: item.material,
+        price: item.line_total_cents,
+        quantity: item.quantity,
+      }));
+      trackBeginCheckout(analyticsItems, totals.grandTotal);
+      trackViewCart(analyticsItems, totals.grandTotal);
+    }
+  }, []); // Only track once on mount
 
   // Redirect if cart is empty
   if (items.length === 0) {

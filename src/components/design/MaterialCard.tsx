@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { trackMaterialSelected } from '@/lib/analytics';
 import { Palette } from 'lucide-react';
 import { useQuoteStore, MaterialKey } from '@/store/quote';
 import { PRICE_PER_SQFT } from '@/lib/pricing';
@@ -80,6 +81,7 @@ const MaterialCard: React.FC = () => {
 
   const handleMaterialChange = (value: string) => {
     set({ material: value as MaterialKey });
+    trackMaterialSelected(value);
   };
 
   const handleThumbnailClick = (materialOption: MaterialOption, e: React.MouseEvent) => {

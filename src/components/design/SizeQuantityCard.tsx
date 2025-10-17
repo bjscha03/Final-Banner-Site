@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { trackSizeSelected } from '@/lib/analytics';
 import { Minus, Plus, Ruler, Hash } from 'lucide-react';
 import { useQuoteStore } from '@/store/quote';
 import { formatArea, formatDimensions, inchesToSqFt } from '@/lib/pricing';
@@ -76,6 +77,7 @@ const SizeQuantityCard: React.FC = () => {
 
   const setQuickSize = (w: number, h: number) => {
     set({ widthIn: w, heightIn: h });
+    trackSizeSelected(`${w}x${h}`);
   };
 
   const area = inchesToSqFt(widthIn, heightIn);

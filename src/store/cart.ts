@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { QuoteState, MaterialKey, Grommets, TextElement } from './quote';
 import { calculateTax, calculateTotalWithTax, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
 import { cartSync } from '@/lib/cartSync';
+import { trackAddToCart } from '@/lib/analytics';
 
 export type PricingMode = 'per_item' | 'per_order';
 
@@ -252,6 +253,16 @@ export const useCartStore = create<CartState>()(
         console.log('💾 CART STORAGE: Item added, will persist to localStorage');
         console.log('💾 CART STORAGE: Item added, will persist to localStorage');
         set((state) => ({ items: [...state.items, newItem] }));
+
+        // Track add to cart event
+        trackAddToCart({
+          id: newItem.id,
+          name: `${quote.widthIn}x${quote.heightIn} ${quote.material} Banner`,
+          material: quote.material,
+          size: `${quote.widthIn}x${quote.heightIn}`,
+          price: newItem.line_total_cents,
+          quantity: newItem.quantity,
+        });
       // Sync to Neon database
       setTimeout(() => get().syncToServer(), 100);
       },

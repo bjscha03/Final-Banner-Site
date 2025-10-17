@@ -13,6 +13,7 @@ import { useToast } from '../../hooks/use-toast';
 import { CreditCounter } from './CreditCounter';
 import { AIImageSelector } from './AIImageSelector';
 import type { PreviewImageResponse, MoreVariationsResponse } from '../../types/ai-generation';
+import { trackAIGenerationStarted, trackAIGenerationSuccess, trackAIGenerationFailed, trackAIImageSelected, trackAICreditUsed } from '@/lib/analytics';
 
 interface AIGeneratorPanelProps {
   userId: string;
@@ -116,6 +117,13 @@ export const AIGeneratorPanel: React.FC<AIGeneratorPanelProps> = ({
 
     try {
       setIsGenerating(true);
+      
+      // Track AI generation started
+      const startTime = Date.now();
+      trackAIGenerationStarted({
+        prompt_length: prompt.length,
+        has_style: !!style,
+      });
       setGeneratedImages([]);
       setShowMoreButton(false);
 
@@ -155,6 +163,15 @@ export const AIGeneratorPanel: React.FC<AIGeneratorPanelProps> = ({
 
       // Refresh credit counter
       setCreditRefreshTrigger(prev => prev + 1);
+      
+      // Track AI generation success
+      trackAIGenerationSuccess({
+        images_generated: data.urls.length,
+        generation_time: Date.now() - startTime,
+      });
+      if (data.creditsRemaining !== undefined) {
+        trackAICreditUsed(data.creditsRemaining);
+      }
 
       toast({
         title: 'Image Generated!',
@@ -169,6 +186,9 @@ export const AIGeneratorPanel: React.FC<AIGeneratorPanelProps> = ({
       });
     } finally {
       setIsGenerating(false);
+      
+      // Track AI generation failure
+      trackAIGenerationFailed(error.message || 'Unknown error');
     }
   };
 

@@ -1,9 +1,10 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Home, ArrowRight } from 'lucide-react';
 import { usd, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
+import { trackPurchase } from '@/lib/analytics';
 
 const PaymentSuccess: React.FC = () => {
   const navigate = useNavigate();
@@ -28,6 +29,30 @@ const calculateUnitPrice = (item: any) => {
   const total = state?.total || 0;
 
   // Calculate pricing breakdown using the same logic as cart store
+
+  // Track purchase event for analytics
+  useEffect(() => {
+    if (orderId && items.length > 0) {
+      const analyticsItems = items.map((item: any) => ({
+        item_id: item.id,
+        item_name: `${item.width_in}x${item.height_in} ${item.material} Banner`,
+        item_category: 'Banner',
+        item_variant: item.material,
+        price: item.line_total_cents,
+        quantity: item.quantity,
+      }));
+      
+      const pricing = calculatePricingBreakdown();
+      
+      trackPurchase({
+        transaction_id: orderId,
+        value: pricing.total,
+        tax: pricing.tax,
+        shipping: 0, // Free shipping
+        items: analyticsItems,
+      });
+    }
+  }, [orderId]); // Track once when orderId is available
   const calculatePricingBreakdown = () => {
     if (items.length === 0) {
       return { subtotal: 0, tax: 0, total: 0 };
