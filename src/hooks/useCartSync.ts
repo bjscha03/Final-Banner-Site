@@ -162,14 +162,17 @@ export function useCartSync() {
         });
       }
       
-      console.log('🚪 Cart will remain in localStorage for next login');
+      console.log('🚪 Clearing cart from UI after logout');
       console.log('🚪 Removing cart ownership tracking');
       if (typeof localStorage !== 'undefined') {
         localStorage.removeItem('cart_owner_user_id');
       }
       hasMergedRef.current = false;
-      // DO NOT clear cart - it should persist in localStorage
-      // When user logs back in, it will merge with server cart
+      
+      // CRITICAL FIX: Clear cart from UI after logout
+      // Cart is already saved to database above, so it will be restored on next login
+      clearCart();
+      console.log('✅ Cart cleared from UI - will be restored from database on next login');
     }
     
     // Update the ref
