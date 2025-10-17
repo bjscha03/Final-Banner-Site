@@ -340,3 +340,92 @@ export const trackShippingInfoEntered = () => {
     shipping_tier: 'free_next_day',
   });
 };
+
+// ============================================================================
+// FACEBOOK PIXEL EVENTS
+// ============================================================================
+
+/**
+ * Helper to safely call Facebook Pixel
+ */
+const fbq = (...args: any[]) => {
+  if (typeof window !== 'undefined' && (window as any).fbq) {
+    (window as any).fbq(...args);
+  }
+};
+
+/**
+ * Track Facebook Pixel ViewContent event
+ */
+export const trackFBViewContent = (params: {
+  content_name: string;
+  content_category?: string;
+  value?: number;
+  currency?: string;
+}) => {
+  fbq('track', 'ViewContent', {
+    content_name: params.content_name,
+    content_category: params.content_category || 'Banner',
+    value: params.value ? params.value / 100 : undefined,
+    currency: params.currency || 'USD',
+  });
+};
+
+/**
+ * Track Facebook Pixel AddToCart event
+ */
+export const trackFBAddToCart = (params: {
+  content_name: string;
+  value: number;
+  currency?: string;
+}) => {
+  fbq('track', 'AddToCart', {
+    content_name: params.content_name,
+    value: params.value / 100,
+    currency: params.currency || 'USD',
+  });
+};
+
+/**
+ * Track Facebook Pixel InitiateCheckout event
+ */
+export const trackFBInitiateCheckout = (params: {
+  value: number;
+  currency?: string;
+  num_items: number;
+}) => {
+  fbq('track', 'InitiateCheckout', {
+    value: params.value / 100,
+    currency: params.currency || 'USD',
+    num_items: params.num_items,
+  });
+};
+
+/**
+ * Track Facebook Pixel Purchase event (CRITICAL for conversion tracking)
+ */
+export const trackFBPurchase = (params: {
+  value: number;
+  currency?: string;
+  transaction_id: string;
+}) => {
+  fbq('track', 'Purchase', {
+    value: params.value / 100,
+    currency: params.currency || 'USD',
+    transaction_id: params.transaction_id,
+  });
+};
+
+/**
+ * Track Facebook Pixel Lead event (for quote requests)
+ */
+export const trackFBLead = () => {
+  fbq('track', 'Lead');
+};
+
+/**
+ * Track Facebook Pixel CompleteRegistration event
+ */
+export const trackFBCompleteRegistration = () => {
+  fbq('track', 'CompleteRegistration');
+};

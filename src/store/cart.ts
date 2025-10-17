@@ -3,7 +3,7 @@ import { persist } from 'zustand/middleware';
 import { QuoteState, MaterialKey, Grommets, TextElement } from './quote';
 import { calculateTax, calculateTotalWithTax, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
 import { cartSync } from '@/lib/cartSync';
-import { trackAddToCart } from '@/lib/analytics';
+import { trackAddToCart, trackFBAddToCart } from '@/lib/analytics';
 
 export type PricingMode = 'per_item' | 'per_order';
 
@@ -262,6 +262,12 @@ export const useCartStore = create<CartState>()(
           size: `${quote.widthIn}x${quote.heightIn}`,
           price: newItem.line_total_cents,
           quantity: newItem.quantity,
+        });
+        
+        // Track Facebook Pixel AddToCart
+        trackFBAddToCart({
+          content_name: `${quote.widthIn}x${quote.heightIn} ${quote.material} Banner`,
+          value: newItem.line_total_cents,
         });
       // Sync to Neon database
       setTimeout(() => get().syncToServer(), 100);

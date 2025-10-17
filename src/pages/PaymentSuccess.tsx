@@ -4,7 +4,7 @@ import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Home, ArrowRight } from 'lucide-react';
 import { usd, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
-import { trackPurchase } from '@/lib/analytics';
+import { trackPurchase, trackFBPurchase } from '@/lib/analytics';
 
 const PaymentSuccess: React.FC = () => {
   const navigate = useNavigate();
@@ -50,6 +50,12 @@ const calculateUnitPrice = (item: any) => {
         tax: pricing.tax,
         shipping: 0, // Free shipping
         items: analyticsItems,
+      });
+      
+      // Track Facebook Pixel Purchase
+      trackFBPurchase({
+        value: pricing.total,
+        transaction_id: orderId,
       });
     }
   }, [orderId]); // Track once when orderId is available

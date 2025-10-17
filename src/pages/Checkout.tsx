@@ -18,7 +18,7 @@ import { CartItem } from '@/store/cart';
 import BannerPreview from '@/components/cart/BannerPreview';
 import { useCheckoutContext } from '@/store/checkoutContext';
 import { cartSyncService } from '@/lib/cartSync';
-import { trackBeginCheckout, trackViewCart } from '@/lib/analytics';
+import { trackBeginCheckout, trackViewCart, trackFBInitiateCheckout } from '@/lib/analytics';
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
@@ -161,6 +161,12 @@ const Checkout: React.FC = () => {
       }));
       trackBeginCheckout(analyticsItems, totals.grandTotal);
       trackViewCart(analyticsItems, totals.grandTotal);
+      
+      // Track Facebook Pixel InitiateCheckout
+      trackFBInitiateCheckout({
+        value: totals.grandTotal,
+        num_items: items.length,
+      });
     }
   }, []); // Only track once on mount
 
