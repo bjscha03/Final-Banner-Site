@@ -409,14 +409,27 @@ export const useCartStore = create<CartState>()(
       // Sync cart to Neon database (for logged-in users)
       syncToServer: async () => {
         const userId = cartSync.getUserId();
+        const items = get().items;
+        
+        // CRITICAL FIX: Save guest carts to database using session ID
+        // This ensures guest carts can be merged when user signs in
         if (!userId) {
-          console.log('👤 No user logged in, skipping server sync');
+          const sessionId = cartSync.getSessionId();
+          console.log('👤 No user logged in - saving guest cart with session ID:', sessionId ? `${sessionId.substring(0, 12)}...` : 'none');
+          
+          if (sessionId && items.length > 0) {
+            const success = await cartSync.saveCart(items, undefined, sessionId);
+            if (success) {
+              console.log('✅ STORE: Guest cart synced to server successfully');
+            } else {
+              console.error('❌ STORE: Failed to sync guest cart to server');
+            }
+          }
           return;
         }
         
-        const items = get().items;
         console.log('💾 STORE: Syncing cart to server...', { userId, itemCount: items.length });
-        const success = await cartSync.saveCart(userId, items);
+        const success = await cartSync.saveCart(items, userId);
         if (success) {
           console.log('✅ STORE: Cart synced to server successfully');
         } else {
