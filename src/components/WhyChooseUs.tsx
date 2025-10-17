@@ -1,5 +1,5 @@
 import React from 'react';
-import { Clock, Shield, Truck, Award, DollarSign, Headphones } from 'lucide-react';
+import { Clock, Shield, Truck, Award, Trophy, Headphones } from 'lucide-react';
 
 const WhyChooseUs: React.FC = () => {
   const features = [
@@ -19,9 +19,9 @@ const WhyChooseUs: React.FC = () => {
       description: '13oz vinyl material with vibrant, long-lasting colors.'
     },
     {
-      icon: DollarSign,
-      title: 'Best Price Guarantee',
-      description: 'Competitive pricing without compromising on quality.'
+      icon: Trophy,
+      title: 'Trusted by Top Brands',
+      description: 'We\'ve supplied banners to leading companies like Dan-O\'s Seasoning and hundreds of growing brands nationwide.'
     },
     {
       icon: Award,
