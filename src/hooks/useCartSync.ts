@@ -30,37 +30,21 @@ export function useCartSync() {
     console.log('🔍 User email:', user?.email);
     console.log('🔍 Has merged:', hasMergedRef.current);
     
-    // NUCLEAR OPTION: If current user doesn't match cart owner, CLEAR IMMEDIATELY
-    // FIXED: Only clear if cartOwnerId is explicitly set AND different
-    // If cartOwnerId is null, it means cart was cleared on logout - don't clear again
+    // IMPROVED: Only clear if cart explicitly belongs to a DIFFERENT user
+    // Don't clear if cartOwnerId is null (cart was cleared on logout)
     if (currentUserId && cartOwnerId && currentUserId !== cartOwnerId) {
-      console.log('🚨🚨🚨 NUCLEAR CLEAR: Cart owner mismatch detected!');
-      console.log('🚨 Current user:', currentUserId);
-      console.log('🚨 Cart owner:', cartOwnerId);
-      console.log('🚨 CLEARING CART IMMEDIATELY');
+      console.log('⚠️  CART OWNERSHIP: Cart belongs to different user');
+      console.log('⚠️  Cart owner:', cartOwnerId);
+      console.log('⚠️  Current user:', currentUserId);
+      console.log('⚠️  Clearing cart and will load from server');
       clearCart();
-      // CRITICAL: Remove the old cart owner ID - don't set new one yet
       if (typeof localStorage !== 'undefined') {
         localStorage.removeItem('cart_owner_user_id');
       }
       hasMergedRef.current = false;
-    } else if (currentUserId && !cartOwnerId) {
-      console.log('ℹ️  No cart owner set (cart was cleared on logout) - will load from server');
     }
     
-    // SAFETY: Clear cart IMMEDIATELY if user changed (before any async operations)
-    // This prevents User B from seeing User A's cart even if database fails
-    if (prevUserId && currentUserId && prevUserId !== currentUserId) {
-      console.log('🚨 SAFETY CLEAR: User changed detected, clearing cart IMMEDIATELY');
-      console.log('🚨 Previous user:', prevUserId);
-      console.log('🚨 New user:', currentUserId);
-      clearCart(); // Clear synchronously, right now
-      // CRITICAL: Remove the old cart owner ID
-      if (typeof localStorage !== 'undefined') {
-        localStorage.removeItem('cart_owner_user_id');
-      }
-      hasMergedRef.current = false;
-    }
+    
     
     // User changed (different user logged in)
     if (prevUserId && currentUserId && prevUserId !== currentUserId) {

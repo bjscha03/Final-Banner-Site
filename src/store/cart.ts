@@ -251,8 +251,14 @@ export const useCartStore = create<CartState>()(
 
         console.log('🧮 CART: addFromQuote', { usingAuthoritative, pricing, computed: { unit: computedUnit, rope: computedRope, pole: computedPole, line: computedLine }, stored: newItem });
         console.log('💾 CART STORAGE: Item added, will persist to localStorage');
-        console.log('💾 CART STORAGE: Item added, will persist to localStorage');
         set((state) => ({ items: [...state.items, newItem] }));
+
+        // CRITICAL FIX: Set cart owner to current user
+        const userId = cartSync.getUserId();
+        if (userId && typeof localStorage !== 'undefined') {
+          localStorage.setItem('cart_owner_user_id', userId);
+          console.log('✅ CART: Set cart owner to:', userId);
+        }
 
         // Track add to cart event
         trackAddToCart({
@@ -402,6 +408,14 @@ export const useCartStore = create<CartState>()(
         };
 
         console.log('✅ CART: updateCartItem success', { updatedItem });
+        
+        // CRITICAL FIX: Set cart owner to current user
+        const userId = cartSync.getUserId();
+        if (userId && typeof localStorage !== 'undefined') {
+          localStorage.setItem('cart_owner_user_id', userId);
+          console.log('✅ CART: Set cart owner to:', userId);
+        }
+        
         set((state) => ({
           items: state.items.map(item => item.id === itemId ? updatedItem : item)
         }));
@@ -476,21 +490,39 @@ export const useCartStore = create<CartState>()(
         console.log('🔵 STORE: Cart owner ID:', cartOwnerId);
         console.log('🔵 STORE: Current user ID:', userId);
         
-        // IMPROVED LOGIC: Only preserve local cart if it belongs to the current user
-        // and the server cart is empty (indicating a failed save)
-        if (serverItems.length === 0 && localItems.length > 0) {
+        // SIMPLIFIED LOGIC: Always use server cart when available
+        // If server has items, use them (they are the source of truth)
+        if (serverItems.length > 0) {
+          console.log('✅ STORE: Server has items, using server cart');
+          set({ items: serverItems });
+          
+          // Set cart owner
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('cart_owner_user_id', userId);
+          }
+          return;
+        }
+        
+        // Server cart is empty
+        if (localItems.length > 0) {
           // Check if local cart belongs to this user
           if (cartOwnerId === userId) {
-            console.log('⚠️ STORE: Server cart is empty but local cart belongs to this user - preserving local cart');
-            console.log('⚠️ STORE: This likely means the last save failed - will retry sync');
-            // Try to save the local cart to server
-            setTimeout(() => get().syncToServer(), 1000);
+            console.log('⚠️ STORE: Server cart empty but local cart belongs to this user');
+            console.log('⚠️ STORE: Saving local cart to server (likely a failed save)');
+            // Save local cart to server
+            setTimeout(() => get().syncToServer(), 100);
             return;
           } else {
-            console.log('⚠️ STORE: Server cart is empty and local cart belongs to different user - clearing local cart');
+            console.log('⚠️ STORE: Server cart empty and local cart belongs to different user');
+            console.log('⚠️ STORE: Clearing local cart');
             set({ items: [] });
             return;
           }
+        }
+        
+        // Both server and local are empty
+        console.log('ℹ️  STORE: Both server and local carts are empty');
+        set({ items: [] });
         }
         
         console.log('🔵 STORE: Updating cart with server items...');
