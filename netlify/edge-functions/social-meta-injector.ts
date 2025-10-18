@@ -116,7 +116,3 @@ export default async (request: Request, context: Context) => {
   // For non-bot traffic or non-blog pages, pass through
   return context.next();
 };
-
-export const config = {
-  path: "/blog/*"
-};
