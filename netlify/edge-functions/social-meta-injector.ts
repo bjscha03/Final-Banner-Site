@@ -41,10 +41,16 @@ function injectMetaTags(html: string, slug: string): string {
 
   const url = `https://bannersonthefly.com/blog/${slug}`;
   
+  // Remove existing og: and twitter: meta tags from the original HTML
+  let cleanedHtml = html
+    .replace(/<meta\s+property="og:[^"]*"\s+content="[^"]*">/gi, '')
+    .replace(/<meta\s+name="twitter:[^"]*"\s+content="[^"]*">/gi, '')
+    .replace(/<meta\s+name="description"\s+content="[^"]*">/gi, '')
+    .replace(/<title>[^<]*<\/title>/i, '');
+  
   const metaTags = `
     <!-- Primary Meta Tags -->
     <title>${post.title} - Banners on the Fly Blog</title>
-    <meta name="title" content="${post.title}">
     <meta name="description" content="${post.description}">
     
     <!-- Open Graph / Facebook -->
@@ -66,7 +72,7 @@ function injectMetaTags(html: string, slug: string): string {
   `;
 
   // Replace the closing </head> tag with meta tags + </head>
-  return html.replace('</head>', `${metaTags}\n  </head>`);
+  return cleanedHtml.replace('</head>', `${metaTags}\n  </head>`);
 }
 
 export default async (request: Request, context: Context) => {
