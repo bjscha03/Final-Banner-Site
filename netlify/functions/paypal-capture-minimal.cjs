@@ -81,6 +81,17 @@ exports.handler = async (event, context) => {
 
     const captureData = await captureResponse.json();
     
+    // Extract shipping address from PayPal response
+    const shipping = captureData.purchase_units?.[0]?.shipping;
+    const shippingAddress = shipping ? {
+      name: shipping.name?.full_name || '',
+      street: shipping.address?.address_line_1 || '',
+      city: shipping.address?.admin_area_2 || '',
+      state: shipping.address?.admin_area_1 || '',
+      zip: shipping.address?.postal_code || '',
+      country: shipping.address?.country_code || 'US'
+    } : null;
+    
     // Return success response
     return {
       statusCode: 200,
@@ -90,7 +101,9 @@ exports.handler = async (event, context) => {
         orderID: orderID,
         captureID: captureData.purchase_units?.[0]?.payments?.captures?.[0]?.id,
         status: captureData.status,
-        environment: env
+        environment: env,
+        paypalData: captureData,
+        shippingAddress: shippingAddress
       })
     };
 

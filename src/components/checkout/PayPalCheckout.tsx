@@ -353,6 +353,12 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
           currency: 'usd',
           paypal_order_id: data.orderID,
           paypal_capture_id: captureResult.paypalData?.id,
+          shipping_name: captureResult.shippingAddress?.name || null,
+          shipping_street: captureResult.shippingAddress?.street || null,
+          shipping_city: captureResult.shippingAddress?.city || null,
+          shipping_state: captureResult.shippingAddress?.state || null,
+          shipping_zip: captureResult.shippingAddress?.zip || null,
+          shipping_country: captureResult.shippingAddress?.country || 'US',
           items: items.map(item => ({
             width_in: item.width_in,
             height_in: item.height_in,

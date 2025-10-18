@@ -195,7 +195,8 @@ exports.handler = async (event, context) => {
       }],
       application_context: {
         brand_name: 'Banners On The Fly',
-        user_action: 'PAY_NOW'
+        user_action: 'PAY_NOW',
+        shipping_preference: 'GET_FROM_FILE'
       }
     };
 

@@ -27,7 +27,12 @@ interface AdminOrderNotificationProps {
     subtotal: number;
     tax: number;
     total: number;
-    shippingAddress?: string;
+    shipping_name?: string | null;
+    shipping_street?: string | null;
+    shipping_city?: string | null;
+    shipping_state?: string | null;
+    shipping_zip?: string | null;
+    shipping_country?: string | null;
     created_at?: string;
   };
   invoiceUrl: string;
@@ -154,11 +159,20 @@ export default function AdminOrderNotification({ order, invoiceUrl }: AdminOrder
           </Section>
 
           {/* Shipping Address */}
-          {order.shippingAddress && (
+          {(order.shipping_name || order.shipping_street) && (
             <Section style={shippingSection}>
               <Heading style={sectionTitle}>Shipping Address</Heading>
               <div style={addressBox}>
-                <Text style={addressText}>{order.shippingAddress}</Text>
+                {order.shipping_name && <Text style={addressText}>{order.shipping_name}</Text>}
+                {order.shipping_street && <Text style={addressText}>{order.shipping_street}</Text>}
+                {(order.shipping_city || order.shipping_state || order.shipping_zip) && (
+                  <Text style={addressText}>
+                    {order.shipping_city}{order.shipping_city && order.shipping_state ? ', ' : ''}{order.shipping_state} {order.shipping_zip}
+                  </Text>
+                )}
+                {order.shipping_country && order.shipping_country !== 'US' && (
+                  <Text style={addressText}>{order.shipping_country}</Text>
+                )}
               </div>
             </Section>
           )}

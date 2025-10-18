@@ -446,7 +446,12 @@ exports.handler = async (event) => {
           const calculatedTax = Math.round(calculatedSubtotal * 0.06);
           return calculatedSubtotal + calculatedTax;
         },
-        shippingAddress: order.shipping_address
+        shipping_name: order.shipping_name,
+        shipping_street: order.shipping_street,
+        shipping_city: order.shipping_city,
+        shipping_state: order.shipping_state,
+        shipping_zip: order.shipping_zip,
+        shipping_country: order.shipping_country
       },
       invoiceUrl
     };

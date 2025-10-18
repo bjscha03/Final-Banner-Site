@@ -45,6 +45,12 @@ export interface Order {
   tracking_carrier?: TrackingCarrier | null;
   shipping_notification_sent?: boolean;
   shipping_notification_sent_at?: string | null;
+  shipping_name?: string | null;
+  shipping_street?: string | null;
+  shipping_city?: string | null;
+  shipping_state?: string | null;
+  shipping_zip?: string | null;
+  shipping_country?: string | null;
 }
 
 export interface CreateOrderData {
@@ -54,6 +60,12 @@ export interface CreateOrderData {
   total_cents: number;
   currency: 'usd';
   items: OrderItem[];
+  shipping_name?: string | null;
+  shipping_street?: string | null;
+  shipping_city?: string | null;
+  shipping_state?: string | null;
+  shipping_zip?: string | null;
+  shipping_country?: string | null;
 }
 
 export interface OrdersAdapter {

@@ -116,6 +116,23 @@ exports.handler = async (event, context) => {
       // Continue anyway - column might already exist
     }
     
+    // Add shipping address columns to orders table
+    try {
+      await sql`
+        ALTER TABLE orders
+        ADD COLUMN IF NOT EXISTS shipping_name TEXT,
+        ADD COLUMN IF NOT EXISTS shipping_street TEXT,
+        ADD COLUMN IF NOT EXISTS shipping_city TEXT,
+        ADD COLUMN IF NOT EXISTS shipping_state TEXT,
+        ADD COLUMN IF NOT EXISTS shipping_zip TEXT,
+        ADD COLUMN IF NOT EXISTS shipping_country TEXT DEFAULT 'US'
+      `;
+      console.log('✅ Database migration: shipping address columns verified/created');
+    } catch (migrationError) {
+      console.warn('⚠️ Shipping address migration warning:', migrationError.message);
+      // Continue anyway - columns might already exist
+    }
+    
     try {
       await sql`
         ALTER TABLE order_items
@@ -306,8 +323,8 @@ exports.handler = async (event, context) => {
     console.log('Final email for order:', userEmail);
 
     const orderResult = await sql`
-      INSERT INTO orders (id, user_id, email, subtotal_cents, tax_cents, total_cents, status, paypal_order_id, paypal_capture_id)
-      VALUES (${orderId}, ${finalUserId}, ${userEmail}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, 'paid', ${orderData.paypal_order_id || null}, ${orderData.paypal_capture_id || null})
+      INSERT INTO orders (id, user_id, email, subtotal_cents, tax_cents, total_cents, status, paypal_order_id, paypal_capture_id, shipping_name, shipping_street, shipping_city, shipping_state, shipping_zip, shipping_country)
+      VALUES (${orderId}, ${finalUserId}, ${userEmail}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, 'paid', ${orderData.paypal_order_id || null}, ${orderData.paypal_capture_id || null}, ${orderData.shipping_name || null}, ${orderData.shipping_street || null}, ${orderData.shipping_city || null}, ${orderData.shipping_state || null}, ${orderData.shipping_zip || null}, ${orderData.shipping_country || 'US'})
       RETURNING *
     `;
 

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useCartStore } from '@/store/cart';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth, isAdmin } from '@/lib/auth';
-import { ShoppingCart, Package, Calendar, CreditCard, Mail, User, Download, FileText, Sparkles, Info } from 'lucide-react';
+import { ShoppingCart, Package, Calendar, CreditCard, Mail, User, Download, FileText, Sparkles, Info, MapPin } from 'lucide-react';
 import TrackingBadge from './TrackingBadge';
 import PDFQualityCheck from '../admin/PDFQualityCheck';
 import { isPrintPipelineEnabled } from '../../utils/printPipeline';
@@ -397,6 +397,32 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                     </p>
                   </div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Shipping Address - Admin Only */}
+          {isAdminUser && (order.shipping_name || order.shipping_street) && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                <MapPin className="h-5 w-5 text-green-600 mr-2" />
+                Shipping Address
+              </h3>
+              <div className="space-y-1">
+                {order.shipping_name && (
+                  <p className="font-medium text-gray-900">{order.shipping_name}</p>
+                )}
+                {order.shipping_street && (
+                  <p className="text-gray-700">{order.shipping_street}</p>
+                )}
+                {(order.shipping_city || order.shipping_state || order.shipping_zip) && (
+                  <p className="text-gray-700">
+                    {order.shipping_city}{order.shipping_city && order.shipping_state ? ', ' : ''}{order.shipping_state} {order.shipping_zip}
+                  </p>
+                )}
+                {order.shipping_country && order.shipping_country !== 'US' && (
+                  <p className="text-gray-700">{order.shipping_country}</p>
+                )}
               </div>
             </div>
           )}
