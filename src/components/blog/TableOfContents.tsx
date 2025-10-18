@@ -24,7 +24,7 @@ export function TableOfContents({ content }: TableOfContentsProps) {
     
     const headingElements = tempDiv.querySelectorAll('h2, h3');
     const items: TOCItem[] = Array.from(headingElements).map((heading, index) => {
-      const id = heading.textContent?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || `heading-${index}`;
+      const id = (heading.textContent || '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || `heading-${index}`;
       return {
         id,
         text: heading.textContent || '',
@@ -58,7 +58,7 @@ export function TableOfContents({ content }: TableOfContentsProps) {
   if (headings.length === 0) return null;
   
   return (
-    <nav className="sticky top-24 bg-white rounded-lg shadow-md p-6">
+    <nav className="lg:sticky lg:top-24 bg-white mb-8 lg:mb-0 rounded-lg shadow-md p-6">
       <h3 className="text-lg font-bold text-gray-900 mb-4">Table of Contents</h3>
       <ul className="space-y-2">
         {headings.map(({ id, text, level }) => (

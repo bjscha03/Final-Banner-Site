@@ -46,8 +46,8 @@ export function BlogCard({ post }: BlogCardProps) {
         <p className="text-gray-600 mb-4 line-clamp-3">{excerpt}</p>
         
         <div className="flex items-center justify-between text-sm text-gray-500">
-          <time dateTime={frontmatter.date}>
-            {new Date(frontmatter.date).toLocaleDateString('en-US', {
+          <time dateTime={frontmatter.publishDate || frontmatter.date}>
+            {new Date(frontmatter.publishDate || frontmatter.date).toLocaleDateString('en-US', {
               year: 'numeric',
               month: 'long',
               day: 'numeric',

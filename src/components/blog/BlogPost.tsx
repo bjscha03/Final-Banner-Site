@@ -40,16 +40,19 @@ export function BlogPost({ post, relatedPosts }: BlogPostProps) {
       });
     }
     
-    const tempDiv = document.createElement('div');
-    tempDiv.innerHTML = html;
-    const headings = tempDiv.querySelectorAll('h2, h3');
-    headings.forEach((heading, index) => {
-      const id = heading.textContent?.toLowerCase().replace(/[^a-z0-9]+/g, '-') || `heading-${index}`;
-      const actualHeading = document.querySelector(`h2:nth-of-type(${index + 1}), h3:nth-of-type(${index + 1})`);
-      if (actualHeading) {
-        actualHeading.id = id;
-      }
-    });
+    // Add IDs to headings for TOC navigation
+    const articleElement = document.querySelector('article .prose');
+    if (articleElement) {
+      const headings = articleElement.querySelectorAll('h2, h3');
+      headings.forEach((heading) => {
+        const text = heading.textContent || '';
+        // Generate ID matching the TOC component's logic
+        const id = text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+        if (id) {
+          heading.id = id;
+        }
+      });
+    }
   }, [frontmatter.slug, frontmatter.title, frontmatter.tags, readingTime, html]);
   
   const canonicalUrl = frontmatter.canonical || `https://bannersonthefly.com/blog/${frontmatter.slug}`;
@@ -84,8 +87,8 @@ export function BlogPost({ post, relatedPosts }: BlogPostProps) {
           </h1>
           
           <div className="flex flex-wrap items-center gap-4 text-gray-600 mb-6">
-            <time dateTime={frontmatter.date}>
-              {new Date(frontmatter.date).toLocaleDateString('en-US', {
+            <time dateTime={frontmatter.publishDate || frontmatter.date}>
+              {new Date(frontmatter.publishDate || frontmatter.date).toLocaleDateString('en-US', {
                 year: 'numeric',
                 month: 'long',
                 day: 'numeric',
