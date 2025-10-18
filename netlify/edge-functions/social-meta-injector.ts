@@ -41,15 +41,22 @@ function injectMetaTags(html: string, slug: string): string {
 
   const url = `https://bannersonthefly.com/blog/${slug}`;
   
-  // Remove existing og:, twitter:, title, and description meta tags
-  // Handle both single and multi-line formats
-  let cleanedHtml = html
-    .replace(/<meta\s+property="og:[^"]*"\s+content="[^"]*"\s*\/?>/gi, '')
-    .replace(/<meta\s+name="twitter:[^"]*"\s+content="[^"]*"\s*\/?>/gi, '')
-    .replace(/<meta\s+name="description"\s+content="[^"]*"\s*\/?>/gi, '')
-    .replace(/<title>Banners On The Fly[^<]*<\/title>/i, '');
+  // Extract the head section
+  const headMatch = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
+  if (!headMatch) return html;
   
-  const metaTags = `<title>${post.title} - Banners on the Fly Blog</title>
+  let headContent = headMatch[1];
+  
+  // Remove all existing og:, twitter:, title, and description meta tags
+  headContent = headContent
+    .replace(/<meta[^>]*property="og:[^"]*"[^>]*>/gi, '')
+    .replace(/<meta[^>]*name="twitter:[^"]*"[^>]*>/gi, '')
+    .replace(/<meta[^>]*name="description"[^>]*>/gi, '')
+    .replace(/<title>[^<]*<\/title>/gi, '');
+  
+  // Add the new meta tags at the end of head content
+  const newMetaTags = `
+    <title>${post.title} - Banners on the Fly Blog</title>
     <meta name="description" content="${post.description}">
     <meta property="og:type" content="article">
     <meta property="og:url" content="${url}">
@@ -63,16 +70,14 @@ function injectMetaTags(html: string, slug: string): string {
     <meta name="twitter:url" content="${url}">
     <meta name="twitter:title" content="${post.title}">
     <meta name="twitter:description" content="${post.description}">
-    <meta name="twitter:image" content="${post.image}">`;
-
-  // Find the position to insert (right before </head> or after <head>)
-  if (cleanedHtml.includes('</head>')) {
-    return cleanedHtml.replace('</head>', `${metaTags}</head>`);
-  } else if (cleanedHtml.includes('<head>')) {
-    return cleanedHtml.replace('<head>', `<head>${metaTags}`);
-  }
+    <meta name="twitter:image" content="${post.image}">
+  `;
   
-  return cleanedHtml;
+  // Reconstruct the head section
+  const newHead = `<head>${headContent}${newMetaTags}</head>`;
+  
+  // Replace the old head with the new one
+  return html.replace(/<head[^>]*>[\s\S]*?<\/head>/i, newHead);
 }
 
 export default async (request: Request, context: Context) => {
@@ -95,7 +100,7 @@ export default async (request: Request, context: Context) => {
     return new Response(modifiedHtml, {
       headers: {
         'content-type': 'text/html',
-        'cache-control': 'public, max-age=0, must-revalidate'
+        'cache-control': 'no-cache, no-store, must-revalidate'
       }
     });
   }
