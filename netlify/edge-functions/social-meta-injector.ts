@@ -41,19 +41,16 @@ function injectMetaTags(html: string, slug: string): string {
 
   const url = `https://bannersonthefly.com/blog/${slug}`;
   
-  // Remove existing og: and twitter: meta tags from the original HTML
+  // Remove existing og:, twitter:, title, and description meta tags
+  // Handle both single and multi-line formats
   let cleanedHtml = html
-    .replace(/<meta\s+property="og:[^"]*"\s+content="[^"]*">/gi, '')
-    .replace(/<meta\s+name="twitter:[^"]*"\s+content="[^"]*">/gi, '')
-    .replace(/<meta\s+name="description"\s+content="[^"]*">/gi, '')
-    .replace(/<title>[^<]*<\/title>/i, '');
+    .replace(/<meta\s+property="og:[^"]*"\s+content="[^"]*"\s*\/?>/gi, '')
+    .replace(/<meta\s+name="twitter:[^"]*"\s+content="[^"]*"\s*\/?>/gi, '')
+    .replace(/<meta\s+name="description"\s+content="[^"]*"\s*\/?>/gi, '')
+    .replace(/<title>Banners On The Fly[^<]*<\/title>/i, '');
   
-  const metaTags = `
-    <!-- Primary Meta Tags -->
-    <title>${post.title} - Banners on the Fly Blog</title>
+  const metaTags = `<title>${post.title} - Banners on the Fly Blog</title>
     <meta name="description" content="${post.description}">
-    
-    <!-- Open Graph / Facebook -->
     <meta property="og:type" content="article">
     <meta property="og:url" content="${url}">
     <meta property="og:title" content="${post.title}">
@@ -62,17 +59,20 @@ function injectMetaTags(html: string, slug: string): string {
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
     <meta property="og:site_name" content="Banners on the Fly">
-    
-    <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:url" content="${url}">
     <meta name="twitter:title" content="${post.title}">
     <meta name="twitter:description" content="${post.description}">
-    <meta name="twitter:image" content="${post.image}">
-  `;
+    <meta name="twitter:image" content="${post.image}">`;
 
-  // Replace the closing </head> tag with meta tags + </head>
-  return cleanedHtml.replace('</head>', `${metaTags}\n  </head>`);
+  // Find the position to insert (right before </head> or after <head>)
+  if (cleanedHtml.includes('</head>')) {
+    return cleanedHtml.replace('</head>', `${metaTags}</head>`);
+  } else if (cleanedHtml.includes('<head>')) {
+    return cleanedHtml.replace('<head>', `<head>${metaTags}`);
+  }
+  
+  return cleanedHtml;
 }
 
 export default async (request: Request, context: Context) => {
@@ -95,7 +95,7 @@ export default async (request: Request, context: Context) => {
     return new Response(modifiedHtml, {
       headers: {
         'content-type': 'text/html',
-        'cache-control': 'public, max-age=3600'
+        'cache-control': 'public, max-age=0, must-revalidate'
       }
     });
   }
