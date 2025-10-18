@@ -7,7 +7,7 @@
 
 # Enable prerendering for social media crawlers
 [[plugins]]
-  package = "@netlify/plugin-prerender"
+  package = "netlify-plugin-prerender-spa"
 
 [functions]
   directory = "netlify/functions"
