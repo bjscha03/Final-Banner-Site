@@ -7,6 +7,8 @@ cloudinary.config({
   api_key: process.env.CLOUDINARY_API_KEY,
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
+const { generatePrintDerivatives } = require('./lib/printDerivative');
+const { generatePrintDerivatives } = require('./lib/printDerivative');
 
 // Convert hex color to descriptive color name
 function hexToColorName(hex) {
