@@ -11,6 +11,11 @@ const blogPosts: Record<string, { title: string; description: string; image: str
     title: "Vinyl vs. Mesh Banners: Which Is Better for Your Next Project?",
     description: "Choosing between vinyl and mesh banners? Learn the key differences, benefits, and best applications for each material to make the right decision for your project.",
     image: "https://res.cloudinary.com/dtrxl120u/image/upload/v1760799813/unnamed-2_hgwcyw.jpg"
+  },
+  "perfect-banner-size-guide": {
+    title: "How to Choose the Perfect Banner Size for Your Event or Business",
+    description: "Learn how to choose the perfect banner size for your event or business. Expert tips on viewing distance, location, orientation, and design for maximum visibility and impact.",
+    image: "https://res.cloudinary.com/dtrxl120u/image/upload/v1760812399/Screenshot_2025-10-18_at_11.50.45_AM_ekmtxm.png"
   }
 };
 
