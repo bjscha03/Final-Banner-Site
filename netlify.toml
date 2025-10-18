@@ -150,3 +150,8 @@ for = "/assets/*"
   Cache-Control = "no-cache, no-store, must-revalidate"
   Pragma = "no-cache"
   Expires = "0"
+
+# Edge Functions configuration
+[[edge_functions]]
+  path = "/blog/*"
+  function = "social-meta-injector"
