@@ -5,6 +5,10 @@
 [build.environment]
   NODE_VERSION = "20"
 
+# Enable prerendering for social media crawlers
+[[plugins]]
+  package = "@netlify/plugin-prerender"
+
 [functions]
   directory = "netlify/functions"
   node_bundler = "esbuild"
