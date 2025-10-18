@@ -102,9 +102,23 @@ async function fetchPrintImage(fileKey, widthPx, heightPx, applyColorCorrection 
     
     console.log('[Print-PDF] Explicit result:', JSON.stringify(result, null, 2));
     
-    // Get the secure URL from the eager transformation
-    const url = result.eager && result.eager[0] ? result.eager[0].secure_url : result.secure_url;
+    // Get the secure URL - eager transformations return full URLs
+    let url;
+    if (result.eager && result.eager[0] && result.eager[0].secure_url) {
+      url = result.eager[0].secure_url;
+    } else if (result.secure_url) {
+      url = result.secure_url;
+    } else {
+      // Fallback: build URL manually from result
+      const baseUrl = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload`;
+      const transformStr = `w_${widthPx},h_${heightPx},c_fill,g_center,f_png`;
+      url = `${baseUrl}/${transformStr}/${fileKey}`;
+    }
     console.log('[Print-PDF] Using secure URL:', url);
+    
+    if (!url || !url.startsWith('http')) {
+      throw new Error(`Invalid URL generated: ${url}`);
+    }
 
     const response = await fetch(url);
     if (!response.ok) {
