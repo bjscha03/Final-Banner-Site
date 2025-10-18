@@ -38,6 +38,22 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
   const [qualityCheckData, setQualityCheckData] = useState<any>(null);
   const printPipelineEnabled = isPrintPipelineEnabled();
 
+  // Debug logging
+  console.log('🔍 Print Pipeline Debug:', {
+    printPipelineEnabled,
+    isAdminUser,
+    envVar: import.meta.env.VITE_ENABLE_PRINT_PIPELINE,
+    user: user?.email
+  });
+
+  // Debug logging
+  console.log('🔍 Print Pipeline Debug:', {
+    printPipelineEnabled,
+    isAdminUser,
+    envVar: import.meta.env.VITE_ENABLE_PRINT_PIPELINE,
+    user: user?.email
+  });
+
   // Helper function to get the best download URL for an item (AI or uploaded)
   const getBestDownloadUrl = (item: any) => {
     // For AI-generated items, prioritize print_ready_url for high-quality downloads
