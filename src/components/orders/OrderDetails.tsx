@@ -7,8 +7,10 @@ import { Button } from '@/components/ui/button';
 import { useCartStore } from '@/store/cart';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth, isAdmin } from '@/lib/auth';
-import { ShoppingCart, Package, Calendar, CreditCard, Mail, User, Download, FileText } from 'lucide-react';
+import { ShoppingCart, Package, Calendar, CreditCard, Mail, User, Download, FileText, Sparkles, Info } from 'lucide-react';
 import TrackingBadge from './TrackingBadge';
+import PDFQualityCheck from '../admin/PDFQualityCheck';
+import { isPrintPipelineEnabled } from '../../utils/printPipeline';
 import {
   Dialog,
   DialogContent,
@@ -32,6 +34,9 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
   const { user } = useAuth();
   const [pdfGenerating, setPdfGenerating] = useState<Record<number, boolean>>({});
   const isAdminUser = user && isAdmin(user);
+  const [qualityCheckOpen, setQualityCheckOpen] = useState(false);
+  const [qualityCheckData, setQualityCheckData] = useState<any>(null);
+  const printPipelineEnabled = isPrintPipelineEnabled();
 
   // Helper function to get the best download URL for an item (AI or uploaded)
   const getBestDownloadUrl = (item: any) => {
@@ -235,6 +240,70 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
     }
   };
 
+  // Handler for print-grade PDF download (Beta)
+  const handlePrintGradePdfDownload = async (item: any, index: number) => {
+    try {
+      setPdfGenerating({ ...pdfGenerating, [index]: true });
+      
+      const response = await fetch('/.netlify/functions/render-print-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: order.id,
+          fileKey: item.file_key,
+          bannerWidthIn: item.width_in,
+          bannerHeightIn: item.height_in,
+          targetDpi: 150,
+          bleedIn: 0.25,
+          textElements: item.text_elements || [],
+          applyColorCorrection: true,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to generate print-grade PDF');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `banner-${order.id}-item-${index + 1}-print-grade.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: 'Print-Grade PDF Downloaded',
+        description: 'High-quality print-ready PDF generated successfully.',
+      });
+    } catch (error) {
+      console.error('Error generating print-grade PDF:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to generate print-grade PDF',
+        variant: 'destructive',
+      });
+    } finally {
+      setPdfGenerating({ ...pdfGenerating, [index]: false });
+    }
+  };
+
+  // Handler for quality check modal
+  const handleQualityCheck = (item: any) => {
+    setQualityCheckData({
+      bannerWidthIn: item.width_in,
+      bannerHeightIn: item.height_in,
+      fileKey: item.file_key,
+      logoKey: item.logo_key,
+      aiImageKey: item.ai_image_key,
+      targetDpi: 150,
+    });
+    setQualityCheckOpen(true);
+  };
+
 
 
   const defaultTrigger = (
@@ -406,6 +475,34 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                                   // For regular items, use the file download function
                                   handleFileDownload(downloadInfo.url, index);
                                 }
+                        
+                        {/* Print-Grade PDF Button (Beta) - Feature Flagged */}
+                        {isAdminUser && printPipelineEnabled && (item.file_key || item.print_ready_url || item.web_preview_url) && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handlePrintGradePdfDownload(item, index)}
+                            disabled={pdfGenerating[index]}
+                            className="w-full bg-gradient-to-r from-blue-50 to-purple-50 border-blue-300 hover:from-blue-100 hover:to-purple-100"
+                          >
+                            <Sparkles className="h-3 w-3 mr-1 text-blue-600" />
+                            Print-Grade PDF (Beta)
+                          </Button>
+                        )}
+
+                        {/* Quality Check Button - Feature Flagged */}
+                        {isAdminUser && printPipelineEnabled && (item.file_key || item.print_ready_url || item.web_preview_url) && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleQualityCheck(item)}
+                            className="w-full text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                          >
+                            <Info className="h-3 w-3 mr-1" />
+                            Quality Check
+                          </Button>
+                        )}
+
                               }
                             }}
                             className="w-full"
@@ -464,6 +561,15 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
           </div>
         </div>
       </DialogContent>
+
+      {/* Quality Check Modal */}
+      {qualityCheckData && (
+        <PDFQualityCheck
+          isOpen={qualityCheckOpen}
+          onClose={() => setQualityCheckOpen(false)}
+          orderData={qualityCheckData}
+        />
+      )}
     </Dialog>
   );
 };
