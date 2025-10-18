@@ -234,32 +234,7 @@ export default function PDFQualityCheck({ isOpen, onClose, orderData }: PDFQuali
             </div>
           </div>
 
-          {/* Important Disclaimer */}
-          <div className="bg-amber-50 border-2 border-amber-300 rounded-lg p-4">
-            <div className="flex items-start gap-2">
-              <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
-              <div className="space-y-2">
-                <p className="text-sm font-semibold text-amber-900">
-                  Important: This check only validates pixel dimensions and DPI calculations
-                </p>
-                <p className="text-sm text-amber-800">
-                  This tool does <strong>NOT</strong> analyze actual image quality such as:
-                </p>
-                <ul className="text-sm text-amber-800 list-disc list-inside space-y-1 ml-2">
-                  <li>Image sharpness or blur</li>
-                  <li>Grain, noise, or compression artifacts</li>
-                  <li>Color accuracy or vibrancy</li>
-                  <li>Source image quality</li>
-                </ul>
-                <p className="text-sm text-amber-800 mt-2">
-                  An image with sufficient pixels may still print poorly if the source is blurry, grainy, or low quality. 
-                  Always visually inspect your images before ordering.
-                </p>
-              </div>
-            </div>
-          </div>
-          
-          {/* Additional Note */}
+          {/* Note */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
             <p className="text-sm text-blue-800">
               <Info className="h-4 w-4 inline mr-1" />
