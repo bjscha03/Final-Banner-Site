@@ -44,31 +44,25 @@ function getPrintConfig() {
  * Build print-quality Cloudinary URL
  */
 function buildPrintCloudinaryUrl(publicId, widthPx, heightPx, applyColorCorrection = false) {
-  const transformations = [];
-
-  // Exact dimensions
-  transformations.push(`w_${widthPx}`);
-  transformations.push(`h_${heightPx}`);
-  transformations.push('c_fill');
-  transformations.push('g_center');
-
-  // Color space
-  transformations.push('cs_srgb');
-
-  // Lossless format
-  transformations.push('f_png');
+  const transformOptions = {
+    resource_type: 'image',
+    width: widthPx,
+    height: heightPx,
+    crop: 'fill',
+    gravity: 'center',
+    color_space: 'srgb',
+    format: 'png',
+    // NO quality parameter - we want maximum quality
+    // NO dpr - we want exact pixels
+  };
 
   // Color correction (optional, for photos only)
   if (applyColorCorrection) {
-    transformations.push('e_viesus_correct');
+    transformOptions.effect = 'viesus_correct';
   }
 
-  // NO q_auto - we want maximum quality
-  // NO dpr_auto - we want exact pixels
-
-  const transformString = transformations.join(',');
-
-  return `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload/${transformString}/${publicId}`;
+  // Use Cloudinary SDK to generate URL (handles authentication)
+  return cloudinary.url(publicId, transformOptions);
 }
 
 /**
