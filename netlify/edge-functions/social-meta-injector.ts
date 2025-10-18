@@ -2,6 +2,11 @@ import type { Context } from "https://edge.netlify.com";
 
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
+  "danos-seasoning-banner-success-story": {
+    title: "From Flea Markets to Food Festivals: How Dano's Seasoning Grew with the Right Banners",
+    description: "Discover how Dano's Seasoning went from flea market vendor to national brand with the help of quality banners. A 30-year partnership story that proves great signage makes a difference.",
+    image: "https://res.cloudinary.com/dtrxl120u/image/upload/v1760662241/uploads/2019-07-19_10-03-03_wcrugm.png"
+  },
   "vinyl-vs-mesh-banners-guide": {
     title: "Vinyl vs. Mesh Banners: Which Is Better for Your Next Project?",
     description: "Choosing between vinyl and mesh banners? Learn the key differences, benefits, and best applications for each material to make the right decision for your project.",
