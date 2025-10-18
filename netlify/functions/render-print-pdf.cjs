@@ -77,8 +77,34 @@ async function fetchPrintImage(fileKey, widthPx, heightPx, applyColorCorrection 
     console.log('[Print-PDF] Fetching image:', fileKey);
     console.log('[Print-PDF] Dimensions:', `${widthPx}×${heightPx}px`);
 
-    const url = buildPrintCloudinaryUrl(fileKey, widthPx, heightPx, applyColorCorrection);
-    console.log('[Print-PDF] URL:', url);
+    // CRITICAL FIX: Use cloudinary.uploader.explicit() to generate authenticated delivery URL
+    // This is the proper way to get transformed images from Cloudinary with authentication
+    const transformation = {
+      width: widthPx,
+      height: heightPx,
+      crop: 'fill',
+      gravity: 'center',
+      format: 'png',
+    };
+    
+    if (applyColorCorrection) {
+      transformation.effect = 'viesus_correct';
+    }
+    
+    console.log('[Print-PDF] Requesting explicit transformation:', JSON.stringify(transformation));
+    
+    // Use explicit() to generate the transformed version and get secure URL
+    const result = await cloudinary.uploader.explicit(fileKey, {
+      type: 'upload',
+      resource_type: 'image',
+      eager: [transformation],
+    });
+    
+    console.log('[Print-PDF] Explicit result:', JSON.stringify(result, null, 2));
+    
+    // Get the secure URL from the eager transformation
+    const url = result.eager && result.eager[0] ? result.eager[0].secure_url : result.secure_url;
+    console.log('[Print-PDF] Using secure URL:', url);
 
     const response = await fetch(url);
     if (!response.ok) {
@@ -94,6 +120,8 @@ async function fetchPrintImage(fileKey, widthPx, heightPx, applyColorCorrection 
     throw error;
   }
 }
+
+
 
 /**
  * Draw crop marks at corners
