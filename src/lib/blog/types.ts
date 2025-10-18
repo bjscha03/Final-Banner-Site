@@ -5,13 +5,17 @@
 export interface BlogFrontmatter {
   title: string;
   slug: string;
-  description: string;
-  date: string;
+  description?: string;
+  excerpt?: string;
+  publishDate?: string;
+  date?: string;
   updated?: string;
   author: string;
   tags: string[];
-  hero: string;
-  alt: string;
+  hero?: string;
+  heroImage?: string;
+  alt?: string;
+  featured?: boolean;
   readingTime?: boolean;
   canonical?: string;
   noindex?: boolean;

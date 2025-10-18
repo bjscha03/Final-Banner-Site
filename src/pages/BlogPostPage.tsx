@@ -73,11 +73,16 @@ export default function BlogPostPage() {
   }
   
   const { frontmatter } = post;
+  
+  // Handle both field name variations with fallbacks
+  const description = frontmatter.excerpt || frontmatter.description || post.excerpt || 'Read this article on Banners on the Fly blog';
+  const publishDate = frontmatter.publishDate || frontmatter.date || new Date().toISOString();
+  const heroImageUrl = frontmatter.heroImage || frontmatter.hero || 'https://res.cloudinary.com/dtrxl120u/image/upload/v1/blog/default-banner.jpg';
+  
   const canonicalUrl = frontmatter.canonical || `https://bannersonthefly.com/blog/${frontmatter.slug}`;
   
-  // Handle both 'hero' and 'heroImage' field names, with fallback to placeholder
-  const heroImageUrl = (frontmatter as any).heroImage || frontmatter.hero || 'https://via.placeholder.com/1200x600/18448D/ffffff?text=Blog+Post+Image';
-  const heroImage = heroImageUrl.includes('cloudinary.com') || heroImageUrl.includes('placeholder.com')
+  // Ensure hero image is a full URL
+  const heroImage = heroImageUrl.startsWith('http')
     ? heroImageUrl
     : `https://bannersonthefly.com${heroImageUrl}`;
   
@@ -86,10 +91,10 @@ export default function BlogPostPage() {
     '@context': 'https://schema.org',
     '@type': 'Article',
     headline: frontmatter.title,
-    description: frontmatter.description,
+    description: description,
     image: heroImage,
-    datePublished: frontmatter.date,
-    dateModified: frontmatter.updated || frontmatter.date,
+    datePublished: publishDate,
+    dateModified: frontmatter.updated || publishDate,
     author: {
       '@type': 'Organization',
       name: frontmatter.author,
@@ -108,15 +113,18 @@ export default function BlogPostPage() {
     <Layout>
       <Helmet>
         <title>{frontmatter.title} - Banners on the Fly Blog</title>
-        <meta name="description" content={frontmatter.description} />
+        <meta name="description" content={description} />
         
         {/* Open Graph */}
         <meta property="og:title" content={frontmatter.title} />
-        <meta property="og:description" content={frontmatter.description} />
+        <meta property="og:description" content={description} />
         <meta property="og:type" content="article" />
         <meta property="og:url" content={canonicalUrl} />
         <meta property="og:image" content={heroImage} />
-        <meta property="article:published_time" content={frontmatter.date} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:site_name" content="Banners on the Fly" />
+        <meta property="article:published_time" content={publishDate} />
         {frontmatter.updated && (
           <meta property="article:modified_time" content={frontmatter.updated} />
         )}
@@ -127,7 +135,7 @@ export default function BlogPostPage() {
         {/* Twitter Card */}
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content={frontmatter.title} />
-        <meta name="twitter:description" content={frontmatter.description} />
+        <meta name="twitter:description" content={description} />
         <meta name="twitter:image" content={heroImage} />
         
         {/* Canonical */}
