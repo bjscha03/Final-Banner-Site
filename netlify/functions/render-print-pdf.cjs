@@ -46,12 +46,14 @@ function getPrintConfig() {
 function buildPrintCloudinaryUrl(publicId, widthPx, heightPx, applyColorCorrection = false) {
   const transformOptions = {
     resource_type: 'image',
+    type: 'upload',
     width: widthPx,
     height: heightPx,
     crop: 'fill',
     gravity: 'center',
     color_space: 'srgb',
     format: 'png',
+    sign_url: true,
     // NO quality parameter - we want maximum quality
     // NO dpr - we want exact pixels
   };
@@ -61,7 +63,7 @@ function buildPrintCloudinaryUrl(publicId, widthPx, heightPx, applyColorCorrecti
     transformOptions.effect = 'viesus_correct';
   }
 
-  // Use Cloudinary SDK to generate URL (handles authentication)
+  // Use Cloudinary SDK to generate signed URL (handles authentication)
   return cloudinary.url(publicId, transformOptions);
 }
 
