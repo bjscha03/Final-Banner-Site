@@ -27,7 +27,13 @@ const botUserAgents = [
   'YandexBot',
   'Sogou',
   'Exabot',
-  'ia_archiver'
+  'ia_archiver',
+  'AppleBot',
+  'Applebot',
+  'iPhone',
+  'iPad',
+  'iPod',
+  'Macintosh'
 ];
 
 function isBot(userAgent: string): boolean {
@@ -47,17 +53,19 @@ function injectMetaTags(html: string, slug: string): string {
   
   let headContent = headMatch[1];
   
-  // Remove all existing og:, twitter:, title, and description meta tags
+  // Remove all existing og:, twitter:, title, description meta tags, and apple-touch-icon
   headContent = headContent
     .replace(/<meta[^>]*property="og:[^"]*"[^>]*>/gi, '')
     .replace(/<meta[^>]*name="twitter:[^"]*"[^>]*>/gi, '')
     .replace(/<meta[^>]*name="description"[^>]*>/gi, '')
-    .replace(/<title>[^<]*<\/title>/gi, '');
+    .replace(/<title>[^<]*<\/title>/gi, '')
+    .replace(/<link[^>]*rel="apple-touch-icon"[^>]*>/gi, '');
   
   // Add the new meta tags at the end of head content
   const newMetaTags = `
     <title>${post.title} - Banners on the Fly Blog</title>
     <meta name="description" content="${post.description}">
+    <link rel="apple-touch-icon" href="${post.image}">
     <meta property="og:type" content="article">
     <meta property="og:url" content="${url}">
     <meta property="og:title" content="${post.title}">
