@@ -491,6 +491,14 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                                   // For regular items, use the file download function
                                   handleFileDownload(downloadInfo.url, index);
                                 }
+                              }
+                            }}
+                            className="w-full"
+                          >
+                            <Download className="h-3 w-3 mr-1" />
+                            Download Image File
+                          </Button>
+                        )}
                         
                         {/* Print-Grade PDF Button (Beta) - Feature Flagged */}
                         {isAdminUser && printPipelineEnabled && (item.file_key || item.print_ready_url || item.web_preview_url) && (
@@ -516,15 +524,6 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                           >
                             <Info className="h-3 w-3 mr-1" />
                             Quality Check
-                          </Button>
-                        )}
-
-                              }
-                            }}
-                            className="w-full"
-                          >
-                            <Download className="h-3 w-3 mr-1" />
-                            Download Image File
                           </Button>
                         )}
                         
