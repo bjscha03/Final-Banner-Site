@@ -217,12 +217,18 @@ export default function Events() {
                         <div className="flex flex-col sm:flex-row">
                           <Link to={`/events/${event.slug}`} className="sm:w-48 flex-shrink-0">
                             <div className="relative h-48 sm:h-full bg-gray-200">
-                              <img 
-                                src={event.image_url} 
-                                alt={event.title}
-                                className="w-full h-full object-cover"
-                                loading="lazy"
-                              />
+                              {event.image_url ? (
+                                <img 
+                                  src={event.image_url} 
+                                  alt={event.title}
+                                  className="w-full h-full object-cover"
+                                  loading="lazy"
+                                />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-200 to-gray-300">
+                                  <Calendar className="h-16 w-16 text-gray-400" />
+                                </div>
+                              )}
                               {event.is_featured && (
                                 <Badge className="absolute top-2 right-2 bg-[#ff6b35]">
                                   Featured
@@ -297,12 +303,18 @@ export default function Events() {
                 <Card key={event.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                   <Link to={`/events/${event.slug}`}>
                     <div className="relative h-48 bg-gray-200">
-                      <img 
-                        src={event.image_url} 
-                        alt={event.title}
-                        className="w-full h-full object-cover"
-                        loading="lazy"
-                      />
+                      {event.image_url ? (
+                        <img 
+                          src={event.image_url} 
+                          alt={event.title}
+                          className="w-full h-full object-cover"
+                          loading="lazy"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-gray-200 to-gray-300">
+                          <Calendar className="h-16 w-16 text-gray-400" />
+                        </div>
+                      )}
                       {event.is_featured && (
                         <Badge className="absolute top-2 right-2 bg-[#ff6b35]">
                           Featured
