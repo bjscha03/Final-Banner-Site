@@ -39,9 +39,11 @@ export default function Events() {
       }
     });
 
+    console.log('Fetching events with params:', params.toString());
     fetch(`/.netlify/functions/events-list?${params}`)
       .then(res => res.json())
       .then(data => {
+        console.log('Events received:', data);
         setEvents(data.events || []);
         setLoading(false);
       })
@@ -65,6 +67,21 @@ export default function Events() {
       return formatDate(start);
     }
     return `${formatDate(start)} - ${formatDate(end)}`;
+  };
+
+
+  // Group events by month for calendar view
+  const groupEventsByMonth = () => {
+    const grouped: { [key: string]: Event[] } = {};
+    events.forEach(event => {
+      const date = new Date(event.start_at);
+      const monthKey = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      if (!grouped[monthKey]) {
+        grouped[monthKey] = [];
+      }
+      grouped[monthKey].push(event);
+    });
+    return grouped;
   };
 
   return (
@@ -150,7 +167,7 @@ export default function Events() {
 
               <Select
                 value={filters.featured ? 'featured' : 'all'}
-                onValueChange={(value) => setFilters({ ...filters, featured: value === 'featured', offset: 0 })}
+                onValueChange={(value) => setFilters({ ...filters, featured: value === 'featured' ? true : undefined, offset: 0 })}
               >
                 <SelectTrigger className="w-full sm:w-[200px]">
                   <SelectValue placeholder="All Events" />
@@ -185,7 +202,96 @@ export default function Events() {
                 <Link to="/events/submit">Submit an Event</Link>
               </Button>
             </div>
+          ) : view === 'calendar' ? (
+            /* Calendar View */
+            <div className="space-y-8">
+              {Object.entries(groupEventsByMonth()).map(([month, monthEvents]) => (
+                <div key={month}>
+                  <h2 className="text-2xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+                    <Calendar className="h-6 w-6 text-[#18448D]" />
+                    {month}
+                  </h2>
+                  <div className="space-y-3">
+                    {monthEvents.map(event => (
+                      <Card key={event.id} className="overflow-hidden hover:shadow-lg transition-shadow">
+                        <div className="flex flex-col sm:flex-row">
+                          <Link to={`/events/${event.slug}`} className="sm:w-48 flex-shrink-0">
+                            <div className="relative h-48 sm:h-full bg-gray-200">
+                              <img 
+                                src={event.image_url} 
+                                alt={event.title}
+                                className="w-full h-full object-cover"
+                                loading="lazy"
+                              />
+                              {event.is_featured && (
+                                <Badge className="absolute top-2 right-2 bg-[#ff6b35]">
+                                  Featured
+                                </Badge>
+                              )}
+                            </div>
+                          </Link>
+                          <div className="flex-1 p-6">
+                            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+                              <div className="flex-1">
+                                <div className="flex items-start gap-3 mb-3">
+                                  <div className="text-center bg-[#18448D] text-white rounded-lg p-3 min-w-[60px]">
+                                    <div className="text-2xl font-bold">
+                                      {new Date(event.start_at).getDate()}
+                                    </div>
+                                    <div className="text-xs uppercase">
+                                      {new Date(event.start_at).toLocaleDateString('en-US', { month: 'short' })}
+                                    </div>
+                                  </div>
+                                  <div className="flex-1">
+                                    <h3 className="text-xl font-semibold mb-2">
+                                      <Link to={`/events/${event.slug}`} className="hover:text-[#18448D]">
+                                        {event.title}
+                                      </Link>
+                                    </h3>
+                                    {event.category_name && (
+                                      <Badge variant="outline" className="mb-2">
+                                        {event.category_name}
+                                      </Badge>
+                                    )}
+                                    <div className="flex items-center gap-2 text-sm text-gray-600 mb-1">
+                                      <Calendar className="h-4 w-4" />
+                                      {formatDateRange(event.start_at, event.end_at)}
+                                    </div>
+                                    <div className="flex items-center gap-2 text-sm text-gray-600">
+                                      <MapPin className="h-4 w-4" />
+                                      {event.city}, {event.state}
+                                    </div>
+                                  </div>
+                                </div>
+                                <p className="text-sm text-gray-600 line-clamp-2">
+                                  {event.summary_short}
+                                </p>
+                              </div>
+                              <div className="flex sm:flex-col gap-2">
+                                <Button asChild size="sm">
+                                  <Link to={`/events/${event.slug}`}>
+                                    View Details
+                                  </Link>
+                                </Button>
+                                {event.external_url && (
+                                  <Button asChild size="sm" variant="outline">
+                                    <a href={event.external_url} target="_blank" rel="noopener noreferrer">
+                                      <ExternalLink className="h-4 w-4" />
+                                    </a>
+                                  </Button>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : (
+            /* List View */
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {events.map(event => (
                 <Card key={event.id} className="overflow-hidden hover:shadow-lg transition-shadow">
