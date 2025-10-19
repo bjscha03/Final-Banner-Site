@@ -30,17 +30,29 @@ exports.handler = async (event, context) => {
       const limit = parseInt(params.limit) || 100;
       const offset = parseInt(params.offset) || 0;
 
-      let query = `
-        SELECT e.*, c.name as category_name, c.slug as category_slug
-        FROM events e
-        LEFT JOIN event_categories c ON e.category_id = c.id
-        WHERE e.status = '${status}'
-      `;
+      let events;
+      if (search) {
+        const searchPattern = `%${search}%`;
+        events = await sql`
+          SELECT e.*, c.name as category_name, c.slug as category_slug
+          FROM events e
+          LEFT JOIN event_categories c ON e.category_id = c.id
+          WHERE e.status = ${status}
+          AND (e.title ILIKE ${searchPattern} OR e.city ILIKE ${searchPattern})
+          ORDER BY e.created_at DESC
+          LIMIT ${limit} OFFSET ${offset}
+        `;
+      } else {
+        events = await sql`
+          SELECT e.*, c.name as category_name, c.slug as category_slug
+          FROM events e
+          LEFT JOIN event_categories c ON e.category_id = c.id
+          WHERE e.status = ${status}
+          ORDER BY e.created_at DESC
+          LIMIT ${limit} OFFSET ${offset}
+        `;
+      }
       
-      if (search) query += ` AND (e.title ILIKE '%${search}%' OR e.city ILIKE '%${search}%')`;
-      query += ` ORDER BY e.created_at DESC LIMIT ${limit} OFFSET ${offset}`;
-
-      const events = await sql.unsafe(query);
       return { statusCode: 200, headers, body: JSON.stringify({ events }) };
     }
 
@@ -49,20 +61,29 @@ exports.handler = async (event, context) => {
       const body = JSON.parse(event.body);
       if (!eventId) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Event ID required' }) };
 
-      const updates = [];
       if (body.status && ['pending', 'approved', 'rejected'].includes(body.status)) {
-        updates.push(`status = '${body.status}'`);
+        const result = await sql`
+          UPDATE events 
+          SET status = ${body.status}
+          WHERE id = ${eventId}
+          RETURNING id, slug, status, is_featured
+        `;
+        if (result.length === 0) return { statusCode: 404, headers, body: JSON.stringify({ error: 'Event not found' }) };
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true, event: result[0] }) };
       }
+
       if (typeof body.is_featured === 'boolean') {
-        updates.push(`is_featured = ${body.is_featured}`);
+        const result = await sql`
+          UPDATE events 
+          SET is_featured = ${body.is_featured}
+          WHERE id = ${eventId}
+          RETURNING id, slug, status, is_featured
+        `;
+        if (result.length === 0) return { statusCode: 404, headers, body: JSON.stringify({ error: 'Event not found' }) };
+        return { statusCode: 200, headers, body: JSON.stringify({ success: true, event: result[0] }) };
       }
 
-      if (updates.length === 0) return { statusCode: 400, headers, body: JSON.stringify({ error: 'No valid fields to update' }) };
-
-      const result = await sql.unsafe(`UPDATE events SET ${updates.join(', ')} WHERE id = '${eventId}' RETURNING id, slug, status, is_featured`);
-      if (result.length === 0) return { statusCode: 404, headers, body: JSON.stringify({ error: 'Event not found' }) };
-
-      return { statusCode: 200, headers, body: JSON.stringify({ success: true, event: result[0] }) };
+      return { statusCode: 400, headers, body: JSON.stringify({ error: 'No valid fields to update' }) };
     }
 
     if (event.httpMethod === 'DELETE') {

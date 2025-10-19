@@ -24,24 +24,97 @@ exports.handler = async (event, context) => {
     const limit = parseInt(params.limit) || 50;
     const offset = parseInt(params.offset) || 0;
 
-    let query = `
-      SELECT 
-        e.id, e.title, e.slug, e.summary_short, e.image_url,
-        e.venue, e.city, e.state, e.start_at, e.end_at, e.is_featured,
-        c.name as category_name, c.slug as category_slug
-      FROM events e
-      LEFT JOIN event_categories c ON e.category_id = c.id
-      WHERE e.status = '${status}'
-      AND e.start_at >= NOW() - INTERVAL '7 days'
-    `;
+    // Build query based on filters
+    let events, countResult;
+    
+    if (category && featured) {
+      events = await sql`
+        SELECT 
+          e.id, e.title, e.slug, e.summary_short, e.image_url,
+          e.venue, e.city, e.state, e.start_at, e.end_at, e.is_featured,
+          c.name as category_name, c.slug as category_slug
+        FROM events e
+        LEFT JOIN event_categories c ON e.category_id = c.id
+        WHERE e.status = ${status}
+        AND c.slug = ${category}
+        AND e.is_featured = true
+        AND e.start_at >= NOW() - INTERVAL '7 days'
+        ORDER BY e.is_featured DESC, e.start_at ASC
+        LIMIT ${limit} OFFSET ${offset}
+      `;
+      countResult = await sql`
+        SELECT COUNT(*) as total
+        FROM events e
+        LEFT JOIN event_categories c ON e.category_id = c.id
+        WHERE e.status = ${status}
+        AND c.slug = ${category}
+        AND e.is_featured = true
+        AND e.start_at >= NOW() - INTERVAL '7 days'
+      `;
+    } else if (category) {
+      events = await sql`
+        SELECT 
+          e.id, e.title, e.slug, e.summary_short, e.image_url,
+          e.venue, e.city, e.state, e.start_at, e.end_at, e.is_featured,
+          c.name as category_name, c.slug as category_slug
+        FROM events e
+        LEFT JOIN event_categories c ON e.category_id = c.id
+        WHERE e.status = ${status}
+        AND c.slug = ${category}
+        AND e.start_at >= NOW() - INTERVAL '7 days'
+        ORDER BY e.is_featured DESC, e.start_at ASC
+        LIMIT ${limit} OFFSET ${offset}
+      `;
+      countResult = await sql`
+        SELECT COUNT(*) as total
+        FROM events e
+        LEFT JOIN event_categories c ON e.category_id = c.id
+        WHERE e.status = ${status}
+        AND c.slug = ${category}
+        AND e.start_at >= NOW() - INTERVAL '7 days'
+      `;
+    } else if (featured) {
+      events = await sql`
+        SELECT 
+          e.id, e.title, e.slug, e.summary_short, e.image_url,
+          e.venue, e.city, e.state, e.start_at, e.end_at, e.is_featured,
+          c.name as category_name, c.slug as category_slug
+        FROM events e
+        LEFT JOIN event_categories c ON e.category_id = c.id
+        WHERE e.status = ${status}
+        AND e.is_featured = true
+        AND e.start_at >= NOW() - INTERVAL '7 days'
+        ORDER BY e.is_featured DESC, e.start_at ASC
+        LIMIT ${limit} OFFSET ${offset}
+      `;
+      countResult = await sql`
+        SELECT COUNT(*) as total
+        FROM events e
+        WHERE e.status = ${status}
+        AND e.is_featured = true
+        AND e.start_at >= NOW() - INTERVAL '7 days'
+      `;
+    } else {
+      events = await sql`
+        SELECT 
+          e.id, e.title, e.slug, e.summary_short, e.image_url,
+          e.venue, e.city, e.state, e.start_at, e.end_at, e.is_featured,
+          c.name as category_name, c.slug as category_slug
+        FROM events e
+        LEFT JOIN event_categories c ON e.category_id = c.id
+        WHERE e.status = ${status}
+        AND e.start_at >= NOW() - INTERVAL '7 days'
+        ORDER BY e.is_featured DESC, e.start_at ASC
+        LIMIT ${limit} OFFSET ${offset}
+      `;
+      countResult = await sql`
+        SELECT COUNT(*) as total
+        FROM events e
+        WHERE e.status = ${status}
+        AND e.start_at >= NOW() - INTERVAL '7 days'
+      `;
+    }
 
-    if (category) query += ` AND c.slug = '${category}'`;
-    if (featured) query += ` AND e.is_featured = true`;
-
-    query += ` ORDER BY e.is_featured DESC, e.start_at ASC LIMIT ${limit} OFFSET ${offset}`;
-
-    const events = await sql.unsafe(query);
-    const countResult = await sql.unsafe(query.replace(/SELECT.*FROM/, 'SELECT COUNT(*) as total FROM').split('ORDER BY')[0]);
     const total = parseInt(countResult[0]?.total) || 0;
 
     return {
