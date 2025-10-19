@@ -9,7 +9,7 @@ const TestimonialsSection: React.FC = () => {
       company: "Dan-O's Seasoning",
       image: "https://res.cloudinary.com/dtrxl120u/image/upload/v1759799151/dan-oliver_1200xx3163-3170-1048-0_zgphzw.jpg",
       rating: 5,
-      text: ""I've been ordering banners from these guys since before they even launched their new website. They've handled every single one of my banner needs since the day I started my business.""
+      text: "\"I've been ordering banners from these guys since before they even launched their new website. They've handled every single one of my banner needs since the day I started my business.\""
     },
     {
       name: "Brandon Schaefer",
@@ -17,7 +17,7 @@ const TestimonialsSection: React.FC = () => {
       company: "HempRise LLC",
       image: "https://res.cloudinary.com/dtrxl120u/image/upload/v1759933582/1758106259564_oysdje.jpg",
       rating: 5,
-      text: ""Best banner service I've used. The 24-hour turnaround saved our grand opening event. Quality exceeded expectations and pricing was very competitive.""
+      text: "\"Best banner service I've used. The 24-hour turnaround saved our grand opening event. Quality exceeded expectations and pricing was very competitive.\""
     },
     {
       name: "Jennifer Chen",
@@ -25,7 +25,7 @@ const TestimonialsSection: React.FC = () => {
       company: "Premier Events",
       image: "https://d64gsuwffb70l.cloudfront.net/68bb812d3c680d9a9bc2bdd7_1757118820418_895c1191.webp",
       rating: 5,
-      text: ""We order dozens of banners monthly for events. Banners On The Fly consistently delivers premium quality with fast turnaround. Highly recommended!""
+      text: "\"We order dozens of banners monthly for events. Banners On The Fly consistently delivers premium quality with fast turnaround. Highly recommended!\""
     }
   ];
 
