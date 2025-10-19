@@ -246,25 +246,28 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
                 Upload artwork to preview
               </text>
             </g>
-          )}
-
-          {/* Text Elements */}
+          )}          {/* Text Elements */}
           {textElements.map((textEl) => {
-            // Calculate font size in inches to match the preview canvas
-            const ESTIMATED_PREVIEW_BANNER_HEIGHT_PX = 400;
-            const fontSizeInInches = textEl.fontSize * (heightIn / ESTIMATED_PREVIEW_BANNER_HEIGHT_PX);
+            // CRITICAL FIX: Match the live preview rendering exactly
+            // The live preview uses: fontSize = element.fontSize * (previewScale / 100)
+            // For thumbnails, we want to show text at 100% scale (no preview scaling)
+            // So we use the fontSize directly, but convert it to SVG viewBox units
             
-            // The stored xPercent/yPercent represent the TOP-LEFT corner of the text div
-            // But the text inside may be aligned left/center/right within that div
-            // For SVG, we need to use textAnchor to match the CSS textAlign behavior
+            // The fontSize is stored in pixels (e.g., 24px)
+            // We need to convert it to inches for the SVG viewBox
+            // Assuming 96 DPI (standard web DPI): 1 inch = 96 pixels
+            const DPI = 96;
+            const fontSizeInInches = textEl.fontSize / DPI;
+            
+            // Text alignment - match the live preview behavior
             let textAnchor: 'start' | 'middle' | 'end' = 'start';
             if (textEl.textAlign === 'center') textAnchor = 'middle';
             else if (textEl.textAlign === 'right') textAnchor = 'end';
             
-            // xPercent/yPercent represent the CENTER position of the text
-            // (50, 50) means centered both horizontally and vertically
-            const xPosition = (widthIn * textEl.xPercent / 100);
-            const yPosition = (heightIn * textEl.yPercent / 100);
+            // Position using percentage coordinates (matches live preview)
+            // xPercent/yPercent represent the position of the text element
+            const xPosition = (viewBoxWidth * textEl.xPercent / 100);
+            const yPosition = (viewBoxHeight * textEl.yPercent / 100);
             
             return (
               <text
@@ -282,6 +285,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
               </text>
             );
           })}
+
           {/* Overlay Image (Logo) */}
           {overlayImage && overlayImage.position && typeof overlayImage.position.x === 'number' && typeof overlayImage.position.y === 'number' && (() => {
             const aspectRatio = overlayImage.aspectRatio || 1;
