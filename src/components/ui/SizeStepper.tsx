@@ -63,32 +63,32 @@ export function SizeStepper({
       <label className="block text-sm font-medium text-gray-700 mb-2">
         {label}
       </label>
-      <div className="grid grid-cols-[auto_1fr_auto] gap-3 items-center">
+      <div className="flex items-center gap-2">
         {/* Decrement Button */}
         <button 
           type="button"
           onClick={decrement}
           disabled={value <= min}
-          className="h-10 w-10 shrink-0 rounded-md border border-slate-300 bg-white hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors touch-manipulation"
+          className="h-10 w-10 flex-shrink-0 rounded-md border border-slate-300 bg-white hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors touch-manipulation"
           aria-label={`Decrease ${label.toLowerCase()}`}
         >
           <Minus className="h-4 w-4 text-blue-600" />
         </button>
 
         {/* Input Field */}
-        <div className="relative">
+        <div className="relative flex-1 min-w-0">
           <input
             type="text"
             inputMode="numeric"
             pattern="[0-9]*"
-            className="h-10 w-full min-w-[5rem] rounded-md border border-slate-300 text-center font-medium tabular-nums text-slate-900 bg-white px-4 py-2 text-base focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
+            className="h-10 w-full rounded-md border border-slate-300 text-center font-medium tabular-nums text-slate-900 bg-white px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
             value={value || ''}
             onChange={handleInputChange}
             onBlur={handleInputBlur}
             aria-label={`${label} value`}
           />
           {unit && (
-            <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none font-medium">
+            <span className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none font-medium">
               {unit}
             </span>
           )}
@@ -99,7 +99,7 @@ export function SizeStepper({
           type="button"
           onClick={increment}
           disabled={value >= max}
-          className="h-10 w-10 shrink-0 rounded-md border border-slate-300 bg-white hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors touch-manipulation"
+          className="h-10 w-10 flex-shrink-0 rounded-md border border-slate-300 bg-white hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors touch-manipulation"
           aria-label={`Increase ${label.toLowerCase()}`}
         >
           <Plus className="h-4 w-4 text-blue-600" />
