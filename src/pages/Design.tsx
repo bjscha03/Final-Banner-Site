@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
+import PageHeader from '@/components/PageHeader';
+import { Palette } from 'lucide-react';
 import SizeQuantityCard from '@/components/design/SizeQuantityCard';
 import MaterialCard from '@/components/design/MaterialCard';
 import OptionsCard from '@/components/design/OptionsCard';
@@ -203,18 +205,14 @@ const Design: React.FC = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-white pt-8 pb-4 sm:pt-12 sm:pb-6 md:pt-16 md:pb-8 relative" style={{ touchAction: 'pan-y pinch-zoom' }}>
-
+      <PageHeader
+        title="Design Your Custom Banner"
+        subtitle="Create professional banners with our easy-to-use design tool. See live previews and get instant pricing as you customize."
+        icon={Palette}
+      />
+      
+      <div className="min-h-screen bg-gray-50 pt-8 pb-4 sm:pt-12 sm:pb-6 md:pt-16 md:pb-8 relative" style={{ touchAction: 'pan-y pinch-zoom' }}>
         <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 relative z-10">
-          <div className="text-center mb-8 md:mb-12">
-            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4 md:mb-6 px-6 sm:px-8 md:px-12 lg:px-16 leading-tight">
-              Design Your Custom Banner
-            </h1>
-            <p className="text-base sm:text-lg md:text-xl text-gray-700 max-w-2xl mx-auto px-4">
-              Create professional banners with our easy-to-use design tool.
-              See live previews and get instant pricing as you customize.
-            </p>
-          </div>
 
           <div ref={configuratorRef}>
             {/* Mobile Layout: Vertical stack with optimal order */}

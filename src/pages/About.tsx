@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Award, Users, Clock, Shield, Target, Heart, Zap, CheckCircle, Sparkles, TrendingUp, Star } from 'lucide-react';
 import Layout from '@/components/Layout';
+import PageHeader from '@/components/PageHeader';
 import { useScrollToTop } from '@/components/ScrollToTop';
 
 const About: React.FC = () => {
@@ -67,16 +68,17 @@ const About: React.FC = () => {
 
   return (
     <Layout>
+      <PageHeader
+        title="About Banners on the Fly"
+        subtitle="Your trusted partner for professional vinyl banners with lightning-fast delivery and unmatched quality."
+        icon={Heart}
+      />
+      
       <div className="min-h-screen bg-gray-50 relative overflow-hidden">
         {/* Hero Section */}
-        <div className="relative pt-20 pb-24 px-4 sm:px-6 lg:px-8">
+        <div className="relative pt-12 pb-24 px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
             <div className="text-center mb-16">
-              <p className="text-xl md:text-2xl text-gray-700 max-w-4xl mx-auto leading-relaxed mb-12">
-                Your trusted partner for <span className="font-bold text-orange-500">professional vinyl banners</span> with
-                <span className="font-bold text-[#18448D]"> lightning-fast delivery</span> and
-                <span className="font-bold text-orange-600"> unmatched quality</span>
-              </p>
 
               {/* Stats Cards */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl mx-auto">

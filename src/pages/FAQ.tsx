@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronUp, HelpCircle, Search } from 'lucide-react';
 import Layout from '@/components/Layout';
+import PageHeader from '@/components/PageHeader';
 
 const FAQ: React.FC = () => {
   const [openIndex, setOpenIndex] = useState<number | null>(0);
@@ -88,20 +89,14 @@ const FAQ: React.FC = () => {
 
   return (
     <Layout>
+      <PageHeader
+        title="Frequently Asked Questions"
+        subtitle="Find answers to common questions about our banner printing services, materials, and ordering process."
+        icon={HelpCircle}
+      />
+      
       <div className="min-h-screen bg-gray-50 py-12">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          {/* Page Header */}
-          <div className="text-center mb-12">
-            <div className="flex items-center justify-center space-x-2 mb-4">
-              <HelpCircle className="h-8 w-8 text-orange-500" />
-              <h1 className="text-4xl font-bold text-gray-900">
-                Frequently Asked Questions
-              </h1>
-            </div>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Find answers to common questions about our banner printing services, materials, and ordering process.
-            </p>
-          </div>
 
           {/* Search Bar */}
           <div className="mb-8">

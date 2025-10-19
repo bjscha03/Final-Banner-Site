@@ -7,6 +7,8 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import Layout from '@/components/Layout';
+import PageHeader from '@/components/PageHeader';
+import { BookOpen } from 'lucide-react';
 import { BlogList } from '@/components/blog';
 import { getAllPosts, getAllTags, paginatePosts } from '@/lib/blog';
 import type { BlogListItem } from '@/lib/blog';
@@ -78,6 +80,12 @@ export default function Blog() {
         <meta property="og:url" content="https://bannersonthefly.com/blog" />
         <link rel="canonical" href="https://bannersonthefly.com/blog" />
       </Helmet>
+      
+      <PageHeader
+        title="Blog"
+        subtitle="Expert tips, guides, and insights on custom banner printing, design, and marketing strategies"
+        icon={BookOpen}
+      />
       
       <BlogList
         posts={paginatedData.posts}

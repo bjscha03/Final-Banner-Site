@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Mail, Clock, Shield, Send, Phone, MessageCircle, CheckCircle, AlertCircle, MapPin, Zap, HeadphonesIcon } from 'lucide-react';
 import Layout from '@/components/Layout';
+import PageHeader from '@/components/PageHeader';
 import { useToast } from '@/components/ui/use-toast';
 import { useLocation } from 'react-router-dom';
 
@@ -91,18 +92,15 @@ const Contact: React.FC = () => {
 
   return (
     <Layout>
+      <PageHeader
+        title="Contact Our Support Team"
+        subtitle="Have questions about your banner order? Our expert team is here to help 24/7."
+        icon={MessageCircle}
+      />
+      
       <div className="min-h-screen bg-gray-50">
-        <div className="py-20 px-4 sm:px-6 lg:px-8">
+        <div className="py-12 px-4 sm:px-6 lg:px-8">
           <div className="max-w-7xl mx-auto">
-            {/* Page Header */}
-            <div className="text-center mb-16">
-              <h1 className="text-5xl md:text-6xl font-black mb-6 tracking-tight text-gray-900">
-                Contact Our Support Team
-              </h1>
-              <p className="text-xl md:text-2xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
-                Have questions about your banner order? Our expert team is here to help <span className="font-bold text-[#18448D]">24/7</span>.
-              </p>
-            </div>
 
             <div className="grid lg:grid-cols-5 gap-12">
               {/* Left Column - Contact Info (2 columns) */}
