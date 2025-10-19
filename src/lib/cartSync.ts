@@ -10,7 +10,8 @@
  * - Structured logging and telemetry
  */
 
-import { db } from './supabase/client';
+// DISABLED: Direct database access from frontend causes 400 errors
+// import { db } from './supabase/client';
 import type { CartItem } from '@/store/cart';
 
 // Telemetry event types
