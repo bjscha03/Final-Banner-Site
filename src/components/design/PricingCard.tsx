@@ -266,6 +266,9 @@ const PricingCard: React.FC = () => {
       title: "Added to Cart",
       description: "Your banner has been added to the cart.",
     });
+      
+      // Scroll to top so user can see the cart
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     
     // Reset design area after successful add
     console.log('🔄 RESET: About to call resetDesign() after direct add (no upsell)');
@@ -342,6 +345,9 @@ const PricingCard: React.FC = () => {
       title: "Cart Updated",
       description: "Your banner design has been updated in the cart.",
     });
+      
+      // Scroll to top so user can see the cart
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     
     // Reset design area after successful update
     console.log('🔄 RESET: About to call resetDesign() after direct update (no upsell)');
@@ -502,6 +508,9 @@ const PricingCard: React.FC = () => {
         description: "Your banner has been added to the cart.",
       });
       
+      // Scroll to top so user can see the cart
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      
       // Reset design area after successful add
       console.log('🔄 RESET: About to call resetDesign() after add (from upsell modal)');
       console.log('🔄 RESET: Current file before reset:', quote.file);
@@ -526,6 +535,9 @@ const PricingCard: React.FC = () => {
         title: "Cart Updated",
         description: "Your banner design has been updated in the cart.",
       });
+      
+      // Scroll to top so user can see the cart
+      window.scrollTo({ top: 0, behavior: 'smooth' });
       
       // Reset design area after successful update
       console.log('🔄 RESET: About to call resetDesign() after update (from upsell modal)');
