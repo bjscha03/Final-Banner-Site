@@ -38,6 +38,7 @@ import BlogTagPage from "./pages/BlogTagPage";
 import Events from "./pages/Events";
 import EventDetail from "./pages/EventDetail";
 import EventSubmit from "./pages/EventSubmit";
+import CategoryPage from "./pages/CategoryPage";
 import { useCartSync } from "@/hooks/useCartSync";
 import { useCartRevalidation } from "@/hooks/useCartRevalidation";
 
@@ -98,7 +99,17 @@ const App = () => (
             <Route path="/blog/tags/:tag" element={<BlogTagPage />} />
             <Route path="/events" element={<Events />} />
             <Route path="/events/:slug" element={<EventDetail />} />
-            <Route path="/events/submit" element={<EventSubmit />} />
+            <Route path="/events/submit" element={<EventSubmit />} />            
+            {/* SEO Category Pages */}
+            <Route path="/vinyl-banners" element={<CategoryPage />} />
+            <Route path="/mesh-banners" element={<CategoryPage />} />
+            <Route path="/trade-show-banners" element={<CategoryPage />} />
+            <Route path="/food-truck-banners" element={<CategoryPage />} />
+            <Route path="/outdoor-banners" element={<CategoryPage />} />
+            <Route path="/indoor-banners" element={<CategoryPage />} />
+            <Route path="/event-banners" element={<CategoryPage />} />
+            <Route path="/custom-banners" element={<CategoryPage />} />
+            <Route path="/construction-banners" element={<CategoryPage />} />
           </Routes>
           </BrowserRouter>
         </CartSyncWrapper>

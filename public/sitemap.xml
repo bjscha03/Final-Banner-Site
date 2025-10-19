@@ -2,49 +2,119 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <url>
     <loc>https://bannersonthefly.com/</loc>
-    <lastmod>2025-10-17</lastmod>
+    <lastmod>2025-10-19</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
+  
+  <!-- Category Pages (High Priority for SEO) -->
+  <url>
+    <loc>https://bannersonthefly.com/vinyl-banners</loc>
+    <lastmod>2025-10-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://bannersonthefly.com/mesh-banners</loc>
+    <lastmod>2025-10-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://bannersonthefly.com/trade-show-banners</loc>
+    <lastmod>2025-10-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://bannersonthefly.com/food-truck-banners</loc>
+    <lastmod>2025-10-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://bannersonthefly.com/outdoor-banners</loc>
+    <lastmod>2025-10-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://bannersonthefly.com/indoor-banners</loc>
+    <lastmod>2025-10-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://bannersonthefly.com/event-banners</loc>
+    <lastmod>2025-10-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://bannersonthefly.com/custom-banners</loc>
+    <lastmod>2025-10-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  <url>
+    <loc>https://bannersonthefly.com/construction-banners</loc>
+    <lastmod>2025-10-19</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.9</priority>
+  </url>
+  
+  <!-- Design Tool -->
   <url>
     <loc>https://bannersonthefly.com/design</loc>
-    <lastmod>2025-10-17</lastmod>
+    <lastmod>2025-10-19</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
+  
+  <!-- Blog -->
   <url>
-    <loc>https://bannersonthefly.com/ai-design</loc>
-    <lastmod>2025-10-17</lastmod>
+    <loc>https://bannersonthefly.com/blog</loc>
+    <lastmod>2025-10-19</lastmod>
     <changefreq>weekly</changefreq>
-    <priority>0.9</priority>
+    <priority>0.8</priority>
   </url>
+  
+  <!-- About & Contact -->
   <url>
     <loc>https://bannersonthefly.com/about</loc>
-    <lastmod>2025-10-17</lastmod>
+    <lastmod>2025-10-19</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
     <loc>https://bannersonthefly.com/contact</loc>
-    <lastmod>2025-10-17</lastmod>
+    <lastmod>2025-10-19</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
+    <loc>https://bannersonthefly.com/faq</loc>
+    <lastmod>2025-10-19</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.7</priority>
+  </url>
+  
+  <!-- Shipping & Policies -->
+  <url>
     <loc>https://bannersonthefly.com/shipping</loc>
-    <lastmod>2025-10-17</lastmod>
+    <lastmod>2025-10-19</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
     <loc>https://bannersonthefly.com/terms</loc>
-    <lastmod>2025-10-17</lastmod>
+    <lastmod>2025-10-19</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   <url>
     <loc>https://bannersonthefly.com/privacy</loc>
-    <lastmod>2025-10-17</lastmod>
+    <lastmod>2025-10-19</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
