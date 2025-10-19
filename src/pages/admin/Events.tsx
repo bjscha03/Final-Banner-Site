@@ -1,15 +1,18 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { Check, X, Trash2, Upload, Download, ExternalLink, Star } from 'lucide-react';
+import { Check, X, Trash2, Upload, Download, ExternalLink, Star, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { Event } from '@/types/events';
@@ -20,15 +23,30 @@ export default function AdminEvents() {
   const [events, setEvents] = useState<Event[]>([]);
   const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [locationFilter, setLocationFilter] = useState('');
+  const [categories, setCategories] = useState<any[]>([]);
+  const [locations, setLocations] = useState<string[]>([]);
+  const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set());
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
   const [ingestData, setIngestData] = useState('');
   const [dryRun, setDryRun] = useState(true);
   const [ingestLoading, setIngestLoading] = useState(false);
   const [ingestResults, setIngestResults] = useState<any>(null);
 
   useEffect(() => {
+    // Fetch categories
+    fetch('/.netlify/functions/events-categories')
+      .then(res => res.json())
+      .then(data => setCategories(data.categories || []))
+      .catch(err => console.error('Error fetching categories:', err));
+  }, []);
+
+  useEffect(() => {
+    setSelectedEvents(new Set()); // Clear selection when changing tabs/filters
     if (activeTab === 'ingest') return;
     fetchEvents(activeTab);
-  }, [activeTab, searchTerm]);
+  }, [activeTab, searchTerm, categoryFilter, locationFilter]);
 
   const fetchEvents = async (status: string) => {
     setLoading(true);
@@ -36,7 +54,8 @@ export default function AdminEvents() {
       const params = new URLSearchParams({
         status,
         limit: '100',
-        ...(searchTerm && { search: searchTerm })
+        ...(searchTerm && { search: searchTerm }),
+        ...(categoryFilter && categoryFilter !== 'all' && { category: categoryFilter })
       });
 
       const response = await fetch(`/.netlify/functions/admin-events?${params}`, {
@@ -48,7 +67,25 @@ export default function AdminEvents() {
       if (!response.ok) throw new Error('Failed to fetch events');
 
       const data = await response.json();
-      setEvents(data.events || []);
+      let eventsList = data.events || [];
+      
+      // Extract unique locations
+      const uniqueLocations = Array.from(new Set(
+        eventsList
+          .filter((e: any) => e.city && e.state)
+          .map((e: any) => `${e.city}, ${e.state}`)
+      )).sort();
+      setLocations(uniqueLocations);
+      
+      // Apply location filter (client-side)
+      if (locationFilter && locationFilter !== 'all') {
+        eventsList = eventsList.filter((e: any) => {
+          const eventLocation = e.city && e.state ? `${e.city}, ${e.state}` : null;
+          return eventLocation === locationFilter;
+        });
+      }
+      
+      setEvents(eventsList);
     } catch (error: any) {
       toast({
         title: 'Error',
@@ -213,6 +250,25 @@ export default function AdminEvents() {
             <p className="text-gray-600">Manage event submissions and bulk import events</p>
           </div>
 
+          {/* Admin Navigation */}
+          <div className="mb-6">
+            <Tabs value="events" className="w-full">
+              <TabsList>
+                <TabsTrigger value="orders" className="flex items-center gap-2" asChild>
+                  <a href="/admin/orders">
+                    <Package className="h-4 w-4" />
+                    Orders
+                  </a>
+                </TabsTrigger>
+                <TabsTrigger value="events" className="flex items-center gap-2">
+                  <Star className="h-4 w-4" />
+                  Events
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
+
+          {/* Events Status Tabs */}
           <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
             <TabsList className="mb-6">
               <TabsTrigger value="pending">
@@ -242,12 +298,46 @@ export default function AdminEvents() {
                           {status === 'rejected' && 'Rejected event submissions'}
                         </CardDescription>
                       </div>
-                      <Input
-                        placeholder="Search events..."
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        className="max-w-xs"
-                      />
+                      <div className="flex gap-2">
+                        <Input
+                          placeholder="Search events..."
+                          value={searchTerm}
+                          onChange={(e) => setSearchTerm(e.target.value)}
+                          className="max-w-xs"
+                        />
+                        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                          <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="All Categories" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Categories</SelectItem>
+                            {categories.map(cat => (
+                              <SelectItem key={cat.slug} value={cat.slug}>{cat.name}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Select value={locationFilter} onValueChange={setLocationFilter}>
+                          <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="All Locations" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All Locations</SelectItem>
+                            {locations.map(loc => (
+                              <SelectItem key={loc} value={loc}>{loc}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        {selectedEvents.size > 0 && (
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            onClick={() => setShowBulkDeleteConfirm(true)}
+                          >
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Delete Selected ({selectedEvents.size})
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent>
@@ -261,6 +351,12 @@ export default function AdminEvents() {
                       <Table>
                         <TableHeader>
                           <TableRow>
+                            <TableHead className="w-12">
+                              <Checkbox
+                                checked={selectedEvents.size === events.length && events.length > 0}
+                                onCheckedChange={toggleSelectAll}
+                              />
+                            </TableHead>
                             <TableHead>Title</TableHead>
                             <TableHead>Category</TableHead>
                             <TableHead>Location</TableHead>
@@ -272,6 +368,12 @@ export default function AdminEvents() {
                         <TableBody>
                           {events.map(event => (
                             <TableRow key={event.id}>
+                              <TableCell>
+                                <Checkbox
+                                  checked={selectedEvents.has(event.id)}
+                                  onCheckedChange={() => toggleEventSelection(event.id)}
+                                />
+                              </TableCell>
                               <TableCell>
                                 <div className="flex items-center gap-2">
                                   {event.is_featured && <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />}
@@ -441,6 +543,24 @@ export default function AdminEvents() {
           </Tabs>
         </div>
       </div>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete {selectedEvents.size} Event(s)?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the selected events from the database.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleBulkDelete} className="bg-red-600 hover:bg-red-700">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

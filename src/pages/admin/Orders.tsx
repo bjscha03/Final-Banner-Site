@@ -25,6 +25,8 @@ import {
   Loader2
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Calendar as CalendarIcon } from 'lucide-react';
 import OrderDetails from '@/components/orders/OrderDetails';
 import {
   Dialog,
@@ -51,6 +53,7 @@ const AdminOrders: React.FC = () => {
   const [showAccessDenied, setShowAccessDenied] = useState(false);
   const { toast } = useToast();
   const [pdfLoadingStates, setPdfLoadingStates] = useState<Record<string, boolean>>({});
+  const [activeAdminTab, setActiveAdminTab] = useState<'orders' | 'events'>('orders');
   useEffect(() => {
 
     // Show access denied message instead of immediate redirect
