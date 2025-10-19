@@ -16,7 +16,7 @@ const WhyChooseUs: React.FC = () => {
     {
       icon: Shield,
       title: 'Premium Quality',
-      description: '13oz vinyl material with vibrant, long-lasting colors.'
+      description: '13oz, 15oz, & 18oz vinyl material with vibrant, long-lasting colors.'
     },
     {
       icon: Trophy,

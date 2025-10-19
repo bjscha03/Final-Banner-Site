@@ -59,7 +59,7 @@ const TestimonialsSection: React.FC = () => {
                 ))}
               </div>
               
-              <div className="relative mb-6">
+              <div className="relative mb-6 min-h-[120px] flex items-start">
                 <Quote className="absolute -top-2 -left-2 h-8 w-8 text-[#18448D] rotate-180" />
                 <p className="text-slate-700 leading-relaxed pl-6">
                   {testimonial.text}
@@ -71,11 +71,9 @@ const TestimonialsSection: React.FC = () => {
                   <img
                     src={testimonial.image}
                     alt={testimonial.name}
-                    className={`w-12 h-12 rounded-full object-cover border-2 border-slate-200 ${
-                      testimonial.name === 'Jennifer Chen' ? 'object-top' : ''
-                    }`}
+                    className="w-12 h-12 rounded-full object-cover border-2 border-slate-200"
                   />
-                  <div className={testimonial.name === 'Jennifer Chen' ? 'self-center' : ''}>
+                  <div>
                     <div className="font-semibold text-slate-900">{testimonial.name}</div>
                     <div className="text-sm text-slate-600">{testimonial.title}</div>
                     <div className="text-sm text-orange-600 font-semibold">{testimonial.company}</div>
