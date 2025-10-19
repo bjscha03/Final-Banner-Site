@@ -47,6 +47,7 @@ export default function Events() {
       .then(data => {
         console.log('Events received:', data);
         const eventsList = data.events || [];
+        console.log('Setting events state with', eventsList.length, 'events:', eventsList.map(e => ({ id: e.id, title: e.title, category: e.category_slug })));
         setEvents(eventsList);
         
         // Extract unique locations
@@ -85,12 +86,18 @@ export default function Events() {
   // Filter events by location (client-side)
   const getFilteredEvents = () => {
     const locationFilter = (filters as any).location;
-    if (!locationFilter) return events;
+    console.log('getFilteredEvents called. Total events:', events.length, 'Location filter:', locationFilter);
+    if (!locationFilter) {
+      console.log('No location filter, returning all', events.length, 'events');
+      return events;
+    }
     
-    return events.filter(event => {
+    const filtered = events.filter(event => {
       const eventLocation = event.city && event.state ? `${event.city}, ${event.state}` : null;
       return eventLocation === locationFilter;
     });
+    console.log('After location filter:', filtered.length, 'events');
+    return filtered;
   };
 
   // Group events by month for calendar view
