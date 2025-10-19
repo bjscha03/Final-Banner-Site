@@ -6,6 +6,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { ShoppingCart, Sparkles, Check, Loader2, X } from 'lucide-react';
+import { PayPalScriptProvider, PayPalButtons } from "@paypal/react-paypal-js";
 import {
   Dialog,
   DialogContent,
@@ -70,7 +71,8 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
 }) => {
   const [selectedPackage, setSelectedPackage] = useState<CreditPackage | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [paypalLoaded, setPaypalLoaded] = useState(false);
+  const [paypalClientId, setPaypalClientId] = useState<string | null>(null);
+  const [isLoadingConfig, setIsLoadingConfig] = useState(true);
   const { toast } = useToast();
 
   // Use ref to store handler so it doesn't get recreated
@@ -79,7 +81,7 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
   // Listen for custom event to show receipt (works in PayPal callback context)
   useEffect(() => {
     const handleShowReceipt = (event: any) => {
-      console.log('🎯 Custom event received: show-credit-receipt', event.detail);
+      console.log('�� Custom event received: show-credit-receipt', event.detail);
       const receiptData = event.detail;
       
       // Validate receipt data
@@ -109,28 +111,45 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
     };
   }, []);  // Only setup/cleanup on mount/unmount
 
-  
-
-  // Load PayPal SDK
+  // Load PayPal configuration
   useEffect(() => {
     if (!open) return;
 
-    const script = document.getElementById('paypal-sdk');
-    if (script) {
-      setPaypalLoaded(true);
-      return;
-    }
+    const loadPayPalConfig = async () => {
+      try {
+        // Try to load from Netlify function first
+        const response = await fetch('/.netlify/functions/paypal-config');
+        if (response.ok) {
+          const config = await response.json();
+          if (config.enabled && config.clientId) {
+            setPaypalClientId(config.clientId);
+            console.log('✅ PayPal config loaded from Netlify function');
+          } else {
+            throw new Error('PayPal not enabled in config');
+          }
+        } else {
+          throw new Error('Failed to load PayPal config from function');
+        }
+      } catch (error) {
+        console.error('Error loading PayPal config from function:', error);
+        // Fallback to environment variable
+        const fallbackClientId = import.meta.env.VITE_PAYPAL_CLIENT_ID || 
+                                 (window as any).NEXT_PUBLIC_PAYPAL_CLIENT_ID;
+        if (fallbackClientId) {
+          setPaypalClientId(fallbackClientId);
+          console.log('✅ PayPal config loaded from environment variable');
+        } else {
+          console.error('❌ No PayPal client ID available');
+        }
+      } finally {
+        setIsLoadingConfig(false);
+      }
+    };
 
-    const newScript = document.createElement('script');
-    newScript.id = 'paypal-sdk';
-    newScript.src = `https://www.paypal.com/sdk/js?client-id=${import.meta.env.VITE_PAYPAL_CLIENT_ID || 'test'}&currency=USD`;
-    newScript.async = true;
-    newScript.onload = () => setPaypalLoaded(true);
-    document.body.appendChild(newScript);
+    loadPayPalConfig();
   }, [open]);
 
   // Show receipt modal when purchaseData is set
-  // SIMPLIFIED: Just show receipt whenever purchaseData becomes truthy
   useEffect(() => {
     console.log('🔍 useEffect triggered - purchaseData:', purchaseData);
     console.log('🔍 useEffect triggered - showReceipt:', showReceipt);
@@ -158,9 +177,7 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
     }
   }, [purchaseData]);
 
-
-
-  const handlePurchase = async (pkg: CreditPackage) => {
+  const handleSelectPackage = (pkg: CreditPackage) => {
     // Check if user is authenticated
     if (!userId || userId === 'null' || userId === 'undefined') {
       console.error('❌ User not authenticated, cannot purchase credits');
@@ -169,158 +186,172 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
         description: 'Please sign up or log in to purchase AI credits.',
         variant: 'destructive',
       });
-      setIsProcessing(false);
       onOpenChange(false);
-      // TODO: Redirect to login/signup page
       return;
     }
 
+    console.log('📦 Package selected:', pkg);
     setSelectedPackage(pkg);
     setIsProcessing(true);
+  };
 
+  const handleCreateOrder = async () => {
+    if (!selectedPackage) {
+      throw new Error('No package selected');
+    }
+
+    console.log('🔄 Creating PayPal order for credits...');
+    
     try {
-      // Create PayPal order
-      const createResponse = await fetch('/.netlify/functions/paypal-create-credits-order', {
+      const response = await fetch('/.netlify/functions/paypal-create-credits-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           userId,
           email: userEmail,
-          credits: pkg.credits,
-          amountCents: Math.round(pkg.price * 100),
+          credits: selectedPackage.credits,
+          amountCents: Math.round(selectedPackage.price * 100),
         }),
       });
 
-      if (!createResponse.ok) {
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('❌ Failed to create order:', response.status, errorText);
         throw new Error('Failed to create payment order');
       }
 
-      const { orderID } = await createResponse.json();
-
-      // Initialize PayPal buttons
-      if (window.paypal) {
-        const container = document.getElementById('paypal-button-container');
-        if (container) {
-          container.innerHTML = ''; // Clear previous buttons
-
-          window.paypal.Buttons({
-            createOrder: () => orderID,
-            onApprove: async (data: any) => {
-              try {
-                console.log('🔄 Capturing PayPal payment...', data.orderID);
-                // Capture the payment
-                const captureResponse = await fetch('/.netlify/functions/paypal-capture-credits-order', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({
-                    orderID: data.orderID,
-                    userId,
-                    email: userEmail,
-                    credits: pkg.credits,
-                    amountCents: Math.round(pkg.price * 100),
-                  }),
-                });
-                console.log('📡 Backend response status:', captureResponse.status);
-                console.log('📡 Backend response status:', captureResponse.status);
-
-                if (!captureResponse.ok) {
-                  const errorText = await captureResponse.text();
-                  console.error('❌ Backend capture failed:', captureResponse.status, errorText);
-                  
-                  toast({
-                    title: "Payment Processing Error",
-                    description: `Backend error: ${captureResponse.status}. Check console for details.`,
-                    variant: "destructive"
-                  });
-                  
-                  throw new Error(`Backend capture failed: ${captureResponse.status}`);
-                }
-
-                const result = await captureResponse.json();
-                console.log('📦 Capture response:', result);
-                console.log('✅ Payment captured successfully:', result);
-
-                console.log('🧾 Preparing receipt data...');
-                // Store purchase data for receipt
-                const receiptData = {
-                  id: result.purchaseId,
-                  credits_purchased: pkg.credits,
-                  amount_cents: Math.round(pkg.price * 100),
-                  paypal_capture_id: result.purchaseId,
-                  customer_name: userEmail || 'Customer',
-                  email: userEmail || '',
-                  created_at: new Date().toISOString(),
-                };
-                
-                console.log('📋 Receipt data prepared:', receiptData);
-                
-                // Dispatch custom event (works in PayPal callback context)
-                console.log('🚀 Dispatching show-credit-receipt event');
-                const event = new CustomEvent('show-credit-receipt', {
-                  detail: receiptData,
-                  bubbles: true,
-                });
-                window.dispatchEvent(event);
-                console.log('✅ Event dispatched successfully');
-                
-                toast({
-                  title: '✅ Credits Purchased!',
-                  description: `${pkg.credits} credits have been added to your account.`,
-                });
-
-                // Reset processing state and selected package
-                setIsProcessing(false);
-                setSelectedPackage(null);
-
-                // Refresh credits
-                if (onPurchaseComplete) {
-                  onPurchaseComplete();
-                }
-                
-                // Don't set showReceipt here - let useEffect handle it after state updates
-                // useEffect will handle showing receipt and closing purchase modal
-              } catch (error) {
-                console.error('Payment capture error:', error);
-                toast({
-                  title: '❌ Payment Failed',
-                  description: 'There was an error processing your payment. Please try again.',
-                  variant: 'destructive',
-                });
-                setIsProcessing(false);
-                setSelectedPackage(null);
-              }
-            },
-            onError: (err: any) => {
-              console.error('PayPal error:', err);
-              toast({
-                title: '❌ Payment Error',
-                description: 'There was an error with PayPal. Please try again.',
-                variant: 'destructive',
-              });
-              setIsProcessing(false);
-              setSelectedPackage(null);
-            },
-            onCancel: () => {
-              toast({
-                title: 'Payment Cancelled',
-                description: 'You cancelled the payment.',
-              });
-              setIsProcessing(false);
-              setSelectedPackage(null);
-            },
-          }).render('#paypal-button-container');
-        }
-      }
+      const { orderID } = await response.json();
+      console.log('✅ PayPal order created:', orderID);
+      return orderID;
     } catch (error) {
-      console.error('Purchase error:', error);
+      console.error('❌ Create order error:', error);
       toast({
         title: '❌ Error',
         description: 'Failed to initiate purchase. Please try again.',
         variant: 'destructive',
       });
       setIsProcessing(false);
+      setSelectedPackage(null);
+      throw error;
     }
   };
+
+  const handleApprove = async (data: any) => {
+    if (!selectedPackage) {
+      console.error('❌ No package selected');
+      return;
+    }
+
+    try {
+      console.log('🔄 Capturing PayPal payment...', data.orderID);
+      
+      const captureResponse = await fetch('/.netlify/functions/paypal-capture-credits-order', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderID: data.orderID,
+          userId,
+          email: userEmail,
+          credits: selectedPackage.credits,
+          amountCents: Math.round(selectedPackage.price * 100),
+        }),
+      });
+
+      console.log('📡 Backend response status:', captureResponse.status);
+
+      if (!captureResponse.ok) {
+        const errorText = await captureResponse.text();
+        console.error('❌ Backend capture failed:', captureResponse.status, errorText);
+        
+        toast({
+          title: "Payment Processing Error",
+          description: `Backend error: ${captureResponse.status}. Check console for details.`,
+          variant: "destructive"
+        });
+        
+        throw new Error(`Backend capture failed: ${captureResponse.status}`);
+      }
+
+      const result = await captureResponse.json();
+      console.log('📦 Capture response:', result);
+      console.log('✅ Payment captured successfully:', result);
+
+      console.log('🧾 Preparing receipt data...');
+      
+      // Store purchase data for receipt
+      const receiptData = {
+        id: result.purchaseId,
+        credits_purchased: selectedPackage.credits,
+        amount_cents: Math.round(selectedPackage.price * 100),
+        paypal_capture_id: result.purchaseId,
+        customer_name: userEmail || 'Customer',
+        email: userEmail || '',
+        created_at: new Date().toISOString(),
+      };
+      
+      console.log('📋 Receipt data prepared:', receiptData);
+      
+      // Dispatch custom event (works in PayPal callback context)
+      console.log('🚀 Dispatching show-credit-receipt event');
+      const event = new CustomEvent('show-credit-receipt', {
+        detail: receiptData,
+        bubbles: true,
+      });
+      window.dispatchEvent(event);
+      console.log('✅ Event dispatched successfully');
+      
+      toast({
+        title: '✅ Credits Purchased!',
+        description: `${selectedPackage.credits} credits have been added to your account.`,
+      });
+
+      // Reset processing state and selected package
+      setIsProcessing(false);
+      setSelectedPackage(null);
+
+      // Refresh credits
+      if (onPurchaseComplete) {
+        onPurchaseComplete();
+      }
+    } catch (error) {
+      console.error('Payment capture error:', error);
+      toast({
+        title: '❌ Payment Failed',
+        description: 'There was an error processing your payment. Please try again.',
+        variant: 'destructive',
+      });
+      setIsProcessing(false);
+      setSelectedPackage(null);
+    }
+  };
+
+  const handleError = (err: any) => {
+    console.error('PayPal error:', err);
+    toast({
+      title: '❌ Payment Error',
+      description: 'There was an error with PayPal. Please try again.',
+      variant: 'destructive',
+    });
+    setIsProcessing(false);
+    setSelectedPackage(null);
+  };
+
+  const handleCancel = () => {
+    toast({
+      title: 'Payment Cancelled',
+      description: 'You cancelled the payment.',
+    });
+    setIsProcessing(false);
+    setSelectedPackage(null);
+  };
+
+  const paypalInitialOptions = paypalClientId ? {
+    clientId: paypalClientId,
+    currency: "USD",
+    intent: "capture" as const,
+    commit: true,
+    vault: false,
+  } : null;
 
   return (
     <>
@@ -349,7 +380,7 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
                           ? 'border-blue-600 bg-blue-50'
                           : 'border-gray-200 hover:border-blue-400'
                       }`}
-                      onClick={() => handlePurchase(pkg)}
+                      onClick={() => handleSelectPackage(pkg)}
                     >
                       {pkg.popular && (
                         <div className="absolute -top-3 left-1/2 transform -translate-x-1/2 bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-bold">
@@ -409,17 +440,41 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
               </>
             ) : (
               <div className="text-center py-8">
-                {isProcessing ? (
-                  <>
-                    <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
-                    <p className="text-lg font-medium mb-2">Processing your purchase...</p>
-                    <p className="text-sm text-gray-600">
-                      {selectedPackage.credits} credits for ${selectedPackage.price.toFixed(2)}
+                <Loader2 className="w-12 h-12 animate-spin text-blue-600 mx-auto mb-4" />
+                <p className="text-lg font-medium mb-2">Processing your purchase...</p>
+                <p className="text-sm text-gray-600 mb-6">
+                  {selectedPackage.credits} credits for ${selectedPackage.price.toFixed(2)}
+                </p>
+
+                {isLoadingConfig ? (
+                  <div className="flex items-center justify-center py-8">
+                    <Loader2 className="h-6 w-6 animate-spin mr-2" />
+                    <span>Loading payment options...</span>
+                  </div>
+                ) : !paypalInitialOptions ? (
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                    <p className="text-amber-800 text-sm">
+                      <strong>PayPal Unavailable:</strong> PayPal payments are currently not configured.
+                      Please contact support.
                     </p>
-                    <div id="paypal-button-container" className="mt-6"></div>
-                  </>
+                  </div>
                 ) : (
-                  <div id="paypal-button-container" className="mt-6"></div>
+                  <PayPalScriptProvider options={paypalInitialOptions}>
+                    <div className="max-w-md mx-auto">
+                      <PayPalButtons
+                        style={{
+                          layout: "vertical",
+                          color: "blue",
+                          shape: "rect",
+                          label: "paypal",
+                        }}
+                        createOrder={handleCreateOrder}
+                        onApprove={handleApprove}
+                        onError={handleError}
+                        onCancel={handleCancel}
+                      />
+                    </div>
+                  </PayPalScriptProvider>
                 )}
               </div>
             )}
