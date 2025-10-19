@@ -3,8 +3,8 @@
  * Shows DPI information and warnings when resolution is too low for print quality.
  */
 
-import React from 'react';
-import { AlertTriangle } from 'lucide-react';
+import React, { useState } from 'react';
+import { AlertTriangle, X } from 'lucide-react';
 
 interface QualityBadgeProps {
   /** Current image scale factor (1.0 = 100%) */
@@ -90,6 +90,9 @@ export default function QualityBadge({
   minDPI = 150,
   className = ''
 }: QualityBadgeProps) {
+  // State to track if the warning has been dismissed
+  const [isDismissed, setIsDismissed] = useState(false);
+  
   // Calculate effective DPI at current scale
   const effectiveDPI = calculateEffectiveDPI(
     artworkPixelWidth,
@@ -105,7 +108,8 @@ export default function QualityBadge({
   // Only show badge for low quality or when explicitly requested
   const shouldShow = quality.level === 'low' || quality.level === 'acceptable';
   
-  if (!shouldShow) {
+  // Don't show if dismissed or if quality is good
+  if (!shouldShow || isDismissed) {
     return null;
   }
   
@@ -113,7 +117,7 @@ export default function QualityBadge({
     <div
       className={`
         absolute top-16 right-4 z-30
-        flex items-center gap-2 px-3 py-2
+        flex items-center gap-2 px-3 py-2 pr-2
         rounded-lg border shadow-sm
         backdrop-blur-sm bg-opacity-90
         ${quality.bgColor} ${quality.borderColor} ${quality.color}
@@ -127,7 +131,7 @@ export default function QualityBadge({
       {quality.level === 'low' && (
         <AlertTriangle className="h-4 w-4 flex-shrink-0" />
       )}
-      <div className="flex flex-col gap-1">
+      <div className="flex flex-col gap-1 flex-1">
         <div className="flex items-center gap-2">
           <span className="font-semibold">
             {Math.round(effectiveDPI)} DPI
@@ -140,6 +144,21 @@ export default function QualityBadge({
           {quality.message}
         </div>
       </div>
+      <button
+        onClick={() => setIsDismissed(true)}
+        className={`
+          ml-2 p-1 rounded-md
+          hover:bg-black/10 active:bg-black/20
+          transition-colors duration-150
+          focus:outline-none focus:ring-2 focus:ring-offset-1
+          ${quality.color.replace('text-', 'focus:ring-')}
+          min-w-[44px] min-h-[44px] flex items-center justify-center
+        `}
+        aria-label="Dismiss warning"
+        title="Dismiss warning"
+      >
+        <X className="h-4 w-4" />
+      </button>
     </div>
   );
 }
