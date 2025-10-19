@@ -109,20 +109,20 @@ const SizeCard: React.FC = () => {
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Width (inches)
           </label>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <button
               onClick={() => adjustWidth(-1)}
               disabled={widthIn <= 1}
-              className="w-9 h-9 bg-white border border-gray-200 rounded-xl hover:border-gray-300 hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center"
+              className="h-10 w-10 bg-white border border-slate-300 rounded-md hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
             >
-              <Minus className="w-4 h-4 text-gray-600" />
+              <Minus className="h-4 w-4 text-blue-600" />
             </button>
             <Input
               type="number"
               value={widthInput}
               onChange={(e) => validateAndSetWidth(e.target.value)}
               onBlur={handleWidthBlur}
-              className="text-center border-gray-200 rounded-xl"
+              className="flex-1 min-w-[5rem] text-center bg-white border border-slate-300 rounded-md px-4 py-2 text-base font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
               min="1"
               max="1000"
               step="1"
@@ -130,9 +130,9 @@ const SizeCard: React.FC = () => {
             <button
               onClick={() => adjustWidth(1)}
               disabled={widthIn >= 1000}
-              className="w-9 h-9 bg-white border border-gray-200 rounded-xl hover:border-gray-300 hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center"
+              className="h-10 w-10 bg-white border border-slate-300 rounded-md hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
             >
-              <Plus className="w-4 h-4 text-gray-600" />
+              <Plus className="h-4 w-4 text-blue-600" />
             </button>
           </div>
           {widthError && (
@@ -144,20 +144,20 @@ const SizeCard: React.FC = () => {
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Height (inches)
           </label>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <button
               onClick={() => adjustHeight(-1)}
               disabled={heightIn <= 1}
-              className="w-9 h-9 bg-white border border-gray-200 rounded-xl hover:border-gray-300 hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center"
+              className="h-10 w-10 bg-white border border-slate-300 rounded-md hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
             >
-              <Minus className="w-4 h-4 text-gray-600" />
+              <Minus className="h-4 w-4 text-blue-600" />
             </button>
             <Input
               type="number"
               value={heightInput}
               onChange={(e) => validateAndSetHeight(e.target.value)}
               onBlur={handleHeightBlur}
-              className="text-center border-gray-200 rounded-xl"
+              className="flex-1 min-w-[5rem] text-center bg-white border border-slate-300 rounded-md px-4 py-2 text-base font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
               min="1"
               max="1000"
               step="1"
@@ -165,9 +165,9 @@ const SizeCard: React.FC = () => {
             <button
               onClick={() => adjustHeight(1)}
               disabled={heightIn >= 1000}
-              className="w-9 h-9 bg-white border border-gray-200 rounded-xl hover:border-gray-300 hover:shadow-sm disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 flex items-center justify-center"
+              className="h-10 w-10 bg-white border border-slate-300 rounded-md hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
             >
-              <Plus className="w-4 h-4 text-gray-600" />
+              <Plus className="h-4 w-4 text-blue-600" />
             </button>
           </div>
           {heightError && (
