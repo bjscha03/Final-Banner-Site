@@ -260,14 +260,57 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
       console.log('📡 Backend response status:', captureResponse.status);
 
       if (!captureResponse.ok) {
-        const errorText = await captureResponse.text();
-        console.error('❌ Backend capture failed:', captureResponse.status, errorText);
+        let errorData;
+        try {
+          errorData = await captureResponse.json();
+        } catch {
+          errorData = { error: 'UNKNOWN_ERROR' };
+        }
+        
+        console.error('❌ Backend capture failed:', captureResponse.status, errorData);
+        
+        // Parse PayPal error details from backend response
+        let errorTitle = "💳 Payment Failed";
+        let errorMessage = "Your payment could not be processed. Please try again.";
+        
+        if (errorData.details) {
+          const details = errorData.details;
+          
+          // Check for INSTRUMENT_DECLINED (card declined)
+          if (details.name === 'UNPROCESSABLE_ENTITY' || 
+              (details.details && details.details.some((d: any) => d.issue === 'INSTRUMENT_DECLINED'))) {
+            errorTitle = "💳 Payment Declined";
+            errorMessage = "Your card was declined by your bank. Please try a different payment method or contact your bank.";
+            
+            // Extract specific decline reason if available
+            const declineDetail = details.details?.find((d: any) => d.issue === 'INSTRUMENT_DECLINED');
+            if (declineDetail?.description) {
+              console.error('�� Decline reason:', declineDetail.description);
+            }
+          }
+          // Check for other PayPal errors
+          else if (details.name === 'PAYPAL_CAPTURE_FAILED') {
+            errorTitle = "⚠️ Payment Processing Error";
+            errorMessage = "PayPal could not process your payment. Please try again or use a different payment method.";
+          }
+          
+          // Log debug_id if available
+          if (details.debug_id) {
+            console.error('🔍 PayPal Debug ID:', details.debug_id);
+            errorMessage += ` (Debug ID: ${details.debug_id})`;
+          }
+        }
         
         toast({
-          title: "Payment Processing Error",
-          description: `Backend error: ${captureResponse.status}. Check console for details.`,
-          variant: "destructive"
+          title: errorTitle,
+          description: errorMessage,
+          variant: "destructive",
+          duration: 8000, // Show for 8 seconds so user can read it
         });
+        
+        // Reset state so user can try again
+        setIsProcessing(false);
+        setSelectedPackage(null);
         
         throw new Error(`Backend capture failed: ${captureResponse.status}`);
       }
