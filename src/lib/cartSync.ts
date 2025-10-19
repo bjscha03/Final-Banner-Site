@@ -8,11 +8,10 @@
  * - Cross-device synchronization
  * - Idempotency and race condition protection
  * - Structured logging and telemetry
+ * 
+ * UPDATED: Now uses Netlify Functions for database access instead of direct Supabase client
  */
 
-// DISABLED: Direct database access from frontend causes 400 errors
-// import { db } from './supabase/client';
-const db: any = null; // Disabled - database access from frontend causes errors
 import type { CartItem } from '@/store/cart';
 
 // Telemetry event types
@@ -126,11 +125,10 @@ class CartSyncService {
   }
 
   /**
-   * Check if database is available
+   * Check if cart sync is available (always true now with Netlify functions)
    */
   isAvailable(): boolean {
-    // DISABLED: Database access from frontend causes errors
-    return false;
+    return true; // Always available via Netlify functions
   }
 
   /**
@@ -228,55 +226,28 @@ class CartSyncService {
   }
 
   /**
-   * Load cart from database
+   * Load cart from database via Netlify function
    * For authenticated users: load by user_id
    * For guests: load by session_id
    */
   async loadCart(userId?: string, sessionId?: string): Promise<CartItem[]> {
     const requestId = this.generateRequestId();
 
-    if (!this.isAvailable()) {
-      this.logEvent({
-        event: 'CART_LOAD',
-        requestId,
-        success: false,
-        error: 'Database not available',
-      });
-      return [];
-    }
-
     try {
-      let result;
+      const params = new URLSearchParams();
+      if (userId) params.append('userId', userId);
+      if (sessionId) params.append('sessionId', sessionId);
 
-      if (userId) {
-        // Load authenticated user's cart
-        result = await db!`
-          SELECT cart_data, updated_at
-          FROM user_carts
-          WHERE user_id = ${userId} AND status = 'active'
-          LIMIT 1
-        `;
-      } else if (sessionId) {
-        // Load guest cart
-        console.log('🔍 CART SYNC: Loading guest cart from database with sessionId:', sessionId ? `${sessionId.substring(0, 12)}...` : 'none');
-        result = await db!`
-          SELECT cart_data, updated_at
-          FROM user_carts
-          WHERE session_id = ${sessionId} AND status = 'active'
-          LIMIT 1
-        `;
-        console.log('🔍 CART SYNC: Database query result:', result ? result.length : 0, 'rows');
-        if (result && result.length > 0) {
-          console.log('�� CART SYNC: Found guest cart in database');
-          console.log('🔍 CART SYNC: Cart data:', result[0].cart_data);
-        } else {
-          console.log('⚠️ CART SYNC: No guest cart found in database for this session ID');
-        }
-      } else {
-        throw new Error('Either userId or sessionId must be provided');
+      console.log('[cart-load] Calling Netlify function:', { userId: userId ? `${userId.substring(0, 8)}...` : null, sessionId: sessionId ? `${sessionId.substring(0, 12)}...` : null });
+
+      const response = await fetch(`/.netlify/functions/cart-load?${params.toString()}`);
+      
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
       }
 
-      const cartData = result && result.length > 0 ? (result[0].cart_data as CartItem[]) : [];
+      const data = await response.json();
+      const cartData = data.cartData || [];
 
       this.logEvent({
         event: 'CART_LOAD',
@@ -287,6 +258,7 @@ class CartSyncService {
         success: true,
       });
 
+      console.log('[cart-load] Loaded', cartData.length, 'items from server');
       return cartData;
     } catch (error) {
       this.logEvent({
@@ -297,25 +269,16 @@ class CartSyncService {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error',
       });
+      console.error('[cart-load] Error loading cart:', error);
       return [];
     }
   }
 
   /**
-   * Save cart to database with idempotency
+   * Save cart to database via Netlify function
    */
   async saveCart(items: CartItem[], userId?: string, sessionId?: string): Promise<boolean> {
     const requestId = this.generateRequestId();
-
-    if (!this.isAvailable()) {
-      this.logEvent({
-        event: 'CART_SAVE',
-        requestId,
-        success: false,
-        error: 'Database not available',
-      });
-      return false;
-    }
 
     if (!userId && !sessionId) {
       this.logEvent({
@@ -328,142 +291,22 @@ class CartSyncService {
     }
 
     try {
-      // AGGRESSIVE sanitization to prevent JSON serialization errors
-      const sanitizedItems = items.map(item => {
-        // Create a clean copy with only serializable fields
-        const sanitized: any = {
-          id: item.id,
-          width_in: item.width_in,
-          height_in: item.height_in,
-          quantity: item.quantity,
-          material: item.material,
-          grommets: item.grommets,
-          pole_pockets: item.pole_pockets,
-          pole_pocket_size: item.pole_pocket_size,
-          pole_pocket_position: item.pole_pocket_position,
-          rope_feet: item.rope_feet,
-          area_sqft: item.area_sqft,
-          unit_price_cents: item.unit_price_cents,
-          rope_cost_cents: item.rope_cost_cents,
-          rope_pricing_mode: item.rope_pricing_mode,
-          pole_pocket_cost_cents: item.pole_pocket_cost_cents,
-          pole_pocket_pricing_mode: item.pole_pocket_pricing_mode,
-          line_total_cents: item.line_total_cents,
-        };
-        
-        // Optional fields
-        if (item.file_key) sanitized.file_key = item.file_key;
-        if (item.file_name) sanitized.file_name = item.file_name;
-        if (item.is_pdf !== undefined) sanitized.is_pdf = item.is_pdf;
-        if (item.image_scale) sanitized.image_scale = item.image_scale;
-        if (item.image_position) sanitized.image_position = item.image_position;
+      console.log('[cart-save] Calling Netlify function:', { userId: userId ? `${userId.substring(0, 8)}...` : null, sessionId: sessionId ? `${sessionId.substring(0, 12)}...` : null, itemCount: items.length });
 
-        // Only add URLs if they're valid strings
-        if (item.file_url && typeof item.file_url === 'string') {
-          sanitized.file_url = item.file_url;
-        }
-        if (item.web_preview_url && typeof item.web_preview_url === 'string') {
-          sanitized.web_preview_url = item.web_preview_url;
-        }
-        if (item.print_ready_url && typeof item.print_ready_url === 'string') {
-          sanitized.print_ready_url = item.print_ready_url;
-        }
-
-        // Add text elements if present
-        if (item.text_elements && Array.isArray(item.text_elements)) {
-          sanitized.text_elements = item.text_elements;
-        }
-        
-        // Add overlay image if present
-        if (item.overlay_image && typeof item.overlay_image === 'object') {
-          sanitized.overlay_image = {
-            name: item.overlay_image.name,
-            url: item.overlay_image.url,
-            fileKey: item.overlay_image.fileKey,
-            position: item.overlay_image.position,
-            scale: item.overlay_image.scale,
-            aspectRatio: item.overlay_image.aspectRatio
-          };
-        }
-        
-        // Add AI design data if present
-        if (item.aiDesign && typeof item.aiDesign === 'object') {
-          sanitized.aiDesign = item.aiDesign;
-        }
-
-        // Add AI generation data if present
-        if (item.ai_generation_id && typeof item.ai_generation_id === 'string') {
-          sanitized.ai_generation_id = item.ai_generation_id;
-        }
-        if (item.ai_prompt && typeof item.ai_prompt === 'string') {
-          sanitized.ai_prompt = item.ai_prompt;
-        }
-        if (item.ai_selected_variation && typeof item.ai_selected_variation === 'number') {
-          sanitized.ai_selected_variation = item.ai_selected_variation;
-        }
-
-        return sanitized;
+      const response = await fetch('/.netlify/functions/cart-save', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId,
+          sessionId,
+          cartData: items,
+        }),
       });
-      
-      const cartDataJson = JSON.stringify(sanitizedItems);
-      
-      // Log what we're about to save for debugging
-      console.log('💾 Saving cart:', {
-        userId,
-        sessionId,
-        itemCount: sanitizedItems.length,
-        dataSize: cartDataJson.length,
-        preview: cartDataJson.substring(0, 200) + '...'
-      });
-      
-      // Validate JSON size (Neon has limits)
-      if (cartDataJson.length > 1000000) { // 1MB limit
-        console.error('❌ Cart data too large:', cartDataJson.length, 'bytes');
-        this.logEvent({
-          event: 'CART_SAVE',
-          requestId,
-          success: false,
-          error: `Cart data too large: ${cartDataJson.length} bytes`,
-        });
-        return false;
-      }
 
-      if (userId) {
-        // Use CTE with ON CONFLICT to handle race conditions atomically
-        // The CTE archives old carts, then INSERT with ON CONFLICT ensures no duplicate key errors
-        await db!`
-          WITH archived AS (
-            UPDATE user_carts
-            SET status = 'archived', updated_at = NOW()
-            WHERE user_id = ${userId} AND status = 'active'
-            RETURNING id
-          )
-          INSERT INTO user_carts (user_id, cart_data, status, updated_at, last_accessed_at)
-          VALUES (${userId}, ${cartDataJson}::jsonb, 'active', NOW(), NOW())
-          ON CONFLICT (user_id) WHERE status = 'active' AND user_id IS NOT NULL
-          DO UPDATE SET
-            cart_data = EXCLUDED.cart_data,
-            updated_at = EXCLUDED.updated_at,
-            last_accessed_at = EXCLUDED.last_accessed_at
-        `;
-      } else if (sessionId) {
-        // Use CTE with ON CONFLICT to handle race conditions atomically
-        // The CTE archives old carts, then INSERT with ON CONFLICT ensures no duplicate key errors
-        await db!`
-          WITH archived AS (
-            UPDATE user_carts
-            SET status = 'archived', updated_at = NOW()
-            WHERE session_id = ${sessionId} AND status = 'active'
-            RETURNING id
-          )
-          INSERT INTO user_carts (session_id, cart_data, status, updated_at, last_accessed_at)
-          VALUES (${sessionId}, ${cartDataJson}::jsonb, 'active', NOW(), NOW())
-          ON CONFLICT (session_id) WHERE status = 'active' AND session_id IS NOT NULL
-          DO UPDATE SET
-            cart_data = EXCLUDED.cart_data,
-            updated_at = EXCLUDED.updated_at,
-            last_accessed_at = EXCLUDED.last_accessed_at
-        `;
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${await response.text()}`);
       }
 
       this.logEvent({
@@ -475,16 +318,10 @@ class CartSyncService {
         success: true,
       });
 
+      console.log('[cart-save] Saved', items.length, 'items to server');
       return true;
     } catch (error) {
-      console.error('❌ CART_SAVE ERROR:', error);
-      console.error('Error details:', {
-        message: error instanceof Error ? error.message : 'Unknown',
-        stack: error instanceof Error ? error.stack : undefined,
-        userId,
-        sessionId,
-        itemCount: items.length
-      });
+      console.error('[cart-save] Error saving cart:', error);
       this.logEvent({
         event: 'CART_SAVE',
         userId,
@@ -496,6 +333,7 @@ class CartSyncService {
       return false;
     }
   }
+
   /**
    * Merge guest cart into authenticated user's cart on login
    * - Loads both guest and user carts
@@ -520,7 +358,6 @@ class CartSyncService {
       console.log('🔄 CART SYNC: Loading guest cart with sessionId:', sessionId ? `${sessionId.substring(0, 12)}...` : 'none');
       const guestItems = await this.loadCart(undefined, sessionId);
       console.log('🔄 CART SYNC: Guest cart loaded:', guestItems.length, 'items');
-      console.log('🔄 CART SYNC: Guest items:', guestItems);
       
       // Load user's existing cart
       console.log('🔄 CART SYNC: Loading user cart for userId:', userId ? `${userId.substring(0, 8)}...` : 'none');
@@ -531,25 +368,11 @@ class CartSyncService {
       console.log('🔄 CART SYNC: Merging carts...');
       const mergedItems = this.mergeCartItems(guestItems, userItems);
       console.log('🔄 CART SYNC: Merged result:', mergedItems.length, 'items');
-      console.log('🔄 CART SYNC: Merged items:', mergedItems);
 
       // Save merged cart to user's account
       console.log('🔄 CART SYNC: Saving merged cart to database...');
       await this.saveCart(mergedItems, userId);
       console.log('✅ CART SYNC: Merged cart saved to database');
-
-      // Archive guest cart (mark as merged, don't delete)
-      if (guestItems.length > 0 && this.isAvailable()) {
-        try {
-          await db!`
-            UPDATE user_carts
-            SET status = 'merged', updated_at = NOW()
-            WHERE session_id = ${sessionId} AND status = 'active'
-          `;
-        } catch (error) {
-          console.error('Failed to archive guest cart:', error);
-        }
-      }
 
       // Clear guest session cookie
       this.clearSessionCookie();
@@ -590,40 +413,19 @@ class CartSyncService {
   async clearCart(userId?: string, sessionId?: string): Promise<boolean> {
     const requestId = this.generateRequestId();
 
-    if (!this.isAvailable()) {
-      this.logEvent({
-        event: 'CART_CLEAR',
-        requestId,
-        success: false,
-        error: 'Database not available',
-      });
-      return false;
-    }
-
     try {
-      if (userId) {
-        await db!`
-          UPDATE user_carts
-          SET status = 'abandoned', updated_at = NOW()
-          WHERE user_id = ${userId} AND status = 'active'
-        `;
-      } else if (sessionId) {
-        await db!`
-          UPDATE user_carts
-          SET status = 'abandoned', updated_at = NOW()
-          WHERE session_id = ${sessionId} AND status = 'active'
-        `;
-      }
+      // For now, just save an empty cart
+      const success = await this.saveCart([], userId, sessionId);
 
       this.logEvent({
         event: 'CART_CLEAR',
         userId,
         sessionId,
         requestId,
-        success: true,
+        success,
       });
 
-      return true;
+      return success;
     } catch (error) {
       this.logEvent({
         event: 'CART_CLEAR',
@@ -634,43 +436,6 @@ class CartSyncService {
         error: error instanceof Error ? error.message : 'Unknown error',
       });
       return false;
-    }
-  }
-
-  /**
-   * Reconcile multiple active carts for a user (cleanup function)
-   * Keeps the most recently updated cart, archives others
-   */
-  async reconcileUserCarts(userId: string): Promise<void> {
-    if (!this.isAvailable()) return;
-
-    try {
-      // Find all active carts for this user
-      const carts = await db!`
-        SELECT id, cart_data, updated_at
-        FROM user_carts
-        WHERE user_id = ${userId} AND status = 'active'
-        ORDER BY updated_at DESC
-      `;
-
-      if (carts.length <= 1) {
-        // No duplicates, nothing to do
-        return;
-      }
-
-      // Keep the first (most recent) cart, archive the rest
-      const keepCartId = carts[0].id;
-      const archiveIds = carts.slice(1).map((c: any) => c.id);
-
-      await db!`
-        UPDATE user_carts
-        SET status = 'archived', updated_at = NOW()
-        WHERE id = ANY(${archiveIds})
-      `;
-
-      console.log(`Reconciled ${archiveIds.length} duplicate carts for user ${userId}`);
-    } catch (error) {
-      console.error('Failed to reconcile user carts:', error);
     }
   }
 
