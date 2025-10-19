@@ -29,14 +29,14 @@ export function ShareButtons({ url, title }: ShareButtonsProps) {
   };
   
   return (
-    <div className="flex items-center gap-3">
+    <div className="flex flex-wrap items-center gap-3 sm:gap-4">
       <span className="text-sm font-medium text-gray-700">Share:</span>
       
       <a
         href={shareUrls.facebook}
         target="_blank"
         rel="noopener noreferrer"
-        className="p-2 rounded-full bg-[#1877F2] text-white hover:bg-opacity-90 transition-colors"
+        className="p-2.5 sm:p-3 rounded-full bg-[#1877F2] text-white hover:bg-opacity-90 hover:scale-110 transition-all min-w-[44px] min-h-[44px] flex items-center justify-center"
         aria-label="Share on Facebook"
       >
         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -48,7 +48,7 @@ export function ShareButtons({ url, title }: ShareButtonsProps) {
         href={shareUrls.twitter}
         target="_blank"
         rel="noopener noreferrer"
-        className="p-2 rounded-full bg-[#1DA1F2] text-white hover:bg-opacity-90 transition-colors"
+        className="p-2.5 sm:p-3 rounded-full bg-[#1DA1F2] text-white hover:bg-opacity-90 hover:scale-110 transition-all min-w-[44px] min-h-[44px] flex items-center justify-center"
         aria-label="Share on Twitter"
       >
         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -60,7 +60,7 @@ export function ShareButtons({ url, title }: ShareButtonsProps) {
         href={shareUrls.linkedin}
         target="_blank"
         rel="noopener noreferrer"
-        className="p-2 rounded-full bg-[#0A66C2] text-white hover:bg-opacity-90 transition-colors"
+        className="p-2.5 sm:p-3 rounded-full bg-[#0A66C2] text-white hover:bg-opacity-90 hover:scale-110 transition-all min-w-[44px] min-h-[44px] flex items-center justify-center"
         aria-label="Share on LinkedIn"
       >
         <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
@@ -70,7 +70,7 @@ export function ShareButtons({ url, title }: ShareButtonsProps) {
       
       <button
         onClick={copyToClipboard}
-        className="p-2 rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 transition-colors"
+        className="p-2.5 sm:p-3 rounded-full bg-gray-200 text-gray-700 hover:bg-gray-300 hover:scale-110 transition-all min-w-[44px] min-h-[44px] flex items-center justify-center"
         aria-label="Copy link"
       >
         {copied ? (
