@@ -27,6 +27,7 @@ import OrderConfirmation from "./pages/OrderConfirmation";
 import PdfDiagnostic from "./pages/PdfDiagnostic";import PaymentSuccess from "./pages/PaymentSuccess";
 import OrderDetail from "./pages/OrderDetail";
 import AdminOrders from "./pages/admin/Orders";
+import AdminEvents from "./pages/admin/Events";
 import AdminSeed from "./pages/AdminSeed";
 import AdminSetup from "./pages/AdminSetup";
 import LogoShowcase from "./pages/LogoShowcase";
@@ -34,6 +35,9 @@ import BannerDesignerTest from "./pages/BannerDesignerTest";
 import Blog from "./pages/Blog";
 import BlogPostPage from "./pages/BlogPostPage";
 import BlogTagPage from "./pages/BlogTagPage";
+import Events from "./pages/Events";
+import EventDetail from "./pages/EventDetail";
+import EventSubmit from "./pages/EventSubmit";
 import { useCartSync } from "@/hooks/useCartSync";
 import { useCartRevalidation } from "@/hooks/useCartRevalidation";
 
@@ -84,6 +88,7 @@ const App = () => (
             <Route path="/payment-success" element={<PaymentSuccess />} />
             <Route path="/order-confirmation" element={<OrderConfirmation />} />
             <Route path="/admin/orders" element={<AdminOrders />} />
+            <Route path="/admin/events" element={<AdminEvents />} />
             <Route path="/admin/seed" element={<AdminSeed />} />
             <Route path="/admin/setup" element={<AdminSetup />} />
             <Route path="/logo-showcase" element={<LogoShowcase />} />
@@ -91,6 +96,9 @@ const App = () => (
             <Route path="/pdf-diagnostic" element={<PdfDiagnostic />} />            <Route path="/blog" element={<Blog />} />
             <Route path="/blog/:slug" element={<BlogPostPage />} />
             <Route path="/blog/tags/:tag" element={<BlogTagPage />} />
+            <Route path="/events" element={<Events />} />
+            <Route path="/events/:slug" element={<EventDetail />} />
+            <Route path="/events/submit" element={<EventSubmit />} />
           </Routes>
           </BrowserRouter>
         </CartSyncWrapper>
