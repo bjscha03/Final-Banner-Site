@@ -49,7 +49,7 @@ const Logo: React.FC<LogoProps> = ({
     <img
       src={getLogoPath()}
       alt="Banners On The Fly"
-      className={`site-logo h-8 w-auto md:h-10 object-contain ${className} ${animated ? 'hover:scale-105 transition-transform duration-300' : ''}`}
+      className={`site-logo w-auto object-contain ${className} ${animated ? 'hover:scale-105 transition-transform duration-300' : ''}`}
       style={{
         maxWidth: '100%',
         filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.1))'
