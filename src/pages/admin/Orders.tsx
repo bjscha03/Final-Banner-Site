@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar as CalendarIcon } from 'lucide-react';
+import { Calendar as CalendarIcon, Star } from 'lucide-react';
 import OrderDetails from '@/components/orders/OrderDetails';
 import {
   Dialog,
@@ -476,6 +476,24 @@ const AdminOrders: React.FC = () => {
                 Back to Home
               </Button>
             </div>
+          </div>
+
+          {/* Admin Navigation */}
+          <div className="mb-6">
+            <Tabs value="orders" className="w-full">
+              <TabsList>
+                <TabsTrigger value="orders" className="flex items-center gap-2">
+                  <Package className="h-4 w-4" />
+                  Orders
+                </TabsTrigger>
+                <TabsTrigger value="events" className="flex items-center gap-2" asChild>
+                  <a href="/admin/events">
+                    <Star className="h-4 w-4" />
+                    Events
+                  </a>
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
           </div>
 
           {/* Stats */}

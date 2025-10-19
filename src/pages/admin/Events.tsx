@@ -181,6 +181,65 @@ export default function AdminEvents() {
     }
   };
 
+  const toggleEventSelection = (eventId: string) => {
+    const newSelection = new Set(selectedEvents);
+    if (newSelection.has(eventId)) {
+      newSelection.delete(eventId);
+    } else {
+      newSelection.add(eventId);
+    }
+    setSelectedEvents(newSelection);
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedEvents.size === events.length) {
+      setSelectedEvents(new Set());
+    } else {
+      setSelectedEvents(new Set(events.map(e => e.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedEvents.size === 0) return;
+
+    try {
+      const deletePromises = Array.from(selectedEvents).map(eventId =>
+        fetch(`/.netlify/functions/admin-events/${eventId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('admin_token') || 'admin'}`
+          }
+        })
+      );
+
+      const results = await Promise.all(deletePromises);
+      const failedCount = results.filter(r => !r.ok).length;
+
+      if (failedCount > 0) {
+        toast({
+          title: 'Partial Success',
+          description: `${selectedEvents.size - failedCount} events deleted, ${failedCount} failed`,
+          variant: 'destructive'
+        });
+      } else {
+        toast({
+          title: 'Success',
+          description: `${selectedEvents.size} events deleted`,
+        });
+      }
+
+      setSelectedEvents(new Set());
+      setShowBulkDeleteConfirm(false);
+      fetchEvents(activeTab);
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  };
+
   const handleBulkIngest = async () => {
     setIngestLoading(true);
     setIngestResults(null);
