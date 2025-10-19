@@ -9,11 +9,13 @@ import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Event, EventCategory, EventFilters } from '@/types/events';
+import Layout from '@/components/Layout';
 
 export default function Events() {
   const [view, setView] = useState<'list' | 'calendar'>('list');
   const [events, setEvents] = useState<Event[]>([]);
   const [categories, setCategories] = useState<EventCategory[]>([]);
+  const [locations, setLocations] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState<EventFilters>({
     status: 'approved',
@@ -44,7 +46,17 @@ export default function Events() {
       .then(res => res.json())
       .then(data => {
         console.log('Events received:', data);
-        setEvents(data.events || []);
+        const eventsList = data.events || [];
+        setEvents(eventsList);
+        
+        // Extract unique locations
+        const uniqueLocations = Array.from(new Set(
+          eventsList
+            .filter((e: Event) => e.city && e.state)
+            .map((e: Event) => `${e.city}, ${e.state}`)
+        )).sort();
+        setLocations(uniqueLocations);
+        
         setLoading(false);
       })
       .catch(err => {
@@ -70,10 +82,22 @@ export default function Events() {
   };
 
 
+  // Filter events by location (client-side)
+  const getFilteredEvents = () => {
+    const locationFilter = (filters as any).location;
+    if (!locationFilter) return events;
+    
+    return events.filter(event => {
+      const eventLocation = event.city && event.state ? `${event.city}, ${event.state}` : null;
+      return eventLocation === locationFilter;
+    });
+  };
+
   // Group events by month for calendar view
   const groupEventsByMonth = () => {
     const grouped: { [key: string]: Event[] } = {};
-    events.forEach(event => {
+    const filteredEvents = getFilteredEvents();
+    filteredEvents.forEach(event => {
       const date = new Date(event.start_at);
       const monthKey = date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
       if (!grouped[monthKey]) {
@@ -91,6 +115,7 @@ export default function Events() {
         <meta name="description" content="Discover upcoming events perfect for custom banners. Food trucks, festivals, trade shows, and more. 24-hour production with free next-day air shipping." />
       </Helmet>
 
+      <Layout>
       <div className="min-h-screen bg-gradient-to-b from-gray-50 to-white">
         {/* Hero Section */}
         <div className="bg-gradient-to-r from-[#18448D] to-blue-700 text-white py-16">
@@ -175,6 +200,23 @@ export default function Events() {
                 <SelectContent>
                   <SelectItem value="all">All Events</SelectItem>
                   <SelectItem value="featured">Featured Only</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Select
+                value={(filters as any).location || 'all'}
+                onValueChange={(value) => setFilters({ ...filters, location: value === 'all' ? undefined : value, offset: 0 } as any)}
+              >
+                <SelectTrigger className="w-full sm:w-[200px]">
+                  <SelectValue placeholder="All Locations" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Locations</SelectItem>
+                  {locations.map(loc => (
+                    <SelectItem key={loc} value={loc}>
+                      {loc}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -299,7 +341,7 @@ export default function Events() {
           ) : (
             /* List View */
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {events.map(event => (
+              {getFilteredEvents().map(event => (
                 <Card key={event.id} className="overflow-hidden hover:shadow-lg transition-shadow">
                   <Link to={`/events/${event.slug}`}>
                     <div className="relative h-48 bg-gray-200">
@@ -369,6 +411,7 @@ export default function Events() {
           )}
         </div>
       </div>
+      </Layout>
     </>
   );
 }
