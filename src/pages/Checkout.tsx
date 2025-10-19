@@ -287,7 +287,7 @@ const Checkout: React.FC = () => {
                           overlayImage={item.overlay_image}
                           imageScale={item.image_scale}
                           imagePosition={item.image_position}
-                          className="w-20 h-20 sm:w-24 sm:h-24"
+                          className="flex-shrink-0"
                         />
                         
                         <div className="flex-1">
