@@ -57,8 +57,19 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
   return (
     <header className="bg-white shadow-lg sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex md:justify-between justify-center items-center gap-3 h-16 relative">
-          {/* Logo */}
+        <div className="flex items-center justify-between h-16 relative">
+          {/* Mobile: Hamburger Menu (Left) */}
+          <div className="md:hidden flex items-center">
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="p-2 text-gray-700 hover:text-blue-700 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+              aria-label="Toggle menu"
+            >
+              {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+            </button>
+          </div>
+
+          {/* Logo - Centered on Mobile, Left on Desktop */}
           <div className="flex-shrink-0 md:static absolute left-1/2 md:left-auto -translate-x-1/2 md:translate-x-0">
             <ScrollToTopLink to="/" className="flex items-center">
               <Logo variant="compact" height={56} className="h-14 max-w-[320px] object-contain" animated />
@@ -82,15 +93,18 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
             ))}
           </nav>
 
-          {/* Right Side Actions */}
-          <div className="flex items-center space-x-4 md:static absolute right-4">
+          {/* Right Side Actions - Cart & User Menu */}
+          <div className="flex items-center space-x-2 md:space-x-4">
             <button
               onClick={onCartClick}
-              className="relative p-2 text-gray-700 hover:text-blue-700 transition-colors"
+              aria-label="Shopping cart"
+              aria-label="Shopping cart"
+              aria-label="Shopping cart"
+              className="relative p-2 text-gray-700 hover:text-blue-700 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
             >
               <ShoppingCart className="h-6 w-6" />
               {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold">
                   {cartCount}
                 </span>
               )}
@@ -162,13 +176,6 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
               </>
             )}
 
-            {/* Mobile menu button */}
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="md:hidden p-2 text-gray-700"
-            >
-              {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-            </button>
           </div>
         </div>
 
