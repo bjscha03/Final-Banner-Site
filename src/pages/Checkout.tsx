@@ -275,8 +275,8 @@ const Checkout: React.FC = () => {
 
                     return (
                     <div key={item.id} className="border-b border-gray-200 pb-4 last:border-b-0">
-                      <div className="flex gap-3 mb-3">
-                        {/* Thumbnail */}
+                      {/* Thumbnail on top - centered */}
+                      <div className="flex justify-center mb-4">
                         <BannerPreview
                           widthIn={item.width_in}
                           heightIn={item.height_in}
@@ -289,77 +289,81 @@ const Checkout: React.FC = () => {
                           imagePosition={item.image_position}
                           className="flex-shrink-0"
                         />
-                        
-                        <div className="flex-1">
-                          <div className="flex justify-between items-start mb-2">
-                            <div className="flex-1 min-w-0 overflow-hidden">
-                          <h3 className="font-medium text-gray-900 break-words">
-                            Custom Banner {formatDimensions(item.width_in, item.height_in)}
-                          </h3>
-                          <div className="text-sm text-gray-600 space-y-1">
-                            <p className="break-words">Material: {item.material}</p>
-                            <p className="break-words">Grommets: {item.grommets}</p>
-                            {item.rope_feet > 0 && <p className="break-words">Rope: {item.rope_feet.toFixed(1)} ft</p>}
-                            {item.pole_pocket_position && item.pole_pocket_position !== "none" && (
-                              <p className="break-words">
-                                Pole Pockets: {item.pole_pocket_position}
-                                {item.pole_pocket_size && ` (${item.pole_pocket_size} inch)`}
-                              </p>
-                            )}
-                            {item.file_name && (
-                              <p className="break-all overflow-hidden" title={item.file_name}>
-                                File: {item.file_name}
-                              </p>
-                            )}
-                          </div>
-                          
-                          {/* Cost Breakdown */}
-                          <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                            <h4 className="text-sm font-medium text-gray-900 mb-2">Price Breakdown</h4>
-                            <div className="space-y-1 text-sm">
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Base banner:</span>
-                                <span className="text-gray-900">{usd((item.unit_price_cents * item.quantity) / 100)}</span>
-                              </div>
-                              {ropeCost > 0 && (
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">Rope{ropeMode === 'per_item' && item.rope_feet ? ` (${item.rope_feet.toFixed(1)}ft)` : ''}:</span>
-                                  <span className="text-gray-900">
-                                    {usd(ropeCost / 100)}
-                                  </span>
-                                </div>
-                              )}
-                              {item.pole_pockets !== "none" && pocketCost > 0 && (
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">Pole pockets:</span>
-                                  <span className="text-gray-900">
-                                    {usd(pocketCost / 100)}
-                                  </span>
-                                </div>
-                              )}
-                              <div className="flex justify-between font-medium border-t border-gray-200 pt-1 mt-2">
-                                <span className="text-gray-900">Line total:</span>
-                                <span className="text-gray-900">{usd(item.line_total_cents / 100)}</span>
-                              </div>
-                            </div>
-                          </div>
-                            </div>
-                            <div className="text-right">
-                          <p className="font-semibold text-gray-900">
+                      </div>
+
+                      {/* Title and Price on same line */}
+                      <div className="flex justify-between items-start mb-3">
+                        <h3 className="font-medium text-gray-900 text-lg">
+                          Custom Banner {formatDimensions(item.width_in, item.height_in)}
+                        </h3>
+                        <div className="text-right ml-4 flex-shrink-0">
+                          <p className="font-semibold text-gray-900 text-lg">
                             {usd(item.line_total_cents / 100)}
                           </p>
                           <p className="text-sm text-gray-600">
                             {usd(eachCents / 100)} each
                           </p>
+                        </div>
+                      </div>
+
+                      {/* Two column layout on desktop, stacked on mobile */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        {/* Left column: Meta information */}
+                        <div className="space-y-1 text-sm text-gray-600">
+                          <p><span className="font-medium text-gray-700">Material:</span> {item.material}</p>
+                          <p><span className="font-medium text-gray-700">Grommets:</span> {item.grommets}</p>
+                          {item.rope_feet > 0 && (
+                            <p><span className="font-medium text-gray-700">Rope:</span> {item.rope_feet.toFixed(1)} ft</p>
+                          )}
+                          {item.pole_pocket_position && item.pole_pocket_position !== "none" && (
+                            <p>
+                              <span className="font-medium text-gray-700">Pole Pockets:</span> {item.pole_pocket_position}
+                              {item.pole_pocket_size && ` (${item.pole_pocket_size} inch)`}
+                            </p>
+                          )}
+                          {item.file_name && (
+                            <p className="truncate" title={item.file_name}>
+                              <span className="font-medium text-gray-700">File:</span> {item.file_name}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Right column: Price Breakdown */}
+                        <div className="p-3 bg-gray-50 rounded-lg">
+                          <h4 className="text-sm font-semibold text-gray-900 mb-2">Price Breakdown</h4>
+                          <div className="space-y-1 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Base banner:</span>
+                              <span className="text-gray-900 font-medium">{usd((item.unit_price_cents * item.quantity) / 100)}</span>
+                            </div>
+                            {ropeCost > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Rope{ropeMode === 'per_item' && item.rope_feet ? ` (${item.rope_feet.toFixed(1)}ft)` : ''}:</span>
+                                <span className="text-gray-900 font-medium">
+                                  {usd(ropeCost / 100)}
+                                </span>
+                              </div>
+                            )}
+                            {item.pole_pockets !== "none" && pocketCost > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Pole pockets:</span>
+                                <span className="text-gray-900 font-medium">
+                                  {usd(pocketCost / 100)}
+                                </span>
+                              </div>
+                            )}
+                            <div className="flex justify-between font-semibold border-t border-gray-300 pt-2 mt-2">
+                              <span className="text-gray-900">Line total:</span>
+                              <span className="text-gray-900">{usd(item.line_total_cents / 100)}</span>
                             </div>
                           </div>
                         </div>
                       </div>
 
                       {/* Quantity Controls and Remove Button */}
-                      <div className="flex items-center justify-between">
+                      <div className="flex items-center justify-between pt-3 border-t border-gray-100">
                         <div className="flex items-center space-x-3">
-                          <span className="text-sm text-gray-700">Quantity:</span>
+                          <span className="text-sm text-gray-700 font-medium">Quantity:</span>
                           <div className="flex items-center space-x-2">
                             <Button
                               variant="outline"
