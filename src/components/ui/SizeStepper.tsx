@@ -63,16 +63,16 @@ export function SizeStepper({
       <label className="block text-xs font-medium text-gray-700 mb-2">
         {label}
       </label>
-      <div className="grid grid-cols-[auto_1fr_auto] gap-2 items-center">
+      <div className="grid grid-cols-[auto_1fr_auto] gap-3 items-center">
         {/* Decrement Button */}
         <button 
           type="button"
           onClick={decrement}
           disabled={value <= min}
-          className="h-12 w-12 shrink-0 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 font-bold text-gray-700 touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center transition-colors duration-200"
+          className="h-10 w-10 shrink-0 rounded-md border border-slate-300 bg-white hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed font-bold text-gray-700 touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center transition-colors"
           aria-label={`Decrease ${label.toLowerCase()}`}
         >
-          <Minus className="h-4 w-4" />
+          <Minus className="h-4 w-4 text-blue-600" />
         </button>
 
         {/* Input Field */}
@@ -81,14 +81,14 @@ export function SizeStepper({
             type="text"
             inputMode="numeric"
             pattern="[0-9]*"
-            className={`h-12 w-full rounded-lg border border-gray-300 text-center font-medium tabular-nums text-gray-900 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors duration-200 ${unit ? 'pr-6' : 'px-3'}`}
+            className={`h-10 w-full rounded-md border border-slate-300 text-center font-medium tabular-nums text-slate-900 bg-white px-4 py-2 text-base focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors ${unit ? 'pr-8' : ''}`}
             value={value || ''}
             onChange={handleInputChange}
             onBlur={handleInputBlur}
             aria-label={`${label} value`}
           />
           {unit && (
-            <span className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none font-medium">
+            <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 pointer-events-none font-medium">
               {unit}
             </span>
           )}
@@ -99,10 +99,10 @@ export function SizeStepper({
           type="button"
           onClick={increment}
           disabled={value >= max}
-          className="h-12 w-12 shrink-0 rounded-lg border border-gray-300 bg-white hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400 font-bold text-gray-700 touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center transition-colors duration-200"
+          className="h-10 w-10 shrink-0 rounded-md border border-slate-300 bg-white hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed font-bold text-gray-700 touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center transition-colors"
           aria-label={`Increase ${label.toLowerCase()}`}
         >
-          <Plus className="h-4 w-4" />
+          <Plus className="h-4 w-4 text-blue-600" />
         </button>
       </div>
       
