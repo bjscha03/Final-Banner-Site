@@ -326,12 +326,61 @@ export const PurchaseCreditsModal: React.FC<PurchaseCreditsModalProps> = ({
   };
 
   const handleError = (err: any) => {
-    console.error('PayPal error:', err);
+    console.error('💥 PayPal error:', err);
+    console.error('💥 Error details:', JSON.stringify(err, null, 2));
+    
+    // Parse PayPal error details for user-friendly messages
+    let errorTitle = '❌ Payment Error';
+    let errorDescription = 'There was an error processing your payment. Please try again.';
+    
+    // Check for specific PayPal error types
+    if (err && typeof err === 'object') {
+      // Handle INSTRUMENT_DECLINED errors (card declined, insufficient funds, etc.)
+      if (err.message && err.message.includes('INSTRUMENT_DECLINED')) {
+        errorTitle = '💳 Payment Declined';
+        errorDescription = 'Your payment method was declined. This could be due to insufficient funds, card restrictions, or bank security measures. Please try a different payment method.';
+      }
+      // Handle UNPROCESSABLE_ENTITY errors
+      else if (err.message && err.message.includes('UNPROCESSABLE_ENTITY')) {
+        errorTitle = '⚠️ Payment Processing Error';
+        errorDescription = 'The payment could not be processed. Please check your payment information and try again.';
+      }
+      // Handle network/connection errors
+      else if (err.message && (err.message.includes('network') || err.message.includes('timeout'))) {
+        errorTitle = '🌐 Connection Error';
+        errorDescription = 'Unable to connect to PayPal. Please check your internet connection and try again.';
+      }
+      // Handle PAYPAL_CAPTURE_FAILED errors
+      else if (err.message && err.message.includes('PAYPAL_CAPTURE_FAILED')) {
+        errorTitle = '❌ Payment Capture Failed';
+        errorDescription = 'The payment authorization succeeded but capture failed. Please contact support if you were charged.';
+      }
+      // Try to extract error details from PayPal's error object
+      else if (err.details && Array.isArray(err.details) && err.details.length > 0) {
+        const detail = err.details[0];
+        if (detail.description) {
+          errorDescription = detail.description;
+        }
+        if (detail.issue === 'INSTRUMENT_DECLINED') {
+          errorTitle = '💳 Payment Declined';
+          errorDescription = 'Your payment method was declined. Please try a different payment method.';
+        }
+      }
+      // Check for error in debug_id (PayPal's error tracking)
+      else if (err.debug_id) {
+        errorDescription = `Payment error occurred. Debug ID: ${err.debug_id}. Please try again or contact support.`;
+      }
+    }
+    
+    console.error('🚨 Showing error to user:', { errorTitle, errorDescription });
+    
     toast({
-      title: '❌ Payment Error',
-      description: 'There was an error with PayPal. Please try again.',
+      title: errorTitle,
+      description: errorDescription,
       variant: 'destructive',
+      duration: 8000, // Show error longer so user can read it
     });
+    
     setIsProcessing(false);
     setSelectedPackage(null);
   };
