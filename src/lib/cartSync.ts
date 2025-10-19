@@ -12,6 +12,7 @@
 
 // DISABLED: Direct database access from frontend causes 400 errors
 // import { db } from './supabase/client';
+const db: any = null; // Disabled - database access from frontend causes errors
 import type { CartItem } from '@/store/cart';
 
 // Telemetry event types
@@ -128,7 +129,8 @@ class CartSyncService {
    * Check if database is available
    */
   isAvailable(): boolean {
-    return db !== null;
+    // DISABLED: Database access from frontend causes errors
+    return false;
   }
 
   /**
