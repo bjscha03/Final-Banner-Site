@@ -18,7 +18,7 @@ const Logo: React.FC<LogoProps> = ({
   const getLogoPath = () => {
     switch (variant) {
       case 'compact':
-        return '/images/logo-compact.svg';
+        return '/images/header-logo.png';
       case 'icon':
         return '/images/logo-icon.svg';
       case 'hero':
