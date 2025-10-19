@@ -5,7 +5,7 @@ const TestimonialsSection: React.FC = () => {
   const testimonials = [
     {
       name: "Dan Oliver",
-      title: "Marketing Manager",
+      title: "Founder",
       company: "Dan-O's Seasoning",
       image: "https://res.cloudinary.com/dtrxl120u/image/upload/v1759799151/dan-oliver_1200xx3163-3170-1048-0_zgphzw.jpg",
       rating: 5,
