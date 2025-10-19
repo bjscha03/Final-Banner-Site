@@ -128,6 +128,9 @@ exports.handler = async (event, context) => {
     // Create PayPal order
     const amountUSD = (amountCents / 100).toFixed(2);
     
+    console.log('💰 Amount calculation:', { amountCents, amountUSD, credits, cid });
+    
+    // Simplified PayPal order payload - removed items/breakdown to avoid MALFORMED_REQUEST error
     const orderPayload = {
       intent: 'CAPTURE',
       purchase_units: [
@@ -136,24 +139,7 @@ exports.handler = async (event, context) => {
           amount: {
             currency_code: 'USD',
             value: amountUSD,
-            breakdown: {
-              item_total: {
-                currency_code: 'USD',
-                value: amountUSD,
-              },
-            },
           },
-          items: [
-            {
-              name: `${credits} AI Credits`,
-              description: `AI Banner Generation Credits`,
-              quantity: '1',
-              unit_amount: {
-                currency_code: 'USD',
-                value: amountUSD,
-              },
-            },
-          ],
         },
       ],
       application_context: {
@@ -161,6 +147,8 @@ exports.handler = async (event, context) => {
         shipping_preference: 'NO_SHIPPING',
       },
     };
+    
+    console.log('📦 PayPal order payload:', JSON.stringify(orderPayload, null, 2));
 
     console.log('Creating PayPal order:', { credits, amountUSD, cid });
 
