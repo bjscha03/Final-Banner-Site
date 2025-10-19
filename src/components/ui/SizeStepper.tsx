@@ -60,7 +60,7 @@ export function SizeStepper({
 
   return (
     <div className={`w-full ${className}`}>
-      <label className="block text-xs font-medium text-gray-700 mb-2">
+      <label className="block text-sm font-medium text-gray-700 mb-2">
         {label}
       </label>
       <div className="grid grid-cols-[auto_1fr_auto] gap-3 items-center">
@@ -69,7 +69,7 @@ export function SizeStepper({
           type="button"
           onClick={decrement}
           disabled={value <= min}
-          className="h-10 w-10 shrink-0 rounded-md border border-slate-300 bg-white hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed font-bold text-gray-700 touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center transition-colors"
+          className="h-10 w-10 shrink-0 rounded-md border border-slate-300 bg-white hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors touch-manipulation"
           aria-label={`Decrease ${label.toLowerCase()}`}
         >
           <Minus className="h-4 w-4 text-blue-600" />
@@ -99,17 +99,13 @@ export function SizeStepper({
           type="button"
           onClick={increment}
           disabled={value >= max}
-          className="h-10 w-10 shrink-0 rounded-md border border-slate-300 bg-white hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed font-bold text-gray-700 touch-manipulation min-w-[44px] min-h-[44px] flex items-center justify-center transition-colors"
+          className="h-10 w-10 shrink-0 rounded-md border border-slate-300 bg-white hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors touch-manipulation"
           aria-label={`Increase ${label.toLowerCase()}`}
         >
           <Plus className="h-4 w-4 text-blue-600" />
         </button>
       </div>
-      
-      {/* Value Range Indicator */}
-      <div className="mt-1 text-xs text-gray-500 text-center">
-        {min} - {max} {unit}
-      </div>
+
     </div>
   );
 }
