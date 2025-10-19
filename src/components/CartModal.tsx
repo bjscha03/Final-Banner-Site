@@ -128,8 +128,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
 
                   return (
                     <div key={item.id} className="bg-white rounded-xl p-4 shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
-                      <div className="flex gap-4">
-                        {/* Thumbnail */}
+                      {/* Thumbnail on top - centered */}
+                      <div className="flex justify-center mb-4">
                         <BannerPreview
                           key={`thumbnail-${item.id}-${item.text_elements?.length || 0}-${item.image_scale || 1}`}
                           widthIn={item.width_in}
@@ -143,97 +143,113 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                           imagePosition={item.image_position}
                           className="flex-shrink-0"
                         />
-                        
-                        <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-start mb-2 gap-2">
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-bold text-gray-900 text-base">Custom Banner {item.width_in}" × {item.height_in}"</h3>
-                              <div className="text-xs text-gray-600 space-y-0.5 mt-1.5">
-                                <div className="font-medium">Material: <span className="text-gray-800">{item.material}</span></div>
-                                {item.grommets && item.grommets !== 'none' && (
-                                  <div>Grommets: <span className="text-gray-800">{item.grommets}</span></div>
-                                )}
-                                {ropeCost > 0 && item.rope_feet && (
-                                  <div>Rope: <span className="text-gray-800">{item.rope_feet.toFixed(1)}ft</span></div>
-                                )}
-                                {item.pole_pockets && item.pole_pockets !== 'none' && (
-                                  <div>Pole pockets: <span className="text-gray-800">{item.pole_pockets}</span></div>
-                                )}
-                                {item.file_name && <div className="truncate" title={item.file_name}>File: <span className="text-gray-800">{item.file_name}</span></div>}
-                              </div>
-                            </div>
-                            <div className="text-right ml-3 flex-shrink-0">
-                              <p className="font-bold text-[#18448D] text-lg whitespace-nowrap">{usd(item.line_total_cents/100)}</p>
-                            </div>
-                          </div>
+                      </div>
 
-                          {/* Quantity and Actions */}
-                          <div className="flex items-center justify-between mt-3 gap-2 flex-wrap">
-                            <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
-                              <button 
-                                onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))} 
-                                className="p-1.5 hover:bg-white rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
-                                disabled={item.quantity <= 1}
-                                aria-label="Decrease quantity"
-                              >
-                                <Minus className="h-4 w-4 text-gray-700" />
-                              </button>
-                              <span className="w-10 text-center font-semibold text-gray-900">{item.quantity}</span>
-                              <button 
-                                onClick={() => updateQuantity(item.id, item.quantity + 1)} 
-                                className="p-1.5 hover:bg-white rounded-md transition-colors"
-                                aria-label="Increase quantity"
-                              >
-                                <Plus className="h-4 w-4 text-gray-700" />
-                              </button>
-                            </div>
-                            
-                            <div className="flex items-center gap-1.5">
-                              <button 
-                                onClick={() => handleEdit(item.id)} 
-                                className="flex items-center gap-1 px-2.5 py-1.5 bg-[#18448D] hover:bg-[#0f2d5c] text-white rounded-lg text-xs font-medium transition-colors shadow-sm hover:shadow-md"
-                                aria-label="Edit banner"
-                              >
-                                <Edit className="h-3.5 w-3.5" />
-                                <span>Edit</span>
-                              </button>
-                              <button 
-                                onClick={() => removeItem(item.id)} 
-                                className="flex items-center gap-1 px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-xs font-medium transition-colors"
-                                aria-label="Remove from cart"
-                              >
-                                <Trash2 className="h-3.5 w-3.5" />
-                                <span>Remove</span>
-                              </button>
-                            </div>
-                          </div>
+                      {/* Title and Price on same line */}
+                      <div className="flex justify-between items-start mb-3">
+                        <h3 className="font-semibold text-gray-900 text-base">
+                          Custom Banner {item.width_in}" × {item.height_in}"
+                        </h3>
+                        <div className="text-right ml-4 flex-shrink-0">
+                          <p className="font-bold text-[#18448D] text-lg">
+                            {usd(item.line_total_cents/100)}
+                          </p>
+                          <p className="text-xs text-gray-600">
+                            {usd(eachCents/100)} each
+                          </p>
+                        </div>
+                      </div>
 
-                          {/* Cost Breakdown - SIMPLIFIED */}
-                          <div className="mt-3 p-3 bg-gradient-to-br from-gray-50 to-gray-100 rounded-lg border border-gray-200">
-                            <h4 className="text-xs font-bold text-gray-700 mb-2 uppercase tracking-wide">Price Breakdown</h4>
-                            <div className="space-y-1.5 text-sm">
+                      {/* Two column layout on desktop, stacked on mobile */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                        {/* Left column: Meta information */}
+                        <div className="space-y-1 text-xs text-gray-600">
+                          <p><span className="font-medium text-gray-700">Material:</span> {item.material}</p>
+                          {item.grommets && item.grommets !== 'none' && (
+                            <p><span className="font-medium text-gray-700">Grommets:</span> {item.grommets}</p>
+                          )}
+                          {ropeCost > 0 && item.rope_feet && (
+                            <p><span className="font-medium text-gray-700">Rope:</span> {item.rope_feet.toFixed(1)}ft</p>
+                          )}
+                          {item.pole_pockets && item.pole_pockets !== 'none' && (
+                            <p><span className="font-medium text-gray-700">Pole pockets:</span> {item.pole_pockets}</p>
+                          )}
+                          {item.file_name && (
+                            <p className="truncate" title={item.file_name}>
+                              <span className="font-medium text-gray-700">File:</span> {item.file_name}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Right column: Price Breakdown */}
+                        <div className="p-2.5 bg-gray-50 rounded-lg border border-gray-200">
+                          <h4 className="text-xs font-semibold text-gray-900 mb-1.5">Price Breakdown</h4>
+                          <div className="space-y-1 text-xs">
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Base banner:</span>
+                              <span className="text-gray-900 font-medium">{usd((item.unit_price_cents * item.quantity)/100)}</span>
+                            </div>
+                            {ropeCost > 0 && (
                               <div className="flex justify-between">
-                                <span className="text-gray-600">Base banner:</span>
-                                <span className="text-gray-900 font-medium">{usd((item.unit_price_cents * item.quantity)/100)}</span>
+                                <span className="text-gray-600">Rope{item.rope_feet ? ` (${item.rope_feet.toFixed(1)}ft)` : ''}:</span>
+                                <span className="text-gray-900 font-medium">{usd(ropeCost/100)}</span>
                               </div>
-                              {ropeCost > 0 && (
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">Rope{item.rope_feet ? ` (${item.rope_feet.toFixed(1)}ft)` : ''}:</span>
-                                  <span className="text-gray-900 font-medium">{usd(ropeCost/100)}</span>
-                                </div>
-                              )}
-                              {pocketCost > 0 && (
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">Pole pockets:</span>
-                                  <span className="text-gray-900 font-medium">{usd(pocketCost/100)}</span>
-                                </div>
-                              )}
-                              <div className="flex justify-between font-bold border-t border-gray-300 pt-2 mt-2">
-                                <span className="text-gray-900">Line total:</span>
-                                <span className="text-[#18448D]">{usd(item.line_total_cents/100)}</span>
+                            )}
+                            {pocketCost > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Pole pockets:</span>
+                                <span className="text-gray-900 font-medium">{usd(pocketCost/100)}</span>
                               </div>
+                            )}
+                            <div className="flex justify-between font-semibold border-t border-gray-300 pt-1.5 mt-1.5">
+                              <span className="text-gray-900">Line total:</span>
+                              <span className="text-[#18448D]">{usd(item.line_total_cents/100)}</span>
                             </div>
                           </div>
+                        </div>
+                      </div>
+
+                      {/* Quantity Controls and Action Buttons */}
+                      <div className="flex items-center justify-between pt-3 border-t border-gray-200">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-700 font-medium">Qty:</span>
+                          <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+                            <button 
+                              onClick={() => updateQuantity(item.id, Math.max(1, item.quantity - 1))} 
+                              className="p-1.5 hover:bg-white rounded-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed" 
+                              disabled={item.quantity <= 1}
+                              aria-label="Decrease quantity"
+                            >
+                              <Minus className="h-3.5 w-3.5 text-gray-700" />
+                            </button>
+                            <span className="w-8 text-center font-semibold text-gray-900 text-sm">{item.quantity}</span>
+                            <button 
+                              onClick={() => updateQuantity(item.id, item.quantity + 1)} 
+                              className="p-1.5 hover:bg-white rounded-md transition-colors"
+                              aria-label="Increase quantity"
+                            >
+                              <Plus className="h-3.5 w-3.5 text-gray-700" />
+                            </button>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center gap-1.5">
+                          <button 
+                            onClick={() => handleEdit(item.id)} 
+                            className="flex items-center gap-1 px-2.5 py-1.5 bg-[#18448D] hover:bg-[#0f2d5c] text-white rounded-lg text-xs font-medium transition-colors shadow-sm hover:shadow-md"
+                            aria-label="Edit banner"
+                          >
+                            <Edit className="h-3.5 w-3.5" />
+                            <span>Edit</span>
+                          </button>
+                          <button 
+                            onClick={() => removeItem(item.id)} 
+                            className="flex items-center gap-1 px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-xs font-medium transition-colors"
+                            aria-label="Remove from cart"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                            <span>Remove</span>
+                          </button>
                         </div>
                       </div>
                     </div>
