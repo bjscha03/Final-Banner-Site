@@ -137,20 +137,18 @@ const SizeQuantityCard: React.FC = () => {
           {/* Custom Size Inputs with Mobile-Optimized Steppers */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <SizeStepper
-              label="Width"
+              label="Width (in)"
               value={widthIn}
               onChange={(value) => set({ widthIn: value })}
               min={1}
               max={1000}
-              unit="in"
             />
             <SizeStepper
-              label="Height"
+              label="Height (in)"
               value={heightIn}
               onChange={(value) => set({ heightIn: value })}
               min={1}
               max={1000}
-              unit="in"
             />
           </div>
 
