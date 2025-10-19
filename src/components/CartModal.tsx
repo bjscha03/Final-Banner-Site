@@ -141,7 +141,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                           overlayImage={item.overlay_image}
                           imageScale={item.image_scale}
                           imagePosition={item.image_position}
-                          className="w-24 h-24 flex-shrink-0"
+                          className="flex-shrink-0"
                         />
                         
                         <div className="flex-1 min-w-0">
