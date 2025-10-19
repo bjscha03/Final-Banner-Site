@@ -16,6 +16,17 @@ export default function EventDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Helper function to parse PostgreSQL array string
+  const parsePopularSizes = (sizesStr?: string): string[] => {
+    if (!sizesStr) return [];
+    try {
+      // PostgreSQL returns arrays as strings like: {"96x36","72x24"}
+      return sizesStr.replace(/[{}]/g, '').split(',').map(s => s.replace(/"/g, '').trim()).filter(Boolean);
+    } catch {
+      return [];
+    }
+  };
+
   useEffect(() => {
     if (!slug) return;
 
@@ -232,16 +243,19 @@ export default function EventDetail() {
                     </div>
                   )}
                   
-                  {event.popular_sizes && event.popular_sizes.length > 0 && (
-                    <div>
-                      <h4 className="font-semibold text-sm text-gray-600 mb-2">Popular Sizes</h4>
-                      <div className="flex flex-wrap gap-2">
-                        {event.popular_sizes.map(size => (
-                          <Badge key={size} variant="secondary">{size}</Badge>
-                        ))}
+                  {(() => {
+                    const sizes = parsePopularSizes(event.popular_sizes);
+                    return sizes.length > 0 ? (
+                      <div>
+                        <h4 className="font-semibold text-sm text-gray-600 mb-2">Popular Sizes</h4>
+                        <div className="flex flex-wrap gap-2">
+                          {sizes.map(size => (
+                            <Badge key={size} variant="secondary">{size}</Badge>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    ) : null;
+                  })()}
 
                   <Separator />
 
