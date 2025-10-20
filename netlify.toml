@@ -10,7 +10,7 @@
   directory = "netlify/functions"
   node_bundler = "esbuild"
   included_files = ["src/lib/**", "src/emails/**"]
-  external_node_modules = ["@neondatabase/serverless", "resend", "aws-sdk", "uuid", "cloudinary", "sharp", "pdfkit", "openai"]
+  external_node_modules = ["@neondatabase/serverless", "resend", "@react-email/components", "@react-email/render", "aws-sdk", "uuid", "cloudinary", "sharp", "pdfkit", "openai"]
 
 # Function-specific configuration
 [functions."upload-file"]
