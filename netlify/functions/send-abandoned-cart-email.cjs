@@ -244,10 +244,10 @@ exports.handler = async (event, context) => {
     }
 
     // Build recovery URL with discount code
-    const baseUrl = 'https://bannersonthefly.com/cart';
+    const baseUrl = 'https://bannersonthefly.com';
     const recoveryUrl = discountCode 
-      ? `${baseUrl}?discount=${discountCode}&cart=${cartData.id}`
-      : `${baseUrl}?cart=${cartData.id}`;
+      ? `${baseUrl}?recover_cart=1&discount=${discountCode}&cart=${cartData.id}`
+      : `${baseUrl}?recover_cart=${cartData.id}`;
 
     // Parse cart_contents if it's a JSON string
     let cartItems = cartData.cart_contents || [];
