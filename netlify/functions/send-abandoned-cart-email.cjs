@@ -249,14 +249,29 @@ exports.handler = async (event, context) => {
       ? `${baseUrl}?discount=${discountCode}&cart=${cartData.id}`
       : `${baseUrl}?cart=${cartData.id}`;
 
+    // Parse cart_contents if it's a JSON string
+    let cartItems = cartData.cart_contents || [];
+    if (typeof cartItems === 'string') {
+      try {
+        cartItems = JSON.parse(cartItems);
+      } catch (e) {
+        console.error('[send-abandoned-cart-email] Failed to parse cart_contents:', e);
+        cartItems = [];
+      }
+    }
+
+    console.log('[send-abandoned-cart-email] Cart items:', JSON.stringify(cartItems));
+
     // Generate email HTML
     const emailData = generateEmailHTML(sequenceNumber, {
       customerEmail: cartData.email,
-      cartItems: cartData.cart_contents || [],
+      cartItems: cartItems,
       totalValue: parseFloat(cartData.total_value),
       discountCode: discountCode || undefined,
       recoveryUrl
     });
+
+    console.log('[send-abandoned-cart-email] Email data generated:', { subject: emailData.subject, hasHtml: !!emailData.html, htmlLength: emailData.html?.length });
 
     // Send email via Resend
     const emailResult = await resend.emails.send({
