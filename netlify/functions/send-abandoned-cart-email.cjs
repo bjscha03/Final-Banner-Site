@@ -95,7 +95,7 @@ function generateEmailHTML(sequenceNumber, data) {
   
   const buttonColor = sequenceNumber === 3 ? urgencyRed : brandOrange;
   
-  return `
+  const html = `
 <!DOCTYPE html>
 <html>
 <head>
