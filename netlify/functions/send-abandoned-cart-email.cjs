@@ -179,7 +179,7 @@ exports.handler = async (event, context) => {
 
     // Send email via Resend
     const emailResult = await resend.emails.send({
-      from: 'Banners On The Fly <orders@bannersonthefly.com>',
+      from: 'Banners On The Fly <info@bannersonthefly.com>',
       to: cartData.email,
       subject: emailConfig.subject,
       html: emailHtml,
