@@ -28,6 +28,7 @@ import PdfDiagnostic from "./pages/PdfDiagnostic";import PaymentSuccess from "./
 import OrderDetail from "./pages/OrderDetail";
 import AdminOrders from "./pages/admin/Orders";
 import AdminEvents from "./pages/admin/Events";
+import AdminAbandonedCarts from "./pages/admin/AbandonedCarts";
 import AdminSeed from "./pages/AdminSeed";
 import AdminSetup from "./pages/AdminSetup";
 import LogoShowcase from "./pages/LogoShowcase";
@@ -89,6 +90,7 @@ const App = () => (
             <Route path="/payment-success" element={<PaymentSuccess />} />
             <Route path="/order-confirmation" element={<OrderConfirmation />} />
             <Route path="/admin/orders" element={<AdminOrders />} />
+            <Route path="/admin/abandoned-carts" element={<AdminAbandonedCarts />} />
             <Route path="/admin/events" element={<AdminEvents />} />
             <Route path="/admin/seed" element={<AdminSeed />} />
             <Route path="/admin/setup" element={<AdminSetup />} />
