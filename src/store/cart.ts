@@ -84,20 +84,33 @@ export interface AuthoritativePricing {
   line_total_cents: number;
 }
 
+export interface DiscountCode {
+  id: string;
+  code: string;
+  discountPercentage: number;
+  discountAmountCents: number | null;
+  expiresAt: string;
+}
+
 export interface CartState {
   syncToServer: () => Promise<void>;
   loadFromServer: () => Promise<void>;
   items: CartItem[];
+  discountCode: DiscountCode | null;
   addFromQuote: (quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => void;
   loadItemIntoQuote: (itemId: string) => CartItem | null;
   updateCartItem: (itemId: string, quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => void;
   removeItem: (id: string) => void;
   clearCart: () => void;
+  applyDiscountCode: (discount: DiscountCode) => void;
+  removeDiscountCode: () => void;
+  getDiscountAmountCents: () => number;
   getSubtotalCents: () => number;
   getTaxCents: () => number;
   getTotalCents: () => number;
   getItemCount: () => number;
 }
+
 
 // Migration function to fix old cart items with missing or zero pricing fields
 const migrateCartItem = (item: CartItem): CartItem => {
@@ -170,6 +183,7 @@ export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
       items: [],
+      discountCode: null,
       
       addFromQuote: (quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => {
         // Capture design-page authoritative pricing when provided
@@ -431,10 +445,38 @@ export const useCartStore = create<CartState>()(
       },
       
       clearCart: () => {
-        set({ items: [] });
+        set({ items: [], discountCode: null });
       // Sync to Neon database IMMEDIATELY (critical for persistence)
       get().syncToServer();
       },
+
+      applyDiscountCode: (discount: DiscountCode) => {
+        set({ discountCode: discount });
+      },
+
+      removeDiscountCode: () => {
+        set({ discountCode: null });
+      },
+
+      getDiscountAmountCents: () => {
+        const discount = get().discountCode;
+        if (!discount) return 0;
+
+        const subtotal = get().getSubtotalCents();
+        
+        // Use percentage discount if available
+        if (discount.discountPercentage) {
+          return Math.round(subtotal * (discount.discountPercentage / 100));
+        }
+        
+        // Otherwise use fixed amount discount
+        if (discount.discountAmountCents) {
+          return Math.min(discount.discountAmountCents, subtotal);
+        }
+        
+        return 0;
+      },
+
       
 
       // Sync cart to Neon database (for logged-in users)
@@ -558,16 +600,22 @@ export const useCartStore = create<CartState>()(
         const flags = getFeatureFlags();
         const items = get().items.map(migrateCartItem); // Migrate items before calculating
 
+        let total;
         if (flags.freeShipping || flags.minOrderFloor) {
           const pricingOptions = getPricingOptions();
           const pricingItems: PricingItem[] = items.map(item => ({ line_total_cents: item.line_total_cents }));
           const totals = computeTotals(pricingItems, 0.06, pricingOptions);
-          return totals.total_cents;
+          total = totals.total_cents;
+        } else {
+          const subtotal = get().getSubtotalCents();
+          total = Math.round(calculateTotalWithTax(subtotal / 100) * 100);
         }
 
-        const subtotal = get().getSubtotalCents();
-        return Math.round(calculateTotalWithTax(subtotal / 100) * 100);
+        // Subtract discount from total
+        const discountAmount = get().getDiscountAmountCents();
+        return Math.max(0, total - discountAmount);
       },
+
 
       getItemCount: () => {
         return get().items.reduce((total, item) => total + item.quantity, 0);

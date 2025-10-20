@@ -11,6 +11,7 @@ import { validateMinimumOrder, canProceedToCheckout } from '@/lib/validation/min
 import PayPalCheckout from '@/components/checkout/PayPalCheckout';
 import SignUpEncouragementModal from '@/components/checkout/SignUpEncouragementModal';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { ArrowLeft, Package, Truck, Plus, Minus, Trash2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { emailApi } from '@/lib/api';
@@ -22,18 +23,23 @@ import { trackBeginCheckout, trackViewCart, trackFBInitiateCheckout } from '@/li
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
-  const { items, clearCart, getSubtotalCents, getTaxCents, getTotalCents, updateQuantity, removeItem } = useCartStore();
+  const { items, clearCart, getSubtotalCents, getTaxCents, getTotalCents, updateQuantity, removeItem, discountCode, applyDiscountCode, removeDiscountCode, getDiscountAmountCents } = useCartStore();
   const { user } = useAuth();
   const { setCheckoutContext } = useCheckoutContext();
   const [isAdminUser, setIsAdminUser] = useState(false);
   const { toast } = useToast();
   const [showSignUpModal, setShowSignUpModal] = useState(false);
   const [hasShownModal, setHasShownModal] = useState(false);
+  const [discountCodeInput, setDiscountCodeInput] = useState('');
+  const [isValidatingDiscount, setIsValidatingDiscount] = useState(false);
+  const [discountError, setDiscountError] = useState('');
+
 
   // Get totals from cart store methods
   const subtotalCents = getSubtotalCents();
   const taxCents = getTaxCents();
   const totalCents = getTotalCents();
+  const discountAmountCents = getDiscountAmountCents();
   
 
   // Calculate feature flag pricing details
@@ -135,6 +141,55 @@ const Checkout: React.FC = () => {
       description: "Item has been removed from your cart.",
     });
   };
+
+  // Discount code handlers
+  const handleApplyDiscount = async () => {
+    if (!discountCodeInput.trim()) {
+      setDiscountError('Please enter a discount code');
+      return;
+    }
+
+    setIsValidatingDiscount(true);
+    setDiscountError('');
+
+    try {
+      const response = await fetch('/.netlify/functions/validate-discount-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: discountCodeInput.trim() }),
+      });
+
+      const result = await response.json();
+
+      if (result.valid && result.discount) {
+        applyDiscountCode(result.discount);
+        toast({
+          title: 'Discount Applied!',
+          description: `${result.discount.discountPercentage}% off your order`,
+        });
+        setDiscountCodeInput('');
+        setDiscountError('');
+      } else {
+        setDiscountError(result.error || 'Invalid discount code');
+      }
+    } catch (error) {
+      console.error('Error validating discount code:', error);
+      setDiscountError('Failed to validate discount code');
+    } finally {
+      setIsValidatingDiscount(false);
+    }
+  };
+
+  const handleRemoveDiscount = () => {
+    removeDiscountCode();
+    setDiscountCodeInput('');
+    setDiscountError('');
+    toast({
+      title: 'Discount Removed',
+      description: 'Discount code has been removed from your order',
+    });
+  };
+
 
   // Show sign-up modal for non-authenticated users (only once per session)
   useEffect(() => {
@@ -401,6 +456,60 @@ const Checkout: React.FC = () => {
                   );})}
                 </div>
 
+                {/* Discount Code Section */}
+                <div className="border-t border-gray-200 pt-4 mt-4">
+                  {!discountCode ? (
+                    <div className="space-y-2">
+                      <label htmlFor="discount-code" className="text-sm font-medium text-gray-700">
+                        Discount Code
+                      </label>
+                      <div className="flex gap-2">
+                        <Input
+                          id="discount-code"
+                          type="text"
+                          placeholder="Enter code"
+                          value={discountCodeInput}
+                          onChange={(e) => setDiscountCodeInput(e.target.value.toUpperCase())}
+                          onKeyPress={(e) => e.key === 'Enter' && handleApplyDiscount()}
+                          className="flex-1"
+                          disabled={isValidatingDiscount}
+                        />
+                        <Button
+                          onClick={handleApplyDiscount}
+                          disabled={isValidatingDiscount || !discountCodeInput.trim()}
+                          className="bg-[#18448D] hover:bg-[#18448D]/90"
+                        >
+                          {isValidatingDiscount ? 'Validating...' : 'Apply'}
+                        </Button>
+                      </div>
+                      {discountError && (
+                        <p className="text-sm text-red-600">{discountError}</p>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="text-sm font-medium text-green-800">
+                            Discount Code Applied: {discountCode.code}
+                          </p>
+                          <p className="text-xs text-green-600">
+                            {discountCode.discountPercentage}% off
+                          </p>
+                        </div>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={handleRemoveDiscount}
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        >
+                          Remove
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <div className="border-t border-gray-200 pt-4 mt-4 space-y-2">
                   <div className="flex justify-between items-center">
                     <span className="text-gray-700">Subtotal</span>
@@ -426,6 +535,14 @@ const Checkout: React.FC = () => {
                       {usd(taxCents / 100)}
                     </span>
                   </div>
+                  {discountAmountCents > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-700">Discount ({discountCode?.discountPercentage}%)</span>
+                      <span className="text-green-600 font-semibold">
+                        -{usd(discountAmountCents / 100)}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex justify-between items-center border-t border-gray-200 pt-2">
                     <span className="text-lg font-semibold text-gray-900">Total</span>
                     <span className="text-2xl font-bold text-gray-900">

@@ -84,7 +84,7 @@ const AbandonedCarts: React.FC = () => {
 
       toast({
         title: 'Email Sent!',
-        description: \`Recovery email \${sequenceNumber} sent successfully\${result.discountCode ? \` with discount code \${result.discountCode}\` : ''}\`,
+        description: `Recovery email ${sequenceNumber} sent successfully${result.discountCode ? ` with discount code ${result.discountCode}` : ''}`,
       });
 
       await loadCarts();
@@ -116,9 +116,9 @@ const AbandonedCarts: React.FC = () => {
     const diffHours = Math.floor(diffMins / 60);
     const diffDays = Math.floor(diffHours / 24);
 
-    if (diffDays > 0) return \`\${diffDays}d ago\`;
-    if (diffHours > 0) return \`\${diffHours}h ago\`;
-    if (diffMins > 0) return \`\${diffMins}m ago\`;
+    if (diffDays > 0) return `${diffDays}d ago`;
+    if (diffHours > 0) return `${diffHours}h ago`;
+    if (diffMins > 0) return `${diffMins}m ago`;
     return 'Just now';
   };
 
@@ -146,7 +146,7 @@ const AbandonedCarts: React.FC = () => {
             <h1 className="text-3xl font-bold">Abandoned Carts</h1>
           </div>
           <Button onClick={loadCarts} disabled={loading} variant="outline">
-            <RefreshCw className={\`h-4 w-4 mr-2 \${loading ? 'animate-spin' : ''}\`} />
+            <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
             Refresh
           </Button>
         </div>
