@@ -53,7 +53,7 @@ const AdminOrders: React.FC = () => {
   const [showAccessDenied, setShowAccessDenied] = useState(false);
   const { toast } = useToast();
   const [pdfLoadingStates, setPdfLoadingStates] = useState<Record<string, boolean>>({});
-  const [activeAdminTab, setActiveAdminTab] = useState<'orders' | 'events'>('orders');
+  const [activeAdminTab, setActiveAdminTab] = useState<'orders' | 'events' | 'abandoned-carts'>('orders');
   useEffect(() => {
 
     // Show access denied message instead of immediate redirect
@@ -490,6 +490,12 @@ const AdminOrders: React.FC = () => {
                   <a href="/admin/events">
                     <Star className="h-4 w-4" />
                     Events
+                  </a>
+                </TabsTrigger>
+                <TabsTrigger value="abandoned-carts" className="flex items-center gap-2" asChild>
+                  <a href="/admin/abandoned-carts">
+                    <ShoppingCart className="h-4 w-4" />
+                    Abandoned Carts
                   </a>
                 </TabsTrigger>
               </TabsList>
