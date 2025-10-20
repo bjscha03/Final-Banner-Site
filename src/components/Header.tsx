@@ -98,8 +98,6 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
             <button
               onClick={onCartClick}
               aria-label="Shopping cart"
-              aria-label="Shopping cart"
-              aria-label="Shopping cart"
               className="relative p-2 text-gray-700 hover:text-blue-700 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
             >
               <ShoppingCart className="h-6 w-6" />
