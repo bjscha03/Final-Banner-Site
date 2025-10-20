@@ -26,7 +26,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar as CalendarIcon, Star } from 'lucide-react';
+import { Calendar as CalendarIcon, Star, ShoppingCart } from 'lucide-react';
 import OrderDetails from '@/components/orders/OrderDetails';
 import {
   Dialog,
