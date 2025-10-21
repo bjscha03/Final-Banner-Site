@@ -223,10 +223,13 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        const errorText = await response.text();
+        console.error('[PDF Download] HTTP Error:', response.status, errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
       const result = await response.json();
+      console.log('[PDF Download] Response:', result);
 
       if (result.pdfUrl) {
         // Download the PDF (works with both data URLs and regular URLs)
@@ -490,7 +493,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                             size="sm"
                             onClick={() => handlePdfDownload(item, index)}
                             disabled={pdfGenerating[index]}
-                            className="w-full"
+                            className="min-w-[140px]"
                           >
                             <Download className="h-3 w-3 mr-1" />
                             Download PDF
@@ -519,7 +522,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                                 }
                               }
                             }}
-                            className="w-full"
+                            className="min-w-[140px]"
                           >
                             <Download className="h-3 w-3 mr-1" />
                             Download Image File
@@ -533,7 +536,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                             size="sm"
                             onClick={() => handlePrintGradePdfDownload(item, index)}
                             disabled={pdfGenerating[index]}
-                            className="w-full bg-gradient-to-r from-blue-50 to-purple-50 border-blue-300 hover:from-blue-100 hover:to-purple-100"
+                            className="min-w-[140px] bg-gradient-to-r from-blue-50 to-purple-50 border-blue-300 hover:from-blue-100 hover:to-purple-100"
                           >
                             <Sparkles className="h-3 w-3 mr-1 text-blue-600" />
                             Print-Grade PDF (Beta)
@@ -546,7 +549,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                             variant="ghost"
                             size="sm"
                             onClick={() => handleQualityCheck(item)}
-                            className="w-full text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                            className="min-w-[140px] text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                           >
                             <Info className="h-3 w-3 mr-1" />
                             Quality Check
@@ -565,7 +568,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                             variant="outline"
                             size="sm"
                             onClick={() => handleReorder(index)}
-                            className="w-full"
+                            className="min-w-[140px]"
                           >
                             <ShoppingCart className="h-3 w-3 mr-1" />
                             Reorder
