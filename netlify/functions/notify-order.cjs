@@ -143,10 +143,13 @@ async function sendEmail(type, payload) {
             </div>
           </div>
           
-          ${payload.order.shippingAddress ? `
+          ${payload.order.shipping_name ? `
             <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
               <h3 style="margin-top: 0; color: #374151;">Shipping Address</h3>
-              <p style="margin: 5px 0;">${payload.order.shippingAddress}</p>
+              <p style="margin: 5px 0; font-weight: 600;">${payload.order.shipping_name}</p>
+              ${payload.order.shipping_street ? `<p style="margin: 5px 0;">${payload.order.shipping_street}</p>` : ''}
+              ${(payload.order.shipping_city || payload.order.shipping_state || payload.order.shipping_zip) ? `<p style="margin: 5px 0;">${payload.order.shipping_city || ''}${payload.order.shipping_city && payload.order.shipping_state ? ', ' : ''}${payload.order.shipping_state || ''} ${payload.order.shipping_zip || ''}</p>` : ''}
+              ${payload.order.shipping_country && payload.order.shipping_country !== 'US' ? `<p style="margin: 5px 0;">${payload.order.shipping_country}</p>` : ''}
             </div>
           ` : ''}
           
@@ -205,10 +208,13 @@ async function sendEmail(type, payload) {
             </div>
           </div>
 
-          ${payload.order.shippingAddress ? `
+          ${payload.order.shipping_name ? `
             <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
               <h3 style="margin-top: 0; color: #374151;">Shipping Address</h3>
-              <p style="margin: 5px 0;">${payload.order.shippingAddress}</p>
+              <p style="margin: 5px 0; font-weight: 600;">${payload.order.shipping_name}</p>
+              ${payload.order.shipping_street ? `<p style="margin: 5px 0;">${payload.order.shipping_street}</p>` : ''}
+              ${(payload.order.shipping_city || payload.order.shipping_state || payload.order.shipping_zip) ? `<p style="margin: 5px 0;">${payload.order.shipping_city || ''}${payload.order.shipping_city && payload.order.shipping_state ? ', ' : ''}${payload.order.shipping_state || ''} ${payload.order.shipping_zip || ''}</p>` : ''}
+              ${payload.order.shipping_country && payload.order.shipping_country !== 'US' ? `<p style="margin: 5px 0;">${payload.order.shipping_country}</p>` : ''}
             </div>
           ` : ''}
 

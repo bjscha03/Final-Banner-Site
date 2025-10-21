@@ -132,6 +132,7 @@ exports.handler = async (event, context) => {
       id: order.id,
       user_id: order.user_id,
       email: order.email,
+      customer_name: order.customer_name,
       subtotal_cents: order.subtotal_cents,
       tax_cents: order.tax_cents,
       total_cents: order.total_cents,
@@ -139,6 +140,12 @@ exports.handler = async (event, context) => {
       currency: 'USD',
       tracking_number: order.tracking_number,
       tracking_carrier: order.tracking_number ? 'fedex' : null, // Default to fedex when tracking exists
+      shipping_name: order.shipping_name,
+      shipping_street: order.shipping_street,
+      shipping_city: order.shipping_city,
+      shipping_state: order.shipping_state,
+      shipping_zip: order.shipping_zip,
+      shipping_country: order.shipping_country,
       created_at: order.created_at,
       items: order.items || []
     }));
