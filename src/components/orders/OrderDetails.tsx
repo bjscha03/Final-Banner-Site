@@ -493,10 +493,10 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                             size="sm"
                             onClick={() => handlePdfDownload(item, index)}
                             disabled={pdfGenerating[index]}
-                            className="min-w-[140px]"
+                            className="min-w-[60px]"
                           >
                             <Download className="h-3 w-3 mr-1" />
-                            Download PDF
+                            PDF
                           </Button>
                         )}
                         
@@ -522,10 +522,10 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                                 }
                               }
                             }}
-                            className="min-w-[140px]"
+                            className="min-w-[60px]"
                           >
                             <Download className="h-3 w-3 mr-1" />
-                            Download Image File
+                            Image
                           </Button>
                         )}
                         
@@ -536,23 +536,23 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                             size="sm"
                             onClick={() => handlePrintGradePdfDownload(item, index)}
                             disabled={pdfGenerating[index]}
-                            className="min-w-[140px] bg-gradient-to-r from-blue-50 to-purple-50 border-blue-300 hover:from-blue-100 hover:to-purple-100"
+                            className="min-w-[60px] bg-gradient-to-r from-blue-50 to-purple-50 border-blue-300 hover:from-blue-100 hover:to-purple-100"
                           >
                             <Sparkles className="h-3 w-3 mr-1 text-blue-600" />
-                            Print-Grade PDF (Beta)
+                            Print PDF
                           </Button>
                         )}
 
-                        {/* Quality Check Button - Feature Flagged */}
+                        {/* Quality Button - Feature Flagged */}
                         {isAdminUser && printPipelineEnabled && (item.file_key || item.print_ready_url || item.web_preview_url) && (
                           <Button
                             variant="ghost"
                             size="sm"
                             onClick={() => handleQualityCheck(item)}
-                            className="min-w-[140px] text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                            className="min-w-[60px] text-blue-600 hover:text-blue-700 hover:bg-blue-50"
                           >
                             <Info className="h-3 w-3 mr-1" />
-                            Quality Check
+                            Quality
                           </Button>
                         )}
                         
@@ -568,7 +568,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                             variant="outline"
                             size="sm"
                             onClick={() => handleReorder(index)}
-                            className="min-w-[140px]"
+                            className="min-w-[60px]"
                           >
                             <ShoppingCart className="h-3 w-3 mr-1" />
                             Reorder
@@ -606,7 +606,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
         </div>
       </DialogContent>
 
-      {/* Quality Check Modal */}
+      {/* Quality Modal */}
       {qualityCheckData && (
         <PDFQualityCheck
           isOpen={qualityCheckOpen}
