@@ -33,6 +33,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [pdfGenerating, setPdfGenerating] = useState<Record<number, boolean>>({});
+  const [printPdfGenerating, setPrintPdfGenerating] = useState<Record<number, boolean>>({});
   const isAdminUser = user && isAdmin(user);
   const [qualityCheckOpen, setQualityCheckOpen] = useState(false);
   const [qualityCheckData, setQualityCheckData] = useState<any>(null);
@@ -278,7 +279,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
   // Handler for print-grade PDF download (Beta)
   const handlePrintGradePdfDownload = async (item: any, index: number) => {
     try {
-      setPdfGenerating(prev => ({ ...prev, [index]: true }));
+      setPrintPdfGenerating(prev => ({ ...prev, [index]: true }));
       
       // Determine the best image source (same logic as regular PDF download)
       const imageSource = item.print_ready_url || item.web_preview_url || item.file_url || item.file_key;
@@ -329,7 +330,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
         variant: 'destructive',
       });
     } finally {
-      setPdfGenerating(prev => ({ ...prev, [index]: false }));
+      setPrintPdfGenerating(prev => ({ ...prev, [index]: false }));
     }
   };
 
@@ -562,15 +563,15 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                             variant="outline"
                             size="sm"
                             onClick={() => handlePrintGradePdfDownload(item, index)}
-                            disabled={pdfGenerating[index]}
+                            disabled={printPdfGenerating[index]}
                             className="min-w-[60px] bg-gradient-to-r from-blue-50 to-purple-50 border-blue-300 hover:from-blue-100 hover:to-purple-100"
                           >
-                            {pdfGenerating[index] ? (
+                            {printPdfGenerating[index] ? (
                               <Loader2 className="h-3 w-3 mr-1 text-blue-600 animate-spin" />
                             ) : (
                               <Sparkles className="h-3 w-3 mr-1 text-blue-600" />
                             )}
-                            {pdfGenerating[index] ? 'Generating...' : 'Print PDF'}
+                            {printPdfGenerating[index] ? 'Generating...' : 'Print PDF'}
                           </Button>
                         )}
 

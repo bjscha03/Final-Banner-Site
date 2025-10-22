@@ -739,7 +739,7 @@ exports.handler = async (event) => {
 
     const merged = await sharp(whiteCanvas)
       .composite(compositeLayers)
-      .jpeg({ quality: 95, chromaSubsampling: '4:4:4' }) // JPEG compression to reduce PDF size
+      .jpeg({ quality: 85, chromaSubsampling: '4:2:0', progressive: true }) // JPEG compression to reduce PDF size below 6MB limit
       .toBuffer();
 
     console.log('[PDF] Image composited onto canvas (with overlay if provided)');
