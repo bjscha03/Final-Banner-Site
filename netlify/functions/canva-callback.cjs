@@ -97,7 +97,7 @@ async function createCanvaDesign(accessToken, width, height, title = 'Banner Des
   let heightPx = Math.round(parseFloat(height) * 150);
   
   console.log(`📏 Input dimensions: ${width}in x ${height}in`);
-  console.log(`📏 Initial pixels: ${widthPx}px x ${heightPx}px`);
+  console.log(`�� Initial pixels: ${widthPx}px x ${heightPx}px`);
   
   // Canva's limits are 40-8000 pixels
   const MAX_DIMENSION = 8000;
@@ -114,6 +114,11 @@ async function createCanvaDesign(accessToken, width, height, title = 'Banner Des
   // Ensure minimum dimensions
   widthPx = Math.max(MIN_DIMENSION, widthPx);
   heightPx = Math.max(MIN_DIMENSION, heightPx);
+  
+  // TEMPORARY: Use a known-good small size for testing
+  widthPx = 1000;
+  heightPx = 500;
+  console.log(`🧪 TESTING: Overriding to safe dimensions: ${widthPx}px x ${heightPx}px`);
   
   console.log(`📏 Final dimensions: ${widthPx}px x ${heightPx}px`);
   
@@ -137,6 +142,7 @@ async function createCanvaDesign(accessToken, width, height, title = 'Banner Des
   };
 
   return httpsRequest(createUrl, options, JSON.stringify(designData));
+}
 }
 exports.handler = async (event, context) => {
   console.log('🔄 Canva Callback - Processing OAuth callback');
