@@ -101,8 +101,6 @@
   status = 200
   force = true
 
-[[redirects]]
-
 # AI Design redirect
 [[redirects]]
   from = "/ai-design"
@@ -170,4 +168,3 @@ for = "/assets/*"
 [[edge_functions]]
   path = "/blog/*"
   function = "social-meta-injector"
-# Updated Wed Oct 22 18:03:28 EDT 2025
