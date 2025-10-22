@@ -82,9 +82,9 @@ export default function CanvaEditor() {
         throw new Error(data.error || 'Export failed');
       }
 
-      if (data.success && data.url) {
+      if (data.success && data.urls && data.urls.length > 0) {
         // Download the image
-        const imageResponse = await fetch(data.url);
+        const imageResponse = await fetch(data.urls[0]);
         const blob = await imageResponse.blob();
         
         // Create a File object

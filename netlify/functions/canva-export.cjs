@@ -44,9 +44,10 @@ function httpsRequest(url, options = {}, body = null) {
  * Export a Canva design as PNG
  */
 async function exportCanvaDesign(accessToken, designId) {
-  const exportUrl = `https://api.canva.com/rest/v1/designs/${designId}/export`;
+  const exportUrl = `https://api.canva.com/rest/v1/exports`;
   
   const exportData = {
+    design_id: designId,
     format: {
       type: 'png'
     }
@@ -70,8 +71,8 @@ async function exportCanvaDesign(accessToken, designId) {
 /**
  * Check export job status
  */
-async function checkExportStatus(accessToken, designId, exportId) {
-  const statusUrl = `https://api.canva.com/rest/v1/designs/${designId}/export/${exportId}`;
+async function checkExportStatus(accessToken, jobId) {
+  const statusUrl = `https://api.canva.com/rest/v1/exports/${jobId}`;
   
   const options = {
     method: 'GET',
@@ -114,7 +115,7 @@ exports.handler = async (event, context) => {
     while (attempts < maxAttempts) {
       await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
       
-      const status = await checkExportStatus(accessToken, designId, exportJob.job.id);
+      const status = await checkExportStatus(accessToken, exportJob.job.id);
       console.log(`🔄 Export status (attempt ${attempts + 1}):`, status.job.status);
       
       if (status.job.status === 'success') {
@@ -126,11 +127,11 @@ exports.handler = async (event, context) => {
           },
           body: JSON.stringify({
             success: true,
-            url: status.job.result.url
+            urls: status.job.urls
           })
         };
       } else if (status.job.status === 'failed') {
-        throw new Error('Export job failed');
+        throw new Error(`Export job failed: ${status.job.error?.message || 'Unknown error'}`);
       }
       
       attempts++;
