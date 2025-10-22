@@ -140,7 +140,7 @@ exports.handler = async (event, context) => {
       return {
         statusCode: 302,
         headers: {
-          'Location': `https://www.bannersonthefly.com/design?error=${encodeURIComponent(error_description || error)}`
+          'Location': `https://bannersonthefly.com/design?error=${encodeURIComponent(error_description || error)}`
         },
         body: ''
       };
@@ -200,7 +200,7 @@ exports.handler = async (event, context) => {
     }
 
     // Redirect back to the site with the design info
-    const redirectUrl = new URL('https://www.bannersonthefly.com/design/canva-editor');
+    const redirectUrl = new URL('https://bannersonthefly.com/design/canva-editor');
     redirectUrl.searchParams.set('orderId', orderId);
     redirectUrl.searchParams.set('userId', userId);
     
@@ -231,7 +231,7 @@ exports.handler = async (event, context) => {
     return {
       statusCode: 302,
       headers: {
-        'Location': `https://www.bannersonthefly.com/design?error=${encodeURIComponent(error.message)}`
+        'Location': `https://bannersonthefly.com/design?error=${encodeURIComponent(error.message)}`
       },
       body: ''
     };
