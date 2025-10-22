@@ -93,18 +93,31 @@ async function createCanvaDesign(accessToken, width, height, title = 'Banner Des
   const createUrl = 'https://api.canva.com/rest/v1/designs';
   
   // Convert feet to pixels at 150 DPI
-  const widthPx = Math.round(parseFloat(width) * 12 * 150);
-  const heightPx = Math.round(parseFloat(height) * 12 * 150);
+  let widthPx = Math.round(parseFloat(width) * 12 * 150);
+  let heightPx = Math.round(parseFloat(height) * 12 * 150);
   
-  // Clamp dimensions to Canva's limits (40-8000 pixels)
-  const clampedWidth = Math.max(40, Math.min(8000, widthPx));
-  const clampedHeight = Math.max(40, Math.min(8000, heightPx));
+  // Canva's limits are 40-8000 pixels
+  const MAX_DIMENSION = 8000;
+  const MIN_DIMENSION = 40;
+  
+  // Scale down proportionally if either dimension exceeds the max
+  if (widthPx > MAX_DIMENSION || heightPx > MAX_DIMENSION) {
+    const scale = Math.min(MAX_DIMENSION / widthPx, MAX_DIMENSION / heightPx);
+    widthPx = Math.round(widthPx * scale);
+    heightPx = Math.round(heightPx * scale);
+  }
+  
+  // Ensure minimum dimensions
+  widthPx = Math.max(MIN_DIMENSION, widthPx);
+  heightPx = Math.max(MIN_DIMENSION, heightPx);
+  
+  console.log(`�� Creating Canva design: ${width}ft x ${height}ft = ${widthPx}px x ${heightPx}px`);
   
   const designData = {
     design_type: {
       type: 'custom',
-      width: clampedWidth,
-      height: clampedHeight
+      width: widthPx,
+      height: heightPx
     },
     title: title
   };
