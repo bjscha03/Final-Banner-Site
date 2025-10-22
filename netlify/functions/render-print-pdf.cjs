@@ -92,15 +92,22 @@ async function fetchPrintImage(fileKey, widthPx, heightPx, applyColorCorrection 
     }
     
     console.log('[Print-PDF] Requesting explicit transformation:', JSON.stringify(transformation));
+    console.log('[Print-PDF] FileKey:', fileKey);
     
     // Use explicit() to generate the transformed version and get secure URL
-    const result = await cloudinary.uploader.explicit(fileKey, {
-      type: 'upload',
-      resource_type: 'image',
-      eager: [transformation],
-    });
-    
-    console.log('[Print-PDF] Explicit result:', JSON.stringify(result, null, 2));
+    let result;
+    try {
+      result = await cloudinary.uploader.explicit(fileKey, {
+        type: 'upload',
+        resource_type: 'image',
+        eager: [transformation],
+      });
+      console.log('[Print-PDF] Explicit result:', JSON.stringify(result, null, 2));
+    } catch (explicitError) {
+      console.error('[Print-PDF] Cloudinary explicit() failed:', explicitError.message);
+      console.error('[Print-PDF] FileKey that failed:', fileKey);
+      throw new Error(`Cloudinary resource not found: ${fileKey}. Error: ${explicitError.message}`);
+    }
     
     // Get the secure URL - eager transformations return full URLs
     let url;
@@ -294,6 +301,7 @@ exports.handler = async (event) => {
     const {
       orderId,
       fileKey,
+      imageUrl,
       bannerWidthIn,
       bannerHeightIn,
       targetDpi = 150,
@@ -304,18 +312,19 @@ exports.handler = async (event) => {
 
     console.log('[Print-PDF] Order ID:', orderId);
     console.log('[Print-PDF] File Key:', fileKey);
+    console.log('[Print-PDF] Image URL:', imageUrl);
     console.log('[Print-PDF] Banner Size:', `${bannerWidthIn}×${bannerHeightIn} inches`);
     console.log('[Print-PDF] Target DPI:', targetDpi);
     console.log('[Print-PDF] Bleed:', `${bleedIn} inches`);
 
-    // Validate required fields
-    if (!fileKey || !bannerWidthIn || !bannerHeightIn) {
+    // Validate required fields - need either fileKey or imageUrl
+    if ((!fileKey && !imageUrl) || !bannerWidthIn || !bannerHeightIn) {
       return {
         statusCode: 400,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           error: 'Missing required fields',
-          required: ['fileKey', 'bannerWidthIn', 'bannerHeightIn'],
+          required: ['fileKey OR imageUrl', 'bannerWidthIn', 'bannerHeightIn'],
         }),
       };
     }

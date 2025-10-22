@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useCartStore } from '@/store/cart';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth, isAdmin } from '@/lib/auth';
-import { ShoppingCart, Package, Calendar, CreditCard, Mail, User, Download, FileText, Sparkles, Info, MapPin } from 'lucide-react';
+import { ShoppingCart, Package, Calendar, CreditCard, Mail, User, Download, FileText, Sparkles, Info, MapPin, Loader2 } from 'lucide-react';
 import TrackingBadge from './TrackingBadge';
 import PDFQualityCheck from '../admin/PDFQualityCheck';
 import { isPrintPipelineEnabled } from '../../utils/printPipeline';
@@ -266,12 +266,19 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
     try {
       setPdfGenerating({ ...pdfGenerating, [index]: true });
       
+      // Determine the best image source (same logic as regular PDF download)
+      const imageSource = item.print_ready_url || item.web_preview_url || item.file_key;
+      const isCloudinaryKey = !imageSource?.startsWith('http');
+      
+      console.log('[Print PDF] Image source:', imageSource, 'isCloudinaryKey:', isCloudinaryKey);
+      
       const response = await fetch('/.netlify/functions/render-print-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           orderId: order.id,
-          fileKey: item.file_key,
+          fileKey: isCloudinaryKey ? imageSource : null,
+          imageUrl: isCloudinaryKey ? null : imageSource,
           bannerWidthIn: item.width_in,
           bannerHeightIn: item.height_in,
           targetDpi: 150,
@@ -497,8 +504,12 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                             disabled={pdfGenerating[index]}
                             className="min-w-[60px]"
                           >
-                            <Download className="h-3 w-3 mr-1" />
-                            PDF
+                            {pdfGenerating[index] ? (
+                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                            ) : (
+                              <Download className="h-3 w-3 mr-1" />
+                            )}
+                            {pdfGenerating[index] ? 'Generating...' : 'PDF'}
                           </Button>
                         )}
                         
@@ -540,8 +551,12 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                             disabled={pdfGenerating[index]}
                             className="min-w-[60px] bg-gradient-to-r from-blue-50 to-purple-50 border-blue-300 hover:from-blue-100 hover:to-purple-100"
                           >
-                            <Sparkles className="h-3 w-3 mr-1 text-blue-600" />
-                            Print PDF
+                            {pdfGenerating[index] ? (
+                              <Loader2 className="h-3 w-3 mr-1 text-blue-600 animate-spin" />
+                            ) : (
+                              <Sparkles className="h-3 w-3 mr-1 text-blue-600" />
+                            )}
+                            {pdfGenerating[index] ? 'Generating...' : 'Print PDF'}
                           </Button>
                         )}
 
