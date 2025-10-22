@@ -2,13 +2,16 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, ExternalLink, CheckCircle2 } from 'lucide-react';
+import { Loader2, ExternalLink, CheckCircle2, Download } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 
 export default function CanvaEditor() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [exporting, setExporting] = useState(false);
 
   const orderId = searchParams.get('orderId');
   const userId = searchParams.get('userId');
@@ -45,6 +48,75 @@ export default function CanvaEditor() {
   const handleOpenCanva = () => {
     if (editUrl) {
       window.open(editUrl, '_blank');
+    }
+  };
+
+  const handleDoneDesigning = async () => {
+    if (!designId || !token) {
+      toast({
+        title: "Error",
+        description: "Missing design information",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    setExporting(true);
+
+    try {
+      // Call the export function
+      const response = await fetch('/.netlify/functions/canva-export', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          designId,
+          accessToken: token
+        })
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Export failed');
+      }
+
+      if (data.success && data.url) {
+        // Download the image
+        const imageResponse = await fetch(data.url);
+        const blob = await imageResponse.blob();
+        
+        // Create a File object
+        const file = new File([blob], `canva-design-${designId}.png`, { type: 'image/png' });
+        
+        // Store in sessionStorage to pass to design page
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          sessionStorage.setItem('canva-design-file', reader.result as string);
+          sessionStorage.setItem('canva-design-name', file.name);
+          
+          toast({
+            title: "Success!",
+            description: "Your design has been imported"
+          });
+          
+          // Navigate back to design page
+          navigate('/design');
+        };
+        reader.readAsDataURL(blob);
+      } else {
+        throw new Error('No export URL received');
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+      toast({
+        title: "Export Failed",
+        description: error instanceof Error ? error.message : 'Failed to export design',
+        variant: "destructive"
+      });
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -105,8 +177,8 @@ export default function CanvaEditor() {
             <ol className="list-decimal list-inside space-y-2 text-sm text-blue-800">
               <li>Click "Open Canva Editor" below to edit your banner</li>
               <li>Customize your design with text, graphics, and effects</li>
-              <li>When finished, click "Done" or "Publish" in Canva</li>
-              <li>You'll be redirected back here to complete your order</li>
+              <li>When finished, come back here and click "Done Designing"</li>
+              <li>We'll import your design and you can complete your order</li>
             </ol>
           </div>
 
@@ -117,21 +189,40 @@ export default function CanvaEditor() {
             </div>
           )}
 
-          <div className="flex gap-3">
+          <div className="flex flex-col gap-3">
             {editUrl && (
               <Button 
                 onClick={handleOpenCanva} 
-                className="flex-1"
+                className="w-full"
                 style={{ backgroundColor: '#18448D' }}
               >
                 <ExternalLink className="h-4 w-4 mr-2" />
                 Open Canva Editor
               </Button>
             )}
+            
+            <Button 
+              onClick={handleDoneDesigning}
+              disabled={exporting}
+              className="w-full bg-green-600 hover:bg-green-700"
+            >
+              {exporting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Importing Design...
+                </>
+              ) : (
+                <>
+                  <Download className="h-4 w-4 mr-2" />
+                  Done Designing - Import to Site
+                </>
+              )}
+            </Button>
+
             <Button 
               onClick={handleBackToDesign} 
               variant="outline"
-              className="flex-1"
+              className="w-full"
             >
               Back to Design
             </Button>

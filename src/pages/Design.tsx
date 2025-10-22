@@ -48,6 +48,37 @@ const Design: React.FC = () => {
   }, [location, navigate]);
   const { setFromQuickQuote } = useQuoteStore();
   const hasAppliedQuickQuote = useRef(false);
+
+  // Check for Canva design import
+  useEffect(() => {
+    const canvaDesignData = sessionStorage.getItem('canva-design-file');
+    const canvaDesignName = sessionStorage.getItem('canva-design-name');
+    
+    if (canvaDesignData && canvaDesignName) {
+      // Convert base64 back to File
+      fetch(canvaDesignData)
+        .then(res => res.blob())
+        .then(blob => {
+          const file = new File([blob], canvaDesignName, { type: 'image/png' });
+          // Set the file in the store
+          useQuoteStore.getState().set({ file });
+          
+          // Clear sessionStorage
+          sessionStorage.removeItem('canva-design-file');
+          sessionStorage.removeItem('canva-design-name');
+          
+          toast({
+            title: "Canva Design Imported",
+            description: "Your design from Canva has been loaded successfully!",
+          });
+        })
+        .catch(error => {
+          console.error('Error loading Canva design:', error);
+          sessionStorage.removeItem('canva-design-file');
+          sessionStorage.removeItem('canva-design-name');
+        });
+    }
+  }, [toast]);
   const configuratorRef = useRef<HTMLDivElement>(null);
 
   // Ensure page starts at top on navigation
