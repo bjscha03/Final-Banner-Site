@@ -196,8 +196,22 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
       });
 
       // Determine the best image source
+      console.log('[PDF Download] Item image sources:', {
+        print_ready_url: item.print_ready_url,
+        web_preview_url: item.web_preview_url,
+        file_url: item.file_url,
+        file_key: item.file_key
+      });
+      
       const imageSource = item.print_ready_url || item.web_preview_url || item.file_url || item.file_key;
+      
+      if (!imageSource) {
+        throw new Error('No image source available for this order item. Please contact support.');
+      }
+      
       const isCloudinaryKey = !imageSource?.startsWith('http');
+      
+      console.log('[PDF Download] Selected image source:', imageSource, 'isCloudinaryKey:', isCloudinaryKey);
 
       const requestBody = {
         orderId: order.id,
