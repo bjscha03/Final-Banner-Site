@@ -12,6 +12,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { loadPdfToBitmap } from '@/utils/pdf/loadPdfToBitmap';
 import QualityBadge from './QualityBadge';
 import PreviewCanvas from './PreviewCanvas';
+import { useAuth, isAdmin } from '@/lib/auth';
 const grommetOptions = [
   { id: 'none', label: 'None', description: 'No grommets' },
   { id: 'every-2-3ft', label: 'Every 2–3 feet', description: 'Standard spacing' },
@@ -54,6 +55,8 @@ const getTouchDistance = (touch1: React.Touch, touch2: React.Touch): number => {
 
 const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGeneratingAI = false }) => {
   const { widthIn, heightIn, previewScalePct, grommets, file, overlayImage, textElements, editingItemId, set, addTextElement, updateTextElement, deleteTextElement } = useQuoteStore();
+  const { user } = useAuth();
+  const isAdminUser = user && isAdmin(user);
   console.log('🔍 LIVE PREVIEW: overlayImage from quote store:', overlayImage);
   const { toast } = useToast();
 
@@ -1570,7 +1573,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                   <Upload className="w-5 h-5" />
                   Upload Artwork
                 </button>
-                {import.meta.env.VITE_AI_BANNER_ENABLED !== 'false' && onOpenAIModal && (
+                {import.meta.env.VITE_AI_BANNER_ENABLED !== 'false' && onOpenAIModal && isAdminUser && (
                   <>
                     <div className="text-gray-400 text-sm">or</div>
                     <button
