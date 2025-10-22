@@ -182,13 +182,13 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
       description: `${item.quantity} banner${item.quantity > 1 ? 's' : ''} added to your cart.`,
     });
   };
-  const handlePdfDownload = async (item: any, itemIndex: number) => {
-    if (pdfGenerating[itemIndex]) {
+  const handlePdfDownload = async (item: any, index: number) => {
+    if (pdfGenerating[index]) {
       return;
     }
 
     try {
-      setPdfGenerating(prev => ({ ...prev, [itemIndex]: true }));
+      setPdfGenerating(prev => ({ ...prev, [index]: true }));
       
       toast({
         title: "Generating Print-Ready PDF",
@@ -239,7 +239,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `order-${order.id.slice(-8)}-banner-${itemIndex + 1}-print-ready.pdf`;
+      link.download = `order-${order.id.slice(-8)}-banner-${index + 1}-print-ready.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -257,7 +257,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
         variant: "destructive",
       });
     } finally {
-      setPdfGenerating(prev => ({ ...prev, [itemIndex]: false }));
+      setPdfGenerating(prev => ({ ...prev, [index]: false }));
     }
   };
 
