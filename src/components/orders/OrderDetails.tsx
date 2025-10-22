@@ -238,9 +238,21 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
       });
 
       if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[PDF Download] HTTP Error:', response.status, errorText);
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
+        let errorMessage = `HTTP ${response.status}`;
+        try {
+          const contentType = response.headers.get('Content-Type');
+          if (contentType?.includes('application/json')) {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorData.error || errorMessage;
+          } else {
+            const errorText = await response.text();
+            errorMessage = errorText || errorMessage;
+          }
+        } catch (parseError) {
+          console.error('[PDF Download] Error parsing error response:', parseError);
+        }
+        console.error('[PDF Download] HTTP Error:', response.status, errorMessage);
+        throw new Error(errorMessage);
       }
 
       // Get PDF metadata from headers
@@ -304,8 +316,20 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || 'Failed to generate print-grade PDF');
+        let errorMessage = 'Failed to generate print-grade PDF';
+        try {
+          const contentType = response.headers.get('Content-Type');
+          if (contentType?.includes('application/json')) {
+            const errorData = await response.json();
+            errorMessage = errorData.message || errorData.error || errorMessage;
+          } else {
+            const errorText = await response.text();
+            errorMessage = errorText || errorMessage;
+          }
+        } catch (parseError) {
+          console.error('[Print-Grade PDF] Error parsing error response:', parseError);
+        }
+        throw new Error(errorMessage);
       }
 
       const blob = await response.blob();
