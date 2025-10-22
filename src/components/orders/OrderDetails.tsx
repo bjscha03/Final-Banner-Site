@@ -196,7 +196,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
       });
 
       // Determine the best image source
-      const imageSource = item.print_ready_url || item.web_preview_url || item.file_key;
+      const imageSource = item.print_ready_url || item.web_preview_url || item.file_url || item.file_key;
       const isCloudinaryKey = !imageSource?.startsWith('http');
 
       const requestBody = {
@@ -267,7 +267,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
       setPdfGenerating(prev => ({ ...prev, [index]: true }));
       
       // Determine the best image source (same logic as regular PDF download)
-      const imageSource = item.print_ready_url || item.web_preview_url || item.file_key;
+      const imageSource = item.print_ready_url || item.web_preview_url || item.file_url || item.file_key;
       const isCloudinaryKey = !imageSource?.startsWith('http');
       
       console.log('[Print PDF] Image source:', imageSource, 'isCloudinaryKey:', isCloudinaryKey);
