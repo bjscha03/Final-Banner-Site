@@ -88,7 +88,6 @@
   status = 200
   force = true
 
-
 # Canva API redirects
 [[redirects]]
   from = "/api/canva/callback"
@@ -107,7 +106,8 @@
   to = "/.netlify/functions/canva-publish"
   status = 200
   force = true
-  force = true
+
+# AI Design redirect
 [[redirects]]
   from = "/ai-design"
   to = "/design?ai=1"
