@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect, useCallback } from 'react';
-import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image as ImageIcon, X, ChevronDown, ChevronUp, Wand2, Crop, RefreshCw, Loader2, Type } from 'lucide-react';
+import { Eye, ZoomIn, ZoomOut, Upload, FileText, Image as ImageIcon, X, ChevronDown, ChevronUp, Wand2, Crop, RefreshCw, Loader2, Type, Palette } from 'lucide-react';
 import DraggableText from './DraggableText';
 import TextStylePanel from './TextStylePanel';
 import { useQuoteStore, Grommets } from '@/store/quote';
@@ -529,6 +529,20 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     if (files && files.length > 0) {
       handleFile(files[0]);
     }
+  };
+
+  // Canva integration handler
+  const handleDesignInCanva = () => {
+    // Generate a temporary order ID (in production, this should come from an actual order)
+    const tempOrderId = `temp-${Date.now()}`;
+    
+    // Build the Canva start URL with parameters
+    const canvaStartUrl = `/api/canva/start?orderId=${encodeURIComponent(tempOrderId)}&width=${widthIn}&height=${heightIn}`;
+    
+    console.log('🎨 Opening Canva design session:', { tempOrderId, widthIn, heightIn });
+    
+    // Open Canva in a new window
+    window.open(canvaStartUrl, '_blank');
   };
 
   const removeFile = () => {
@@ -1562,6 +1576,15 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                       <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full shadow-sm">
                         BETA
                       </span>
+                    </button>
+                    <div className="text-gray-400 text-sm">or</div>
+                    <button
+                      onClick={handleDesignInCanva}
+                      className="px-6 py-3.5 relative bg-white border-2 border-orange-300 hover:border-orange-400 active:border-orange-500 text-orange-700 hover:text-orange-800 rounded-xl font-medium transition-all duration-200 w-full max-w-xs min-h-[48px] flex items-center justify-center gap-2 shadow-sm hover:shadow-md touch-manipulation"
+                      data-cta="canva-design-open"
+                    >
+                      <Palette className="w-5 h-5" />
+                      Design in Canva
                     </button>
                   </>
                 )}
