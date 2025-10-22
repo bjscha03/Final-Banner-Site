@@ -19,7 +19,7 @@ export default function CanvaTest() {
       height
     });
 
-    const canvaStartUrl = `/api/canva/start?${params.toString()}`;
+    const canvaStartUrl = `/.netlify/functions/canva-start?${params.toString()}`;
     
     console.log('Starting Canva flow:', canvaStartUrl);
     
