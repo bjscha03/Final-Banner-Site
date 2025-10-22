@@ -41,6 +41,8 @@ import Events from "./pages/Events";
 import EventDetail from "./pages/EventDetail";
 import EventSubmit from "./pages/EventSubmit";
 import CategoryPage from "./pages/CategoryPage";
+import CanvaEditor from "./pages/CanvaEditor";
+import CanvaTest from "./pages/CanvaTest";
 import { useCartSync } from "@/hooks/useCartSync";
 import { useCartRevalidation } from "@/hooks/useCartRevalidation";
 
@@ -74,6 +76,8 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/design" element={<Design />} />            <Route path="/about" element={<About />} />
             <Route path="/design/complete" element={<DesignComplete />} />
+            <Route path="/design/canva-editor" element={<CanvaEditor />} />
+            <Route path="/canva-test" element={<CanvaTest />} />
             <Route path="/faq" element={<FAQ />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/terms" element={<Terms />} />
