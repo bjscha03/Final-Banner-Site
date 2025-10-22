@@ -228,25 +228,27 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
-      const result = await response.json();
-      console.log('[PDF Download] Response:', result);
+      // Get PDF metadata from headers
+      const dpi = response.headers.get('X-PDF-DPI') || '150';
+      const bleed = response.headers.get('X-PDF-Bleed') || '0.125';
 
-      if (result.pdfUrl) {
-        // Download the PDF (works with both data URLs and regular URLs)
-        const link = document.createElement('a');
-        link.href = result.pdfUrl;
-        link.download = `order-${order.id.slice(-8)}-banner-${itemIndex + 1}-print-ready.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+      // Handle binary PDF response
+      const blob = await response.blob();
+      console.log('[PDF Download] Received PDF blob:', blob.size, 'bytes');
 
-        toast({
-          title: "PDF Downloaded",
-          description: `Print-ready PDF (${result.dpi} DPI with ${result.bleedIn}" bleed) ready for production.`,
-        });
-      } else {
-        throw new Error('No PDF URL in response');
-      }
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `order-${order.id.slice(-8)}-banner-${itemIndex + 1}-print-ready.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "PDF Downloaded",
+        description: `Print-ready PDF (${dpi} DPI with ${bleed}" bleed) ready for production.`,
+      });
     } catch (error) {
       console.error('[PDF Download] Error:', error);
       toast({

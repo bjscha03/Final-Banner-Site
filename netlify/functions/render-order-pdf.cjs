@@ -747,43 +747,20 @@ exports.handler = async (event) => {
     const pdfBuffer = await rasterToPdfBuffer(merged, finalWidthIn, finalHeightIn, req.textElements, req.bannerWidthIn, req.bannerHeightIn, req.previewCanvasPx, bleedIn);
     console.log(`[PDF] PDF generated: ${pdfBuffer.length} bytes`);
 
-    // Upload PDF to Cloudinary to avoid payload size limits
-    console.log('[PDF] Uploading PDF to Cloudinary...');
-    const uploadResult = await cloudinary.uploader.upload(
-      `data:application/pdf;base64,${pdfBuffer.toString('base64')}`,
-      {
-        resource_type: 'raw',
-        folder: 'order-pdfs',
-        public_id: `order-${req.orderId}-${Date.now()}`,
-        format: 'pdf',
-      }
-    );
-    
-    console.log('[PDF] PDF uploaded to Cloudinary:', uploadResult.secure_url);
-
-    const meta = {
-      dpi: targetDpi,
-      bleedIn,
-      sourceImageUrl: req.imageUrl,
-      imageSource: req.imageSource,
-      previewCanvasPx: req.previewCanvasPx,
-      transform: req.transform,
-    };
-
-    const response = {
-      pdfUrl: uploadResult.secure_url,
-      dpi: targetDpi,
-      bleedIn,
-      renderedAt: new Date().toISOString(),
-      meta,
-    };
-
+    // Return PDF directly as binary response
+    console.log('[PDF] Returning PDF as binary response');
     console.log('[PDF] === PDF render complete ===');
 
     return {
       statusCode: 200,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(response),
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="order-${req.orderId}-print-ready.pdf"`,
+        'X-PDF-DPI': targetDpi.toString(),
+        'X-PDF-Bleed': bleedIn.toString(),
+      },
+      body: pdfBuffer.toString('base64'),
+      isBase64Encoded: true,
     };
   } catch (error) {
     console.error('[PDF] Error:', error);
