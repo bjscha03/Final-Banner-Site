@@ -264,7 +264,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
   // Handler for print-grade PDF download (Beta)
   const handlePrintGradePdfDownload = async (item: any, index: number) => {
     try {
-      setPdfGenerating({ ...pdfGenerating, [index]: true });
+      setPdfGenerating(prev => ({ ...prev, [index]: true }));
       
       // Determine the best image source (same logic as regular PDF download)
       const imageSource = item.print_ready_url || item.web_preview_url || item.file_key;
@@ -315,7 +315,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
         variant: 'destructive',
       });
     } finally {
-      setPdfGenerating({ ...pdfGenerating, [index]: false });
+      setPdfGenerating(prev => ({ ...prev, [index]: false }));
     }
   };
 

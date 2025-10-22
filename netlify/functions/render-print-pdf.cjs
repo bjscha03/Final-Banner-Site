@@ -335,8 +335,23 @@ exports.handler = async (event) => {
 
     console.log('[Print-PDF] Target pixels:', `${widthPx}×${heightPx}px`);
 
-    // Fetch image from Cloudinary
-    const imageBuffer = await fetchPrintImage(fileKey, widthPx, heightPx, applyColorCorrection);
+    // Fetch image - either from Cloudinary (fileKey) or direct URL (imageUrl)
+    let imageBuffer;
+    if (imageUrl) {
+      console.log('[Print-PDF] Fetching from direct URL:', imageUrl);
+      const response = await fetch(imageUrl);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch image from URL: ${response.statusText}`);
+      }
+      imageBuffer = await response.buffer();
+      console.log('[Print-PDF] Image fetched from URL:', imageBuffer.length, 'bytes');
+    } else if (fileKey) {
+      // Fetch from Cloudinary with print-quality transformations
+      console.log('[Print-PDF] Fetching from Cloudinary with fileKey:', fileKey);
+      imageBuffer = await fetchPrintImage(fileKey, widthPx, heightPx, applyColorCorrection);
+    } else {
+      throw new Error('Neither imageUrl nor fileKey provided - cannot fetch image');
+    }
 
     // Calculate page size (banner + bleed)
     const pageWidthIn = bannerWidthIn + (2 * bleedIn);
