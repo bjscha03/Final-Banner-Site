@@ -96,17 +96,17 @@ async function createCanvaDesign(accessToken, width, height, title = 'Banner Des
   const widthPx = Math.round(parseFloat(width) * 12 * 150);
   const heightPx = Math.round(parseFloat(height) * 12 * 150);
   
+  // Clamp dimensions to Canva's limits (40-8000 pixels)
+  const clampedWidth = Math.max(40, Math.min(8000, widthPx));
+  const clampedHeight = Math.max(40, Math.min(8000, heightPx));
+  
   const designData = {
-    asset_type: 'Poster',
-    title: title,
-    width: {
-      value: widthPx,
-      unit: 'px'
+    design_type: {
+      type: 'custom',
+      width: clampedWidth,
+      height: clampedHeight
     },
-    height: {
-      value: heightPx,
-      unit: 'px'
-    }
+    title: title
   };
 
   const options = {
