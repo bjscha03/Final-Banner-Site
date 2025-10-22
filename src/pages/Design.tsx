@@ -57,14 +57,14 @@ const Design: React.FC = () => {
     if (canvaDesignData && canvaDesignName) {
       console.log('🎨 Loading Canva design from sessionStorage');
       
-      // Convert base64 back to File
+      // Convert base64 back to File for upload, but keep base64 URL for display
       fetch(canvaDesignData)
         .then(res => res.blob())
         .then(blob => {
           const file = new File([blob], canvaDesignName, { type: 'image/png' });
           
-          // Create a blob URL for preview
-          const previewUrl = URL.createObjectURL(blob);
+          // Use the base64 data URL directly (not blob URL) so it persists in cart
+          const previewUrl = canvaDesignData;
           
           // Set the file in the store with the proper structure
           useQuoteStore.getState().set({ 
