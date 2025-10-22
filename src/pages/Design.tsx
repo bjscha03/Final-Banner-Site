@@ -55,17 +55,35 @@ const Design: React.FC = () => {
     const canvaDesignName = sessionStorage.getItem('canva-design-name');
     
     if (canvaDesignData && canvaDesignName) {
+      console.log('🎨 Loading Canva design from sessionStorage');
+      
       // Convert base64 back to File
       fetch(canvaDesignData)
         .then(res => res.blob())
         .then(blob => {
           const file = new File([blob], canvaDesignName, { type: 'image/png' });
-          // Set the file in the store
-          useQuoteStore.getState().set({ file });
+          
+          // Create a blob URL for preview
+          const previewUrl = URL.createObjectURL(blob);
+          
+          // Set the file in the store with the proper structure
+          useQuoteStore.getState().set({ 
+            file: {
+              name: canvaDesignName,
+              type: 'image/png',
+              size: blob.size,
+              url: previewUrl,
+              isPdf: false,
+              fileKey: `canva-${Date.now()}`,
+            },
+            previewScalePct: 100
+          });
           
           // Clear sessionStorage
           sessionStorage.removeItem('canva-design-file');
           sessionStorage.removeItem('canva-design-name');
+          
+          console.log('✅ Canva design loaded successfully');
           
           toast({
             title: "Canva Design Imported",
@@ -73,9 +91,14 @@ const Design: React.FC = () => {
           });
         })
         .catch(error => {
-          console.error('Error loading Canva design:', error);
+          console.error('❌ Error loading Canva design:', error);
           sessionStorage.removeItem('canva-design-file');
           sessionStorage.removeItem('canva-design-name');
+          toast({
+            title: "Import Failed",
+            description: "Failed to load your Canva design. Please try again.",
+            variant: "destructive"
+          });
         });
     }
   }, [toast]);
