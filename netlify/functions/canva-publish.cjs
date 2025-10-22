@@ -11,7 +11,7 @@
  */
 
 const crypto = require('crypto');
-const fetch = require('node-fetch');
+const https = require('https');
 
 /**
  * Verify Canva webhook signature
@@ -50,63 +50,76 @@ function verifyCanvaSignature(body, signature, timestamp, secret) {
 
     return true;
   } catch (error) {
-    console.error('❌ Error verifying signature:', error);
+    console.error('❌ Signature verification error:', error);
     return false;
   }
 }
 
 /**
- * Upload file to Cloudinary using unsigned upload
+ * Download file from URL using https module
  */
-async function uploadToCloudinary(fileUrl, cloudName, uploadPreset) {
-  console.log('☁️ Uploading to Cloudinary:', { fileUrl, cloudName, uploadPreset });
-
-  try {
-    const fileResponse = await fetch(fileUrl);
-    if (!fileResponse.ok) {
-      throw new Error(`Failed to download file from Canva: ${fileResponse.statusText}`);
-    }
-
-    const fileBuffer = await fileResponse.buffer();
-    const base64File = fileBuffer.toString('base64');
-    const dataUri = `data:${fileResponse.headers.get('content-type') || 'application/octet-stream'};base64,${base64File}`;
-
-    const cloudinaryUrl = `https://api.cloudinary.com/v1_1/${cloudName}/upload`;
-    
-    const formData = new URLSearchParams();
-    formData.append('file', dataUri);
-    formData.append('upload_preset', uploadPreset);
-    formData.append('folder', 'canva-designs');
-    formData.append('resource_type', 'auto');
-
-    const uploadResponse = await fetch(cloudinaryUrl, {
-      method: 'POST',
-      body: formData,
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
+function downloadFile(url) {
+  return new Promise((resolve, reject) => {
+    https.get(url, (response) => {
+      if (response.statusCode !== 200) {
+        reject(new Error(`Failed to download: ${response.statusCode}`));
+        return;
       }
+
+      const chunks = [];
+      response.on('data', (chunk) => chunks.push(chunk));
+      response.on('end', () => resolve(Buffer.concat(chunks)));
+      response.on('error', reject);
+    }).on('error', reject);
+  });
+}
+
+/**
+ * Upload to Cloudinary using https module
+ */
+function uploadToCloudinary(fileBuffer, cloudName, preset) {
+  return new Promise((resolve, reject) => {
+    const base64Data = fileBuffer.toString('base64');
+    const dataUri = `data:image/png;base64,${base64Data}`;
+    
+    const formData = JSON.stringify({
+      file: dataUri,
+      upload_preset: preset,
+      folder: 'canva-designs'
     });
 
-    if (!uploadResponse.ok) {
-      const errorText = await uploadResponse.text();
-      throw new Error(`Cloudinary upload failed: ${uploadResponse.statusText} - ${errorText}`);
-    }
+    const options = {
+      hostname: 'api.cloudinary.com',
+      path: `/v1_1/${cloudName}/image/upload`,
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(formData)
+      }
+    };
 
-    const uploadResult = await uploadResponse.json();
-    console.log('✅ Cloudinary upload successful:', uploadResult.secure_url);
+    const req = https.request(options, (res) => {
+      let data = '';
+      res.on('data', (chunk) => data += chunk);
+      res.on('end', () => {
+        if (res.statusCode === 200) {
+          resolve(JSON.parse(data));
+        } else {
+          reject(new Error(`Cloudinary upload failed: ${res.statusCode} - ${data}`));
+        }
+      });
+    });
 
-    return uploadResult.secure_url;
-
-  } catch (error) {
-    console.error('❌ Error uploading to Cloudinary:', error);
-    throw error;
-  }
+    req.on('error', reject);
+    req.write(formData);
+    req.end();
+  });
 }
 
 exports.handler = async (event, context) => {
-  console.log('🎨 Canva Publish - Receiving published design');
-  console.log('📥 Request method:', event.httpMethod);
+  console.log('📥 Canva Publish - Received webhook');
 
+  // Only allow POST requests
   if (event.httpMethod !== 'POST') {
     return {
       statusCode: 405,
@@ -115,84 +128,71 @@ exports.handler = async (event, context) => {
   }
 
   try {
+    // Get environment variables
     const canvaSecret = process.env.CANVA_CLIENT_SECRET;
-    const cloudinaryCloud = process.env.CLOUDINARY_CLOUD_NAME;
+    const cloudinaryCloudName = process.env.CLOUDINARY_CLOUD_NAME;
     const cloudinaryPreset = process.env.CLOUDINARY_UNSIGNED_PRESET;
 
-    if (!canvaSecret) {
-      console.error('❌ CANVA_CLIENT_SECRET not configured');
+    if (!canvaSecret || !cloudinaryCloudName || !cloudinaryPreset) {
+      console.error('❌ Missing required environment variables');
       return {
         statusCode: 500,
-        body: JSON.stringify({ error: 'Canva integration not configured' })
+        body: JSON.stringify({ error: 'Server configuration error' })
       };
     }
 
-    if (!cloudinaryCloud || !cloudinaryPreset) {
-      console.error('❌ Cloudinary not configured');
-      return {
-        statusCode: 500,
-        body: JSON.stringify({ error: 'Cloudinary not configured' })
-      };
-    }
-
-    const signature = event.headers['x-canva-signatures'] || event.headers['X-Canva-Signatures'];
-    const timestamp = event.headers['x-canva-timestamp'] || event.headers['X-Canva-Timestamp'];
-
-    const isValid = verifyCanvaSignature(event.body, signature, timestamp, canvaSecret);
-    if (!isValid) {
-      console.error('❌ Invalid Canva signature');
+    // Verify Canva signature
+    const signature = event.headers['x-canva-signature'];
+    const timestamp = event.headers['x-canva-timestamp'];
+    
+    if (!verifyCanvaSignature(event.body, signature, timestamp, canvaSecret)) {
+      console.error('❌ Invalid signature');
       return {
         statusCode: 401,
         body: JSON.stringify({ error: 'Invalid signature' })
       };
     }
 
-    console.log('✅ Canva signature verified');
-
+    // Parse the webhook payload
     const payload = JSON.parse(event.body);
-    console.log('📦 Canva payload:', JSON.stringify(payload, null, 2));
+    console.log('✅ Webhook verified:', payload);
 
-    const { state, url, export_url, design } = payload;
-    const orderId = state;
-    const fileUrl = export_url || url || design?.export_url;
+    // Extract the design URL and order ID from the payload
+    const { url: designUrl, state: orderId } = payload;
 
-    if (!orderId) {
-      console.error('❌ Missing orderId in state parameter');
+    if (!designUrl || !orderId) {
+      console.error('❌ Missing design URL or order ID');
       return {
         statusCode: 400,
-        body: JSON.stringify({ error: 'Missing orderId in state parameter' })
+        body: JSON.stringify({ error: 'Missing required fields' })
       };
     }
 
-    if (!fileUrl) {
-      console.error('❌ Missing file URL in Canva payload');
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ error: 'Missing file URL in payload' })
-      };
-    }
+    console.log('📥 Downloading design from Canva:', designUrl);
+    const fileBuffer = await downloadFile(designUrl);
 
-    console.log('📄 Processing Canva design:', { orderId, fileUrl });
+    console.log('☁️ Uploading to Cloudinary...');
+    const cloudinaryResult = await uploadToCloudinary(
+      fileBuffer,
+      cloudinaryCloudName,
+      cloudinaryPreset
+    );
 
-    const cloudinaryUrl = await uploadToCloudinary(fileUrl, cloudinaryCloud, cloudinaryPreset);
+    console.log('✅ Upload successful:', cloudinaryResult.secure_url);
 
-    console.log('✅ Design uploaded successfully:', {
-      orderId,
-      cloudinaryUrl,
-      canvaFileUrl: fileUrl
-    });
-
-    const redirectUrl = `${process.env.URL || 'https://bannersonthefly.com'}/design/complete?orderId=${encodeURIComponent(orderId)}`;
-    
-    console.log('🔄 Redirecting to:', redirectUrl);
+    // Redirect user back to the completion page
+    const redirectUrl = `https://bannersonthefly.com/design/complete?orderId=${encodeURIComponent(orderId)}`;
 
     return {
       statusCode: 302,
       headers: {
-        'Location': redirectUrl,
-        'Cache-Control': 'no-cache, no-store, must-revalidate'
+        'Location': redirectUrl
       },
-      body: ''
+      body: JSON.stringify({
+        success: true,
+        cloudinaryUrl: cloudinaryResult.secure_url,
+        orderId
+      })
     };
 
   } catch (error) {
