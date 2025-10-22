@@ -41,6 +41,35 @@ function httpsRequest(url, options = {}, body = null) {
 }
 
 /**
+ * Download binary data from URL
+ */
+function downloadBinary(url) {
+  return new Promise((resolve, reject) => {
+    const urlObj = new URL(url);
+    const reqOptions = {
+      hostname: urlObj.hostname,
+      path: urlObj.pathname + urlObj.search,
+      method: 'GET'
+    };
+
+    const req = https.request(reqOptions, (res) => {
+      const chunks = [];
+      res.on('data', (chunk) => chunks.push(chunk));
+      res.on('end', () => {
+        if (res.statusCode >= 200 && res.statusCode < 300) {
+          resolve(Buffer.concat(chunks));
+        } else {
+          reject(new Error(`HTTP ${res.statusCode}`));
+        }
+      });
+    });
+
+    req.on('error', reject);
+    req.end();
+  });
+}
+
+/**
  * Export a Canva design as PNG
  */
 async function exportCanvaDesign(accessToken, designId) {
@@ -111,6 +140,7 @@ exports.handler = async (event, context) => {
     // Poll for completion (with timeout)
     let attempts = 0;
     const maxAttempts = 30; // 30 seconds max
+    let exportUrls = null;
     
     while (attempts < maxAttempts) {
       await new Promise(resolve => setTimeout(resolve, 1000)); // Wait 1 second
@@ -120,16 +150,8 @@ exports.handler = async (event, context) => {
       
       if (status.job.status === 'success') {
         console.log('✅ Export completed successfully');
-        return {
-          statusCode: 200,
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            success: true,
-            urls: status.job.urls
-          })
-        };
+        exportUrls = status.job.urls;
+        break;
       } else if (status.job.status === 'failed') {
         throw new Error(`Export job failed: ${status.job.error?.message || 'Unknown error'}`);
       }
@@ -137,7 +159,29 @@ exports.handler = async (event, context) => {
       attempts++;
     }
 
-    throw new Error('Export timeout - job took too long');
+    if (!exportUrls || exportUrls.length === 0) {
+      throw new Error('Export timeout - job took too long');
+    }
+
+    // Download the image from Canva
+    console.log('📥 Downloading image from Canva...');
+    const imageBuffer = await downloadBinary(exportUrls[0]);
+    console.log(`✅ Downloaded ${imageBuffer.length} bytes`);
+
+    // Convert to base64
+    const base64Image = imageBuffer.toString('base64');
+
+    return {
+      statusCode: 200,
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        success: true,
+        imageData: `data:image/png;base64,${base64Image}`,
+        fileName: `canva-design-${designId}.png`
+      })
+    };
 
   } catch (error) {
     console.error('❌ Error in canva-export:', error);

@@ -82,31 +82,20 @@ export default function CanvaEditor() {
         throw new Error(data.error || 'Export failed');
       }
 
-      if (data.success && data.urls && data.urls.length > 0) {
-        // Download the image
-        const imageResponse = await fetch(data.urls[0]);
-        const blob = await imageResponse.blob();
+      if (data.success && data.imageData) {
+        // Store the base64 image data directly
+        sessionStorage.setItem('canva-design-file', data.imageData);
+        sessionStorage.setItem('canva-design-name', data.fileName);
         
-        // Create a File object
-        const file = new File([blob], `canva-design-${designId}.png`, { type: 'image/png' });
+        toast({
+          title: "Success!",
+          description: "Your design has been imported"
+        });
         
-        // Store in sessionStorage to pass to design page
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          sessionStorage.setItem('canva-design-file', reader.result as string);
-          sessionStorage.setItem('canva-design-name', file.name);
-          
-          toast({
-            title: "Success!",
-            description: "Your design has been imported"
-          });
-          
-          // Navigate back to design page
-          navigate('/design');
-        };
-        reader.readAsDataURL(blob);
+        // Navigate back to design page
+        navigate('/design');
       } else {
-        throw new Error('No export URL received');
+        throw new Error('No image data received');
       }
     } catch (error) {
       console.error('Export error:', error);
