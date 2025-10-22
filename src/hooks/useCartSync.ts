@@ -118,9 +118,7 @@ export function useCartSync() {
         hasMergedRef.current = false;
         loadFromServer();
       }
-        hasMergedRef.current = false;
-        loadFromServer();
-      }
+    }
     
     // User logged out
     if (prevUserId && !currentUserId) {
