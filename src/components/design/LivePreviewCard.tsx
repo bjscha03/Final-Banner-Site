@@ -533,18 +533,25 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
 
   // Canva integration handler
   const handleDesignInCanva = () => {
-    // Generate a temporary order ID (in production, this should come from an actual order)
+    // Generate a temporary order ID and user ID
     const tempOrderId = `temp-${Date.now()}`;
+    const tempUserId = `user-${Date.now()}`;
     
     // Build the Canva start URL with parameters
-    const canvaStartUrl = `/api/canva-start?orderId=${encodeURIComponent(tempOrderId)}&width=${widthIn}&height=${heightIn}`;
+    const params = new URLSearchParams({
+      orderId: tempOrderId,
+      userId: tempUserId,
+      width: widthIn.toString(),
+      height: heightIn.toString()
+    });
     
-    console.log('🎨 Opening Canva design session:', { tempOrderId, widthIn, heightIn });
+    const canvaStartUrl = `/.netlify/functions/canva-start?${params.toString()}`;
+    
+    console.log('🎨 Opening Canva design session:', { tempOrderId, tempUserId, widthIn, heightIn });
     
     // Open Canva in a new window
-    window.open(canvaStartUrl, '_blank');
+    window.location.href = canvaStartUrl;
   };
-
   const removeFile = () => {
     if (file?.url) {
       URL.revokeObjectURL(file.url);
