@@ -537,7 +537,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     const tempOrderId = `temp-${Date.now()}`;
     
     // Build the Canva start URL with parameters
-    const canvaStartUrl = `/api/canva/start?orderId=${encodeURIComponent(tempOrderId)}&width=${widthIn}&height=${heightIn}`;
+    const canvaStartUrl = `/api/canva-start?orderId=${encodeURIComponent(tempOrderId)}&width=${widthIn}&height=${heightIn}`;
     
     console.log('🎨 Opening Canva design session:', { tempOrderId, widthIn, heightIn });
     
