@@ -97,7 +97,6 @@ async function createCanvaDesign(accessToken, width, height, title = 'Banner Des
   const heightPx = Math.round(parseFloat(height) * 12 * 150);
   
   const designData = {
-    design_type: 'Custom',
     asset_type: 'Poster',
     title: title,
     width: {
