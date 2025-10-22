@@ -102,10 +102,6 @@
   force = true
 
 [[redirects]]
-  from = "/api/canva/publish"
-  to = "/.netlify/functions/canva-publish"
-  status = 200
-  force = true
 
 # AI Design redirect
 [[redirects]]
