@@ -92,11 +92,11 @@ async function exchangeCodeForToken(code, codeVerifier) {
 async function createCanvaDesign(accessToken, width, height, title = 'Banner Design') {
   const createUrl = 'https://api.canva.com/rest/v1/designs';
   
-  // Convert feet to pixels at 150 DPI
-  let widthPx = Math.round(parseFloat(width) * 12 * 150);
-  let heightPx = Math.round(parseFloat(height) * 12 * 150);
+  // Width and height are in INCHES, convert to pixels at 150 DPI
+  let widthPx = Math.round(parseFloat(width) * 150);
+  let heightPx = Math.round(parseFloat(height) * 150);
   
-  console.log(`📏 Input dimensions: ${width}ft x ${height}ft`);
+  console.log(`📏 Input dimensions: ${width}in x ${height}in`);
   console.log(`📏 Initial pixels: ${widthPx}px x ${heightPx}px`);
   
   // Canva's limits are 40-8000 pixels
