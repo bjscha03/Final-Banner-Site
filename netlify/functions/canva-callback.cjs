@@ -143,7 +143,6 @@ async function createCanvaDesign(accessToken, width, height, title = 'Banner Des
 
   return httpsRequest(createUrl, options, JSON.stringify(designData));
 }
-}
 exports.handler = async (event, context) => {
   console.log('🔄 Canva Callback - Processing OAuth callback');
 
