@@ -111,6 +111,31 @@
   to = "/design?ai=1"
   status = 302
 
+# Block Blog and Events pages (temporarily disabled)
+[[redirects]]
+  from = "/blog/*"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/blog"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/events/*"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/events"
+  to = "/404"
+  status = 404
+  force = true
+
 # SPA fallback (must be last redirect)
 [[redirects]]
   from = "/*"
@@ -171,7 +196,7 @@ for = "/assets/*"
   Pragma = "no-cache"
   Expires = "0"
 
-# Edge Functions configuration
-[[edge_functions]]
-  path = "/blog/*"
-  function = "social-meta-injector"
+# Edge Functions configuration (disabled while blog is blocked)
+# [[edge_functions]]
+#   path = "/blog/*"
+#   function = "social-meta-injector"
