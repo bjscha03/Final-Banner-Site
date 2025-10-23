@@ -276,6 +276,7 @@ class CartSyncService {
 
   /**
    * Save cart to database via Netlify function
+   * Also saves snapshot to abandoned_carts table for recovery tracking
    */
   async saveCart(items: CartItem[], userId?: string, sessionId?: string): Promise<boolean> {
     const requestId = this.generateRequestId();
@@ -319,6 +320,13 @@ class CartSyncService {
       });
 
       console.log('[cart-save] Saved', items.length, 'items to server');
+
+      // Also save snapshot to abandoned_carts table for recovery tracking
+      // Only if cart has items
+      if (items.length > 0) {
+        await this.saveCartSnapshot(items, userId, sessionId);
+      }
+
       return true;
     } catch (error) {
       console.error('[cart-save] Error saving cart:', error);
@@ -335,75 +343,64 @@ class CartSyncService {
   }
 
   /**
-   * Merge guest cart into authenticated user's cart on login
-   * - Loads both guest and user carts
-   * - Merges with deep matching
-   * - Archives guest cart
-   * - Clears guest session cookie
-   * - Saves merged cart to user's account
+   * Save cart snapshot to abandoned_carts table for recovery tracking
+   * This runs in parallel with cart save and doesn't block the main flow
    */
-  async mergeGuestCartOnLogin(userId: string, explicitSessionId?: string): Promise<CartItem[]> {
-    const requestId = this.generateRequestId();
-    // Use explicit session ID if provided (from checkout context), otherwise get current session
-    const sessionId = explicitSessionId || this.getSessionId();
-    
-    console.log('🔄 CART SYNC: mergeGuestCartOnLogin called', {
-      userId: `${userId.substring(0, 8)}...`,
-      sessionId: sessionId ? `${sessionId.substring(0, 12)}...` : 'none',
-      isExplicit: !!explicitSessionId,
-    });
-
+  private async saveCartSnapshot(items: CartItem[], userId?: string, sessionId?: string): Promise<void> {
     try {
-      // Load guest cart
-      console.log('🔄 CART SYNC: Loading guest cart with sessionId:', sessionId ? `${sessionId.substring(0, 12)}...` : 'none');
-      const guestItems = await this.loadCart(undefined, sessionId);
-      console.log('🔄 CART SYNC: Guest cart loaded:', guestItems.length, 'items');
-      
-      // Load user's existing cart
-      console.log('🔄 CART SYNC: Loading user cart for userId:', userId ? `${userId.substring(0, 8)}...` : 'none');
-      const userItems = await this.loadCart(userId);
-      console.log('🔄 CART SYNC: User cart loaded:', userItems.length, 'items');
+      // Get user email and phone from localStorage if available
+      let email: string | null = null;
+      let phone: string | null = null;
 
-      // Merge carts
-      console.log('🔄 CART SYNC: Merging carts...');
-      const mergedItems = this.mergeCartItems(guestItems, userItems);
-      console.log('🔄 CART SYNC: Merged result:', mergedItems.length, 'items');
+      try {
+        if (typeof localStorage !== 'undefined') {
+          const userStr = localStorage.getItem('banners_current_user');
+          if (userStr) {
+            const user = JSON.parse(userStr);
+            email = user?.email || null;
+            phone = user?.phone || null;
+          }
+        }
+      } catch (e) {
+        console.warn('[save-cart-snapshot] Could not get user info from localStorage:', e);
+      }
 
-      // Save merged cart to user's account
-      console.log('🔄 CART SYNC: Saving merged cart to database...');
-      await this.saveCart(mergedItems, userId);
-      console.log('✅ CART SYNC: Merged cart saved to database');
+      console.log('[save-cart-snapshot] Saving snapshot for abandoned cart tracking:', {
+        userId: userId ? `${userId.substring(0, 8)}...` : null,
+        sessionId: sessionId ? `${sessionId.substring(0, 12)}...` : null,
+        itemCount: items.length,
+        hasEmail: !!email,
+      });
 
-      // Clear guest session cookie
-      this.clearSessionCookie();
-
-      this.logEvent({
-        event: 'CART_MERGE',
-        userId,
-        sessionId,
-        requestId,
-        itemCount: mergedItems.length,
-        success: true,
-        metadata: {
-          guestItemCount: guestItems.length,
-          userItemCount: userItems.length,
-          mergedItemCount: mergedItems.length,
+      const response = await fetch('/.netlify/functions/save-cart-snapshot', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
         },
+        body: JSON.stringify({
+          userId,
+          sessionId,
+          email,
+          phone,
+          cartItems: items,
+          metadata: {
+            // Could add UTM params here if tracked
+          },
+        }),
       });
 
-      return mergedItems;
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.warn('[save-cart-snapshot] Failed to save snapshot:', errorText);
+        return; // Don't throw - this is non-critical
+      }
+
+      const result = await response.json();
+      console.log('[save-cart-snapshot] Snapshot saved successfully:', result);
+
     } catch (error) {
-      this.logEvent({
-        event: 'CART_MERGE',
-        userId,
-        sessionId,
-        requestId,
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-      
-      // Fallback: just return user's cart
-      return await this.loadCart(userId);
+      // Log but don't throw - abandoned cart tracking is non-critical
+      console.warn('[save-cart-snapshot] Error saving cart snapshot:', error);
     }
   }
 
