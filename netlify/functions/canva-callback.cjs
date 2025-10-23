@@ -115,11 +115,7 @@ async function createCanvaDesign(accessToken, width, height, title = 'Banner Des
   widthPx = Math.max(MIN_DIMENSION, widthPx);
   heightPx = Math.max(MIN_DIMENSION, heightPx);
   
-  // TEMPORARY: Use a known-good small size for testing
-  widthPx = 1000;
-  heightPx = 500;
-  console.log(`🧪 TESTING: Overriding to safe dimensions: ${widthPx}px x ${heightPx}px`);
-  
+
   console.log(`📏 Final dimensions: ${widthPx}px x ${heightPx}px`);
   
   const designData = {
