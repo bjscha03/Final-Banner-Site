@@ -294,12 +294,12 @@ export const handler: Handler = async (event) => {
       
       // Small delay to ensure localStorage is fully written
       setTimeout(() => {
-        window.location.href = redirectUrl;
+        window.location.replace(redirectUrl);
       }, 250);
     } catch (error) {
       console.error('❌ Google OAuth: Error storing user:', error);
       alert('Error completing sign-in: ' + error.message);
-      window.location.href = '/sign-in?error=Failed to complete sign-in';
+      window.location.replace('/sign-in?error=Failed to complete sign-in');
     }
   </script>
 </body>

@@ -275,12 +275,12 @@ export const handler: Handler = async (event) => {
       
       // Small delay to ensure localStorage is fully written
       setTimeout(() => {
-        window.location.href = '/?oauth=success&provider=linkedin';
+        window.location.replace('/?oauth=success&provider=linkedin');
       }, 250);
     } catch (error) {
       console.error('❌ LinkedIn OAuth: Error storing user:', error);
       alert('Error completing sign-in: ' + error.message);
-      window.location.href = '/sign-in?error=Failed to complete sign-in';
+      window.location.replace('/sign-in?error=Failed to complete sign-in');
     }
   </script>
 </body>
