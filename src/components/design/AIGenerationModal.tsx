@@ -102,7 +102,7 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
       console.log('Sending AI generation request with colors:', colors);
       const response = await fetch('/.netlify/functions/ai-generate-banner', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' },
         body: JSON.stringify({
           prompt: prompt.trim(),
           styles: selectedStyles,
