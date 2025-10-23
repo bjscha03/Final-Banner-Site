@@ -242,7 +242,7 @@ const AbandonedCarts: React.FC = () => {
                           {cart.phone && <div className="text-xs text-gray-500">{cart.phone}</div>}
                         </td>
                         <td className="px-4 py-3 text-sm">{cart.cart_contents?.length || 0}</td>
-                        <td className="px-4 py-3 text-sm font-medium">{usd(cart.total_value)}</td>
+                        <td className="px-4 py-3 text-sm font-medium">{usd(Number(cart.total_value) || 0)}</td>
                         <td className="px-4 py-3 text-sm">{getTimeSince(cart.abandoned_at || cart.last_activity_at)}</td>
                         <td className="px-4 py-3 text-sm">{cart.recovery_emails_sent}</td>
                         <td className="px-4 py-3">
@@ -345,7 +345,7 @@ const AbandonedCartCard: React.FC<AbandonedCartCardProps> = ({
         </div>
         <div>
           <div className="text-xs text-gray-500">Value</div>
-          <div className="text-sm font-bold text-[#18448D]">{usd(cart.total_value)}</div>
+          <div className="text-sm font-bold text-[#18448D]">{usd(Number(cart.total_value) || 0)}</div>
         </div>
         <div>
           <div className="text-xs text-gray-500">Abandoned</div>

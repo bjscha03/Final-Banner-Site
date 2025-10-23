@@ -1031,7 +1031,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
       {/* Total */}
       <div className="mb-3">
         <div className="text-xs text-gray-500">Total</div>
-        <div className="text-lg font-bold text-[#18448D]">{usd(order.total_amount)}</div>
+        <div className="text-lg font-bold text-[#18448D]">{usd(order.total_cents / 100)}</div>
       </div>
 
       {/* PDF Downloads */}
