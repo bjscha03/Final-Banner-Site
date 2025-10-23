@@ -16,6 +16,11 @@ const blogPosts: Record<string, { title: string; description: string; image: str
     title: "How to Choose the Perfect Banner Size for Your Event or Business",
     description: "Learn how to choose the perfect banner size for your event or business. Expert tips on viewing distance, location, orientation, and design for maximum visibility and impact.",
     image: "https://res.cloudinary.com/dtrxl120u/image/upload/v1760812399/Screenshot_2025-10-18_at_11.50.45_AM_ekmtxm.png"
+  },
+  "banner-installation-hanging-guide": {
+    title: "Installation 101: The Best Ways to Hang Your Vinyl Banner for Maximum Visibility and Longevity",
+    description: "Properly hanging your banner is key to ensuring it has maximum visibility and stays looking professional for its full lifespan. Learn the best methods for indoor and outdoor installation.",
+    image: "https://res.cloudinary.com/dtrxl120u/image/upload/v1761249110/hanging_banner_gvkxbx.jpg"
   }
 };
 
