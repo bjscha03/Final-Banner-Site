@@ -92,12 +92,30 @@ async function exchangeCodeForToken(code, codeVerifier) {
 async function createCanvaDesign(accessToken, width, height, title = 'Banner Design') {
   const createUrl = 'https://api.canva.com/rest/v1/designs';
   
+  console.log('🔍 createCanvaDesign called with:', { width, height, accessToken: accessToken ? 'present' : 'missing' });
+  
+  // Validate width and height are provided and valid
+  // Use safe defaults if not provided (36" x 24" = 5400 x 3600 px)
+  if (!width || !height || width === '' || height === '') {
+    console.warn('⚠️  Missing width/height, using safe defaults (36" x 24")');
+    width = '36';
+    height = '24';
+  }
+  
+  const widthNum = parseFloat(width);
+  const heightNum = parseFloat(height);
+  
+  if (isNaN(widthNum) || isNaN(heightNum) || widthNum <= 0 || heightNum <= 0) {
+    console.error('❌ Invalid width/height values:', { width, height, widthNum, heightNum });
+    throw new Error('Width and height must be valid positive numbers');
+  }
+  
   // Width and height are in INCHES, convert to pixels at 150 DPI
-  let widthPx = Math.round(parseFloat(width) * 150);
-  let heightPx = Math.round(parseFloat(height) * 150);
+  let widthPx = Math.round(widthNum * 150);
+  let heightPx = Math.round(heightNum * 150);
   
   console.log(`📏 Input dimensions: ${width}in x ${height}in`);
-  console.log(`�� Initial pixels: ${widthPx}px x ${heightPx}px`);
+  console.log(`📐 Initial pixels: ${widthPx}px x ${heightPx}px`);
   
   // Canva's limits are 40-8000 pixels
   const MAX_DIMENSION = 8000;
@@ -202,8 +220,8 @@ exports.handler = async (event, context) => {
     let designId = null;
     let editUrl = null;
 
-    if (width && height) {
-      console.log('🎨 Creating Canva design:', { width, height });
+    if (width && height && width !== '' && height !== '') {
+      console.log('🎨 Creating Canva design with user dimensions:', { width, height });
       const designResponse = await createCanvaDesign(
         access_token,
         width,
