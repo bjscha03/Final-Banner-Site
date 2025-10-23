@@ -42,11 +42,12 @@ const SignIn: React.FC = () => {
 
   
 
-  useEffect(() => {
-    if (!authLoading && user) {
-      navigate(nextUrl, { replace: true });
-    }
-  }, [user, authLoading, navigate, nextUrl]);
+  // DISABLED: Manual sign-in handles navigation with proper delay for cart sync
+  // useEffect(() => {
+  //   if (!authLoading && user) {
+  //     navigate(nextUrl, { replace: true });
+  //   }
+  // }, [user, authLoading, navigate, nextUrl]);
 
   useEffect(() => {
     scrollToTop();
@@ -91,7 +92,7 @@ const SignIn: React.FC = () => {
       // Small delay to allow cart sync to complete
       setTimeout(() => {
         navigate(nextUrl, { replace: true });
-      }, 100);
+      }, 1000);
     } catch (error: any) {
       if (error.message && error.message.includes('email verification')) {
         toast({
