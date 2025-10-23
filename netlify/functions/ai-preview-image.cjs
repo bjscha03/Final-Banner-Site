@@ -1,6 +1,6 @@
 const { neon } = require('@neondatabase/serverless');;
 const crypto = require('crypto');
-const { v2 as cloudinary  } = require('cloudinary');
+const cloudinary = require('cloudinary').v2;
 const OpenAI = require('openai');
 
 const sql = neon(process.env.DATABASE_URL || process.env.NETLIFY_DATABASE_URL || '');
