@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { X, Copy, Check, Zap, Plane } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { X, Copy, Check, Zap, Plane, Volume2, VolumeX } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { trackPromoEvent } from '@/lib/posthog';
 
@@ -9,8 +9,10 @@ interface PromoPopupProps {
 
 export const PromoPopup = ({ onClose }: PromoPopupProps) => {
   const [copied, setCopied] = useState(false);
+  const [isMuted, setIsMuted] = useState(true);
+  const videoRef = useRef<HTMLVideoElement>(null);
   const { toast } = useToast();
-  const promoCode = 'WEEK20';
+  const promoCode = 'WELCOME20';
 
   // Track promo shown event
   useEffect(() => {
@@ -18,6 +20,18 @@ export const PromoPopup = ({ onClose }: PromoPopupProps) => {
       promo_code: promoCode,
       discount_percentage: 20,
     });
+  }, []);
+
+  // Ensure video plays
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (videoRef.current) {
+        videoRef.current.play().catch((error) => {
+          console.log('Video autoplay blocked:', error);
+        });
+      }
+    }, 100);
+    return () => clearTimeout(timer);
   }, []);
 
   const handleCopyCode = async () => {
@@ -54,6 +68,13 @@ export const PromoPopup = ({ onClose }: PromoPopupProps) => {
     onClose();
   };
 
+  const toggleMute = () => {
+    if (videoRef.current) {
+      videoRef.current.muted = !videoRef.current.muted;
+      setIsMuted(videoRef.current.muted);
+    }
+  };
+
   return (
     <>
       {/* Backdrop */}
@@ -65,20 +86,51 @@ export const PromoPopup = ({ onClose }: PromoPopupProps) => {
       {/* Popup */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none">
         <div 
-          className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 relative pointer-events-auto animate-in zoom-in-95 duration-200"
+          className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden relative pointer-events-auto animate-in zoom-in-95 duration-200"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Close button */}
+          {/* Close button - Top Right */}
           <button
             onClick={handleClose}
-            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+            className="absolute top-4 right-4 text-white hover:text-gray-200 transition-colors z-10 bg-black/50 hover:bg-black/70 rounded-full p-1.5"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
 
+          {/* Video Section */}
+          <div className="relative w-full aspect-video bg-gradient-to-br from-[#18448D] to-[#1a5bb8]">
+            <video
+              ref={videoRef}
+              autoPlay
+              muted
+              playsInline
+              loop
+              className="w-full h-full object-cover"
+              onError={(e) => console.error('Video error:', e)}
+            >
+              <source 
+                src="https://res.cloudinary.com/dtrxl120u/video/upload/v1761245761/3eab013c-30a8-466f-8e0c-08eb2bea7569_zwfsq8.mp4" 
+                type="video/mp4" 
+              />
+            </video>
+
+            {/* Unmute button - Bottom Left */}
+            <button
+              onClick={toggleMute}
+              className="absolute bottom-4 left-4 text-white hover:text-gray-200 transition-colors z-10 bg-black/50 hover:bg-black/70 rounded-full p-2"
+              aria-label={isMuted ? 'Unmute' : 'Mute'}
+            >
+              {isMuted ? (
+                <VolumeX className="w-5 h-5" />
+              ) : (
+                <Volume2 className="w-5 h-5" />
+              )}
+            </button>
+          </div>
+
           {/* Content */}
-          <div className="text-center space-y-6">
+          <div className="text-center space-y-6 p-8">
             {/* Headline */}
             <div>
               <div className="inline-block bg-gradient-to-r from-orange-500 to-red-500 text-white text-sm font-bold px-4 py-1 rounded-full mb-3">
