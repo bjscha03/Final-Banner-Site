@@ -115,6 +115,7 @@ async function checkExportStatus(accessToken, jobId) {
 
 exports.handler = async (event, context) => {
   console.log('📥 Canva Export - Starting export process');
+  console.log('📋 Request body:', event.body);
 
   if (event.httpMethod !== 'POST') {
     return {
@@ -185,13 +186,16 @@ exports.handler = async (event, context) => {
 
   } catch (error) {
     console.error('❌ Error in canva-export:', error);
+    console.error('❌ Error stack:', error.stack);
+    console.error('❌ Error details:', JSON.stringify(error, null, 2));
     return {
       statusCode: 500,
       headers: {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        error: error.message
+        error: error.message,
+        details: error.stack
       })
     };
   }
