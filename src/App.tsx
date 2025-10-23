@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -33,13 +34,12 @@ import AdminSeed from "./pages/AdminSeed";
 import AdminSetup from "./pages/AdminSetup";
 import LogoShowcase from "./pages/LogoShowcase";
 import BannerDesignerTest from "./pages/BannerDesignerTest";
-// TEMPORARILY DISABLED - Blog and Events pages
-// import Blog from "./pages/Blog";
-// import BlogPostPage from "./pages/BlogPostPage";
-// import BlogTagPage from "./pages/BlogTagPage";
-// import Events from "./pages/Events";
-// import EventDetail from "./pages/EventDetail";
-// import EventSubmit from "./pages/EventSubmit";
+import Blog from "./pages/Blog";
+import BlogPostPage from "./pages/BlogPostPage";
+import BlogTagPage from "./pages/BlogTagPage";
+import Events from "./pages/Events";
+import EventDetail from "./pages/EventDetail";
+import EventSubmit from "./pages/EventSubmit";
 import CategoryPage from "./pages/CategoryPage";
 import CanvaEditor from "./pages/CanvaEditor";
 import CanvaTest from "./pages/CanvaTest";
@@ -125,16 +125,12 @@ const App = () => (
             <Route path="/admin/setup" element={<AdminSetup />} />
             <Route path="/logo-showcase" element={<LogoShowcase />} />
             <Route path="/banner-designer-test" element={<BannerDesignerTest />} />
-            <Route path="/pdf-diagnostic" element={<PdfDiagnostic />} />
-            
-            {/* TEMPORARILY DISABLED - Blog and Events Routes */}
-            {/* <Route path="/blog" element={<Blog />} /> */}
-            {/* <Route path="/blog/:slug" element={<BlogPostPage />} /> */}
-            {/* <Route path="/blog/tags/:tag" element={<BlogTagPage />} /> */}
-            {/* <Route path="/events" element={<Events />} /> */}
-            {/* <Route path="/events/:slug" element={<EventDetail />} /> */}
-            {/* <Route path="/events/submit" element={<EventSubmit />} /> */}
-            
+            <Route path="/pdf-diagnostic" element={<PdfDiagnostic />} />            <Route path="/blog" element={<Blog />} />
+            <Route path="/blog/:slug" element={<BlogPostPage />} />
+            <Route path="/blog/tags/:tag" element={<BlogTagPage />} />
+            <Route path="/events" element={<Events />} />
+            <Route path="/events/:slug" element={<EventDetail />} />
+            <Route path="/events/submit" element={<EventSubmit />} />            
             {/* SEO Category Pages */}
             <Route path="/vinyl-banners" element={<CategoryPage />} />
             <Route path="/mesh-banners" element={<CategoryPage />} />
