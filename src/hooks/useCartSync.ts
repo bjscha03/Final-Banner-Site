@@ -114,9 +114,21 @@ export function useCartSync() {
           }
         })();
       } else {
-        console.log('👤 No guest session detected, loading user cart from database...');
-        hasMergedRef.current = false;
-        loadFromServer();
+        // No guest session, but check if there are items in local cart
+        const localItems = useCartStore.getState().items;
+        if (localItems.length > 0) {
+          console.log('👤 No guest session but local cart has items, saving to server...');
+          // Set cart owner to current user
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('cart_owner_user_id', currentUserId);
+          }
+          // Save local cart to server
+          setTimeout(() => useCartStore.getState().syncToServer(), 100);
+        } else {
+          console.log('👤 No guest session and no local items, loading user cart from database...');
+          hasMergedRef.current = false;
+          loadFromServer();
+        }
       }
     }
     
