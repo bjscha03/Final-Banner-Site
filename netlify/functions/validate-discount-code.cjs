@@ -21,7 +21,7 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const { code } = JSON.parse(event.body || '{}');
+    const { code, email, userId } = JSON.parse(event.body || '{}');
 
     if (!code) {
       return {
@@ -43,8 +43,12 @@ exports.handler = async (event, context) => {
     }
 
     const sql = neon(databaseUrl);
+    const normalizedCode = code.trim().toUpperCase();
+    const normalizedEmail = email ? email.toLowerCase() : null;
 
-    // Look up the discount code
+    console.log('[validate-discount-code] Validating:', { code: normalizedCode, email: normalizedEmail, userId });
+
+    // Look up the discount code with per-user tracking fields
     const discountCodes = await sql`
       SELECT 
         id,
@@ -53,9 +57,13 @@ exports.handler = async (event, context) => {
         discount_amount_cents,
         used,
         expires_at,
-        single_use
+        single_use,
+        used_by_user_id,
+        used_by_email,
+        max_uses_per_customer,
+        max_total_uses
       FROM discount_codes
-      WHERE code = ${code.toUpperCase()}
+      WHERE code = ${normalizedCode}
       LIMIT 1
     `;
 
@@ -72,18 +80,6 @@ exports.handler = async (event, context) => {
 
     const discount = discountCodes[0];
 
-    // Check if already used
-    if (discount.used && discount.single_use) {
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({ 
-          valid: false, 
-          error: 'This discount code has already been used' 
-        })
-      };
-    }
-
     // Check if expired
     const now = new Date();
     const expiresAt = new Date(discount.expires_at);
@@ -98,7 +94,67 @@ exports.handler = async (event, context) => {
       };
     }
 
+    // Check if this specific user/email has already used it
+    if (normalizedEmail && discount.used_by_email) {
+      const usedByEmails = Array.isArray(discount.used_by_email) ? discount.used_by_email : [];
+      if (usedByEmails.includes(normalizedEmail)) {
+        console.log('[validate-discount-code] Email already used:', normalizedEmail);
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ 
+            valid: false, 
+            error: 'You have already used this code' 
+          })
+        };
+      }
+    }
+
+    if (userId && discount.used_by_user_id) {
+      const usedByUserIds = Array.isArray(discount.used_by_user_id) ? discount.used_by_user_id : [];
+      if (usedByUserIds.includes(userId)) {
+        console.log('[validate-discount-code] User ID already used:', userId);
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ 
+            valid: false, 
+            error: 'You have already used this code' 
+          })
+        };
+      }
+    }
+
+    // Check max total uses if set
+    if (discount.max_total_uses !== null && discount.max_total_uses !== undefined) {
+      const totalUses = (discount.used_by_email ? discount.used_by_email.length : 0) +
+                       (discount.used_by_user_id ? discount.used_by_user_id.length : 0);
+      if (totalUses >= discount.max_total_uses) {
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ 
+            valid: false, 
+            error: 'This discount code has reached its maximum number of uses' 
+          })
+        };
+      }
+    }
+
+    // Legacy check: if single_use and globally used (for backwards compatibility)
+    if (discount.used && discount.single_use && !discount.used_by_email && !discount.used_by_user_id) {
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ 
+          valid: false, 
+          error: 'This discount code has already been used' 
+        })
+      };
+    }
+
     // Code is valid!
+    console.log('[validate-discount-code] Valid');
     return {
       statusCode: 200,
       headers,

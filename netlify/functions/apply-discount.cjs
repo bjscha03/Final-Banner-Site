@@ -18,25 +18,70 @@ exports.handler = async (event, context) => {
     if (!DATABASE_URL) throw new Error('DATABASE_URL not configured');
 
     const sql = neon(DATABASE_URL);
-    const { code, orderId, userId } = JSON.parse(event.body || '{}');
+    const { code, orderId, userId, email } = JSON.parse(event.body || '{}');
 
     if (!code || !orderId) {
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'code and orderId are required' }) };
     }
 
     const normalizedCode = code.trim().toUpperCase();
-    console.log('[apply-discount] Applying:', { code: normalizedCode, orderId, userId });
+    const normalizedEmail = email ? email.toLowerCase() : null;
+    console.log('[apply-discount] Applying:', { code: normalizedCode, orderId, userId, email: normalizedEmail });
 
+    // First, check if the code exists and if user has already used it
+    const existingCode = await sql`
+      SELECT id, code, cart_id, discount_percentage, discount_amount_cents, used, used_by_email, used_by_user_id, single_use
+      FROM discount_codes
+      WHERE code = ${normalizedCode}
+      LIMIT 1
+    `;
+
+    if (existingCode.length === 0) {
+      console.log('[apply-discount] Code not found:', normalizedCode);
+      return { statusCode: 404, headers, body: JSON.stringify({ error: 'Discount code not found' }) };
+    }
+
+    const codeData = existingCode[0];
+
+    // Check if user has already used this code
+    if (normalizedEmail && codeData.used_by_email && codeData.used_by_email.includes(normalizedEmail)) {
+      console.log('[apply-discount] Email already used this code:', normalizedEmail);
+      return { statusCode: 400, headers, body: JSON.stringify({ error: 'You have already used this code' }) };
+    }
+
+    if (userId && codeData.used_by_user_id) {
+      const usedByUserIds = Array.isArray(codeData.used_by_user_id) ? codeData.used_by_user_id : [codeData.used_by_user_id];
+      if (usedByUserIds.includes(userId)) {
+        console.log('[apply-discount] User already used this code:', userId);
+        return { statusCode: 400, headers, body: JSON.stringify({ error: 'You have already used this code' }) };
+      }
+    }
+
+    // Update the code to mark it as used by this user/email
     const result = await sql`
       UPDATE discount_codes
-      SET used = TRUE, used_at = NOW(), used_by_user_id = ${userId || null}, order_id = ${orderId}, updated_at = NOW()
-      WHERE code = ${normalizedCode} AND used = FALSE
+      SET 
+        used = TRUE, 
+        used_at = NOW(), 
+        used_by_user_id = CASE 
+          WHEN ${userId}::TEXT IS NOT NULL THEN 
+            COALESCE(used_by_user_id, ARRAY[]::TEXT[]) || ARRAY[${userId}::TEXT]
+          ELSE used_by_user_id
+        END,
+        used_by_email = CASE 
+          WHEN ${normalizedEmail}::TEXT IS NOT NULL THEN 
+            COALESCE(used_by_email, ARRAY[]::TEXT[]) || ARRAY[${normalizedEmail}::TEXT]
+          ELSE used_by_email
+        END,
+        order_id = ${orderId}, 
+        updated_at = NOW()
+      WHERE code = ${normalizedCode}
       RETURNING id, code, cart_id, discount_percentage, discount_amount_cents
     `;
 
     if (result.length === 0) {
-      console.log('[apply-discount] Not found or already used:', normalizedCode);
-      return { statusCode: 404, headers, body: JSON.stringify({ error: 'Discount code not found or already used' }) };
+      console.log('[apply-discount] Failed to update code:', normalizedCode);
+      return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to apply discount code' }) };
     }
 
     const discount = result[0];

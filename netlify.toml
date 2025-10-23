@@ -21,10 +21,6 @@
   timeout = 60
   memory = 1008
 
-[functions."canva-export"]
-  timeout = 60
-  memory = 1008
-
 [functions."render-order-pdf"]
   timeout = 60
   memory = 2048

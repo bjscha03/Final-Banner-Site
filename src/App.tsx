@@ -45,10 +45,16 @@ import CanvaEditor from "./pages/CanvaEditor";
 import CanvaTest from "./pages/CanvaTest";
 import { useCartSync } from "@/hooks/useCartSync";
 import { useCartRevalidation } from "@/hooks/useCartRevalidation";
+import { useEffect } from "react";
+import { initPostHog } from "@/lib/posthog";
+import { PromoPopup } from "@/components/PromoPopup";
+import { usePromoPopup } from "@/hooks/usePromoPopup";
+import { useLocation } from "react-router-dom";
 
 // Wrapper to sync cart when user logs in and enable cross-device revalidation
 const CartSyncWrapper = ({ children }: { children: React.ReactNode }) => {
   useCartSync();
+  const location = useLocation();
   
   // Enable cross-device cart revalidation
   useCartRevalidation({
@@ -57,8 +63,25 @@ const CartSyncWrapper = ({ children }: { children: React.ReactNode }) => {
     pollingInterval: 0,   // Disable periodic polling (set to 30000 for 30s polling)
     debounceMs: 1000,     // Debounce revalidation calls
   });
+
+  // Initialize PostHog once
+  useEffect(() => {
+    initPostHog();
+  }, []);
+
+  // Promo popup logic - only show on homepage
+  const isHomepage = location.pathname === '/';
+  const { showPopup, closePopup } = usePromoPopup({
+    delaySeconds: 11,
+    enableExitIntent: true,
+  });
   
-  return <>{children}</>;
+  return (
+    <>
+      {children}
+      {isHomepage && showPopup && <PromoPopup onClose={closePopup} />}
+    </>
+  );
 };
 
 const queryClient = new QueryClient();
@@ -70,8 +93,8 @@ const App = () => (
       <TooltipProvider>
         <Toaster />
         <Sonner />
+        <BrowserRouter>
         <CartSyncWrapper>
-          <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/design" element={<Design />} />            <Route path="/about" element={<About />} />
@@ -119,8 +142,8 @@ const App = () => (
             <Route path="/custom-banners" element={<CategoryPage />} />
             <Route path="/construction-banners" element={<CategoryPage />} />
           </Routes>
-          </BrowserRouter>
-        </CartSyncWrapper>
+          </CartSyncWrapper>
+        </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>
   </ThemeProvider>

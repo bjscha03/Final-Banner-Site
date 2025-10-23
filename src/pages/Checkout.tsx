@@ -12,7 +12,7 @@ import PayPalCheckout from '@/components/checkout/PayPalCheckout';
 import SignUpEncouragementModal from '@/components/checkout/SignUpEncouragementModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Package, Truck, Plus, Minus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Package, Truck, Plus, Minus, Trash2, Zap, Plane } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { emailApi } from '@/lib/api';
 import { CartItem } from '@/store/cart';
@@ -20,6 +20,7 @@ import BannerPreview from '@/components/cart/BannerPreview';
 import { useCheckoutContext } from '@/store/checkoutContext';
 import { cartSyncService } from '@/lib/cartSync';
 import { trackBeginCheckout, trackViewCart, trackFBInitiateCheckout } from '@/lib/analytics';
+import { trackPromoEvent } from '@/lib/posthog';
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
@@ -149,6 +150,17 @@ const Checkout: React.FC = () => {
       return;
     }
 
+    // Require login for discount codes
+    if (!user) {
+      setDiscountError('Please sign in to use discount codes');
+      toast({
+        title: 'Sign In Required',
+        description: 'You must be signed in to use discount codes',
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setIsValidatingDiscount(true);
     setDiscountError('');
 
@@ -156,13 +168,25 @@ const Checkout: React.FC = () => {
       const response = await fetch('/.netlify/functions/validate-discount-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: discountCodeInput.trim() }),
+        body: JSON.stringify({ 
+          code: discountCodeInput.trim(),
+          email: user.email,
+          userId: user.id
+        }),
       });
 
       const result = await response.json();
 
       if (result.valid && result.discount) {
         applyDiscountCode(result.discount);
+        
+        // Track successful promo application
+        trackPromoEvent('promo_applied_success', {
+          promo_code: result.discount.code,
+          discount_percentage: result.discount.discountPercentage,
+          discount_amount_cents: result.discount.discountAmountCents,
+        });
+        
         toast({
           title: 'Discount Applied!',
           description: `${result.discount.discountPercentage}% off your order`,
@@ -170,6 +194,12 @@ const Checkout: React.FC = () => {
         setDiscountCodeInput('');
         setDiscountError('');
       } else {
+        // Track rejected promo
+        trackPromoEvent('promo_rejected', {
+          promo_code: discountCodeInput.trim(),
+          reason: result.error || 'Invalid discount code',
+        });
+        
         setDiscountError(result.error || 'Invalid discount code');
       }
     } catch (error) {
@@ -310,6 +340,26 @@ const Checkout: React.FC = () => {
             </Button>
             <h1 className="text-3xl font-bold text-gray-900">Checkout</h1>
             <p className="text-gray-600 mt-2">Review your order and complete payment</p>
+            
+            {/* Trust Strip */}
+            <div className="mt-4 bg-blue-50 rounded-lg p-4 border border-blue-100">
+              <div className="flex flex-wrap items-center justify-center gap-6 text-sm">
+                <div className="flex items-center gap-2">
+                  <div className="flex-shrink-0 w-8 h-8 bg-[#18448D] rounded-full flex items-center justify-center">
+                    <Zap className="w-4 h-4 text-white" />
+                  </div>
+                  <span className="font-semibold text-gray-900">24-Hour Production</span>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <div className="flex-shrink-0 w-8 h-8 bg-[#18448D] rounded-full flex items-center justify-center">
+                    <Plane className="w-4 h-4 text-white" />
+                  </div>
+                  <span className="font-semibold text-gray-900">Free Next Day Air</span>
+                </div>
+
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
