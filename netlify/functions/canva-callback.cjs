@@ -250,6 +250,26 @@ exports.handler = async (event, context) => {
     }
 
     redirectUrl.searchParams.set('token', access_token);
+    
+    // Pass dimensions back so they can be preserved on the Design page
+    if (width && width !== '') {
+      redirectUrl.searchParams.set('width', width);
+      console.log('📏 Passing width back to Design page:', width);
+    }
+    if (height && height !== '') {
+      redirectUrl.searchParams.set('height', height);
+      console.log('📏 Passing height back to Design page:', height);
+    }
+    
+    // Pass dimensions back so they can be preserved on the Design page
+    if (width && width !== '') {
+      redirectUrl.searchParams.set('width', width);
+      console.log('📏 Passing width back to Design page:', width);
+    }
+    if (height && height !== '') {
+      redirectUrl.searchParams.set('height', height);
+      console.log('📏 Passing height back to Design page:', height);
+    }
 
     console.log('✅ Redirecting to:', redirectUrl.pathname);
 

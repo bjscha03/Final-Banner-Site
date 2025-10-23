@@ -18,6 +18,10 @@ export default function CanvaEditor() {
   const designId = searchParams.get('designId');
   const editUrl = searchParams.get('editUrl');
   const token = searchParams.get('token');
+  const width = searchParams.get('width');
+  const height = searchParams.get('height');
+  const width = searchParams.get('width');
+  const height = searchParams.get('height');
 
   useEffect(() => {
     const errorParam = searchParams.get('error');
@@ -86,6 +90,13 @@ export default function CanvaEditor() {
         // Store the base64 image data directly
         sessionStorage.setItem('canva-design-file', data.imageData);
         sessionStorage.setItem('canva-design-name', data.fileName);
+        
+        // Store dimensions so they can be restored on Design page
+        if (width && height) {
+          sessionStorage.setItem('canva-design-width', width);
+          sessionStorage.setItem('canva-design-height', height);
+          console.log('📏 Storing dimensions for Design page:', { width, height });
+        }
         
         toast({
           title: "Success!",

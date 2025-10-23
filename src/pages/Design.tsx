@@ -53,6 +53,8 @@ const Design: React.FC = () => {
   useEffect(() => {
     const canvaDesignData = sessionStorage.getItem('canva-design-file');
     const canvaDesignName = sessionStorage.getItem('canva-design-name');
+    const canvaWidth = sessionStorage.getItem('canva-design-width');
+    const canvaHeight = sessionStorage.getItem('canva-design-height');
     
     if (canvaDesignData && canvaDesignName) {
       console.log('🎨 Loading Canva design from sessionStorage');
@@ -66,8 +68,8 @@ const Design: React.FC = () => {
           // Use the base64 data URL directly (not blob URL) so it persists in cart
           const previewUrl = canvaDesignData;
           
-          // Set the file in the store with the proper structure
-          useQuoteStore.getState().set({ 
+          // Prepare the update object
+          const updateData: any = { 
             file: {
               name: canvaDesignName,
               type: 'image/png',
@@ -77,11 +79,27 @@ const Design: React.FC = () => {
               fileKey: `canva-${Date.now()}`,
             },
             previewScalePct: 100
-          });
+          };
+          
+          // Restore dimensions if they were saved
+          if (canvaWidth && canvaHeight) {
+            const widthIn = parseFloat(canvaWidth);
+            const heightIn = parseFloat(canvaHeight);
+            if (!isNaN(widthIn) && !isNaN(heightIn)) {
+              updateData.widthIn = widthIn;
+              updateData.heightIn = heightIn;
+              console.log('📏 Restoring dimensions:', { widthIn, heightIn });
+            }
+          }
+          
+          // Set the file in the store with the proper structure
+          useQuoteStore.getState().set(updateData);
           
           // Clear sessionStorage
           sessionStorage.removeItem('canva-design-file');
           sessionStorage.removeItem('canva-design-name');
+          sessionStorage.removeItem('canva-design-width');
+          sessionStorage.removeItem('canva-design-height');
           
           console.log('✅ Canva design loaded successfully');
           
