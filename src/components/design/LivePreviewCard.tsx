@@ -1590,7 +1590,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                     <div className="text-gray-400 text-sm">or</div>
                     <button
                       onClick={handleDesignInCanva}
-                      className="px-6 py-3.5 relative bg-white border-2 border-orange-300 hover:border-orange-400 active:border-orange-500 text-orange-700 hover:text-orange-800 rounded-xl font-medium transition-all duration-200 w-full max-w-xs min-h-[48px] flex items-center justify-center gap-2 shadow-sm hover:shadow-md touch-manipulation"
+                      className="px-6 py-3.5 relative bg-[#7D2AE7] hover:bg-[#6C24C4] active:bg-[#5B1FA5] text-white rounded-xl font-semibold transition-all duration-200 w-full max-w-xs min-h-[48px] flex items-center justify-center gap-2 shadow-md hover:shadow-lg touch-manipulation"
                       data-cta="canva-design-open"
                     >
                       <Palette className="w-5 h-5" />
