@@ -44,7 +44,7 @@ const SignIn: React.FC = () => {
 
   useEffect(() => {
     if (!authLoading && user) {
-      navigate(nextUrl);
+      navigate(nextUrl, { replace: true });
     }
   }, [user, authLoading, navigate, nextUrl]);
 
@@ -90,7 +90,7 @@ const SignIn: React.FC = () => {
 
       // Small delay to allow cart sync to complete
       setTimeout(() => {
-        navigate(nextUrl);
+        navigate(nextUrl, { replace: true });
       }, 100);
     } catch (error: any) {
       if (error.message && error.message.includes('email verification')) {
