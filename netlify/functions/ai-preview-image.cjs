@@ -1,7 +1,7 @@
-import { neon } from '@neondatabase/serverless';
-import crypto from 'crypto';
-import { v2 as cloudinary } from 'cloudinary';
-import OpenAI from 'openai';
+const { neon } = require('@neondatabase/serverless');;
+const crypto = require('crypto');
+const { v2 as cloudinary  } = require('cloudinary');
+const OpenAI = require('openai');
 
 const sql = neon(process.env.DATABASE_URL || process.env.NETLIFY_DATABASE_URL || '');
 
@@ -137,7 +137,7 @@ async function generateWithFal(prompt, aspect) {
   return data.images?.[0]?.url;
 }
 
-export const handler = async (event) => {
+exports.handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',

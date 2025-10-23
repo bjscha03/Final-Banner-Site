@@ -4,11 +4,11 @@
  * Saves an AI-generated image to the user's saved images collection
  */
 
-import { neon } from '@neondatabase/serverless';
+const { neon } = require('@neondatabase/serverless');;
 
 const sql = neon(process.env.DATABASE_URL || process.env.NETLIFY_DATABASE_URL || '');
 
-export const handler = async (event) => {
+exports.handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
