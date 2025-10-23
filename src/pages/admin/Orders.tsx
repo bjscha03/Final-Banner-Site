@@ -587,56 +587,78 @@ const AdminOrders: React.FC = () => {
                 </p>
               </div>
             ) : (
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50 sticky top-0 z-10">
-                    <tr>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                        Order
-                      </th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                        Customer
-                      </th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                        Date
-                      </th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                        Items
-                      </th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                        Total
-                      </th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                        Status
-                      </th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                        PDF
-                      </th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                        Tracking
-                      </th>
-                      <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                        Actions
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredOrders.map((order) => (
-                      <AdminOrderRow
-                        key={order.id}
-                        order={order}
-                        onAddTracking={handleAddTracking}
-                        onUpdateTracking={handleUpdateTracking}
-                        onFileDownload={handleFileDownload}
-                        onPdfDownload={handlePdfDownload}
-                        onSendShippingNotification={handleSendShippingNotification}
-                        getStatusColor={getStatusColor}
-                        pdfLoadingStates={pdfLoadingStates}                        getItemsSummary={getItemsSummary}
-                      />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <>
+                {/* Mobile Card View */}
+                <div className="block md:hidden">
+                  {filteredOrders.map((order) => (
+                    <AdminOrderCard
+                      key={order.id}
+                      order={order}
+                      onAddTracking={handleAddTracking}
+                      onUpdateTracking={handleUpdateTracking}
+                      onFileDownload={handleFileDownload}
+                      onPdfDownload={handlePdfDownload}
+                      onSendShippingNotification={handleSendShippingNotification}
+                      getStatusColor={getStatusColor}
+                      pdfLoadingStates={pdfLoadingStates}
+                      getItemsSummary={getItemsSummary}
+                    />
+                  ))}
+                </div>
+                
+                {/* Desktop Table View */}
+                <div className="hidden md:block overflow-x-auto">
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50 sticky top-0 z-10">
+                      <tr>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                          Order
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                          Customer
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                          Date
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                          Items
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                          Total
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                          Status
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                          PDF
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                          Tracking
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                          Actions
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {filteredOrders.map((order) => (
+                        <AdminOrderRow
+                          key={order.id}
+                          order={order}
+                          onAddTracking={handleAddTracking}
+                          onUpdateTracking={handleUpdateTracking}
+                          onFileDownload={handleFileDownload}
+                          onPdfDownload={handlePdfDownload}
+                          onSendShippingNotification={handleSendShippingNotification}
+                          getStatusColor={getStatusColor}
+                          pdfLoadingStates={pdfLoadingStates}
+                          getItemsSummary={getItemsSummary}
+                        />
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </>
             )}
           </div>
         </div>
@@ -947,5 +969,143 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
     </tr>
   );
 };
+
+
+// Mobile Card Component for Orders
+interface AdminOrderCardProps {
+  order: Order;
+  onAddTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string) => void;
+  onUpdateTracking: (orderId: string, carrier: TrackingCarrier, trackingNumber: string) => void;
+  onFileDownload: (fileKey: string, orderId: string, itemIndex: number) => void;
+  onPdfDownload: (item: any, itemIndex: number, orderId: string) => void;
+  onSendShippingNotification: (orderId: string) => void;
+  getStatusColor: (status: string) => string;
+  getItemsSummary: (order: Order) => string;
+  pdfLoadingStates: Record<string, boolean>;
+}
+
+const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
+  order,
+  onPdfDownload,
+  getStatusColor,
+  getItemsSummary,
+  pdfLoadingStates
+}) => {
+  const getFilesWithDownload = () => {
+    return order.items
+      .map((item, index) => ({ item, index }))
+      .filter(({ item }) => item.file_key || item.print_ready_url || item.web_preview_url);
+  };
+
+  return (
+    <div className="border-b border-gray-200 p-4 hover:bg-gray-50">
+      {/* Order Header */}
+      <div className="flex justify-between items-start mb-3">
+        <div>
+          <div className="font-mono text-sm font-semibold text-[#18448D]">
+            #{order.id.slice(-8).toUpperCase()}
+          </div>
+          <div className="text-xs text-gray-500 mt-1">
+            {new Date(order.created_at).toLocaleDateString()}
+          </div>
+        </div>
+        <Badge className={`${getStatusColor(order.status)} capitalize`}>
+          {order.status}
+        </Badge>
+      </div>
+
+      {/* Customer Info */}
+      <div className="mb-3">
+        <div className="text-xs text-gray-500">Customer</div>
+        <div className="text-sm font-medium truncate">
+          {order.user_id?.slice(0, 20) || 'Guest'}...
+        </div>
+      </div>
+
+      {/* Items Summary */}
+      <div className="mb-3">
+        <div className="text-xs text-gray-500">Items</div>
+        <div className="text-sm">{getItemsSummary(order)}</div>
+      </div>
+
+      {/* Total */}
+      <div className="mb-3">
+        <div className="text-xs text-gray-500">Total</div>
+        <div className="text-lg font-bold text-[#18448D]">{usd(order.total_amount)}</div>
+      </div>
+
+      {/* PDF Downloads */}
+      {getFilesWithDownload().length > 0 && (
+        <div className="mb-3">
+          <div className="text-xs text-gray-500 mb-2">Print Files</div>
+          <div className="flex flex-wrap gap-2">
+            {getFilesWithDownload().map(({ item, index }) => (
+              <Button
+                key={index}
+                size="sm"
+                variant="outline"
+                onClick={() => onPdfDownload(item, index, order.id)}
+                disabled={pdfLoadingStates[`${order.id}-${index}`]}
+                className="text-xs h-8 px-3"
+              >
+                {pdfLoadingStates[`${order.id}-${index}`] ? (
+                  <>
+                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                    Generating...
+                  </>
+                ) : (
+                  <>
+                    <FileText className="h-3 w-3 mr-1" />
+                    PDF {index + 1}
+                  </>
+                )}
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Tracking Info */}
+      {order.tracking_number && (
+        <div className="mb-3">
+          <div className="text-xs text-gray-500 mb-1">Tracking</div>
+          <div className="flex items-center gap-2">
+            <Badge className="bg-green-100 text-green-800">
+              <Truck className="h-3 w-3 mr-1" />
+              {order.tracking_carrier?.toUpperCase()}
+            </Badge>
+            <a
+              href={fedexUrl(order.tracking_number)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-blue-600 hover:underline truncate"
+            >
+              {order.tracking_number}
+            </a>
+          </div>
+        </div>
+      )}
+
+      {/* View Details Button */}
+      <div className="mt-3 pt-3 border-t border-gray-200">
+        <Dialog>
+          <DialogTrigger asChild>
+            <Button size="sm" variant="outline" className="w-full">
+              <Eye className="h-3 w-3 mr-1" />
+              View Full Details
+            </Button>
+          </DialogTrigger>
+          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle>Order #{order.id.slice(-8).toUpperCase()}</DialogTitle>
+            </DialogHeader>
+            <OrderDetails order={order} />
+          </DialogContent>
+        </Dialog>
+      </div>
+    </div>
+  );
+};
+
 
 export default AdminOrders;
