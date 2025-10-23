@@ -34,6 +34,7 @@ exports.handler = async (event, context) => {
 
     const sql = neon(databaseUrl);
 
+    // Get all carts (including recovered for analytics)
     const carts = await sql`
       SELECT 
         id,
@@ -46,19 +47,41 @@ exports.handler = async (event, context) => {
         discount_code,
         last_activity_at,
         abandoned_at,
+        recovered_at,
+        recovered_order_id,
         created_at
       FROM abandoned_carts
-      WHERE recovery_status IN ('active', 'abandoned')
-      ORDER BY abandoned_at DESC NULLS LAST, last_activity_at DESC
-      LIMIT 100
+      WHERE recovery_status IN ('active', 'abandoned', 'recovered')
+      ORDER BY 
+        CASE 
+          WHEN recovery_status = 'recovered' THEN 2
+          ELSE 1
+        END,
+        abandoned_at DESC NULLS LAST, 
+        last_activity_at DESC
+      LIMIT 200
     `;
 
-    console.log(`[get-abandoned-carts] Found ${carts.length} abandoned carts`);
+    // Calculate recovery analytics
+    const recoveredCarts = carts.filter(c => c.recovery_status === 'recovered');
+    const totalRecovered = recoveredCarts.reduce((sum, c) => sum + parseFloat(c.total_value || 0), 0);
+    const recoveredWithEmails = recoveredCarts.filter(c => c.recovery_emails_sent > 0);
+    const totalRecoveredFromEmails = recoveredWithEmails.reduce((sum, c) => sum + parseFloat(c.total_value || 0), 0);
+
+    console.log(`[get-abandoned-carts] Found ${carts.length} carts (${recoveredCarts.length} recovered, $${totalRecovered.toFixed(2)} total recovered)`);
 
     return {
       statusCode: 200,
       headers,
-      body: JSON.stringify({ carts })
+      body: JSON.stringify({ 
+        carts,
+        analytics: {
+          totalRecovered: totalRecovered,
+          totalRecoveredFromEmails: totalRecoveredFromEmails,
+          recoveredCount: recoveredCarts.length,
+          recoveredFromEmailsCount: recoveredWithEmails.length
+        }
+      })
     };
 
   } catch (error) {

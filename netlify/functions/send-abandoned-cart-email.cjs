@@ -214,6 +214,20 @@ exports.handler = async (event, context) => {
 
     const cartData = cart[0];
 
+    // Check if cart has already been recovered
+    if (cartData.recovery_status === 'recovered') {
+      console.log(`[send-abandoned-cart-email] Cart ${cartId} has already been recovered - skipping email`);
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ 
+          ok: true, 
+          skipped: true,
+          message: 'Cart already recovered - email not sent' 
+        })
+      };
+    }
+
     if (!cartData.email) {
       return {
         statusCode: 400,

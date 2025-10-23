@@ -19,13 +19,23 @@ interface AbandonedCart {
   discount_code: string | null;
   last_activity_at: string;
   abandoned_at: string | null;
+  recovered_at: string | null;
+  recovered_order_id: string | null;
   created_at: string;
+}
+
+interface RecoveryAnalytics {
+  totalRecovered: number;
+  totalRecoveredFromEmails: number;
+  recoveredCount: number;
+  recoveredFromEmailsCount: number;
 }
 
 const AbandonedCarts: React.FC = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const [carts, setCarts] = useState<AbandonedCart[]>([]);
+  const [analytics, setAnalytics] = useState<RecoveryAnalytics | null>(null);
   const [loading, setLoading] = useState(true);
   const [showAccessDenied, setShowAccessDenied] = useState(false);
   const [sendingEmail, setSendingEmail] = useState<Record<string, boolean>>({});
@@ -53,6 +63,7 @@ const AbandonedCarts: React.FC = () => {
 
       const data = await response.json();
       setCarts(data.carts || []);
+      setAnalytics(data.analytics || null);
     } catch (error) {
       console.error('Error loading abandoned carts:', error);
       toast({
@@ -151,21 +162,33 @@ const AbandonedCarts: React.FC = () => {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div className="bg-white p-4 rounded-lg border">
-            <div className="text-sm text-gray-600">Total Abandoned</div>
-            <div className="text-2xl font-bold">{carts.length}</div>
+            <div className="text-sm text-gray-600">Active Carts</div>
+            <div className="text-2xl font-bold">{carts.filter(c => c.recovery_status !== 'recovered').length}</div>
           </div>
           <div className="bg-white p-4 rounded-lg border">
-            <div className="text-sm text-gray-600">Total Value</div>
+            <div className="text-sm text-gray-600">Active Value</div>
             <div className="text-2xl font-bold">
-              {usd(carts.reduce((sum, cart) => sum + Number(cart.total_value), 0))}
+              {usd(carts.filter(c => c.recovery_status !== 'recovered').reduce((sum, cart) => sum + Number(cart.total_value), 0))}
             </div>
           </div>
-          <div className="bg-white p-4 rounded-lg border">
-            <div className="text-sm text-gray-600">With Email</div>
-            <div className="text-2xl font-bold">
-              {carts.filter(c => c.email).length}
+          <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+            <div className="text-sm text-green-700 font-medium">💰 Amount Recovered</div>
+            <div className="text-2xl font-bold text-green-600">
+              {analytics ? usd(analytics.totalRecovered) : '$0.00'}
+            </div>
+            <div className="text-xs text-green-600 mt-1">
+              {analytics?.recoveredCount || 0} carts recovered
+            </div>
+          </div>
+          <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+            <div className="text-sm text-blue-700 font-medium">📧 From Email Campaigns</div>
+            <div className="text-2xl font-bold text-blue-600">
+              {analytics ? usd(analytics.totalRecoveredFromEmails) : '$0.00'}
+            </div>
+            <div className="text-xs text-blue-600 mt-1">
+              {analytics?.recoveredFromEmailsCount || 0} via recovery emails
             </div>
           </div>
         </div>
@@ -195,8 +218,10 @@ const AbandonedCarts: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y">
-                  {carts.map((cart) => (
-                    <tr key={cart.id} className="hover:bg-gray-50">
+                  {carts.map((cart) => {
+                    const isRecovered = cart.recovery_status === 'recovered';
+                    return (
+                    <tr key={cart.id} className={`hover:bg-gray-50 ${isRecovered ? 'opacity-50 bg-gray-50' : ''}`}>
                       <td className="px-4 py-3">
                         <div className="text-sm font-medium">{cart.email || 'No email'}</div>
                         {cart.phone && <div className="text-xs text-gray-500">{cart.phone}</div>}
@@ -206,32 +231,48 @@ const AbandonedCarts: React.FC = () => {
                       <td className="px-4 py-3 text-sm">{getTimeSince(cart.abandoned_at || cart.last_activity_at)}</td>
                       <td className="px-4 py-3 text-sm">{cart.recovery_emails_sent}</td>
                       <td className="px-4 py-3">
-                        <Badge variant={cart.recovery_status === 'abandoned' ? 'destructive' : 'secondary'}>
-                          {cart.recovery_status}
+                        <Badge variant={
+                          cart.recovery_status === 'recovered' ? 'default' : 
+                          cart.recovery_status === 'abandoned' ? 'destructive' : 
+                          'secondary'
+                        } className={cart.recovery_status === 'recovered' ? 'bg-green-500' : ''}>
+                          {cart.recovery_status === 'recovered' ? '✓ Recovered' : cart.recovery_status}
                         </Badge>
+                        {cart.recovered_at && (
+                          <div className="text-xs text-gray-500 mt-1">
+                            {new Date(cart.recovered_at).toLocaleDateString()}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3">
-                        <div className="flex gap-2">
-                          {[1, 2, 3].map((seq) => (
-                            <Button
-                              key={seq}
-                              size="sm"
-                              variant={cart.recovery_emails_sent >= seq ? 'outline' : 'default'}
-                              onClick={() => sendRecoveryEmail(cart.id, seq)}
-                              disabled={sendingEmail[cart.id] || !cart.email}
-                            >
-                              {sendingEmail[cart.id] ? (
-                                <Loader2 className="h-3 w-3 animate-spin" />
-                              ) : (
-                                <Mail className="h-3 w-3 mr-1" />
-                              )}
-                              {seq}
-                            </Button>
-                          ))}
-                        </div>
+                        {isRecovered ? (
+                          <div className="text-xs text-green-600 font-medium">
+                            ✓ Order Completed
+                          </div>
+                        ) : (
+                          <div className="flex gap-2">
+                            {[1, 2, 3].map((seq) => (
+                              <Button
+                                key={seq}
+                                size="sm"
+                                variant={cart.recovery_emails_sent >= seq ? 'outline' : 'default'}
+                                onClick={() => sendRecoveryEmail(cart.id, seq)}
+                                disabled={sendingEmail[cart.id] || !cart.email}
+                              >
+                                {sendingEmail[cart.id] ? (
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                ) : (
+                                  <Mail className="h-3 w-3 mr-1" />
+                                )}
+                                {seq}
+                              </Button>
+                            ))}
+                          </div>
+                        )}
                       </td>
                     </tr>
-                  ))}
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

@@ -469,6 +469,51 @@ exports.handler = async (event, context) => {
 
     console.log('All order items created successfully');
 
+    // Mark abandoned cart as recovered if this order came from an abandoned cart
+    try {
+      console.log('Checking for abandoned cart recovery...');
+      
+      // Try to find abandoned cart by email or user_id
+      const abandonedCartQuery = finalUserId 
+        ? await sql`
+            SELECT id, recovery_status, total_value 
+            FROM abandoned_carts 
+            WHERE (user_id = ${finalUserId} OR email = ${userEmail})
+              AND recovery_status IN ('active', 'abandoned')
+            ORDER BY last_activity_at DESC
+            LIMIT 1
+          `
+        : await sql`
+            SELECT id, recovery_status, total_value 
+            FROM abandoned_carts 
+            WHERE email = ${userEmail}
+              AND recovery_status IN ('active', 'abandoned')
+            ORDER BY last_activity_at DESC
+            LIMIT 1
+          `;
+
+      if (abandonedCartQuery && abandonedCartQuery.length > 0) {
+        const abandonedCart = abandonedCartQuery[0];
+        console.log(`Found abandoned cart ${abandonedCart.id} for recovery - marking as recovered`);
+        
+        await sql`
+          UPDATE abandoned_carts
+          SET 
+            recovery_status = 'recovered',
+            recovered_at = NOW(),
+            recovered_order_id = ${orderId}
+          WHERE id = ${abandonedCart.id}
+        `;
+        
+        console.log(`✅ Abandoned cart ${abandonedCart.id} marked as recovered! Amount: $${abandonedCart.total_value}`);
+      } else {
+        console.log('No active abandoned cart found for this customer');
+      }
+    } catch (recoveryError) {
+      console.error('Error marking abandoned cart as recovered:', recoveryError);
+      // Don't fail the order creation if abandoned cart update fails
+    }
+
     // Return structured response
     // Send order confirmation email
     try {
