@@ -117,8 +117,9 @@ async function createCanvaDesign(accessToken, width, height, title = 'Banner Des
   console.log(`📏 Input dimensions: ${width}in x ${height}in`);
   console.log(`📐 Initial pixels: ${widthPx}px x ${heightPx}px`);
   
-  // Canva's limits are 40-8000 pixels
-  const MAX_DIMENSION = 8000;
+  // Canva's limits - using conservative 5000px max for reliability
+  // (Canva docs say 8000 but some dimensions get rejected)
+  const MAX_DIMENSION = 5000;
   const MIN_DIMENSION = 40;
   
   // Scale down proportionally if either dimension exceeds the max
