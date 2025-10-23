@@ -16,6 +16,9 @@ exports.handler = async (event, context) => {
     if (!DATABASE_URL) throw new Error('DATABASE_URL not configured');
 
     const sql = neon(DATABASE_URL);
+    
+    // Validate UUID format for userId (PostgreSQL UUID format)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
     const { userId, sessionId, cartData } = JSON.parse(event.body || '{}');
 
     if (!userId && !sessionId) {

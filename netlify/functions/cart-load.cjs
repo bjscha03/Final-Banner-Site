@@ -25,9 +25,22 @@ exports.handler = async (event, context) => {
 
     console.log('[cart-load] Loading cart:', { userId: userId ? `${userId.substring(0, 8)}...` : null, sessionId: sessionId ? `${sessionId.substring(0, 12)}...` : null });
 
+    // Validate UUID format for userId (PostgreSQL UUID format)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    
     let result;
 
     if (userId) {
+      // Check if userId is a valid UUID
+      if (!uuidRegex.test(userId)) {
+        console.log('[cart-load] Invalid UUID format for userId, returning empty cart');
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({ cartData: [] })
+        };
+      }
+      
       // Load authenticated user's cart
       result = await sql`
         SELECT cart_data, updated_at
