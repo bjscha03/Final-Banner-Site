@@ -60,53 +60,44 @@ class LocalAuthAdapter implements AuthAdapter {
     // Check for admin flag in email (admin@example.com or contains 'admin')
     const isAdmin = email.toLowerCase().includes('admin');
 
-
-    // CRITICAL FIX: First check if user already exists in database
     let user: User | null = null;
 
-    // Skip the debug-user lookup since that function doesn't exist
-    // We'll let the ensure-user function handle finding/creating users
+    // First, try to find or create user in database using ensure-user
+    // Generate a temporary UUID in case we need to create a new user
+    const tempUserId = generateUUID();
 
-    // Always create/ensure user exists in database
-    const userId = generateUUID();
-
-    user = {
-      id: userId,
-      email,
-      is_admin: isAdmin,
-    };
-
-    // Create user in database using ensure-user function
     try {
       const response = await fetch(getNetlifyFunctionUrl('ensure-user'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: user.id,
-          email: user.email,
-          full_name: user.full_name,
-          username: user.username
+          id: tempUserId,
+          email: email,
+          full_name: null,
+          username: null
         })
       });
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Failed to create user in database:', errorText);
+        console.error('Failed to ensure user in database:', errorText);
+        throw new Error(\`Failed to ensure user: \${errorText}\`);
+      }
 
-        // If user already exists, try to get the existing user ID
-        if (errorText.includes('already exists')) {
-        } else {
-          throw new Error(`Failed to ensure user: ${errorText}`);
-        }
+      const result = await response.json();
+      console.log('✅ [AUTH] ensure-user response:', result);
+
+      // CRITICAL: Always use the user data returned from the database
+      if (result.user) {
+        user = {
+          id: result.user.id,
+          email: result.user.email,
+          username: result.user.username,
+          full_name: result.user.full_name,
+          is_admin: result.user.is_admin || isAdmin,
+        };
       } else {
-        const result = await response.json();
-
-        // Use the returned user data if available
-        if (result.user) {
-          user.id = result.user.id;
-          user.username = result.user.username;
-          user.full_name = result.user.full_name;
-        }
+        throw new Error('No user data returned from ensure-user');
       }
     } catch (error) {
       console.error('Failed to ensure user in database:', error);
@@ -118,169 +109,49 @@ class LocalAuthAdapter implements AuthAdapter {
       user.is_admin = true;
     }
 
-    // CRITICAL FIX: Ensure user profile is created in database before proceeding
-    try {
-      const response = await fetch(getNetlifyFunctionUrl('create-user'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          id: user.id,
-          email: user.email,
-          full_name: null,
-          is_admin: user.is_admin,
-          is_signup: false,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Failed to create user profile in database:', errorText);
-
-        // If user already exists, that's fine - continue with sign-in
-        if (!errorText.includes('already exists')) {
-          throw new Error(`Failed to create user profile: ${errorText}`);
-        } else {
-        }
-      } else {
-      }
-    } catch (error) {
-      console.error('CRITICAL ERROR: Cannot create user profile in database:', error);
-      throw new Error('Sign-in failed: Unable to create user profile. Please try again.');
-    }
-
+    // Store user in localStorage
     safeStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
-    return user;
-  }
 
-  async signUp(email: string, password: string, fullName?: string, username?: string): Promise<User> {
-    // In development mode, create a new user account
-    const isAdmin = email.toLowerCase().includes('admin');
-
-    // Generate a proper UUID for the user ID
-    const userId = generateUUID();
-
-    const user: User = {
-      id: userId,
-      email,
-      username,
-      full_name: fullName,
-      is_admin: isAdmin,
-    };
-
-    // Check for admin cookie
-    if (typeof document !== 'undefined' && document.cookie.includes('admin=1')) {
-      user.is_admin = true;
-    }
-
-    // Create user profile in database
-    try {
-      const response = await fetch(getNetlifyFunctionUrl('create-user'), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          id: user.id,
-          email: user.email,
-          username: user.username,
-          full_name: user.full_name,
-          is_admin: user.is_admin,
-          is_signup: true,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Failed to create user profile in database:', errorText);
-
-        // If user already exists, that's an error for signup
-        if (errorText.includes('already exists')) {
-          throw new Error('An account with this email address already exists. Please sign in instead.');
-        } else {
-          throw new Error(`Failed to create user account: ${errorText}`);
-        }
-      } else {
-      }
-    } catch (error) {
-      console.error('Error creating user profile:', error);
-      if (error.message.includes('already exists')) {
-        throw error; // Re-throw the specific error message
-      }
-      throw new Error('Failed to create user account. Please try again.');
-    }
-
-    safeStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
     return user;
   }
 
   async signOut(): Promise<void> {
-    // Remove user from localStorage
     safeStorage.removeItem(this.CURRENT_USER_KEY);
+  }
 
-    // Clear admin cookie if it exists
-    if (typeof document !== 'undefined') {
-      // Set the admin cookie to expire immediately
-      document.cookie = 'admin=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax';
-    }
+  async signUp(email: string, password: string): Promise<User> {
+    // For development, sign up is the same as sign in
+    return this.signIn(email, password);
   }
 }
 
-// Adapter selection - always use local for now
-let authAdapter: AuthAdapter | null = null;
+const adapter = new LocalAuthAdapter();
 
-export async function getAuthAdapter(): Promise<AuthAdapter> {
-  if (authAdapter) {
-    return authAdapter;
-  }
-
-  // For now, always use local adapter since we don't want Supabase
-  authAdapter = new LocalAuthAdapter();
-
-  return authAdapter;
-}
-
-// Convenience functions
 export async function getCurrentUser(): Promise<User | null> {
-  const adapter = await getAuthAdapter();
   return adapter.getCurrentUser();
 }
 
 export async function signIn(email: string, password: string): Promise<User> {
-  const adapter = await getAuthAdapter();
   return adapter.signIn(email, password);
 }
 
-export async function signUp(email: string, password: string, fullName?: string, username?: string): Promise<User> {
-  const adapter = await getAuthAdapter();
-  return (adapter as LocalAuthAdapter).signUp(email, password, fullName, username);
-}
-
 export async function signOut(): Promise<void> {
-  const adapter = await getAuthAdapter();
   return adapter.signOut();
 }
 
-// React hook for authentication state
+export async function signUp(email: string, password: string): Promise<User> {
+  return adapter.signUp(email, password);
+}
+
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const loadUser = async () => {
-    try {
-      const currentUser = await getCurrentUser();
-      setUser(currentUser);
-    } catch (error) {
-      console.error('Error loading user:', error);
-      setUser(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    loadUser();
+    getCurrentUser().then((user) => {
+      setUser(user);
+      setLoading(false);
+    });
   }, []);
 
   const handleSignIn = async (email: string, password: string) => {
@@ -289,30 +160,22 @@ export function useAuth() {
     return user;
   };
 
-  const handleSignUp = async (email: string, password: string, fullName?: string, username?: string) => {
-    const user = await signUp(email, password, fullName, username);
-    // Don't auto-sign in after signup - require email verification
-    // setUser(user);
-    return user;
-  };
-
   const handleSignOut = async () => {
     await signOut();
     setUser(null);
-    // Force a reload of user state to ensure UI updates
-    await loadUser();
+  };
+
+  const handleSignUp = async (email: string, password: string) => {
+    const user = await signUp(email, password);
+    setUser(user);
+    return user;
   };
 
   return {
     user,
     loading,
     signIn: handleSignIn,
-    signUp: handleSignUp,
     signOut: handleSignOut,
+    signUp: handleSignUp,
   };
-}
-
-// Admin utilities
-export function isAdmin(user: User | null): boolean {
-  return user?.is_admin === true;
 }
