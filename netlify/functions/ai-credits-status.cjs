@@ -1,9 +1,9 @@
-import { neon } from '@neondatabase/serverless';
+const { neon } = require('@neondatabase/serverless');
 
 const sql = neon(process.env.DATABASE_URL || process.env.NETLIFY_DATABASE_URL || '');
 const FREE_CREDITS_INITIAL = 3; // New users get 3 free credits total
 
-export const handler = async (event) => {
+exports.handler = async (event) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
     'Access-Control-Allow-Headers': 'Content-Type',
