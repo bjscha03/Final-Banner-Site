@@ -110,25 +110,22 @@ exports.handler = async (event, context) => {
       }
     }
 
-    if (userId && discount.used_by_user_id) {
-      const usedByUserIds = Array.isArray(discount.used_by_user_id) ? discount.used_by_user_id : [];
-      if (usedByUserIds.includes(userId)) {
-        console.log('[validate-discount-code] User ID already used:', userId);
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify({ 
-            valid: false, 
-            error: 'You have already used this code' 
-          })
-        };
-      }
+    // Note: used_by_user_id is a single UUID field, not an array
+    if (userId && discount.used_by_user_id && discount.used_by_user_id === userId) {
+      console.log('[validate-discount-code] User ID already used:', userId);
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ 
+          valid: false, 
+          error: 'You have already used this code' 
+        })
+      };
     }
 
-    // Check max total uses if set
+    // Check max total uses if set (count emails in the array)
     if (discount.max_total_uses !== null && discount.max_total_uses !== undefined) {
-      const totalUses = (discount.used_by_email ? discount.used_by_email.length : 0) +
-                       (discount.used_by_user_id ? discount.used_by_user_id.length : 0);
+      const totalUses = discount.used_by_email ? discount.used_by_email.length : 0;
       if (totalUses >= discount.max_total_uses) {
         return {
           statusCode: 200,

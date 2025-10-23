@@ -43,31 +43,29 @@ exports.handler = async (event, context) => {
 
     const codeData = existingCode[0];
 
-    // Check if user has already used this code
+    // Check if user has already used this code via email tracking
     if (normalizedEmail && codeData.used_by_email && codeData.used_by_email.includes(normalizedEmail)) {
       console.log('[apply-discount] Email already used this code:', normalizedEmail);
       return { statusCode: 400, headers, body: JSON.stringify({ error: 'You have already used this code' }) };
     }
 
-    if (userId && codeData.used_by_user_id) {
-      const usedByUserIds = Array.isArray(codeData.used_by_user_id) ? codeData.used_by_user_id : [codeData.used_by_user_id];
-      if (usedByUserIds.includes(userId)) {
-        console.log('[apply-discount] User already used this code:', userId);
-        return { statusCode: 400, headers, body: JSON.stringify({ error: 'You have already used this code' }) };
-      }
+    // Note: used_by_user_id is a single UUID field in the database
+    // We only check if this specific user has used it (stored as the single value)
+    // For multi-use tracking, we rely on the used_by_email array
+    if (userId && codeData.used_by_user_id && codeData.used_by_user_id === userId) {
+      console.log('[apply-discount] User already used this code:', userId);
+      return { statusCode: 400, headers, body: JSON.stringify({ error: 'You have already used this code' }) };
     }
 
     // Update the code to mark it as used by this user/email
+    // For used_by_user_id: only set it if it's not already set (single UUID field)
+    // For used_by_email: append to the array
     const result = await sql`
       UPDATE discount_codes
       SET 
         used = TRUE, 
         used_at = NOW(), 
-        used_by_user_id = CASE 
-          WHEN ${userId}::TEXT IS NOT NULL THEN 
-            COALESCE(used_by_user_id, ARRAY[]::TEXT[]) || ARRAY[${userId}::TEXT]
-          ELSE used_by_user_id
-        END,
+        used_by_user_id = COALESCE(used_by_user_id, ${userId}::UUID),
         used_by_email = CASE 
           WHEN ${normalizedEmail}::TEXT IS NOT NULL THEN 
             COALESCE(used_by_email, ARRAY[]::TEXT[]) || ARRAY[${normalizedEmail}::TEXT]
