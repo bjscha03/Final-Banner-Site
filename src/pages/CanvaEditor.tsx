@@ -20,8 +20,6 @@ export default function CanvaEditor() {
   const token = searchParams.get('token');
   const width = searchParams.get('width');
   const height = searchParams.get('height');
-  const width = searchParams.get('width');
-  const height = searchParams.get('height');
 
   useEffect(() => {
     const errorParam = searchParams.get('error');
