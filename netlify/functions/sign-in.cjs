@@ -84,6 +84,41 @@ exports.handler = async (event) => {
 
     const user = users[0];
 
+    // Special bypass for Canva test account
+    const isCanvaTestAccount = normalizedEmail === 'integrations-support@canva.com';
+    
+    if (isCanvaTestAccount) {
+      // Allow login with the specific test password
+      if (password !== 'CanvaTest2025!') {
+        return {
+          statusCode: 401,
+          headers,
+          body: JSON.stringify({ ok: false, error: 'Invalid email or password' })
+        };
+      }
+      
+      console.log('✅ Canva test account login successful');
+      
+      // Return user data for Canva test account
+      const userData = {
+        id: user.id,
+        email: user.email,
+        full_name: user.full_name,
+        username: user.username,
+        is_admin: user.is_admin
+      };
+
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ 
+          ok: true, 
+          user: userData 
+        })
+      };
+    }
+
+    // Regular authentication flow for all other users
     // Check if user has a password hash
     if (!user.password_hash) {
       return {
