@@ -152,16 +152,16 @@ for = "/*"
 
     connect-src 'self' blob: data: https://*.paypal.com https://www.sandbox.paypal.com https://www.paypalobjects.com https://*.chatsimple.ai https://api.expertise.ai https://us-assets.i.posthog.com https://*.posthog.com https://*.cloudfront.net https://*.amazonaws.com https://*.cloudinary.com https://res.cloudinary.com https://api.ipify.org https://pro.ip-api.com https://www.linkedin.com https://api.linkedin.com https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com https://www.google-analytics.com https://*.google-analytics.com https://api.us-east-2.aws.neon.tech https://*.neon.tech https://connect.facebook.net https://www.facebook.com https://snap.licdn.com https://*.ads.linkedin.com https://capig.madgicx.ai https://www.google.com https://googleads.g.doubleclick.net https://stats.g.doubleclick.net;
 
-    frame-src 'self' https://*.paypal.com https://www.sandbox.paypal.com blob:;
+    frame-src 'self' https://*.paypal.com https://www.sandbox.paypal.com https://www.googletagmanager.com blob:;
+    frame-ancestors 'self';
     worker-src 'self' blob: https://cdnjs.cloudflare.com;
     media-src  'self' blob: https://*.cloudfront.net https://*.amazonaws.com https://*.cloudinary.com https://res.cloudinary.com;
   """
   X-Content-Type-Options = "nosniff"
-  X-Frame-Options = "DENY"
   Referrer-Policy = "strict-origin-when-cross-origin"
   Permissions-Policy = "geolocation=(), microphone=(), camera=()"
-  Cross-Origin-Opener-Policy = "same-origin"
-  Cross-Origin-Resource-Policy = "same-site"
+  Cross-Origin-Opener-Policy = "same-origin-allow-popups"
+  Cross-Origin-Resource-Policy = "cross-origin"
 
 # Force cache busting for this deployment
 [[headers]]
