@@ -51,22 +51,28 @@ const Design: React.FC = () => {
 
   // Check for Canva design import
   useEffect(() => {
+    // Check for new format (Cloudinary URL)
+    const canvaDesignUrl = sessionStorage.getItem('canva-design-url');
+    const canvaPublicId = sessionStorage.getItem('canva-design-publicId');
+    
+    // Check for old format (base64 data)
     const canvaDesignData = sessionStorage.getItem('canva-design-file');
+    
     const canvaDesignName = sessionStorage.getItem('canva-design-name');
     const canvaWidth = sessionStorage.getItem('canva-design-width');
     const canvaHeight = sessionStorage.getItem('canva-design-height');
     
-    if (canvaDesignData && canvaDesignName) {
+    if ((canvaDesignUrl || canvaDesignData) && canvaDesignName) {
       console.log('🎨 Loading Canva design from sessionStorage');
       
-      // Convert base64 back to File for upload, but keep base64 URL for display
-      fetch(canvaDesignData)
+      // Use Cloudinary URL if available (new format), otherwise use base64 (old format)
+      const imageUrl = canvaDesignUrl || canvaDesignData;
+      
+      // Convert to File for upload
+      fetch(imageUrl)
         .then(res => res.blob())
         .then(blob => {
           const file = new File([blob], canvaDesignName, { type: 'image/png' });
-          
-          // Use the base64 data URL directly (not blob URL) so it persists in cart
-          const previewUrl = canvaDesignData;
           
           // Prepare the update object
           const updateData: any = { 
@@ -74,9 +80,9 @@ const Design: React.FC = () => {
               name: canvaDesignName,
               type: 'image/png',
               size: blob.size,
-              url: previewUrl,
+              url: imageUrl,
               isPdf: false,
-              fileKey: `canva-${Date.now()}`,
+              fileKey: canvaPublicId || `canva-${Date.now()}`,
             },
             previewScalePct: 100
           };
@@ -95,8 +101,10 @@ const Design: React.FC = () => {
           // Set the file in the store with the proper structure
           useQuoteStore.getState().set(updateData);
           
-          // Clear sessionStorage
+          // Clear sessionStorage (both old and new formats)
           sessionStorage.removeItem('canva-design-file');
+          sessionStorage.removeItem('canva-design-url');
+          sessionStorage.removeItem('canva-design-publicId');
           sessionStorage.removeItem('canva-design-name');
           sessionStorage.removeItem('canva-design-width');
           sessionStorage.removeItem('canva-design-height');
@@ -111,6 +119,8 @@ const Design: React.FC = () => {
         .catch(error => {
           console.error('❌ Error loading Canva design:', error);
           sessionStorage.removeItem('canva-design-file');
+          sessionStorage.removeItem('canva-design-url');
+          sessionStorage.removeItem('canva-design-publicId');
           sessionStorage.removeItem('canva-design-name');
           toast({
             title: "Import Failed",

@@ -1,5 +1,13 @@
 const https = require('https');
 const { URL } = require('url');
+const cloudinary = require('cloudinary').v2;
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET,
+});
 
 /**
  * Helper function to make HTTPS requests
@@ -138,9 +146,9 @@ exports.handler = async (event, context) => {
     const exportJob = await exportCanvaDesign(accessToken, designId);
     console.log('✅ Export job created:', exportJob);
 
-    // Poll for completion (with timeout)
+    // Poll for completion (with shorter timeout to avoid Netlify function timeout)
     let attempts = 0;
-    const maxAttempts = 30; // 30 seconds max
+    const maxAttempts = 8; // 8 seconds max (Netlify has 10s timeout)
     let exportUrls = null;
     
     while (attempts < maxAttempts) {
@@ -161,16 +169,19 @@ exports.handler = async (event, context) => {
     }
 
     if (!exportUrls || exportUrls.length === 0) {
-      throw new Error('Export timeout - job took too long');
+      throw new Error('Export timeout - Canva export is taking longer than expected. Please try again.');
     }
 
-    // Download the image from Canva
-    console.log('📥 Downloading image from Canva...');
-    const imageBuffer = await downloadBinary(exportUrls[0]);
-    console.log(`✅ Downloaded ${imageBuffer.length} bytes`);
-
-    // Convert to base64
-    const base64Image = imageBuffer.toString('base64');
+    // Upload directly to Cloudinary from Canva URL (no download needed)
+    console.log('📤 Uploading to Cloudinary from Canva URL...');
+    const uploadResult = await cloudinary.uploader.upload(exportUrls[0], {
+      folder: 'canva-exports',
+      resource_type: 'image',
+      format: 'png',
+      public_id: `canva-${designId}-${Date.now()}`
+    });
+    
+    console.log(`✅ Uploaded to Cloudinary: ${uploadResult.secure_url}`);
 
     return {
       statusCode: 200,
@@ -179,8 +190,11 @@ exports.handler = async (event, context) => {
       },
       body: JSON.stringify({
         success: true,
-        imageData: `data:image/png;base64,${base64Image}`,
-        fileName: `canva-design-${designId}.png`
+        imageUrl: uploadResult.secure_url,
+        publicId: uploadResult.public_id,
+        fileName: `canva-design-${designId}.png`,
+        width: uploadResult.width,
+        height: uploadResult.height
       })
     };
 

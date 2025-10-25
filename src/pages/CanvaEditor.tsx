@@ -84,16 +84,20 @@ export default function CanvaEditor() {
         throw new Error(data.error || 'Export failed');
       }
 
-      if (data.success && data.imageData) {
-        // Store the base64 image data directly
-        sessionStorage.setItem('canva-design-file', data.imageData);
+      if (data.success && data.imageUrl) {
+        // Store the Cloudinary URL and metadata
+        sessionStorage.setItem('canva-design-url', data.imageUrl);
+        sessionStorage.setItem('canva-design-publicId', data.publicId);
         sessionStorage.setItem('canva-design-name', data.fileName);
         
-        // Store dimensions so they can be restored on Design page
-        if (width && height) {
-          sessionStorage.setItem('canva-design-width', width);
-          sessionStorage.setItem('canva-design-height', height);
-          console.log('📏 Storing dimensions for Design page:', { width, height });
+        // Store dimensions from Cloudinary or fallback to Canva dimensions
+        const designWidth = data.width || width;
+        const designHeight = data.height || height;
+        
+        if (designWidth && designHeight) {
+          sessionStorage.setItem('canva-design-width', designWidth.toString());
+          sessionStorage.setItem('canva-design-height', designHeight.toString());
+          console.log('📏 Storing dimensions for Design page:', { width: designWidth, height: designHeight });
         }
         
         toast({
@@ -104,7 +108,7 @@ export default function CanvaEditor() {
         // Navigate back to design page
         navigate('/design');
       } else {
-        throw new Error('No image data received');
+        throw new Error('No image URL received from export');
       }
     } catch (error) {
       console.error('Export error:', error);
