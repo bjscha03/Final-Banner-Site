@@ -234,18 +234,8 @@ const AdminOrders: React.FC = () => {
         title: "Generating Print-Ready PDF",
         description: "Creating high-quality PDF with proper dimensions and bleed...",
       });
-      console.log("🟢🟢🟢 ORDERS.TSX VERSION: 2025-01-15-FIX-v3 🟢🟢🟢");
-      console.log("🟢 Item data received from database:", item);
-      console.log("🟢 Item properties:", Object.keys(item));
-      console.log("�� item.overlay_image:", item.overlay_image);
-      console.log("🟢 item.overlayImage:", item.overlayImage);
-      console.log("🟢 Full item:", JSON.stringify(item, null, 2));
-      console.log("🟢 Item properties:", Object.keys(item));
-      console.log("�� item.overlay_image:", item.overlay_image);
-      console.log("🟢 item.overlayImage:", item.overlayImage);
-      console.log("🟢 Full item:", JSON.stringify(item, null, 2));
-      console.log("🟢🟢🟢 ORDERS.TSX VERSION: 2025-01-15-FIX-v3 🟢🟢🟢");
-      console.log("🟢 Item data received from database:", item);
+      console.log("🟢 PDF Download - Item data:", item);
+      console.log("🟢 PDF Download - overlay_image:", item.overlay_image);
 
       // Determine the best image source
       const imageSource = item.print_ready_url || item.web_preview_url || item.file_key;
@@ -266,10 +256,7 @@ const AdminOrders: React.FC = () => {
         overlayImage: item.overlay_image || null
       };
 
-      console.log('🔴 PDF REQUEST DEBUG:');
-      console.log('🔴 item.overlay_image:', item.overlay_image);
-      console.log('🔴 requestBody.overlayImage:', requestBody.overlayImage);
-      console.log('🔴 Full requestBody:', JSON.stringify(requestBody, null, 2));
+      console.log('🔴 PDF REQUEST:', JSON.stringify(requestBody, null, 2));
 
       const response = await fetch('/.netlify/functions/render-order-pdf', {
         method: 'POST',
@@ -278,25 +265,39 @@ const AdminOrders: React.FC = () => {
       });
 
       if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+        const errorText = await response.text();
+        console.error('PDF generation failed:', errorText);
+        throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
-      const result = await response.json();
-
-      if (result.pdfUrl) {
+      // Check if response is JSON (error) or PDF (success)
+      const contentType = response.headers.get('content-type');
+      
+      if (contentType?.includes('application/json')) {
+        // Error response
+        const result = await response.json();
+        throw new Error(result.error || result.message || 'PDF generation failed');
+      } else if (contentType?.includes('application/pdf')) {
+        // Success - PDF binary response
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        
         const link = document.createElement('a');
-        link.href = result.pdfUrl;
+        link.href = url;
         link.download = `order-${orderId.slice(-8)}-banner-${itemIndex + 1}-print-ready.pdf`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        
+        // Clean up the blob URL
+        window.URL.revokeObjectURL(url);
 
         toast({
           title: "PDF Downloaded",
           description: `Print-ready PDF ready for production.`,
         });
       } else {
-        throw new Error('No PDF URL in response');
+        throw new Error('Unexpected response type: ' + contentType);
       }
     } catch (error) {
       console.error('PDF Download Error:', error);
@@ -308,6 +309,7 @@ const AdminOrders: React.FC = () => {
     } finally {
       // Clear loading state for this PDF button
       setPdfLoadingStates(prev => ({ ...prev, [loadingKey]: false }));
+
     }
   };
 
