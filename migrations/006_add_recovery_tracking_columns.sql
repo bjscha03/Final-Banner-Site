@@ -6,7 +6,7 @@
 
 -- Add recovered_at column (timestamp when cart was recovered via purchase)
 ALTER TABLE abandoned_carts 
-ADD COLUMN IF NOT EXISTS recovered_at TIMESTAMP WITH TIME ZONE;
+ADD COLUMN IF NOT EXISTS recovered_at TIMESTAMPTZ;
 
 -- Add recovered_order_id column (reference to the order that recovered this cart)
 ALTER TABLE abandoned_carts 
