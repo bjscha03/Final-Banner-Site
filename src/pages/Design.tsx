@@ -87,16 +87,8 @@ const Design: React.FC = () => {
             previewScalePct: 100
           };
           
-          // Restore dimensions if they were saved
-          if (canvaWidth && canvaHeight) {
-            const widthIn = parseFloat(canvaWidth);
-            const heightIn = parseFloat(canvaHeight);
-            if (!isNaN(widthIn) && !isNaN(heightIn)) {
-              updateData.widthIn = widthIn;
-              updateData.heightIn = heightIn;
-              console.log('📏 Restoring dimensions:', { widthIn, heightIn });
-            }
-          }
+          // DO NOT restore pixel dimensions - they cause massive pricing errors
+          // User will set their desired print dimensions manually
           
           // Set the file in the store with the proper structure
           useQuoteStore.getState().set(updateData);

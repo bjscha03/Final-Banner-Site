@@ -90,15 +90,8 @@ export default function CanvaEditor() {
         sessionStorage.setItem('canva-design-publicId', data.publicId);
         sessionStorage.setItem('canva-design-name', data.fileName);
         
-        // Store dimensions from Cloudinary or fallback to Canva dimensions
-        const designWidth = data.width || width;
-        const designHeight = data.height || height;
-        
-        if (designWidth && designHeight) {
-          sessionStorage.setItem('canva-design-width', designWidth.toString());
-          sessionStorage.setItem('canva-design-height', designHeight.toString());
-          console.log('📏 Storing dimensions for Design page:', { width: designWidth, height: designHeight });
-        }
+        // DO NOT store pixel dimensions - they will be treated as inches and cause massive pricing errors
+        // User will set their desired print dimensions on the Design page
         
         toast({
           title: "Success!",
