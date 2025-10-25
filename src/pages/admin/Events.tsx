@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { Check, X, Trash2, Upload, Download, ExternalLink, Star, Package } from 'lucide-react';
+import { Check, X, Trash2, Upload, Download, ExternalLink, Star, Package , ShoppingCart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -322,6 +322,12 @@ export default function AdminEvents() {
                 <TabsTrigger value="events" className="flex items-center gap-2">
                   <Star className="h-4 w-4" />
                   Events
+                </TabsTrigger>
+                <TabsTrigger value="abandoned-carts" className="flex items-center gap-2" asChild>
+                  <a href="/admin/abandoned-carts">
+                    <ShoppingCart className="h-4 w-4" />
+                    Abandoned Carts
+                  </a>
                 </TabsTrigger>
               </TabsList>
             </Tabs>

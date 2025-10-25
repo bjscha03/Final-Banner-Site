@@ -7,6 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Shield, Mail, Loader2, RefreshCw, ShoppingCart } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { usd } from '@/lib/pricing';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Package, Star } from 'lucide-react';
 
 interface AbandonedCart {
   id: string;
@@ -161,6 +163,31 @@ const AbandonedCarts: React.FC = () => {
             Refresh
           </Button>
         </div>
+
+
+          {/* Admin Navigation */}
+          <div className="mb-6">
+            <Tabs value="abandoned-carts" className="w-full">
+              <TabsList>
+                <TabsTrigger value="orders" className="flex items-center gap-2" asChild>
+                  <a href="/admin/orders">
+                    <Package className="h-4 w-4" />
+                    Orders
+                  </a>
+                </TabsTrigger>
+                <TabsTrigger value="events" className="flex items-center gap-2" asChild>
+                  <a href="/admin/events">
+                    <Star className="h-4 w-4" />
+                    Events
+                  </a>
+                </TabsTrigger>
+                <TabsTrigger value="abandoned-carts" className="flex items-center gap-2">
+                  <ShoppingCart className="h-4 w-4" />
+                  Abandoned Carts
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           <div className="bg-white p-4 rounded-lg border">
