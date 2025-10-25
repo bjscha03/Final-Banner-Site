@@ -65,6 +65,9 @@ exports.handler = async (event, context) => {
     }
 
     const sql = neon(DATABASE_URL);
+    
+    // Validate UUID format for userId (PostgreSQL UUID format)
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
     // Parse request body
     const {
@@ -107,6 +110,16 @@ exports.handler = async (event, context) => {
       totalValue,
       hasEmail: !!email
     });
+
+    // Validate userId is a valid UUID before attempting database operations
+    if (userId && !uuidRegex.test(userId)) {
+      console.log('[save-cart-snapshot] Invalid UUID format for userId, skipping snapshot');
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ success: true, message: 'Snapshot skipped for invalid userId' })
+      };
+    }
 
     // Upsert to abandoned_carts table
     if (userId) {

@@ -31,6 +31,16 @@ exports.handler = async (event, context) => {
 
     console.log('[cart-save] Saving cart:', { userId: userId ? `${userId.substring(0, 8)}...` : null, sessionId: sessionId ? `${sessionId.substring(0, 12)}...` : null, itemCount: cartData.length });
 
+    // Validate userId is a valid UUID before attempting database operations
+    if (userId && !uuidRegex.test(userId)) {
+      console.log('[cart-save] Invalid UUID format for userId, skipping save');
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({ success: true, message: 'Cart save skipped for invalid userId' })
+      };
+    }
+
     const cartDataJson = JSON.stringify(cartData);
 
     if (userId) {
