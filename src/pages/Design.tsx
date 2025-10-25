@@ -13,6 +13,11 @@ import { useQuoteStore, MaterialKey } from '@/store/quote';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/lib/auth';
 import NewAIGenerationModal from '@/components/design/NewAIGenerationModal';
+import UploadHeroSection from '@/components/design/UploadHeroSection';
+import ProgressIndicator from '@/components/design/ProgressIndicator';
+import PricingVisibilityBanner from '@/components/design/PricingVisibilityBanner';
+import TrustBadges from '@/components/design/TrustBadges';
+import StickyUploadButton from '@/components/design/StickyUploadButton';
 
 const Design: React.FC = () => {
   const navigate = useNavigate();
@@ -289,6 +294,24 @@ const Design: React.FC = () => {
         <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 relative z-10">
 
           <div ref={configuratorRef}>
+
+          {/* NEW: Conversion Optimization Components */}
+          <UploadHeroSection 
+            onOpenAIModal={handleOpenAIModal}
+            onFileUploaded={() => {
+              // Scroll to preview after upload
+              setTimeout(() => {
+                configuratorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }, 300);
+            }}
+          />
+          
+          <ProgressIndicator />
+          
+          <TrustBadges />
+          
+          <PricingVisibilityBanner />
+
             {/* Mobile Layout: Vertical stack with optimal order */}
             <div className="block lg:hidden space-y-6 md:space-y-8">
               <SizeQuantityCard />
@@ -329,6 +352,8 @@ const Design: React.FC = () => {
         open={aiModalOpen} 
         onOpenChange={setAiModalOpen} 
       />
+      {/* Sticky Upload Button */}
+      <StickyUploadButton />
     </Layout>
   );
 };

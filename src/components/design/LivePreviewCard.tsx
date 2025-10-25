@@ -182,6 +182,88 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     }
   }, [widthIn, heightIn, file, imageScale, editingItemId]); // Include all dependencies
   // Responsive scale factor based on container dimensions
+
+  // Auto-convert PDFs to bitmaps when uploaded and dimensions are available
+  useEffect(() => {
+    const convertPdfToBitmap = async () => {
+      // Only convert if:
+      // 1. File exists and is a PDF
+      // 2. File URL is a blob URL (not already converted)
+      // 3. Banner dimensions are set
+      // 4. Not already rendering
+      // 5. Not editing from cart (preserve existing conversion)
+      if (!file?.isPdf || !file?.url || !widthIn || !heightIn || isRenderingPdf || editingItemId) {
+        return;
+      }
+
+      // Check if URL is already a converted bitmap (Cloudinary or already processed blob)
+      if (file.url.includes('cloudinary') || file.artworkWidth) {
+        console.log('📄 PDF already converted, skipping re-conversion');
+        return;
+      }
+
+      console.log('📄 Auto-converting PDF to bitmap for preview...', {
+        fileName: file.name,
+        dimensions: `${widthIn}" x ${heightIn}"`,
+        fileUrl: file.url.substring(0, 50) + '...'
+      });
+
+      setIsRenderingPdf(true);
+
+      try {
+        // Fetch the PDF blob from the blob URL
+        const response = await fetch(file.url);
+        const pdfBlob = await response.blob();
+        const pdfFile = new File([pdfBlob], file.name, { type: 'application/pdf' });
+
+        // Convert PDF to bitmap
+        const pdfResult = await loadPdfToBitmap(pdfFile, {
+          bannerWidthInches: widthIn,
+          bannerHeightInches: heightIn,
+          targetDPI: 200,
+          maxDimension: 6000,
+          compressionQuality: 0.85,
+          maxUploadSize: 50 * 1024 * 1024
+        });
+
+        console.log('✅ PDF converted successfully:', {
+          width: pdfResult.width,
+          height: pdfResult.height,
+          actualDPI: pdfResult.actualDPI,
+          fileSize: `${Math.round(pdfResult.fileSize / 1024 / 1024 * 100) / 100}MB`
+        });
+
+        // Update the file with the bitmap URL and dimensions
+        set({
+          file: {
+            ...file,
+            url: pdfResult.blobUrl,
+            artworkWidth: pdfResult.width,
+            artworkHeight: pdfResult.height,
+            isPdf: true, // Keep isPdf flag for reference
+            fileKey: file.fileKey || `upload-${Date.now()}`
+          }
+        });
+
+        toast({
+          title: 'PDF processed successfully',
+          description: `Converted to ${pdfResult.actualDPI} DPI bitmap for preview.`
+        });
+
+      } catch (error) {
+        console.error('❌ PDF conversion failed:', error);
+        toast({
+          title: 'PDF processing failed',
+          description: error instanceof Error ? error.message : 'Failed to process PDF. Please try uploading again.',
+          variant: 'destructive'
+        });
+      } finally {
+        setIsRenderingPdf(false);
+      }
+    };
+
+    convertPdfToBitmap();
+  }, [file, widthIn, heightIn, isRenderingPdf, editingItemId, set, toast]);
   const [responsiveScale, setResponsiveScale] = useState(100);
 
   // Calculate responsive scale based on container size

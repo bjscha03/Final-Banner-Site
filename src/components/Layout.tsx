@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useCartStore } from '@/store/cart';
+import { useUIStore } from '@/store/ui';
 import Header from './Header';
 import Footer from './Footer';
 import CartModal from './CartModal';
@@ -12,7 +13,7 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { getItemCount } = useCartStore();
-  const [isCartOpen, setIsCartOpen] = useState(false);
+  const { isCartOpen, setIsCartOpen } = useUIStore();
 
   return (
     <div className="min-h-screen bg-white overflow-x-hidden max-w-[100vw]">
