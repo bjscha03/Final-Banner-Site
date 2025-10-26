@@ -1,5 +1,4 @@
 const { neon } = require('@neondatabase/serverless');
-const https = require('https');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -19,25 +18,26 @@ function getClientIP(event) {
          '0.0.0.0';
 }
 
-async function sendEmailPostmark(to, code, expiresAt) {
-  const apiKey = process.env.POSTMARK_API_KEY;
-  
-  if (!apiKey) {
-    console.warn('[send-discount-code] POSTMARK_API_KEY not configured, skipping email');
-    return { success: false, error: 'Email not configured' };
-  }
+async function sendEmailResend(to, code, expiresAt) {
+  try {
+    const { Resend } = require('resend');
+    
+    if (!process.env.RESEND_API_KEY) {
+      console.warn('[send-discount-code] RESEND_API_KEY not configured, skipping email');
+      return { success: false, error: 'Email not configured' };
+    }
 
-  const expiryDate = new Date(expiresAt).toLocaleDateString('en-US', {
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric'
-  });
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    
+    const emailFrom = process.env.EMAIL_FROM || 'orders@bannersonthefly.com';
+    
+    const expiryDate = new Date(expiresAt).toLocaleDateString('en-US', {
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric'
+    });
 
-  const emailData = JSON.stringify({
-    From: process.env.POSTMARK_FROM_EMAIL || 'noreply@bannersonthefly.com',
-    To: to,
-    Subject: 'Your 20% Off Code Inside 🎉',
-    HtmlBody: \`
+    const html = `
       <!DOCTYPE html>
       <html>
       <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; background-color: #f3f4f6;">
@@ -60,7 +60,7 @@ async function sendEmailPostmark(to, code, expiresAt) {
                       <tr>
                         <td style="background-color: #f9fafb; border: 2px dashed #18448D; border-radius: 12px; padding: 24px; text-align: center;">
                           <p style="margin: 0 0 8px 0; color: #6b7280; font-size: 14px;">Your Code</p>
-                          <p style="margin: 0; color: #18448D; font-size: 28px; font-weight: bold; font-family: monospace;">\${code}</p>
+                          <p style="margin: 0; color: #18448D; font-size: 28px; font-weight: bold; font-family: monospace;">${code}</p>
                         </td>
                       </tr>
                     </table>
@@ -74,7 +74,7 @@ async function sendEmailPostmark(to, code, expiresAt) {
                       </tr>
                     </table>
                     <p style="margin: 20px 0 0 0; color: #6b7280; font-size: 14px;">
-                      <strong>Expires:</strong> \${expiryDate}<br>
+                      <strong>Expires:</strong> ${expiryDate}<br>
                       <strong>One-time use per customer</strong>
                     </p>
                   </td>
@@ -85,47 +85,28 @@ async function sendEmailPostmark(to, code, expiresAt) {
         </table>
       </body>
       </html>
-    \`,
-    TextBody: \`Your 20% Off Code: \${code}\\n\\nUse code \${code} at checkout to save 20%.\\n\\nExpires: \${expiryDate}\\n\\nStart designing: https://bannersonthefly.com/design\`,
-    MessageStream: 'outbound'
-  });
+    `;
 
-  return new Promise((resolve, reject) => {
-    const options = {
-      hostname: 'api.postmarkapp.com',
-      port: 443,
-      path: '/email',
-      method: 'POST',
-      headers: {
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-        'X-Postmark-Server-Token': apiKey,
-        'Content-Length': Buffer.byteLength(emailData)
-      }
-    };
-
-    const req = https.request(options, (res) => {
-      let data = '';
-      res.on('data', (chunk) => { data += chunk; });
-      res.on('end', () => {
-        if (res.statusCode === 200) {
-          console.log('[send-discount-code] Email sent:', to);
-          resolve({ success: true });
-        } else {
-          console.error('[send-discount-code] Error:', res.statusCode, data);
-          resolve({ success: false, error: data });
-        }
-      });
+    const result = await resend.emails.send({
+      from: emailFrom,
+      to: to,
+      subject: 'Your 20% Off Code Inside 🎉',
+      html: html,
+      text: `Your 20% Off Code: ${code}\n\nUse code ${code} at checkout to save 20%.\n\nExpires: ${expiryDate}\n\nStart designing: https://bannersonthefly.com/design`
     });
 
-    req.on('error', (error) => {
-      console.error('[send-discount-code] Request error:', error);
-      reject(error);
-    });
+    if (result.error) {
+      console.error('[send-discount-code] Resend error:', result.error);
+      return { success: false, error: result.error };
+    }
 
-    req.write(emailData);
-    req.end();
-  });
+    console.log('[send-discount-code] Email sent via Resend:', to, 'ID:', result.data?.id);
+    return { success: true, id: result.data?.id };
+    
+  } catch (error) {
+    console.error('[send-discount-code] Email send failed:', error);
+    return { success: false, error: error.message };
+  }
 }
 
 exports.handler = async (event, context) => {
@@ -179,7 +160,7 @@ exports.handler = async (event, context) => {
 
     console.log('[send-discount-code] Request:', { email: normalizedEmail, source, ip: clientIP });
 
-    const rateLimitCheck = await sql\`SELECT check_ip_rate_limit(\${clientIP}) as allowed\`;
+    const rateLimitCheck = await sql`SELECT check_ip_rate_limit(${clientIP}::INET) as allowed`;
     
     if (!rateLimitCheck[0].allowed) {
       console.warn('[send-discount-code] Rate limit exceeded:', clientIP);
@@ -193,19 +174,19 @@ exports.handler = async (event, context) => {
       };
     }
 
-    await sql\`
+    await sql`
       INSERT INTO email_captures (email, consent, source, ip, user_agent)
-      VALUES (\${normalizedEmail}, \${consent}, \${source}, \${clientIP}, \${userAgent})
-    \`;
+      VALUES (${normalizedEmail}, ${consent}, ${source}, ${clientIP}::INET, ${userAgent})
+    `;
 
-    const result = await sql\`
+    const result = await sql`
       SELECT * FROM get_or_create_discount_code(
-        \${normalizedEmail},
-        \${clientIP},
-        \${userAgent},
-        \${campaign}
+        ${normalizedEmail},
+        ${clientIP}::INET,
+        ${userAgent},
+        ${campaign}
       )
-    \`;
+    `;
 
     if (result.length === 0) {
       throw new Error('Failed to generate discount code');
@@ -215,7 +196,8 @@ exports.handler = async (event, context) => {
 
     console.log('[send-discount-code] Code generated:', { code, isNew: is_new });
 
-    sendEmailPostmark(normalizedEmail, code, expires_at).catch(error => {
+    // Send email asynchronously (don't block response)
+    sendEmailResend(normalizedEmail, code, expires_at).catch(error => {
       console.error('[send-discount-code] Email send failed:', error);
     });
 
