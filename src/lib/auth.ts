@@ -37,7 +37,7 @@ class SecureAuthAdapter implements AuthAdapter {
       if (!user && hasAdminCookie) {
         console.log('🆕 Creating temporary admin user from cookie');
         user = {
-          id: 'admin_dev_user',
+          id: '00000000-0000-0000-0000-000000000001', // ✅ Valid UUID for admin dev user
           email: 'admin@dev.local',
           is_admin: true,
         };

@@ -22,7 +22,7 @@ console.log('Final databaseUrl:', databaseUrl ? 'SET' : 'NOT SET');
 
 // Demo user for testing
 const DEMO_USER = {
-  id: 'demo-user-123',
+  id: '00000000-0000-0000-0000-000000000002', // ✅ Valid UUID for demo user
   email: 'brandon.schaefer@hotmail.com',
   user_metadata: {
     full_name: 'Brandon Schaefer'
