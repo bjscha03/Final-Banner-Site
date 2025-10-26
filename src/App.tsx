@@ -71,7 +71,7 @@ const CartSyncWrapper = ({ children }: { children: React.ReactNode }) => {
 
   // Promo popup logic - only show on homepage
   const isHomepage = location.pathname === '/';
-  const { showPopup, closePopup } = usePromoPopup({
+  const { showPopup, popupSource, closePopup } = usePromoPopup({
     delaySeconds: 11,
     enableExitIntent: true,
   });
@@ -79,7 +79,7 @@ const CartSyncWrapper = ({ children }: { children: React.ReactNode }) => {
   return (
     <>
       {children}
-      {isHomepage && showPopup && <PromoPopup onClose={closePopup} />}
+      {isHomepage && showPopup && <PromoPopup onClose={closePopup} source={popupSource} />}
     </>
   );
 };
