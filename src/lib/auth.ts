@@ -33,6 +33,17 @@ class SecureAuthAdapter implements AuthAdapter {
         storedUser: user ? { id: user.id, email: user.email, is_admin: user.is_admin } : null
       });
 
+
+      // 🔧 MIGRATION: Update old demo user IDs to valid UUIDs
+      if (user && (user.id === 'admin_dev_user' || user.id === 'demo-user-123')) {
+        console.log('🔄 Migrating old user ID to valid UUID:', user.id);
+        const newId = user.id === 'admin_dev_user' 
+          ? '00000000-0000-0000-0000-000000000001'
+          : '00000000-0000-0000-0000-000000000002';
+        user.id = newId;
+        safeStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
+        console.log('✅ Migrated user ID to:' , newId);
+      }
       // If no user but admin cookie is present, create a temporary admin user
       if (!user && hasAdminCookie) {
         console.log('🆕 Creating temporary admin user from cookie');
