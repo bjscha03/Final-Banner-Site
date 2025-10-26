@@ -618,21 +618,31 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
 
   // Canva integration handler
   const handleDesignInCanva = () => {
-    // Generate a temporary order ID and user ID
+    // Check if user is logged in
+    if (!user || !user.id) {
+      console.error('❌ User not logged in');
+      // You could show a toast or redirect to login here
+      alert('Please log in to use Canva design feature');
+      return;
+    }
+    
+    // Generate a temporary order ID
     const tempOrderId = `temp-${Date.now()}`;
-    const tempUserId = `user-${Date.now()}`;
+    
+    // ✅ Use real user ID from auth
+    const userId = user.id;
     
     // Build the Canva start URL with parameters
     const params = new URLSearchParams({
       orderId: tempOrderId,
-      userId: tempUserId,
+      userId: userId,
       width: widthIn.toString(),
       height: heightIn.toString()
     });
     
     const canvaStartUrl = `/.netlify/functions/canva-start?${params.toString()}`;
     
-    console.log('🎨 Opening Canva design session:', { tempOrderId, tempUserId, widthIn, heightIn });
+    console.log('🎨 Opening Canva design session:', { tempOrderId, userId, widthIn, heightIn });
     
     // Open Canva in a new window
     window.location.href = canvaStartUrl;
