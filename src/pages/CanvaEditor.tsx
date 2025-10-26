@@ -17,7 +17,7 @@ export default function CanvaEditor() {
   const userId = searchParams.get('userId');
   const designId = searchParams.get('designId');
   const editUrl = searchParams.get('editUrl');
-  const token = searchParams.get('token');
+  const success = searchParams.get('success');
   const width = searchParams.get('width');
   const height = searchParams.get('height');
 
@@ -54,7 +54,8 @@ export default function CanvaEditor() {
   };
 
   const handleDoneDesigning = async () => {
-    if (!designId || !token) {
+    // ✅ SECURE - Use userId instead of token
+    if (!designId || !userId) {
       toast({
         title: "Error",
         description: "Missing design information",
@@ -66,7 +67,7 @@ export default function CanvaEditor() {
     setExporting(true);
 
     try {
-      // Call the export function
+      // ✅ SECURE - Pass userId, not accessToken
       const response = await fetch('/.netlify/functions/canva-export', {
         method: 'POST',
         headers: {
@@ -74,13 +75,23 @@ export default function CanvaEditor() {
         },
         body: JSON.stringify({
           designId,
-          accessToken: token
+          userId  // ✅ Changed from accessToken to userId
         })
       });
 
       const data = await response.json();
 
       if (!response.ok) {
+        // Check if user needs to re-authorize
+        if (data.needsReauth) {
+          toast({
+            title: "Authorization Required",
+            description: "Please reconnect your Canva account",
+            variant: "destructive"
+          });
+          // Could redirect to re-auth flow here
+          return;
+        }
         throw new Error(data.error || 'Export failed');
       }
 

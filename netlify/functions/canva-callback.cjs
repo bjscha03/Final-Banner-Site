@@ -4,9 +4,12 @@
  * Handles the OAuth callback from Canva after user authorizes the app.
  * Exchanges the authorization code for an access token, then creates a design
  * with the user's uploaded image.
+ * 
+ * SECURITY: Tokens are stored securely in database, never passed in URLs
  */
 
 const https = require('https');
+const { neon } = require('@neondatabase/serverless');
 
 // Try to load config file (local dev), fallback to env vars (production)
 let config;
@@ -158,6 +161,7 @@ async function createCanvaDesign(accessToken, width, height, title = 'Banner Des
 
   return httpsRequest(createUrl, options, JSON.stringify(designData));
 }
+
 exports.handler = async (event, context) => {
   console.log('🔄 Canva Callback - Processing OAuth callback');
 
@@ -205,7 +209,7 @@ exports.handler = async (event, context) => {
     console.log('🔑 Exchanging code for access token...');
     const tokenResponse = await exchangeCodeForToken(code, codeVerifier);
 
-    const { access_token } = tokenResponse;
+    const { access_token, refresh_token, expires_in, scope } = tokenResponse;
 
     if (!access_token) {
       console.error('❌ No access token received');
@@ -216,6 +220,30 @@ exports.handler = async (event, context) => {
     }
 
     console.log('✅ Access token obtained');
+
+    // ✅ SECURE - Store token in database
+    console.log('💾 Storing token in database...');
+    const db = neon(process.env.DATABASE_URL);
+    const expiresAt = new Date(Date.now() + ((expires_in || 3600) * 1000));
+
+    await db`
+      INSERT INTO canva_tokens (user_id, access_token, refresh_token, expires_at, scope)
+      VALUES (
+        ${userId},
+        ${access_token},
+        ${refresh_token || null},
+        ${expiresAt.toISOString()},
+        ${scope || 'design:content:read design:content:write'}
+      )
+      ON CONFLICT (user_id) DO UPDATE SET
+        access_token = ${access_token},
+        refresh_token = COALESCE(${refresh_token}, canva_tokens.refresh_token),
+        expires_at = ${expiresAt.toISOString()},
+        updated_at = NOW(),
+        disconnected_at = NULL
+    `;
+
+    console.log('✅ Token stored securely in database');
 
     // Create a design in Canva if dimensions are provided
     let designId = null;
@@ -236,10 +264,11 @@ exports.handler = async (event, context) => {
       console.log('✅ Design created:', { designId, editUrl });
     }
 
-    // Redirect back to the site with the design info
+    // ✅ SECURE - Redirect WITHOUT token in URL
     const redirectUrl = new URL('https://bannersonthefly.com/design/canva-editor');
     redirectUrl.searchParams.set('orderId', orderId);
     redirectUrl.searchParams.set('userId', userId);
+    redirectUrl.searchParams.set('success', 'true');
     
     if (designId) {
       redirectUrl.searchParams.set('designId', designId);
@@ -247,18 +276,6 @@ exports.handler = async (event, context) => {
     
     if (editUrl) {
       redirectUrl.searchParams.set('editUrl', editUrl);
-    }
-
-    redirectUrl.searchParams.set('token', access_token);
-    
-    // Pass dimensions back so they can be preserved on the Design page
-    if (width && width !== '') {
-      redirectUrl.searchParams.set('width', width);
-      console.log('📏 Passing width back to Design page:', width);
-    }
-    if (height && height !== '') {
-      redirectUrl.searchParams.set('height', height);
-      console.log('📏 Passing height back to Design page:', height);
     }
     
     // Pass dimensions back so they can be preserved on the Design page

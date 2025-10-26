@@ -1,6 +1,15 @@
+/**
+ * Canva Export Function
+ * 
+ * Exports a Canva design as PNG and uploads to Cloudinary
+ * 
+ * SECURITY: Retrieves access token from database instead of accepting it in request
+ */
+
 const https = require('https');
 const { URL } = require('url');
 const cloudinary = require('cloudinary').v2;
+const { neon } = require('@neondatabase/serverless');
 
 // Configure Cloudinary
 cloudinary.config({
@@ -133,14 +142,61 @@ exports.handler = async (event, context) => {
   }
 
   try {
-    const { designId, accessToken } = JSON.parse(event.body);
+    // ✅ SECURE - Get userId from request, retrieve token from database
+    const { designId, userId } = JSON.parse(event.body);
 
-    if (!designId || !accessToken) {
+    if (!designId || !userId) {
       return {
         statusCode: 400,
-        body: JSON.stringify({ error: 'Missing designId or accessToken' })
+        body: JSON.stringify({ error: 'Missing designId or userId' })
       };
     }
+
+    console.log('🔑 Retrieving access token from database for user:', userId);
+    const db = neon(process.env.DATABASE_URL);
+    
+    const tokens = await db`
+      SELECT access_token, expires_at
+      FROM canva_tokens
+      WHERE user_id = ${userId}
+      AND disconnected_at IS NULL
+      LIMIT 1
+    `;
+
+    if (tokens.length === 0) {
+      console.error('❌ No Canva token found for user:', userId);
+      return {
+        statusCode: 401,
+        body: JSON.stringify({ 
+          error: 'No Canva token found. Please reconnect your Canva account.',
+          needsReauth: true
+        })
+      };
+    }
+
+    const accessToken = tokens[0].access_token;
+    const expiresAt = new Date(tokens[0].expires_at);
+    
+    // Check if token is expired
+    if (expiresAt < new Date()) {
+      console.warn('⚠️  Token expired, user needs to re-authorize');
+      return {
+        statusCode: 401,
+        body: JSON.stringify({ 
+          error: 'Canva token expired. Please reconnect your Canva account.',
+          needsReauth: true
+        })
+      };
+    }
+
+    console.log('✅ Access token retrieved from database');
+
+    // Update last_used_at timestamp
+    await db`
+      UPDATE canva_tokens
+      SET last_used_at = NOW()
+      WHERE user_id = ${userId}
+    `;
 
     // Start the export
     const exportJob = await exportCanvaDesign(accessToken, designId);
