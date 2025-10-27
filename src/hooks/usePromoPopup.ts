@@ -14,7 +14,14 @@ export const usePromoPopup = (options: UsePromoPopupOptions = {}) => {
   const [hasShownPopup, setHasShownPopup] = useState(false);
 
   useEffect(() => {
-    // Check if popup should be suppressed (72-hour cooldown)
+    // Check if user already received their code (permanent dismissal)
+    // If user already got their code, NEVER show popup again
+    if (localStorage.getItem('promo_code_received') === 'true') {
+      console.log('[usePromoPopup] User already received code - popup permanently suppressed');
+      return;
+    }
+
+    // Check for temporary dismissal (72-hour cooldown for X button clicks)
     const dismissedAt = localStorage.getItem('promo_popup_dismissed');
     
     if (dismissedAt) {

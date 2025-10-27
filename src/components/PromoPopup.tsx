@@ -48,10 +48,8 @@ export const PromoPopup = ({ onClose, source }: PromoPopupProps) => {
 
       setGeneratedCode(data.code);
       
-      // Set 72-hour dismissal so popup won't show again (including exit-intent)
-      const expiryDate = new Date();
-      expiryDate.setHours(expiryDate.getHours() + 72);
-      localStorage.setItem('promo_popup_dismissed', expiryDate.toISOString());
+      // User got their code - NEVER show popup again
+      localStorage.setItem('promo_code_received', 'true');
       
       toast({
         title: '🎉 Success!',
