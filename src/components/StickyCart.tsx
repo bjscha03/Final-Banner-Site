@@ -16,7 +16,7 @@ const StickyCart: React.FC<StickyCartProps> = ({ onOpenCart, isCartOpen = false 
   const [isVisible, setIsVisible] = useState(true);
   const [isMinimized, setIsMinimized] = useState(() => {
     const saved = localStorage.getItem('sticky-cart-minimized');
-    return saved === 'true';
+    return saved !== 'false';
   });
   const [justAdded, setJustAdded] = useState(false);
   const [prevItemCount, setPrevItemCount] = useState(0);
