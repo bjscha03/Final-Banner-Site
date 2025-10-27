@@ -310,7 +310,9 @@ const Design: React.FC = () => {
         <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 lg:px-8 relative z-10">
 
           <div ref={configuratorRef}>
-
+          {/* Halloween Tutorial - Only show when coming from /halloween-banner */}
+          {showHalloweenTutorial && <HalloweenVideoTutorial />}
+          
           {/* NEW: Conversion Optimization Components */}
           <UploadHeroSection 
             onOpenAIModal={handleOpenAIModal}
@@ -321,11 +323,6 @@ const Design: React.FC = () => {
               }, 300);
             }}
           />
-          
-          {/* Halloween Tutorial - Only show when coming from /halloween-banner */}
-          {showHalloweenTutorial && <HalloweenVideoTutorial />}
-          
-          {/* Halloween Tutorial - Only show when coming from /halloween-banner */}
           
           <ProgressIndicator />
           
