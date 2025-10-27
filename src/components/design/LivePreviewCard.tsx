@@ -515,12 +515,21 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         });
       }
       
+      // CRITICAL: Never save blob URLs - they expire on page reload
+      const permanentUrl = result.secureUrl || result.fileUrl;
+      if (!permanentUrl || permanentUrl.startsWith('blob:')) {
+        console.error('❌ No permanent URL from upload:', { result, previewUrl });
+        throw new Error('Upload failed to return a permanent URL. Please try again.');
+      }
+      
+      console.log('✅ Using permanent URL:', permanentUrl);
+      
       set({
         file: {
           name: file.name,
           type: isPdf ? 'application/pdf' : file.type,
           size: file.size,
-          url: result.secureUrl || previewUrl, // Use permanent Cloudinary URL instead of blob URL
+          url: permanentUrl, // ONLY use permanent Cloudinary URL
           isPdf,
           fileKey: result.fileKey,
           artworkWidth: artworkWidth || undefined,

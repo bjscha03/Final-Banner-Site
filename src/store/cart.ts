@@ -536,7 +536,24 @@ export const useCartStore = create<CartState>()(
         // If server has items, use them (they are the source of truth)
         if (serverItems.length > 0) {
           console.log("🖼️  STORE: Checking image URLs in server items:");
-          serverItems.forEach((item, idx) => {
+          
+          // CRITICAL FIX: Filter out items with blob URLs (they're expired/invalid)
+          const validItems = serverItems.filter((item, idx) => {
+            const hasBlobUrl = 
+              item.file_url?.startsWith('blob:') ||
+              item.web_preview_url?.startsWith('blob:') ||
+              item.print_ready_url?.startsWith('blob:');
+            
+            if (hasBlobUrl) {
+              console.warn(`⚠️  STORE: Removing item ${idx} with expired blob URL:`, {
+                id: item.id,
+                file_url: item.file_url,
+                web_preview_url: item.web_preview_url,
+                print_ready_url: item.print_ready_url
+              });
+              return false; // Remove this item
+            }
+            
             console.log(`  Item ${idx}:`, {
               id: item.id,
               web_preview_url: item.web_preview_url,
@@ -544,9 +561,15 @@ export const useCartStore = create<CartState>()(
               print_ready_url: item.print_ready_url,
               aiDesign_proofUrl: item.aiDesign?.assets?.proofUrl
             });
+            return true; // Keep this item
           });
+          
+          if (validItems.length < serverItems.length) {
+            console.warn(`🗑️  STORE: Removed ${serverItems.length - validItems.length} items with blob URLs`);
+          }
+          
           console.log('✅ STORE: Server has items, using server cart');
-          set({ items: serverItems });
+          set({ items: validItems });
           
           // Set cart owner
           if (typeof localStorage !== 'undefined') {
