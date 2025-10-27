@@ -124,9 +124,6 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   imageScale = 1,
   imagePosition = { x: 0, y: 0 }
 }) => {
-  // Filter out blob URLs (they're expired and won't load)
-  const validImageUrl = imageUrl?.startsWith('blob:') ? undefined : imageUrl;
-  
   // Track image load errors
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -135,7 +132,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   useEffect(() => {
     setImageError(false);
     setImageLoaded(false);
-  }, [validImageUrl]);
+  }, [imageUrl]);
 
 
   // Calculate aspect ratio and determine container dimensions
@@ -173,9 +170,9 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   return (
     <>
       {/* Hidden img element to detect load errors */}
-      {validImageUrl && !imageError && (
+      {imageUrl && !imageError && (
         <img
-          src={validImageUrl}
+          src={imageUrl}
           alt=""
           style={{ display: 'none' }}
           onError={() => {
@@ -234,10 +231,10 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
                 Loading...
               </text>
             </g>
-          ) : (validImageUrl && !imageError) ? (
+          ) : (imageUrl && !imageError) ? (
             <g clipPath={`url(#banner-clip-${widthIn}-${heightIn})`}>
               <image
-                href={validImageUrl}
+                href={imageUrl}
                 x={(viewBoxWidth - viewBoxWidth * imageScale) / 2 + (imagePosition.x * 0.01)}
                 y={(viewBoxHeight - viewBoxHeight * imageScale) / 2 + (imagePosition.y * 0.01)}
                 width={viewBoxWidth * imageScale}

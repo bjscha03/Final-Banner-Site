@@ -387,20 +387,13 @@ const Checkout: React.FC = () => {
                           heightIn={item.height_in}
                           grommets={item.grommets}
                           imageUrl={(() => {
-                            // Filter out blob URLs from each field BEFORE selecting
-                            const web_preview = item.web_preview_url?.startsWith('blob:') ? null : item.web_preview_url;
-                            const file = item.file_url?.startsWith('blob:') ? null : item.file_url;
-                            const print_ready = item.print_ready_url?.startsWith('blob:') ? null : item.print_ready_url;
-                            const aiProof = item.aiDesign?.assets?.proofUrl;
-                            
-                            const url = web_preview || file || print_ready || aiProof;
-                            
+                            const url = item.web_preview_url || item.file_url || item.print_ready_url || item.aiDesign?.assets?.proofUrl;
                             if (!url) {
-                              console.warn('⚠️  CHECKOUT: No valid image URL for item:', item.id, {
+                              console.warn('⚠️  CHECKOUT: No image URL found for item:', item.id, {
                                 web_preview_url: item.web_preview_url,
                                 file_url: item.file_url,
                                 print_ready_url: item.print_ready_url,
-                                aiDesign_proofUrl: aiProof
+                                aiDesign_proofUrl: item.aiDesign?.assets?.proofUrl
                               });
                             }
                             return url || undefined;
