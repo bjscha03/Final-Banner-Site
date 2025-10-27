@@ -535,6 +535,16 @@ export const useCartStore = create<CartState>()(
         // SIMPLIFIED LOGIC: Always use server cart when available
         // If server has items, use them (they are the source of truth)
         if (serverItems.length > 0) {
+          console.log("🖼️  STORE: Checking image URLs in server items:");
+          serverItems.forEach((item, idx) => {
+            console.log(`  Item ${idx}:`, {
+              id: item.id,
+              web_preview_url: item.web_preview_url,
+              file_url: item.file_url,
+              print_ready_url: item.print_ready_url,
+              aiDesign_proofUrl: item.aiDesign?.assets?.proofUrl
+            });
+          });
           console.log('✅ STORE: Server has items, using server cart');
           set({ items: serverItems });
           

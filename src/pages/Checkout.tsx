@@ -386,7 +386,18 @@ const Checkout: React.FC = () => {
                           widthIn={item.width_in}
                           heightIn={item.height_in}
                           grommets={item.grommets}
-                          imageUrl={item.web_preview_url || item.file_url || item.print_ready_url || item.aiDesign?.assets?.proofUrl}
+                          imageUrl={(() => {
+                            const url = item.web_preview_url || item.file_url || item.print_ready_url || item.aiDesign?.assets?.proofUrl;
+                            if (!url) {
+                              console.warn('⚠️  CHECKOUT: No image URL found for item:', item.id, {
+                                web_preview_url: item.web_preview_url,
+                                file_url: item.file_url,
+                                print_ready_url: item.print_ready_url,
+                                aiDesign_proofUrl: item.aiDesign?.assets?.proofUrl
+                              });
+                            }
+                            return url || undefined;
+                          )()}
                           material={item.material}
                           textElements={item.text_elements}
                           overlayImage={item.overlay_image}
