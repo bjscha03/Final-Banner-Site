@@ -23,13 +23,17 @@ async function sendEmailResend(to, code, expiresAt) {
     const { Resend } = require('resend');
     
     if (!process.env.RESEND_API_KEY) {
-      console.warn('[send-discount-code] RESEND_API_KEY not configured, skipping email');
+      console.error('[send-discount-code] RESEND_API_KEY not configured!');
       return { success: false, error: 'Email not configured' };
     }
 
+    console.log('[send-discount-code] Initializing Resend with API key:', process.env.RESEND_API_KEY.substring(0, 10) + '...');
+    
     const resend = new Resend(process.env.RESEND_API_KEY);
     
     const emailFrom = process.env.EMAIL_FROM || 'orders@bannersonthefly.com';
+    
+    console.log('[send-discount-code] Sending email from:', emailFrom, 'to:', to);
     
     const expiryDate = new Date(expiresAt).toLocaleDateString('en-US', {
       month: 'long',
@@ -95,16 +99,18 @@ async function sendEmailResend(to, code, expiresAt) {
       text: `Your 20% Off Code: ${code}\n\nUse code ${code} at checkout to save 20%.\n\nExpires: ${expiryDate}\n\nStart designing: https://bannersonthefly.com/design`
     });
 
+    console.log('[send-discount-code] Resend API response:', JSON.stringify(result));
+
     if (result.error) {
       console.error('[send-discount-code] Resend error:', result.error);
       return { success: false, error: result.error };
     }
 
-    console.log('[send-discount-code] Email sent via Resend:', to, 'ID:', result.data?.id);
+    console.log('[send-discount-code] Email sent successfully! ID:', result.data?.id);
     return { success: true, id: result.data?.id };
     
   } catch (error) {
-    console.error('[send-discount-code] Email send failed:', error);
+    console.error('[send-discount-code] Email send exception:', error.message, error.stack);
     return { success: false, error: error.message };
   }
 }
@@ -196,10 +202,26 @@ exports.handler = async (event, context) => {
 
     console.log('[send-discount-code] Code generated:', { code, isNew: is_new });
 
-    // Send email asynchronously (don't block response)
-    sendEmailResend(normalizedEmail, code, expires_at).catch(error => {
-      console.error('[send-discount-code] Email send failed:', error);
-    });
+    // Send email and wait for result (with timeout protection)
+    let emailResult = { success: false, error: 'Email not sent' };
+    try {
+      // Set a timeout to prevent blocking too long
+      const emailPromise = sendEmailResend(normalizedEmail, code, expires_at);
+      const timeoutPromise = new Promise((resolve) => 
+        setTimeout(() => resolve({ success: false, error: 'Email timeout after 8 seconds' }), 8000)
+      );
+      
+      emailResult = await Promise.race([emailPromise, timeoutPromise]);
+      
+      if (emailResult.success) {
+        console.log('[send-discount-code] ✅ Email sent successfully to:', normalizedEmail);
+      } else {
+        console.error('[send-discount-code] ❌ Email failed:', emailResult.error);
+      }
+    } catch (emailError) {
+      console.error('[send-discount-code] ❌ Email exception:', emailError);
+      emailResult = { success: false, error: emailError.message };
+    }
 
     return {
       statusCode: 200,
@@ -210,6 +232,8 @@ exports.handler = async (event, context) => {
         discountPercentage: discount_percentage,
         expiresAt: expires_at,
         isNew: is_new,
+        emailSent: emailResult.success,
+        emailError: emailResult.success ? undefined : emailResult.error,
         message: is_new 
           ? 'Discount code created and sent to your email!' 
           : 'Your existing code has been resent to your email!'
