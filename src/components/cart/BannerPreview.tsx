@@ -231,7 +231,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
                 Loading...
               </text>
             </g>
-          ) : (imageUrl && !imageError) ? (
+          ) : (imageUrl && !imageUrl.startsWith('blob:') && !imageError) ? (
             <g clipPath={`url(#banner-clip-${widthIn}-${heightIn})`}>
               <image
                 href={imageUrl}
