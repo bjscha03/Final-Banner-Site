@@ -79,7 +79,7 @@ const CartSyncWrapper = ({ children }: { children: React.ReactNode }) => {
   return (
     <>
       {children}
-      {isHomepage && showPopup && <PromoPopup onClose={closePopup} source={popupSource} />}
+      {isHomepage && showPopup && <PromoPopup onClose={closePopup} />}
     </>
   );
 };
@@ -97,8 +97,7 @@ const App = () => (
         <CartSyncWrapper>
           <Routes>
             <Route path="/" element={<Index />} />
-            <Route path="/design" element={<Design />} />
-            <Route path="/halloween-banner" element={<Design />} />
+            <Route path="/design" element={<Design />} />            <Route path="/about" element={<About />} />
             <Route path="/design/complete" element={<DesignComplete />} />
             <Route path="/design/canva-editor" element={<CanvaEditor />} />
             <Route path="/canva-test" element={<CanvaTest />} />

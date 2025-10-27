@@ -1,0 +1,177 @@
+[build]
+  publish = "dist"
+  command = "npm run build"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "nft"
+  included_files = ["src/lib/**", "src/emails/**"]
+  external_node_modules = ["@neondatabase/serverless", "resend", "@react-email/components", "@react-email/render", "aws-sdk", "uuid", "cloudinary", "sharp", "pdfkit", "openai"]
+
+# Function-specific configuration
+[functions."upload-file"]
+  timeout = 30
+  memory = 1008
+
+[functions."canva-export"]
+  timeout = 60
+  memory = 1008
+
+[functions."render-order-pdf"]
+  timeout = 60
+  memory = 2048
+
+[functions."ai-generate-banner"]
+  timeout = 120
+  memory = 1024
+
+[functions."ai-preview-image"]
+  timeout = 60
+  memory = 1024
+
+
+[dev]
+  targetPort = 8080
+  port = 8888
+  publish = "dist"
+  autoLaunch = false
+
+# Force HTTPS (belt & suspenders)
+[[redirects]]
+  from = "http://*bannersonthefly.com/*"
+  to = "https://bannersonthefly.com/:splat"
+  status = 301
+  force = true
+
+# Canonical: www -> apex
+[[redirects]]
+  from = "https://www.bannersonthefly.com/*"
+  to = "https://bannersonthefly.com/:splat"
+  status = 301
+  force = true
+
+# AI Banner Generator API redirects (must be before SPA fallback)
+[[redirects]]
+  from = "/api/ai/generate-banner"
+  to = "/.netlify/functions/ai-generate-banner"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/ai/finalize-banner"
+  to = "/.netlify/functions/ai-finalize-banner"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/ai/artwork-processor"
+  to = "/.netlify/functions/ai-artwork-processor"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/ai/image-processor"
+  to = "/.netlify/functions/ai-image-processor"
+  status = 200
+  force = true
+
+# PayPal API redirects
+[[redirects]]
+  from = "/api/paypal/create-order"
+  to = "/.netlify/functions/paypal-create-order"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/paypal/capture-order"
+  to = "/.netlify/functions/paypal-capture-order"
+  status = 200
+  force = true
+
+# Canva API redirects
+[[redirects]]
+  from = "/api/canva/callback"
+  to = "/.netlify/functions/canva-callback"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/api/canva/start"
+  to = "/.netlify/functions/canva-start"
+  status = 200
+  force = true
+
+# AI Design redirect
+[[redirects]]
+  from = "/ai-design"
+  to = "/design?ai=1"
+  status = 302
+
+# SPA fallback (must be last redirect)
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[[headers]]
+for = "/*"
+  [headers.values]
+  Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
+  Content-Security-Policy = """
+    default-src 'self';
+    base-uri 'self';
+    object-src 'none';
+
+    script-src
+      'self' 'unsafe-inline' 'unsafe-eval'
+      https://www.googletagmanager.com
+      https://www.google-analytics.com
+      https://www.google.com
+      https://googleads.g.doubleclick.net
+      https://stats.g.doubleclick.net
+      https://connect.facebook.net
+      https://www.paypal.com
+      https://www.sandbox.paypal.com
+      https://www.paypalobjects.com
+      https://cdn.chatsimple.ai
+      https://us-assets.i.posthog.com
+      https://cdnjs.cloudflare.com
+      https://fonts.googleapis.com
+      https://*.cloudfront.net
+      https://snap.licdn.com
+      https://*.ads.linkedin.com;
+
+    style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.chatsimple.ai https://us-assets.i.posthog.com;
+    font-src  'self' data: https://fonts.gstatic.com;
+
+    img-src   'self' data: blob: https://www.paypalobjects.com https://*.chatsimple.ai https://us-assets.i.posthog.com https://*.cloudfront.net https://*.amazonaws.com https://*.cloudinary.com https://res.cloudinary.com https://via.placeholder.com https://www.facebook.com https://connect.facebook.net https://www.google-analytics.com https://www.googletagmanager.com https://*.google-analytics.com https://*.ads.linkedin.com https://snap.licdn.com https://px.ads.linkedin.com https://*.paypal.com https://www.google.com https://googleads.g.doubleclick.net https://stats.g.doubleclick.net;
+
+    connect-src 'self' blob: data: https://*.paypal.com https://www.sandbox.paypal.com https://www.paypalobjects.com https://*.chatsimple.ai https://api.expertise.ai https://us-assets.i.posthog.com https://*.posthog.com https://*.cloudfront.net https://*.amazonaws.com https://*.cloudinary.com https://res.cloudinary.com https://api.ipify.org https://pro.ip-api.com https://www.linkedin.com https://api.linkedin.com https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com https://www.google-analytics.com https://*.google-analytics.com https://api.us-east-2.aws.neon.tech https://*.neon.tech https://connect.facebook.net https://www.facebook.com https://snap.licdn.com https://*.ads.linkedin.com https://capig.madgicx.ai https://www.google.com https://googleads.g.doubleclick.net https://stats.g.doubleclick.net;
+
+    frame-src 'self' https://*.paypal.com https://www.sandbox.paypal.com blob:;
+    worker-src 'self' blob: https://cdnjs.cloudflare.com;
+    media-src  'self' blob: https://*.cloudfront.net https://*.amazonaws.com https://*.cloudinary.com https://res.cloudinary.com;
+  """
+  X-Content-Type-Options = "nosniff"
+  X-Frame-Options = "DENY"
+  Referrer-Policy = "strict-origin-when-cross-origin"
+  Permissions-Policy = "geolocation=(), microphone=(), camera=()"
+  Cross-Origin-Opener-Policy = "same-origin"
+  Cross-Origin-Resource-Policy = "same-site"
+
+# Force cache busting for this deployment
+[[headers]]
+for = "/assets/*"
+  [headers.values]
+  Cache-Control = "no-cache, no-store, must-revalidate"
+  Pragma = "no-cache"
+  Expires = "0"
+
+# Edge Functions configuration
+[[edge_functions]]
+  path = "/blog/*"
+  function = "social-meta-injector"
