@@ -135,7 +135,20 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                           widthIn={item.width_in}
                           heightIn={item.height_in}
                           grommets={item.grommets}
-                          imageUrl={item.file_url || item.web_preview_url || item.print_ready_url}
+                          imageUrl={(() => {
+                            // Filter out blob URLs from each field BEFORE selecting
+                            const file = item.file_url?.startsWith('blob:') ? null : item.file_url;
+                            const web_preview = item.web_preview_url?.startsWith('blob:') ? null : item.web_preview_url;
+                            const print_ready = item.print_ready_url?.startsWith('blob:') ? null : item.print_ready_url;
+                            const aiProof = item.aiDesign?.assets?.proofUrl;
+                            
+                            const url = file || web_preview || print_ready || aiProof;
+                            
+                            if (!url) {
+                              console.warn('⚠️  CART: No valid image URL for item:', item.id);
+                            }
+                            return url || undefined;
+                          })()}
                           material={item.material}
                           textElements={item.text_elements}
                           overlayImage={item.overlay_image}
