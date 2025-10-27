@@ -135,7 +135,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                           widthIn={item.width_in}
                           heightIn={item.height_in}
                           grommets={item.grommets}
-                          imageUrl={item.file_url || item.web_preview_url || item.print_ready_url}
+                          imageUrl={item.file_url || item.web_preview_url || item.print_ready_url || item.aiDesign?.assets?.proofUrl}
                           material={item.material}
                           textElements={item.text_elements}
                           overlayImage={item.overlay_image}
