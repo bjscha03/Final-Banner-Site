@@ -1,7 +1,6 @@
 import { useState } from 'react';
-import { X, Mail, Copy, Check, ShoppingCart, Sparkles } from 'lucide-react';
+import { X, Mail, Copy, Check, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom';
 
 interface PromoPopupProps {
   onClose: () => void;
@@ -15,7 +14,6 @@ export const PromoPopup = ({ onClose, source }: PromoPopupProps) => {
   const [generatedCode, setGeneratedCode] = useState('');
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
-  const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,13 +85,6 @@ export const PromoPopup = ({ onClose, source }: PromoPopupProps) => {
         variant: 'destructive',
       });
     }
-  };
-
-  const handleApplyAtCheckout = () => {
-    // Store code in localStorage for auto-apply at checkout
-    localStorage.setItem('pending_discount_code', generatedCode);
-    onClose();
-    navigate('/checkout');
   };
 
   return (
@@ -217,33 +208,23 @@ export const PromoPopup = ({ onClose, source }: PromoPopupProps) => {
                     </p>
                   </div>
 
-                  {/* Action Buttons */}
-                  <div className="space-y-3">
-                    <button
-                      onClick={handleCopyCode}
-                      className="w-full bg-white border-2 border-[#18448D] text-[#18448D] font-semibold py-3 px-6 rounded-lg hover:bg-[#18448D] hover:text-white transition-all flex items-center justify-center gap-2"
-                    >
-                      {copied ? (
-                        <>
-                          <Check className="w-5 h-5" />
-                          Copied!
-                        </>
-                      ) : (
-                        <>
-                          <Copy className="w-5 h-5" />
-                          Copy Code
-                        </>
-                      )}
-                    </button>
-
-                    <button
-                      onClick={handleApplyAtCheckout}
-                      className="w-full bg-gradient-to-r from-[#ff6b35] to-[#f7931e] text-white font-semibold py-3 px-6 rounded-lg hover:shadow-lg transition-all flex items-center justify-center gap-2"
-                    >
-                      <ShoppingCart className="w-5 h-5" />
-                      Apply at Checkout
-                    </button>
-                  </div>
+                  {/* Copy Button */}
+                  <button
+                    onClick={handleCopyCode}
+                    className="w-full bg-gradient-to-r from-[#18448D] to-[#2563eb] text-white font-semibold py-3 px-6 rounded-lg hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                  >
+                    {copied ? (
+                      <>
+                        <Check className="w-5 h-5" />
+                        Copied!
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-5 h-5" />
+                        Copy Code
+                      </>
+                    )}
+                  </button>
 
                   {/* Fine Print */}
                   <p className="text-xs text-gray-500 mt-6">
