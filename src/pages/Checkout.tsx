@@ -397,7 +397,7 @@ const Checkout: React.FC = () => {
                               });
                             }
                             return url || undefined;
-                          )()}
+                          })()}
                           material={item.material}
                           textElements={item.text_elements}
                           overlayImage={item.overlay_image}

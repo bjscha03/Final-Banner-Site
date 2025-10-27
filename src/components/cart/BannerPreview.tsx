@@ -13,7 +13,7 @@
  * - Handles loading and error states
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Grommets } from '@/store/quote';
 import { Image as ImageIcon, Loader2 } from 'lucide-react';
 
@@ -124,6 +124,17 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   imageScale = 1,
   imagePosition = { x: 0, y: 0 }
 }) => {
+  // Track image load errors
+  const [imageError, setImageError] = useState(false);
+  const [imageLoaded, setImageLoaded] = useState(false);
+
+  // Reset error state when imageUrl changes
+  useEffect(() => {
+    setImageError(false);
+    setImageLoaded(false);
+  }, [imageUrl]);
+
+
   // Calculate aspect ratio and determine container dimensions
   const aspectRatio = widthIn / heightIn;
   
@@ -157,6 +168,23 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   const grommetRadius = Math.min(widthIn, heightIn) * 0.03;
 
   return (
+    <>
+      {/* Hidden img element to detect load errors */}
+      {imageUrl && !imageError && (
+        <img
+          src={imageUrl}
+          alt=""
+          style={{ display: 'none' }}
+          onError={() => {
+            console.error('🖼️ BannerPreview: Image failed to load:', imageUrl);
+            setImageError(true);
+          }}
+          onLoad={() => {
+            setImageLoaded(true);
+          }}
+        />
+      )}
+      
     <div className={`flex items-center justify-center ${className}`}>
       <div 
         className="relative rounded-lg overflow-hidden shadow-lg border-2 border-gray-200"
@@ -203,7 +231,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
                 Loading...
               </text>
             </g>
-          ) : imageUrl ? (
+          ) : (imageUrl && !imageError) ? (
             <g clipPath={`url(#banner-clip-${widthIn}-${heightIn})`}>
               <image
                 href={imageUrl}
@@ -391,6 +419,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
         </svg>
       </div>
     </div>
+    </>
   );
 };
 
