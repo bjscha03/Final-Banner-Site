@@ -5,15 +5,17 @@ interface UsePromoPopupOptions {
   enableExitIntent?: boolean; // Show on exit intent (desktop only)
 }
 
+type PopupSource = 'first_visit' | 'exit_intent';
+
 export const usePromoPopup = (options: UsePromoPopupOptions = {}) => {
   const { delaySeconds = 11, enableExitIntent = true } = options;
   const [showPopup, setShowPopup] = useState(false);
+  const [popupSource, setPopupSource] = useState<PopupSource>('first_visit');
   const [hasShownPopup, setHasShownPopup] = useState(false);
 
   useEffect(() => {
-    // Check if popup should be suppressed
+    // Check if popup should be suppressed (72-hour cooldown)
     const dismissedAt = localStorage.getItem('promo_popup_dismissed');
-    const codeUsed = localStorage.getItem('promo_code_used');
     
     if (dismissedAt) {
       const expiryDate = new Date(dismissedAt);
@@ -26,15 +28,11 @@ export const usePromoPopup = (options: UsePromoPopupOptions = {}) => {
       }
     }
 
-    if (codeUsed) {
-      console.log('[usePromoPopup] Code already used, not showing popup');
-      return;
-    }
-
-    // Timer-based display
+    // Timer-based display (first visit)
     const timer = setTimeout(() => {
       if (!hasShownPopup) {
         console.log('[usePromoPopup] Showing popup after delay');
+        setPopupSource('first_visit');
         setShowPopup(true);
         setHasShownPopup(true);
       }
@@ -47,6 +45,7 @@ export const usePromoPopup = (options: UsePromoPopupOptions = {}) => {
       // Only trigger if mouse is leaving from the top of the page
       if (e.clientY <= 0) {
         console.log('[usePromoPopup] Exit intent detected');
+        setPopupSource('exit_intent');
         setShowPopup(true);
         setHasShownPopup(true);
       }
@@ -64,17 +63,16 @@ export const usePromoPopup = (options: UsePromoPopupOptions = {}) => {
   }, [delaySeconds, enableExitIntent, hasShownPopup]);
 
   const closePopup = () => {
-    setShowPopup(false);
-  };
-
-  const markCodeAsUsed = () => {
-    localStorage.setItem('promo_code_used', 'true');
+    // Set 72-hour cooldown
+    const expiryDate = new Date();
+    expiryDate.setHours(expiryDate.getHours() + 72);
+    localStorage.setItem('promo_popup_dismissed', expiryDate.toISOString());
     setShowPopup(false);
   };
 
   return {
     showPopup,
+    popupSource,
     closePopup,
-    markCodeAsUsed,
   };
 };

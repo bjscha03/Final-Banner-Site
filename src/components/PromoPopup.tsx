@@ -1,52 +1,81 @@
-import { useState, useEffect, useRef } from 'react';
-import { X, Copy, Check, Zap, Plane, Volume2, VolumeX } from 'lucide-react';
+import { useState } from 'react';
+import { X, Mail, Copy, Check, ShoppingCart, Sparkles } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { trackPromoEvent } from '@/lib/posthog';
+import { useNavigate } from 'react-router-dom';
 
 interface PromoPopupProps {
   onClose: () => void;
+  source: 'first_visit' | 'exit_intent';
 }
 
-export const PromoPopup = ({ onClose }: PromoPopupProps) => {
+export const PromoPopup = ({ onClose, source }: PromoPopupProps) => {
+  const [email, setEmail] = useState('');
+  const [consent, setConsent] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [generatedCode, setGeneratedCode] = useState('');
   const [copied, setCopied] = useState(false);
-  const [isMuted, setIsMuted] = useState(true);
-  const videoRef = useRef<HTMLVideoElement>(null);
   const { toast } = useToast();
-  const promoCode = 'WELCOME20';
+  const navigate = useNavigate();
 
-  // Track promo shown event
-  useEffect(() => {
-    trackPromoEvent('promo_shown', {
-      promo_code: promoCode,
-      discount_percentage: 20,
-    });
-  }, []);
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email || !consent) {
+      toast({
+        title: 'Missing information',
+        description: 'Please enter your email and accept the privacy policy',
+        variant: 'destructive',
+      });
+      return;
+    }
 
-  // Ensure video plays
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (videoRef.current) {
-        videoRef.current.play().catch((error) => {
-          console.log('Video autoplay blocked:', error);
-        });
+    setIsSubmitting(true);
+
+    try {
+      const response = await fetch('/.netlify/functions/send-discount-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          consent,
+          source,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to generate code');
       }
-    }, 100);
-    return () => clearTimeout(timer);
-  }, []);
+
+      setGeneratedCode(data.code);
+      
+      toast({
+        title: '🎉 Success!',
+        description: `Your code ${data.code} has been sent to ${email}`,
+      });
+    } catch (error) {
+      console.error('Error generating code:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to generate discount code',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const handleCopyCode = async () => {
+    if (!generatedCode) return;
+
     try {
-      await navigator.clipboard.writeText(promoCode);
+      await navigator.clipboard.writeText(generatedCode);
       setCopied(true);
-      
-      trackPromoEvent('promo_copied', {
-        promo_code: promoCode,
-        discount_percentage: 20,
-      });
       
       toast({
         title: 'Code copied!',
-        description: 'Use it at checkout to save 20%',
+        description: 'Paste it at checkout to save 20%',
       });
 
       setTimeout(() => setCopied(false), 2000);
@@ -54,33 +83,25 @@ export const PromoPopup = ({ onClose }: PromoPopupProps) => {
       console.error('Failed to copy code:', error);
       toast({
         title: 'Copy failed',
-        description: 'Please manually copy the code: ' + promoCode,
+        description: 'Please manually copy the code: ' + generatedCode,
         variant: 'destructive',
       });
     }
   };
 
-  const handleClose = () => {
-    // Set suppression flag for 14 days
-    const expiryDate = new Date();
-    expiryDate.setDate(expiryDate.getDate() + 14);
-    localStorage.setItem('promo_popup_dismissed', expiryDate.toISOString());
+  const handleApplyAtCheckout = () => {
+    // Store code in localStorage for auto-apply at checkout
+    localStorage.setItem('pending_discount_code', generatedCode);
     onClose();
-  };
-
-  const toggleMute = () => {
-    if (videoRef.current) {
-      videoRef.current.muted = !videoRef.current.muted;
-      setIsMuted(videoRef.current.muted);
-    }
+    navigate('/checkout');
   };
 
   return (
     <>
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-black/50 z-50 animate-in fade-in duration-200"
-        onClick={handleClose}
+        className="fixed inset-0 bg-black/60 z-50 animate-in fade-in duration-200"
+        onClick={onClose}
       />
       
       {/* Popup */}
@@ -89,117 +110,148 @@ export const PromoPopup = ({ onClose }: PromoPopupProps) => {
           className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden relative pointer-events-auto animate-in zoom-in-95 duration-200"
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Close button - Top Right */}
+          {/* Close button */}
           <button
-            onClick={handleClose}
-            className="absolute top-4 right-4 text-white hover:text-gray-200 transition-colors z-10 bg-black/50 hover:bg-black/70 rounded-full p-1.5"
+            onClick={onClose}
+            className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors z-10"
             aria-label="Close"
           >
             <X className="w-5 h-5" />
           </button>
 
-          {/* Video Section */}
-          <div className="relative w-full aspect-video bg-gradient-to-br from-[#18448D] to-[#1a5bb8]">
-            <video
-              ref={videoRef}
-              autoPlay
-              muted
-              playsInline
-              loop
-              className="w-full h-full object-cover"
-              onError={(e) => console.error('Video error:', e)}
-            >
-              <source 
-                src="https://res.cloudinary.com/dtrxl120u/video/upload/v1761245761/3eab013c-30a8-466f-8e0c-08eb2bea7569_zwfsq8.mp4" 
-                type="video/mp4" 
-              />
-            </video>
-
-            {/* Unmute button - Bottom Left */}
-            <button
-              onClick={toggleMute}
-              className="absolute bottom-4 left-4 text-white hover:text-gray-200 transition-colors z-10 bg-black/50 hover:bg-black/70 rounded-full p-2"
-              aria-label={isMuted ? 'Unmute' : 'Mute'}
-            >
-              {isMuted ? (
-                <VolumeX className="w-5 h-5" />
-              ) : (
-                <Volume2 className="w-5 h-5" />
-              )}
-            </button>
-          </div>
-
           {/* Content */}
-          <div className="text-center space-y-6 p-8">
-            {/* Headline */}
-            <div>
-              <div className="inline-block bg-gradient-to-r from-orange-500 to-red-500 text-white text-sm font-bold px-4 py-1 rounded-full mb-3">
-                LIMITED TIME
-              </div>
-              <h2 className="text-4xl font-bold text-gray-900 mb-2">
-                20% OFF
-              </h2>
-              <p className="text-xl font-semibold text-gray-700">
-                This Week Only!
-              </p>
-            </div>
-
-            {/* Subtext */}
-            <p className="text-gray-600 text-sm">
-              Use code <span className="font-mono font-bold text-[#18448D]">{promoCode}</span> at checkout.<br />
-              One use per customer. Expires Saturday 11:59 PM.
-            </p>
-
-            {/* Trust badges */}
-            <div className="bg-blue-50 rounded-xl p-4 space-y-3">
-              <div className="flex items-center gap-3 text-left">
-                <div className="flex-shrink-0 w-10 h-10 bg-[#18448D] rounded-full flex items-center justify-center">
-                  <Zap className="w-5 h-5 text-white" />
+          <div className="p-8">
+            {!generatedCode ? (
+              <>
+                {/* Header */}
+                <div className="text-center mb-6">
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-[#18448D] to-[#2563eb] rounded-full mb-4">
+                    <Sparkles className="w-8 h-8 text-white" />
+                  </div>
+                  <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                    Get 20% Off!
+                  </h2>
+                  <p className="text-gray-600">
+                    Enter your email to receive your exclusive discount code
+                  </p>
                 </div>
-                <div>
-                  <p className="font-semibold text-gray-900 text-sm">24-Hour Production</p>
-                  <p className="text-xs text-gray-600">Fast turnaround guaranteed</p>
-                </div>
-              </div>
-              
-              <div className="flex items-center gap-3 text-left">
-                <div className="flex-shrink-0 w-10 h-10 bg-[#18448D] rounded-full flex items-center justify-center">
-                  <Plane className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <p className="font-semibold text-gray-900 text-sm">Free Next Day Air Delivery</p>
-                  <p className="text-xs text-gray-600">Get it fast, no extra cost</p>
-                </div>
-              </div>
 
-            </div>
+                {/* Form */}
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  {/* Email Input */}
+                  <div>
+                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                      Email Address
+                    </label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                      <input
+                        type="email"
+                        id="email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="you@example.com"
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#18448D] focus:border-transparent outline-none transition-all"
+                        required
+                      />
+                    </div>
+                  </div>
 
-            {/* CTA Buttons */}
-            <div className="space-y-3">
-              <button
-                onClick={handleCopyCode}
-                className="w-full bg-gradient-to-r from-[#18448D] to-[#1a5bb8] hover:from-[#153a7a] hover:to-[#18448D] text-white font-bold py-4 px-6 rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center gap-2"
-              >
-                {copied ? (
-                  <>
-                    <Check className="w-5 h-5" />
-                    Copied!
-                  </>
-                ) : (
-                  <>
-                    <Copy className="w-5 h-5" />
-                    Copy Code
-                  </>
-                )}
-              </button>
-              
-              <button
-                onClick={handleClose}
-                className="w-full text-gray-500 hover:text-gray-700 font-medium py-2 transition-colors"
-              >
-                No Thanks
-              </button>
-            </div>
+                  {/* Privacy Consent */}
+                  <div className="flex items-start gap-2">
+                    <input
+                      type="checkbox"
+                      id="consent"
+                      checked={consent}
+                      onChange={(e) => setConsent(e.target.checked)}
+                      className="mt-1 w-4 h-4 text-[#18448D] border-gray-300 rounded focus:ring-[#18448D]"
+                      required
+                    />
+                    <label htmlFor="consent" className="text-sm text-gray-600">
+                      I agree to receive promotional emails and accept the{' '}
+                      <a href="/privacy" className="text-[#18448D] hover:underline" target="_blank">
+                        privacy policy
+                      </a>
+                    </label>
+                  </div>
+
+                  {/* Submit Button */}
+                  <button
+                    type="submit"
+                    disabled={isSubmitting || !email || !consent}
+                    className="w-full bg-gradient-to-r from-[#18448D] to-[#2563eb] text-white font-semibold py-3 px-6 rounded-lg hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSubmitting ? 'Generating Code...' : 'Get My 20% Off Code'}
+                  </button>
+                </form>
+
+                {/* Trust Signals */}
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <p className="text-xs text-gray-500 text-center">
+                    🔒 Your email is safe with us. We'll only send you exclusive offers.
+                  </p>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* Success State */}
+                <div className="text-center">
+                  <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
+                    <Check className="w-8 h-8 text-green-600" />
+                  </div>
+                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                    Your Code is Ready!
+                  </h2>
+                  <p className="text-gray-600 mb-6">
+                    We've also sent it to <strong>{email}</strong>
+                  </p>
+
+                  {/* Code Display */}
+                  <div className="bg-gradient-to-br from-[#18448D]/10 to-[#2563eb]/10 border-2 border-[#18448D] rounded-xl p-6 mb-6">
+                    <p className="text-sm text-gray-600 mb-2">Your Discount Code</p>
+                    <p className="text-3xl font-bold text-[#18448D] tracking-wider mb-4">
+                      {generatedCode}
+                    </p>
+                    <p className="text-sm text-gray-500">
+                      20% off • Valid for 14 days • One-time use
+                    </p>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="space-y-3">
+                    <button
+                      onClick={handleCopyCode}
+                      className="w-full bg-white border-2 border-[#18448D] text-[#18448D] font-semibold py-3 px-6 rounded-lg hover:bg-[#18448D] hover:text-white transition-all flex items-center justify-center gap-2"
+                    >
+                      {copied ? (
+                        <>
+                          <Check className="w-5 h-5" />
+                          Copied!
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-5 h-5" />
+                          Copy Code
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      onClick={handleApplyAtCheckout}
+                      className="w-full bg-gradient-to-r from-[#ff6b35] to-[#f7931e] text-white font-semibold py-3 px-6 rounded-lg hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                    >
+                      <ShoppingCart className="w-5 h-5" />
+                      Apply at Checkout
+                    </button>
+                  </div>
+
+                  {/* Fine Print */}
+                  <p className="text-xs text-gray-500 mt-6">
+                    Code expires in 14 days. Check your email for details.
+                  </p>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>
