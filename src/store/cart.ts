@@ -531,29 +531,11 @@ export const useCartStore = create<CartState>()(
         console.log('🔵 STORE: Local items count:', localItems.length);
         console.log('🔵 STORE: Cart owner ID:', cartOwnerId);
         console.log('🔵 STORE: Current user ID:', userId);
-        
         // SIMPLIFIED LOGIC: Always use server cart when available
         // If server has items, use them (they are the source of truth)
         if (serverItems.length > 0) {
           console.log("🖼️  STORE: Checking image URLs in server items:");
-          
-          // CRITICAL FIX: Filter out items with blob URLs (they're expired/invalid)
-          const validItems = serverItems.filter((item, idx) => {
-            const hasBlobUrl = 
-              item.file_url?.startsWith('blob:') ||
-              item.web_preview_url?.startsWith('blob:') ||
-              item.print_ready_url?.startsWith('blob:');
-            
-            if (hasBlobUrl) {
-              console.warn(`⚠️  STORE: Removing item ${idx} with expired blob URL:`, {
-                id: item.id,
-                file_url: item.file_url,
-                web_preview_url: item.web_preview_url,
-                print_ready_url: item.print_ready_url
-              });
-              return false; // Remove this item
-            }
-            
+          serverItems.forEach((item, idx) => {
             console.log(`  Item ${idx}:`, {
               id: item.id,
               web_preview_url: item.web_preview_url,
@@ -561,51 +543,16 @@ export const useCartStore = create<CartState>()(
               print_ready_url: item.print_ready_url,
               aiDesign_proofUrl: item.aiDesign?.assets?.proofUrl
             });
-            return true; // Keep this item
           });
-          
-          if (validItems.length < serverItems.length) {
-            console.warn(`🗑️  STORE: Removed ${serverItems.length - validItems.length} items with blob URLs`);
-          }
-          
-          console.log('✅ STORE: Server has items, using server cart');
-          set({ items: validItems });
+          console.log("✅ STORE: Server has items, using server cart");
+          set({ items: serverItems });
           
           // Set cart owner
-          if (typeof localStorage !== 'undefined') {
-            localStorage.setItem('cart_owner_user_id', userId);
+          if (typeof localStorage !== "undefined") {
+            localStorage.setItem("cart_owner_user_id", userId);
           }
           return;
         }
-        
-        // Server cart is empty
-        // Server cart is empty
-        if (localItems.length > 0) {
-          // Check if local cart belongs to this user OR is a guest cart (null owner)
-          if (cartOwnerId === userId || cartOwnerId === null) {
-            console.log('⚠️ STORE: Server cart empty but local cart belongs to this user or is guest cart');
-            console.log('⚠️ STORE: Saving local cart to server');
-            // Set cart owner to current user
-            if (typeof localStorage !== 'undefined') {
-              localStorage.setItem('cart_owner_user_id', userId);
-            }
-            // Save local cart to server
-            setTimeout(() => get().syncToServer(), 100);
-            return;
-          } else {
-            console.log('⚠️ STORE: Server cart empty and local cart belongs to different user');
-            console.log('⚠️ STORE: Cart owner:', cartOwnerId, 'Current user:', userId);
-            console.log('⚠️ STORE: Clearing local cart');
-            set({ items: [] });
-            return;
-          }
-        }
-        // Both server and local are empty
-        console.log('ℹ️  STORE: Both server and local carts are empty');
-        set({ items: [] });
-      },
-
-      getSubtotalCents: () => {
         const flags = getFeatureFlags();
         const items = get().items.map(migrateCartItem); // Migrate items before calculating
 
