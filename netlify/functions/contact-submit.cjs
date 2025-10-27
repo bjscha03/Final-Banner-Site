@@ -1,5 +1,4 @@
 const { neon } = require('@neondatabase/serverless');
-const { sendEmail } = require('../../src/lib/email');
 
 exports.handler = async (event, context) => {
   const headers = {
@@ -116,39 +115,7 @@ exports.handler = async (event, context) => {
     const contactId = contactResult[0].id;
     const createdAt = contactResult[0].created_at;
 
-    // Send notification email to support team
-    const supportEmail = process.env.SUPPORT_EMAIL || 'support@bannersonthefly.com';
-    
-    try {
-      await sendEmail('contact.received', {
-        to: supportEmail,
-        contact: {
-          id: contactId,
-          name,
-          email,
-          subject,
-          message,
-          created_at: createdAt
-        }
-      });
-    } catch (emailError) {
-      console.error('Failed to send support notification email:', emailError);
-      // Don't fail the request if email fails
-    }
-
-    // Send acknowledgment email to user
-    try {
-      await sendEmail('contact.acknowledgment', {
-        to: email,
-        contact: {
-          name,
-          subject
-        }
-      });
-    } catch (emailError) {
-      console.error('Failed to send user acknowledgment email:', emailError);
-      // Don't fail the request if email fails
-    }
+    console.log('Contact form submitted:', { contactId, name, email, subject });
 
     return {
       statusCode: 200,
