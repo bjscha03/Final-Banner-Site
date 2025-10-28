@@ -55,6 +55,7 @@ exports.handler = async (event) => {
     console.log('[AI-Credits-Status] Paid credits used from usage_log:', paidCreditsUsed);
 
     // Get free credits used (count of generations that used free credits)
+    // CRITICAL FIX: Cap at FREE_CREDITS_INITIAL to prevent "13 of 3" display
     const freeUsedResult = await sql`
       SELECT COUNT(*) as count
       FROM usage_log
@@ -62,8 +63,10 @@ exports.handler = async (event) => {
         AND event = 'GEN_SUCCESS'
         AND (meta->>'used_free')::boolean = true
     `;
-    const freeCreditsUsed = parseInt(freeUsedResult[0]?.count || '0', 10);
-    console.log('[AI-Credits-Status] Free credits used from usage_log:', freeCreditsUsed);
+    const freeCreditsUsedRaw = parseInt(freeUsedResult[0]?.count || '0', 10);
+    // Cap free credits used at the maximum (3) to prevent display issues
+    const freeCreditsUsed = Math.min(freeCreditsUsedRaw, FREE_CREDITS_INITIAL);
+    console.log('[AI-Credits-Status] Free credits used from usage_log:', freeCreditsUsedRaw, '(capped at', freeCreditsUsed, ')');
 
     // Calculate free credits remaining
     const freeCreditsRemaining = Math.max(0, FREE_CREDITS_INITIAL - freeCreditsUsed);

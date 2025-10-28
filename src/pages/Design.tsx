@@ -371,7 +371,7 @@ const Design: React.FC = () => {
         onOpenChange={setAiModalOpen} 
       />
       {/* Sticky Upload Button */}
-      <StickyUploadButton />
+      <StickyUploadButton isAIModalOpen={aiModalOpen} />
     </Layout>
   );
 };

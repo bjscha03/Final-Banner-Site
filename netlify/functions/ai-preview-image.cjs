@@ -165,36 +165,12 @@ exports.handler = async (event) => {
     const size = '768x768';
     const promptHash = generatePromptHash(prompt, aspect, style, size);
 
-    // Check cache (skip if skipCache is true)
-    const cached = skipCache ? [] : await sql`
-      SELECT id, image_urls, tier, cost_usd FROM generations
-      WHERE prompt_hash = ${promptHash} AND aspect = ${aspect} AND size = ${size}
-      ORDER BY created_at DESC LIMIT 1
-    `;
-
-    if (cached.length > 0) {
-      console.log(`[AI-Preview] Cache HIT!`);
-      await sql`INSERT INTO usage_log (user_id, event, meta) VALUES (${userId}, 'CACHE_HIT', ${JSON.stringify({ genId: cached[0].id, cost: 0 })})`;
-      
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({
-          success: true,
-          urls: cached[0].image_urls,
-          tier: cached[0].tier,
-          cached: true,
-          genId: cached[0].id,
-          cost: 0,
-        }),
-      };
-    }
-
-    console.log(`[AI-Preview] Cache MISS`);
-
-    // Check credits
+    // CRITICAL FIX: Check credits BEFORE checking cache
+    // This ensures credits are always checked, even when skipCache=true
     const freeRemaining = await getDailyFreeRemaining(userId);
     const paidCredits = await getPaidCredits(userId);
+
+    console.log(`[AI-Preview] Credits check: free=${freeRemaining}, paid=${paidCredits}`);
 
     if (freeRemaining < 1 && paidCredits < 1) {
       return {
@@ -208,6 +184,38 @@ exports.handler = async (event) => {
     }
 
     const useFree = freeRemaining >= 1;
+
+    // Check cache (skip if skipCache is true)
+    const cached = skipCache ? [] : await sql`
+      SELECT id, image_urls, tier, cost_usd FROM generations
+      WHERE prompt_hash = ${promptHash} AND aspect = ${aspect} AND size = ${size}
+      ORDER BY created_at DESC LIMIT 1
+    `;
+
+    if (cached.length > 0) {
+      console.log(`[AI-Preview] Cache HIT! Returning cached result without deducting credits.`);
+      await sql`INSERT INTO usage_log (user_id, event, meta) VALUES (${userId}, 'CACHE_HIT', ${JSON.stringify({ genId: cached[0].id, cost: 0 })})`;
+      
+      // Get updated credit counts for response
+      const updatedFreeRemaining = await getDailyFreeRemaining(userId);
+      const updatedPaidCredits = await getPaidCredits(userId);
+      
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          success: true,
+          urls: cached[0].image_urls,
+          tier: cached[0].tier,
+          cached: true,
+          genId: cached[0].id,
+          cost: 0,
+          creditsRemaining: updatedFreeRemaining + updatedPaidCredits,
+        }),
+      };
+    }
+
+    console.log(`[AI-Preview] Cache MISS - generating new image and deducting credit (useFree=${useFree})`);
 
     // Enforce tier
     const tierResult = await enforceTierDowngrade(requestedTier, userId);
@@ -249,6 +257,10 @@ exports.handler = async (event) => {
 
     console.log(`[AI-Preview] Success!`);
 
+    // Get updated credit counts for response
+    const updatedFreeRemaining = await getDailyFreeRemaining(userId);
+    const updatedPaidCredits = await getPaidCredits(userId);
+
     return {
       statusCode: 200,
       headers,
@@ -259,6 +271,7 @@ exports.handler = async (event) => {
         cached: false,
         genId,
         cost,
+        creditsRemaining: updatedFreeRemaining + updatedPaidCredits,
       }),
     };
   } catch (error) {

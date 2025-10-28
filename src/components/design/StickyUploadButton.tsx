@@ -5,7 +5,11 @@ import { useQuoteStore } from '@/store/quote';
 import { useUIStore } from '@/store/ui';
 import { useToast } from '@/components/ui/use-toast';
 
-const StickyUploadButton: React.FC = () => {
+interface StickyUploadButtonProps {
+  isAIModalOpen?: boolean;
+}
+
+const StickyUploadButton: React.FC<StickyUploadButtonProps> = ({ isAIModalOpen = false }) => {
   const { file, set } = useQuoteStore();
   const { isCartOpen } = useUIStore();
   const { toast } = useToast();
@@ -17,13 +21,13 @@ const StickyUploadButton: React.FC = () => {
   useEffect(() => {
     const handleScroll = () => {
       const scrolled = window.scrollY > 300;
-      const shouldShow = scrolled && !file && !isDismissed && !isCartOpen;
+      const shouldShow = scrolled && !file && !isDismissed && !isCartOpen && !isAIModalOpen;
       setIsVisible(shouldShow);
     };
     window.addEventListener('scroll', handleScroll);
     handleScroll();
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [file, isDismissed, isCartOpen]);
+  }, [file, isDismissed, isCartOpen, isAIModalOpen]);
 
   const handleFileSelect = async (selectedFile: File) => {
     if (!selectedFile) return;
