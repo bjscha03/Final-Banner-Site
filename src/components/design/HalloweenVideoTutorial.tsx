@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, PlayCircle } from 'lucide-react';
+import { X, PlayCircle, Truck, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const HalloweenVideoTutorial: React.FC = () => {
@@ -7,6 +7,24 @@ const HalloweenVideoTutorial: React.FC = () => {
 
   return (
     <>
+      {/* Urgent Halloween Delivery Banner */}
+      <div className="bg-gradient-to-r from-orange-600 via-orange-500 to-orange-600 rounded-lg shadow-xl p-4 mb-4 border-2 border-orange-400 animate-pulse">
+        <div className="flex items-center justify-center gap-6 flex-wrap">
+          <div className="flex items-center gap-2">
+            <Clock className="w-6 h-6 text-white" />
+            <span className="text-white font-bold text-lg">
+              🎃 Order Now & Get It Before Halloween!
+            </span>
+          </div>
+          <div className="flex items-center gap-2 bg-white/20 px-4 py-2 rounded-full">
+            <Truck className="w-5 h-5 text-white" />
+            <span className="text-white font-semibold">
+              FREE Next Day Air Shipping! 🚀
+            </span>
+          </div>
+        </div>
+      </div>
+
       {/* Tutorial Banner */}
       <div className="bg-gradient-to-r from-orange-500 to-orange-600 rounded-lg shadow-lg p-6 mb-8">
         <div className="flex items-center justify-between">
