@@ -8,7 +8,7 @@ const HalloweenVideoTutorial: React.FC = () => {
   return (
     <>
       {/* Urgent Halloween Delivery Banner */}
-      <div className="bg-gradient-to-r from-orange-600 via-orange-500 to-orange-600 rounded-lg shadow-xl p-4 mb-4 border-2 border-orange-400 animate-pulse">
+      <div className="bg-gradient-to-r from-purple-700 via-purple-600 to-purple-700 rounded-lg shadow-xl p-4 mb-4 border-2 border-purple-400 animate-pulse">
         <div className="flex items-center justify-center gap-6 flex-wrap">
           <div className="flex items-center gap-2">
             <Clock className="w-6 h-6 text-white" />
