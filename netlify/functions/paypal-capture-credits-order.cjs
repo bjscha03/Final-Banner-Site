@@ -2,70 +2,60 @@
  * PayPal Capture Credits Order
  * 
  * Captures payment and adds credits to user's account
+ * 
+ * CRITICAL FIX: Email notifications are now non-blocking to prevent purchase flow from hanging
  */
 
 const { neon } = require('@neondatabase/serverless');
 const { randomUUID } = require('crypto');
 
-// Helper to send email notification
-async function sendCreditPurchaseEmail(purchaseId, email, credits, amountUSD) {
-  try {
-    console.log('📧 Triggering credit purchase notification:', purchaseId);
-    const siteURL = process.env.URL || 'https://bannersonthefly.com';
-    const notifyURL = `${siteURL}/.netlify/functions/notify-credit-purchase`;
-    
-    const response = await fetch(notifyURL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ purchaseId, email, credits, amountUSD }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ Credit purchase notification failed:', response.status, errorText);
-      throw new Error(`Email notification failed: ${response.status}`);
+// Helper to send email notification (NON-BLOCKING - fire and forget)
+async function sendCreditPurchaseEmailAsync(purchaseId, email, credits, amountUSD) {
+  // Don't await - fire and forget
+  fetch(process.env.URL + '/.netlify/functions/notify-credit-purchase', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ purchaseId, email, credits, amountUSD }),
+  }).then(response => {
+    if (response.ok) {
+      console.log('✅ Customer email notification triggered:', purchaseId);
+    } else {
+      console.error('❌ Customer email notification failed:', response.status);
     }
-
-    console.log('✅ Credit purchase notification sent successfully:', purchaseId);
-  } catch (error) {
-    console.error('Failed to send credit purchase notification:', purchaseId, error);
-  }
+  }).catch(error => {
+    console.error('❌ Customer email notification error:', error.message);
+  });
 }
 
-// Helper to send admin notification
-async function sendAdminNotification(purchaseId, email, credits, amountUSD) {
-  try {
-    console.log('📧 Sending admin notification for purchase:', purchaseId);
-    const siteURL = process.env.URL || 'https://bannersonthefly.com';
-    const adminEmail = process.env.ADMIN_EMAIL || 'support@bannersonthefly.com';
-    
-    const response = await fetch(`${siteURL}/.netlify/functions/send-email`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        to: adminEmail,
-        subject: `🎉 New AI Credits Purchase - ${credits} credits`,
-        html: `
-          <h2>New AI Credits Purchase</h2>
-          <p><strong>Purchase ID:</strong> ${purchaseId}</p>
-          <p><strong>Customer Email:</strong> ${email}</p>
-          <p><strong>Credits Purchased:</strong> ${credits}</p>
-          <p><strong>Amount:</strong> ${amountUSD}</p>
-          <p><strong>Time:</strong> ${new Date().toISOString()}</p>
-        `,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error('❌ Admin notification failed:', response.status, errorText);
-      throw new Error(`Admin email failed: ${response.status}`);
+// Helper to send admin notification (NON-BLOCKING - fire and forget)
+async function sendAdminNotificationAsync(purchaseId, email, credits, amountUSD) {
+  const adminEmail = process.env.ADMIN_EMAIL || 'support@bannersonthefly.com';
+  
+  // Don't await - fire and forget
+  fetch(process.env.URL + '/.netlify/functions/send-email', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      to: adminEmail,
+      subject: `🎉 New AI Credits Purchase - ${credits} credits`,
+      html: `
+        <h2>New AI Credits Purchase</h2>
+        <p><strong>Purchase ID:</strong> ${purchaseId}</p>
+        <p><strong>Customer Email:</strong> ${email}</p>
+        <p><strong>Credits Purchased:</strong> ${credits}</p>
+        <p><strong>Amount:</strong> $${amountUSD}</p>
+        <p><strong>Time:</strong> ${new Date().toISOString()}</p>
+      `,
+    }),
+  }).then(response => {
+    if (response.ok) {
+      console.log('✅ Admin notification triggered');
+    } else {
+      console.error('❌ Admin notification failed:', response.status);
     }
-
-    console.log('✅ Admin notification sent successfully');
-  } catch (error) {
-    console.error('Failed to send admin notification:', error);
-  }
+  }).catch(error => {
+    console.error('❌ Admin notification error:', error.message);
+  });
 }
 
 const getPayPalCredentials = () => {
@@ -94,6 +84,8 @@ const headers = {
 };
 
 exports.handler = async (event) => {
+  const startTime = Date.now();
+  
   try {
     if (event.httpMethod === 'OPTIONS') {
       return { statusCode: 200, headers, body: '' };
@@ -107,11 +99,13 @@ exports.handler = async (event) => {
       };
     }
 
+    console.log('🔄 Starting credit purchase capture...');
+    
     const payload = JSON.parse(event.body || '{}');
     const { orderID, userId, email, credits, amountCents } = payload;
 
     if (!orderID || !userId || !credits || !amountCents) {
-      console.error('Missing required fields in capture request');
+      console.error('❌ Missing required fields in capture request');
       return {
         statusCode: 400,
         headers,
@@ -127,6 +121,7 @@ exports.handler = async (event) => {
     };
 
     if (!validPackages[credits] || validPackages[credits] !== amountCents) {
+      console.error('❌ Invalid package:', { credits, amountCents });
       return {
         statusCode: 400,
         headers,
@@ -139,6 +134,7 @@ exports.handler = async (event) => {
     // Database connection
     const dbUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
     if (!dbUrl) {
+      console.error('❌ Database not configured');
       return {
         statusCode: 500,
         headers,
@@ -146,9 +142,10 @@ exports.handler = async (event) => {
       };
     }
     const sql = neon(dbUrl);
-    console.log('✅ Database connected, attempting to capture PayPal order:', orderID);
+    console.log('✅ Database connected');
 
     // Get PayPal OAuth token
+    console.log('🔑 Getting PayPal access token...');
     const tokenResponse = await fetch(`${baseUrl}/v1/oauth2/token`, {
       method: 'POST',
       headers: {
@@ -160,14 +157,17 @@ exports.handler = async (event) => {
 
     const tokenData = await tokenResponse.json();
     if (!tokenResponse.ok) {
+      console.error('❌ PayPal token error:', tokenData);
       return {
         statusCode: tokenResponse.status,
         headers,
         body: JSON.stringify({ error: 'PAYPAL_TOKEN_ERROR', details: tokenData }),
       };
     }
+    console.log('✅ PayPal access token obtained');
 
     // Capture the PayPal order
+    console.log('💳 Capturing PayPal order:', orderID);
     const captureResponse = await fetch(`${baseUrl}/v2/checkout/orders/${orderID}/capture`, {
       method: 'POST',
       headers: {
@@ -180,6 +180,7 @@ exports.handler = async (event) => {
     const captureData = await captureResponse.json();
 
     if (!captureResponse.ok || /INTERNAL/.test(captureData?.name || '')) {
+      console.error('❌ PayPal capture failed:', captureData);
       return {
         statusCode: captureResponse.status || 502,
         headers,
@@ -189,6 +190,7 @@ exports.handler = async (event) => {
         }),
       };
     }
+    console.log('✅ PayPal order captured successfully');
 
     // Extract payment details
     const capture = captureData.purchase_units[0].payments.captures[0];
@@ -199,7 +201,7 @@ exports.handler = async (event) => {
 
     // Verify amount
     if (Math.round(capturedAmount * 100) !== amountCents) {
-      console.error('Amount mismatch:', { expected: amountCents, captured: Math.round(capturedAmount * 100) });
+      console.error('❌ Amount mismatch:', { expected: amountCents, captured: Math.round(capturedAmount * 100) });
       return {
         statusCode: 400,
         headers,
@@ -208,10 +210,9 @@ exports.handler = async (event) => {
     }
 
     const purchaseId = randomUUID();
-    console.log('💳 Starting database transaction for purchase:', purchaseId);
+    console.log('💾 Saving purchase to database:', purchaseId);
 
-    // Database transaction: Create purchase record and add credits
-    // Execute queries sequentially (Neon serverless doesn't support traditional transactions)
+    // Database operations: Create purchase record and add credits
     // Insert purchase record
     await sql`
       INSERT INTO credit_purchases (
@@ -224,6 +225,7 @@ exports.handler = async (event) => {
         'completed', ${customerName}
       )
     `;
+    console.log('✅ Purchase record created');
 
     // Ensure user exists
     await sql`
@@ -246,6 +248,7 @@ exports.handler = async (event) => {
           updated_at = CURRENT_TIMESTAMP
       WHERE user_id = ${userId}
     `;
+    console.log(`✅ ${credits} credits added to user ${userId}`);
 
     // Log the purchase in usage_log
     await sql`
@@ -262,26 +265,18 @@ exports.handler = async (event) => {
         })}
       )
     `;
+    console.log('✅ Usage logged');
 
-    console.log('✅ Credits purchase completed:', purchaseId, `${credits} credits added to user ${userId}`);
-    console.log('📧 Sending email notifications to:', finalEmail);
+    const elapsedTime = Date.now() - startTime;
+    console.log(`✅ Credits purchase completed in ${elapsedTime}ms:`, purchaseId);
 
-    // Send notifications (with proper await to ensure they execute)
-    console.log('📧 Sending email notifications...');
-    try {
-      await sendCreditPurchaseEmail(purchaseId, finalEmail, credits, capturedAmount.toFixed(2));
-      console.log('✅ Customer email sent');
-    } catch (emailError) {
-      console.error('❌ Customer email failed:', emailError);
-    }
-    
-    try {
-      await sendAdminNotification(purchaseId, finalEmail, credits, capturedAmount.toFixed(2));
-      console.log('✅ Admin email sent');
-    } catch (emailError) {
-      console.error('❌ Admin email failed:', emailError);
-    }
+    // CRITICAL FIX: Send email notifications asynchronously (non-blocking)
+    // This ensures the purchase completes even if email fails
+    console.log('📧 Triggering email notifications (non-blocking)...');
+    sendCreditPurchaseEmailAsync(purchaseId, finalEmail, credits, capturedAmount.toFixed(2));
+    sendAdminNotificationAsync(purchaseId, finalEmail, credits, capturedAmount.toFixed(2));
 
+    // Return success immediately - don't wait for emails
     return {
       statusCode: 200,
       headers,
@@ -293,7 +288,8 @@ exports.handler = async (event) => {
       }),
     };
   } catch (error) {
-    console.error('Error capturing PayPal credits order:', error);
+    const elapsedTime = Date.now() - startTime;
+    console.error(`❌ Error capturing PayPal credits order (${elapsedTime}ms):`, error);
     return {
       statusCode: 500,
       headers,
