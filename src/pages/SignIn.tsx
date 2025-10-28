@@ -27,24 +27,23 @@ const SignIn: React.FC = () => {
   const { isInCheckoutFlow, getReturnUrl, clearCheckoutContext, isContextValid } = useCheckoutContext();
 
   // Determine redirect URL: checkout context > query param > default
-  const fromCheckout = searchParams.get('from') === 'checkout';
-  const queryNextUrl = searchParams.get('next');
-  
-  console.log('🚨 SIGN IN PAGE DEBUG - RAW VALUES:', {
-    'searchParams.toString()': searchParams.toString(),
-    'searchParams.get("next")': searchParams.get('next'),
-    'queryNextUrl': queryNextUrl,
-    'fromCheckout': fromCheckout,
-    'isContextValid()': isContextValid(),
-    'getReturnUrl()': getReturnUrl()
-  });
-  
-  const nextUrl = (fromCheckout && isContextValid()) ? getReturnUrl() : (queryNextUrl || '/');
-  
-  console.log('🚨 SIGN IN PAGE DEBUG - FINAL REDIRECT:', {
-    'nextUrl': nextUrl,
-    'Will redirect to': nextUrl
-  });
+  // CRITICAL FIX: Calculate dynamically at navigation time, not at component mount
+  const getNextUrl = () => {
+    const fromCheckout = searchParams.get('from') === 'checkout';
+    const queryNextUrl = searchParams.get('next');
+    
+    console.log('🚨 SIGN IN - Getting redirect URL:', {
+      'URL': window.location.href,
+      'searchParams': searchParams.toString(),
+      'queryNextUrl': queryNextUrl,
+      'fromCheckout': fromCheckout
+    });
+    
+    const nextUrl = (fromCheckout && isContextValid()) ? getReturnUrl() : (queryNextUrl || '/');
+    
+    console.log('🚨 SIGN IN - Final redirect:', nextUrl);
+    return nextUrl;
+  };
   
 
   
@@ -98,8 +97,9 @@ const SignIn: React.FC = () => {
 
       // Small delay to allow cart sync to complete
       setTimeout(() => {
-        console.log('🚨 NAVIGATING TO:', nextUrl);
-        navigate(nextUrl, { replace: true });
+        const redirectUrl = getNextUrl();
+        console.log('🚨 NAVIGATING TO:', redirectUrl);
+        navigate(redirectUrl, { replace: true });
       }, 1000);
     } catch (error: any) {
       if (error.message && error.message.includes('email verification')) {
@@ -164,7 +164,8 @@ const SignIn: React.FC = () => {
               <button
                 onClick={() => {
                   // CRITICAL FIX: Preserve next parameter when navigating to sign-up
-                  const signUpUrl = nextUrl !== '/' ? `/sign-up?next=${encodeURIComponent(nextUrl)}` : '/sign-up';
+                  const currentNextUrl = getNextUrl();
+                  const signUpUrl = currentNextUrl !== '/' ? `/sign-up?next=${encodeURIComponent(currentNextUrl)}` : '/sign-up';
                   navigate(signUpUrl);
                 }}
                 className="font-semibold text-[#18448D] hover:text-indigo-600 transition-colors duration-200"

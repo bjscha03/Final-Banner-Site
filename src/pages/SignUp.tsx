@@ -29,15 +29,31 @@ const SignUp: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   // Determine redirect URL: checkout context > query param > default
-  const fromCheckout = searchParams.get('from') === 'checkout';
-  const queryNextUrl = searchParams.get('next');
-  const nextUrl = (fromCheckout && isContextValid()) ? getReturnUrl() : (queryNextUrl || '/design');
+  // CRITICAL FIX: Calculate dynamically at navigation time, not at component mount
+  const getNextUrl = () => {
+    const fromCheckout = searchParams.get('from') === 'checkout';
+    const queryNextUrl = searchParams.get('next');
+    
+    console.log('🚨 SIGN UP - Getting redirect URL:', {
+      'URL': window.location.href,
+      'searchParams': searchParams.toString(),
+      'queryNextUrl': queryNextUrl,
+      'fromCheckout': fromCheckout
+    });
+    
+    const nextUrl = (fromCheckout && isContextValid()) ? getReturnUrl() : (queryNextUrl || '/design');
+    
+    console.log('🚨 SIGN UP - Final redirect:', nextUrl);
+    return nextUrl;
+  };
 
   useEffect(() => {
     if (!authLoading && user) {
-      navigate(nextUrl);
+      const redirectUrl = getNextUrl();
+      console.log('🚨 SIGN UP - Auto-redirecting authenticated user to:', redirectUrl);
+      navigate(redirectUrl);
     }
-  }, [user, authLoading, navigate, nextUrl]);
+  }, [user, authLoading, navigate, searchParams]);
 
   useEffect(() => {
     scrollToTop();
@@ -91,10 +107,13 @@ const SignUp: React.FC = () => {
 
       // Redirect to email verification page
       // Pass the nextUrl so after verification they can continue to checkout
+      const currentNextUrl = getNextUrl();
+      const fromCheckout = searchParams.get('from') === 'checkout';
       const emailCheckUrl = fromCheckout && isContextValid() 
-        ? `/check-email?email=${encodeURIComponent(email)}&next=${encodeURIComponent(nextUrl)}`
+        ? `/check-email?email=${encodeURIComponent(email)}&next=${encodeURIComponent(currentNextUrl)}`
         : `/check-email?email=${encodeURIComponent(email)}`;
       
+      console.log('🚨 SIGN UP - Redirecting to email check:', emailCheckUrl);
       navigate(emailCheckUrl);
     } catch (error: any) {
       toast({
