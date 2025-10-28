@@ -29,14 +29,21 @@ const SignIn: React.FC = () => {
   // Determine redirect URL: checkout context > query param > default
   const fromCheckout = searchParams.get('from') === 'checkout';
   const queryNextUrl = searchParams.get('next');
+  
+  console.log('🚨 SIGN IN PAGE DEBUG - RAW VALUES:', {
+    'searchParams.toString()': searchParams.toString(),
+    'searchParams.get("next")': searchParams.get('next'),
+    'queryNextUrl': queryNextUrl,
+    'fromCheckout': fromCheckout,
+    'isContextValid()': isContextValid(),
+    'getReturnUrl()': getReturnUrl()
+  });
+  
   const nextUrl = (fromCheckout && isContextValid()) ? getReturnUrl() : (queryNextUrl || '/');
   
-  console.log('🔍 SIGN IN PAGE: Redirect calculation', {
-    fromCheckout,
-    queryNextUrl,
-    isContextValid: isContextValid(),
-    returnUrl: getReturnUrl(),
-    finalNextUrl: nextUrl
+  console.log('🚨 SIGN IN PAGE DEBUG - FINAL REDIRECT:', {
+    'nextUrl': nextUrl,
+    'Will redirect to': nextUrl
   });
   
 
@@ -91,6 +98,7 @@ const SignIn: React.FC = () => {
 
       // Small delay to allow cart sync to complete
       setTimeout(() => {
+        console.log('🚨 NAVIGATING TO:', nextUrl);
         navigate(nextUrl, { replace: true });
       }, 1000);
     } catch (error: any) {

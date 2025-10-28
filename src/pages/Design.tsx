@@ -39,6 +39,11 @@ const Design: React.FC = () => {
       // CRITICAL FIX: Use current pathname to preserve /halloween-banner or /design
       const currentPath = location.pathname;
       const redirectUrl = `/sign-in?next=${encodeURIComponent(`${currentPath}?ai=true`)}`;
+      console.log('🚨 DESIGN PAGE: Redirecting to sign-in', {
+        currentPath,
+        redirectUrl,
+        'Encoded next param': encodeURIComponent(`${currentPath}?ai=true`)
+      });
       navigate(redirectUrl);
       return;
     }
