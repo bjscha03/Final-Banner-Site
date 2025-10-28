@@ -154,7 +154,11 @@ const SignIn: React.FC = () => {
             <p className="mt-2 text-sm text-gray-500">
               Don't have an account?{' '}
               <button
-                onClick={() => navigate('/sign-up')}
+                onClick={() => {
+                  // CRITICAL FIX: Preserve next parameter when navigating to sign-up
+                  const signUpUrl = nextUrl !== '/' ? `/sign-up?next=${encodeURIComponent(nextUrl)}` : '/sign-up';
+                  navigate(signUpUrl);
+                }}
                 className="font-semibold text-[#18448D] hover:text-indigo-600 transition-colors duration-200"
               >
                 Create one now →

@@ -36,7 +36,10 @@ const Design: React.FC = () => {
         description: 'Please sign in or create an account to use AI banner generation.',
         variant: 'default',
       });
-      navigate('/sign-in?next=/design?ai=true');
+      // CRITICAL FIX: Use current pathname to preserve /halloween-banner or /design
+      const currentPath = location.pathname;
+      const redirectUrl = `/sign-in?next=${encodeURIComponent(`${currentPath}?ai=true`)}`;
+      navigate(redirectUrl);
       return;
     }
     setAiModalOpen(true);
@@ -56,17 +59,24 @@ const Design: React.FC = () => {
     }
   }, [location.pathname]);
 
-  // Check for AI auto-open parameter
+  // Check for AI auto-open parameter (after authentication redirect)
   useEffect(() => {
     const searchParams = new URLSearchParams(location.search);
     if (searchParams.has('ai') && import.meta.env.VITE_AI_BANNER_ENABLED !== 'false') {
-      setAiModalOpen(true);
-      // Remove ai parameter from URL
+      console.log('[Design] AI auto-open detected, user:', user ? 'authenticated' : 'not authenticated');
+      
+      // Only auto-open if user is authenticated
+      if (user) {
+        console.log('[Design] Opening AI modal automatically after authentication');
+        setAiModalOpen(true);
+      }
+      
+      // Remove ai parameter from URL regardless of auth status
       searchParams.delete('ai');
       const newUrl = searchParams.toString() ? `${location.pathname}?${searchParams.toString()}` : location.pathname;
       navigate(newUrl, { replace: true });
     }
-  }, [location, navigate]);
+  }, [location.search, user, navigate]);
   const { setFromQuickQuote } = useQuoteStore();
   const hasAppliedQuickQuote = useRef(false);
 
