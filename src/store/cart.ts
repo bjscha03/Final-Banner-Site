@@ -246,9 +246,10 @@ export const useCartStore = create<CartState>()(
           line_total_cents,
           file_key: fileKey,
           file_name: quote.file?.name,
-          file_url: quote.file?.url || aiMetadata?.assets?.proofUrl || null,
-          web_preview_url: aiMetadata?.assets?.proofUrl || null,
-          print_ready_url: aiMetadata?.assets?.finalUrl || null,
+          // CRITICAL: Never save blob URLs - they don't persist across sessions
+          file_url: (quote.file?.url?.startsWith('blob:') ? null : quote.file?.url) || aiMetadata?.assets?.proofUrl || null,
+          web_preview_url: (aiMetadata?.assets?.proofUrl?.startsWith('blob:') ? null : aiMetadata?.assets?.proofUrl) || null,
+          print_ready_url: (aiMetadata?.assets?.finalUrl?.startsWith('blob:') ? null : aiMetadata?.assets?.finalUrl) || null,
           is_pdf: quote.file?.isPdf || false,
           text_elements: quote.textElements && quote.textElements.length > 0 ? quote.textElements : undefined,
           overlay_image: quote.overlayImage ? {
@@ -407,7 +408,8 @@ export const useCartStore = create<CartState>()(
           line_total_cents,
           file_key: fileKey,
           file_name: quote.file?.name,
-          file_url: quote.file?.url || aiMetadata?.assets?.proofUrl || existingItem.file_url,
+          // CRITICAL: Never save blob URLs - they don't persist across sessions
+          file_url: (quote.file?.url?.startsWith('blob:') ? null : quote.file?.url) || aiMetadata?.assets?.proofUrl || existingItem.file_url,
           web_preview_url: aiMetadata?.assets?.proofUrl || existingItem.web_preview_url,
           print_ready_url: aiMetadata?.assets?.finalUrl || existingItem.print_ready_url,
           is_pdf: quote.file?.isPdf || false,
@@ -652,7 +654,29 @@ export const useCartStore = create<CartState>()(
         if (state?.items) {
           console.log('💾 CART STORAGE: Found', state.items.length, 'items in storage');
           console.log('🔄 Rehydrating cart, checking for items needing migration...');
-          const migratedItems = state.items.map(migrateCartItem);
+          
+          // CRITICAL: Remove blob URLs from localStorage
+          // Blob URLs don't persist across page refreshes and cause thumbnails to disappear
+          const migratedItems = state.items.map(item => {
+            const migrated = migrateCartItem(item);
+            
+            // Filter out blob URLs
+            if (migrated.file_url?.startsWith('blob:')) {
+              console.log('🧹 Removing blob URL from file_url for item', migrated.id);
+              migrated.file_url = null;
+            }
+            if (migrated.web_preview_url?.startsWith('blob:')) {
+              console.log('🧹 Removing blob URL from web_preview_url for item', migrated.id);
+              migrated.web_preview_url = null;
+            }
+            if (migrated.print_ready_url?.startsWith('blob:')) {
+              console.log('🧹 Removing blob URL from print_ready_url for item', migrated.id);
+              migrated.print_ready_url = null;
+            }
+            
+            return migrated;
+          });
+          
           const hadChanges = migratedItems.some((item, i) => item.line_total_cents !== state.items[i].line_total_cents);
           if (hadChanges) {
             console.log('✅ Cart migration complete, updating storage');
