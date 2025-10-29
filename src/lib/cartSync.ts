@@ -249,6 +249,20 @@ class CartSyncService {
       const data = await response.json();
       const cartData = data.cartData || [];
 
+      // DEBUG: Log what URLs are in the database
+      console.log('🔍 [cart-load] Inspecting loaded cart items:');
+      cartData.forEach((item: any, index: number) => {
+        console.log(`  Item ${index + 1}:`, {
+          id: item.id,
+          file_url: item.file_url,
+          web_preview_url: item.web_preview_url,
+          print_ready_url: item.print_ready_url,
+          file_url_is_blob: item.file_url?.startsWith('blob:'),
+          web_preview_url_is_blob: item.web_preview_url?.startsWith('blob:'),
+          print_ready_url_is_blob: item.print_ready_url?.startsWith('blob:'),
+        });
+      });
+
       this.logEvent({
         event: 'CART_LOAD',
         userId,
