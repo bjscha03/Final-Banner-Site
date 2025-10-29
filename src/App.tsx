@@ -103,6 +103,7 @@ const App = () => (
             <Route path="/design/canva-editor" element={<CanvaEditor />} />
             <Route path="/canva-test" element={<CanvaTest />} />
             <Route path="/faq" element={<FAQ />} />
+            <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/terms" element={<Terms />} />
             <Route path="/privacy" element={<Privacy />} />
