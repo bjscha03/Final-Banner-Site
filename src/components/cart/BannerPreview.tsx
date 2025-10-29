@@ -131,6 +131,15 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   // Reset error state when imageUrl changes
   useEffect(() => {
     setImageError(false);
+    
+    // DEBUG: Log image URL information
+    console.log('🖼️ BannerPreview: Image URL changed:', {
+      imageUrl,
+      isBlob: imageUrl?.startsWith('blob:'),
+      isCloudinary: imageUrl?.includes('cloudinary'),
+      isHttps: imageUrl?.startsWith('https://'),
+      length: imageUrl?.length
+    });
     setImageLoaded(false);
   }, [imageUrl]);
 
@@ -231,7 +240,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
                 Loading...
               </text>
             </g>
-          ) : (imageUrl && !imageUrl.startsWith('blob:') && !imageError) ? (
+          ) : (imageUrl && !imageError) ? (
             <g clipPath={`url(#banner-clip-${widthIn}-${heightIn})`}>
               <image
                 href={imageUrl}
