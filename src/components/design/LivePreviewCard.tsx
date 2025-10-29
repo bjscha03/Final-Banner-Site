@@ -449,22 +449,10 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         });
       }
 
-      // For local development, skip server upload and use local preview
+      // ALWAYS upload to Cloudinary to get permanent URLs
+      // Never use blob URLs as they don't persist across sessions
       let result;
-      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        // Local development - skip upload, use local preview
-        console.log('🔧 Local development mode: skipping server upload');
-        result = {
-          success: true,
-          fileUrl: previewUrl, // Use the local blob URL
-          fileName: uploadFileName,
-          fileSize: fileToUpload.size,
-          uploadedAt: new Date().toISOString(),
-          message: 'Local development - using client-side preview'
-        };
-      } else {
-        // Production - upload to server
-        const form = new FormData();
+      const form = new FormData();
         form.append("file", fileToUpload);
         
         console.log("🚀 Starting upload to server...", {
@@ -513,7 +501,6 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
           fileKey: result.fileKey,
           secureUrl: result.secureUrl ? 'present' : 'missing'
         });
-      }
       
       // CRITICAL: Never save blob URLs - they expire on page reload
       const permanentUrl = result.secureUrl || result.fileUrl;
