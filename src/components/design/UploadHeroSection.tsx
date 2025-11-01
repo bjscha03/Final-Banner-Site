@@ -55,9 +55,19 @@ const UploadHeroSection: React.FC<UploadHeroSectionProps> = ({ onOpenAIModal, on
       console.log('✅ File uploaded to Cloudinary:', result);
 
       if (result.secureUrl) {
-        // Get image dimensions for non-PDF files
+        // CRITICAL FIX: For PDFs, convert Cloudinary URL to image format
+        let displayUrl = result.secureUrl;
+        const isPdf = selectedFile.type === 'application/pdf';
+        
+        if (isPdf && result.secureUrl.includes('cloudinary.com')) {
+          // Convert PDF URL to PNG format for display
+          displayUrl = result.secureUrl.replace('/upload/', '/upload/f_png,pg_1/');
+          console.log('🔧 [UploadHeroSection] Converted PDF URL to image format:', displayUrl);
+        }
+
+        // Get image dimensions
         let artworkWidth, artworkHeight;
-        if (selectedFile.type.startsWith('image/')) {
+        if (selectedFile.type.startsWith('image/') || isPdf) {
           const img = new Image();
           const imgLoadPromise = new Promise((resolve) => {
             img.onload = () => {
@@ -65,22 +75,34 @@ const UploadHeroSection: React.FC<UploadHeroSectionProps> = ({ onOpenAIModal, on
               artworkHeight = img.naturalHeight;
               resolve(null);
             };
+            img.onerror = () => {
+              console.warn('Failed to load image dimensions');
+              resolve(null);
+            };
           });
-          img.src = result.secureUrl;
+          img.src = displayUrl;
           await imgLoadPromise;
         }
 
         set({
           file: {
             name: selectedFile.name,
-            url: result.secureUrl,
+            url: displayUrl,
             size: selectedFile.size,
             fileKey: result.fileKey || result.publicId,
-            isPdf: selectedFile.type === 'application/pdf',
+            isPdf: isPdf,
             artworkWidth,
             artworkHeight,
           },
         });
+
+        console.log('✅ File saved to quote store:', {
+          url: displayUrl,
+          fileKey: result.fileKey || result.publicId,
+          isPdf: isPdf,
+          dimensions: artworkWidth && artworkHeight ? `${artworkWidth}x${artworkHeight}` : 'N/A'
+        });
+
 
         console.log('✅ File saved to quote store:', {
           url: result.secureUrl,
