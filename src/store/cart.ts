@@ -226,6 +226,21 @@ export const useCartStore = create<CartState>()(
         // Use the file key from the uploaded file
         const fileKey = quote.file?.fileKey;
 
+        // CRITICAL FIX: Ensure we have a valid Cloudinary URL
+        // If quote.file.url is a blob URL or missing, reconstruct from fileKey
+        let fileUrl = null;
+        if (quote.file?.url && !quote.file.url.startsWith('blob:') && !quote.file.url.startsWith('data:')) {
+          // We have a valid URL (Cloudinary)
+          fileUrl = quote.file.url;
+        } else if (fileKey) {
+          // Reconstruct Cloudinary URL from fileKey
+          fileUrl = `https://res.cloudinary.com/dtrxl120u/image/upload/${fileKey}`;
+          console.log('🔧 CART: Reconstructed Cloudinary URL from fileKey:', fileUrl);
+        } else if (aiMetadata?.assets?.proofUrl && !aiMetadata.assets.proofUrl.startsWith('blob:')) {
+          // Fallback to AI metadata
+          fileUrl = aiMetadata.assets.proofUrl;
+        }
+
         const newItem: CartItem = {
           id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           width_in: quote.widthIn,
@@ -246,10 +261,10 @@ export const useCartStore = create<CartState>()(
           line_total_cents,
           file_key: fileKey,
           file_name: quote.file?.name,
-          // CRITICAL: Never save blob URLs - they don't persist across sessions
-          file_url: (quote.file?.url?.startsWith('blob:') ? null : quote.file?.url) || aiMetadata?.assets?.proofUrl || null,
-          web_preview_url: (aiMetadata?.assets?.proofUrl?.startsWith('blob:') ? null : aiMetadata?.assets?.proofUrl) || null,
-          print_ready_url: (aiMetadata?.assets?.finalUrl?.startsWith('blob:') ? null : aiMetadata?.assets?.finalUrl) || null,
+          // CRITICAL: Use the reconstructed/validated URL
+          file_url: fileUrl,
+          web_preview_url: (aiMetadata?.assets?.proofUrl && !aiMetadata.assets.proofUrl.startsWith('blob:') && !aiMetadata.assets.proofUrl.startsWith('data:')) ? aiMetadata.assets.proofUrl : null,
+          print_ready_url: (aiMetadata?.assets?.finalUrl && !aiMetadata.assets.finalUrl.startsWith('blob:') && !aiMetadata.assets.finalUrl.startsWith('data:')) ? aiMetadata.assets.finalUrl : null,
           is_pdf: quote.file?.isPdf || false,
           text_elements: quote.textElements && quote.textElements.length > 0 ? quote.textElements : undefined,
           overlay_image: quote.overlayImage ? {
