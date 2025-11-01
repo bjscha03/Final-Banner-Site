@@ -40,7 +40,7 @@ const materials: MaterialOption[] = [
     key: '18oz',
     name: '18oz Vinyl',
     subtitle: 'Heavy-duty, wind resistant',
-    imagePath: `/direct-assets/materials/18oz.svg?v=${CACHE_BUST}`
+    imagePath: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1762035586/unnamed-2_ucrvav.jpg'
   },
   {
     key: 'mesh',
