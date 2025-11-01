@@ -47,26 +47,71 @@ const StickyUploadButton: React.FC<StickyUploadButtonProps> = ({ isAIModalOpen =
     
     setIsUploading(true);
     try {
-      const url = URL.createObjectURL(selectedFile);
-      set({ 
-        file: { 
-          name: selectedFile.name, 
-          type: selectedFile.type, 
-          size: selectedFile.size, 
-          url, 
-          isPdf, 
-          fileKey: `upload-${Date.now()}` 
-        } 
-      });
+      // CRITICAL FIX: Upload to Cloudinary instead of creating blob URL
+      console.log('🚀 [StickyUploadButton] Uploading file to Cloudinary:', selectedFile.name);
       
-      toast({ 
-        title: isPdf ? 'PDF uploaded successfully' : 'Image uploaded successfully', 
-        description: 'Your artwork has been loaded. Configure your banner size below.' 
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+
+      const response = await fetch('/.netlify/functions/upload-file', {
+        method: 'POST',
+        body: formData,
       });
-      
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Upload failed: ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ [StickyUploadButton] File uploaded to Cloudinary:', result);
+
+      if (result.secureUrl) {
+        // Get image dimensions for non-PDF files
+        let artworkWidth, artworkHeight;
+        if (selectedFile.type.startsWith('image/')) {
+          const img = new Image();
+          const imgLoadPromise = new Promise((resolve) => {
+            img.onload = () => {
+              artworkWidth = img.naturalWidth;
+              artworkHeight = img.naturalHeight;
+              resolve(null);
+            };
+          });
+          img.src = result.secureUrl;
+          await imgLoadPromise;
+        }
+
+        set({
+          file: {
+            name: selectedFile.name,
+            url: result.secureUrl,
+            size: selectedFile.size,
+            fileKey: result.fileKey || result.publicId,
+            isPdf: selectedFile.type === 'application/pdf',
+            artworkWidth,
+            artworkHeight,
+          },
+        });
+
+        console.log('✅ [StickyUploadButton] File saved to quote store:', {
+          url: result.secureUrl,
+          fileKey: result.fileKey || result.publicId,
+          isPdf: selectedFile.type === 'application/pdf',
+          dimensions: artworkWidth && artworkHeight ? `${artworkWidth}x${artworkHeight}` : 'N/A'
+        });
+
+        toast({ 
+          title: isPdf ? 'PDF uploaded successfully' : 'Image uploaded successfully', 
+          description: 'Your artwork has been uploaded to the cloud and is ready to use.' 
+        });
+        
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      } else {
+        throw new Error(result.error || 'Upload failed. Please try again.');
+      }
     } catch (error) {
-      console.error('Error uploading file:', error);
+      console.error('❌ [StickyUploadButton] Upload error:', error);
       toast({ 
         title: 'Upload failed', 
         description: error instanceof Error ? error.message : 'Failed to upload file. Please try again.', 
