@@ -1,5 +1,5 @@
-const supabaseUrl = process.env.VITE_SUPABASE_URL;
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const supabaseUrl = process.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
 
 exports.handler = async (event) => {
   // Only allow POST requests
@@ -7,6 +7,27 @@ exports.handler = async (event) => {
     return {
       statusCode: 405,
       body: JSON.stringify({ error: 'Method not allowed' }),
+    };
+  }
+
+  // Debug: Log environment variables (without exposing keys)
+  console.log('Environment check:', {
+    hasSupabaseUrl: !!supabaseUrl,
+    hasServiceKey: !!supabaseServiceKey,
+    urlPrefix: supabaseUrl?.substring(0, 20),
+  });
+
+  if (!supabaseUrl || !supabaseServiceKey) {
+    return {
+      statusCode: 500,
+      body: JSON.stringify({
+        success: false,
+        error: 'Missing Supabase configuration',
+        debug: {
+          hasSupabaseUrl: !!supabaseUrl,
+          hasServiceKey: !!supabaseServiceKey,
+        },
+      }),
     };
   }
 
