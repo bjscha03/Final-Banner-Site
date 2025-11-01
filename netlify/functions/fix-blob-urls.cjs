@@ -1,5 +1,3 @@
-const { createClient } = require('@supabase/supabase-js');
-
 const supabaseUrl = process.env.VITE_SUPABASE_URL;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
@@ -13,17 +11,20 @@ exports.handler = async (event) => {
   }
 
   try {
-    const supabase = createClient(supabaseUrl, supabaseServiceKey);
+    // Fetch all carts using Supabase REST API directly (no SDK needed)
+    const fetchResponse = await fetch(`${supabaseUrl}/rest/v1/user_carts?select=*`, {
+      headers: {
+        'apikey': supabaseServiceKey,
+        'Authorization': `Bearer ${supabaseServiceKey}`,
+        'Content-Type': 'application/json',
+      },
+    });
 
-    // Get all user carts
-    const { data: carts, error: fetchError } = await supabase
-      .from('user_carts')
-      .select('*');
-
-    if (fetchError) {
-      throw fetchError;
+    if (!fetchResponse.ok) {
+      throw new Error(`Failed to fetch carts: ${fetchResponse.statusText}`);
     }
 
+    const carts = await fetchResponse.json();
     console.log(`Found ${carts?.length || 0} carts to check`);
 
     let fixedCount = 0;
@@ -66,13 +67,19 @@ exports.handler = async (event) => {
 
       // Update the cart if any items were modified
       if (modified) {
-        const { error: updateError } = await supabase
-          .from('user_carts')
-          .update({ cart_data: cleanedData })
-          .eq('id', cart.id);
+        const updateResponse = await fetch(`${supabaseUrl}/rest/v1/user_carts?id=eq.${cart.id}`, {
+          method: 'PATCH',
+          headers: {
+            'apikey': supabaseServiceKey,
+            'Authorization': `Bearer ${supabaseServiceKey}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=minimal',
+          },
+          body: JSON.stringify({ cart_data: cleanedData }),
+        });
 
-        if (updateError) {
-          console.error(`Error updating cart ${cart.id}:`, updateError);
+        if (!updateResponse.ok) {
+          console.error(`Error updating cart ${cart.id}:`, updateResponse.statusText);
         } else {
           fixedCount++;
           console.log(`Fixed cart ${cart.id}`);
