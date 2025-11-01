@@ -19,7 +19,7 @@ exports.handler = async (event, context) => {
 
     const sql = neon(DATABASE_URL);
 
-    console.log('[fix-cart-thumbnails] Starting blob URL cleanup...');
+    console.log('[fix-cart-thumbnails] Starting cart thumbnail fix...');
 
     // Get all active carts
     const carts = await sql`
@@ -41,22 +41,29 @@ exports.handler = async (event, context) => {
       const cleanedData = cartData.map((item) => {
         let itemModified = false;
 
-        // Remove blob URLs
-        if (item.file_url?.startsWith('blob:')) {
-          console.log(`[fix-cart-thumbnails] Removing blob file_url from item ${item.id} in cart ${cart.id}`);
+        // Remove blob URLs and data URLs
+        if (item.file_url?.startsWith('blob:') || item.file_url?.startsWith('data:')) {
+          console.log(`[fix-cart-thumbnails] Removing invalid file_url from item ${item.id} in cart ${cart.id}`);
           item.file_url = null;
           itemModified = true;
         }
 
-        if (item.web_preview_url?.startsWith('blob:')) {
-          console.log(`[fix-cart-thumbnails] Removing blob web_preview_url from item ${item.id} in cart ${cart.id}`);
+        if (item.web_preview_url?.startsWith('blob:') || item.web_preview_url?.startsWith('data:')) {
+          console.log(`[fix-cart-thumbnails] Removing invalid web_preview_url from item ${item.id} in cart ${cart.id}`);
           item.web_preview_url = null;
           itemModified = true;
         }
 
-        if (item.print_ready_url?.startsWith('blob:')) {
-          console.log(`[fix-cart-thumbnails] Removing blob print_ready_url from item ${item.id} in cart ${cart.id}`);
+        if (item.print_ready_url?.startsWith('blob:') || item.print_ready_url?.startsWith('data:')) {
+          console.log(`[fix-cart-thumbnails] Removing invalid print_ready_url from item ${item.id} in cart ${cart.id}`);
           item.print_ready_url = null;
+          itemModified = true;
+        }
+
+        // CRITICAL FIX: Reconstruct Cloudinary URL from file_key if URL is missing
+        if (!item.file_url && item.file_key) {
+          item.file_url = `https://res.cloudinary.com/dtrxl120u/image/upload/${item.file_key}`;
+          console.log(`[fix-cart-thumbnails] Reconstructed file_url from file_key for item ${item.id}: ${item.file_url}`);
           itemModified = true;
         }
 
@@ -82,7 +89,7 @@ exports.handler = async (event, context) => {
       }
     }
 
-    const message = `Fixed ${fixedCount} carts with ${totalItemsFixed} items containing blob URLs`;
+    const message = `Fixed ${fixedCount} carts with ${totalItemsFixed} items`;
     console.log(`[fix-cart-thumbnails] ${message}`);
 
     return {
