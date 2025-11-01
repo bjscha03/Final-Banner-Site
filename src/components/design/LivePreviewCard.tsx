@@ -1328,20 +1328,12 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         // Position is multiplied by 0.01 in rendering, so we multiply by 100 for storage
         const sensitivity = 30; // Reduced from 100 for slower, more precise dragging
         
-        // UPDATED: Constrain image to stay within canvas boundaries
-        // Calculate the maximum allowed movement based on image scale
-        // The image is centered, so we need to account for its scaled size
-        const scaledImageWidth = widthIn * imageScale;
-        const scaledImageHeight = heightIn * imageScale;
+        // Generous bounds - allow image to move far beyond visible area for flexibility
+        // This prevents snapping and allows free positioning
+        const maxMove = Math.max(widthIn, heightIn) * 100; // Very generous bounds
         
-        // Calculate max offset to keep image edges within canvas
-        // Position is in percentage units (multiplied by 0.01 in rendering)
-        // So we need to convert pixel limits to percentage units
-        const maxOffsetX = Math.max(0, (scaledImageWidth - widthIn) / 2) * 100;
-        const maxOffsetY = Math.max(0, (scaledImageHeight - heightIn) / 2) * 100;
-        
-        const newX = Math.max(-maxOffsetX, Math.min(maxOffsetX, initialImagePosition.x + (deltaX * sensitivity)));
-        const newY = Math.max(-maxOffsetY, Math.min(maxOffsetY, initialImagePosition.y + (deltaY * sensitivity)));
+        const newX = Math.max(-maxMove, Math.min(maxMove, initialImagePosition.x + (deltaX * sensitivity)));
+        const newY = Math.max(-maxMove, Math.min(maxMove, initialImagePosition.y + (deltaY * sensitivity)));
         setImagePosition({ x: newX, y: newY });
       } else if (isResizingImage && resizeHandle) {
         // Smooth, centered resizing - image scales from center point
@@ -1457,15 +1449,9 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       if (isDraggingImage) {
         // Match mouse drag sensitivity - smooth, precise movement
         const sensitivity = 30; // Reduced from 100 for slower, more precise dragging
-        
-        // UPDATED: Constrain image to stay within canvas boundaries (same as mouse drag)
-        const scaledImageWidth = widthIn * imageScale;
-        const scaledImageHeight = heightIn * imageScale;
-        const maxOffsetX = Math.max(0, (scaledImageWidth - widthIn) / 2) * 100;
-        const maxOffsetY = Math.max(0, (scaledImageHeight - heightIn) / 2) * 100;
-        
-        const newX = Math.max(-maxOffsetX, Math.min(maxOffsetX, initialImagePosition.x + (deltaX * sensitivity)));
-        const newY = Math.max(-maxOffsetY, Math.min(maxOffsetY, initialImagePosition.y + (deltaY * sensitivity)));
+        const maxMove = Math.max(widthIn, heightIn) * 100; // Very generous bounds
+        const newX = Math.max(-maxMove, Math.min(maxMove, initialImagePosition.x + (deltaX * sensitivity)));
+        const newY = Math.max(-maxMove, Math.min(maxMove, initialImagePosition.y + (deltaY * sensitivity)));
         setImagePosition({ x: newX, y: newY });
       } else if (isResizingImage && resizeHandle) {
         // Match mouse resize sensitivity - smooth, centered scaling
