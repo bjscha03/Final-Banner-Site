@@ -95,6 +95,12 @@ class SecureAuthAdapter implements AuthAdapter {
 
       console.log('✅ Secure sign-in successful for:', user.email);
       safeStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
+      
+      // Dispatch custom event to notify useAuth hook
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('user-changed'));
+      }
+      
       return user;
 
     } catch (error) {
@@ -160,6 +166,11 @@ class SecureAuthAdapter implements AuthAdapter {
       // Set the admin cookie to expire immediately
       document.cookie = 'admin=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax';
       console.log('🍪 Cleared admin cookie during logout');
+    }
+    
+    // Dispatch custom event to notify useAuth hook
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('user-changed'));
     }
   }
 }
