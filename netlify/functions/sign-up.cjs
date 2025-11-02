@@ -154,10 +154,14 @@ exports.handler = async (event) => {
 
     // Check if user already exists
     const existingUsers = await db`
-      SELECT id FROM profiles WHERE email = ${normalizedEmail}
+      SELECT id, email_verified FROM profiles WHERE email = ${normalizedEmail}
     `;
     
+    console.log(`🔍 SIGN-UP: Checking for existing user with email: ${normalizedEmail}`);
+    console.log(`🔍 SIGN-UP: Found ${existingUsers.length} existing users`);
+    
     if (existingUsers.length > 0) {
+      console.error(`❌ SIGN-UP: User already exists: ${normalizedEmail}, verified: ${existingUsers[0].email_verified}`);
       return {
         statusCode: 400,
         headers,
@@ -202,7 +206,7 @@ exports.handler = async (event) => {
       // Don't fail the signup, just log the error
     }
 
-    console.log(`User account created successfully: ${normalizedEmail}`);
+    console.log(`✅ SIGN-UP: User account created successfully: ${normalizedEmail}`);
 
     return {
       statusCode: 200,
