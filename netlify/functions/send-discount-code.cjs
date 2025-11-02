@@ -57,7 +57,7 @@ async function sendEmailResend(to, code, expiresAt) {
                 
                 <!-- Logo Header -->
                 <tr>
-                  <td align="center" style="padding: 40px 20px; background-color: #18448D;">
+                  <td align="center" style="padding: 40px 20px; background-color: #ffffff;">
                     <img src="https://bannersonthefly.com/images/header-logo.png" alt="Banners on the Fly" width="200" style="display: block; max-width: 200px; height: auto;" />
                   </td>
                 </tr>
