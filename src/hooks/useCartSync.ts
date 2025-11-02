@@ -158,6 +158,7 @@ export function useCartSync() {
       
       // Clear cart from UI (cart is saved to database above)
       console.log('🚪 Clearing cart from UI');
+      useCartStore.setState({ items: [] });
       if (typeof localStorage !== 'undefined') {
         localStorage.removeItem('cart_owner_user_id');
       }
