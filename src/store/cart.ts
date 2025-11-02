@@ -649,6 +649,36 @@ export const useCartStore = create<CartState>()(
     }),
     {
       name: 'cart-storage',
+      // CRITICAL: Only persist discountCode, NEVER persist items
+      partialize: (state) => ({
+        discountCode: state.discountCode,
+        // items are NOT persisted - server is source of truth
+      }),
+      // CRITICAL: When loading from localStorage, IGNORE any items that might be there
+      merge: (persistedState: any, currentState: any) => {
+        return {
+          ...currentState,
+          // Only load discountCode from localStorage
+          discountCode: persistedState?.discountCode || currentState.discountCode,
+          // NEVER load items from localStorage - server is source of truth
+          items: currentState.items,
+        };
+      },
+      // CRITICAL: Only persist discountCode, NEVER persist items
+      partialize: (state) => ({
+        discountCode: state.discountCode,
+        // items are NOT persisted - server is source of truth
+      }),
+      // CRITICAL: When loading from localStorage, IGNORE any items that might be there
+      merge: (persistedState: any, currentState: any) => {
+        return {
+          ...currentState,
+          // Only load discountCode from localStorage
+          discountCode: persistedState?.discountCode || currentState.discountCode,
+          // NEVER load items from localStorage - server is source of truth
+          items: currentState.items,
+        };
+      },
       // Migrate items when loading from localStorage
       onRehydrateStorage: () => (state) => {
         console.log('�� CART STORAGE: Rehydrating from localStorage...');

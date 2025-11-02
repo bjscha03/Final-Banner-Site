@@ -76,13 +76,12 @@ export function useCartSync() {
       console.log('👤 User ID:', currentUserId);
       console.log('👤 Cart owner ID:', cartOwnerId);
       
-      // Only clear if cart explicitly belongs to a DIFFERENT user
+      // CRITICAL: Don't clear cart here - it syncs empty cart to server and DELETES the database cart!
+      // Just let loadFromServer() overwrite the cart with the correct user's cart
       if (cartOwnerId && cartOwnerId !== currentUserId) {
-        console.log('🚨 CRITICAL: Cart belongs to different user!');
-        console.log('🚨 Cart owner:', cartOwnerId);
-        console.log('🚨 Current user:', currentUserId);
-        console.log('🚨 CLEARING CART NOW');
-        clearCart();
+        console.log('�� CART OWNERSHIP: Cart belongs to different user, will load from server');
+        console.log('🔍 Cart owner:', cartOwnerId);
+        console.log('🔍 Current user:', currentUserId);
       }
       
       // Merge guest cart with user cart on login
