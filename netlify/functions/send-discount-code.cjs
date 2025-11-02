@@ -247,6 +247,36 @@ exports.handler = async (event, context) => {
 
     console.log('[send-discount-code] Code generated:', { code, isNew: is_new });
 
+    // Check if we recently sent an email to this address (prevent duplicates from double-clicks)
+    const recentEmailCheck = await sql`
+      SELECT created_at 
+      FROM discount_codes 
+      WHERE email = ${normalizedEmail} 
+        AND created_at > NOW() - INTERVAL '2 minutes'
+      ORDER BY created_at DESC 
+      LIMIT 1
+    `;
+    
+    const shouldSendEmail = recentEmailCheck.length === 0 || is_new;
+    
+    if (!shouldSendEmail) {
+      console.log('[send-discount-code] ⏭️  Skipping email - already sent within last 2 minutes');
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          success: true,
+          code,
+          discountPercentage: discount_percentage,
+          expiresAt: expires_at,
+          isNew: false,
+          emailSent: false,
+          emailSkipped: true,
+          message: 'Your existing code is still valid! Check your email.'
+        })
+      };
+    }
+
     // Send email and wait for result (with timeout protection)
     let emailResult = { success: false, error: 'Email not sent' };
     try {

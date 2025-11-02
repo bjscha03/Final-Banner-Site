@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { X, Mail, Copy, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -14,9 +14,16 @@ export const PromoPopup = ({ onClose, source }: PromoPopupProps) => {
   const [generatedCode, setGeneratedCode] = useState('');
   const [copied, setCopied] = useState(false);
   const { toast } = useToast();
+  const isSubmittingRef = useRef(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Prevent double-submission
+    if (isSubmittingRef.current) {
+      console.log('[PromoPopup] Submission already in progress, ignoring');
+      return;
+    }
     
     if (!email || !consent) {
       toast({
@@ -27,6 +34,7 @@ export const PromoPopup = ({ onClose, source }: PromoPopupProps) => {
       return;
     }
 
+    isSubmittingRef.current = true;
     setIsSubmitting(true);
 
     try {
@@ -64,6 +72,7 @@ export const PromoPopup = ({ onClose, source }: PromoPopupProps) => {
       });
     } finally {
       setIsSubmitting(false);
+      isSubmittingRef.current = false;
     }
   };
 
