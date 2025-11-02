@@ -13,7 +13,6 @@ import { useQuoteStore, MaterialKey } from '@/store/quote';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/lib/auth';
 import NewAIGenerationModal from '@/components/design/NewAIGenerationModal';
-import UploadHeroSection from '@/components/design/UploadHeroSection';
 import ProgressIndicator from '@/components/design/ProgressIndicator';
 import PricingVisibilityBanner from '@/components/design/PricingVisibilityBanner';
 import TrustBadges from '@/components/design/TrustBadges';
@@ -392,11 +391,7 @@ const Design: React.FC = () => {
           {showHalloweenTutorial && <HalloweenVideoTutorial />}
           
           {/* NEW: Conversion Optimization Components */}
-          <UploadHeroSection 
-            onOpenAIModal={handleOpenAIModal}
-            onFileUploaded={handleFileUploaded}
-          />
-          
+
           <TrustBadges />
           
           <PricingVisibilityBanner />

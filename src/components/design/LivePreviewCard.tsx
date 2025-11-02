@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import { GrommetPicker } from '@/components/ui/GrommetPicker';
 import { useToast } from '@/components/ui/use-toast';
 import { loadPdfToBitmap } from '@/utils/pdf/loadPdfToBitmap';
-import QualityBadge from './QualityBadge';
 import PreviewCanvas from './PreviewCanvas';
 import { useAuth, isAdmin } from '@/lib/auth';
 const grommetOptions = [
@@ -1789,16 +1788,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                 </div>
               </div>
 
-                {/* Quality Badge for DPI warnings */}
-                {file?.artworkWidth && file?.artworkHeight && (
-                  <QualityBadge
-                    imageScale={imageScale}
-                    bannerWidthInches={widthIn}
-                    bannerHeightInches={heightIn}
-                    artworkPixelWidth={file.artworkWidth}
-                    artworkPixelHeight={file.artworkHeight}
-                  />
-                )}
+
             </div>
 
             {/* File controls - Mobile Responsive */}
