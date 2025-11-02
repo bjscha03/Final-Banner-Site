@@ -15,7 +15,8 @@ const computeTotals = (items, taxRate, opts) => {
   const adjusted = Math.max(raw, opts.minFloorCents || 0);
   const minAdj = Math.max(0, adjusted - raw);
 
-  const shipping_cents = opts.freeShipping ? 0 : 0;
+  // Calculate shipping based on country
+  const shipping_cents = opts.shippingCents || 0;
   const tax_cents = Math.round(adjusted * taxRate);
   const total_cents = adjusted + tax_cents + shipping_cents;
 
@@ -28,6 +29,65 @@ const computeTotals = (items, taxRate, opts) => {
     total_cents,
   };
 };
+
+
+// Shipping cost calculation for international orders
+const SHIPPING_RATES = {
+  'US': { baseCents: 0, perPoundCents: 0, name: 'United States' },
+  'CA': { baseCents: 5000, perPoundCents: 1000, name: 'Canada' },
+  'MX': { baseCents: 6000, perPoundCents: 1200, name: 'Mexico' },
+  'GB': { baseCents: 10000, perPoundCents: 2000, name: 'United Kingdom' },
+  'AU': { baseCents: 15000, perPoundCents: 3000, name: 'Australia' },
+  'INTERNATIONAL': { baseCents: 15000, perPoundCents: 3000, name: 'International' }
+};
+
+const estimateBannerWeight = (widthIn, heightIn, quantity, material) => {
+  const sqft = (widthIn * heightIn * quantity) / 144;
+  const weightPerSqft = {
+    '13oz': 0.9,
+    '18oz': 1.25,
+    'mesh': 0.7,
+    'fabric': 0.5
+  };
+  const materialWeight = weightPerSqft[material] || 1.0;
+  const bannerWeight = sqft * materialWeight;
+  const packagingWeight = 2;
+  return Math.max(bannerWeight + packagingWeight, 2);
+};
+
+const calculateInternationalShipping = (country, items) => {
+  // US orders are always free
+  if (!country || country === 'US' || country === 'USA') {
+    return 0;
+  }
+  
+  // Calculate total weight
+  let totalWeight = 0;
+  for (const item of items) {
+    const weight = estimateBannerWeight(
+      item.width_in || 36,
+      item.height_in || 24,
+      item.quantity || 1,
+      item.material || '13oz'
+    );
+    totalWeight += weight;
+  }
+  
+  // Get rate for country
+  const rate = SHIPPING_RATES[country] || SHIPPING_RATES['INTERNATIONAL'];
+  const shippingCents = rate.baseCents + Math.ceil(totalWeight * rate.perPoundCents);
+  
+  console.log('International shipping calculated:', {
+    country,
+    totalWeight,
+    rate: rate.name,
+    shippingCents
+  });
+  
+  return shippingCents;
+};
+
+
 
 // PayPal API helpers
 const getPayPalCredentials = () => {
@@ -163,10 +223,16 @@ exports.handler = async (event, context) => {
     // Server-side total calculation using existing logic
     const flags = getFeatureFlags();
     const taxRate = 0.06; // 6% tax rate
+    
+    // Calculate international shipping if country is provided
+    const shippingCountry = shippingAddress?.country_code || shippingAddress?.country || 'US';
+    const internationalShippingCents = calculateInternationalShipping(shippingCountry, items);
+    
     const pricingOptions = {
       freeShipping: flags.freeShipping,
       minFloorCents: flags.minOrderFloor ? flags.minOrderCents : 0,
-      shippingMethodLabel: flags.shippingMethodLabel
+      shippingMethodLabel: flags.shippingMethodLabel,
+      shippingCents: internationalShippingCents
     };
 
     const totals = computeTotals(items, taxRate, pricingOptions);
@@ -189,7 +255,21 @@ exports.handler = async (event, context) => {
       purchase_units: [{
         amount: {
           currency_code: 'USD',
-          value: totalAmount
+          value: totalAmount,
+          breakdown: {
+            item_total: {
+              currency_code: 'USD',
+              value: (totals.adjusted_subtotal_cents / 100).toFixed(2)
+            },
+            shipping: {
+              currency_code: 'USD',
+              value: (totals.shipping_cents / 100).toFixed(2)
+            },
+            tax_total: {
+              currency_code: 'USD',
+              value: (totals.tax_cents / 100).toFixed(2)
+            }
+          }
         },
         description: 'Custom Banner Order - Banners On The Fly'
       }],
