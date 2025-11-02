@@ -14,7 +14,6 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAuth } from '@/lib/auth';
 import NewAIGenerationModal from '@/components/design/NewAIGenerationModal';
 import ProgressIndicator from '@/components/design/ProgressIndicator';
-import PricingVisibilityBanner from '@/components/design/PricingVisibilityBanner';
 import TrustBadges from '@/components/design/TrustBadges';
 import StickyUploadButton from '@/components/design/StickyUploadButton';
 import HalloweenVideoTutorial from '@/components/design/HalloweenVideoTutorial';
@@ -394,7 +393,6 @@ const Design: React.FC = () => {
 
           <TrustBadges />
           
-          <PricingVisibilityBanner />
 
             {/* Mobile Layout: Vertical stack with optimal order */}
             <div className="block lg:hidden space-y-6 md:space-y-8">
