@@ -117,10 +117,27 @@ export function useCartSync() {
         // The loadFromServer() function will handle saving local cart if it belongs to current user
         console.log('👤 No guest session, loading user cart from database...');
         hasMergedRef.current = false;
-        // CRITICAL: Clear items from UI before loading from server
-        // This prevents showing wrong user's cart while loading
+        // CRITICAL FIX: Clear items SYNCHRONOUSLY before loading from server
+        // This prevents loadFromServer() from seeing old user's items in get().items
+        console.log('🧹 CLEARING CART: Setting items to [] before loadFromServer()');
         useCartStore.setState({ items: [] });
-        loadFromServer();
+        
+        // CRITICAL FIX: Also clear cart_owner_user_id to prevent loadFromServer() from thinking
+        // the local cart belongs to the current user
+        if (typeof localStorage !== 'undefined') {
+          const oldOwner = localStorage.getItem('cart_owner_user_id');
+          if (oldOwner && oldOwner !== currentUserId) {
+            console.log('🧹 CLEARING CART OWNER: Removing old owner ID:', oldOwner);
+            localStorage.removeItem('cart_owner_user_id');
+          }
+        }
+        
+        // Small delay to ensure state is cleared before loading from server
+        // This prevents race condition where loadFromServer() sees old items
+        setTimeout(() => {
+          console.log('📥 LOADING FROM SERVER: After clearing cart');
+          loadFromServer();
+        }, 50);
       }
     }
     

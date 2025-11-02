@@ -196,14 +196,11 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         return;
       }
 
-      // Check if PDF has already been converted to bitmap (has artworkWidth)
-      if (file.artworkWidth) {
-        console.log('📄 PDF already converted to bitmap, skipping re-conversion');
+      // Check if URL is already a converted bitmap (Cloudinary or already processed blob)
+      if (file.url.includes('cloudinary') || file.artworkWidth) {
+        console.log('📄 PDF already converted, skipping re-conversion');
         return;
       }
-      
-      // For Cloudinary PDFs, we need to fetch and convert them client-side
-      console.log('📄 PDF from Cloudinary detected, will convert client-side');
 
       console.log('📄 Auto-converting PDF to bitmap for preview...', {
         fileName: file.name,
@@ -452,10 +449,22 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         });
       }
 
-      // ALWAYS upload to Cloudinary to get permanent URLs
-      // Never use blob URLs as they don't persist across sessions
+      // For local development, skip server upload and use local preview
       let result;
-      const form = new FormData();
+      if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+        // Local development - skip upload, use local preview
+        console.log('🔧 Local development mode: skipping server upload');
+        result = {
+          success: true,
+          fileUrl: previewUrl, // Use the local blob URL
+          fileName: uploadFileName,
+          fileSize: fileToUpload.size,
+          uploadedAt: new Date().toISOString(),
+          message: 'Local development - using client-side preview'
+        };
+      } else {
+        // Production - upload to server
+        const form = new FormData();
         form.append("file", fileToUpload);
         
         console.log("🚀 Starting upload to server...", {
@@ -504,6 +513,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
           fileKey: result.fileKey,
           secureUrl: result.secureUrl ? 'present' : 'missing'
         });
+      }
       
       // CRITICAL: Never save blob URLs - they expire on page reload
       const permanentUrl = result.secureUrl || result.fileUrl;

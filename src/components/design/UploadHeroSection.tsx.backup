@@ -55,56 +55,33 @@ const UploadHeroSection: React.FC<UploadHeroSectionProps> = ({ onOpenAIModal, on
       console.log('✅ File uploaded to Cloudinary:', result);
 
       if (result.secureUrl) {
-        // For PDFs, use the original PDF URL - LivePreviewCard will handle rendering
+        // CRITICAL FIX: For PDFs, convert Cloudinary URL to image format
         let displayUrl = result.secureUrl;
         const isPdf = selectedFile.type === 'application/pdf';
         
-        console.log('📄 [UploadHeroSection] File uploaded:', {
-          isPdf,
-          url: displayUrl.substring(0, 100),
-          fileKey: result.fileKey || result.publicId
-        });
+        if (isPdf && result.secureUrl.includes('cloudinary.com')) {
+          // Convert PDF URL to PNG format for display
+          displayUrl = result.secureUrl.replace('/upload/', '/upload/f_png,pg_1/');
+          console.log('🔧 [UploadHeroSection] Converted PDF URL to image format:', displayUrl);
+        }
 
-        // Get image dimensions (only for regular images, not PDFs)
+        // Get image dimensions
         let artworkWidth, artworkHeight;
-        if (selectedFile.type.startsWith('image/')) {
-          // For regular images, load to get dimensions
+        if (selectedFile.type.startsWith('image/') || isPdf) {
           const img = new Image();
-          const imgLoadPromise = new Promise((resolve, reject) => {
+          const imgLoadPromise = new Promise((resolve) => {
             img.onload = () => {
               artworkWidth = img.naturalWidth;
               artworkHeight = img.naturalHeight;
-              console.log('✅ [UploadHeroSection] Image loaded successfully:', {
-                url: displayUrl.substring(0, 100),
-                dimensions: `${artworkWidth}x${artworkHeight}`
-              });
               resolve(null);
             };
-            img.onerror = (error) => {
-              console.error('❌ [UploadHeroSection] Failed to load image:', {
-                url: displayUrl.substring(0, 100),
-                error,
-                originalFileName: selectedFile.name
-              });
-              reject(new Error('Failed to load image preview'));
+            img.onerror = () => {
+              console.warn('Failed to load image dimensions');
+              resolve(null);
             };
           });
-          
-          // Add CORS handling for Cloudinary
-          img.crossOrigin = 'anonymous';
           img.src = displayUrl;
-          
-          try {
-            await imgLoadPromise;
-          } catch (error) {
-            console.error('❌ [UploadHeroSection] Image load failed:', error);
-            // For images, this is a real error - show it to user
-            throw error;
-          }
-        } else if (isPdf) {
-          // For PDFs, don't try to load dimensions here
-          // LivePreviewCard will handle PDF rendering with loadPdfToBitmap
-          console.log('📄 [UploadHeroSection] PDF uploaded - will be rendered client-side');
+          await imgLoadPromise;
         }
 
         set({

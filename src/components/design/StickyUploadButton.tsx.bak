@@ -67,17 +67,9 @@ const StickyUploadButton: React.FC<StickyUploadButtonProps> = ({ isAIModalOpen =
       console.log('✅ [StickyUploadButton] File uploaded to Cloudinary:', result);
 
       if (result.secureUrl) {
-        // CRITICAL FIX: For PDFs, convert Cloudinary URL to image format
-        let displayUrl = result.secureUrl;
-        const isPdf = selectedFile.type === 'application/pdf';
-        
-        if (isPdf && result.secureUrl.includes('cloudinary.com')) {
-          displayUrl = result.secureUrl.replace('/upload/', '/upload/f_png,pg_1/');
-          console.log('🔧 [StickyUploadButton] Converted PDF URL:', displayUrl);
-        }
-
+        // Get image dimensions for non-PDF files
         let artworkWidth, artworkHeight;
-        if (selectedFile.type.startsWith('image/') || isPdf) {
+        if (selectedFile.type.startsWith('image/')) {
           const img = new Image();
           const imgLoadPromise = new Promise((resolve) => {
             img.onload = () => {
@@ -85,19 +77,18 @@ const StickyUploadButton: React.FC<StickyUploadButtonProps> = ({ isAIModalOpen =
               artworkHeight = img.naturalHeight;
               resolve(null);
             };
-            img.onerror = () => resolve(null);
           });
-          img.src = displayUrl;
+          img.src = result.secureUrl;
           await imgLoadPromise;
         }
 
         set({
           file: {
             name: selectedFile.name,
-            url: displayUrl,
+            url: result.secureUrl,
             size: selectedFile.size,
             fileKey: result.fileKey || result.publicId,
-            isPdf: isPdf,
+            isPdf: selectedFile.type === 'application/pdf',
             artworkWidth,
             artworkHeight,
           },

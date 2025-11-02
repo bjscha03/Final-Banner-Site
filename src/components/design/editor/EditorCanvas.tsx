@@ -1,0 +1,752 @@
+import React, { useRef, useEffect, useState } from 'react';
+import { Stage, Layer, Rect, Line, Text as KonvaText, Text, Circle, RegularPolygon, Arrow, Transformer, Image as KonvaImage, Group } from 'react-konva';
+import useImage from 'use-image';
+import { Card } from '@/components/ui/card';
+import { useQuoteStore } from '@/store/quote';
+import { useEditorStore } from '@/store/editor';
+import { grommetPoints } from '@/lib/preview/grommets';
+import Konva from 'konva';
+
+interface EditorCanvasProps {
+  selectedObjectId: string | null;
+  onSelectObject: (id: string | null) => void;
+}
+
+const PIXELS_PER_INCH = 96;
+
+// Image component for rendering uploaded images
+const CanvasImage: React.FC<{
+  url: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
+  opacity: number;
+  draggable: boolean;
+  onClick: (e: Konva.KonvaEventObject<MouseEvent>) => void;
+  onTap: (e: Konva.KonvaEventObject<MouseEvent>) => void;
+  onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => void;
+  onTransformEnd: (e: Konva.KonvaEventObject<Event>) => void;
+  dragBoundFunc?: (pos: { x: number; y: number }) => { x: number; y: number };
+  id: string;
+}> = ({ url, x, y, width, height, rotation, opacity, draggable, onClick, onTap, onDragEnd, onTransformEnd, dragBoundFunc, id }) => {
+  const [image] = useImage(url, 'anonymous');
+  
+  console.log('[IMAGE RENDER]', { id, url, loaded: !!image, x, y, width, height });
+  
+  return (
+    <KonvaImage
+      id={id}
+      image={image}
+      x={x}
+      y={y}
+      width={width}
+      height={height}
+      rotation={rotation}
+      opacity={opacity}
+      draggable={draggable}
+      dragBoundFunc={dragBoundFunc}
+      onClick={onClick}
+      onTap={onTap}
+      onDragEnd={onDragEnd}
+      onTransformEnd={onTransformEnd}
+    />
+  );
+};
+
+
+// PDF Placeholder Component (PDFs can't be rendered directly in canvas)
+const PDFPlaceholder: React.FC<{
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
+  opacity: number;
+  draggable: boolean;
+  onClick: (e: Konva.KonvaEventObject<MouseEvent>) => void;
+  onTap: (e: Konva.KonvaEventObject<TouchEvent>) => void;
+  onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => void;
+  onTransformEnd: (e: Konva.KonvaEventObject<Event>) => void;
+  dragBoundFunc?: (pos: { x: number; y: number }) => { x: number; y: number };
+  id: string;
+}> = ({ x, y, width, height, rotation, opacity, draggable, onClick, onTap, onDragEnd, onTransformEnd, dragBoundFunc, id }) => {
+  console.log('[PDF PLACEHOLDER RENDER]', { id, x, y, width, height, rotation, opacity });
+  
+  return (
+    <Group
+      id={id}
+      x={x}
+      y={y}
+      rotation={rotation}
+      opacity={opacity}
+      draggable={draggable}
+      dragBoundFunc={dragBoundFunc}
+      onClick={onClick}
+      onTap={onTap}
+      onDragEnd={onDragEnd}
+      onTransformEnd={onTransformEnd}
+    >
+      {/* Background */}
+      <Rect
+        width={width}
+        height={height}
+        fill="#f3f4f6"
+        stroke="#d1d5db"
+        strokeWidth={2}
+      />
+      {/* PDF Icon (simple representation) */}
+      <Text
+        text="PDF"
+        fontSize={Math.min(width, height) * 0.2}
+        fill="#6b7280"
+        width={width}
+        height={height}
+        align="center"
+        verticalAlign="middle"
+        fontFamily="Arial"
+        fontStyle="bold"
+      />
+    </Group>
+  );
+};
+
+const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, EditorCanvasProps> = ({ selectedObjectId, onSelectObject }, ref) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<Konva.Stage>(null);
+
+  // Expose getStage method to parent via ref
+  React.useImperativeHandle(ref, () => ({
+    getStage: () => stageRef.current,
+  }));
+
+  const transformerRef = useRef<Konva.Transformer>(null);
+  
+  const { widthIn, heightIn, grommets } = useQuoteStore();
+  const {
+    objects,
+    selectedIds,
+    showBleed,
+    showSafeZone,
+    showGrommets,
+    showGrid,
+    gridSize,
+    canvasBackgroundColor,
+    selectObject,
+    clearSelection,
+    updateObject,
+    deleteSelected,
+    duplicateSelected,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    moveSelected,
+    getBleedSize,
+    getSafeZoneMargin,
+  } = useEditorStore();
+  
+  const [stageSize, setStageSize] = useState({ width: 800, height: 600 });
+  const [scale, setScale] = useState(1);
+  const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
+  
+  const bleedSize = getBleedSize();
+  const safeZoneMargin = getSafeZoneMargin();
+  
+  const canvasWidthPx = widthIn * PIXELS_PER_INCH;
+  const canvasHeightPx = heightIn * PIXELS_PER_INCH;
+  
+  // Calculate scale to fit canvas in container
+  useEffect(() => {
+    const updateSize = () => {
+      if (!containerRef.current) return;
+      
+      const container = containerRef.current;
+      const containerWidth = container.clientWidth - 64;
+      const containerHeight = container.clientHeight - 64;
+      
+      const scaleX = containerWidth / canvasWidthPx;
+      const scaleY = containerHeight / canvasHeightPx;
+      const newScale = Math.min(scaleX, scaleY, 1);
+      
+      setScale(newScale);
+      setStageSize({
+        width: container.clientWidth,
+        height: container.clientHeight,
+      });
+      
+      setStagePos({
+        x: (container.clientWidth - canvasWidthPx * newScale) / 2,
+        y: (container.clientHeight - canvasHeightPx * newScale) / 2,
+      });
+    };
+    
+    updateSize();
+    window.addEventListener('resize', updateSize);
+    return () => window.removeEventListener('resize', updateSize);
+  }, [canvasWidthPx, canvasHeightPx]);
+  
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return;
+      }
+      
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const cmdOrCtrl = isMac ? e.metaKey : e.ctrlKey;
+      
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        deleteSelected();
+      }
+      
+      if (cmdOrCtrl && e.key === 'd') {
+        e.preventDefault();
+        duplicateSelected();
+      }
+      
+      if (cmdOrCtrl && e.key === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        if (canUndo()) undo();
+      }
+      
+      if (cmdOrCtrl && e.shiftKey && e.key === 'z') {
+        e.preventDefault();
+        if (canRedo()) redo();
+      }
+      
+      if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+        e.preventDefault();
+        const step = e.shiftKey ? 10 : 1;
+        const stepInches = step / PIXELS_PER_INCH;
+        
+        switch (e.key) {
+          case 'ArrowUp':
+            moveSelected(0, -stepInches);
+            break;
+          case 'ArrowDown':
+            moveSelected(0, stepInches);
+            break;
+          case 'ArrowLeft':
+            moveSelected(-stepInches, 0);
+            break;
+          case 'ArrowRight':
+            moveSelected(stepInches, 0);
+            break;
+        }
+      }
+    };
+    
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [deleteSelected, duplicateSelected, undo, redo, canUndo, canRedo, moveSelected]);
+  
+  // Update transformer when selection changes
+  useEffect(() => {
+    if (!transformerRef.current || !stageRef.current) return;
+    
+    const transformer = transformerRef.current;
+    const stage = stageRef.current;
+    
+    if (selectedIds.length === 0) {
+      transformer.nodes([]);
+    } else {
+      const nodes = selectedIds
+        .map(id => stage.findOne(`#${id}`))
+        .filter(node => node !== null) as Konva.Node[];
+      transformer.nodes(nodes);
+    }
+    
+    const layer = transformer.getLayer();
+    if (layer) {
+      layer.batchDraw();
+    }
+  }, [selectedIds]);
+  
+  const handleStageClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
+    if (e.target === e.target.getStage()) {
+      clearSelection();
+    }
+  };
+  
+  const handleObjectClick = (id: string, e: Konva.KonvaEventObject<MouseEvent>) => {
+    e.cancelBubble = true;
+    const addToSelection = e.evt.shiftKey || e.evt.metaKey || e.evt.ctrlKey;
+    selectObject(id, addToSelection);
+  };
+  
+  // Helper function to constrain object within canvas boundaries
+  const constrainToBounds = (x: number, y: number, width: number, height: number) => {
+    const minX = 0;
+    const minY = 0;
+    const maxX = widthIn - width;
+    const maxY = heightIn - height;
+    
+    const constrainedX = Math.max(minX, Math.min(maxX, x));
+    const constrainedY = Math.max(minY, Math.min(maxY, y));
+    
+    const isOutOfBounds = x < minX || y < minY || x > maxX || y > maxY;
+    
+    return { x: constrainedX, y: constrainedY, isOutOfBounds };
+  };
+  
+  // Create drag bound function for an object to constrain it during dragging
+  const createDragBoundFunc = (id: string) => {
+    return (pos: { x: number; y: number }) => {
+      const obj = objects.find(o => o.id === id);
+      if (!obj) return pos;
+      
+      // Get object dimensions
+      let objWidth: number;
+      let objHeight: number;
+      
+      if (obj.type === 'image' || obj.type === 'shape') {
+        objWidth = (obj as any).width || 1;
+        objHeight = (obj as any).height || 1;
+        
+        // For circles and triangles (RegularPolygon), the position is at the center
+        // and the radius extends in all directions, so we need to account for that
+        if (obj.type === 'shape' && ((obj as any).shapeType === 'circle' || (obj as any).shapeType === 'triangle')) {
+          // For circles/triangles, the x,y is the CENTER, not top-left
+          // So we need to constrain differently
+          const radius = objWidth / 2;
+          
+          // For triangles, the bounding box is actually larger than the radius
+          // A RegularPolygon with sides=3 has vertices that extend beyond the radius
+          // The vertical extent is approximately radius * 1.5 (from center to bottom vertex)
+          let verticalRadius = radius;
+          let horizontalRadius = radius;
+          
+          if ((obj as any).shapeType === 'triangle') {
+            // Triangle vertices extend further vertically
+            // Top vertex is at -radius, bottom edge is at +radius*1.5
+            verticalRadius = radius * 1.5;
+            horizontalRadius = radius * 1.15; // Slightly wider for the base
+          }
+          
+          // Convert screen position to inches (this is the CENTER position)
+          const centerXInches = (pos.x - stagePos.x) / (PIXELS_PER_INCH * scale);
+          const centerYInches = (pos.y - stagePos.y) / (PIXELS_PER_INCH * scale);
+          
+          // Constrain the center position so the shape doesn't go outside
+          const minX = horizontalRadius;
+          const minY = verticalRadius;
+          const maxX = widthIn - horizontalRadius;
+          const maxY = heightIn - verticalRadius;
+          
+          const constrainedCenterX = Math.max(minX, Math.min(maxX, centerXInches));
+          const constrainedCenterY = Math.max(minY, Math.min(maxY, centerYInches));
+          
+          // Convert back to screen coordinates
+          const constrainedX = stagePos.x + constrainedCenterX * PIXELS_PER_INCH * scale;
+          const constrainedY = stagePos.y + constrainedCenterY * PIXELS_PER_INCH * scale;
+          
+          const wasConstrained = centerXInches < minX || centerYInches < minY || centerXInches > maxX || centerYInches > maxY;
+          
+          console.log('[DRAG BOUND - CIRCLE/TRIANGLE]', { 
+            id,
+            shapeType: (obj as any).shapeType,
+            radius,
+            verticalRadius,
+            horizontalRadius,
+            center: { x: centerXInches, y: centerYInches },
+            constrained: { x: constrainedCenterX, y: constrainedCenterY },
+            bounds: { minX, minY, maxX, maxY },
+            wasConstrained
+          });
+          
+          return { x: constrainedX, y: constrainedY };
+        }
+      } else {
+        // For text, we can't easily get dimensions here, so allow free movement
+        // and constrain in dragEnd
+        return pos;
+      }
+      
+      // For rectangles, images, and other shapes with top-left positioning
+      // Convert screen position to inches
+      const xInches = (pos.x - stagePos.x) / (PIXELS_PER_INCH * scale);
+      const yInches = (pos.y - stagePos.y) / (PIXELS_PER_INCH * scale);
+      
+      // Constrain to bounds
+      const constrained = constrainToBounds(xInches, yInches, objWidth, objHeight);
+      
+      // Convert back to screen coordinates
+      const constrainedX = stagePos.x + constrained.x * PIXELS_PER_INCH * scale;
+      const constrainedY = stagePos.y + constrained.y * PIXELS_PER_INCH * scale;
+      
+      console.log('[DRAG BOUND]', { 
+        id, 
+        original: { x: pos.x, y: pos.y }, 
+        constrained: { x: constrainedX, y: constrainedY },
+        wasConstrained: constrained.isOutOfBounds
+      });
+      
+      return { x: constrainedX, y: constrainedY };
+    };
+  };
+  
+  const handleObjectDragEnd = (id: string, e: Konva.KonvaEventObject<DragEvent>) => {
+    const node = e.target;
+    
+    console.log('[DRAG END] ========== START ==========');
+    console.log('[DRAG END] Object ID:', id);
+    console.log('[DRAG END] Node position (screen px):', { x: node.x(), y: node.y() });
+    console.log('[DRAG END] Stage offset:', { x: stagePos.x, y: stagePos.y, scale });
+    
+    // Account for stage offset and scale
+    let newX = (node.x() - stagePos.x) / (PIXELS_PER_INCH * scale);
+    let newY = (node.y() - stagePos.y) / (PIXELS_PER_INCH * scale);
+    
+    console.log('[DRAG END] Calculated position (inches):', { x: newX, y: newY });
+    
+    // NOTE: We don't need to re-constrain here because dragBoundFunc already
+    // constrained the position during dragging. Just save the final position.
+    // Re-constraining here can cause snapping issues.
+    
+    const obj = objects.find(o => o.id === id);
+    if (obj) {
+      console.log('[DRAG END] Object type:', obj.type);
+      if (obj.type === 'shape') {
+        console.log('[DRAG END] Shape type:', (obj as any).shapeType);
+      }
+    }
+    
+    console.log('[DRAG END] Final position to save (inches):', { x: newX, y: newY });
+    console.log('[DRAG END] ========== END ==========');
+    updateObject(id, { x: newX, y: newY });
+  };
+  
+  const handleObjectTransformEnd = (id: string, e: Konva.KonvaEventObject<Event>) => {
+    const node = e.target;
+    console.log("[TRANSFORM START] Object:", id);
+    const scaleX = node.scaleX();
+    const scaleY = node.scaleY();
+    
+    // Account for stage offset and scale
+    const newX = (node.x() - stagePos.x) / (PIXELS_PER_INCH * scale);
+    const newY = (node.y() - stagePos.y) / (PIXELS_PER_INCH * scale);
+    
+    // Find the object to determine its type
+    const obj = objects.find(o => o.id === id);
+    
+    node.scaleX(1);
+    node.scaleY(1);
+    
+    // Handle text objects differently - scale fontSize instead of width/height
+    if (obj?.type === 'text') {
+      const currentFontSize = (obj as any).fontSize || 32;
+      const newFontSize = currentFontSize * scaleY;
+      
+      updateObject(id, {
+        x: newX,
+        y: newY,
+        fontSize: newFontSize,
+        rotation: node.rotation(),
+      });
+    } else if (obj?.type === 'shape' && ((obj as any).shapeType === 'line' || (obj as any).shapeType === 'arrow')) {
+      // For lines and arrows, only update width (they're horizontal)
+      // The height should remain small (0.1 inches)
+      let newWidth = (node.width() * scaleX) / (PIXELS_PER_INCH * scale);
+      const newHeight = 0.1; // Keep height constant for lines/arrows
+      
+      // Constrain to canvas bounds
+      const constrained = constrainToBounds(newX, newY, newWidth, newHeight);
+      
+      // If out of bounds, limit the size
+      if (constrained.isOutOfBounds) {
+        newWidth = Math.min(newWidth, widthIn - constrained.x);
+      }
+      
+      console.log("[TRANSFORM LINE/ARROW] x:", constrained.x, "y:", constrained.y, "width:", newWidth, "height:", newHeight);
+      updateObject(id, {
+        x: constrained.x,
+        y: constrained.y,
+        width: newWidth,
+        height: newHeight,
+        rotation: node.rotation(),
+      });
+    } else {
+      // For shapes and images, update width/height with boundary constraints
+      let newWidth = (node.width() * scaleX) / (PIXELS_PER_INCH * scale);
+      let newHeight = (node.height() * scaleY) / (PIXELS_PER_INCH * scale);
+      
+      // Constrain to canvas bounds
+      const constrained = constrainToBounds(newX, newY, newWidth, newHeight);
+      
+      // If out of bounds, limit the size
+      if (constrained.isOutOfBounds) {
+        newWidth = Math.min(newWidth, widthIn - constrained.x);
+        newHeight = Math.min(newHeight, heightIn - constrained.y);
+      }
+      
+      console.log("[TRANSFORM] Shape - x:", constrained.x, "y:", constrained.y, "width:", newWidth, "height:", newHeight);
+      updateObject(id, {
+        x: constrained.x,
+        y: constrained.y,
+        width: newWidth,
+        height: newHeight,
+        rotation: node.rotation(),
+      });
+    }
+  };
+  
+  // Calculate grommet positions
+  const grommetPositions = showGrommets && grommets !== 'none' 
+    ? grommetPoints(widthIn, heightIn, grommets)
+    : [];
+  
+  return (
+    <Card ref={containerRef} className="w-full h-full bg-gray-100 overflow-hidden relative">
+      <Stage
+        ref={stageRef}
+        width={stageSize.width}
+        height={stageSize.height}
+        onClick={handleStageClick}
+        onTap={handleStageClick}
+      >
+        <Layer>
+          {/* Background */}
+          <Rect
+            x={stagePos.x}
+            y={stagePos.y}
+            width={canvasWidthPx * scale}
+            height={canvasHeightPx * scale}
+            fill={canvasBackgroundColor || "white"}
+            shadowColor="black"
+            shadowBlur={10}
+            shadowOpacity={0.2}
+            shadowOffset={{ x: 0, y: 2 }}
+          />
+          
+          {/* Grid */}
+          {showGrid && (
+            <>
+              {Array.from({ length: Math.ceil(widthIn / gridSize) + 1 }).map((_, i) => (
+                <Line
+                  key={`grid-v-${i}`}
+                  points={[
+                    stagePos.x + i * gridSize * PIXELS_PER_INCH * scale,
+                    stagePos.y,
+                    stagePos.x + i * gridSize * PIXELS_PER_INCH * scale,
+                    stagePos.y + canvasHeightPx * scale,
+                  ]}
+                  stroke="#e0e0e0"
+                  strokeWidth={1}
+                  listening={false}
+                />
+              ))}
+              {Array.from({ length: Math.ceil(heightIn / gridSize) + 1 }).map((_, i) => (
+                <Line
+                  key={`grid-h-${i}`}
+                  points={[
+                    stagePos.x,
+                    stagePos.y + i * gridSize * PIXELS_PER_INCH * scale,
+                    stagePos.x + canvasWidthPx * scale,
+                    stagePos.y + i * gridSize * PIXELS_PER_INCH * scale,
+                  ]}
+                  stroke="#e0e0e0"
+                  strokeWidth={1}
+                  listening={false}
+                />
+              ))}
+            </>
+          )}
+          
+          {/* Bleed area */}
+          {showBleed && (
+            <Rect
+              x={stagePos.x}
+              y={stagePos.y}
+              width={canvasWidthPx * scale}
+              height={canvasHeightPx * scale}
+              stroke="#ff0000"
+              strokeWidth={2}
+              dash={[5, 5]}
+              listening={false}
+            />
+          )}
+          
+          {/* Safe zone */}
+          {showSafeZone && (
+            <Rect
+              x={stagePos.x + safeZoneMargin * PIXELS_PER_INCH * scale}
+              y={stagePos.y + safeZoneMargin * PIXELS_PER_INCH * scale}
+              width={(widthIn - safeZoneMargin * 2) * PIXELS_PER_INCH * scale}
+              height={(heightIn - safeZoneMargin * 2) * PIXELS_PER_INCH * scale}
+              stroke="#0066ff"
+              strokeWidth={2}
+              dash={[10, 5]}
+              listening={false}
+            />
+          )}
+          
+          {/* Grommets */}
+          {grommetPositions.map((pos, idx) => (
+            <Circle
+              key={`grommet-${idx}`}
+              x={stagePos.x + pos.x * PIXELS_PER_INCH * scale}
+              y={stagePos.y + pos.y * PIXELS_PER_INCH * scale}
+              radius={4 * scale}
+              fill="#666"
+              stroke="#333"
+              strokeWidth={1}
+              listening={false}
+            />
+          ))}
+          
+          {/* Canvas objects */}
+          {objects
+            .filter(obj => obj.visible)
+            .sort((a, b) => a.zIndex - b.zIndex)
+            .map(obj => {
+              if (obj.type === 'image') {
+                console.log('[IMAGE OBJECT]', obj);
+                console.log('[RENDER] Image position from store:', { x: obj.x, y: obj.y });
+                console.log('[RENDER] isPDF flag:', (obj as any).isPDF);
+                
+                // Check if this is a PDF - use placeholder instead
+                if ((obj as any).isPDF) {
+                  console.log('[RENDER] Rendering PDF placeholder for:', obj.id);
+                  return (
+                    <PDFPlaceholder
+                      key={obj.id}
+                      id={obj.id}
+                      x={stagePos.x + obj.x * PIXELS_PER_INCH * scale}
+                      y={stagePos.y + obj.y * PIXELS_PER_INCH * scale}
+                      width={obj.width * PIXELS_PER_INCH * scale}
+                      height={obj.height * PIXELS_PER_INCH * scale}
+                      rotation={obj.rotation}
+                      opacity={obj.opacity}
+                      draggable={!obj.locked}
+                      dragBoundFunc={createDragBoundFunc(obj.id)}
+                      onClick={(e) => handleObjectClick(obj.id, e)}
+                      onTap={(e) => handleObjectClick(obj.id, e)}
+                      onDragEnd={(e) => handleObjectDragEnd(obj.id, e)}
+                      onTransformEnd={(e) => handleObjectTransformEnd(obj.id, e)}
+                    />
+                  );
+                }
+                
+                return (
+                  <CanvasImage
+                    key={obj.id}
+                    id={obj.id}
+                    url={obj.url}
+                    x={stagePos.x + obj.x * PIXELS_PER_INCH * scale}
+                    y={stagePos.y + obj.y * PIXELS_PER_INCH * scale}
+                    width={obj.width * PIXELS_PER_INCH * scale}
+                    height={obj.height * PIXELS_PER_INCH * scale}
+                    rotation={obj.rotation}
+                    opacity={obj.opacity}
+                    draggable={!obj.locked}
+                    dragBoundFunc={createDragBoundFunc(obj.id)}
+                    onClick={(e) => handleObjectClick(obj.id, e)}
+                    onTap={(e) => handleObjectClick(obj.id, e)}
+                    onDragEnd={(e) => handleObjectDragEnd(obj.id, e)}
+                    onTransformEnd={(e) => handleObjectTransformEnd(obj.id, e)}
+                  />
+                );
+              }
+              
+              if (obj.type === 'text') {
+                return (
+                  <KonvaText
+                    key={obj.id}
+                    id={obj.id}
+                    x={stagePos.x + obj.x * PIXELS_PER_INCH * scale}
+                    y={stagePos.y + obj.y * PIXELS_PER_INCH * scale}
+                    text={obj.content}
+                    fontSize={obj.fontSize * scale}
+                    fontFamily={obj.fontFamily}
+                    fill={obj.color}
+                    fontStyle={`${obj.fontWeight} ${obj.fontStyle}`}
+                    textDecoration={obj.textDecoration}
+                    align={obj.textAlign}
+                    opacity={obj.opacity}
+                    rotation={obj.rotation}
+                    draggable={!obj.locked}
+                    onClick={(e) => handleObjectClick(obj.id, e)}
+                    onTap={(e) => handleObjectClick(obj.id, e)}
+                    onDragEnd={(e) => handleObjectDragEnd(obj.id, e)}
+                    onTransformEnd={(e) => handleObjectTransformEnd(obj.id, e)}
+                  />
+                );
+              }
+              
+              if (obj.type === 'shape') {
+                const shapeProps = {
+                  id: obj.id,
+                  x: stagePos.x + obj.x * PIXELS_PER_INCH * scale,
+                  y: stagePos.y + obj.y * PIXELS_PER_INCH * scale,
+                  width: obj.width * PIXELS_PER_INCH * scale,
+                  height: obj.height * PIXELS_PER_INCH * scale,
+                  fill: obj.fill,
+                  stroke: obj.stroke,
+                  strokeWidth: obj.strokeWidth * scale,
+                  opacity: obj.opacity,
+                  rotation: obj.rotation,
+                  draggable: !obj.locked,
+                  dragBoundFunc: createDragBoundFunc(obj.id),
+                  onClick: (e: Konva.KonvaEventObject<MouseEvent>) => handleObjectClick(obj.id, e),
+                  onTap: (e: Konva.KonvaEventObject<MouseEvent>) => handleObjectClick(obj.id, e),
+                  onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => handleObjectDragEnd(obj.id, e),
+                  onTransformEnd: (e: Konva.KonvaEventObject<Event>) => handleObjectTransformEnd(obj.id, e),
+                };
+                
+                if (obj.shapeType === 'rect') {
+                  return <Rect key={obj.id} {...shapeProps} cornerRadius={obj.cornerRadius ? obj.cornerRadius * scale : 0} />;
+                } else if (obj.shapeType === 'circle') {
+                  return <Circle key={obj.id} {...shapeProps} radius={(obj.width * PIXELS_PER_INCH * scale) / 2} />;
+                } else if (obj.shapeType === 'triangle') {
+                  return <RegularPolygon key={obj.id} {...shapeProps} sides={3} radius={(obj.width * PIXELS_PER_INCH * scale) / 2} />;
+                } else if (obj.shapeType === 'line') {
+                  return (
+                    <Line
+                      key={obj.id}
+                      {...shapeProps}
+                      points={[0, 0, obj.width * PIXELS_PER_INCH * scale, 0]}
+                      hitStrokeWidth={20}
+                    />
+                  );
+                } else if (obj.shapeType === 'arrow') {
+                  return (
+                    <Arrow
+                      key={obj.id}
+                      {...shapeProps}
+                      points={[0, 0, obj.width * PIXELS_PER_INCH * scale, 0]}
+                      pointerLength={10 * scale}
+                      pointerWidth={10 * scale}
+                      hitStrokeWidth={20}
+                    />
+                  );
+                }
+              }
+              
+              return null;
+            })}
+          
+          {/* Transformer */}
+          <Transformer
+            ref={transformerRef}
+            boundBoxFunc={(oldBox, newBox) => {
+              if (newBox.width < 5 || newBox.height < 5) {
+                return oldBox;
+              }
+              return newBox;
+            }}
+          />
+        </Layer>
+      </Stage>
+      
+      {/* Dimension label */}
+      <div className="absolute bottom-4 right-4 bg-white px-3 py-2 rounded shadow text-sm font-medium text-gray-700">
+        {widthIn}" × {heightIn}"
+      </div>
+    </Card>
+  );
+};
+
+export default React.forwardRef(EditorCanvas);

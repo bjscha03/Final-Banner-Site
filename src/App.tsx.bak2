@@ -9,6 +9,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import Index from "./pages/Index";
 import DesignComplete from "./pages/DesignComplete";
 import Design from "./pages/Design";
+import DesignEditor from "./pages/DesignEditor";
 import About from "./pages/About";
 import FAQ from "./pages/FAQ";
 import Contact from "./pages/Contact";

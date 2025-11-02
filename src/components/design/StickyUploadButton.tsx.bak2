@@ -102,6 +102,7 @@ const StickyUploadButton: React.FC<StickyUploadButtonProps> = ({ isAIModalOpen =
             artworkHeight,
           },
         });
+        });
 
         console.log('✅ [StickyUploadButton] File saved to quote store:', {
           url: result.secureUrl,

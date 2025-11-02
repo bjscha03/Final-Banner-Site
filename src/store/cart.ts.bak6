@@ -102,6 +102,7 @@ export interface CartState {
   updateCartItem: (itemId: string, quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => void;
   removeItem: (id: string) => void;
   clearCart: () => void;
+  clearCartLocal: () => void;  // Clear cart in memory only, without syncing to server
   applyDiscountCode: (discount: DiscountCode) => void;
   removeDiscountCode: () => void;
   getDiscountAmountCents: () => number;
@@ -223,6 +224,33 @@ export const useCartStore = create<CartState>()(
         const pole_pocket_pricing_mode: PricingMode = pricing?.pole_pocket_pricing_mode ?? 'per_item';
         const line_total_cents = pricing?.line_total_cents ?? computedLine;
 
+        // Use the file key from the uploaded file
+        const fileKey = quote.file?.fileKey;
+
+        const newItem: CartItem = {
+          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          width_in: quote.widthIn,
+          height_in: quote.heightIn,
+          quantity: quote.quantity,
+          material: quote.material,
+          grommets: quote.grommets,
+          pole_pockets: quote.polePockets,
+          pole_pocket_size: quote.polePocketSize,
+          pole_pocket_position: quote.polePockets,
+          rope_feet: ropeFeet,
+          area_sqft: area,
+          unit_price_cents,
+          rope_cost_cents,
+          rope_pricing_mode,
+          pole_pocket_cost_cents,
+          pole_pocket_pricing_mode,
+          line_total_cents,
+          file_key: fileKey,
+          file_name: quote.file?.name,
+          // CRITICAL: Never save blob URLs - they don't persist across sessions
+          file_url: (quote.file?.url?.startsWith('blob:') ? null : quote.file?.url) || aiMetadata?.assets?.proofUrl || null,
+          web_preview_url: (aiMetadata?.assets?.proofUrl?.startsWith('blob:') ? null : aiMetadata?.assets?.proofUrl) || null,
+          print_ready_url: (aiMetadata?.assets?.finalUrl?.startsWith('blob:') ? null : aiMetadata?.assets?.finalUrl) || null,
           is_pdf: quote.file?.isPdf || false,
           text_elements: quote.textElements && quote.textElements.length > 0 ? quote.textElements : undefined,
           overlay_image: quote.overlayImage ? {
@@ -423,6 +451,18 @@ export const useCartStore = create<CartState>()(
         set({ items: [], discountCode: null });
       // Sync to Neon database IMMEDIATELY (critical for persistence)
       get().syncToServer();
+      },
+
+      clearCartLocal: () => {
+        console.log("🧹 clearCartLocal: Clearing cart in memory ONLY (no server sync)");
+        set({ items: [], discountCode: null });
+        console.log("✅ clearCartLocal: Cart cleared locally");
+      },
+
+      clearCartLocal: () => {
+        console.log("🧹 clearCartLocal: Clearing cart in memory ONLY (no server sync)");
+        set({ items: [], discountCode: null });
+        console.log("✅ clearCartLocal: Cart cleared locally");
       },
 
       applyDiscountCode: (discount: DiscountCode) => {

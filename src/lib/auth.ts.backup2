@@ -33,6 +33,17 @@ class SecureAuthAdapter implements AuthAdapter {
         storedUser: user ? { id: user.id, email: user.email, is_admin: user.is_admin } : null
       });
 
+
+      // 🔧 MIGRATION: Update old demo user IDs to valid UUIDs
+      if (user && (user.id === 'admin_dev_user' || user.id === 'demo-user-123')) {
+        console.log('🔄 Migrating old user ID to valid UUID:', user.id);
+        const newId = user.id === 'admin_dev_user' 
+          ? '00000000-0000-0000-0000-000000000001'
+          : '00000000-0000-0000-0000-000000000002';
+        user.id = newId;
+        safeStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
+        console.log('✅ Migrated user ID to:' , newId);
+      }
       // If no user but admin cookie is present, create a temporary admin user
       if (!user && hasAdminCookie) {
         console.log('🆕 Creating temporary admin user from cookie');
@@ -84,6 +95,12 @@ class SecureAuthAdapter implements AuthAdapter {
 
       console.log('✅ Secure sign-in successful for:', user.email);
       safeStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
+      
+      // Dispatch custom event to notify useAuth hook
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('user-changed'));
+      }
+      
       return user;
 
     } catch (error) {
@@ -103,9 +120,14 @@ class SecureAuthAdapter implements AuthAdapter {
         body: JSON.stringify({ email, password, fullName, username })
       });
 
+      console.log('🔍 SIGN UP: Response status:', response.status, response.ok);
+      
       const result = await response.json();
+      
+      console.log('🔍 SIGN UP: Response body:', result);
 
       if (!response.ok || !result.ok) {
+        console.error('❌ SIGN UP: Failed -', 'response.ok:', response.ok, 'result.ok:', result.ok, 'error:', result.error);
         throw new Error(result.error || 'Sign-up failed');
       }
 
@@ -124,7 +146,7 @@ class SecureAuthAdapter implements AuthAdapter {
       return user;
 
     } catch (error) {
-      console.error('Sign-up failed:', error);
+      console.error('❌ SIGN UP: Exception caught:', error);
       throw error;
     }
   }
@@ -132,12 +154,23 @@ class SecureAuthAdapter implements AuthAdapter {
   async signOut(): Promise<void> {
     // Remove user from localStorage
     safeStorage.removeItem(this.CURRENT_USER_KEY);
+    
+    // Remove cart owner ID from localStorage
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('cart_owner_user_id');
+      console.log('🚪 Cleared cart owner ID from localStorage');
+    }
 
     // Clear admin cookie if it exists
     if (typeof document !== 'undefined') {
       // Set the admin cookie to expire immediately
       document.cookie = 'admin=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax';
       console.log('🍪 Cleared admin cookie during logout');
+    }
+    
+    // Dispatch custom event to notify useAuth hook
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new Event('user-changed'));
     }
   }
 }
@@ -185,6 +218,29 @@ export function useAuth() {
   const loadUser = async () => {
     try {
       const currentUser = await getCurrentUser();
+
+    // CRITICAL: Listen for storage changes to detect login/logout from other tabs or after navigation
+    // This ensures useCartSync hook gets updated user state immediately
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'banners_current_user') {
+        console.log('🔄 useAuth: Storage change detected, reloading user');
+        loadUser();
+      }
+    };
+
+    // Also listen for custom events (for same-tab changes)
+    const handleUserChange = () => {
+      console.log('🔄 useAuth: User change event detected, reloading user');
+      loadUser();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('user-changed', handleUserChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('user-changed', handleUserChange);
+    };
       setUser(currentUser);
     } catch (error) {
       console.error('Error loading user:', error);
@@ -196,6 +252,54 @@ export function useAuth() {
 
   useEffect(() => {
     loadUser();
+
+    // CRITICAL: Listen for storage changes to detect login/logout from other tabs or after navigation
+    // This ensures useCartSync hook gets updated user state immediately
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'banners_current_user') {
+        console.log('🔄 useAuth: Storage change detected, reloading user');
+        loadUser();
+      }
+    };
+
+    // Also listen for custom events (for same-tab changes)
+    const handleUserChange = () => {
+      console.log('🔄 useAuth: User change event detected, reloading user');
+      loadUser();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('user-changed', handleUserChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('user-changed', handleUserChange);
+    };
+  }, []);
+
+    // CRITICAL: Listen for storage changes to detect login/logout from other tabs or after navigation
+    // This ensures useCartSync hook gets updated user state immediately
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'banners_current_user') {
+        console.log('🔄 useAuth: Storage change detected, reloading user');
+        loadUser();
+      }
+    };
+
+    // Also listen for custom events (for same-tab changes)
+    const handleUserChange = () => {
+      console.log('🔄 useAuth: User change event detected, reloading user');
+      loadUser();
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    window.addEventListener('user-changed', handleUserChange);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('user-changed', handleUserChange);
+    };
+  }, []);
   }, []);
 
   const handleSignIn = async (email: string, password: string) => {

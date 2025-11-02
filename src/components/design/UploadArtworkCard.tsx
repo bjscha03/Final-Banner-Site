@@ -126,15 +126,40 @@ const UploadArtworkCard: React.FC = () => {
         result = await handleFunctionUpload(file);
       }
 
-      if (result.success) {
+      if (result.secureUrl) {
+        // Get image dimensions for non-PDF files
+        let artworkWidth, artworkHeight;
+        if (file.type.startsWith('image/')) {
+          const img = new Image();
+          const imgLoadPromise = new Promise((resolve) => {
+            img.onload = () => {
+              artworkWidth = img.naturalWidth;
+              artworkHeight = img.naturalHeight;
+              resolve(null);
+            };
+          });
+          img.src = result.secureUrl;
+          await imgLoadPromise;
+        }
+
         set({
           file: {
-            name: result.filename,
-            url: result.url,
-            size: result.size,
+            name: file.name,
+            url: result.secureUrl,
+            size: file.size,
+            fileKey: result.fileKey || result.publicId,
+            isPdf: file.type === 'application/pdf',
+            artworkWidth,
+            artworkHeight,
           },
         });
         setUploadError('');
+        console.log('✅ File uploaded successfully:', {
+          url: result.secureUrl,
+          fileKey: result.fileKey || result.publicId,
+          isPdf: file.type === 'application/pdf',
+          dimensions: artworkWidth && artworkHeight ? `${artworkWidth}x${artworkHeight}` : 'N/A'
+        });
       } else {
         setUploadError(result.error || 'Upload failed. Please try again.');
       }

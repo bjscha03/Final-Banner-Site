@@ -9,6 +9,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import Index from "./pages/Index";
 import DesignComplete from "./pages/DesignComplete";
 import Design from "./pages/Design";
+import DesignEditor from "./pages/DesignEditor";
 import About from "./pages/About";
 import FAQ from "./pages/FAQ";
 import Contact from "./pages/Contact";
@@ -98,6 +99,7 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/design" element={<Design />} />
+            <Route path="/design-editor" element={<DesignEditor />} />
             <Route path="/halloween-banner" element={<Design />} />
             <Route path="/design/complete" element={<DesignComplete />} />
             <Route path="/design/canva-editor" element={<CanvaEditor />} />
