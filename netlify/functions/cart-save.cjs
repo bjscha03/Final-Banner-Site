@@ -44,39 +44,35 @@ exports.handler = async (event, context) => {
     const cartDataJson = JSON.stringify(cartData);
 
     if (userId) {
-      // Save authenticated user's cart
+      // BULLETPROOF: Delete ALL active carts for this user first, then insert new one
+      console.log('[cart-save] Deleting all active carts for user:', userId);
       await sql`
-        WITH archived AS (
-          UPDATE user_carts
-          SET status = 'archived', updated_at = NOW()
-          WHERE user_id = ${userId} AND status = 'active'
-          RETURNING id
-        )
+        DELETE FROM user_carts
+        WHERE user_id = ${userId} AND status = 'active'
+      `;
+      
+      console.log('[cart-save] Inserting new cart for user:', userId);
+      await sql`
         INSERT INTO user_carts (user_id, cart_data, status, updated_at, last_accessed_at)
         VALUES (${userId}, ${cartDataJson}::jsonb, 'active', NOW(), NOW())
-        ON CONFLICT (user_id) WHERE status = 'active' AND user_id IS NOT NULL
-        DO UPDATE SET
-          cart_data = EXCLUDED.cart_data,
-          updated_at = EXCLUDED.updated_at,
-          last_accessed_at = EXCLUDED.last_accessed_at
       `;
+      
+      console.log('[cart-save] Cart saved successfully for user:', userId);
     } else if (sessionId) {
-      // Save guest cart
+      // BULLETPROOF: Delete ALL active carts for this session first, then insert new one
+      console.log('[cart-save] Deleting all active carts for session:', sessionId);
       await sql`
-        WITH archived AS (
-          UPDATE user_carts
-          SET status = 'archived', updated_at = NOW()
-          WHERE session_id = ${sessionId} AND status = 'active'
-          RETURNING id
-        )
+        DELETE FROM user_carts
+        WHERE session_id = ${sessionId} AND status = 'active'
+      `;
+      
+      console.log('[cart-save] Inserting new cart for session:', sessionId);
+      await sql`
         INSERT INTO user_carts (session_id, cart_data, status, updated_at, last_accessed_at)
         VALUES (${sessionId}, ${cartDataJson}::jsonb, 'active', NOW(), NOW())
-        ON CONFLICT (session_id) WHERE status = 'active' AND session_id IS NOT NULL
-        DO UPDATE SET
-          cart_data = EXCLUDED.cart_data,
-          updated_at = EXCLUDED.updated_at,
-          last_accessed_at = EXCLUDED.last_accessed_at
       `;
+      
+      console.log('[cart-save] Cart saved successfully for session:', sessionId);
     }
 
     console.log('[cart-save] Cart saved successfully');
