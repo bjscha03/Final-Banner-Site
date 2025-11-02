@@ -114,9 +114,14 @@ class SecureAuthAdapter implements AuthAdapter {
         body: JSON.stringify({ email, password, fullName, username })
       });
 
+      console.log('🔍 SIGN UP: Response status:', response.status, response.ok);
+      
       const result = await response.json();
+      
+      console.log('🔍 SIGN UP: Response body:', result);
 
       if (!response.ok || !result.ok) {
+        console.error('❌ SIGN UP: Failed -', 'response.ok:', response.ok, 'result.ok:', result.ok, 'error:', result.error);
         throw new Error(result.error || 'Sign-up failed');
       }
 
@@ -135,7 +140,7 @@ class SecureAuthAdapter implements AuthAdapter {
       return user;
 
     } catch (error) {
-      console.error('Sign-up failed:', error);
+      console.error('❌ SIGN UP: Exception caught:', error);
       throw error;
     }
   }
