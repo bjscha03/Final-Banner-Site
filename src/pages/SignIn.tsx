@@ -13,7 +13,6 @@ import GoogleButton from '@/components/auth/GoogleButton';
 import { useCheckoutContext } from '@/store/checkoutContext';
 import { trackLogin } from '@/lib/analytics';
 
-import { useCartStore } from '@/store/cart';
 const SignIn: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -82,10 +81,6 @@ const SignIn: React.FC = () => {
     try {
       await signIn(email, password);
 
-      console.log('🔥 SIGN IN SUCCESS - Clearing cart store IMMEDIATELY');
-      // CRITICAL: Clear the Zustand cart store IMMEDIATELY to prevent showing old user's items
-      useCartStore.getState().clearCartLocal();
-      console.log('✅ Cart store cleared - items should be empty now');
 
       
       // Track login event

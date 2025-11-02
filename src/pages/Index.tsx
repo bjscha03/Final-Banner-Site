@@ -10,7 +10,6 @@ import TestimonialsSection from '@/components/TestimonialsSection';
 import WhyChooseUs from '@/components/WhyChooseUs';
 import PromoBanner from '@/components/PromoBanner';
 import PricingTable from '@/components/PricingTable';
-import { useCartStore } from '@/store/cart';
 
 const Index: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -24,10 +23,6 @@ const Index: React.FC = () => {
     if (oauthSuccess === 'success' && provider) {
       console.log(`✅ OAuth success detected for ${provider}`);
       
-      console.log('🔥 OAUTH SUCCESS - Clearing cart store IMMEDIATELY');
-      // CRITICAL: Clear the Zustand cart store IMMEDIATELY to prevent showing old user's items
-      useCartStore.getState().clearCartLocal();
-      console.log('✅ Cart store cleared for OAuth login');
       
       // Give extra time for localStorage to be read by auth system
       setTimeout(() => {
