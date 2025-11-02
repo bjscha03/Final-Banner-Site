@@ -119,6 +119,11 @@ export function useCartSync() {
         // The loadFromServer() function will handle saving local cart if it belongs to current user
         console.log('👤 No guest session, loading user cart from database...');
         hasMergedRef.current = false;
+        
+        // CRITICAL: Clear cart IMMEDIATELY to prevent showing wrong user's items
+        console.log('🧹 IMMEDIATE CLEAR: Clearing cart before loading from server');
+        clearCart();
+        
         loadFromServer();
       }
     }
