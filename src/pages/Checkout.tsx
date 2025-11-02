@@ -695,13 +695,24 @@ const Checkout: React.FC = () => {
                     </Button>
                     <Button
                       variant="link"
-                      onClick={() => {
-                        // CRITICAL FIX: Set checkout context with guest session ID before navigating
+                      onClick={async () => {
+                        // CRITICAL FIX: Save guest cart to database before navigating to sign-in
                         const guestSessionId = cartSyncService.getSessionId();
-                        console.log('🛒 CHECKOUT: Setting checkout context before sign-in', {
-                          guestSessionId: guestSessionId ? `${guestSessionId.substring(0, 12)}...` : 'none'
+                        console.log('🛒 CHECKOUT: Saving guest cart before sign-in', {
+                          guestSessionId: guestSessionId ? `${guestSessionId.substring(0, 12)}...` : 'none',
+                          itemCount: items.length
                         });
+                        
+                        // Save cart to database with session ID
+                        if (items.length > 0 && guestSessionId) {
+                          await cartSyncService.saveCart(items, undefined, guestSessionId);
+                          console.log('✅ CHECKOUT: Guest cart saved to database');
+                        }
+                        
+                        // Set checkout context
                         setCheckoutContext('/checkout', guestSessionId);
+                        
+                        // Navigate to sign-in
                         navigate('/sign-in?from=checkout&next=/checkout');
                       }}
                       className="p-0 h-auto text-[#18448D] underline text-sm"

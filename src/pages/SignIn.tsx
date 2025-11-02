@@ -90,11 +90,12 @@ const SignIn: React.FC = () => {
         description: "You have been signed in successfully.",
       });
 
-      // Clear checkout context after successful sign-in
+      // DON'T clear checkout context here - let useCartSync hook read it first!
+      // The checkout context will be cleared after cart merge is complete
       const fromCheckout = searchParams.get('from') === 'checkout';
       if (fromCheckout && isContextValid()) {
-        console.log('🛒 SIGN IN: Clearing checkout context and redirecting to checkout');
-        clearCheckoutContext();
+        console.log('🛒 SIGN IN: Checkout context preserved for cart merge');
+        // clearCheckoutContext(); // MOVED: Will be cleared by useCartSync after merge
       }
 
       // Small delay to allow cart sync to complete

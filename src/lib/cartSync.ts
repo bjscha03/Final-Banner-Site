@@ -449,6 +449,85 @@ class CartSyncService {
       return false;
     }
   }
+  /**
+   * Merge guest cart with user cart on login
+   * This is called when a guest user signs in from the checkout page
+   * 
+   * @param userId - The user ID of the newly authenticated user
+   * @param guestSessionId - Optional guest session ID (from checkout context or cookie)
+   * @returns The merged cart items
+   */
+  async mergeGuestCartOnLogin(userId: string, guestSessionId?: string): Promise<CartItem[]> {
+    const requestId = this.generateRequestId();
+    
+    try {
+      console.log('🔄 [mergeGuestCartOnLogin] Starting guest cart merge', {
+        userId: userId ? `${userId.substring(0, 8)}...` : null,
+        guestSessionId: guestSessionId ? `${guestSessionId.substring(0, 12)}...` : null,
+      });
+
+      // Get the current session ID if not provided
+      const sessionId = guestSessionId || this.getSessionId();
+      
+      console.log('🔄 [mergeGuestCartOnLogin] Using session ID:', sessionId ? `${sessionId.substring(0, 12)}...` : 'none');
+
+      // Load guest cart from database (by session ID)
+      const guestItems = sessionId ? await this.loadCart(undefined, sessionId) : [];
+      console.log('🔄 [mergeGuestCartOnLogin] Guest cart items:', guestItems.length);
+
+      // Load user's existing cart from database (by user ID)
+      const userItems = await this.loadCart(userId);
+      console.log('🔄 [mergeGuestCartOnLogin] User cart items:', userItems.length);
+
+      // Merge the carts (guest cart + user cart)
+      const mergedItems = this.mergeCartItems(guestItems, userItems);
+      console.log('🔄 [mergeGuestCartOnLogin] Merged cart items:', mergedItems.length);
+
+      // Save merged cart to user's account
+      const success = await this.saveCart(mergedItems, userId);
+      
+      if (success) {
+        console.log('✅ [mergeGuestCartOnLogin] Merged cart saved successfully');
+        
+        // Clear the guest session cookie since cart is now associated with user
+        this.clearSessionCookie();
+        console.log('✅ [mergeGuestCartOnLogin] Guest session cookie cleared');
+        
+        this.logEvent({
+          event: 'CART_MERGE',
+          userId,
+          sessionId,
+          requestId,
+          itemCount: mergedItems.length,
+          success: true,
+          metadata: {
+            guestItemCount: guestItems.length,
+            userItemCount: userItems.length,
+            mergedItemCount: mergedItems.length,
+          },
+        });
+      } else {
+        console.error('❌ [mergeGuestCartOnLogin] Failed to save merged cart');
+      }
+
+      return mergedItems;
+    } catch (error) {
+      console.error('❌ [mergeGuestCartOnLogin] Error merging guest cart:', error);
+      this.logEvent({
+        event: 'CART_MERGE',
+        userId,
+        sessionId: guestSessionId,
+        requestId,
+        success: false,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      
+      // Fallback: just load user's cart
+      return await this.loadCart(userId);
+    }
+  }
+
+
 
   /**
    * Legacy compatibility: merge and sync cart (used by existing code)

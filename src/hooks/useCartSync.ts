@@ -13,7 +13,7 @@ import { useCheckoutContext } from '@/store/checkoutContext';
 export function useCartSync() {
   const { user } = useAuth();
   const { loadFromServer, clearCart } = useCartStore();
-  const { guestSessionId: checkoutGuestSessionId } = useCheckoutContext();
+  const { guestSessionId: checkoutGuestSessionId, clearCheckoutContext } = useCheckoutContext();
   const prevUserIdRef = useRef<string | null>(null);
   const hasMergedRef = useRef<boolean>(false);
   const isSavingRef = useRef<boolean>(false);
@@ -105,6 +105,10 @@ export function useCartSync() {
             
             // Update the store with merged items
             useCartStore.setState({ items: mergedItems });
+            
+            // Clear checkout context after successful merge
+            console.log('🧹 CART SYNC: Clearing checkout context after successful merge');
+            clearCheckoutContext();
           } catch (error) {
             console.error('❌ MERGE: Failed to merge guest cart:', error);
             // Fallback: just load user's cart
