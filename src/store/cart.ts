@@ -653,6 +653,28 @@ export const useCartStore = create<CartState>()(
       onRehydrateStorage: () => (state) => {
         console.log('�� CART STORAGE: Rehydrating from localStorage...');
         
+        // CRITICAL: Check if cart belongs to current user BEFORE rehydrating
+        if (typeof localStorage !== 'undefined') {
+          const cartOwnerId = localStorage.getItem('cart_owner_user_id');
+          const currentUserStr = localStorage.getItem('banners_current_user');
+          const currentUserId = currentUserStr ? JSON.parse(currentUserStr)?.id : null;
+          
+          console.log('💾 CART STORAGE: Cart owner:', cartOwnerId);
+          console.log('💾 CART STORAGE: Current user:', currentUserId);
+          
+          // If cart belongs to different user, CLEAR IT NOW
+          if (cartOwnerId && currentUserId && cartOwnerId !== currentUserId) {
+            console.log('🚨 CART STORAGE: Cart belongs to different user! Clearing localStorage cart.');
+            if (state) {
+              state.items = [];
+              state.discountCode = null;
+            }
+            localStorage.removeItem('cart_owner_user_id');
+            console.log('✅ CART STORAGE: Cart cleared during rehydration');
+            return;
+          }
+        }
+        
         // SAFETY CHECK: DISABLED - useCartSync handles all cart clearing
         // This was causing duplicate clears and race conditions
         // useCartSync is the single source of truth for cart ownership
