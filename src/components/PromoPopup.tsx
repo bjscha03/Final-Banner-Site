@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { X, Mail, Copy, Check, Sparkles } from 'lucide-react';
+import { X, Mail, Copy, Check } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface PromoPopupProps {
@@ -119,10 +119,10 @@ export const PromoPopup = ({ onClose, source }: PromoPopupProps) => {
               <>
                 {/* Header */}
                 <div className="text-center mb-6">
-                  <div className="inline-flex items-center justify-center w-16 h-16 bg-gradient-to-br from-[#18448D] to-[#2563eb] rounded-full mb-4">
-                    <Sparkles className="w-8 h-8 text-white" />
+                  <div className="inline-flex items-center justify-center w-20 h-20 bg-white rounded-full mb-4 p-2">
+                    <img src="/images/logo-icon.svg" alt="Banners on the Fly" className="w-full h-full object-contain" />
                   </div>
-                  <h2 className="text-3xl font-bold text-gray-900 mb-2">
+                  <h2 className="text-3xl font-bold text-[#18448D] mb-2">
                     Get 20% Off!
                   </h2>
                   <p className="text-gray-600">
@@ -145,7 +145,7 @@ export const PromoPopup = ({ onClose, source }: PromoPopupProps) => {
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         placeholder="you@example.com"
-                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#18448D] focus:border-transparent outline-none transition-all"
+                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#ff6b35] focus:border-transparent outline-none transition-all"
                         required
                       />
                     </div>
@@ -158,7 +158,7 @@ export const PromoPopup = ({ onClose, source }: PromoPopupProps) => {
                       id="consent"
                       checked={consent}
                       onChange={(e) => setConsent(e.target.checked)}
-                      className="mt-1 w-4 h-4 text-[#18448D] border-gray-300 rounded focus:ring-[#18448D]"
+                      className="mt-1 w-4 h-4 text-[#ff6b35] border-gray-300 rounded focus:ring-[#ff6b35]"
                       required
                     />
                     <label htmlFor="consent" className="text-sm text-gray-600">
@@ -173,7 +173,7 @@ export const PromoPopup = ({ onClose, source }: PromoPopupProps) => {
                   <button
                     type="submit"
                     disabled={isSubmitting || !email || !consent}
-                    className="w-full bg-gradient-to-r from-[#18448D] to-[#2563eb] text-white font-semibold py-3 px-6 rounded-lg hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full bg-[#ff6b35] hover:bg-[#f7931e] text-white font-semibold py-3 px-6 rounded-lg hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {isSubmitting ? 'Generating Code...' : 'Get My 20% Off Code'}
                   </button>
@@ -193,7 +193,7 @@ export const PromoPopup = ({ onClose, source }: PromoPopupProps) => {
                   <div className="inline-flex items-center justify-center w-16 h-16 bg-green-100 rounded-full mb-4">
                     <Check className="w-8 h-8 text-green-600" />
                   </div>
-                  <h2 className="text-2xl font-bold text-gray-900 mb-2">
+                  <h2 className="text-2xl font-bold text-[#18448D] mb-2">
                     Your Code is Ready!
                   </h2>
                   <p className="text-gray-600 mb-6">
@@ -201,7 +201,7 @@ export const PromoPopup = ({ onClose, source }: PromoPopupProps) => {
                   </p>
 
                   {/* Code Display */}
-                  <div className="bg-gradient-to-br from-[#18448D]/10 to-[#2563eb]/10 border-2 border-[#18448D] rounded-xl p-6 mb-6">
+                  <div className="bg-gradient-to-br from-[#18448D]/10 to-[#18448D]/5 border-2 border-[#18448D] rounded-xl p-6 mb-6">
                     <p className="text-sm text-gray-600 mb-2">Your Discount Code</p>
                     <p className="text-3xl font-bold text-[#18448D] tracking-wider mb-4">
                       {generatedCode}
@@ -214,7 +214,7 @@ export const PromoPopup = ({ onClose, source }: PromoPopupProps) => {
                   {/* Copy Button */}
                   <button
                     onClick={handleCopyCode}
-                    className="w-full bg-gradient-to-r from-[#18448D] to-[#2563eb] text-white font-semibold py-3 px-6 rounded-lg hover:shadow-lg transition-all flex items-center justify-center gap-2"
+                    className="w-full bg-[#ff6b35] hover:bg-[#f7931e] text-white font-semibold py-3 px-6 rounded-lg hover:shadow-lg transition-all flex items-center justify-center gap-2"
                   >
                     {copied ? (
                       <>
