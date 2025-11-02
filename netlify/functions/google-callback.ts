@@ -265,6 +265,20 @@ export const handler: Handler = async (event) => {
       
       console.log('✅ Google OAuth: User stored successfully, verified');
       
+      // CRITICAL FIX: Dispatch user-changed event to trigger cart reload
+      // This ensures the cart loads immediately for Google OAuth users
+      // (Manual login already does this in auth.ts signIn() function)
+      console.log('🔔 Google OAuth: Dispatching user-changed event to trigger cart reload');
+      window.dispatchEvent(new Event('user-changed'));
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: 'banners_current_user',
+        newValue: JSON.stringify(user),
+        oldValue: null,
+        storageArea: localStorage,
+        url: window.location.href
+      }));
+      console.log('✅ Google OAuth: Events dispatched successfully');
+      
       // Check for checkout context to determine redirect
       let redirectUrl = '/?oauth=success&provider=google';
       try {
@@ -292,7 +306,7 @@ export const handler: Handler = async (event) => {
       
       console.log('✅ Google OAuth: Redirecting to:', redirectUrl);
       
-      // Small delay to ensure localStorage is fully written
+      // Small delay to ensure localStorage is fully written and events are processed
       setTimeout(() => {
         window.location.replace(redirectUrl);
       }, 250);
