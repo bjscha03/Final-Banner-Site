@@ -148,6 +148,12 @@ class SecureAuthAdapter implements AuthAdapter {
   async signOut(): Promise<void> {
     // Remove user from localStorage
     safeStorage.removeItem(this.CURRENT_USER_KEY);
+    
+    // Remove cart owner ID from localStorage
+    if (typeof localStorage !== 'undefined') {
+      localStorage.removeItem('cart_owner_user_id');
+      console.log('🚪 Cleared cart owner ID from localStorage');
+    }
 
     // Clear admin cookie if it exists
     if (typeof document !== 'undefined') {
