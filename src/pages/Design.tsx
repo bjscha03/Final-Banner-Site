@@ -159,11 +159,36 @@ const Design: React.FC = () => {
     }
   }, [toast]);
   const configuratorRef = useRef<HTMLDivElement>(null);
+  const livePreviewRef = useRef<HTMLDivElement>(null);
+  const progressIndicatorRef = useRef<HTMLDivElement>(null);
 
   // Ensure page starts at top on navigation
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
+
+  // Handle file upload completion - scroll to preview and make progress bar sticky
+  const handleFileUploaded = () => {
+    console.log('📸 File uploaded - scrolling to preview');
+    
+    // Small delay to ensure DOM is updated
+    setTimeout(() => {
+      if (livePreviewRef.current && progressIndicatorRef.current) {
+        // Get the position of the progress indicator
+        const progressRect = progressIndicatorRef.current.getBoundingClientRect();
+        const progressTop = progressRect.top + window.scrollY;
+        
+        // Scroll to position the progress indicator near the top of viewport
+        // Offset by 100px to leave some space from the top
+        window.scrollTo({
+          top: progressTop - 100,
+          behavior: 'smooth'
+        });
+        
+        console.log('✅ Scrolled to preview area');
+      }
+    }, 300);
+  };
 
   // Check for pending AI image from "Use in Design" button
   useEffect(() => {
@@ -331,15 +356,12 @@ const Design: React.FC = () => {
           {/* NEW: Conversion Optimization Components */}
           <UploadHeroSection 
             onOpenAIModal={handleOpenAIModal}
-            onFileUploaded={() => {
-              // Scroll to preview after upload
-              setTimeout(() => {
-                configuratorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              }, 300);
-            }}
+            onFileUploaded={handleFileUploaded}
           />
           
-          <ProgressIndicator />
+          <div ref={progressIndicatorRef}>
+            <ProgressIndicator />
+          </div>
           
           <TrustBadges />
           
@@ -348,7 +370,9 @@ const Design: React.FC = () => {
             {/* Mobile Layout: Vertical stack with optimal order */}
             <div className="block lg:hidden space-y-6 md:space-y-8">
               <SizeQuantityCard />
-              <LivePreviewCard onOpenAIModal={handleOpenAIModal} />
+              <div ref={livePreviewRef}>
+                <LivePreviewCard onOpenAIModal={handleOpenAIModal} />
+              </div>
               <MaterialCard />
               <OptionsCard />
               <ErrorBoundary>
