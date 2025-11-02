@@ -84,7 +84,7 @@ const SignIn: React.FC = () => {
 
       console.log('🔥 SIGN IN SUCCESS - Clearing cart store IMMEDIATELY');
       // CRITICAL: Clear the Zustand cart store IMMEDIATELY to prevent showing old user's items
-      useCartStore.getState().clearCart();
+      useCartStore.getState().clearCartLocal();
       console.log('✅ Cart store cleared - items should be empty now');
 
       

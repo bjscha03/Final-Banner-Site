@@ -102,6 +102,7 @@ export interface CartState {
   updateCartItem: (itemId: string, quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => void;
   removeItem: (id: string) => void;
   clearCart: () => void;
+  clearCartLocal: () => void;  // Clear cart in memory only, without syncing to server
   applyDiscountCode: (discount: DiscountCode) => void;
   removeDiscountCode: () => void;
   getDiscountAmountCents: () => number;
@@ -226,21 +227,6 @@ export const useCartStore = create<CartState>()(
         // Use the file key from the uploaded file
         const fileKey = quote.file?.fileKey;
 
-        // CRITICAL FIX: Ensure we have a valid Cloudinary URL
-        // If quote.file.url is a blob URL or missing, reconstruct from fileKey
-        let fileUrl = null;
-        if (quote.file?.url && !quote.file.url.startsWith('blob:') && !quote.file.url.startsWith('data:')) {
-          // We have a valid URL (Cloudinary)
-          fileUrl = quote.file.url;
-        } else if (fileKey) {
-          // Reconstruct Cloudinary URL from fileKey
-          fileUrl = `https://res.cloudinary.com/dtrxl120u/image/upload/${fileKey}`;
-          console.log('🔧 CART: Reconstructed Cloudinary URL from fileKey:', fileUrl);
-        } else if (aiMetadata?.assets?.proofUrl && !aiMetadata.assets.proofUrl.startsWith('blob:')) {
-          // Fallback to AI metadata
-          fileUrl = aiMetadata.assets.proofUrl;
-        }
-
         const newItem: CartItem = {
           id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           width_in: quote.widthIn,
@@ -261,10 +247,10 @@ export const useCartStore = create<CartState>()(
           line_total_cents,
           file_key: fileKey,
           file_name: quote.file?.name,
-          // CRITICAL: Use the reconstructed/validated URL
-          file_url: fileUrl,
-          web_preview_url: (aiMetadata?.assets?.proofUrl && !aiMetadata.assets.proofUrl.startsWith('blob:') && !aiMetadata.assets.proofUrl.startsWith('data:')) ? aiMetadata.assets.proofUrl : null,
-          print_ready_url: (aiMetadata?.assets?.finalUrl && !aiMetadata.assets.finalUrl.startsWith('blob:') && !aiMetadata.assets.finalUrl.startsWith('data:')) ? aiMetadata.assets.finalUrl : null,
+          // CRITICAL: Never save blob URLs - they don't persist across sessions
+          file_url: (quote.file?.url?.startsWith('blob:') ? null : quote.file?.url) || aiMetadata?.assets?.proofUrl || null,
+          web_preview_url: (aiMetadata?.assets?.proofUrl?.startsWith('blob:') ? null : aiMetadata?.assets?.proofUrl) || null,
+          print_ready_url: (aiMetadata?.assets?.finalUrl?.startsWith('blob:') ? null : aiMetadata?.assets?.finalUrl) || null,
           is_pdf: quote.file?.isPdf || false,
           text_elements: quote.textElements && quote.textElements.length > 0 ? quote.textElements : undefined,
           overlay_image: quote.overlayImage ? {
@@ -306,7 +292,7 @@ export const useCartStore = create<CartState>()(
           value: newItem.line_total_cents,
         });
       // Sync to Neon database IMMEDIATELY (critical for persistence)
-      setTimeout(() => get().syncToServer(), 0);
+      get().syncToServer();
       },
       
       updateQuantity: (id: string, quantity: number) => {
@@ -339,7 +325,7 @@ export const useCartStore = create<CartState>()(
           })
         }));
       // Sync to Neon database IMMEDIATELY (critical for persistence)
-      setTimeout(() => get().syncToServer(), 0);
+      get().syncToServer();
       },
       
       loadItemIntoQuote: (itemId: string) => {
@@ -451,20 +437,26 @@ export const useCartStore = create<CartState>()(
           items: state.items.map(item => item.id === itemId ? updatedItem : item)
         }));
       // Sync to Neon database IMMEDIATELY (critical for persistence)
-      setTimeout(() => get().syncToServer(), 0);
+      get().syncToServer();
       },
       removeItem: (id: string) => {
         set((state) => ({
           items: state.items.filter(item => item.id !== id)
         }));
       // Sync to Neon database IMMEDIATELY (critical for persistence)
-      setTimeout(() => get().syncToServer(), 0);
+      get().syncToServer();
       },
       
       clearCart: () => {
         set({ items: [], discountCode: null });
       // Sync to Neon database IMMEDIATELY (critical for persistence)
-      setTimeout(() => get().syncToServer(), 0);
+      get().syncToServer();
+      },
+
+      clearCartLocal: () => {
+        console.log("🧹 clearCartLocal: Clearing cart in memory ONLY (no server sync)");
+        set({ items: [], discountCode: null });
+        console.log("✅ clearCartLocal: Cart cleared locally");
       },
 
       applyDiscountCode: (discount: DiscountCode) => {
@@ -539,58 +531,64 @@ export const useCartStore = create<CartState>()(
           return;
         }
 
+        console.log('🔵 STORE: Loading cart from server...');
+        const serverItems = await cartSync.loadCart(userId);
+        const localItems = get().items;
         const cartOwnerId = typeof localStorage !== 'undefined' ? localStorage.getItem('cart_owner_user_id') : null;
         
+        console.log('🔵 STORE: Server items count:', serverItems.length);
+        console.log('🔵 STORE: Local items count:', localItems.length);
         console.log('🔵 STORE: Cart owner ID:', cartOwnerId);
         console.log('🔵 STORE: Current user ID:', userId);
         
-        // STEP 1: Load cart from server for THIS user
-        console.log('🔵 STORE: Loading cart from server for user:', userId);
-        const serverItems = await cartSync.loadCart(userId);
-        console.log('🔵 STORE: Server returned', serverItems.length, 'items');
-        
-        // STEP 2: If server has items, use them (server is source of truth)
+        // SIMPLIFIED LOGIC: Always use server cart when available
+        // If server has items, use them (they are the source of truth)
         if (serverItems.length > 0) {
-          console.log('✅ STORE: Using server cart (', serverItems.length, 'items)');
+          console.log("🖼️  STORE: Checking image URLs in server items:");
+          serverItems.forEach((item, idx) => {
+            console.log(`  Item ${idx}:`, {
+              id: item.id,
+              web_preview_url: item.web_preview_url,
+              file_url: item.file_url,
+              print_ready_url: item.print_ready_url,
+              aiDesign_proofUrl: item.aiDesign?.assets?.proofUrl
+            });
+          });
+          console.log('✅ STORE: Server has items, using server cart');
           set({ items: serverItems });
+          
+          // Set cart owner
           if (typeof localStorage !== 'undefined') {
             localStorage.setItem('cart_owner_user_id', userId);
           }
           return;
         }
         
-        // STEP 3: Server is empty - check if we have local items
-        const localItems = get().items;
-        console.log('🔵 STORE: Local cart has', localItems.length, 'items');
-        
-        // STEP 4: If local cart belongs to DIFFERENT user, clear it
-        if (cartOwnerId && cartOwnerId !== userId) {
-          console.log('🚨 STORE: Local cart belongs to different user! Clearing.');
-          console.log('🚨 STORE: Previous owner:', cartOwnerId);
-          console.log('🚨 STORE: Current user:', userId);
-          set({ items: [] });
-          if (typeof localStorage !== 'undefined') {
-            localStorage.setItem('cart_owner_user_id', userId);
-          }
-          return;
-        }
-        
-        // STEP 5: Local cart belongs to current user or is guest cart - save to server
+        // Server cart is empty
+        // Server cart is empty
         if (localItems.length > 0) {
-          console.log('✅ STORE: Local cart belongs to current user, saving to server');
-          if (typeof localStorage !== 'undefined') {
-            localStorage.setItem('cart_owner_user_id', userId);
+          // Check if local cart belongs to this user OR is a guest cart (null owner)
+          if (cartOwnerId === userId || cartOwnerId === null) {
+            console.log('⚠️ STORE: Server cart empty but local cart belongs to this user or is guest cart');
+            console.log('⚠️ STORE: Saving local cart to server');
+            // Set cart owner to current user
+            if (typeof localStorage !== 'undefined') {
+              localStorage.setItem('cart_owner_user_id', userId);
+            }
+            // Save local cart to server
+            setTimeout(() => get().syncToServer(), 100);
+            return;
+          } else {
+            console.log('⚠️ STORE: Server cart empty and local cart belongs to different user');
+            console.log('⚠️ STORE: Cart owner:', cartOwnerId, 'Current user:', userId);
+            console.log('⚠️ STORE: Clearing local cart');
+            set({ items: [] });
+            return;
           }
-          setTimeout(() => get().syncToServer(), 100);
-          return;
         }
-        
-        // STEP 6: Both empty
+        // Both server and local are empty
         console.log('ℹ️  STORE: Both server and local carts are empty');
         set({ items: [] });
-        if (typeof localStorage !== 'undefined') {
-          localStorage.setItem('cart_owner_user_id', userId);
-        }
       },
 
       getSubtotalCents: () => {
@@ -649,41 +647,9 @@ export const useCartStore = create<CartState>()(
     }),
     {
       name: 'cart-storage',
-      // CRITICAL: Only persist discountCode, NEVER persist items
-      partialize: (state) => ({
-        discountCode: state.discountCode,
-        // items are NOT persisted - server is source of truth
-      }),
-      // CRITICAL: When loading from localStorage, IGNORE any items that might be there
-      merge: (persistedState: any, currentState: any) => {
-        return {
-          ...currentState,
-          // Only load discountCode from localStorage
-          discountCode: persistedState?.discountCode || currentState.discountCode,
-          // NEVER load items from localStorage - server is source of truth
-          items: currentState.items,
-        };
-      },
-      // CRITICAL: Only persist discountCode, NEVER persist items
-      partialize: (state) => ({
-        discountCode: state.discountCode,
-        // items are NOT persisted - server is source of truth
-      }),
-      // CRITICAL: When loading from localStorage, IGNORE any items that might be there
-      merge: (persistedState: any, currentState: any) => {
-        return {
-          ...currentState,
-          // Only load discountCode from localStorage
-          discountCode: persistedState?.discountCode || currentState.discountCode,
-          // NEVER load items from localStorage - server is source of truth
-          items: currentState.items,
-        };
-      },
       // Migrate items when loading from localStorage
       onRehydrateStorage: () => (state) => {
         console.log('�� CART STORAGE: Rehydrating from localStorage...');
-        
-
         
         // SAFETY CHECK: DISABLED - useCartSync handles all cart clearing
         // This was causing duplicate clears and race conditions

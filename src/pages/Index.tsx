@@ -26,7 +26,7 @@ const Index: React.FC = () => {
       
       console.log('🔥 OAUTH SUCCESS - Clearing cart store IMMEDIATELY');
       // CRITICAL: Clear the Zustand cart store IMMEDIATELY to prevent showing old user's items
-      useCartStore.getState().clearCart();
+      useCartStore.getState().clearCartLocal();
       console.log('✅ Cart store cleared for OAuth login');
       
       // Give extra time for localStorage to be read by auth system
