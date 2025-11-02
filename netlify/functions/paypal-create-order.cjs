@@ -31,14 +31,60 @@ const computeTotals = (items, taxRate, opts) => {
 };
 
 
-// Shipping cost calculation for international orders
+// Tiered flat-rate shipping for international orders
+// Protects against large orders (e.g., 100 banners)
 const SHIPPING_RATES = {
-  'US': { baseCents: 0, perPoundCents: 0, name: 'United States' },
-  'CA': { baseCents: 5000, perPoundCents: 1000, name: 'Canada' },
-  'MX': { baseCents: 6000, perPoundCents: 1200, name: 'Mexico' },
-  'GB': { baseCents: 10000, perPoundCents: 2000, name: 'United Kingdom' },
-  'AU': { baseCents: 15000, perPoundCents: 3000, name: 'Australia' },
-  'INTERNATIONAL': { baseCents: 15000, perPoundCents: 3000, name: 'International' }
+  'US': {
+    name: 'United States',
+    tiers: [
+      { maxWeightLbs: 0, costCents: 0 } // Always free
+    ]
+  },
+  'CA': {
+    name: 'Canada',
+    tiers: [
+      { maxWeightLbs: 10, costCents: 5000 },   // Up to 10 lbs: $50
+      { maxWeightLbs: 25, costCents: 10000 },  // 10-25 lbs: $100
+      { maxWeightLbs: 50, costCents: 18000 },  // 25-50 lbs: $180
+      { maxWeightLbs: 0, costCents: 35000 }    // 50+ lbs: $350
+    ]
+  },
+  'MX': {
+    name: 'Mexico',
+    tiers: [
+      { maxWeightLbs: 10, costCents: 6000 },   // Up to 10 lbs: $60
+      { maxWeightLbs: 25, costCents: 12000 },  // 10-25 lbs: $120
+      { maxWeightLbs: 50, costCents: 22000 },  // 25-50 lbs: $220
+      { maxWeightLbs: 0, costCents: 40000 }    // 50+ lbs: $400
+    ]
+  },
+  'GB': {
+    name: 'United Kingdom',
+    tiers: [
+      { maxWeightLbs: 10, costCents: 10000 },  // Up to 10 lbs: $100
+      { maxWeightLbs: 25, costCents: 20000 },  // 10-25 lbs: $200
+      { maxWeightLbs: 50, costCents: 35000 },  // 25-50 lbs: $350
+      { maxWeightLbs: 0, costCents: 60000 }    // 50+ lbs: $600
+    ]
+  },
+  'AU': {
+    name: 'Australia',
+    tiers: [
+      { maxWeightLbs: 10, costCents: 15000 },  // Up to 10 lbs: $150
+      { maxWeightLbs: 25, costCents: 30000 },  // 10-25 lbs: $300
+      { maxWeightLbs: 50, costCents: 50000 },  // 25-50 lbs: $500
+      { maxWeightLbs: 0, costCents: 80000 }    // 50+ lbs: $800
+    ]
+  },
+  'INTERNATIONAL': {
+    name: 'International',
+    tiers: [
+      { maxWeightLbs: 10, costCents: 15000 },  // Up to 10 lbs: $150
+      { maxWeightLbs: 25, costCents: 30000 },  // 10-25 lbs: $300
+      { maxWeightLbs: 50, costCents: 50000 },  // 25-50 lbs: $500
+      { maxWeightLbs: 0, costCents: 80000 }    // 50+ lbs: $800
+    ]
+  }
 };
 
 const estimateBannerWeight = (widthIn, heightIn, quantity, material) => {
@@ -73,18 +119,29 @@ const calculateInternationalShipping = (country, items) => {
     totalWeight += weight;
   }
   
-  // Get rate for country
-  const rate = SHIPPING_RATES[country] || SHIPPING_RATES['INTERNATIONAL'];
-  const shippingCents = rate.baseCents + Math.ceil(totalWeight * rate.perPoundCents);
+  // Get rate table for country
+  const rateTable = SHIPPING_RATES[country] || SHIPPING_RATES['INTERNATIONAL'];
+  
+  // Find appropriate tier based on weight
+  let selectedTier = rateTable.tiers[rateTable.tiers.length - 1]; // Default to highest tier
+  
+  for (const tier of rateTable.tiers) {
+    if (tier.maxWeightLbs === 0 || totalWeight <= tier.maxWeightLbs) {
+      selectedTier = tier;
+      break;
+    }
+  }
   
   console.log('International shipping calculated:', {
     country,
-    totalWeight,
-    rate: rate.name,
-    shippingCents
+    totalWeight: totalWeight.toFixed(2) + ' lbs',
+    rate: rateTable.name,
+    tier: selectedTier.maxWeightLbs === 0 ? '50+ lbs' : `Up to ${selectedTier.maxWeightLbs} lbs`,
+    shippingCents: selectedTier.costCents,
+    shippingDollars: '$' + (selectedTier.costCents / 100).toFixed(2)
   });
   
-  return shippingCents;
+  return selectedTier.costCents;
 };
 
 

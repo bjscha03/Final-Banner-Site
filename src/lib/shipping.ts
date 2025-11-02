@@ -10,50 +10,85 @@ export interface ShippingRate {
   estimatedDays: string;
 }
 
-// Shipping rates for international orders
+// Tiered flat-rate shipping for international orders
 // US orders are always free next-day air
-export const SHIPPING_RATES: Record<string, ShippingRate> = {
+// Tiers protect against large orders (e.g., 100 banners would be very heavy)
+
+export interface ShippingTier {
+  maxWeightLbs: number; // Maximum weight for this tier (0 = unlimited)
+  costCents: number;    // Flat cost for this tier
+}
+
+export interface ShippingRateTable {
+  country: string;
+  countryName: string;
+  tiers: ShippingTier[];
+  estimatedDays: string;
+}
+
+export const SHIPPING_RATES: Record<string, ShippingRateTable> = {
   'US': {
     country: 'US',
     countryName: 'United States',
-    baseCostCents: 0,
-    perPoundCents: 0,
+    tiers: [
+      { maxWeightLbs: 0, costCents: 0 } // Always free
+    ],
     estimatedDays: '1 business day',
   },
   'CA': {
     country: 'CA',
     countryName: 'Canada',
-    baseCostCents: 5000, // $50 base
-    perPoundCents: 1000, // $10 per lb
+    tiers: [
+      { maxWeightLbs: 10, costCents: 5000 },   // Up to 10 lbs: $50
+      { maxWeightLbs: 25, costCents: 10000 },  // 10-25 lbs: $100
+      { maxWeightLbs: 50, costCents: 18000 },  // 25-50 lbs: $180
+      { maxWeightLbs: 0, costCents: 35000 }    // 50+ lbs: $350
+    ],
     estimatedDays: '5-7 business days',
   },
   'MX': {
     country: 'MX',
     countryName: 'Mexico',
-    baseCostCents: 6000, // $60 base
-    perPoundCents: 1200, // $12 per lb
+    tiers: [
+      { maxWeightLbs: 10, costCents: 6000 },   // Up to 10 lbs: $60
+      { maxWeightLbs: 25, costCents: 12000 },  // 10-25 lbs: $120
+      { maxWeightLbs: 50, costCents: 22000 },  // 25-50 lbs: $220
+      { maxWeightLbs: 0, costCents: 40000 }    // 50+ lbs: $400
+    ],
     estimatedDays: '7-10 business days',
   },
   'GB': {
     country: 'GB',
     countryName: 'United Kingdom',
-    baseCostCents: 10000, // $100 base
-    perPoundCents: 2000, // $20 per lb
+    tiers: [
+      { maxWeightLbs: 10, costCents: 10000 },  // Up to 10 lbs: $100
+      { maxWeightLbs: 25, costCents: 20000 },  // 10-25 lbs: $200
+      { maxWeightLbs: 50, costCents: 35000 },  // 25-50 lbs: $350
+      { maxWeightLbs: 0, costCents: 60000 }    // 50+ lbs: $600
+    ],
     estimatedDays: '7-14 business days',
   },
   'AU': {
     country: 'AU',
     countryName: 'Australia',
-    baseCostCents: 15000, // $150 base
-    perPoundCents: 3000, // $30 per lb
+    tiers: [
+      { maxWeightLbs: 10, costCents: 15000 },  // Up to 10 lbs: $150
+      { maxWeightLbs: 25, costCents: 30000 },  // 10-25 lbs: $300
+      { maxWeightLbs: 50, costCents: 50000 },  // 25-50 lbs: $500
+      { maxWeightLbs: 0, costCents: 80000 }    // 50+ lbs: $800
+    ],
     estimatedDays: '10-21 business days',
   },
-  // Default for all other countries
+  // Default for all other countries (Europe, Asia, etc.)
   'INTERNATIONAL': {
     country: 'INTERNATIONAL',
     countryName: 'International',
-    baseCostCents: 15000, // $150 base
-    perPoundCents: 3000, // $30 per lb
+    tiers: [
+      { maxWeightLbs: 10, costCents: 15000 },  // Up to 10 lbs: $150
+      { maxWeightLbs: 25, costCents: 30000 },  // 10-25 lbs: $300
+      { maxWeightLbs: 50, costCents: 50000 },  // 25-50 lbs: $500
+      { maxWeightLbs: 0, costCents: 80000 }    // 50+ lbs: $800
+    ],
     estimatedDays: '10-21 business days',
   },
 };
@@ -88,35 +123,46 @@ export function estimateBannerWeight(
 }
 
 /**
- * Calculate shipping cost for an order
+ * Calculate shipping cost for an order using tiered flat rates
  */
 export function calculateShippingCost(
   country: string,
   totalWeightLbs: number
 ): {
   shippingCostCents: number;
-  rate: ShippingRate;
+  rateTable: ShippingRateTable;
   weightLbs: number;
+  tier: ShippingTier;
 } {
   // US orders are always free
   if (country === 'US' || country === 'USA') {
+    const usRate = SHIPPING_RATES['US'];
     return {
       shippingCostCents: 0,
-      rate: SHIPPING_RATES['US'],
+      rateTable: usRate,
       weightLbs: totalWeightLbs,
+      tier: usRate.tiers[0],
     };
   }
   
-  // Get rate for country or use international default
-  const rate = SHIPPING_RATES[country] || SHIPPING_RATES['INTERNATIONAL'];
+  // Get rate table for country or use international default
+  const rateTable = SHIPPING_RATES[country] || SHIPPING_RATES['INTERNATIONAL'];
   
-  // Calculate cost: base + (weight * per pound rate)
-  const shippingCostCents = rate.baseCostCents + Math.ceil(totalWeightLbs * rate.perPoundCents);
+  // Find the appropriate tier based on weight
+  let selectedTier = rateTable.tiers[rateTable.tiers.length - 1]; // Default to highest tier
+  
+  for (const tier of rateTable.tiers) {
+    if (tier.maxWeightLbs === 0 || totalWeightLbs <= tier.maxWeightLbs) {
+      selectedTier = tier;
+      break;
+    }
+  }
   
   return {
-    shippingCostCents,
-    rate,
+    shippingCostCents: selectedTier.costCents,
+    rateTable,
     weightLbs: totalWeightLbs,
+    tier: selectedTier,
   };
 }
 
@@ -138,6 +184,6 @@ export function getShippingMessage(country: string): string {
     return 'FREE Next-Day Air Shipping';
   }
   
-  const rate = SHIPPING_RATES[country] || SHIPPING_RATES['INTERNATIONAL'];
-  return `International Shipping: ${rate.estimatedDays}`;
+  const rateTable = SHIPPING_RATES[country] || SHIPPING_RATES['INTERNATIONAL'];
+  return `International Shipping: ${rateTable.estimatedDays}`;
 }
