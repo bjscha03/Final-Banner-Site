@@ -99,16 +99,17 @@ const SignUp: React.FC = () => {
         description: "Please check your email to verify your account.",
       });
 
+      // Redirect to email verification page
+      // Pass the nextUrl so after verification they can continue to checkout
+      const currentNextUrl = getNextUrl();
+      const fromCheckout = searchParams.get('from') === 'checkout';
+      
       // Clear checkout context after successful sign-up
       if (fromCheckout && isContextValid()) {
         console.log('🛒 SIGN UP: User came from checkout, preserving context for email verification');
         // Note: We keep the context so after email verification they can return to checkout
       }
 
-      // Redirect to email verification page
-      // Pass the nextUrl so after verification they can continue to checkout
-      const currentNextUrl = getNextUrl();
-      const fromCheckout = searchParams.get('from') === 'checkout';
       const emailCheckUrl = fromCheckout && isContextValid() 
         ? `/check-email?email=${encodeURIComponent(email)}&next=${encodeURIComponent(currentNextUrl)}`
         : `/check-email?email=${encodeURIComponent(email)}`;
