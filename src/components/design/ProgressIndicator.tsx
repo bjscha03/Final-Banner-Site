@@ -14,7 +14,7 @@ const ProgressIndicator: React.FC = () => {
   ];
 
   return (
-    <div className="bg-white rounded-lg shadow-md p-4 md:p-6 mb-6 sticky top-0 z-40 transition-all duration-300">
+    <div className="bg-white rounded-lg shadow-md p-4 md:p-6 sticky top-0 z-40 transition-all duration-300">
       <div className="flex items-center justify-between max-w-4xl mx-auto">
         {steps.map((step, index) => {
           const Icon = step.icon;

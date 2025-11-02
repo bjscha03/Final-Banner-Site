@@ -387,11 +387,11 @@ const Design: React.FC = () => {
               </div>
 
               {/* DOMINANT PREVIEW AREA - Vistaprint Style */}
-              <div className="flex-1 min-w-0 space-y-8">
+              <div className="flex-1 min-w-0 space-y-6">
                 {/* Progress Bar - Sticky above preview (desktop uses same ref) */}
-                <div className="lg:block hidden">
+                  <div ref={progressIndicatorRef}>
                   <ProgressIndicator />
-                </div>
+                  </div>
                 
                 <LivePreviewCard 
                   onOpenAIModal={handleOpenAIModal} 
