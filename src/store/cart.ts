@@ -539,15 +539,31 @@ export const useCartStore = create<CartState>()(
           return;
         }
 
-        console.log('🔵 STORE: Loading cart from server...');
-        const serverItems = await cartSync.loadCart(userId);
-        const localItems = get().items;
+        // CRITICAL FIX: Check if local cart belongs to a different user
+        // If so, clear it BEFORE loading from server
         const cartOwnerId = typeof localStorage !== 'undefined' ? localStorage.getItem('cart_owner_user_id') : null;
+        const localItems = get().items;
         
-        console.log('🔵 STORE: Server items count:', serverItems.length);
-        console.log('🔵 STORE: Local items count:', localItems.length);
         console.log('🔵 STORE: Cart owner ID:', cartOwnerId);
         console.log('🔵 STORE: Current user ID:', userId);
+        console.log('🔵 STORE: Local items count:', localItems.length);
+        
+        // If local cart belongs to a different user, clear it immediately
+        if (cartOwnerId && cartOwnerId !== userId) {
+          console.log('🚨 STORE: Local cart belongs to different user! Clearing local cart.');
+          console.log('🚨 STORE: Previous owner:', cartOwnerId);
+          console.log('🚨 STORE: Current user:', userId);
+          set({ items: [] });
+          // Update cart owner to current user
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('cart_owner_user_id', userId);
+          }
+        }
+
+        console.log('🔵 STORE: Loading cart from server...');
+        const serverItems = await cartSync.loadCart(userId);
+        
+        console.log('🔵 STORE: Server items count:', serverItems.length);
         
         // SIMPLIFIED LOGIC: Always use server cart when available
         // If server has items, use them (they are the source of truth)
@@ -573,30 +589,26 @@ export const useCartStore = create<CartState>()(
         }
         
         // Server cart is empty
-        // Server cart is empty
-        if (localItems.length > 0) {
-          // Check if local cart belongs to this user OR is a guest cart (null owner)
-          if (cartOwnerId === userId || cartOwnerId === null) {
-            console.log('⚠️ STORE: Server cart empty but local cart belongs to this user or is guest cart');
-            console.log('⚠️ STORE: Saving local cart to server');
-            // Set cart owner to current user
-            if (typeof localStorage !== 'undefined') {
-              localStorage.setItem('cart_owner_user_id', userId);
-            }
-            // Save local cart to server
-            setTimeout(() => get().syncToServer(), 100);
-            return;
-          } else {
-            console.log('⚠️ STORE: Server cart empty and local cart belongs to different user');
-            console.log('⚠️ STORE: Cart owner:', cartOwnerId, 'Current user:', userId);
-            console.log('⚠️ STORE: Clearing local cart');
-            set({ items: [] });
-            return;
+        const currentLocalItems = get().items; // Re-get items after potential clear
+        if (currentLocalItems.length > 0) {
+          // At this point, we know local cart either belongs to current user or is guest cart
+          console.log('⚠️ STORE: Server cart empty but local cart has items');
+          console.log('⚠️ STORE: Saving local cart to server');
+          // Set cart owner to current user
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('cart_owner_user_id', userId);
           }
+          // Save local cart to server
+          setTimeout(() => get().syncToServer(), 100);
+          return;
         }
+        
         // Both server and local are empty
         console.log('ℹ️  STORE: Both server and local carts are empty');
         set({ items: [] });
+        if (typeof localStorage !== 'undefined') {
+          localStorage.setItem('cart_owner_user_id', userId);
+        }
       },
 
       getSubtotalCents: () => {
