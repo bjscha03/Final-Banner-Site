@@ -42,12 +42,18 @@ exports.handler = async (event, context) => {
       }
       
       // Load authenticated user's cart
+      console.log('[cart-load] Querying database for user_id:', userId);
       result = await sql`
-        SELECT cart_data, updated_at
+        SELECT cart_data, updated_at, user_id
         FROM user_carts
         WHERE user_id = ${userId} AND status = 'active'
         LIMIT 1
       `;
+      console.log('[cart-load] Query result:', { 
+        found: result.length > 0, 
+        user_id: result.length > 0 ? result[0].user_id : null,
+        itemCount: result.length > 0 ? result[0].cart_data.length : 0
+      });
     } else if (sessionId) {
       // Load guest cart
       result = await sql`
