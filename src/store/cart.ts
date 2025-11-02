@@ -649,6 +649,12 @@ export const useCartStore = create<CartState>()(
     }),
     {
       name: 'cart-storage',
+      // CRITICAL: Don't persist items - server is source of truth
+      // Only persist discount code
+      partialize: (state) => ({
+        discountCode: state.discountCode,
+        // items are NOT persisted - loaded from server only
+      }),
       // Migrate items when loading from localStorage
       onRehydrateStorage: () => (state) => {
         console.log('�� CART STORAGE: Rehydrating from localStorage...');
