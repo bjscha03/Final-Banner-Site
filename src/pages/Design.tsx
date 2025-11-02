@@ -171,16 +171,59 @@ const Design: React.FC = () => {
   const handleFileUploaded = () => {
     console.log('📸 File uploaded - scrolling to preview');
     
+    // Detect if mobile
+    const isMobile = window.innerWidth < 1024; // lg breakpoint
+    console.log('📱 Device type:', isMobile ? 'Mobile' : 'Desktop');
+    
     // Small delay to ensure DOM is updated
     setTimeout(() => {
+      // Try to scroll to progress indicator first (above preview)
       if (progressIndicatorRef.current) {
-        // Scroll to the progress indicator (which is now directly above the preview)
-        progressIndicatorRef.current.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'start'
-        });
+        console.log('🎯 Scrolling to progress indicator...');
         
-        console.log('✅ Scrolled to progress bar and preview area');
+        // On mobile, use more aggressive scroll with offset
+        if (isMobile) {
+          const element = progressIndicatorRef.current;
+          const elementPosition = element.getBoundingClientRect().top;
+          const offsetPosition = elementPosition + window.pageYOffset - 20; // 20px offset from top
+          
+          window.scrollTo({
+            top: offsetPosition,
+            behavior: 'smooth'
+          });
+          console.log('✅ Mobile scroll to progress bar (offset:', offsetPosition, ')');
+        } else {
+          // Desktop: use standard scrollIntoView
+          progressIndicatorRef.current.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'start'
+          });
+          console.log('✅ Desktop scroll to progress bar');
+        }
+      } 
+      // Fallback: scroll directly to preview if progress indicator not available
+      else if (livePreviewRef.current) {
+        console.log('🎯 Fallback: Scrolling to live preview...');
+        
+        if (isMobile) {
+          const element = livePreviewRef.current;
+          const elementPosition = element.getBoundingClientRect().top;
+          const offsetPosition = elementPosition + window.pageYOffset - 20;
+          
+          window.scrollTo({
+            top: offsetPosition,
+            behavior: 'smooth'
+          });
+          console.log('✅ Mobile scroll to preview (offset:', offsetPosition, ')');
+        } else {
+          livePreviewRef.current.scrollIntoView({ 
+            behavior: 'smooth', 
+            block: 'start'
+          });
+          console.log('✅ Desktop scroll to preview');
+        }
+      } else {
+        console.warn('⚠️ No scroll target found (refs not set)');
       }
     }, 400);
   };
