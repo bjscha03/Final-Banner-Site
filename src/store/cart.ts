@@ -649,22 +649,18 @@ export const useCartStore = create<CartState>()(
     }),
     {
       name: 'cart-storage',
-      // CRITICAL: Don't persist items - server is source of truth
-      // Only persist discount code
-      partialize: (state) => ({
-        discountCode: state.discountCode,
-        // items are NOT persisted - loaded from server only
-      }),
       // Migrate items when loading from localStorage
       onRehydrateStorage: () => (state) => {
         console.log('�� CART STORAGE: Rehydrating from localStorage...');
         
-              state.discountCode = null;
-            }
-            localStorage.removeItem('cart_owner_user_id');
-            console.log('✅ CART STORAGE: Cart cleared during rehydration');
-            return;
-          }
+        // CRITICAL: Always start with empty items - server is source of truth
+        if (state) {
+          state.items = [];
+        }
+        
+        // CRITICAL: Always start with empty items - server is source of truth
+        if (state) {
+          state.items = [];
         }
         
         // SAFETY CHECK: DISABLED - useCartSync handles all cart clearing
