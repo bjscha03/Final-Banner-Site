@@ -33,16 +33,6 @@ const computeTotals = (items, taxRate, opts) => {
 
 
 
-  const materialWeight = weightPerSqft[material] || 1.0;
-  const bannerWeight = sqft * materialWeight;
-  const packagingWeight = 2;
-  return Math.max(bannerWeight + packagingWeight, 2);
-};
-
-
-
-
-
 // PayPal API helpers
 const getPayPalCredentials = () => {
   const env = process.env.PAYPAL_ENV || 'sandbox';
