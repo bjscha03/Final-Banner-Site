@@ -421,6 +421,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
     intent: "capture" as const,
     commit: true,
     vault: false,
+    disableFunding: "paylater,credit" as any, // Disable Pay Later and PayPal Credit options
   };
 
   return (
