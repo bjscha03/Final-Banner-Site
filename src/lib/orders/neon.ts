@@ -1,4 +1,4 @@
-import { db } from '../supabase/client';
+import { db } from '../neon/client';
 import { Order, OrdersAdapter, CreateOrderData, TrackingCarrier } from './types';
 
 // Don't throw error immediately - let the adapter handle it gracefully
