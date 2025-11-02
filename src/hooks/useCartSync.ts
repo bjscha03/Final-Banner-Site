@@ -101,6 +101,7 @@ export function useCartSync() {
       });
       
       if (hasGuestSession && !hasMergedRef.current) {
+        console.error('🚨🚨🚨 MERGE PATH TRIGGERED - GUEST SESSION DETECTED 🚨🚨🚨');
         console.log('🔄 MERGE: Guest session detected, merging guest cart with user cart...');
         hasMergedRef.current = true;
         
@@ -131,6 +132,7 @@ export function useCartSync() {
         // No guest session - just load user's cart from server
         // CRITICAL: Don't save local cart to server - it might belong to a different user
         // The loadFromServer() function will handle saving local cart if it belongs to current user
+        console.error('🚨🚨🚨 NO GUEST SESSION PATH - CART WILL BE CLEARED 🚨🚨🚨');
         console.log('👤 No guest session, loading user cart from database...');
         hasMergedRef.current = false;
         // CRITICAL FIX: Clear items SYNCHRONOUSLY before loading from server
