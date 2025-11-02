@@ -647,51 +647,19 @@ export const useCartStore = create<CartState>()(
     }),
     {
       name: 'cart-storage',
-      // Migrate items when loading from localStorage
+      // CRITICAL: Do NOT persist items array to localStorage
+      // Items should ONLY come from the server (database)
+      // This prevents showing wrong user's cart after login
+      partialize: (state) => ({
+        discountCode: state.discountCode,
+        // items are intentionally excluded - they come from server only
+      }),
+      // Items are NOT persisted to localStorage (only discountCode is)
+      // Items come from server only via useCartSync
       onRehydrateStorage: () => (state) => {
-        console.log('�� CART STORAGE: Rehydrating from localStorage...');
-        
-        // SAFETY CHECK: DISABLED - useCartSync handles all cart clearing
-        // This was causing duplicate clears and race conditions
-        // useCartSync is the single source of truth for cart ownership
-        console.log('💾 CART STORAGE: Rehydration complete, useCartSync will handle ownership');
-        
-        
-        // Migrate cart items if needed
-        if (state?.items) {
-          console.log('💾 CART STORAGE: Found', state.items.length, 'items in storage');
-          console.log('🔄 Rehydrating cart, checking for items needing migration...');
-          
-          // CRITICAL: Remove blob URLs from localStorage
-          // Blob URLs don't persist across page refreshes and cause thumbnails to disappear
-          const migratedItems = state.items.map(item => {
-            const migrated = migrateCartItem(item);
-            
-            // Filter out blob URLs
-            if (migrated.file_url?.startsWith('blob:')) {
-              console.log('🧹 Removing blob URL from file_url for item', migrated.id);
-              migrated.file_url = null;
-            }
-            if (migrated.web_preview_url?.startsWith('blob:')) {
-              console.log('🧹 Removing blob URL from web_preview_url for item', migrated.id);
-              migrated.web_preview_url = null;
-            }
-            if (migrated.print_ready_url?.startsWith('blob:')) {
-              console.log('🧹 Removing blob URL from print_ready_url for item', migrated.id);
-              migrated.print_ready_url = null;
-            }
-            
-            return migrated;
-          });
-          
-          const hadChanges = migratedItems.some((item, i) => item.line_total_cents !== state.items[i].line_total_cents);
-          if (hadChanges) {
-            console.log('✅ Cart migration complete, updating storage');
-            state.items = migratedItems;
-          } else {
-            console.log('✅ No migration needed');
-          }
-        }
+        console.log('💾 CART STORAGE: Rehydrating from localStorage...');
+        console.log('💾 CART STORAGE: Only discountCode is persisted, items come from server');
+        console.log('�� CART STORAGE: useCartSync will load items from database');
       },
     }
   )
