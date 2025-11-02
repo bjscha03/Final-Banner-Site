@@ -42,63 +42,74 @@ async function sendEmailResend(to, code, expiresAt) {
     });
 
     const html = `
-      <!DOCTYPE html>
-      <html>
+      <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+      <html xmlns="http://www.w3.org/1999/xhtml">
       <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+        <title>Your 20% Discount Code</title>
       </head>
-      <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; background-color: #f3f4f6;">
-        <table width="100%" cellpadding="0" cellspacing="0" style="background-color: #f3f4f6; padding: 20px 10px;">
+      <body style="margin: 0; padding: 0; background-color: #f3f4f6;">
+        <table border="0" cellpadding="0" cellspacing="0" width="100%" style="background-color: #f3f4f6;">
           <tr>
-            <td align="center">
-              <table width="100%" cellpadding="0" cellspacing="0" style="max-width: 600px; background-color: #ffffff; border-radius: 16px; overflow: hidden;">
+            <td align="center" style="padding: 20px 0;">
+              <table border="0" cellpadding="0" cellspacing="0" width="600" style="background-color: #ffffff; border-radius: 8px;">
+                
                 <!-- Logo Header -->
                 <tr>
-                  <td style="background-color: #18448D; padding: 30px 20px; text-align: center;">
-                    <img src="https://bannersonthefly.com/logo.png" alt="Banners on the Fly" style="max-width: 200px; height: auto; display: block; margin: 0 auto;" />
+                  <td align="center" style="padding: 40px 20px; background-color: #18448D;">
+                    <img src="https://bannersonthefly.com/images/header-logo.png" alt="Banners on the Fly" width="200" style="display: block; max-width: 200px; height: auto;" />
                   </td>
                 </tr>
-                <!-- Orange Accent Bar -->
+                
+                <!-- Orange Banner -->
                 <tr>
-                  <td style="background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%); padding: 40px 20px; text-align: center;">
-                    <h1 style="margin: 0; color: #ffffff; font-size: 36px; font-weight: bold; text-shadow: 0 2px 4px rgba(0,0,0,0.1);">20% OFF</h1>
-                    <p style="margin: 10px 0 0 0; color: #ffffff; font-size: 18px; font-weight: 500;">Your First Banner Order</p>
+                  <td align="center" style="padding: 50px 20px; background-color: #ff6b35;">
+                    <h1 style="margin: 0; padding: 0; color: #ffffff; font-size: 48px; font-weight: bold; font-family: Arial, sans-serif;">20% OFF</h1>
+                    <p style="margin: 10px 0 0 0; padding: 0; color: #ffffff; font-size: 20px; font-family: Arial, sans-serif;">Your First Banner Order</p>
                   </td>
                 </tr>
+                
                 <!-- Content -->
                 <tr>
                   <td style="padding: 40px 30px;">
-                    <p style="margin: 0 0 30px 0; color: #374151; font-size: 16px; line-height: 1.6; text-align: center;">
+                    <p style="margin: 0 0 30px 0; color: #374151; font-size: 18px; text-align: center; font-family: Arial, sans-serif; line-height: 1.6;">
                       Thanks for your interest! Here's your exclusive discount code:
                     </p>
+                    
                     <!-- Discount Code Box -->
-                    <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 20px 0;">
                       <tr>
-                        <td style="background: linear-gradient(135deg, #fff5f0 0%, #fff9f5 100%); border: 3px dashed #ff6b35; border-radius: 12px; padding: 30px 20px; text-align: center;">
-                          <p style="margin: 0 0 12px 0; color: #6b7280; font-size: 14px; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">Your Code</p>
-                          <p style="margin: 0; color: #ff6b35; font-size: 32px; font-weight: bold; font-family: 'Courier New', monospace; letter-spacing: 2px;">${code}</p>
+                        <td align="center" style="padding: 30px 20px; background-color: #fff5f0; border: 3px dashed #ff6b35; border-radius: 8px;">
+                          <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 12px; text-transform: uppercase; letter-spacing: 2px; font-family: Arial, sans-serif; font-weight: bold;">YOUR CODE</p>
+                          <p style="margin: 0; color: #ff6b35; font-size: 36px; font-weight: bold; font-family: 'Courier New', monospace; letter-spacing: 3px;">${code}</p>
                         </td>
                       </tr>
                     </table>
+                    
                     <!-- CTA Button -->
-                    <table width="100%" cellpadding="0" cellspacing="0" style="margin: 35px 0;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 30px 0;">
                       <tr>
                         <td align="center">
-                          <a href="https://bannersonthefly.com/design" style="display: inline-block; background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%); color: #ffffff; text-decoration: none; padding: 18px 50px; border-radius: 50px; font-size: 18px; font-weight: bold; box-shadow: 0 4px 15px rgba(255, 107, 53, 0.3);">
-                            Start Designing →
-                          </a>
+                          <table border="0" cellpadding="0" cellspacing="0">
+                            <tr>
+                              <td align="center" style="border-radius: 50px; background-color: #ff6b35;">
+                                <a href="https://bannersonthefly.com/design" target="_blank" style="font-size: 18px; font-family: Arial, sans-serif; color: #ffffff; text-decoration: none; padding: 18px 50px; border-radius: 50px; display: inline-block; font-weight: bold;">Start Designing →</a>
+                              </td>
+                            </tr>
+                          </table>
                         </td>
                       </tr>
                     </table>
+                    
                     <!-- Expiry Info -->
-                    <table width="100%" cellpadding="0" cellspacing="0" style="margin: 30px 0 0 0; background-color: #f9fafb; border-radius: 8px; padding: 20px;">
+                    <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 30px 0 0 0; background-color: #f9fafb; border-radius: 8px;">
                       <tr>
-                        <td style="text-align: center;">
-                          <p style="margin: 0 0 8px 0; color: #374151; font-size: 14px; line-height: 1.6;">
+                        <td align="center" style="padding: 20px;">
+                          <p style="margin: 0 0 5px 0; color: #374151; font-size: 14px; font-family: Arial, sans-serif;">
                             <strong style="color: #18448D;">Expires:</strong> ${expiryDate}
                           </p>
-                          <p style="margin: 0; color: #6b7280; font-size: 13px;">
+                          <p style="margin: 0; color: #6b7280; font-size: 13px; font-family: Arial, sans-serif;">
                             One-time use per customer
                           </p>
                         </td>
@@ -106,15 +117,17 @@ async function sendEmailResend(to, code, expiresAt) {
                     </table>
                   </td>
                 </tr>
+                
                 <!-- Footer -->
                 <tr>
-                  <td style="background-color: #f9fafb; padding: 20px 30px; text-align: center; border-top: 1px solid #e5e7eb;">
-                    <p style="margin: 0; color: #6b7280; font-size: 12px; line-height: 1.5;">
-                      © ${new Date().getFullYear()} Banners on the Fly. All rights reserved.<br>
+                  <td align="center" style="padding: 20px 30px; background-color: #f9fafb; border-top: 1px solid #e5e7eb;">
+                    <p style="margin: 0; color: #6b7280; font-size: 12px; font-family: Arial, sans-serif; line-height: 1.6;">
+                      © ${new Date().getFullYear()} Banners on the Fly. All rights reserved.<br/>
                       Professional custom banners delivered fast.
                     </p>
                   </td>
                 </tr>
+                
               </table>
             </td>
           </tr>
