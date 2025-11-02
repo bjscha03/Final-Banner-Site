@@ -653,15 +653,7 @@ export const useCartStore = create<CartState>()(
       onRehydrateStorage: () => (state) => {
         console.log('�� CART STORAGE: Rehydrating from localStorage...');
         
-        // CRITICAL: Always start with empty items - server is source of truth
-        if (state) {
-          state.items = [];
-        }
-        
-        // CRITICAL: Always start with empty items - server is source of truth
-        if (state) {
-          state.items = [];
-        }
+
         
         // SAFETY CHECK: DISABLED - useCartSync handles all cart clearing
         // This was causing duplicate clears and race conditions
