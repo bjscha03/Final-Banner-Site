@@ -169,7 +169,8 @@ const SignUp: React.FC = () => {
               <button
                 onClick={() => {
                   // CRITICAL FIX: Preserve next parameter when navigating to sign-in
-                  const signInUrl = nextUrl !== '/design' ? `/sign-in?next=${encodeURIComponent(nextUrl)}` : '/sign-in';
+                  const currentNextUrl = getNextUrl();
+                  const signInUrl = currentNextUrl !== '/design' ? `/sign-in?next=${encodeURIComponent(currentNextUrl)}` : '/sign-in';
                   navigate(signInUrl);
                 }}
                 className="font-semibold text-[#18448D] hover:text-indigo-600 transition-colors duration-200"
