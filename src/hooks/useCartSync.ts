@@ -30,14 +30,13 @@ export function useCartSync() {
     console.log('🔍 Cart owner ID:', cartOwnerId);
     console.log('🔍 Has merged:', hasMergedRef.current);
     
-    // IMPROVED: Only clear if cart explicitly belongs to a DIFFERENT user
-    // Don't clear if cartOwnerId is null (cart was cleared on logout)
+    // CRITICAL: Don't clear cart - it syncs empty cart to server and DELETES the database cart!
+    // Just update the cart_owner_user_id in localStorage
     if (currentUserId && cartOwnerId && currentUserId !== cartOwnerId) {
-      console.log('⚠️  CART OWNERSHIP: Cart belongs to different user');
-      console.log('⚠️  Cart owner:', cartOwnerId);
-      console.log('⚠️  Current user:', currentUserId);
-      console.log('⚠️  Clearing cart and will load from server');
-      clearCart();
+      console.log('🔍 CART OWNERSHIP: Cart belongs to different user, will load from server');
+      console.log('🔍 Cart owner:', cartOwnerId);
+      console.log('🔍 Current user:', currentUserId);
+      // Don't call clearCart() - just remove the ownership marker
       if (typeof localStorage !== 'undefined') {
         localStorage.removeItem('cart_owner_user_id');
       }
@@ -52,7 +51,7 @@ export function useCartSync() {
       console.log('⚠️  Clearing localStorage cart for new user');
       
       // Clear the cart in localStorage (it belongs to the previous user)
-      clearCart();
+      // clearCart(); // DISABLED - was deleting database cart
       
       // Remove the old cart owner ID
       if (typeof localStorage !== 'undefined') {
@@ -160,7 +159,7 @@ export function useCartSync() {
         localStorage.removeItem('cart_owner_user_id');
       }
       hasMergedRef.current = false;
-      clearCart();
+      // // clearCart(); // DISABLED - was deleting database cart // DISABLED - was deleting database cart
       console.log('✅ Cart cleared from UI - will be restored from database on next login');
     }
     
