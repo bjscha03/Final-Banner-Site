@@ -1,6 +1,7 @@
 import { User, AuthAdapter } from './orders/types';
 import { useState, useEffect } from 'react';
 import { generateUUID, safeStorage } from './utils';
+import { useCartStore } from '../store/cart';
 
 // Get the correct base URL for Netlify functions
 const getNetlifyFunctionUrl = (functionName: string): string => {
@@ -148,6 +149,10 @@ class SecureAuthAdapter implements AuthAdapter {
   async signOut(): Promise<void> {
     // Remove user from localStorage
     safeStorage.removeItem(this.CURRENT_USER_KEY);
+
+    // Clear cart from UI immediately
+    console.log('🚪 Clearing cart from UI on logout');
+    useCartStore.getState().setState({ items: [] });
 
     // Clear admin cookie if it exists
     if (typeof document !== 'undefined') {
