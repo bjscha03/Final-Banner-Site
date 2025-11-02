@@ -90,8 +90,9 @@ const SignIn: React.FC = () => {
       });
 
       // Clear checkout context after successful sign-in
+      const fromCheckout = searchParams.get('from') === 'checkout';
       if (fromCheckout && isContextValid()) {
-        console.log('🛒 SIGN IN: Clearing checkout context and redirecting to:', nextUrl);
+        console.log('🛒 SIGN IN: Clearing checkout context and redirecting to checkout');
         clearCheckoutContext();
       }
 
