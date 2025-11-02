@@ -659,6 +659,20 @@ export const useCartStore = create<CartState>()(
       onRehydrateStorage: () => (state) => {
         console.log('�� CART STORAGE: Rehydrating from localStorage...');
         
+        // CRITICAL: ALWAYS clear items from state - server is source of truth
+        // This ensures no stale cart items from localStorage ever appear
+        if (state) {
+          console.log('🧹 CART STORAGE: Force clearing items - server is source of truth');
+          state.items = [];
+        }
+        
+        // CRITICAL: ALWAYS clear items from state - server is source of truth
+        // This ensures no stale cart items from localStorage ever appear
+        if (state) {
+          console.log('🧹 CART STORAGE: Force clearing items - server is source of truth');
+          state.items = [];
+        }
+        
         // CRITICAL: Check if cart belongs to current user BEFORE rehydrating
         if (typeof localStorage !== 'undefined') {
           const cartOwnerId = localStorage.getItem('cart_owner_user_id');
