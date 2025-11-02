@@ -167,27 +167,22 @@ const Design: React.FC = () => {
     window.scrollTo(0, 0);
   }, []);
 
-  // Handle file upload completion - scroll to preview and make progress bar sticky
+  // Handle file upload completion - scroll to preview area
   const handleFileUploaded = () => {
     console.log('📸 File uploaded - scrolling to preview');
     
     // Small delay to ensure DOM is updated
     setTimeout(() => {
-      if (livePreviewRef.current && progressIndicatorRef.current) {
-        // Get the position of the progress indicator
-        const progressRect = progressIndicatorRef.current.getBoundingClientRect();
-        const progressTop = progressRect.top + window.scrollY;
-        
-        // Scroll to position the progress indicator near the top of viewport
-        // Offset by 100px to leave some space from the top
-        window.scrollTo({
-          top: progressTop - 100,
-          behavior: 'smooth'
+      if (progressIndicatorRef.current) {
+        // Scroll to the progress indicator (which is now directly above the preview)
+        progressIndicatorRef.current.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start'
         });
         
-        console.log('✅ Scrolled to preview area');
+        console.log('✅ Scrolled to progress bar and preview area');
       }
-    }, 300);
+    }, 400);
   };
 
   // Check for pending AI image from "Use in Design" button
@@ -359,10 +354,6 @@ const Design: React.FC = () => {
             onFileUploaded={handleFileUploaded}
           />
           
-          <div ref={progressIndicatorRef}>
-            <ProgressIndicator />
-          </div>
-          
           <TrustBadges />
           
           <PricingVisibilityBanner />
@@ -370,6 +361,12 @@ const Design: React.FC = () => {
             {/* Mobile Layout: Vertical stack with optimal order */}
             <div className="block lg:hidden space-y-6 md:space-y-8">
               <SizeQuantityCard />
+              
+              {/* Progress Bar - Sticky above preview */}
+              <div ref={progressIndicatorRef}>
+                <ProgressIndicator />
+              </div>
+              
               <div ref={livePreviewRef}>
                 <LivePreviewCard onOpenAIModal={handleOpenAIModal} />
               </div>
@@ -391,6 +388,11 @@ const Design: React.FC = () => {
 
               {/* DOMINANT PREVIEW AREA - Vistaprint Style */}
               <div className="flex-1 min-w-0 space-y-8">
+                {/* Progress Bar - Sticky above preview (desktop uses same ref) */}
+                <div className="lg:block hidden">
+                  <ProgressIndicator />
+                </div>
+                
                 <LivePreviewCard 
                   onOpenAIModal={handleOpenAIModal} 
                   expanded={true}
