@@ -306,7 +306,7 @@ export const useCartStore = create<CartState>()(
           value: newItem.line_total_cents,
         });
       // Sync to Neon database IMMEDIATELY (critical for persistence)
-      get().syncToServer();
+      setTimeout(() => get().syncToServer(), 0);
       },
       
       updateQuantity: (id: string, quantity: number) => {
@@ -339,7 +339,7 @@ export const useCartStore = create<CartState>()(
           })
         }));
       // Sync to Neon database IMMEDIATELY (critical for persistence)
-      get().syncToServer();
+      setTimeout(() => get().syncToServer(), 0);
       },
       
       loadItemIntoQuote: (itemId: string) => {
@@ -451,20 +451,20 @@ export const useCartStore = create<CartState>()(
           items: state.items.map(item => item.id === itemId ? updatedItem : item)
         }));
       // Sync to Neon database IMMEDIATELY (critical for persistence)
-      get().syncToServer();
+      setTimeout(() => get().syncToServer(), 0);
       },
       removeItem: (id: string) => {
         set((state) => ({
           items: state.items.filter(item => item.id !== id)
         }));
       // Sync to Neon database IMMEDIATELY (critical for persistence)
-      get().syncToServer();
+      setTimeout(() => get().syncToServer(), 0);
       },
       
       clearCart: () => {
         set({ items: [], discountCode: null });
       // Sync to Neon database IMMEDIATELY (critical for persistence)
-      get().syncToServer();
+      setTimeout(() => get().syncToServer(), 0);
       },
 
       applyDiscountCode: (discount: DiscountCode) => {
