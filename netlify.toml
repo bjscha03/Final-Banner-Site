@@ -176,4 +176,4 @@ for = "/assets/*"
 # Edge Functions configuration
 [[edge_functions]]
   path = "/blog/*"
-  function = "social-meta-injector"
+  function = "blog-meta-tags"

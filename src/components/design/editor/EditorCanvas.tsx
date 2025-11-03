@@ -2,6 +2,7 @@ import React, { useRef, useEffect, useState } from 'react';
 import { Stage, Layer, Rect, Line, Text as KonvaText, Text, Circle, RegularPolygon, Arrow, Transformer, Image as KonvaImage, Group } from 'react-konva';
 import useImage from 'use-image';
 import { Card } from '@/components/ui/card';
+import { Trash2 } from 'lucide-react';
 import { useQuoteStore } from '@/store/quote';
 import { useEditorStore } from '@/store/editor';
 import { grommetPoints, grommetRadius } from '@/lib/preview/grommets';
@@ -478,6 +479,8 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
             shadowColor="black"
             shadowBlur={10}
             shadowOpacity={0.2}
+            onClick={handleStageClick}
+            onTap={handleStageClick}
             shadowOffset={{ x: 0, y: 2 }}
           />
           
@@ -729,6 +732,22 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
           />
         </Layer>
       </Stage>
+      
+      {/* Mobile Delete Button - Shows when object is selected */}
+      {selectedIds.length > 0 && (
+        <div className="lg:hidden absolute top-4 right-4 flex gap-2">
+          <button
+            onClick={() => {
+              deleteSelected();
+              clearSelection();
+            }}
+            className="bg-red-500 hover:bg-red-600 text-white p-3 rounded-full shadow-lg transition-all duration-200 active:scale-95"
+            aria-label="Delete selected object"
+          >
+            <Trash2 className="w-5 h-5" />
+          </button>
+        </div>
+      )}
       
       {/* Dimension label */}
       <div className="absolute bottom-4 right-4 bg-white px-3 py-2 rounded shadow text-sm font-medium text-gray-700">
