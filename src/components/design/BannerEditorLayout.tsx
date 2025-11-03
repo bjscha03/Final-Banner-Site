@@ -305,48 +305,69 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       return;
     }
 
-    console.log('[BannerEditorLayout] Loading cart item objects for editing:', { editingItemId, overlayImage, textElements });
-
-    // Load overlay image if present
-    if (overlayImage && overlayImage.url) {
-      console.log('[BannerEditorLayout] Adding overlayImage to canvas:', overlayImage);
-      addObject({
-        type: 'image',
-        url: overlayImage.url,
-        x: overlayImage.position?.x || 0,
-        y: overlayImage.position?.y || 0,
-        width: overlayImage.width || 200,
-        height: overlayImage.height || 200,
-        rotation: overlayImage.rotation || 0,
-        scaleX: overlayImage.scaleX || 1,
-        scaleY: overlayImage.scaleY || 1,
-        visible: true,
-      });
+    // Only load if we have objects to load
+    const hasObjectsToLoad = (overlayImage && overlayImage.url) || (textElements && textElements.length > 0);
+    
+    if (!hasObjectsToLoad) {
+      console.log('[BannerEditorLayout] No objects to load from cart item');
+      return;
     }
 
-    // Load text elements if present
-    if (textElements && textElements.length > 0) {
-      console.log('[BannerEditorLayout] Adding text elements to canvas:', textElements);
-      textElements.forEach((textEl: any) => {
+    console.log('[BannerEditorLayout] Loading cart item objects for editing:', { editingItemId, overlayImage, textElements });
+    console.log('[BannerEditorLayout] Current editor objects before load:', editorObjects);
+
+    // CRITICAL: Clear existing objects first to prevent duplicates
+    console.log('[BannerEditorLayout] Clearing existing objects before loading cart item');
+    resetEditor();
+
+    // Small delay to ensure reset completes before adding objects
+    setTimeout(() => {
+      // Load overlay image if present
+      if (overlayImage && overlayImage.url) {
+        console.log('[BannerEditorLayout] Adding overlayImage to canvas:', overlayImage);
         addObject({
-          type: 'text',
-          text: textEl.text,
-          x: textEl.x || 0,
-          y: textEl.y || 0,
-          fontSize: textEl.fontSize || 24,
-          fontFamily: textEl.fontFamily || 'Arial',
-          fill: textEl.color || '#000000',
-          fontStyle: textEl.fontStyle || 'normal',
-          textDecoration: textEl.textDecoration || '',
-          align: textEl.align || 'left',
-          rotation: textEl.rotation || 0,
+          type: 'image',
+          url: overlayImage.url,
+          x: overlayImage.position?.x || 0,
+          y: overlayImage.position?.y || 0,
+          width: overlayImage.width || 200,
+          height: overlayImage.height || 200,
+          rotation: overlayImage.rotation || 0,
+          scaleX: overlayImage.scaleX || 1,
+          scaleY: overlayImage.scaleY || 1,
           visible: true,
         });
-      });
-    }
+      }
 
-    console.log('[BannerEditorLayout] Finished loading cart item objects');
-  }, [editingItemId, overlayImage, textElements, addObject]); // Run when editingItemId or objects change
+      // Load text elements if present
+      if (textElements && textElements.length > 0) {
+        console.log('[BannerEditorLayout] Adding text elements to canvas:', textElements);
+        textElements.forEach((textEl: any) => {
+          addObject({
+            type: 'text',
+            text: textEl.text,
+            content: textEl.text, // Use 'content' for new editor format
+            x: textEl.x || 0,
+            y: textEl.y || 0,
+            fontSize: textEl.fontSize || 24,
+            fontFamily: textEl.fontFamily || 'Arial',
+            color: textEl.color || '#000000',
+            fill: textEl.color || '#000000',
+            fontWeight: textEl.fontWeight || 'normal',
+            fontStyle: textEl.fontStyle || 'normal',
+            textDecoration: textEl.textDecoration || '',
+            textAlign: textEl.align || 'left',
+            align: textEl.align || 'left',
+            rotation: textEl.rotation || 0,
+            opacity: 1,
+            visible: true,
+          });
+        });
+      }
+
+      console.log('[BannerEditorLayout] Finished loading cart item objects');
+    }, 100);
+  }, [editingItemId]); // Only run when editingItemId changes
 
   const handleSave = () => {
     try {
