@@ -4,7 +4,7 @@ import useImage from 'use-image';
 import { Card } from '@/components/ui/card';
 import { useQuoteStore } from '@/store/quote';
 import { useEditorStore } from '@/store/editor';
-import { grommetPoints } from '@/lib/preview/grommets';
+import { grommetPoints, grommetRadius } from '@/lib/preview/grommets';
 import Konva from 'konva';
 
 interface EditorCanvasProps {
@@ -257,13 +257,22 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
         .map(id => stage.findOne(`#${id}`))
         .filter(node => node !== null) as Konva.Node[];
       transformer.nodes(nodes);
+      
+      // Enable aspect ratio locking for images by default
+      // Allow free resizing for shapes and text
+      const selectedObj = objects.find(obj => obj.id === selectedIds[0]);
+      if (selectedObj?.type === 'image') {
+        transformer.keepRatio(true);
+      } else {
+        transformer.keepRatio(false);
+      }
     }
     
     const layer = transformer.getLayer();
     if (layer) {
       layer.batchDraw();
     }
-  }, [selectedIds]);
+  }, [selectedIds, objects]);
   
   const handleStageClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
     if (e.target === e.target.getStage()) {
@@ -279,15 +288,34 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
   
   // Helper function to constrain object within canvas boundaries
   const constrainToBounds = (x: number, y: number, width: number, height: number) => {
-    const minX = 0;
-    const minY = 0;
-    const maxX = widthIn - width;
-    const maxY = heightIn - height;
+    // Canva-like behavior: Allow images to go off-canvas, but keep at least 10-20% visible
+    // This prevents images from being completely lost off-screen
+    const MINIMUM_VISIBLE_PERCENT = 0.15; // 15% must remain visible
+    
+    const minVisibleWidth = width * MINIMUM_VISIBLE_PERCENT;
+    const minVisibleHeight = height * MINIMUM_VISIBLE_PERCENT;
+    
+    // Allow image to extend beyond canvas, but keep minimum visible portion on canvas
+    // Image can go left until only minVisibleWidth is showing on the right edge
+    const minX = -width + minVisibleWidth;
+    // Image can go up until only minVisibleHeight is showing on the bottom edge
+    const minY = -height + minVisibleHeight;
+    // Image can go right until only minVisibleWidth is showing on the left edge
+    const maxX = widthIn - minVisibleWidth;
+    // Image can go down until only minVisibleHeight is showing on the top edge
+    const maxY = heightIn - minVisibleHeight;
     
     const constrainedX = Math.max(minX, Math.min(maxX, x));
     const constrainedY = Math.max(minY, Math.min(maxY, y));
     
     const isOutOfBounds = x < minX || y < minY || x > maxX || y > maxY;
+    
+    console.log('[CONSTRAIN] Canva-like bounds:', {
+      x, y, width, height,
+      minX, minY, maxX, maxY,
+      constrainedX, constrainedY,
+      isOutOfBounds
+    });
     
     return { x: constrainedX, y: constrainedY, isOutOfBounds };
   };
@@ -306,59 +334,7 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
         objWidth = (obj as any).width || 1;
         objHeight = (obj as any).height || 1;
         
-        // For circles and triangles (RegularPolygon), the position is at the center
-        // and the radius extends in all directions, so we need to account for that
-        if (obj.type === 'shape' && ((obj as any).shapeType === 'circle' || (obj as any).shapeType === 'triangle')) {
-          // For circles/triangles, the x,y is the CENTER, not top-left
-          // So we need to constrain differently
-          const radius = objWidth / 2;
-          
-          // For triangles, the bounding box is actually larger than the radius
-          // A RegularPolygon with sides=3 has vertices that extend beyond the radius
-          // The vertical extent is approximately radius * 1.5 (from center to bottom vertex)
-          let verticalRadius = radius;
-          let horizontalRadius = radius;
-          
-          if ((obj as any).shapeType === 'triangle') {
-            // Triangle vertices extend further vertically
-            // Top vertex is at -radius, bottom edge is at +radius*1.5
-            verticalRadius = radius * 1.5;
-            horizontalRadius = radius * 1.15; // Slightly wider for the base
-          }
-          
-          // Convert screen position to inches (this is the CENTER position)
-          const centerXInches = (pos.x - stagePos.x) / (PIXELS_PER_INCH * scale);
-          const centerYInches = (pos.y - stagePos.y) / (PIXELS_PER_INCH * scale);
-          
-          // Constrain the center position so the shape doesn't go outside
-          const minX = horizontalRadius;
-          const minY = verticalRadius;
-          const maxX = widthIn - horizontalRadius;
-          const maxY = heightIn - verticalRadius;
-          
-          const constrainedCenterX = Math.max(minX, Math.min(maxX, centerXInches));
-          const constrainedCenterY = Math.max(minY, Math.min(maxY, centerYInches));
-          
-          // Convert back to screen coordinates
-          const constrainedX = stagePos.x + constrainedCenterX * PIXELS_PER_INCH * scale;
-          const constrainedY = stagePos.y + constrainedCenterY * PIXELS_PER_INCH * scale;
-          
-          const wasConstrained = centerXInches < minX || centerYInches < minY || centerXInches > maxX || centerYInches > maxY;
-          
-          console.log('[DRAG BOUND - CIRCLE/TRIANGLE]', { 
-            id,
-            shapeType: (obj as any).shapeType,
-            radius,
-            verticalRadius,
-            horizontalRadius,
-            center: { x: centerXInches, y: centerYInches },
-            constrained: { x: constrainedCenterX, y: constrainedCenterY },
-            bounds: { minX, minY, maxX, maxY },
-            wasConstrained
-          });
-          
-          return { x: constrainedX, y: constrainedY };
-        }
+
       } else {
         // For text, we can't easily get dimensions here, so allow free movement
         // and constrain in dragEnd
@@ -446,32 +422,16 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
         fontSize: newFontSize,
         rotation: node.rotation(),
       });
-    } else if (obj?.type === 'shape' && ((obj as any).shapeType === 'line' || (obj as any).shapeType === 'arrow')) {
-      // For lines and arrows, only update width (they're horizontal)
-      // The height should remain small (0.1 inches)
-      let newWidth = (node.width() * scaleX) / (PIXELS_PER_INCH * scale);
-      const newHeight = 0.1; // Keep height constant for lines/arrows
-      
-      // Constrain to canvas bounds
-      const constrained = constrainToBounds(newX, newY, newWidth, newHeight);
-      
-      // If out of bounds, limit the size
-      if (constrained.isOutOfBounds) {
-        newWidth = Math.min(newWidth, widthIn - constrained.x);
-      }
-      
-      console.log("[TRANSFORM LINE/ARROW] x:", constrained.x, "y:", constrained.y, "width:", newWidth, "height:", newHeight);
-      updateObject(id, {
-        x: constrained.x,
-        y: constrained.y,
-        width: newWidth,
-        height: newHeight,
-        rotation: node.rotation(),
-      });
+
     } else {
       // For shapes and images, update width/height with boundary constraints
       let newWidth = (node.width() * scaleX) / (PIXELS_PER_INCH * scale);
       let newHeight = (node.height() * scaleY) / (PIXELS_PER_INCH * scale);
+      
+      // For lines and arrows, preserve the original height (they don't use height for rendering)
+      if (obj?.type === 'shape' && ((obj as any).shapeType === 'line' || (obj as any).shapeType === 'arrow')) {
+        newHeight = (obj as any).height || 0.1; // Keep original height
+      }
       
       // Constrain to canvas bounds
       const constrained = constrainToBounds(newX, newY, newWidth, newHeight);
@@ -583,21 +543,19 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
             />
           )}
           
-          {/* Grommets */}
-          {grommetPositions.map((pos, idx) => (
-            <Circle
-              key={`grommet-${idx}`}
-              x={stagePos.x + pos.x * PIXELS_PER_INCH * scale}
-              y={stagePos.y + pos.y * PIXELS_PER_INCH * scale}
-              radius={4 * scale}
-              fill="#666"
-              stroke="#333"
-              strokeWidth={1}
-              listening={false}
-            />
-          ))}
           
-          {/* Canvas objects */}
+          {/* Canvas objects - wrapped in Group with clipping to hide off-canvas parts */}
+          <Group
+            clipFunc={(ctx) => {
+              // Clip to canvas boundaries - anything outside won't be visible
+              ctx.rect(
+                stagePos.x,
+                stagePos.y,
+                canvasWidthPx * scale,
+                canvasHeightPx * scale
+              );
+            }}
+          >
           {objects
             .filter(obj => obj.visible)
             .sort((a, b) => a.zIndex - b.zIndex)
@@ -607,29 +565,7 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
                 console.log('[RENDER] Image position from store:', { x: obj.x, y: obj.y });
                 console.log('[RENDER] isPDF flag:', (obj as any).isPDF);
                 
-                // Check if this is a PDF - use placeholder instead
-                if ((obj as any).isPDF) {
-                  console.log('[RENDER] Rendering PDF placeholder for:', obj.id);
-                  return (
-                    <PDFPlaceholder
-                      key={obj.id}
-                      id={obj.id}
-                      x={stagePos.x + obj.x * PIXELS_PER_INCH * scale}
-                      y={stagePos.y + obj.y * PIXELS_PER_INCH * scale}
-                      width={obj.width * PIXELS_PER_INCH * scale}
-                      height={obj.height * PIXELS_PER_INCH * scale}
-                      rotation={obj.rotation}
-                      opacity={obj.opacity}
-                      draggable={!obj.locked}
-                      dragBoundFunc={createDragBoundFunc(obj.id)}
-                      onClick={(e) => handleObjectClick(obj.id, e)}
-                      onTap={(e) => handleObjectClick(obj.id, e)}
-                      onDragEnd={(e) => handleObjectDragEnd(obj.id, e)}
-                      onTransformEnd={(e) => handleObjectTransformEnd(obj.id, e)}
-                    />
-                  );
-                }
-                
+                // PDFs are now converted to images, so render them as regular images
                 return (
                   <CanvasImage
                     key={obj.id}
@@ -659,7 +595,7 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
                     x={stagePos.x + obj.x * PIXELS_PER_INCH * scale}
                     y={stagePos.y + obj.y * PIXELS_PER_INCH * scale}
                     text={obj.content}
-                    fontSize={obj.fontSize * scale}
+                    fontSize={obj.fontSize * PIXELS_PER_INCH * scale}
                     fontFamily={obj.fontFamily}
                     fill={obj.color}
                     fontStyle={`${obj.fontWeight} ${obj.fontStyle}`}
@@ -699,9 +635,26 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
                 if (obj.shapeType === 'rect') {
                   return <Rect key={obj.id} {...shapeProps} cornerRadius={obj.cornerRadius ? obj.cornerRadius * scale : 0} />;
                 } else if (obj.shapeType === 'circle') {
-                  return <Circle key={obj.id} {...shapeProps} radius={(obj.width * PIXELS_PER_INCH * scale) / 2} />;
+                  // Use offsetX/offsetY to make circle position from top-left like rectangles
+                  const radius = (obj.width * PIXELS_PER_INCH * scale) / 2;
+                  return <Circle 
+                    key={obj.id} 
+                    {...shapeProps} 
+                    radius={radius}
+                    offsetX={-radius}
+                    offsetY={-radius}
+                  />;
                 } else if (obj.shapeType === 'triangle') {
-                  return <RegularPolygon key={obj.id} {...shapeProps} sides={3} radius={(obj.width * PIXELS_PER_INCH * scale) / 2} />;
+                  // Use offsetX/offsetY to make triangle position from top-left like rectangles
+                  const radius = (obj.width * PIXELS_PER_INCH * scale) / 2;
+                  return <RegularPolygon 
+                    key={obj.id} 
+                    {...shapeProps} 
+                    sides={3} 
+                    radius={radius}
+                    offsetX={-radius}
+                    offsetY={-radius}
+                  />;
                 } else if (obj.shapeType === 'line') {
                   return (
                     <Line
@@ -728,11 +681,47 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
               return null;
             })}
           
+          </Group>
+
+          {/* Grommets */}
+          {grommetPositions.map((pos, idx) => (
+            <Circle
+              key={`grommet-${idx}`}
+              x={stagePos.x + pos.x * PIXELS_PER_INCH * scale}
+              y={stagePos.y + pos.y * PIXELS_PER_INCH * scale}
+              radius={grommetRadius(widthIn, heightIn) * PIXELS_PER_INCH * scale}
+              fill="#666"
+              stroke="#333"
+              strokeWidth={1 * scale}
+              listening={false}
+            />
+          ))}
           {/* Transformer */}
           <Transformer
             ref={transformerRef}
+            keepRatio={true}  // Lock aspect ratio by default for images
+            enabledAnchors={[
+              'top-left',
+              'top-right',
+              'bottom-left',
+              'bottom-right',
+              'top-center',
+              'middle-left',
+              'middle-right',
+              'bottom-center',
+            ]}
+            rotateEnabled={true}
+            borderStroke="#18448D"
+            borderStrokeWidth={2}
+            anchorFill="#18448D"
+            anchorStroke="#ffffff"
+            anchorStrokeWidth={2}
+            anchorSize={10}
+            anchorCornerRadius={2}
             boundBoxFunc={(oldBox, newBox) => {
-              if (newBox.width < 5 || newBox.height < 5) {
+              // Remove minimum size constraint to prevent snapping
+              // Allow any size for smooth resizing
+              if (newBox.width < 1 || newBox.height < 1) {
                 return oldBox;
               }
               return newBox;

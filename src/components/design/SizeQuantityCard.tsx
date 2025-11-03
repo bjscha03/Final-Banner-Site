@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { SizeStepper } from '@/components/ui/SizeStepper';
 
 const SizeQuantityCard: React.FC = () => {
+  console.log('[SizeQuantityCard] Component rendered');
   const { widthIn, heightIn, quantity, set } = useQuoteStore();
   const [widthInput, setWidthInput] = useState(widthIn.toString());
   const [heightInput, setHeightInput] = useState(heightIn.toString());
@@ -91,7 +92,7 @@ const SizeQuantityCard: React.FC = () => {
       </div>
 
       {/* Header */}
-      <div className="relative bg-slate-50 px-6 py-4 border-b border-slate-200 backdrop-blur-sm">
+      <div className="relative bg-slate-50 px-4 py-3 border-b border-slate-200 backdrop-blur-sm">
         <div className="flex items-center gap-4">
           <div className="relative">
             <div className="w-12 h-12 bg-orange-500 rounded-lg flex items-center justify-center shadow-sm">
@@ -106,7 +107,7 @@ const SizeQuantityCard: React.FC = () => {
         </div>
       </div>
 
-      <div className="relative p-6 space-y-6">
+      <div className="relative p-4 space-y-4">
         {/* Size Section */}
         <div>
           <h3 className="text-base font-bold text-gray-800 mb-4 flex items-center gap-2">
@@ -120,7 +121,7 @@ const SizeQuantityCard: React.FC = () => {
               <button
                 key={`${size.w}x${size.h}`}
                 onClick={() => setQuickSize(size.w, size.h)}
-                className={`relative px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 transform hover:scale-105 ${
+                className={`relative px-3 py-2 rounded-lg text-xs font-semibold transition-all duration-300 transform hover:scale-105 ${
                   widthIn === size.w && heightIn === size.h
                     ? "bg-orange-500 text-white shadow-sm"
                     : "bg-white/80 text-gray-700 hover:bg-white border border-gray-200/50 hover:border-blue-300/50 shadow-sm hover:shadow-md"
@@ -135,7 +136,7 @@ const SizeQuantityCard: React.FC = () => {
           </div>
 
           {/* Custom Size Inputs with Mobile-Optimized Steppers */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="space-y-3">
             <SizeStepper
               label="Width (in)"
               value={widthIn}

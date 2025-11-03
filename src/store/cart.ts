@@ -248,7 +248,23 @@ export const useCartStore = create<CartState>()(
           file_key: fileKey,
           file_name: quote.file?.name,
           // CRITICAL: Never save blob URLs - they don't persist across sessions
-          file_url: (quote.file?.url?.startsWith('blob:') ? null : quote.file?.url) || aiMetadata?.assets?.proofUrl || null,
+          // Use thumbnailUrl if provided (may be blob URL for immediate display)
+          // Note: Blob URLs won't persist across sessions, but will work for current session
+          file_url: (() => {
+            const thumbnailUrl = (quote as any).thumbnailUrl;
+            const fileUrl = quote.file?.url;
+            const proofUrl = aiMetadata?.assets?.proofUrl;
+            
+            console.log('[CART STORE] 🖼️ Thumbnail Debug:', {
+              thumbnailUrl: thumbnailUrl ? thumbnailUrl.substring(0, 50) + '...' : 'null',
+              fileUrl: fileUrl ? fileUrl.substring(0, 50) + '...' : 'null',
+              proofUrl: proofUrl ? proofUrl.substring(0, 50) + '...' : 'null',
+            });
+            
+            const finalUrl = thumbnailUrl || (fileUrl?.startsWith('blob:') ? null : fileUrl) || proofUrl || null;
+            console.log('[CART STORE] 🖼️ Final file_url:', finalUrl ? finalUrl.substring(0, 50) + '...' : 'NULL - NO IMAGE WILL SHOW');
+            return finalUrl;
+          })(),
           web_preview_url: (aiMetadata?.assets?.proofUrl?.startsWith('blob:') ? null : aiMetadata?.assets?.proofUrl) || null,
           print_ready_url: (aiMetadata?.assets?.finalUrl?.startsWith('blob:') ? null : aiMetadata?.assets?.finalUrl) || null,
           is_pdf: quote.file?.isPdf || false,
@@ -267,8 +283,11 @@ export const useCartStore = create<CartState>()(
 
         console.log('🧮 CART: addFromQuote', { usingAuthoritative, pricing, computed: { unit: computedUnit, rope: computedRope, pole: computedPole, line: computedLine }, stored: newItem });
         console.log('💾 CART STORAGE: Item added, will persist to localStorage');
+        console.log("[CART STORE] About to add item to cart:", newItem);
+        console.log("[CART STORE] Current cart items:", get().items);
         set((state) => ({ items: [...state.items, newItem] }));
 
+        console.log("[CART STORE] Item added successfully. New cart items:", get().items);
         // CRITICAL FIX: Set cart owner to current user
         const userId = cartSync.getUserId();
         if (userId && typeof localStorage !== 'undefined') {

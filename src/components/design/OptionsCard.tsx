@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Circle, Minus, ChevronDown, Info, HelpCircle } from 'lucide-react';
-import { useQuoteStore, PolePocketSize } from '@/store/quote';
+import { useQuoteStore, PolePocketSize, Grommets } from '@/store/quote';
 import { ropeCost, polePocketCost } from '@/lib/pricing';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -25,7 +25,7 @@ const polePocketSizeOptions = [
 ];
 
 const OptionsCard: React.FC = () => {
-  const { polePockets, polePocketSize, addRope, widthIn, heightIn, quantity, set } = useQuoteStore();
+  const { polePockets, polePocketSize, addRope, grommets, widthIn, heightIn, quantity, set } = useQuoteStore();
   const [showPolePocketInfo, setShowPolePocketInfo] = useState(false);
   const [showRopeInfo, setShowRopeInfo] = useState(false);
 
@@ -101,7 +101,10 @@ const OptionsCard: React.FC = () => {
 
             {/* Dropdown for pole pocket configuration - only show when enabled */}
             {polePockets !== 'none' && (
-              <Select value={polePockets} onValueChange={(value) => set({ polePockets: value })}>
+              <Select value={polePockets} onValueChange={(value) => {
+                  console.log('[OptionsCard] Pole pocket selection changed to:', value);
+                  set({ polePockets: value });
+                }}>
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Choose pole pocket option" />
                 </SelectTrigger>
@@ -182,6 +185,75 @@ const OptionsCard: React.FC = () => {
                     </div>
                   </div>
                 )}
+              </div>
+            )}
+          </div>
+        </div>
+
+
+        {/* Grommets Section */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <Circle className="w-4 h-4 text-gray-600" />
+            <h3 className="text-sm font-medium text-gray-700">Grommets</h3>
+            <button
+              onMouseEnter={() => setShowPolePocketInfo(true)}
+              onMouseLeave={() => setShowPolePocketInfo(false)}
+              className="relative"
+            >
+              <HelpCircle className="w-3 h-3 text-gray-400 hover:text-gray-600" />
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {/* Checkbox to enable/disable grommets */}
+            <div className="flex items-center space-x-3">
+              <Checkbox
+                id="enable-grommets"
+                checked={grommets !== 'none'}
+                onCheckedChange={(checked) => {
+                  console.log('[OptionsCard] Grommets checkbox changed:', checked);
+                  if (checked) {
+                    set({ grommets: '4-corners' as Grommets }); // Default to 4 corners
+                  } else {
+                    set({ grommets: 'none' as Grommets });
+                  }
+                }}
+              />
+              <label htmlFor="enable-grommets" className="text-sm text-gray-700 cursor-pointer flex-1">
+                Add Grommets (Free)
+              </label>
+            </div>
+
+            {/* Dropdown for grommet configuration - only show when enabled */}
+            {grommets !== 'none' && (
+              <Select value={grommets} onValueChange={(value) => {
+                  console.log('[OptionsCard] Grommet selection changed to:', value);
+                  set({ grommets: value as Grommets });
+                }}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Choose grommet placement" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="4-corners">4 Corners</SelectItem>
+                  <SelectItem value="top-corners">Top Corners Only</SelectItem>
+                  <SelectItem value="every-2-3ft">Every 2-3 feet</SelectItem>
+                  <SelectItem value="every-1-2ft">Every 1-2 feet</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
+
+            {grommets !== 'none' && (
+              <div className="bg-green-50 p-3 rounded-lg">
+                <div className="text-xs font-medium text-green-800">
+                  ✓ Grommets included at no extra charge
+                </div>
+                <div className="text-xs text-green-700 mt-1">
+                  {grommets === '4-corners' && 'Grommets at all 4 corners'}
+                  {grommets === 'top-corners' && 'Grommets at top 2 corners'}
+                  {grommets === 'every-2-3ft' && 'Grommets every 2-3 feet around perimeter'}
+                  {grommets === 'every-1-2ft' && 'Grommets every 1-2 feet around perimeter'}
+                </div>
               </div>
             )}
           </div>

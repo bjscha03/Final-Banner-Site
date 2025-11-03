@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { useEditorStore } from './editor';
 
 export type MaterialKey = '13oz' | '15oz' | '18oz' | 'mesh';
 export type Grommets =
@@ -250,6 +251,11 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
   resetDesign: () => {
     console.log('🔄 QUOTE STORE: resetDesign() called');
     console.log('🔄 QUOTE STORE: Setting file to undefined');
+    
+    // Also clear editor canvas objects
+    console.log('🔄 QUOTE STORE: Clearing editor canvas objects');
+    useEditorStore.getState().reset();
+    
     return set({
     widthIn: 48,
     heightIn: 24,

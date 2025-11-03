@@ -1,8 +1,9 @@
-import React, { useRef, useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useEditorStore } from '@/store/editor';
+import { convertPDFToImage } from '@/lib/pdfUtils';
 import { useQuoteStore } from '@/store/quote';
 import { Button } from '@/components/ui/button';
-import { Upload, X, Image as ImageIcon } from 'lucide-react';
+import { Upload, X, Image as ImageIcon , Plus } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 
 interface UploadedImage {
@@ -14,14 +15,37 @@ interface UploadedImage {
   isPDF?: boolean;
 }
 
+// Create a persistent store for uploaded images (survives component re-renders)
+let persistentUploadedImages: UploadedImage[] = [];
+
 const AssetsPanel: React.FC = () => {
+  console.log('[AssetsPanel] Component rendered');
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>([]);
+  const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>(persistentUploadedImages);
   const [uploading, setUploading] = useState(false);
   const { addObject } = useEditorStore();
-  const { widthIn, heightIn } = useQuoteStore();
+  const { widthIn, heightIn, editingItemId } = useQuoteStore();
+
+  // Sync local state with persistent store
+  useEffect(() => {
+    persistentUploadedImages = uploadedImages;
+  }, [uploadedImages]);
+
+  // Clear images when cart action is completed (add to cart or update cart)
+  // This is triggered by the parent component via a custom event
+  useEffect(() => {
+    const handleClearImages = () => {
+      console.log('[AssetsPanel] Clearing uploaded images after cart action');
+      setUploadedImages([]);
+      persistentUploadedImages = [];
+    };
+
+    window.addEventListener('clearUploadedImages', handleClearImages);
+    return () => window.removeEventListener('clearUploadedImages', handleClearImages);
+  }, []);
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('[AssetsPanel] handleFileSelect called');
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
@@ -47,17 +71,26 @@ const AssetsPanel: React.FC = () => {
       const url = URL.createObjectURL(file);
       
       if (isPDF) {
-        // For PDFs, use a default size (will be adjusted when added to canvas)
-        const newImage: UploadedImage = {
-          id: `pdf-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          url,
-          name: file.name,
-          width: 816, // 8.5 inches at 96 DPI
-          height: 1056, // 11 inches at 96 DPI
-          isPDF: true,
-        };
-        
-        setUploadedImages((prev) => [...prev, newImage]);
+        // Convert PDF to image for preview and canvas rendering
+        try {
+          console.log('[AssetsPanel] Converting PDF to image:', file.name);
+          const pdfPreview = await convertPDFToImage(url, 2);
+          
+          const newImage: UploadedImage = {
+            id: `pdf-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+            url: pdfPreview.imageUrl, // Use the converted image URL instead of PDF blob
+            name: file.name,
+            width: pdfPreview.width,
+            height: pdfPreview.height,
+            isPDF: true, // Keep this flag for reference
+          };
+          
+          console.log('[AssetsPanel] PDF converted successfully:', pdfPreview.width, 'x', pdfPreview.height);
+          setUploadedImages((prev) => [...prev, newImage]);
+        } catch (error) {
+          console.error('[AssetsPanel] Error converting PDF:', error);
+          alert(`Failed to load PDF: ${file.name}. Please try again.`);
+        }
       } else {
         // Get image dimensions
         const img = new Image();
@@ -101,6 +134,7 @@ const AssetsPanel: React.FC = () => {
   };
 
   const handleAddToCanvas = (image: UploadedImage) => {
+    console.log('[AssetsPanel] handleAddToCanvas called with image:', image);
     console.log('[IMAGE ADD] Clicked image:', image);
     console.log('[IMAGE ADD] Canvas dimensions (inches):', { widthIn, heightIn });
     
@@ -154,7 +188,10 @@ const AssetsPanel: React.FC = () => {
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-[#18448D] transition-colors cursor-pointer"
-        onClick={() => fileInputRef.current?.click()}
+        onClick={() => {
+          console.log('[AssetsPanel] Upload area clicked, triggering file input');
+          fileInputRef.current?.click();
+        }}
       >
         <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
         <p className="text-sm text-gray-600 mb-1">
@@ -191,27 +228,41 @@ const AssetsPanel: React.FC = () => {
                 >
                   <X className="h-3 w-3" />
                 </button>
-                <div
-                  onClick={() => handleAddToCanvas(image)}
-                  className="cursor-pointer"
-                >
-                  <div className="aspect-square bg-gray-100 rounded overflow-hidden flex items-center justify-center">
-                    {image.isPDF ? (
-                      <div className="text-center p-2">
-                        <ImageIcon className="h-8 w-8 mx-auto text-gray-400 mb-1" />
-                        <p className="text-xs text-gray-500">PDF</p>
-                      </div>
-                    ) : (
-                      <img
-                        src={image.url}
-                        alt={image.name}
-                        className="w-full h-full object-cover"
-                      />
-                    )}
+                <div className="space-y-1">
+                  <div
+                    onClick={() => handleAddToCanvas(image)}
+                    className="cursor-pointer hover:opacity-80 transition-opacity"
+                  >
+                    <div className="aspect-square bg-gray-100 rounded overflow-hidden flex items-center justify-center">
+                      {image.isPDF ? (
+                        <div className="w-full h-full bg-gradient-to-br from-red-50 to-red-100 flex flex-col items-center justify-center p-4 border-2 border-red-200">
+                          <svg className="w-12 h-12 text-red-600 mb-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2H6a2 2 0 01-2-2V4z" clipRule="evenodd" />
+                          </svg>
+                          <p className="text-sm font-bold text-red-700">PDF</p>
+                          <p className="text-xs text-red-600 mt-1 text-center truncate w-full">{image.name}</p>
+                        </div>
+                      ) : (
+                        <img
+                          src={image.url}
+                          alt={image.name}
+                          className="w-full h-full object-cover"
+                        />
+                      )}
+                    </div>
+                    <p className="text-xs text-gray-600 truncate p-1">
+                      {image.name}
+                    </p>
                   </div>
-                  <p className="text-xs text-gray-600 truncate p-1">
-                    {image.name}
-                  </p>
+                  <Button
+                    onClick={() => handleAddToCanvas(image)}
+                    size="sm"
+                    className="w-full text-xs h-7"
+                    variant="outline"
+                  >
+                    <Plus className="h-3 w-3 mr-1" />
+                    Add to Canvas
+                  </Button>
                 </div>
               </Card>
             ))}

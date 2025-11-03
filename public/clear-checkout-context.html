@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Clear Checkout Context</title>
+</head>
+<body>
+    <h1>Clearing checkout context storage...</h1>
+    <script>
+        console.log('Clearing checkout-context-storage from localStorage');
+        localStorage.removeItem('checkout-context-storage');
+        console.log('Cleared!');
+        alert('Checkout context cleared! Redirecting to design editor...');
+        window.location.href = '/design-editor';
+    </script>
+</body>
+</html>

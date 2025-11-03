@@ -13,31 +13,7 @@ import { useCheckoutContext } from '@/store/checkoutContext';
 export function useCartSync() {
   const { user } = useAuth();
   const { loadFromServer, clearCart } = useCartStore();
-  
-  // Get checkout context properties with defensive selectors
-  let checkoutGuestSessionId: string | null = null;
-  let clearCheckoutContext: (() => void) | undefined;
-  
-  try {
-    checkoutGuestSessionId = useCheckoutContext((state) => {
-      if (!state || typeof state !== 'object') {
-        console.error('CART SYNC HOOK: Checkout context state is not an object', state);
-        return null;
-      }
-      return state.guestSessionId ?? null;
-    });
-    
-    clearCheckoutContext = useCheckoutContext((state) => {
-      if (!state || typeof state !== 'object') {
-        return () => {};
-      }
-      return state.clearCheckoutContext;
-    });
-  } catch (error) {
-    console.error('CART SYNC HOOK: Error accessing checkout context:', error);
-    checkoutGuestSessionId = null;
-    clearCheckoutContext = () => {};
-  }
+  const { guestSessionId: checkoutGuestSessionId, clearCheckoutContext } = useCheckoutContext();
   
   // DEBUG: Log checkout context state
   console.log('🔍 CART SYNC HOOK: Checkout context state:', {

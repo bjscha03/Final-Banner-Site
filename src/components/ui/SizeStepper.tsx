@@ -76,12 +76,12 @@ export function SizeStepper({
         </button>
 
         {/* Input Field */}
-        <div className="relative flex-1 min-w-0">
+        <div className="relative flex-1 min-w-[80px]">
           <input
             type="text"
             inputMode="numeric"
             pattern="[0-9]*"
-            className="h-10 w-full rounded-md border border-slate-300 text-center font-medium tabular-nums text-slate-900 bg-white px-3 py-2 text-base focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
+            className="h-10 w-full min-w-[60px] rounded-md border border-slate-300 text-center font-medium tabular-nums text-slate-900 bg-white px-2 py-2 text-base focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
             value={value || ''}
             onChange={handleInputChange}
             onBlur={handleInputBlur}

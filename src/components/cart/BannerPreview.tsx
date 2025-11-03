@@ -124,9 +124,13 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   imageScale = 1,
   imagePosition = { x: 0, y: 0 }
 }) => {
+  // Detect if imageUrl is a canvas thumbnail (data URL)
+  const isCanvasThumbnail = imageUrl?.startsWith('data:image/');
+  
   // DEBUG: Log what we received
   console.log('🎨 BannerPreview: Received props:', {
-    imageUrl,
+    imageUrl: imageUrl ? imageUrl.substring(0, 50) + '...' : null,
+    isCanvasThumbnail,
     widthIn,
     heightIn,
     hasTextElements: textElements?.length > 0,
@@ -145,7 +149,8 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
     
     // DEBUG: Log image URL information
     console.log('🖼️ BannerPreview: Image URL changed:', {
-      imageUrl,
+      imageUrl: imageUrl ? imageUrl.substring(0, 50) + '...' : null,
+      isCanvasThumbnail,
       isBlob: imageUrl?.startsWith('blob:'),
       isCloudinary: imageUrl?.includes('cloudinary'),
       isHttps: imageUrl?.startsWith('https://'),
@@ -187,6 +192,73 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   // Grommet radius (scaled to banner dimensions)
   const grommetRadius = Math.min(widthIn, heightIn) * 0.03;
 
+  // If this is a canvas thumbnail (data URL), render it simply
+  if (isCanvasThumbnail && imageUrl) {
+    // If grommets are selected, render with SVG overlay
+    if (grommets !== 'none') {
+      return (
+        <div className={`flex items-center justify-center ${className}`}>
+          <div 
+            className="relative rounded-lg overflow-hidden shadow-lg border-2 border-gray-200"
+            style={{
+              width: `${previewWidth}px`,
+              height: `${previewHeight}px`,
+            }}
+          >
+            <svg
+              viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}
+              className="w-full h-full"
+              style={{ display: 'block' }}
+            >
+              {/* Canvas thumbnail as background */}
+              <image
+                href={imageUrl}
+                x="0"
+                y="0"
+                width={viewBoxWidth}
+                height={viewBoxHeight}
+                preserveAspectRatio="xMidYMid meet"
+              />
+              
+              {/* Grommets overlay */}
+              {grommetPositions.map((pos, idx) => (
+                <circle
+                  key={`grommet-${idx}`}
+                  cx={pos.x}
+                  cy={pos.y}
+                  r={grommetRadius}
+                  fill="#333"
+                  stroke="#666"
+                  strokeWidth={grommetRadius * 0.1}
+                />
+              ))}
+            </svg>
+          </div>
+        </div>
+      );
+    }
+    
+    // No grommets - just show the image
+    return (
+      <div className={`flex items-center justify-center ${className}`}>
+        <div 
+          className="relative rounded-lg overflow-hidden shadow-lg border-2 border-gray-200"
+          style={{
+            width: `${previewWidth}px`,
+            height: `${previewHeight}px`,
+          }}
+        >
+          <img 
+            src={imageUrl} 
+            alt="Banner preview"
+            className="w-full h-full object-contain"
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Otherwise, render the full SVG with grommets, text, etc.
   return (
     <div className={`flex items-center justify-center ${className}`}>
       <div 
@@ -235,16 +307,29 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
               </text>
             </g>
           ) : imageUrl ? (
-            <g clipPath={`url(#banner-clip-${widthIn}-${heightIn})`}>
+            isCanvasThumbnail ? (
+              // Canvas thumbnail - render full-bleed without scaling/positioning
               <image
                 href={imageUrl}
-                x={(viewBoxWidth - viewBoxWidth * imageScale) / 2 + (imagePosition.x * 0.01)}
-                y={(viewBoxHeight - viewBoxHeight * imageScale) / 2 + (imagePosition.y * 0.01)}
-                width={viewBoxWidth * imageScale}
-                height={viewBoxHeight * imageScale}
-                preserveAspectRatio="xMidYMid meet"
+                x="0"
+                y="0"
+                width={viewBoxWidth}
+                height={viewBoxHeight}
+                preserveAspectRatio="xMidYMid slice"
               />
-            </g>
+            ) : (
+              // Regular uploaded image - apply scaling/positioning
+              <g clipPath={`url(#banner-clip-${widthIn}-${heightIn})`}>
+                <image
+                  href={imageUrl}
+                  x={(viewBoxWidth - viewBoxWidth * imageScale) / 2 + (imagePosition.x * 0.01)}
+                  y={(viewBoxHeight - viewBoxHeight * imageScale) / 2 + (imagePosition.y * 0.01)}
+                  width={viewBoxWidth * imageScale}
+                  height={viewBoxHeight * imageScale}
+                  preserveAspectRatio="xMidYMid meet"
+                />
+              </g>
+            )
           ) : (
             <g>
               <rect

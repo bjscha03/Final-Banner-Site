@@ -10,10 +10,13 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useScrollToTop } from '@/components/ScrollToTop';
 import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
+import { useEditorStore } from '@/store/editor';
 
 
 
 const PricingCard: React.FC = () => {
+  const editorObjects = useEditorStore(state => state.objects);
+  const canvasThumbnail = useEditorStore(state => state.canvasThumbnail);
   const navigate = useNavigate();
   const quote = useQuoteStore();
   const isEditing = quote.editingItemId !== null && quote.editingItemId !== undefined && quote.file !== null;
@@ -68,6 +71,9 @@ const PricingCard: React.FC = () => {
   }, []);
 
   const { user } = useAuth();
+
+  // Listen for EditorActionBar events to trigger add/update cart
+
   const [isAdminUser, setIsAdminUser] = useState(false);
   const { widthIn, heightIn, quantity, material, grommets, polePockets, addRope, file } = quote;
 
@@ -221,17 +227,28 @@ const PricingCard: React.FC = () => {
       return;
     }
 
-    if (!file) {
+    // Check if there's any content on the canvas (file, text, or objects)
+    const hasContent = file || quote.textElements.length > 0 || editorObjects.length > 0;
+    
+    if (!hasContent) {
       toast({
-        title: "Upload Required",
-        description: "Please upload your artwork before adding to cart.",
+        title: "Content Required",
+        description: "Please add some content to your banner (upload an image, add text, or add shapes) before adding to cart.",
         variant: "destructive",
       });
       return;
     }
+    
+    console.log('[PricingCard] Adding to cart with content:', {
+      hasFile: !!file,
+      textElementsCount: quote.textElements.length,
+      objectsCount: editorObjects.length
+    });
 
     // Show upsell modal if user should see it
     if (shouldShowUpsell) {
+      console.log('🎨 PRICING CARD: Showing upsell modal for ADD TO CART');
+      console.log('🎨 PRICING CARD: canvasThumbnail:', canvasThumbnail ? canvasThumbnail.substring(0, 50) + '...' : 'NULL');
       setPendingAction('cart');
       setShowUpsellModal(true);
       return;
@@ -246,6 +263,24 @@ const PricingCard: React.FC = () => {
       pole_pocket_pricing_mode: 'per_item' as const,
       line_total_cents: Math.round(baseTotals.materialTotal * 100),
     };
+    // Generate thumbnail for cart preview
+    // Use the canvas thumbnail from the editor store (auto-generated)
+    let thumbnailUrl = canvasThumbnail;
+    
+    // Fallback to file URL if canvas thumbnail not available
+    if (!thumbnailUrl && file && file.url) {
+      thumbnailUrl = file.url;
+    }
+    // Fallback to first image object if still no thumbnail
+    else if (!thumbnailUrl && editorObjects.length > 0) {
+      const firstImage = editorObjects.find(obj => obj.type === 'image');
+      if (firstImage && firstImage.url) {
+        thumbnailUrl = firstImage.url;
+      }
+    }
+    
+    console.log('[PricingCard] Using thumbnail URL:', thumbnailUrl ? thumbnailUrl.substring(0, 50) + '...' : 'null');
+    
     // Extract only data fields from quote store, not methods
     const quoteData = {
       widthIn: quote.widthIn,
@@ -260,8 +295,14 @@ const PricingCard: React.FC = () => {
       textElements: quote.textElements,
       overlayImage: quote.overlayImage,
       file: quote.file,
+      // Add thumbnail URL for cart preview
+      thumbnailUrl: thumbnailUrl,
     };
     addFromQuote(quoteData as any, undefined, pricing);
+    
+    // Clear uploaded images from AssetsPanel after successful add to cart
+    window.dispatchEvent(new Event('clearUploadedImages'));
+    
     toast({
       title: "Added to Cart",
       description: "Your banner has been added to the cart.",
@@ -294,10 +335,13 @@ const PricingCard: React.FC = () => {
       return;
     }
 
-    if (!file) {
+    // Check if there's any content on the canvas (file, text, or objects)
+    const hasContent = file || quote.textElements.length > 0 || editorObjects.length > 0;
+    
+    if (!hasContent) {
       toast({
-        title: "Upload Required",
-        description: "Please upload your artwork before updating.",
+        title: "Content Required",
+        description: "Please add some content to your banner before updating.",
         variant: "destructive",
       });
       return;
@@ -305,6 +349,8 @@ const PricingCard: React.FC = () => {
 
     // Show upsell modal if user should see it
     if (shouldShowUpsell) {
+      console.log('🎨 PRICING CARD: Showing upsell modal for UPDATE CART');
+      console.log('🎨 PRICING CARD: canvasThumbnail:', canvasThumbnail ? canvasThumbnail.substring(0, 50) + '...' : 'NULL');
       setPendingAction('update');
       setShowUpsellModal(true);
       return;
@@ -338,6 +384,9 @@ const PricingCard: React.FC = () => {
 
     updateCartItem(quote.editingItemId, quoteData as any, undefined, pricing);
     
+    // Clear uploaded images from AssetsPanel after successful update
+    window.dispatchEvent(new Event('clearUploadedImages'));
+    
     // Clear the editingItemId
     quote.set({ editingItemId: null });
     
@@ -349,12 +398,8 @@ const PricingCard: React.FC = () => {
       // Scroll to top so user can see the cart
       window.scrollTo({ top: 0, behavior: 'smooth' });
     
-    // Reset design area after successful update
-    console.log('🔄 RESET: About to call resetDesign() after direct update (no upsell)');
-    console.log('🔄 RESET: Current file before reset:', quote.file);
-    quote.resetDesign();
-    console.log('🔄 RESET: resetDesign() called');
-    console.log('🔄 RESET: Current file after reset:', quote.file);
+    // DON'T reset when updating - user may want to continue editing
+    console.log('🔄 UPDATE: Not resetting design after update (user may continue editing)');
   };
 
 
@@ -371,10 +416,13 @@ const PricingCard: React.FC = () => {
       return;
     }
 
-    if (!file) {
+    // Check if there's any content on the canvas (file, text, or objects)
+    const hasContent = file || quote.textElements.length > 0 || editorObjects.length > 0;
+    
+    if (!hasContent) {
       toast({
-        title: "Upload Required",
-        description: "Please upload your artwork before proceeding to checkout.",
+        title: "Content Required",
+        description: "Please add some content to your banner before proceeding to checkout.",
         variant: "destructive",
       });
       return;
@@ -382,6 +430,8 @@ const PricingCard: React.FC = () => {
 
     // Show upsell modal if user should see it
     if (shouldShowUpsell) {
+      console.log('🎨 PRICING CARD: Showing upsell modal for CHECKOUT');
+      console.log('🎨 PRICING CARD: canvasThumbnail:', canvasThumbnail ? canvasThumbnail.substring(0, 50) + '...' : 'NULL');
       setPendingAction('checkout');
       setShowUpsellModal(true);
       return;
@@ -396,6 +446,24 @@ const PricingCard: React.FC = () => {
       pole_pocket_pricing_mode: 'per_item' as const,
       line_total_cents: Math.round(baseTotals.materialTotal * 100),
     };
+    // Generate thumbnail for cart preview
+    // Use the canvas thumbnail from the editor store (auto-generated)
+    let thumbnailUrl = canvasThumbnail;
+    
+    // Fallback to file URL if canvas thumbnail not available
+    if (!thumbnailUrl && file && file.url) {
+      thumbnailUrl = file.url;
+    }
+    // Fallback to first image object if still no thumbnail
+    else if (!thumbnailUrl && editorObjects.length > 0) {
+      const firstImage = editorObjects.find(obj => obj.type === 'image');
+      if (firstImage && firstImage.url) {
+        thumbnailUrl = firstImage.url;
+      }
+    }
+    
+    console.log('[PricingCard] Using thumbnail URL:', thumbnailUrl ? thumbnailUrl.substring(0, 50) + '...' : 'null');
+    
     // Extract only data fields from quote store, not methods
     const quoteData = {
       widthIn: quote.widthIn,
@@ -410,6 +478,8 @@ const PricingCard: React.FC = () => {
       textElements: quote.textElements,
       overlayImage: quote.overlayImage,
       file: quote.file,
+      // Add thumbnail URL for cart preview
+      thumbnailUrl: thumbnailUrl,
     };
     addFromQuote(quoteData as any, undefined, pricing);
     
@@ -426,12 +496,30 @@ const PricingCard: React.FC = () => {
 
   // Handle upsell modal continue
   const handleUpsellContinue = (selectedOptions: UpsellOption[], dontAskAgain: boolean) => {
+    console.log("[PricingCard] handleUpsellContinue called with:", { selectedOptions, dontAskAgain, pendingAction });
 
     // Save "don't ask again" preference
     if (dontAskAgain) {
       localStorage.setItem('upsell-dont-show-again', 'true');
       setDontShowUpsellAgain(true);
     }
+
+    // Generate thumbnail for cart preview BEFORE building updatedQuote
+    let thumbnailUrl = canvasThumbnail;
+    
+    // Fallback to file URL if canvas thumbnail not available
+    if (!thumbnailUrl && file && file.url) {
+      thumbnailUrl = file.url;
+    }
+    // Fallback to first image object if still no thumbnail
+    else if (!thumbnailUrl && editorObjects.length > 0) {
+      const firstImage = editorObjects.find(obj => obj.type === 'image');
+      if (firstImage && firstImage.url) {
+        thumbnailUrl = firstImage.url;
+      }
+    }
+    
+    console.log('[PricingCard] Upsell - Using thumbnail URL:', thumbnailUrl ? thumbnailUrl.substring(0, 50) + '...' : 'null');
 
     // Build updated quote object with selected options - extract only data fields
     let updatedQuote = {
@@ -449,6 +537,7 @@ const PricingCard: React.FC = () => {
       file: quote.file,
       imageScale: quote.imageScale,
       imagePosition: quote.imagePosition,
+      thumbnailUrl: thumbnailUrl, // ADD THUMBNAIL URL HERE!
     };
     
     selectedOptions.forEach(option => {
@@ -502,6 +591,8 @@ const PricingCard: React.FC = () => {
 
     // Execute the pending action with updated quote and pricing
     if (pendingAction === 'cart') {
+      console.log("[PricingCard] Adding to cart with quote:", updatedQuote);
+      console.log("[PricingCard] Pricing:", pricing);
       addFromQuote(updatedQuote, undefined, pricing);
       toast({
         title: "Added to Cart",
@@ -535,6 +626,9 @@ const PricingCard: React.FC = () => {
         title: "Cart Updated",
         description: "Your banner design has been updated in the cart.",
       });
+      
+      // DON'T reset when updating - user may want to continue editing
+      console.log('🔄 UPDATE: Not resetting design after update from upsell (user may continue editing)');
       
       // Scroll to top so user can see the cart
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -784,6 +878,7 @@ const PricingCard: React.FC = () => {
         isOpen={showUpsellModal}
         onClose={handleUpsellClose}
         quote={quote}
+        thumbnailUrl={canvasThumbnail || undefined}
         onContinue={handleUpsellContinue}
         actionType={pendingAction || 'cart'}
       />

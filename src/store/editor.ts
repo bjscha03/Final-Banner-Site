@@ -27,6 +27,7 @@ export interface ImageObject extends BaseCanvasObject {
   originalWidth: number;
   originalHeight: number;
   effectivePPI: number;
+  isPDF?: boolean;
 }
 
 export interface TextObject extends BaseCanvasObject {
@@ -86,6 +87,7 @@ interface EditorState {
   isSaving: boolean;
   lastSaved: Date | null;
   isDirty: boolean;
+  canvasThumbnail: string | null;
   
   addObject: (object: Partial<CanvasObject>) => void;
   updateObject: (id: string, updates: Partial<CanvasObject>) => void;
@@ -114,6 +116,7 @@ interface EditorState {
   setShowSafeZone: (show: boolean) => void;
   setShowGrommets: (show: boolean) => void;
   setCanvasBackgroundColor: (color: string) => void;
+  setCanvasThumbnail: (thumbnail: string | null) => void;
   getBannerDimensions: () => { widthIn: number; heightIn: number };
   getBleedSize: () => number;
   getSafeZoneMargin: () => number;
@@ -143,6 +146,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   showContextPreview: false,
   contextPreviewType: 'storefront',
   canvasBackgroundColor: '#FFFFFF',
+  canvasThumbnail: null,
   isExporting: false,
   exportProgress: 0,
   exportUrls: {},
@@ -357,6 +361,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   setShowGrommets: (show) => set({ showGrommets: show }),
   
   setCanvasBackgroundColor: (color) => set({ canvasBackgroundColor: color }),
+  setCanvasThumbnail: (thumbnail) => set({ canvasThumbnail: thumbnail }),
   
   getBannerDimensions: () => {
     const quote = useQuoteStore.getState();

@@ -48,6 +48,7 @@ export interface UpsellModalProps {
   isOpen: boolean;
   onClose: () => void;
   quote: QuoteState;
+  thumbnailUrl?: string; // Canvas thumbnail for preview
   onContinue: (selectedOptions: UpsellOption[], dontAskAgain: boolean) => void;
   actionType: 'cart' | 'checkout' | 'update';
 }
@@ -56,6 +57,7 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
   isOpen,
   onClose,
   quote,
+  thumbnailUrl,
   onContinue,
   actionType
 }) => {
@@ -186,15 +188,24 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
   };
 
   // Handle continue with selected options
-  const handleContinue = () => {
-
-
+  const handleContinue = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent click from bubbling to backdrop
+    console.log('[UpsellModal] handleContinue clicked');
+    console.log('[UpsellModal] selectedOptions:', selectedOptions);
+    console.log('[UpsellModal] dontAskAgain:', dontAskAgain);
+    console.log('[UpsellModal] Calling onContinue...');
     onContinue(selectedOptions, dontAskAgain);
+    console.log('[UpsellModal] onContinue called successfully');
   };
 
   // Handle skip without options
-  const handleSkip = () => {
+  const handleSkip = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent click from bubbling to backdrop
+    console.log('[UpsellModal] handleSkip clicked');
+    console.log('[UpsellModal] dontAskAgain:', dontAskAgain);
+    console.log('[UpsellModal] Calling onContinue with empty options...');
     onContinue([], dontAskAgain);
+    console.log('[UpsellModal] onContinue called successfully');
   };
 
   // Calculate total additional cost
@@ -255,7 +266,7 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
         </button>
         
         {isOpen && (
-          <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
+          <div className="absolute z-[10000] w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-auto">
             {options.map((option) => (
               <button
                 key={option.id || option.value}
@@ -279,7 +290,7 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+    <div data-upsell-modal className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
       <div 
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
         onClick={onClose}
@@ -309,7 +320,7 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
                 widthIn={quote.widthIn}
                 heightIn={quote.heightIn}
                 grommets={selectedOptions.find(opt => opt.id === 'grommets' && opt.selected)?.grommetSelection as Grommets || quote.grommets}
-                imageUrl={quote.file?.url}
+                imageUrl={thumbnailUrl || quote.file?.url}
                 material={quote.material}
                 textElements={quote.textElements}
                 overlayImage={quote.overlayImage}

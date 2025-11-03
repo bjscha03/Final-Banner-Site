@@ -1,7 +1,6 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import { useAuth, isAdmin } from '@/lib/auth';
 import {
   Dialog,
   DialogContent,
@@ -10,8 +9,6 @@ import {
 } from '@/components/ui/dialog';
 import { useEditorStore } from '@/store/editor';
 import { useQuoteStore } from '@/store/quote';
-import { useCartStore } from '@/store/cart';
-import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
 import { 
   Upload, 
   Type, 
@@ -50,57 +47,15 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
   const [activePanel, setActivePanel] = useState<PanelType>(null);
   const canvasRef = useRef<any>(null);
   const [showPreview, setShowPreview] = useState(false);
-  const [showUpsellModal, setShowUpsellModal] = useState(false);
-  const [pendingAction, setPendingAction] = useState<'cart' | 'checkout' | null>(null);
-  const [dontShowUpsellAgain, setDontShowUpsellAgain] = useState(false);
-
-
-
   const desktopPanelRef = useRef<HTMLDivElement>(null);
   const mobilePanelRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
-  const { user } = useAuth();
-  const isAdminUser = user && isAdmin(user);
-  const { exportToJSON, setCanvasThumbnail, canvasThumbnail, objects: editorObjects, addObject, reset: resetEditor, canvasBackgroundColor, showGrommets } = useEditorStore();
-  const quote = useQuoteStore();
-  const { set: setQuote, editingItemId, overlayImage, textElements, file, grommets, widthIn, heightIn, material, resetDesign } = quote;
-
-  // Check if user should see upsell (only if there are actually options to upsell)
-  const shouldShowUpsell = useMemo(() => {
-    if (dontShowUpsellAgain) return false;
-    
-    // Count how many upsell options are available
-    let availableOptions = 0;
-    
-    // Grommets available if none selected AND pole pockets not selected (mutual exclusivity)
-    if (grommets === 'none' && quote.polePockets === 'none') {
-      availableOptions++;
-    }
-    
-    // Rope available if not selected
-    if (!quote.addRope) {
-      availableOptions++;
-    }
-    
-    // Pole pockets available if none selected AND grommets not selected (mutual exclusivity)
-    if (quote.polePockets === 'none' && grommets === 'none') {
-      availableOptions++;
-    }
-    
-    // Only show upsell if there are actually options to offer
-    return availableOptions > 0;
-  }, [grommets, quote.addRope, quote.polePockets, dontShowUpsellAgain]);
-
-  // Load "don't show again" preference from localStorage
-  useEffect(() => {
-    const dontShow = localStorage.getItem('upsell-dont-show-again') === 'true';
-    setDontShowUpsellAgain(dontShow);
-  }, []);
-
-  const { addFromQuote } = useCartStore();
+  const { exportToJSON, setCanvasThumbnail, objects: editorObjects, addObject, reset: resetEditor, canvasBackgroundColor, showGrommets } = useEditorStore();
   
   // Check if there's any content on the canvas
   const hasContent = file || textElements.length > 0 || editorObjects.length > 0;
+  const { set: setQuote, editingItemId, overlayImage, textElements, file, grommets } = useQuoteStore();
+
   // Close panel when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -203,90 +158,33 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
   // Generate thumbnail for cart preview
   const generateThumbnail = () => {
     if (!canvasRef.current) {
+      console.warn('[BannerEditorLayout] Cannot generate thumbnail: canvas not ready');
       return null;
     }
 
     try {
       const stage = canvasRef.current.getStage();
       if (!stage) {
+        console.warn('[BannerEditorLayout] Cannot generate thumbnail: stage not found');
         return null;
       }
 
-      // Get current visibility state
-      const { showBleed, showSafeZone, showGrid, setShowBleed, setShowSafeZone, setShowGrid } = useEditorStore.getState();
-      const wasShowingBleed = showBleed;
-      const wasShowingSafeZone = showSafeZone;
-      const wasShowingGrid = showGrid;
-      
-      // Hide borders and grid for clean thumbnail
-      setShowBleed(false);
-      setShowSafeZone(false);
-      setShowGrid(false);
-      
-      // Wait for React to re-render (use setTimeout instead of requestAnimationFrame)
-      setTimeout(() => {
-        try {
-          // Get the layer to find the banner bounds
-          const layer = stage.getLayers()[0];
-          if (!layer) {
-            console.error('[BannerEditorLayout] No layer found');
-            setShowBleed(wasShowingBleed);
-            setShowSafeZone(wasShowingSafeZone);
-            return;
-          }
+      // Generate high-quality thumbnail for cart/upsell preview
+      // Use pixelRatio 2 for better quality (retina-ready)
+      const dataURL = stage.toDataURL({
+        pixelRatio: 2, // Higher quality for better preview
+        mimeType: 'image/png',
+      });
 
-          // Get the background rect (first child) to find banner position
-          const backgroundRect = layer.getChildren()[0];
-          if (!backgroundRect) {
-            console.error('[BannerEditorLayout] No background rect found');
-            setShowBleed(wasShowingBleed);
-            setShowSafeZone(wasShowingSafeZone);
-            return;
-          }
-
-          // Get the actual position and size of the background rect
-          // This gives us the banner area bounds
-          const x = backgroundRect.x();
-          const y = backgroundRect.y();
-          const width = backgroundRect.width();
-          const height = backgroundRect.height();
-          
-          console.log('[BannerEditorLayout] Banner bounds:', { x, y, width, height });
-
-          // Capture thumbnail - crop to just the banner area
-          const dataURL = stage.toDataURL({
-            x: x,
-            y: y,
-            width: width,
-            height: height,
-            pixelRatio: 2,
-            mimeType: 'image/png',
-          });
-
-          console.log('[BannerEditorLayout] Generated thumbnail:', dataURL.substring(0, 50) + '...');
-          setCanvasThumbnail(dataURL);
-          
-          // Restore original visibility
-          setShowBleed(wasShowingBleed);
-          setShowSafeZone(wasShowingSafeZone);
-          setShowGrid(wasShowingGrid);
-        } catch (error) {
-          console.error('[BannerEditorLayout] Error generating thumbnail:', error);
-          // Restore visibility even on error
-          setShowBleed(wasShowingBleed);
-          setShowSafeZone(wasShowingSafeZone);
-          setShowGrid(wasShowingGrid);
-        }
-      }, 200); // Wait 200ms for React to re-render and text to load
-      
-      return null;
+      console.log('[BannerEditorLayout] Generated high-quality thumbnail:', dataURL.substring(0, 50) + '...');
+      console.log('[BannerEditorLayout] Thumbnail size:', Math.round(dataURL.length / 1024), 'KB');
+      setCanvasThumbnail(dataURL);
+      return dataURL;
     } catch (error) {
       console.error('[BannerEditorLayout] Error generating thumbnail:', error);
       return null;
     }
   };
-
-
 
   // Auto-generate thumbnail when canvas content changes
   useEffect(() => {
@@ -374,6 +272,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     
     // Regenerate thumbnail to ensure it's up-to-date with latest changes
     console.log('🔍 [BannerEditorLayout] Regenerating thumbnail before preview');
+    generateThumbnail();
     
     // Small delay to ensure thumbnail is generated
     setTimeout(() => {
@@ -391,30 +290,6 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     }, 100);
   };
 
-    const handleAIGenerate = () => {
-    if (!user) {
-      toast({
-        title: 'Login Required',
-        description: 'Please sign in to use AI banner generation.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    // Check if AI is enabled
-    if (import.meta.env.VITE_AI_BANNER_ENABLED === 'false') {
-      toast({
-        title: 'Feature Unavailable',
-        description: 'AI banner generation is currently disabled.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    // Open the AI modal
-    onOpenAIModal?.();
-  };
-
   const handleAddToCart = () => {
     console.log(`🎯 [BannerEditorLayout] ${editingItemId ? 'Update' : 'Add to'} Cart button clicked`);
     
@@ -427,195 +302,22 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       return;
     }
 
-    // Generate thumbnail for cart preview
-    // Use the canvas thumbnail from the editor store (auto-generated) - SAME AS PricingCard
-    let thumbnailUrl = canvasThumbnail;
+    // Find and click the PricingCard's Add/Update button
+    const buttonText = editingItemId ? 'Update Cart' : 'Add to Cart';
+    const buttons = Array.from(document.querySelectorAll('button'));
+    const pricingButton = buttons.find(btn => btn.textContent?.includes(buttonText));
     
-    console.log('🎨 [ADD TO CART] canvasThumbnail:', canvasThumbnail ? canvasThumbnail.substring(0, 50) + '...' : 'NULL');
-    
-    // Fallback to file URL if canvas thumbnail not available
-    if (!thumbnailUrl && file && file.url) {
-      thumbnailUrl = file.url;
-      console.log('🎨 [ADD TO CART] Using file.url:', thumbnailUrl ? thumbnailUrl.substring(0, 50) + '...' : 'NULL');
+    if (pricingButton) {
+      console.log(`🎯 [BannerEditorLayout] Clicking PricingCard "${buttonText}" button`);
+      pricingButton.click();
+    } else {
+      console.warn(`⚠️ [BannerEditorLayout] Could not find "${buttonText}" button in PricingCard`);
+      toast({
+        title: 'Error',
+        description: 'Could not find the cart button. Please scroll down to the pricing section and use that button.',
+        variant: 'destructive',
+      });
     }
-    // Fallback to first image object if still no thumbnail
-    else if (!thumbnailUrl && editorObjects.length > 0) {
-      const firstImage = editorObjects.find(obj => obj.type === 'image');
-      if (firstImage && firstImage.url) {
-        thumbnailUrl = firstImage.url;
-        console.log('🎨 [ADD TO CART] Using firstImage.url:', thumbnailUrl ? thumbnailUrl.substring(0, 50) + '...' : 'NULL');
-      }
-    }
-    
-    console.log('🎨 [ADD TO CART] Final thumbnail URL:', thumbnailUrl ? thumbnailUrl.substring(0, 50) + '...' : 'NULL');
-    
-    // Calculate pricing (simplified - using base pricing without upsells)
-    const sqft = (widthIn * heightIn) / 144;
-    const basePrice = material === '13oz Vinyl' ? 3.50 : 4.50;
-    const unitPrice = sqft * basePrice;
-    const ropePrice = grommets === 'Grommets + Rope' ? 15 : 0;
-    const polePocketPrice = quote.polePockets === 'Yes' ? 25 : 0;
-    const lineTotal = (unitPrice + ropePrice + polePocketPrice) * quote.quantity;
-    
-    const pricing = {
-      unit_price_cents: Math.round(unitPrice * 100),
-      rope_cost_cents: Math.round(ropePrice * 100),
-      rope_pricing_mode: 'per_item' as const,
-      pole_pocket_cost_cents: Math.round(polePocketPrice * 100),
-      pole_pocket_pricing_mode: 'per_item' as const,
-      line_total_cents: Math.round(lineTotal * 100),
-    };
-    
-    // Extract quote data
-    const quoteData = {
-      widthIn: quote.widthIn,
-      heightIn: quote.heightIn,
-      quantity: quote.quantity,
-      material: quote.material,
-      grommets: quote.grommets,
-      polePockets: quote.polePockets,
-      polePocketSize: quote.polePocketSize,
-      addRope: quote.addRope,
-      previewScalePct: quote.previewScalePct,
-      textElements: quote.textElements,
-      overlayImage: quote.overlayImage,
-      // Don't pass file object - use thumbnailUrl instead
-      file: undefined,
-      thumbnailUrl: thumbnailUrl,
-    };
-    
-    console.log('�� [ADD TO CART] Quote data:', quoteData);
-    console.log('📦 [ADD TO CART] Thumbnail URL type:', typeof thumbnailUrl);
-    console.log('📦 [ADD TO CART] Thumbnail URL value:', thumbnailUrl);
-    
-    // Show upsell modal if user should see it
-    if (shouldShowUpsell) {
-      console.log('🎨 BANNER EDITOR: Showing upsell modal for ADD TO CART');
-      console.log('🎨 BANNER EDITOR: canvasThumbnail:', canvasThumbnail ? canvasThumbnail.substring(0, 50) + '...' : 'NULL');
-      setPendingAction('cart');
-      setShowUpsellModal(true);
-      return;
-    }
-
-    // Proceed directly to add to cart
-    addFromQuote(quoteData as any, undefined, pricing);
-    
-    // Clear uploaded images from AssetsPanel after successful add to cart
-    window.dispatchEvent(new Event('clearUploadedImages'));
-    
-    toast({
-      title: "Added to Cart",
-      description: "Your banner has been added to the cart.",
-    });
-      
-    // Scroll to top so user can see the cart
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    
-    // Reset design area after successful add
-    console.log('🔄 RESET: About to call resetDesign() after add to cart');
-    resetDesign();
-    console.log('🔄 RESET: resetDesign() called');
-  };
-
-  const handleUpsellContinue = (selectedOptions: UpsellOption[], dontAskAgain: boolean) => {
-    console.log("[BannerEditorLayout] handleUpsellContinue called with:", { selectedOptions, dontAskAgain, pendingAction });
-
-    // Save "don't ask again" preference
-    if (dontAskAgain) {
-      localStorage.setItem('upsell-dont-show-again', 'true');
-      setDontShowUpsellAgain(true);
-    }
-
-    // Generate thumbnail for cart preview
-    let thumbnailUrl = canvasThumbnail;
-    
-    // Fallback to file URL if canvas thumbnail not available
-    if (!thumbnailUrl && file && file.url) {
-      thumbnailUrl = file.url;
-    }
-    // Fallback to first image object if still no thumbnail
-    else if (!thumbnailUrl && editorObjects.length > 0) {
-      const firstImage = editorObjects.find(obj => obj.type === 'image');
-      if (firstImage && firstImage.url) {
-        thumbnailUrl = firstImage.url;
-      }
-    }
-    
-    console.log('[BannerEditorLayout] Upsell - Using thumbnail URL:', thumbnailUrl ? thumbnailUrl.substring(0, 50) + '...' : 'null');
-
-    // Build updated quote object with selected options
-    let updatedQuote = {
-      widthIn: quote.widthIn,
-      heightIn: quote.heightIn,
-      quantity: quote.quantity,
-      material: quote.material,
-      grommets: quote.grommets,
-      polePockets: quote.polePockets,
-      polePocketSize: quote.polePocketSize,
-      addRope: quote.addRope,
-      previewScalePct: quote.previewScalePct,
-      textElements: quote.textElements,
-      overlayImage: quote.overlayImage,
-      file: undefined,
-      thumbnailUrl: thumbnailUrl,
-    };
-
-    // Apply selected upsell options
-    selectedOptions.forEach(option => {
-      if (option.id === 'grommets-every-2ft') {
-        updatedQuote.grommets = 'Grommets every 2-3ft';
-      } else if (option.id === 'rope') {
-        updatedQuote.addRope = true;
-      } else if (option.id === 'pole-pockets') {
-        updatedQuote.polePockets = 'Yes';
-        updatedQuote.polePocketSize = '2.5"';
-      }
-    });
-
-    // Calculate pricing with upsells
-    const sqft = (widthIn * heightIn) / 144;
-    const basePrice = material === '13oz Vinyl' ? 3.50 : 4.50;
-    const unitPrice = sqft * basePrice;
-    const ropePrice = updatedQuote.addRope ? 15 : 0;
-    const polePocketPrice = updatedQuote.polePockets === 'Yes' ? 25 : 0;
-    const lineTotal = (unitPrice + ropePrice + polePocketPrice) * quote.quantity;
-    
-    const pricing = {
-      unit_price_cents: Math.round(unitPrice * 100),
-      rope_cost_cents: Math.round(ropePrice * 100),
-      rope_pricing_mode: 'per_item' as const,
-      pole_pocket_cost_cents: Math.round(polePocketPrice * 100),
-      pole_pocket_pricing_mode: 'per_item' as const,
-      line_total_cents: Math.round(lineTotal * 100),
-    };
-
-    // Add to cart
-    addFromQuote(updatedQuote as any, undefined, pricing);
-    
-    // Clear uploaded images
-    window.dispatchEvent(new Event('clearUploadedImages'));
-    
-    toast({
-      title: "Added to Cart",
-      description: "Your banner has been added to the cart.",
-    });
-    
-    // Close modal
-    setShowUpsellModal(false);
-    setPendingAction(null);
-    
-    // Scroll to top
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-    
-    // Reset design
-    console.log('🔄 RESET: About to call resetDesign() after upsell');
-    resetDesign();
-    console.log('🔄 RESET: resetDesign() called');
-  };
-
-  const handleUpsellClose = () => {
-    setShowUpsellModal(false);
-    setPendingAction(null);
   };
 
   const togglePanel = (panelId: PanelType) => {
@@ -717,17 +419,15 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
           </div>
           
           <div className="flex items-center gap-2">
-            {import.meta.env.VITE_AI_BANNER_ENABLED !== 'false' && (
-              <Button
-                onClick={handleAIGenerate}
-                variant="outline"
-                size="sm"
-                className="hidden sm:flex items-center gap-2"
-              >
-                <Sparkles className="w-4 h-4" />
-                AI Generate
-              </Button>
-            )}
+            <Button
+              onClick={() => onOpenAIModal?.()}
+              variant="outline"
+              size="sm"
+              className="hidden sm:flex items-center gap-2"
+            >
+              <Sparkles className="w-4 h-4" />
+              AI Generate
+            </Button>
             <Button
               onClick={handleSave}
               variant="outline"
@@ -961,15 +661,6 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
           </div>
         </DialogContent>
       </Dialog>
-      <UpsellModal
-        isOpen={showUpsellModal}
-        onClose={handleUpsellClose}
-        quote={quote}
-        thumbnailUrl={canvasThumbnail || undefined}
-        onContinue={handleUpsellContinue}
-        actionType={pendingAction || 'cart'}
-      />
-
     </>
   );
 };

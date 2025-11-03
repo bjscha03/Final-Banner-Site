@@ -50,7 +50,21 @@ export function grommetPoints(w: number, h: number, mode: GrommetMode): Pt[] {
   );
 }
 
-// radius scales with physical size so it's visible at any dimension - made more prominent
+// Grommet radius in inches - scales appropriately with banner size
+// Uses a logarithmic-like scaling to keep grommets visible but not overwhelming
 export function grommetRadius(w: number, h: number) {
-  return Math.max(0.2, Math.min(w, h) * 0.02);
+  const minDimension = Math.min(w, h);
+  
+  // For small banners (< 24"), use 0.25" grommets
+  if (minDimension < 24) {
+    return 0.25;
+  }
+  
+  // For medium banners (24" - 96"), scale from 0.25" to 0.4"
+  if (minDimension < 96) {
+    return 0.25 + (minDimension - 24) / (96 - 24) * 0.15;
+  }
+  
+  // For large banners (96"+), cap at 0.5" to prevent oversized grommets
+  return Math.min(0.5, 0.4 + (minDimension - 96) / 200 * 0.1);
 }

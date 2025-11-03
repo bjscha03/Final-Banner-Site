@@ -263,7 +263,7 @@ const Checkout: React.FC = () => {
           <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center">
               <Package className="mx-auto h-12 w-12 text-gray-400" />
-              <h2 className="mt-4 text-2xl font-bold text-gray-900">Your cart is empty</h2>
+              <h2 className="mt-4 text-2xl font-bold text-[#18448D]">Your cart is empty</h2>
               <p className="mt-2 text-gray-600">Add some items to your cart before checking out.</p>
               <Button
                 onClick={() => navigate('/design')}
@@ -338,7 +338,7 @@ const Checkout: React.FC = () => {
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back
             </Button>
-            <h1 className="text-3xl font-bold text-gray-900">Checkout</h1>
+            <h1 className="text-3xl font-bold text-[#18448D]">Checkout</h1>
             <p className="text-gray-600 mt-2">Review your order and complete payment</p>
             
             {/* Trust Strip */}
@@ -366,7 +366,7 @@ const Checkout: React.FC = () => {
             {/* Order Summary */}
             <div className="space-y-6 w-full">
               <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-4">Order Summary</h2>
+                <h2 className="text-xl font-semibold text-[#18448D] mb-4">Order Summary</h2>
                 
                 <div className="space-y-4">
                   {items.map((item) => {
@@ -409,7 +409,7 @@ const Checkout: React.FC = () => {
 
                       {/* Title and Price on same line */}
                       <div className="flex justify-between items-start mb-3">
-                        <h3 className="font-medium text-gray-900 text-lg">
+                        <h3 className="font-medium text-[#18448D] text-lg">
                           Custom Banner {formatDimensions(item.width_in, item.height_in)}
                         </h3>
                         <div className="text-right ml-4 flex-shrink-0">
@@ -446,7 +446,7 @@ const Checkout: React.FC = () => {
 
                         {/* Right column: Price Breakdown */}
                         <div className="p-3 bg-gray-50 rounded-lg">
-                          <h4 className="text-sm font-semibold text-gray-900 mb-2">Price Breakdown</h4>
+                          <h4 className="text-sm font-semibold text-[#18448D] mb-2">Price Breakdown</h4>
                           <div className="space-y-1 text-sm">
                             <div className="flex justify-between">
                               <span className="text-gray-600">Base banner:</span>
@@ -605,8 +605,8 @@ const Checkout: React.FC = () => {
                     </div>
                   )}
                   <div className="flex justify-between items-center border-t border-gray-200 pt-2">
-                    <span className="text-lg font-semibold text-gray-900">Total</span>
-                    <span className="text-2xl font-bold text-gray-900">
+                    <span className="text-lg font-semibold text-[#18448D]">Total</span>
+                    <span className="text-2xl font-bold text-[#18448D]">
                       {usd(totalCents / 100)}
                     </span>
                   </div>
@@ -658,7 +658,7 @@ const Checkout: React.FC = () => {
             {/* Payment */}
             <div className="space-y-6 w-full">
               <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
-                <h2 className="text-xl font-semibold text-gray-900 mb-6">Payment</h2>
+                <h2 className="text-xl font-semibold text-[#18448D] mb-6">Payment</h2>
                 
                 <PayPalCheckout disabled={!canProceed}
                   total={totalCents}
@@ -670,7 +670,7 @@ const Checkout: React.FC = () => {
               {/* User Info */}
               {user && (
                 <div className="bg-gray-50 rounded-lg p-6">
-                  <h3 className="font-semibold text-gray-900 mb-2">Account</h3>
+                  <h3 className="font-semibold text-[#18448D] mb-2">Account</h3>
                   <p className="text-gray-600">{user.email}</p>
                   <p className="text-sm text-gray-500 mt-1">
                     Order will be saved to your account

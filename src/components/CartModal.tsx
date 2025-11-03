@@ -50,11 +50,11 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
       console.log('🛒 CART MODAL: item.overlay_image:', item.overlay_image);
       
       // Close modal
-      console.log('🛒 CART MODAL: Closing modal and navigating to /design');
+      console.log('🛒 CART MODAL: Closing modal and navigating to /design-editor');
       onClose();
       
-      // Navigate to design page
-      navigate('/design');
+      // Navigate to advanced design editor page
+      navigate('/design-editor');
       
       // Scroll to top
       setTimeout(() => {
@@ -130,6 +130,15 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                     <div key={item.id} className="bg-white rounded-xl p-4 shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
                       {/* Thumbnail on top - centered */}
                       <div className="flex justify-center mb-4">
+                        {/* DEBUG: Log thumbnail source */}
+                        {console.log('🛒 CART MODAL: Rendering thumbnail for item:', {
+                          itemId: item.id,
+                          file_url: item.file_url ? item.file_url.substring(0, 50) + '...' : null,
+                          isDataUrl: item.file_url?.startsWith('data:image/'),
+                          web_preview_url: item.web_preview_url,
+                          print_ready_url: item.print_ready_url,
+                          aiProofUrl: item.aiDesign?.assets?.proofUrl
+                        })}
                         <BannerPreview
                           key={`thumbnail-${item.id}-${item.text_elements?.length || 0}-${item.image_scale || 1}`}
                           widthIn={item.width_in}
