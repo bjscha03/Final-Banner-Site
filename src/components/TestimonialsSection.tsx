@@ -1,5 +1,5 @@
 import React from 'react';
-import { Star, Quote } from 'lucide-react';
+import { Star } from 'lucide-react';
 
 const TestimonialsSection: React.FC = () => {
   const testimonials = [
@@ -59,10 +59,9 @@ const TestimonialsSection: React.FC = () => {
                 ))}
               </div>
               
-              <div className="relative mb-6 min-h-[120px] flex items-start">
-                <Quote className="absolute -top-2 -left-2 h-8 w-8 text-[#18448D] rotate-180" />
-                <p className="text-slate-700 leading-relaxed pl-6">
-                  {testimonial.text}
+              <div className="mb-6 min-h-[120px]">
+                <p className="text-slate-700 leading-relaxed">
+                  "{testimonial.text}
                 </p>
               </div>
               
