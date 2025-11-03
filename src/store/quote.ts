@@ -181,7 +181,9 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
       addRope: item.rope_feet > 0,
       textElements: migratedTextElements,
       editingItemId: editingItemId || null, // Preserve editingItemId if provided
-      file: item.file_key || item.file_url || item.web_preview_url ? {
+      // CRITICAL: Don't load thumbnail as background if item has text elements
+      // The thumbnail has text/grommets baked in - we need to reconstruct from text_elements
+      file: (item.file_key || item.file_url || item.web_preview_url) && !item.text_elements?.length ? {
         name: item.file_name || 'Uploaded file',
         type: item.is_pdf ? 'application/pdf' : 'image/*',
         size: 1024, // Non-zero to indicate file exists
