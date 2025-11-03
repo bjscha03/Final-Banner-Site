@@ -514,9 +514,9 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       return;
     }
 
-    // Generate thumbnail for cart preview
-    // Use the canvas thumbnail from the editor store (auto-generated) - SAME AS PricingCard
-    let thumbnailUrl = canvasThumbnail;
+    // CRITICAL: Generate FRESH thumbnail when button is clicked (not stale one from store)
+    const freshThumbnail = generateThumbnail();
+    let thumbnailUrl = freshThumbnail || canvasThumbnail;
     
     console.log('🎨 [ADD TO CART] canvasThumbnail:', canvasThumbnail ? canvasThumbnail.substring(0, 50) + '...' : 'NULL');
     
