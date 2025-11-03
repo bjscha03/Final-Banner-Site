@@ -19,7 +19,7 @@ const PricingCard: React.FC = () => {
   const canvasThumbnail = useEditorStore(state => state.canvasThumbnail);
   const navigate = useNavigate();
   const quote = useQuoteStore();
-  const isEditing = quote.editingItemId !== null && quote.editingItemId !== undefined && quote.file !== null;
+  const isEditing = quote.editingItemId !== null && quote.editingItemId !== undefined;
   
   // If we were editing but file was deleted, clear editingItemId to revert to "Add to Cart" mode
   React.useEffect(() => {

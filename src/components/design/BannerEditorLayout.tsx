@@ -306,7 +306,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     }
 
     // Only load if we have objects to load
-    const hasObjectsToLoad = (overlayImage && overlayImage.url) || (textElements && textElements.length > 0);
+    const hasObjectsToLoad = (overlayImage && overlayImage.url) || (textElements && textElements.length > 0) || (file && file.url);
     
     if (!hasObjectsToLoad) {
       console.log('[BannerEditorLayout] No objects to load from cart item');
@@ -322,6 +322,48 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
 
     // Small delay to ensure reset completes before adding objects
     setTimeout(() => {
+      // Load background file if present
+      if (file && file.url) {
+        console.log('[BannerEditorLayout] Adding background file to canvas:', file);
+        
+        // Calculate dimensions to fit the canvas
+        const canvasWidthPx = widthIn * 96; // Convert inches to pixels (96 DPI)
+        const canvasHeightPx = heightIn * 96;
+        
+        // If we have artwork dimensions, use them to calculate proper size
+        let imageWidth = canvasWidthPx;
+        let imageHeight = canvasHeightPx;
+        
+        if (file.artworkWidth && file.artworkHeight) {
+          const aspectRatio = file.artworkWidth / file.artworkHeight;
+          const canvasAspectRatio = canvasWidthPx / canvasHeightPx;
+          
+          if (aspectRatio > canvasAspectRatio) {
+            // Image is wider than canvas
+            imageWidth = canvasWidthPx;
+            imageHeight = canvasWidthPx / aspectRatio;
+          } else {
+            // Image is taller than canvas
+            imageHeight = canvasHeightPx;
+            imageWidth = canvasHeightPx * aspectRatio;
+          }
+        }
+        
+        addObject({
+          type: 'image',
+          url: file.url,
+          x: (widthIn - (imageWidth / 96)) / 2, // Center horizontally
+          y: (heightIn - (imageHeight / 96)) / 2, // Center vertically
+          width: imageWidth / 96, // Convert back to inches
+          height: imageHeight / 96,
+          rotation: 0,
+          opacity: 1,
+          locked: false,
+          visible: true,
+          isPDF: file.isPdf || false,
+        });
+      }
+
       // Load overlay image if present
       if (overlayImage && overlayImage.url) {
         console.log('[BannerEditorLayout] Adding overlayImage to canvas:', overlayImage);
