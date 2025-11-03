@@ -97,7 +97,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     setDontShowUpsellAgain(dontShow);
   }, []);
 
-  const { addFromQuote } = useCartStore();
+  const { addFromQuote, updateCartItem } = useCartStore();
   
   // Check if there's any content on the canvas
   const hasContent = file || textElements.length > 0 || editorObjects.length > 0;
