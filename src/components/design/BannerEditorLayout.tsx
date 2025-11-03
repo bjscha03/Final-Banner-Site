@@ -388,9 +388,11 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
           addObject({
             type: 'text',
             text: textEl.text,
-            content: textEl.text, // Use 'content' for new editor format
+            content: textEl.content || textEl.text, // Use 'content' for new editor format
             x: textEl.x || 0,
             y: textEl.y || 0,
+            // Don't set width/height - let Konva auto-calculate based on text content
+            // This prevents the transformer box from being too wide
             fontSize: textEl.fontSize || 24,
             fontFamily: textEl.fontFamily || 'Arial',
             color: textEl.color || '#000000',
@@ -398,7 +400,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
             fontWeight: textEl.fontWeight || 'normal',
             fontStyle: textEl.fontStyle || 'normal',
             textDecoration: textEl.textDecoration || '',
-            textAlign: textEl.align || 'left',
+            textAlign: textEl.textAlign || textEl.align || 'left',
             align: textEl.align || 'left',
             rotation: textEl.rotation || 0,
             opacity: 1,
