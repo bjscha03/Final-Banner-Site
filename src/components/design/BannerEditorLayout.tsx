@@ -36,14 +36,14 @@ import CanvasSettingsPanel from './editor/CanvasSettingsPanel';
 import MaterialCard from './MaterialCard';
 import SizeQuantityCard from './SizeQuantityCard';
 import OptionsCard from './OptionsCard';
-import PricingCard from './PricingCard';
+// PricingCard removed - users add to cart via blue button
 
 
 interface BannerEditorLayoutProps {
   onOpenAIModal?: () => void;
 }
 
-type PanelType = 'uploads' | 'text' | 'material' | 'size' | 'options' | 'pricing' | 'inspector' | 'colors' | 'canvas' | null;
+type PanelType = 'uploads' | 'text' | 'material' | 'size' | 'options' | 'inspector' | 'colors' | 'canvas' | null;
 
 const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }) => {
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
@@ -330,8 +330,11 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
 
     // CRITICAL: Clear existing objects first to prevent duplicates
     console.log('[BannerEditorLayout] Clearing existing objects before loading cart item');
-    // Hide grommets during editing - they should not be visible on the canvas
-    setShowGrommets(false);
+    
+    // Show grommets if they were selected in the cart item
+    const shouldShowGrommets = grommets && grommets !== 'none';
+    console.log('[BannerEditorLayout] Setting grommets visibility:', shouldShowGrommets, 'grommets:', grommets);
+    setShowGrommets(shouldShowGrommets);
 
     resetEditor();
 
@@ -771,11 +774,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       icon: <Wrench className="w-6 h-6" />,
       label: 'Options',
     },
-    {
-      id: 'pricing' as PanelType,
-      icon: <ShoppingCart className="w-6 h-6" />,
-      label: 'Pricing/Cart',
-    },
+
     {
       id: 'inspector' as PanelType,
       icon: <Eye className="w-6 h-6" />,
@@ -808,8 +807,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
         return <SizeQuantityCard />;
       case 'options':
         return <OptionsCard />;
-      case 'pricing':
-        return <PricingCard />;
+
       case 'inspector':
         return <ObjectInspector selectedObjectId={selectedObjectId} />;
       case 'colors':
