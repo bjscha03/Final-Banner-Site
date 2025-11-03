@@ -121,8 +121,11 @@ export default function BlogPostPage() {
         <meta property="og:type" content="article" />
         <meta property="og:url" content={canonicalUrl} />
         <meta property="og:image" content={heroImage} />
+        <meta property="og:image:secure_url" content={heroImage} />
+        <meta property="og:image:type" content="image/png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content={frontmatter.alt || frontmatter.title} />
         <meta property="og:site_name" content="Banners on the Fly" />
         <meta property="article:published_time" content={publishDate} />
         {frontmatter.updated && (
@@ -137,6 +140,7 @@ export default function BlogPostPage() {
         <meta name="twitter:title" content={frontmatter.title} />
         <meta name="twitter:description" content={description} />
         <meta name="twitter:image" content={heroImage} />
+        <meta name="twitter:image:alt" content={frontmatter.alt || frontmatter.title} />
         
         {/* Canonical */}
         <link rel="canonical" href={canonicalUrl} />
