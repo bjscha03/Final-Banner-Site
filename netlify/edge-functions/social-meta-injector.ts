@@ -21,6 +21,11 @@ const blogPosts: Record<string, { title: string; description: string; image: str
     title: "Installation 101: The Best Ways to Hang Your Vinyl Banner for Maximum Visibility and Longevity",
     description: "Properly hanging your banner is key to ensuring it has maximum visibility and stays looking professional for its full lifespan. Learn the best methods for indoor and outdoor installation.",
     image: "https://res.cloudinary.com/dtrxl120u/image/upload/v1761249110/hanging_banner_gvkxbx.jpg"
+  },
+  "the-power-of-physical-marketing-in-a-digital-world": {
+    title: "The Power of Physical Marketing in a Digital World",
+    description: "Discover why physical marketing—banners, signage, and packaging—still outperforms digital ads for attention, trust, and real-world brand impact.",
+    image: "https://res.cloudinary.com/dtrxl120u/image/upload/v1762185431/dano_banner_example_xstuy9.png"
   }
 };
 
