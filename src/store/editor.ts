@@ -162,7 +162,11 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       id: `obj-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
       zIndex: get().objects.length,
     } as CanvasObject;
-    set({ objects: [...get().objects, newObject], isDirty: true });
+    set({ 
+      objects: [...get().objects, newObject], 
+      selectedIds: [newObject.id], // Auto-select newly added object
+      isDirty: true 
+    });
     get().pushHistory();
   },
   
