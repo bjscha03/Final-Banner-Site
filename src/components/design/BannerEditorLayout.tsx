@@ -325,9 +325,10 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
 
     // Small delay to ensure reset completes before adding objects
     setTimeout(() => {
-      // Load background file if present
-      if (file && file.url) {
-        console.log('[BannerEditorLayout] Adding background file to canvas:', file);
+      // CRITICAL: Only load background file if there are NO text elements
+      // If text elements exist, the file is just a thumbnail with text baked in
+      if (file && file.url && (!textElements || textElements.length === 0)) {
+        console.log('[BannerEditorLayout] Adding background file to canvas (no text elements):', file);
         
         // Calculate dimensions to fit the canvas
         const canvasWidthPx = widthIn * 96; // Convert inches to pixels (96 DPI)
