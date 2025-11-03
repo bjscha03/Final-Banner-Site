@@ -31,17 +31,29 @@ const SignUp: React.FC = () => {
   // Determine redirect URL: checkout context > query param > default
   // CRITICAL FIX: Calculate dynamically at navigation time, not at component mount
   const getNextUrl = () => {
-    const fromCheckout = searchParams.get('from') === 'checkout';
     const queryNextUrl = searchParams.get('next');
+    const fromCheckout = searchParams.get('from') === 'checkout';
     
     console.log('🚨 SIGN UP - Getting redirect URL:', {
       'URL': window.location.href,
       'searchParams': searchParams.toString(),
       'queryNextUrl': queryNextUrl,
-      'fromCheckout': fromCheckout
+      'fromCheckout': fromCheckout,
+      'isContextValid': isContextValid()
     });
     
-    const nextUrl = (fromCheckout && isContextValid()) ? getReturnUrl() : (queryNextUrl || '/design');
+    // Priority: 1) next query param, 2) checkout context, 3) design page
+    let nextUrl = '/design';
+    
+    if (queryNextUrl) {
+      nextUrl = queryNextUrl;
+      console.log('🚨 SIGN UP - Using query param:', nextUrl);
+    } else if (fromCheckout && isContextValid()) {
+      nextUrl = getReturnUrl();
+      console.log('🚨 SIGN UP - Using checkout context:', nextUrl);
+    } else {
+      console.log('🚨 SIGN UP - Using default design page');
+    }
     
     console.log('🚨 SIGN UP - Final redirect:', nextUrl);
     return nextUrl;

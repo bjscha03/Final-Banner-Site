@@ -26,20 +26,32 @@ const SignIn: React.FC = () => {
   const titleRef = useRef<HTMLHeadingElement>(null);
   const { isInCheckoutFlow, getReturnUrl, clearCheckoutContext, isContextValid } = useCheckoutContext();
 
-  // Determine redirect URL: checkout context > query param > default
-  // CRITICAL FIX: Calculate dynamically at navigation time, not at component mount
+  // Determine redirect URL: query param > checkout context > default
+  // CRITICAL FIX: Prioritize query param to ensure checkout redirect works
   const getNextUrl = () => {
-    const fromCheckout = searchParams.get('from') === 'checkout';
     const queryNextUrl = searchParams.get('next');
+    const fromCheckout = searchParams.get('from') === 'checkout';
     
     console.log('🚨 SIGN IN - Getting redirect URL:', {
       'URL': window.location.href,
       'searchParams': searchParams.toString(),
       'queryNextUrl': queryNextUrl,
-      'fromCheckout': fromCheckout
+      'fromCheckout': fromCheckout,
+      'isContextValid': isContextValid()
     });
     
-    const nextUrl = (fromCheckout && isContextValid()) ? getReturnUrl() : (queryNextUrl || '/');
+    // Priority: 1) next query param, 2) checkout context, 3) home
+    let nextUrl = '/';
+    
+    if (queryNextUrl) {
+      nextUrl = queryNextUrl;
+      console.log('🚨 SIGN IN - Using query param:', nextUrl);
+    } else if (fromCheckout && isContextValid()) {
+      nextUrl = getReturnUrl();
+      console.log('🚨 SIGN IN - Using checkout context:', nextUrl);
+    } else {
+      console.log('🚨 SIGN IN - Using default home page');
+    }
     
     console.log('🚨 SIGN IN - Final redirect:', nextUrl);
     return nextUrl;
