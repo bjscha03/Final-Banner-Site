@@ -61,7 +61,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
   const { toast } = useToast();
   const { user } = useAuth();
   const isAdminUser = user && isAdmin(user);
-  const { exportToJSON, setCanvasThumbnail, canvasThumbnail, objects: editorObjects, addObject, reset: resetEditor, canvasBackgroundColor, showGrommets } = useEditorStore();
+  const { exportToJSON, setCanvasThumbnail, canvasThumbnail, objects: editorObjects, addObject, reset: resetEditor, canvasBackgroundColor, showGrommets, setShowGrommets } = useEditorStore();
   const quote = useQuoteStore();
   const { set: setQuote, editingItemId, overlayImage, textElements, file, grommets, widthIn, heightIn, material, resetDesign } = quote;
 
@@ -318,6 +318,9 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
 
     // CRITICAL: Clear existing objects first to prevent duplicates
     console.log('[BannerEditorLayout] Clearing existing objects before loading cart item');
+    // Hide grommets during editing - they should not be visible on the canvas
+    setShowGrommets(false);
+
     resetEditor();
 
     // Small delay to ensure reset completes before adding objects
@@ -385,12 +388,15 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       if (textElements && textElements.length > 0) {
         console.log('[BannerEditorLayout] Adding text elements to canvas:', textElements);
         textElements.forEach((textEl: any) => {
+          // Convert percentage-based position to inches
+          const xInches = textEl.xPercent != null ? (textEl.xPercent / 100) * widthIn : (textEl.x || 0);
+          const yInches = textEl.yPercent != null ? (textEl.yPercent / 100) * heightIn : (textEl.y || 0);
+          
           addObject({
             type: 'text',
-            text: textEl.text,
-            content: textEl.content || textEl.text, // Use 'content' for new editor format
-            x: textEl.x || 0,
-            y: textEl.y || 0,
+            content: textEl.content, // TextElement uses 'content' property
+            x: xInches,
+            y: yInches,
             // Don't set width/height - let Konva auto-calculate based on text content
             // This prevents the transformer box from being too wide
             fontSize: textEl.fontSize || 24,
