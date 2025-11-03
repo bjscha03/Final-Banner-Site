@@ -346,7 +346,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     }
 
     console.log('[BannerEditorLayout] Finished loading cart item objects');
-  }, [editingItemId]); // Only run when editingItemId changes
+  }, [editingItemId, overlayImage, textElements, addObject]); // Run when editingItemId or objects change
 
   const handleSave = () => {
     try {

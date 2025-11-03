@@ -151,6 +151,8 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
   const [stageSize, setStageSize] = useState({ width: 800, height: 600 });
   const [scale, setScale] = useState(1);
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
+  const [editingTextId, setEditingTextId] = useState<string | null>(null);
+  const [editingTextValue, setEditingTextValue] = useState('');
   
   const bleedSize = getBleedSize();
   const safeZoneMargin = getSafeZoneMargin();
@@ -396,6 +398,13 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
     updateObject(id, { x: newX, y: newY });
   };
   
+  const handleTextDblClick = (id: string, currentText: string) => {
+    console.log('🖱️ Double-clicked text:', id, currentText);
+    setEditingTextId(id);
+    setEditingTextValue(currentText);
+    selectObject(id);
+  };
+
   const handleObjectTransformEnd = (id: string, e: Konva.KonvaEventObject<Event>) => {
     const node = e.target;
     console.log("[TRANSFORM START] Object:", id);
@@ -597,7 +606,7 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
                     id={obj.id}
                     x={stagePos.x + obj.x * PIXELS_PER_INCH * scale}
                     y={stagePos.y + obj.y * PIXELS_PER_INCH * scale}
-                    text={obj.content}
+                    text={editingTextId === obj.id ? editingTextValue : obj.content}
                     fontSize={obj.fontSize * PIXELS_PER_INCH * scale}
                     fontFamily={obj.fontFamily}
                     fill={obj.color}
@@ -609,6 +618,7 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
                     draggable={!obj.locked}
                     onClick={(e) => handleObjectClick(obj.id, e)}
                     onTap={(e) => handleObjectClick(obj.id, e)}
+                    onDblClick={() => handleTextDblClick(obj.id, obj.content)}
                     onDragEnd={(e) => handleObjectDragEnd(obj.id, e)}
                     onTransformEnd={(e) => handleObjectTransformEnd(obj.id, e)}
                   />
@@ -733,6 +743,59 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
         </Layer>
       </Stage>
       
+      {/* Text Editing Input - Shows when double-clicking text */}
+      {editingTextId && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/20 z-50">
+          <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
+            <h3 className="text-lg font-bold mb-4">Edit Text</h3>
+            <textarea
+              autoFocus
+              value={editingTextValue}
+              onChange={(e) => setEditingTextValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  // Save the text
+                  updateObject(editingTextId, { content: editingTextValue });
+                  setEditingTextId(null);
+                  setEditingTextValue('');
+                } else if (e.key === 'Escape') {
+                  // Cancel editing
+                  setEditingTextId(null);
+                  setEditingTextValue('');
+                }
+              }}
+              className="w-full border border-gray-300 rounded-lg p-3 min-h-[100px] focus:outline-none focus:ring-2 focus:ring-[#18448D]"
+              placeholder="Enter your text..."
+            />
+            <div className="flex gap-2 mt-4">
+              <button
+                onClick={() => {
+                  updateObject(editingTextId, { content: editingTextValue });
+                  setEditingTextId(null);
+                  setEditingTextValue('');
+                }}
+                className="flex-1 bg-[#18448D] hover:bg-[#153a7a] text-white px-4 py-2 rounded-lg font-medium transition-colors"
+              >
+                Save
+              </button>
+              <button
+                onClick={() => {
+                  setEditingTextId(null);
+                  setEditingTextValue('');
+                }}
+                className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2 rounded-lg font-medium transition-colors"
+              >
+                Cancel
+              </button>
+            </div>
+            <p className="text-xs text-gray-500 mt-3">
+              Press <kbd className="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded">Enter</kbd> to save, <kbd className="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded">Shift+Enter</kbd> for new line, <kbd className="px-1.5 py-0.5 bg-gray-100 border border-gray-300 rounded">Esc</kbd> to cancel
+            </p>
+          </div>
+        </div>
+      )}
+
       {/* Mobile Delete Button - Shows when object is selected */}
       {selectedIds.length > 0 && (
         <div className="lg:hidden absolute top-4 right-4 flex gap-2">
