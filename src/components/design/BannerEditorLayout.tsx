@@ -212,16 +212,28 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
         return null;
       }
 
-      // Get current visibility state
-      const { showBleed, showSafeZone, showGrid, setShowBleed, setShowSafeZone, setShowGrid } = useEditorStore.getState();
+      // Get current visibility state and selection
+      const editorState = useEditorStore.getState();
+      const { showBleed, showSafeZone, showGrid, setShowBleed, setShowSafeZone, setShowGrid } = editorState;
       const wasShowingBleed = showBleed;
       const wasShowingSafeZone = showSafeZone;
       const wasShowingGrid = showGrid;
+      
+      // CRITICAL: Clear selection to hide transformer boxes before generating thumbnail
+      if (editorState.clearSelection) {
+        editorState.clearSelection();
+      }
       
       // Hide borders and grid for clean thumbnail
       setShowBleed(false);
       setShowSafeZone(false);
       setShowGrid(false);
+      
+      // Force immediate redraw to remove transformer from canvas
+      const layer = stage.getLayers()[0];
+      if (layer) {
+        layer.batchDraw();
+      }
       
       // Wait for React to re-render (use setTimeout instead of requestAnimationFrame)
       setTimeout(() => {
@@ -569,16 +581,25 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       return;
     }
 
-    // Proceed directly to add to cart
-    addFromQuote(quoteData as any, undefined, pricing);
+    // CRITICAL: Update existing item if editing, otherwise add new item
+    if (editingItemId) {
+      console.log('🔄 [UPDATE CART] Updating existing item:', editingItemId);
+      updateCartItem(editingItemId, quoteData as any, undefined, pricing);
+      toast({
+        title: "Cart Updated",
+        description: "Your banner has been updated in the cart.",
+      });
+    } else {
+      console.log('➕ [ADD TO CART] Adding new item to cart');
+      addFromQuote(quoteData as any, undefined, pricing);
+      toast({
+        title: "Added to Cart",
+        description: "Your banner has been added to the cart.",
+      });
+    }
     
     // Clear uploaded images from AssetsPanel after successful add to cart
     window.dispatchEvent(new Event('clearUploadedImages'));
-    
-    toast({
-      title: "Added to Cart",
-      description: "Your banner has been added to the cart.",
-    });
       
     // Scroll to top so user can see the cart
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -681,16 +702,25 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       line_total_cents: Math.round(lineTotal * 100),
     };
 
-    // Add to cart
-    addFromQuote(updatedQuote as any, undefined, pricing);
+    // CRITICAL: Update existing item if editing, otherwise add new item
+    if (editingItemId) {
+      console.log('🔄 [UPDATE CART UPSELL] Updating existing item:', editingItemId);
+      updateCartItem(editingItemId, updatedQuote as any, undefined, pricing);
+      toast({
+        title: "Cart Updated",
+        description: "Your banner has been updated in the cart with selected options.",
+      });
+    } else {
+      console.log('➕ [ADD TO CART UPSELL] Adding new item to cart');
+      addFromQuote(updatedQuote as any, undefined, pricing);
+      toast({
+        title: "Added to Cart",
+        description: "Your banner has been added to the cart.",
+      });
+    }
     
     // Clear uploaded images
     window.dispatchEvent(new Event('clearUploadedImages'));
-    
-    toast({
-      title: "Added to Cart",
-      description: "Your banner has been added to the cart.",
-    });
     
     // Close modal
     setShowUpsellModal(false);
