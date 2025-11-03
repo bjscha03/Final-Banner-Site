@@ -385,16 +385,16 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
         {trigger || defaultTrigger}
       </DialogTrigger>
       <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center space-x-2">
-            <Package className="h-5 w-5" />
+        <DialogHeader className="border-b-2 border-[#18448D] pb-4">
+          <DialogTitle className="flex items-center space-x-3 text-2xl font-bold text-[#18448D]">
+            <Package className="h-6 w-6" />
             <span>Order #{order.id.slice(-8).toUpperCase()}</span>
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
-          {/* Order Info */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Order Info - Redesigned */}
+          <div className="bg-gradient-to-r from-blue-50 to-slate-50 border border-slate-200 rounded-xl p-5 grid grid-cols-1 md:grid-cols-3 gap-4 shadow-sm">
             <div className="flex items-center space-x-2">
               <Calendar className="h-4 w-4 text-gray-500" />
               <div>
@@ -478,15 +478,18 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
             </div>
           )}
 
-          {/* Order Items */}
+          {/* Order Items - Redesigned */}
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 mb-4">Items</h3>
+            <h3 className="text-xl font-bold text-[#18448D] mb-4 flex items-center border-b-2 border-[#18448D] pb-2">
+              <Package className="h-5 w-5 mr-2" />
+              Items
+            </h3>
             <div className="space-y-4">
               {order.items.map((item, index) => (
-                <div key={index} className="border border-gray-200 rounded-lg p-4">
+                <div key={index} className="border-2 border-slate-200 rounded-xl p-5 bg-white shadow-sm hover:shadow-md transition-shadow">
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
-                      <h4 className="font-medium text-gray-900">
+                      <h4 className="text-lg font-bold text-slate-900 mb-3">
                         Custom Banner {formatDimensions(item.width_in, item.height_in)}
                       </h4>
                       <div className="text-sm text-gray-600 mt-2 grid grid-cols-2 gap-2">
@@ -525,11 +528,14 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                       {/* Cost Breakdown - Using Unified Pricing Module */}
                       <OrderItemBreakdown item={item} />
                     </div>
-                    <div className="text-right ml-4">
-                      <p className="font-semibold text-gray-900">
-                        {usd((item.line_total_cents || 0) / 100)}
-                      </p>
-                      <p className="text-sm text-gray-600">
+                    <div className="text-right ml-4 min-w-[120px]">
+                      <div className="bg-[#18448D] text-white px-4 py-2 rounded-lg mb-2">
+                        <p className="text-xs font-medium opacity-90">Total</p>
+                        <p className="text-xl font-bold">
+                          {usd((item.line_total_cents || 0) / 100)}
+                        </p>
+                      </div>
+                      <p className="text-sm text-slate-600 font-medium">
                         {usd((calculateUnitPriceFromOrder(item) || 0) / 100)} each
                       </p>
                       <div className="mt-2 space-y-2">
@@ -638,25 +644,37 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
             </div>
           </div>
 
-          {/* Order Total */}
-          <div className="border-t border-gray-200 pt-4 space-y-2">
-            <div className="flex justify-between items-center">
-              <span className="text-gray-700">Subtotal</span>
-              <span className="text-gray-900">
-                {usd(order.subtotal_cents / 100)}
-              </span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-gray-700">Tax (6%)</span>
-              <span className="text-gray-900">
-                {usd(order.tax_cents / 100)}
-              </span>
-            </div>
-            <div className="flex justify-between items-center border-t border-gray-200 pt-2">
-              <span className="text-lg font-semibold text-gray-900">Total</span>
-              <span className="text-xl font-bold text-gray-900">
-                {usd(order.total_cents / 100)}
-              </span>
+          {/* Order Total - Redesigned */}
+          <div className="mt-6 bg-gradient-to-br from-slate-50 to-slate-100 border-2 border-slate-200 rounded-xl p-6 shadow-sm">
+            <h3 className="text-lg font-bold text-[#18448D] mb-4 flex items-center">
+              <CreditCard className="h-5 w-5 mr-2" />
+              Order Summary
+            </h3>
+            
+            <div className="space-y-3">
+              {/* Subtotal */}
+              <div className="flex justify-between items-center py-2">
+                <span className="text-base font-medium text-slate-700">Subtotal</span>
+                <span className="text-lg font-semibold text-slate-900">
+                  {usd(order.subtotal_cents / 100)}
+                </span>
+              </div>
+              
+              {/* Tax */}
+              <div className="flex justify-between items-center py-2 border-b border-slate-300">
+                <span className="text-base font-medium text-slate-700">Tax (6%)</span>
+                <span className="text-lg font-semibold text-slate-900">
+                  {usd(order.tax_cents / 100)}
+                </span>
+              </div>
+              
+              {/* Total */}
+              <div className="flex justify-between items-center pt-3 pb-1">
+                <span className="text-xl font-bold text-[#18448D]">Total</span>
+                <span className="text-2xl font-bold text-[#ff6b35]">
+                  {usd((order.subtotal_cents + order.tax_cents) / 100)}
+                </span>
+              </div>
             </div>
           </div>
         </div>
