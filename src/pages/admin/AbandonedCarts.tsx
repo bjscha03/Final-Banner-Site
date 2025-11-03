@@ -14,7 +14,7 @@ interface AbandonedCart {
   id: string;
   email: string;
   phone: string;
-  cart_contents: any[];
+  item_count: number; // Changed from cart_contents to item_count to reduce response size
   total_value: number;
   recovery_status: string;
   recovery_emails_sent: number;
@@ -268,7 +268,7 @@ const AbandonedCarts: React.FC = () => {
                           <div className="text-sm font-medium">{cart.email || 'No email'}</div>
                           {cart.phone && <div className="text-xs text-gray-500">{cart.phone}</div>}
                         </td>
-                        <td className="px-4 py-3 text-sm">{cart.cart_contents?.length || 0}</td>
+                        <td className="px-4 py-3 text-sm">{cart.item_count || 0}</td>
                         <td className="px-4 py-3 text-sm font-medium">{usd(Number(cart.total_value) || 0)}</td>
                         <td className="px-4 py-3 text-sm">{getTimeSince(cart.abandoned_at || cart.last_activity_at)}</td>
                         <td className="px-4 py-3 text-sm">{cart.recovery_emails_sent}</td>
@@ -368,7 +368,7 @@ const AbandonedCartCard: React.FC<AbandonedCartCardProps> = ({
       <div className="grid grid-cols-2 gap-3 mb-3">
         <div>
           <div className="text-xs text-gray-500">Items</div>
-          <div className="text-sm font-medium">{cart.cart_contents?.length || 0}</div>
+          <div className="text-sm font-medium">{cart.item_count || 0}</div>
         </div>
         <div>
           <div className="text-xs text-gray-500">Value</div>

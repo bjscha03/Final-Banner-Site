@@ -35,12 +35,14 @@ exports.handler = async (event, context) => {
     const sql = neon(databaseUrl);
 
     // Get all carts (including recovered for analytics)
+    // NOTE: We don't select cart_contents to avoid massive response sizes
+    // cart_contents can contain full banner designs with base64 images (6MB+ response!)
     const carts = await sql`
       SELECT 
         id,
         email,
         phone,
-        cart_contents,
+        jsonb_array_length(cart_contents) as item_count,
         total_value,
         recovery_status,
         recovery_emails_sent,
