@@ -502,7 +502,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     onOpenAIModal?.();
   };
 
-  const handleAddToCart = () => {
+  const handleAddToCart = async () => {
     console.log(`🎯 [BannerEditorLayout] ${editingItemId ? 'Update' : 'Add to'} Cart button clicked`);
     
     if (!hasContent) {
@@ -514,9 +514,16 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       return;
     }
 
-    // CRITICAL: Generate FRESH thumbnail when button is clicked (not stale one from store)
-    const freshThumbnail = generateThumbnail();
-    let thumbnailUrl = freshThumbnail || canvasThumbnail;
+    // CRITICAL: Clear selection and wait for auto-thumbnail generation
+    const editorState = useEditorStore.getState();
+    if (editorState.clearSelection) {
+      editorState.clearSelection();
+      // Wait 600ms for debounced thumbnail generation to complete (500ms debounce + 100ms buffer)
+      await new Promise(resolve => setTimeout(resolve, 600));
+    }
+
+    // Now use the fresh thumbnail from the store
+    let thumbnailUrl = canvasThumbnail;
     
     console.log('🎨 [ADD TO CART] canvasThumbnail:', canvasThumbnail ? canvasThumbnail.substring(0, 50) + '...' : 'NULL');
     
