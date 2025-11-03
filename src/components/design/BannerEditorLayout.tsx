@@ -517,9 +517,11 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     // CRITICAL: Clear selection and wait for auto-thumbnail generation
     const editorState = useEditorStore.getState();
     if (editorState.clearSelection) {
+      console.log('🔄 [UPDATE CART] Clearing selection and waiting 600ms for fresh thumbnail...');
       editorState.clearSelection();
       // Wait 600ms for debounced thumbnail generation to complete (500ms debounce + 100ms buffer)
       await new Promise(resolve => setTimeout(resolve, 600));
+      console.log('✅ [UPDATE CART] Wait complete, using fresh thumbnail');
     }
 
     // Now use the fresh thumbnail from the store
