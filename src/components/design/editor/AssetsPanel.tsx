@@ -18,7 +18,11 @@ interface UploadedImage {
 // Create a persistent store for uploaded images (survives component re-renders)
 let persistentUploadedImages: UploadedImage[] = [];
 
-const AssetsPanel: React.FC = () => {
+interface AssetsPanelProps {
+  onClose?: () => void;
+}
+
+const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
   console.log('[AssetsPanel] Component rendered');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>(persistentUploadedImages);
@@ -168,6 +172,11 @@ const AssetsPanel: React.FC = () => {
     console.log('[IMAGE ADD] Adding image object to canvas:', imageObject);
     addObject(imageObject);
     console.log('[IMAGE ADD] Image added successfully');
+    
+    // Close panel on mobile after adding image
+    if (onClose && window.innerWidth < 1024) {
+      setTimeout(() => onClose(), 100);
+    }
   };
 
   const handleRemoveImage = (id: string) => {

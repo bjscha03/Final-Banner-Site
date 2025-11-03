@@ -674,11 +674,12 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
   // Render the active panel component dynamically to avoid stale closures
   const renderPanelContent = (panelId: PanelType) => {
     console.log('[BannerEditorLayout] Rendering panel:', panelId);
+    const handleClosePanel = () => setActivePanel(null);
     switch (panelId) {
       case 'uploads':
-        return <AssetsPanel />;
+        return <AssetsPanel onClose={handleClosePanel} />;
       case 'text':
-        return <TextPanel />;
+        return <TextPanel onClose={handleClosePanel} />;
       case 'material':
         return <MaterialCard />;
       case 'size':

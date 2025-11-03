@@ -4,13 +4,22 @@ import { Button } from '@/components/ui/button';
 import { useEditorStore } from '@/store/editor';
 import { useQuoteStore } from '@/store/quote';
 
-const TextPanel: React.FC = () => {
+interface TextPanelProps {
+  onClose?: () => void;
+}
+
+const TextPanel: React.FC<TextPanelProps> = ({ onClose }) => {
   console.log('[TextPanel] Component rendered');
   const addObject = useEditorStore((state) => state.addObject);
   const { widthIn, heightIn } = useQuoteStore();
 
   const handleAddText = (preset: 'heading' | 'subheading' | 'body') => {
     console.log('[TextPanel] handleAddText called with preset:', preset);
+    
+    // Close panel on mobile after adding text
+    if (onClose && window.innerWidth < 1024) {
+      setTimeout(() => onClose(), 100);
+    }
     const presets = {
       heading: { fontSize: 6, fontWeight: 'bold' as const, color: '#18448D' },      // 6 inches
       subheading: { fontSize: 4, fontWeight: 'bold' as const, color: '#1f2937' },   // 4 inches
