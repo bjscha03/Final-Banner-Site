@@ -652,11 +652,11 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
             </h3>
             
             <div className="space-y-3">
-              {/* Subtotal */}
+              {/* Subtotal - Calculated from line items */}
               <div className="flex justify-between items-center py-2">
                 <span className="text-base font-medium text-slate-700">Subtotal</span>
                 <span className="text-lg font-semibold text-slate-900">
-                  {usd(order.subtotal_cents / 100)}
+                  {usd(order.items.reduce((sum, item) => sum + (item.line_total_cents || 0), 0) / 100)}
                 </span>
               </div>
               
@@ -668,11 +668,11 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                 </span>
               </div>
               
-              {/* Total */}
+              {/* Total - Calculated from line items + tax */}
               <div className="flex justify-between items-center pt-3 pb-1">
                 <span className="text-xl font-bold text-[#18448D]">Total</span>
                 <span className="text-2xl font-bold text-[#ff6b35]">
-                  {usd((order.subtotal_cents + order.tax_cents) / 100)}
+                  {usd((order.items.reduce((sum, item) => sum + (item.line_total_cents || 0), 0) + order.tax_cents) / 100)}
                 </span>
               </div>
             </div>
