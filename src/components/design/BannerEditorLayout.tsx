@@ -616,6 +616,26 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     console.log('[BannerEditorLayout] Upsell - Using thumbnail URL:', thumbnailUrl ? thumbnailUrl.substring(0, 50) + '...' : 'null');
 
     // Build updated quote object with selected options
+    // CRITICAL: Convert editor text objects to textElements format for cart storage
+    const textElementsFromEditor = editorObjects
+      .filter(obj => obj.type === 'text')
+      .map(obj => ({
+        id: obj.id,
+        content: obj.content || '',
+        xPercent: (obj.x / widthIn) * 100,
+        yPercent: (obj.y / heightIn) * 100,
+        fontSize: obj.fontSize || 24,
+        fontFamily: obj.fontFamily || 'Arial',
+        color: obj.color || '#000000',
+        fontWeight: (obj.fontWeight || 'normal') as 'normal' | 'bold',
+        fontStyle: (obj.fontStyle || 'normal') as 'normal' | 'italic',
+        textDecoration: obj.textDecoration || '',
+        textAlign: (obj.textAlign || 'left') as 'left' | 'center' | 'right',
+        align: obj.align || 'left',
+        lineHeight: obj.lineHeight || 1.2,
+        rotation: obj.rotation || 0,
+      }));
+    
     let updatedQuote = {
       widthIn: quote.widthIn,
       heightIn: quote.heightIn,
@@ -626,7 +646,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       polePocketSize: quote.polePocketSize,
       addRope: quote.addRope,
       previewScalePct: quote.previewScalePct,
-      textElements: quote.textElements,
+      textElements: textElementsFromEditor.length > 0 ? textElementsFromEditor : quote.textElements,
       overlayImage: quote.overlayImage,
       file: undefined,
       thumbnailUrl: thumbnailUrl,
