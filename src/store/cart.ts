@@ -44,6 +44,7 @@ export interface CartItem {
     aspectRatio?: number;
   };
   // AI Design metadata (optional)
+  canvas_background_color?: string;    // Canvas background color (hex)
   image_scale?: number;                // Background image scale (for uploaded images)
   image_position?: { x: number; y: number }; // Background image position (for uploaded images)
   aiDesign?: {
@@ -273,6 +274,7 @@ export const useCartStore = create<CartState>()(
             ...quote.overlayImage,
             position: quote.overlayImage.position || { x: 50, y: 50 }
           } : undefined,
+          canvas_background_color: (quote as any).canvasBackgroundColor || '#FFFFFF',
           image_scale: quote.imageScale || 1,
           image_position: quote.imagePosition || { x: 0, y: 0 },
           artwork_width: quote.file?.artworkWidth,
@@ -438,6 +440,7 @@ export const useCartStore = create<CartState>()(
             ...quote.overlayImage,
             position: quote.overlayImage.position || { x: 50, y: 50 }
           } : undefined,
+          canvas_background_color: (quote as any).canvasBackgroundColor || '#FFFFFF',
           image_scale: quote.imageScale || 1,
           image_position: quote.imagePosition || { x: 0, y: 0 },
           ...(aiMetadata || {}),

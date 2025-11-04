@@ -580,6 +580,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       previewScalePct: quote.previewScalePct,
       textElements: quote.textElements,
       overlayImage: quote.overlayImage,
+      canvasBackgroundColor: canvasBackgroundColor,
       // Don't pass file object - use thumbnailUrl instead
       file: undefined,
       thumbnailUrl: thumbnailUrl,
