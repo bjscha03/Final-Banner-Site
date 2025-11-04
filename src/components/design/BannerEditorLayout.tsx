@@ -64,6 +64,11 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
   const { exportToJSON, setCanvasThumbnail, canvasThumbnail, objects: editorObjects, addObject, reset: resetEditor, canvasBackgroundColor, showGrommets, setShowGrommets } = useEditorStore();
   const quote = useQuoteStore();
   const { set: setQuote, editingItemId, overlayImage, textElements, file, grommets, widthIn, heightIn, material, resetDesign } = quote;
+  
+  // Helper function to update grommets in quote store
+  const setGrommets = (value: any) => {
+    setQuote({ grommets: value });
+  };
 
   // Check if user should see upsell (only if there are actually options to upsell)
   const shouldShowUpsell = useMemo(() => {
