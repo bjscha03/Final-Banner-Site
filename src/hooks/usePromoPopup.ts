@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 interface UsePromoPopupOptions {
   delaySeconds?: number; // Delay before showing popup (default: immediate)
@@ -12,18 +12,23 @@ export const usePromoPopup = (options: UsePromoPopupOptions = {}) => {
   const [showPopup, setShowPopup] = useState(false);
   const [popupSource, setPopupSource] = useState<PopupSource>('first_visit');
   const [hasShownInitialPopup, setHasShownInitialPopup] = useState(false);
+  const isPermanentlySuppressed = useRef(false);
 
   useEffect(() => {
     // Check if user already received their code (permanent dismissal)
     // If user already got their code, NEVER show popup again
     if (localStorage.getItem('promo_code_received') === 'true') {
       console.log('[usePromoPopup] User already received code - popup permanently suppressed');
+      isPermanentlySuppressed.current = true;
+      setShowPopup(false);
       return;
     }
 
     // Check if user submitted email (permanent dismissal - even if they didn't complete the flow)
     if (localStorage.getItem('promo_email_submitted') === 'true') {
       console.log('[usePromoPopup] User already submitted email - popup permanently suppressed');
+      isPermanentlySuppressed.current = true;
+      setShowPopup(false);
       return;
     }
 
@@ -43,7 +48,7 @@ export const usePromoPopup = (options: UsePromoPopupOptions = {}) => {
 
     // Timer-based display (first visit ONLY)
     const timer = setTimeout(() => {
-      if (!hasShownInitialPopup) {
+      if (!hasShownInitialPopup && !isPermanentlySuppressed.current) {
         console.log('[usePromoPopup] Showing popup after delay');
         setPopupSource('first_visit');
         setShowPopup(true);
@@ -53,7 +58,7 @@ export const usePromoPopup = (options: UsePromoPopupOptions = {}) => {
 
     // Exit intent handler (desktop only) - can re-trigger
     const handleMouseLeave = (e: MouseEvent) => {
-      if (!enableExitIntent) return;
+      if (!enableExitIntent || isPermanentlySuppressed.current) return;
       
       // Only trigger if mouse is leaving from the top of the page (going to close tab)
       if (e.clientY <= 0) {
@@ -63,6 +68,19 @@ export const usePromoPopup = (options: UsePromoPopupOptions = {}) => {
       }
     };
 
+    // Listen for storage changes (when email is submitted in the popup)
+    const handleStorageChange = () => {
+      if (localStorage.getItem('promo_email_submitted') === 'true' || 
+          localStorage.getItem('promo_code_received') === 'true') {
+        console.log('[usePromoPopup] Email submitted - permanently suppressing popup');
+        isPermanentlySuppressed.current = true;
+        setShowPopup(false);
+      }
+    };
+
+    // Check storage every 500ms while popup is open
+    const storageCheckInterval = setInterval(handleStorageChange, 500);
+
     // Only add exit intent on desktop (screen width > 768px)
     if (enableExitIntent && window.innerWidth > 768) {
       document.addEventListener('mouseleave', handleMouseLeave);
@@ -70,12 +88,22 @@ export const usePromoPopup = (options: UsePromoPopupOptions = {}) => {
 
     return () => {
       clearTimeout(timer);
+      clearInterval(storageCheckInterval);
       document.removeEventListener('mouseleave', handleMouseLeave);
     };
-  }, [delaySeconds, enableExitIntent, hasShownInitialPopup]);
+  }, [delaySeconds, enableExitIntent, hasShownInitialPopup, showPopup]);
 
   const closePopup = () => {
-    // Set 72-hour cooldown
+    // Check if email was submitted before closing
+    if (localStorage.getItem('promo_email_submitted') === 'true' || 
+        localStorage.getItem('promo_code_received') === 'true') {
+      console.log('[usePromoPopup] Email submitted - closing permanently');
+      isPermanentlySuppressed.current = true;
+      setShowPopup(false);
+      return;
+    }
+
+    // Set 72-hour cooldown for X button clicks
     const expiryDate = new Date();
     expiryDate.setHours(expiryDate.getHours() + 72);
     localStorage.setItem('promo_popup_dismissed', expiryDate.toISOString());
