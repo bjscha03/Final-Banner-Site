@@ -113,7 +113,10 @@ const SignIn: React.FC = () => {
       // Small delay to allow cart sync to complete
       setTimeout(() => {
         const redirectUrl = getNextUrl();
-        console.log('🚨 NAVIGATING TO:', redirectUrl);
+        console.log('🚨 SIGN IN SUCCESS - About to navigate');
+        console.log('🚨 Current URL:', window.location.href);
+        console.log('🚨 Search params:', searchParams.toString());
+        console.log('🚨 Redirect URL:', redirectUrl);
         navigate(redirectUrl, { replace: true });
       }, 1000);
     } catch (error: any) {
