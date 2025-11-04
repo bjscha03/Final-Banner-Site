@@ -14,35 +14,6 @@ export function useCartSync() {
   const { user } = useAuth();
   const { loadFromServer, clearCart } = useCartStore();
   
-  // Get checkout context properties with defensive selectors
-  let checkoutGuestSessionId: string | null = null;
-  let clearCheckoutContext: (() => void) | undefined;
-  
-  try {
-    checkoutGuestSessionId = useCheckoutContext((state) => {
-      if (!state || typeof state !== 'object') {
-        console.error('CART SYNC HOOK: Checkout context state is not an object', state);
-        return null;
-      }
-      return state.guestSessionId ?? null;
-    });
-    
-    clearCheckoutContext = useCheckoutContext((state) => {
-      if (!state || typeof state !== 'object') {
-        return () => {};
-      }
-      return state.clearCheckoutContext;
-    });
-  } catch (error) {
-    console.error('CART SYNC HOOK: Error accessing checkout context:', error);
-    checkoutGuestSessionId = null;
-    clearCheckoutContext = () => {};
-  }
-  
-  // DEBUG: Log checkout context state
-  console.log('🔍 CART SYNC HOOK: Checkout context state:', {
-    checkoutGuestSessionId: checkoutGuestSessionId ? `${checkoutGuestSessionId.substring(0, 12)}...` : 'null',
-  });
   const prevUserIdRef = useRef<string | null>(null);
   const hasMergedRef = useRef<boolean>(false);
   const isSavingRef = useRef<boolean>(false);
@@ -52,12 +23,33 @@ export function useCartSync() {
     const prevUserId = prevUserIdRef.current;
     const cartOwnerId = typeof localStorage !== 'undefined' ? localStorage.getItem('cart_owner_user_id') : null;
     
+    // CRITICAL FIX: Read checkout context INSIDE useEffect to get latest value
+    let checkoutGuestSessionId: string | null = null;
+    let clearCheckoutContext: (() => void) | undefined;
+    
+    try {
+      const checkoutState = useCheckoutContext.getState();
+      checkoutGuestSessionId = checkoutState?.guestSessionId ?? null;
+      clearCheckoutContext = checkoutState?.clearCheckoutContext;
+      
+      console.log('🔍 CART SYNC: Checkout context state:', {
+        checkoutGuestSessionId: checkoutGuestSessionId ? `${checkoutGuestSessionId.substring(0, 12)}...` : 'null',
+        isInCheckoutFlow: checkoutState?.isInCheckoutFlow,
+        returnUrl: checkoutState?.returnUrl,
+      });
+    } catch (error) {
+      console.error('CART SYNC HOOK: Error accessing checkout context:', error);
+      checkoutGuestSessionId = null;
+      clearCheckoutContext = () => {};
+    }
+    
     console.log('═══════════════════════════════════════════════');
     console.log('🔍 CART SYNC HOOK: User effect triggered');
     console.log('🔍 Previous user ID:', prevUserId);
     console.log('🔍 Current user ID:', currentUserId);
     console.log('🔍 Cart owner ID:', cartOwnerId);
     console.log('🔍 Has merged:', hasMergedRef.current);
+    console.log('🔍 Checkout guest session ID:', checkoutGuestSessionId ? `${checkoutGuestSessionId.substring(0, 12)}...` : 'null');
     
     // CRITICAL: Don't clear cart - it syncs empty cart to server and DELETES the database cart!
     // Just update the cart_owner_user_id in localStorage
@@ -78,9 +70,6 @@ export function useCartSync() {
       console.log('⚠️  Previous user:', prevUserId);
       console.log('⚠️  New user:', currentUserId);
       console.log('⚠️  Clearing localStorage cart for new user');
-      
-      // Clear the cart in localStorage (it belongs to the previous user)
-      // clearCart(); // DISABLED - was deleting database cart
       
       // Remove the old cart owner ID
       if (typeof localStorage !== 'undefined') {
@@ -107,14 +96,13 @@ export function useCartSync() {
       // CRITICAL: Don't clear cart here - it syncs empty cart to server and DELETES the database cart!
       // Just let loadFromServer() overwrite the cart with the correct user's cart
       if (cartOwnerId && cartOwnerId !== currentUserId) {
-        console.log('�� CART OWNERSHIP: Cart belongs to different user, will load from server');
+        console.log('🔍 CART OWNERSHIP: Cart belongs to different user, will load from server');
         console.log('🔍 Cart owner:', cartOwnerId);
         console.log('🔍 Current user:', currentUserId);
       }
       
       // Merge guest cart with user cart on login
-      // CRITICAL FIX: Only merge if there's actually a guest session to merge
-      // Otherwise just load the user's cart from the database
+      // CRITICAL FIX: Check for checkout guest session ID OR cookie
       const hasCookie = typeof document !== 'undefined' && document.cookie.includes('cart_session_id');
       const hasGuestSession = checkoutGuestSessionId || hasCookie;
       
@@ -125,7 +113,7 @@ export function useCartSync() {
       });
       
       if (hasGuestSession && !hasMergedRef.current) {
-        console.error('🚨🚨🚨 MERGE PATH TRIGGERED - GUEST SESSION DETECTED 🚨🚨🚨');
+        console.log('🚨🚨🚨 MERGE PATH TRIGGERED - GUEST SESSION DETECTED 🚨🚨🚨');
         console.log('🔄 MERGE: Guest session detected, merging guest cart with user cart...');
         hasMergedRef.current = true;
         
@@ -143,9 +131,16 @@ export function useCartSync() {
             // Update the store with merged items
             useCartStore.setState({ items: mergedItems });
             
+            // Set cart owner to current user
+            if (typeof localStorage !== 'undefined') {
+              localStorage.setItem('cart_owner_user_id', currentUserId);
+            }
+            
             // Clear checkout context after successful merge
-            console.log('🧹 CART SYNC: Clearing checkout context after successful merge');
-            clearCheckoutContext();
+            if (clearCheckoutContext) {
+              console.log('🧹 CART SYNC: Clearing checkout context after successful merge');
+              clearCheckoutContext();
+            }
           } catch (error) {
             console.error('❌ MERGE: Failed to merge guest cart:', error);
             // Fallback: just load user's cart
@@ -154,32 +149,12 @@ export function useCartSync() {
         })();
       } else {
         // No guest session - just load user's cart from server
-        // CRITICAL: Don't save local cart to server - it might belong to a different user
-        // The loadFromServer() function will handle saving local cart if it belongs to current user
-        console.error('🚨🚨🚨 NO GUEST SESSION PATH - CART WILL BE CLEARED 🚨🚨🚨');
+        console.log('🚨🚨🚨 NO GUEST SESSION PATH - LOADING USER CART 🚨🚨🚨');
         console.log('👤 No guest session, loading user cart from database...');
         hasMergedRef.current = false;
-        // CRITICAL FIX: Clear items SYNCHRONOUSLY before loading from server
-        // This prevents loadFromServer() from seeing old user's items in get().items
-        console.log('🧹 CLEARING CART: Setting items to [] before loadFromServer()');
-        useCartStore.setState({ items: [] });
         
-        // CRITICAL FIX: Also clear cart_owner_user_id to prevent loadFromServer() from thinking
-        // the local cart belongs to the current user
-        if (typeof localStorage !== 'undefined') {
-          const oldOwner = localStorage.getItem('cart_owner_user_id');
-          if (oldOwner && oldOwner !== currentUserId) {
-            console.log('🧹 CLEARING CART OWNER: Removing old owner ID:', oldOwner);
-            localStorage.removeItem('cart_owner_user_id');
-          }
-        }
-        
-        // Small delay to ensure state is cleared before loading from server
-        // This prevents race condition where loadFromServer() sees old items
-        setTimeout(() => {
-          console.log('📥 LOADING FROM SERVER: After clearing cart');
-          loadFromServer();
-        }, 50);
+        // Load user's cart from server (don't clear first to avoid flash)
+        loadFromServer();
       }
     }
     
@@ -222,7 +197,6 @@ export function useCartSync() {
         localStorage.removeItem('cart_owner_user_id');
       }
       hasMergedRef.current = false;
-      // // clearCart(); // DISABLED - was deleting database cart // DISABLED - was deleting database cart
       console.log('✅ Cart cleared from UI - will be restored from database on next login');
     }
     
