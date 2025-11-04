@@ -581,8 +581,9 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       textElements: quote.textElements,
       overlayImage: quote.overlayImage,
       canvasBackgroundColor: canvasBackgroundColor,
-      // Don't pass file object - use thumbnailUrl instead
-      file: undefined,
+      // CRITICAL: Pass original file (if exists) for background, thumbnailUrl for cart preview
+      // If there are text elements, DON'T pass file (thumbnail has text baked in)
+      file: (quote.textElements && quote.textElements.length > 0) ? undefined : quote.file,
       thumbnailUrl: thumbnailUrl,
     };
     
@@ -704,6 +705,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       previewScalePct: quote.previewScalePct,
       textElements: textElementsFromEditor.length > 0 ? textElementsFromEditor : quote.textElements,
       overlayImage: quote.overlayImage,
+      canvasBackgroundColor: canvasBackgroundColor,
       file: undefined,
       thumbnailUrl: thumbnailUrl,
     };

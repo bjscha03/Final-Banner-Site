@@ -181,9 +181,10 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
       addRope: item.rope_feet > 0,
       textElements: migratedTextElements,
       editingItemId: editingItemId || null, // Preserve editingItemId if provided
-      // CRITICAL: Load background file if it exists
-      // Text elements and overlay images will be layered on top
-      file: (item.file_key || item.file_url || item.web_preview_url) ? {
+      // CRITICAL: Don't load file as background if text elements exist
+      // When text exists, file_url is the thumbnail with text baked in
+      // We need to reconstruct from text_elements instead
+      file: (item.file_key || item.file_url || item.web_preview_url) && !item.text_elements?.length ? {
         name: item.file_name || 'Uploaded file',
         type: item.is_pdf ? 'application/pdf' : 'image/*',
         size: 1024, // Non-zero to indicate file exists

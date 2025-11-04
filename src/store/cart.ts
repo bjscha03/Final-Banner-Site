@@ -431,7 +431,8 @@ export const useCartStore = create<CartState>()(
           file_key: fileKey,
           file_name: quote.file?.name,
           // CRITICAL: Never save blob URLs - they don't persist across sessions
-          file_url: (quote.file?.url?.startsWith('blob:') ? null : quote.file?.url) || aiMetadata?.assets?.proofUrl || existingItem.file_url,
+          // Use thumbnailUrl if provided, otherwise fall back to file.url or existing
+          file_url: (quote as any).thumbnailUrl || (quote.file?.url?.startsWith('blob:') ? null : quote.file?.url) || aiMetadata?.assets?.proofUrl || existingItem.file_url,
           web_preview_url: aiMetadata?.assets?.proofUrl || existingItem.web_preview_url,
           print_ready_url: aiMetadata?.assets?.finalUrl || existingItem.print_ready_url,
           is_pdf: quote.file?.isPdf || false,
