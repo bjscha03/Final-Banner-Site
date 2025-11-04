@@ -645,23 +645,24 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       line_total_cents: Math.round(lineTotal * 100),
     };
     
-    // Extract quote data
+    // Extract quote data - GET FRESH VALUES FROM STORE
+    const freshQuoteForCart = useQuoteStore.getState();
     const quoteData = {
-      widthIn: quote.widthIn,
-      heightIn: quote.heightIn,
-      quantity: quote.quantity,
-      material: quote.material,
-      grommets: quote.grommets,
-      polePockets: quote.polePockets,
-      polePocketSize: quote.polePocketSize,
-      addRope: quote.addRope,
-      previewScalePct: quote.previewScalePct,
-      textElements: quote.textElements,
+      widthIn: freshQuoteForCart.widthIn,
+      heightIn: freshQuoteForCart.heightIn,
+      quantity: freshQuoteForCart.quantity,
+      material: freshQuoteForCart.material,
+      grommets: freshQuoteForCart.grommets, // CRITICAL: Use fresh grommets value
+      polePockets: freshQuoteForCart.polePockets,
+      polePocketSize: freshQuoteForCart.polePocketSize,
+      addRope: freshQuoteForCart.addRope,
+      previewScalePct: freshQuoteForCart.previewScalePct,
+      textElements: freshQuoteForCart.textElements,
       overlayImage: currentOverlayImage, // BUG 3 FIX: Use extracted overlay image
       canvasBackgroundColor: canvasBackgroundColor,
       // CRITICAL: Pass original file (if exists) for background, thumbnailUrl for cart preview
       // If there are text elements, DON'T pass file (thumbnail has text baked in)
-      file: (quote.textElements && quote.textElements.length > 0) ? undefined : quote.file,
+      file: (freshQuoteForCart.textElements && freshQuoteForCart.textElements.length > 0) ? undefined : freshQuoteForCart.file,
       thumbnailUrl: thumbnailUrl,
     };
     
@@ -736,7 +737,8 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     }
 
     // BUG 1 FIX: Force fresh thumbnail generation AFTER grommets are applied
-    console.log('🔄 [BUG 1 FIX] About to generate thumbnail. showGrommets:', showGrommets, 'grommets:', quote.grommets);
+    const freshQuote = useQuoteStore.getState();
+    console.log('🔄 [BUG 1 FIX] About to generate thumbnail. showGrommets:', showGrommets, 'grommets (fresh):', freshQuote.grommets);
     console.log('🔄 [BUG 1 FIX] Editor objects count:', editorObjects.length);
     generateThumbnail();
     // Wait for thumbnail to be generated and stored (generateThumbnail has 200ms internal delay)
