@@ -73,7 +73,6 @@ const CartSyncWrapper = ({ children }: { children: React.ReactNode }) => {
   // Promo popup logic - only show on homepage
   const isHomepage = location.pathname === '/';
   const { showPopup, popupSource, closePopup } = usePromoPopup({
-    delaySeconds: 11,
     enableExitIntent: true,
   });
   
