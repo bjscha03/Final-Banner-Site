@@ -97,6 +97,8 @@ export interface CartState {
   syncToServer: () => Promise<void>;
   loadFromServer: () => Promise<void>;
   items: CartItem[];
+  isLoading: boolean;  // Loading state for cart operations (merge, load from server)
+  isLoading: boolean;  // Loading state for cart operations (merge, load from server)
   discountCode: DiscountCode | null;
   addFromQuote: (quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => void;
   loadItemIntoQuote: (itemId: string) => CartItem | null;
@@ -185,6 +187,8 @@ export const useCartStore = create<CartState>()(
   persist(
     (set, get) => ({
       items: [],
+      isLoading: false,
+      isLoading: false,
       discountCode: null,
       
       addFromQuote: (quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => {

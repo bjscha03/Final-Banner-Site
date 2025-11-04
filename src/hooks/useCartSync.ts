@@ -117,6 +117,12 @@ export function useCartSync() {
         console.log('🔄 MERGE: Guest session detected, merging guest cart with user cart...');
         hasMergedRef.current = true;
         
+        // Set loading state to prevent "cart is empty" flash
+        useCartStore.setState({ isLoading: true });
+        
+        // Set loading state to prevent "cart is empty" flash
+        useCartStore.setState({ isLoading: true });
+        
         (async () => {
           try {
             console.log('🔄 MERGE: Calling mergeGuestCartOnLogin...');
@@ -136,6 +142,12 @@ export function useCartSync() {
               localStorage.setItem('cart_owner_user_id', currentUserId);
             }
             
+            // Clear loading state
+            useCartStore.setState({ isLoading: false });
+            
+            // Clear loading state
+            useCartStore.setState({ isLoading: false });
+            
             // Clear checkout context after successful merge
             if (clearCheckoutContext) {
               console.log('🧹 CART SYNC: Clearing checkout context after successful merge');
@@ -143,6 +155,8 @@ export function useCartSync() {
             }
           } catch (error) {
             console.error('❌ MERGE: Failed to merge guest cart:', error);
+            // Clear loading state
+            useCartStore.setState({ isLoading: false });
             // Fallback: just load user's cart
             loadFromServer();
           }

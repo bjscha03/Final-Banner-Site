@@ -110,7 +110,7 @@ const SignIn: React.FC = () => {
         // clearCheckoutContext(); // MOVED: Will be cleared by useCartSync after merge
       }
 
-      // Small delay to allow cart sync to complete
+      // Small delay to allow cart sync to complete (increased to 3s for cart merge)
       setTimeout(() => {
         const redirectUrl = getNextUrl();
         console.log('🚨 SIGN IN SUCCESS - About to navigate');
@@ -118,7 +118,7 @@ const SignIn: React.FC = () => {
         console.log('🚨 Search params:', searchParams.toString());
         console.log('🚨 Redirect URL:', redirectUrl);
         navigate(redirectUrl, { replace: true });
-      }, 1000);
+      }, 3000);
     } catch (error: any) {
       if (error.message && error.message.includes('email verification')) {
         toast({
