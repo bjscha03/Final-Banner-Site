@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { X, Mail, Copy, Check } from 'lucide-react';
+import { X, Mail, Copy, Check, Package, Tag } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 interface PromoPopupProps {
@@ -101,9 +101,9 @@ export const PromoPopup = ({ onClose, source }: PromoPopupProps) => {
 
   return (
     <>
-      {/* Backdrop */}
+      {/* Backdrop - Darkened overlay */}
       <div 
-        className="fixed inset-0 bg-black/60 z-50 animate-in fade-in duration-200"
+        className="fixed inset-0 bg-black/70 z-50 animate-in fade-in duration-200 backdrop-blur-sm"
         onClick={onClose}
       />
       
@@ -126,14 +126,23 @@ export const PromoPopup = ({ onClose, source }: PromoPopupProps) => {
           <div className="p-8">
             {!generatedCode ? (
               <>
-                {/* Header */}
+                {/* Header with Product Visual */}
                 <div className="text-center mb-6">
-                  <div className="inline-flex items-center justify-center w-20 h-20 bg-white rounded-full mb-4 p-2">
-                    <img src="/images/logo-icon.svg" alt="Banners on the Fly" className="w-full h-full object-contain" />
+                  {/* Product Visual - Tag Icon */}
+                  <div className="inline-flex items-center justify-center w-20 h-20 bg-gradient-to-br from-orange-100 to-orange-200 rounded-full mb-4">
+                    <Tag className="w-10 h-10 text-orange-600" />
                   </div>
-                  <h2 className="text-3xl font-bold text-[#18448D] mb-2">
-                    Get 20% Off!
+                  
+                  <h2 className="text-3xl font-bold text-[#18448D] mb-3">
+                    Get 20% OFF your First Order!
                   </h2>
+                  
+                  {/* Free Shipping Badge */}
+                  <div className="inline-flex items-center gap-2 bg-green-50 text-green-700 px-4 py-2 rounded-full mb-3">
+                    <Package className="w-4 h-4" />
+                    <span className="text-sm font-semibold">Free Next-Day Air Shipping Included</span>
+                  </div>
+                  
                   <p className="text-gray-600">
                     Enter your email to receive your exclusive discount code
                   </p>

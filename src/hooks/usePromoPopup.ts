@@ -11,7 +11,8 @@ export const usePromoPopup = (options: UsePromoPopupOptions = {}) => {
   const { delaySeconds = 0, enableExitIntent = true } = options;
   const [showPopup, setShowPopup] = useState(false);
   const [popupSource, setPopupSource] = useState<PopupSource>('first_visit');
-  const [hasShownPopup, setHasShownPopup] = useState(false);
+  const [hasShownInitialPopup, setHasShownInitialPopup] = useState(false);
+  const [hasScrolledHalfway, setHasScrolledHalfway] = useState(false);
 
   useEffect(() => {
     // Check if user already received their code (permanent dismissal)
@@ -37,24 +38,39 @@ export const usePromoPopup = (options: UsePromoPopupOptions = {}) => {
 
     // Timer-based display (first visit)
     const timer = setTimeout(() => {
-      if (!hasShownPopup) {
+      if (!hasShownInitialPopup) {
         console.log('[usePromoPopup] Showing popup after delay');
         setPopupSource('first_visit');
         setShowPopup(true);
-        setHasShownPopup(true);
+        setHasShownInitialPopup(true);
       }
     }, delaySeconds * 1000);
 
-    // Exit intent handler (desktop only)
+    // Exit intent handler (desktop only) - can re-trigger
     const handleMouseLeave = (e: MouseEvent) => {
-      if (!enableExitIntent || hasShownPopup) return;
+      if (!enableExitIntent) return;
       
-      // Only trigger if mouse is leaving from the top of the page
+      // Only trigger if mouse is leaving from the top of the page (going to close tab)
       if (e.clientY <= 0) {
-        console.log('[usePromoPopup] Exit intent detected');
+        console.log('[usePromoPopup] Exit intent detected - cursor to close tab');
         setPopupSource('exit_intent');
         setShowPopup(true);
-        setHasShownPopup(true);
+      }
+    };
+
+    // Scroll handler - show when user scrolls 50% down
+    const handleScroll = () => {
+      if (hasScrolledHalfway) return;
+
+      const scrollTop = window.scrollY || document.documentElement.scrollTop;
+      const scrollHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
+      const scrollPercent = (scrollTop / scrollHeight) * 100;
+
+      if (scrollPercent >= 50) {
+        console.log('[usePromoPopup] User scrolled 50% - showing exit intent popup');
+        setHasScrolledHalfway(true);
+        setPopupSource('exit_intent');
+        setShowPopup(true);
       }
     };
 
@@ -63,11 +79,15 @@ export const usePromoPopup = (options: UsePromoPopupOptions = {}) => {
       document.addEventListener('mouseleave', handleMouseLeave);
     }
 
+    // Add scroll listener
+    window.addEventListener('scroll', handleScroll, { passive: true });
+
     return () => {
       clearTimeout(timer);
       document.removeEventListener('mouseleave', handleMouseLeave);
+      window.removeEventListener('scroll', handleScroll);
     };
-  }, [delaySeconds, enableExitIntent, hasShownPopup]);
+  }, [delaySeconds, enableExitIntent, hasShownInitialPopup, hasScrolledHalfway]);
 
   const closePopup = () => {
     // Set 72-hour cooldown
