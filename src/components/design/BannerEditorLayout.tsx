@@ -23,7 +23,6 @@ import {
   Palette, 
   Sliders,
   Download, 
-  Save, 
   Sparkles,
   X
 } from 'lucide-react';
@@ -463,27 +462,6 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       console.log('[BannerEditorLayout] Finished loading cart item objects');
     }, 100);
   }, [editingItemId]); // Only run when editingItemId changes
-
-  const handleSave = () => {
-    try {
-      const designJSON = exportToJSON();
-      setQuote({
-        canvasDesign: designJSON,
-        hasCanvasDesign: true,
-      });
-
-      toast({
-        title: 'Design Saved',
-        description: 'Your banner design has been saved successfully.',
-      });
-    } catch (error) {
-      toast({
-        title: 'Save Failed',
-        description: error instanceof Error ? error.message : 'Unknown error',
-        variant: 'destructive',
-      });
-    }
-  };
 
   const handlePreview = () => {
     console.log('🔍 [BannerEditorLayout] Preview button clicked');
@@ -977,15 +955,6 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
                 AI Generate
               </Button>
             )}
-            <Button
-              onClick={handleSave}
-              variant="outline"
-              size="sm"
-              className="hidden sm:flex items-center gap-2"
-            >
-              <Save className="w-4 h-4" />
-              Save
-            </Button>
             <Button
               onClick={() => handleExport('png')}
               variant="outline"
