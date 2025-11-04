@@ -44,6 +44,7 @@ export interface CartItem {
     aspectRatio?: number;
   };
   // AI Design metadata (optional)
+  canvas_background_color?: string;    // Canvas background color (hex)
   image_scale?: number;                // Background image scale (for uploaded images)
   image_position?: { x: number; y: number }; // Background image position (for uploaded images)
   aiDesign?: {
@@ -102,6 +103,7 @@ export interface CartState {
   updateCartItem: (itemId: string, quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => void;
   removeItem: (id: string) => void;
   clearCart: () => void;
+  clearCartLocal: () => void;  // Clear cart in memory only, without syncing to server
   applyDiscountCode: (discount: DiscountCode) => void;
   removeDiscountCode: () => void;
   getDiscountAmountCents: () => number;
@@ -223,12 +225,56 @@ export const useCartStore = create<CartState>()(
         const pole_pocket_pricing_mode: PricingMode = pricing?.pole_pocket_pricing_mode ?? 'per_item';
         const line_total_cents = pricing?.line_total_cents ?? computedLine;
 
+        // Use the file key from the uploaded file
+        const fileKey = quote.file?.fileKey;
+
+        const newItem: CartItem = {
+          id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          width_in: quote.widthIn,
+          height_in: quote.heightIn,
+          quantity: quote.quantity,
+          material: quote.material,
+          grommets: quote.grommets,
+          pole_pockets: quote.polePockets,
+          pole_pocket_size: quote.polePocketSize,
+          pole_pocket_position: quote.polePockets,
+          rope_feet: ropeFeet,
+          area_sqft: area,
+          unit_price_cents,
+          rope_cost_cents,
+          rope_pricing_mode,
+          pole_pocket_cost_cents,
+          pole_pocket_pricing_mode,
+          line_total_cents,
+          file_key: fileKey,
+          file_name: quote.file?.name,
+          // CRITICAL: Never save blob URLs - they don't persist across sessions
+          // Use thumbnailUrl if provided (may be blob URL for immediate display)
+          // Note: Blob URLs won't persist across sessions, but will work for current session
+          file_url: (() => {
+            const thumbnailUrl = (quote as any).thumbnailUrl;
+            const fileUrl = quote.file?.url;
+            const proofUrl = aiMetadata?.assets?.proofUrl;
+            
+            console.log('[CART STORE] 🖼️ Thumbnail Debug:', {
+              thumbnailUrl: thumbnailUrl ? thumbnailUrl.substring(0, 50) + '...' : 'null',
+              fileUrl: fileUrl ? fileUrl.substring(0, 50) + '...' : 'null',
+              proofUrl: proofUrl ? proofUrl.substring(0, 50) + '...' : 'null',
+            });
+            
+            const finalUrl = thumbnailUrl || (fileUrl?.startsWith('blob:') ? null : fileUrl) || proofUrl || null;
+            console.log('[CART STORE] 🖼️ Final file_url:', finalUrl ? finalUrl.substring(0, 50) + '...' : 'NULL - NO IMAGE WILL SHOW');
+            return finalUrl;
+          })(),
+          web_preview_url: (aiMetadata?.assets?.proofUrl?.startsWith('blob:') ? null : aiMetadata?.assets?.proofUrl) || null,
+          print_ready_url: (aiMetadata?.assets?.finalUrl?.startsWith('blob:') ? null : aiMetadata?.assets?.finalUrl) || null,
           is_pdf: quote.file?.isPdf || false,
           text_elements: quote.textElements && quote.textElements.length > 0 ? quote.textElements : undefined,
           overlay_image: quote.overlayImage ? {
             ...quote.overlayImage,
             position: quote.overlayImage.position || { x: 50, y: 50 }
           } : undefined,
+          canvas_background_color: (quote as any).canvasBackgroundColor || '#FFFFFF',
           image_scale: quote.imageScale || 1,
           image_position: quote.imagePosition || { x: 0, y: 0 },
           artwork_width: quote.file?.artworkWidth,
@@ -239,8 +285,11 @@ export const useCartStore = create<CartState>()(
 
         console.log('🧮 CART: addFromQuote', { usingAuthoritative, pricing, computed: { unit: computedUnit, rope: computedRope, pole: computedPole, line: computedLine }, stored: newItem });
         console.log('💾 CART STORAGE: Item added, will persist to localStorage');
+        console.log("[CART STORE] About to add item to cart:", newItem);
+        console.log("[CART STORE] Current cart items:", get().items);
         set((state) => ({ items: [...state.items, newItem] }));
 
+        console.log("[CART STORE] Item added successfully. New cart items:", get().items);
         // CRITICAL FIX: Set cart owner to current user
         const userId = cartSync.getUserId();
         if (userId && typeof localStorage !== 'undefined') {
@@ -382,7 +431,8 @@ export const useCartStore = create<CartState>()(
           file_key: fileKey,
           file_name: quote.file?.name,
           // CRITICAL: Never save blob URLs - they don't persist across sessions
-          file_url: (quote.file?.url?.startsWith('blob:') ? null : quote.file?.url) || aiMetadata?.assets?.proofUrl || existingItem.file_url,
+          // Use thumbnailUrl if provided, otherwise fall back to file.url or existing
+          file_url: (quote as any).thumbnailUrl || (quote.file?.url?.startsWith('blob:') ? null : quote.file?.url) || aiMetadata?.assets?.proofUrl || existingItem.file_url,
           web_preview_url: aiMetadata?.assets?.proofUrl || existingItem.web_preview_url,
           print_ready_url: aiMetadata?.assets?.finalUrl || existingItem.print_ready_url,
           is_pdf: quote.file?.isPdf || false,
@@ -391,6 +441,7 @@ export const useCartStore = create<CartState>()(
             ...quote.overlayImage,
             position: quote.overlayImage.position || { x: 50, y: 50 }
           } : undefined,
+          canvas_background_color: (quote as any).canvasBackgroundColor || '#FFFFFF',
           image_scale: quote.imageScale || 1,
           image_position: quote.imagePosition || { x: 0, y: 0 },
           ...(aiMetadata || {}),
@@ -423,6 +474,12 @@ export const useCartStore = create<CartState>()(
         set({ items: [], discountCode: null });
       // Sync to Neon database IMMEDIATELY (critical for persistence)
       get().syncToServer();
+      },
+
+      clearCartLocal: () => {
+        console.log("🧹 clearCartLocal: Clearing cart in memory ONLY (no server sync)");
+        set({ items: [], discountCode: null });
+        console.log("✅ clearCartLocal: Cart cleared locally");
       },
 
       applyDiscountCode: (discount: DiscountCode) => {
@@ -613,51 +670,19 @@ export const useCartStore = create<CartState>()(
     }),
     {
       name: 'cart-storage',
-      // Migrate items when loading from localStorage
+      // CRITICAL: Do NOT persist items array to localStorage
+      // Items should ONLY come from the server (database)
+      // This prevents showing wrong user's cart after login
+      partialize: (state) => ({
+        discountCode: state.discountCode,
+        // items are intentionally excluded - they come from server only
+      }),
+      // Items are NOT persisted to localStorage (only discountCode is)
+      // Items come from server only via useCartSync
       onRehydrateStorage: () => (state) => {
-        console.log('�� CART STORAGE: Rehydrating from localStorage...');
-        
-        // SAFETY CHECK: DISABLED - useCartSync handles all cart clearing
-        // This was causing duplicate clears and race conditions
-        // useCartSync is the single source of truth for cart ownership
-        console.log('💾 CART STORAGE: Rehydration complete, useCartSync will handle ownership');
-        
-        
-        // Migrate cart items if needed
-        if (state?.items) {
-          console.log('💾 CART STORAGE: Found', state.items.length, 'items in storage');
-          console.log('🔄 Rehydrating cart, checking for items needing migration...');
-          
-          // CRITICAL: Remove blob URLs from localStorage
-          // Blob URLs don't persist across page refreshes and cause thumbnails to disappear
-          const migratedItems = state.items.map(item => {
-            const migrated = migrateCartItem(item);
-            
-            // Filter out blob URLs
-            if (migrated.file_url?.startsWith('blob:')) {
-              console.log('🧹 Removing blob URL from file_url for item', migrated.id);
-              migrated.file_url = null;
-            }
-            if (migrated.web_preview_url?.startsWith('blob:')) {
-              console.log('🧹 Removing blob URL from web_preview_url for item', migrated.id);
-              migrated.web_preview_url = null;
-            }
-            if (migrated.print_ready_url?.startsWith('blob:')) {
-              console.log('🧹 Removing blob URL from print_ready_url for item', migrated.id);
-              migrated.print_ready_url = null;
-            }
-            
-            return migrated;
-          });
-          
-          const hadChanges = migratedItems.some((item, i) => item.line_total_cents !== state.items[i].line_total_cents);
-          if (hadChanges) {
-            console.log('✅ Cart migration complete, updating storage');
-            state.items = migratedItems;
-          } else {
-            console.log('✅ No migration needed');
-          }
-        }
+        console.log('💾 CART STORAGE: Rehydrating from localStorage...');
+        console.log('💾 CART STORAGE: Only discountCode is persisted, items come from server');
+        console.log('�� CART STORAGE: useCartSync will load items from database');
       },
     }
   )

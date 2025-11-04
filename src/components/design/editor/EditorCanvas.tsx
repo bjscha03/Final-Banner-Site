@@ -464,9 +464,11 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
   };
   
   // Calculate grommet positions
+  console.log("[GROMMET DEBUG] showGrommets:", showGrommets, "grommets:", grommets, "widthIn:", widthIn, "heightIn:", heightIn);
   const grommetPositions = showGrommets && grommets !== 'none' 
     ? grommetPoints(widthIn, heightIn, grommets)
     : [];
+  console.log("[GROMMET DEBUG] grommetPositions count:", grommetPositions.length, grommetPositions);
   
   return (
     <Card ref={containerRef} className="w-full h-full bg-gray-100 overflow-hidden relative">
