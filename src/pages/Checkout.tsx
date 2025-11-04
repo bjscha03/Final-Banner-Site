@@ -24,7 +24,7 @@ import { trackPromoEvent } from '@/lib/posthog';
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
-  const { items, clearCart, getSubtotalCents, getTaxCents, getTotalCents, updateQuantity, removeItem, discountCode, applyDiscountCode, removeDiscountCode, getDiscountAmountCents } = useCartStore();
+  const { items, isLoading, syncToServer, clearCart, getSubtotalCents, getTaxCents, getTotalCents, updateQuantity, removeItem, discountCode, applyDiscountCode, removeDiscountCode, getDiscountAmountCents } = useCartStore();
   const { user } = useAuth();
   const { setCheckoutContext } = useCheckoutContext();
   const [isAdminUser, setIsAdminUser] = useState(false);
