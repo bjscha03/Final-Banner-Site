@@ -316,14 +316,31 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
 
   // Load cart item objects into canvas when editing
   useEffect(() => {
-    console.log('🔄 [CART EDIT] useEffect triggered:', { editingItemId, hasOverlayImage: !!overlayImage, hasOverlayUrl: !!overlayImage?.url, hasTextElements: !!textElements?.length, hasFile: !!file });
     if (!editingItemId) {
       console.log('[BannerEditorLayout] Not editing, skipping object load');
       return;
     }
 
+    // CRITICAL FIX: Read values directly from store to ensure we have the latest state
+    const currentQuote = useQuoteStore.getState();
+    const currentOverlayImage = currentQuote.overlayImage;
+    const currentTextElements = currentQuote.textElements;
+    const currentFile = currentQuote.file;
+    const currentGrommets = currentQuote.grommets;
+    const currentWidthIn = currentQuote.widthIn;
+    const currentHeightIn = currentQuote.heightIn;
+    
+    console.log('🔄 [CART EDIT] useEffect triggered:', { 
+      editingItemId, 
+      hasOverlayImage: !!currentOverlayImage, 
+      hasOverlayUrl: !!currentOverlayImage?.url, 
+      hasTextElements: !!currentTextElements?.length, 
+      hasFile: !!currentFile,
+      overlayImageUrl: currentOverlayImage?.url?.substring(0, 50)
+    });
+
     // Only load if we have objects to load
-    const hasObjectsToLoad = (overlayImage && overlayImage.url) || (textElements && textElements.length > 0) || (file && file.url);
+    const hasObjectsToLoad = (currentOverlayImage && currentOverlayImage.url) || (currentTextElements && currentTextElements.length > 0) || (currentFile && currentFile.url);
     
     if (!hasObjectsToLoad) {
       console.log('[BannerEditorLayout] No objects to load from cart item');
@@ -337,8 +354,8 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     console.log('[BannerEditorLayout] Clearing existing objects before loading cart item');
     
     // Show grommets if they were selected in the cart item
-    const shouldShowGrommets = grommets && grommets !== 'none';
-    console.log('[BannerEditorLayout] Setting grommets visibility:', shouldShowGrommets, 'grommets:', grommets);
+    const shouldShowGrommets = currentGrommets && currentGrommets !== 'none';
+    console.log('[BannerEditorLayout] Setting grommets visibility:', shouldShowGrommets, 'grommets:', currentGrommets);
     setShowGrommets(shouldShowGrommets);
 
     resetEditor();
@@ -347,19 +364,19 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     setTimeout(() => {
       // CRITICAL: Only load background file if there are NO text elements AND NO overlay images
       // If text elements exist, the file is just a thumbnail with text baked in
-      if (file && file.url && (!textElements || textElements.length === 0) && !overlayImage) {
-        console.log('[BannerEditorLayout] Adding background file to canvas (no text elements):', file);
+      if (currentFile && currentFile.url && (!currentTextElements || currentTextElements.length === 0) && !currentOverlayImage) {
+        console.log('[BannerEditorLayout] Adding background file to canvas (no text elements):', currentFile);
         
         // Calculate dimensions to fit the canvas
-        const canvasWidthPx = widthIn * 96; // Convert inches to pixels (96 DPI)
-        const canvasHeightPx = heightIn * 96;
+        const canvasWidthPx = currentWidthIn * 96; // Convert inches to pixels (96 DPI)
+        const canvasHeightPx = currentHeightIn * 96;
         
         // If we have artwork dimensions, use them to calculate proper size
         let imageWidth = canvasWidthPx;
         let imageHeight = canvasHeightPx;
         
-        if (file.artworkWidth && file.artworkHeight) {
-          const aspectRatio = file.artworkWidth / file.artworkHeight;
+        if (currentFile.artworkWidth && currentFile.artworkHeight) {
+          const aspectRatio = currentFile.artworkWidth / currentFile.artworkHeight;
           const canvasAspectRatio = canvasWidthPx / canvasHeightPx;
           
           if (aspectRatio > canvasAspectRatio) {
@@ -375,37 +392,37 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
         
         addObject({
           type: 'image',
-          url: file.url,
-          x: (widthIn - (imageWidth / 96)) / 2, // Center horizontally
-          y: (heightIn - (imageHeight / 96)) / 2, // Center vertically
+          url: currentFile.url,
+          x: (currentWidthIn - (imageWidth / 96)) / 2, // Center horizontally
+          y: (currentHeightIn - (imageHeight / 96)) / 2, // Center vertically
           width: imageWidth / 96, // Convert back to inches
           height: imageHeight / 96,
           rotation: 0,
           opacity: 1,
           locked: false,
           visible: true,
-          isPDF: file.isPdf || false,
+          isPDF: currentFile.isPdf || false,
         });
       }
 
       // Load overlay image if present
-      if (overlayImage && overlayImage.url) {
-        console.log('🖼️ [BUG 2 FIX] Loading overlayImage from cart:', overlayImage);
-        console.log('🖼️ [BUG 2 FIX] overlayImage.position:', overlayImage.position);
-        console.log('🖼️ [BUG 2 FIX] overlayImage.scale:', overlayImage.scale);
-        console.log('🖼️ [BUG 2 FIX] overlayImage.aspectRatio:', overlayImage.aspectRatio);
-        console.log('🖼️ [BUG 2 FIX] Canvas dimensions (inches):', widthIn, 'x', heightIn);
+      if (currentOverlayImage && currentOverlayImage.url) {
+        console.log('🖼️ [BUG 2 FIX] Loading overlayImage from cart:', currentOverlayImage);
+        console.log('🖼️ [BUG 2 FIX] overlayImage.position:', currentOverlayImage.position);
+        console.log('🖼️ [BUG 2 FIX] overlayImage.scale:', currentOverlayImage.scale);
+        console.log('🖼️ [BUG 2 FIX] overlayImage.aspectRatio:', currentOverlayImage.aspectRatio);
+        console.log('��️ [BUG 2 FIX] Canvas dimensions (inches):', currentWidthIn, 'x', currentHeightIn);
         
         // CRITICAL: Convert percentage-based position to inches
         // overlayImage.position is stored as percentage (0-100), need to convert to inches
-        const xInches = overlayImage.position?.x != null ? (overlayImage.position.x / 100) * widthIn : widthIn / 2;
-        const yInches = overlayImage.position?.y != null ? (overlayImage.position.y / 100) * heightIn : heightIn / 2;
+        const xInches = currentOverlayImage.position?.x != null ? (currentOverlayImage.position.x / 100) * currentWidthIn : currentWidthIn / 2;
+        const yInches = currentOverlayImage.position?.y != null ? (currentOverlayImage.position.y / 100) * currentHeightIn : currentHeightIn / 2;
         
         // Calculate dimensions based on scale and aspect ratio
         // Default to a reasonable size if not specified
         const defaultWidthInches = 4; // 4 inches default width
-        const imageScale = overlayImage.scale || 1;
-        const aspectRatio = overlayImage.aspectRatio || 1;
+        const imageScale = currentOverlayImage.scale || 1;
+        const aspectRatio = currentOverlayImage.aspectRatio || 1;
         
         const widthInches = defaultWidthInches * imageScale;
         const heightInches = widthInches / aspectRatio;
@@ -415,7 +432,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
         
         addObject({
           type: 'image',
-          url: overlayImage.url,
+          url: currentOverlayImage.url,
           x: xInches,
           y: yInches,
           width: widthInches,
@@ -430,12 +447,12 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       }
 
       // Load text elements if present
-      if (textElements && textElements.length > 0) {
-        console.log('[BannerEditorLayout] Adding text elements to canvas:', textElements);
-        textElements.forEach((textEl: any) => {
+      if (currentTextElements && currentTextElements.length > 0) {
+        console.log('[BannerEditorLayout] Adding text elements to canvas:', currentTextElements);
+        currentTextElements.forEach((textEl: any) => {
           // Convert percentage-based position to inches
-          const xInches = textEl.xPercent != null ? (textEl.xPercent / 100) * widthIn : (textEl.x || 0);
-          const yInches = textEl.yPercent != null ? (textEl.yPercent / 100) * heightIn : (textEl.y || 0);
+          const xInches = textEl.xPercent != null ? (textEl.xPercent / 100) * currentWidthIn : (textEl.x || 0);
+          const yInches = textEl.yPercent != null ? (textEl.yPercent / 100) * currentHeightIn : (textEl.y || 0);
           
           addObject({
             type: 'text',
@@ -462,7 +479,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
 
       console.log('[BannerEditorLayout] Finished loading cart item objects');
     }, 100);
-  }, [editingItemId, overlayImage, textElements, file]); // Run when editing state changes
+  }, [editingItemId]); // Only run when editingItemId changes
 
   const handlePreview = () => {
     console.log('🔍 [BannerEditorLayout] Preview button clicked');
