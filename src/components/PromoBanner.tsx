@@ -24,7 +24,7 @@ const PromoBanner: React.FC = () => {
         
         {/* Subtext */}
         <p className="text-xs md:text-sm mt-2 opacity-90">
-          Professional Quality • 24-Hour Production • No Minimum Order
+          Professional Quality • 24-Hour Production
         </p>
       </div>
     </div>
