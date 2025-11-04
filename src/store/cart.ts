@@ -312,8 +312,12 @@ export const useCartStore = create<CartState>()(
           content_name: `${quote.widthIn}x${quote.heightIn} ${quote.material} Banner`,
           value: newItem.line_total_cents,
         });
-      // Sync to Neon database IMMEDIATELY (critical for persistence)
-      get().syncToServer();
+      // CRITICAL FIX: Sync to Neon database AFTER state update completes
+      // Use setTimeout to ensure state has been updated before syncing
+      setTimeout(() => {
+        console.log("[CART STORE] Syncing to server. Items count:", get().items.length);
+        get().syncToServer();
+      }, 0);
       },
       
       updateQuantity: (id: string, quantity: number) => {
@@ -345,8 +349,12 @@ export const useCartStore = create<CartState>()(
             };
           })
         }));
-      // Sync to Neon database IMMEDIATELY (critical for persistence)
-      get().syncToServer();
+      // CRITICAL FIX: Sync to Neon database AFTER state update completes
+      // Use setTimeout to ensure state has been updated before syncing
+      setTimeout(() => {
+        console.log("[CART STORE] Syncing to server. Items count:", get().items.length);
+        get().syncToServer();
+      }, 0);
       },
       
       loadItemIntoQuote: (itemId: string) => {
@@ -459,21 +467,33 @@ export const useCartStore = create<CartState>()(
         set((state) => ({
           items: state.items.map(item => item.id === itemId ? updatedItem : item)
         }));
-      // Sync to Neon database IMMEDIATELY (critical for persistence)
-      get().syncToServer();
+      // CRITICAL FIX: Sync to Neon database AFTER state update completes
+      // Use setTimeout to ensure state has been updated before syncing
+      setTimeout(() => {
+        console.log("[CART STORE] Syncing to server. Items count:", get().items.length);
+        get().syncToServer();
+      }, 0);
       },
       removeItem: (id: string) => {
         set((state) => ({
           items: state.items.filter(item => item.id !== id)
         }));
-      // Sync to Neon database IMMEDIATELY (critical for persistence)
-      get().syncToServer();
+      // CRITICAL FIX: Sync to Neon database AFTER state update completes
+      // Use setTimeout to ensure state has been updated before syncing
+      setTimeout(() => {
+        console.log("[CART STORE] Syncing to server. Items count:", get().items.length);
+        get().syncToServer();
+      }, 0);
       },
       
       clearCart: () => {
         set({ items: [], discountCode: null });
-      // Sync to Neon database IMMEDIATELY (critical for persistence)
-      get().syncToServer();
+      // CRITICAL FIX: Sync to Neon database AFTER state update completes
+      // Use setTimeout to ensure state has been updated before syncing
+      setTimeout(() => {
+        console.log("[CART STORE] Syncing to server. Items count:", get().items.length);
+        get().syncToServer();
+      }, 0);
       },
 
       clearCartLocal: () => {
