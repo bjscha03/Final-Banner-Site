@@ -30,6 +30,13 @@ exports.handler = async (event, context) => {
     }
 
     console.log('[cart-save] Saving cart:', { userId: userId ? `${userId.substring(0, 8)}...` : null, sessionId: sessionId ? `${sessionId.substring(0, 12)}...` : null, itemCount: cartData.length });
+    
+    // DEBUG: Log what fields are in the cart items being saved
+    if (cartData.length > 0) {
+      console.log('[cart-save] First item keys:', Object.keys(cartData[0]));
+      console.log('[cart-save] First item overlay_image:', cartData[0].overlay_image);
+      console.log('[cart-save] First item text_elements:', cartData[0].text_elements);
+    }
 
     // Validate userId is a valid UUID before attempting database operations
     if (userId && !uuidRegex.test(userId)) {
