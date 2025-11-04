@@ -152,9 +152,20 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
     console.log('🔍 QUOTE STORE: item.image_position:', item.image_position);
     console.log('🔍 QUOTE STORE: item.overlay_image:', item.overlay_image);
     console.log('🔍 QUOTE STORE: item.text_elements:', item.text_elements);
+    console.log('🔍 QUOTE STORE: item.text_elements type:', typeof item.text_elements);
+    console.log('🔍 QUOTE STORE: item.text_elements isArray:', Array.isArray(item.text_elements));
+    
+    // CRITICAL FIX: Ensure text_elements is a proper array
+    // PostgreSQL/Neon sometimes returns JSON arrays as objects with numeric keys
+    let textElementsArray = item.text_elements || [];
+    if (!Array.isArray(textElementsArray) && typeof textElementsArray === 'object') {
+      console.log('⚠️ QUOTE STORE: text_elements is not an array, converting from object');
+      textElementsArray = Object.values(textElementsArray);
+    }
+    console.log('🔍 QUOTE STORE: textElementsArray after conversion:', textElementsArray);
     
     // Migrate text elements to ensure they have xPercent and yPercent
-    const migratedTextElements = (item.text_elements || []).map((textEl: any) => {
+    const migratedTextElements = textElementsArray.map((textEl: any) => {
       // If xPercent/yPercent are missing, calculate from x/y (legacy format)
       // or default to center if both are missing
       const xPercent = textEl.xPercent ?? (textEl.x != null ? (textEl.x / item.width_in) * 100 : 50);
@@ -184,7 +195,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
       // CRITICAL: Don't load file as background if text elements exist
       // When text exists, file_url is the thumbnail with text baked in
       // We need to reconstruct from text_elements instead
-      file: (item.file_key || item.file_url || item.web_preview_url) && !item.text_elements?.length ? {
+      file: (item.file_key || item.file_url || item.web_preview_url) && !textElementsArray.length ? {
         name: item.file_name || 'Uploaded file',
         type: item.is_pdf ? 'application/pdf' : 'image/*',
         size: 1024, // Non-zero to indicate file exists
