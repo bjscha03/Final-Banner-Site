@@ -627,7 +627,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     console.log('🔄 RESET: resetDesign() called');
   };
 
-  const handleUpsellContinue = (selectedOptions: UpsellOption[], dontAskAgain: boolean) => {
+  const handleUpsellContinue = async (selectedOptions: UpsellOption[], dontAskAgain: boolean) => {
     console.log("[BannerEditorLayout] handleUpsellContinue called with:", { selectedOptions, dontAskAgain, pendingAction });
 
     // Save "don't ask again" preference
@@ -635,6 +635,22 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       localStorage.setItem('upsell-dont-show-again', 'true');
       setDontShowUpsellAgain(true);
     }
+
+    // CRITICAL: Apply grommet selection to canvas BEFORE generating thumbnail
+    const grommetOption = selectedOptions.find(opt => opt.id === 'grommets' && opt.selected);
+    if (grommetOption && grommetOption.grommetSelection) {
+      console.log('🔄 [UPSELL] Applying grommets to canvas:', grommetOption.grommetSelection);
+      setShowGrommets(true);
+      setGrommets(grommetOption.grommetSelection as any);
+      // Wait for canvas to update
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    // Force fresh thumbnail generation with grommets
+    console.log('🔄 [UPSELL] Generating fresh thumbnail with grommets...');
+    generateThumbnail();
+    await new Promise(resolve => setTimeout(resolve, 100));
+    console.log('✅ [UPSELL] Fresh thumbnail generated');
 
     // Generate thumbnail for cart preview
     let thumbnailUrl = canvasThumbnail;
