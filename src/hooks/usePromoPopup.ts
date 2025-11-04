@@ -12,7 +12,6 @@ export const usePromoPopup = (options: UsePromoPopupOptions = {}) => {
   const [showPopup, setShowPopup] = useState(false);
   const [popupSource, setPopupSource] = useState<PopupSource>('first_visit');
   const [hasShownInitialPopup, setHasShownInitialPopup] = useState(false);
-  const [hasScrolledHalfway, setHasScrolledHalfway] = useState(false);
 
   useEffect(() => {
     // Check if user already received their code (permanent dismissal)
@@ -42,7 +41,7 @@ export const usePromoPopup = (options: UsePromoPopupOptions = {}) => {
       }
     }
 
-    // Timer-based display (first visit)
+    // Timer-based display (first visit ONLY)
     const timer = setTimeout(() => {
       if (!hasShownInitialPopup) {
         console.log('[usePromoPopup] Showing popup after delay');
@@ -64,36 +63,16 @@ export const usePromoPopup = (options: UsePromoPopupOptions = {}) => {
       }
     };
 
-    // Scroll handler - show when user scrolls 50% down
-    const handleScroll = () => {
-      if (hasScrolledHalfway) return;
-
-      const scrollTop = window.scrollY || document.documentElement.scrollTop;
-      const scrollHeight = document.documentElement.scrollHeight - document.documentElement.clientHeight;
-      const scrollPercent = (scrollTop / scrollHeight) * 100;
-
-      if (scrollPercent >= 50) {
-        console.log('[usePromoPopup] User scrolled 50% - showing exit intent popup');
-        setHasScrolledHalfway(true);
-        setPopupSource('exit_intent');
-        setShowPopup(true);
-      }
-    };
-
     // Only add exit intent on desktop (screen width > 768px)
     if (enableExitIntent && window.innerWidth > 768) {
       document.addEventListener('mouseleave', handleMouseLeave);
     }
 
-    // Add scroll listener
-    window.addEventListener('scroll', handleScroll, { passive: true });
-
     return () => {
       clearTimeout(timer);
       document.removeEventListener('mouseleave', handleMouseLeave);
-      window.removeEventListener('scroll', handleScroll);
     };
-  }, [delaySeconds, enableExitIntent, hasShownInitialPopup, hasScrolledHalfway]);
+  }, [delaySeconds, enableExitIntent, hasShownInitialPopup]);
 
   const closePopup = () => {
     // Set 72-hour cooldown
