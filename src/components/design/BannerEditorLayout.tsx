@@ -526,7 +526,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     generateThumbnail();
     
     // Wait for thumbnail to be generated and stored
-    await new Promise(resolve => setTimeout(resolve, 100));
+    await new Promise(resolve => setTimeout(resolve, 300));
     console.log('✅ [UPDATE CART] Fresh thumbnail generated');
 
     // Now use the fresh thumbnail from the store
@@ -642,14 +642,15 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       console.log('🔄 [UPSELL] Applying grommets to canvas:', grommetOption.grommetSelection);
       setShowGrommets(true);
       setGrommets(grommetOption.grommetSelection as any);
-      // Wait for canvas to update
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // Wait for canvas to update with grommets
+      await new Promise(resolve => setTimeout(resolve, 150));
     }
 
     // Force fresh thumbnail generation with grommets
     console.log('🔄 [UPSELL] Generating fresh thumbnail with grommets...');
     generateThumbnail();
-    await new Promise(resolve => setTimeout(resolve, 100));
+    // Wait for thumbnail to be generated and stored (generateThumbnail has 200ms internal delay)
+    await new Promise(resolve => setTimeout(resolve, 300));
     console.log('✅ [UPSELL] Fresh thumbnail generated');
 
     // Generate thumbnail for cart preview
