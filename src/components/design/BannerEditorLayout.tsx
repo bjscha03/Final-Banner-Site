@@ -316,6 +316,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
 
   // Load cart item objects into canvas when editing
   useEffect(() => {
+    console.log('🔄 [CART EDIT] useEffect triggered:', { editingItemId, hasOverlayImage: !!overlayImage, hasOverlayUrl: !!overlayImage?.url, hasTextElements: !!textElements?.length, hasFile: !!file });
     if (!editingItemId) {
       console.log('[BannerEditorLayout] Not editing, skipping object load');
       return;
@@ -461,7 +462,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
 
       console.log('[BannerEditorLayout] Finished loading cart item objects');
     }, 100);
-  }, [editingItemId]); // Only run when editingItemId changes
+  }, [editingItemId, overlayImage, textElements, file]); // Run when editing state changes
 
   const handlePreview = () => {
     console.log('🔍 [BannerEditorLayout] Preview button clicked');
