@@ -22,6 +22,12 @@ export const usePromoPopup = (options: UsePromoPopupOptions = {}) => {
       return;
     }
 
+    // Check if user submitted email (permanent dismissal - even if they didn't complete the flow)
+    if (localStorage.getItem('promo_email_submitted') === 'true') {
+      console.log('[usePromoPopup] User already submitted email - popup permanently suppressed');
+      return;
+    }
+
     // Check for temporary dismissal (72-hour cooldown for X button clicks)
     const dismissedAt = localStorage.getItem('promo_popup_dismissed');
     

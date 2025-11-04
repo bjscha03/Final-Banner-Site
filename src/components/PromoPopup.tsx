@@ -56,7 +56,8 @@ export const PromoPopup = ({ onClose, source }: PromoPopupProps) => {
 
       setGeneratedCode(data.code);
       
-      // User got their code - NEVER show popup again
+      // Mark email as submitted - NEVER show popup again
+      localStorage.setItem('promo_email_submitted', 'true');
       localStorage.setItem('promo_code_received', 'true');
       
       toast({
