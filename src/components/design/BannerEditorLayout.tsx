@@ -667,12 +667,17 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     console.log('📦 [ADD TO CART] Thumbnail URL value:', thumbnailUrl);
     
     // Show upsell modal if user should see it
-    if (shouldShowUpsell) {
+    if (shouldShowUpsell && !editingItemId) {
       console.log('🎨 BANNER EDITOR: Showing upsell modal for ADD TO CART');
       console.log('🎨 BANNER EDITOR: canvasThumbnail:', canvasThumbnail ? canvasThumbnail.substring(0, 50) + '...' : 'NULL');
       setPendingAction('cart');
       setShowUpsellModal(true);
       return;
+    }
+    
+    // BUG 3A FIX: Skip upsell when updating existing items
+    if (editingItemId && shouldShowUpsell) {
+      console.log('🔄 [BUG 3A FIX] Skipping upsell modal because editing existing item:', editingItemId);
     }
 
     // CRITICAL: Update existing item if editing, otherwise add new item
@@ -727,17 +732,20 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       console.log('✅ [BUG 1 FIX] Canvas should now have grommets visible');
     }
 
-    // Force fresh thumbnail generation with grommets
+    // BUG 1 FIX: Force fresh thumbnail generation AFTER grommets are applied
     console.log('🔄 [BUG 1 FIX] About to generate thumbnail. showGrommets:', showGrommets, 'grommets:', quote.grommets);
     console.log('🔄 [BUG 1 FIX] Editor objects count:', editorObjects.length);
     generateThumbnail();
     // Wait for thumbnail to be generated and stored (generateThumbnail has 200ms internal delay)
     await new Promise(resolve => setTimeout(resolve, 300));
-    console.log('✅ [BUG 1 FIX] Thumbnail generated. Checking canvasThumbnail...');
-    console.log('✅ [BUG 1 FIX] canvasThumbnail exists:', !!canvasThumbnail, 'length:', canvasThumbnail?.length);
+    
+    // BUG 1 FIX: Get FRESH thumbnail from store after generation
+    const freshThumbnail = useEditorStore.getState().canvasThumbnail;
+    console.log('✅ [BUG 1 FIX] Fresh thumbnail generated. Length:', freshThumbnail?.length);
+    console.log('✅ [BUG 1 FIX] Old canvasThumbnail length:', canvasThumbnail?.length);
 
-    // Generate thumbnail for cart preview
-    let thumbnailUrl = canvasThumbnail;
+    // Generate thumbnail for cart preview - USE FRESH THUMBNAIL
+    let thumbnailUrl = freshThumbnail;
     
     // Fallback to file URL if canvas thumbnail not available
     if (!thumbnailUrl && file && file.url) {
