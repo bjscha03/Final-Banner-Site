@@ -390,19 +390,43 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
 
       // Load overlay image if present
       if (overlayImage && overlayImage.url) {
-        console.log('[BannerEditorLayout] Adding overlayImage to canvas:', overlayImage);
+        console.log('🖼️ [BUG 2 FIX] Loading overlayImage from cart:', overlayImage);
+        console.log('🖼️ [BUG 2 FIX] overlayImage.position:', overlayImage.position);
+        console.log('🖼️ [BUG 2 FIX] overlayImage.scale:', overlayImage.scale);
+        console.log('🖼️ [BUG 2 FIX] overlayImage.aspectRatio:', overlayImage.aspectRatio);
+        console.log('🖼️ [BUG 2 FIX] Canvas dimensions (inches):', widthIn, 'x', heightIn);
+        
+        // CRITICAL: Convert percentage-based position to inches
+        // overlayImage.position is stored as percentage (0-100), need to convert to inches
+        const xInches = overlayImage.position?.x != null ? (overlayImage.position.x / 100) * widthIn : widthIn / 2;
+        const yInches = overlayImage.position?.y != null ? (overlayImage.position.y / 100) * heightIn : heightIn / 2;
+        
+        // Calculate dimensions based on scale and aspect ratio
+        // Default to a reasonable size if not specified
+        const defaultWidthInches = 4; // 4 inches default width
+        const imageScale = overlayImage.scale || 1;
+        const aspectRatio = overlayImage.aspectRatio || 1;
+        
+        const widthInches = defaultWidthInches * imageScale;
+        const heightInches = widthInches / aspectRatio;
+        
+        console.log('🖼️ [BUG 2 FIX] Calculated position (inches):', xInches, yInches);
+        console.log('🖼️ [BUG 2 FIX] Calculated dimensions (inches):', widthInches, 'x', heightInches);
+        
         addObject({
           type: 'image',
           url: overlayImage.url,
-          x: overlayImage.position?.x || 0,
-          y: overlayImage.position?.y || 0,
-          width: overlayImage.width || 200,
-          height: overlayImage.height || 200,
-          rotation: overlayImage.rotation || 0,
-          scaleX: overlayImage.scaleX || 1,
-          scaleY: overlayImage.scaleY || 1,
+          x: xInches,
+          y: yInches,
+          width: widthInches,
+          height: heightInches,
+          rotation: 0,
+          opacity: 1,
           visible: true,
+          locked: false,
         });
+        
+        console.log('✅ [BUG 2 FIX] Overlay image added to editor objects');
       }
 
       // Load text elements if present
@@ -555,6 +579,52 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     
     console.log('🎨 [ADD TO CART] Final thumbnail URL:', thumbnailUrl ? thumbnailUrl.substring(0, 50) + '...' : 'NULL');
     
+    // BUG 3 FIX: Extract overlay image from editor objects
+    console.log('🖼️ [BUG 3 FIX] Extracting overlay image from editor objects...');
+    console.log('🖼️ [BUG 3 FIX] Editor objects:', editorObjects);
+    console.log('🖼️ [BUG 3 FIX] Current quote.overlayImage:', quote.overlayImage);
+    
+    // Find image objects in editor (excluding background images)
+    const imageObjects = editorObjects.filter(obj => obj.type === 'image');
+    console.log('🖼️ [BUG 3 FIX] Found image objects:', imageObjects.length);
+    
+    // Extract overlay image from editor objects
+    // The overlay image is the image object that's NOT the background file
+    let currentOverlayImage = quote.overlayImage; // Start with existing
+    
+    if (imageObjects.length > 0) {
+      // If we have image objects, use the first one as overlay (or find the non-background one)
+      const overlayObj = imageObjects.find(obj => obj.url !== quote.file?.url) || imageObjects[0];
+      
+      if (overlayObj) {
+        console.log('🖼️ [BUG 3 FIX] Found overlay object in editor:', overlayObj);
+        
+        // Convert editor object position (inches) to percentage for storage
+        const xPercent = (overlayObj.x / widthIn) * 100;
+        const yPercent = (overlayObj.y / heightIn) * 100;
+        
+        // Calculate aspect ratio from width/height
+        const aspectRatio = overlayObj.width && overlayObj.height ? overlayObj.width / overlayObj.height : 1;
+        
+        // Calculate scale based on default size (4 inches)
+        const defaultWidthInches = 4;
+        const scale = overlayObj.width ? overlayObj.width / defaultWidthInches : 1;
+        
+        currentOverlayImage = {
+          name: quote.overlayImage?.name || 'overlay-image',
+          url: overlayObj.url || '',
+          fileKey: quote.overlayImage?.fileKey || '',
+          position: { x: xPercent, y: yPercent },
+          aspectRatio: aspectRatio,
+          scale: scale,
+        };
+        
+        console.log('🖼️ [BUG 3 FIX] Created overlayImage from editor object:', currentOverlayImage);
+      }
+    } else {
+      console.log('🖼️ [BUG 3 FIX] No image objects in editor, using quote.overlayImage');
+    }
+    
     // Calculate pricing (simplified - using base pricing without upsells)
     const sqft = (widthIn * heightIn) / 144;
     const basePrice = material === '13oz Vinyl' ? 3.50 : 4.50;
@@ -584,7 +654,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       addRope: quote.addRope,
       previewScalePct: quote.previewScalePct,
       textElements: quote.textElements,
-      overlayImage: quote.overlayImage,
+      overlayImage: currentOverlayImage, // BUG 3 FIX: Use extracted overlay image
       canvasBackgroundColor: canvasBackgroundColor,
       // CRITICAL: Pass original file (if exists) for background, thumbnailUrl for cart preview
       // If there are text elements, DON'T pass file (thumbnail has text baked in)
@@ -646,19 +716,25 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     // CRITICAL: Apply grommet selection to canvas BEFORE generating thumbnail
     const grommetOption = selectedOptions.find(opt => opt.id === 'grommets' && opt.selected);
     if (grommetOption && grommetOption.grommetSelection) {
-      console.log('🔄 [UPSELL] Applying grommets to canvas:', grommetOption.grommetSelection);
+      console.log('🔄 [BUG 1 FIX] Applying grommets to canvas:', grommetOption.grommetSelection);
+      console.log('🔄 [BUG 1 FIX] Current showGrommets before:', showGrommets);
       setShowGrommets(true);
       setGrommets(grommetOption.grommetSelection as any);
-      // Wait for canvas to update with grommets
-      await new Promise(resolve => setTimeout(resolve, 150));
+      console.log('🔄 [BUG 1 FIX] Set showGrommets to true and grommets to:', grommetOption.grommetSelection);
+      // Wait LONGER for canvas to fully re-render with grommets (increased from 150ms to 500ms)
+      console.log('⏳ [BUG 1 FIX] Waiting 500ms for canvas to render grommets...');
+      await new Promise(resolve => setTimeout(resolve, 500));
+      console.log('✅ [BUG 1 FIX] Canvas should now have grommets visible');
     }
 
     // Force fresh thumbnail generation with grommets
-    console.log('🔄 [UPSELL] Generating fresh thumbnail with grommets...');
+    console.log('🔄 [BUG 1 FIX] About to generate thumbnail. showGrommets:', showGrommets, 'grommets:', quote.grommets);
+    console.log('🔄 [BUG 1 FIX] Editor objects count:', editorObjects.length);
     generateThumbnail();
     // Wait for thumbnail to be generated and stored (generateThumbnail has 200ms internal delay)
     await new Promise(resolve => setTimeout(resolve, 300));
-    console.log('✅ [UPSELL] Fresh thumbnail generated');
+    console.log('✅ [BUG 1 FIX] Thumbnail generated. Checking canvasThumbnail...');
+    console.log('✅ [BUG 1 FIX] canvasThumbnail exists:', !!canvasThumbnail, 'length:', canvasThumbnail?.length);
 
     // Generate thumbnail for cart preview
     let thumbnailUrl = canvasThumbnail;
