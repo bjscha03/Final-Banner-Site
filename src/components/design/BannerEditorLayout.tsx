@@ -344,9 +344,9 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
 
     // Small delay to ensure reset completes before adding objects
     setTimeout(() => {
-      // CRITICAL: Only load background file if there are NO text elements
+      // CRITICAL: Only load background file if there are NO text elements AND NO overlay images
       // If text elements exist, the file is just a thumbnail with text baked in
-      if (file && file.url && (!textElements || textElements.length === 0)) {
+      if (file && file.url && (!textElements || textElements.length === 0) && !overlayImage) {
         console.log('[BannerEditorLayout] Adding background file to canvas (no text elements):', file);
         
         // Calculate dimensions to fit the canvas
@@ -639,8 +639,8 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       overlayImage: currentOverlayImage, // BUG 3 FIX: Use extracted overlay image
       canvasBackgroundColor: canvasBackgroundColor,
       // CRITICAL: Pass original file (if exists) for background, thumbnailUrl for cart preview
-      // If there are text elements, DON'T pass file (thumbnail has text baked in)
-      file: (freshQuoteForCart.textElements && freshQuoteForCart.textElements.length > 0) ? undefined : freshQuoteForCart.file,
+      // If there are text elements OR overlay images, DON'T pass file (thumbnail has text baked in)
+      file: (freshQuoteForCart.textElements && freshQuoteForCart.textElements.length > 0) || currentOverlayImage ? undefined : freshQuoteForCart.file,
       thumbnailUrl: thumbnailUrl,
     };
     
