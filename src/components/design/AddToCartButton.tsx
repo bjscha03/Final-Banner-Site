@@ -2,6 +2,7 @@ import React from 'react';
 import { ShoppingCart } from 'lucide-react';
 import { useQuoteStore } from '@/store/quote';
 import { useCartStore } from '@/store/cart';
+import { useEditorStore } from '@/store/editor';
 import { useToast } from '@/hooks/use-toast';
 import { calcTotals } from '@/lib/pricing';
 
@@ -42,8 +43,42 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
   // Simple minimum order check (can be enhanced)
   const canProceed = file !== null;
 
+  // Sync editor objects back to quote store before adding to cart
+  const syncEditorToQuote = () => {
+    const editorObjects = useEditorStore.getState().objects;
+    
+    // Find the overlay image in editor objects (type: 'image')
+    const overlayImageObj = editorObjects.find(obj => obj.type === 'image');
+    
+    if (overlayImageObj && quote.overlayImage) {
+      // Convert position from inches to percentage
+      const xPercent = (overlayImageObj.x / widthIn) * 100;
+      const yPercent = (overlayImageObj.y / heightIn) * 100;
+      
+      console.log('🔄 SYNC: Syncing overlay image position from editor to quote');
+      console.log('🔄 SYNC: Editor position (inches):', overlayImageObj.x, overlayImageObj.y);
+      console.log('🔄 SYNC: Converted to percentage:', xPercent, yPercent);
+      console.log('🔄 SYNC: Canvas dimensions:', widthIn, heightIn);
+      
+      // Update quote store with current position
+      quote.set({
+        overlayImage: {
+          ...quote.overlayImage,
+          position: { x: xPercent, y: yPercent },
+          scale: overlayImageObj.width / 4, // Assuming 4 inches is default width
+          aspectRatio: overlayImageObj.width / overlayImageObj.height,
+        }
+      });
+      
+      console.log('✅ SYNC: Updated quote.overlayImage.position to:', { x: xPercent, y: yPercent });
+    }
+  };
+
   const handleClick = () => {
     console.log('🔍 AddToCartButton clicked - isEditing:', isEditing, 'editingItemId:', quote.editingItemId);
+    
+    // CRITICAL: Sync editor state to quote before adding/updating cart
+    syncEditorToQuote();
     
     if (!file) {
       toast({

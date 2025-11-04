@@ -151,6 +151,11 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
     console.log('🔍 QUOTE STORE: item.image_scale:', item.image_scale);
     console.log('🔍 QUOTE STORE: item.image_position:', item.image_position);
     console.log('🔍 QUOTE STORE: item.overlay_image:', item.overlay_image);
+    if (item.overlay_image) {
+      console.log('🔍 QUOTE STORE: overlay_image.url:', item.overlay_image.url);
+      console.log('🔍 QUOTE STORE: overlay_image.name:', item.overlay_image.name);
+      console.log('🔍 QUOTE STORE: overlay_image.fileKey:', item.overlay_image.fileKey);
+    }
     console.log('🔍 QUOTE STORE: item.text_elements:', item.text_elements);
     console.log('🔍 QUOTE STORE: item.text_elements type:', typeof item.text_elements);
     console.log('🔍 QUOTE STORE: item.text_elements isArray:', Array.isArray(item.text_elements));
