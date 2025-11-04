@@ -1,14 +1,14 @@
 import { useState, useEffect } from 'react';
 
 interface UsePromoPopupOptions {
-  delaySeconds?: number; // Delay before showing popup (10-12 seconds)
+  delaySeconds?: number; // Delay before showing popup (default: immediate)
   enableExitIntent?: boolean; // Show on exit intent (desktop only)
 }
 
 type PopupSource = 'first_visit' | 'exit_intent';
 
 export const usePromoPopup = (options: UsePromoPopupOptions = {}) => {
-  const { delaySeconds = 11, enableExitIntent = true } = options;
+  const { delaySeconds = 0, enableExitIntent = true } = options;
   const [showPopup, setShowPopup] = useState(false);
   const [popupSource, setPopupSource] = useState<PopupSource>('first_visit');
   const [hasShownPopup, setHasShownPopup] = useState(false);
