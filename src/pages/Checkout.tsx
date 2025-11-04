@@ -730,17 +730,17 @@ const Checkout: React.FC = () => {
                     <Button
                       variant="link"
                       onClick={async () => {
-                        // CRITICAL FIX: Save guest cart to database before navigating to sign-in
+                        // CRITICAL FIX: Ensure cart is synced to database before navigating to sign-in
                         const guestSessionId = cartSyncService.getSessionId();
-                        console.log('🛒 CHECKOUT: Saving guest cart before sign-in', {
+                        console.log('🛒 CHECKOUT: Preparing to save guest cart before sign-in', {
                           guestSessionId: guestSessionId ? `${guestSessionId.substring(0, 12)}...` : 'none',
                           itemCount: items.length
                         });
                         
-                        // Save cart to database with session ID
-                        if (items.length > 0 && guestSessionId) {
-                          await cartSyncService.saveCart(items, undefined, guestSessionId);
-                          console.log('✅ CHECKOUT: Guest cart saved to database');
+                        // Sync cart to database (this ensures all items are saved)
+                        if (items.length > 0) {
+                          await syncToServer();
+                          console.log('✅ CHECKOUT: Guest cart synced to database via syncToServer');
                         }
                         
                         // Set checkout context
