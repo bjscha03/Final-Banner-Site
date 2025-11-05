@@ -99,8 +99,20 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
         }
       } else {
         // HYBRID APPROACH: Use blob URL immediately, upload to Cloudinary in background
+        console.log('[AssetsPanel] Creating blob URL for image:', file.name);
+        console.log('[AssetsPanel] Blob URL created:', url);
+        
         const img = new Image();
+        
+        img.onerror = (error) => {
+          console.error('[AssetsPanel] Image load error:', error);
+          console.error('[AssetsPanel] Failed to load blob URL:', url);
+        };
+        
         img.onload = async () => {
+          console.log('[AssetsPanel] Image onload fired for:', file.name);
+          console.log('[AssetsPanel] Image dimensions:', img.width, 'x', img.height);
+          
           const imageId = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
           
           // Add image immediately with blob URL for instant preview
@@ -112,7 +124,13 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
             height: img.height,
           };
           
-          setUploadedImages((prev) => [...prev, tempImage]);
+          console.log('[AssetsPanel] Adding image to state:', tempImage);
+          setUploadedImages((prev) => {
+            console.log('[AssetsPanel] Previous uploadedImages:', prev);
+            const newImages = [...prev, tempImage];
+            console.log('[AssetsPanel] New uploadedImages:', newImages);
+            return newImages;
+          });
           console.log('[AssetsPanel] Image added with blob URL:', file.name);
           
           // Upload to Cloudinary in background
@@ -146,6 +164,8 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
             console.warn('[AssetsPanel] Cloudinary upload error, keeping blob URL:', error);
           }
         };
+        
+        console.log('[AssetsPanel] Setting img.src to trigger onload:', url);
         img.src = url;
       }
     }
