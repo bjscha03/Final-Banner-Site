@@ -188,7 +188,6 @@ export const useCartStore = create<CartState>()(
     (set, get) => ({
       items: [],
       isLoading: false,
-      isLoading: false,
       discountCode: null,
       
       addFromQuote: (quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => {
@@ -256,18 +255,19 @@ export const useCartStore = create<CartState>()(
           // Use thumbnailUrl if provided (may be blob URL for immediate display)
           // Note: Blob URLs won't persist across sessions, but will work for current session
           file_url: (() => {
-            const thumbnailUrl = (quote as any).thumbnailUrl;
+            // CRITICAL: Store the ORIGINAL file URL, NOT the thumbnail
+            // thumbnailUrl has grommets/text baked in - we need the original for editing
             const fileUrl = quote.file?.url;
             const proofUrl = aiMetadata?.assets?.proofUrl;
             
-            console.log('[CART STORE] 🖼️ Thumbnail Debug:', {
-              thumbnailUrl: thumbnailUrl ? thumbnailUrl.substring(0, 50) + '...' : 'null',
-              fileUrl: fileUrl ? fileUrl.substring(0, 50) + '...' : 'null',
-              proofUrl: proofUrl ? proofUrl.substring(0, 50) + '...' : 'null',
-            });
+            // Skip blob URLs and data URLs - they're temporary
+            const finalUrl = (fileUrl && !fileUrl.startsWith('blob:') && !fileUrl.startsWith('data:')) 
+              ? fileUrl 
+              : (proofUrl && !proofUrl.startsWith('blob:') && !proofUrl.startsWith('data:')) 
+                ? proofUrl 
+                : null;
             
-            const finalUrl = thumbnailUrl || (fileUrl?.startsWith('blob:') ? null : fileUrl) || proofUrl || null;
-            console.log('[CART STORE] 🖼️ Final file_url:', finalUrl ? finalUrl.substring(0, 50) + '...' : 'NULL - NO IMAGE WILL SHOW');
+            console.log('[CART STORE] 🖼️ Storing ORIGINAL file_url (not thumbnail):', finalUrl ? finalUrl.substring(0, 80) + '...' : 'NULL');
             return finalUrl;
           })(),
           web_preview_url: (aiMetadata?.assets?.proofUrl?.startsWith('blob:') ? null : aiMetadata?.assets?.proofUrl) || null,
