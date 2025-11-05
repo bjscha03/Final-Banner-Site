@@ -698,6 +698,27 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       line_total_cents: Math.round(lineTotal * 100),
     };
     
+    // CRITICAL: Extract text elements from EDITOR objects, not quote store
+    // When user deletes text from canvas, editor objects are updated but quote store is not
+    const textObjectsFromEditor = freshEditorObjects.filter(obj => obj.type === 'text');
+    const textElementsFromEditor = textObjectsFromEditor.map((textObj: any) => ({
+      content: textObj.content,
+      xPercent: (textObj.x / widthIn) * 100,
+      yPercent: (textObj.y / heightIn) * 100,
+      fontSize: textObj.fontSize,
+      fontFamily: textObj.fontFamily,
+      color: textObj.color || textObj.fill,
+      fontWeight: textObj.fontWeight,
+      fontStyle: textObj.fontStyle,
+      textDecoration: textObj.textDecoration,
+      textAlign: textObj.textAlign || textObj.align,
+      align: textObj.align || textObj.textAlign,
+      rotation: textObj.rotation,
+    }));
+    
+    console.log('📝 [TEXT SYNC] Extracted text elements from editor:', textElementsFromEditor);
+    console.log('📝 [TEXT SYNC] Old quote.textElements:', freshQuoteForCart.textElements);
+    
     // Extract quote data - GET FRESH VALUES FROM STORE
     const freshQuoteForCart = useQuoteStore.getState();
     const quoteData = {
@@ -710,7 +731,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       polePocketSize: freshQuoteForCart.polePocketSize,
       addRope: freshQuoteForCart.addRope,
       previewScalePct: freshQuoteForCart.previewScalePct,
-      textElements: freshQuoteForCart.textElements,
+      textElements: textElementsFromEditor.length > 0 ? textElementsFromEditor : undefined, // CRITICAL: Use editor objects, not quote store
       overlayImage: currentOverlayImage, // BUG 3 FIX: Use extracted overlay image
       canvasBackgroundColor: canvasBackgroundColor,
       thumbnailUrl: thumbnailUrl, // CRITICAL: Include thumbnail for cart display
@@ -881,7 +902,8 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
 
     // Build updated quote object with selected options
     // CRITICAL: Convert editor text objects to textElements format for cart storage
-    const textElementsFromEditor = editorObjects
+    // Use freshEditorObjects (already extracted above) not stale editorObjects
+    const textElementsFromEditorUpsell = freshEditorObjects
       .filter(obj => obj.type === 'text')
       .map(obj => ({
         id: obj.id,
@@ -910,7 +932,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       polePocketSize: quote.polePocketSize,
       addRope: quote.addRope,
       previewScalePct: quote.previewScalePct,
-      textElements: textElementsFromEditor.length > 0 ? textElementsFromEditor : quote.textElements,
+      textElements: textElementsFromEditorUpsell.length > 0 ? textElementsFromEditorUpsell : undefined,
       overlayImage: currentOverlayImageUpsell,
       canvasBackgroundColor: canvasBackgroundColor,
       file: undefined,
