@@ -74,6 +74,14 @@ export interface QuoteState {
     aspectRatio?: number; // width / height of the original image
     scale: number; // Scale factor (1 = 100%)
   };
+  overlayImages?: Array<{
+    name: string;
+    url: string;
+    fileKey: string;
+    position: { x: number; y: number }; // Percentage-based position (0-100)
+    aspectRatio?: number; // width / height of the original image
+    scale: number; // Scale factor (1 = 100%)
+  }>; // NEW: Support multiple overlay images
   imageScale?: number;                 // Background image scale (for uploaded images)
   imagePosition?: { x: number; y: number }; // Background image position (for uploaded images)
   set: (partial: Partial<QuoteState>) => void;
@@ -115,6 +123,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
   textElements: [],
   editingItemId: null,
   file: undefined,
+  overlayImages: undefined,
   imageScale: 1,
   imagePosition: { x: 0, y: 0 },
   set: (partial) => set((state) => {
@@ -213,10 +222,12 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
       // In both cases, file would create a duplicate/composite background layer
       file: (() => {
         const hasOverlayImage = !!item.overlay_image;
+        const hasOverlayImages = item.overlay_images && Array.isArray(item.overlay_images) && item.overlay_images.length > 0;
         const hasTextElements = textElementsArray && textElementsArray.length > 0;
-        const shouldSkipFile = hasOverlayImage || hasTextElements;
+        const shouldSkipFile = hasOverlayImage || hasOverlayImages || hasTextElements;
         
         console.log('🔍 [FILE LOAD] hasOverlayImage:', hasOverlayImage);
+        console.log('🔍 [FILE LOAD] hasOverlayImages:', hasOverlayImages, 'count:', item.overlay_images?.length || 0);
         console.log('🔍 [FILE LOAD] hasTextElements:', hasTextElements, 'count:', textElementsArray?.length || 0);
         console.log('🔍 [FILE LOAD] shouldSkipFile:', shouldSkipFile);
         
@@ -285,10 +296,30 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
 
       imageScale: item.image_scale || 1,
       imagePosition: item.image_position || { x: 0, y: 0 },
+      // BACKWARD COMPATIBILITY: Support both single overlayImage and overlayImages array
       overlayImage: item.overlay_image ? {
         ...item.overlay_image,
         position: item.overlay_image.position || { x: 50, y: 50 }
       } : undefined,
+      overlayImages: (() => {
+        // NEW: Load multiple overlay images
+        if (item.overlay_images && Array.isArray(item.overlay_images)) {
+          console.log('🖼️ [MULTI-IMAGE] Loading overlay images array:', item.overlay_images.length);
+          return item.overlay_images.map((img: any) => ({
+            ...img,
+            position: img.position || { x: 50, y: 50 }
+          }));
+        }
+        // BACKWARD COMPATIBILITY: Convert single overlayImage to array
+        else if (item.overlay_image) {
+          console.log('🔄 [BACKWARD COMPAT] Converting single overlay_image to array');
+          return [{
+            ...item.overlay_image,
+            position: item.overlay_image.position || { x: 50, y: 50 }
+          }];
+        }
+        return undefined;
+      })(),
     };
     
     console.log('🔍 QUOTE STORE: Setting new state with imageScale:', newState.imageScale);
@@ -366,6 +397,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
     editingItemId: null,
     file: undefined,
     overlayImage: undefined,
+    overlayImages: undefined,
     imageScale: 1,
     imagePosition: { x: 0, y: 0 },
   });

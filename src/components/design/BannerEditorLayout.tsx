@@ -324,6 +324,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     // CRITICAL FIX: Read values directly from store to ensure we have the latest state
     const currentQuote = useQuoteStore.getState();
     const currentOverlayImage = currentQuote.overlayImage;
+    const currentOverlayImages = currentQuote.overlayImages; // NEW: Support multiple images
     const currentTextElements = currentQuote.textElements;
     const currentFile = currentQuote.file;
     const currentGrommets = currentQuote.grommets;
@@ -348,7 +349,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     console.log('🔍 [DEBUG] currentGrommets:', currentGrommets);
 
     // Only load if we have objects to load
-    const hasObjectsToLoad = (currentOverlayImage && currentOverlayImage.url) || (currentTextElements && currentTextElements.length > 0) || (currentFile && currentFile.url);
+    const hasObjectsToLoad = (currentOverlayImage && currentOverlayImage.url) || (currentOverlayImages && currentOverlayImages.length > 0) || (currentTextElements && currentTextElements.length > 0) || (currentFile && currentFile.url);
     
     if (!hasObjectsToLoad) {
       console.log('[BannerEditorLayout] No objects to load from cart item');
@@ -486,6 +487,55 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
         });
         
         console.log('✅ [BUG 2 FIX] Overlay image added to editor objects');
+      }
+
+      // NEW: Load multiple overlay images if present
+      if (currentOverlayImages && currentOverlayImages.length > 0) {
+        console.log('🖼️ [MULTI-IMAGE] Loading multiple overlay images:', currentOverlayImages.length);
+        currentOverlayImages.forEach((overlayImg, index) => {
+          console.log(`🖼️ [MULTI-IMAGE] Loading image ${index + 1}/${currentOverlayImages.length}:`, overlayImg);
+          
+          // Extract fileKey if needed
+          let extractedFileKey = overlayImg.fileKey;
+          if (!extractedFileKey && overlayImg.url) {
+            const match = overlayImg.url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\?|$)/);
+            if (match) {
+              extractedFileKey = match[1];
+            }
+          }
+          const originalUrl = extractedFileKey 
+            ? `https://res.cloudinary.com/dtrxl120u/image/upload/${extractedFileKey}`
+            : overlayImg.url;
+
+          // Convert percentage-based position to inches
+          const xInches = overlayImg.position?.x != null ? (overlayImg.position.x / 100) * currentWidthIn : currentWidthIn / 2;
+          const yInches = overlayImg.position?.y != null ? (overlayImg.position.y / 100) * currentHeightIn : currentHeightIn / 2;
+          
+          // Calculate dimensions based on scale and aspect ratio
+          const defaultWidthInches = 4;
+          const imageScale = overlayImg.scale || 1;
+          const aspectRatio = overlayImg.aspectRatio || 1;
+          
+          const widthInches = defaultWidthInches * imageScale;
+          const heightInches = widthInches / aspectRatio;
+          
+          addObject({
+            type: 'image',
+            url: originalUrl,
+            cloudinaryPublicId: overlayImg.fileKey,
+            name: overlayImg.name,
+            x: xInches,
+            y: yInches,
+            width: widthInches,
+            height: heightInches,
+            rotation: 0,
+            opacity: 1,
+            visible: true,
+            locked: false,
+          });
+          
+          console.log(`✅ [MULTI-IMAGE] Image ${index + 1} added to canvas`);
+        });
       }
 
       // Load text elements if present
@@ -643,30 +693,37 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     
     // Use imageObjects already extracted above from freshEditorObjects
     
-    // CRITICAL FIX: If there are NO image objects in the editor, clear the overlay image
-    // This handles the case where user deletes an image from the canvas
+    // NEW: Extract ALL image objects into overlayImages array
+    let currentOverlayImages: any[] | undefined = undefined;
+    
     if (imageObjects.length === 0) {
-      console.log('🗑️ [IMAGE DELETE FIX] No image objects in editor - clearing overlayImage');
-      currentOverlayImage = undefined;
+      console.log('🗑️ [IMAGE DELETE FIX] No image objects in editor - clearing overlayImages');
+      currentOverlayImages = undefined;
+      currentOverlayImage = undefined; // Also clear legacy single image
     } else if (imageObjects.length > 0) {
-      // Extract from editor (editing mode or new image added)
-      const overlayObj = imageObjects[0]; // Use first image object
-      console.log('🖼️ [OVERLAY FIX] Extracting from editor object:', overlayObj);
+      console.log('🖼️ [MULTI-IMAGE SAVE] Extracting ALL image objects:', imageObjects.length);
+      currentOverlayImages = imageObjects.map((overlayObj, index) => {
+        const xPercent = (overlayObj.x / widthIn) * 100;
+        const yPercent = (overlayObj.y / heightIn) * 100;
+        const aspectRatio = overlayObj.width && overlayObj.height ? overlayObj.width / overlayObj.height : 1;
+        const defaultWidthInches = 4;
+        const scale = overlayObj.width ? overlayObj.width / defaultWidthInches : 1;
+        
+        const imageData = {
+          name: overlayObj.name || `overlay-image-${index + 1}`,
+          url: overlayObj.url || '',
+          fileKey: overlayObj.cloudinaryPublicId || overlayObj.fileKey || '',
+          position: { x: xPercent, y: yPercent },
+          scale: scale,
+          aspectRatio: aspectRatio,
+        };
+        
+        console.log(`🖼️ [MULTI-IMAGE SAVE] Image ${index + 1}:`, imageData);
+        return imageData;
+      });
       
-      const xPercent = (overlayObj.x / widthIn) * 100;
-      const yPercent = (overlayObj.y / heightIn) * 100;
-      const aspectRatio = overlayObj.width && overlayObj.height ? overlayObj.width / overlayObj.height : 1;
-      const defaultWidthInches = 4;
-      const scale = overlayObj.width ? overlayObj.width / defaultWidthInches : 1;
-      
-      currentOverlayImage = {
-        name: overlayObj.name || 'overlay-image',
-        url: overlayObj.url || '',
-        fileKey: overlayObj.cloudinaryPublicId || overlayObj.fileKey || '',
-        position: { x: xPercent, y: yPercent },
-        scale: scale,
-        aspectRatio: aspectRatio,
-      };
+      // BACKWARD COMPATIBILITY: Also set first image as currentOverlayImage for old code
+      currentOverlayImage = currentOverlayImages[0];
     } else if (!currentOverlayImage && freshQuoteForOverlay.file) {
       // Convert file to overlayImage (new upload)
       console.log('🖼️ [OVERLAY FIX] Converting file to overlayImage:', freshQuoteForOverlay.file);
@@ -737,7 +794,8 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       addRope: freshQuoteForCart.addRope,
       previewScalePct: freshQuoteForCart.previewScalePct,
       textElements: textElementsFromEditor.length > 0 ? textElementsFromEditor : undefined, // CRITICAL: Use editor objects, not quote store
-      overlayImage: currentOverlayImage, // BUG 3 FIX: Use extracted overlay image
+      overlayImage: currentOverlayImage, // BUG 3 FIX: Use extracted overlay image (backward compat)
+      overlayImages: currentOverlayImages, // NEW: Save ALL overlay images
       canvasBackgroundColor: canvasBackgroundColor,
       thumbnailUrl: thumbnailUrl, // CRITICAL: Include thumbnail for cart display
     };
@@ -747,7 +805,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     const dummyObj = {
       // CRITICAL: Pass original file (if exists) for background, thumbnailUrl for cart preview
       // If there are text elements OR overlay images, DON'T pass file (thumbnail has text baked in)
-      file: (freshQuoteForCart.textElements && freshQuoteForCart.textElements.length > 0) || currentOverlayImage ? undefined : freshQuoteForCart.file,
+      file: (freshQuoteForCart.textElements && freshQuoteForCart.textElements.length > 0) || currentOverlayImages ? undefined : freshQuoteForCart.file,
       thumbnailUrl: thumbnailUrl,
     };
     

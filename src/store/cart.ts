@@ -36,7 +36,7 @@ export interface CartItem {
   print_ready_url?: string;            // Permanent Cloudinary URL for print-ready file (AI images)
   is_pdf?: boolean;                    // Whether the file is a PDF
   text_elements?: TextElement[];      // Text layers added in design tool
-  overlay_image?: {                   // Logo/graphic overlay
+  overlay_image?: {                   // Logo/graphic overlay (legacy - single image)
     name: string;
     url: string;
     fileKey: string;
@@ -44,6 +44,14 @@ export interface CartItem {
     scale: number;
     aspectRatio?: number;
   };
+  overlay_images?: Array<{            // NEW: Multiple overlay images support
+    name: string;
+    url: string;
+    fileKey: string;
+    position: { x: number; y: number };
+    scale: number;
+    aspectRatio?: number;
+  }>;
   // AI Design metadata (optional)
   canvas_background_color?: string;    // Canvas background color (hex)
   image_scale?: number;                // Background image scale (for uploaded images)
@@ -294,6 +302,7 @@ export const useCartStore = create<CartState>()(
             ...quote.overlayImage,
             position: quote.overlayImage.position || { x: 50, y: 50 }
           } : undefined,
+          overlay_images: (quote as any).overlayImages ? (quote as any).overlayImages : undefined, // NEW: Save multiple images
           canvas_background_color: (quote as any).canvasBackgroundColor || '#FFFFFF',
           image_scale: quote.imageScale || 1,
           image_position: quote.imagePosition || { x: 0, y: 0 },
@@ -470,6 +479,7 @@ export const useCartStore = create<CartState>()(
             ...quote.overlayImage,
             position: quote.overlayImage.position || { x: 50, y: 50 }
           } : undefined,
+          overlay_images: (quote as any).overlayImages ? (quote as any).overlayImages : undefined, // NEW: Save multiple images
           canvas_background_color: (quote as any).canvasBackgroundColor || '#FFFFFF',
           image_scale: quote.imageScale || 1,
           image_position: quote.imagePosition || { x: 0, y: 0 },
