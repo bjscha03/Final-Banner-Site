@@ -213,30 +213,23 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
           fileUrl = `https://res.cloudinary.com/dtrxl120u/image/upload/${item.file_key}`;
         } else {
           // No file_key - try to extract it from the URL
-          // URLs look like: https://res.cloudinary.com/dtrxl120u/image/upload/v1234567890/path/to/file.jpg
-          // or with transformations: https://res.cloudinary.com/dtrxl120u/image/upload/c_fit,w_800/v1234567890/path/to/file.jpg
           const urlToCheck = item.web_preview_url || item.print_ready_url || item.file_url || '';
           console.log('🔍 Extracting fileKey from URL:', urlToCheck);
           
           // Try to extract the public_id from the Cloudinary URL
-          // Match everything after /upload/ and before any query params
           const uploadMatch = urlToCheck.match(/\/upload\/(.+?)(?:\?|$)/);
           if (uploadMatch) {
             let pathAfterUpload = uploadMatch[1];
             console.log('📍 Path after /upload/:', pathAfterUpload);
             
             // Remove transformation parameters
-            // Transformations are comma-separated params before the version or path
-            // Examples: c_fit,w_800/v123/file.jpg OR v123/file.jpg
             const versionMatch = pathAfterUpload.match(/(v\d+\/.+)/);
             if (versionMatch) {
               extractedFileKey = versionMatch[1];
               fileUrl = `https://res.cloudinary.com/dtrxl120u/image/upload/${extractedFileKey}`;
               console.log('✅ Extracted fileKey:', extractedFileKey);
-              console.log('✅ Constructed original URL:', fileUrl);
             } else {
-              // No version number, might be a direct path
-              // Remove any transformation params (anything before a slash that contains commas or underscores)
+              // No version number, try removing transformation params
               const cleanPath = pathAfterUpload.replace(/^[^/]*\//, '');
               if (cleanPath !== pathAfterUpload) {
                 extractedFileKey = cleanPath;
@@ -252,21 +245,13 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
             fileUrl = urlToCheck;
             console.log('⚠️ Not a Cloudinary URL, using as-is');
           }
-
-              // Fallback: use the URL as-is
-              fileUrl = urlToCheck;
-            }
-          } else {
-            // Not a Cloudinary URL, use as-is
-            fileUrl = urlToCheck;
-          }
         }
         
         console.log('🔧 FINAL FILE OBJECT:', { url: fileUrl, fileKey: extractedFileKey });
         return {
           name: item.file_name || 'Uploaded file',
           type: item.is_pdf ? 'application/pdf' : 'image/*',
-          size: 1024, // Non-zero to indicate file exists
+          size: 1024,
           url: fileUrl,
           fileKey: extractedFileKey,
           isPdf: item.is_pdf,
