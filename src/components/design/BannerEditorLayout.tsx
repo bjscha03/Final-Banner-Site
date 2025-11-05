@@ -698,6 +698,9 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       line_total_cents: Math.round(lineTotal * 100),
     };
     
+    // Extract quote data - GET FRESH VALUES FROM STORE
+    const freshQuoteForCart = useQuoteStore.getState();
+    
     // CRITICAL: Extract text elements from EDITOR objects, not quote store
     // When user deletes text from canvas, editor objects are updated but quote store is not
     const textObjectsFromEditor = freshEditorObjects.filter(obj => obj.type === 'text');
@@ -718,9 +721,6 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     
     console.log('📝 [TEXT SYNC] Extracted text elements from editor:', textElementsFromEditor);
     console.log('📝 [TEXT SYNC] Old quote.textElements:', freshQuoteForCart.textElements);
-    
-    // Extract quote data - GET FRESH VALUES FROM STORE
-    const freshQuoteForCart = useQuoteStore.getState();
     const quoteData = {
       widthIn: freshQuoteForCart.widthIn,
       heightIn: freshQuoteForCart.heightIn,
