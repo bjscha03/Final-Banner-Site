@@ -818,6 +818,60 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     
     console.log('[BannerEditorLayout] Upsell - Using thumbnail URL:', thumbnailUrl ? thumbnailUrl.substring(0, 50) + '...' : 'null');
 
+    // BUG 3 FIX (UPSELL PATH): Extract overlay image from editor objects
+    // CRITICAL: Get FRESH objects from store, not stale editorObjects variable
+    const freshEditorObjectsUpsell = useEditorStore.getState().objects;
+    console.log('🖼️ [UPSELL BUG 3 FIX] Extracting overlay image from FRESH editor objects...');
+    console.log('🖼️ [UPSELL BUG 3 FIX] Fresh editor objects:', freshEditorObjectsUpsell);
+    console.log('🖼️ [UPSELL BUG 3 FIX] Current quote.overlayImage:', quote.overlayImage);
+    
+    // Find image objects in editor (excluding background images)
+    const imageObjectsUpsell = freshEditorObjectsUpsell.filter(obj => obj.type === 'image');
+    console.log('🖼️ [UPSELL BUG 3 FIX] Found image objects:', imageObjectsUpsell.length);
+    
+    // Get overlay image from THREE possible sources:
+    // 1. Store's overlayImage (for AI backgrounds with logo overlays)
+    // 2. Store's file (for regular uploaded images)
+    // 3. Editor's image objects (when editing an existing cart item)
+    const freshQuoteForOverlayUpsell = useQuoteStore.getState();
+    let currentOverlayImageUpsell = freshQuoteForOverlayUpsell.overlayImage;
+    
+    if (!currentOverlayImageUpsell && imageObjectsUpsell.length > 0) {
+      // Extract from editor (editing mode)
+      const overlayObj = imageObjectsUpsell[0]; // Use first image object
+      console.log('🖼️ [UPSELL OVERLAY FIX] Extracting from editor object:', overlayObj);
+      
+      const xPercent = (overlayObj.x / widthIn) * 100;
+      const yPercent = (overlayObj.y / heightIn) * 100;
+      const aspectRatio = overlayObj.width && overlayObj.height ? overlayObj.width / overlayObj.height : 1;
+      const defaultWidthInches = 4;
+      const scale = overlayObj.width ? overlayObj.width / defaultWidthInches : 1;
+      
+      currentOverlayImageUpsell = {
+        name: overlayObj.name || 'overlay-image',
+        url: overlayObj.url || '',
+        fileKey: overlayObj.cloudinaryPublicId || overlayObj.fileKey || '',
+        position: { x: xPercent, y: yPercent },
+        scale: scale,
+        aspectRatio: aspectRatio,
+      };
+    } else if (!currentOverlayImageUpsell && freshQuoteForOverlayUpsell.file) {
+      // Convert file to overlayImage (new upload)
+      console.log('🖼️ [UPSELL OVERLAY FIX] Converting file to overlayImage:', freshQuoteForOverlayUpsell.file);
+      currentOverlayImageUpsell = {
+        name: freshQuoteForOverlayUpsell.file.name,
+        url: freshQuoteForOverlayUpsell.file.url,
+        fileKey: freshQuoteForOverlayUpsell.file.fileKey || '',
+        position: { x: 50, y: 50 }, // Centered
+        scale: 1, // Full size
+        aspectRatio: freshQuoteForOverlayUpsell.file.artworkWidth && freshQuoteForOverlayUpsell.file.artworkHeight 
+          ? freshQuoteForOverlayUpsell.file.artworkWidth / freshQuoteForOverlayUpsell.file.artworkHeight 
+          : 1,
+      };
+    }
+    
+    console.log('🖼️ [UPSELL OVERLAY FIX] Final overlayImage:', currentOverlayImageUpsell);
+
     // Build updated quote object with selected options
     // CRITICAL: Convert editor text objects to textElements format for cart storage
     const textElementsFromEditor = editorObjects
@@ -850,9 +904,12 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       addRope: quote.addRope,
       previewScalePct: quote.previewScalePct,
       textElements: textElementsFromEditor.length > 0 ? textElementsFromEditor : quote.textElements,
-      overlayImage: quote.overlayImage,
+      overlayImage: currentOverlayImageUpsell,
       canvasBackgroundColor: canvasBackgroundColor,
       file: undefined,
+      thumbnailUrl: thumbnailUrl,
+    };
+
       thumbnailUrl: thumbnailUrl,
     };
 
