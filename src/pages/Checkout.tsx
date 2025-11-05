@@ -421,9 +421,10 @@ const Checkout: React.FC = () => {
                           heightIn={item.height_in}
                           grommets={item.grommets}
                           imageUrl={(() => {
-                            const url = item.web_preview_url || item.file_url || item.print_ready_url || item.aiDesign?.assets?.proofUrl;
+                            const url = item.thumbnail_url || item.web_preview_url || item.file_url || item.print_ready_url || item.aiDesign?.assets?.proofUrl;
                             if (!url) {
                               console.warn('⚠️  CHECKOUT: No image URL found for item:', item.id, {
+                                thumbnail_url: item.thumbnail_url,
                                 web_preview_url: item.web_preview_url,
                                 file_url: item.file_url,
                                 print_ready_url: item.print_ready_url,

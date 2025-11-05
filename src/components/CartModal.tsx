@@ -43,10 +43,16 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
         return;
       }
 
-      // CRITICAL FIX: Pass editingItemId to loadFromCartItem
-      // This ensures it's set atomically with all other state in a single update
-      console.log('🛒 CART MODAL: Loading item into quote store with editingItemId:', itemId);
-      loadFromCartItem(item, itemId);
+      // CRITICAL FIX: Clear editingItemId first, then set it
+      // This forces the useEffect in BannerEditorLayout to re-run even when editing the same item twice
+      console.log('🛒 CART MODAL: Clearing editingItemId first to force reload');
+      loadFromCartItem(item, null); // Clear first
+      
+      // Small delay to ensure state update completes
+      setTimeout(() => {
+        console.log('🛒 CART MODAL: Now loading item into quote store with editingItemId:', itemId);
+        loadFromCartItem(item, itemId); // Then set with actual ID
+      }, 50);
       console.log('🛒 CART MODAL: item.overlay_image:', item.overlay_image);
       
       // Close modal
