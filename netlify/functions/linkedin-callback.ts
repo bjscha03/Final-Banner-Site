@@ -271,11 +271,37 @@ export const handler: Handler = async (event) => {
       }
       
       console.log('✅ LinkedIn OAuth: User stored successfully, verified');
-      console.log('✅ LinkedIn OAuth: Redirecting to home page');
+      
+      // Check for checkout context to determine redirect
+      let redirectUrl = '/?oauth=success&provider=linkedin';
+      try {
+        const checkoutContext = localStorage.getItem('checkout-context-storage');
+        if (checkoutContext) {
+          const context = JSON.parse(checkoutContext);
+          if (context?.state?.isInCheckoutFlow && context?.state?.returnUrl) {
+            const contextAge = Date.now() - (context.state.contextSetAt || 0);
+            const maxAge = 30 * 60 * 1000; // 30 minutes
+            
+            if (contextAge < maxAge) {
+              redirectUrl = context.state.returnUrl + '?oauth=success&provider=linkedin';
+              console.log('✅ LinkedIn OAuth: Checkout context found, redirecting to:', redirectUrl);
+              
+              // Clear checkout context after using it
+              localStorage.removeItem('checkout-context-storage');
+            } else {
+              console.log('⏰ LinkedIn OAuth: Checkout context expired, using default redirect');
+            }
+          }
+        }
+      } catch (e) {
+        console.error('❌ LinkedIn OAuth: Error checking checkout context:', e);
+      }
+      
+      console.log('✅ LinkedIn OAuth: Redirecting to:', redirectUrl);
       
       // Small delay to ensure localStorage is fully written
       setTimeout(() => {
-        window.location.replace('/?oauth=success&provider=linkedin');
+        window.location.replace(redirectUrl);
       }, 250);
     } catch (error) {
       console.error('❌ LinkedIn OAuth: Error storing user:', error);

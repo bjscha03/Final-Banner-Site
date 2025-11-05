@@ -31,6 +31,7 @@ export interface CartItem {
   file_key?: string;
   file_name?: string;
   file_url?: string;
+  thumbnail_url?: string;          // Rendered thumbnail with grommets for cart display
   web_preview_url?: string;            // Permanent Cloudinary URL for web preview (AI images)
   print_ready_url?: string;            // Permanent Cloudinary URL for print-ready file (AI images)
   is_pdf?: boolean;                    // Whether the file is a PDF
@@ -255,20 +256,25 @@ export const useCartStore = create<CartState>()(
           // Use thumbnailUrl if provided (may be blob URL for immediate display)
           // Note: Blob URLs won't persist across sessions, but will work for current session
           file_url: (() => {
-            // CRITICAL: Store the ORIGINAL file URL, NOT the thumbnail
-            // thumbnailUrl has grommets/text baked in - we need the original for editing
+            // Store ORIGINAL file URL for editing (not thumbnail with grommets)
             const fileUrl = quote.file?.url;
             const proofUrl = aiMetadata?.assets?.proofUrl;
             
-            // Skip blob URLs and data URLs - they're temporary
+            // Skip blob/data URLs - they're temporary
             const finalUrl = (fileUrl && !fileUrl.startsWith('blob:') && !fileUrl.startsWith('data:')) 
               ? fileUrl 
               : (proofUrl && !proofUrl.startsWith('blob:') && !proofUrl.startsWith('data:')) 
                 ? proofUrl 
                 : null;
             
-            console.log('[CART STORE] 🖼️ Storing ORIGINAL file_url (not thumbnail):', finalUrl ? finalUrl.substring(0, 80) + '...' : 'NULL');
+            console.log('[CART STORE] ��️ Original file_url:', finalUrl ? finalUrl.substring(0, 80) + '...' : 'NULL');
             return finalUrl;
+          })(),
+          thumbnail_url: (() => {
+            // Store thumbnail for DISPLAY in cart (has grommets/text rendered)
+            const thumbnailUrl = (quote as any).thumbnailUrl;
+            console.log('[CART STORE] 🖼️ Thumbnail URL for display:', thumbnailUrl ? thumbnailUrl.substring(0, 80) + '...' : 'NULL');
+            return thumbnailUrl || null;
           })(),
           web_preview_url: (aiMetadata?.assets?.proofUrl?.startsWith('blob:') ? null : aiMetadata?.assets?.proofUrl) || null,
           print_ready_url: (aiMetadata?.assets?.finalUrl?.startsWith('blob:') ? null : aiMetadata?.assets?.finalUrl) || null,

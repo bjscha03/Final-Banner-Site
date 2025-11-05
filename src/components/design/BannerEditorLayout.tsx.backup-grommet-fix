@@ -422,15 +422,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
         console.log('🖼️ [BUG 2 FIX] overlayImage.position:', currentOverlayImage.position);
         console.log('🖼️ [BUG 2 FIX] overlayImage.scale:', currentOverlayImage.scale);
         console.log('🖼️ [BUG 2 FIX] overlayImage.aspectRatio:', currentOverlayImage.aspectRatio);
-        console.log('🖼️ [BUG 2 FIX] Canvas dimensions (inches):', currentWidthIn, 'x', currentHeightIn);
-        
-        // CRITICAL: Use original Cloudinary URL from fileKey, not preview URL with grommets
-        const originalUrl = currentOverlayImage.fileKey 
-          ? `https://res.cloudinary.com/dtrxl120u/image/upload/${currentOverlayImage.fileKey}`
-          : currentOverlayImage.url;
-        
-        console.log('🖼️ [GROMMET FIX] Original URL:', originalUrl);
-        console.log('🖼️ [GROMMET FIX] fileKey:', currentOverlayImage.fileKey);
+        console.log('��️ [BUG 2 FIX] Canvas dimensions (inches):', currentWidthIn, 'x', currentHeightIn);
         
         // CRITICAL: Convert percentage-based position to inches
         // overlayImage.position is stored as percentage (0-100), need to convert to inches
@@ -451,8 +443,8 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
         
         addObject({
           type: 'image',
-          url: originalUrl, // Use original Cloudinary URL, not preview with grommets
-          cloudinaryPublicId: currentOverlayImage.fileKey, // CRITICAL: Include cloudinaryPublicId for re-saving
+          url: currentOverlayImage.url,
+          fileKey: currentOverlayImage.fileKey, // CRITICAL: Include fileKey for re-saving
           name: currentOverlayImage.name,
           x: xInches,
           y: yInches,
@@ -631,7 +623,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       currentOverlayImage = {
         name: overlayObj.name || 'overlay-image',
         url: overlayObj.url || '',
-        fileKey: overlayObj.cloudinaryPublicId || overlayObj.fileKey || '',
+        fileKey: overlayObj.fileKey || '',
         position: { x: xPercent, y: yPercent },
         scale: scale,
         aspectRatio: aspectRatio,

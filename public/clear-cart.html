@@ -1,66 +1,26 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>Clear Cart</title>
-  <style>
-    body { font-family: system-ui; padding: 40px; max-width: 600px; margin: 0 auto; }
-    button { padding: 12px 24px; font-size: 16px; cursor: pointer; margin: 10px; }
-    .success { background: #10b981; color: white; border: none; border-radius: 6px; }
-    .danger { background: #ef4444; color: white; border: none; border-radius: 6px; }
-    pre { background: #f3f4f6; padding: 16px; border-radius: 6px; overflow: auto; }
-  </style>
+    <title>Clear Cart</title>
+    <style>
+        body { font-family: Arial; padding: 40px; max-width: 600px; margin: 0 auto; }
+        button { padding: 15px 30px; font-size: 18px; background: #18448D; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0f2d5e; }
+        .success { color: green; font-weight: bold; margin-top: 20px; }
+    </style>
 </head>
 <body>
-  <h1>Cart Debug Tool</h1>
-  <p>Use this page to inspect and clear your cart data.</p>
-  
-  <button class="success" onclick="showCart()">Show Cart Data</button>
-  <button class="danger" onclick="clearCart()">Clear Cart</button>
-  
-  <div id="output"></div>
-
-  <script>
-    function showCart() {
-      const cartData = localStorage.getItem('cart-storage');
-      const output = document.getElementById('output');
-      
-      if (cartData) {
-        try {
-          const parsed = JSON.parse(cartData);
-          let html = '<h2>Cart Data:</h2><pre>' + JSON.stringify(parsed, null, 2) + '</pre>';
-          
-          if (parsed.state && parsed.state.items) {
-            html += '<h2>Items Summary:</h2>';
-            parsed.state.items.forEach((item, index) => {
-              html += `<div style="background: #fff; border: 1px solid #ddd; padding: 12px; margin: 8px 0; border-radius: 6px;">
-                <strong>Item ${index + 1}:</strong> ${item.width_in}" x ${item.height_in}"<br>
-                <strong>file_url:</strong> ${item.file_url || 'null'}<br>
-                <strong>web_preview_url:</strong> ${item.web_preview_url || 'null'}<br>
-                <strong>print_ready_url:</strong> ${item.print_ready_url || 'null'}<br>
-                <strong>file_key:</strong> ${item.file_key || 'null'}<br>
-                <strong>file_name:</strong> ${item.file_name || 'null'}
-              </div>`;
-            });
-          }
-          
-          output.innerHTML = html;
-        } catch (e) {
-          output.innerHTML = '<p style="color: red;">Error: ' + e.message + '</p>';
+    <h1>Clear Cart & Fix Edit Issue</h1>
+    <p>This will clear your cart and remove old items that don't have the proper data structure.</p>
+    <button onclick="clearCart()">Clear Cart Now</button>
+    <div id="result"></div>
+    
+    <script>
+        function clearCart() {
+            localStorage.removeItem('cart-storage');
+            sessionStorage.clear();
+            document.getElementById('result').innerHTML = '<div class="success">✅ Cart cleared! Now go back to the design page and create a new banner.</div>';
         }
-      } else {
-        output.innerHTML = '<p>No cart data found in localStorage</p>';
-      }
-    }
-    
-    function clearCart() {
-      if (confirm('Are you sure you want to clear the cart?')) {
-        localStorage.removeItem('cart-storage');
-        document.getElementById('output').innerHTML = '<p style="color: green; font-weight: bold;">✅ Cart cleared! Refresh the main page.</p>';
-      }
-    }
-    
-    // Auto-show on load
-    window.onload = showCart;
-  </script>
+    </script>
 </body>
 </html>
