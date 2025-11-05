@@ -360,6 +360,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
 
     // CRITICAL: Clear existing objects first to prevent duplicates
     console.log('[BannerEditorLayout] Clearing existing objects before loading cart item');
+    resetEditor(); // Actually clear the canvas objects
     
     // Show grommets if they were selected in the cart item
     const shouldShowGrommets = currentGrommets && currentGrommets !== 'none';
