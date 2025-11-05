@@ -216,19 +216,43 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
           // URLs look like: https://res.cloudinary.com/dtrxl120u/image/upload/v1234567890/path/to/file.jpg
           // or with transformations: https://res.cloudinary.com/dtrxl120u/image/upload/c_fit,w_800/v1234567890/path/to/file.jpg
           const urlToCheck = item.web_preview_url || item.print_ready_url || item.file_url || '';
+          console.log('🔍 Extracting fileKey from URL:', urlToCheck);
           
           // Try to extract the public_id from the Cloudinary URL
-          const uploadMatch = urlToCheck.match(/\/upload\/(.+)$/);
+          // Match everything after /upload/ and before any query params
+          const uploadMatch = urlToCheck.match(/\/upload\/(.+?)(?:\?|$)/);
           if (uploadMatch) {
             let pathAfterUpload = uploadMatch[1];
-            // Remove transformation parameters (c_fit,w_800,etc before v123456/)
-            // Match pattern: optional transformations, then v + digits + /, then the actual path
-            const cleanMatch = pathAfterUpload.match(/(?:[^/]+\/)*?(v\d+\/.+)$/);
-            if (cleanMatch) {
-              extractedFileKey = cleanMatch[1];
+            console.log('📍 Path after /upload/:', pathAfterUpload);
+            
+            // Remove transformation parameters
+            // Transformations are comma-separated params before the version or path
+            // Examples: c_fit,w_800/v123/file.jpg OR v123/file.jpg
+            const versionMatch = pathAfterUpload.match(/(v\d+\/.+)/);
+            if (versionMatch) {
+              extractedFileKey = versionMatch[1];
               fileUrl = `https://res.cloudinary.com/dtrxl120u/image/upload/${extractedFileKey}`;
-              console.log('🔧 QUOTE STORE: Extracted fileKey from URL:', extractedFileKey);
+              console.log('✅ Extracted fileKey:', extractedFileKey);
+              console.log('✅ Constructed original URL:', fileUrl);
             } else {
+              // No version number, might be a direct path
+              // Remove any transformation params (anything before a slash that contains commas or underscores)
+              const cleanPath = pathAfterUpload.replace(/^[^/]*\//, '');
+              if (cleanPath !== pathAfterUpload) {
+                extractedFileKey = cleanPath;
+                fileUrl = `https://res.cloudinary.com/dtrxl120u/image/upload/${extractedFileKey}`;
+                console.log('✅ Extracted fileKey (no version):', extractedFileKey);
+              } else {
+                fileUrl = urlToCheck;
+                console.log('⚠️ Could not extract fileKey, using URL as-is');
+              }
+            }
+          } else {
+            // Not a Cloudinary URL, use as-is
+            fileUrl = urlToCheck;
+            console.log('⚠️ Not a Cloudinary URL, using as-is');
+          }
+
               // Fallback: use the URL as-is
               fileUrl = urlToCheck;
             }
