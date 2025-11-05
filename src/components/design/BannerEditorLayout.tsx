@@ -910,9 +910,6 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       thumbnailUrl: thumbnailUrl,
     };
 
-      thumbnailUrl: thumbnailUrl,
-    };
-
     // Apply selected upsell options
     selectedOptions.forEach(option => {
       if (option.id === 'grommets-every-2ft') {
