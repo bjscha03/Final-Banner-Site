@@ -323,7 +323,9 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
         <div className="space-y-2">
           <h4 className="text-xs font-semibold text-gray-700">Your Images</h4>
           <div className="grid grid-cols-2 gap-2">
-            {uploadedImages.map((image) => (
+            {uploadedImages.map((image) => {
+              console.log('[AssetsPanel] Rendering image:', image.id, 'URL:', image.url);
+              return (
               <Card key={image.id} className="relative group">
                 <button
                   onClick={() => handleRemoveImage(image.id)}
@@ -365,7 +367,8 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
                   </Button>
                 </div>
               </Card>
-            ))}
+              );
+            })}
           </div>
         </div>
       )}
