@@ -157,11 +157,11 @@ const HeroSection: React.FC = () => {
     }, 100);
   };
 
-  // Quick size presets
+  // Quick size presets (landscape orientation)
   const sizePresets = [
-    { label: '18" × 24"', width: 18, height: 24 },
-    { label: '24" × 48" (2x4 ft)', width: 24, height: 48 },
-    { label: '36" × 72" (3x6 ft)', width: 36, height: 72 }
+    { label: '18" × 24"', width: 24, height: 18 },
+    { label: '24" × 48" (2x4 ft)', width: 48, height: 24 },
+    { label: '36" × 72" (3x6 ft)', width: 72, height: 36 }
   ];
 
   const handleSizePreset = (width: number, height: number) => {
