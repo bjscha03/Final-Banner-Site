@@ -155,20 +155,25 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
                 ) : (
                   // Unauthenticated user buttons
                   <>
-                    <Button
-                      variant="ghost"
-                      asChild
-                      className="hidden md:flex items-center space-x-2"
-                    >
-                      <ScrollToTopLink to="/sign-in">
-                        <User className="h-5 w-5" />
-                        <span className="text-sm font-medium">Sign In</span>
+                    <div className="hidden md:flex flex-col items-end">
+                      <Button
+                        variant="ghost"
+                        asChild
+                        className="flex items-center space-x-2"
+                      >
+                        <ScrollToTopLink to="/sign-in">
+                          <User className="h-5 w-5" />
+                          <span className="text-sm font-medium">Sign In</span>
+                        </ScrollToTopLink>
+                      </Button>
+                      <ScrollToTopLink 
+                        to="/sign-up" 
+                        className="text-xs text-gray-500 hover:text-[#18448D] -mt-1"
+                        title="Optional: Track orders and save designs"
+                      >
+                        or create account
                       </ScrollToTopLink>
-                    </Button>
-
-                    <Button asChild className="hidden md:block">
-                      <ScrollToTopLink to="/sign-up">Get Started</ScrollToTopLink>
-                    </Button>
+                    </div>
                   </>
                 )}
               </>
@@ -251,10 +256,10 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
                         </ScrollToTopLink>
                         <ScrollToTopLink
                           to="/sign-up"
-                          className="w-full mt-2 bg-orange-500 hover:bg-orange-600 text-white px-3 py-2 rounded-lg font-medium transition-colors block text-center"
+                          className="w-full mt-1 text-sm text-gray-600 hover:text-[#18448D] px-3 py-1"
                           onClick={() => setIsMenuOpen(false)}
                         >
-                          Get Started
+                          Create account (optional - track orders & save designs)
                         </ScrollToTopLink>
                       </>
                     )}
