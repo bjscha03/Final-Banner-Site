@@ -175,9 +175,11 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
   };
 
   const handleAddToCanvas = async (image: UploadedImage) => {
-    console.log('[AssetsPanel] handleAddToCanvas called with image:', image);
-    console.log('[IMAGE ADD] Clicked image:', image);
-    console.log('[IMAGE ADD] Canvas dimensions (inches):', { widthIn, heightIn });
+    console.log('[AssetsPanel] ========================================');
+    console.log('[AssetsPanel] handleAddToCanvas called');
+    console.log('[AssetsPanel] Image:', image);
+    console.log('[AssetsPanel] Canvas dimensions (inches):', { widthIn, heightIn });
+    console.log('[AssetsPanel] ========================================');
     
     // CRITICAL FIX: Ensure image is uploaded to Cloudinary before adding to canvas
     // This ensures the fileKey is available for saving to cart and restoring later
@@ -330,10 +332,7 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
                   <X className="h-3 w-3" />
                 </button>
                 <div className="space-y-1">
-                  <div
-                    onClick={() => handleAddToCanvas(image)}
-                    className="cursor-pointer hover:opacity-80 transition-opacity"
-                  >
+                  <div className="hover:opacity-80 transition-opacity">
                     <div className="aspect-square bg-gray-100 rounded overflow-hidden flex items-center justify-center">
                       {image.isPDF ? (
                         <div className="w-full h-full bg-gradient-to-br from-red-50 to-red-100 flex flex-col items-center justify-center p-4 border-2 border-red-200">

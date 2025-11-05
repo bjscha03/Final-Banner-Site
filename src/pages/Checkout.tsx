@@ -272,23 +272,6 @@ const Checkout: React.FC = () => {
     );
   }
   
-  // Show loading state while cart is being loaded/merged
-  if (isLoading) {
-    return (
-      <Layout>
-        <div className="bg-gray-50 py-8 min-h-[calc(100vh-4rem)]">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="text-center">
-              <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-[#18448D]"></div>
-              <h2 className="mt-4 text-2xl font-bold text-[#18448D]">Loading your cart...</h2>
-              <p className="mt-2 text-gray-600">Please wait while we prepare your items.</p>
-            </div>
-          </div>
-        </div>
-      </Layout>
-    );
-  }
-  
   // Redirect if cart is empty
   if (items.length === 0) {
     return (

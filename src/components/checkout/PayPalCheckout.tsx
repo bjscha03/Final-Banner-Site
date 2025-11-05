@@ -31,35 +31,51 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
 
   // Load PayPal configuration on mount
   useEffect(() => {
+    console.log('[PayPalCheckout] Loading PayPal configuration...');
     const isDev = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
 
     const setFallbackConfig = () => {
       const fallbackClientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
       if (fallbackClientId) {
+        console.log('[PayPalCheckout] Using fallback config with client ID');
         setPaypalConfig({
           enabled: true,
           clientId: fallbackClientId,
           environment: 'live', // Or determine from another env var
         });
       } else {
-        console.error('PayPal fallback failed: NEXT_PUBLIC_PAYPAL_CLIENT_ID is not set.');
+        console.error('[PayPalCheckout] PayPal fallback failed: NEXT_PUBLIC_PAYPAL_CLIENT_ID is not set.');
         setPaypalConfig({ enabled: false, clientId: null, environment: null });
       }
     };
 
     const loadPayPalConfig = async () => {
+      // CRITICAL FIX: Add timeout to prevent infinite loading
+      const timeoutId = setTimeout(() => {
+        console.error('[PayPalCheckout] PayPal config fetch timed out after 10 seconds');
+        setFallbackConfig();
+        setIsLoadingConfig(false);
+      }, 10000); // 10 second timeout
+
       try {
+        console.log('[PayPalCheckout] Fetching PayPal config from function...');
         const response = await fetch('/.netlify/functions/paypal-config');
+        clearTimeout(timeoutId); // Clear timeout if fetch succeeds
+        
         if (response.ok) {
           const config = await response.json();
+          console.log('[PayPalCheckout] PayPal config loaded successfully:', config);
           setPaypalConfig(config);
         } else {
+          console.error('[PayPalCheckout] Failed to load PayPal config:', response.status);
           throw new Error(`Failed to load PayPal config: ${response.status}`);
         }
       } catch (error) {
-        console.error('Error loading PayPal config:', error);
+        clearTimeout(timeoutId); // Clear timeout on error
+        console.error('[PayPalCheckout] Error loading PayPal config:', error);
         setFallbackConfig();
       } finally {
+        console.log('[PayPalCheckout] Setting isLoadingConfig to false');
         setIsLoadingConfig(false);
       }
     };
