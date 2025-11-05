@@ -257,14 +257,17 @@ export const useCartStore = create<CartState>()(
           // Note: Blob URLs won't persist across sessions, but will work for current session
           file_url: (() => {
             // Store ORIGINAL file URL for editing (not thumbnail with grommets)
-            const fileUrl = quote.file?.url;
-            const fileKey = quote.file?.fileKey;
+            // Check BOTH file and overlayImage (overlayImage is used for uploaded images)
+            const fileUrl = quote.file?.url || (quote as any).overlayImage?.url;
+            const fileKey = quote.file?.fileKey || (quote as any).overlayImage?.fileKey;
             const proofUrl = aiMetadata?.assets?.proofUrl;
             
             console.log('[CART STORE] 🔍 File data:', {
               fileUrl: fileUrl ? fileUrl.substring(0, 80) : 'NULL',
               fileKey: fileKey || 'NULL',
-              proofUrl: proofUrl ? proofUrl.substring(0, 80) : 'NULL'
+              proofUrl: proofUrl ? proofUrl.substring(0, 80) : 'NULL',
+              hasFile: !!quote.file,
+              hasOverlayImage: !!(quote as any).overlayImage
             });
             
             // Skip blob/data URLs - they're temporary
