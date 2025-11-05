@@ -153,6 +153,17 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [editingTextValue, setEditingTextValue] = useState('');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  
+  // Ensure textarea focuses on mobile devices
+  useEffect(() => {
+    if (editingTextId && textareaRef.current) {
+      // Small delay to ensure the modal is rendered before focusing
+      setTimeout(() => {
+        textareaRef.current?.focus();
+      }, 100);
+    }
+  }, [editingTextId]);
   
   const bleedSize = getBleedSize();
   const safeZoneMargin = getSafeZoneMargin();
@@ -399,7 +410,7 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
   };
   
   const handleTextDblClick = (id: string, currentText: string) => {
-    console.log('🖱️ Double-clicked text:', id, currentText);
+    console.log('📱 Text edit triggered (double-click/tap):', id, currentText);
     setEditingTextId(id);
     setEditingTextValue(currentText);
     selectObject(id);
@@ -621,6 +632,7 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
                     onClick={(e) => handleObjectClick(obj.id, e)}
                     onTap={(e) => handleObjectClick(obj.id, e)}
                     onDblClick={() => handleTextDblClick(obj.id, obj.content)}
+                    onDblTap={() => handleTextDblClick(obj.id, obj.content)}
                     onDragEnd={(e) => handleObjectDragEnd(obj.id, e)}
                     onTransformEnd={(e) => handleObjectTransformEnd(obj.id, e)}
                   />
@@ -751,6 +763,7 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
           <div className="bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4">
             <h3 className="text-lg font-bold mb-4">Edit Text</h3>
             <textarea
+              ref={textareaRef}
               autoFocus
               value={editingTextValue}
               onChange={(e) => setEditingTextValue(e.target.value)}
