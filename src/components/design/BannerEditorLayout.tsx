@@ -338,6 +338,14 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       hasFile: !!currentFile,
       overlayImageUrl: currentOverlayImage?.url?.substring(0, 50)
     });
+    console.log('🔍 [DEBUG] currentOverlayImage FULL:', currentOverlayImage);
+    console.log('🔍 [DEBUG] currentFile FULL:', currentFile);
+    console.log('🔍 [DEBUG] currentTextElements:', currentTextElements);
+    console.log('🔍 [DEBUG] currentGrommets:', currentGrommets);
+    console.log('🔍 [DEBUG] currentOverlayImage FULL:', currentOverlayImage);
+    console.log('🔍 [DEBUG] currentFile FULL:', currentFile);
+    console.log('🔍 [DEBUG] currentTextElements:', currentTextElements);
+    console.log('🔍 [DEBUG] currentGrommets:', currentGrommets);
 
     // Only load if we have objects to load
     const hasObjectsToLoad = (currentOverlayImage && currentOverlayImage.url) || (currentTextElements && currentTextElements.length > 0) || (currentFile && currentFile.url);
@@ -406,12 +414,23 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       }
 
       // Load overlay image if present
+      // DIAGNOSTIC: Show what we have
+      alert(`DIAGNOSTIC EDIT LOAD:\nHas overlayImage: ${!!currentOverlayImage}\nHas URL: ${!!currentOverlayImage?.url}\nURL: ${currentOverlayImage?.url?.substring(0, 50) || 'NONE'}\nfileKey: ${currentOverlayImage?.fileKey || 'NONE'}`);
+      
       if (currentOverlayImage && currentOverlayImage.url) {
         console.log('🖼️ [BUG 2 FIX] Loading overlayImage from cart:', currentOverlayImage);
         console.log('🖼️ [BUG 2 FIX] overlayImage.position:', currentOverlayImage.position);
         console.log('🖼️ [BUG 2 FIX] overlayImage.scale:', currentOverlayImage.scale);
         console.log('🖼️ [BUG 2 FIX] overlayImage.aspectRatio:', currentOverlayImage.aspectRatio);
-        console.log('��️ [BUG 2 FIX] Canvas dimensions (inches):', currentWidthIn, 'x', currentHeightIn);
+        console.log('🖼️ [BUG 2 FIX] Canvas dimensions (inches):', currentWidthIn, 'x', currentHeightIn);
+        
+        // CRITICAL: Use original Cloudinary URL from fileKey, not preview URL with grommets
+        const originalUrl = currentOverlayImage.fileKey 
+          ? `https://res.cloudinary.com/dtrxl120u/image/upload/${currentOverlayImage.fileKey}`
+          : currentOverlayImage.url;
+        
+        console.log('🖼️ [GROMMET FIX] Original URL:', originalUrl);
+        console.log('🖼️ [GROMMET FIX] fileKey:', currentOverlayImage.fileKey);
         
         // CRITICAL: Convert percentage-based position to inches
         // overlayImage.position is stored as percentage (0-100), need to convert to inches
@@ -432,7 +451,11 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
         
         addObject({
           type: 'image',
-          url: currentOverlayImage.url,
+          url: originalUrl, // Use original Cloudinary URL, not preview with grommets
+          fileKey: currentOverlayImage.fileKey, // CRITICAL: Include fileKey for re-saving
+          name: currentOverlayImage.name,
+          x: xInches,
+          y: yInches,
           x: xInches,
           y: yInches,
           width: widthInches,
@@ -587,42 +610,53 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     const imageObjects = freshEditorObjects.filter(obj => obj.type === 'image');
     console.log('🖼️ [BUG 3 FIX] Found image objects:', imageObjects.length);
     
-    // Extract overlay image from editor objects
-    // The overlay image is the image object that's NOT the background file
-    let currentOverlayImage = quote.overlayImage; // Start with existing
+    // Get overlay image from THREE possible sources:
+    // 1. Store's overlayImage (for AI backgrounds with logo overlays)
+    // 2. Store's file (for regular uploaded images)
+    // 3. Editor's image objects (when editing an existing cart item)
+    const freshQuoteForOverlay = useQuoteStore.getState();
+    let currentOverlayImage = freshQuoteForOverlay.overlayImage;
     
-    if (imageObjects.length > 0) {
-      // If we have image objects, use the first one as overlay (or find the non-background one)
-      const overlayObj = imageObjects.find(obj => obj.url !== quote.file?.url) || imageObjects[0];
+    // Use imageObjects already extracted above from freshEditorObjects
+    
+    if (!currentOverlayImage && imageObjects.length > 0) {
+      // Extract from editor (editing mode)
+      const overlayObj = imageObjects[0]; // Use first image object
+      console.log('🖼️ [OVERLAY FIX] Extracting from editor object:', overlayObj);
       
-      if (overlayObj) {
-        console.log('🖼️ [BUG 3 FIX] Found overlay object in editor:', overlayObj);
-        
-        // Convert editor object position (inches) to percentage for storage
-        const xPercent = (overlayObj.x / widthIn) * 100;
-        const yPercent = (overlayObj.y / heightIn) * 100;
-        
-        // Calculate aspect ratio from width/height
-        const aspectRatio = overlayObj.width && overlayObj.height ? overlayObj.width / overlayObj.height : 1;
-        
-        // Calculate scale based on default size (4 inches)
-        const defaultWidthInches = 4;
-        const scale = overlayObj.width ? overlayObj.width / defaultWidthInches : 1;
-        
-        currentOverlayImage = {
-          name: quote.overlayImage?.name || 'overlay-image',
-          url: overlayObj.url || '',
-          fileKey: quote.overlayImage?.fileKey || '',
-          position: { x: xPercent, y: yPercent },
-          aspectRatio: aspectRatio,
-          scale: scale,
-        };
-        
-        console.log('🖼️ [BUG 3 FIX] Created overlayImage from editor object:', currentOverlayImage);
-      }
-    } else {
-      console.log('🖼️ [BUG 3 FIX] No image objects in editor, using quote.overlayImage');
+      const xPercent = (overlayObj.x / widthIn) * 100;
+      const yPercent = (overlayObj.y / heightIn) * 100;
+      const aspectRatio = overlayObj.width && overlayObj.height ? overlayObj.width / overlayObj.height : 1;
+      const defaultWidthInches = 4;
+      const scale = overlayObj.width ? overlayObj.width / defaultWidthInches : 1;
+      
+      currentOverlayImage = {
+        name: overlayObj.name || 'overlay-image',
+        url: overlayObj.url || '',
+        fileKey: overlayObj.cloudinaryPublicId || overlayObj.fileKey || '',
+        position: { x: xPercent, y: yPercent },
+        scale: scale,
+        aspectRatio: aspectRatio,
+      };
+    } else if (!currentOverlayImage && freshQuoteForOverlay.file) {
+      // Convert file to overlayImage (new upload)
+      console.log('🖼️ [OVERLAY FIX] Converting file to overlayImage:', freshQuoteForOverlay.file);
+      currentOverlayImage = {
+        name: freshQuoteForOverlay.file.name,
+        url: freshQuoteForOverlay.file.url,
+        fileKey: freshQuoteForOverlay.file.fileKey || '',
+        position: { x: 50, y: 50 }, // Centered
+        scale: 1, // Full size
+        aspectRatio: freshQuoteForOverlay.file.artworkWidth && freshQuoteForOverlay.file.artworkHeight 
+          ? freshQuoteForOverlay.file.artworkWidth / freshQuoteForOverlay.file.artworkHeight 
+          : 1,
+      };
     }
+    
+    // DIAGNOSTIC: Show overlay from all sources
+    alert(`DIAGNOSTIC BEFORE EXTRACTION:\nHas overlayImage: ${!!currentOverlayImage}\nHas file: ${!!freshQuoteForOverlay.file}\nEditor images: ${imageObjects.length}\nURL: ${currentOverlayImage?.url?.substring(0, 50) || 'NONE'}\nfileKey: ${currentOverlayImage?.fileKey || 'NONE'}`);
+    
+    console.log('🖼️ [OVERLAY FIX] Final overlayImage:', currentOverlayImage);
     
     // Calculate pricing (simplified - using base pricing without upsells)
     const sqft = (widthIn * heightIn) / 144;
@@ -656,6 +690,12 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       textElements: freshQuoteForCart.textElements,
       overlayImage: currentOverlayImage, // BUG 3 FIX: Use extracted overlay image
       canvasBackgroundColor: canvasBackgroundColor,
+    };
+    
+    // DIAGNOSTIC: Show what we're about to save
+    alert(`DIAGNOSTIC FINAL SAVE:\nHas currentOverlayImage: ${!!currentOverlayImage}\nURL: ${currentOverlayImage?.url?.substring(0, 50) || 'NONE'}\nfileKey: ${currentOverlayImage?.fileKey || 'NONE'}\nquoteData.overlayImage: ${!!quoteData.overlayImage}`);
+    
+    const dummyObj = {
       // CRITICAL: Pass original file (if exists) for background, thumbnailUrl for cart preview
       // If there are text elements OR overlay images, DON'T pass file (thumbnail has text baked in)
       file: (freshQuoteForCart.textElements && freshQuoteForCart.textElements.length > 0) || currentOverlayImage ? undefined : freshQuoteForCart.file,

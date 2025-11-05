@@ -13,6 +13,8 @@ interface UploadedImage {
   width: number;
   height: number;
   isPDF?: boolean;
+  fileKey?: string; // Cloudinary public_id
+  cloudinaryUrl?: string; // Permanent Cloudinary URL
 }
 
 // Create a persistent store for uploaded images (survives component re-renders)
@@ -96,18 +98,53 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
           alert(`Failed to load PDF: ${file.name}. Please try again.`);
         }
       } else {
-        // Get image dimensions
+        // HYBRID APPROACH: Use blob URL immediately, upload to Cloudinary in background
         const img = new Image();
-        img.onload = () => {
-          const newImage: UploadedImage = {
-            id: `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        img.onload = async () => {
+          const imageId = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+          
+          // Add image immediately with blob URL for instant preview
+          const tempImage: UploadedImage = {
+            id: imageId,
             url,
             name: file.name,
             width: img.width,
             height: img.height,
           };
           
-          setUploadedImages((prev) => [...prev, newImage]);
+          setUploadedImages((prev) => [...prev, tempImage]);
+          console.log('[AssetsPanel] Image added with blob URL:', file.name);
+          
+          // Upload to Cloudinary in background
+          try {
+            console.log('[AssetsPanel] Uploading to Cloudinary in background:', file.name);
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await fetch('/.netlify/functions/upload-file', {
+              method: 'POST',
+              body: formData,
+            });
+
+            if (response.ok) {
+              const result = await response.json();
+              console.log('[AssetsPanel] Cloudinary upload success:', result);
+              
+              // Update the image with Cloudinary URL
+              setUploadedImages((prev) => 
+                prev.map((img) => 
+                  img.id === imageId 
+                    ? { ...img, url: result.url, fileKey: result.public_id, cloudinaryUrl: result.url }
+                    : img
+                )
+              );
+              console.log('[AssetsPanel] Updated image with Cloudinary URL');
+            } else {
+              console.warn('[AssetsPanel] Cloudinary upload failed, keeping blob URL');
+            }
+          } catch (error) {
+            console.warn('[AssetsPanel] Cloudinary upload error, keeping blob URL:', error);
+          }
         };
         img.src = url;
       }
@@ -137,15 +174,66 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
     e.preventDefault();
   };
 
-  const handleAddToCanvas = (image: UploadedImage) => {
+  const handleAddToCanvas = async (image: UploadedImage) => {
     console.log('[AssetsPanel] handleAddToCanvas called with image:', image);
     console.log('[IMAGE ADD] Clicked image:', image);
     console.log('[IMAGE ADD] Canvas dimensions (inches):', { widthIn, heightIn });
     
+    // CRITICAL FIX: Ensure image is uploaded to Cloudinary before adding to canvas
+    // This ensures the fileKey is available for saving to cart and restoring later
+    let finalImage = image;
+    
+    if (!image.fileKey && !image.cloudinaryUrl && image.url.startsWith('blob:')) {
+      console.log('[IMAGE ADD] Image not yet uploaded to Cloudinary, uploading now...');
+      
+      try {
+        // Fetch the blob and upload to Cloudinary
+        const response = await fetch(image.url);
+        const blob = await response.blob();
+        const file = new File([blob], image.name, { type: blob.type });
+        
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const uploadResponse = await fetch('/.netlify/functions/upload-file', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (uploadResponse.ok) {
+          const result = await uploadResponse.json();
+          console.log('[IMAGE ADD] Cloudinary upload success:', result);
+          
+          // Update the image in state with Cloudinary URL and fileKey
+          const updatedImage = {
+            ...image,
+            url: result.secureUrl,
+            fileKey: result.fileKey || result.publicId,
+            cloudinaryUrl: result.secureUrl,
+          };
+          
+          setUploadedImages((prev) => 
+            prev.map((img) => img.id === image.id ? updatedImage : img)
+          );
+          
+          finalImage = updatedImage;
+          console.log('[IMAGE ADD] Image updated with Cloudinary URL and fileKey:', finalImage.fileKey);
+        } else {
+          console.error('[IMAGE ADD] Cloudinary upload failed');
+          alert('Failed to upload image to cloud storage. Please try again.');
+          return;
+        }
+      } catch (error) {
+        console.error('[IMAGE ADD] Error uploading to Cloudinary:', error);
+        alert('Failed to upload image to cloud storage. Please try again.');
+        return;
+      }
+    }
+    
     // Calculate size to fit on canvas (max 50% of canvas width/height)
     const maxWidth = widthIn * 0.5;
     const maxHeight = heightIn * 0.5;
-    const aspectRatio = image.width / image.height;
+    const aspectRatio = finalImage.width / finalImage.height;
     
     let width = maxWidth;
     let height = width / aspectRatio;
@@ -157,7 +245,7 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
 
     const imageObject = {
       type: 'image' as const,
-      url: image.url,
+      url: finalImage.url,
       x: widthIn / 2 - width / 2,
       y: heightIn / 2 - height / 2,
       width,
@@ -166,10 +254,14 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
       opacity: 1,
       locked: false,
       visible: true,
-      isPDF: image.isPDF || false,
+      isPDF: finalImage.isPDF || false,
+      // CRITICAL: Include cloudinaryPublicId (fileKey) so image can be saved/restored from cart
+      cloudinaryPublicId: finalImage.fileKey || finalImage.cloudinaryUrl,
+      name: finalImage.name,
     };
     
     console.log('[IMAGE ADD] Adding image object to canvas:', imageObject);
+    console.log('[BUG 2 FIX] Image object includes fileKey:', imageObject.cloudinaryPublicId, 'and name:', imageObject.name);
     addObject(imageObject);
     console.log('[IMAGE ADD] Image added successfully');
     
