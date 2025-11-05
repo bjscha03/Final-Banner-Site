@@ -643,8 +643,13 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     
     // Use imageObjects already extracted above from freshEditorObjects
     
-    if (!currentOverlayImage && imageObjects.length > 0) {
-      // Extract from editor (editing mode)
+    // CRITICAL FIX: If there are NO image objects in the editor, clear the overlay image
+    // This handles the case where user deletes an image from the canvas
+    if (imageObjects.length === 0) {
+      console.log('🗑️ [IMAGE DELETE FIX] No image objects in editor - clearing overlayImage');
+      currentOverlayImage = undefined;
+    } else if (imageObjects.length > 0) {
+      // Extract from editor (editing mode or new image added)
       const overlayObj = imageObjects[0]; // Use first image object
       console.log('🖼️ [OVERLAY FIX] Extracting from editor object:', overlayObj);
       
@@ -864,8 +869,13 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     const freshQuoteForOverlayUpsell = useQuoteStore.getState();
     let currentOverlayImageUpsell = freshQuoteForOverlayUpsell.overlayImage;
     
-    if (!currentOverlayImageUpsell && imageObjectsUpsell.length > 0) {
-      // Extract from editor (editing mode)
+    // CRITICAL FIX: If there are NO image objects in the editor, clear the overlay image
+    // This handles the case where user deletes an image from the canvas
+    if (imageObjectsUpsell.length === 0) {
+      console.log('🗑️ [UPSELL IMAGE DELETE FIX] No image objects in editor - clearing overlayImage');
+      currentOverlayImageUpsell = undefined;
+    } else if (imageObjectsUpsell.length > 0) {
+      // Extract from editor (editing mode or new image added)
       const overlayObj = imageObjectsUpsell[0]; // Use first image object
       console.log('🖼️ [UPSELL OVERLAY FIX] Extracting from editor object:', overlayObj);
       
