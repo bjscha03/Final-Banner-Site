@@ -238,6 +238,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
           }
         }
         
+        console.log('🔧 FINAL FILE OBJECT:', { url: fileUrl, fileKey: extractedFileKey });
         return {
           name: item.file_name || 'Uploaded file',
           type: item.is_pdf ? 'application/pdf' : 'image/*',
