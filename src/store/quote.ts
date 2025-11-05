@@ -201,10 +201,10 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
       addRope: item.rope_feet > 0,
       textElements: migratedTextElements,
       editingItemId: editingItemId || null, // Preserve editingItemId if provided
-      // CRITICAL FIX: Reconstruct original file URL from file_key, not thumbnail
-      // file_url is the THUMBNAIL with grommets/text baked in
-      // We need the ORIGINAL uploaded file for editing
-      file: (item.file_key || item.file_url || item.web_preview_url) ? (() => {
+      // CRITICAL FIX: Don't load file as background if there's an overlay_image
+      // overlay_image is the uploaded image positioned on the canvas
+      // file would create a duplicate background layer
+      file: item.overlay_image ? undefined : ((item.file_key || item.file_url || item.web_preview_url) ? (() => {
         let fileUrl: string;
         let extractedFileKey = item.file_key;
         
@@ -259,7 +259,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
           artworkWidth: item.artwork_width,
           artworkHeight: item.artwork_height,
         };
-      })() : undefined,
+      })() : undefined),
 
       imageScale: item.image_scale || 1,
       imagePosition: item.image_position || { x: 0, y: 0 },

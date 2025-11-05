@@ -707,6 +707,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       textElements: freshQuoteForCart.textElements,
       overlayImage: currentOverlayImage, // BUG 3 FIX: Use extracted overlay image
       canvasBackgroundColor: canvasBackgroundColor,
+      thumbnailUrl: thumbnailUrl, // CRITICAL: Include thumbnail for cart display
     };
     
     // DIAGNOSTIC: Show what we're about to save
