@@ -595,8 +595,13 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     await new Promise(resolve => setTimeout(resolve, 300));
     console.log('✅ [UPDATE CART] Fresh thumbnail generated');
 
+    // CRITICAL: Get FRESH thumbnail from store after generation (not stale canvasThumbnail variable)
+    const freshThumbnail = useEditorStore.getState().canvasThumbnail;
+    console.log('✅ [UPDATE CART] Fresh thumbnail length:', freshThumbnail?.length);
+    console.log('⚠️ [UPDATE CART] Old canvasThumbnail length:', canvasThumbnail?.length);
+
     // Now use the fresh thumbnail from the store
-    let thumbnailUrl = canvasThumbnail;
+    let thumbnailUrl = freshThumbnail;
     
     console.log('🎨 [ADD TO CART] canvasThumbnail:', canvasThumbnail ? canvasThumbnail.substring(0, 50) + '...' : 'NULL');
     
