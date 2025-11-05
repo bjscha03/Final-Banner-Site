@@ -49,8 +49,11 @@ const GrommetsCard: React.FC = () => {
   const isDisabled = polePockets !== 'none';
 
   const handleGrommetChange = (value: string) => {
+    console.log('🔧 [GROMMET CARD] handleGrommetChange called with:', value);
+    console.log('🔧 [GROMMET CARD] Current grommets state:', grommets);
     // Always call set() - the store handles mutual exclusivity
     set({ grommets: value as Grommets });
+    console.log('🔧 [GROMMET CARD] set() called, new value should be:', value);
   };
 
   return (

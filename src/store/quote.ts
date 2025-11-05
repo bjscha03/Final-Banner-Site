@@ -131,6 +131,12 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
       updates.grommets = 'none' as Grommets;
     }
     
+    // Log grommet changes for debugging
+    if (updates.grommets !== undefined) {
+      console.log('🏪 [QUOTE STORE] Grommets being updated to:', updates.grommets);
+      console.log('🏪 [QUOTE STORE] Previous grommets value:', get().grommets);
+    }
+    
     return { ...state, ...updates };
   }),
   setFromQuickQuote: (params) => set((state) => ({

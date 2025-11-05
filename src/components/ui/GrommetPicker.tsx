@@ -122,7 +122,9 @@ export function GrommetPicker({
   }, [isOpen, isMobile]);
 
   const handleSelect = (optionId: string) => {
+    console.log('✅ [GROMMET] handleSelect called with:', optionId);
     onChange(optionId);
+    console.log('✅ [GROMMET] onChange called, closing dropdown');
     setIsOpen(false);
   };
 
@@ -158,7 +160,11 @@ export function GrommetPicker({
           {options.map((option) => (
             <button
               key={option.id}
-              onClick={() => handleSelect(option.id)}
+              onClick={(e) => {
+                e.stopPropagation();
+                console.log('📱 [GROMMET] Mobile sheet option clicked:', option.id);
+                handleSelect(option.id);
+              }}
               className={`w-full text-left p-4 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0 ${
                 value === option.id ? 'bg-blue-50 border-blue-100' : ''
               }`}
@@ -208,8 +214,16 @@ export function GrommetPicker({
       {options.map((option) => (
         <button
           key={option.id}
-          onMouseDown={(e) => {
+          onClick={(e) => {
             e.preventDefault();
+            e.stopPropagation();
+            console.log('🎯 [GROMMET] Desktop dropdown option clicked:', option.id);
+            handleSelect(option.id);
+          }}
+          onTouchEnd={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            console.log('📱 [GROMMET] Desktop dropdown option touched:', option.id);
             handleSelect(option.id);
           }}
           className={`w-full text-left px-4 py-3.5 hover:bg-gray-50 transition-colors border-b border-gray-100 last:border-b-0 touch-manipulation min-h-[44px] ${
