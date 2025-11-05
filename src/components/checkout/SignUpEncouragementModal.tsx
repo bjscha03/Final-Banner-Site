@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, User, ShoppingBag, Clock } from 'lucide-react';
+import { X, Package, Zap, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCheckoutContext } from '@/store/checkoutContext';
 import { cartSyncService } from '@/lib/cartSync';
@@ -69,78 +69,80 @@ const SignUpEncouragementModal: React.FC<SignUpEncouragementModalProps> = ({
 
           {/* Header */}
           <div className="text-center mb-6">
-            <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-              <User className="w-8 h-8 text-white" />
-            </div>
             <h2 className="text-2xl font-bold text-gray-900 mb-2">
-              Create Your Account
+              Almost there — make checkout even easier
             </h2>
             <p className="text-gray-600">
-              Get the most out of your banner ordering experience
+              You can checkout as a guest, or create an account to save your details for next time.
             </p>
           </div>
 
           {/* Benefits */}
-          <div className="space-y-4 mb-6">
+          <div className="space-y-3 mb-6">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                <Clock className="w-4 h-4 text-green-600" />
+              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <Package className="w-4 h-4 text-blue-600" />
               </div>
               <div>
-                <h3 className="font-medium text-gray-900">View Past Orders</h3>
-                <p className="text-sm text-gray-600">Track your order history and reorder easily</p>
+                <p className="text-sm text-gray-700">
+                  <span className="font-semibold">Track Orders</span> — Easily view your order history and reorder fast
+                </p>
               </div>
             </div>
             
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                <ShoppingBag className="w-4 h-4 text-blue-600" />
+              <div className="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <Zap className="w-4 h-4 text-orange-600" />
               </div>
               <div>
-                <h3 className="font-medium text-gray-900">Faster Checkout</h3>
-                <p className="text-sm text-gray-600">Save your details for quicker future orders</p>
+                <p className="text-sm text-gray-700">
+                  <span className="font-semibold">Save Time</span> — Faster checkout on future orders
+                </p>
               </div>
             </div>
             
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center">
-                <User className="w-4 h-4 text-purple-600" />
+              <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                <Bell className="w-4 h-4 text-green-600" />
               </div>
               <div>
-                <h3 className="font-medium text-gray-900">Order Updates</h3>
-                <p className="text-sm text-gray-600">Get notified about your order status</p>
+                <p className="text-sm text-gray-700">
+                  <span className="font-semibold">Stay Updated</span> — Get notified when your banner ships
+                </p>
               </div>
             </div>
           </div>
 
-          {/* Actions */}
+          {/* Actions - Guest checkout is PRIMARY */}
           <div className="space-y-3">
             <Button
-              onClick={handleSignUp}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 text-base font-semibold"
+              onClick={handleContinueAsGuest}
+              className="w-full bg-[#ff6b35] hover:bg-[#ff6b35]/90 text-white py-3 text-base font-semibold"
             >
-              Create Account
+              Continue as Guest
             </Button>
             
             <Button
-              onClick={handleSignIn}
+              onClick={handleSignUp}
               variant="outline"
-              className="w-full border-gray-300 text-gray-700 hover:bg-gray-50 py-3 text-base font-semibold"
+              className="w-full border-[#18448D] text-[#18448D] hover:bg-[#18448D]/5 py-3 text-base font-semibold"
             >
-              Sign In Instead
+              Create Free Account
             </Button>
             
-            <button
-              onClick={handleContinueAsGuest}
-              className="w-full text-sm text-gray-500 hover:text-gray-700 py-2 transition-colors"
-            >
-              Continue as guest
-            </button>
+            <div className="text-center">
+              <button
+                onClick={handleSignIn}
+                className="text-sm text-gray-600 hover:text-[#18448D] transition-colors"
+              >
+                Already have an account? <span className="font-medium">Sign In</span>
+              </button>
+            </div>
           </div>
 
-          {/* Footer note */}
-          <p className="text-xs text-gray-400 text-center mt-4">
-            Creating an account is free and takes less than a minute
+          {/* Footer reassurance */}
+          <p className="text-xs text-gray-500 text-center mt-4">
+            No spam. We only email order updates.
           </p>
         </div>
       </div>
