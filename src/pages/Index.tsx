@@ -1,11 +1,9 @@
-
 import React, { useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useToast } from '@/hooks/use-toast';
 import Layout from '@/components/Layout';
 import HeroSection from '@/components/HeroSection';
 import CompanySpotlight from '@/components/CompanySpotlight';
-import QuickQuote from '@/components/home/QuickQuote';
 import TestimonialsSection from '@/components/TestimonialsSection';
 import WhyChooseUs from '@/components/WhyChooseUs';
 import PromoBanner from '@/components/PromoBanner';
@@ -60,9 +58,6 @@ const Index: React.FC = () => {
       <PromoBanner />
       <HeroSection />
       <CompanySpotlight />
-      <div id="quick-quote">
-        <QuickQuote />
-      </div>
       <TestimonialsSection />
       <WhyChooseUs />
       <PricingTable />
