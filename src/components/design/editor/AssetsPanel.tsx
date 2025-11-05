@@ -152,7 +152,7 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
               setUploadedImages((prev) => 
                 prev.map((img) => 
                   img.id === imageId 
-                    ? { ...img, url: result.url, fileKey: result.public_id, cloudinaryUrl: result.url }
+                    ? { ...img, url: result.secureUrl, fileKey: result.publicId || result.fileKey, cloudinaryUrl: result.secureUrl }
                     : img
                 )
               );
