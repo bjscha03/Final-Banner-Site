@@ -902,8 +902,8 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
 
     // Build updated quote object with selected options
     // CRITICAL: Convert editor text objects to textElements format for cart storage
-    // Use freshEditorObjects (already extracted above) not stale editorObjects
-    const textElementsFromEditorUpsell = freshEditorObjects
+    // Use freshEditorObjectsUpsell (already extracted above) not stale editorObjects
+    const textElementsFromEditorUpsell = freshEditorObjectsUpsell
       .filter(obj => obj.type === 'text')
       .map(obj => ({
         id: obj.id,
