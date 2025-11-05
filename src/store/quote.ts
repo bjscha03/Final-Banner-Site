@@ -147,6 +147,10 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
     file: undefined,
   })),
   loadFromCartItem: (item: any, editingItemId?: string) => {
+    console.log('🔍🔍🔍 LOAD FROM CART - FULL ITEM:', JSON.stringify(item, null, 2));
+    console.log('🔍🔍🔍 item.overlay_image:', item.overlay_image);
+    console.log('🔍🔍🔍 item.file_url:', item.file_url);
+    console.log('🔍🔍🔍 item.file_key:', item.file_key);
     console.log('🔍 QUOTE STORE: loadFromCartItem called with item:', item);
     console.log('🔍 QUOTE STORE: item.image_scale:', item.image_scale);
     console.log('🔍 QUOTE STORE: item.image_position:', item.image_position);
@@ -197,14 +201,17 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
       addRope: item.rope_feet > 0,
       textElements: migratedTextElements,
       editingItemId: editingItemId || null, // Preserve editingItemId if provided
-      // CRITICAL: Don't load file as background if text elements exist
-      // When text exists, file_url is the thumbnail with text baked in
-      // We need to reconstruct from text_elements instead
-      file: (item.file_key || item.file_url || item.web_preview_url) && !textElementsArray.length ? {
+      // CRITICAL FIX: Reconstruct original file URL from file_key, not thumbnail
+      // file_url is the THUMBNAIL with grommets/text baked in
+      // We need the ORIGINAL uploaded file for editing
+      file: (item.file_key || item.file_url || item.web_preview_url) ? {
         name: item.file_name || 'Uploaded file',
         type: item.is_pdf ? 'application/pdf' : 'image/*',
         size: 1024, // Non-zero to indicate file exists
-        url: item.file_url || item.web_preview_url || item.print_ready_url,
+        // CRITICAL: Use original Cloudinary URL from file_key, NOT the thumbnail
+        url: item.file_key 
+          ? `https://res.cloudinary.com/dtrxl120u/image/upload/${item.file_key}`
+          : (item.web_preview_url || item.print_ready_url || item.file_url),
         fileKey: item.file_key,
         isPdf: item.is_pdf,
         isAI: !!item.aiDesign,

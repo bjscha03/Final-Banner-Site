@@ -366,14 +366,22 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     console.log('[BannerEditorLayout] Setting grommets visibility:', shouldShowGrommets, 'grommets:', currentGrommets);
     setShowGrommets(shouldShowGrommets);
 
-    resetEditor();
-
     // Small delay to ensure reset completes before adding objects
     setTimeout(() => {
-      // CRITICAL: Only load background file if there are NO text elements AND NO overlay images
-      // If text elements exist, the file is just a thumbnail with text baked in
-      if (currentFile && currentFile.url && (!currentTextElements || currentTextElements.length === 0) && !currentOverlayImage) {
-        console.log('[BannerEditorLayout] Adding background file to canvas (no text elements):', currentFile);
+      // CRITICAL FIX: Load background file if it exists
+      // Now that file.url is reconstructed from file_key (not the thumbnail),
+      // we can safely load it as the background layer
+      
+      console.log('[BannerEditorLayout] Loading elements:', {
+        hasFile: !!currentFile,
+        fileUrl: currentFile?.url?.substring(0, 60),
+        hasTextElements: !!currentTextElements?.length,
+        hasOverlayImage: !!currentOverlayImage,
+      });
+      
+      // Load background file if present
+      if (currentFile && currentFile.url) {
+        console.log('[BannerEditorLayout] Adding background file to canvas:', currentFile.url.substring(0, 60));
         
         // Calculate dimensions to fit the canvas
         const canvasWidthPx = currentWidthIn * 96; // Convert inches to pixels (96 DPI)
@@ -415,7 +423,6 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
 
       // Load overlay image if present
       // DIAGNOSTIC: Show what we have
-      alert(`DIAGNOSTIC EDIT LOAD:\nHas overlayImage: ${!!currentOverlayImage}\nHas URL: ${!!currentOverlayImage?.url}\nURL: ${currentOverlayImage?.url?.substring(0, 50) || 'NONE'}\nfileKey: ${currentOverlayImage?.fileKey || 'NONE'}`);
       
       if (currentOverlayImage && currentOverlayImage.url) {
         console.log('🖼️ [BUG 2 FIX] Loading overlayImage from cart:', currentOverlayImage);
@@ -425,9 +432,22 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
         console.log('🖼️ [BUG 2 FIX] Canvas dimensions (inches):', currentWidthIn, 'x', currentHeightIn);
         
         // CRITICAL: Use original Cloudinary URL from fileKey, not preview URL with grommets
-        const originalUrl = currentOverlayImage.fileKey 
-          ? `https://res.cloudinary.com/dtrxl120u/image/upload/${currentOverlayImage.fileKey}`
+        // CRITICAL: Extract fileKey from URL if not provided, then use original Cloudinary URL without transformations
+        let extractedFileKey = currentOverlayImage.fileKey;
+        if (!extractedFileKey && currentOverlayImage.url) {
+          // Extract fileKey from Cloudinary URL
+          // Format: https://res.cloudinary.com/dtrxl120u/image/upload/v1234567890/uploads/filename.jpg
+          // OR with transformations: https://res.cloudinary.com/dtrxl120u/image/upload/c_fit,w_800/v1234567890/uploads/filename.jpg
+          const match = currentOverlayImage.url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\?|$)/);
+          if (match) {
+            extractedFileKey = match[1];
+            console.log('🔍 [GROMMET FIX] Extracted fileKey from URL:', extractedFileKey);
+          }
+        }
+        const originalUrl = extractedFileKey 
+          ? `https://res.cloudinary.com/dtrxl120u/image/upload/${extractedFileKey}`
           : currentOverlayImage.url;
+
         
         console.log('🖼️ [GROMMET FIX] Original URL:', originalUrl);
         console.log('🖼️ [GROMMET FIX] fileKey:', currentOverlayImage.fileKey);
@@ -452,10 +472,8 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
         addObject({
           type: 'image',
           url: originalUrl, // Use original Cloudinary URL, not preview with grommets
-          fileKey: currentOverlayImage.fileKey, // CRITICAL: Include fileKey for re-saving
+          cloudinaryPublicId: currentOverlayImage.fileKey, // CRITICAL: Include cloudinaryPublicId for re-saving
           name: currentOverlayImage.name,
-          x: xInches,
-          y: yInches,
           x: xInches,
           y: yInches,
           width: widthInches,
@@ -654,7 +672,6 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     }
     
     // DIAGNOSTIC: Show overlay from all sources
-    alert(`DIAGNOSTIC BEFORE EXTRACTION:\nHas overlayImage: ${!!currentOverlayImage}\nHas file: ${!!freshQuoteForOverlay.file}\nEditor images: ${imageObjects.length}\nURL: ${currentOverlayImage?.url?.substring(0, 50) || 'NONE'}\nfileKey: ${currentOverlayImage?.fileKey || 'NONE'}`);
     
     console.log('🖼️ [OVERLAY FIX] Final overlayImage:', currentOverlayImage);
     
@@ -693,7 +710,6 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     };
     
     // DIAGNOSTIC: Show what we're about to save
-    alert(`DIAGNOSTIC FINAL SAVE:\nHas currentOverlayImage: ${!!currentOverlayImage}\nURL: ${currentOverlayImage?.url?.substring(0, 50) || 'NONE'}\nfileKey: ${currentOverlayImage?.fileKey || 'NONE'}\nquoteData.overlayImage: ${!!quoteData.overlayImage}`);
     
     const dummyObj = {
       // CRITICAL: Pass original file (if exists) for background, thumbnailUrl for cart preview
