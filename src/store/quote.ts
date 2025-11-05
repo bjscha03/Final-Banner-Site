@@ -204,21 +204,53 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
       // CRITICAL FIX: Reconstruct original file URL from file_key, not thumbnail
       // file_url is the THUMBNAIL with grommets/text baked in
       // We need the ORIGINAL uploaded file for editing
-      file: (item.file_key || item.file_url || item.web_preview_url) ? {
-        name: item.file_name || 'Uploaded file',
-        type: item.is_pdf ? 'application/pdf' : 'image/*',
-        size: 1024, // Non-zero to indicate file exists
-        // CRITICAL: Use original Cloudinary URL from file_key, NOT the thumbnail
-        url: item.file_key 
-          ? `https://res.cloudinary.com/dtrxl120u/image/upload/${item.file_key}`
-          : (item.web_preview_url || item.print_ready_url || item.file_url),
-        fileKey: item.file_key,
-        isPdf: item.is_pdf,
-        isAI: !!item.aiDesign,
-        // CRITICAL FIX: Include artwork dimensions for proper resize handle positioning
-        artworkWidth: item.artwork_width,
-        artworkHeight: item.artwork_height,
-      } : undefined,
+      file: (item.file_key || item.file_url || item.web_preview_url) ? (() => {
+        let fileUrl: string;
+        let extractedFileKey = item.file_key;
+        
+        if (item.file_key) {
+          // We have the file_key, use it to construct the original URL
+          fileUrl = `https://res.cloudinary.com/dtrxl120u/image/upload/${item.file_key}`;
+        } else {
+          // No file_key - try to extract it from the URL
+          // URLs look like: https://res.cloudinary.com/dtrxl120u/image/upload/v1234567890/path/to/file.jpg
+          // or with transformations: https://res.cloudinary.com/dtrxl120u/image/upload/c_fit,w_800/v1234567890/path/to/file.jpg
+          const urlToCheck = item.web_preview_url || item.print_ready_url || item.file_url || '';
+          
+          // Try to extract the public_id from the Cloudinary URL
+          const uploadMatch = urlToCheck.match(/\/upload\/(.+)$/);
+          if (uploadMatch) {
+            let pathAfterUpload = uploadMatch[1];
+            // Remove transformation parameters (c_fit,w_800,etc before v123456/)
+            // Match pattern: optional transformations, then v + digits + /, then the actual path
+            const cleanMatch = pathAfterUpload.match(/(?:[^/]+\/)*?(v\d+\/.+)$/);
+            if (cleanMatch) {
+              extractedFileKey = cleanMatch[1];
+              fileUrl = `https://res.cloudinary.com/dtrxl120u/image/upload/${extractedFileKey}`;
+              console.log('🔧 QUOTE STORE: Extracted fileKey from URL:', extractedFileKey);
+            } else {
+              // Fallback: use the URL as-is
+              fileUrl = urlToCheck;
+            }
+          } else {
+            // Not a Cloudinary URL, use as-is
+            fileUrl = urlToCheck;
+          }
+        }
+        
+        return {
+          name: item.file_name || 'Uploaded file',
+          type: item.is_pdf ? 'application/pdf' : 'image/*',
+          size: 1024, // Non-zero to indicate file exists
+          url: fileUrl,
+          fileKey: extractedFileKey,
+          isPdf: item.is_pdf,
+          isAI: !!item.aiDesign,
+          artworkWidth: item.artwork_width,
+          artworkHeight: item.artwork_height,
+        };
+      })() : undefined,
+
       imageScale: item.image_scale || 1,
       imagePosition: item.image_position || { x: 0, y: 0 },
       overlayImage: item.overlay_image ? {
