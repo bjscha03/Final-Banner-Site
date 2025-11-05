@@ -258,7 +258,14 @@ export const useCartStore = create<CartState>()(
           file_url: (() => {
             // Store ORIGINAL file URL for editing (not thumbnail with grommets)
             const fileUrl = quote.file?.url;
+            const fileKey = quote.file?.fileKey;
             const proofUrl = aiMetadata?.assets?.proofUrl;
+            
+            console.log('[CART STORE] 🔍 File data:', {
+              fileUrl: fileUrl ? fileUrl.substring(0, 80) : 'NULL',
+              fileKey: fileKey || 'NULL',
+              proofUrl: proofUrl ? proofUrl.substring(0, 80) : 'NULL'
+            });
             
             // Skip blob/data URLs - they're temporary
             const finalUrl = (fileUrl && !fileUrl.startsWith('blob:') && !fileUrl.startsWith('data:')) 
