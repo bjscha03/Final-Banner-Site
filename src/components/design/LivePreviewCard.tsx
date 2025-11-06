@@ -1744,6 +1744,8 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                   {console.log('  imagePosition:', imagePosition)}
                   {console.log('═══════════════════════════════════════════════════════')}
                   
+                  {console.log('[GROMMET DEBUG] LivePreviewCard - passing grommets to PreviewCanvas:', grommets)}
+                  {console.log('[GROMMET DEBUG] LivePreviewCard - passing grommets to PreviewCanvas:', grommets)}
                   <PreviewCanvas
                     key={file?.url || file?.fileKey || "no-file"}
                     widthIn={widthIn}

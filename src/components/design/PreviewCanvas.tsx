@@ -132,7 +132,10 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
 }) => {
   const FEATURE_PDF_STATIC_PREVIEW = true;
   const grommetPositions = useMemo(() => {
-    return grommetPoints(widthIn, heightIn, grommets);
+    console.log('[GROMMET DEBUG] PreviewCanvas - grommets prop:', grommets, 'widthIn:', widthIn, 'heightIn:', heightIn);
+    const positions = grommetPoints(widthIn, heightIn, grommets);
+    console.log('[GROMMET DEBUG] PreviewCanvas - grommetPositions count:', positions.length, positions);
+    return positions;
   }, [widthIn, heightIn, grommets]);
 
   const grommetRadius = useMemo(() => {
