@@ -62,7 +62,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
   const isAdminUser = user && isAdmin(user);
   const { exportToJSON, setCanvasThumbnail, canvasThumbnail, objects: editorObjects, addObject, reset: resetEditor, canvasBackgroundColor, showGrommets, setShowGrommets } = useEditorStore();
   const quote = useQuoteStore();
-  const { set: setQuote, editingItemId, loadedItemId, isLoadingItem, overlayImage, textElements, file, grommets, widthIn, heightIn, material, resetDesign } = quote;
+  const { set: setQuote, editingItemId, overlayImage, textElements, file, grommets, widthIn, heightIn, material, resetDesign } = quote;
   
   // Helper function to update grommets in quote store
   const setGrommets = (value: any) => {
@@ -318,7 +318,8 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
   useEffect(() => {
     if (!editingItemId) {
       // CRITICAL FIX: Reset tracking state when not editing
-      if (loadedItemId !== null) {
+      const currentState = useQuoteStore.getState();
+      if (currentState.loadedItemId !== null) {
         console.log('[BannerEditorLayout] Clearing edit mode - resetting tracking state');
         setQuote({ loadedItemId: null, isLoadingItem: false });
       }
@@ -327,13 +328,14 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     }
 
     // CRITICAL FIX: Prevent duplicate loading of the same item
-    if (loadedItemId === editingItemId) {
+    const currentState = useQuoteStore.getState();
+    if (currentState.loadedItemId === editingItemId) {
       console.log('[BannerEditorLayout] Already loaded this item, skipping:', editingItemId);
       return;
     }
 
     // CRITICAL FIX: Prevent concurrent loading
-    if (isLoadingItem) {
+    if (currentState.isLoadingItem) {
       console.log('[BannerEditorLayout] Already loading, skipping duplicate load');
       return;
     }
