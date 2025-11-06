@@ -307,11 +307,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
 
       imageScale: item.image_scale || 1,
       imagePosition: item.image_position || { x: 0, y: 0 },
-      // BACKWARD COMPATIBILITY: Support both single overlayImage and overlayImages array
-      overlayImage: item.overlay_image ? {
-        ...item.overlay_image,
-        position: item.overlay_image.position || { x: 50, y: 50 }
-      } : undefined,
+      // CRITICAL FIX: Single source of truth = overlayImages (array)
       overlayImages: (() => {
         // NEW: Load multiple overlay images
         if (item.overlay_images && Array.isArray(item.overlay_images)) {
@@ -331,6 +327,8 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
         }
         return undefined;
       })(),
+      // CRITICAL FIX: Clear singular overlayImage to prevent double loading
+      overlayImage: undefined,
     };
     
     console.log('🔍 QUOTE STORE: Setting new state with imageScale:', newState.imageScale);

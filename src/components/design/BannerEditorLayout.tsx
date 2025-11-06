@@ -445,59 +445,57 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
         });
       }
 
-      // Load overlay image if present
-      // DIAGNOSTIC: Show what we have
+      // CRITICAL FIX: Load images from single source with simple dedupe
+      // Prefer overlayImages (array), fallback to overlayImage (singular)
+      const imagesToLoad = currentQuote.overlayImages || (currentQuote.overlayImage ? [currentQuote.overlayImage] : []);
       
-      if (currentOverlayImage && currentOverlayImage.url) {
-        console.log('🖼️ [BUG 2 FIX] Loading overlayImage from cart:', currentOverlayImage);
-        console.log('🖼️ [BUG 2 FIX] overlayImage.position:', currentOverlayImage.position);
-        console.log('🖼️ [BUG 2 FIX] overlayImage.scale:', currentOverlayImage.scale);
-        console.log('🖼️ [BUG 2 FIX] overlayImage.aspectRatio:', currentOverlayImage.aspectRatio);
-        console.log('🖼️ [BUG 2 FIX] Canvas dimensions (inches):', currentWidthIn, 'x', currentHeightIn);
+      console.log('🖼️ [IMAGE LOAD] Images to load:', imagesToLoad.length);
+      
+      // Simple dedupe: track loaded fileKeys
+      const loadedKeys = [];
+      
+      imagesToLoad.forEach((overlayImg, index) => {
+        const key = overlayImg.fileKey || overlayImg.url;
+        if (!key) {
+          console.warn('⚠️ [IMAGE LOAD] Skipping image with no key:', overlayImg);
+          return;
+        }
         
-        // CRITICAL: Use original Cloudinary URL from fileKey, not preview URL with grommets
-        // CRITICAL: Extract fileKey from URL if not provided, then use original Cloudinary URL without transformations
-        let extractedFileKey = currentOverlayImage.fileKey;
-        if (!extractedFileKey && currentOverlayImage.url) {
-          // Extract fileKey from Cloudinary URL
-          // Format: https://res.cloudinary.com/dtrxl120u/image/upload/v1234567890/uploads/filename.jpg
-          // OR with transformations: https://res.cloudinary.com/dtrxl120u/image/upload/c_fit,w_800/v1234567890/uploads/filename.jpg
-          const match = currentOverlayImage.url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\?|$)/);
-          if (match) {
-            extractedFileKey = match[1];
-            console.log('🔍 [GROMMET FIX] Extracted fileKey from URL:', extractedFileKey);
-          }
+        // Check if already loaded
+        if (loadedKeys.indexOf(key) >= 0) {
+          console.log(`🚫 [DEDUPE] Skipping duplicate image: ${key.substring(0, 50)}`);
+          return;
+        }
+        
+        loadedKeys.push(key);
+        console.log(`🖼️ [IMAGE LOAD] Loading image ${index + 1}/${imagesToLoad.length}`);
+        
+        // Extract fileKey
+        let extractedFileKey = overlayImg.fileKey;
+        if (!extractedFileKey && overlayImg.url) {
+          const match = overlayImg.url.match(/\/upload\/(?:v\d+\/)?(. +?)(?:\?|$)/);
+          if (match) extractedFileKey = match[1];
         }
         const originalUrl = extractedFileKey 
           ? `https://res.cloudinary.com/dtrxl120u/image/upload/${extractedFileKey}`
-          : currentOverlayImage.url;
+          : overlayImg.url;
 
+        // Convert percentage position to inches
+        const xInches = overlayImg.position?.x != null ? (overlayImg.position.x / 100) * currentWidthIn : currentWidthIn / 2;
+        const yInches = overlayImg.position?.y != null ? (overlayImg.position.y / 100) * currentHeightIn : currentHeightIn / 2;
         
-        console.log('🖼️ [GROMMET FIX] Original URL:', originalUrl);
-        console.log('🖼️ [GROMMET FIX] fileKey:', currentOverlayImage.fileKey);
-        
-        // CRITICAL: Convert percentage-based position to inches
-        // overlayImage.position is stored as percentage (0-100), need to convert to inches
-        const xInches = currentOverlayImage.position?.x != null ? (currentOverlayImage.position.x / 100) * currentWidthIn : currentWidthIn / 2;
-        const yInches = currentOverlayImage.position?.y != null ? (currentOverlayImage.position.y / 100) * currentHeightIn : currentHeightIn / 2;
-        
-        // Calculate dimensions based on scale and aspect ratio
-        // Default to a reasonable size if not specified
-        const defaultWidthInches = 4; // 4 inches default width
-        const imageScale = currentOverlayImage.scale || 1;
-        const aspectRatio = currentOverlayImage.aspectRatio || 1;
-        
+        // Calculate dimensions
+        const defaultWidthInches = 4;
+        const imageScale = overlayImg.scale || 1;
+        const aspectRatio = overlayImg.aspectRatio || 1;
         const widthInches = defaultWidthInches * imageScale;
         const heightInches = widthInches / aspectRatio;
         
-        console.log('🖼️ [BUG 2 FIX] Calculated position (inches):', xInches, yInches);
-        console.log('🖼️ [BUG 2 FIX] Calculated dimensions (inches):', widthInches, 'x', heightInches);
-        
         addObject({
           type: 'image',
-          url: originalUrl, // Use original Cloudinary URL, not preview with grommets
-          cloudinaryPublicId: currentOverlayImage.fileKey, // CRITICAL: Include cloudinaryPublicId for re-saving
-          name: currentOverlayImage.name,
+          url: originalUrl,
+          cloudinaryPublicId: overlayImg.fileKey,
+          name: overlayImg.name,
           x: xInches,
           y: yInches,
           width: widthInches,
@@ -508,57 +506,8 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
           locked: false,
         });
         
-        console.log('✅ [BUG 2 FIX] Overlay image added to editor objects');
-      }
-
-      // NEW: Load multiple overlay images if present
-      if (currentOverlayImages && currentOverlayImages.length > 0) {
-        console.log('🖼️ [MULTI-IMAGE] Loading multiple overlay images:', currentOverlayImages.length);
-        currentOverlayImages.forEach((overlayImg, index) => {
-          console.log(`🖼️ [MULTI-IMAGE] Loading image ${index + 1}/${currentOverlayImages.length}:`, overlayImg);
-          
-          // Extract fileKey if needed
-          let extractedFileKey = overlayImg.fileKey;
-          if (!extractedFileKey && overlayImg.url) {
-            const match = overlayImg.url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\?|$)/);
-            if (match) {
-              extractedFileKey = match[1];
-            }
-          }
-          const originalUrl = extractedFileKey 
-            ? `https://res.cloudinary.com/dtrxl120u/image/upload/${extractedFileKey}`
-            : overlayImg.url;
-
-          // Convert percentage-based position to inches
-          const xInches = overlayImg.position?.x != null ? (overlayImg.position.x / 100) * currentWidthIn : currentWidthIn / 2;
-          const yInches = overlayImg.position?.y != null ? (overlayImg.position.y / 100) * currentHeightIn : currentHeightIn / 2;
-          
-          // Calculate dimensions based on scale and aspect ratio
-          const defaultWidthInches = 4;
-          const imageScale = overlayImg.scale || 1;
-          const aspectRatio = overlayImg.aspectRatio || 1;
-          
-          const widthInches = defaultWidthInches * imageScale;
-          const heightInches = widthInches / aspectRatio;
-          
-          addObject({
-            type: 'image',
-            url: originalUrl,
-            cloudinaryPublicId: overlayImg.fileKey,
-            name: overlayImg.name,
-            x: xInches,
-            y: yInches,
-            width: widthInches,
-            height: heightInches,
-            rotation: 0,
-            opacity: 1,
-            visible: true,
-            locked: false,
-          });
-          
-          console.log(`✅ [MULTI-IMAGE] Image ${index + 1} added to canvas`);
-        });
-      }
+        console.log(`✅ [IMAGE LOAD] Image ${index + 1} added to canvas`)
+      });
 
       // Load text elements if present
       if (currentTextElements && currentTextElements.length > 0) {
