@@ -468,11 +468,15 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       const currentOverlayImages = currentQuote.overlayImages;
       const currentOverlayImage = currentQuote.overlayImage;
       
+      console.log('🔍 [BANNER DEBUG] currentQuote.overlayImages:', currentOverlayImages);
+      console.log('🔍 [BANNER DEBUG] currentQuote.overlayImage:', currentOverlayImage);
+      
       const imagesToLoad = (currentOverlayImages && currentOverlayImages.length > 0)
         ? currentOverlayImages
         : (currentOverlayImage ? [currentOverlayImage] : []);
       
       console.log('🖼️ [IMAGE LOAD] Images to load:', imagesToLoad.length);
+      console.log('🖼️ [IMAGE LOAD] imagesToLoad:', imagesToLoad);
       
       // Dedupe guard: track loaded images by fileKey or URL
       const loadedImageKeys = new Set<string>();

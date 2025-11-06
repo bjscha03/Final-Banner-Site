@@ -332,6 +332,10 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
       overlayImage: undefined,
     };
     
+    console.log('🔍 [LOAD DEBUG] item.overlay_image:', item.overlay_image);
+    console.log('🔍 [LOAD DEBUG] item.overlay_images:', item.overlay_images);
+    console.log('🔍 [LOAD DEBUG] newState.overlayImages:', newState.overlayImages);
+    console.log('🔍 [LOAD DEBUG] newState.overlayImage:', newState.overlayImage);
     console.log('🔍 QUOTE STORE: Setting new state with imageScale:', newState.imageScale);
     console.log('🔍 QUOTE STORE: Setting new state with imagePosition:', newState.imagePosition);
     console.log('🔍 QUOTE STORE: Setting new state with overlayImage:', newState.overlayImage);
