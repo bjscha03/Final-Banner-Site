@@ -343,47 +343,71 @@ const Checkout: React.FC = () => {
 
   return (
     <Layout>
-      <div className="bg-gray-50 py-8 min-h-[calc(100vh-4rem)]">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="bg-gradient-to-b from-gray-50 to-white py-8 sm:py-12 min-h-[calc(100vh-4rem)]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
-          <div className="mb-8">
+          <div className="mb-8 sm:mb-12">
             <Button
               variant="ghost"
               onClick={() => navigate(-1)}
-              className="mb-4"
+              className="mb-6 hover:bg-gray-100 transition-colors"
             >
               <ArrowLeft className="h-4 w-4 mr-2" />
               Back
             </Button>
-            <h1 className="text-3xl font-bold text-[#18448D]">Checkout</h1>
-            <p className="text-gray-600 mt-2">Review your order and complete payment</p>
+            <div className="text-center mb-8">
+              <h1 className="text-4xl sm:text-5xl font-bold text-[#18448D] mb-3">Secure Checkout</h1>
+              <p className="text-lg text-gray-600">Review your order and complete your purchase</p>
+            </div>
             
-            {/* Trust Strip */}
-            <div className="mt-4 bg-blue-50 rounded-lg p-4 border border-blue-100">
-              <div className="flex flex-wrap items-center justify-center gap-6 text-sm">
-                <div className="flex items-center gap-2">
-                  <div className="flex-shrink-0 w-8 h-8 bg-[#18448D] rounded-full flex items-center justify-center">
-                    <Zap className="w-4 h-4 text-white" />
+            {/* Trust Strip - Enhanced */}
+            <div className="mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200 shadow-sm">
+              <div className="flex flex-wrap items-center justify-center gap-8 text-sm sm:text-base">
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-[#18448D] to-[#2563eb] rounded-full flex items-center justify-center shadow-md">
+                    <Zap className="w-6 h-6 text-white" />
                   </div>
-                  <span className="font-semibold text-gray-900">24-Hour Production</span>
+                  <div className="text-left">
+                    <span className="font-bold text-gray-900 block">24-Hour Production</span>
+                    <span className="text-xs text-gray-600">Fast turnaround guaranteed</span>
+                  </div>
                 </div>
                 
-                <div className="flex items-center gap-2">
-                  <div className="flex-shrink-0 w-8 h-8 bg-[#18448D] rounded-full flex items-center justify-center">
-                    <Plane className="w-4 h-4 text-white" />
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-[#18448D] to-[#2563eb] rounded-full flex items-center justify-center shadow-md">
+                    <Plane className="w-6 h-6 text-white" />
                   </div>
-                  <span className="font-semibold text-gray-900">Free Next Day Air</span>
+                  <div className="text-left">
+                    <span className="font-bold text-gray-900 block">Free Next Day Air</span>
+                    <span className="text-xs text-gray-600">Complimentary shipping</span>
+                  </div>
                 </div>
 
+                <div className="flex items-center gap-3">
+                  <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center shadow-md">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                    </svg>
+                  </div>
+                  <div className="text-left">
+                    <span className="font-bold text-gray-900 block">Secure Payment</span>
+                    <span className="text-xs text-gray-600">SSL encrypted checkout</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8">
-            {/* Order Summary */}
-            <div className="space-y-6 w-full">
-              <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
-                <h2 className="text-xl font-semibold text-[#18448D] mb-4">Order Summary</h2>
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
+            {/* Order Summary - Takes 2 columns on large screens */}
+            <div className="lg:col-span-2 space-y-6 w-full">
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 sm:p-8 transition-shadow hover:shadow-xl">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-[#18448D]">Order Summary</h2>
+                  <div className="bg-blue-50 px-4 py-2 rounded-full">
+                    <span className="text-sm font-semibold text-[#18448D]">{items.length} {items.length === 1 ? 'Item' : 'Items'}</span>
+                  </div>
+                </div>
                 
                 <div className="space-y-4">
                   {items.map((item) => {
@@ -396,7 +420,7 @@ const Checkout: React.FC = () => {
                     const eachCents = computeEach(item);
 
                     return (
-                    <div key={item.id} className="border-b border-gray-200 pb-4 last:border-b-0">
+                    <div key={item.id} className="border border-gray-200 rounded-xl p-6 mb-4 last:mb-0 bg-gradient-to-br from-white to-gray-50 hover:shadow-md transition-all">
                       {/* Thumbnail on top - centered */}
                       <div className="flex justify-center mb-4">
                         <BannerPreview
@@ -426,15 +450,15 @@ const Checkout: React.FC = () => {
                       </div>
 
                       {/* Title and Price on same line */}
-                      <div className="flex justify-between items-start mb-3">
-                        <h3 className="font-medium text-[#18448D] text-lg">
+                      <div className="flex justify-between items-start mb-4">
+                        <h3 className="font-bold text-[#18448D] text-xl">
                           Custom Banner {formatDimensions(item.width_in, item.height_in)}
                         </h3>
                         <div className="text-right ml-4 flex-shrink-0">
-                          <p className="font-semibold text-gray-900 text-lg">
+                          <p className="font-bold text-gray-900 text-xl">
                             {usd(item.line_total_cents / 100)}
                           </p>
-                          <p className="text-sm text-gray-600">
+                          <p className="text-sm text-gray-500 font-medium">
                             {usd(eachCents / 100)} each
                           </p>
                         </div>
@@ -443,9 +467,15 @@ const Checkout: React.FC = () => {
                       {/* Two column layout on desktop, stacked on mobile */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                         {/* Left column: Meta information */}
-                        <div className="space-y-1 text-sm text-gray-600">
-                          <p><span className="font-medium text-gray-700">Material:</span> {item.material}</p>
-                          <p><span className="font-medium text-gray-700">Grommets:</span> {item.grommets}</p>
+                        <div className="space-y-2 text-sm">
+                          <p className="flex items-center gap-2">
+                            <span className="font-semibold text-gray-800 min-w-[80px]">Material:</span>
+                            <span className="text-gray-600">{item.material}</span>
+                          </p>
+                          <p className="flex items-center gap-2">
+                            <span className="font-semibold text-gray-800 min-w-[80px]">Grommets:</span>
+                            <span className="text-gray-600">{item.grommets}</span>
+                          </p>
                           {item.rope_feet > 0 && (
                             <p><span className="font-medium text-gray-700">Rope:</span> {item.rope_feet.toFixed(1)} ft</p>
                           )}
@@ -497,26 +527,26 @@ const Checkout: React.FC = () => {
                       {/* Quantity Controls and Remove Button */}
                       <div className="flex items-center justify-between pt-3 border-t border-gray-100">
                         <div className="flex items-center space-x-3">
-                          <span className="text-sm text-gray-700 font-medium">Quantity:</span>
-                          <div className="flex items-center space-x-2">
+                          <span className="text-sm text-gray-800 font-semibold">Quantity:</span>
+                          <div className="flex items-center gap-3">
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => handleDecreaseQuantity(item.id)}
                               disabled={item.quantity <= 1}
-                              className="h-8 w-8 p-0"
+                              className="h-9 w-9 p-0 border-2 hover:bg-[#18448D] hover:text-white hover:border-[#18448D] transition-all"
                             >
-                              <Minus className="h-4 w-4" />
+                              <Minus className="h-5 w-5" />
                             </Button>
-                            <span className="w-8 text-center font-medium">{item.quantity}</span>
+                            <span className="w-10 text-center font-bold text-lg">{item.quantity}</span>
                             <Button
                               variant="outline"
                               size="sm"
                               onClick={() => handleIncreaseQuantity(item.id)}
                               disabled={item.quantity >= 999}
-                              className="h-8 w-8 p-0"
+                              className="h-9 w-9 p-0 border-2 hover:bg-[#18448D] hover:text-white hover:border-[#18448D] transition-all"
                             >
-                              <Plus className="h-4 w-4" />
+                              <Plus className="h-5 w-5" />
                             </Button>
                           </div>
                         </div>
@@ -525,7 +555,7 @@ const Checkout: React.FC = () => {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleRemoveItem(item.id)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-100 font-semibold transition-all"
                         >
                           <Trash2 className="h-4 w-4 mr-1" />
                           Remove
@@ -536,51 +566,66 @@ const Checkout: React.FC = () => {
                 </div>
 
                 {/* Discount Code Section */}
-                <div className="border-t border-gray-200 pt-4 mt-4">
+                <div className="border-t border-gray-200 pt-6 mt-6">
                   {!discountCode ? (
-                    <div className="space-y-2">
-                      <label htmlFor="discount-code" className="text-sm font-medium text-gray-700">
-                        Discount Code
+                    <div className="space-y-3">
+                      <label htmlFor="discount-code" className="text-base font-semibold text-gray-900 flex items-center gap-2">
+                        <svg className="w-5 h-5 text-[#18448D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
+                        </svg>
+                        Have a Discount Code?
                       </label>
                       <div className="flex gap-2">
                         <Input
                           id="discount-code"
                           type="text"
-                          placeholder="Enter code"
+                          placeholder="Enter your code"
                           value={discountCodeInput}
                           onChange={(e) => setDiscountCodeInput(e.target.value.toUpperCase())}
                           onKeyPress={(e) => e.key === 'Enter' && handleApplyDiscount()}
-                          className="flex-1"
+                          className="flex-1 h-12 text-base border-2 focus:border-[#18448D] transition-colors"
                           disabled={isValidatingDiscount}
                         />
                         <Button
                           onClick={handleApplyDiscount}
                           disabled={isValidatingDiscount || !discountCodeInput.trim()}
-                          className="bg-[#18448D] hover:bg-[#18448D]/90"
+                          className="bg-[#18448D] hover:bg-[#18448D]/90 h-12 px-6 font-semibold transition-all hover:scale-105"
                         >
                           {isValidatingDiscount ? 'Validating...' : 'Apply'}
                         </Button>
                       </div>
                       {discountError && (
-                        <p className="text-sm text-red-600">{discountError}</p>
+                        <p className="text-sm text-red-600 flex items-center gap-1">
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                          </svg>
+                          {discountError}
+                        </p>
                       )}
                     </div>
                   ) : (
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl p-4 shadow-sm">
                       <div className="flex justify-between items-center">
-                        <div>
-                          <p className="text-sm font-medium text-green-800">
-                            Discount Code Applied: {discountCode.code}
-                          </p>
-                          <p className="text-xs text-green-600">
-                            {discountCode.discountPercentage}% off
-                          </p>
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
+                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          </div>
+                          <div>
+                            <p className="text-base font-bold text-green-900">
+                              {discountCode.code} Applied!
+                            </p>
+                            <p className="text-sm text-green-700">
+                              {discountCode.discountPercentage}% discount on your order
+                            </p>
+                          </div>
                         </div>
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={handleRemoveDiscount}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-100 font-semibold"
                         >
                           Remove
                         </Button>
@@ -589,42 +634,47 @@ const Checkout: React.FC = () => {
                   )}
                 </div>
 
-                <div className="border-t border-gray-200 pt-4 mt-4 space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-700">Subtotal</span>
-                    <span className="text-gray-900">
+                <div className="border-t-2 border-gray-200 pt-6 mt-6 space-y-3">
+                  <div className="flex justify-between items-center text-base">
+                    <span className="text-gray-700 font-medium">Subtotal</span>
+                    <span className="text-gray-900 font-semibold">
                       {usd((subtotalCents - minOrderAdjustmentCents) / 100)}
                     </span>
                   </div>
                   {showMinOrderAdjustment && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-700">Minimum order adjustment</span>
-                      <span className="text-gray-900">
+                    <div className="flex justify-between items-center text-base">
+                      <span className="text-gray-700 font-medium">Minimum order adjustment</span>
+                      <span className="text-gray-900 font-semibold">
                         {usd(minOrderAdjustmentCents / 100)}
                       </span>
                     </div>
                   )}
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-700">{flags.freeShipping ? flags.shippingMethodLabel : 'Shipping'}</span>
-                    <span className="text-green-600 font-semibold">FREE</span>
+                  <div className="flex justify-between items-center text-base">
+                    <span className="text-gray-700 font-medium">{flags.freeShipping ? flags.shippingMethodLabel : 'Shipping'}</span>
+                    <span className="text-green-600 font-bold flex items-center gap-1">
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                      </svg>
+                      FREE
+                    </span>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-gray-700">Tax (6%)</span>
-                    <span className="text-gray-900">
+                  <div className="flex justify-between items-center text-base">
+                    <span className="text-gray-700 font-medium">Tax (6%)</span>
+                    <span className="text-gray-900 font-semibold">
                       {usd(taxCents / 100)}
                     </span>
                   </div>
                   {discountAmountCents > 0 && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-700">Discount ({discountCode?.discountPercentage}%)</span>
-                      <span className="text-green-600 font-semibold">
+                    <div className="flex justify-between items-center text-base bg-green-50 -mx-6 px-6 py-3 rounded-lg">
+                      <span className="text-green-800 font-semibold">Discount ({discountCode?.discountPercentage}%)</span>
+                      <span className="text-green-700 font-bold text-lg">
                         -{usd(discountAmountCents / 100)}
                       </span>
                     </div>
                   )}
-                  <div className="flex justify-between items-center border-t border-gray-200 pt-2">
-                    <span className="text-lg font-semibold text-[#18448D]">Total</span>
-                    <span className="text-2xl font-bold text-[#18448D]">
+                  <div className="flex justify-between items-center border-t-2 border-[#18448D] pt-4 mt-4 bg-gradient-to-r from-blue-50 to-indigo-50 -mx-6 px-6 py-4 rounded-lg">
+                    <span className="text-xl font-bold text-[#18448D]">Total</span>
+                    <span className="text-3xl font-bold text-[#18448D]">
                       {usd(totalCents / 100)}
                     </span>
                   </div>
@@ -632,12 +682,14 @@ const Checkout: React.FC = () => {
               </div>
 
               {/* Shipping Info */}
-              <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-                <div className="flex items-start space-x-3">
-                  <Truck className="h-6 w-6 text-green-600 mt-1" />
+              <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl p-6 shadow-md">
+                <div className="flex items-start gap-4">
+                  <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center flex-shrink-0 shadow-lg">
+                    <Truck className="h-7 w-7 text-white" />
+                  </div>
                   <div>
-                    <h3 className="font-semibold text-green-900">🎉 FREE Next-Day Air Shipping!</h3>
-                    <p className="text-green-800 text-sm mt-1">
+                    <h3 className="font-bold text-green-900 text-lg mb-2">🎉 FREE Next-Day Air Shipping!</h3>
+                    <p className="text-green-800 text-base leading-relaxed">
                       Your order ships completely FREE via next-day air. After payment, we'll provide tracking information for your shipment.
                     </p>
                   </div>
@@ -675,8 +727,16 @@ const Checkout: React.FC = () => {
             )}
             {/* Payment */}
             <div className="space-y-6 w-full">
-              <div className="bg-white rounded-lg shadow-sm p-4 sm:p-6">
-                <h2 className="text-xl font-semibold text-[#18448D] mb-6">Payment</h2>
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 sm:p-8 transition-shadow hover:shadow-xl lg:sticky lg:top-4">
+                <div className="flex items-center justify-between mb-6">
+                  <h2 className="text-2xl font-bold text-[#18448D]">Payment</h2>
+                  <div className="flex items-center gap-2 bg-green-50 px-3 py-1.5 rounded-full">
+                    <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                    </svg>
+                    <span className="text-sm font-bold text-green-700">Secure</span>
+                  </div>
+                </div>
                 
                 <PayPalCheckout disabled={!canProceed}
                   total={totalCents}
@@ -687,19 +747,33 @@ const Checkout: React.FC = () => {
 
               {/* User Info */}
               {user && (
-                <div className="bg-gray-50 rounded-lg p-6">
-                  <h3 className="font-semibold text-[#18448D] mb-2">Account</h3>
-                  <p className="text-gray-600">{user.email}</p>
-                  <p className="text-sm text-gray-500 mt-1">
+                <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6 shadow-sm">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-[#18448D] to-[#2563eb] rounded-full flex items-center justify-center shadow-md">
+                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </div>
+                    <h3 className="font-bold text-[#18448D] text-lg">Account</h3>
+                  </div>
+                  <p className="text-gray-700 font-semibold mb-1">{user.email}</p>
+                  <p className="text-sm text-gray-600">
                     Order will be saved to your account
                   </p>
                 </div>
               )}
 
               {!user && (
-                <div className="bg-slate-50 border border-slate-200 rounded-lg p-6">
-                  <h3 className="font-semibold text-blue-900 mb-2">Guest Checkout</h3>
-                  <p className="text-blue-800 text-sm mb-3">
+                <div className="bg-gradient-to-br from-gray-50 to-slate-50 border border-gray-200 rounded-xl p-6 shadow-sm">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 bg-gradient-to-br from-gray-500 to-gray-600 rounded-full flex items-center justify-center shadow-md">
+                      <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                      </svg>
+                    </div>
+                    <h3 className="font-bold text-gray-900 text-lg">Guest Checkout</h3>
+                  </div>
+                  <p className="text-gray-700 text-base mb-4 leading-relaxed">
                     You're checking out as a guest. Create an account to track your orders and reorder easily.
                   </p>
                   <div className="flex gap-2">
