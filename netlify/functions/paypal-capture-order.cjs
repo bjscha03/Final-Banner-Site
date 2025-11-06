@@ -178,15 +178,42 @@ exports.handler = async (event) => {
         )
       `;
 
+      console.log("[PayPal Capture] Inserting", cartItems.length, "items into order_items table");
+      console.log("[PayPal Capture] First item overlay_image:", cartItems[0]?.overlay_image ? "EXISTS" : "NULL");
+      console.log("[PayPal Capture] First item text_elements:", cartItems[0]?.text_elements ? "EXISTS" : "NULL");
       for (const item of cartItems) {
+        // Convert pole_pockets to boolean for database
+        const polePocketsValue = item.pole_pockets &&
+          item.pole_pockets !== 'none' &&
+          item.pole_pockets !== 'false' &&
+          item.pole_pockets !== false;
+
         await tx`
           INSERT INTO order_items (
             id, order_id, width_in, height_in, quantity, material,
-            grommets, rope_feet, pole_pockets, line_total_cents, file_key
+            grommets, rope_feet, pole_pockets, pole_pocket_position, pole_pocket_size, pole_pocket_cost_cents,
+            line_total_cents, file_key, file_url, print_ready_url, web_preview_url,
+            text_elements, overlay_image
           ) VALUES (
-            ${randomUUID()}, ${orderId}, ${item.width_in || 0}, ${item.height_in || 0}, ${item.quantity || 1},
-            ${item.material || '13oz'}, ${item.grommets || 'none'}, ${item.rope_feet || 0},
-            ${item.pole_pockets && item.pole_pockets !== 'none'}, ${item.line_total_cents || 0}, ${item.file_key || null}
+            ${randomUUID()},
+            ${orderId},
+            ${item.width_in || 0},
+            ${item.height_in || 0},
+            ${item.quantity || 1},
+            ${item.material || '13oz'},
+            ${item.grommets || 'none'},
+            ${item.rope_feet || 0},
+            ${polePocketsValue},
+            ${item.pole_pocket_position || null},
+            ${item.pole_pocket_size || null},
+            ${item.pole_pocket_cost_cents || 0},
+            ${item.line_total_cents || 0},
+            ${item.file_key || null},
+            ${item.file_url || null},
+            ${item.print_ready_url || null},
+            ${item.web_preview_url || null},
+            ${item.text_elements ? JSON.stringify(item.text_elements) : '[]'},
+            ${item.overlay_image ? JSON.stringify(item.overlay_image) : null}
           )
         `;
       }
