@@ -31,7 +31,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
     
     try {
       const item = loadItemIntoQuote(itemId);
-      console.log('�� CART MODAL: loadItemIntoQuote returned:', item);
+      console.log('🛒 CART MODAL: loadItemIntoQuote returned:', item);
       
       if (!item) {
         console.error('❌ CART MODAL: Item not found in cart:', itemId);
@@ -43,16 +43,18 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
         return;
       }
 
-      // CRITICAL FIX: Clear editingItemId first, then set it
-      // This forces the useEffect in BannerEditorLayout to re-run even when editing the same item twice
-      console.log('🛒 CART MODAL: Clearing editingItemId first to force reload');
-      loadFromCartItem(item, null); // Clear first
+      // CRITICAL FIX: Reset design state completely before loading cart item
+      // This prevents image duplication from previous state
+      console.log('🛒 CART MODAL: Resetting design state before loading cart item');
+      const { resetDesign } = useQuoteStore.getState();
+      resetDesign();
       
-      // Small delay to ensure state update completes
+      // Small delay to ensure reset completes before loading new item
       setTimeout(() => {
-        console.log('🛒 CART MODAL: Now loading item into quote store with editingItemId:', itemId);
-        loadFromCartItem(item, itemId); // Then set with actual ID
+        console.log('🛒 CART MODAL: Loading cart item into quote store with editingItemId:', itemId);
+        loadFromCartItem(item, itemId);
       }, 50);
+      
       console.log('🛒 CART MODAL: item.overlay_image:', item.overlay_image);
       
       // Close modal
