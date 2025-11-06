@@ -307,14 +307,11 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
 
       imageScale: item.image_scale || 1,
       imagePosition: item.image_position || { x: 0, y: 0 },
-      // BACKWARD COMPATIBILITY: Support both single overlayImage and overlayImages array
-      overlayImage: item.overlay_image ? {
-        ...item.overlay_image,
-        position: item.overlay_image.position || { x: 50, y: 50 }
-      } : undefined,
+      // CRITICAL FIX: Single source of truth = overlayImages (array)
+      // Convert both old (singular) and new (array) formats to array
       overlayImages: (() => {
         // NEW: Load multiple overlay images
-        if (item.overlay_images && Array.isArray(item.overlay_images)) {
+        if (item.overlay_images && Array.isArray(item.overlay_images) && item.overlay_images.length > 0) {
           console.log('🖼️ [MULTI-IMAGE] Loading overlay images array:', item.overlay_images.length);
           return item.overlay_images.map((img: any) => ({
             ...img,
@@ -331,6 +328,8 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
         }
         return undefined;
       })(),
+      // CRITICAL FIX: Clear singular overlayImage to prevent double loading
+      overlayImage: undefined,
     };
     
     console.log('🔍 QUOTE STORE: Setting new state with imageScale:', newState.imageScale);
