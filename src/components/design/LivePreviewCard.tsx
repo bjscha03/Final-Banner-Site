@@ -1580,10 +1580,13 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                 <GrommetPicker
                   value={grommets}
                   onChange={(value) => {
+                    console.log('[GROMMET DEBUG] GrommetPicker onChange called with value:', value);
                     set({ grommets: value as Grommets });
+                    console.log('[GROMMET DEBUG] After set, grommets in store:', useQuoteStore.getState().grommets);
                     // Also update showGrommets in editor store when grommets change
                     const { setShowGrommets } = useEditorStore.getState();
                     setShowGrommets(value !== 'none');
+                    console.log('[GROMMET DEBUG] After setShowGrommets, showGrommets in store:', useEditorStore.getState().showGrommets);
                   }}
                   options={grommetOptions}
                   placeholder="Choose grommets"
