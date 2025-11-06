@@ -381,17 +381,17 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     // CRITICAL: Clear existing objects first to prevent duplicates
     console.log('[BannerEditorLayout] Clearing existing objects before loading cart item');
     resetEditor(); // Actually clear the canvas objects
-    
-    // Show grommets if they were selected in the cart item
-    const shouldShowGrommets = currentGrommets && currentGrommets !== 'none';
-    console.log('[BannerEditorLayout] Setting grommets visibility:', shouldShowGrommets, 'grommets:', currentGrommets);
-    setShowGrommets(shouldShowGrommets);
 
     // CRITICAL FIX: Mark as loading and track which item we're loading
     setQuote({ isLoadingItem: true, loadedItemId: editingItemId });
 
     // CRITICAL FIX: Increased delay to ensure reset completes before adding objects (was 100ms, now 250ms)
     setTimeout(() => {
+      // CRITICAL FIX: Set grommets visibility AFTER reset completes
+      const shouldShowGrommets = currentGrommets && currentGrommets !== 'none';
+      console.log('[BannerEditorLayout] Setting grommets visibility:', shouldShowGrommets, 'grommets:', currentGrommets);
+      setShowGrommets(shouldShowGrommets);
+      
       // CRITICAL FIX: Load background file if it exists
       // Now that file.url is reconstructed from file_key (not the thumbnail),
       // we can safely load it as the background layer
