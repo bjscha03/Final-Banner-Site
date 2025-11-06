@@ -245,14 +245,35 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
         />
 
         {/* Image if provided - Extended to bleed area */}
-        {(imageUrl || (file?.isPdf && file?.url)) && (
+        {(imageUrl || (file?.isPdf && file?.url)) && (() => {
+          const renderWidth = bleedWidth * (imageScale || 1);
+          const renderHeight = bleedHeight * (imageScale || 1);
+          const renderX = RULER_HEIGHT + (bleedWidth - bleedWidth * imageScale) / 2 + (imagePosition.x * 0.01);
+          const renderY = RULER_HEIGHT + (bleedHeight - bleedHeight * imageScale) / 2 + (imagePosition.y * 0.01);
+          
+          console.log('[PDF DEBUG] Rendering image/PDF:', {
+            isPdf: file?.isPdf,
+            imageScale,
+            bleedWidth,
+            bleedHeight,
+            widthIn,
+            heightIn,
+            renderWidth,
+            renderHeight,
+            renderX,
+            renderY,
+            artworkWidth: file?.artworkWidth,
+            artworkHeight: file?.artworkHeight
+          });
+          
+          return (
           <>
           <image key={imageUrl || file?.url}
             href={imageUrl || file?.url}
-            x={RULER_HEIGHT + (bleedWidth - bleedWidth * imageScale) / 2 + (imagePosition.x * 0.01)}
-            y={RULER_HEIGHT + (bleedHeight - bleedHeight * imageScale) / 2 + (imagePosition.y * 0.01)}
-            width={bleedWidth * (imageScale || 1)}
-            height={bleedHeight * (imageScale || 1)}
+            x={renderX}
+            y={renderY}
+            width={renderWidth}
+            height={renderHeight}
             preserveAspectRatio="xMidYMid meet"
             clipPath="url(#bleed-clip)"
             style={{
@@ -262,6 +283,12 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
             onMouseDown={onImageMouseDown}
             onTouchStart={onImageTouchStart}
           />
+          </>
+          );
+        })()}
+          </>
+          );
+        })()}
 
             {/* Overlay Image (Logo/Image on top of AI background) - INTERACTIVE */}
             {overlayImage && overlayImage.position && typeof overlayImage.position.x === 'number' && typeof overlayImage.position.y === 'number' && (() => {
