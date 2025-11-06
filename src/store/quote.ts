@@ -307,11 +307,14 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
 
       imageScale: item.image_scale || 1,
       imagePosition: item.image_position || { x: 0, y: 0 },
-      // CRITICAL FIX: Single source of truth = overlayImages (array)
-      // Convert both old (singular) and new (array) formats to array
+      // BACKWARD COMPATIBILITY: Support both single overlayImage and overlayImages array
+      overlayImage: item.overlay_image ? {
+        ...item.overlay_image,
+        position: item.overlay_image.position || { x: 50, y: 50 }
+      } : undefined,
       overlayImages: (() => {
         // NEW: Load multiple overlay images
-        if (item.overlay_images && Array.isArray(item.overlay_images) && item.overlay_images.length > 0) {
+        if (item.overlay_images && Array.isArray(item.overlay_images)) {
           console.log('🖼️ [MULTI-IMAGE] Loading overlay images array:', item.overlay_images.length);
           return item.overlay_images.map((img: any) => ({
             ...img,
@@ -328,14 +331,8 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
         }
         return undefined;
       })(),
-      // CRITICAL FIX: Clear singular overlayImage to prevent double loading
-      overlayImage: undefined,
     };
     
-    console.log('🔍 [LOAD DEBUG] item.overlay_image:', item.overlay_image);
-    console.log('🔍 [LOAD DEBUG] item.overlay_images:', item.overlay_images);
-    console.log('🔍 [LOAD DEBUG] newState.overlayImages:', newState.overlayImages);
-    console.log('🔍 [LOAD DEBUG] newState.overlayImage:', newState.overlayImage);
     console.log('🔍 QUOTE STORE: Setting new state with imageScale:', newState.imageScale);
     console.log('🔍 QUOTE STORE: Setting new state with imagePosition:', newState.imagePosition);
     console.log('🔍 QUOTE STORE: Setting new state with overlayImage:', newState.overlayImage);
