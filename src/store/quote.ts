@@ -48,6 +48,8 @@ export interface QuoteState {
   previewScalePct: number;
   textElements: TextElement[];
   editingItemId?: string | null; // ID of cart item being edited, if any
+  loadedItemId?: string | null; // Track which item has been loaded to prevent duplicates
+  isLoadingItem?: boolean; // Track if we're currently loading an item
   file?: {
     name: string;
     type: string;
@@ -122,6 +124,8 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
   previewScalePct: 100,
   textElements: [],
   editingItemId: null,
+  loadedItemId: null,
+  isLoadingItem: false,
   file: undefined,
   overlayImages: undefined,
   imageScale: 1,
@@ -402,6 +406,8 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
     previewScalePct: 100,
     textElements: [],
     editingItemId: null,
+    loadedItemId: null,
+    isLoadingItem: false,
     file: undefined,
     overlayImage: undefined,
     overlayImages: undefined,

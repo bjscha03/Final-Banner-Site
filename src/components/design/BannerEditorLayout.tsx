@@ -53,10 +53,6 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
   const [pendingAction, setPendingAction] = useState<'cart' | 'checkout' | null>(null);
   const [dontShowUpsellAgain, setDontShowUpsellAgain] = useState(false);
 
-  // CRITICAL FIX: Track which item we've loaded to prevent duplicate loading
-  const loadedItemIdRef = useRef<string | null>(null);
-  const isLoadingRef = useRef<boolean>(false);
-
 
 
   const desktopPanelRef = useRef<HTMLDivElement>(null);
@@ -66,7 +62,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
   const isAdminUser = user && isAdmin(user);
   const { exportToJSON, setCanvasThumbnail, canvasThumbnail, objects: editorObjects, addObject, reset: resetEditor, canvasBackgroundColor, showGrommets, setShowGrommets } = useEditorStore();
   const quote = useQuoteStore();
-  const { set: setQuote, editingItemId, overlayImage, textElements, file, grommets, widthIn, heightIn, material, resetDesign } = quote;
+  const { set: setQuote, editingItemId, loadedItemId, isLoadingItem, overlayImage, textElements, file, grommets, widthIn, heightIn, material, resetDesign } = quote;
   
   // Helper function to update grommets in quote store
   const setGrommets = (value: any) => {
@@ -321,24 +317,23 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
   // Load cart item objects into canvas when editing
   useEffect(() => {
     if (!editingItemId) {
-      // CRITICAL FIX: Reset tracking refs when not editing
-      if (loadedItemIdRef.current !== null) {
-        console.log('[BannerEditorLayout] Clearing edit mode - resetting tracking refs');
-        loadedItemIdRef.current = null;
-        isLoadingRef.current = false;
+      // CRITICAL FIX: Reset tracking state when not editing
+      if (loadedItemId !== null) {
+        console.log('[BannerEditorLayout] Clearing edit mode - resetting tracking state');
+        setQuote({ loadedItemId: null, isLoadingItem: false });
       }
       console.log('[BannerEditorLayout] Not editing, skipping object load');
       return;
     }
 
     // CRITICAL FIX: Prevent duplicate loading of the same item
-    if (loadedItemIdRef.current === editingItemId) {
+    if (loadedItemId === editingItemId) {
       console.log('[BannerEditorLayout] Already loaded this item, skipping:', editingItemId);
       return;
     }
 
     // CRITICAL FIX: Prevent concurrent loading
-    if (isLoadingRef.current) {
+    if (isLoadingItem) {
       console.log('[BannerEditorLayout] Already loading, skipping duplicate load');
       return;
     }
@@ -391,8 +386,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     setShowGrommets(shouldShowGrommets);
 
     // CRITICAL FIX: Mark as loading and track which item we're loading
-    isLoadingRef.current = true;
-    loadedItemIdRef.current = editingItemId;
+    setQuote({ isLoadingItem: true, loadedItemId: editingItemId });
 
     // CRITICAL FIX: Increased delay to ensure reset completes before adding objects (was 100ms, now 250ms)
     setTimeout(() => {
@@ -598,7 +592,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       console.log('[BannerEditorLayout] Finished loading cart item objects');
       
       // CRITICAL FIX: Mark loading as complete
-      isLoadingRef.current = false;
+      setQuote({ isLoadingItem: false });
       console.log('[BannerEditorLayout] Loading complete for item:', editingItemId);
     }, 250);
   }, [editingItemId]); // Only run when editingItemId changes

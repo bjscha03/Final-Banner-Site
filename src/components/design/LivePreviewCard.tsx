@@ -1579,7 +1579,12 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
               <div className="flex-1 sm:min-w-[160px]">
                 <GrommetPicker
                   value={grommets}
-                  onChange={(value) => set({ grommets: value as Grommets })}
+                  onChange={(value) => {
+                    set({ grommets: value as Grommets });
+                    // Also update showGrommets in editor store when grommets change
+                    const { setShowGrommets } = useEditorStore.getState();
+                    setShowGrommets(value !== 'none');
+                  }}
                   options={grommetOptions}
                   placeholder="Choose grommets"
                   className="text-sm"

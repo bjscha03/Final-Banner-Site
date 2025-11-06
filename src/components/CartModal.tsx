@@ -51,6 +51,12 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
       
       // Small delay to ensure reset completes before loading new item
       setTimeout(() => {
+        console.log("🔍🔍🔍 [CART MODAL] FULL ITEM DATA:", JSON.stringify(item, null, 2));
+        console.log("🔍🔍🔍 [CART MODAL] item.overlay_image:", item.overlay_image);
+        if (item.overlay_image) {
+          console.log("🔍🔍🔍 [CART MODAL] overlay_image.url:", item.overlay_image.url);
+          console.log("🔍🔍🔍 [CART MODAL] overlay_image.fileKey:", item.overlay_image.fileKey);
+        }
         console.log('🛒 CART MODAL: Loading cart item into quote store with editingItemId:', itemId);
         loadFromCartItem(item, itemId);
       }, 50);
