@@ -1729,6 +1729,16 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                     }
                   }}
                 >
+                  {/* DEBUG: Log props being passed to PreviewCanvas */}
+                  {console.log('═══════════════════════════════════════════════════════')}
+                  {console.log('🎨 [PREVIEW CANVAS PROPS]')}
+                  {console.log('  file:', file ? { url: file.url?.substring(0, 60) + '...', fileKey: file.fileKey, isPdf: file.isPdf } : 'UNDEFINED')}
+                  {console.log('  imageUrl:', file?.url && !file.isPdf ? file.url.substring(0, 60) + '...' : 'UNDEFINED')}
+                  {console.log('  overlayImage:', overlayImage ? { url: overlayImage.url?.substring(0, 60) + '...', position: overlayImage.position, scale: overlayImage.scale } : 'UNDEFINED')}
+                  {console.log('  imageScale:', imageScale)}
+                  {console.log('  imagePosition:', imagePosition)}
+                  {console.log('═══════════════════════════════════════════════════════')}
+                  
                   <PreviewCanvas
                     key={file?.url || file?.fileKey || "no-file"}
                     widthIn={widthIn}

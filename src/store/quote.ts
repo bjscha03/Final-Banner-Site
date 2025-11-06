@@ -226,15 +226,21 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
         const hasTextElements = textElementsArray && textElementsArray.length > 0;
         const shouldSkipFile = hasOverlayImage || hasOverlayImages || hasTextElements;
         
-        console.log('🔍 [FILE LOAD] hasOverlayImage:', hasOverlayImage);
-        console.log('🔍 [FILE LOAD] hasOverlayImages:', hasOverlayImages, 'count:', item.overlay_images?.length || 0);
-        console.log('🔍 [FILE LOAD] hasTextElements:', hasTextElements, 'count:', textElementsArray?.length || 0);
-        console.log('🔍 [FILE LOAD] shouldSkipFile:', shouldSkipFile);
+        console.log('───────────────────────────────────────────────────────');
+        console.log('🔍 [FILE LOAD DECISION]');
+        console.log('  hasOverlayImage:', hasOverlayImage);
+        console.log('  hasOverlayImages:', hasOverlayImages, 'count:', item.overlay_images?.length || 0);
+        console.log('  hasTextElements:', hasTextElements, 'count:', textElementsArray?.length || 0);
+        console.log('  shouldSkipFile:', shouldSkipFile);
+        console.log('───────────────────────────────────────────────────────');
         
         if (shouldSkipFile) {
-          console.log('⏭️ [FILE LOAD] Skipping file load - would create composite layer');
+          console.log('✅ [FILE LOAD] SKIPPING file load - would create duplicate/composite layer');
+          console.log('   Reason:', hasOverlayImage ? 'HAS_OVERLAY_IMAGE' : hasOverlayImages ? 'HAS_OVERLAY_IMAGES' : 'HAS_TEXT_ELEMENTS');
           return undefined;
         }
+        
+        console.log('⚠️ [FILE LOAD] LOADING file - no overlay/text detected');
         
         return ((item.file_key || item.file_url || item.web_preview_url) ? (() => {
         let fileUrl: string;
@@ -279,8 +285,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
           }
         }
         
-        console.log('🔧 FINAL FILE OBJECT:', { url: fileUrl, fileKey: extractedFileKey });
-        return {
+        const fileObject = {
           name: item.file_name || 'Uploaded file',
           type: item.is_pdf ? 'application/pdf' : 'image/*',
           size: 1024,
@@ -291,6 +296,8 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
           artworkWidth: item.artwork_width,
           artworkHeight: item.artwork_height,
         };
+        console.log('📦 [FILE LOAD] Created file object:', { url: fileUrl?.substring(0, 60) + '...', fileKey: extractedFileKey });
+        return fileObject;
       })() : undefined);
       })(),
 
@@ -376,14 +383,14 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
   })),
   // Reset design area to default values
   resetDesign: () => {
-    console.log('🔄 QUOTE STORE: resetDesign() called');
-    console.log('🔄 QUOTE STORE: Setting file to undefined');
+    console.log('═══════════════════════════════════════════════════════');
+    console.log('🔄 [RESET] resetDesign() called - clearing ALL state');
+    console.log('═══════════════════════════════════════════════════════');
     
     // Also clear editor canvas objects
-    console.log('🔄 QUOTE STORE: Clearing editor canvas objects');
     useEditorStore.getState().reset();
     
-    return set({
+    const resetState = {
     widthIn: 48,
     heightIn: 24,
     quantity: 1,
@@ -400,6 +407,17 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
     overlayImages: undefined,
     imageScale: 1,
     imagePosition: { x: 0, y: 0 },
-  });
+  };
+    
+    console.log('═══════════════════════════════════════════════════════');
+    console.log('🔄 [RESET] State reset complete - all cleared:');
+    console.log('  file: UNDEFINED');
+    console.log('  overlayImage: UNDEFINED');
+    console.log('  overlayImages: UNDEFINED');
+    console.log('  textElements: EMPTY ARRAY');
+    console.log('  editingItemId: NULL');
+    console.log('═══════════════════════════════════════════════════════');
+    
+    return set(resetState);
   }
 }));
