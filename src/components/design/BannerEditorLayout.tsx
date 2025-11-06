@@ -53,6 +53,10 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
   const [pendingAction, setPendingAction] = useState<'cart' | 'checkout' | null>(null);
   const [dontShowUpsellAgain, setDontShowUpsellAgain] = useState(false);
 
+  // CRITICAL FIX: Track which item we've loaded to prevent duplicate loading
+  const loadedItemIdRef = useRef<string | null>(null);
+  const isLoadingRef = useRef<boolean>(false);
+
 
 
   const desktopPanelRef = useRef<HTMLDivElement>(null);
@@ -317,7 +321,25 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
   // Load cart item objects into canvas when editing
   useEffect(() => {
     if (!editingItemId) {
+      // CRITICAL FIX: Reset tracking refs when not editing
+      if (loadedItemIdRef.current !== null) {
+        console.log('[BannerEditorLayout] Clearing edit mode - resetting tracking refs');
+        loadedItemIdRef.current = null;
+        isLoadingRef.current = false;
+      }
       console.log('[BannerEditorLayout] Not editing, skipping object load');
+      return;
+    }
+
+    // CRITICAL FIX: Prevent duplicate loading of the same item
+    if (loadedItemIdRef.current === editingItemId) {
+      console.log('[BannerEditorLayout] Already loaded this item, skipping:', editingItemId);
+      return;
+    }
+
+    // CRITICAL FIX: Prevent concurrent loading
+    if (isLoadingRef.current) {
+      console.log('[BannerEditorLayout] Already loading, skipping duplicate load');
       return;
     }
 
@@ -368,7 +390,11 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     console.log('[BannerEditorLayout] Setting grommets visibility:', shouldShowGrommets, 'grommets:', currentGrommets);
     setShowGrommets(shouldShowGrommets);
 
-    // Small delay to ensure reset completes before adding objects
+    // CRITICAL FIX: Mark as loading and track which item we're loading
+    isLoadingRef.current = true;
+    loadedItemIdRef.current = editingItemId;
+
+    // CRITICAL FIX: Increased delay to ensure reset completes before adding objects (was 100ms, now 250ms)
     setTimeout(() => {
       // CRITICAL FIX: Load background file if it exists
       // Now that file.url is reconstructed from file_key (not the thumbnail),
@@ -570,7 +596,11 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       }
 
       console.log('[BannerEditorLayout] Finished loading cart item objects');
-    }, 100);
+      
+      // CRITICAL FIX: Mark loading as complete
+      isLoadingRef.current = false;
+      console.log('[BannerEditorLayout] Loading complete for item:', editingItemId);
+    }, 250);
   }, [editingItemId]); // Only run when editingItemId changes
 
   const handlePreview = () => {
