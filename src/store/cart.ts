@@ -236,6 +236,15 @@ export const useCartStore = create<CartState>()(
         const pole_pocket_cost_cents = pricing?.pole_pocket_cost_cents ?? computedPole;
         const pole_pocket_pricing_mode: PricingMode = pricing?.pole_pocket_pricing_mode ?? 'per_item';
         const line_total_cents = pricing?.line_total_cents ?? computedLine;
+        
+        console.log('🔍 [UPDATE CART] Final pricing values:', {
+          unit_price_cents,
+          rope_cost_cents,
+          pole_pocket_cost_cents,
+          line_total_cents,
+          ropeFeet,
+          usingAuthoritative
+        });
 
         // Use the file key from the uploaded file
         const fileKey = quote.file?.fileKey;
@@ -398,6 +407,15 @@ export const useCartStore = create<CartState>()(
       
       updateCartItem: (itemId: string, quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => {
         console.log('🔄 CART: updateCartItem called', { itemId, quote, pricing });
+        console.log('🔍 [UPDATE CART] Quote state:', {
+          addRope: quote.addRope,
+          polePockets: quote.polePockets,
+          polePocketSize: quote.polePocketSize,
+          widthIn: quote.widthIn,
+          heightIn: quote.heightIn,
+          quantity: quote.quantity
+        });
+        console.log('🔍 [UPDATE CART] Authoritative pricing:', pricing);
         
         // Find the existing item
         const existingItem = get().items.find(i => i.id === itemId);
@@ -442,6 +460,15 @@ export const useCartStore = create<CartState>()(
         const pole_pocket_cost_cents = pricing?.pole_pocket_cost_cents ?? computedPole;
         const pole_pocket_pricing_mode: PricingMode = pricing?.pole_pocket_pricing_mode ?? 'per_item';
         const line_total_cents = pricing?.line_total_cents ?? computedLine;
+        
+        console.log('🔍 [UPDATE CART] Final pricing values:', {
+          unit_price_cents,
+          rope_cost_cents,
+          pole_pocket_cost_cents,
+          line_total_cents,
+          ropeFeet,
+          usingAuthoritative
+        });
 
         // Use the file key from the uploaded file
         const fileKey = quote.file?.fileKey;
