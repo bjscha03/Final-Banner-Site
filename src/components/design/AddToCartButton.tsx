@@ -32,12 +32,10 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
   const baseTotals = calcTotals({
     widthIn,
     heightIn,
-    quantity,
+    qty: quantity,  // Fix: calcTotals expects 'qty', not 'quantity'
     material,
-    grommets,
-    polePockets,
-    polePocketSize,
     addRope,
+    polePockets,
   });
 
   // Simple minimum order check (can be enhanced)
@@ -98,6 +96,19 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
       pole_pocket_pricing_mode: 'per_item' as const,
       line_total_cents: Math.round(baseTotals.materialTotal * 100),
     };
+    
+    console.log('�� ADD TO CART: Pricing calculation:', {
+      baseTotals,
+      pricing,
+      quote: {
+        addRope: quote.addRope,
+        polePockets: quote.polePockets,
+        polePocketSize: quote.polePocketSize,
+        widthIn: quote.widthIn,
+        heightIn: quote.heightIn,
+        quantity: quote.quantity
+      }
+    });
 
     if (isEditing) {
       // UPDATE existing cart item
