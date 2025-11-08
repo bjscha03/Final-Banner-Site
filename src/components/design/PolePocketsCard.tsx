@@ -20,8 +20,20 @@ const PolePocketsCard: React.FC = () => {
   const isDisabled = grommets !== 'none';
 
   const handlePolePocketsChange = (value: string) => {
+    console.log('🔧 [PolePocketsCard] User selected pole pockets:', value);
+    console.log('🔧 [PolePocketsCard] Current quote state before update:', { polePockets, grommets });
+    
     // Always call set() - the store handles mutual exclusivity
     set({ polePockets: value });
+    
+    // Verify the update was applied
+    setTimeout(() => {
+      const currentState = useQuoteStore.getState();
+      console.log('🔧 [PolePocketsCard] Quote state after update:', {
+        polePockets: currentState.polePockets,
+        grommets: currentState.grommets
+      });
+    }, 0);
   };
 
   return (
@@ -66,8 +78,8 @@ const PolePocketsCard: React.FC = () => {
         {!isDisabled && (
           <div className="p-3 bg-blue-50 rounded-lg">
             <p className="text-sm text-blue-700">
-              <strong>Note:</strong> Pole pockets create a sleeve for inserting poles or rods. 
-              This option doesn't affect pricing but will be noted in your order specifications.
+              <strong>Pricing:</strong> Pole pockets cost $15 setup fee + $2 per linear foot. 
+              Creates a sleeve for inserting poles or rods.
             </p>
           </div>
         )}
