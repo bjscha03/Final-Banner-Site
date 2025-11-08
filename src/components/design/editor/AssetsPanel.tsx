@@ -241,8 +241,13 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
           finalImage = updatedImage;
           console.log('[IMAGE ADD] Image updated with Cloudinary URL and fileKey:', finalImage.fileKey);
         } else {
-          console.error('[IMAGE ADD] Cloudinary upload failed');
-          alert('Failed to upload image to cloud storage. Please try again.');
+          const errorText = await uploadResponse.text();
+          console.error('[IMAGE ADD] Cloudinary upload failed:', {
+            status: uploadResponse.status,
+            statusText: uploadResponse.statusText,
+            errorBody: errorText
+          });
+          alert(`Failed to upload image to cloud storage. Error: ${uploadResponse.status} ${uploadResponse.statusText}. Please try again.`);
           return;
         }
       } catch (error) {
