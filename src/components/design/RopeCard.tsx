@@ -8,7 +8,18 @@ const RopeCard: React.FC = () => {
   const { addRope, widthIn, quantity, set } = useQuoteStore();
 
   const handleRopeChange = (checked: boolean) => {
+    console.log('🔧 [RopeCard] User toggled rope:', checked);
+    console.log('🔧 [RopeCard] Current addRope before update:', addRope);
+    
     set({ addRope: checked });
+    
+    // Verify the update was applied
+    setTimeout(() => {
+      const currentState = useQuoteStore.getState();
+      console.log('🔧 [RopeCard] Quote state after update:', {
+        addRope: currentState.addRope
+      });
+    }, 0);
   };
 
   const totalRopeCost = addRope ? ropeCost(widthIn, quantity) : 0;
