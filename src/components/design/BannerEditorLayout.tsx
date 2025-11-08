@@ -984,23 +984,49 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
 
     // Apply selected upsell options
     selectedOptions.forEach(option => {
-      if (option.id === 'grommets-every-2ft') {
-        updatedQuote.grommets = 'Grommets every 2-3ft';
+      if (!option.selected) return; // Skip unselected options
+      
+      if (option.id === 'grommets' && option.grommetSelection) {
+        updatedQuote.grommets = option.grommetSelection as any;
       } else if (option.id === 'rope') {
         updatedQuote.addRope = true;
-      } else if (option.id === 'pole-pockets') {
-        updatedQuote.polePockets = 'Yes';
-        updatedQuote.polePocketSize = '2.5"';
+      } else if (option.id === 'polePockets' && option.polePocketSelection) {
+        updatedQuote.polePockets = option.polePocketSelection;
+        updatedQuote.polePocketSize = option.polePocketSize || '2';
       }
     });
 
-    // Calculate pricing with upsells
+    // Calculate pricing with upsells using CORRECT pricing functions
     const sqft = (widthIn * heightIn) / 144;
     const basePrice = material === '13oz Vinyl' ? 3.50 : 4.50;
     const unitPrice = sqft * basePrice;
-    const ropePrice = updatedQuote.addRope ? 15 : 0;
-    const polePocketPrice = updatedQuote.polePockets === 'Yes' ? 25 : 0;
-    const lineTotal = (unitPrice + ropePrice + polePocketPrice) * quote.quantity;
+    
+    // CORRECT rope pricing: $2 per linear foot (width in feet × 2 × quantity)
+    const ropeFeet = updatedQuote.addRope ? (widthIn / 12) : 0;
+    const ropePrice = ropeFeet > 0 ? (ropeFeet * 2 * quote.quantity) : 0;
+    
+    // CORRECT pole pocket pricing: $15 setup + $2 per linear foot × quantity
+    let polePocketPrice = 0;
+    if (updatedQuote.polePockets && updatedQuote.polePockets !== 'none') {
+      const setupFee = 15; // dollars
+      const pricePerLinearFoot = 2; // dollars
+      let linearFeet = 0;
+      switch (updatedQuote.polePockets) {
+        case 'top':
+        case 'bottom':
+          linearFeet = widthIn / 12; break;
+        case 'left':
+        case 'right':
+          linearFeet = heightIn / 12; break;
+        case 'top-bottom':
+          linearFeet = (widthIn / 12) * 2; break;
+        default:
+          linearFeet = 0;
+      }
+      polePocketPrice = (setupFee + (linearFeet * pricePerLinearFoot)) * quote.quantity;
+    }
+    
+    const lineTotal = (unitPrice * quote.quantity) + ropePrice + polePocketPrice;
     
     const pricing = {
       unit_price_cents: Math.round(unitPrice * 100),

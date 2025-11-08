@@ -14,7 +14,10 @@ interface CartModalProps {
 
 const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
-  const { items, updateQuantity, removeItem, loadItemIntoQuote, getSubtotalCents, getTaxCents, getTotalCents } = useCartStore();
+  const { items: rawItems, getMigratedItems, updateQuantity, removeItem, loadItemIntoQuote, getSubtotalCents, getTaxCents, getTotalCents } = useCartStore();
+  
+  // CRITICAL: Use migrated items to ensure rope/pole pocket costs are calculated
+  const items = getMigratedItems();
   const { toast } = useToast();
   const { loadFromCartItem } = useQuoteStore();
   
@@ -136,9 +139,25 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
             ) : (
               <div className="space-y-4">
                 {items.map((item) => {
+                  console.log('🔍 [CART MODAL] RAW ITEM DATA:', {
+                    id: item.id,
+                    rope_cost_cents: item.rope_cost_cents,
+                    pole_pocket_cost_cents: item.pole_pocket_cost_cents,
+                    rope_feet: item.rope_feet,
+                    pole_pockets: item.pole_pockets,
+                    line_total_cents: item.line_total_cents,
+                    unit_price_cents: item.unit_price_cents
+                  });
+                  
                   const eachCents = computeEach(item);
                   const ropeCost = item.rope_cost_cents || 0;
                   const pocketCost = item.pole_pocket_cost_cents || 0;
+                  
+                  console.log('🔍 [CART MODAL] COMPUTED VALUES:', {
+                    ropeCost,
+                    pocketCost,
+                    eachCents
+                  });
                   
                   console.log('🛒 CART MODAL: Pole pocket data:', {
                     id: item.id,

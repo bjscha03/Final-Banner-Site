@@ -665,6 +665,10 @@ export const useCartStore = create<CartState>()(
         set({ items: [] });
       },
 
+      getMigratedItems: () => {
+        return get().items.map(migrateCartItem);
+      },
+
       getSubtotalCents: () => {
         const flags = getFeatureFlags();
         const items = get().items.map(migrateCartItem); // Migrate items before calculating

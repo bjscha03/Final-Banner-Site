@@ -24,7 +24,10 @@ import { trackPromoEvent } from '@/lib/posthog';
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
-  const { items, isLoading, syncToServer, clearCart, getSubtotalCents, getTaxCents, getTotalCents, updateQuantity, removeItem, discountCode, applyDiscountCode, removeDiscountCode, getDiscountAmountCents } = useCartStore();
+  const { items: rawItems, getMigratedItems, isLoading, syncToServer, clearCart, getSubtotalCents, getTaxCents, getTotalCents, updateQuantity, removeItem, discountCode, applyDiscountCode, removeDiscountCode, getDiscountAmountCents } = useCartStore();
+  
+  // CRITICAL: Use migrated items to ensure rope/pole pocket costs are calculated
+  const items = getMigratedItems();
   const { user } = useAuth();
   const { setCheckoutContext } = useCheckoutContext();
   const [isAdminUser, setIsAdminUser] = useState(false);
