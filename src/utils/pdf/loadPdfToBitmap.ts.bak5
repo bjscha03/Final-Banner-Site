@@ -98,6 +98,8 @@ async function renderPdfPageToCanvas(
   context.save();
   // Scale X and Y independently to fill the entire canvas
   context.scale(scaleX, scaleY);
+    context.translate(offsetX, offsetY);
+  }
 
   const renderContext = {
     canvasContext: context,

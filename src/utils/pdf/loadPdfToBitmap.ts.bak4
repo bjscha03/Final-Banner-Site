@@ -79,25 +79,8 @@ async function renderPdfPageToCanvas(
   context.fillStyle = '#FFFFFF';
   context.fillRect(0, 0, targetWidth, targetHeight);
 
-  const viewport = page.getViewport({ scale: 1 });
-  const scaleX = targetWidth / viewport.width;
-  const scaleY = targetHeight / viewport.height;
-  
-  console.log('📄 PDF render scaling:', {
-    pdfSize: `${viewport.width}x${viewport.height}`,
-    targetSize: `${targetWidth}x${targetHeight}`,
-    scaleX: scaleX.toFixed(3),
-    scaleY: scaleY.toFixed(3),
-    willStretchToFill: true
-  });
-  
-  // ALWAYS stretch to fill the entire canvas (no letterboxing)
-  // Use non-uniform scaling to fill both dimensions
-  const scaledViewport = page.getViewport({ scale: 1 });
-
-  context.save();
-  // Scale X and Y independently to fill the entire canvas
-  context.scale(scaleX, scaleY);
+    context.translate(offsetX, offsetY);
+  }
 
   const renderContext = {
     canvasContext: context,

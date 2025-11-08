@@ -82,22 +82,16 @@ async function renderPdfPageToCanvas(
   const viewport = page.getViewport({ scale: 1 });
   const scaleX = targetWidth / viewport.width;
   const scaleY = targetHeight / viewport.height;
+  const scale = Math.min(scaleX, scaleY); // Maintain aspect ratio
+
+  const scaledViewport = page.getViewport({ scale });
   
-  console.log('📄 PDF render scaling:', {
-    pdfSize: `${viewport.width}x${viewport.height}`,
-    targetSize: `${targetWidth}x${targetHeight}`,
-    scaleX: scaleX.toFixed(3),
-    scaleY: scaleY.toFixed(3),
-    willStretchToFill: true
-  });
-  
-  // ALWAYS stretch to fill the entire canvas (no letterboxing)
-  // Use non-uniform scaling to fill both dimensions
-  const scaledViewport = page.getViewport({ scale: 1 });
+  // Center the PDF content
+  const offsetX = (targetWidth - scaledViewport.width) / 2;
+  const offsetY = (targetHeight - scaledViewport.height) / 2;
 
   context.save();
-  // Scale X and Y independently to fill the entire canvas
-  context.scale(scaleX, scaleY);
+  context.translate(offsetX, offsetY);
 
   const renderContext = {
     canvasContext: context,
@@ -107,7 +101,6 @@ async function renderPdfPageToCanvas(
   await page.render(renderContext).promise;
   context.restore();
 }
-
 
 // Convert canvas to optimized blob with size constraints
 async function canvasToOptimizedBlob(

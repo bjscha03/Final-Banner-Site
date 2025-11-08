@@ -83,21 +83,32 @@ async function renderPdfPageToCanvas(
   const scaleX = targetWidth / viewport.width;
   const scaleY = targetHeight / viewport.height;
   
+  // Check if PDF dimensions match target dimensions (within 1% tolerance)
+  const aspectRatioMatch = Math.abs(scaleX - scaleY) / Math.max(scaleX, scaleY) < 0.01;
+  
   console.log('📄 PDF render scaling:', {
     pdfSize: `${viewport.width}x${viewport.height}`,
     targetSize: `${targetWidth}x${targetHeight}`,
     scaleX: scaleX.toFixed(3),
     scaleY: scaleY.toFixed(3),
-    willStretchToFill: true
+    aspectRatioMatch,
+    willStretch: aspectRatioMatch
   });
   
-  // ALWAYS stretch to fill the entire canvas (no letterboxing)
-  // Use non-uniform scaling to fill both dimensions
-  const scaledViewport = page.getViewport({ scale: 1 });
+  // If PDF aspect ratio matches target, stretch to fill (no letterboxing)
+  // Otherwise, maintain aspect ratio and center
+  const scale = aspectRatioMatch ? scaleX : Math.min(scaleX, scaleY);
+
+  const scaledViewport = page.getViewport({ scale });
+  
+  // Center the PDF content only if we're maintaining aspect ratio
+  const offsetX = aspectRatioMatch ? 0 : (targetWidth - scaledViewport.width) / 2;
+  const offsetY = aspectRatioMatch ? 0 : (targetHeight - scaledViewport.height) / 2;
 
   context.save();
-  // Scale X and Y independently to fill the entire canvas
-  context.scale(scaleX, scaleY);
+  if (offsetX !== 0 || offsetY !== 0) {
+    context.translate(offsetX, offsetY);
+  }
 
   const renderContext = {
     canvasContext: context,
