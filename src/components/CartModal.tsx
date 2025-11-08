@@ -139,6 +139,15 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                   const eachCents = computeEach(item);
                   const ropeCost = item.rope_cost_cents || 0;
                   const pocketCost = item.pole_pocket_cost_cents || 0;
+                  
+                  console.log('🛒 CART MODAL: Pole pocket data:', {
+                    id: item.id,
+                    pole_pockets: item.pole_pockets,
+                    pole_pocket_position: item.pole_pocket_position,
+                    pole_pocket_cost_cents: item.pole_pocket_cost_cents,
+                    pole_pocket_pricing_mode: item.pole_pocket_pricing_mode,
+                    pocketCost
+                  });
 
                   return (
                     <div key={item.id} className="bg-white rounded-xl p-4 shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
