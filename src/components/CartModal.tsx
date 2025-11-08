@@ -221,12 +221,14 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                               <span className="text-gray-600">Base banner:</span>
                               <span className="text-gray-900 font-medium">{usd((item.unit_price_cents * item.quantity)/100)}</span>
                             </div>
+                            {console.log('🔍 [PRICE BREAKDOWN] Checking rope cost:', { ropeCost, rope_cost_cents: item.rope_cost_cents, rope_feet: item.rope_feet, willShow: ropeCost > 0 })}
                             {ropeCost > 0 && (
                               <div className="flex justify-between">
                                 <span className="text-gray-600">Rope{item.rope_feet ? ` (${item.rope_feet.toFixed(1)}ft)` : ''}:</span>
                                 <span className="text-gray-900 font-medium">{usd(ropeCost/100)}</span>
                               </div>
                             )}
+                            {console.log('🔍 [PRICE BREAKDOWN] Checking pole pocket cost:', { pocketCost, pole_pocket_cost_cents: item.pole_pocket_cost_cents, pole_pockets: item.pole_pockets, willShow: pocketCost > 0 })}
                             {pocketCost > 0 && (
                               <div className="flex justify-between">
                                 <span className="text-gray-600">Pole pockets:</span>
