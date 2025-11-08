@@ -239,14 +239,14 @@ export const useCartStore = create<CartState>()(
         const pole_pocket_pricing_mode: PricingMode = pricing?.pole_pocket_pricing_mode ?? 'per_item';
         const line_total_cents = pricing?.line_total_cents !== undefined ? pricing.line_total_cents : computedLine;
         
-        console.log('🔍 [UPDATE CART] Computed fallback values:', {
+        console.log('🔍 [ADD TO CART] Computed fallback values:', {
           computedUnit,
           computedRope,
           computedPole,
           computedLine
         });
         
-        console.log('🔍 [UPDATE CART] Final pricing values:', {
+        console.log('🔍 [ADD TO CART] Final pricing values:', {
           unit_price_cents,
           rope_cost_cents,
           pole_pocket_cost_cents,
@@ -473,14 +473,14 @@ export const useCartStore = create<CartState>()(
         const pole_pocket_pricing_mode: PricingMode = pricing?.pole_pocket_pricing_mode ?? 'per_item';
         const line_total_cents = pricing?.line_total_cents !== undefined ? pricing.line_total_cents : computedLine;
         
-        console.log('🔍 [UPDATE CART] Computed fallback values:', {
+        console.log('🔍 [ADD TO CART] Computed fallback values:', {
           computedUnit,
           computedRope,
           computedPole,
           computedLine
         });
         
-        console.log('🔍 [UPDATE CART] Final pricing values:', {
+        console.log('🔍 [ADD TO CART] Final pricing values:', {
           unit_price_cents,
           rope_cost_cents,
           pole_pocket_cost_cents,
