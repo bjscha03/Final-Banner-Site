@@ -98,6 +98,14 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
       pole_pocket_pricing_mode: 'per_item' as const,
       line_total_cents: Math.round(baseTotals.materialTotal * 100),
     };
+    
+    console.log('🛒 ADD TO CART: Pricing data:', {
+      addRope: quote.addRope,
+      widthIn: quote.widthIn,
+      baseTotals_rope: baseTotals.rope,
+      rope_cost_cents: pricing.rope_cost_cents,
+      rope_feet: quote.addRope ? quote.widthIn / 12 : 0
+    });
 
     if (isEditing) {
       // UPDATE existing cart item
