@@ -101,24 +101,13 @@ export function useCartSync() {
         console.log('🔍 Current user:', currentUserId);
       }
       
-      // Merge guest cart with user cart on login
-      // CRITICAL FIX: Check for checkout guest session ID OR cookie
-      const hasCookie = typeof document !== 'undefined' && document.cookie.includes('cart_session_id');
-      const hasGuestSession = checkoutGuestSessionId || hasCookie;
+      // ALWAYS attempt to merge guest cart on login
+      // This ensures guest cart items are never lost, even if checkout context is missing
+      console.log('🔄 CART SYNC: Attempting guest cart merge on login...');
+      console.log('🔄 Checkout context guest session ID:', checkoutGuestSessionId ? `${checkoutGuestSessionId.substring(0, 12)}...` : 'null');
       
-      console.log('🔍 GUEST SESSION CHECK:', {
-        checkoutGuestSessionId: checkoutGuestSessionId ? `${checkoutGuestSessionId.substring(0, 12)}...` : 'null',
-        hasCookie,
-        hasGuestSession,
-      });
-      
-      if (hasGuestSession && !hasMergedRef.current) {
-        console.log('🚨🚨🚨 MERGE PATH TRIGGERED - GUEST SESSION DETECTED 🚨🚨🚨');
-        console.log('🔄 MERGE: Guest session detected, merging guest cart with user cart...');
+      if (!hasMergedRef.current) {
         hasMergedRef.current = true;
-        
-        // Set loading state to prevent "cart is empty" flash
-        useCartStore.setState({ isLoading: true });
         
         // Set loading state to prevent "cart is empty" flash
         useCartStore.setState({ isLoading: true });
@@ -126,12 +115,19 @@ export function useCartSync() {
         (async () => {
           try {
             console.log('🔄 MERGE: Calling mergeGuestCartOnLogin...');
+            console.log('🔄 MERGE: This will check for guest cart in database and merge if found');
             
+            // mergeGuestCartOnLogin will:
+            // 1. Try to get session ID from checkoutGuestSessionId OR cookie
+            // 2. Load guest cart from database (if exists)
+            // 3. Load user cart from database
+            // 4. Merge them (if guest cart exists)
+            // 5. Save merged cart to user's account
             const mergedItems = await cartSyncService.mergeGuestCartOnLogin(
               currentUserId,
               checkoutGuestSessionId || undefined
             );
-            console.log('✅ MERGE: Guest cart merged successfully');
+            console.log('✅ MERGE: Guest cart merge completed');
             console.log('✅ MERGE: Merged items count:', mergedItems.length);
             
             // Update the store with merged items
@@ -145,12 +141,9 @@ export function useCartSync() {
             // Clear loading state
             useCartStore.setState({ isLoading: false });
             
-            // Clear loading state
-            useCartStore.setState({ isLoading: false });
-            
             // Clear checkout context after successful merge
             if (clearCheckoutContext) {
-              console.log('🧹 CART SYNC: Clearing checkout context after successful merge');
+              console.log('🧹 CART SYNC: Clearing checkout context after merge');
               clearCheckoutContext();
             }
           } catch (error) {
@@ -161,17 +154,10 @@ export function useCartSync() {
             loadFromServer();
           }
         })();
-      } else {
-        // No guest session - just load user's cart from server
-        console.log('🚨🚨🚨 NO GUEST SESSION PATH - LOADING USER CART 🚨🚨🚨');
-        console.log('👤 No guest session, loading user cart from database...');
-        hasMergedRef.current = false;
-        
-        // Load user's cart from server (don't clear first to avoid flash)
-        loadFromServer();
       }
     }
     
+    // User logged out
     // User logged out
     if (prevUserId && !currentUserId) {
       console.log('🚪 User logged out');
