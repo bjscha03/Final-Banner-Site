@@ -179,19 +179,6 @@ const HeroSection: React.FC = () => {
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             {/* Left Side - Hero Content */}
             <div className="text-white space-y-6">
-              {/* Badges */}
-              <div className="flex flex-wrap gap-3">
-                <Badge className="bg-transparent border border-white/30 text-white px-3 py-1.5 text-sm">
-                  ⚡ 20% Off First Order
-                </Badge>
-                <Badge className="bg-transparent border border-white/30 text-white px-3 py-1.5 text-sm">
-                  📦 Free Next-Day Air
-                </Badge>
-                <Badge className="bg-transparent border border-white/30 text-white px-3 py-1.5 text-sm">
-                  ⏱️ 24-Hour Production
-                </Badge>
-              </div>
-
               {/* Main Heading */}
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
                 Custom Vinyl Banners — Printed Fast, Shipped Next-Day Air
