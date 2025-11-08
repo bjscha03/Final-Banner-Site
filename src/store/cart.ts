@@ -230,12 +230,21 @@ export const useCartStore = create<CartState>()(
         })();
         const computedLine = computedUnit * quote.quantity + computedRope + computedPole;
 
-        const unit_price_cents = pricing?.unit_price_cents ?? computedUnit;
-        const rope_cost_cents = pricing?.rope_cost_cents ?? computedRope;
+        // CRITICAL: Always use authoritative pricing when provided
+        // Fallback to computed values only if pricing is not provided
+        const unit_price_cents = pricing?.unit_price_cents !== undefined ? pricing.unit_price_cents : computedUnit;
+        const rope_cost_cents = pricing?.rope_cost_cents !== undefined ? pricing.rope_cost_cents : computedRope;
         const rope_pricing_mode: PricingMode = pricing?.rope_pricing_mode ?? 'per_item';
-        const pole_pocket_cost_cents = pricing?.pole_pocket_cost_cents ?? computedPole;
+        const pole_pocket_cost_cents = pricing?.pole_pocket_cost_cents !== undefined ? pricing.pole_pocket_cost_cents : computedPole;
         const pole_pocket_pricing_mode: PricingMode = pricing?.pole_pocket_pricing_mode ?? 'per_item';
-        const line_total_cents = pricing?.line_total_cents ?? computedLine;
+        const line_total_cents = pricing?.line_total_cents !== undefined ? pricing.line_total_cents : computedLine;
+        
+        console.log('🔍 [UPDATE CART] Computed fallback values:', {
+          computedUnit,
+          computedRope,
+          computedPole,
+          computedLine
+        });
         
         console.log('🔍 [UPDATE CART] Final pricing values:', {
           unit_price_cents,
@@ -243,7 +252,8 @@ export const useCartStore = create<CartState>()(
           pole_pocket_cost_cents,
           line_total_cents,
           ropeFeet,
-          usingAuthoritative
+          usingAuthoritative,
+          pricingProvided: !!pricing
         });
 
         // Use the file key from the uploaded file
@@ -454,12 +464,21 @@ export const useCartStore = create<CartState>()(
         })();
         const computedLine = computedUnit * quote.quantity + computedRope + computedPole;
 
-        const unit_price_cents = pricing?.unit_price_cents ?? computedUnit;
-        const rope_cost_cents = pricing?.rope_cost_cents ?? computedRope;
+        // CRITICAL: Always use authoritative pricing when provided
+        // Fallback to computed values only if pricing is not provided
+        const unit_price_cents = pricing?.unit_price_cents !== undefined ? pricing.unit_price_cents : computedUnit;
+        const rope_cost_cents = pricing?.rope_cost_cents !== undefined ? pricing.rope_cost_cents : computedRope;
         const rope_pricing_mode: PricingMode = pricing?.rope_pricing_mode ?? 'per_item';
-        const pole_pocket_cost_cents = pricing?.pole_pocket_cost_cents ?? computedPole;
+        const pole_pocket_cost_cents = pricing?.pole_pocket_cost_cents !== undefined ? pricing.pole_pocket_cost_cents : computedPole;
         const pole_pocket_pricing_mode: PricingMode = pricing?.pole_pocket_pricing_mode ?? 'per_item';
-        const line_total_cents = pricing?.line_total_cents ?? computedLine;
+        const line_total_cents = pricing?.line_total_cents !== undefined ? pricing.line_total_cents : computedLine;
+        
+        console.log('🔍 [UPDATE CART] Computed fallback values:', {
+          computedUnit,
+          computedRope,
+          computedPole,
+          computedLine
+        });
         
         console.log('🔍 [UPDATE CART] Final pricing values:', {
           unit_price_cents,
@@ -467,7 +486,8 @@ export const useCartStore = create<CartState>()(
           pole_pocket_cost_cents,
           line_total_cents,
           ropeFeet,
-          usingAuthoritative
+          usingAuthoritative,
+          pricingProvided: !!pricing
         });
 
         // Use the file key from the uploaded file
