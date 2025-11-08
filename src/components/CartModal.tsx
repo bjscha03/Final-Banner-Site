@@ -136,13 +136,6 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
             ) : (
               <div className="space-y-4">
                 {items.map((item) => {
-                  console.log('🛒 CART MODAL: Item data:', {
-                    id: item.id,
-                    rope_feet: item.rope_feet,
-                    rope_cost_cents: item.rope_cost_cents,
-                    addRope: item.addRope,
-                    width_in: item.width_in
-                  });
                   const eachCents = computeEach(item);
                   const ropeCost = item.rope_cost_cents || 0;
                   const pocketCost = item.pole_pocket_cost_cents || 0;
