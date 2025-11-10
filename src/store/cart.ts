@@ -246,7 +246,7 @@ export const useCartStore = create<CartState>()(
           computedLine
         });
         
-        console.log('🔍 [ADD TO CART] Final pricing values:', {
+        console.log('🔍 [UPDATE CART] Final pricing values:', {
           unit_price_cents,
           rope_cost_cents,
           pole_pocket_cost_cents,
@@ -255,6 +255,11 @@ export const useCartStore = create<CartState>()(
           usingAuthoritative,
           pricingProvided: !!pricing
         });
+        
+        console.log('🔍 [UPDATE CART] Pricing object received:', pricing);
+        console.log('🔍 [UPDATE CART] Computed fallback pole pocket cost:', computedPole);
+        console.log('🔍 [UPDATE CART] Final pole_pocket_cost_cents to be saved:', pole_pocket_cost_cents);
+        console.log('🔍 [UPDATE CART] Quote polePockets value:', quote.polePockets);
 
         // Use the file key from the uploaded file
         const fileKey = quote.file?.fileKey;
@@ -480,7 +485,7 @@ export const useCartStore = create<CartState>()(
           computedLine
         });
         
-        console.log('🔍 [ADD TO CART] Final pricing values:', {
+        console.log('🔍 [UPDATE CART] Final pricing values:', {
           unit_price_cents,
           rope_cost_cents,
           pole_pocket_cost_cents,
@@ -489,6 +494,11 @@ export const useCartStore = create<CartState>()(
           usingAuthoritative,
           pricingProvided: !!pricing
         });
+        
+        console.log('🔍 [UPDATE CART] Pricing object received:', pricing);
+        console.log('🔍 [UPDATE CART] Computed fallback pole pocket cost:', computedPole);
+        console.log('🔍 [UPDATE CART] Final pole_pocket_cost_cents to be saved:', pole_pocket_cost_cents);
+        console.log('🔍 [UPDATE CART] Quote polePockets value:', quote.polePockets);
 
         // Use the file key from the uploaded file
         const fileKey = quote.file?.fileKey;
