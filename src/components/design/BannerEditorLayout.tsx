@@ -718,13 +718,51 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     
     console.log('🖼️ [OVERLAY FIX] Final overlayImage:', currentOverlayImage);
     
-    // Calculate pricing (simplified - using base pricing without upsells)
+    // Calculate pricing using CORRECT pricing functions (matching upsell path)
     const sqft = (widthIn * heightIn) / 144;
     const basePrice = material === '13oz Vinyl' ? 3.50 : 4.50;
     const unitPrice = sqft * basePrice;
-    const ropePrice = grommets === 'Grommets + Rope' ? 15 : 0;
-    const polePocketPrice = quote.polePockets === 'Yes' ? 25 : 0;
-    const lineTotal = (unitPrice + ropePrice + polePocketPrice) * quote.quantity;
+    
+    // CORRECT rope pricing: $2 per linear foot (width in feet × 2 × quantity)
+    const ropeFeet = quote.addRope ? (widthIn / 12) : 0;
+    const ropePrice = ropeFeet > 0 ? (ropeFeet * 2 * quote.quantity) : 0;
+    
+    // CORRECT pole pocket pricing: $15 setup + $2 per linear foot × quantity
+    let polePocketPrice = 0;
+    if (quote.polePockets && quote.polePockets !== 'none') {
+      const setupFee = 15; // dollars
+      const pricePerLinearFoot = 2; // dollars
+      let linearFeet = 0;
+      switch (quote.polePockets) {
+        case 'top':
+        case 'bottom':
+          linearFeet = widthIn / 12; break;
+        case 'left':
+        case 'right':
+          linearFeet = heightIn / 12; break;
+        case 'top-bottom':
+          linearFeet = (widthIn / 12) * 2; break;
+        default:
+          linearFeet = 0;
+      }
+      polePocketPrice = (setupFee + (linearFeet * pricePerLinearFoot)) * quote.quantity;
+    }
+    
+    const lineTotal = (unitPrice * quote.quantity) + ropePrice + polePocketPrice;
+    
+    console.log('💰 [UPDATE CART] Pricing calculation:', {
+      widthIn,
+      heightIn,
+      quantity: quote.quantity,
+      material,
+      addRope: quote.addRope,
+      polePockets: quote.polePockets,
+      unitPrice,
+      ropeFeet,
+      ropePrice,
+      polePocketPrice,
+      lineTotal
+    });
     
     const pricing = {
       unit_price_cents: Math.round(unitPrice * 100),
