@@ -28,16 +28,6 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
   const isEditing = quote.editingItemId !== null && quote.editingItemId !== undefined;
   const { file, widthIn, heightIn, quantity, material, grommets, polePockets, polePocketSize, addRope } = quote;
   
-  // Calculate pricing
-  const baseTotals = calcTotals({
-    widthIn,
-    heightIn,
-    qty: quantity,  // Fix: calcTotals expects 'qty', not 'quantity'
-    material,
-    addRope,
-    polePockets,
-  });
-
   // Simple minimum order check (can be enhanced)
   const canProceed = file !== null;
 
@@ -86,6 +76,28 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
       });
       return;
     }
+
+    // CRITICAL FIX: Calculate pricing INSIDE handleClick to use latest quote values
+    // This ensures that if user changes options (like pole pockets), the pricing is recalculated
+    const baseTotals = calcTotals({
+      widthIn: quote.widthIn,
+      heightIn: quote.heightIn,
+      qty: quote.quantity,
+      material: quote.material,
+      addRope: quote.addRope,
+      polePockets: quote.polePockets,
+    });
+    
+    console.log('💰 PRICING CALCULATION (using latest quote values):', {
+      widthIn: quote.widthIn,
+      heightIn: quote.heightIn,
+      quantity: quote.quantity,
+      material: quote.material,
+      addRope: quote.addRope,
+      polePockets: quote.polePockets,
+      polePocketSize: quote.polePocketSize,
+      baseTotals
+    });
 
     // Prepare pricing data
     const pricing = {
