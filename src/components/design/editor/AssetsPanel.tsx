@@ -133,6 +133,19 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
           });
           console.log('[AssetsPanel] Image added with blob URL:', file.name);
           
+          // 🔥 MOBILE UX: Auto-add image to canvas on mobile devices
+          if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+            console.log('[AssetsPanel] 📱 Mobile detected - auto-adding image to canvas');
+            setTimeout(async () => {
+              try {
+                await handleAddToCanvas(tempImage);
+                console.log('[AssetsPanel] ✅ Image auto-added to canvas on mobile');
+              } catch (error) {
+                console.error('[AssetsPanel] ❌ Error auto-adding image:', error);
+              }
+            }, 500); // Wait for state update
+          }
+          
           // Upload to Cloudinary in background
           try {
             console.log('[AssetsPanel] Uploading to Cloudinary in background:', file.name);

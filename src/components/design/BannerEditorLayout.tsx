@@ -1231,7 +1231,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
             <Button
               onClick={handlePreview}
               size="sm"
-              className="bg-[#18448D] hover:bg-[#0f2d5c] text-white"
+              className="min-h-[44px] min-w-[44px] bg-[#18448D] hover:bg-[#0f2d5c] text-white"
             >
               <Eye className="w-4 h-4 sm:mr-2" />
               <span className="hidden sm:inline">Preview</span>
@@ -1240,7 +1240,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
               onClick={handleAddToCart}
               disabled={!hasContent}
               size="sm"
-              className="bg-[#18448D] hover:bg-[#0f2d5c] text-white"
+              className="min-h-[44px] min-w-[44px] bg-[#18448D] hover:bg-[#0f2d5c] text-white"
             >
               <ShoppingCart className="w-4 h-4 sm:mr-2" />
               <span className="hidden sm:inline">{editingItemId ? 'Update Cart' : 'Add to Cart'}</span>
@@ -1252,6 +1252,17 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden relative isolate">
         
+        {/* Mobile Canvas - Appears FIRST (above toolbar) for immediate visibility */}
+        <div className="lg:hidden flex-1 flex flex-col bg-gray-100 overflow-hidden relative z-0">
+          <div className="flex-1 p-2 sm:p-4 overflow-auto">
+            <EditorCanvas 
+              ref={canvasRef}
+              selectedObjectId={selectedObjectId}
+              onSelectObject={setSelectedObjectId}
+            />
+          </div>
+        </div>
+        
         {/* Left Sidebar - Icon Only (Desktop) */}
         <div className="hidden lg:flex flex-col bg-white border-r border-gray-200 w-20 z-10">
           <div className="flex-1 flex flex-col py-4 gap-1">
@@ -1260,7 +1271,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
                 key={button.id}
                 data-sidebar-button
                 onClick={() => togglePanel(button.id)}
-                className={`flex flex-col items-center justify-center py-4 px-2 transition-all duration-200 relative group ${
+                className={`flex flex-col items-center justify-center py-4 px-2 min-h-[60px] min-w-[60px] transition-all duration-200 relative group ${
                   activePanel === button.id
                     ? 'text-[#18448D] bg-blue-50'
                     : 'text-gray-600 hover:text-[#18448D] hover:bg-gray-50'
@@ -1306,8 +1317,8 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
           </div>
         )}
 
-        {/* Canvas Area - Full Width */}
-        <div className="flex-1 flex flex-col bg-gray-100 overflow-hidden relative z-0">
+        {/* Canvas Area - Full Width (Desktop Only) */}
+        <div className="hidden lg:flex flex-1 flex flex-col bg-gray-100 overflow-hidden relative z-0">
           <div className="flex-1 p-4 overflow-auto">
             <EditorCanvas 
               ref={canvasRef}
@@ -1325,7 +1336,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
                 key={button.id}
                 data-sidebar-button
                 onClick={() => togglePanel(button.id)}
-                className={`flex-shrink-0 flex flex-col items-center justify-center py-3 px-4 min-w-[80px] transition-all duration-200 ${
+                className={`flex-shrink-0 flex flex-col items-center justify-center py-3 px-4 min-w-[80px] min-h-[56px] transition-all duration-200 ${
                   activePanel === button.id
                     ? 'text-[#18448D] bg-blue-50 border-t-2 border-[#18448D]'
                     : 'text-gray-600 hover:text-[#18448D] hover:bg-gray-50'

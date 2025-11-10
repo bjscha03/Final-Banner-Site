@@ -716,10 +716,10 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
               key={`grommet-${idx}`}
               x={stagePos.x + pos.x * PIXELS_PER_INCH * scale}
               y={stagePos.y + pos.y * PIXELS_PER_INCH * scale}
-              radius={grommetRadius(widthIn, heightIn) * PIXELS_PER_INCH * scale}
+              radius={Math.max(grommetRadius(widthIn, heightIn) * PIXELS_PER_INCH * scale, 4)}
               fill="#666"
               stroke="#333"
-              strokeWidth={1 * scale}
+              strokeWidth={Math.max(1 * scale, 1.5)}
               listening={false}
             />
           ))}
