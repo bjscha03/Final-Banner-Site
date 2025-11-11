@@ -206,15 +206,19 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
 
   // Generate thumbnail for cart preview
   const generateThumbnail = () => {
+    console.log('[BannerEditorLayout] 🖼️ generateThumbnail called');
     if (!canvasRef.current) {
+      console.log('[BannerEditorLayout] ❌ canvasRef.current is null');
       return null;
     }
 
     try {
       const stage = canvasRef.current.getStage();
       if (!stage) {
+        console.log('[BannerEditorLayout] ❌ stage is null');
         return null;
       }
+      console.log('[BannerEditorLayout] ✅ Stage found, generating thumbnail...');
 
       // Get current visibility state and selection
       const editorState = useEditorStore.getState();
@@ -290,8 +294,10 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
             mimeType: 'image/png',
           });
 
-          console.log('[BannerEditorLayout] Generated thumbnail:', dataURL.substring(0, 50) + '...');
+          console.log('[BannerEditorLayout] ✅ Generated thumbnail:', dataURL.substring(0, 50) + '...');
+          console.log('[BannerEditorLayout] 📏 Thumbnail length:', dataURL.length, 'characters');
           setCanvasThumbnail(dataURL);
+          console.log('[BannerEditorLayout] ✅ Thumbnail set in state');
           
           // Restore original visibility
           setShowBleed(wasShowingBleed);
