@@ -147,7 +147,8 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
             
             // Preload the blob image before adding to canvas
             const preloadImg = new Image();
-            preloadImg.crossOrigin = 'anonymous';
+            // Don't set crossOrigin for blob URLs - they're local and don't need CORS
+            // preloadImg.crossOrigin = 'anonymous';
             
             preloadImg.onload = async () => {
               try {
