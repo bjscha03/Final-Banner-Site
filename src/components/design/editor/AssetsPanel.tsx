@@ -172,30 +172,14 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
                   fileKey: result.publicId || result.fileKey,
                   cloudinaryUrl: result.secureUrl
                 };
-                
-                // PERFORMANCE FIX: Preload image before adding to canvas to prevent visual flash
-                // This ensures the image is fully loaded before rendering on canvas
-                console.log('[AssetsPanel] 🔄 Preloading image before adding to canvas...');
-                const preloadImage = new Image();
-                preloadImage.crossOrigin = 'anonymous';
-                preloadImage.onload = async () => {
-                  console.log('[AssetsPanel] ✅ Image preloaded successfully, adding to canvas');
+                setTimeout(async () => {
                   try {
                     await handleAddToCanvas(updatedImg);
                     console.log('[AssetsPanel] ✅ Image auto-added to canvas on mobile');
                   } catch (error) {
                     console.error('[AssetsPanel] ❌ Error auto-adding image:', error);
                   }
-                };
-                preloadImage.onerror = (error) => {
-                  console.error('[AssetsPanel] ❌ Error preloading image:', error);
-                  // Still try to add to canvas even if preload fails
-                  handleAddToCanvas(updatedImg).catch(err => 
-                    console.error('[AssetsPanel] ❌ Error auto-adding image after preload failure:', err)
-                  );
-                };
-                preloadImage.src = result.secureUrl;
-                console.log('[AssetsPanel] 🔄 Image preload started for:', result.secureUrl);
+                }, 100);
               }
             } else {
               console.warn('[AssetsPanel] Cloudinary upload failed, keeping blob URL');
