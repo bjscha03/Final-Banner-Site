@@ -191,6 +191,11 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
                     await handleAddToCanvas(updatedImg);
                     console.log('[AssetsPanel] ✅ Image auto-added to canvas on mobile');
                     
+                    // CRITICAL FIX: Remove image from uploaded list after auto-add on mobile
+                    // This prevents confusion - user doesn't see "Add to Canvas" button
+                    console.log('[AssetsPanel] 🗑️ Removing image from uploaded list (already on canvas)');
+                    setUploadedImages((prev) => prev.filter((img) => img.id !== imageId));
+                    
                     // CRITICAL FIX: Auto-close Assets panel on mobile after adding to canvas
                     // This allows user to see the canvas with the image immediately
                     if (onClose) {
@@ -207,6 +212,8 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
                   // Fallback: add to canvas even if preload fails
                   try {
                     await handleAddToCanvas(updatedImg);
+                    // Remove from list even if preload failed
+                    setUploadedImages((prev) => prev.filter((img) => img.id !== imageId));
                     if (onClose) onClose();
                   } catch (err) {
                     console.error('[AssetsPanel] ❌ Error auto-adding image:', err);
