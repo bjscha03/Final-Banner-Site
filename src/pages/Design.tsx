@@ -82,11 +82,14 @@ const Design: React.FC = () => {
 
   return (
     <Layout>
-      <PageHeader
-        title="Design Your Banner"
-        subtitle="Create custom banners with our advanced design tools"
-        icon={Palette}
-      />
+      {/* Hide PageHeader on mobile to maximize canvas visibility - saves ~200-300px */}
+      <div className="hidden lg:block">
+        <PageHeader
+          title="Design Your Banner"
+          subtitle="Create custom banners with our advanced design tools"
+          icon={Palette}
+        />
+      </div>
       
       <BannerEditorLayout onOpenAIModal={() => setAiModalOpen(true)} />
       

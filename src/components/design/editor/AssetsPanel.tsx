@@ -133,20 +133,7 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
           });
           console.log('[AssetsPanel] Image added with blob URL:', file.name);
           
-          // 🔥 MOBILE UX: Auto-add image to canvas on mobile devices
-          if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-            console.log('[AssetsPanel] 📱 Mobile detected - auto-adding image to canvas');
-            setTimeout(async () => {
-              try {
-                await handleAddToCanvas(tempImage);
-                console.log('[AssetsPanel] ✅ Image auto-added to canvas on mobile');
-              } catch (error) {
-                console.error('[AssetsPanel] ❌ Error auto-adding image:', error);
-              }
-            }, 500); // Wait for state update
-          }
-          
-          // Upload to Cloudinary in background
+          // Upload to Cloudinary in background (mobile auto-add happens AFTER upload)
           try {
             console.log('[AssetsPanel] Uploading to Cloudinary in background:', file.name);
             const formData = new FormData();
@@ -170,6 +157,30 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
                 )
               );
               console.log('[AssetsPanel] Updated image with Cloudinary URL');
+              
+              // 🔥 MOBILE UX: Auto-add to canvas AFTER Cloudinary upload completes
+              // This prevents double-uploading and uses optimized Cloudinary URL
+              if (typeof window !== 'undefined' && window.innerWidth < 1024) {
+                console.log('[AssetsPanel] 📱 Auto-adding image to canvas (upload complete)');
+                // Get the updated image with Cloudinary URL
+                const updatedImg = {
+                  id: imageId,
+                  url: result.secureUrl,
+                  name: file.name,
+                  width: img.width,
+                  height: img.height,
+                  fileKey: result.publicId || result.fileKey,
+                  cloudinaryUrl: result.secureUrl
+                };
+                setTimeout(async () => {
+                  try {
+                    await handleAddToCanvas(updatedImg);
+                    console.log('[AssetsPanel] ✅ Image auto-added to canvas on mobile');
+                  } catch (error) {
+                    console.error('[AssetsPanel] ❌ Error auto-adding image:', error);
+                  }
+                }, 100);
+              }
             } else {
               console.warn('[AssetsPanel] Cloudinary upload failed, keeping blob URL');
             }
