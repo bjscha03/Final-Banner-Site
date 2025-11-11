@@ -133,7 +133,57 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
           });
           console.log('[AssetsPanel] Image added with blob URL:', file.name);
           
-          // Upload to Cloudinary in background (mobile auto-add happens AFTER upload)
+          // 🔥 MOBILE UX: Auto-add to canvas IMMEDIATELY after image loads (don't wait for Cloudinary)
+          // Use more reliable mobile detection: check both width AND touch support
+          const isMobileDevice = (
+            (typeof window !== 'undefined' && window.innerWidth < 1024) ||
+            ('ontouchstart' in window && window.innerWidth < 1280)
+          );
+          
+          if (isMobileDevice) {
+            console.log('[AssetsPanel] 📱 MOBILE DETECTED - Auto-adding image to canvas');
+            console.log('[AssetsPanel] Window width:', window.innerWidth);
+            console.log('[AssetsPanel] Touch support:', 'ontouchstart' in window);
+            
+            // Preload the blob image before adding to canvas
+            const preloadImg = new Image();
+            preloadImg.crossOrigin = 'anonymous';
+            
+            preloadImg.onload = async () => {
+              try {
+                console.log('[AssetsPanel] ✅ Image preloaded, adding to canvas');
+                await handleAddToCanvas(tempImage);
+                
+                // Remove from uploaded list
+                setUploadedImages((prev) => prev.filter((img) => img.id !== imageId));
+                
+                // Close panel after delay
+                setTimeout(() => {
+                  if (onClose) {
+                    console.log('[AssetsPanel] 📱 Closing panel');
+                    onClose();
+                  }
+                }, 300);
+              } catch (error) {
+                console.error('[AssetsPanel] ❌ Error auto-adding image:', error);
+              }
+            };
+            
+            preloadImg.onerror = async (error) => {
+              console.error('[AssetsPanel] ❌ Preload failed, adding anyway:', error);
+              try {
+                await handleAddToCanvas(tempImage);
+                setUploadedImages((prev) => prev.filter((img) => img.id !== imageId));
+                setTimeout(() => { if (onClose) onClose(); }, 300);
+              } catch (err) {
+                console.error('[AssetsPanel] ❌ Error:', err);
+              }
+            };
+            
+            preloadImg.src = url;
+          }
+          
+          // Upload to Cloudinary in background (for saving to cart later)
           try {
             console.log('[AssetsPanel] Uploading to Cloudinary in background:', file.name);
             const formData = new FormData();
@@ -158,68 +208,9 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
               );
               console.log('[AssetsPanel] Updated image with Cloudinary URL');
               
-              // 🔥 MOBILE UX: Auto-add to canvas AFTER Cloudinary upload completes
-              // This prevents double-uploading and uses optimized Cloudinary URL
-              if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-                console.log('[AssetsPanel] 📱 MOBILE AUTO-ADD TRIGGERED');
-                
-                // CRITICAL FIX: Ensure fileKey is properly set to prevent double-upload in handleAddToCanvas
-                // Use publicId as primary source, fallback to fileKey
-                const cloudinaryFileKey = result.publicId || result.fileKey;
-                
-                // Get the updated image with Cloudinary URL and fileKey
-                const updatedImg = {
-                  id: imageId,
-                  url: result.secureUrl,
-                  name: file.name,
-                  width: img.width,
-                  height: img.height,
-                  fileKey: cloudinaryFileKey,
-                  cloudinaryUrl: result.secureUrl
-                };
-                
-                // CRITICAL FIX: Preload image before adding to canvas to eliminate flash
-                // This ensures the image is fully loaded in browser cache before rendering
-                const preloadImg = new Image();
-                preloadImg.crossOrigin = 'anonymous';
-                
-                preloadImg.onload = async () => {
-                  try {
-                    // Add to canvas
-                    await handleAddToCanvas(updatedImg);
-                    
-                    // Remove image from uploaded list after auto-add on mobile
-                    // This prevents confusion - user doesn't see "Add to Canvas" button
-                    setUploadedImages((prev) => prev.filter((img) => img.id !== imageId));
-                    
-                    // CRITICAL: Close panel AFTER a short delay to ensure canvas updates
-                    setTimeout(() => {
-                      if (onClose) {
-                        onClose();
-                      }
-                    }, 300);
-                  } catch (error) {
-                    console.error('[AssetsPanel] ❌ Error auto-adding image:', error);
-                  }
-                };
-                
-                preloadImg.onerror = async (error) => {
-                  console.error('[AssetsPanel] ❌ Image preload failed, adding anyway:', error);
-                  // Fallback: add to canvas even if preload fails
-                  try {
-                    await handleAddToCanvas(updatedImg);
-                    setUploadedImages((prev) => prev.filter((img) => img.id !== imageId));
-                    setTimeout(() => {
-                      if (onClose) onClose();
-                    }, 300);
-                  } catch (err) {
-                    console.error('[AssetsPanel] ❌ Error auto-adding image:', err);
-                  }
-                };
-                
-                // Start preloading
-                preloadImg.src = result.secureUrl;
-              }
+              // Mobile auto-add already happened immediately after blob load
+              // Just log that Cloudinary upload completed
+              console.log('[AssetsPanel] Cloudinary upload complete - image will be saved to cart with this URL');
             } else {
               console.warn('[AssetsPanel] Cloudinary upload failed, keeping blob URL');
             }
