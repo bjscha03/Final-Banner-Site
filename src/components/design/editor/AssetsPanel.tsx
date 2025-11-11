@@ -162,24 +162,31 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
               // This prevents double-uploading and uses optimized Cloudinary URL
               if (typeof window !== 'undefined' && window.innerWidth < 1024) {
                 console.log('[AssetsPanel] 📱 Auto-adding image to canvas (upload complete)');
-                // Get the updated image with Cloudinary URL
+                // CRITICAL FIX: Ensure fileKey is properly set to prevent double-upload in handleAddToCanvas
+                // Use publicId as primary source, fallback to fileKey
+                const cloudinaryFileKey = result.publicId || result.fileKey;
+                console.log('[AssetsPanel] 🔑 Cloudinary fileKey:', cloudinaryFileKey);
+                
+                // Get the updated image with Cloudinary URL and fileKey
                 const updatedImg = {
                   id: imageId,
                   url: result.secureUrl,
                   name: file.name,
                   width: img.width,
                   height: img.height,
-                  fileKey: result.publicId || result.fileKey,
+                  fileKey: cloudinaryFileKey,
                   cloudinaryUrl: result.secureUrl
                 };
-                setTimeout(async () => {
-                  try {
-                    await handleAddToCanvas(updatedImg);
-                    console.log('[AssetsPanel] ✅ Image auto-added to canvas on mobile');
-                  } catch (error) {
-                    console.error('[AssetsPanel] ❌ Error auto-adding image:', error);
-                  }
-                }, 100);
+                
+                // PERFORMANCE: Remove setTimeout delay - add to canvas immediately
+                // The image is already uploaded to Cloudinary, no need to wait
+                console.log('[AssetsPanel] 🚀 Adding to canvas immediately (no delay)');
+                try {
+                  await handleAddToCanvas(updatedImg);
+                  console.log('[AssetsPanel] ✅ Image auto-added to canvas on mobile');
+                } catch (error) {
+                  console.error('[AssetsPanel] ❌ Error auto-adding image:', error);
+                }
               }
             } else {
               console.warn('[AssetsPanel] Cloudinary upload failed, keeping blob URL');
