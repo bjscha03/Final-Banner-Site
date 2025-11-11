@@ -133,33 +133,47 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
           });
           console.log('[AssetsPanel] Image added with blob URL:', file.name);
           
-          // 🔥 MOBILE UX: Auto-add to canvas IMMEDIATELY after image loads (don't wait for Cloudinary)
-          // Use more reliable mobile detection: check both width AND touch support
-          const isMobileDevice = (
-            (typeof window !== 'undefined' && window.innerWidth < 1024) ||
-            ('ontouchstart' in window && window.innerWidth < 1280)
-          );
+          // 🔥 MOBILE UX: Auto-add to canvas IMMEDIATELY after image loads
+          const windowWidth = typeof window !== 'undefined' ? window.innerWidth : 9999;
+          const hasTouchSupport = 'ontouchstart' in window;
+          const isMobileDevice = windowWidth < 1024 || (hasTouchSupport && windowWidth < 1280);
+          
+          console.log('[AssetsPanel] 🔍 MOBILE DETECTION:', {
+            windowWidth,
+            hasTouchSupport,
+            isMobileDevice,
+            onCloseExists: !!onClose
+          });
           
           if (isMobileDevice) {
-            console.log('[AssetsPanel] 📱 MOBILE - Auto-adding to canvas');
+            console.log('[AssetsPanel] 📱 MOBILE DETECTED - Starting auto-add flow');
+            console.log('[AssetsPanel] 📱 tempImage:', tempImage);
+            console.log('[AssetsPanel] 📱 handleAddToCanvas type:', typeof handleAddToCanvas);
             
-            // Image is already loaded (we're in img.onload), so add immediately
-            // No need to preload again - that's redundant!
-            (async () => {
+            // Use setTimeout to ensure this runs after state update
+            setTimeout(async () => {
               try {
+                console.log('[AssetsPanel] 📱 Calling handleAddToCanvas...');
                 await handleAddToCanvas(tempImage);
+                console.log('[AssetsPanel] 📱 ✅ handleAddToCanvas completed');
                 
                 // Remove from uploaded list
+                console.log('[AssetsPanel] 📱 Removing from uploadedImages list');
                 setUploadedImages((prev) => prev.filter((img) => img.id !== imageId));
                 
-                // Close panel immediately - no delay needed
+                // Close panel
+                console.log('[AssetsPanel] 📱 Closing panel, onClose:', !!onClose);
                 if (onClose) {
                   onClose();
+                  console.log('[AssetsPanel] 📱 ✅ Panel closed');
                 }
               } catch (error) {
-                console.error('[AssetsPanel] ❌ Error auto-adding:', error);
+                console.error('[AssetsPanel] 📱 ❌ ERROR in auto-add:', error);
+                console.error('[AssetsPanel] 📱 ❌ Error stack:', error.stack);
               }
-            })();
+            }, 50);
+          } else {
+            console.log('[AssetsPanel] 💻 DESKTOP - Manual add required');
           }
           
           // Upload to Cloudinary in background (for saving to cart later)
