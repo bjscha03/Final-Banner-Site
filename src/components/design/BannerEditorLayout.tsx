@@ -268,6 +268,17 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
           const height = backgroundRect.height();
           
           console.log('[BannerEditorLayout] Banner bounds:', { x, y, width, height });
+          
+          // DIAGNOSTIC: Check if all images are loaded before capturing
+          const allChildren = layer.getChildren();
+          console.log('[BannerEditorLayout] Layer children count:', allChildren.length);
+          allChildren.forEach((child, idx) => {
+            console.log(`[BannerEditorLayout] Child ${idx}:`, {
+              type: child.getClassName(),
+              visible: child.visible(),
+              hasImage: child.getClassName() === 'Image' ? !!child.image() : 'N/A'
+            });
+          });
 
           // Capture thumbnail - crop to just the banner area
           const dataURL = stage.toDataURL({
@@ -293,7 +304,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
           setShowSafeZone(wasShowingSafeZone);
           setShowGrid(wasShowingGrid);
         }
-      }, 200); // Wait 200ms for React to re-render and text to load
+      }, 500); // Wait 500ms for React to re-render and images to load
       
       return null;
     } catch (error) {

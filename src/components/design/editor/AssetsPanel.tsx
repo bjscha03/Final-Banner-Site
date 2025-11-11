@@ -178,15 +178,43 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
                   cloudinaryUrl: result.secureUrl
                 };
                 
-                // PERFORMANCE: Remove setTimeout delay - add to canvas immediately
-                // The image is already uploaded to Cloudinary, no need to wait
-                console.log('[AssetsPanel] 🚀 Adding to canvas immediately (no delay)');
-                try {
-                  await handleAddToCanvas(updatedImg);
-                  console.log('[AssetsPanel] ✅ Image auto-added to canvas on mobile');
-                } catch (error) {
-                  console.error('[AssetsPanel] ❌ Error auto-adding image:', error);
-                }
+                // CRITICAL FIX: Preload image before adding to canvas to eliminate flash
+                // This ensures the image is fully loaded in browser cache before rendering
+                console.log('[AssetsPanel] 🖼️ Preloading image to eliminate flash...');
+                const preloadImg = new Image();
+                preloadImg.crossOrigin = 'anonymous';
+                
+                preloadImg.onload = async () => {
+                  console.log('[AssetsPanel] ✅ Image preloaded successfully');
+                  console.log('[AssetsPanel] 🚀 Adding to canvas (image ready in cache)');
+                  try {
+                    await handleAddToCanvas(updatedImg);
+                    console.log('[AssetsPanel] ✅ Image auto-added to canvas on mobile');
+                    
+                    // CRITICAL FIX: Auto-close Assets panel on mobile after adding to canvas
+                    // This allows user to see the canvas with the image immediately
+                    if (onClose) {
+                      console.log('[AssetsPanel] 📱 Auto-closing panel on mobile');
+                      onClose();
+                    }
+                  } catch (error) {
+                    console.error('[AssetsPanel] ❌ Error auto-adding image:', error);
+                  }
+                };
+                
+                preloadImg.onerror = async (error) => {
+                  console.error('[AssetsPanel] ❌ Image preload failed, adding anyway:', error);
+                  // Fallback: add to canvas even if preload fails
+                  try {
+                    await handleAddToCanvas(updatedImg);
+                    if (onClose) onClose();
+                  } catch (err) {
+                    console.error('[AssetsPanel] ❌ Error auto-adding image:', err);
+                  }
+                };
+                
+                // Start preloading
+                preloadImg.src = result.secureUrl;
               }
             } else {
               console.warn('[AssetsPanel] Cloudinary upload failed, keeping blob URL');
