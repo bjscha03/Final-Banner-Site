@@ -1254,7 +1254,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
         
         {/* Mobile Canvas - Appears FIRST (above toolbar) for immediate visibility */}
         <div className="lg:hidden flex-1 flex flex-col bg-gray-100 overflow-hidden relative z-0">
-          <div className="flex-1 p-2 sm:p-4 overflow-auto">
+          <div className="flex-1 p-2 sm:p-4 overflow-auto" style={{ paddingBottom: '80px' }}>
             <EditorCanvas 
               ref={canvasRef}
               selectedObjectId={selectedObjectId}
