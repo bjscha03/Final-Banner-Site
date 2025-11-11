@@ -220,6 +220,9 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
                 // Start preloading
                 preloadImg.src = result.secureUrl;
               }
+            } else {
+              console.warn('[AssetsPanel] Cloudinary upload failed, keeping blob URL');
+            }
           } catch (error) {
             console.warn('[AssetsPanel] Cloudinary upload error, keeping blob URL:', error);
           }
