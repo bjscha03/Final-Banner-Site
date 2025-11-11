@@ -160,14 +160,8 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
               
               // 🔥 MOBILE UX: Auto-add to canvas AFTER Cloudinary upload completes
               // This prevents double-uploading and uses optimized Cloudinary URL
-              console.log('[AssetsPanel] 🔍 Checking if mobile:', {
-                windowExists: typeof window !== 'undefined',
-                windowWidth: typeof window !== 'undefined' ? window.innerWidth : 'N/A',
-                isMobile: typeof window !== 'undefined' && window.innerWidth < 1024
-              });
               if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-                console.log('[AssetsPanel] 📱 MOBILE DETECTED - Auto-adding image to canvas (upload complete)');
-                console.log('[AssetsPanel] 📱 Window width:', window.innerWidth, '< 1024');
+                console.log('[AssetsPanel] 📱 Auto-adding image to canvas (upload complete)');
                 // CRITICAL FIX: Ensure fileKey is properly set to prevent double-upload in handleAddToCanvas
                 // Use publicId as primary source, fallback to fileKey
                 const cloudinaryFileKey = result.publicId || result.fileKey;
