@@ -161,11 +161,11 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
               // 🔥 MOBILE UX: Auto-add to canvas AFTER Cloudinary upload completes
               // This prevents double-uploading and uses optimized Cloudinary URL
               if (typeof window !== 'undefined' && window.innerWidth < 1024) {
-                console.log('[AssetsPanel] 📱 Auto-adding image to canvas (upload complete)');
+                console.log('[AssetsPanel] 📱 MOBILE AUTO-ADD TRIGGERED');
+                
                 // CRITICAL FIX: Ensure fileKey is properly set to prevent double-upload in handleAddToCanvas
                 // Use publicId as primary source, fallback to fileKey
                 const cloudinaryFileKey = result.publicId || result.fileKey;
-                console.log('[AssetsPanel] 🔑 Cloudinary fileKey:', cloudinaryFileKey);
                 
                 // Get the updated image with Cloudinary URL and fileKey
                 const updatedImg = {
@@ -180,28 +180,24 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
                 
                 // CRITICAL FIX: Preload image before adding to canvas to eliminate flash
                 // This ensures the image is fully loaded in browser cache before rendering
-                console.log('[AssetsPanel] 🖼️ Preloading image to eliminate flash...');
                 const preloadImg = new Image();
                 preloadImg.crossOrigin = 'anonymous';
                 
                 preloadImg.onload = async () => {
-                  console.log('[AssetsPanel] ✅ Image preloaded successfully');
-                  console.log('[AssetsPanel] 🚀 Adding to canvas (image ready in cache)');
                   try {
+                    // Add to canvas
                     await handleAddToCanvas(updatedImg);
-                    console.log('[AssetsPanel] ✅ Image auto-added to canvas on mobile');
                     
-                    // CRITICAL FIX: Remove image from uploaded list after auto-add on mobile
+                    // Remove image from uploaded list after auto-add on mobile
                     // This prevents confusion - user doesn't see "Add to Canvas" button
-                    console.log('[AssetsPanel] 🗑️ Removing image from uploaded list (already on canvas)');
                     setUploadedImages((prev) => prev.filter((img) => img.id !== imageId));
                     
-                    // CRITICAL FIX: Auto-close Assets panel on mobile after adding to canvas
-                    // This allows user to see the canvas with the image immediately
-                    if (onClose) {
-                      console.log('[AssetsPanel] 📱 Auto-closing panel on mobile');
-                      onClose();
-                    }
+                    // CRITICAL: Close panel AFTER a short delay to ensure canvas updates
+                    setTimeout(() => {
+                      if (onClose) {
+                        onClose();
+                      }
+                    }, 300);
                   } catch (error) {
                     console.error('[AssetsPanel] ❌ Error auto-adding image:', error);
                   }
@@ -212,9 +208,10 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
                   // Fallback: add to canvas even if preload fails
                   try {
                     await handleAddToCanvas(updatedImg);
-                    // Remove from list even if preload failed
                     setUploadedImages((prev) => prev.filter((img) => img.id !== imageId));
-                    if (onClose) onClose();
+                    setTimeout(() => {
+                      if (onClose) onClose();
+                    }, 300);
                   } catch (err) {
                     console.error('[AssetsPanel] ❌ Error auto-adding image:', err);
                   }
@@ -223,9 +220,6 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
                 // Start preloading
                 preloadImg.src = result.secureUrl;
               }
-            } else {
-              console.warn('[AssetsPanel] Cloudinary upload failed, keeping blob URL');
-            }
           } catch (error) {
             console.warn('[AssetsPanel] Cloudinary upload error, keeping blob URL:', error);
           }
@@ -358,10 +352,8 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
     addObject(imageObject);
     console.log('[IMAGE ADD] Image added successfully');
     
-    // Close panel on mobile after adding image
-    if (onClose && window.innerWidth < 1024) {
-      setTimeout(() => onClose(), 100);
-    }
+    // Panel closing is handled by the auto-add logic on mobile
+    // On desktop, keep panel open so user can add more images
   };
 
   const handleRemoveImage = (id: string) => {
