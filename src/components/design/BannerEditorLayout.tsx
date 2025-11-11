@@ -1198,11 +1198,11 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
 
       {/* Professional Header */}
       <div className="bg-white border-b border-gray-200 shadow-sm z-20">
-        <div className="px-4 py-3 flex items-center justify-between">
+        <div className="px-2 sm:px-4 py-2 sm:py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Palette className="w-6 h-6 text-[#18448D]" />
+            <Palette className="w-5 h-5 sm:w-6 sm:h-6 text-[#18448D] hidden xs:block" />
             <div>
-              <h1 className="text-lg font-bold text-gray-900">Banner Designer</h1>
+              <h1 className="text-base sm:text-lg font-bold text-gray-900">Banner Designer</h1>
               <p className="text-xs text-gray-500 hidden sm:block">Professional design tool</p>
             </div>
           </div>
