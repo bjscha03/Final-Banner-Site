@@ -304,7 +304,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
           setShowSafeZone(wasShowingSafeZone);
           setShowGrid(wasShowingGrid);
         }
-      }, 2000); // Wait 2000ms for React to re-render and images to load via useImage hook
+      }, 100); // Wait 100ms for React to re-render - images load fast with blob URLs
       
       return null;
     } catch (error) {
@@ -320,7 +320,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     // Debounce thumbnail generation to avoid too many updates
     const timeoutId = setTimeout(() => {
       generateThumbnail();
-    }, 2000); // Wait 2000ms after last change to ensure images are loaded
+    }, 300); // Wait 300ms after last change - fast debounce for instant thumbnails
 
     return () => clearTimeout(timeoutId);
   }, [editorObjects, canvasBackgroundColor, grommets, showGrommets]); // Re-generate when objects, background, or grommets change

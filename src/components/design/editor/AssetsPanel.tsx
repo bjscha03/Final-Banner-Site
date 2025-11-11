@@ -141,47 +141,25 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
           );
           
           if (isMobileDevice) {
-            console.log('[AssetsPanel] 📱 MOBILE DETECTED - Auto-adding image to canvas');
-            console.log('[AssetsPanel] Window width:', window.innerWidth);
-            console.log('[AssetsPanel] Touch support:', 'ontouchstart' in window);
+            console.log('[AssetsPanel] 📱 MOBILE - Auto-adding to canvas');
             
-            // Preload the blob image before adding to canvas
-            const preloadImg = new Image();
-            // Don't set crossOrigin for blob URLs - they're local and don't need CORS
-            // preloadImg.crossOrigin = 'anonymous';
-            
-            preloadImg.onload = async () => {
+            // Image is already loaded (we're in img.onload), so add immediately
+            // No need to preload again - that's redundant!
+            (async () => {
               try {
-                console.log('[AssetsPanel] ✅ Image preloaded, adding to canvas');
                 await handleAddToCanvas(tempImage);
                 
                 // Remove from uploaded list
                 setUploadedImages((prev) => prev.filter((img) => img.id !== imageId));
                 
-                // Close panel after delay
-                setTimeout(() => {
-                  if (onClose) {
-                    console.log('[AssetsPanel] 📱 Closing panel');
-                    onClose();
-                  }
-                }, 300);
+                // Close panel immediately - no delay needed
+                if (onClose) {
+                  onClose();
+                }
               } catch (error) {
-                console.error('[AssetsPanel] ❌ Error auto-adding image:', error);
+                console.error('[AssetsPanel] ❌ Error auto-adding:', error);
               }
-            };
-            
-            preloadImg.onerror = async (error) => {
-              console.error('[AssetsPanel] ❌ Preload failed, adding anyway:', error);
-              try {
-                await handleAddToCanvas(tempImage);
-                setUploadedImages((prev) => prev.filter((img) => img.id !== imageId));
-                setTimeout(() => { if (onClose) onClose(); }, 300);
-              } catch (err) {
-                console.error('[AssetsPanel] ❌ Error:', err);
-              }
-            };
-            
-            preloadImg.src = url;
+            })();
           }
           
           // Upload to Cloudinary in background (for saving to cart later)
