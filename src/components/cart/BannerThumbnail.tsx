@@ -15,13 +15,13 @@ interface BannerThumbnailProps {
 }
 
 /**
- * BannerThumbnail component - ROBUST VERSION
+ * BannerThumbnail component - MOBILE-OPTIMIZED VERSION
  * Displays a thumbnail of the banner design with maximum reliability
  * 
  * Key improvements:
- * - Simplified state management
- * - Better error handling
- * - Proper image loading detection
+ * - Mobile-specific canvas rendering optimizations
+ * - Better dimension calculations for small screens
+ * - Improved image loading detection
  * - Fallback to placeholder on any issue
  */
 const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
@@ -39,6 +39,17 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imgRef = useRef<HTMLImageElement>(null);
   const mountedRef = useRef(true);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Detect mobile viewport
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
 
   // Memoize the image URL - prioritize permanent URLs over temporary blob URLs
   const imageUrl = useMemo(() => {
@@ -61,11 +72,11 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
 
   // Reset status when URL changes
   useEffect(() => {
-    console.log('🔄 BannerThumbnail URL changed:', { imageUrl, isPdf, hasTextLayers });
+    console.log('🔄 BannerThumbnail URL changed:', { imageUrl, isPdf, hasTextLayers, isMobile });
     if (mountedRef.current) {
       setStatus('loading');
     }
-  }, [imageUrl, isPdf, hasTextLayers]);
+  }, [imageUrl, isPdf, hasTextLayers, isMobile]);
 
   // Render text layers on canvas when image loads
   useEffect(() => {
@@ -74,7 +85,11 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
     }
 
     const canvas = canvasRef.current;
-    const ctx = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d', { 
+      // Mobile optimization: use lower quality for better performance
+      alpha: true,
+      desynchronized: isMobile // Better performance on mobile
+    });
     const img = imgRef.current;
 
     if (!ctx || !img.complete || !img.naturalWidth) {
@@ -83,96 +98,107 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
     }
 
     try {
-      console.log('🎨 Rendering canvas with text layers');
+      console.log('🎨 Rendering canvas with text layers (mobile:', isMobile, ')');
 
-      // Set canvas size to match the container
-      const rect = canvas.getBoundingClientRect();
-      if (rect.width === 0 || rect.height === 0) {
-        console.log('⏭️ Canvas render skipped - zero dimensions');
-        return;
+      // MOBILE FIX: Use requestAnimationFrame for smoother rendering
+      const renderCanvas = () => {
+        // Set canvas size to match the container
+        const rect = canvas.getBoundingClientRect();
+        if (rect.width === 0 || rect.height === 0) {
+          console.log('⏭️ Canvas render skipped - zero dimensions');
+          return;
+        }
+
+        // MOBILE FIX: Use lower pixel ratio on mobile for better performance
+        const pixelRatio = isMobile ? Math.min(window.devicePixelRatio, 2) : window.devicePixelRatio;
+        
+        canvas.width = rect.width * pixelRatio;
+        canvas.height = rect.height * pixelRatio;
+        
+        // MOBILE FIX: Ensure canvas is visible with explicit CSS
+        canvas.style.width = `${rect.width}px`;
+        canvas.style.height = `${rect.height}px`;
+        canvas.style.display = 'block';
+        
+        ctx.scale(pixelRatio, pixelRatio);
+
+        // Draw the base image
+        ctx.drawImage(img, 0, 0, rect.width, rect.height);
+
+        // Calculate scale factor for text positioning
+        const scaleX = rect.width / widthIn;
+        const scaleY = rect.height / heightIn;
+
+        // Draw text layers
+        textElements.forEach((textEl) => {
+          if (!textEl.content || textEl.content.trim() === '') return;
+
+          // Use the same conversion logic as BannerPreview
+          const LIVE_PREVIEW_PIXELS_PER_INCH = 400 / 24;
+          const DRAGGABLE_TEXT_PADDING_PX = 4;
+          
+          const fontSizeInInches = textEl.fontSize / LIVE_PREVIEW_PIXELS_PER_INCH;
+          const paddingInches = DRGGABLE_TEXT_PADDING_PX / LIVE_PREVIEW_PIXELS_PER_INCH;
+          
+          const avgCharWidthRatio = 0.55;
+          const estimatedTextWidthInches = textEl.content.length * fontSizeInInches * avgCharWidthRatio;
+          
+          const minWidthInches = 50 / LIVE_PREVIEW_PIXELS_PER_INCH;
+          const divWidthInches = Math.max(minWidthInches, estimatedTextWidthInches + 2 * paddingInches);
+          
+          const scale = Math.min(scaleX, scaleY);
+          const fontSize = fontSizeInInches * scaleX;
+          const divWidthPx = divWidthInches * scaleX;
+          const paddingPx = paddingInches * scaleX;
+          
+          let x = (textEl.xPercent / 100) * rect.width;
+          const y = (textEl.yPercent / 100) * rect.height;
+          
+          if (textEl.textAlign === 'center') {
+            x += divWidthPx / 2;
+          } else if (textEl.textAlign === 'right') {
+            x += divWidthPx - paddingPx;
+          } else {
+            x += paddingPx;
+          }
+
+          ctx.save();
+          ctx.font = `${textEl.fontWeight || 'normal'} ${fontSize}px ${textEl.fontFamily || 'Arial'}`;
+          ctx.fillStyle = textEl.color || '#000000';
+          
+          if (textEl.textAlign === 'center') {
+            ctx.textAlign = 'center';
+          } else if (textEl.textAlign === 'right') {
+            ctx.textAlign = 'right';
+          } else {
+            ctx.textAlign = 'left';
+          }
+          
+          ctx.textBaseline = 'top';
+          
+          ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
+          ctx.shadowBlur = 2;
+          ctx.shadowOffsetX = 1;
+          ctx.shadowOffsetY = 1;
+          ctx.fillText(textEl.content, x, y);
+          ctx.restore();
+        });
+
+        console.log('✅ Canvas rendering complete');
+      };
+
+      // MOBILE FIX: Use requestAnimationFrame for smoother rendering
+      if (isMobile) {
+        requestAnimationFrame(renderCanvas);
+      } else {
+        renderCanvas();
       }
-
-      canvas.width = rect.width * window.devicePixelRatio;
-      canvas.height = rect.height * window.devicePixelRatio;
-      ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-
-      // Draw the base image
-      ctx.drawImage(img, 0, 0, rect.width, rect.height);
-
-      // Calculate scale factor for text positioning
-      const scaleX = rect.width / widthIn;
-      const scaleY = rect.height / heightIn;
-
-
-      // Draw text layers
-      textElements.forEach((textEl) => {
-        if (!textEl.content || textEl.content.trim() === '') return;
-
-        // Use the same conversion logic as BannerPreview
-        const LIVE_PREVIEW_PIXELS_PER_INCH = 400 / 24; // ~16.67 px/inch
-        const DRAGGABLE_TEXT_PADDING_PX = 4;
-        
-        // Calculate font size in inches, then convert to thumbnail pixels
-        const fontSizeInInches = textEl.fontSize / LIVE_PREVIEW_PIXELS_PER_INCH;
-        const paddingInches = DRAGGABLE_TEXT_PADDING_PX / LIVE_PREVIEW_PIXELS_PER_INCH;
-        
-        // Estimate text width in inches
-        const avgCharWidthRatio = 0.55;
-        const estimatedTextWidthInches = textEl.content.length * fontSizeInInches * avgCharWidthRatio;
-        
-        // Div width in inches = max(minWidth, textWidth + 2*padding)
-        const minWidthInches = 50 / LIVE_PREVIEW_PIXELS_PER_INCH;
-        const divWidthInches = Math.max(minWidthInches, estimatedTextWidthInches + 2 * paddingInches);
-        
-        // Convert to thumbnail pixels
-        const scale = Math.min(scaleX, scaleY);
-        const fontSize = fontSizeInInches * scaleX; // Use scaleX for horizontal measurements
-        const divWidthPx = divWidthInches * scaleX;
-        const paddingPx = paddingInches * scaleX;
-        
-        // Position calculation - xPercent is the left edge of the div
-        let x = (textEl.xPercent / 100) * rect.width;
-        const y = (textEl.yPercent / 100) * rect.height;
-        
-        // Adjust x position based on alignment (same logic as BannerPreview)
-        if (textEl.textAlign === 'center') {
-          x += divWidthPx / 2;
-        } else if (textEl.textAlign === 'right') {
-          x += divWidthPx - paddingPx;
-        } else {
-          x += paddingPx;
-        }
-
-        ctx.save();
-        ctx.font = `${textEl.fontWeight || 'normal'} ${fontSize}px ${textEl.fontFamily || 'Arial'}`;
-        ctx.fillStyle = textEl.color || '#000000';
-        
-        // Set text alignment for canvas rendering
-        if (textEl.textAlign === 'center') {
-          ctx.textAlign = 'center';
-        } else if (textEl.textAlign === 'right') {
-          ctx.textAlign = 'right';
-        } else {
-          ctx.textAlign = 'left';
-        }
-        
-        ctx.textBaseline = 'top';
-        
-        ctx.shadowColor = 'rgba(0, 0, 0, 0.3)';
-        ctx.shadowBlur = 2;
-        ctx.shadowOffsetX = 1;
-        ctx.shadowOffsetY = 1;
-        ctx.fillText(textEl.content, x, y);
-        ctx.restore();
-      });
-
-      console.log('✅ Canvas rendering complete');
     } catch (error) {
-      console.error('❌ Canvas rendering error:' , error);
+      console.error('❌ Canvas rendering error:', error);
     }
 
-  }, [status, hasTextLayers, textElements, widthIn, heightIn]);
-  // Handle image load success
+  }, [status, hasTextLayers, textElements, widthIn, heightIn, isMobile]);
+
   const handleImageLoad = () => {
     console.log('✅ Image loaded:', imageUrl);
     if (mountedRef.current) {
@@ -180,15 +206,13 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
     }
   };
 
-  // Handle image load error
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    console.log('❌ Image load error:', imageUrl, e);
+    console.log('❭ Image load error:', imageUrl, e);
     if (mountedRef.current) {
       setStatus('error');
     }
   };
 
-  // Render placeholder
   const renderPlaceholder = (isLoading = false) => (
     <div className={`${className} bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg border border-gray-200 flex items-center justify-center flex-shrink-0 ${isLoading ? 'animate-pulse' : ''}`}>
       <div className="text-center">
@@ -205,7 +229,6 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
     </div>
   );
 
-  // Handle PDF files
   if (isPdf && fileUrl) {
     console.log('📄 Rendering PDF thumbnail:', fileUrl);
     return (
@@ -219,23 +242,19 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
     );
   }
 
-  // Show placeholder if no image URL
   if (!imageUrl) {
     console.log('📦 No image URL - showing placeholder');
     return renderPlaceholder();
   }
 
-  // Show placeholder if error
   if (status === 'error') {
     console.log('📦 Image error - showing placeholder');
     return renderPlaceholder();
   }
 
-  // Render with text layers (canvas)
   if (hasTextLayers) {
     return (
       <div className={`${className} relative flex-shrink-0`}>
-        {/* Hidden image for loading */}
         <img
           ref={imgRef}
           src={imageUrl}
@@ -245,19 +264,23 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
           onError={handleImageError}
         />
         
-        {/* Canvas for rendering image + text */}
         <canvas
           ref={canvasRef}
           className={`${className} object-cover rounded-lg border border-gray-200 ${status === 'loaded' ? 'block' : 'hidden'}`}
+          style={{
+            display: status === 'loaded' ? 'block' : 'none',
+            width: '100%',
+            height: '100%',
+            maxWidth: '100%',
+            imageRendering: isMobile ? 'auto' : 'crisp-edges'
+          }}
         />
         
-        {/* Loading placeholder */}
         {status === 'loading' && renderPlaceholder(true)}
       </div>
     );
   }
 
-  // Simple image without text layers
   return (
     <div className={`${className} relative flex-shrink-0`}>
       {status === 'loading' && (
@@ -269,6 +292,12 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
         src={imageUrl}
         alt={`Banner ${widthIn}x${heightIn}`}
         className={`${className} object-cover rounded-lg border border-gray-200 ${status === 'loaded' ? 'opacity-100' : 'opacity-0'}`}
+        style={{
+          display: 'block',
+          width: '100%',
+          height: '100%',
+          maxWidth: '100%'
+        }}
         onError={handleImageError}
         onLoad={handleImageLoad}
       />
