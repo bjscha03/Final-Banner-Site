@@ -510,3 +510,38 @@ embed[type="application/pdf"] .pdfViewer .toolbar {
   opacity: 0 !important;
   pointer-events: none !important;
 }
+
+/* CRITICAL MOBILE CANVAS RENDERING FIXES */
+@media (max-width: 640px) {
+  /* Force ALL canvas elements to render properly on mobile */
+  canvas {
+    width: 100% !important;
+    height: auto !important;
+    max-width: 100%;
+    display: block !important;
+    image-rendering: auto !important;
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    backface-visibility: hidden;
+  }
+  
+  /* Override Tailwind width classes on canvas */
+  canvas[class*="w-"] {
+    width: 100% !important;
+    height: auto !important;
+  }
+  
+  /* Ensure images render properly */
+  img[alt*="Banner"] {
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+    display: block;
+  }
+  
+  /* Fix flex containers on mobile */
+  .flex-shrink-0 {
+    min-width: 0;
+  }
+}
