@@ -513,6 +513,8 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       
       console.log('✅ Using permanent URL:', permanentUrl);
       
+      // PERFORMANCE FIX: Set image URL immediately so rendering starts right away
+      // Don't wait for dimension calculation - do it in parallel
       set({
         file: {
           name: file.name,
@@ -528,19 +530,29 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         previewScalePct: 100
       });
       
-      // Calculate fit-to-size scale for the uploaded image
-      // This ensures the image fits within the banner without clipping
+      // Reset image state immediately for instant rendering
+      setImageScale(1);
+      setImagePosition({ x: 0, y: 0 });
+      setIsImageSelected(false);
+      setIsUploading(false);
+      
+      // Show success toast immediately
+      toast({
+        title: "Upload Successful",
+        description: isPdf 
+          ? `PDF converted and uploaded successfully (${Math.round(fileToUpload.size / 1024 / 1024 * 100) / 100}MB)`
+          : "Image uploaded successfully",
+      });
+      
+      // Calculate dimensions asynchronously in background (non-blocking)
+      // This doesn't delay rendering - it just updates metadata
       const img = new Image();
       img.onload = () => {
         const imgAspect = img.width / img.height;
         const bannerAspect = widthIn / heightIn;
-        
-        // Calculate scale to fit image within banner (no clipping)
-        // With preserveAspectRatio="meet", the image will automatically fit within the container
-        // So we always use fitScale = 1 to use the full banner dimensions as the container
         let fitScale = 1;
         
-        console.log('📐 Image fit calculation:', {
+        console.log('📐 Image fit calculation (background):', {
           imageSize: `${img.width}x${img.height}`,
           imageAspect: imgAspect.toFixed(2),
           bannerSize: `${widthIn}"x${heightIn}"`,
@@ -548,7 +560,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
           fitScale: fitScale.toFixed(2)
         });
         
-        // Update the file in store with actual image dimensions
+        // Update dimensions in background without affecting rendering
         if (!isPdf) {
           set({
             file: {
@@ -558,28 +570,11 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
             }
           });
         }
-        
-        setImageScale(fitScale);
-        setImagePosition({ x: 0, y: 0 });
-        setIsImageSelected(false);
       };
       img.onerror = () => {
-        console.error('Failed to load image for fit calculation');
-        setImagePosition({ x: 0, y: 0 });
-        setImageScale(1);
-        setIsImageSelected(false);
+        console.error('Failed to load image for fit calculation (non-critical)');
       };
-      img.src = result.secureUrl || previewUrl;
-      
-      setIsUploading(false);
-      
-      // Show success toast
-      toast({
-        title: "Upload Successful",
-        description: isPdf 
-          ? `PDF converted and uploaded successfully (${Math.round(fileToUpload.size / 1024 / 1024 * 100) / 100}MB)`
-          : "Image uploaded successfully",
-      });
+      img.src = permanentUrl;
       
     } catch (uploadError) {
       console.error('File upload error:', uploadError);

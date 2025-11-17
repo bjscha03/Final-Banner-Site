@@ -139,6 +139,23 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
 
   console.log("📱 PreviewCanvas: isMobile =", isMobile, "imageUrl =", imageUrl?.substring(0, 60));
 
+  // PERFORMANCE FIX: Preload images on mobile for faster rendering
+  React.useEffect(() => {
+    if (!isMobile || !imageUrl) return;
+    
+    console.log('📱 MOBILE: Preloading image for faster rendering:', imageUrl.substring(0, 60));
+    
+    const img = new Image();
+    img.onload = () => {
+      console.log('✅ MOBILE: Image preloaded successfully');
+    };
+    img.onerror = (error) => {
+      console.error('❌ MOBILE: Image preload failed:', error);
+    };
+    img.src = imageUrl;
+  }, [isMobile, imageUrl]);
+
+
 
   // Mobile detection for optimized rendering
   const isMobile = useMemo(() => {
