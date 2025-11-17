@@ -158,11 +158,6 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
 
 
   // Mobile detection for optimized rendering
-  const isMobile = useMemo(() => {
-    return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 768;
-  }, []);
-
-  console.log("📱 PreviewCanvas: isMobile =", isMobile, "imageUrl =", imageUrl?.substring(0, 60));
   const grommetPositions = useMemo(() => {
     console.log('[GROMMET DEBUG] PreviewCanvas - grommets prop:', grommets, 'widthIn:', widthIn, 'heightIn:', heightIn);
     const positions = grommetPoints(widthIn, heightIn, grommets);
@@ -302,6 +297,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           <>
           <image key={imageUrl || file?.url}
             href={imageUrl || file?.url}
+            crossOrigin="anonymous"
             x={renderX}
             y={renderY}
             width={renderWidth}
@@ -313,7 +309,8 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
               userSelect: 'none',
               imageRendering: isMobile ? 'auto' : '-webkit-optimize-contrast',
               WebkitTransform: isMobile ? 'translateZ(0)' : 'none',
-              transform: isMobile ? 'translateZ(0)' : 'none'
+              transform: isMobile ? 'translateZ(0)' : 'none',
+              willChange: isMobile ? 'transform' : 'auto'
             }}
             onMouseDown={onImageMouseDown}
             onTouchStart={onImageTouchStart}
