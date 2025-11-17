@@ -203,52 +203,322 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   // Grommet radius (scaled to banner dimensions)
   const grommetRadius = Math.min(widthIn, heightIn) * 0.03;
 
-  // MOBILE FIX: Use <img> tags instead of SVG <image> for better compatibility
-  // SVG <image> elements are unreliable on mobile Safari
-  if (isMobile && imageUrl && !imageError) {
-    console.log('📱 MOBILE: Rendering with <img> tag instead of SVG');
+  // If this is a canvas thumbnail (data URL), render it simply
+  if (isCanvasThumbnail && imageUrl) {
+    // If grommets are selected, render with SVG overlay
+    if (grommets !== 'none') {
+      return (
+        <div className={`flex items-center justify-center ${className}`}>
+          <div 
+            className="relative rounded-lg overflow-hidden shadow-lg border-2 border-gray-200"
+            style={{
+              width: `${previewWidth}px`,
+              height: `${previewHeight}px`,
+            }}
+          >
+            <svg
+              viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}
+              className="w-full h-full"
+              style={{ display: 'block' }}
+            >
+              {/* Canvas thumbnail as background */}
+              <image
+                href={imageUrl}
+                x="0"
+                y="0"
+                width={viewBoxWidth}
+                height={viewBoxHeight}
+                preserveAspectRatio="xMidYMid meet"
+              />
+              
+              {/* Grommets overlay */}
+              {grommetPositions.map((pos, idx) => (
+                <circle
+                  key={`grommet-${idx}`}
+                  cx={pos.x}
+                  cy={pos.y}
+                  r={grommetRadius}
+                  fill="#333"
+                  stroke="#666"
+                  strokeWidth={grommetRadius * 0.1}
+                />
+              ))}
+            </svg>
+          </div>
+        </div>
+      );
+    }
+    
+    // No grommets - just show the image
     return (
       <div className={`flex items-center justify-center ${className}`}>
         <div 
-          className="relative rounded-lg overflow-hidden shadow-lg border-2 border-gray-200 bg-white"
+          className="relative rounded-lg overflow-hidden shadow-lg border-2 border-gray-200"
           style={{
             width: `${previewWidth}px`,
             height: `${previewHeight}px`,
           }}
         >
-          {isLoading ? (
-            <div className="w-full h-full flex items-center justify-center bg-gray-100">
-              <div className="text-gray-400 text-sm">Loading...</div>
-            </div>
-          ) : (
-            <img 
-              src={imageUrl} 
-              alt="Banner preview"
-              className="w-full h-full object-contain"
-              style={{
-                display: 'block',
-                maxWidth: '100%',
-                maxHeight: '100%'
-              }}
-              onLoad={() => {
-                console.log('✅ MOBILE: Image loaded successfully');
-                setImageLoaded(true);
-              }}
-              onError={(e) => {
-                console.error('❌ MOBILE: Image failed to load:', imageUrl);
-                setImageError(true);
-              }}
-            />
-          )}
-          {!imageLoaded && !isLoading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
-              <div className="text-gray-400 text-xs">Loading image...</div>
-            </div>
-          )}
+          <img 
+            src={imageUrl} 
+            alt="Banner preview"
+            className="w-full h-full object-contain"
+          />
         </div>
       </div>
     );
   }
 
+  // Otherwise, render the full SVG with grommets, text, etc.
+  return (
+    <div className={`flex items-center justify-center ${className}`}>
+      <div 
+        className="relative rounded-lg overflow-hidden shadow-lg border-2 border-gray-200"
+        style={{
+          width: `${previewWidth}px`,
+          height: `${previewHeight}px`,
+        }}
+      >
+        <svg
+          width="100%"
+          height="100%"
+          viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}
+          preserveAspectRatio="xMidYMid meet"
+          className="bg-white"
+        >
+          {/* Background */}
+          <rect
+            x="0"
+            y="0"
+            width={viewBoxWidth}
+            height={viewBoxHeight}
+            fill="#f9fafb"
+          />
 
-  // If this is a canvas thumbnail (data URL), render it simply
+          {/* Image or placeholder */}
+          {isLoading ? (
+            <g>
+              <rect
+                x="0"
+                y="0"
+                width={viewBoxWidth}
+                height={viewBoxHeight}
+                fill="#e5e7eb"
+              />
+              <text
+                x={viewBoxWidth / 2}
+                y={viewBoxHeight / 2}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fill="#9ca3af"
+                fontSize={Math.min(viewBoxWidth, viewBoxHeight) * 0.1}
+                fontFamily="system-ui, sans-serif"
+              >
+                Loading...
+              </text>
+            </g>
+          ) : imageUrl ? (
+            isCanvasThumbnail ? (
+              // Canvas thumbnail - render full-bleed without scaling/positioning
+              <image
+                href={imageUrl}
+                x="0"
+                y="0"
+                width={viewBoxWidth}
+                height={viewBoxHeight}
+                preserveAspectRatio="xMidYMid slice"
+              />
+            ) : (
+              // Regular uploaded image - apply scaling/positioning
+              <g clipPath={`url(#banner-clip-${widthIn}-${heightIn})`}>
+                <image
+                  href={imageUrl}
+                  x={(viewBoxWidth - viewBoxWidth * imageScale) / 2 + (imagePosition.x * 0.01)}
+                  y={(viewBoxHeight - viewBoxHeight * imageScale) / 2 + (imagePosition.y * 0.01)}
+                  width={viewBoxWidth * imageScale}
+                  height={viewBoxHeight * imageScale}
+                  preserveAspectRatio="xMidYMid meet"
+                />
+              </g>
+            )
+          ) : (
+            <g>
+              <rect
+                x="0"
+                y="0"
+                width={viewBoxWidth}
+                height={viewBoxHeight}
+                fill="#f3f4f6"
+              />
+              <text
+                x={viewBoxWidth / 2}
+                y={viewBoxHeight / 2 - viewBoxHeight * 0.05}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fill="#9ca3af"
+                fontSize={Math.min(viewBoxWidth, viewBoxHeight) * 0.08}
+                fontFamily="system-ui, sans-serif"
+              >
+                No Image
+              </text>
+              <text
+                x={viewBoxWidth / 2}
+                y={viewBoxHeight / 2 + viewBoxHeight * 0.05}
+                textAnchor="middle"
+                dominantBaseline="middle"
+                fill="#d1d5db"
+                fontSize={Math.min(viewBoxWidth, viewBoxHeight) * 0.05}
+                fontFamily="system-ui, sans-serif"
+              >
+                Upload artwork to preview
+              </text>
+            </g>
+          )}
+
+          {/* Text Elements */}
+          {textElements.map((textEl) => {
+            // Calculate font size in inches to match the preview canvas
+            const ESTIMATED_PREVIEW_BANNER_HEIGHT_PX = 400;
+            const fontSizeInInches = textEl.fontSize * (heightIn / ESTIMATED_PREVIEW_BANNER_HEIGHT_PX);
+            
+            // DEBUG: Log the calculations
+            console.log('🖼️ BannerPreview text rendering:', {
+              content: textEl.content,
+              storedFontSize: textEl.fontSize,
+              heightIn,
+              ESTIMATED_PREVIEW_BANNER_HEIGHT_PX,
+              calculatedFontSizeInInches: fontSizeInInches,
+              xPercent: textEl.xPercent,
+              yPercent: textEl.yPercent,
+              viewBoxWidth,
+              viewBoxHeight,
+              calculatedX: (widthIn * textEl.xPercent / 100),
+              calculatedY: (heightIn * textEl.yPercent / 100),
+            });
+            
+            // The stored xPercent/yPercent represent the TOP-LEFT corner of the text div
+            // But the text inside may be aligned left/center/right within that div
+            // For SVG, we need to use textAnchor to match the CSS textAlign behavior
+            let textAnchor: 'start' | 'middle' | 'end' = 'start';
+            if (textEl.textAlign === 'center') textAnchor = 'middle';
+            else if (textEl.textAlign === 'right') textAnchor = 'end';
+            
+            // xPercent/yPercent represent the CENTER position of the text
+            // (50, 50) means centered both horizontally and vertically
+            const xPosition = (widthIn * textEl.xPercent / 100);
+            const yPosition = (heightIn * textEl.yPercent / 100);
+            
+            return (
+              <text
+                key={textEl.id}
+                x={xPosition}
+                y={yPosition}
+                fontSize={fontSizeInInches}
+                fontFamily={textEl.fontFamily}
+                fill={textEl.color}
+                textAnchor={textAnchor}
+                dominantBaseline="middle"
+                fontWeight={textEl.fontWeight || 'normal'}
+              >
+                {textEl.content}
+              </text>
+            );
+          })}
+          {/* Overlay Image (Logo) */}
+          {overlayImage && overlayImage.position && typeof overlayImage.position.x === 'number' && typeof overlayImage.position.y === 'number' && (() => {
+            const aspectRatio = overlayImage.aspectRatio || 1;
+            const baseDimension = Math.min(widthIn, heightIn);
+            
+            let overlayWidth, overlayHeight;
+            if (aspectRatio >= 1) {
+              overlayWidth = baseDimension * overlayImage.scale * aspectRatio;
+              overlayHeight = baseDimension * overlayImage.scale;
+            } else {
+              overlayWidth = baseDimension * overlayImage.scale;
+              overlayHeight = baseDimension * overlayImage.scale / aspectRatio;
+            }
+            
+            const overlayX = (widthIn * overlayImage.position.x / 100) - (overlayWidth / 2);
+            const overlayY = (heightIn * overlayImage.position.y / 100) - (overlayHeight / 2);
+            
+            return (
+              <image
+                href={overlayImage.url}
+                x={overlayX}
+                y={overlayY}
+                width={overlayWidth}
+                height={overlayHeight}
+                preserveAspectRatio="xMidYMid meet"
+              />
+            );
+          })()}
+
+          {grommetPositions.map((point, index) => (
+            <g key={index}>
+              {/* Drop shadow */}
+              <circle
+                cx={point.x + 0.08}
+                cy={point.y + 0.08}
+                r={grommetRadius * 1.3}
+                fill="#000000"
+                opacity="0.15"
+              />
+              
+              {/* Outer metallic ring */}
+              <circle
+                cx={point.x}
+                cy={point.y}
+                r={grommetRadius * 1.3}
+                fill="url(#grommetGradient)"
+                stroke="#2d3748"
+                strokeWidth={grommetRadius * 0.06}
+              />
+              
+              {/* Inner hole */}
+              <circle
+                cx={point.x}
+                cy={point.y}
+                r={grommetRadius * 0.7}
+                fill="#f7fafc"
+                stroke="#cbd5e0"
+                strokeWidth={grommetRadius * 0.03}
+              />
+              
+              {/* Center dot */}
+              <circle
+                cx={point.x}
+                cy={point.y}
+                r={grommetRadius * 0.15}
+                fill="#4a5568"
+                opacity="0.8"
+              />
+              
+              {/* Highlight for 3D effect */}
+              <circle
+                cx={point.x - grommetRadius * 0.4}
+                cy={point.y - grommetRadius * 0.4}
+                r={grommetRadius * 0.3}
+                fill="#ffffff"
+                opacity="0.4"
+              />
+            </g>
+          ))}
+
+          {/* Gradient definitions */}
+          <defs>
+            <clipPath id={`banner-clip-${widthIn}-${heightIn}`}>
+              <rect x="0" y="0" width={viewBoxWidth} height={viewBoxHeight} />
+            </clipPath>
+            <radialGradient id="grommetGradient" cx="30%" cy="30%">
+              <stop offset="0%" stopColor="#e2e8f0" />
+              <stop offset="50%" stopColor="#a0aec0" />
+              <stop offset="100%" stopColor="#4a5568" />
+            </radialGradient>
+          </defs>
+        </svg>
+      </div>
+    </div>
+  );
+};
+
+export default BannerPreview;
