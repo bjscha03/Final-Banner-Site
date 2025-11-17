@@ -187,12 +187,9 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
         console.log('✅ Canvas rendering complete');
       };
 
-      // MOBILE FIX: Use requestAnimationFrame for smoother rendering
-      if (isMobile) {
-        requestAnimationFrame(renderCanvas);
-      } else {
-        renderCanvas();
-      }
+      // PERFORMANCE FIX: Render immediately on mobile for instant display
+      // requestAnimationFrame adds unnecessary delay (~16ms)
+      renderCanvas();
     } catch (error) {
       console.error('❌ Canvas rendering error:', error);
     }
