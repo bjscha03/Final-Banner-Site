@@ -248,35 +248,9 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
             console.error('[BannerEditorLayout] No layer found');
             setShowBleed(wasShowingBleed);
             setShowSafeZone(wasShowingSafeZone);
-            return;
-          }
-          
-          // Check if images are loaded
-          const imageNodes = layer.find('Image');
-          console.log('[THUMBNAIL] Found', imageNodes.length, 'image nodes');
-          
-          let allImagesLoaded = true;
-          for (const imageNode of imageNodes) {
-            const img = imageNode.image();
-            const isLoaded = img instanceof HTMLImageElement && img.complete;
-            console.log('[THUMBNAIL] Image loaded:', isLoaded);
-            if (!isLoaded) {
-              allImagesLoaded = false;
-              break;
-            }
-          }
-          
-          // If images not loaded, wait and retry
-          if (imageNodes.length > 0 && !allImagesLoaded) {
-            console.log('[THUMBNAIL] Images not loaded, retrying in 100ms...');
-            setShowBleed(wasShowingBleed);
-            setShowSafeZone(wasShowingSafeZone);
             setShowGrid(wasShowingGrid);
-            setTimeout(() => generateThumbnail(), 100);
             return;
           }
-          
-          console.log('[THUMBNAIL] All', imageNodes.length, 'images loaded, proceeding');
 
           // Get the background rect (first child) to find banner position
           const backgroundRect = layer.getChildren()[0];
@@ -284,6 +258,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
             console.error('[BannerEditorLayout] No background rect found');
             setShowBleed(wasShowingBleed);
             setShowSafeZone(wasShowingSafeZone);
+            setShowGrid(wasShowingGrid);
             return;
           }
 
@@ -295,30 +270,87 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
           const height = backgroundRect.height();
           
           console.log('[BannerEditorLayout] Banner bounds:', { x, y, width, height });
-          
-          // DIAGNOSTIC: Check if all images are loaded before capturing
-          const allChildren = layer.getChildren();
-          console.log('[BannerEditorLayout] Layer children count:', allChildren.length);
-          allChildren.forEach((child, idx) => {
-            console.log(`[BannerEditorLayout] Child ${idx}:`, {
-              type: child.getClassName(),
-              visible: child.visible(),
-              hasImage: child.getClassName() === 'Image' ? !!child.image() : 'N/A'
-            });
-          });
 
-          // Capture thumbnail - crop to just the banner area using stage.toDataURL
-          const dataURL = stage.toDataURL({
-            x: x,
-            y: y,
-            width: width,
-            height: height,
-            pixelRatio: 2,
-            mimeType: 'image/png',
+          // Check if all images are loaded
+          const imageNodes = layer.find('Image');
+          console.log('[THUMBNAIL] Found', imageNodes.length, 'image nodes');
+          
+          let allImagesLoaded = true;
+          imageNodes.forEach((node, idx) => {
+            const img = node.image();
+            const isLoaded = img instanceof HTMLImageElement && img.complete && img.naturalWidth > 0;
+            console.log(`[THUMBNAIL] Image ${idx}:`, {
+              loaded: isLoaded,
+              src: img instanceof HTMLImageElement ? img.src?.substring(0, 60) : 'N/A',
+              complete: img instanceof HTMLImageElement ? img.complete : false,
+              naturalWidth: img instanceof HTMLImageElement ? img.naturalWidth : 0
+            });
+            if (!isLoaded) allImagesLoaded = false;
           });
-        
-          console.log('[BannerEditorLayout] Generated thumbnail:', dataURL.substring(0, 50) + '...');
-          setCanvasThumbnail(dataURL);
+          
+          if (!allImagesLoaded) {
+            console.log('[THUMBNAIL] Not all images loaded yet, waiting 500ms...');
+            setTimeout(() => generateThumbnail(), 500);
+            setShowBleed(wasShowingBleed);
+            setShowSafeZone(wasShowingSafeZone);
+            setShowGrid(wasShowingGrid);
+            return;
+          }
+
+          // Capture thumbnail using stage.toDataURL
+          let dataURL: string | null = null;
+          
+          try {
+            dataURL = stage.toDataURL({
+              x: x,
+              y: y,
+              width: width,
+              height: height,
+              pixelRatio: 2,
+              mimeType: 'image/png',
+            });
+            
+            console.log('[BannerEditorLayout] stage.toDataURL succeeded, size:', dataURL.length);
+            
+            // Check if it's a blank image (very small size)
+            if (dataURL.length < 2200) {
+              console.warn('[THUMBNAIL] Generated image is suspiciously small, might be blank');
+            }
+          } catch (error) {
+            console.error('[THUMBNAIL] stage.toDataURL failed:', error);
+            console.log('[THUMBNAIL] This usually means CORS/tainted canvas - trying canvas fallback');
+            
+            // Fallback: Create a simple thumbnail with just the background color
+            // This is better than nothing
+            const canvas = document.createElement('canvas');
+            canvas.width = width * 2;
+            canvas.height = height * 2;
+            const ctx = canvas.getContext('2d');
+            
+            if (ctx) {
+              ctx.fillStyle = canvasBackgroundColor || '#ffffff';
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
+              
+              // Try to draw a simple message
+              ctx.fillStyle = '#666666';
+              ctx.font = '24px Arial';
+              ctx.textAlign = 'center';
+              ctx.fillText('Preview unavailable', canvas.width / 2, canvas.height / 2);
+              ctx.font = '16px Arial';
+              ctx.fillText('(CORS issue on mobile)', canvas.width / 2, canvas.height / 2 + 30);
+              
+              dataURL = canvas.toDataURL('image/png');
+              console.log('[THUMBNAIL] Created fallback thumbnail');
+            }
+          }
+          
+          if (dataURL) {
+            console.log('[BannerEditorLayout] Generated thumbnail:', dataURL.substring(0, 50) + '...', 'size:', dataURL.length);
+            setCanvasThumbnail(dataURL);
+          } else {
+            console.error('[THUMBNAIL] Failed to generate thumbnail');
+          }
+
           
           // Restore original visibility
           setShowBleed(wasShowingBleed);
@@ -331,7 +363,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
           setShowSafeZone(wasShowingSafeZone);
           setShowGrid(wasShowingGrid);
         }
-      }, 100); // Wait 100ms for React to re-render - images load fast with blob URLs
+      }, 100); // Wait 100ms for React to re-render
       
       return null;
     } catch (error) {

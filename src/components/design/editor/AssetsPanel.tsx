@@ -133,7 +133,7 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
           });
           console.log('[AssetsPanel] Image added with blob URL:', file.name);
           
-          // 🔥 MOBILE UX: Auto-add to canvas IMMEDIATELY after image loads
+          // Detect if mobile for auto-add behavior
           const windowWidth = typeof window !== 'undefined' ? window.innerWidth : 9999;
           const hasTouchSupport = 'ontouchstart' in window;
           const isMobileDevice = windowWidth < 1024 || (hasTouchSupport && windowWidth < 1280);
@@ -145,38 +145,7 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
             onCloseExists: !!onClose
           });
           
-          if (isMobileDevice) {
-            console.log('[AssetsPanel] 📱 MOBILE DETECTED - Starting auto-add flow');
-            console.log('[AssetsPanel] 📱 tempImage:', tempImage);
-            console.log('[AssetsPanel] 📱 handleAddToCanvas type:', typeof handleAddToCanvas);
-            
-            // Use setTimeout to ensure this runs after state update
-            setTimeout(async () => {
-              try {
-                console.log('[AssetsPanel] 📱 Calling handleAddToCanvas...');
-                await handleAddToCanvas(tempImage);
-                console.log('[AssetsPanel] 📱 ✅ handleAddToCanvas completed');
-                
-                // Remove from uploaded list
-                console.log('[AssetsPanel] 📱 Removing from uploadedImages list');
-                setUploadedImages((prev) => prev.filter((img) => img.id !== imageId));
-                
-                // Close panel
-                console.log('[AssetsPanel] 📱 Closing panel, onClose:', !!onClose);
-                if (onClose) {
-                  onClose();
-                  console.log('[AssetsPanel] 📱 ✅ Panel closed');
-                }
-              } catch (error) {
-                console.error('[AssetsPanel] 📱 ❌ ERROR in auto-add:', error);
-                console.error('[AssetsPanel] 📱 ❌ Error stack:', error.stack);
-              }
-            }, 50);
-          } else {
-            console.log('[AssetsPanel] 💻 DESKTOP - Manual add required');
-          }
-          
-          // Upload to Cloudinary in background (for saving to cart later)
+          // Upload to Cloudinary FIRST (critical for mobile to avoid blob URL CORS issues)
           try {
             console.log('[AssetsPanel] Uploading to Cloudinary in background:', file.name);
             const formData = new FormData();
@@ -192,10 +161,12 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
               console.log('[AssetsPanel] Cloudinary upload success:', result);
               
               // Update the image with Cloudinary URL
+              const cloudinaryImage = { ...tempImage, url: result.secureUrl, fileKey: result.publicId || result.fileKey, cloudinaryUrl: result.secureUrl };
+              
               setUploadedImages((prev) => 
                 prev.map((img) => 
                   img.id === imageId 
-                    ? { ...img, url: result.secureUrl, fileKey: result.publicId || result.fileKey, cloudinaryUrl: result.secureUrl }
+                    ? cloudinaryImage
                     : img
                 )
               );
