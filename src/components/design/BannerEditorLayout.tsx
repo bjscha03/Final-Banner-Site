@@ -290,9 +290,11 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
         let dataURL: string;
         
         if (isMobile) {
-          console.log('[THUMBNAIL] Mobile - loading image from URL');
-          console.log('[THUMBNAIL] file:', file);
-          console.log('[THUMBNAIL] overlayImage:', overlayImage);
+          console.log('[THUMBNAIL] Mobile - getting images from Konva layer');
+          
+          // Get all Image nodes from the Konva layer
+          const imageNodes = layer.find('Image');
+          console.log('[THUMBNAIL] Found', imageNodes.length, 'image nodes on layer');
           
           // Create canvas
           const canvas = document.createElement('canvas');
@@ -305,47 +307,41 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, width, height);
             
-            // Get image URL from file or overlayImage
-            const imageUrl = file?.url || overlayImage?.url;
-            console.log('[THUMBNAIL] Image URL:', imageUrl);
-            
-            if (imageUrl) {
-              const img = new Image();
-              img.crossOrigin = 'anonymous';
+            // Draw each image from the Konva layer
+            let drewImage = false;
+            for (const imageNode of imageNodes) {
+              const konvaImg = imageNode.image();
+              console.log('[THUMBNAIL] Image node:', {
+                hasImage: !!konvaImg,
+                type: konvaImg?.constructor?.name,
+                complete: konvaImg instanceof HTMLImageElement ? konvaImg.complete : 'N/A',
+                src: konvaImg instanceof HTMLImageElement ? konvaImg.src?.substring(0, 50) : 'N/A'
+              });
               
-              img.onload = () => {
-                console.log('[THUMBNAIL] Image loaded successfully');
+              if (konvaImg && konvaImg instanceof HTMLImageElement && konvaImg.complete) {
+                const nodeX = imageNode.x() - x;
+                const nodeY = imageNode.y() - y;
+                const nodeWidth = imageNode.width();
+                const nodeHeight = imageNode.height();
                 
-                // Calculate dimensions to fit image in banner
-                const scale = Math.min(width / img.width, height / img.height);
-                const scaledWidth = img.width * scale;
-                const scaledHeight = img.height * scale;
-                const imgX = (width - scaledWidth) / 2;
-                const imgY = (height - scaledHeight) / 2;
+                console.log('[THUMBNAIL] Drawing image at:', { nodeX, nodeY, nodeWidth, nodeHeight });
                 
-                ctx.drawImage(img, imgX, imgY, scaledWidth, scaledHeight);
-                
-                const thumbnailData = canvas.toDataURL('image/png');
-                setCanvasThumbnail(thumbnailData);
-                console.log('[THUMBNAIL] Mobile thumbnail set successfully');
-              };
-              
-              img.onerror = (err) => {
-                console.error('[THUMBNAIL] Failed to load image:', err);
-                // Set white canvas as fallback
-                const thumbnailData = canvas.toDataURL('image/png');
-                setCanvasThumbnail(thumbnailData);
-              };
-              
-              img.src = imageUrl;
-            } else {
-              console.log('[THUMBNAIL] No image URL found, using white canvas');
-              dataURL = canvas.toDataURL('image/png');
-              setCanvasThumbnail(dataURL);
+                try {
+                  ctx.drawImage(konvaImg, nodeX, nodeY, nodeWidth, nodeHeight);
+                  drewImage = true;
+                  console.log('[THUMBNAIL] Successfully drew image');
+                } catch (err) {
+                  console.error('[THUMBNAIL] Failed to draw image:', err);
+                }
+              }
             }
+            
+            const thumbnailData = canvas.toDataURL('image/png');
+            setCanvasThumbnail(thumbnailData);
+            console.log('[THUMBNAIL] Mobile thumbnail generated, drew image:', drewImage, 'size:', thumbnailData.length);
           }
           
-          // Restore visibility and return early (async image loading)
+          // Restore visibility and return early
           setShowBleed(wasShowingBleed);
           setShowSafeZone(wasShowingSafeZone);
           setShowGrid(wasShowingGrid);
