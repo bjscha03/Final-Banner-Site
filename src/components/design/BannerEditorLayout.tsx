@@ -250,6 +250,33 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
             setShowSafeZone(wasShowingSafeZone);
             return;
           }
+          
+          // Check if images are loaded
+          const imageNodes = layer.find('Image');
+          console.log('[THUMBNAIL] Found', imageNodes.length, 'image nodes');
+          
+          let allImagesLoaded = true;
+          for (const imageNode of imageNodes) {
+            const img = imageNode.image();
+            const isLoaded = img instanceof HTMLImageElement && img.complete;
+            console.log('[THUMBNAIL] Image loaded:', isLoaded);
+            if (!isLoaded) {
+              allImagesLoaded = false;
+              break;
+            }
+          }
+          
+          // If images not loaded, wait and retry
+          if (imageNodes.length > 0 && !allImagesLoaded) {
+            console.log('[THUMBNAIL] Images not loaded, retrying in 100ms...');
+            setShowBleed(wasShowingBleed);
+            setShowSafeZone(wasShowingSafeZone);
+            setShowGrid(wasShowingGrid);
+            setTimeout(() => generateThumbnail(), 100);
+            return;
+          }
+          
+          console.log('[THUMBNAIL] All', imageNodes.length, 'images loaded, proceeding');
 
           // Get the background rect (first child) to find banner position
           const backgroundRect = layer.getChildren()[0];
