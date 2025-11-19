@@ -429,7 +429,7 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
                   <Button
                     onClick={() => handleAddToCanvas(image)}
                     size="sm"
-                    className="w-full text-xs h-7 hidden lg:flex"
+                    className="w-full text-xs h-7"
                     variant="outline"
                   >
                     <Plus className="h-3 w-3 mr-1" />
