@@ -19,21 +19,11 @@ interface PreviewCanvasProps {
     isPdf?: boolean;
   };
   imagePosition?: { x: number; y: number };
-  imageScale?: number;
-  overlayImage?: {
-    url: string;
-    position: { x: number; y: number };
-    scale: number;
-  };
-  onImageMouseDown?: (e: React.MouseEvent) => void;
+  imageScale?: number;  onImageMouseDown?: (e: React.MouseEvent) => void;
   onImageTouchStart?: (e: React.TouchEvent) => void;
-  onOverlayMouseDown?: (e: React.MouseEvent) => void;
-  onOverlayTouchStart?: (e: React.TouchEvent) => void;
   onCanvasClick?: (e: React.MouseEvent) => void;
-  onCanvasTouchEnd?: (e: React.TouchEvent) => void;
   isDraggingImage?: boolean;
   isImageSelected?: boolean;
-  isOverlaySelected?: boolean;
   isUploading?: boolean;
   showVerticalCenterGuide?: boolean;
   showHorizontalCenterGuide?: boolean;
@@ -116,53 +106,18 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   file,
   imagePosition = { x: 0, y: 0 },
   imageScale = 1,
-  overlayImage,
   onImageMouseDown,
   onImageTouchStart,
-  onOverlayMouseDown,
-  onOverlayTouchStart,
   onCanvasClick,
-  onCanvasTouchEnd,
   isDraggingImage = false,
   isImageSelected = false,
-  isOverlaySelected = false,
   isUploading = false,
   showVerticalCenterGuide = false,
   showHorizontalCenterGuide = false,
 }) => {
   const FEATURE_PDF_STATIC_PREVIEW = true;
-
-  // Mobile detection for optimized rendering
-  const isMobile = useMemo(() => {
-    return /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || window.innerWidth < 768;
-  }, []);
-
-  console.log("📱 PreviewCanvas: isMobile =", isMobile, "imageUrl =", imageUrl?.substring(0, 60));
-
-  // PERFORMANCE FIX: Preload images on mobile for faster rendering
-  React.useEffect(() => {
-    if (!isMobile || !imageUrl) return;
-    
-    console.log('📱 MOBILE: Preloading image for faster rendering:', imageUrl.substring(0, 60));
-    
-    const img = new Image();
-    img.onload = () => {
-      console.log('✅ MOBILE: Image preloaded successfully');
-    };
-    img.onerror = (error) => {
-      console.error('❌ MOBILE: Image preload failed:', error);
-    };
-    img.src = imageUrl;
-  }, [isMobile, imageUrl]);
-
-
-
-  // Mobile detection for optimized rendering
   const grommetPositions = useMemo(() => {
-    console.log('[GROMMET DEBUG] PreviewCanvas - grommets prop:', grommets, 'widthIn:', widthIn, 'heightIn:', heightIn);
-    const positions = grommetPoints(widthIn, heightIn, grommets);
-    console.log('[GROMMET DEBUG] PreviewCanvas - grommetPositions count:', positions.length, positions);
-    return positions;
+    return grommetPoints(widthIn, heightIn, grommets);
   }, [widthIn, heightIn, grommets]);
 
   const grommetRadius = useMemo(() => {
@@ -205,7 +160,6 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           viewBox={`0 0 ${totalWidth} ${totalHeight}`}
           className="border-2 border-gray-400 rounded-xl bg-white shadow-sm"
           onClick={onCanvasClick}
-          onTouchEnd={onCanvasTouchEnd}
           style={{
             maxWidth: "100%",
             maxHeight: "100%",
@@ -213,7 +167,30 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
             height: "auto"
           }}
         >
-        {/* RULERS MOVED TO END FOR Z-INDEX FIX */}
+        {/* PROFESSIONAL PRINT GUIDELINES - ALWAYS VISIBLE */}
+        <g className="print-rulers">
+          <rect x="0" y="0" width={totalWidth} height={RULER_HEIGHT} fill="#f1f5f9" stroke="#64748b" strokeWidth="0.02"/>
+          <text x={totalWidth/2} y={RULER_HEIGHT/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.5" fill="#1e293b" fontWeight="600">
+            {/* Ruler tick marks */}
+            {Array.from({length: Math.floor(widthIn)}, (_, i) => (
+              <line key={i} x1={RULER_HEIGHT + BLEED_SIZE + i} y1={RULER_HEIGHT - TICK_SIZE} x2={RULER_HEIGHT + BLEED_SIZE + i} y2={RULER_HEIGHT} stroke="#64748b" strokeWidth="0.02" />
+            ))}            {`${widthIn}"`}
+          </text>
+          <rect x="0" y={totalHeight - RULER_HEIGHT} width={totalWidth} height={RULER_HEIGHT} fill="#f1f5f9" stroke="#64748b" strokeWidth="0.02"/>
+          <text x={totalWidth/2} y={totalHeight - RULER_HEIGHT/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.5" fill="#1e293b" fontWeight="600">
+            {`${widthIn}"`}
+          </text>
+          <rect x="0" y="0" width={RULER_HEIGHT} height={totalHeight} fill="#f1f5f9" stroke="#64748b" strokeWidth="0.02"/>
+          <text x={RULER_HEIGHT/2} y={totalHeight/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.5" fill="#1e293b" fontWeight="600" transform={`rotate(-90, ${RULER_HEIGHT/2}, ${totalHeight/2})`}>
+            {`${heightIn}"`}
+          </text>
+          <rect x={totalWidth - RULER_HEIGHT} y="0" width={RULER_HEIGHT} height={totalHeight} fill="#f1f5f9" stroke="#64748b" strokeWidth="0.02"/>
+          <text x={totalWidth - RULER_HEIGHT/2} y={totalHeight/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.5" fill="#1e293b" fontWeight="600" transform={`rotate(90, ${totalWidth - RULER_HEIGHT/2}, ${totalHeight/2})`}>
+            {`${heightIn}"`}
+          </text>
+        </g>
+
+        {/* PROFESSIONAL PRINT GUIDELINES - VISTAPRINT STYLE */}
         
 
         {/* Safety Area - Enhanced with professional styling */}
@@ -272,292 +249,37 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
         />
 
         {/* Image if provided - Extended to bleed area */}
-        {(imageUrl || (file?.isPdf && file?.url)) && (() => {
-          const renderWidth = bleedWidth * (imageScale || 1);
-          const renderHeight = bleedHeight * (imageScale || 1);
-          const renderX = RULER_HEIGHT + (bleedWidth - bleedWidth * imageScale) / 2 + (imagePosition.x * 0.01);
-          const renderY = RULER_HEIGHT + (bleedHeight - bleedHeight * imageScale) / 2 + (imagePosition.y * 0.01);
-          
-          console.log('[PDF DEBUG] Rendering image/PDF:', {
-            isPdf: file?.isPdf,
-            imageScale,
-            bleedWidth,
-            bleedHeight,
-            widthIn,
-            heightIn,
-            renderWidth,
-            renderHeight,
-            renderX,
-            renderY,
-            artworkWidth: file?.artworkWidth,
-            artworkHeight: file?.artworkHeight
-          });
-          
-          return (
+        {(imageUrl || (file?.isPdf && file?.url)) && (
           <>
-          {/* MOBILE FIX: Use foreignObject with img tag for mobile Safari compatibility */}
-          {isMobile ? (
-            <>
-              {console.log('🔍 MOBILE: Rendering foreignObject with img', {
-                imageUrl: imageUrl?.substring(0, 60),
-                fileUrl: file?.url?.substring(0, 60),
-                renderX, renderY, renderWidth, renderHeight,
-                isBlob: (imageUrl || file?.url)?.startsWith('blob:'),
-                isMobile
-              })}
-              <foreignObject
-                key={imageUrl || file?.url}
-                x={renderX}
-                y={renderY}
-                width={renderWidth}
-                height={renderHeight}
-                clipPath="url(#bleed-clip)"
-              >
-                <img
-                  src={imageUrl || file?.url}
-                  alt="Banner preview"
-                  crossOrigin="anonymous"
-                style={{
-                  width: '100%',
-                  height: '100%',
-                  objectFit: 'contain',
-                  cursor: isDraggingImage ? 'grabbing' : 'grab',
-                  userSelect: 'none',
-                  display: 'block'
-                }}
-                onMouseDown={onImageMouseDown as any}
-                onTouchStart={onImageTouchStart as any}
-              />
-            </foreignObject>
-          ) : (
-            <image
-              key={imageUrl || file?.url}
-              href={imageUrl || file?.url}
-              crossOrigin="anonymous"
-              x={renderX}
-              y={renderY}
-              width={renderWidth}
-              height={renderHeight}
-              preserveAspectRatio="xMidYMid meet"
-              clipPath="url(#bleed-clip)"
-              style={{
-                cursor: isDraggingImage ? 'grabbing' : 'grab',
-                userSelect: 'none',
-                imageRendering: '-webkit-optimize-contrast'
-              }}
-              onMouseDown={onImageMouseDown}
-              onTouchStart={onImageTouchStart}
-            />
-          )}
-          </>
-          );
-        })()}
-          </>
-          );
-        })()}
-
-            {/* Overlay Image (Logo/Image on top of AI background) - INTERACTIVE */}
-            {overlayImage && overlayImage.position && typeof overlayImage.position.x === 'number' && typeof overlayImage.position.y === 'number' && (() => {
-              // Calculate overlay position and size
-              // Position is percentage-based (0-100) relative to banner area
-              // Calculate overlay dimensions maintaining aspect ratio
-              // Use the smaller banner dimension as the base for scaling
-              const baseDimension = Math.min(widthIn, heightIn);
-              const aspectRatio = overlayImage.aspectRatio || 1; // Default to square if not set
-              
-              // Calculate dimensions based on aspect ratio
-              let overlayWidth, overlayHeight;
-              if (aspectRatio >= 1) {
-                // Landscape or square image
-                overlayWidth = baseDimension * overlayImage.scale * aspectRatio;
-                overlayHeight = baseDimension * overlayImage.scale;
-              } else {
-                // Portrait image
-                overlayWidth = baseDimension * overlayImage.scale;
-                overlayHeight = baseDimension * overlayImage.scale / aspectRatio;
-              }
-              
-              // Convert percentage position to SVG coordinates
-              // Position represents the CENTER of the overlay
-              const overlayX = RULER_HEIGHT + BLEED_SIZE + (widthIn * overlayImage.position.x / 100) - (overlayWidth / 2);
-              const overlayY = RULER_HEIGHT + BLEED_SIZE + (heightIn * overlayImage.position.y / 100) - (overlayHeight / 2);
-              
-              // Calculate center point for resize handles
-              const overlayCenterX = overlayX + overlayWidth / 2;
-              const overlayCenterY = overlayY + overlayHeight / 2;
-              
-              return (
-                <g>
-                  {/* Overlay Image - MOBILE FIX: Use foreignObject on mobile */}
-                  {isMobile ? (
-                    <foreignObject
-                      x={overlayX}
-                      y={overlayY}
-                      width={overlayWidth}
-                      height={overlayHeight}
-                    >
-                      <img
-                        src={overlayImage.url}
-                        alt="Overlay"
-                        crossOrigin="anonymous"
-                        style={{
-                          width: '100%',
-                          height: '100%',
-                          objectFit: 'fill',
-                          cursor: isOverlaySelected ? 'move' : 'pointer',
-                          opacity: 0.95,
-                          display: 'block'
-                        }}
-                        onMouseDown={onOverlayMouseDown as any}
-                        onTouchStart={onOverlayTouchStart as any}
-                      />
-                    </foreignObject>
-                  ) : (
-                    <image
-                      href={overlayImage.url}
-                      x={overlayX}
-                      y={overlayY}
-                      width={overlayWidth}
-                      height={overlayHeight}
-                      preserveAspectRatio="none"
-                      style={{
-                        cursor: isOverlaySelected ? 'move' : 'pointer',
-                        opacity: 0.95
-                      }}
-                      onMouseDown={onOverlayMouseDown}
-                      onTouchStart={onOverlayTouchStart}
-                    />
-                  )}
-                  
-                  {/* Selection Handles - Only show when overlay is selected */}
-                  {isOverlaySelected && (() => {
-                    // Calculate handle size based on scale (similar to image handles)
-                    // Ensure minimum 44px touch target for mobile (0.46 inches at 96 DPI)
-                    // Increased minimum from 0.1 to 0.3 for better mobile usability
-                    const handleRadius = Math.max(0.3, Math.min(0.5, widthIn * 0.03));
-                    const strokeWidth = handleRadius * 0.2;
-                    const dashArray = handleRadius * 1.5 + " " + handleRadius * 0.75;
-                    
-                    return (
-                      <>
-                        {/* Selection Rectangle */}
-                        <rect
-                          x={overlayX}
-                          y={overlayY}
-                          width={overlayWidth}
-                          height={overlayHeight}
-                          fill="none"
-                          stroke="#3b82f6"
-                          strokeWidth={strokeWidth}
-                          strokeDasharray={dashArray}
-                          pointerEvents="none"
-                        />
-                        
-                        {/* Resize Handles - 4 corners */}
-                        {/* Northwest Handle */}
-                        <circle
-                          cx={overlayX}
-                          cy={overlayY}
-                          r={handleRadius}
-                          fill="#3b82f6"
-                          stroke="white"
-                          strokeWidth={strokeWidth}
-                          className="overlay-resize-handle"
-                          data-overlay-handle="nw"
-                          style={{ cursor: 'nwse-resize' }}
-                          onMouseDown={onOverlayMouseDown}
-                          onTouchStart={onOverlayTouchStart}
-                        />
-                        
-                        {/* Northeast Handle */}
-                        <circle
-                          cx={overlayX + overlayWidth}
-                          cy={overlayY}
-                          r={handleRadius}
-                          fill="#3b82f6"
-                          stroke="white"
-                          strokeWidth={strokeWidth}
-                          className="overlay-resize-handle"
-                          data-overlay-handle="ne"
-                          style={{ cursor: 'nesw-resize' }}
-                          onMouseDown={onOverlayMouseDown}
-                          onTouchStart={onOverlayTouchStart}
-                        />
-                        
-                        {/* Southeast Handle */}
-                        <circle
-                          cx={overlayX + overlayWidth}
-                          cy={overlayY + overlayHeight}
-                          r={handleRadius}
-                          fill="#3b82f6"
-                          stroke="white"
-                          strokeWidth={strokeWidth}
-                          className="overlay-resize-handle"
-                          data-overlay-handle="se"
-                          style={{ cursor: 'nwse-resize' }}
-                          onMouseDown={onOverlayMouseDown}
-                          onTouchStart={onOverlayTouchStart}
-                        />
-                        
-                        {/* Southwest Handle */}
-                        <circle
-                          cx={overlayX}
-                          cy={overlayY + overlayHeight}
-                          r={handleRadius}
-                          fill="#3b82f6"
-                          stroke="white"
-                          strokeWidth={strokeWidth}
-                          className="overlay-resize-handle"
-                          data-overlay-handle="sw"
-                          style={{ cursor: 'nesw-resize' }}
-                          onMouseDown={onOverlayMouseDown}
-                          onTouchStart={onOverlayTouchStart}
-                        />
-                      </>
-                    );
-                  })()}
-                </g>
-              );
-            })()}
+          <image key={imageUrl || file?.url}
+            href={imageUrl || file?.url}
+            x={RULER_HEIGHT + (bleedWidth - bleedWidth * imageScale) / 2 + (imagePosition.x * 0.01)}
+            y={RULER_HEIGHT + (bleedHeight - bleedHeight * imageScale) / 2 + (imagePosition.y * 0.01)}
+            width={bleedWidth * (imageScale || 1)}
+            height={bleedHeight * (imageScale || 1)}
+            preserveAspectRatio="xMidYMid slice"
+            clipPath="url(#bleed-clip)"
+            style={{
+              cursor: isDraggingImage ? 'grabbing' : 'grab',
+              userSelect: 'none'
+            }}
+            onMouseDown={onImageMouseDown}
+            onTouchStart={onImageTouchStart}
+          />
 
             {/* Resize Handles - Only show when image is selected and not dragging */}
-            {isImageSelected && !isDraggingImage && file?.url && (() => {
-              // Container dimensions (the space allocated for the image)
-              const containerX = RULER_HEIGHT + (bleedWidth - bleedWidth * imageScale) / 2 + (imagePosition.x * 0.01);
-              const containerY = RULER_HEIGHT + (bleedHeight - bleedHeight * imageScale) / 2 + (imagePosition.y * 0.01);
-              const containerWidth = bleedWidth * (imageScale || 1);
-              const containerHeight = bleedHeight * (imageScale || 1);
-              
-              // Calculate actual rendered image dimensions with "meet" behavior
-              // The image maintains aspect ratio and fits within the container
-              const containerAspect = containerWidth / containerHeight;
-              const imageAspect = (file.artworkWidth && file.artworkHeight) 
-                ? file.artworkWidth / file.artworkHeight 
-                : containerAspect; // Fallback to container aspect if dimensions unknown
-              
-              let actualImgWidth, actualImgHeight, actualImgX, actualImgY;
-              
-              if (imageAspect > containerAspect) {
-                // Image is wider - fits to width, letterbox top/bottom
-                actualImgWidth = containerWidth;
-                actualImgHeight = containerWidth / imageAspect;
-                actualImgX = containerX;
-                actualImgY = containerY + (containerHeight - actualImgHeight) / 2;
-              } else {
-                // Image is taller - fits to height, pillarbox left/right
-                actualImgWidth = containerHeight * imageAspect;
-                actualImgHeight = containerHeight;
-                actualImgX = containerX + (containerWidth - actualImgWidth) / 2;
-                actualImgY = containerY;
-              }
-              
-              const handleSize = Math.min(0.25, Math.max(widthIn, heightIn) * 0.015);
+            {isImageSelected && !isDraggingImage && (() => {
+              const imgX = RULER_HEIGHT + (bleedWidth - bleedWidth * imageScale) / 2 + (imagePosition.x * 0.01);
+              const imgY = RULER_HEIGHT + (bleedHeight - bleedHeight * imageScale) / 2 + (imagePosition.y * 0.01);
+              const imgWidth = bleedWidth * (imageScale || 1);
+              const imgHeight = bleedHeight * (imageScale || 1);
+              const handleSize = Math.min(0.25, Math.max(widthIn, heightIn) * 0.015); // Smaller handles to avoid confusion with grommets
               
               const handles = [
-                { id: 'nw', x: actualImgX, y: actualImgY, cursor: 'nwse-resize' },
-                { id: 'ne', x: actualImgX + actualImgWidth, y: actualImgY, cursor: 'nesw-resize' },
-                { id: 'sw', x: actualImgX, y: actualImgY + actualImgHeight, cursor: 'nesw-resize' },
-                { id: 'se', x: actualImgX + actualImgWidth, y: actualImgY + actualImgHeight, cursor: 'nwse-resize' },
+                { id: 'nw', x: imgX, y: imgY, cursor: 'nwse-resize' },
+                { id: 'ne', x: imgX + imgWidth, y: imgY, cursor: 'nesw-resize' },
+                { id: 'sw', x: imgX, y: imgY + imgHeight, cursor: 'nesw-resize' },
+                { id: 'se', x: imgX + imgWidth, y: imgY + imgHeight, cursor: 'nwse-resize' },
               ];
               
               return (
@@ -762,53 +484,6 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           </radialGradient>
         </defs>
 
-        {/* Alignment Guides - Canva-style smart guides rendered as SVG */}
-        {showVerticalCenterGuide && (
-          <line
-            x1={totalWidth / 2}
-            y1={0}
-            x2={totalWidth / 2}
-            y2={totalHeight}
-            stroke="#FF00FF"
-            strokeWidth={0.05}
-            pointerEvents="none"
-          />
-        )}
-        {showHorizontalCenterGuide && (
-          <line
-            x1={0}
-            y1={totalHeight / 2}
-            x2={totalWidth}
-            y2={totalHeight / 2}
-            stroke="#FF00FF"
-            strokeWidth={0.05}
-            pointerEvents="none"
-          />
-        )}
-
-        {/* PROFESSIONAL PRINT GUIDELINES - ALWAYS VISIBLE - RENDERED LAST FOR TOP Z-INDEX */}
-        <g className="print-rulers" style={{ pointerEvents: 'none' }}>
-          <rect x="0" y="0" width={totalWidth} height={RULER_HEIGHT} fill="#f1f5f9" stroke="#64748b" strokeWidth="0.02"/>
-          <text x={totalWidth/2} y={RULER_HEIGHT/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.5" fill="#1e293b" fontWeight="600">
-            {/* Ruler tick marks */}
-            {Array.from({length: Math.floor(widthIn)}, (_, i) => (
-              <line key={i} x1={RULER_HEIGHT + BLEED_SIZE + i} y1={RULER_HEIGHT - TICK_SIZE} x2={RULER_HEIGHT + BLEED_SIZE + i} y2={RULER_HEIGHT} stroke="#64748b" strokeWidth="0.02" />
-            ))}            {`${widthIn}"`}
-          </text>
-          <rect x="0" y={totalHeight - RULER_HEIGHT} width={totalWidth} height={RULER_HEIGHT} fill="#f1f5f9" stroke="#64748b" strokeWidth="0.02"/>
-          <text x={totalWidth/2} y={totalHeight - RULER_HEIGHT/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.5" fill="#1e293b" fontWeight="600">
-            {`${widthIn}"`}
-          </text>
-          <rect x="0" y="0" width={RULER_HEIGHT} height={totalHeight} fill="#f1f5f9" stroke="#64748b" strokeWidth="0.02"/>
-          <text x={RULER_HEIGHT/2} y={totalHeight/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.5" fill="#1e293b" fontWeight="600" transform={`rotate(-90, ${RULER_HEIGHT/2}, ${totalHeight/2})`}>
-            {`${heightIn}"`}
-          </text>
-          <rect x={totalWidth - RULER_HEIGHT} y="0" width={RULER_HEIGHT} height={totalHeight} fill="#f1f5f9" stroke="#64748b" strokeWidth="0.02"/>
-          <text x={totalWidth - RULER_HEIGHT/2} y={totalHeight/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.5" fill="#1e293b" fontWeight="600" transform={`rotate(90, ${totalWidth - RULER_HEIGHT/2}, ${totalHeight/2})`}>
-            {`${heightIn}"`}
-          </text>
-        </g>
-
       </svg>
 
       </div>
@@ -847,7 +522,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
                 {file.name}
               </div>
               <div className="text-xs text-gray-600 truncate max-w-[150px]">
-                {file.type?.split('/')[1]?.toUpperCase() || 'IMAGE'} • {formatFileSize(file.size || 0 || 0)}
+                {file.type.split('/')[1].toUpperCase()} • {formatFileSize(file.size)}
               </div>
             </div>
           </div>
