@@ -31,6 +31,7 @@ import AssetsPanel from './editor/AssetsPanel';
 import TextPanel from './editor/TextPanel';
 import ObjectInspector from './editor/ObjectInspector';
 import BrandColorsPanel from './editor/BrandColorsPanel';
+import PreviewCanvas from './editor/PreviewCanvas';
 import CanvasSettingsPanel from './editor/CanvasSettingsPanel';
 import MaterialCard from './MaterialCard';
 import SizeQuantityCard from './SizeQuantityCard';
