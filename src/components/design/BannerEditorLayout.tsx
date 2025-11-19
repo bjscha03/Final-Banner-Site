@@ -280,8 +280,32 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
             });
           });
 
+        // Detect mobile
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        console.log('[THUMBNAIL] Is mobile:', isMobile);
+        
           // Capture thumbnail - crop to just the banner area
-          const dataURL = stage.toDataURL({
+        let dataURL: string;
+        
+        if (isMobile) {
+          console.log('[THUMBNAIL] Mobile detected - using fallback');
+          // On mobile, toDataURL fails with blob URLs, so use a simple white placeholder
+          const canvas = document.createElement('canvas');
+          canvas.width = width * 2;
+          canvas.height = height * 2;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.fillStyle = '#f0f0f0';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#666';
+            ctx.font = '20px Arial';
+            ctx.textAlign = 'center';
+            ctx.fillText('Preview', canvas.width / 2, canvas.height / 2);
+          }
+          dataURL = canvas.toDataURL('image/png');
+        } else {
+          // Desktop: Use Konva toDataURL
+          dataURL = stage.toDataURL({
             x: x,
             y: y,
             width: width,
@@ -289,7 +313,8 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
             pixelRatio: 2,
             mimeType: 'image/png',
           });
-
+        }
+        
           console.log('[BannerEditorLayout] Generated thumbnail:', dataURL.substring(0, 50) + '...');
           setCanvasThumbnail(dataURL);
           
