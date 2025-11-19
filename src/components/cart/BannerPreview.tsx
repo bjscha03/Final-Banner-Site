@@ -13,7 +13,7 @@
  * - Handles loading and error states
  */
 
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Grommets } from '@/store/quote';
 import { Image as ImageIcon, Loader2 } from 'lucide-react';
 
@@ -143,6 +143,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const imgRef = useRef<HTMLImageElement>(null);
 
   // Detect mobile viewport
   useEffect(() => {
@@ -169,6 +170,14 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
     });
     setImageLoaded(false);
   }, [imageUrl]);
+
+  // Check if image is already loaded (for cached images on mobile)
+  useEffect(() => {
+    if (isMobile && imgRef.current && imgRef.current.complete) {
+      console.log('✅ MOBILE: Image already loaded (cached)');
+      setImageLoaded(true);
+    }
+  }, [isMobile, imageUrl]);
 
 
   // Calculate aspect ratio and determine container dimensions
@@ -219,6 +228,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
         >
           {/* Main banner image */}
           <img 
+            ref={imgRef}
             src={imageUrl} 
             alt="Banner preview"
             className="w-full h-full object-contain"
@@ -273,8 +283,8 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
             );
           })}
           
-          {/* Loading state overlay */}
-          {!imageLoaded && !isLoading && (
+          {/* Loading state overlay - only show while image is loading */}
+          {!imageLoaded && (
             <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
               <div className="text-gray-400 text-xs">Loading...</div>
             </div>
