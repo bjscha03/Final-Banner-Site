@@ -220,6 +220,18 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
 
   // MOBILE FIX: Use <img> tags instead of SVG <image> for better mobile Safari compatibility
   // SVG <image> elements don't render reliably on mobile Safari, causing blank thumbnails
+  
+  // DEBUG: Log all conditions for troubleshooting
+  console.log('🔍 BannerPreview render check:', {
+    isMobile,
+    hasImageUrl: !!imageUrl,
+    imageUrl: imageUrl?.substring(0, 60),
+    imageError,
+    willRenderMobile: isMobile && imageUrl && !imageError,
+    previewWidth,
+    previewHeight
+  });
+  
   if (isMobile && imageUrl && !imageError) {
     console.log('📱 MOBILE: Rendering thumbnail with <img> tag instead of SVG');
     
