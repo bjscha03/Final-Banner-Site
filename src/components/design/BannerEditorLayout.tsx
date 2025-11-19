@@ -307,84 +307,8 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
             });
           });
 
-        // Detect mobile
-        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || 
-          (navigator.maxTouchPoints && navigator.maxTouchPoints > 1) ||
-          window.matchMedia('(max-width: 768px)').matches;
-        console.log('[THUMBNAIL] Is mobile:', isMobile);
-        
-          // Capture thumbnail - crop to just the banner area
-        let dataURL: string;
-        
-        if (isMobile) {
-          console.log('[THUMBNAIL] Mobile - getting images from Konva layer');
-          
-          // Get all Image nodes from the Konva layer
-          const imageNodes = layer.find('Image');
-          console.log('[THUMBNAIL] Found', imageNodes.length, 'image nodes on layer');
-          
-          // Create canvas
-          const canvas = document.createElement('canvas');
-          canvas.width = width * 2;
-          canvas.height = height * 2;
-          const ctx = canvas.getContext('2d');
-          
-          if (ctx) {
-            ctx.scale(2, 2);
-            ctx.fillStyle = '#ffffff';
-            ctx.fillRect(0, 0, width, height);
-            
-            // Draw each image from the Konva layer
-            let drewImage = false;
-            for (const imageNode of imageNodes) {
-              const konvaImg = imageNode.image();
-              console.log('[THUMBNAIL] Image node:', {
-                hasImage: !!konvaImg,
-                type: konvaImg?.constructor?.name,
-                complete: konvaImg instanceof HTMLImageElement ? konvaImg.complete : 'N/A',
-                src: konvaImg instanceof HTMLImageElement ? konvaImg.src?.substring(0, 50) : 'N/A'
-              });
-              
-              if (konvaImg && konvaImg instanceof HTMLImageElement && konvaImg.complete) {
-                // Get image position and size
-                const imgX = imageNode.x();
-                const imgY = imageNode.y();
-                const imgWidth = imageNode.width();
-                const imgHeight = imageNode.height();
-                const scaleX = imageNode.scaleX();
-                const scaleY = imageNode.scaleY();
-                
-                // Calculate actual dimensions with scale
-                const actualWidth = imgWidth * scaleX;
-                const actualHeight = imgHeight * scaleY;
-                
-                console.log('[THUMBNAIL] Drawing image:', { 
-                  imgX, imgY, imgWidth, imgHeight, scaleX, scaleY, actualWidth, actualHeight 
-                });
-                
-                try {
-                  ctx.drawImage(konvaImg, imgX, imgY, actualWidth, actualHeight);
-                  drewImage = true;
-                  console.log('[THUMBNAIL] Successfully drew image');
-                } catch (err) {
-                  console.error('[THUMBNAIL] Failed to draw image:', err);
-                }
-              }
-            }
-            
-            const thumbnailData = canvas.toDataURL('image/png');
-            setCanvasThumbnail(thumbnailData);
-            console.log('[THUMBNAIL] Mobile thumbnail generated, drew image:', drewImage, 'size:', thumbnailData.length);
-          }
-          
-          // Restore visibility and return early
-          setShowBleed(wasShowingBleed);
-          setShowSafeZone(wasShowingSafeZone);
-          setShowGrid(wasShowingGrid);
-          return;
-        } else {
-          // Desktop: Use Konva toDataURL
-          dataURL = stage.toDataURL({
+          // Capture thumbnail - crop to just the banner area using stage.toDataURL
+          const dataURL = stage.toDataURL({
             x: x,
             y: y,
             width: width,
@@ -392,7 +316,6 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
             pixelRatio: 2,
             mimeType: 'image/png',
           });
-        }
         
           console.log('[BannerEditorLayout] Generated thumbnail:', dataURL.substring(0, 50) + '...');
           setCanvasThumbnail(dataURL);
