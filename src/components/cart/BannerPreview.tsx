@@ -142,15 +142,21 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   // Track image load errors
   const [imageError, setImageError] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
+  
+  // Detect mobile viewport - initialize immediately to avoid flash of desktop content
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const mobile = window.innerWidth < 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    console.log('📱 BannerPreview: Initial isMobile =', mobile, 'width =', window.innerWidth, 'userAgent =', navigator.userAgent.substring(0, 50));
+    return mobile;
+  });
   const imgRef = useRef<HTMLImageElement>(null);
 
-  // Detect mobile viewport
+  // Update mobile detection on resize
   useEffect(() => {
     const checkMobile = () => {
       setIsMobile(window.innerWidth < 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent));
     };
-    checkMobile();
     window.addEventListener('resize', checkMobile);
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
