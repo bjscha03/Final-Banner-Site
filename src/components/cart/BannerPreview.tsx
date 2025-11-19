@@ -203,6 +203,87 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   // Grommet radius (scaled to banner dimensions)
   const grommetRadius = Math.min(widthIn, heightIn) * 0.03;
 
+  // MOBILE FIX: Use <img> tags instead of SVG <image> for better mobile Safari compatibility
+  // SVG <image> elements don't render reliably on mobile Safari, causing blank thumbnails
+  if (isMobile && imageUrl && !imageError) {
+    console.log('📱 MOBILE: Rendering thumbnail with <img> tag instead of SVG');
+    
+    return (
+      <div className={`flex items-center justify-center ${className}`}>
+        <div 
+          className="relative rounded-lg overflow-hidden shadow-lg border-2 border-gray-200 bg-white"
+          style={{
+            width: `${previewWidth}px`,
+            height: `${previewHeight}px`,
+          }}
+        >
+          {/* Main banner image */}
+          <img 
+            src={imageUrl} 
+            alt="Banner preview"
+            className="w-full h-full object-contain"
+            style={{
+              display: 'block',
+              maxWidth: '100%',
+              maxHeight: '100%'
+            }}
+            onLoad={() => {
+              console.log('✅ MOBILE: Thumbnail image loaded successfully');
+              setImageLoaded(true);
+            }}
+            onError={(e) => {
+              console.error('❌ MOBILE: Thumbnail image failed to load:', imageUrl);
+              setImageError(true);
+            }}
+          />
+          
+          {/* Grommets overlay using absolute positioned divs */}
+          {grommets !== 'none' && grommetPositions.map((pos, idx) => {
+            // Convert grommet position from inches to percentage
+            const leftPercent = (pos.x / widthIn) * 100;
+            const topPercent = (pos.y / heightIn) * 100;
+            // Convert grommet radius from inches to pixels (approximate)
+            const grommetSizePx = (grommetRadius / widthIn) * previewWidth * 2;
+            
+            return (
+              <div
+                key={`grommet-mobile-${idx}`}
+                className="absolute rounded-full bg-gray-700 border-2 border-gray-500"
+                style={{
+                  left: `${leftPercent}%`,
+                  top: `${topPercent}%`,
+                  width: `${grommetSizePx}px`,
+                  height: `${grommetSizePx}px`,
+                  transform: 'translate(-50%, -50%)',
+                  boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2)'
+                }}
+              >
+                {/* Inner hole */}
+                <div 
+                  className="absolute rounded-full bg-gray-100 border border-gray-300"
+                  style={{
+                    left: '50%',
+                    top: '50%',
+                    width: '60%',
+                    height: '60%',
+                    transform: 'translate(-50%, -50%)'
+                  }}
+                />
+              </div>
+            );
+          })}
+          
+          {/* Loading state overlay */}
+          {!imageLoaded && !isLoading && (
+            <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
+              <div className="text-gray-400 text-xs">Loading...</div>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
   // If this is a canvas thumbnail (data URL), render it simply
   if (isCanvasThumbnail && imageUrl) {
     // If grommets are selected, render with SVG overlay
