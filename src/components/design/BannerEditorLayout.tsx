@@ -31,7 +31,6 @@ import AssetsPanel from './editor/AssetsPanel';
 import TextPanel from './editor/TextPanel';
 import ObjectInspector from './editor/ObjectInspector';
 import BrandColorsPanel from './editor/BrandColorsPanel';
-import PreviewCanvas from './PreviewCanvas';
 import CanvasSettingsPanel from './editor/CanvasSettingsPanel';
 import MaterialCard from './MaterialCard';
 import SizeQuantityCard from './SizeQuantityCard';
@@ -1439,15 +1438,17 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
 
           <div className="mt-4">
             <div className="bg-gray-100 p-4 rounded-lg">
-              <PreviewCanvas
-                widthIn={widthIn}
-                heightIn={heightIn}
-                grommets={grommets}
-                imageUrl={imageUrl}
-                file={file}
-                imagePosition={imagePosition}
-                imageScale={imageScale}
-              />
+              {canvasThumbnail ? (
+                <img 
+                  src={canvasThumbnail} 
+                  alt="Banner Preview" 
+                  className="w-full h-auto rounded shadow-lg" 
+                />
+              ) : (
+                <div className="text-center text-gray-500 py-8">
+                  No preview available
+                </div>
+              )}
             </div>
 
             <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
