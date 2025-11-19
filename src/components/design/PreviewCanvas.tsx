@@ -297,18 +297,26 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           <>
           {/* MOBILE FIX: Use foreignObject with img tag for mobile Safari compatibility */}
           {isMobile ? (
-            <foreignObject
-              key={imageUrl || file?.url}
-              x={renderX}
-              y={renderY}
-              width={renderWidth}
-              height={renderHeight}
-              clipPath="url(#bleed-clip)"
-            >
-              <img
-                src={imageUrl || file?.url}
-                alt="Banner preview"
-                crossOrigin="anonymous"
+            <>
+              {console.log('🔍 MOBILE: Rendering foreignObject with img', {
+                imageUrl: imageUrl?.substring(0, 60),
+                fileUrl: file?.url?.substring(0, 60),
+                renderX, renderY, renderWidth, renderHeight,
+                isBlob: (imageUrl || file?.url)?.startsWith('blob:'),
+                isMobile
+              })}
+              <foreignObject
+                key={imageUrl || file?.url}
+                x={renderX}
+                y={renderY}
+                width={renderWidth}
+                height={renderHeight}
+                clipPath="url(#bleed-clip)"
+              >
+                <img
+                  src={imageUrl || file?.url}
+                  alt="Banner preview"
+                  crossOrigin="anonymous"
                 style={{
                   width: '100%',
                   height: '100%',
