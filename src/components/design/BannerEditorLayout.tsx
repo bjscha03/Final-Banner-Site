@@ -288,13 +288,11 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
         let dataURL: string;
         
         if (isMobile) {
-          console.log('[THUMBNAIL] Mobile detected - rendering to HTML canvas');
+          console.log('[THUMBNAIL] Mobile - loading image from URL');
+          console.log('[THUMBNAIL] file:', file);
+          console.log('[THUMBNAIL] overlayImage:', overlayImage);
           
-          // Get all image nodes from the Konva layer
-          const imageNodes = layer.find('Image');
-          console.log('[THUMBNAIL] Found image nodes:', imageNodes.length);
-          
-          // Create HTML canvas
+          // Create canvas
           const canvas = document.createElement('canvas');
           canvas.width = width * 2;
           canvas.height = height * 2;
@@ -302,33 +300,54 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
           
           if (ctx) {
             ctx.scale(2, 2);
-            
-            // Draw white background
             ctx.fillStyle = '#ffffff';
             ctx.fillRect(0, 0, width, height);
             
-            // Draw each image
-            for (const imageNode of imageNodes) {
-              const img = imageNode.image();
-              if (img && img instanceof HTMLImageElement) {
-                const nodeX = imageNode.x() - x;
-                const nodeY = imageNode.y() - y;
-                const nodeWidth = imageNode.width();
-                const nodeHeight = imageNode.height();
+            // Get image URL from file or overlayImage
+            const imageUrl = file?.url || overlayImage?.url;
+            console.log('[THUMBNAIL] Image URL:', imageUrl);
+            
+            if (imageUrl) {
+              const img = new Image();
+              img.crossOrigin = 'anonymous';
+              
+              img.onload = () => {
+                console.log('[THUMBNAIL] Image loaded successfully');
                 
-                console.log('[THUMBNAIL] Drawing image:', { nodeX, nodeY, nodeWidth, nodeHeight });
+                // Calculate dimensions to fit image in banner
+                const scale = Math.min(width / img.width, height / img.height);
+                const scaledWidth = img.width * scale;
+                const scaledHeight = img.height * scale;
+                const imgX = (width - scaledWidth) / 2;
+                const imgY = (height - scaledHeight) / 2;
                 
-                try {
-                  ctx.drawImage(img, nodeX, nodeY, nodeWidth, nodeHeight);
-                } catch (err) {
-                  console.error('[THUMBNAIL] Failed to draw image:', err);
-                }
-              }
+                ctx.drawImage(img, imgX, imgY, scaledWidth, scaledHeight);
+                
+                const thumbnailData = canvas.toDataURL('image/png');
+                setCanvasThumbnail(thumbnailData);
+                console.log('[THUMBNAIL] Mobile thumbnail set successfully');
+              };
+              
+              img.onerror = (err) => {
+                console.error('[THUMBNAIL] Failed to load image:', err);
+                // Set white canvas as fallback
+                const thumbnailData = canvas.toDataURL('image/png');
+                setCanvasThumbnail(thumbnailData);
+              };
+              
+              img.src = imageUrl;
+            } else {
+              console.log('[THUMBNAIL] No image URL found, using white canvas');
+              dataURL = canvas.toDataURL('image/png');
+              setCanvasThumbnail(dataURL);
             }
           }
           
-          dataURL = canvas.toDataURL('image/png');
-          console.log('[THUMBNAIL] Mobile thumbnail generated:', dataURL.substring(0, 50));
+          // Restore visibility and return early (async image loading)
+          setShowBleed(wasShowingBleed);
+          setShowSafeZone(wasShowingSafeZone);
+          setShowGrid(wasShowingGrid);
+          return;
         } else {
           // Desktop: Use Konva toDataURL
           dataURL = stage.toDataURL({
