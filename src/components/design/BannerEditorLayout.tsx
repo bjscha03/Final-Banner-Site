@@ -1438,10 +1438,11 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
 
           <div className="mt-4">
             <div className="bg-gray-100 p-4 rounded-lg">
-              <img
-                src={canvasThumbnail || ''}
-                alt="Banner Preview"
-                className="w-full h-auto rounded shadow-lg"
+              <PreviewCanvas
+                items={items}
+                widthIn={widthIn}
+                heightIn={heightIn}
+                grommets={grommets}
               />
             </div>
 
