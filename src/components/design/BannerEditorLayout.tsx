@@ -281,7 +281,9 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
           });
 
         // Detect mobile
-        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+        const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent) || 
+          (navigator.maxTouchPoints && navigator.maxTouchPoints > 1) ||
+          window.matchMedia('(max-width: 768px)').matches;
         console.log('[THUMBNAIL] Is mobile:', isMobile);
         
           // Capture thumbnail - crop to just the banner area
