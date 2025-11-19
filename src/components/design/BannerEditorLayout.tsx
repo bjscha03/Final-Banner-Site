@@ -319,15 +319,24 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
               });
               
               if (konvaImg && konvaImg instanceof HTMLImageElement && konvaImg.complete) {
-                const nodeX = imageNode.x() - x;
-                const nodeY = imageNode.y() - y;
-                const nodeWidth = imageNode.width();
-                const nodeHeight = imageNode.height();
+                // Get image position and size
+                const imgX = imageNode.x();
+                const imgY = imageNode.y();
+                const imgWidth = imageNode.width();
+                const imgHeight = imageNode.height();
+                const scaleX = imageNode.scaleX();
+                const scaleY = imageNode.scaleY();
                 
-                console.log('[THUMBNAIL] Drawing image at:', { nodeX, nodeY, nodeWidth, nodeHeight });
+                // Calculate actual dimensions with scale
+                const actualWidth = imgWidth * scaleX;
+                const actualHeight = imgHeight * scaleY;
+                
+                console.log('[THUMBNAIL] Drawing image:', { 
+                  imgX, imgY, imgWidth, imgHeight, scaleX, scaleY, actualWidth, actualHeight 
+                });
                 
                 try {
-                  ctx.drawImage(konvaImg, nodeX, nodeY, nodeWidth, nodeHeight);
+                  ctx.drawImage(konvaImg, imgX, imgY, actualWidth, actualHeight);
                   drewImage = true;
                   console.log('[THUMBNAIL] Successfully drew image');
                 } catch (err) {
