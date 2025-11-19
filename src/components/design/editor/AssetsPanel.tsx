@@ -170,16 +170,65 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
                     : img
                 )
               );
-              console.log('[AssetsPanel] Updated image with Cloudinary URL');
+              console.log('[AssetsPanel] Image updated with Cloudinary URL and fileKey');
               
-              // Mobile auto-add already happened immediately after blob load
-              // Just log that Cloudinary upload completed
-              console.log('[AssetsPanel] Cloudinary upload complete - image will be saved to cart with this URL');
+              // 🔥 MOBILE UX: Auto-add to canvas AFTER Cloudinary upload completes
+              if (isMobileDevice) {
+                console.log('[AssetsPanel] 📱 MOBILE - Auto-adding with Cloudinary URL');
+                setTimeout(async () => {
+                  try {
+                    console.log('[AssetsPanel] 📱 Calling handleAddToCanvas with Cloudinary image...');
+                    await handleAddToCanvas(cloudinaryImage);
+                    console.log('[AssetsPanel] 📱 ✅ handleAddToCanvas completed');
+                    
+                    // Remove from uploaded list
+                    console.log('[AssetsPanel] 📱 Removing from uploadedImages list');
+                    setUploadedImages((prev) => prev.filter((img) => img.id !== imageId));
+                    
+                    // Close panel
+                    console.log('[AssetsPanel] 📱 Closing panel');
+                    if (onClose) {
+                      onClose();
+                      console.log('[AssetsPanel] 📱 ✅ Panel closed');
+                    }
+                  } catch (error) {
+                    console.error('[AssetsPanel] 📱 ❌ ERROR in auto-add:', error);
+                  }
+                }, 100);
+              }
             } else {
-              console.warn('[AssetsPanel] Cloudinary upload failed, keeping blob URL');
+              console.error('[AssetsPanel] Cloudinary upload failed:', response.status, response.statusText);
+              
+              // On mobile, still try to add with blob URL as fallback
+              if (isMobileDevice) {
+                console.log('[AssetsPanel] 📱 MOBILE - Cloudinary failed, using blob URL as fallback');
+                setTimeout(async () => {
+                  try {
+                    await handleAddToCanvas(tempImage);
+                    setUploadedImages((prev) => prev.filter((img) => img.id !== imageId));
+                    if (onClose) onClose();
+                  } catch (error) {
+                    console.error('[AssetsPanel] 📱 ❌ ERROR in fallback auto-add:', error);
+                  }
+                }, 100);
+              }
             }
           } catch (error) {
-            console.warn('[AssetsPanel] Cloudinary upload error, keeping blob URL:', error);
+            console.error('[AssetsPanel] Error uploading to Cloudinary:', error);
+            
+            // On mobile, still try to add with blob URL as fallback
+            if (isMobileDevice) {
+              console.log('[AssetsPanel] 📱 MOBILE - Cloudinary error, using blob URL as fallback');
+              setTimeout(async () => {
+                try {
+                  await handleAddToCanvas(tempImage);
+                  setUploadedImages((prev) => prev.filter((img) => img.id !== imageId));
+                  if (onClose) onClose();
+                } catch (error) {
+                  console.error('[AssetsPanel] 📱 ❌ ERROR in fallback auto-add:', error);
+                }
+              }, 100);
+            }
           }
         };
         
