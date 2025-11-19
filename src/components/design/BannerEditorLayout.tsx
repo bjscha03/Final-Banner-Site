@@ -288,21 +288,47 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
         let dataURL: string;
         
         if (isMobile) {
-          console.log('[THUMBNAIL] Mobile detected - using fallback');
-          // On mobile, toDataURL fails with blob URLs, so use a simple white placeholder
+          console.log('[THUMBNAIL] Mobile detected - rendering to HTML canvas');
+          
+          // Get all image nodes from the Konva layer
+          const imageNodes = layer.find('Image');
+          console.log('[THUMBNAIL] Found image nodes:', imageNodes.length);
+          
+          // Create HTML canvas
           const canvas = document.createElement('canvas');
           canvas.width = width * 2;
           canvas.height = height * 2;
           const ctx = canvas.getContext('2d');
+          
           if (ctx) {
-            ctx.fillStyle = '#f0f0f0';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            ctx.fillStyle = '#666';
-            ctx.font = '20px Arial';
-            ctx.textAlign = 'center';
-            ctx.fillText('Preview', canvas.width / 2, canvas.height / 2);
+            ctx.scale(2, 2);
+            
+            // Draw white background
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(0, 0, width, height);
+            
+            // Draw each image
+            for (const imageNode of imageNodes) {
+              const img = imageNode.image();
+              if (img && img instanceof HTMLImageElement) {
+                const nodeX = imageNode.x() - x;
+                const nodeY = imageNode.y() - y;
+                const nodeWidth = imageNode.width();
+                const nodeHeight = imageNode.height();
+                
+                console.log('[THUMBNAIL] Drawing image:', { nodeX, nodeY, nodeWidth, nodeHeight });
+                
+                try {
+                  ctx.drawImage(img, nodeX, nodeY, nodeWidth, nodeHeight);
+                } catch (err) {
+                  console.error('[THUMBNAIL] Failed to draw image:', err);
+                }
+              }
+            }
           }
+          
           dataURL = canvas.toDataURL('image/png');
+          console.log('[THUMBNAIL] Mobile thumbnail generated:', dataURL.substring(0, 50));
         } else {
           // Desktop: Use Konva toDataURL
           dataURL = stage.toDataURL({
