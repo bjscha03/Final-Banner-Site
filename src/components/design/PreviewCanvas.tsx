@@ -295,26 +295,52 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           
           return (
           <>
-          <image key={imageUrl || file?.url}
-            href={imageUrl || file?.url}
-            crossOrigin="anonymous"
-            x={renderX}
-            y={renderY}
-            width={renderWidth}
-            height={renderHeight}
-            preserveAspectRatio="xMidYMid meet"
-            clipPath="url(#bleed-clip)"
-            style={{
-              cursor: isDraggingImage ? 'grabbing' : 'grab',
-              userSelect: 'none',
-              imageRendering: isMobile ? 'auto' : '-webkit-optimize-contrast',
-              WebkitTransform: isMobile ? 'translateZ(0)' : 'none',
-              transform: isMobile ? 'translateZ(0)' : 'none',
-              willChange: isMobile ? 'transform' : 'auto'
-            }}
-            onMouseDown={onImageMouseDown}
-            onTouchStart={onImageTouchStart}
-          />
+          {/* MOBILE FIX: Use foreignObject with img tag for mobile Safari compatibility */}
+          {isMobile ? (
+            <foreignObject
+              key={imageUrl || file?.url}
+              x={renderX}
+              y={renderY}
+              width={renderWidth}
+              height={renderHeight}
+              clipPath="url(#bleed-clip)"
+            >
+              <img
+                src={imageUrl || file?.url}
+                alt="Banner preview"
+                crossOrigin="anonymous"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
+                  cursor: isDraggingImage ? 'grabbing' : 'grab',
+                  userSelect: 'none',
+                  display: 'block'
+                }}
+                onMouseDown={onImageMouseDown as any}
+                onTouchStart={onImageTouchStart as any}
+              />
+            </foreignObject>
+          ) : (
+            <image
+              key={imageUrl || file?.url}
+              href={imageUrl || file?.url}
+              crossOrigin="anonymous"
+              x={renderX}
+              y={renderY}
+              width={renderWidth}
+              height={renderHeight}
+              preserveAspectRatio="xMidYMid meet"
+              clipPath="url(#bleed-clip)"
+              style={{
+                cursor: isDraggingImage ? 'grabbing' : 'grab',
+                userSelect: 'none',
+                imageRendering: '-webkit-optimize-contrast'
+              }}
+              onMouseDown={onImageMouseDown}
+              onTouchStart={onImageTouchStart}
+            />
+          )}
           </>
           );
         })()}
@@ -354,21 +380,46 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
               
               return (
                 <g>
-                  {/* Overlay Image */}
-                  <image
-                    href={overlayImage.url}
-                    x={overlayX}
-                    y={overlayY}
-                    width={overlayWidth}
-                    height={overlayHeight}
-                    preserveAspectRatio="none"
-                    style={{
-                      cursor: isOverlaySelected ? 'move' : 'pointer',
-                      opacity: 0.95
-                    }}
-                    onMouseDown={onOverlayMouseDown}
-                    onTouchStart={onOverlayTouchStart}
-                  />
+                  {/* Overlay Image - MOBILE FIX: Use foreignObject on mobile */}
+                  {isMobile ? (
+                    <foreignObject
+                      x={overlayX}
+                      y={overlayY}
+                      width={overlayWidth}
+                      height={overlayHeight}
+                    >
+                      <img
+                        src={overlayImage.url}
+                        alt="Overlay"
+                        crossOrigin="anonymous"
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'fill',
+                          cursor: isOverlaySelected ? 'move' : 'pointer',
+                          opacity: 0.95,
+                          display: 'block'
+                        }}
+                        onMouseDown={onOverlayMouseDown as any}
+                        onTouchStart={onOverlayTouchStart as any}
+                      />
+                    </foreignObject>
+                  ) : (
+                    <image
+                      href={overlayImage.url}
+                      x={overlayX}
+                      y={overlayY}
+                      width={overlayWidth}
+                      height={overlayHeight}
+                      preserveAspectRatio="none"
+                      style={{
+                        cursor: isOverlaySelected ? 'move' : 'pointer',
+                        opacity: 0.95
+                      }}
+                      onMouseDown={onOverlayMouseDown}
+                      onTouchStart={onOverlayTouchStart}
+                    />
+                  )}
                   
                   {/* Selection Handles - Only show when overlay is selected */}
                   {isOverlaySelected && (() => {
