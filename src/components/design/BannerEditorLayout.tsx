@@ -1440,10 +1440,13 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
           <div className="mt-4">
             <div className="bg-gray-100 p-4 rounded-lg">
               <PreviewCanvas
-                items={items}
                 widthIn={widthIn}
                 heightIn={heightIn}
                 grommets={grommets}
+                imageUrl={imageUrl}
+                file={file}
+                imagePosition={imagePosition}
+                imageScale={imageScale}
               />
             </div>
 
