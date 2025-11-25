@@ -344,37 +344,63 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
           
           let dataURL: string | null = null;
           
-          // On mobile, ALWAYS use server-side thumbnail generation
-          // because toDataURL often captures blank/solid-color canvas due to image loading timing issues
+          // On mobile, wait a bit longer for images to load, then use toDataURL
           if (isMobile) {
-            console.log('[THUMBNAIL] Mobile device detected, using server-side generation');
+            console.log('[THUMBNAIL] Mobile device detected, waiting for images to load...');
+            
+            // Wait 500ms for images to fully load on mobile
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
             try {
-              const response = await fetch('/.netlify/functions/generate-thumbnail', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  objects: editorState.objects,
-                  backgroundColor: canvasBackgroundColor,
-                  width: width,
-                  height: height
-                })
+              dataURL = stage.toDataURL({
+                x: x,
+                y: y,
+                width: width,
+                height: height,
+                pixelRatio: 2,
+                mimeType: 'image/png',
               });
               
-              if (response.ok) {
-                const result = await response.json();
-                if (result.success && result.thumbnailUrl) {
-                  console.log('[THUMBNAIL] Server-side thumbnail generated:', result.method);
-                  dataURL = result.thumbnailUrl;
-                } else {
-                  console.error('[THUMBNAIL] Server-side generation returned unsuccessful result:', result);
-                }
-              } else {
-                console.error('[THUMBNAIL] Server-side generation failed with status:', response.status);
-                const errorText = await response.text();
-                console.error('[THUMBNAIL] Error response:', errorText);
+              console.log('[THUMBNAIL] Mobile toDataURL succeeded, size:', dataURL.length);
+              
+              // Check if it's blank (small size or mostly transparent)
+              if (dataURL.length < 5000) {
+                console.warn('[THUMBNAIL] Mobile thumbnail seems blank, trying again after longer delay...');
+                
+                // Wait another 1 second and try again
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                
+                dataURL = stage.toDataURL({
+                  x: x,
+                  y: y,
+                  width: width,
+                  height: height,
+                  pixelRatio: 2,
+                  mimeType: 'image/png',
+                });
+                
+                console.log('[THUMBNAIL] Mobile toDataURL retry, size:', dataURL.length);
               }
-            } catch (serverError) {
-              console.error('[THUMBNAIL] Server-side generation failed:', serverError);
+            } catch (error) {
+              console.error('[THUMBNAIL] Mobile toDataURL failed:', error);
+              
+              // Fallback: create a simple canvas with background color
+              const canvas = document.createElement('canvas');
+              canvas.width = width * 2;
+              canvas.height = height * 2;
+              const ctx = canvas.getContext('2d');
+              
+              if (ctx) {
+                ctx.fillStyle = canvasBackgroundColor || '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#666666';
+                ctx.font = '24px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Preview unavailable', canvas.width / 2, canvas.height / 2);
+                
+                dataURL = canvas.toDataURL('image/png');
+                console.log('[THUMBNAIL] Created mobile fallback thumbnail');
+              }
             }
           } else {
             // Desktop: use client-side toDataURL with server-side fallback
