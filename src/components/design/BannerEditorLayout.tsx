@@ -273,17 +273,36 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
 
           // Check if all images are loaded
           const imageNodes = layer.find('Image');
-          console.log('[THUMBNAIL] Found', imageNodes.length, 'image nodes');
+          console.log('[THUMBNAIL] Found', imageNodes.length, 'image nodes on layer');
+          
+          // Also check what objects are in the editor store
+          const editorState = useEditorStore.getState();
+          const imageObjects = editorState.objects.filter(obj => obj.type === 'image');
+          console.log('[THUMBNAIL] Editor store has', imageObjects.length, 'image objects');
+          imageObjects.forEach((obj, idx) => {
+            console.log(`[THUMBNAIL] Store image ${idx}:`, {
+              url: obj.url?.substring(0, 80),
+              urlType: obj.url?.startsWith('blob:') ? 'BLOB' : obj.url?.startsWith('http') ? 'HTTP' : 'OTHER',
+              cloudinaryId: obj.cloudinaryPublicId,
+              x: obj.x,
+              y: obj.y,
+              width: obj.width,
+              height: obj.height
+            });
+          });
           
           let allImagesLoaded = true;
           imageNodes.forEach((node, idx) => {
             const img = node.image();
             const isLoaded = img instanceof HTMLImageElement && img.complete && img.naturalWidth > 0;
-            console.log(`[THUMBNAIL] Image ${idx}:`, {
+            const src = img instanceof HTMLImageElement ? img.src : 'N/A';
+            console.log(`[THUMBNAIL] Canvas image ${idx}:`, {
               loaded: isLoaded,
-              src: img instanceof HTMLImageElement ? img.src?.substring(0, 60) : 'N/A',
+              src: src?.substring(0, 80),
+              srcType: src?.startsWith('blob:') ? 'BLOB' : src?.startsWith('http') ? 'HTTP' : 'OTHER',
               complete: img instanceof HTMLImageElement ? img.complete : false,
-              naturalWidth: img instanceof HTMLImageElement ? img.naturalWidth : 0
+              naturalWidth: img instanceof HTMLImageElement ? img.naturalWidth : 0,
+              naturalHeight: img instanceof HTMLImageElement ? img.naturalHeight : 0
             });
             if (!isLoaded) allImagesLoaded = false;
           });

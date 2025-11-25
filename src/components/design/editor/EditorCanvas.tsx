@@ -34,7 +34,20 @@ const CanvasImage: React.FC<{
 }> = ({ url, x, y, width, height, rotation, opacity, draggable, onClick, onTap, onDragEnd, onTransformEnd, dragBoundFunc, id }) => {
   const [image] = useImage(url, 'anonymous');
   
-  console.log('[IMAGE RENDER]', { id, url, loaded: !!image, x, y, width, height });
+  console.log('[IMAGE RENDER]', { 
+    id, 
+    url: url?.substring(0, 80), 
+    urlType: url?.startsWith('blob:') ? 'BLOB' : url?.startsWith('data:') ? 'DATA' : url?.startsWith('http') ? 'HTTP' : 'UNKNOWN',
+    loaded: !!image, 
+    imageWidth: image?.width,
+    imageHeight: image?.height,
+    x, y, width, height 
+  });
+  
+  // Log if image failed to load
+  if (!image && url) {
+    console.warn('[IMAGE RENDER] Image not loaded yet or failed to load:', url?.substring(0, 80));
+  }
   
   return (
     <KonvaImage
