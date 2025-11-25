@@ -34,6 +34,33 @@ const CanvasImage: React.FC<{
 }> = ({ url, x, y, width, height, rotation, opacity, draggable, onClick, onTap, onDragEnd, onTransformEnd, dragBoundFunc, id }) => {
   const [image] = useImage(url, 'anonymous');
   
+  // Trigger re-render when image loads by using useEffect
+  React.useEffect(() => {
+    if (image) {
+      console.log('[IMAGE LOADED]', { 
+        id, 
+        url: url?.substring(0, 80), 
+        urlType: url?.startsWith('blob:') ? 'BLOB' : url?.startsWith('data:') ? 'DATA' : url?.startsWith('http') ? 'HTTP' : 'UNKNOWN',
+        imageWidth: image?.width,
+        imageHeight: image?.height
+      });
+      
+      // Force layer redraw when image loads
+      // This ensures the canvas is updated and thumbnail can be generated
+      const node = document.getElementById(id);
+      if (node) {
+        const stage = (node as any).getStage?.();
+        if (stage) {
+          const layer = stage.getLayers()[0];
+          if (layer) {
+            layer.batchDraw();
+            console.log('[IMAGE LOADED] Triggered layer redraw');
+          }
+        }
+      }
+    }
+  }, [image, id, url]);
+  
   console.log('[IMAGE RENDER]', { 
     id, 
     url: url?.substring(0, 80), 

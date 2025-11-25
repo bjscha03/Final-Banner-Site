@@ -308,12 +308,35 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
           });
           
           if (!allImagesLoaded) {
-            console.log('[THUMBNAIL] Not all images loaded yet, waiting 500ms...');
-            setTimeout(() => generateThumbnail(), 500);
+            console.log('[THUMBNAIL] Not all images loaded yet, will retry...');
+            
+            // Track retry count to avoid infinite loop
+            const retryCount = (generateThumbnail as any).retryCount || 0;
+            (generateThumbnail as any).retryCount = retryCount + 1;
+            
+            if (retryCount < 10) {
+              // Exponential backoff: 100ms, 200ms, 400ms, 800ms, then 1000ms
+              const delay = Math.min(100 * Math.pow(2, retryCount), 1000);
+              console.log(`[THUMBNAIL] Retry ${retryCount + 1}/10 in ${delay}ms...`);
+              setTimeout(() => generateThumbnail(), delay);
+            } else {
+              console.error('[THUMBNAIL] Failed to load images after 10 retries, generating thumbnail anyway');
+              (generateThumbnail as any).retryCount = 0;
+              // Continue to generate thumbnail even with unloaded images
+            }
+            
             setShowBleed(wasShowingBleed);
             setShowSafeZone(wasShowingSafeZone);
             setShowGrid(wasShowingGrid);
-            return;
+            
+            if (retryCount >= 10) {
+              // Don't return, let it continue to generate thumbnail
+            } else {
+              return;
+            }
+          } else {
+            // Reset retry count on success
+            (generateThumbnail as any).retryCount = 0;
           }
 
           // Capture thumbnail using stage.toDataURL
@@ -398,7 +421,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     // Debounce thumbnail generation to avoid too many updates
     const timeoutId = setTimeout(() => {
       generateThumbnail();
-    }, 300); // Wait 300ms after last change - fast debounce for instant thumbnails
+    }, 800); // Wait 800ms after last change to give images time to load on mobile
 
     return () => clearTimeout(timeoutId);
   }, [editorObjects, canvasBackgroundColor, grommets, showGrommets]); // Re-generate when objects, background, or grommets change
