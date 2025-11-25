@@ -205,7 +205,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
   };
 
   // Generate thumbnail for cart preview
-  const generateThumbnail = () => {
+  const generateThumbnail = async () => {
     if (!canvasRef.current) {
       return null;
     }
@@ -240,7 +240,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       }
       
       // Wait for React to re-render (use setTimeout instead of requestAnimationFrame)
-      setTimeout(() => {
+      setTimeout(async () => {
         try {
           // Get the layer to find the banner bounds
           const layer = stage.getLayers()[0];
@@ -357,6 +357,31 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
             // Check if it's a blank image (very small size)
             if (dataURL.length < 2200) {
               console.warn('[THUMBNAIL] Generated image is suspiciously small, might be blank');
+              console.log('[THUMBNAIL] Attempting server-side thumbnail generation...');
+              
+              // Use server-side thumbnail generation for mobile
+              try {
+                const response = await fetch('/.netlify/functions/generate-thumbnail', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({
+                    objects: editorState.objects,
+                    backgroundColor: canvasBackgroundColor,
+                    width: width,
+                    height: height
+                  })
+                });
+                
+                if (response.ok) {
+                  const result = await response.json();
+                  if (result.success && result.thumbnailUrl) {
+                    console.log('[THUMBNAIL] Server-side thumbnail generated:', result.method);
+                    dataURL = result.thumbnailUrl;
+                  }
+                }
+              } catch (serverError) {
+                console.error('[THUMBNAIL] Server-side generation failed:', serverError);
+              }
             }
           } catch (error) {
             console.error('[THUMBNAIL] stage.toDataURL failed:', error);
