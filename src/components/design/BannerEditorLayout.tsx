@@ -817,32 +817,44 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     console.log('🔄 [UPDATE CART] Generating fresh thumbnail NOW...');
     generateThumbnail();
     
-    // Wait for thumbnail to be generated and stored
-    await new Promise(resolve => setTimeout(resolve, 300));
-    console.log('✅ [UPDATE CART] Fresh thumbnail generated');
+    // Wait LONGER for thumbnail to be generated on mobile (images need time to load)
+    const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const waitTime = isMobileDevice ? 2000 : 500; // 2 seconds on mobile, 500ms on desktop
+    console.log(`⏱️ [UPDATE CART] Waiting ${waitTime}ms for thumbnail generation...`);
+    await new Promise(resolve => setTimeout(resolve, waitTime));
+    console.log('✅ [UPDATE CART] Wait complete, checking thumbnail...');
 
     // CRITICAL: Get FRESH thumbnail from store after generation (not stale canvasThumbnail variable)
     const freshThumbnail = useEditorStore.getState().canvasThumbnail;
     console.log('✅ [UPDATE CART] Fresh thumbnail length:', freshThumbnail?.length);
     console.log('⚠️ [UPDATE CART] Old canvasThumbnail length:', canvasThumbnail?.length);
+    console.log('🔍 [UPDATE CART] Fresh thumbnail preview:', freshThumbnail ? freshThumbnail.substring(0, 100) + '...' : 'NULL');
 
     // Now use the fresh thumbnail from the store
     let thumbnailUrl = freshThumbnail;
     
     console.log('🎨 [ADD TO CART] canvasThumbnail:', canvasThumbnail ? canvasThumbnail.substring(0, 50) + '...' : 'NULL');
     
-    // Fallback to file URL if canvas thumbnail not available
-    if (!thumbnailUrl && file && file.url) {
-      thumbnailUrl = file.url;
-      console.log('🎨 [ADD TO CART] Using file.url:', thumbnailUrl ? thumbnailUrl.substring(0, 50) + '...' : 'NULL');
-    }
-    // Fallback to first image object if still no thumbnail
-    else if (!thumbnailUrl && editorObjects.length > 0) {
-      const firstImage = editorObjects.find(obj => obj.type === 'image');
-      if (firstImage && firstImage.url) {
-        thumbnailUrl = firstImage.url;
-        console.log('🎨 [ADD TO CART] Using firstImage.url:', thumbnailUrl ? thumbnailUrl.substring(0, 50) + '...' : 'NULL');
+    // ONLY use fallbacks if thumbnail is truly not available (not just for convenience)
+    if (!thumbnailUrl) {
+      console.warn('⚠️ [ADD TO CART] Canvas thumbnail not available! This should not happen.');
+      console.warn('⚠️ [ADD TO CART] Falling back to image URL - preview will show ONLY the image, not the full canvas');
+      
+      // Fallback to file URL if canvas thumbnail not available
+      if (file && file.url) {
+        thumbnailUrl = file.url;
+        console.log('🎨 [ADD TO CART] Using file.url:', thumbnailUrl ? thumbnailUrl.substring(0, 50) + '...' : 'NULL');
       }
+      // Fallback to first image object if still no thumbnail
+      else if (editorObjects.length > 0) {
+        const firstImage = editorObjects.find(obj => obj.type === 'image');
+        if (firstImage && firstImage.url) {
+          thumbnailUrl = firstImage.url;
+          console.log('🎨 [ADD TO CART] Using firstImage.url:', thumbnailUrl ? thumbnailUrl.substring(0, 50) + '...' : 'NULL');
+        }
+      }
+    } else {
+      console.log('✅ [ADD TO CART] Using canvas thumbnail (full canvas preview)');
     }
     
     console.log('🎨 [ADD TO CART] Final thumbnail URL:', thumbnailUrl ? thumbnailUrl.substring(0, 50) + '...' : 'NULL');
