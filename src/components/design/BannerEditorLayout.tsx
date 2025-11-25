@@ -339,11 +339,47 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
             (generateThumbnail as any).retryCount = 0;
           }
 
-          // Capture thumbnail using stage.toDataURL
+          // Detect mobile devices - they have issues with toDataURL capturing images
+          const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+          
           let dataURL: string | null = null;
           
-          try {
-            dataURL = stage.toDataURL({
+          // On mobile, ALWAYS use server-side thumbnail generation
+          // because toDataURL often captures blank/solid-color canvas due to image loading timing issues
+          if (isMobile) {
+            console.log('[THUMBNAIL] Mobile device detected, using server-side generation');
+            try {
+              const response = await fetch('/.netlify/functions/generate-thumbnail', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  objects: editorState.objects,
+                  backgroundColor: canvasBackgroundColor,
+                  width: width,
+                  height: height
+                })
+              });
+              
+              if (response.ok) {
+                const result = await response.json();
+                if (result.success && result.thumbnailUrl) {
+                  console.log('[THUMBNAIL] Server-side thumbnail generated:', result.method);
+                  dataURL = result.thumbnailUrl;
+                } else {
+                  console.error('[THUMBNAIL] Server-side generation returned unsuccessful result:', result);
+                }
+              } else {
+                console.error('[THUMBNAIL] Server-side generation failed with status:', response.status);
+                const errorText = await response.text();
+                console.error('[THUMBNAIL] Error response:', errorText);
+              }
+            } catch (serverError) {
+              console.error('[THUMBNAIL] Server-side generation failed:', serverError);
+            }
+          } else {
+            // Desktop: use client-side toDataURL with server-side fallback
+            try {
+              dataURL = stage.toDataURL({
               x: x,
               y: y,
               width: width,
@@ -409,6 +445,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
               dataURL = canvas.toDataURL('image/png');
               console.log('[THUMBNAIL] Created fallback thumbnail');
             }
+          }
           }
           
           if (dataURL) {
