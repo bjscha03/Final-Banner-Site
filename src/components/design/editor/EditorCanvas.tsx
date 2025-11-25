@@ -1,6 +1,56 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { Stage, Layer, Rect, Line, Text as KonvaText, Text, Circle, RegularPolygon, Arrow, Transformer, Image as KonvaImage, Group } from 'react-konva';
 import useImage from 'use-image';
+
+// Custom hook that preloads image via HTML Image element before passing to Konva
+// This ensures CORS and loading work properly on mobile Safari
+const usePreloadedImage = (url: string | undefined, crossOrigin?: string) => {
+  const [image, setImage] = React.useState<HTMLImageElement | undefined>();
+  const [status, setStatus] = React.useState<'loading' | 'loaded' | 'failed'>('loading');
+
+  React.useEffect(() => {
+    if (!url) {
+      setImage(undefined);
+      setStatus('failed');
+      return;
+    }
+
+    const img = new Image();
+    img.crossOrigin = crossOrigin || 'anonymous';
+    
+    const handleLoad = () => {
+      console.log('[PRELOAD] Image loaded successfully:', url.substring(0, 80));
+      setImage(img);
+      setStatus('loaded');
+    };
+    
+    const handleError = (e: any) => {
+      console.error('[PRELOAD] Image failed to load:', url.substring(0, 80), e);
+      setStatus('failed');
+    };
+    
+    img.addEventListener('load', handleLoad);
+    img.addEventListener('error', handleError);
+    
+    console.log('[PRELOAD] Starting image load:', url.substring(0, 80));
+    img.src = url;
+    
+    // If image is already cached, it might load synchronously
+    if (img.complete) {
+      handleLoad();
+    }
+    
+    return () => {
+      img.removeEventListener('load', handleLoad);
+      img.removeEventListener('error', handleError);
+    };
+  }, [url, crossOrigin]);
+
+  return [image, status] as const;
+};
+
+// Custom hook that preloads image via HTML Image element before passing to Konva
+// This ensures CORS and loading work properly on mobile Safari
 import { Card } from '@/components/ui/card';
 import { Trash2 } from 'lucide-react';
 import { useQuoteStore } from '@/store/quote';
@@ -32,7 +82,7 @@ const CanvasImage: React.FC<{
   dragBoundFunc?: (pos: { x: number; y: number }) => { x: number; y: number };
   id: string;
 }> = ({ url, x, y, width, height, rotation, opacity, draggable, onClick, onTap, onDragEnd, onTransformEnd, dragBoundFunc, id }) => {
-  const [image] = useImage(url, 'anonymous');
+  const [image, imageStatus] = usePreloadedImage(url, 'anonymous');
   
   // Trigger re-render when image loads by using useEffect
   React.useEffect(() => {
