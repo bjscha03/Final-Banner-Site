@@ -469,30 +469,51 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
                   if (!loadError && img.complete && img.naturalWidth > 0) {
                     // Convert object coordinates (in inches) to thumbnail pixels
                     const thumbScale = targetWidth / widthIn; // pixels per inch in thumbnail
-                    const drawX = obj.x * thumbScale;
-                    const drawY = obj.y * thumbScale;
-                    const drawWidth = obj.width * thumbScale;
-                    const drawHeight = obj.height * thumbScale;
+                    let drawX = obj.x * thumbScale;
+                    let drawY = obj.y * thumbScale;
+                    let drawWidth = obj.width * thumbScale;
+                    let drawHeight = obj.height * thumbScale;
                     
-                    console.log('[THUMBNAIL] DRAW PARAMS:', { 
-                      bannerSize: widthIn + 'x' + heightIn,
-                      targetThumbnail: targetWidth + 'x' + targetHeight,
-                      thumbScale: thumbScale + ' px/inch',
-                      objPosInches: obj.x.toFixed(2) + ',' + obj.y.toFixed(2),
-                      objSizeInches: obj.width.toFixed(2) + 'x' + obj.height.toFixed(2),
-                      drawPosPx: drawX.toFixed(0) + ',' + drawY.toFixed(0),
-                      drawSizePx: drawWidth.toFixed(0) + 'x' + drawHeight.toFixed(0)
+                    // FIX: Clamp drawing to thumbnail bounds
+                    // This handles cases where object coordinates might be off
+                    if (drawX < 0) {
+                      drawWidth += drawX; // Reduce width by amount outside
+                      drawX = 0;
+                    }
+                    if (drawY < 0) {
+                      drawHeight += drawY;
+                      drawY = 0;
+                    }
+                    if (drawX + drawWidth > targetWidth) {
+                      drawWidth = targetWidth - drawX;
+                    }
+                    if (drawY + drawHeight > targetHeight) {
+                      drawHeight = targetHeight - drawY;
+                    }
+                    
+                    // Also scale down if image is larger than the thumbnail
+                    if (drawWidth > targetWidth) {
+                      const scale = targetWidth / drawWidth;
+                      drawWidth = targetWidth;
+                      drawHeight *= scale;
+                    }
+                    if (drawHeight > targetHeight) {
+                      const scale = targetHeight / drawHeight;
+                      drawHeight = targetHeight;
+                      drawWidth *= scale;
+                    }
+                    
+                    console.log('[THUMBNAIL] DRAW PARAMS (clamped):', { 
+                      bannerInches: widthIn + 'x' + heightIn,
+                      thumbPx: targetWidth + 'x' + targetHeight,
+                      objInches: obj.width.toFixed(2) + 'x' + obj.height.toFixed(2),
+                      drawPx: drawWidth.toFixed(0) + 'x' + drawHeight.toFixed(0)
                     });
                     
-                    // SANITY CHECK: If object dimensions seem too large, flag it
-                    if (obj.width > widthIn || obj.height > heightIn) {
-                      console.warn('[THUMBNAIL] ⚠️ Object larger than banner! Object:', obj.width.toFixed(2) + 'x' + obj.height.toFixed(2), 'Banner:', widthIn + 'x' + heightIn);
+                    // Only draw if we have valid dimensions
+                    if (drawWidth > 0 && drawHeight > 0) {
+                      thumbCtx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
                     }
-                    if (drawWidth > targetWidth || drawHeight > targetHeight) {
-                      console.warn('[THUMBNAIL] ⚠️ Draw size exceeds thumbnail! Draw:', drawWidth.toFixed(0) + 'x' + drawHeight.toFixed(0), 'Thumb:', targetWidth + 'x' + targetHeight);
-                    }
-                    
-                    thumbCtx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
                   }
                 } else if (obj.type === 'text') {
                   // Draw text objects on the thumbnail
