@@ -313,6 +313,15 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   }
 
   // If this is a canvas thumbnail (data URL), render it simply
+  console.log('🎨 BannerPreview RENDER:', {
+    hasImageUrl: !!imageUrl,
+    isCanvasThumbnail,
+    imageUrlPrefix: imageUrl?.substring(0, 50),
+    grommets,
+    willRenderCanvasThumbnail: isCanvasThumbnail && !!imageUrl,
+    textElementsCount: textElements?.length || 0,
+  });
+  
   if (isCanvasThumbnail && imageUrl) {
     // If grommets are selected, render with SVG overlay
     if (grommets !== 'none') {
