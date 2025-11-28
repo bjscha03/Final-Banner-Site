@@ -384,6 +384,8 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
           // This avoids any stage capture issues on mobile Safari
           if (isMobile) {
             console.log('[THUMBNAIL] Mobile device detected, recreating thumbnail from objects...');
+            console.log('[THUMBNAIL] Quote store banner size:', { widthIn, heightIn });
+            console.log('[THUMBNAIL] Quote store banner size:', { widthIn, heightIn });
             
             // Wait for images to fully load on mobile
             await new Promise(resolve => setTimeout(resolve, 500));
@@ -414,33 +416,67 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
               
               // Draw each object at its correct position
               for (const obj of objects) {
-                if (obj.type === 'image' && obj.url) {
+                console.log('[THUMBNAIL] Processing object:', {
+                  id: obj.id,
+                  type: obj.type,
+                  x: obj.x,
+                  y: obj.y,
+                  width: obj.width,
+                  height: obj.height,
+                  hasUrl: obj.type === 'image' ? !!(obj as any).url : 'N/A'
+                });
+                
+                if (obj.type === 'image') {
+                  const imgObj = obj as any;
+                  
+                  // Prefer Cloudinary URL over blob URL for reliability
+                  let imageUrl = imgObj.url;
+                  if (imgObj.cloudinaryPublicId) {
+                    imageUrl = `https://res.cloudinary.com/dxse5oomj/image/upload/${imgObj.cloudinaryPublicId}`;
+                    console.log('[THUMBNAIL] Using Cloudinary URL:', imageUrl.substring(0, 80));
+                  } else {
+                    console.log('[THUMBNAIL] Using original URL:', imageUrl?.substring(0, 80));
+                  }
+                  
+                  if (!imageUrl) {
+                    console.warn('[THUMBNAIL] No URL for image object');
+                    continue;
+                  }
+                  
                   // Load the image
                   const img = new Image();
                   img.crossOrigin = 'anonymous';
                   
+                  let loadError = false;
                   await new Promise<void>((resolve) => {
-                    img.onload = () => resolve();
-                    img.onerror = () => {
-                      console.warn('[THUMBNAIL] Failed to load image:', obj.url?.substring(0, 50));
+                    img.onload = () => {
+                      console.log('[THUMBNAIL] Image loaded OK:', img.naturalWidth, 'x', img.naturalHeight);
                       resolve();
                     };
-                    img.src = obj.url;
+                    img.onerror = (e) => {
+                      console.warn('[THUMBNAIL] Failed to load image');
+                      loadError = true;
+                      resolve();
+                    };
+                    img.src = imageUrl;
                   });
                   
-                  if (img.complete && img.naturalWidth > 0) {
+                  if (!loadError && img.complete && img.naturalWidth > 0) {
                     // Convert object coordinates (in inches) to thumbnail pixels
-                    // Object position is relative to banner (0,0 is top-left of banner)
-                    const scale = targetWidth / widthIn; // pixels per inch in thumbnail
-                    const drawX = obj.x * scale;
-                    const drawY = obj.y * scale;
-                    const drawWidth = obj.width * scale;
-                    const drawHeight = obj.height * scale;
+                    const thumbScale = targetWidth / widthIn; // pixels per inch in thumbnail
+                    const drawX = obj.x * thumbScale;
+                    const drawY = obj.y * thumbScale;
+                    const drawWidth = obj.width * thumbScale;
+                    const drawHeight = obj.height * thumbScale;
                     
-                    console.log('[THUMBNAIL] Drawing image at:', { 
-                      objX: obj.x, objY: obj.y, 
-                      objW: obj.width, objH: obj.height,
-                      drawX, drawY, drawWidth, drawHeight 
+                    console.log('[THUMBNAIL] DRAW PARAMS:', { 
+                      bannerSize: widthIn + 'x' + heightIn,
+                      thumbScale,
+                      objPos: obj.x + ',' + obj.y,
+                      objSize: obj.width + 'x' + obj.height,
+                      drawPos: drawX + ',' + drawY,
+                      drawSize: drawWidth + 'x' + drawHeight,
+                      thumbSize: targetWidth + 'x' + targetHeight
                     });
                     
                     thumbCtx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
