@@ -380,72 +380,110 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
           
           let dataURL: string | null = null;
           
-          // MOBILE FIX: Capture full stage then manually crop (fixes coordinate issues on mobile Safari)
+          // MOBILE FIX: Recreate thumbnail from scratch using object coordinates
+          // This avoids any stage capture issues on mobile Safari
           if (isMobile) {
-            console.log('[THUMBNAIL] Mobile device detected, using manual crop approach...');
+            console.log('[THUMBNAIL] Mobile device detected, recreating thumbnail from objects...');
             
             // Wait for images to fully load on mobile
             await new Promise(resolve => setTimeout(resolve, 500));
             
             try {
-              // Step 1: Capture the FULL stage at 1:1 scale
-              const fullStageDataUrl = stage.toDataURL({
-                mimeType: 'image/png',
-                pixelRatio: 1,
-              });
-              
-              console.log('[THUMBNAIL] Full stage captured, size:', fullStageDataUrl.length);
-              
-              // Step 2: Load the captured image
-              const fullImage = new Image();
-              fullImage.crossOrigin = 'anonymous';
-              
-              await new Promise<void>((resolve, reject) => {
-                fullImage.onload = () => resolve();
-                fullImage.onerror = (e) => reject(e);
-                fullImage.src = fullStageDataUrl;
-              });
-              
-              console.log('[THUMBNAIL] Full image loaded:', fullImage.width, 'x', fullImage.height);
-              console.log('[THUMBNAIL] Banner bounds:', { x, y, width, height });
-              
-              // Step 3: Manually crop to the banner area
-              const cropCanvas = document.createElement('canvas');
+              // Create a fresh canvas for the thumbnail
+              const thumbCanvas = document.createElement('canvas');
               const targetWidth = 600;
-              const targetHeight = Math.round(600 * height / width);
-              cropCanvas.width = targetWidth;
-              cropCanvas.height = targetHeight;
+              const aspectRatio = heightIn / widthIn;
+              const targetHeight = Math.round(targetWidth * aspectRatio);
+              thumbCanvas.width = targetWidth;
+              thumbCanvas.height = targetHeight;
               
-              const cropCtx = cropCanvas.getContext('2d');
-              if (cropCtx) {
-                cropCtx.drawImage(
-                  fullImage,
-                  x, y, width, height,  // Source: banner bounds from full stage
-                  0, 0, targetWidth, targetHeight  // Dest: scaled thumbnail
-                );
-                
-                dataURL = cropCanvas.toDataURL('image/png');
-                console.log('[THUMBNAIL] Manual crop succeeded, size:', dataURL.length);
+              const thumbCtx = thumbCanvas.getContext('2d');
+              if (!thumbCtx) throw new Error('Could not get canvas context');
+              
+              // Draw background
+              thumbCtx.fillStyle = canvasBackgroundColor || '#ffffff';
+              thumbCtx.fillRect(0, 0, targetWidth, targetHeight);
+              
+              console.log('[THUMBNAIL] Thumbnail canvas created:', targetWidth, 'x', targetHeight);
+              
+              // Get editor state with objects
+              const editorState = useEditorStore.getState();
+              const objects = editorState.objects;
+              
+              console.log('[THUMBNAIL] Drawing', objects.length, 'objects');
+              
+              // Draw each object at its correct position
+              for (const obj of objects) {
+                if (obj.type === 'image' && obj.url) {
+                  // Load the image
+                  const img = new Image();
+                  img.crossOrigin = 'anonymous';
+                  
+                  await new Promise<void>((resolve) => {
+                    img.onload = () => resolve();
+                    img.onerror = () => {
+                      console.warn('[THUMBNAIL] Failed to load image:', obj.url?.substring(0, 50));
+                      resolve();
+                    };
+                    img.src = obj.url;
+                  });
+                  
+                  if (img.complete && img.naturalWidth > 0) {
+                    // Convert object coordinates (in inches) to thumbnail pixels
+                    // Object position is relative to banner (0,0 is top-left of banner)
+                    const scale = targetWidth / widthIn; // pixels per inch in thumbnail
+                    const drawX = obj.x * scale;
+                    const drawY = obj.y * scale;
+                    const drawWidth = obj.width * scale;
+                    const drawHeight = obj.height * scale;
+                    
+                    console.log('[THUMBNAIL] Drawing image at:', { 
+                      objX: obj.x, objY: obj.y, 
+                      objW: obj.width, objH: obj.height,
+                      drawX, drawY, drawWidth, drawHeight 
+                    });
+                    
+                    thumbCtx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+                  }
+                }
               }
+              
+              dataURL = thumbCanvas.toDataURL('image/png');
+              console.log('[THUMBNAIL] Recreate from objects succeeded, size:', dataURL.length);
+              
             } catch (error) {
-              console.error('[THUMBNAIL] Manual crop failed:', error);
+              console.error('[THUMBNAIL] Recreate from objects failed:', error);
               
-              // Fallback: create placeholder
-              const canvas = document.createElement('canvas');
-              canvas.width = 600;
-              canvas.height = 300;
-              const ctx = canvas.getContext('2d');
-              
-              if (ctx) {
-                ctx.fillStyle = canvasBackgroundColor || '#ffffff';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.fillStyle = '#666666';
-                ctx.font = '24px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText('Preview unavailable', canvas.width / 2, canvas.height / 2);
+              // Fallback: use stage.toDataURL with bounds
+              try {
+                dataURL = stage.toDataURL({
+                  x: x,
+                  y: y,
+                  width: width,
+                  height: height,
+                  pixelRatio: 2,
+                  mimeType: 'image/png',
+                });
+                console.log('[THUMBNAIL] Fallback toDataURL, size:', dataURL.length);
+              } catch (fallbackError) {
+                console.error('[THUMBNAIL] Fallback also failed');
                 
-                dataURL = canvas.toDataURL('image/png');
-                console.log('[THUMBNAIL] Created placeholder thumbnail');
+                // Last resort: create placeholder
+                const canvas = document.createElement('canvas');
+                canvas.width = 600;
+                canvas.height = 300;
+                const ctx = canvas.getContext('2d');
+                
+                if (ctx) {
+                  ctx.fillStyle = canvasBackgroundColor || '#ffffff';
+                  ctx.fillRect(0, 0, canvas.width, canvas.height);
+                  ctx.fillStyle = '#666666';
+                  ctx.font = '24px Arial';
+                  ctx.textAlign = 'center';
+                  ctx.fillText('Preview unavailable', canvas.width / 2, canvas.height / 2);
+                  
+                  dataURL = canvas.toDataURL('image/png');
+                }
               }
             }
           } else {
