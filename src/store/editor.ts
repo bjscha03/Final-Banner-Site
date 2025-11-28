@@ -157,6 +157,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   isDirty: false,
   
   addObject: (object) => {
+    console.log('[EDITOR STORE] addObject called with:', {
+      type: object.type,
+      x: object.x,
+      y: object.y,
+      width: object.width,
+      height: object.height,
+      hasUrl: object.type === 'image' ? !!(object as any).url : 'N/A'
+    });
     const newObject = {
       ...object,
       id: `obj-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -167,6 +175,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       selectedIds: [newObject.id], // Auto-select newly added object
       isDirty: true 
     });
+    console.log('[EDITOR STORE] After addObject, objects count:', get().objects.length);
     get().pushHistory();
   },
   
