@@ -380,50 +380,60 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
           
           let dataURL: string | null = null;
           
-          // On mobile, wait a bit longer for images to load, then use toDataURL
+          // MOBILE FIX: Capture full stage then manually crop (fixes coordinate issues on mobile Safari)
           if (isMobile) {
-            console.log('[THUMBNAIL] Mobile device detected, waiting for images to load...');
+            console.log('[THUMBNAIL] Mobile device detected, using manual crop approach...');
             
-            // Wait 500ms for images to fully load on mobile
+            // Wait for images to fully load on mobile
             await new Promise(resolve => setTimeout(resolve, 500));
             
             try {
-              dataURL = stage.toDataURL({
-                x: x,
-                y: y,
-                width: width,
-                height: height,
-                pixelRatio: 2,
+              // Step 1: Capture the FULL stage at 1:1 scale
+              const fullStageDataUrl = stage.toDataURL({
                 mimeType: 'image/png',
+                pixelRatio: 1,
               });
               
-              console.log('[THUMBNAIL] Mobile toDataURL succeeded, size:', dataURL.length);
+              console.log('[THUMBNAIL] Full stage captured, size:', fullStageDataUrl.length);
               
-              // Check if it's blank (small size or mostly transparent)
-              if (dataURL.length < 5000) {
-                console.warn('[THUMBNAIL] Mobile thumbnail seems blank, trying again after longer delay...');
+              // Step 2: Load the captured image
+              const fullImage = new Image();
+              fullImage.crossOrigin = 'anonymous';
+              
+              await new Promise<void>((resolve, reject) => {
+                fullImage.onload = () => resolve();
+                fullImage.onerror = (e) => reject(e);
+                fullImage.src = fullStageDataUrl;
+              });
+              
+              console.log('[THUMBNAIL] Full image loaded:', fullImage.width, 'x', fullImage.height);
+              console.log('[THUMBNAIL] Banner bounds:', { x, y, width, height });
+              
+              // Step 3: Manually crop to the banner area
+              const cropCanvas = document.createElement('canvas');
+              const targetWidth = 600;
+              const targetHeight = Math.round(600 * height / width);
+              cropCanvas.width = targetWidth;
+              cropCanvas.height = targetHeight;
+              
+              const cropCtx = cropCanvas.getContext('2d');
+              if (cropCtx) {
+                cropCtx.drawImage(
+                  fullImage,
+                  x, y, width, height,  // Source: banner bounds from full stage
+                  0, 0, targetWidth, targetHeight  // Dest: scaled thumbnail
+                );
                 
-                // Wait another 1 second and try again
-                await new Promise(resolve => setTimeout(resolve, 1000));
-                
-                dataURL = stage.toDataURL({
-                  x: x,
-                  y: y,
-                  width: width,
-                  height: height,
-                  pixelRatio: 2,
-                  mimeType: 'image/png',
-                });
-                
-                console.log('[THUMBNAIL] Mobile toDataURL retry, size:', dataURL.length);
+                dataURL = cropCanvas.toDataURL('image/png');
+                console.log('[THUMBNAIL] Manual crop succeeded, size:', dataURL.length);
               }
             } catch (error) {
-              console.error('[THUMBNAIL] Mobile toDataURL failed:', error);
+              console.error('[THUMBNAIL] Manual crop failed:', error);
               
-              // Fallback: create a simple canvas with background color
+              // Fallback: create placeholder
               const canvas = document.createElement('canvas');
-              canvas.width = width * 2;
-              canvas.height = height * 2;
+              canvas.width = 600;
+              canvas.height = 300;
               const ctx = canvas.getContext('2d');
               
               if (ctx) {
@@ -435,7 +445,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
                 ctx.fillText('Preview unavailable', canvas.width / 2, canvas.height / 2);
                 
                 dataURL = canvas.toDataURL('image/png');
-                console.log('[THUMBNAIL] Created mobile fallback thumbnail');
+                console.log('[THUMBNAIL] Created placeholder thumbnail');
               }
             }
           } else {
