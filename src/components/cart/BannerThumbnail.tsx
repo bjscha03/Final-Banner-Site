@@ -138,7 +138,7 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
           const DRAGGABLE_TEXT_PADDING_PX = 4;
           
           const fontSizeInInches = textEl.fontSize / LIVE_PREVIEW_PIXELS_PER_INCH;
-          const paddingInches = DRGGABLE_TEXT_PADDING_PX / LIVE_PREVIEW_PIXELS_PER_INCH;
+          const paddingInches = DRAGGABLE_TEXT_PADDING_PX / LIVE_PREVIEW_PIXELS_PER_INCH;
           
           const avgCharWidthRatio = 0.55;
           const estimatedTextWidthInches = textEl.content.length * fontSizeInInches * avgCharWidthRatio;

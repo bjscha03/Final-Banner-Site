@@ -262,14 +262,29 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
             return;
           }
 
-          // Get the actual position and size of the background rect
-          // This gives us the banner area bounds
-          const x = backgroundRect.x();
-          const y = backgroundRect.y();
-          const width = Math.abs(backgroundRect.width());
-          const height = Math.abs(backgroundRect.height());
+          // MOBILE FIX: Get the SCREEN coordinates of the background rect
+          // These are the actual pixel positions on screen (scaled)
+          const screenX = backgroundRect.x();
+          const screenY = backgroundRect.y();
+          const screenWidth = Math.abs(backgroundRect.width());
+          const screenHeight = Math.abs(backgroundRect.height());
           
-          console.log('[BannerEditorLayout] Banner bounds:', { x, y, width, height });
+          // Calculate the current scale factor by comparing screen size to expected size
+          // Expected size is widthIn * 96 (PIXELS_PER_INCH)
+          const PIXELS_PER_INCH = 96;
+          const expectedWidth = widthIn * PIXELS_PER_INCH;
+          const expectedHeight = heightIn * PIXELS_PER_INCH;
+          const currentScale = screenWidth / expectedWidth;
+          
+          // Use screen coordinates for capture (they're already correct for the stage)
+          const x = screenX;
+          const y = screenY;
+          const width = screenWidth;
+          const height = screenHeight;
+          
+          console.log('[THUMBNAIL] Banner bounds (screen):', { screenX, screenY, screenWidth, screenHeight });
+          console.log('[THUMBNAIL] Expected size (unscaled):', { expectedWidth, expectedHeight });
+          console.log('[THUMBNAIL] Current scale factor:', currentScale);
 
           // Check if all images are loaded
           const imageNodes = layer.find('Image');
@@ -352,12 +367,17 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
             await new Promise(resolve => setTimeout(resolve, 500));
             
             try {
+              // MOBILE FIX: Use higher pixelRatio to compensate for smaller scale on mobile
+              // This ensures consistent thumbnail resolution regardless of viewport size
+              const thumbnailPixelRatio = Math.max(2, Math.ceil(2 / currentScale));
+              console.log('[THUMBNAIL] Using pixelRatio:', thumbnailPixelRatio, 'to compensate for scale:', currentScale);
+              
               dataURL = stage.toDataURL({
                 x: x,
                 y: y,
                 width: width,
                 height: height,
-                pixelRatio: 2,
+                pixelRatio: thumbnailPixelRatio,
                 mimeType: 'image/png',
               });
               
@@ -375,7 +395,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
                   y: y,
                   width: width,
                   height: height,
-                  pixelRatio: 2,
+                  pixelRatio: thumbnailPixelRatio,
                   mimeType: 'image/png',
                 });
                 
@@ -404,13 +424,17 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
             }
           } else {
             // Desktop: use client-side toDataURL with server-side fallback
+            // DESKTOP FIX: Also use dynamic pixelRatio to ensure consistent resolution
+            const thumbnailPixelRatio = Math.max(2, Math.ceil(2 / currentScale));
+            console.log('[THUMBNAIL] Desktop using pixelRatio:', thumbnailPixelRatio, 'for scale:', currentScale);
+            
             try {
               dataURL = stage.toDataURL({
               x: x,
               y: y,
               width: width,
               height: height,
-              pixelRatio: 2,
+              pixelRatio: thumbnailPixelRatio,
               mimeType: 'image/png',
             });
             
