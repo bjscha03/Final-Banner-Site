@@ -699,8 +699,8 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
   // Auto-generate thumbnail when canvas content changes
   useEffect(() => {
     // Debounce thumbnail generation to avoid too many updates
-    const timeoutId = setTimeout(() => {
-      generateThumbnail();
+    const timeoutId = setTimeout(async () => {
+      await generateThumbnail();
     }, 800); // Wait 800ms after last change to give images time to load on mobile
 
     return () => clearTimeout(timeoutId);
@@ -778,7 +778,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     setQuote({ isLoadingItem: true, loadedItemId: editingItemId });
 
     // CRITICAL FIX: Increased delay to ensure reset completes before adding objects (was 100ms, now 250ms)
-    setTimeout(() => {
+    setTimeout(async () => {
       // CRITICAL FIX: Set grommets visibility AFTER reset completes
       const shouldShowGrommets = currentGrommets && currentGrommets !== 'none';
       console.log('[BannerEditorLayout] Setting grommets visibility:', shouldShowGrommets, 'grommets:', currentGrommets);
@@ -947,7 +947,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     console.log('🔍 [BannerEditorLayout] Regenerating thumbnail before preview');
     
     // Small delay to ensure thumbnail is generated
-    setTimeout(() => {
+    setTimeout(async () => {
       if (!canvasThumbnail) {
         toast({
           title: 'Preview Not Available',
@@ -1012,7 +1012,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     
     // Force immediate thumbnail generation (don't rely on auto-generation)
     console.log('�� [UPDATE CART] Generating fresh thumbnail NOW...');
-    generateThumbnail();
+    await generateThumbnail();
     
     // Wait LONGER for thumbnail to be generated on mobile (images need time to load)
     const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
@@ -1237,8 +1237,14 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     
     // Show upsell modal if user should see it
     if (shouldShowUpsell && !editingItemId) {
+      // CRITICAL: Force a small delay to allow React to update from store change
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      const currentThumbnail = useEditorStore.getState().canvasThumbnail;
       console.log('🎨 BANNER EDITOR: Showing upsell modal for ADD TO CART');
-      console.log('🎨 BANNER EDITOR: canvasThumbnail:', canvasThumbnail ? canvasThumbnail.substring(0, 50) + '...' : 'NULL');
+      console.log('🎨 BANNER EDITOR: canvasThumbnail from state:', canvasThumbnail ? canvasThumbnail.substring(0, 50) + '...' : 'NULL');
+      console.log('🎨 BANNER EDITOR: currentThumbnail from store:', currentThumbnail ? currentThumbnail.substring(0, 50) + '...' : 'NULL');
+      console.log('🎨 BANNER EDITOR: thumbnailUrl:', thumbnailUrl ? thumbnailUrl.substring(0, 50) + '...' : 'NULL');
       setPendingAction('cart');
       setShowUpsellModal(true);
       return;
@@ -1305,7 +1311,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     const freshQuote = useQuoteStore.getState();
     console.log('🔄 [BUG 1 FIX] About to generate thumbnail. showGrommets:', showGrommets, 'grommets (fresh):', freshQuote.grommets);
     console.log('🔄 [BUG 1 FIX] Editor objects count:', editorObjects.length);
-    generateThumbnail();
+    await generateThumbnail();
     // Wait for thumbnail to be generated and stored (generateThumbnail has 200ms internal delay)
     await new Promise(resolve => setTimeout(resolve, 300));
     
