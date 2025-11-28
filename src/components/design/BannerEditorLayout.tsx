@@ -429,14 +429,9 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
                 if (obj.type === 'image') {
                   const imgObj = obj as any;
                   
-                  // Prefer Cloudinary URL over blob URL for reliability
-                  let imageUrl = imgObj.url;
-                  if (imgObj.cloudinaryPublicId) {
-                    imageUrl = `https://res.cloudinary.com/dxse5oomj/image/upload/${imgObj.cloudinaryPublicId}`;
-                    console.log('[THUMBNAIL] Using Cloudinary URL:', imageUrl.substring(0, 80));
-                  } else {
-                    console.log('[THUMBNAIL] Using original URL:', imageUrl?.substring(0, 80));
-                  }
+                  // Use the original URL - it's already loaded and working on the canvas
+                  const imageUrl = imgObj.url;
+                  console.log('[THUMBNAIL] Using image URL:', imageUrl?.substring(0, 80));
                   
                   if (!imageUrl) {
                     console.warn('[THUMBNAIL] No URL for image object');
@@ -445,7 +440,11 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
                   
                   // Load the image
                   const img = new Image();
-                  img.crossOrigin = 'anonymous';
+                  // CRITICAL: Only set crossOrigin for HTTP URLs, not blob URLs
+                  // Blob URLs don't have CORS headers and will FAIL if crossOrigin is set
+                  if (!imageUrl.startsWith('blob:')) {
+                    img.crossOrigin = 'anonymous';
+                  }
                   
                   let loadError = false;
                   await new Promise<void>((resolve) => {
@@ -454,7 +453,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
                       resolve();
                     };
                     img.onerror = (e) => {
-                      console.warn('[THUMBNAIL] Failed to load image');
+                      console.warn('[THUMBNAIL] Failed to load image, URL type:', imageUrl.startsWith('blob:') ? 'blob' : 'http');
                       loadError = true;
                       resolve();
                     };
