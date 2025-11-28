@@ -938,8 +938,13 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       editorState.clearSelection();
     }
     
+    // CRITICAL DEBUG: Check objects RIGHT BEFORE generating thumbnail
+    const preThumbObjects = useEditorStore.getState().objects;
+    console.log('🔍 [PRE-THUMBNAIL] Objects count:', preThumbObjects.length);
+    console.log('🔍 [PRE-THUMBNAIL] Objects:', preThumbObjects.map(o => ({ id: o.id, type: o.type, x: o.x, y: o.y })));
+    
     // Force immediate thumbnail generation (don't rely on auto-generation)
-    console.log('🔄 [UPDATE CART] Generating fresh thumbnail NOW...');
+    console.log('�� [UPDATE CART] Generating fresh thumbnail NOW...');
     generateThumbnail();
     
     // Wait LONGER for thumbnail to be generated on mobile (images need time to load)
