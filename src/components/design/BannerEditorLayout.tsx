@@ -476,13 +476,21 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
                     
                     console.log('[THUMBNAIL] DRAW PARAMS:', { 
                       bannerSize: widthIn + 'x' + heightIn,
-                      thumbScale,
-                      objPos: obj.x + ',' + obj.y,
-                      objSize: obj.width + 'x' + obj.height,
-                      drawPos: drawX + ',' + drawY,
-                      drawSize: drawWidth + 'x' + drawHeight,
-                      thumbSize: targetWidth + 'x' + targetHeight
+                      targetThumbnail: targetWidth + 'x' + targetHeight,
+                      thumbScale: thumbScale + ' px/inch',
+                      objPosInches: obj.x.toFixed(2) + ',' + obj.y.toFixed(2),
+                      objSizeInches: obj.width.toFixed(2) + 'x' + obj.height.toFixed(2),
+                      drawPosPx: drawX.toFixed(0) + ',' + drawY.toFixed(0),
+                      drawSizePx: drawWidth.toFixed(0) + 'x' + drawHeight.toFixed(0)
                     });
+                    
+                    // SANITY CHECK: If object dimensions seem too large, flag it
+                    if (obj.width > widthIn || obj.height > heightIn) {
+                      console.warn('[THUMBNAIL] ⚠️ Object larger than banner! Object:', obj.width.toFixed(2) + 'x' + obj.height.toFixed(2), 'Banner:', widthIn + 'x' + heightIn);
+                    }
+                    if (drawWidth > targetWidth || drawHeight > targetHeight) {
+                      console.warn('[THUMBNAIL] ⚠️ Draw size exceeds thumbnail! Draw:', drawWidth.toFixed(0) + 'x' + drawHeight.toFixed(0), 'Thumb:', targetWidth + 'x' + targetHeight);
+                    }
                     
                     thumbCtx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
                   }
