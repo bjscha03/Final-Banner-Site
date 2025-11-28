@@ -486,6 +486,37 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
                     
                     thumbCtx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
                   }
+                } else if (obj.type === 'text') {
+                  // Draw text objects on the thumbnail
+                  const textObj = obj as any;
+                  const thumbScale = targetWidth / widthIn;
+                  const drawX = obj.x * thumbScale;
+                  const drawY = obj.y * thumbScale;
+                  
+                  // Scale font size proportionally
+                  const fontSize = (textObj.fontSize || 24) * thumbScale / 96 * 72; // Convert from pixels to points, scaled
+                  const fontFamily = textObj.fontFamily || 'Arial';
+                  const fontWeight = textObj.fontWeight || 'normal';
+                  const fontStyle = textObj.fontStyle || 'normal';
+                  
+                  thumbCtx.save();
+                  thumbCtx.font = `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`;
+                  thumbCtx.fillStyle = textObj.fill || textObj.color || '#000000';
+                  thumbCtx.textBaseline = 'top';
+                  
+                  // Handle rotation if present
+                  if (textObj.rotation) {
+                    const centerX = drawX + (obj.width * thumbScale) / 2;
+                    const centerY = drawY + (obj.height * thumbScale) / 2;
+                    thumbCtx.translate(centerX, centerY);
+                    thumbCtx.rotate((textObj.rotation * Math.PI) / 180);
+                    thumbCtx.translate(-centerX, -centerY);
+                  }
+                  
+                  thumbCtx.fillText(textObj.content || textObj.text || '', drawX, drawY);
+                  thumbCtx.restore();
+                  
+                  console.log('[THUMBNAIL] Drew text:', textObj.content || textObj.text, 'at', drawX, drawY);
                 }
               }
               

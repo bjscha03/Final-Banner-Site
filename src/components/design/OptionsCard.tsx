@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Circle, Minus, ChevronDown, Info, HelpCircle } from 'lucide-react';
 import { useQuoteStore, PolePocketSize, Grommets } from '@/store/quote';
+import { useEditorStore } from '@/store/editor';
 import { ropeCost, polePocketCost } from '@/lib/pricing';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -213,10 +214,16 @@ const OptionsCard: React.FC = () => {
                 checked={grommets !== 'none'}
                 onCheckedChange={(checked) => {
                   console.log('[OptionsCard] Grommets checkbox changed:', checked);
+                  // CRITICAL: Also update showGrommets in editor store so canvas displays them
+                  const { setShowGrommets } = useEditorStore.getState();
                   if (checked) {
                     set({ grommets: '4-corners' as Grommets }); // Default to 4 corners
+                    setShowGrommets(true);
+                    console.log('[OptionsCard] Set showGrommets to true');
                   } else {
                     set({ grommets: 'none' as Grommets });
+                    setShowGrommets(false);
+                    console.log('[OptionsCard] Set showGrommets to false');
                   }
                 }}
               />
