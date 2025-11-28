@@ -307,8 +307,14 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
             expectedAspectRatio: widthIn / heightIn 
           });
 
-          // Check if all images are loaded
-          const imageNodes = layer.find('Image');
+          // EARLY mobile detection - skip Konva checks and go straight to recreate approach
+          const isMobileEarly = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+          if (isMobileEarly) {
+            console.log('[THUMBNAIL] Mobile detected early, skipping Konva checks...');
+          }
+
+          // Check if all images are loaded (skip on mobile - we use recreate approach)
+          const imageNodes = isMobileEarly ? [] : layer.find('Image');
           console.log('[THUMBNAIL] Found', imageNodes.length, 'image nodes on layer');
           
           // Also check what objects are in the editor store
@@ -376,7 +382,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
           }
 
           // Detect mobile devices - they have issues with toDataURL capturing images
-          const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+          const isMobile = isMobileEarly; // Already detected above
           
           let dataURL: string | null = null;
           
