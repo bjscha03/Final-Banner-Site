@@ -47,6 +47,7 @@ const TextPanel: React.FC<TextPanelProps> = ({ onClose }) => {
       fontFamily: 'Arial',
       fontSize: config.fontSize,
       color: config.color,
+      fill: config.color,
       fontWeight: config.fontWeight,
       fontStyle: 'normal',
       textDecoration: 'none',

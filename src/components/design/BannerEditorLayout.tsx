@@ -239,7 +239,8 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
         layer.batchDraw();
       }
       
-      // Wait for React to re-render (use setTimeout instead of requestAnimationFrame)
+      // Wait for React to re-render (wrapped in Promise so await works)
+      return new Promise<void>((resolveTimeout) => {
       setTimeout(async () => {
         try {
           // Get the layer to find the banner bounds
@@ -593,6 +594,19 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
             // Desktop: use client-side toDataURL with server-side fallback
             console.log('[DESKTOP THUMBNAIL] Starting desktop capture');
             console.log('[DESKTOP THUMBNAIL] isMobileEarly:', isMobileEarly);
+            
+            // Log text objects for debugging
+            const currentObjects = useEditorStore.getState().objects;
+            const textObjs = currentObjects.filter(o => o.type === 'text');
+            console.log('[DESKTOP THUMBNAIL] Text objects:', textObjs.map(t => ({
+              id: t.id,
+              content: (t as any).content,
+              x: t.x,
+              y: t.y,
+              fontSize: (t as any).fontSize,
+              color: (t as any).color,
+              fill: (t as any).fill
+            })));
             console.log('[DESKTOP THUMBNAIL] userAgent:', navigator.userAgent.substring(0, 100));
             console.log('[DESKTOP THUMBNAIL] Capture bounds:', { x, y, width, height });
             
@@ -685,9 +699,9 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
           setShowSafeZone(wasShowingSafeZone);
           setShowGrid(wasShowingGrid);
         }
+        resolveTimeout();
       }, 100); // Wait 100ms for React to re-render
-      
-      return null;
+      });
     } catch (error) {
       console.error('[BannerEditorLayout] Error generating thumbnail:', error);
       return null;

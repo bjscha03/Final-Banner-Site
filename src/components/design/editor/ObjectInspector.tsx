@@ -256,7 +256,7 @@ const ObjectInspector: React.FC<ObjectInspectorProps> = ({ selectedObjectId }) =
             <Input
               type="color"
               value={selectedObject.color}
-              onChange={(e) => updateObject(selectedObject.id, { color: e.target.value })}
+              onChange={(e) => updateObject(selectedObject.id, { color: e.target.value, fill: e.target.value })}
               className="h-8"
             />
           </div>
