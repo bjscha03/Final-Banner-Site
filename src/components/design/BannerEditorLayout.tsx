@@ -518,12 +518,14 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
                 } else if (obj.type === 'text') {
                   // Draw text objects on the thumbnail
                   const textObj = obj as any;
-                  const thumbScale = targetWidth / widthIn;
+                  const thumbScale = targetWidth / widthIn; // pixels per inch in thumbnail
                   const drawX = obj.x * thumbScale;
                   const drawY = obj.y * thumbScale;
                   
-                  // Scale font size proportionally
-                  const fontSize = (textObj.fontSize || 24) * thumbScale / 96 * 72; // Convert from pixels to points, scaled
+                  // fontSize is stored in INCHES, convert to thumbnail pixels
+                  // fontSize (inches) * thumbScale (pixels/inch) = pixels
+                  const fontSizeInches = textObj.fontSize || 0.5; // default 0.5 inches
+                  const fontSize = fontSizeInches * thumbScale;
                   const fontFamily = textObj.fontFamily || 'Arial';
                   const fontWeight = textObj.fontWeight || 'normal';
                   const fontStyle = textObj.fontStyle || 'normal';
@@ -545,7 +547,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
                   thumbCtx.fillText(textObj.content || textObj.text || '', drawX, drawY);
                   thumbCtx.restore();
                   
-                  console.log('[THUMBNAIL] Drew text:', textObj.content || textObj.text, 'at', drawX, drawY);
+                  console.log('[THUMBNAIL] Drew text:', textObj.content || textObj.text, 'fontSize:', fontSizeInches, 'in ->', fontSize, 'px');
                 }
               }
               
@@ -589,6 +591,11 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
             }
           } else {
             // Desktop: use client-side toDataURL with server-side fallback
+            console.log('[DESKTOP THUMBNAIL] Starting desktop capture');
+            console.log('[DESKTOP THUMBNAIL] isMobileEarly:', isMobileEarly);
+            console.log('[DESKTOP THUMBNAIL] userAgent:', navigator.userAgent.substring(0, 100));
+            console.log('[DESKTOP THUMBNAIL] Capture bounds:', { x, y, width, height });
+            
             try {
               dataURL = stage.toDataURL({
               x: x,
@@ -599,7 +606,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
               mimeType: 'image/png',
             });
             
-            console.log('[BannerEditorLayout] stage.toDataURL succeeded, size:', dataURL.length);
+            console.log('[DESKTOP THUMBNAIL] stage.toDataURL succeeded, size:', dataURL.length);
             
             // Check if it's a blank image (very small size)
             if (dataURL.length < 2200) {
