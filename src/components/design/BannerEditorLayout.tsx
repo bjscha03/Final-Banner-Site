@@ -218,6 +218,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
 
       // Get current visibility state and selection
       const editorState = useEditorStore.getState();
+      console.log('[THUMBNAIL DEBUG] At start of generateThumbnail, objects:', editorState.objects.length, editorState.objects.map(o => ({ id: o.id, type: o.type })));
       const { showBleed, showSafeZone, showGrid, setShowBleed, setShowSafeZone, setShowGrid } = editorState;
       const wasShowingBleed = showBleed;
       const wasShowingSafeZone = showSafeZone;
