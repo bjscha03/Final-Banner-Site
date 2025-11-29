@@ -611,6 +611,17 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
             console.log('[DESKTOP THUMBNAIL] Capture bounds:', { x, y, width, height });
             
             try {
+              // Debug: Log what's on the stage layer
+              const stageLayer = stage.getLayers()[0];
+              const stageChildren = stageLayer.getChildren();
+              console.log('[DESKTOP THUMBNAIL] Stage children count:', stageChildren.length);
+              console.log('[DESKTOP THUMBNAIL] Stage children types:', stageChildren.map((c: any) => ({
+                type: c.className,
+                x: c.x?.(),
+                y: c.y?.(),
+                text: c.text?.()
+              })));
+              
               dataURL = stage.toDataURL({
               x: x,
               y: y,
