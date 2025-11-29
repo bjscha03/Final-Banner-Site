@@ -218,6 +218,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
 
       // Get current visibility state and selection
       const editorState = useEditorStore.getState();
+      console.log('[THUMBNAIL DEBUG] At start of generateThumbnail, objects:', editorState.objects.length, editorState.objects.map(o => ({ id: o.id, type: o.type })));
       const { showBleed, showSafeZone, showGrid, setShowBleed, setShowSafeZone, setShowGrid } = editorState;
       const wasShowingBleed = showBleed;
       const wasShowingSafeZone = showSafeZone;
@@ -239,7 +240,8 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
         layer.batchDraw();
       }
       
-      // Wait for React to re-render (use setTimeout instead of requestAnimationFrame)
+      // Wait for React to re-render (wrapped in Promise so await works)
+      return new Promise<void>((resolveTimeout) => {
       setTimeout(async () => {
         try {
           // Get the layer to find the banner bounds
@@ -266,13 +268,55 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
           // This gives us the banner area bounds
           const x = backgroundRect.x();
           const y = backgroundRect.y();
-          const width = backgroundRect.width();
-          const height = backgroundRect.height();
+          const width = Math.abs(backgroundRect.width());
+          const height = Math.abs(backgroundRect.height());
           
           console.log('[BannerEditorLayout] Banner bounds:', { x, y, width, height });
+          
+          // DEBUG: Log stage and canvas dimensions
+          console.log('[THUMBNAIL DEBUG] Stage dimensions:', { 
+            stageWidth: stage.width(), 
+            stageHeight: stage.height() 
+          });
+          console.log('[THUMBNAIL DEBUG] Capture area:', { 
+            captureX: x, 
+            captureY: y, 
+            captureWidth: width, 
+            captureHeight: height,
+            aspectRatio: width / height 
+          });
+          console.log('[THUMBNAIL DEBUG] Banner dimensions in inches:', { 
+            widthIn, 
+            heightIn, 
+            expectedAspectRatio: widthIn / heightIn 
+          });
+          
+          // DEBUG: Log stage and canvas dimensions
+          console.log('[THUMBNAIL DEBUG] Stage dimensions:', { 
+            stageWidth: stage.width(), 
+            stageHeight: stage.height() 
+          });
+          console.log('[THUMBNAIL DEBUG] Capture area:', { 
+            captureX: x, 
+            captureY: y, 
+            captureWidth: width, 
+            captureHeight: height,
+            aspectRatio: width / height 
+          });
+          console.log('[THUMBNAIL DEBUG] Banner dimensions in inches:', { 
+            widthIn, 
+            heightIn, 
+            expectedAspectRatio: widthIn / heightIn 
+          });
 
-          // Check if all images are loaded
-          const imageNodes = layer.find('Image');
+          // EARLY mobile detection - skip Konva checks and go straight to recreate approach
+          const isMobileEarly = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+          if (isMobileEarly) {
+            console.log('[THUMBNAIL] Mobile detected early, skipping Konva checks...');
+          }
+
+          // Check if all images are loaded (skip on mobile - we use recreate approach)
+          const imageNodes = isMobileEarly ? [] : layer.find('Image');
           console.log('[THUMBNAIL] Found', imageNodes.length, 'image nodes on layer');
           
           // Also check what objects are in the editor store
@@ -339,11 +383,247 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
             (generateThumbnail as any).retryCount = 0;
           }
 
-          // Capture thumbnail using stage.toDataURL
+          // Detect mobile devices - they have issues with toDataURL capturing images
+          const isMobile = isMobileEarly; // Already detected above
+          
           let dataURL: string | null = null;
           
-          try {
-            dataURL = stage.toDataURL({
+          // MOBILE FIX: Recreate thumbnail from scratch using object coordinates
+          // This avoids any stage capture issues on mobile Safari
+          if (isMobile) {
+            console.log('[THUMBNAIL] Mobile device detected, recreating thumbnail from objects...');
+            console.log('[THUMBNAIL] Quote store banner size:', { widthIn, heightIn });
+            console.log('[THUMBNAIL] Quote store banner size:', { widthIn, heightIn });
+            
+            // Wait for images to fully load on mobile
+            await new Promise(resolve => setTimeout(resolve, 500));
+            
+            try {
+              // Create a fresh canvas for the thumbnail
+              const thumbCanvas = document.createElement('canvas');
+              const targetWidth = 600;
+              const aspectRatio = heightIn / widthIn;
+              const targetHeight = Math.round(targetWidth * aspectRatio);
+              thumbCanvas.width = targetWidth;
+              thumbCanvas.height = targetHeight;
+              
+              const thumbCtx = thumbCanvas.getContext('2d');
+              if (!thumbCtx) throw new Error('Could not get canvas context');
+              
+              // Draw background
+              thumbCtx.fillStyle = canvasBackgroundColor || '#ffffff';
+              thumbCtx.fillRect(0, 0, targetWidth, targetHeight);
+              
+              console.log('[THUMBNAIL] Thumbnail canvas created:', targetWidth, 'x', targetHeight);
+              
+              // Get editor state with objects
+              const editorState = useEditorStore.getState();
+              const objects = editorState.objects;
+              
+              console.log('[THUMBNAIL] Drawing', objects.length, 'objects');
+              
+              // Draw each object at its correct position
+              for (const obj of objects) {
+                console.log('[THUMBNAIL] Processing object:', {
+                  id: obj.id,
+                  type: obj.type,
+                  x: obj.x,
+                  y: obj.y,
+                  width: obj.width,
+                  height: obj.height,
+                  hasUrl: obj.type === 'image' ? !!(obj as any).url : 'N/A'
+                });
+                
+                if (obj.type === 'image') {
+                  const imgObj = obj as any;
+                  
+                  // Use the original URL - it's already loaded and working on the canvas
+                  const imageUrl = imgObj.url;
+                  console.log('[THUMBNAIL] Using image URL:', imageUrl?.substring(0, 80));
+                  
+                  if (!imageUrl) {
+                    console.warn('[THUMBNAIL] No URL for image object');
+                    continue;
+                  }
+                  
+                  // Load the image
+                  const img = new Image();
+                  // CRITICAL: Only set crossOrigin for HTTP URLs, not blob URLs
+                  // Blob URLs don't have CORS headers and will FAIL if crossOrigin is set
+                  if (!imageUrl.startsWith('blob:')) {
+                    img.crossOrigin = 'anonymous';
+                  }
+                  
+                  let loadError = false;
+                  await new Promise<void>((resolve) => {
+                    img.onload = () => {
+                      console.log('[THUMBNAIL] Image loaded OK:', img.naturalWidth, 'x', img.naturalHeight);
+                      resolve();
+                    };
+                    img.onerror = (e) => {
+                      console.warn('[THUMBNAIL] Failed to load image, URL type:', imageUrl.startsWith('blob:') ? 'blob' : 'http');
+                      loadError = true;
+                      resolve();
+                    };
+                    img.src = imageUrl;
+                  });
+                  
+                  if (!loadError && img.complete && img.naturalWidth > 0) {
+                    // Convert object coordinates (in inches) to thumbnail pixels
+                    const thumbScale = targetWidth / widthIn; // pixels per inch in thumbnail
+                    let drawX = obj.x * thumbScale;
+                    let drawY = obj.y * thumbScale;
+                    let drawWidth = obj.width * thumbScale;
+                    let drawHeight = obj.height * thumbScale;
+                    
+                    // FIX: Clamp drawing to thumbnail bounds
+                    // This handles cases where object coordinates might be off
+                    if (drawX < 0) {
+                      drawWidth += drawX; // Reduce width by amount outside
+                      drawX = 0;
+                    }
+                    if (drawY < 0) {
+                      drawHeight += drawY;
+                      drawY = 0;
+                    }
+                    if (drawX + drawWidth > targetWidth) {
+                      drawWidth = targetWidth - drawX;
+                    }
+                    if (drawY + drawHeight > targetHeight) {
+                      drawHeight = targetHeight - drawY;
+                    }
+                    
+                    // Also scale down if image is larger than the thumbnail
+                    if (drawWidth > targetWidth) {
+                      const scale = targetWidth / drawWidth;
+                      drawWidth = targetWidth;
+                      drawHeight *= scale;
+                    }
+                    if (drawHeight > targetHeight) {
+                      const scale = targetHeight / drawHeight;
+                      drawHeight = targetHeight;
+                      drawWidth *= scale;
+                    }
+                    
+                    console.log('[THUMBNAIL] DRAW PARAMS (clamped):', { 
+                      bannerInches: widthIn + 'x' + heightIn,
+                      thumbPx: targetWidth + 'x' + targetHeight,
+                      objInches: obj.width.toFixed(2) + 'x' + obj.height.toFixed(2),
+                      drawPx: drawWidth.toFixed(0) + 'x' + drawHeight.toFixed(0)
+                    });
+                    
+                    // Only draw if we have valid dimensions
+                    if (drawWidth > 0 && drawHeight > 0) {
+                      thumbCtx.drawImage(img, drawX, drawY, drawWidth, drawHeight);
+                    }
+                  }
+                } else if (obj.type === 'text') {
+                  // Draw text objects on the thumbnail
+                  const textObj = obj as any;
+                  const thumbScale = targetWidth / widthIn; // pixels per inch in thumbnail
+                  const drawX = obj.x * thumbScale;
+                  const drawY = obj.y * thumbScale;
+                  
+                  // fontSize is stored in INCHES, convert to thumbnail pixels
+                  // fontSize (inches) * thumbScale (pixels/inch) = pixels
+                  const fontSizeInches = textObj.fontSize || 0.5; // default 0.5 inches
+                  const fontSize = fontSizeInches * thumbScale;
+                  const fontFamily = textObj.fontFamily || 'Arial';
+                  const fontWeight = textObj.fontWeight || 'normal';
+                  const fontStyle = textObj.fontStyle || 'normal';
+                  
+                  thumbCtx.save();
+                  thumbCtx.font = `${fontStyle} ${fontWeight} ${fontSize}px ${fontFamily}`;
+                  thumbCtx.fillStyle = textObj.fill || textObj.color || '#000000';
+                  thumbCtx.textBaseline = 'top';
+                  
+                  // Handle rotation if present
+                  if (textObj.rotation) {
+                    const centerX = drawX + (obj.width * thumbScale) / 2;
+                    const centerY = drawY + (obj.height * thumbScale) / 2;
+                    thumbCtx.translate(centerX, centerY);
+                    thumbCtx.rotate((textObj.rotation * Math.PI) / 180);
+                    thumbCtx.translate(-centerX, -centerY);
+                  }
+                  
+                  thumbCtx.fillText(textObj.content || textObj.text || '', drawX, drawY);
+                  thumbCtx.restore();
+                  
+                  console.log('[THUMBNAIL] Drew text:', textObj.content || textObj.text, 'fontSize:', fontSizeInches, 'in ->', fontSize, 'px');
+                }
+              }
+              
+              dataURL = thumbCanvas.toDataURL('image/png');
+              console.log('[THUMBNAIL] Recreate from objects succeeded, size:', dataURL.length);
+              
+            } catch (error) {
+              console.error('[THUMBNAIL] Recreate from objects failed:', error);
+              
+              // Fallback: use stage.toDataURL with bounds
+              try {
+                dataURL = stage.toDataURL({
+                  x: x,
+                  y: y,
+                  width: width,
+                  height: height,
+                  pixelRatio: 2,
+                  mimeType: 'image/png',
+                });
+                console.log('[THUMBNAIL] Fallback toDataURL, size:', dataURL.length);
+              } catch (fallbackError) {
+                console.error('[THUMBNAIL] Fallback also failed');
+                
+                // Last resort: create placeholder
+                const canvas = document.createElement('canvas');
+                canvas.width = 600;
+                canvas.height = 300;
+                const ctx = canvas.getContext('2d');
+                
+                if (ctx) {
+                  ctx.fillStyle = canvasBackgroundColor || '#ffffff';
+                  ctx.fillRect(0, 0, canvas.width, canvas.height);
+                  ctx.fillStyle = '#666666';
+                  ctx.font = '24px Arial';
+                  ctx.textAlign = 'center';
+                  ctx.fillText('Preview unavailable', canvas.width / 2, canvas.height / 2);
+                  
+                  dataURL = canvas.toDataURL('image/png');
+                }
+              }
+            }
+          } else {
+            // Desktop: use client-side toDataURL with server-side fallback
+            console.log('[DESKTOP THUMBNAIL] Starting desktop capture');
+            console.log('[DESKTOP THUMBNAIL] isMobileEarly:', isMobileEarly);
+            
+            // Log text objects for debugging
+            const currentObjects = useEditorStore.getState().objects;
+            const textObjs = currentObjects.filter(o => o.type === 'text');
+            console.log('[DESKTOP THUMBNAIL] Text objects:', textObjs.map(t => ({
+              id: t.id,
+              content: (t as any).content,
+              x: t.x,
+              y: t.y,
+              fontSize: (t as any).fontSize,
+              color: (t as any).color,
+              fill: (t as any).fill
+            })));
+            console.log('[DESKTOP THUMBNAIL] userAgent:', navigator.userAgent.substring(0, 100));
+            console.log('[DESKTOP THUMBNAIL] Capture bounds:', { x, y, width, height });
+            
+            try {
+              // Debug: Log what's on the stage layer
+              const stageLayer = stage.getLayers()[0];
+              const stageChildren = stageLayer.getChildren();
+              console.log('[DESKTOP THUMBNAIL] Stage children count:', stageChildren.length);
+              console.log('[DESKTOP THUMBNAIL] Stage children types:', stageChildren.map((c: any) => ({
+                type: c.className,
+                x: c.x?.(),
+                y: c.y?.(),
+                text: c.text?.()
+              })));
+              
+              dataURL = stage.toDataURL({
               x: x,
               y: y,
               width: width,
@@ -352,7 +632,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
               mimeType: 'image/png',
             });
             
-            console.log('[BannerEditorLayout] stage.toDataURL succeeded, size:', dataURL.length);
+            console.log('[DESKTOP THUMBNAIL] stage.toDataURL succeeded, size:', dataURL.length);
             
             // Check if it's a blank image (very small size)
             if (dataURL.length < 2200) {
@@ -410,6 +690,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
               console.log('[THUMBNAIL] Created fallback thumbnail');
             }
           }
+          }
           
           if (dataURL) {
             console.log('[BannerEditorLayout] Generated thumbnail:', dataURL.substring(0, 50) + '...', 'size:', dataURL.length);
@@ -430,9 +711,9 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
           setShowSafeZone(wasShowingSafeZone);
           setShowGrid(wasShowingGrid);
         }
+        resolveTimeout();
       }, 100); // Wait 100ms for React to re-render
-      
-      return null;
+      });
     } catch (error) {
       console.error('[BannerEditorLayout] Error generating thumbnail:', error);
       return null;
@@ -444,8 +725,8 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
   // Auto-generate thumbnail when canvas content changes
   useEffect(() => {
     // Debounce thumbnail generation to avoid too many updates
-    const timeoutId = setTimeout(() => {
-      generateThumbnail();
+    const timeoutId = setTimeout(async () => {
+      await generateThumbnail();
     }, 800); // Wait 800ms after last change to give images time to load on mobile
 
     return () => clearTimeout(timeoutId);
@@ -523,7 +804,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     setQuote({ isLoadingItem: true, loadedItemId: editingItemId });
 
     // CRITICAL FIX: Increased delay to ensure reset completes before adding objects (was 100ms, now 250ms)
-    setTimeout(() => {
+    setTimeout(async () => {
       // CRITICAL FIX: Set grommets visibility AFTER reset completes
       const shouldShowGrommets = currentGrommets && currentGrommets !== 'none';
       console.log('[BannerEditorLayout] Setting grommets visibility:', shouldShowGrommets, 'grommets:', currentGrommets);
@@ -692,7 +973,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     console.log('🔍 [BannerEditorLayout] Regenerating thumbnail before preview');
     
     // Small delay to ensure thumbnail is generated
-    setTimeout(() => {
+    setTimeout(async () => {
       if (!canvasThumbnail) {
         toast({
           title: 'Preview Not Available',
@@ -750,36 +1031,53 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       editorState.clearSelection();
     }
     
-    // Force immediate thumbnail generation (don't rely on auto-generation)
-    console.log('🔄 [UPDATE CART] Generating fresh thumbnail NOW...');
-    generateThumbnail();
+    // CRITICAL DEBUG: Check objects RIGHT BEFORE generating thumbnail
+    const preThumbObjects = useEditorStore.getState().objects;
+    console.log('🔍 [PRE-THUMBNAIL] Objects count:', preThumbObjects.length);
+    console.log('🔍 [PRE-THUMBNAIL] Objects:', preThumbObjects.map(o => ({ id: o.id, type: o.type, x: o.x, y: o.y })));
     
-    // Wait for thumbnail to be generated and stored
-    await new Promise(resolve => setTimeout(resolve, 300));
-    console.log('✅ [UPDATE CART] Fresh thumbnail generated');
+    // Force immediate thumbnail generation (don't rely on auto-generation)
+    console.log('�� [UPDATE CART] Generating fresh thumbnail NOW...');
+    await generateThumbnail();
+    
+    // Wait LONGER for thumbnail to be generated on mobile (images need time to load)
+    const isMobileDevice = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+    const waitTime = isMobileDevice ? 2000 : 500; // 2 seconds on mobile, 500ms on desktop
+    console.log(`⏱️ [UPDATE CART] Waiting ${waitTime}ms for thumbnail generation...`);
+    await new Promise(resolve => setTimeout(resolve, waitTime));
+    console.log('✅ [UPDATE CART] Wait complete, checking thumbnail...');
 
     // CRITICAL: Get FRESH thumbnail from store after generation (not stale canvasThumbnail variable)
     const freshThumbnail = useEditorStore.getState().canvasThumbnail;
     console.log('✅ [UPDATE CART] Fresh thumbnail length:', freshThumbnail?.length);
     console.log('⚠️ [UPDATE CART] Old canvasThumbnail length:', canvasThumbnail?.length);
+    console.log('🔍 [UPDATE CART] Fresh thumbnail preview:', freshThumbnail ? freshThumbnail.substring(0, 100) + '...' : 'NULL');
 
     // Now use the fresh thumbnail from the store
     let thumbnailUrl = freshThumbnail;
     
     console.log('🎨 [ADD TO CART] canvasThumbnail:', canvasThumbnail ? canvasThumbnail.substring(0, 50) + '...' : 'NULL');
     
-    // Fallback to file URL if canvas thumbnail not available
-    if (!thumbnailUrl && file && file.url) {
-      thumbnailUrl = file.url;
-      console.log('🎨 [ADD TO CART] Using file.url:', thumbnailUrl ? thumbnailUrl.substring(0, 50) + '...' : 'NULL');
-    }
-    // Fallback to first image object if still no thumbnail
-    else if (!thumbnailUrl && editorObjects.length > 0) {
-      const firstImage = editorObjects.find(obj => obj.type === 'image');
-      if (firstImage && firstImage.url) {
-        thumbnailUrl = firstImage.url;
-        console.log('🎨 [ADD TO CART] Using firstImage.url:', thumbnailUrl ? thumbnailUrl.substring(0, 50) + '...' : 'NULL');
+    // ONLY use fallbacks if thumbnail is truly not available (not just for convenience)
+    if (!thumbnailUrl) {
+      console.warn('⚠️ [ADD TO CART] Canvas thumbnail not available! This should not happen.');
+      console.warn('⚠️ [ADD TO CART] Falling back to image URL - preview will show ONLY the image, not the full canvas');
+      
+      // Fallback to file URL if canvas thumbnail not available
+      if (file && file.url) {
+        thumbnailUrl = file.url;
+        console.log('🎨 [ADD TO CART] Using file.url:', thumbnailUrl ? thumbnailUrl.substring(0, 50) + '...' : 'NULL');
       }
+      // Fallback to first image object if still no thumbnail
+      else if (editorObjects.length > 0) {
+        const firstImage = editorObjects.find(obj => obj.type === 'image');
+        if (firstImage && firstImage.url) {
+          thumbnailUrl = firstImage.url;
+          console.log('🎨 [ADD TO CART] Using firstImage.url:', thumbnailUrl ? thumbnailUrl.substring(0, 50) + '...' : 'NULL');
+        }
+      }
+    } else {
+      console.log('✅ [ADD TO CART] Using canvas thumbnail (full canvas preview)');
     }
     
     console.log('🎨 [ADD TO CART] Final thumbnail URL:', thumbnailUrl ? thumbnailUrl.substring(0, 50) + '...' : 'NULL');
@@ -965,8 +1263,14 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     
     // Show upsell modal if user should see it
     if (shouldShowUpsell && !editingItemId) {
+      // CRITICAL: Force a small delay to allow React to update from store change
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      const currentThumbnail = useEditorStore.getState().canvasThumbnail;
       console.log('🎨 BANNER EDITOR: Showing upsell modal for ADD TO CART');
-      console.log('🎨 BANNER EDITOR: canvasThumbnail:', canvasThumbnail ? canvasThumbnail.substring(0, 50) + '...' : 'NULL');
+      console.log('🎨 BANNER EDITOR: canvasThumbnail from state:', canvasThumbnail ? canvasThumbnail.substring(0, 50) + '...' : 'NULL');
+      console.log('🎨 BANNER EDITOR: currentThumbnail from store:', currentThumbnail ? currentThumbnail.substring(0, 50) + '...' : 'NULL');
+      console.log('🎨 BANNER EDITOR: thumbnailUrl:', thumbnailUrl ? thumbnailUrl.substring(0, 50) + '...' : 'NULL');
       setPendingAction('cart');
       setShowUpsellModal(true);
       return;
@@ -1033,7 +1337,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     const freshQuote = useQuoteStore.getState();
     console.log('🔄 [BUG 1 FIX] About to generate thumbnail. showGrommets:', showGrommets, 'grommets (fresh):', freshQuote.grommets);
     console.log('🔄 [BUG 1 FIX] Editor objects count:', editorObjects.length);
-    generateThumbnail();
+    await generateThumbnail();
     // Wait for thumbnail to be generated and stored (generateThumbnail has 200ms internal delay)
     await new Promise(resolve => setTimeout(resolve, 300));
     
