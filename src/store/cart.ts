@@ -290,7 +290,7 @@ export const useCartStore = create<CartState>()(
           file_url: (() => {
             // Store ORIGINAL file URL for editing (not thumbnail with grommets)
             // Check BOTH file and overlayImage (overlayImage is used for uploaded images)
-            const fileUrl = quote.file?.url || (quote as any).overlayImage?.url;
+            const fileUrl = (quote.file as any)?.originalUrl || quote.file?.url || (quote as any).overlayImage?.url; // Use originalUrl for PDFs
             const fileKey = quote.file?.fileKey || (quote as any).overlayImage?.fileKey;
             const proofUrl = aiMetadata?.assets?.proofUrl;
             
@@ -526,7 +526,8 @@ export const useCartStore = create<CartState>()(
           file_name: quote.file?.name,
           // CRITICAL: Never save blob URLs - they don't persist across sessions
           // Use thumbnailUrl if provided, otherwise fall back to file.url or existing
-          file_url: (quote as any).thumbnailUrl || (quote.file?.url?.startsWith('blob:') ? null : quote.file?.url) || aiMetadata?.assets?.proofUrl || existingItem.file_url,
+          // CRITICAL: For PDFs, use originalUrl (Cloudinary URL before blob conversion)
+          file_url: (quote as any).thumbnailUrl || ((quote.file as any)?.originalUrl || ((quote.file?.url?.startsWith('blob:')) ? null : quote.file?.url)) || aiMetadata?.assets?.proofUrl || existingItem.file_url,
           thumbnail_url: (quote as any).thumbnailUrl || existingItem.thumbnail_url, // CRITICAL: Update thumbnail for cart display
           web_preview_url: aiMetadata?.assets?.proofUrl || existingItem.web_preview_url,
           print_ready_url: aiMetadata?.assets?.finalUrl || existingItem.print_ready_url,

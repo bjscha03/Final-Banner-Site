@@ -236,10 +236,12 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         });
 
         // Update the file with the bitmap URL and dimensions
+        // CRITICAL: Keep original Cloudinary URL in originalUrl for cart storage
         set({
           file: {
             ...file,
             url: pdfResult.blobUrl,
+            originalUrl: file.url, // PRESERVE original Cloudinary URL for cart/orders
             artworkWidth: pdfResult.width,
             artworkHeight: pdfResult.height,
             isPdf: true, // Keep isPdf flag for reference
