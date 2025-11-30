@@ -1389,6 +1389,17 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden relative isolate">
         
+        {/* Mobile Canvas - Appears FIRST (above toolbar) for immediate visibility */}
+        <div className="lg:hidden flex-1 flex flex-col bg-gray-100 overflow-hidden relative z-0">
+          <div className="flex-1 p-2 sm:p-4 overflow-auto" style={{ paddingBottom: '80px' }}>
+            <EditorCanvas 
+              ref={canvasRef}
+              selectedObjectId={selectedObjectId}
+              onSelectObject={setSelectedObjectId}
+            />
+          </div>
+        </div>
+        
         {/* Left Sidebar - Icon Only (Desktop) */}
         <div className="hidden lg:flex flex-col bg-white border-r border-gray-200 w-20 z-10">
           <div className="flex-1 flex flex-col py-4 gap-1">
@@ -1443,11 +1454,9 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
           </div>
         )}
 
-        {/* Canvas Area - Full Width (Both Mobile & Desktop) */}
-        {/* CRITICAL: Single canvas instance ensures canvasRef always points to visible canvas */}
-        <div className="flex flex-1 flex-col bg-gray-100 overflow-hidden relative z-0">
-          {/* Mobile: smaller padding, space for bottom toolbar; Desktop: normal padding */}
-          <div className="flex-1 p-2 sm:p-4 lg:p-4 overflow-auto pb-20 lg:pb-4">
+        {/* Canvas Area - Full Width (Desktop Only) */}
+        <div className="hidden lg:flex flex-1 flex flex-col bg-gray-100 overflow-hidden relative z-0">
+          <div className="flex-1 p-4 overflow-auto">
             <EditorCanvas 
               ref={canvasRef}
               selectedObjectId={selectedObjectId}
