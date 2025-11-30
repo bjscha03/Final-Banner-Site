@@ -41,6 +41,34 @@ exports.handler = async (event, context) => {
       console.log('[cart-save] First item text_elements:', cartData[0].text_elements);
     }
 
+    // CRITICAL: Clean cart data - remove blob/data URLs that can cause DB errors (too large)
+    const cleanedCartData = cartData.map(item => {
+      const cleaned = { ...item };
+      // Remove blob/data URLs from file_url (they don't persist anyway and are HUGE)
+      if (cleaned.file_url && (cleaned.file_url.startsWith('blob:') || cleaned.file_url.startsWith('data:'))) {
+        console.log('[cart-save] Removing invalid file_url (blob/data URL)');
+        cleaned.file_url = null;
+      }
+      // Remove blob/data URLs from thumbnail_url  
+      if (cleaned.thumbnail_url && (cleaned.thumbnail_url.startsWith('blob:') || cleaned.thumbnail_url.startsWith('data:'))) {
+        console.log('[cart-save] Removing invalid thumbnail_url (blob/data URL)');
+        cleaned.thumbnail_url = null;
+      }
+      // Remove blob/data URLs from web_preview_url
+      if (cleaned.web_preview_url && (cleaned.web_preview_url.startsWith('blob:') || cleaned.web_preview_url.startsWith('data:'))) {
+        console.log('[cart-save] Removing invalid web_preview_url (blob/data URL)');
+        cleaned.web_preview_url = null;
+      }
+      // Remove blob/data URLs from overlay_image.url
+      if (cleaned.overlay_image?.url && (cleaned.overlay_image.url.startsWith('blob:') || cleaned.overlay_image.url.startsWith('data:'))) {
+        console.log('[cart-save] Removing invalid overlay_image.url (blob/data URL)');
+        cleaned.overlay_image = { ...cleaned.overlay_image, url: null };
+      }
+      return cleaned;
+    });
+    
+    console.log('[cart-save] Cleaned cart data for', cleanedCartData.length, 'items');
+
     // Validate userId is a valid UUID before attempting database operations
     if (userId && !uuidRegex.test(userId)) {
       console.log('[cart-save] Invalid UUID format for userId, skipping save');
@@ -51,7 +79,8 @@ exports.handler = async (event, context) => {
       };
     }
 
-    const cartDataJson = JSON.stringify(cartData);
+    const cartDataJson = JSON.stringify(cleanedCartData);
+    console.log('[cart-save] Cart JSON size:', Math.round(cartDataJson.length / 1024), 'KB');
 
     if (userId) {
       // BULLETPROOF: Delete ALL active carts for this user first, then insert new one

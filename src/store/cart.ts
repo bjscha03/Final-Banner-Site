@@ -626,7 +626,26 @@ export const useCartStore = create<CartState>()(
       // Sync cart to Neon database (for logged-in users)
       syncToServer: async () => {
         const userId = cartSync.getUserId();
-        const items = get().items;
+        const rawItems = get().items;
+        
+        // CRITICAL: Strip out base64 data URLs before syncing - they're too large for the database
+        const items = rawItems.map(item => {
+          const cleaned = { ...item };
+          // Remove data: URLs (base64) - they can be megabytes and crash the DB
+          if (cleaned.thumbnail_url?.startsWith('data:')) {
+            console.log('[syncToServer] Stripping base64 thumbnail_url');
+            cleaned.thumbnail_url = undefined;
+          }
+          if (cleaned.file_url?.startsWith('data:')) {
+            console.log('[syncToServer] Stripping base64 file_url');
+            cleaned.file_url = undefined;
+          }
+          if (cleaned.file_url?.startsWith('blob:')) {
+            console.log('[syncToServer] Stripping blob file_url');
+            cleaned.file_url = undefined;
+          }
+          return cleaned;
+        });
         
         // CRITICAL FIX: Save guest carts to database using session ID
         // This ensures guest carts can be merged when user signs in
