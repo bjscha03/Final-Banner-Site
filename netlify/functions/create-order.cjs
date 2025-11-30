@@ -136,7 +136,7 @@ exports.handler = async (event, context) => {
     try {
       await sql`
         ALTER TABLE order_items
-        ADD COLUMN IF NOT EXISTS overlay_image JSONB DEFAULT NULL, ADD COLUMN IF NOT EXISTS overlay_images JSONB DEFAULT NULL
+        ADD COLUMN IF NOT EXISTS overlay_image JSONB DEFAULT NULL, ADD COLUMN IF NOT EXISTS overlay_images JSONB DEFAULT NULL, ADD COLUMN IF NOT EXISTS canvas_background_color VARCHAR(20) DEFAULT '#FFFFFF' 
       `;
       console.log('✅ Database migration: overlay_image column verified/created');
     } catch (migrationError) {
@@ -353,7 +353,7 @@ exports.handler = async (event, context) => {
               INSERT INTO order_items (
                 id, order_id, width_in, height_in, quantity, material,
                 grommets, rope_feet, pole_pockets, pole_pocket_position, pole_pocket_size, pole_pocket_cost_cents,
-                line_total_cents, file_key, text_elements, overlay_image, overlay_images
+                line_total_cents, file_key, text_elements, overlay_image, overlay_images, canvas_background_color
               )
               VALUES (
                 ${randomUUID()},
@@ -372,10 +372,11 @@ exports.handler = async (event, context) => {
                 ${item.file_key || null},
                 ${item.text_elements ? JSON.stringify(item.text_elements) : '[]'},
                 ${item.overlay_image ? JSON.stringify(item.overlay_image) : null},
-                ${item.overlay_images ? JSON.stringify(item.overlay_images) : null}
+                ${item.overlay_images ? JSON.stringify(item.overlay_images) : null},
+                ${item.canvas_background_color || '#FFFFFF'}
               )
             `;
-            console.log('Order item inserted successfully with text_elements, overlay_image, and overlay_images');
+            console.log('Order item inserted successfully with text_elements, overlay_image, overlay_images, and canvas_background_color');
           } catch (textElementsError) {
             // If text_elements column doesn't exist, try without it
             if (textElementsError.message && textElementsError.message.includes('column "text_elements" does not exist')) {

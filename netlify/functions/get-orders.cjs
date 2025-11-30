@@ -80,7 +80,8 @@ exports.handler = async (event, context) => {
                    'print_ready_url', oi.print_ready_url,
                    'web_preview_url', oi.web_preview_url,
                    'text_elements', COALESCE(oi.text_elements, '[]'::jsonb),
-                   'overlay_image', oi.overlay_image
+                   'overlay_image', oi.overlay_image,
+                   'canvas_background_color', COALESCE(oi.canvas_background_color, '#FFFFFF')
                  )
                ) as items
         FROM orders o
@@ -116,7 +117,8 @@ exports.handler = async (event, context) => {
                    'print_ready_url', oi.print_ready_url,
                    'web_preview_url', oi.web_preview_url,
                    'text_elements', COALESCE(oi.text_elements, '[]'::jsonb),
-                   'overlay_image', oi.overlay_image
+                   'overlay_image', oi.overlay_image,
+                   'canvas_background_color', COALESCE(oi.canvas_background_color, '#FFFFFF')
                  )
                ) as items
         FROM orders o

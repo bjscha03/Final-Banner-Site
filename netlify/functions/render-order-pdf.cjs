@@ -584,13 +584,26 @@ exports.handler = async (event) => {
       })
       .toBuffer();
 
-    // For text-only designs, use the already-created colored canvas; otherwise create white
-    const whiteCanvas = isTextOnlyDesign ? sourceBuffer : await sharp({
+    // For text-only designs, use the already-created colored canvas; otherwise create canvas with background color
+    // Parse background color for non-text-only designs
+    const bgColor = req.canvasBackgroundColor || '#FFFFFF';
+    const hexToRgbCanvas = (hex) => {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+      } : { r: 255, g: 255, b: 255 };
+    };
+    const canvasBgRgb = hexToRgbCanvas(bgColor);
+    console.log('[PDF] Canvas background color:', bgColor, '-> RGB:', canvasBgRgb);
+    
+    const backgroundCanvas = isTextOnlyDesign ? sourceBuffer : await sharp({
       create: {
         width: targetPxW,
         height: targetPxH,
         channels: 3,
-        background: { r: 255, g: 255, b: 255 },
+        background: canvasBgRgb,
       },
     })
       .png()
@@ -868,7 +881,7 @@ exports.handler = async (event) => {
       }
     }
 
-    const merged = await sharp(whiteCanvas)
+    const merged = await sharp(backgroundCanvas)
       .composite(compositeLayers)
       .jpeg({ quality: 85, chromaSubsampling: '4:2:0', progressive: true }) // JPEG compression to reduce PDF size below 6MB limit
       .toBuffer();

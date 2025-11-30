@@ -254,7 +254,8 @@ const AdminOrders: React.FC = () => {
         previewCanvasPx: item.preview_canvas_px || null,
         textElements: item.text_elements || [],
         overlayImage: item.overlay_image || null,
-        overlayImages: item.overlay_images || null
+        overlayImages: item.overlay_images || null,
+        canvasBackgroundColor: item.canvas_background_color || '#FFFFFF'
       };
 
       console.log('🔴 PDF REQUEST:', JSON.stringify(requestBody, null, 2));
