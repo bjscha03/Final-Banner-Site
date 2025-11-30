@@ -771,7 +771,13 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   const getFilesWithDownload = () => {
     const filesWithDownload = order.items
       .map((item, index) => ({ item, index }))
-      .filter(({ item }) => item.file_key || item.print_ready_url || item.web_preview_url);
+      .filter(({ item }) => 
+        item.file_key || 
+        item.print_ready_url || 
+        item.web_preview_url ||
+        (item.text_elements && item.text_elements.length > 0) ||
+        item.overlay_image
+      );
 
     return filesWithDownload;
   };
@@ -997,7 +1003,13 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
   const getFilesWithDownload = () => {
     return order.items
       .map((item, index) => ({ item, index }))
-      .filter(({ item }) => item.file_key || item.print_ready_url || item.web_preview_url);
+      .filter(({ item }) => 
+        item.file_key || 
+        item.print_ready_url || 
+        item.web_preview_url ||
+        (item.text_elements && item.text_elements.length > 0) ||
+        item.overlay_image
+      );
   };
 
   return (
