@@ -238,8 +238,18 @@ const AdminOrders: React.FC = () => {
       console.log("🟢 PDF Download - overlay_image:", item.overlay_image);
 
       // Determine the best image source
-      const imageSource = item.print_ready_url || item.web_preview_url || item.file_key;
-      const isCloudinaryKey = !imageSource?.startsWith('http');
+      // For PDF/image uploads, check file_key first, then fall back to file_url
+      const imageSource = item.print_ready_url || item.web_preview_url || item.file_key || item.file_url;
+      const isCloudinaryKey = imageSource && !imageSource.startsWith('http');
+      
+      console.log('[PDF DEBUG] Image source resolution:', {
+        print_ready_url: item.print_ready_url,
+        web_preview_url: item.web_preview_url,
+        file_key: item.file_key,
+        file_url: item.file_url,
+        final_imageSource: imageSource,
+        isCloudinaryKey
+      });
 
       const requestBody = {
         orderId: orderId,

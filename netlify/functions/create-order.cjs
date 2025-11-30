@@ -353,7 +353,7 @@ exports.handler = async (event, context) => {
               INSERT INTO order_items (
                 id, order_id, width_in, height_in, quantity, material,
                 grommets, rope_feet, pole_pockets, pole_pocket_position, pole_pocket_size, pole_pocket_cost_cents,
-                line_total_cents, file_key, text_elements, overlay_image, overlay_images, canvas_background_color
+                line_total_cents, file_key, file_url, text_elements, overlay_image, overlay_images, canvas_background_color
               )
               VALUES (
                 ${randomUUID()},
@@ -370,6 +370,7 @@ exports.handler = async (event, context) => {
                 ${item.pole_pocket_cost_cents || 0},
                 ${item.line_total_cents || 0},
                 ${item.file_key || null},
+                ${item.file_url || null},
                 ${item.text_elements ? JSON.stringify(item.text_elements) : '[]'},
                 ${item.overlay_image ? JSON.stringify(item.overlay_image) : null},
                 ${item.overlay_images ? JSON.stringify(item.overlay_images) : null},
