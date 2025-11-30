@@ -711,21 +711,28 @@ exports.handler = async (event) => {
         const overlayAspectRatio = req.overlayImage.aspectRatio || (overlaySourceW / overlaySourceH);
         console.log('[PDF] Overlay aspect ratio:', overlayAspectRatio);
         
-        // Calculate base dimension (MUST match PreviewCanvas.tsx logic exactly)
-        // PreviewCanvas uses Math.min(widthIn, heightIn) as the base dimension
-        const baseDimension = Math.min(req.bannerWidthIn, req.bannerHeightIn) * targetDpi;
-        console.log('[PDF] Base dimension (min of width/height):', baseDimension, 'px');
+        // Calculate overlay dimensions matching BannerEditorLayout.tsx logic:
+        // - defaultWidthInches = 4
+        // - widthInches = defaultWidthInches * scale (e.g., 4 * 6 = 24 inches)
+        // - heightInches = widthInches / aspectRatio
+        const defaultWidthInches = 4;
+        const overlayWidthIn = defaultWidthInches * req.overlayImage.scale;
+        const overlayHeightIn = overlayWidthIn / overlayAspectRatio;
         
-        // Calculate dimensions based on aspect ratio (matching PreviewCanvas.tsx logic)
-        let overlayWidthPx, overlayHeightPx;
-        if (overlayAspectRatio >= 1) {
-          // Landscape or square image
-          overlayWidthPx = Math.round(baseDimension * req.overlayImage.scale * overlayAspectRatio);
-          overlayHeightPx = Math.round(baseDimension * req.overlayImage.scale);
-        } else {
-          // Portrait image
-          overlayWidthPx = Math.round(baseDimension * req.overlayImage.scale);
-          overlayHeightPx = Math.round(baseDimension * req.overlayImage.scale / overlayAspectRatio);
+        console.log('[PDF] Overlay size in inches:', overlayWidthIn, 'x', overlayHeightIn);
+        
+        // Convert to pixels at target DPI
+        let overlayWidthPx = Math.round(overlayWidthIn * targetDpi);
+        let overlayHeightPx = Math.round(overlayHeightIn * targetDpi);
+        
+        // Safety limit: cap overlay to banner size to prevent memory issues
+        const maxWidthPx = req.bannerWidthIn * targetDpi * 1.5;
+        const maxHeightPx = req.bannerHeightIn * targetDpi * 1.5;
+        if (overlayWidthPx > maxWidthPx || overlayHeightPx > maxHeightPx) {
+          const scaleFactor = Math.min(maxWidthPx / overlayWidthPx, maxHeightPx / overlayHeightPx);
+          overlayWidthPx = Math.round(overlayWidthPx * scaleFactor);
+          overlayHeightPx = Math.round(overlayHeightPx * scaleFactor);
+          console.log('[PDF] Overlay capped to prevent memory issues:', overlayWidthPx, 'x', overlayHeightPx);
         }
         
         console.log('[PDF] Overlay target dimensions:', overlayWidthPx, 'x', overlayHeightPx, 'px');
@@ -802,17 +809,27 @@ exports.handler = async (event) => {
           const overlaySourceW = overlayMeta.width || 1;
           const overlaySourceH = overlayMeta.height || 1;
           
-          // Calculate overlay dimensions and position
+          // Calculate overlay dimensions matching BannerEditorLayout.tsx logic:
+          // - defaultWidthInches = 4
+          // - widthInches = defaultWidthInches * scale (e.g., 4 * 6 = 24 inches)
+          // - heightInches = widthInches / aspectRatio
           const overlayAspectRatio = overlay.aspectRatio || (overlaySourceW / overlaySourceH);
-          const baseDimension = Math.min(req.bannerWidthIn, req.bannerHeightIn) * targetDpi;
+          const defaultWidthInches = 4;
+          const overlayWidthIn = defaultWidthInches * overlay.scale;
+          const overlayHeightIn = overlayWidthIn / overlayAspectRatio;
           
-          let overlayWidthPx, overlayHeightPx;
-          if (overlayAspectRatio >= 1) {
-            overlayWidthPx = Math.round(baseDimension * overlay.scale * overlayAspectRatio);
-            overlayHeightPx = Math.round(baseDimension * overlay.scale);
-          } else {
-            overlayWidthPx = Math.round(baseDimension * overlay.scale);
-            overlayHeightPx = Math.round(baseDimension * overlay.scale / overlayAspectRatio);
+          // Convert to pixels at target DPI
+          let overlayWidthPx = Math.round(overlayWidthIn * targetDpi);
+          let overlayHeightPx = Math.round(overlayHeightIn * targetDpi);
+          
+          // Safety limit: cap overlay to banner size to prevent memory issues
+          const maxWidthPx = req.bannerWidthIn * targetDpi * 1.5;
+          const maxHeightPx = req.bannerHeightIn * targetDpi * 1.5;
+          if (overlayWidthPx > maxWidthPx || overlayHeightPx > maxHeightPx) {
+            const scaleFactor = Math.min(maxWidthPx / overlayWidthPx, maxHeightPx / overlayHeightPx);
+            overlayWidthPx = Math.round(overlayWidthPx * scaleFactor);
+            overlayHeightPx = Math.round(overlayHeightPx * scaleFactor);
+            console.log('[PDF] Overlay', i + 1, 'capped:', overlayWidthPx, 'x', overlayHeightPx);
           }
           
           // Position is percentage-based (0-100) and represents the CENTER of the overlay
