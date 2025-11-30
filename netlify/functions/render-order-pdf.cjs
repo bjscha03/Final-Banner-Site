@@ -693,8 +693,8 @@ exports.handler = async (event) => {
         
         console.log('[PDF] Overlay image fetched successfully');
         
-        // Get overlay image metadata
-        const overlayMeta = await sharp(overlayBuffer).metadata();
+        // Get overlay image metadata AFTER applying EXIF rotation
+        const overlayMeta = await sharp(overlayBuffer).rotate().metadata();
         const overlaySourceW = overlayMeta.width || 1;
         const overlaySourceH = overlayMeta.height || 1;
         
@@ -751,7 +751,9 @@ exports.handler = async (event) => {
         console.log('[PDF] Overlay position on canvas:', overlayLeft, ',', overlayTop);
         
         // Resize overlay to target dimensions while maintaining aspect ratio
+        // CRITICAL: .rotate() with no args auto-rotates based on EXIF orientation
         const overlayResized = await sharp(overlayBuffer)
+          .rotate() // Auto-rotate based on EXIF orientation data
           .resize(overlayWidthPx, overlayHeightPx, {
             fit: 'contain', // Maintain aspect ratio
             background: { r: 0, g: 0, b: 0, alpha: 0 } // Transparent background
@@ -801,8 +803,8 @@ exports.handler = async (event) => {
             ? await fetchImage(overlay.fileKey, true)
             : await fetchImage(overlay.url, false);
           
-          // Get overlay image metadata
-          const overlayMeta = await sharp(overlayBuffer).metadata();
+          // Get overlay image metadata AFTER applying EXIF rotation
+          const overlayMeta = await sharp(overlayBuffer).rotate().metadata();
           const overlaySourceW = overlayMeta.width || 1;
           const overlaySourceH = overlayMeta.height || 1;
           
@@ -842,7 +844,9 @@ exports.handler = async (event) => {
           const overlayTop = Math.round(bleedPx + overlayTopLeftY);
           
           // Resize overlay to target dimensions
+          // CRITICAL: .rotate() with no args auto-rotates based on EXIF orientation
           const overlayResized = await sharp(overlayBuffer)
+            .rotate() // Auto-rotate based on EXIF orientation data
             .resize(overlayWidthPx, overlayHeightPx, {
               fit: 'contain',
               background: { r: 0, g: 0, b: 0, alpha: 0 }
