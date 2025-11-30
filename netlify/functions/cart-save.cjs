@@ -34,6 +34,9 @@ exports.handler = async (event, context) => {
     // DEBUG: Log what fields are in the cart items being saved
     if (cartData.length > 0) {
       console.log('[cart-save] First item keys:', Object.keys(cartData[0]));
+      console.log('[cart-save] First item file_url:', cartData[0].file_url);
+      console.log('[cart-save] First item is_pdf:', cartData[0].is_pdf);
+      console.log('[cart-save] First item file_key:', cartData[0].file_key);
       console.log('[cart-save] First item overlay_image:', cartData[0].overlay_image);
       console.log('[cart-save] First item text_elements:', cartData[0].text_elements);
     }

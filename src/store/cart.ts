@@ -296,10 +296,13 @@ export const useCartStore = create<CartState>()(
             
             console.log('[CART STORE] 🔍 File data:', {
               fileUrl: fileUrl ? fileUrl.substring(0, 80) : 'NULL',
+              originalUrl: (quote.file as any)?.originalUrl ? (quote.file as any).originalUrl.substring(0, 80) : 'NULL',
+              blobUrl: quote.file?.url?.startsWith('blob:') ? 'YES' : 'NO',
               fileKey: fileKey || 'NULL',
               proofUrl: proofUrl ? proofUrl.substring(0, 80) : 'NULL',
               hasFile: !!quote.file,
-              hasOverlayImage: !!(quote as any).overlayImage
+              hasOverlayImage: !!(quote as any).overlayImage,
+              isPdf: quote.file?.isPdf || false
             });
             
             // Skip blob/data URLs - they're temporary
