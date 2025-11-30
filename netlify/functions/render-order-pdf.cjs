@@ -254,15 +254,18 @@ async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textEleme
             // 3. Then convert to PDF points
             
             // CRITICAL COORDINATE CONVERSION FIX V2
-            // DISCOVERY: Text percentages are NOT relative to the SVG viewBox!
-            // They are relative to the CONTAINER that wraps the SVG.
-            // Simply convert percentages directly to banner inches (no offset needed)
+            // Text percentages are stored as: xPercent = (obj.x / bannerWidth) * 100
+            // This gives the TOP-LEFT position of the text relative to the banner area
+            // The PDF page includes bleed, so we must offset by bleedIn
             const textXInBanner = (textEl.xPercent / 100) * bannerWidthIn;
             const textYInBanner = (textEl.yPercent / 100) * bannerHeightIn;
             
-            // Convert to PDF points (72 points per inch)
-            let xPt = textXInBanner * 72;
-            let yPt = textYInBanner * 72;
+            // Convert to PDF points (72 points per inch) and ADD bleed offset
+            // The PDF page is (bannerWidth + 2*bleed) x (bannerHeight + 2*bleed)
+            // Banner content starts at bleedIn from the edge
+            const bleedPt = bleedIn * 72;
+            let xPt = bleedPt + (textXInBanner * 72);
+            let yPt = bleedPt + (textYInBanner * 72);
             
             // DETAILED COORDINATE DEBUGGING
             console.log(`[PDF] ========== COORDINATE TRANSFORMATION DEBUG V2 ==========`);
@@ -737,19 +740,19 @@ exports.handler = async (event) => {
         
         console.log('[PDF] Overlay target dimensions:', overlayWidthPx, 'x', overlayHeightPx, 'px');
         
-        // Position is percentage-based (0-100) and represents the CENTER of the overlay
-        // Convert to pixel coordinates on the final canvas (which includes bleed)
+        // Position is percentage-based (0-100) and represents the TOP-LEFT corner of the overlay
+        // (This matches BannerEditorLayout.tsx which saves: xPercent = (obj.x / widthIn) * 100)
         const bannerAreaWidthPx = req.bannerWidthIn * targetDpi;
         const bannerAreaHeightPx = req.bannerHeightIn * targetDpi;
         const bleedPx = bleedIn * targetDpi;
         
-        // Calculate center position of overlay within banner area
-        const overlayCenterX = (req.overlayImage.position.x / 100) * bannerAreaWidthPx;
-        const overlayCenterY = (req.overlayImage.position.y / 100) * bannerAreaHeightPx;
+        // Calculate top-left position of overlay within banner area
+        const overlayTopLeftX = (req.overlayImage.position.x / 100) * bannerAreaWidthPx;
+        const overlayTopLeftY = (req.overlayImage.position.y / 100) * bannerAreaHeightPx;
         
-        // Convert to top-left position (accounting for bleed offset)
-        const overlayLeft = Math.round(bleedPx + overlayCenterX - (overlayWidthPx / 2));
-        const overlayTop = Math.round(bleedPx + overlayCenterY - (overlayHeightPx / 2));
+        // Add bleed offset to get final position on canvas
+        const overlayLeft = Math.round(bleedPx + overlayTopLeftX);
+        const overlayTop = Math.round(bleedPx + overlayTopLeftY);
         
         console.log('[PDF] Overlay position on canvas:', overlayLeft, ',', overlayTop);
         
@@ -832,16 +835,17 @@ exports.handler = async (event) => {
             console.log('[PDF] Overlay', i + 1, 'capped:', overlayWidthPx, 'x', overlayHeightPx);
           }
           
-          // Position is percentage-based (0-100) and represents the CENTER of the overlay
+          // Position is percentage-based (0-100) and represents the TOP-LEFT corner
+          // (Matches BannerEditorLayout.tsx: xPercent = (obj.x / widthIn) * 100)
           const bannerAreaWidthPx = req.bannerWidthIn * targetDpi;
           const bannerAreaHeightPx = req.bannerHeightIn * targetDpi;
           const bleedPx = bleedIn * targetDpi;
           
-          const overlayCenterX = (overlay.position.x / 100) * bannerAreaWidthPx;
-          const overlayCenterY = (overlay.position.y / 100) * bannerAreaHeightPx;
+          const overlayTopLeftX = (overlay.position.x / 100) * bannerAreaWidthPx;
+          const overlayTopLeftY = (overlay.position.y / 100) * bannerAreaHeightPx;
           
-          const overlayLeft = Math.round(bleedPx + overlayCenterX - (overlayWidthPx / 2));
-          const overlayTop = Math.round(bleedPx + overlayCenterY - (overlayHeightPx / 2));
+          const overlayLeft = Math.round(bleedPx + overlayTopLeftX);
+          const overlayTop = Math.round(bleedPx + overlayTopLeftY);
           
           // Resize overlay to target dimensions
           const overlayResized = await sharp(overlayBuffer)
