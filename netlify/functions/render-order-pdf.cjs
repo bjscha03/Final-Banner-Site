@@ -85,6 +85,41 @@ function drawCropMarks(doc, bannerWidthIn, bannerHeightIn, bleedIn) {
 }
 
 /**
+ * Convert a Cloudinary PDF URL to an image URL using their PDF-to-image transformation
+ * PDFs in Cloudinary need pg_1 transformation to extract first page as image
+ */
+function convertPdfUrlToImage(pdfUrl) {
+  // Check if this is a Cloudinary URL with a PDF
+  if (!pdfUrl.includes('cloudinary.com') || !pdfUrl.toLowerCase().endsWith('.pdf')) {
+    return pdfUrl; // Not a Cloudinary PDF, return as-is
+  }
+  
+  console.log('[PDF] Converting Cloudinary PDF URL to image:', pdfUrl);
+  
+  // Cloudinary PDF URLs look like:
+  // https://res.cloudinary.com/CLOUD_NAME/image/upload/v123/folder/file.pdf
+  // We need to add pg_1 transformation to get page 1 as image:
+  // https://res.cloudinary.com/CLOUD_NAME/image/upload/pg_1/v123/folder/file.png
+  
+  // Find the /upload/ part and insert transformation after it
+  const uploadIndex = pdfUrl.indexOf('/upload/');
+  if (uploadIndex === -1) {
+    console.log('[PDF] Could not find /upload/ in URL, returning as-is');
+    return pdfUrl;
+  }
+  
+  // Insert pg_1 transformation after /upload/
+  const beforeUpload = pdfUrl.substring(0, uploadIndex + 8); // includes '/upload/'
+  const afterUpload = pdfUrl.substring(uploadIndex + 8);
+  
+  // Change .pdf extension to .png
+  const imageUrl = beforeUpload + 'pg_1/' + afterUpload.replace(/\.pdf$/i, '.png');
+  
+  console.log('[PDF] Converted PDF URL to image URL:', imageUrl);
+  return imageUrl;
+}
+
+/**
  * Fetch image from URL and return as Buffer
  */
 async function fetchImage(urlOrKey, isFileKey = false) {
@@ -92,57 +127,69 @@ async function fetchImage(urlOrKey, isFileKey = false) {
   
   if (isFileKey) {
     console.log('[PDF] Fetching from Cloudinary with key:', urlOrKey);
+    
+    // Check if this might be a PDF key
+    const isPdfKey = urlOrKey.toLowerCase().endsWith('.pdf');
+    
     const cloudinaryUrl = cloudinary.url(urlOrKey, {
       resource_type: 'image',
-      secure: true
+      secure: true,
+      ...(isPdfKey ? { page: 1, format: 'png' } : {})
     });
     console.log('[PDF] Generated Cloudinary URL:', cloudinaryUrl);
     
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+    const timeout = setTimeout(() => controller.abort(), 15000); // 15 second timeout
     
     try {
       const response = await fetch(cloudinaryUrl, { signal: controller.signal });
       clearTimeout(timeout);
       
-      console.log(`[PDF] Fetch completed in ${Date.now() - startTime}ms, status: ${response.status}`);
+      console.log('[PDF] Fetch completed in ' + (Date.now() - startTime) + 'ms, status: ' + response.status);
       
       if (!response.ok) {
-        throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+        throw new Error('Failed to fetch image: ' + response.status + ' ' + response.statusText);
       }
       
       const arrayBuffer = await response.arrayBuffer();
-      console.log(`[PDF] Image downloaded: ${arrayBuffer.byteLength} bytes`);
+      console.log('[PDF] Image downloaded: ' + arrayBuffer.byteLength + ' bytes');
       return Buffer.from(arrayBuffer);
     } catch (error) {
       clearTimeout(timeout);
       if (error.name === 'AbortError') {
-        throw new Error('Image fetch timed out after 8 seconds');
+        throw new Error('Image fetch timed out after 15 seconds');
       }
       throw error;
     }
   } else {
     console.log('[PDF] Fetching image from URL:', urlOrKey);
+    
+    // Check if this is a PDF URL and convert it to an image URL
+    let fetchUrl = urlOrKey;
+    if (urlOrKey.toLowerCase().endsWith('.pdf')) {
+      fetchUrl = convertPdfUrlToImage(urlOrKey);
+    }
+    
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 8000);
+    const timeout = setTimeout(() => controller.abort(), 15000);
     
     try {
-      const response = await fetch(urlOrKey, { signal: controller.signal });
+      const response = await fetch(fetchUrl, { signal: controller.signal });
       clearTimeout(timeout);
       
-      console.log(`[PDF] Fetch completed in ${Date.now() - startTime}ms, status: ${response.status}`);
+      console.log('[PDF] Fetch completed in ' + (Date.now() - startTime) + 'ms, status: ' + response.status);
       
       if (!response.ok) {
-        throw new Error(`Failed to fetch image: ${response.status} ${response.statusText}`);
+        throw new Error('Failed to fetch image: ' + response.status + ' ' + response.statusText);
       }
       
       const arrayBuffer = await response.arrayBuffer();
-      console.log(`[PDF] Image downloaded: ${arrayBuffer.byteLength} bytes`);
+      console.log('[PDF] Image downloaded: ' + arrayBuffer.byteLength + ' bytes');
       return Buffer.from(arrayBuffer);
     } catch (error) {
       clearTimeout(timeout);
       if (error.name === 'AbortError') {
-        throw new Error('Image fetch timed out after 8 seconds');
+        throw new Error('Image fetch timed out after 15 seconds');
       }
       console.error('[PDF] Error fetching image from URL:', error);
       console.error('[PDF] Error fetching image from URL:', error);
