@@ -362,12 +362,8 @@ async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textEleme
             let textX = xPt;
             let renderWidth = textWidth + 20; // Add some padding
             
-            // Adjust Y coordinate for font baseline
-            // In CSS, top: Y% positions the top edge of the element
-            // In PDFKit, y is the baseline position
-            // Font ascent is approximately 75% of fontSize
-            const fontAscent = fontSize * 0.75;
-            yPt = yPt + fontAscent;
+            // PDFKit doc.text() positions y at the TOP of the text, not baseline
+            // So no adjustment needed - just use yPt directly
             
             if (textAlign === 'center') {
               // For centered text in preview:
@@ -392,10 +388,11 @@ async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textEleme
               renderWidth = textWidth + 20;
             }
             
+            // CRITICAL: Remove width constraint to prevent forced wrapping
+            // In Konva, text renders at natural width with no wrapping
+            // Setting width in PDFKit forces text into a box which can cause unexpected wrapping
             const textOptions = {
-              align: textAlign,
-              lineBreak: true,
-              width: renderWidth,
+              lineBreak: false,
             };
             
             console.log(`[PDF] Rendering text at (${textX.toFixed(2)}, ${yPt.toFixed(2)}) with width ${renderWidth.toFixed(2)}pt, align: ${textAlign}, fontSize: ${fontSize.toFixed(2)}pt`);
