@@ -253,7 +253,8 @@ const AdminOrders: React.FC = () => {
         transform: item.transform || null,
         previewCanvasPx: item.preview_canvas_px || null,
         textElements: item.text_elements || [],
-        overlayImage: item.overlay_image || null
+        overlayImage: item.overlay_image || null,
+        overlayImages: item.overlay_images || null
       };
 
       console.log('🔴 PDF REQUEST:', JSON.stringify(requestBody, null, 2));

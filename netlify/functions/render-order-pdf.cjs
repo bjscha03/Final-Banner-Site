@@ -469,20 +469,27 @@ exports.handler = async (event) => {
     console.log('[PDF] CRITICAL - overlayImage received:', req.overlayImage);
     console.log('[PDF] CRITICAL - overlayImage exists:', !!req.overlayImage);
 
-    // Accept either fileKey (preferred) or imageUrl (legacy)
-    if (!req.orderId || !req.bannerWidthIn || !req.bannerHeightIn || (!req.fileKey && !req.imageUrl)) {
+    // Accept fileKey, imageUrl, OR text-only designs (no background image)
+    // For text-only designs, we create a white/colored canvas as background
+    const hasBackgroundImage = req.fileKey || req.imageUrl;
+    const hasTextOrOverlay = (req.textElements && req.textElements.length > 0) || req.overlayImage;
+    
+    if (!req.orderId || !req.bannerWidthIn || !req.bannerHeightIn || (!hasBackgroundImage && !hasTextOrOverlay)) {
       console.error('[PDF] Missing required fields:', {
         orderId: !!req.orderId,
         bannerWidthIn: !!req.bannerWidthIn,
         bannerHeightIn: !!req.bannerHeightIn,
         fileKey: !!req.fileKey,
-        imageUrl: !!req.imageUrl
+        imageUrl: !!req.imageUrl,
+        hasTextOrOverlay: hasTextOrOverlay
       });
       return {
         statusCode: 400,
-        body: JSON.stringify({ error: 'Missing required fields' }),
+        body: JSON.stringify({ error: 'Missing required fields - need image, text, or overlay' }),
       };
     }
+    
+    console.log('[PDF] Design type:', hasBackgroundImage ? 'with background image' : 'text/overlay only');
 
     const bleedIn = req.bleedIn ?? 0.125;
     const targetDpi = req.targetDpi ?? chooseTargetDpi(req.bannerWidthIn, req.bannerHeightIn);
@@ -496,10 +503,42 @@ exports.handler = async (event) => {
 
     console.log(`[PDF] Final dimensions: ${finalWidthIn}×${finalHeightIn} in = ${targetPxW}×${targetPxH}px`);
 
-    // Fetch image using fileKey if available, otherwise imageUrl
-    const sourceBuffer = req.fileKey 
-      ? await fetchImage(req.fileKey, true)
-      : await fetchImage(req.imageUrl, false);
+    // Fetch image using fileKey if available, otherwise imageUrl, or create white canvas for text-only
+    let sourceBuffer;
+    if (req.fileKey) {
+      sourceBuffer = await fetchImage(req.fileKey, true);
+    } else if (req.imageUrl) {
+      sourceBuffer = await fetchImage(req.imageUrl, false);
+    } else {
+      // Text-only design: create a white (or colored) background canvas
+      const bgColor = req.canvasBackgroundColor || '#FFFFFF';
+      console.log('[PDF] Creating blank canvas with background color:', bgColor);
+      
+      // Parse hex color to RGB
+      const hexToRgb = (hex) => {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16)
+        } : { r: 255, g: 255, b: 255 };
+      };
+      const rgb = hexToRgb(bgColor);
+      
+      sourceBuffer = await sharp({
+        create: {
+          width: targetPxW,
+          height: targetPxH,
+          channels: 3,
+          background: rgb,
+        },
+      }).png().toBuffer();
+      
+      console.log('[PDF] Created blank canvas:', targetPxW, 'x', targetPxH);
+    }
+    
+    // Flag to track if this is a text-only design (no background image)
+    const isTextOnlyDesign = !req.fileKey && !req.imageUrl;
     
     let rotatedBuffer = sourceBuffer;
     if (req.transform?.rotationDeg && req.transform.rotationDeg !== 0) {
@@ -548,7 +587,8 @@ exports.handler = async (event) => {
       })
       .toBuffer();
 
-    const whiteCanvas = await sharp({
+    // For text-only designs, use the already-created colored canvas; otherwise create white
+    const whiteCanvas = isTextOnlyDesign ? sourceBuffer : await sharp({
       create: {
         width: targetPxW,
         height: targetPxH,
@@ -605,7 +645,8 @@ exports.handler = async (event) => {
     }
 
     // Build composite layers array - background first, then overlay if exists
-    const compositeLayers = [
+    // For text-only designs, we already have the correct canvas, no need to composite the "image"
+    const compositeLayers = isTextOnlyDesign ? [] : [
       {
         input: compositeInput,
         top: compositeTop,
@@ -734,6 +775,77 @@ exports.handler = async (event) => {
         console.error('[PDF] Error processing overlay image:', overlayError);
         console.error('[PDF] Continuing without overlay...');
         // Continue without overlay - don't fail the entire PDF generation
+      }
+    }
+
+    // Process multiple overlay images (overlayImages array)
+    if (req.overlayImages && Array.isArray(req.overlayImages) && req.overlayImages.length > 0) {
+      console.log('[PDF] Processing multiple overlay images:', req.overlayImages.length);
+      
+      for (let i = 0; i < req.overlayImages.length; i++) {
+        const overlay = req.overlayImages[i];
+        console.log('[PDF] Processing overlay image', i + 1, ':', overlay.name);
+        
+        if (!overlay.url && !overlay.fileKey) {
+          console.warn('[PDF] Skipping overlay', i + 1, '- no url or fileKey');
+          continue;
+        }
+        
+        try {
+          // Fetch overlay image from Cloudinary
+          const overlayBuffer = overlay.fileKey
+            ? await fetchImage(overlay.fileKey, true)
+            : await fetchImage(overlay.url, false);
+          
+          // Get overlay image metadata
+          const overlayMeta = await sharp(overlayBuffer).metadata();
+          const overlaySourceW = overlayMeta.width || 1;
+          const overlaySourceH = overlayMeta.height || 1;
+          
+          // Calculate overlay dimensions and position
+          const overlayAspectRatio = overlay.aspectRatio || (overlaySourceW / overlaySourceH);
+          const baseDimension = Math.min(req.bannerWidthIn, req.bannerHeightIn) * targetDpi;
+          
+          let overlayWidthPx, overlayHeightPx;
+          if (overlayAspectRatio >= 1) {
+            overlayWidthPx = Math.round(baseDimension * overlay.scale * overlayAspectRatio);
+            overlayHeightPx = Math.round(baseDimension * overlay.scale);
+          } else {
+            overlayWidthPx = Math.round(baseDimension * overlay.scale);
+            overlayHeightPx = Math.round(baseDimension * overlay.scale / overlayAspectRatio);
+          }
+          
+          // Position is percentage-based (0-100) and represents the CENTER of the overlay
+          const bannerAreaWidthPx = req.bannerWidthIn * targetDpi;
+          const bannerAreaHeightPx = req.bannerHeightIn * targetDpi;
+          const bleedPx = bleedIn * targetDpi;
+          
+          const overlayCenterX = (overlay.position.x / 100) * bannerAreaWidthPx;
+          const overlayCenterY = (overlay.position.y / 100) * bannerAreaHeightPx;
+          
+          const overlayLeft = Math.round(bleedPx + overlayCenterX - (overlayWidthPx / 2));
+          const overlayTop = Math.round(bleedPx + overlayCenterY - (overlayHeightPx / 2));
+          
+          // Resize overlay to target dimensions
+          const overlayResized = await sharp(overlayBuffer)
+            .resize(overlayWidthPx, overlayHeightPx, {
+              fit: 'contain',
+              background: { r: 0, g: 0, b: 0, alpha: 0 }
+            })
+            .toBuffer();
+          
+          // Add overlay to composite layers
+          compositeLayers.push({
+            input: overlayResized,
+            top: overlayTop,
+            left: overlayLeft,
+          });
+          
+          console.log('[PDF] ✅ Overlay', i + 1, 'added at', overlayLeft, ',', overlayTop);
+        } catch (overlayError) {
+          console.error('[PDF] Error processing overlay image', i + 1, ':', overlayError);
+          // Continue with other overlays
+        }
       }
     }
 

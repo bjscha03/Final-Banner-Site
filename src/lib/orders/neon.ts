@@ -124,7 +124,7 @@ export const neonOrdersAdapter: OrdersAdapter = {
                    'print_ready_url', oi.print_ready_url,
                    'web_preview_url', oi.web_preview_url,
                    'text_elements', oi.text_elements,
-                   'overlay_image', oi.overlay_image,
+                   'overlay_image', oi.overlay_image, 'overlay_images', oi.overlay_images,
                    'transform', oi.transform,
                    'preview_canvas_px', oi.preview_canvas_px
                  )
@@ -179,7 +179,7 @@ export const neonOrdersAdapter: OrdersAdapter = {
                    'print_ready_url', oi.print_ready_url,
                    'web_preview_url', oi.web_preview_url,
                    'text_elements', oi.text_elements,
-                   'overlay_image', oi.overlay_image,
+                   'overlay_image', oi.overlay_image, 'overlay_images', oi.overlay_images,
                    'transform', oi.transform,
                    'preview_canvas_px', oi.preview_canvas_px
                  )
@@ -281,7 +281,7 @@ export const neonOrdersAdapter: OrdersAdapter = {
                    'print_ready_url', oi.print_ready_url,
                    'web_preview_url', oi.web_preview_url,
                    'text_elements', oi.text_elements,
-                   'overlay_image', oi.overlay_image,
+                   'overlay_image', oi.overlay_image, 'overlay_images', oi.overlay_images,
                    'transform', oi.transform,
                    'preview_canvas_px', oi.preview_canvas_px
                  )
