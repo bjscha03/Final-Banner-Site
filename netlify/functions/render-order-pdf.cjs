@@ -287,15 +287,12 @@ async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textEleme
             // Set font properties
             const fontFamily = textEl.fontFamily || 'Helvetica';
             
-            // CRITICAL: Scale fontSize for print output
-            // The fontSize is stored as screen pixels (for preview at ~600-800px wide)
-            // But the PDF is much larger (e.g., 48" = 3456 points)
-            // Scale factor: Assume preview canvas is ~600px for a 48" banner
-            // So for a 48" banner: scaleFactor = 3456pt / 600px ≈ 5.76
-            // General formula: scaleFactor = pageWidthPt / 600
-            const PREVIEW_CANVAS_WIDTH_PX = previewCanvasPx?.width || 600; // Use actual preview canvas width
-            const scaleFactor = pageWidthPt / PREVIEW_CANVAS_WIDTH_PX;
-            const fontSize = (textEl.fontSize || 24) * scaleFactor;
+            // CRITICAL: fontSize is stored in INCHES (matching Konva canvas units)
+            // Canvas renders: fontSize={obj.fontSize * PIXELS_PER_INCH * scale}
+            // PDF should convert inches to points: 1 inch = 72 points
+            const fontSize = (textEl.fontSize || 1) * 72;
+            
+            console.log(`[PDF] Text fontSize: ${textEl.fontSize}" = ${fontSize}pt`);
             
             const fontWeight = textEl.fontWeight === 'bold' ? 'bold' : 'normal';
             
@@ -409,7 +406,7 @@ async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textEleme
             
             console.log(`[PDF] ✓ Successfully rendered text "${textEl.content.substring(0, 30)}..."`);
             
-            console.log(`[PDF] Rendered text layer ${index + 1}: "${textEl.content.substring(0, 30)}..." at (${xPt.toFixed(1)}, ${yPt.toFixed(1)}) - fontSize: ${textEl.fontSize}px → ${fontSize.toFixed(1)}pt (scale: ${scaleFactor.toFixed(2)}x)`);
+            console.log(`[PDF] Rendered text layer ${index + 1}: "${textEl.content.substring(0, 30)}..." at (${xPt.toFixed(1)}, ${yPt.toFixed(1)}) - fontSize: ${textEl.fontSize}" → ${fontSize.toFixed(1)}pt`);
           } catch (textError) {
             console.error(`[PDF] Error rendering text layer ${index + 1}:`, textError);
             // Continue rendering other text layers even if one fails
