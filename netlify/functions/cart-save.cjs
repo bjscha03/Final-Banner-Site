@@ -44,25 +44,52 @@ exports.handler = async (event, context) => {
     // CRITICAL: Clean cart data - remove blob/data URLs that can cause DB errors (too large)
     const cleanedCartData = cartData.map(item => {
       const cleaned = { ...item };
+      
+      // Helper function to check if a string is a problematic URL
+      const isBadUrl = (url) => {
+        if (!url || typeof url !== 'string') return false;
+        return url.startsWith('blob:') || url.startsWith('data:') || url.length > 10000;
+      };
+      
       // Remove blob/data URLs from file_url (they don't persist anyway and are HUGE)
-      if (cleaned.file_url && (cleaned.file_url.startsWith('blob:') || cleaned.file_url.startsWith('data:'))) {
-        console.log('[cart-save] Removing invalid file_url (blob/data URL)');
+      if (isBadUrl(cleaned.file_url)) {
+        console.log('[cart-save] Removing invalid file_url (blob/data URL or too large)');
         cleaned.file_url = null;
       }
       // Remove blob/data URLs from thumbnail_url  
-      if (cleaned.thumbnail_url && (cleaned.thumbnail_url.startsWith('blob:') || cleaned.thumbnail_url.startsWith('data:'))) {
-        console.log('[cart-save] Removing invalid thumbnail_url (blob/data URL)');
+      if (isBadUrl(cleaned.thumbnail_url)) {
+        console.log('[cart-save] Removing invalid thumbnail_url (blob/data URL or too large)');
         cleaned.thumbnail_url = null;
       }
       // Remove blob/data URLs from web_preview_url
-      if (cleaned.web_preview_url && (cleaned.web_preview_url.startsWith('blob:') || cleaned.web_preview_url.startsWith('data:'))) {
-        console.log('[cart-save] Removing invalid web_preview_url (blob/data URL)');
+      if (isBadUrl(cleaned.web_preview_url)) {
+        console.log('[cart-save] Removing invalid web_preview_url (blob/data URL or too large)');
         cleaned.web_preview_url = null;
       }
+      // Remove blob/data URLs from print_ready_url
+      if (isBadUrl(cleaned.print_ready_url)) {
+        console.log('[cart-save] Removing invalid print_ready_url (blob/data URL or too large)');
+        cleaned.print_ready_url = null;
+      }
       // Remove blob/data URLs from overlay_image.url
-      if (cleaned.overlay_image?.url && (cleaned.overlay_image.url.startsWith('blob:') || cleaned.overlay_image.url.startsWith('data:'))) {
-        console.log('[cart-save] Removing invalid overlay_image.url (blob/data URL)');
+      if (cleaned.overlay_image?.url && isBadUrl(cleaned.overlay_image.url)) {
+        console.log('[cart-save] Removing invalid overlay_image.url (blob/data URL or too large)');
         cleaned.overlay_image = { ...cleaned.overlay_image, url: null };
+      }
+      // Remove blob/data URLs from overlay_images array
+      if (Array.isArray(cleaned.overlay_images)) {
+        cleaned.overlay_images = cleaned.overlay_images.map(img => {
+          if (img?.url && isBadUrl(img.url)) {
+            console.log('[cart-save] Removing invalid overlay_images[].url');
+            return { ...img, url: null };
+          }
+          return img;
+        });
+      }
+      // Remove any canvas_snapshot data (should never be saved)
+      if (cleaned.canvas_snapshot) {
+        console.log('[cart-save] Removing canvas_snapshot');
+        delete cleaned.canvas_snapshot;
       }
       return cleaned;
     });

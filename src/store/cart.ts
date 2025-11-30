@@ -628,21 +628,46 @@ export const useCartStore = create<CartState>()(
         const userId = cartSync.getUserId();
         const rawItems = get().items;
         
-        // CRITICAL: Strip out base64 data URLs before syncing - they're too large for the database
+        // Helper to check if a string is a bad URL (blob, data, or too large)
+        const isBadUrl = (url: string | undefined | null): boolean => {
+          if (!url || typeof url !== 'string') return false;
+          return url.startsWith('blob:') || url.startsWith('data:') || url.length > 10000;
+        };
+        
+        // CRITICAL: Strip out blob/data URLs before syncing - they're too large for the database
         const items = rawItems.map(item => {
           const cleaned = { ...item };
-          // Remove data: URLs (base64) - they can be megabytes and crash the DB
-          if (cleaned.thumbnail_url?.startsWith('data:')) {
-            console.log('[syncToServer] Stripping base64 thumbnail_url');
+          // Remove bad URLs from all URL fields
+          if (isBadUrl(cleaned.thumbnail_url)) {
+            console.log('[syncToServer] Stripping bad thumbnail_url');
             cleaned.thumbnail_url = undefined;
           }
-          if (cleaned.file_url?.startsWith('data:')) {
-            console.log('[syncToServer] Stripping base64 file_url');
+          if (isBadUrl(cleaned.file_url)) {
+            console.log('[syncToServer] Stripping bad file_url');
             cleaned.file_url = undefined;
           }
-          if (cleaned.file_url?.startsWith('blob:')) {
-            console.log('[syncToServer] Stripping blob file_url');
-            cleaned.file_url = undefined;
+          if (isBadUrl(cleaned.web_preview_url)) {
+            console.log('[syncToServer] Stripping bad web_preview_url');
+            cleaned.web_preview_url = undefined;
+          }
+          if (isBadUrl(cleaned.print_ready_url)) {
+            console.log('[syncToServer] Stripping bad print_ready_url');
+            cleaned.print_ready_url = undefined;
+          }
+          // Clean overlay_image
+          if (cleaned.overlay_image?.url && isBadUrl(cleaned.overlay_image.url)) {
+            console.log('[syncToServer] Stripping bad overlay_image.url');
+            cleaned.overlay_image = { ...cleaned.overlay_image, url: undefined };
+          }
+          // Clean overlay_images array
+          if (Array.isArray(cleaned.overlay_images)) {
+            cleaned.overlay_images = cleaned.overlay_images.map(img => {
+              if (img?.url && isBadUrl(img.url)) {
+                console.log('[syncToServer] Stripping bad overlay_images[].url');
+                return { ...img, url: undefined };
+              }
+              return img;
+            });
           }
           return cleaned;
         });
