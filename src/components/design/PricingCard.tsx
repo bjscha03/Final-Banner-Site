@@ -264,36 +264,68 @@ const PricingCard: React.FC = () => {
       line_total_cents: Math.round(baseTotals.materialTotal * 100),
     };
     // Generate thumbnail for cart preview
-    // For PDFs, use Cloudinary's PDF-to-image transformation for a persistent URL
-    // This avoids using large base64 canvas thumbnails that can't be saved to the database
-    let thumbnailUrl = canvasThumbnail;
+    // CRITICAL: ALWAYS use persistent Cloudinary URLs - NEVER base64 data URLs
+    // Base64 thumbnails get stripped during syncToServer causing "No Image" in checkout
+    let thumbnailUrl: string | null = null;
     
-    // For PDFs with a Cloudinary URL, generate a persistent thumbnail URL
+    // DEBUG: Log all relevant values
+    console.log('[PricingCard] Thumbnail debug:', {
+      canvasThumbnail: canvasThumbnail ? (canvasThumbnail.startsWith('data:') ? 'BASE64 (will skip)' : canvasThumbnail.substring(0, 50)) : 'NULL',
+      isPdf: file?.isPdf,
+      fileUrl: file?.url ? file.url.substring(0, 80) : 'NULL',
+      hasCloudinary: file?.url?.includes('cloudinary.com'),
+      editorObjectsCount: editorObjects.length
+    });
+    
+    // Priority 1: For PDFs with a Cloudinary URL, generate a persistent thumbnail URL
     if (file?.isPdf && file?.url && file.url.includes('cloudinary.com')) {
-      // Transform PDF URL to get page 1 as a PNG thumbnail
-      // e.g. .../upload/v123/file.pdf -> .../upload/pg_1,w_400/v123/file.png
       const pdfUrl = file.url;
       const uploadIndex = pdfUrl.indexOf('/upload/');
       if (uploadIndex !== -1) {
         const beforeUpload = pdfUrl.substring(0, uploadIndex + 8);
         const afterUpload = pdfUrl.substring(uploadIndex + 8);
         thumbnailUrl = beforeUpload + 'pg_1,w_400/' + afterUpload.replace(/\.pdf$/i, '.png');
-        console.log('[PricingCard] Using Cloudinary PDF thumbnail:', thumbnailUrl);
-      }
-    }
-    // Fallback to canvas thumbnail if not a PDF
-    else if (!thumbnailUrl && file && file.url) {
-      thumbnailUrl = file.url;
-    }
-    // Fallback to first image object if still no thumbnail
-    else if (!thumbnailUrl && editorObjects.length > 0) {
-      const firstImage = editorObjects.find(obj => obj.type === 'image');
-      if (firstImage && firstImage.url) {
-        thumbnailUrl = firstImage.url;
+        console.log('[PricingCard] PDF: Using Cloudinary pg_1 thumbnail:', thumbnailUrl);
       }
     }
     
-    console.log('[PricingCard] Using thumbnail URL:', thumbnailUrl ? thumbnailUrl.substring(0, 50) + '...' : 'null');
+    // Priority 2: Use Cloudinary file URL (for images)
+    if (!thumbnailUrl && file?.url && file.url.includes('cloudinary.com') && !file.url.startsWith('data:') && !file.url.startsWith('blob:')) {
+      thumbnailUrl = file.url;
+      console.log('[PricingCard] Image: Using Cloudinary file URL:', thumbnailUrl.substring(0, 80));
+    }
+    
+    // Priority 3: Check editor objects for Cloudinary URLs
+    if (!thumbnailUrl && editorObjects.length > 0) {
+      const cloudinaryImage = editorObjects.find(obj => 
+        obj.type === 'image' && obj.url && 
+        obj.url.includes('cloudinary.com') && 
+        !obj.url.startsWith('data:') && !obj.url.startsWith('blob:')
+      );
+      if (cloudinaryImage?.url) {
+        thumbnailUrl = cloudinaryImage.url;
+        console.log('[PricingCard] Editor: Using Cloudinary image from editor:', thumbnailUrl.substring(0, 80));
+      }
+    }
+    
+    // Priority 4: Only use canvas thumbnail if it's a short URL (not base64)
+    if (!thumbnailUrl && canvasThumbnail && !canvasThumbnail.startsWith('data:') && !canvasThumbnail.startsWith('blob:') && canvasThumbnail.length < 500) {
+      thumbnailUrl = canvasThumbnail;
+      console.log('[PricingCard] Using canvas thumbnail (non-base64):', thumbnailUrl.substring(0, 80));
+    }
+    
+    // Final fallback: Use file URL even if not Cloudinary (but skip blob/data)
+    if (!thumbnailUrl && file?.url && !file.url.startsWith('data:') && !file.url.startsWith('blob:')) {
+      thumbnailUrl = file.url;
+      console.log('[PricingCard] Fallback: Using file URL:', thumbnailUrl.substring(0, 80));
+    }
+    
+    if (!thumbnailUrl) {
+      console.warn('[PricingCard] NO VALID THUMBNAIL - item will show No Image in checkout');
+    } else {
+      console.log('[PricingCard] Final thumbnail URL:', thumbnailUrl.substring(0, 80));
+    }
+    }
     
     // Extract only data fields from quote store, not methods
     const quoteData = {
@@ -461,36 +493,36 @@ const PricingCard: React.FC = () => {
       line_total_cents: Math.round(baseTotals.materialTotal * 100),
     };
     // Generate thumbnail for cart preview
-    // For PDFs, use Cloudinary's PDF-to-image transformation for a persistent URL
-    // This avoids using large base64 canvas thumbnails that can't be saved to the database
-    let thumbnailUrl = canvasThumbnail;
+    // CRITICAL: ALWAYS use persistent Cloudinary URLs - NEVER base64 data URLs
+    let thumbnailUrl: string | null = null;
     
-    // For PDFs with a Cloudinary URL, generate a persistent thumbnail URL
+    // Priority 1: For PDFs, use Cloudinary pg_1 transformation
     if (file?.isPdf && file?.url && file.url.includes('cloudinary.com')) {
-      // Transform PDF URL to get page 1 as a PNG thumbnail
-      // e.g. .../upload/v123/file.pdf -> .../upload/pg_1,w_400/v123/file.png
       const pdfUrl = file.url;
       const uploadIndex = pdfUrl.indexOf('/upload/');
       if (uploadIndex !== -1) {
         const beforeUpload = pdfUrl.substring(0, uploadIndex + 8);
         const afterUpload = pdfUrl.substring(uploadIndex + 8);
         thumbnailUrl = beforeUpload + 'pg_1,w_400/' + afterUpload.replace(/\.pdf$/i, '.png');
-        console.log('[PricingCard] Using Cloudinary PDF thumbnail:', thumbnailUrl);
       }
     }
-    // Fallback to canvas thumbnail if not a PDF
-    else if (!thumbnailUrl && file && file.url) {
+    // Priority 2: Use Cloudinary file URL (for images)
+    if (!thumbnailUrl && file?.url && file.url.includes('cloudinary.com') && !file.url.startsWith('data:') && !file.url.startsWith('blob:')) {
       thumbnailUrl = file.url;
     }
-    // Fallback to first image object if still no thumbnail
-    else if (!thumbnailUrl && editorObjects.length > 0) {
-      const firstImage = editorObjects.find(obj => obj.type === 'image');
-      if (firstImage && firstImage.url) {
-        thumbnailUrl = firstImage.url;
-      }
+    // Priority 3: Check editor objects for Cloudinary URLs
+    if (!thumbnailUrl && editorObjects.length > 0) {
+      const cloudinaryImage = editorObjects.find(obj => 
+        obj.type === 'image' && obj.url && obj.url.includes('cloudinary.com') && 
+        !obj.url.startsWith('data:') && !obj.url.startsWith('blob:')
+      );
+      if (cloudinaryImage?.url) thumbnailUrl = cloudinaryImage.url;
     }
-    
-    console.log('[PricingCard] Using thumbnail URL:', thumbnailUrl ? thumbnailUrl.substring(0, 50) + '...' : 'null');
+    // Priority 4: Use file URL if not blob/data
+    if (!thumbnailUrl && file?.url && !file.url.startsWith('data:') && !file.url.startsWith('blob:')) {
+      thumbnailUrl = file.url;
+    }
+    console.log('[PricingCard] Thumbnail:', thumbnailUrl ? thumbnailUrl.substring(0, 60) : 'NULL');
     
     // Extract only data fields from quote store, not methods
     const quoteData = {
@@ -532,11 +564,11 @@ const PricingCard: React.FC = () => {
       setDontShowUpsellAgain(true);
     }
 
-    // Generate thumbnail for cart preview BEFORE building updatedQuote
-    // For PDFs, use Cloudinary's PDF-to-image transformation for a persistent URL
-    let thumbnailUrl = canvasThumbnail;
+    // Generate thumbnail for cart preview
+    // CRITICAL: ALWAYS use persistent Cloudinary URLs - NEVER base64 data URLs
+    let thumbnailUrl: string | null = null;
     
-    // For PDFs with a Cloudinary URL, generate a persistent thumbnail URL
+    // Priority 1: For PDFs, use Cloudinary pg_1 transformation
     if (file?.isPdf && file?.url && file.url.includes('cloudinary.com')) {
       const pdfUrl = file.url;
       const uploadIndex = pdfUrl.indexOf('/upload/');
@@ -544,22 +576,25 @@ const PricingCard: React.FC = () => {
         const beforeUpload = pdfUrl.substring(0, uploadIndex + 8);
         const afterUpload = pdfUrl.substring(uploadIndex + 8);
         thumbnailUrl = beforeUpload + 'pg_1,w_400/' + afterUpload.replace(/\.pdf$/i, '.png');
-        console.log('[PricingCard] Upsell - Using Cloudinary PDF thumbnail:', thumbnailUrl);
       }
     }
-    // Fallback to file URL if canvas thumbnail not available
-    else if (!thumbnailUrl && file && file.url) {
+    // Priority 2: Use Cloudinary file URL (for images)
+    if (!thumbnailUrl && file?.url && file.url.includes('cloudinary.com') && !file.url.startsWith('data:') && !file.url.startsWith('blob:')) {
       thumbnailUrl = file.url;
     }
-    // Fallback to first image object if still no thumbnail
-    else if (!thumbnailUrl && editorObjects.length > 0) {
-      const firstImage = editorObjects.find(obj => obj.type === 'image');
-      if (firstImage && firstImage.url) {
-        thumbnailUrl = firstImage.url;
-      }
+    // Priority 3: Check editor objects for Cloudinary URLs
+    if (!thumbnailUrl && editorObjects.length > 0) {
+      const cloudinaryImage = editorObjects.find(obj => 
+        obj.type === 'image' && obj.url && obj.url.includes('cloudinary.com') && 
+        !obj.url.startsWith('data:') && !obj.url.startsWith('blob:')
+      );
+      if (cloudinaryImage?.url) thumbnailUrl = cloudinaryImage.url;
     }
-    
-    console.log('[PricingCard] Upsell - Using thumbnail URL:', thumbnailUrl ? thumbnailUrl.substring(0, 50) + '...' : 'null');
+    // Priority 4: Use file URL if not blob/data
+    if (!thumbnailUrl && file?.url && !file.url.startsWith('data:') && !file.url.startsWith('blob:')) {
+      thumbnailUrl = file.url;
+    }
+    console.log('[PricingCard] Thumbnail:', thumbnailUrl ? thumbnailUrl.substring(0, 60) : 'NULL');
 
     // Build updated quote object with selected options - extract only data fields
     let updatedQuote = {
