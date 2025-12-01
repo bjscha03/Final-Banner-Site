@@ -325,7 +325,7 @@ const PricingCard: React.FC = () => {
     } else {
       console.log('[PricingCard] Final thumbnail URL:', thumbnailUrl.substring(0, 80));
     }
-    }
+
     
     // Extract only data fields from quote store, not methods
     const quoteData = {
