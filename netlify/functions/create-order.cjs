@@ -1,6 +1,49 @@
 const { neon } = require('@neondatabase/serverless');
 const { randomUUID } = require('crypto');
 
+// Helper to detect bad URLs (blob:, data:, or huge strings)
+function isBadUrl(url) {
+  if (!url || typeof url !== 'string') return false;
+  return url.startsWith('blob:') || url.startsWith('data:') || url.length > 10000;
+}
+
+// Clean item of any bad URLs before database insert
+function cleanItemForDb(item) {
+  const cleaned = { ...item };
+  
+  // Clean direct URL fields
+  if (isBadUrl(cleaned.file_url)) cleaned.file_url = null;
+  if (isBadUrl(cleaned.thumbnail_url)) cleaned.thumbnail_url = null;
+  if (isBadUrl(cleaned.web_preview_url)) cleaned.web_preview_url = null;
+  if (isBadUrl(cleaned.print_ready_url)) cleaned.print_ready_url = null;
+  
+  // Clean overlay_image
+  if (cleaned.overlay_image && typeof cleaned.overlay_image === 'object') {
+    const oi = { ...cleaned.overlay_image };
+    if (isBadUrl(oi.url)) oi.url = null;
+    if (isBadUrl(oi.originalUrl)) oi.originalUrl = null;
+    if (isBadUrl(oi.thumbnailUrl)) oi.thumbnailUrl = null;
+    cleaned.overlay_image = oi;
+  }
+  
+  // Clean overlay_images array
+  if (Array.isArray(cleaned.overlay_images)) {
+    cleaned.overlay_images = cleaned.overlay_images.map(img => {
+      if (!img || typeof img !== 'object') return img;
+      const ci = { ...img };
+      if (isBadUrl(ci.url)) ci.url = null;
+      if (isBadUrl(ci.originalUrl)) ci.originalUrl = null;
+      if (isBadUrl(ci.thumbnailUrl)) ci.thumbnailUrl = null;
+      return ci;
+    });
+  }
+  
+  return cleaned;
+}
+
+
+
+
 // Feature flag support for new pricing logic
 const getFeatureFlags = () => {
   return {
@@ -337,7 +380,9 @@ exports.handler = async (event, context) => {
 
     // Insert order items with better error handling - only use columns that exist in database
     if (orderData.items && Array.isArray(orderData.items)) {
-      for (const item of orderData.items) {
+      for (const rawItem of orderData.items) {
+        const item = cleanItemForDb(rawItem);
+        console.log("[Create Order] Cleaned item file_key:", item.file_key, "file_url:", item.file_url ? item.file_url.substring(0, 80) : null);
         console.log('Inserting order item:', JSON.stringify(item, null, 2));
         console.log('Item details - width_in:', item.width_in, 'height_in:', item.height_in, 'file_key:', item.file_key, 'text_elements:', item.text_elements);
         try {
