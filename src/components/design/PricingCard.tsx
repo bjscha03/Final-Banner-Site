@@ -341,9 +341,11 @@ const PricingCard: React.FC = () => {
       textElements: quote.textElements,
       overlayImage: quote.overlayImage,
       file: quote.file,
-      // Add thumbnail URL for cart preview
+      // Add persistent URLs for cart
       thumbnailUrl: thumbnailUrl,
+      fileUrl: file?.url && !file.url.startsWith('blob:') && !file.url.startsWith('data:') ? file.url : null,
     };
+    console.log('[PricingCard] Adding to cart with:', { thumbnailUrl, fileUrl: file?.url ? file.url.substring(0, 60) : 'NULL' });
     addFromQuote(quoteData as any, undefined, pricing);
     
     // Clear uploaded images from AssetsPanel after successful add to cart
@@ -538,9 +540,11 @@ const PricingCard: React.FC = () => {
       textElements: quote.textElements,
       overlayImage: quote.overlayImage,
       file: quote.file,
-      // Add thumbnail URL for cart preview
+      // Add persistent URLs for cart
       thumbnailUrl: thumbnailUrl,
+      fileUrl: file?.url && !file.url.startsWith('blob:') && !file.url.startsWith('data:') ? file.url : null,
     };
+    console.log('[PricingCard] Adding to cart with:', { thumbnailUrl, fileUrl: file?.url ? file.url.substring(0, 60) : 'NULL' });
     addFromQuote(quoteData as any, undefined, pricing);
     
     // Reset design area after navigating to checkout
@@ -612,8 +616,10 @@ const PricingCard: React.FC = () => {
       file: quote.file,
       imageScale: quote.imageScale,
       imagePosition: quote.imagePosition,
-      thumbnailUrl: thumbnailUrl, // ADD THUMBNAIL URL HERE!
+      thumbnailUrl: thumbnailUrl,
+      fileUrl: file?.url && !file.url.startsWith('blob:') && !file.url.startsWith('data:') ? file.url : null,
     };
+    console.log('[PricingCard] Upsell: Adding to cart with:', { thumbnailUrl, fileUrl: file?.url ? file.url.substring(0, 60) : 'NULL' });
     
     selectedOptions.forEach(option => {
       if (option.selected) {

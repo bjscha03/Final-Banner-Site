@@ -288,9 +288,14 @@ export const useCartStore = create<CartState>()(
           // Use thumbnailUrl if provided (may be blob URL for immediate display)
           // Note: Blob URLs won't persist across sessions, but will work for current session
           file_url: (() => {
-            // Store ORIGINAL file URL for editing (not thumbnail with grommets)
-            // Check BOTH file and overlayImage (overlayImage is used for uploaded images)
-            const fileUrl = (quote.file as any)?.originalUrl || quote.file?.url || (quote as any).overlayImage?.url; // Use originalUrl for PDFs
+            // PRIORITY: Use explicit fileUrl from PricingCard if provided (already validated)
+            const explicitFileUrl = (quote as any).fileUrl;
+            if (explicitFileUrl) {
+              console.log('[CART STORE] ✅ Using explicit fileUrl from PricingCard:', explicitFileUrl.substring(0, 80));
+              return explicitFileUrl;
+            }
+            // Fallback: Check file and overlayImage
+            const fileUrl = (quote.file as any)?.originalUrl || quote.file?.url || (quote as any).overlayImage?.url;
             const fileKey = quote.file?.fileKey || (quote as any).overlayImage?.fileKey;
             const proofUrl = aiMetadata?.assets?.proofUrl;
             
