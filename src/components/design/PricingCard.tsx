@@ -264,11 +264,25 @@ const PricingCard: React.FC = () => {
       line_total_cents: Math.round(baseTotals.materialTotal * 100),
     };
     // Generate thumbnail for cart preview
-    // Use the canvas thumbnail from the editor store (auto-generated)
+    // For PDFs, use Cloudinary's PDF-to-image transformation for a persistent URL
+    // This avoids using large base64 canvas thumbnails that can't be saved to the database
     let thumbnailUrl = canvasThumbnail;
     
-    // Fallback to file URL if canvas thumbnail not available
-    if (!thumbnailUrl && file && file.url) {
+    // For PDFs with a Cloudinary URL, generate a persistent thumbnail URL
+    if (file?.isPdf && file?.url && file.url.includes('cloudinary.com')) {
+      // Transform PDF URL to get page 1 as a PNG thumbnail
+      // e.g. .../upload/v123/file.pdf -> .../upload/pg_1,w_400/v123/file.png
+      const pdfUrl = file.url;
+      const uploadIndex = pdfUrl.indexOf('/upload/');
+      if (uploadIndex !== -1) {
+        const beforeUpload = pdfUrl.substring(0, uploadIndex + 8);
+        const afterUpload = pdfUrl.substring(uploadIndex + 8);
+        thumbnailUrl = beforeUpload + 'pg_1,w_400/' + afterUpload.replace(/\.pdf$/i, '.png');
+        console.log('[PricingCard] Using Cloudinary PDF thumbnail:', thumbnailUrl);
+      }
+    }
+    // Fallback to canvas thumbnail if not a PDF
+    else if (!thumbnailUrl && file && file.url) {
       thumbnailUrl = file.url;
     }
     // Fallback to first image object if still no thumbnail
@@ -447,11 +461,25 @@ const PricingCard: React.FC = () => {
       line_total_cents: Math.round(baseTotals.materialTotal * 100),
     };
     // Generate thumbnail for cart preview
-    // Use the canvas thumbnail from the editor store (auto-generated)
+    // For PDFs, use Cloudinary's PDF-to-image transformation for a persistent URL
+    // This avoids using large base64 canvas thumbnails that can't be saved to the database
     let thumbnailUrl = canvasThumbnail;
     
-    // Fallback to file URL if canvas thumbnail not available
-    if (!thumbnailUrl && file && file.url) {
+    // For PDFs with a Cloudinary URL, generate a persistent thumbnail URL
+    if (file?.isPdf && file?.url && file.url.includes('cloudinary.com')) {
+      // Transform PDF URL to get page 1 as a PNG thumbnail
+      // e.g. .../upload/v123/file.pdf -> .../upload/pg_1,w_400/v123/file.png
+      const pdfUrl = file.url;
+      const uploadIndex = pdfUrl.indexOf('/upload/');
+      if (uploadIndex !== -1) {
+        const beforeUpload = pdfUrl.substring(0, uploadIndex + 8);
+        const afterUpload = pdfUrl.substring(uploadIndex + 8);
+        thumbnailUrl = beforeUpload + 'pg_1,w_400/' + afterUpload.replace(/\.pdf$/i, '.png');
+        console.log('[PricingCard] Using Cloudinary PDF thumbnail:', thumbnailUrl);
+      }
+    }
+    // Fallback to canvas thumbnail if not a PDF
+    else if (!thumbnailUrl && file && file.url) {
       thumbnailUrl = file.url;
     }
     // Fallback to first image object if still no thumbnail
@@ -505,10 +533,22 @@ const PricingCard: React.FC = () => {
     }
 
     // Generate thumbnail for cart preview BEFORE building updatedQuote
+    // For PDFs, use Cloudinary's PDF-to-image transformation for a persistent URL
     let thumbnailUrl = canvasThumbnail;
     
+    // For PDFs with a Cloudinary URL, generate a persistent thumbnail URL
+    if (file?.isPdf && file?.url && file.url.includes('cloudinary.com')) {
+      const pdfUrl = file.url;
+      const uploadIndex = pdfUrl.indexOf('/upload/');
+      if (uploadIndex !== -1) {
+        const beforeUpload = pdfUrl.substring(0, uploadIndex + 8);
+        const afterUpload = pdfUrl.substring(uploadIndex + 8);
+        thumbnailUrl = beforeUpload + 'pg_1,w_400/' + afterUpload.replace(/\.pdf$/i, '.png');
+        console.log('[PricingCard] Upsell - Using Cloudinary PDF thumbnail:', thumbnailUrl);
+      }
+    }
     // Fallback to file URL if canvas thumbnail not available
-    if (!thumbnailUrl && file && file.url) {
+    else if (!thumbnailUrl && file && file.url) {
       thumbnailUrl = file.url;
     }
     // Fallback to first image object if still no thumbnail
