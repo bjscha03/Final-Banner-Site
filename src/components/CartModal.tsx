@@ -175,6 +175,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                         {/* DEBUG: Log thumbnail source */}
                         {console.log('🛒 CART MODAL: Rendering thumbnail for item:', {
                           itemId: item.id,
+                          thumbnail_url: item.thumbnail_url ? item.thumbnail_url.substring(0, 80) + '...' : 'NULL',
                           file_url: item.file_url ? item.file_url.substring(0, 50) + '...' : null,
                           isDataUrl: item.file_url?.startsWith('data:image/'),
                           web_preview_url: item.web_preview_url,

@@ -757,6 +757,7 @@ export const useCartStore = create<CartState>()(
           serverItems.forEach((item, idx) => {
             console.log(`  Item ${idx}:`, {
               id: item.id,
+              thumbnail_url: item.thumbnail_url ? item.thumbnail_url.substring(0, 80) : 'NULL',
               web_preview_url: item.web_preview_url,
               file_url: item.file_url,
               print_ready_url: item.print_ready_url,
