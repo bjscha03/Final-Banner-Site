@@ -348,9 +348,17 @@ export const useCartStore = create<CartState>()(
         console.log('💾 CART STORAGE: Item added, will persist to localStorage');
         console.log("[CART STORE] About to add item to cart:", newItem);
         console.log("[CART STORE] Current cart items:", get().items);
+        console.log("[CART STORE] 🔍 BEFORE SET - All items thumbnail_url:");
+        get().items.forEach((item, idx) => {
+          console.log(`  Item ${idx} (${item.id}): thumbnail_url =`, item.thumbnail_url ? item.thumbnail_url.substring(0, 80) : 'NULL');
+        });
         set((state) => ({ items: [...state.items, newItem] }));
 
         console.log("[CART STORE] Item added successfully. New cart items:", get().items);
+        console.log("[CART STORE] 🔍 AFTER SET - All items thumbnail_url:");
+        get().items.forEach((item, idx) => {
+          console.log(`  Item ${idx} (${item.id}): thumbnail_url =`, item.thumbnail_url ? item.thumbnail_url.substring(0, 80) : 'NULL');
+        });
         // CRITICAL FIX: Set cart owner to current user
         const userId = cartSync.getUserId();
         if (userId && typeof localStorage !== 'undefined') {
