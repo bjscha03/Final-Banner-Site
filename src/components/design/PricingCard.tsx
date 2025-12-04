@@ -272,13 +272,16 @@ const PricingCard: React.FC = () => {
     // CRITICAL FIX: For PDFs, after conversion to bitmap, file.url becomes a blob URL
     // but the original Cloudinary URL is preserved in file.originalUrl
     const pdfCloudinaryUrl = (file as any)?.originalUrl || file?.url;
-    console.log('[PricingCard] Thumbnail debug:', {
+    console.log('[PricingCard] 🔍 Thumbnail debug:', {
       canvasThumbnail: canvasThumbnail ? (canvasThumbnail.startsWith('data:') ? 'BASE64 (will skip)' : canvasThumbnail.substring(0, 50)) : 'NULL',
       isPdf: file?.isPdf,
       fileUrl: file?.url ? file.url.substring(0, 80) : 'NULL',
+      fileUrlIsBlob: file?.url?.startsWith('blob:'),
+      fileUrlIsCloudinary: file?.url?.includes('cloudinary.com'),
       originalUrl: (file as any)?.originalUrl ? (file as any).originalUrl.substring(0, 80) : 'NULL',
       pdfCloudinaryUrl: pdfCloudinaryUrl ? pdfCloudinaryUrl.substring(0, 80) : 'NULL',
       hasCloudinary: pdfCloudinaryUrl?.includes('cloudinary.com'),
+      artworkWidth: file?.artworkWidth,
       editorObjectsCount: editorObjects.length
     });
     

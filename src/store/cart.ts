@@ -376,7 +376,12 @@ export const useCartStore = create<CartState>()(
       // CRITICAL FIX: Sync to Neon database AFTER state update completes
       // Use setTimeout to ensure state has been updated before syncing
       setTimeout(() => {
-        console.log("[CART STORE] Syncing to server. Items count:", get().items.length);
+        const itemsToSync = get().items;
+        console.log("[CART STORE] Syncing to server. Items count:", itemsToSync.length);
+        // DEBUG: Log thumbnail_url for each item
+        itemsToSync.forEach((item, idx) => {
+          console.log(`[CART STORE] Item ${idx} thumbnail_url:`, item.thumbnail_url ? item.thumbnail_url.substring(0, 80) : 'NULL');
+        });
         get().syncToServer();
       }, 0);
       },
@@ -413,7 +418,12 @@ export const useCartStore = create<CartState>()(
       // CRITICAL FIX: Sync to Neon database AFTER state update completes
       // Use setTimeout to ensure state has been updated before syncing
       setTimeout(() => {
-        console.log("[CART STORE] Syncing to server. Items count:", get().items.length);
+        const itemsToSync = get().items;
+        console.log("[CART STORE] Syncing to server. Items count:", itemsToSync.length);
+        // DEBUG: Log thumbnail_url for each item
+        itemsToSync.forEach((item, idx) => {
+          console.log(`[CART STORE] Item ${idx} thumbnail_url:`, item.thumbnail_url ? item.thumbnail_url.substring(0, 80) : 'NULL');
+        });
         get().syncToServer();
       }, 0);
       },
@@ -567,7 +577,12 @@ export const useCartStore = create<CartState>()(
       // CRITICAL FIX: Sync to Neon database AFTER state update completes
       // Use setTimeout to ensure state has been updated before syncing
       setTimeout(() => {
-        console.log("[CART STORE] Syncing to server. Items count:", get().items.length);
+        const itemsToSync = get().items;
+        console.log("[CART STORE] Syncing to server. Items count:", itemsToSync.length);
+        // DEBUG: Log thumbnail_url for each item
+        itemsToSync.forEach((item, idx) => {
+          console.log(`[CART STORE] Item ${idx} thumbnail_url:`, item.thumbnail_url ? item.thumbnail_url.substring(0, 80) : 'NULL');
+        });
         get().syncToServer();
       }, 0);
       },
@@ -578,7 +593,12 @@ export const useCartStore = create<CartState>()(
       // CRITICAL FIX: Sync to Neon database AFTER state update completes
       // Use setTimeout to ensure state has been updated before syncing
       setTimeout(() => {
-        console.log("[CART STORE] Syncing to server. Items count:", get().items.length);
+        const itemsToSync = get().items;
+        console.log("[CART STORE] Syncing to server. Items count:", itemsToSync.length);
+        // DEBUG: Log thumbnail_url for each item
+        itemsToSync.forEach((item, idx) => {
+          console.log(`[CART STORE] Item ${idx} thumbnail_url:`, item.thumbnail_url ? item.thumbnail_url.substring(0, 80) : 'NULL');
+        });
         get().syncToServer();
       }, 0);
       },
@@ -588,7 +608,12 @@ export const useCartStore = create<CartState>()(
       // CRITICAL FIX: Sync to Neon database AFTER state update completes
       // Use setTimeout to ensure state has been updated before syncing
       setTimeout(() => {
-        console.log("[CART STORE] Syncing to server. Items count:", get().items.length);
+        const itemsToSync = get().items;
+        console.log("[CART STORE] Syncing to server. Items count:", itemsToSync.length);
+        // DEBUG: Log thumbnail_url for each item
+        itemsToSync.forEach((item, idx) => {
+          console.log(`[CART STORE] Item ${idx} thumbnail_url:`, item.thumbnail_url ? item.thumbnail_url.substring(0, 80) : 'NULL');
+        });
         get().syncToServer();
       }, 0);
       },

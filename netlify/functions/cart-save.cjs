@@ -35,11 +35,16 @@ exports.handler = async (event, context) => {
     if (cartData.length > 0) {
       console.log('[cart-save] First item keys:', Object.keys(cartData[0]));
       console.log('[cart-save] First item file_url:', cartData[0].file_url);
+      console.log('[cart-save] First item thumbnail_url:', cartData[0].thumbnail_url);
       console.log('[cart-save] First item is_pdf:', cartData[0].is_pdf);
       console.log('[cart-save] First item file_key:', cartData[0].file_key);
       console.log('[cart-save] First item overlay_image:', cartData[0].overlay_image);
       console.log('[cart-save] First item text_elements:', cartData[0].text_elements);
     }
+    // Log ALL items thumbnail_url for debugging
+    cartData.forEach((item, idx) => {
+      console.log('[cart-save] Item', idx, 'thumbnail_url:', item.thumbnail_url ? item.thumbnail_url.substring(0, 80) : 'NULL');
+    });
 
     // CRITICAL: Clean cart data - remove blob/data URLs that can cause DB errors (too large)
     const cleanedCartData = cartData.map(item => {
