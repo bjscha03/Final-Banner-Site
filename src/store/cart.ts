@@ -740,6 +740,8 @@ export const useCartStore = create<CartState>()(
       // Load cart from Neon database and merge with local
       loadFromServer: async () => {
         console.log('🔵 STORE: loadFromServer called');
+        console.log('🔵 STORE: loadFromServer STACK TRACE:', new Error().stack);
+        console.log('🔵 STORE: loadFromServer STACK TRACE:', new Error().stack);
         const userId = cartSync.getUserId();
         console.log('🔵 STORE: Got user ID:', userId);
         
