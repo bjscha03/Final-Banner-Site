@@ -282,16 +282,32 @@ const PricingCard: React.FC = () => {
       editorObjectsCount: editorObjects.length
     });
     
-    // Priority 1: For PDFs with a Cloudinary URL, generate a persistent thumbnail URL
-    // CRITICAL FIX: Check originalUrl first (for PDFs converted to bitmap), then fall back to url
+    // Priority 1: For PDFs with a Cloudinary URL
+    // CRITICAL FIX: PDFs are converted to JPEGs before upload, so Cloudinary URL is for JPEG not PDF.
+    // Just use the JPEG URL directly as thumbnail - no pg_1 transformation needed!
     if (file?.isPdf && pdfCloudinaryUrl && pdfCloudinaryUrl.includes('cloudinary.com')) {
-      const pdfUrl = pdfCloudinaryUrl;
-      const uploadIndex = pdfUrl.indexOf('/upload/');
-      if (uploadIndex !== -1) {
-        const beforeUpload = pdfUrl.substring(0, uploadIndex + 8);
-        const afterUpload = pdfUrl.substring(uploadIndex + 8);
-        thumbnailUrl = beforeUpload + 'pg_1,w_400/' + afterUpload.replace(/\.pdf$/i, '.png');
-        console.log('[PricingCard] PDF: Using Cloudinary pg_1 thumbnail:', thumbnailUrl);
+      // Check if this is actually a PDF URL (ends with .pdf) or a converted JPEG URL
+      if (pdfCloudinaryUrl.toLowerCase().endsWith('.pdf')) {
+        // True PDF on Cloudinary - use pg_1 transformation to get first page as image
+        const pdfUrl = pdfCloudinaryUrl;
+        const uploadIndex = pdfUrl.indexOf('/upload/');
+        if (uploadIndex !== -1) {
+          const beforeUpload = pdfUrl.substring(0, uploadIndex + 8);
+          const afterUpload = pdfUrl.substring(uploadIndex + 8);
+          thumbnailUrl = beforeUpload + 'pg_1,w_400/' + afterUpload.replace(/\.pdf$/i, '.png');
+          console.log('[PricingCard] PDF: Using Cloudinary pg_1 thumbnail:', thumbnailUrl);
+        }
+      } else {
+        // PDF was converted to JPEG before upload - just use the JPEG URL with resize
+        const uploadIndex = pdfCloudinaryUrl.indexOf('/upload/');
+        if (uploadIndex !== -1) {
+          const beforeUpload = pdfCloudinaryUrl.substring(0, uploadIndex + 8);
+          const afterUpload = pdfCloudinaryUrl.substring(uploadIndex + 8);
+          thumbnailUrl = beforeUpload + 'w_400,c_fit/' + afterUpload;
+        } else {
+          thumbnailUrl = pdfCloudinaryUrl;
+        }
+        console.log('[PricingCard] Converted PDF: Using JPEG URL as thumbnail:', thumbnailUrl ? thumbnailUrl.substring(0, 80) : 'NULL');
       }
     }
     
@@ -504,16 +520,27 @@ const PricingCard: React.FC = () => {
     // CRITICAL: ALWAYS use persistent Cloudinary URLs - NEVER base64 data URLs
     let thumbnailUrl: string | null = null;
     
-    // Priority 1: For PDFs, use Cloudinary pg_1 transformation
-    // CRITICAL FIX: Check originalUrl first (for PDFs converted to bitmap), then fall back to url
+    // Priority 1: For PDFs with a Cloudinary URL
+    // CRITICAL FIX: PDFs are converted to JPEGs before upload
     const pdfCloudinaryUrl2 = (file as any)?.originalUrl || file?.url;
     if (file?.isPdf && pdfCloudinaryUrl2 && pdfCloudinaryUrl2.includes('cloudinary.com')) {
-      const pdfUrl = pdfCloudinaryUrl2;
-      const uploadIndex = pdfUrl.indexOf('/upload/');
-      if (uploadIndex !== -1) {
-        const beforeUpload = pdfUrl.substring(0, uploadIndex + 8);
-        const afterUpload = pdfUrl.substring(uploadIndex + 8);
-        thumbnailUrl = beforeUpload + 'pg_1,w_400/' + afterUpload.replace(/\.pdf$/i, '.png');
+      if (pdfCloudinaryUrl2.toLowerCase().endsWith('.pdf')) {
+        const pdfUrl = pdfCloudinaryUrl2;
+        const uploadIndex = pdfUrl.indexOf('/upload/');
+        if (uploadIndex !== -1) {
+          const beforeUpload = pdfUrl.substring(0, uploadIndex + 8);
+          const afterUpload = pdfUrl.substring(uploadIndex + 8);
+          thumbnailUrl = beforeUpload + 'pg_1,w_400/' + afterUpload.replace(/\.pdf$/i, '.png');
+        }
+      } else {
+        const uploadIndex = pdfCloudinaryUrl2.indexOf('/upload/');
+        if (uploadIndex !== -1) {
+          const beforeUpload = pdfCloudinaryUrl2.substring(0, uploadIndex + 8);
+          const afterUpload = pdfCloudinaryUrl2.substring(uploadIndex + 8);
+          thumbnailUrl = beforeUpload + 'w_400,c_fit/' + afterUpload;
+        } else {
+          thumbnailUrl = pdfCloudinaryUrl2;
+        }
       }
     }
     // Priority 2: Use Cloudinary file URL (for images)
@@ -580,16 +607,27 @@ const PricingCard: React.FC = () => {
     // CRITICAL: ALWAYS use persistent Cloudinary URLs - NEVER base64 data URLs
     let thumbnailUrl: string | null = null;
     
-    // Priority 1: For PDFs, use Cloudinary pg_1 transformation
-    // CRITICAL FIX: Check originalUrl first (for PDFs converted to bitmap), then fall back to url
+    // Priority 1: For PDFs with a Cloudinary URL
+    // CRITICAL FIX: PDFs are converted to JPEGs before upload
     const pdfCloudinaryUrl2 = (file as any)?.originalUrl || file?.url;
     if (file?.isPdf && pdfCloudinaryUrl2 && pdfCloudinaryUrl2.includes('cloudinary.com')) {
-      const pdfUrl = pdfCloudinaryUrl2;
-      const uploadIndex = pdfUrl.indexOf('/upload/');
-      if (uploadIndex !== -1) {
-        const beforeUpload = pdfUrl.substring(0, uploadIndex + 8);
-        const afterUpload = pdfUrl.substring(uploadIndex + 8);
-        thumbnailUrl = beforeUpload + 'pg_1,w_400/' + afterUpload.replace(/\.pdf$/i, '.png');
+      if (pdfCloudinaryUrl2.toLowerCase().endsWith('.pdf')) {
+        const pdfUrl = pdfCloudinaryUrl2;
+        const uploadIndex = pdfUrl.indexOf('/upload/');
+        if (uploadIndex !== -1) {
+          const beforeUpload = pdfUrl.substring(0, uploadIndex + 8);
+          const afterUpload = pdfUrl.substring(uploadIndex + 8);
+          thumbnailUrl = beforeUpload + 'pg_1,w_400/' + afterUpload.replace(/\.pdf$/i, '.png');
+        }
+      } else {
+        const uploadIndex = pdfCloudinaryUrl2.indexOf('/upload/');
+        if (uploadIndex !== -1) {
+          const beforeUpload = pdfCloudinaryUrl2.substring(0, uploadIndex + 8);
+          const afterUpload = pdfCloudinaryUrl2.substring(uploadIndex + 8);
+          thumbnailUrl = beforeUpload + 'w_400,c_fit/' + afterUpload;
+        } else {
+          thumbnailUrl = pdfCloudinaryUrl2;
+        }
       }
     }
     // Priority 2: Use Cloudinary file URL (for images)
