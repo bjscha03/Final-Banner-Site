@@ -269,17 +269,23 @@ const PricingCard: React.FC = () => {
     let thumbnailUrl: string | null = null;
     
     // DEBUG: Log all relevant values
+    // CRITICAL FIX: For PDFs, after conversion to bitmap, file.url becomes a blob URL
+    // but the original Cloudinary URL is preserved in file.originalUrl
+    const pdfCloudinaryUrl = (file as any)?.originalUrl || file?.url;
     console.log('[PricingCard] Thumbnail debug:', {
       canvasThumbnail: canvasThumbnail ? (canvasThumbnail.startsWith('data:') ? 'BASE64 (will skip)' : canvasThumbnail.substring(0, 50)) : 'NULL',
       isPdf: file?.isPdf,
       fileUrl: file?.url ? file.url.substring(0, 80) : 'NULL',
-      hasCloudinary: file?.url?.includes('cloudinary.com'),
+      originalUrl: (file as any)?.originalUrl ? (file as any).originalUrl.substring(0, 80) : 'NULL',
+      pdfCloudinaryUrl: pdfCloudinaryUrl ? pdfCloudinaryUrl.substring(0, 80) : 'NULL',
+      hasCloudinary: pdfCloudinaryUrl?.includes('cloudinary.com'),
       editorObjectsCount: editorObjects.length
     });
     
     // Priority 1: For PDFs with a Cloudinary URL, generate a persistent thumbnail URL
-    if (file?.isPdf && file?.url && file.url.includes('cloudinary.com')) {
-      const pdfUrl = file.url;
+    // CRITICAL FIX: Check originalUrl first (for PDFs converted to bitmap), then fall back to url
+    if (file?.isPdf && pdfCloudinaryUrl && pdfCloudinaryUrl.includes('cloudinary.com')) {
+      const pdfUrl = pdfCloudinaryUrl;
       const uploadIndex = pdfUrl.indexOf('/upload/');
       if (uploadIndex !== -1) {
         const beforeUpload = pdfUrl.substring(0, uploadIndex + 8);
@@ -499,8 +505,10 @@ const PricingCard: React.FC = () => {
     let thumbnailUrl: string | null = null;
     
     // Priority 1: For PDFs, use Cloudinary pg_1 transformation
-    if (file?.isPdf && file?.url && file.url.includes('cloudinary.com')) {
-      const pdfUrl = file.url;
+    // CRITICAL FIX: Check originalUrl first (for PDFs converted to bitmap), then fall back to url
+    const pdfCloudinaryUrl2 = (file as any)?.originalUrl || file?.url;
+    if (file?.isPdf && pdfCloudinaryUrl2 && pdfCloudinaryUrl2.includes('cloudinary.com')) {
+      const pdfUrl = pdfCloudinaryUrl2;
       const uploadIndex = pdfUrl.indexOf('/upload/');
       if (uploadIndex !== -1) {
         const beforeUpload = pdfUrl.substring(0, uploadIndex + 8);
@@ -573,8 +581,10 @@ const PricingCard: React.FC = () => {
     let thumbnailUrl: string | null = null;
     
     // Priority 1: For PDFs, use Cloudinary pg_1 transformation
-    if (file?.isPdf && file?.url && file.url.includes('cloudinary.com')) {
-      const pdfUrl = file.url;
+    // CRITICAL FIX: Check originalUrl first (for PDFs converted to bitmap), then fall back to url
+    const pdfCloudinaryUrl2 = (file as any)?.originalUrl || file?.url;
+    if (file?.isPdf && pdfCloudinaryUrl2 && pdfCloudinaryUrl2.includes('cloudinary.com')) {
+      const pdfUrl = pdfCloudinaryUrl2;
       const uploadIndex = pdfUrl.indexOf('/upload/');
       if (uploadIndex !== -1) {
         const beforeUpload = pdfUrl.substring(0, uploadIndex + 8);
