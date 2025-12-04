@@ -667,9 +667,17 @@ export const useCartStore = create<CartState>()(
         // CRITICAL: Strip out blob/data URLs before syncing - they're too large for the database
         const items = rawItems.map(item => {
           const cleaned = { ...item };
+          // DEBUG: Log thumbnail_url before cleaning
+          console.log('[syncToServer] Item thumbnail_url BEFORE cleaning:', {
+            id: item.id,
+            thumbnail_url: item.thumbnail_url ? item.thumbnail_url.substring(0, 100) : 'NULL',
+            isBlob: item.thumbnail_url?.startsWith('blob:'),
+            isData: item.thumbnail_url?.startsWith('data:'),
+            length: item.thumbnail_url?.length
+          });
           // Remove bad URLs from all URL fields
           if (isBadUrl(cleaned.thumbnail_url)) {
-            console.log('[syncToServer] Stripping bad thumbnail_url');
+            console.log('[syncToServer] ⚠️ STRIPPING bad thumbnail_url:', item.thumbnail_url?.substring(0, 50));
             cleaned.thumbnail_url = undefined;
           }
           if (isBadUrl(cleaned.file_url)) {
