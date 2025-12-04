@@ -324,6 +324,12 @@ export const useCartStore = create<CartState>()(
             // Store thumbnail for DISPLAY in cart (has grommets/text rendered)
             const thumbnailUrl = (quote as any).thumbnailUrl;
             console.log('[CART STORE] 🖼️ Thumbnail URL for display:', thumbnailUrl ? thumbnailUrl.substring(0, 80) + '...' : 'NULL');
+            console.log('[CART STORE] 🖼️ Thumbnail URL details:', {
+              isBlob: thumbnailUrl?.startsWith('blob:'),
+              isData: thumbnailUrl?.startsWith('data:'),
+              isCloudinary: thumbnailUrl?.includes('cloudinary.com'),
+              length: thumbnailUrl?.length
+            });
             return thumbnailUrl || null;
           })(),
           web_preview_url: (aiMetadata?.assets?.proofUrl?.startsWith('blob:') ? null : aiMetadata?.assets?.proofUrl) || null,
