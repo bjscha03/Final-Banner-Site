@@ -471,8 +471,14 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       img.crossOrigin = 'anonymous';
       img.onload = () => {
         const aspectRatio = img.width / img.height;
-        const defaultWidth = Math.min(widthIn * 0.8, 12); // 80% of canvas width or 12 inches max
+        // For Canva imports, fill the canvas (user designed for full banner size)
+        // Use 95% of canvas width to leave small margin
+        const defaultWidth = widthIn * 0.95;
         const height = defaultWidth / aspectRatio;
+        
+        // If height exceeds canvas, scale down to fit
+        const finalWidth = height > heightIn * 0.95 ? (heightIn * 0.95) * aspectRatio : defaultWidth;
+        const finalHeight = height > heightIn * 0.95 ? heightIn * 0.95 : height;
         
         console.log('🎨 [CANVA IMPORT] Adding image to canvas:', { width: defaultWidth, height, aspectRatio });
         
@@ -484,8 +490,8 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
           name: canvaDesignName || 'Canva Design',
           x: widthIn / 2,
           y: heightIn / 2,
-          width: defaultWidth,
-          height: height,
+          width: finalWidth,
+          height: finalHeight,
           rotation: 0,
           opacity: 1,
           visible: true,
