@@ -1682,6 +1682,11 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                         BETA
                       </span>
                     </button>
+                  </>
+                )}
+                {/* Design with Canva button - Admin only for testing */}
+                {isAdminUser && (
+                  <>
                     <div className="text-gray-400 text-sm">or</div>
                     <button
                       onClick={handleDesignInCanva}
@@ -1689,7 +1694,10 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                       data-cta="canva-design-open"
                     >
                       <Palette className="w-5 h-5" />
-                      Design in Canva
+                      Design with Canva
+                      <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full shadow-sm">
+                        ADMIN
+                      </span>
                     </button>
                   </>
                 )}
