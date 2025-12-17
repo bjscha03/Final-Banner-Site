@@ -508,15 +508,15 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
           },
         });
         
-        // Wait for thumbnail generation then open upsell modal
+        // Set the Canva image URL directly as thumbnail (faster than waiting for canvas render)
+        setCanvasThumbnail(canvaDesignUrl);
+        
+        // Open upsell modal after a short delay
         setTimeout(() => {
-          generateThumbnail();
-          setTimeout(() => {
-            console.log('🎨 [CANVA IMPORT] Opening upsell modal');
-            setPendingAction('cart');
-            setShowUpsellModal(true);
-          }, 500);
-        }, 500);
+          console.log('🎨 [CANVA IMPORT] Opening upsell modal');
+          setPendingAction('cart');
+          setShowUpsellModal(true);
+        }, 300);
       };
       img.onerror = () => {
         console.error('🎨 [CANVA IMPORT] Failed to load image:', canvaDesignUrl);
