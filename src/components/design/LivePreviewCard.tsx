@@ -56,14 +56,23 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
   const { widthIn, heightIn, previewScalePct, grommets, file, overlayImage, textElements, editingItemId, set, addTextElement, updateTextElement, deleteTextElement } = useQuoteStore();
   const { user } = useAuth();
   const isAdminUser = user && isAdmin(user);
-  console.log('🔐 CANVA DEBUG:', { 
-    user: user ? { id: user.id, email: user.email, is_admin: user.is_admin } : 'NO USER',
-    isAdminUser: isAdminUser
-  });
-  console.log('🔐 CANVA DEBUG:', { 
-    user: user ? { id: user.id, email: user.email, is_admin: user.is_admin } : 'NO USER',
-    isAdminUser: isAdminUser
-  });
+  
+  // Debug: Show admin status on page load
+  React.useEffect(() => {
+    const hasAdminCookie = document.cookie.includes('admin=1');
+    const lsUser = localStorage.getItem('banners_current_user');
+    const debugInfo = {
+      user: user ? { id: user.id, email: user.email, is_admin: user.is_admin } : 'NO USER',
+      isAdminUser: isAdminUser,
+      hasAdminCookie: hasAdminCookie,
+      localStorage: lsUser ? JSON.parse(lsUser) : null
+    };
+    console.log('🔐 CANVA DEBUG:', debugInfo);
+    // Show alert if debug param present
+    if (window.location.search.includes('debug=1')) {
+      alert('Admin Debug:\n' + JSON.stringify(debugInfo, null, 2));
+    }
+  }, [user, isAdminUser]);
   console.log('🔍 LIVE PREVIEW: overlayImage from quote store:', overlayImage);
   const { toast } = useToast();
 
