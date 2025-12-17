@@ -33,9 +33,9 @@ const AdminSetup: React.FC = () => {
 
       console.log('🍪 Setting admin cookie:', cookieString);
 
-      // Create admin user in localStorage
+      // Create admin user in localStorage with valid UUID
       const adminUser = {
-        id: 'admin_dev_user',
+        id: '00000000-0000-0000-0000-000000000001',
         email: 'admin@dev.local',
         is_admin: true,
       };
@@ -46,8 +46,13 @@ const AdminSetup: React.FC = () => {
       setIsAdmin(true);
       toast({
         title: "Admin Access Granted",
-        description: "You now have admin access for 24 hours.",
+        description: "You now have admin access for 24 hours. Refreshing page...",
       });
+      
+      // Refresh the page to ensure auth state is properly updated everywhere
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
 
       // Verify the cookie was set
       setTimeout(() => {
