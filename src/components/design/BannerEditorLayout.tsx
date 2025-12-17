@@ -707,6 +707,38 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     }, 100);
   };
 
+
+  // Handle Canva design button
+  const handleDesignInCanva = () => {
+    // Check if user is logged in
+    if (!user || !user.id) {
+      console.error('❌ User not logged in');
+      toast({
+        title: 'Login Required',
+        description: 'Please sign in to use Canva design feature.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    // Generate a temporary order ID
+    const tempOrderId = `temp-${Date.now()}`;
+    
+    // Build the Canva start URL with parameters
+    const params = new URLSearchParams({
+      orderId: tempOrderId,
+      userId: user.id,
+      width: widthIn.toString(),
+      height: heightIn.toString()
+    });
+    
+    const canvaStartUrl = `/.netlify/functions/canva-start?${params.toString()}`;
+    
+    console.log('🎨 Opening Canva design session:', { tempOrderId, userId: user.id, widthIn, heightIn });
+    
+    // Navigate to Canva
+    window.location.href = canvaStartUrl;
+  };
     const handleAIGenerate = () => {
     if (!user) {
       toast({
@@ -1365,6 +1397,19 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
               >
                 <Sparkles className="w-4 h-4" />
                 AI Generate
+              </Button>
+            )}
+            {/* Canva Design Button - Admin only for testing */}
+            {isAdminUser && (
+              <Button
+                onClick={handleDesignInCanva}
+                variant="outline"
+                size="sm"
+                className="hidden sm:flex items-center gap-2 relative bg-gradient-to-r from-[#8B3DFF] to-[#00C4CC] hover:from-[#7D2AE7] hover:to-[#00B8C4] text-white border-0"
+              >
+                <Palette className="w-4 h-4" />
+                Canva
+                <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-[10px] font-bold px-1 py-0.5 rounded-full">ADMIN</span>
               </Button>
             )}
             <Button
