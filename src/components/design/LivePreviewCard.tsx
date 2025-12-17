@@ -56,6 +56,14 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
   const { widthIn, heightIn, previewScalePct, grommets, file, overlayImage, textElements, editingItemId, set, addTextElement, updateTextElement, deleteTextElement } = useQuoteStore();
   const { user } = useAuth();
   const isAdminUser = user && isAdmin(user);
+  console.log('🔐 CANVA DEBUG:', { 
+    user: user ? { id: user.id, email: user.email, is_admin: user.is_admin } : 'NO USER',
+    isAdminUser: isAdminUser
+  });
+  console.log('🔐 CANVA DEBUG:', { 
+    user: user ? { id: user.id, email: user.email, is_admin: user.is_admin } : 'NO USER',
+    isAdminUser: isAdminUser
+  });
   console.log('🔍 LIVE PREVIEW: overlayImage from quote store:', overlayImage);
   const { toast } = useToast();
 
