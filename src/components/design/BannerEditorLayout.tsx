@@ -451,6 +451,84 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     return () => clearTimeout(timeoutId);
   }, [editorObjects, canvasBackgroundColor, grommets, showGrommets]); // Re-generate when objects, background, or grommets change
 
+
+  // Check for Canva design import from sessionStorage
+  useEffect(() => {
+    const canvaDesignUrl = sessionStorage.getItem('canva-design-url');
+    const canvaDesignName = sessionStorage.getItem('canva-design-name');
+    const canvaDesignPublicId = sessionStorage.getItem('canva-design-publicId');
+    
+    if (canvaDesignUrl) {
+      console.log('🎨 [CANVA IMPORT] Found Canva design in sessionStorage:', { canvaDesignUrl, canvaDesignName });
+      
+      // Clear sessionStorage immediately to prevent re-importing
+      sessionStorage.removeItem('canva-design-url');
+      sessionStorage.removeItem('canva-design-name');
+      sessionStorage.removeItem('canva-design-publicId');
+      
+      // Create an Image to get dimensions
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const aspectRatio = img.width / img.height;
+        const defaultWidth = Math.min(widthIn * 0.8, 12); // 80% of canvas width or 12 inches max
+        const height = defaultWidth / aspectRatio;
+        
+        console.log('🎨 [CANVA IMPORT] Adding image to canvas:', { width: defaultWidth, height, aspectRatio });
+        
+        // Add the image to the canvas
+        addObject({
+          type: 'image',
+          url: canvaDesignUrl,
+          cloudinaryPublicId: canvaDesignPublicId || undefined,
+          name: canvaDesignName || 'Canva Design',
+          x: widthIn / 2,
+          y: heightIn / 2,
+          width: defaultWidth,
+          height: height,
+          rotation: 0,
+          opacity: 1,
+          visible: true,
+          locked: false,
+        });
+        
+        // Also set it as the file in quote store for thumbnail
+        setQuote({
+          file: {
+            url: canvaDesignUrl,
+            name: canvaDesignName || 'Canva Design',
+            type: 'image/png',
+          },
+          overlayImage: {
+            url: canvaDesignUrl,
+            name: canvaDesignName || 'Canva Design',
+            scale: 1,
+            aspectRatio: aspectRatio,
+            position: { x: 50, y: 50 },
+          },
+        });
+        
+        // Wait for thumbnail generation then open upsell modal
+        setTimeout(() => {
+          generateThumbnail();
+          setTimeout(() => {
+            console.log('🎨 [CANVA IMPORT] Opening upsell modal');
+            setPendingAction('cart');
+            setShowUpsellModal(true);
+          }, 500);
+        }, 500);
+      };
+      img.onerror = () => {
+        console.error('🎨 [CANVA IMPORT] Failed to load image:', canvaDesignUrl);
+        toast({
+          title: 'Import Failed',
+          description: 'Could not load your Canva design. Please try again.',
+          variant: 'destructive',
+        });
+      };
+      img.src = canvaDesignUrl;
+    }
+  }, []); // Run once on mount
   // Load cart item objects into canvas when editing
   useEffect(() => {
     if (!editingItemId) {
