@@ -1330,6 +1330,17 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
 
   return (
     <>
+    {/* Debug button for testing */}
+    {window.location.search.includes('debug=1') && (
+      <div className="fixed top-20 right-4 z-[9999] bg-red-500 text-white p-4 rounded shadow-lg">
+        <p className="font-bold">DEBUG MODE</p>
+        <p className="text-sm">editingItemId: {editingItemId || 'null'}</p>
+        <p className="text-sm">file: {file ? 'yes' : 'no'}</p>
+        <p className="text-sm">overlayImage: {overlayImage ? 'yes' : 'no'}</p>
+        <p className="text-sm">textElements: {textElements?.length || 0}</p>
+        <p className="text-sm">editorObjects: {editorObjects?.length || 0}</p>
+      </div>
+    )}
     <div className="flex flex-col h-screen bg-gradient-to-br from-gray-50 to-gray-100">
 
 
