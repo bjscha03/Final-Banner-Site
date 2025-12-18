@@ -256,7 +256,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
               alt="Banner preview"
               className="absolute inset-0 w-full h-full"
               style={{
-                objectFit: 'cover',
+                objectFit: 'contain',
                 objectPosition: 'center'
               }}
               onLoad={() => setImageLoaded(true)}
@@ -317,7 +317,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
             alt="Banner preview"
             className="w-full h-full"
             style={{
-              objectFit: 'cover',
+              objectFit: 'contain',
               objectPosition: 'center'
             }}
             onLoad={() => setImageLoaded(true)}
