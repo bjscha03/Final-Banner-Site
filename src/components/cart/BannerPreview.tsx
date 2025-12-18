@@ -235,6 +235,12 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   });
   
   // PRIORITY 1: Canvas thumbnail (Cloudinary URLs, etc.) - render full-bleed on both mobile and desktop
+  console.log('🧪 PRIORITY 1 CHECK:', {
+    isCanvasThumbnail,
+    hasImageUrl: !!imageUrl,
+    imageError,
+    willEnterCanvasThumbnailPath: isCanvasThumbnail && !!imageUrl && !imageError
+  });
   if (isCanvasThumbnail && imageUrl && !imageError) {
     console.log('🖼️ CANVAS THUMBNAIL: Rendering full-bleed image (mobile-safe)');
     
