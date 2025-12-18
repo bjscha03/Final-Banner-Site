@@ -124,9 +124,14 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   imageScale = 1,
   imagePosition = { x: 0, y: 0 }
 }) => {
-  // Detect if imageUrl is a canvas thumbnail (data URL) or Cloudinary/external URL that should fill the preview
-  // Both data URLs and Cloudinary URLs should be rendered as full-bleed images
-  const isCanvasThumbnail = imageUrl?.startsWith('data:image/') || imageUrl?.includes('cloudinary') || imageUrl?.startsWith('https://');
+  // Detect if imageUrl is a canvas thumbnail (data URL) or Cloudinary URL that should fill the preview
+  // These should be rendered as full-bleed images, NOT with overlayImage positioning
+  const isCloudinaryUrl = imageUrl?.includes('cloudinary');
+  const isDataUrl = imageUrl?.startsWith('data:image/');
+  const isCanvasThumbnail = isDataUrl || isCloudinaryUrl;
+  
+  // For Cloudinary URLs (like Canva imports), we MUST render full-bleed and ignore overlayImage
+  // This prevents the image from appearing tiny/positioned when it should fill the entire preview
   
   // DEBUG: Log what we received
   console.log('🎨 BannerPreview: Received props:', {
@@ -232,6 +237,30 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
     isCanvasThumbnail,
     previewWidth,
     previewHeight
+  });
+  
+  // AGGRESSIVE DEBUG: What URL are we getting?
+  console.log('🚨🚨🚨 BANNER PREVIEW URL DEBUG 🚨🚨��:', {
+    imageUrl_full: imageUrl,
+    imageUrl_first100: imageUrl?.substring(0, 100),
+    isCloudinaryUrl,
+    isDataUrl,
+    isCanvasThumbnail,
+    overlayImage_url: overlayImage?.url?.substring(0, 100),
+    overlayImage_position: overlayImage?.position,
+    overlayImage_scale: overlayImage?.scale,
+  });
+  
+  // AGGRESSIVE DEBUG: What URL are we getting?
+  console.log('🚨🚨🚨 BANNER PREVIEW URL DEBUG 🚨🚨��:', {
+    imageUrl_full: imageUrl,
+    imageUrl_first100: imageUrl?.substring(0, 100),
+    isCloudinaryUrl,
+    isDataUrl,
+    isCanvasThumbnail,
+    overlayImage_url: overlayImage?.url?.substring(0, 100),
+    overlayImage_position: overlayImage?.position,
+    overlayImage_scale: overlayImage?.scale,
   });
   
   // PRIORITY 1: Canvas thumbnail (Cloudinary URLs, etc.) - render full-bleed on both mobile and desktop
