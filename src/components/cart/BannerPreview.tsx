@@ -124,8 +124,9 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   imageScale = 1,
   imagePosition = { x: 0, y: 0 }
 }) => {
-  // Detect if imageUrl is a canvas thumbnail (data URL)
-  const isCanvasThumbnail = imageUrl?.startsWith('data:image/');
+  // Detect if imageUrl is a canvas thumbnail (data URL) or Cloudinary/external URL that should fill the preview
+  // Both data URLs and Cloudinary URLs should be rendered as full-bleed images
+  const isCanvasThumbnail = imageUrl?.startsWith('data:image/') || imageUrl?.includes('cloudinary') || imageUrl?.startsWith('https://');
   
   // DEBUG: Log what we received
   console.log('🎨 BannerPreview: Received props:', {
