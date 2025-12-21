@@ -627,23 +627,20 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       return;
     }
 
-    // Generate a unique order ID for this design session
-    const orderId = `design_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+    // Generate a temporary order ID
+    const tempOrderId = `temp-${Date.now()}`;
 
-    // Calculate dimensions in pixels at 150 DPI for print quality
-    const dpi = 150;
-    const widthPx = Math.round(widthIn * dpi);
-    const heightPx = Math.round(heightIn * dpi);
+    console.log('🎨 Opening Canva design session:', { tempOrderId, userId: user.id, widthIn, heightIn });
 
-    console.log('🎨 Starting Canva OAuth flow:', { orderId, userId: user.id, widthPx, heightPx });
+    // Build the Canva start URL with parameters (pass INCHES, not pixels)
+    const params = new URLSearchParams({
+      orderId: tempOrderId,
+      userId: user.id,
+      width: widthIn.toString(),
+      height: heightIn.toString()
+    });
 
-    // Store dimensions in sessionStorage for the callback to use
-    sessionStorage.setItem('canva_design_width', String(widthIn));
-    sessionStorage.setItem('canva_design_height', String(heightIn));
-    sessionStorage.setItem('canva_design_orderId', orderId);
-
-    // Build the Canva start URL (OAuth flow via Netlify function)
-    const canvaStartUrl = `/.netlify/functions/canva-start?orderId=${encodeURIComponent(orderId)}&userId=${encodeURIComponent(user.id)}&width=${widthPx}&height=${heightPx}`;
+    const canvaStartUrl = `/.netlify/functions/canva-start?${params.toString()}`;
 
     // Redirect to start the Canva OAuth flow
     window.location.href = canvaStartUrl;
