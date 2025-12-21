@@ -212,6 +212,16 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
     previewWidth = maxSize * aspectRatio;
   }
 
+  // CRITICAL DEBUG - Log container dimensions for troubleshooting
+  console.log('🔴🔴🔴 BANNER PREVIEW DIMENSIONS:', {
+    widthIn,
+    heightIn,
+    aspectRatio,
+    previewWidth,
+    previewHeight,
+    imageUrl: imageUrl?.substring(0, 80)
+  });
+
   // Calculate grommet positions
   const grommetPositions = useMemo(() => {
     return calculateGrommetPoints(widthIn, heightIn, grommets);
@@ -294,7 +304,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
                 objectFit: 'contain',
                 objectPosition: 'center'
               }}
-              onLoad={() => setImageLoaded(true)}
+              onLoad={(e) => { console.log('🔴 IMAGE LOADED:', { naturalWidth: (e.target as HTMLImageElement).naturalWidth, naturalHeight: (e.target as HTMLImageElement).naturalHeight }); setImageLoaded(true); }}
               onError={() => setImageError(true)}
             />
             
@@ -355,7 +365,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
               objectFit: 'contain',
               objectPosition: 'center'
             }}
-            onLoad={() => setImageLoaded(true)}
+            onLoad={(e) => { console.log('🔴 IMAGE LOADED:', { naturalWidth: (e.target as HTMLImageElement).naturalWidth, naturalHeight: (e.target as HTMLImageElement).naturalHeight }); setImageLoaded(true); }}
             onError={() => setImageError(true)}
           />
         </div>
