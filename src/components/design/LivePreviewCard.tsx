@@ -97,60 +97,8 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
   const [initialOverlayPinchDistance, setInitialOverlayPinchDistance] = useState(0);
   const [pinchStartOverlayScale, setPinchStartOverlayScale] = useState(0.3);
 
-  // Canva Design Button SDK state
-  const [canvaInstance, setCanvaInstance] = useState<any>(null);
-  const [canvaSdkLoaded, setCanvaSdkLoaded] = useState(false);
-
-  // Initialize Canva SDK for admin users only
-  useEffect(() => {
-    // Only initialize for admin users
-    if (!isAdminUser) {
-      console.log('�� Canva SDK: Not initializing - user is not admin');
-      return;
-    }
-
-    // Check if Canva SDK is loaded
-    const initCanva = () => {
-      if (typeof window !== 'undefined' && (window as any).Canva) {
-        try {
-          const canva = new (window as any).Canva.DesignButton({
-            clientId: import.meta.env.VITE_CANVA_CLIENT_ID || '',
-            redirectUrl: `${window.location.origin}/canva-callback`,
-          });
-          setCanvaInstance(canva);
-          setCanvaSdkLoaded(true);
-          console.log('🎨 Canva SDK: Initialized successfully');
-        } catch (error) {
-          console.error('🎨 Canva SDK: Failed to initialize:', error);
-          setCanvaSdkLoaded(false);
-        }
-      } else {
-        console.error('🎨 Canva SDK: SDK not loaded on window');
-        setCanvaSdkLoaded(false);
-      }
-    };
-
-    // Try to initialize immediately, or wait for SDK to load
-    if ((window as any).Canva) {
-      initCanva();
-    } else {
-      // Wait for SDK to load (max 5 seconds)
-      let attempts = 0;
-      const maxAttempts = 50;
-      const checkInterval = setInterval(() => {
-        attempts++;
-        if ((window as any).Canva) {
-          clearInterval(checkInterval);
-          initCanva();
-        } else if (attempts >= maxAttempts) {
-          clearInterval(checkInterval);
-          console.error('🎨 Canva SDK: Failed to load after 5 seconds');
-        }
-      }, 100);
-
-      return () => clearInterval(checkInterval);
-    }
-  }, [isAdminUser]);
+  // Canva OAuth integration uses Netlify functions (canva-start.cjs)
+  // The Design Button SDK is China-only (canva.cn), so we use OAuth flow instead
 
   // Reset image position and scale when file is cleared
   // Only reset image state when file is actually removed, not when it changes
@@ -679,67 +627,26 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       return;
     }
 
-    // Check if Canva SDK is loaded and initialized
-    if (!canvaInstance || !canvaSdkLoaded) {
-      console.error('🎨 Canva SDK: Not initialized');
-      toast({
-        title: 'Canva Not Ready',
-        description: 'Canva is still loading. Please try again in a moment.',
-        variant: 'destructive',
-      });
-      return;
-    }
+    // Generate a unique order ID for this design session
+    const orderId = `design_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
 
     // Calculate dimensions in pixels at 150 DPI for print quality
     const dpi = 150;
     const widthPx = Math.round(widthIn * dpi);
     const heightPx = Math.round(heightIn * dpi);
 
-    console.log('🎨 Opening Canva editor:', { widthIn, heightIn, widthPx, heightPx });
+    console.log('🎨 Starting Canva OAuth flow:', { orderId, userId: user.id, widthPx, heightPx });
 
-    try {
-      canvaInstance.openEditor({
-        design: {
-          type: 'Banner',
-          dimensions: {
-            width: widthPx,
-            height: heightPx,
-            units: 'px',
-          },
-        },
-        onDesignExported: (design: { exportUrl: string; designId: string }) => {
-          console.log('🎨 Canva design exported:', design);
-          
-          // Store the design URL in the quote store as an overlay image
-          if (design.exportUrl) {
-            set({
-              overlayImage: {
-                url: design.exportUrl,
-                fileKey: `canva-${design.designId}`,
-                x: 0,
-                y: 0,
-                scale: 1,
-              },
-            });
-            
-            toast({
-              title: 'Design Imported!',
-              description: 'Your Canva design has been added to the banner.',
-            });
-          }
-        },
-        onDesignClose: () => {
-          console.log('🎨 Canva editor closed');
-        },
-      });
-    } catch (error) {
-      console.error('🎨 Canva SDK: Failed to open editor:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to open Canva editor. Please try again.',
-        variant: 'destructive',
-      });
-    }
+    // Store dimensions in sessionStorage for the callback to use
+    sessionStorage.setItem('canva_design_width', String(widthIn));
+    sessionStorage.setItem('canva_design_height', String(heightIn));
+    sessionStorage.setItem('canva_design_orderId', orderId);
+
+    // Build the Canva start URL (OAuth flow via Netlify function)
+    const canvaStartUrl = `/.netlify/functions/canva-start?orderId=${encodeURIComponent(orderId)}&userId=${encodeURIComponent(user.id)}&width=${widthPx}&height=${heightPx}`;
+
+    // Redirect to start the Canva OAuth flow
+    window.location.href = canvaStartUrl;
   };
   const removeFile = () => {
     if (file?.url) {
