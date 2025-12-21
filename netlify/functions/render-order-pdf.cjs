@@ -736,7 +736,18 @@ exports.handler = async (event) => {
     }
     console.log('[PDF] ==========================================');
     
-    if (req.overlayImage && (req.overlayImage.url || req.overlayImage.fileKey)) {
+    // Skip overlay rendering if overlay URL matches main image URL (Canva imports)
+    // For Canva imports, the main image IS the full design - no need to render overlay on top
+    const overlayMatchesMainImage = req.overlayImage && req.imageUrl &&
+      (req.overlayImage.url === req.imageUrl ||
+       (req.overlayImage.url && req.imageUrl && req.overlayImage.url.includes('cloudinary') && req.imageUrl.includes('cloudinary') &&
+        req.overlayImage.url.split('/')[req.overlayImage.url.split('/').length - 1] === req.imageUrl.split('/')[req.imageUrl.split('/').length - 1]));
+
+    if (overlayMatchesMainImage) {
+      console.log('[PDF] ⏭️ Skipping overlay - URL matches main image (Canva import)');
+      console.log('[PDF]   Main image URL:', req.imageUrl);
+      console.log('[PDF]   Overlay URL:', req.overlayImage.url);
+    } else if (req.overlayImage && (req.overlayImage.url || req.overlayImage.fileKey)) {
       console.log('[PDF] Processing overlay image:', req.overlayImage.name);
       console.log('[PDF] Overlay position:', req.overlayImage.position);
       console.log('[PDF] Overlay scale:', req.overlayImage.scale);
