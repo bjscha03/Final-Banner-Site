@@ -115,43 +115,33 @@ exports.handler = async (event, context) => {
     console.log('[cart-save] Cart JSON size:', Math.round(cartDataJson.length / 1024), 'KB');
 
     if (userId) {
-      // First, ensure the user exists in profiles table (required by foreign key constraint)
-      // This handles cases where auth user exists but profile hasn't been created yet
-      console.log('[cart-save] Ensuring profile exists for user:', userId);
+      // Check if profile exists before trying to save with userId
+      console.log('[cart-save] Checking if profile exists for user:', userId);
       const profileCheck = await sql`
         SELECT id FROM profiles WHERE id = ${userId}
       `;
       
       if (profileCheck.length === 0) {
-        console.log('[cart-save] Profile does not exist, creating minimal profile for user:', userId);
-        try {
+        // Profile doesn't exist - fall back to session-based cart
+        console.log('[cart-save] Profile does not exist for userId, using session-based storage');
+        if (sessionId) {
           await sql`
-            INSERT INTO profiles (id, updated_at)
-            VALUES (${userId}, NOW())
-            ON CONFLICT (id) DO NOTHING
+            DELETE FROM user_carts
+            WHERE session_id = ${sessionId} AND status = 'active'
           `;
-          console.log('[cart-save] Profile created successfully');
-        } catch (profileError) {
-          console.error('[cart-save] Failed to create profile, falling back to session-based cart:', profileError.message);
-          // Fallback: use sessionId-based cart if profile creation fails
-          if (sessionId) {
-            console.log('[cart-save] Using session-based cart as fallback');
-            await sql`
-              DELETE FROM user_carts
-              WHERE session_id = ${sessionId} AND status = 'active'
-            `;
-            await sql`
-              INSERT INTO user_carts (session_id, cart_data, status, updated_at, last_accessed_at)
-              VALUES (${sessionId}, ${cartDataJson}::jsonb, 'active', NOW(), NOW())
-            `;
-            console.log('[cart-save] Cart saved using session fallback');
-            return { statusCode: 200, headers, body: JSON.stringify({ success: true, fallback: 'session' }) };
-          }
-          throw profileError;
+          await sql`
+            INSERT INTO user_carts (session_id, cart_data, status, updated_at, last_accessed_at)
+            VALUES (${sessionId}, ${cartDataJson}::jsonb, 'active', NOW(), NOW())
+          `;
+          console.log('[cart-save] Cart saved using session fallback');
+          return { statusCode: 200, headers, body: JSON.stringify({ success: true, fallback: 'session' }) };
+        } else {
+          console.log('[cart-save] No sessionId available, cannot save cart');
+          return { statusCode: 200, headers, body: JSON.stringify({ success: false, error: 'No valid storage method' }) };
         }
       }
       
-      // BULLETPROOF: Delete ALL active carts for this user first, then insert new one
+      // Profile exists - save with userId
       console.log('[cart-save] Deleting all active carts for user:', userId);
       await sql`
         DELETE FROM user_carts

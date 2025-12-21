@@ -616,40 +616,31 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
 
   // Canva integration handler
   const handleDesignInCanva = () => {
-    console.log('🎨 handleDesignInCanva CALLED!', { user, widthIn, heightIn });
-    
-    // Check if user is logged in
-    if (!user || !user.id) {
-      console.error('❌ User not logged in:', user);
-      alert('Please log in to use Canva design feature');
-      toast({
-        title: 'Login Required',
-        description: 'Please log in to use the Canva design feature',
-        variant: 'destructive',
-      });
-      return;
+    // SIMPLE DEBUG - just try to redirect
+    try {
+      const userId = user?.id || 'unknown';
+      const tempOrderId = 'temp-' + Date.now();
+      
+      console.log('CANVA BUTTON CLICKED', { userId, widthIn, heightIn });
+      
+      if (!user?.id) {
+        alert('Not logged in - user.id is: ' + userId);
+        return;
+      }
+      
+      const url = '/.netlify/functions/canva-start?orderId=' + tempOrderId + 
+                  '&userId=' + userId + 
+                  '&width=' + widthIn + 
+                  '&height=' + heightIn;
+      
+      console.log('Redirecting to:', url);
+      
+      // Try both methods
+      window.location.assign(url);
+    } catch (err) {
+      alert('Error: ' + err.message);
+      console.error('Canva error:', err);
     }
-
-    // Generate a temporary order ID
-    const tempOrderId = `temp-${Date.now()}`;
-
-    console.log('🎨 Opening Canva design session:', { tempOrderId, userId: user.id, widthIn, heightIn });
-
-    // Build the Canva start URL with parameters (pass INCHES, not pixels)
-    const params = new URLSearchParams({
-      orderId: tempOrderId,
-      userId: user.id,
-      width: widthIn.toString(),
-      height: heightIn.toString()
-    });
-
-    const canvaStartUrl = `/.netlify/functions/canva-start?${params.toString()}`;
-    
-    console.log('🎨 Redirecting to:', canvaStartUrl);
-    alert('Redirecting to: ' + canvaStartUrl);
-
-    // Redirect to start the Canva OAuth flow
-    window.location.href = canvaStartUrl;
   };
   const removeFile = () => {
     if (file?.url) {
