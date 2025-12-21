@@ -88,6 +88,7 @@ function downloadBinary(url) {
 
 /**
  * Export a Canva design as PNG
+ * NOTE: Only exports page 1 - users should design on page 1 only
  */
 async function exportCanvaDesign(accessToken, designId) {
   const exportUrl = `https://api.canva.com/rest/v1/exports`;
@@ -96,7 +97,9 @@ async function exportCanvaDesign(accessToken, designId) {
     design_id: designId,
     format: {
       type: 'png'
-    }
+    },
+    // Only export page 1 - Canva designs can have multiple pages but we only use the first
+    pages: [1]
   };
 
   const options = {
@@ -107,10 +110,12 @@ async function exportCanvaDesign(accessToken, designId) {
     }
   };
 
-  console.log(`📤 Requesting export for design ${designId}`);
+  console.log(`📤 Requesting export for design ${designId} (page 1 only)`);
+  console.log(`📤 Export request body:`, JSON.stringify(exportData, null, 2));
   const result = await httpsRequest(exportUrl, options, JSON.stringify(exportData));
   
   // The export is async, we get a job ID
+  console.log(`📤 Export job response:`, JSON.stringify(result, null, 2));
   return result;
 }
 
@@ -215,6 +220,7 @@ exports.handler = async (event, context) => {
       
       if (status.job.status === 'success') {
         console.log('✅ Export completed successfully');
+        console.log(`�� Received ${status.job.urls?.length || 0} export URL(s):`, status.job.urls);
         exportUrls = status.job.urls;
         break;
       } else if (status.job.status === 'failed') {
