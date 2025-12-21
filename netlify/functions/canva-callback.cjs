@@ -19,7 +19,7 @@ try {
   config = {
     CANVA_CLIENT_ID: process.env.CANVA_CLIENT_ID || 'OC-AZoNewWGWWOm',
     CANVA_CLIENT_SECRET: process.env.CANVA_CLIENT_SECRET,
-    CANVA_REDIRECT_URI: 'https://bannersonthefly.com/api/canva/callback',
+    CANVA_REDIRECT_URI: 'https://bannersonthefly.com/.netlify/functions/canva-callback',
     CANVA_SCOPES: process.env.CANVA_SCOPES || 'design:content:read design:content:write asset:read asset:write'
   };
 }
