@@ -616,9 +616,12 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
 
   // Canva integration handler
   const handleDesignInCanva = () => {
+    console.log('🎨 handleDesignInCanva CALLED!', { user, widthIn, heightIn });
+    
     // Check if user is logged in
     if (!user || !user.id) {
-      console.error('❌ User not logged in');
+      console.error('❌ User not logged in:', user);
+      alert('Please log in to use Canva design feature');
       toast({
         title: 'Login Required',
         description: 'Please log in to use the Canva design feature',
@@ -641,6 +644,9 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     });
 
     const canvaStartUrl = `/.netlify/functions/canva-start?${params.toString()}`;
+    
+    console.log('🎨 Redirecting to:', canvaStartUrl);
+    alert('Redirecting to: ' + canvaStartUrl);
 
     // Redirect to start the Canva OAuth flow
     window.location.href = canvaStartUrl;
