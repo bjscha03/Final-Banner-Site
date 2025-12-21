@@ -443,13 +443,20 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
 
   // Auto-generate thumbnail when canvas content changes
   useEffect(() => {
+    // Skip if we already have a Cloudinary thumbnail (from Canva import)
+    // This prevents overwriting the high-quality Canva export with a canvas-generated thumbnail
+    if (canvasThumbnail && canvasThumbnail.includes('cloudinary')) {
+      console.log('[THUMBNAIL] Skipping regeneration - already have Cloudinary thumbnail from Canva');
+      return;
+    }
+    
     // Debounce thumbnail generation to avoid too many updates
     const timeoutId = setTimeout(() => {
       generateThumbnail();
     }, 800); // Wait 800ms after last change to give images time to load on mobile
 
     return () => clearTimeout(timeoutId);
-  }, [editorObjects, canvasBackgroundColor, grommets, showGrommets]); // Re-generate when objects, background, or grommets change
+  }, [editorObjects, canvasBackgroundColor, grommets, showGrommets, canvasThumbnail]); // Re-generate when objects, background, or grommets change
 
 
   // Check for Canva design import from sessionStorage
