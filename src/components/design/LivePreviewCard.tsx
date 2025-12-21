@@ -56,23 +56,6 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
   const { widthIn, heightIn, previewScalePct, grommets, file, overlayImage, textElements, editingItemId, set, addTextElement, updateTextElement, deleteTextElement } = useQuoteStore();
   const { user } = useAuth();
   const isAdminUser = user && isAdmin(user);
-  
-  // Debug: Show admin status on page load
-  React.useEffect(() => {
-    const hasAdminCookie = document.cookie.includes('admin=1');
-    const lsUser = localStorage.getItem('banners_current_user');
-    const debugInfo = {
-      user: user ? { id: user.id, email: user.email, is_admin: user.is_admin } : 'NO USER',
-      isAdminUser: isAdminUser,
-      hasAdminCookie: hasAdminCookie,
-      localStorage: lsUser ? JSON.parse(lsUser) : null
-    };
-    console.log('🔐 CANVA DEBUG:', debugInfo);
-    // Show alert if debug param present
-    if (window.location.search.includes('debug=1')) {
-      alert('Admin Debug:\n' + JSON.stringify(debugInfo, null, 2));
-    }
-  }, [user, isAdminUser]);
   console.log('🔍 LIVE PREVIEW: overlayImage from quote store:', overlayImage);
   const { toast } = useToast();
 
@@ -113,6 +96,61 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
   const [isPinchingOverlay, setIsPinchingOverlay] = useState(false);
   const [initialOverlayPinchDistance, setInitialOverlayPinchDistance] = useState(0);
   const [pinchStartOverlayScale, setPinchStartOverlayScale] = useState(0.3);
+
+  // Canva Design Button SDK state
+  const [canvaInstance, setCanvaInstance] = useState<any>(null);
+  const [canvaSdkLoaded, setCanvaSdkLoaded] = useState(false);
+
+  // Initialize Canva SDK for admin users only
+  useEffect(() => {
+    // Only initialize for admin users
+    if (!isAdminUser) {
+      console.log('�� Canva SDK: Not initializing - user is not admin');
+      return;
+    }
+
+    // Check if Canva SDK is loaded
+    const initCanva = () => {
+      if (typeof window !== 'undefined' && (window as any).Canva) {
+        try {
+          const canva = new (window as any).Canva.DesignButton({
+            clientId: import.meta.env.VITE_CANVA_CLIENT_ID || '',
+            redirectUrl: `${window.location.origin}/canva-callback`,
+          });
+          setCanvaInstance(canva);
+          setCanvaSdkLoaded(true);
+          console.log('🎨 Canva SDK: Initialized successfully');
+        } catch (error) {
+          console.error('🎨 Canva SDK: Failed to initialize:', error);
+          setCanvaSdkLoaded(false);
+        }
+      } else {
+        console.error('🎨 Canva SDK: SDK not loaded on window');
+        setCanvaSdkLoaded(false);
+      }
+    };
+
+    // Try to initialize immediately, or wait for SDK to load
+    if ((window as any).Canva) {
+      initCanva();
+    } else {
+      // Wait for SDK to load (max 5 seconds)
+      let attempts = 0;
+      const maxAttempts = 50;
+      const checkInterval = setInterval(() => {
+        attempts++;
+        if ((window as any).Canva) {
+          clearInterval(checkInterval);
+          initCanva();
+        } else if (attempts >= maxAttempts) {
+          clearInterval(checkInterval);
+          console.error('🎨 Canva SDK: Failed to load after 5 seconds');
+        }
+      }, 100);
+
+      return () => clearInterval(checkInterval);
+    }
+  }, [isAdminUser]);
 
   // Reset image position and scale when file is cleared
   // Only reset image state when file is actually removed, not when it changes
@@ -633,31 +671,75 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     // Check if user is logged in
     if (!user || !user.id) {
       console.error('❌ User not logged in');
-      // You could show a toast or redirect to login here
-      alert('Please log in to use Canva design feature');
+      toast({
+        title: 'Login Required',
+        description: 'Please log in to use the Canva design feature',
+        variant: 'destructive',
+      });
       return;
     }
-    
-    // Generate a temporary order ID
-    const tempOrderId = `temp-${Date.now()}`;
-    
-    // ✅ Use real user ID from auth
-    const userId = user.id;
-    
-    // Build the Canva start URL with parameters
-    const params = new URLSearchParams({
-      orderId: tempOrderId,
-      userId: userId,
-      width: widthIn.toString(),
-      height: heightIn.toString()
-    });
-    
-    const canvaStartUrl = `/.netlify/functions/canva-start?${params.toString()}`;
-    
-    console.log('🎨 Opening Canva design session:', { tempOrderId, userId, widthIn, heightIn });
-    
-    // Open Canva in a new window
-    window.location.href = canvaStartUrl;
+
+    // Check if Canva SDK is loaded and initialized
+    if (!canvaInstance || !canvaSdkLoaded) {
+      console.error('🎨 Canva SDK: Not initialized');
+      toast({
+        title: 'Canva Not Ready',
+        description: 'Canva is still loading. Please try again in a moment.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Calculate dimensions in pixels at 150 DPI for print quality
+    const dpi = 150;
+    const widthPx = Math.round(widthIn * dpi);
+    const heightPx = Math.round(heightIn * dpi);
+
+    console.log('🎨 Opening Canva editor:', { widthIn, heightIn, widthPx, heightPx });
+
+    try {
+      canvaInstance.openEditor({
+        design: {
+          type: 'Banner',
+          dimensions: {
+            width: widthPx,
+            height: heightPx,
+            units: 'px',
+          },
+        },
+        onDesignExported: (design: { exportUrl: string; designId: string }) => {
+          console.log('🎨 Canva design exported:', design);
+          
+          // Store the design URL in the quote store as an overlay image
+          if (design.exportUrl) {
+            set({
+              overlayImage: {
+                url: design.exportUrl,
+                fileKey: `canva-${design.designId}`,
+                x: 0,
+                y: 0,
+                scale: 1,
+              },
+            });
+            
+            toast({
+              title: 'Design Imported!',
+              description: 'Your Canva design has been added to the banner.',
+            });
+          }
+        },
+        onDesignClose: () => {
+          console.log('🎨 Canva editor closed');
+        },
+      });
+    } catch (error) {
+      console.error('🎨 Canva SDK: Failed to open editor:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to open Canva editor. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
   const removeFile = () => {
     if (file?.url) {
@@ -1699,11 +1781,6 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                         BETA
                       </span>
                     </button>
-                  </>
-                )}
-                {/* Design with Canva button - Admin only for testing */}
-                {isAdminUser && (
-                  <>
                     <div className="text-gray-400 text-sm">or</div>
                     <button
                       onClick={handleDesignInCanva}
@@ -1711,10 +1788,8 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                       data-cta="canva-design-open"
                     >
                       <Palette className="w-5 h-5" />
-                      Design with Canva
-                      <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs font-bold px-1.5 py-0.5 rounded-full shadow-sm">
-                        ADMIN
-                      </span>
+                      <span className="absolute -top-1 -right-1 bg-purple-600 text-white text-xs font-bold px-1.5 py-0.5 rounded-full shadow-sm">ADMIN</span>
+                      Design in Canva
                     </button>
                   </>
                 )}
