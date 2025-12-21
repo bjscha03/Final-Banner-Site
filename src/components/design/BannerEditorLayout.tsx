@@ -794,9 +794,13 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
 
   // Handle Canva design button
   const handleDesignInCanva = () => {
+    console.log('🎨 handleDesignInCanva CALLED in BannerEditorLayout!');
+    alert('Canva button clicked in BannerEditorLayout!');
+    
     // Check if user is logged in
     if (!user || !user.id) {
-      console.error('❌ User not logged in');
+      console.error('❌ User not logged in:', user);
+      alert('Not logged in - user is: ' + JSON.stringify(user));
       toast({
         title: 'Login Required',
         description: 'Please sign in to use Canva design feature.',
@@ -819,6 +823,8 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     const canvaStartUrl = `/.netlify/functions/canva-start?${params.toString()}`;
     
     console.log('🎨 Opening Canva design session:', { tempOrderId, userId: user.id, widthIn, heightIn });
+    console.log('🎨 Redirecting to:', canvaStartUrl);
+    alert('Redirecting to: ' + canvaStartUrl);
     
     // Navigate to Canva
     window.location.href = canvaStartUrl;
