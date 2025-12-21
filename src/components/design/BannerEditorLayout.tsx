@@ -206,6 +206,14 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
 
   // Generate thumbnail for cart preview
   const generateThumbnail = async () => {
+    // Skip if we already have a Cloudinary thumbnail (from Canva import)
+    // This prevents overwriting the high-quality Canva export with a canvas-generated thumbnail
+    const currentThumbnail = useEditorStore.getState().canvasThumbnail;
+    if (currentThumbnail && currentThumbnail.includes('cloudinary')) {
+      console.log('[THUMBNAIL] Skipping generation - already have Cloudinary thumbnail from Canva:', currentThumbnail.substring(0, 60));
+      return currentThumbnail;
+    }
+
     if (!canvasRef.current) {
       return null;
     }
@@ -215,7 +223,6 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       if (!stage) {
         return null;
       }
-
       // Get current visibility state and selection
       const editorState = useEditorStore.getState();
       const { showBleed, showSafeZone, showGrid, setShowBleed, setShowSafeZone, setShowGrid } = editorState;
