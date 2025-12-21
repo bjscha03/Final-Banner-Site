@@ -685,7 +685,8 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
             );
           })}
           {/* Overlay Image (Logo) */}
-          {overlayImage && overlayImage.position && typeof overlayImage.position.x === 'number' && typeof overlayImage.position.y === 'number' && (() => {
+          {/* Skip overlay if URL matches main image (Canva imports) - the main image IS the full design */}
+          {overlayImage && overlayImage.position && typeof overlayImage.position.x === 'number' && typeof overlayImage.position.y === 'number' && overlayImage.url !== imageUrl && (() => {
             const aspectRatio = overlayImage.aspectRatio || 1;
             const baseDimension = Math.min(widthIn, heightIn);
             
