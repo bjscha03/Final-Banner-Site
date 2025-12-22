@@ -64,9 +64,68 @@ exports.handler = async (event, context) => {
       `;
     }
 
-    const cartData = result && result.length > 0 ? result[0].cart_data : [];
+    const rawCartData = result && result.length > 0 ? result[0].cart_data : [];
+
+    // CRITICAL FIX: Reconstruct image URLs from file_key when thumbnail_url and file_url are missing
+    // This ensures thumbnails display correctly after logout/login
+    const CLOUDINARY_BASE = 'https://res.cloudinary.com/dtrxl120u/image/upload';
+    
+    const cartData = rawCartData.map(item => {
+      const enhanced = { ...item };
+      
+      // If we have file_key but no displayable URLs, reconstruct them
+      if (item.file_key) {
+        // Reconstruct file_url if missing
+        if (!enhanced.file_url || enhanced.file_url.startsWith('blob:') || enhanced.file_url.startsWith('data:')) {
+          enhanced.file_url = `${CLOUDINARY_BASE}/${item.file_key}`;
+          console.log('[cart-load] Reconstructed file_url from file_key:', enhanced.file_url);
+        }
+        
+        // Reconstruct thumbnail_url if missing (use resized version for cart display)
+        if (!enhanced.thumbnail_url || enhanced.thumbnail_url.startsWith('blob:') || enhanced.thumbnail_url.startsWith('data:')) {
+          // Use Cloudinary transformations for optimized thumbnail
+          enhanced.thumbnail_url = `${CLOUDINARY_BASE}/w_400,h_400,c_fit,q_auto,f_auto/${item.file_key}`;
+          console.log('[cart-load] Reconstructed thumbnail_url from file_key:', enhanced.thumbnail_url);
+        }
+      }
+      
+      // Also check overlay_image for file_key reconstruction
+      if (enhanced.overlay_image && enhanced.overlay_image.fileKey) {
+        if (!enhanced.overlay_image.url || enhanced.overlay_image.url.startsWith('blob:') || enhanced.overlay_image.url.startsWith('data:')) {
+          enhanced.overlay_image = {
+            ...enhanced.overlay_image,
+            url: `${CLOUDINARY_BASE}/${enhanced.overlay_image.fileKey}`
+          };
+          console.log('[cart-load] Reconstructed overlay_image.url from fileKey');
+        }
+      }
+      
+      // Check overlay_images array
+      if (Array.isArray(enhanced.overlay_images)) {
+        enhanced.overlay_images = enhanced.overlay_images.map(img => {
+          if (img.fileKey && (!img.url || img.url.startsWith('blob:') || img.url.startsWith('data:'))) {
+            return {
+              ...img,
+              url: `${CLOUDINARY_BASE}/${img.fileKey}`
+            };
+          }
+          return img;
+        });
+      }
+      
+      return enhanced;
+    });
 
     console.log('[cart-load] Cart loaded:', { itemCount: cartData.length });
+    
+    // Log thumbnail reconstruction results
+    cartData.forEach((item, idx) => {
+      console.log(`[cart-load] Item ${idx} URLs:`, {
+        file_key: item.file_key,
+        file_url: item.file_url ? item.file_url.substring(0, 60) : 'NULL',
+        thumbnail_url: item.thumbnail_url ? item.thumbnail_url.substring(0, 60) : 'NULL'
+      });
+    });
 
     return {
       statusCode: 200,
