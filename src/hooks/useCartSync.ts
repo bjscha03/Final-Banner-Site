@@ -130,8 +130,27 @@ export function useCartSync() {
             console.log('✅ MERGE: Guest cart merge completed');
             console.log('✅ MERGE: Merged items count:', mergedItems.length);
             
-            // Update the store with merged items
-            console.log('✅ CART SYNC: Setting merged items:', mergedItems.length); console.log('✅ CART SYNC: Setting merged items:', mergedItems.length); useCartStore.setState({ items: mergedItems });
+            // CRITICAL FIX: MERGE server items with local items (don't replace)
+            // This ensures items added locally but not yet synced are NOT lost
+            const localItems = useCartStore.getState().items;
+            console.log('✅ CART SYNC: Local items before merge:', localItems.length);
+            console.log('✅ CART SYNC: Server items from merge:', mergedItems.length);
+            
+            // Merge: Keep all server items + add any local items not on server
+            const serverItemIds = new Set(mergedItems.map((item: any) => item.id));
+            const localOnlyItems = localItems.filter((item: any) => !serverItemIds.has(item.id));
+            const finalItems = [...mergedItems, ...localOnlyItems];
+            
+            console.log('✅ CART SYNC: Local-only items:', localOnlyItems.length);
+            console.log('✅ CART SYNC: Final merged items:', finalItems.length);
+            
+            useCartStore.setState({ items: finalItems });
+            
+            // If we had local-only items, sync them to server
+            if (localOnlyItems.length > 0) {
+              console.log('🔄 CART SYNC: Syncing local-only items to server...');
+              setTimeout(() => useCartStore.getState().syncToServer(), 100);
+            }
             
             // Set cart owner to current user
             if (typeof localStorage !== 'undefined') {
