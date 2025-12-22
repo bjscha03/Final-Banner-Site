@@ -12,7 +12,7 @@ import PayPalCheckout from '@/components/checkout/PayPalCheckout';
 import SignUpEncouragementModal from '@/components/checkout/SignUpEncouragementModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Package, Truck, Plus, Minus, Trash2, Zap, Plane } from 'lucide-react';
+import { ArrowLeft, Package, Truck, Plus, Minus, Trash2, Zap, Plane, Eye } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { emailApi } from '@/lib/api';
 import { CartItem } from '@/store/cart';
@@ -412,6 +412,14 @@ const Checkout: React.FC = () => {
                   </div>
                 </div>
                 
+                {/* Thumbnail preview notice - shown once above all items */}
+                <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-xs text-blue-700 mb-4">
+                  <Eye className="h-4 w-4 flex-shrink-0 mt-0.5 text-blue-500" />
+                  <p>
+                    <span className="font-medium">Preview only.</span> Our team personally reviews every banner before production and will reach out if anything needs attention.
+                  </p>
+                </div>
+
                 <div className="space-y-4">
                   {items.map((item) => {
                     const ropeMode = item.rope_pricing_mode || 'per_item';

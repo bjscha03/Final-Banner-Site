@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ShoppingCart, CreditCard, Check, ChevronDown } from 'lucide-react';
+import { X, ShoppingCart, CreditCard, Check, ChevronDown, Eye } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { QuoteState, Grommets, PolePocketSize } from '@/store/quote';
 import { formatDimensions, usd, ropeCost, polePocketCost } from '@/lib/pricing';
@@ -312,6 +312,14 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
 
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-6 space-y-6">
+          {/* Thumbnail preview notice */}
+          <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-xs text-blue-700">
+            <Eye className="h-4 w-4 flex-shrink-0 mt-0.5 text-blue-500" />
+            <p>
+              <span className="font-medium">Preview only.</span> Our team personally reviews every banner before production and will reach out if anything needs attention.
+            </p>
+          </div>
+
           {/* Product Info with Live Preview */}
           <div className="bg-gray-50 rounded-xl p-4">
             <div className="flex items-center gap-4">
