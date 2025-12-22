@@ -796,9 +796,9 @@ export const useCartStore = create<CartState>()(
         console.log('🔵 STORE: Cart owner ID:', cartOwnerId);
         console.log('🔵 STORE: Current user ID:', userId);
         
-        // SIMPLIFIED LOGIC: Always use server cart when available
-        // If server has items, use them (they are the source of truth)
-        if (serverItems.length > 0) {
+        // MERGE LOGIC: Combine local and server items, preferring local for conflicts
+        // This prevents losing items that were added locally but not yet synced
+        if (serverItems.length > 0 || localItems.length > 0) {
           console.log("🖼️  STORE: Checking image URLs in server items:");
           serverItems.forEach((item, idx) => {
             console.log(`  Item ${idx}:`, {
@@ -810,8 +810,21 @@ export const useCartStore = create<CartState>()(
               aiDesign_proofUrl: item.aiDesign?.assets?.proofUrl
             });
           });
-          console.log('✅ STORE: Server has items, using server cart');
-          set({ items: serverItems });
+          
+          // MERGE: Start with server items, add any local items that aren't on server
+          const serverItemIds = new Set(serverItems.map(item => item.id));
+          const localOnlyItems = localItems.filter(item => !serverItemIds.has(item.id));
+          const mergedItems = [...serverItems, ...localOnlyItems];
+          
+          console.log('✅ STORE: Merging server (' + serverItems.length + ') and local-only (' + localOnlyItems.length + ') items');
+          console.log('✅ STORE: Merged cart has ' + mergedItems.length + ' items');
+          set({ items: mergedItems });
+          
+          // If we added local items, sync them to server
+          if (localOnlyItems.length > 0) {
+            console.log('🔄 STORE: Syncing merged cart to server...');
+            setTimeout(() => get().syncToServer(), 100);
+          }
           
           // Set cart owner
           if (typeof localStorage !== 'undefined') {
