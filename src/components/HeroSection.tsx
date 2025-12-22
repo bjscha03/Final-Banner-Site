@@ -214,140 +214,139 @@ const HeroSection: React.FC = () => {
               </div>
             </div>
 
-            {/* Right Side - Compact Quick Quote Form */}
-            <div className="bg-white rounded-lg shadow-xl overflow-hidden max-w-md mx-auto lg:mx-0 w-full">
+            {/* Right Side - Clean Quick Quote Form */}
+            <div className="bg-white rounded-2xl shadow-xl overflow-hidden max-w-md mx-auto lg:mx-0 w-full border border-slate-100">
               {/* Header */}
-              <div className="bg-white px-5 py-3 border-b border-slate-200">
+              <div className="bg-gradient-to-r from-slate-50 to-white px-6 py-4 border-b border-slate-100">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-bold text-slate-900">Quick Quote</h3>
-                  <Badge className="bg-green-500 text-white px-2.5 py-0.5 text-xs">
+                  <h3 className="text-xl font-bold text-slate-900">Quick Quote</h3>
+                  <Badge className="bg-emerald-500 text-white px-3 py-1 text-xs font-medium rounded-full">
                     Instant • No signup
                   </Badge>
                 </div>
               </div>
 
               {/* Form Content */}
-              <div className="p-5 space-y-4">
-                {/* Width and Height */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold text-gray-700">
-                      Width (inches)
-                    </label>
-                    <Input
-                      type="number"
-                      value={widthInput}
-                      onChange={(e) => setWidthInput(e.target.value)}
-                      className="text-center h-9 text-sm"
-                      min="1"
-                      max="1000"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="block text-xs font-semibold text-gray-700">
-                      Height (inches)
-                    </label>
-                    <Input
-                      type="number"
-                      value={heightInput}
-                      onChange={(e) => setHeightInput(e.target.value)}
-                      className="text-center h-9 text-sm"
-                      min="1"
-                      max="1000"
-                    />
-                  </div>
-                </div>
-
-                {/* Size Presets */}
-                <div className="flex gap-2 text-xs">
-                  {sizePresets.map((preset) => (
+              <div className="p-6 space-y-5">
+                {/* Dimensions Section */}
+                <div>
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-semibold text-slate-700">Banner Size</span>
                     <button
-                      key={preset.label}
-                      onClick={() => handleSizePreset(preset.width, preset.height)}
-                      className="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded border border-slate-300 transition-colors"
+                      onClick={() => setShowSizeGuide(true)}
+                      className="text-xs text-[#18448D] hover:text-[#0d2d5a] font-medium flex items-center gap-1 transition-colors"
                     >
-                      {preset.label}
-                    </button>
-                  ))}
-                  <button
-                    onClick={() => setShowSizeGuide(true)}
-                    className="ml-auto px-2 py-1 text-[#18448D] hover:underline"
-                  >
-                    📏 Size guide
-                  </button>
-                </div>
-
-                {/* Quantity */}
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-gray-700">
-                    Quantity
-                  </label>
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={() => {
-                        const newQty = Math.max(1, quantity - 1);
-                        setQuantity(newQty);
-                        setQuantityInput(newQty.toString());
-                      }}
-                      disabled={quantity <= 1}
-                      className="h-9 w-9 bg-white border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center text-lg"
-                      type="button"
-                    >
-                      −
-                    </button>
-                    <Input
-                      type="number"
-                      value={quantityInput}
-                      onChange={(e) => setQuantityInput(e.target.value)}
-                      className="flex-1 text-center h-9 text-sm"
-                      min="1"
-                      max="999"
-                    />
-                    <button
-                      onClick={() => {
-                        const newQty = Math.min(999, quantity + 1);
-                        setQuantity(newQty);
-                        setQuantityInput(newQty.toString());
-                      }}
-                      disabled={quantity >= 999}
-                      className="h-9 w-9 bg-white border border-slate-300 rounded hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center text-lg"
-                      type="button"
-                    >
-                      +
+                      <span>📏</span> Size guide
                     </button>
                   </div>
-                </div>
+                  
+                  {/* Width and Height Inputs */}
+                  <div className="grid grid-cols-2 gap-4 mb-3">
+                    <div>
+                      <label className="block text-xs text-slate-500 mb-1.5">Width (in)</label>
+                      <Input
+                        type="number"
+                        value={widthInput}
+                        onChange={(e) => setWidthInput(e.target.value)}
+                        className="text-center h-11 text-base font-medium border-slate-200 focus:border-[#18448D] focus:ring-[#18448D]"
+                        min="1"
+                        max="1000"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-xs text-slate-500 mb-1.5">Height (in)</label>
+                      <Input
+                        type="number"
+                        value={heightInput}
+                        onChange={(e) => setHeightInput(e.target.value)}
+                        className="text-center h-11 text-base font-medium border-slate-200 focus:border-[#18448D] focus:ring-[#18448D]"
+                        min="1"
+                        max="1000"
+                      />
+                    </div>
+                  </div>
 
-                {/* Material Selection */}
-                <div className="space-y-1.5">
-                  <label className="block text-xs font-semibold text-gray-700">
-                    Material
-                  </label>
-                  <select
-                    value={material}
-                    onChange={(e) => setMaterial(e.target.value as MaterialKey)}
-                    className="w-full h-9 px-3 text-sm border border-slate-300 rounded-md bg-white focus:outline-none focus:ring-2 focus:ring-[#18448D] focus:border-[#18448D]"
-                  >
-                    {materials.map((mat) => (
-                      <option key={mat.key} value={mat.key}>
-                        {mat.name} ({mat.subtitle})
-                      </option>
+                  {/* Size Presets - Wrapping pills */}
+                  <div className="flex flex-wrap gap-2">
+                    {sizePresets.map((preset) => (
+                      <button
+                        key={preset.label}
+                        onClick={() => handleSizePreset(preset.width, preset.height)}
+                        className="px-3 py-2 text-xs font-medium bg-slate-50 hover:bg-[#18448D] hover:text-white text-slate-600 rounded-full border border-slate-200 hover:border-[#18448D] transition-all duration-200 min-h-[36px]"
+                      >
+                        {preset.label}
+                      </button>
                     ))}
-                  </select>
+                  </div>
                 </div>
 
-                {/* Pricing Note */}
-                <div className="bg-blue-50 border border-blue-200 rounded p-2.5">
-                  <p className="text-xs text-gray-700">
-                    Price includes 24-hour production and free next-day air shipping. You can upload your file after you get your price.
-                  </p>
+                {/* Quantity & Material Row */}
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Quantity */}
+                  <div>
+                    <label className="block text-xs text-slate-500 mb-1.5">Quantity</label>
+                    <div className="flex items-center h-11 border border-slate-200 rounded-lg overflow-hidden bg-white">
+                      <button
+                        onClick={() => {
+                          const newQty = Math.max(1, quantity - 1);
+                          setQuantity(newQty);
+                          setQuantityInput(newQty.toString());
+                        }}
+                        disabled={quantity <= 1}
+                        className="h-full w-11 flex items-center justify-center text-lg font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors border-r border-slate-200"
+                        type="button"
+                      >
+                        −
+                      </button>
+                      <input
+                        type="number"
+                        value={quantityInput}
+                        onChange={(e) => setQuantityInput(e.target.value)}
+                        className="flex-1 text-center h-full text-base font-medium border-0 focus:ring-0 focus:outline-none bg-transparent min-w-0"
+                        min="1"
+                        max="999"
+                      />
+                      <button
+                        onClick={() => {
+                          const newQty = Math.min(999, quantity + 1);
+                          setQuantity(newQty);
+                          setQuantityInput(newQty.toString());
+                        }}
+                        disabled={quantity >= 999}
+                        className="h-full w-11 flex items-center justify-center text-lg font-medium text-slate-600 hover:bg-slate-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors border-l border-slate-200"
+                        type="button"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Material */}
+                  <div>
+                    <label className="block text-xs text-slate-500 mb-1.5">Material</label>
+                    <select
+                      value={material}
+                      onChange={(e) => setMaterial(e.target.value as MaterialKey)}
+                      className="w-full h-11 px-3 text-sm font-medium border border-slate-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-[#18448D] focus:border-[#18448D] cursor-pointer"
+                    >
+                      {materials.map((mat) => (
+                        <option key={mat.key} value={mat.key}>
+                          {mat.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
+
+                {/* Pricing Note - More subtle */}
+                <p className="text-xs text-slate-500 text-center">
+                  Includes 24-hour production & free next-day air shipping
+                </p>
 
                 {/* Estimated Total */}
-                <div className="bg-slate-900 text-white rounded-lg p-4">
+                <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-xl p-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-semibold">Estimated Total</span>
+                    <span className="text-sm font-medium text-slate-300">Estimated Total</span>
                     <span className="text-2xl font-bold">{usd(totals.totalWithTax)}</span>
                   </div>
                 </div>
@@ -356,7 +355,7 @@ const HeroSection: React.FC = () => {
                 <Button
                   onClick={handleContinue}
                   disabled={!isValid}
-                  className="w-full bg-[#ff6b35] hover:bg-[#ff5722] text-white py-2.5 text-base font-semibold rounded-lg"
+                  className="w-full bg-[#ff6b35] hover:bg-[#e55a2b] text-white py-3 text-base font-semibold rounded-xl shadow-lg shadow-orange-200 hover:shadow-orange-300 transition-all duration-200"
                   size="lg"
                 >
                   Continue →
