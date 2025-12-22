@@ -202,6 +202,10 @@ export const useCartStore = create<CartState>()(
       discountCode: null,
       
       addFromQuote: (quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => {
+        console.log('🚨 addFromQuote CALLED - Current items in cart:', get().items.length);
+        get().items.forEach((item, idx) => console.log(`  Existing item ${idx}: ${item.id}`));
+        console.log('🚨 addFromQuote CALLED - Current items in cart:', get().items.length);
+        get().items.forEach((item, idx) => console.log(`  Existing item ${idx}: ${item.id}`));
         // Capture design-page authoritative pricing when provided
         const usingAuthoritative = !!pricing;
 
