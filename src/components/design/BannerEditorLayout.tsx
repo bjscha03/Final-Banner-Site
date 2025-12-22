@@ -8,6 +8,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { uploadCanvasImageToCloudinary } from '@/utils/uploadCanvasImage';
 import { useEditorStore } from '@/store/editor';
 import { useQuoteStore } from '@/store/quote';
 import { useCartStore } from '@/store/cart';
@@ -928,6 +929,29 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     
     console.log('🎨 [ADD TO CART] Final thumbnail URL:', thumbnailUrl ? thumbnailUrl.substring(0, 50) + '...' : 'NULL');
     
+    // CRITICAL FIX: Upload thumbnail to Cloudinary for persistence
+    // This ensures thumbnails persist after logout/login
+    let thumbnailFileKey: string | undefined = undefined;
+    if (thumbnailUrl && (thumbnailUrl.startsWith('data:') || thumbnailUrl.startsWith('blob:'))) {
+      console.log('📤 [THUMBNAIL UPLOAD] Uploading thumbnail to Cloudinary...');
+      try {
+        const uploadResult = await uploadCanvasImageToCloudinary(thumbnailUrl, `banner-thumbnail-${Date.now()}.png`);
+        thumbnailUrl = uploadResult.secureUrl;
+        thumbnailFileKey = uploadResult.fileKey;
+        console.log('✅ [THUMBNAIL UPLOAD] Uploaded successfully:', { url: thumbnailUrl, fileKey: thumbnailFileKey });
+      } catch (uploadError) {
+        console.error('❌ [THUMBNAIL UPLOAD] Failed:', uploadError);
+        // Continue with data/blob URL as fallback (will be stripped by cart-save but at least cart works)
+      }
+    } else if (thumbnailUrl && thumbnailUrl.includes('cloudinary.com')) {
+      // Extract fileKey from existing Cloudinary URL
+      const match = thumbnailUrl.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
+      if (match) {
+        thumbnailFileKey = match[1];
+        console.log('✅ [THUMBNAIL UPLOAD] Using existing Cloudinary URL, fileKey:', thumbnailFileKey);
+      }
+    }
+    
     // BUG 3 FIX: Extract overlay image from editor objects
     // CRITICAL: Get FRESH objects from store, not stale editorObjects variable
     const freshEditorObjects = useEditorStore.getState().objects;
@@ -1092,6 +1116,12 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       overlayImages: currentOverlayImages, // NEW: Save ALL overlay images
       canvasBackgroundColor: canvasBackgroundColor,
       thumbnailUrl: thumbnailUrl, // CRITICAL: Include thumbnail for cart display
+      // CRITICAL FIX: Include file with fileKey for thumbnail persistence
+      file: thumbnailFileKey ? { 
+        fileKey: thumbnailFileKey,
+        url: thumbnailUrl,
+        name: `banner-${Date.now()}.png`
+      } : freshQuoteForCart.file,
     };
     
     // DIAGNOSTIC: Show what we're about to save
