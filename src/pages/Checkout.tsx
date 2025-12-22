@@ -37,6 +37,7 @@ const Checkout: React.FC = () => {
   const [discountCodeInput, setDiscountCodeInput] = useState('');
   const [isValidatingDiscount, setIsValidatingDiscount] = useState(false);
   const [discountError, setDiscountError] = useState('');
+  const [guestDiscountEmail, setGuestDiscountEmail] = useState('');
 
 
   // Get totals from cart store methods
@@ -153,15 +154,22 @@ const Checkout: React.FC = () => {
       return;
     }
 
-    // Require login for discount codes
-    if (!user) {
-      setDiscountError('Please sign in to use discount codes');
-      toast({
-        title: 'Sign In Required',
-        description: 'You must be signed in to use discount codes',
-        variant: 'destructive',
-      });
+    // Determine email to use for validation
+    const emailForValidation = user?.email || guestDiscountEmail.trim();
+    
+    // For guests, require email input
+    if (!user && !guestDiscountEmail.trim()) {
+      setDiscountError('Please enter your email to use a discount code');
       return;
+    }
+
+    // Basic email format validation for guests
+    if (!user && guestDiscountEmail.trim()) {
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(guestDiscountEmail.trim())) {
+        setDiscountError('Please enter a valid email address');
+        return;
+      }
     }
 
     setIsValidatingDiscount(true);
@@ -173,8 +181,8 @@ const Checkout: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           code: discountCodeInput.trim(),
-          email: user.email,
-          userId: user.id
+          email: emailForValidation,
+          userId: user?.id || null
         }),
       });
 
@@ -586,6 +594,20 @@ const Checkout: React.FC = () => {
                         </svg>
                         Have a Discount Code?
                       </label>
+                      
+                      {/* Email input for guests */}
+                      {!user && (
+                        <Input
+                          id="discount-email"
+                          type="email"
+                          placeholder="Your email address"
+                          value={guestDiscountEmail}
+                          onChange={(e) => setGuestDiscountEmail(e.target.value)}
+                          className="h-12 text-base border-2 focus:border-[#18448D] transition-colors"
+                          disabled={isValidatingDiscount}
+                        />
+                      )}
+                      
                       <div className="flex gap-2">
                         <Input
                           id="discount-code"
@@ -599,7 +621,7 @@ const Checkout: React.FC = () => {
                         />
                         <Button
                           onClick={handleApplyDiscount}
-                          disabled={isValidatingDiscount || !discountCodeInput.trim()}
+                          disabled={isValidatingDiscount || !discountCodeInput.trim() || (!user && !guestDiscountEmail.trim())}
                           className="bg-[#18448D] hover:bg-[#18448D]/90 h-12 px-6 font-semibold transition-all hover:scale-105"
                         >
                           {isValidatingDiscount ? 'Validating...' : 'Apply'}
