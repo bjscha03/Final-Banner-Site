@@ -181,7 +181,7 @@ export const PromoPopup = ({ onClose, source }: PromoPopupProps) => {
                       required
                     />
                     <label htmlFor="consent" className="text-sm text-gray-600">
-                      I agree to receive promotional emails and accept the{' '}
+                      I agree to the{' '}
                       <a href="/privacy" className="text-[#18448D] hover:underline" target="_blank">
                         privacy policy
                       </a>
