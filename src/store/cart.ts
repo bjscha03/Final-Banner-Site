@@ -929,24 +929,34 @@ export const useCartStore = create<CartState>()(
       // CRITICAL: Do NOT persist items array to localStorage
       // Items should ONLY come from the server (database)
       // This prevents showing wrong user's cart after login
-      partialize: (state) => ({
-        discountCode: state.discountCode,
-        // CRITICAL FIX: Persist items to localStorage as a cache
-        // This prevents items from being lost during page navigation (e.g., Canva flow)
-        // Server is still the source of truth - loadFromServer() will update/merge
-        items: state.items,
-      }),
+      partialize: (state) => {
+        // Get the current user ID to store with the cart
+        let cartOwnerId = null;
+        if (typeof localStorage !== 'undefined') {
+          cartOwnerId = localStorage.getItem('cart_owner_user_id');
+        }
+        return {
+          discountCode: state.discountCode,
+          // CRITICAL FIX: Persist items to localStorage as a cache
+          // This prevents items from being lost during page navigation (e.g., Canva flow)
+          // Server is still the source of truth - loadFromServer() will update/merge
+          items: state.items,
+          // Store cart owner for rehydration check
+          _cartOwnerId: cartOwnerId,
+        };
+      },
       // Items ARE persisted to localStorage as a cache for page navigation
       // Server is the source of truth - useCartSync loads/merges from server
             onRehydrateStorage: () => (state) => {
         console.log('💾 CART STORAGE: Rehydrating from localStorage...');
-        console.log('💾 CART STORAGE: Rehydrated state:', state);
         console.log('💾 CART STORAGE: Items count after rehydration:', state?.items?.length ?? 0);
         
         // CRITICAL FIX: Check if the cart belongs to the current user
-        // If not, clear the items to prevent cross-account pollution
+        // Use BOTH localStorage cart_owner_user_id AND the stored _cartOwnerId
         if (typeof localStorage !== 'undefined') {
-          const cartOwnerId = localStorage.getItem('cart_owner_user_id');
+          const storedCartOwnerId = (state as any)?._cartOwnerId;
+          const lsCartOwnerId = localStorage.getItem('cart_owner_user_id');
+          const cartOwnerId = storedCartOwnerId || lsCartOwnerId;
           const currentUserStr = localStorage.getItem('banners_current_user');
           let currentUserId = null;
           try {
@@ -967,6 +977,34 @@ export const useCartStore = create<CartState>()(
               state.items = [];
             }
             localStorage.removeItem('cart_owner_user_id');
+          }
+          
+          // ALSO: If user is logged in but cart has NO owner, clear it (might be stale guest cart)
+          if (currentUserId && !cartOwnerId && state?.items?.length) {
+            console.log('⚠️ CART STORAGE: User logged in but cart has no owner - clearing stale items');
+            if (state) {
+              state.items = [];
+            }
+          }
+          
+          // ALSO: If there are items but no user logged in, keep them (guest cart is OK)
+          // But log it for debugging
+          if (!currentUserId && state?.items?.length) {
+            console.log('ℹ️ CART STORAGE: Guest cart with items - keeping for potential checkout');
+          }
+          
+          // ALSO: If user is logged in but cart has NO owner, clear it (might be stale guest cart)
+          if (currentUserId && !cartOwnerId && state?.items?.length) {
+            console.log('⚠️ CART STORAGE: User logged in but cart has no owner - clearing stale items');
+            if (state) {
+              state.items = [];
+            }
+          }
+          
+          // ALSO: If there are items but no user logged in, keep them (guest cart is OK)
+          // But log it for debugging
+          if (!currentUserId && state?.items?.length) {
+            console.log('ℹ️ CART STORAGE: Guest cart with items - keeping for potential checkout');
           }
         }
         

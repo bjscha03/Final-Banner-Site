@@ -99,16 +99,39 @@ export function useCartSync() {
       console.log('👤 User ID:', currentUserId);
       console.log('👤 Cart owner ID:', cartOwnerId);
       
-      // CRITICAL: Don't clear cart here - it syncs empty cart to server and DELETES the database cart!
-      // Just let loadFromServer() overwrite the cart with the correct user's cart
+      // CRITICAL FIX: If local cart belongs to a DIFFERENT user, clear it first!
+      // This prevents cross-account cart pollution
       if (cartOwnerId && cartOwnerId !== currentUserId) {
-        console.log('🔍 CART OWNERSHIP: Cart belongs to different user, will load from server');
-        console.log('🔍 Cart owner:', cartOwnerId);
-        console.log('🔍 Current user:', currentUserId);
+        console.log('⚠️ CROSS-ACCOUNT FIX: Local cart belongs to different user!');
+        console.log('⚠️ Cart owner:', cartOwnerId);
+        console.log('⚠️ Current user:', currentUserId);
+        console.log('⚠️ Clearing local cart to prevent cross-account pollution');
+        
+        // Clear the local cart IMMEDIATELY
+        useCartStore.setState({ items: [] });
+        
+        // Remove stale cart owner
+        if (typeof localStorage !== 'undefined') {
+          localStorage.removeItem('cart_owner_user_id');
+        }
+        
+        // Just load from server - don't merge
+        console.log('👤 Loading user cart from server (no merge)...');
+        useCartStore.setState({ isLoading: true });
+        loadFromServer().finally(() => {
+          useCartStore.setState({ isLoading: false });
+          if (typeof localStorage !== 'undefined') {
+            localStorage.setItem('cart_owner_user_id', currentUserId);
+          }
+        });
+        
+        hasMergedRef.current = true; // Prevent double loading
+        prevUserIdRef.current = currentUserId;
+        console.log('═══════════════════════════════════════════════');
+        return;
       }
       
-      // ALWAYS attempt to merge guest cart on login
-      // This ensures guest cart items are never lost, even if checkout context is missing
+      // Cart belongs to current user or no owner - safe to merge guest cart
       console.log('🔄 CART SYNC: Attempting guest cart merge on login...');
       console.log('🔄 Checkout context guest session ID:', checkoutGuestSessionId ? `${checkoutGuestSessionId.substring(0, 12)}...` : 'null');
       
@@ -136,27 +159,11 @@ export function useCartSync() {
             console.log('✅ MERGE: Guest cart merge completed');
             console.log('✅ MERGE: Merged items count:', mergedItems.length);
             
-            // CRITICAL FIX: MERGE server items with local items (don't replace)
-            // This ensures items added locally but not yet synced are NOT lost
-            const localItems = useCartStore.getState().items;
-            console.log('✅ CART SYNC: Local items before merge:', localItems.length);
-            console.log('✅ CART SYNC: Server items from merge:', mergedItems.length);
+            // CRITICAL FIX: Only use server items - DON'T merge local items
+            // Local items may belong to different user if cartOwnerId wasn't set properly
+            console.log('✅ CART SYNC: Using ONLY server items (no local merge for safety)');
             
-            // Merge: Keep all server items + add any local items not on server
-            const serverItemIds = new Set(mergedItems.map((item: any) => item.id));
-            const localOnlyItems = localItems.filter((item: any) => !serverItemIds.has(item.id));
-            const finalItems = [...mergedItems, ...localOnlyItems];
-            
-            console.log('✅ CART SYNC: Local-only items:', localOnlyItems.length);
-            console.log('✅ CART SYNC: Final merged items:', finalItems.length);
-            
-            useCartStore.setState({ items: finalItems });
-            
-            // If we had local-only items, sync them to server
-            if (localOnlyItems.length > 0) {
-              console.log('🔄 CART SYNC: Syncing local-only items to server...');
-              setTimeout(() => useCartStore.getState().syncToServer(), 100);
-            }
+            useCartStore.setState({ items: mergedItems });
             
             // Set cart owner to current user
             if (typeof localStorage !== 'undefined') {
