@@ -29,9 +29,16 @@ export async function uploadCanvasImageToCloudinary(
 
   let fileToUpload: File | Blob;
 
-  // If imageSource is a blob URL, fetch it first
+  // If imageSource is a string URL (blob, data, or http), handle accordingly
   if (typeof imageSource === 'string') {
-    if (imageSource.startsWith('blob:')) {
+    if (imageSource.startsWith('data:')) {
+      // Convert data URL to blob
+      console.log('📥 Converting data URL to blob...');
+      const response = await fetch(imageSource);
+      const blob = await response.blob();
+      fileToUpload = blob;
+      console.log('✅ Data URL converted to blob:', { size: blob.size, type: blob.type });
+    } else if (imageSource.startsWith('blob:')) {
       console.log('📥 Fetching blob from URL:', imageSource.substring(0, 50) + '...');
       const response = await fetch(imageSource);
       const blob = await response.blob();
