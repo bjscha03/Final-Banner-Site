@@ -100,6 +100,10 @@ export default function CanvaEditor() {
         sessionStorage.setItem('canva-design-url', data.imageUrl);
         sessionStorage.setItem('canva-design-publicId', data.publicId);
         sessionStorage.setItem('canva-design-name', data.fileName);
+        // Store Canva design ID for re-editing capability
+        if (designId) {
+          sessionStorage.setItem('canva-design-id', designId);
+        }
         
         // DO NOT store pixel dimensions - they will be treated as inches and cause massive pricing errors
         // User will set their desired print dimensions on the Design page

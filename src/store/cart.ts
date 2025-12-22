@@ -53,6 +53,7 @@ export interface CartItem {
     aspectRatio?: number;
   }>;
   // AI Design metadata (optional)
+  canva_design_id?: string;           // Canva design ID for re-editing
   canvas_background_color?: string;    // Canvas background color (hex)
   image_scale?: number;                // Background image scale (for uploaded images)
   image_position?: { x: number; y: number }; // Background image position (for uploaded images)
@@ -341,6 +342,7 @@ export const useCartStore = create<CartState>()(
             position: quote.overlayImage.position || { x: 50, y: 50 }
           } : undefined,
           overlay_images: (quote as any).overlayImages ? (quote as any).overlayImages : undefined, // NEW: Save multiple images
+          canva_design_id: (quote as any).canvaDesignId || undefined,
           canvas_background_color: (quote as any).canvasBackgroundColor || '#FFFFFF',
           image_scale: quote.imageScale || 1,
           image_position: quote.imagePosition || { x: 0, y: 0 },
@@ -570,6 +572,7 @@ export const useCartStore = create<CartState>()(
             position: quote.overlayImage.position || { x: 50, y: 50 }
           } : undefined,
           overlay_images: (quote as any).overlayImages ? (quote as any).overlayImages : undefined, // NEW: Save multiple images
+          canva_design_id: (quote as any).canvaDesignId || undefined,
           canvas_background_color: (quote as any).canvasBackgroundColor || '#FFFFFF',
           image_scale: quote.imageScale || 1,
           image_position: quote.imagePosition || { x: 0, y: 0 },

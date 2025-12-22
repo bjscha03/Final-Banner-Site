@@ -471,6 +471,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     const canvaDesignUrl = sessionStorage.getItem('canva-design-url');
     const canvaDesignName = sessionStorage.getItem('canva-design-name');
     const canvaDesignPublicId = sessionStorage.getItem('canva-design-publicId');
+    const canvaDesignId = sessionStorage.getItem('canva-design-id');
     
     if (canvaDesignUrl) {
       console.log('🎨 [CANVA IMPORT] Found Canva design in sessionStorage:', { canvaDesignUrl, canvaDesignName });
@@ -479,6 +480,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       sessionStorage.removeItem('canva-design-url');
       sessionStorage.removeItem('canva-design-name');
       sessionStorage.removeItem('canva-design-publicId');
+      sessionStorage.removeItem('canva-design-id');
       
       // Create an Image to get dimensions
       const img = new Image();
@@ -530,6 +532,12 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
         
         // Set the Canva image URL directly as thumbnail (faster than waiting for canvas render)
         setCanvasThumbnail(canvaDesignUrl);
+        
+        // Store Canva design ID in quote store for re-editing capability
+        if (canvaDesignId) {
+          setQuote({ canvaDesignId });
+          console.log('🎨 [CANVA IMPORT] Stored Canva design ID:', canvaDesignId);
+        }
         
         // Open upsell modal after a short delay
         setTimeout(() => {

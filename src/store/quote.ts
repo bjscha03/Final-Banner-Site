@@ -84,6 +84,7 @@ export interface QuoteState {
     aspectRatio?: number; // width / height of the original image
     scale: number; // Scale factor (1 = 100%)
   }>; // NEW: Support multiple overlay images
+  canvaDesignId?: string;              // Canva design ID for re-editing
   imageScale?: number;                 // Background image scale (for uploaded images)
   imagePosition?: { x: number; y: number }; // Background image position (for uploaded images)
   set: (partial: Partial<QuoteState>) => void;
