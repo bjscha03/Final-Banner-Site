@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Trash2, Plus, Minus, ShoppingBag, Edit } from 'lucide-react';
+import { X, Trash2, Plus, Minus, ShoppingBag, Edit, Eye } from 'lucide-react';
 import BannerPreview from './cart/BannerPreview';
 import { useNavigate } from 'react-router-dom';
 import { usd } from '@/lib/pricing';
@@ -186,6 +186,13 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
               </div>
             ) : (
               <div className="space-y-4">
+                {/* Thumbnail preview notice */}
+                <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-xs text-blue-700">
+                  <Eye className="h-4 w-4 flex-shrink-0 mt-0.5 text-blue-500" />
+                  <p>
+                    <span className="font-medium">Preview only.</span> Our team personally reviews every banner before production and will reach out if anything needs attention.
+                  </p>
+                </div>
                 {items.map((item) => {
                   console.log('🔍 [CART MODAL] RAW ITEM DATA:', {
                     id: item.id,
