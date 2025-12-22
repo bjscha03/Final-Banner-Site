@@ -912,10 +912,13 @@ export const useCartStore = create<CartState>()(
       // This prevents showing wrong user's cart after login
       partialize: (state) => ({
         discountCode: state.discountCode,
-        // items are intentionally excluded - they come from server only
+        // CRITICAL FIX: Persist items to localStorage as a cache
+        // This prevents items from being lost during page navigation (e.g., Canva flow)
+        // Server is still the source of truth - loadFromServer() will update/merge
+        items: state.items,
       }),
-      // Items are NOT persisted to localStorage (only discountCode is)
-      // Items come from server only via useCartSync
+      // Items ARE persisted to localStorage as a cache for page navigation
+      // Server is the source of truth - useCartSync loads/merges from server
       onRehydrateStorage: () => (state) => {
         console.log('💾 CART STORAGE: Rehydrating from localStorage...');
         console.log('💾 CART STORAGE: Only discountCode is persisted, items come from server');
