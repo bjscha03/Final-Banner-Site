@@ -932,10 +932,15 @@ export const useCartStore = create<CartState>()(
       }),
       // Items ARE persisted to localStorage as a cache for page navigation
       // Server is the source of truth - useCartSync loads/merges from server
-      onRehydrateStorage: () => (state) => {
+            onRehydrateStorage: () => (state) => {
         console.log('💾 CART STORAGE: Rehydrating from localStorage...');
-        console.log('💾 CART STORAGE: Only discountCode is persisted, items come from server');
-        console.log('�� CART STORAGE: useCartSync will load items from database');
+        console.log('💾 CART STORAGE: Rehydrated state:', state);
+        console.log('💾 CART STORAGE: Items count after rehydration:', state?.items?.length ?? 0);
+        if (state?.items?.length) {
+          state.items.forEach((item, idx) => {
+            console.log('💾 CART STORAGE: Rehydrated item ' + idx + ': ' + item.id);
+          });
+        }
       },
     }
   )
