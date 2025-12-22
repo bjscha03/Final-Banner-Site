@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth, isAdmin } from '@/lib/auth';
@@ -20,6 +21,7 @@ import {
   Maximize2, 
   Wrench,
   ShoppingCart,
+  CreditCard,
   Eye,
   Palette, 
   Sliders,
@@ -59,6 +61,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
   const desktopPanelRef = useRef<HTMLDivElement>(null);
   const mobilePanelRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const isAdminUser = user && isAdmin(user);
   const { exportToJSON, setCanvasThumbnail, canvasThumbnail, objects: editorObjects, addObject, reset: resetEditor, canvasBackgroundColor, showGrommets, setShowGrommets } = useEditorStore();
@@ -1180,6 +1183,37 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     console.log('🔄 RESET: resetDesign() called');
   };
 
+  // Handle Buy Now - adds to cart and goes directly to checkout
+  const handleBuyNow = () => {
+    console.log('🛒 [BannerEditorLayout] Buy Now button clicked');
+    
+    if (!hasContent) {
+      toast({
+        title: 'Content Required',
+        description: 'Please add some content to your banner before checking out.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Show upsell modal if user should see it
+    if (shouldShowUpsell) {
+      console.log('🎨 BANNER EDITOR: Showing upsell modal for BUY NOW (checkout)');
+      setPendingAction('checkout');
+      setShowUpsellModal(true);
+      return;
+    }
+
+    // No upsell needed - proceed directly to add to cart and checkout
+    console.log('🛒 [BUY NOW] No upsell, adding to cart and navigating to checkout');
+    
+    // Trigger the add to cart flow first
+    handleAddToCart();
+    
+    // Navigate to checkout
+    navigate('/checkout');
+  };
+
   const handleUpsellContinue = async (selectedOptions: UpsellOption[], dontAskAgain: boolean) => {
     console.log("[BannerEditorLayout] handleUpsellContinue called with:", { selectedOptions, dontAskAgain, pendingAction });
 
@@ -1424,10 +1458,19 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     } else {
       console.log('➕ [ADD TO CART UPSELL] Adding new item to cart');
       addFromQuote(updatedQuote as any, undefined, pricing);
-      toast({
-        title: "Added to Cart",
-        description: "Your banner has been added to the cart.",
-      });
+      
+      // Different toast message based on action
+      if (pendingAction === 'checkout') {
+        toast({
+          title: "Proceeding to Checkout",
+          description: "Your banner has been added. Redirecting to checkout...",
+        });
+      } else {
+        toast({
+          title: "Added to Cart",
+          description: "Your banner has been added to the cart.",
+        });
+      }
     }
     
     // Clear uploaded images
@@ -1435,15 +1478,22 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     
     // Close modal
     setShowUpsellModal(false);
-    setPendingAction(null);
-    
-    // Scroll to top
-    window.scrollTo({ top: 0, behavior: 'smooth' });
     
     // Reset design
     console.log('🔄 RESET: About to call resetDesign() after upsell');
     resetDesign();
     console.log('🔄 RESET: resetDesign() called');
+    
+    // Navigate based on pending action
+    if (pendingAction === 'checkout') {
+      console.log('🛒 [UPSELL] Navigating to checkout after upsell');
+      navigate('/checkout');
+    } else {
+      // Scroll to top so user can see the cart
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    
+    setPendingAction(null);
   };
 
   const handleUpsellClose = () => {
@@ -1607,6 +1657,18 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
               <ShoppingCart className="w-4 h-4 sm:mr-2" />
               <span className="hidden sm:inline">{editingItemId ? 'Update Cart' : 'Add to Cart'}</span>
             </Button>
+            {/* Buy Now button - only show when not editing */}
+            {!editingItemId && (
+              <Button
+                onClick={handleBuyNow}
+                disabled={!hasContent}
+                size="sm"
+                className="min-h-[44px] min-w-[44px] bg-[#ff6b35] hover:bg-[#f7931e] text-white font-semibold"
+              >
+                <CreditCard className="w-4 h-4 sm:mr-2" />
+                <span className="hidden sm:inline">Buy Now</span>
+              </Button>
+            )}
           </div>
         </div>
       </div>
