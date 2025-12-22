@@ -70,7 +70,15 @@ exports.handler = async (event, context) => {
     // This ensures thumbnails display correctly after logout/login
     const CLOUDINARY_BASE = 'https://res.cloudinary.com/dtrxl120u/image/upload';
     
-    const cartData = rawCartData.map(item => {
+    const cartData = rawCartData.map((item, index) => {
+      console.log('[cart-load] Item', index + 1, 'raw data:', {
+        id: item.id,
+        file_key: item.file_key,
+        file_url: item.file_url ? item.file_url.substring(0, 80) : null,
+        thumbnail_url: item.thumbnail_url ? item.thumbnail_url.substring(0, 80) : null,
+        has_text_elements: !!item.text_elements && item.text_elements.length > 0,
+        has_overlay_images: !!item.overlay_images && item.overlay_images.length > 0
+      });
       const enhanced = { ...item };
       
       // If we have file_key but no displayable URLs, reconstruct them

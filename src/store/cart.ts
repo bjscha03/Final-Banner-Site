@@ -269,6 +269,12 @@ export const useCartStore = create<CartState>()(
 
         // Use the file key from the uploaded file
         const fileKey = quote.file?.fileKey;
+        console.log('📦 [CART STORE] Extracted fileKey:', fileKey);
+        console.log('📦 [CART STORE] quote.file object:', quote.file);
+        console.log('📦 [CART STORE] This fileKey should be the CANVAS THUMBNAIL key (includes text/images)');
+        console.log('📦 [CART STORE] Extracted fileKey:', fileKey);
+        console.log('📦 [CART STORE] quote.file object:', quote.file);
+        console.log('📦 [CART STORE] This fileKey should be the CANVAS THUMBNAIL key (includes text/images)');
 
         const newItem: CartItem = {
           id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
