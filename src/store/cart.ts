@@ -851,13 +851,13 @@ export const useCartStore = create<CartState>()(
             console.log('⚠️ STORE: Server cart empty and local cart belongs to different user');
             console.log('⚠️ STORE: Cart owner:', cartOwnerId, 'Current user:', userId);
             console.log('⚠️ STORE: Clearing local cart');
-            set({ items: [] });
+            console.log('⚠️ CLEARING ITEMS TO EMPTY ARRAY!', new Error().stack); console.log('⚠️ CLEARING ITEMS TO EMPTY ARRAY!', new Error().stack); set({ items: [] });
             return;
           }
         }
         // Both server and local are empty
         console.log('ℹ️  STORE: Both server and local carts are empty');
-        set({ items: [] });
+        console.log('⚠️ CLEARING ITEMS TO EMPTY ARRAY!', new Error().stack); console.log('⚠️ CLEARING ITEMS TO EMPTY ARRAY!', new Error().stack); set({ items: [] });
       },
 
       getMigratedItems: () => {

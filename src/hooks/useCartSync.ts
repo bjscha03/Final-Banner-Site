@@ -131,7 +131,7 @@ export function useCartSync() {
             console.log('✅ MERGE: Merged items count:', mergedItems.length);
             
             // Update the store with merged items
-            useCartStore.setState({ items: mergedItems });
+            console.log('✅ CART SYNC: Setting merged items:', mergedItems.length); console.log('✅ CART SYNC: Setting merged items:', mergedItems.length); useCartStore.setState({ items: mergedItems });
             
             // Set cart owner to current user
             if (typeof localStorage !== 'undefined') {
@@ -191,7 +191,7 @@ export function useCartSync() {
       }
       
       // Clear cart from UI (cart is saved to database above)
-      console.log('🚪 Clearing cart from UI');
+      console.log('⚠️ CART SYNC: CLEARING ITEMS FROM UI (LOGOUT PATH)!', new Error().stack); console.log('⚠️ CART SYNC: CLEARING ITEMS FROM UI (LOGOUT PATH)!', new Error().stack); console.log('🚪 Clearing cart from UI');
       useCartStore.setState({ items: [] });
       if (typeof localStorage !== 'undefined') {
         localStorage.removeItem('cart_owner_user_id');
