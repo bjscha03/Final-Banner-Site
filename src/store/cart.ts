@@ -802,9 +802,10 @@ export const useCartStore = create<CartState>()(
         console.log('🔵 STORE: Cart owner ID:', cartOwnerId);
         console.log('🔵 STORE: Current user ID:', userId);
         
-        // MERGE LOGIC: Combine local and server items, preferring local for conflicts
-        // This prevents losing items that were added locally but not yet synced
-        if (serverItems.length > 0 || localItems.length > 0) {
+        // CRITICAL FIX: Do NOT merge local items with server items!
+        // This was causing cross-account cart pollution.
+        // Server is the source of truth - just use server items.
+        if (serverItems.length > 0) {
           console.log("🖼️  STORE: Checking image URLs in server items:");
           serverItems.forEach((item, idx) => {
             console.log(`  Item ${idx}:`, {
@@ -817,20 +818,10 @@ export const useCartStore = create<CartState>()(
             });
           });
           
-          // MERGE: Start with server items, add any local items that aren't on server
-          const serverItemIds = new Set(serverItems.map(item => item.id));
-          const localOnlyItems = localItems.filter(item => !serverItemIds.has(item.id));
-          const mergedItems = [...serverItems, ...localOnlyItems];
-          
-          console.log('✅ STORE: Merging server (' + serverItems.length + ') and local-only (' + localOnlyItems.length + ') items');
-          console.log('✅ STORE: Merged cart has ' + mergedItems.length + ' items');
-          set({ items: mergedItems });
-          
-          // If we added local items, sync them to server
-          if (localOnlyItems.length > 0) {
-            console.log('🔄 STORE: Syncing merged cart to server...');
-            setTimeout(() => get().syncToServer(), 100);
-          }
+          // CRITICAL: Use ONLY server items - no merging with local items
+          // Local items may belong to a different user
+          console.log('✅ STORE: Using server items ONLY (no merge) - ' + serverItems.length + ' items');
+          set({ items: serverItems });
           
           // Set cart owner
           if (typeof localStorage !== 'undefined') {
@@ -840,12 +831,15 @@ export const useCartStore = create<CartState>()(
         }
         
         // Server cart is empty
-        // Server cart is empty
+        // CRITICAL FIX: When server cart is empty, ALWAYS clear local cart
+        // This prevents cross-account pollution where User A's items get synced to User B
+        // The only exception is if we're CERTAIN the local cart belongs to this user
         if (localItems.length > 0) {
-          // Check if local cart belongs to this user OR is a guest cart (null owner)
-          if (cartOwnerId === userId || cartOwnerId === null) {
-            console.log('⚠️ STORE: Server cart empty but local cart belongs to this user or is guest cart');
-            console.log('⚠️ STORE: Saving local cart to server');
+          // ONLY keep local items if cartOwnerId EXACTLY matches current user
+          // Do NOT keep items if cartOwnerId is null (could be stale from another user)
+          if (cartOwnerId === userId) {
+            console.log('✅ STORE: Server cart empty but local cart belongs to THIS user');
+            console.log('✅ STORE: Saving local cart to server');
             // Set cart owner to current user
             if (typeof localStorage !== 'undefined') {
               localStorage.setItem('cart_owner_user_id', userId);
@@ -854,10 +848,13 @@ export const useCartStore = create<CartState>()(
             setTimeout(() => get().syncToServer(), 100);
             return;
           } else {
-            console.log('⚠️ STORE: Server cart empty and local cart belongs to different user');
+            // cartOwnerId is null OR belongs to different user - CLEAR IT
+            console.log('⚠️ STORE: Server cart empty, clearing local cart (owner mismatch or null)');
             console.log('⚠️ STORE: Cart owner:', cartOwnerId, 'Current user:', userId);
-            console.log('⚠️ STORE: Clearing local cart');
-            console.log('⚠️ CLEARING ITEMS TO EMPTY ARRAY!', new Error().stack); console.log('⚠️ CLEARING ITEMS TO EMPTY ARRAY!', new Error().stack); set({ items: [] });
+            set({ items: [] });
+            if (typeof localStorage !== 'undefined') {
+              localStorage.setItem('cart_owner_user_id', userId);
+            }
             return;
           }
         }

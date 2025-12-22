@@ -126,13 +126,17 @@ exports.handler = async (event, context) => {
 
     console.log('[cart-load] Cart loaded:', { itemCount: cartData.length });
     
-    // Log thumbnail reconstruction results
+    // Log thumbnail reconstruction results with FULL URLs for debugging
     cartData.forEach((item, idx) => {
-      console.log(`[cart-load] Item ${idx} URLs:`, {
-        file_key: item.file_key,
-        file_url: item.file_url ? item.file_url.substring(0, 60) : 'NULL',
-        thumbnail_url: item.thumbnail_url ? item.thumbnail_url.substring(0, 60) : 'NULL'
-      });
+      console.log('[cart-load] ==========================================');
+      console.log('[cart-load] Item', idx + 1, 'FULL DEBUG:');
+      console.log('[cart-load]   ID:', item.id);
+      console.log('[cart-load]   file_key:', item.file_key || 'NULL');
+      console.log('[cart-load]   file_url:', item.file_url || 'NULL');
+      console.log('[cart-load]   thumbnail_url:', item.thumbnail_url || 'NULL');
+      console.log('[cart-load]   has_text:', !!(item.text_elements && item.text_elements.length > 0));
+      console.log('[cart-load]   has_overlays:', !!(item.overlay_images && item.overlay_images.length > 0) || !!item.overlay_image);
+      console.log('[cart-load] ==========================================');
     });
 
     return {
