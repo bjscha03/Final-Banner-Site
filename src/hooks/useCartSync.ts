@@ -223,10 +223,16 @@ export function useCartSync() {
       }
       
       // Clear cart from UI (cart is saved to database above)
-      console.log('⚠️ CART SYNC: CLEARING ITEMS FROM UI (LOGOUT PATH)!', new Error().stack); console.log('⚠️ CART SYNC: CLEARING ITEMS FROM UI (LOGOUT PATH)!', new Error().stack); console.log('🚪 Clearing cart from UI');
+      console.log('🚪 Clearing cart from UI');
       useCartStore.setState({ items: [] });
+      
+      // CRITICAL: Also clear the Zustand persist storage to prevent stale data
+      // This ensures the next user doesn't see any remnants of this user's cart
       if (typeof localStorage !== 'undefined') {
         localStorage.removeItem('cart_owner_user_id');
+        // Also clear the Zustand cart-storage to prevent rehydration issues
+        localStorage.removeItem('cart-storage');
+        console.log('🚪 Cleared cart-storage from localStorage');
       }
       hasMergedRef.current = false;
       console.log('✅ Cart cleared from UI - will be restored from database on next login');
