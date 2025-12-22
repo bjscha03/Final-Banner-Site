@@ -69,11 +69,17 @@ export function useCartSync() {
       console.log('⚠️  USER CHANGED: Different user logging in');
       console.log('⚠️  Previous user:', prevUserId);
       console.log('⚠️  New user:', currentUserId);
-      console.log('⚠️  Clearing localStorage cart for new user');
+      console.log('⚠️  CRITICAL: Clearing cart from UI BEFORE loading new user cart');
+      
+      // CRITICAL FIX: Clear the cart from UI FIRST to prevent cross-account pollution
+      useCartStore.setState({ items: [] });
+      console.log('✅ Cart cleared from UI');
       
       // Remove the old cart owner ID
       if (typeof localStorage !== 'undefined') {
         localStorage.removeItem('cart_owner_user_id');
+        localStorage.setItem('cart_owner_user_id', currentUserId);
+        console.log('✅ Updated cart_owner_user_id to new user:', currentUserId);
       }
       
       // Load the new user's cart from database

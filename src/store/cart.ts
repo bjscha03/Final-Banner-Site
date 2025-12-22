@@ -936,6 +936,34 @@ export const useCartStore = create<CartState>()(
         console.log('💾 CART STORAGE: Rehydrating from localStorage...');
         console.log('💾 CART STORAGE: Rehydrated state:', state);
         console.log('💾 CART STORAGE: Items count after rehydration:', state?.items?.length ?? 0);
+        
+        // CRITICAL FIX: Check if the cart belongs to the current user
+        // If not, clear the items to prevent cross-account pollution
+        if (typeof localStorage !== 'undefined') {
+          const cartOwnerId = localStorage.getItem('cart_owner_user_id');
+          const currentUserStr = localStorage.getItem('banners_current_user');
+          let currentUserId = null;
+          try {
+            if (currentUserStr) {
+              currentUserId = JSON.parse(currentUserStr)?.id;
+            }
+          } catch (e) {
+            console.error('💾 CART STORAGE: Error parsing current user:', e);
+          }
+          
+          console.log('�� CART STORAGE: Cart owner ID:', cartOwnerId);
+          console.log('💾 CART STORAGE: Current user ID:', currentUserId);
+          
+          // If cart belongs to a different user, clear it
+          if (cartOwnerId && currentUserId && cartOwnerId !== currentUserId) {
+            console.log('⚠️ CART STORAGE: Cart belongs to different user, clearing items');
+            if (state) {
+              state.items = [];
+            }
+            localStorage.removeItem('cart_owner_user_id');
+          }
+        }
+        
         if (state?.items?.length) {
           state.items.forEach((item, idx) => {
             console.log('💾 CART STORAGE: Rehydrated item ' + idx + ': ' + item.id);
