@@ -6,6 +6,7 @@ import { usd } from '@/lib/pricing';
 import { useCartStore } from '@/store/cart';
 import { useToast } from '@/hooks/use-toast';
 import { useQuoteStore } from '@/store/quote';
+import { useAuth } from '@/lib/auth';
 
 interface CartModalProps {
   isOpen: boolean;
@@ -20,6 +21,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
   const items = getMigratedItems();
   const { toast } = useToast();
   const { loadFromCartItem } = useQuoteStore();
+  const { user } = useAuth();
   
   if (!isOpen) return null;
 
@@ -29,7 +31,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
-  const handleEdit = (itemId: string) => {
+  const handleEdit = async (itemId: string) => {
     console.log('🛒 CART MODAL: handleEdit called with itemId:', itemId);
     
     try {
@@ -44,6 +46,52 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
           variant: "destructive",
         });
         return;
+      }
+
+      // Check if this is a Canva design
+      if (item.canva_design_id && user?.id) {
+        console.log('🎨 CART MODAL: Canva design detected, getting edit URL...');
+        toast({
+          title: "Opening Canva...",
+          description: "Redirecting to Canva editor",
+        });
+        
+        try {
+          const response = await fetch('/.netlify/functions/canva-get-edit-url', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              designId: item.canva_design_id,
+              userId: user.id
+            })
+          });
+          
+          const data = await response.json();
+          
+          if (data.success && data.editUrl) {
+            console.log('🎨 CART MODAL: Got Canva edit URL, opening...');
+            // Store the item ID so we can update it when user returns
+            sessionStorage.setItem('canva-editing-cart-item-id', itemId);
+            sessionStorage.setItem('canva-editing-width', String(item.width_in));
+            sessionStorage.setItem('canva-editing-height', String(item.height_in));
+            onClose();
+            window.open(data.editUrl, '_blank');
+            return;
+          } else if (data.needsAuth) {
+            console.log('🎨 CART MODAL: Canva auth needed, redirecting to new design...');
+            toast({
+              title: "Canva session expired",
+              description: "Opening a new Canva session with your banner dimensions",
+            });
+            // Fall through to open new Canva session
+          } else {
+            console.log('🎨 CART MODAL: Could not get edit URL, falling back to regular editor');
+            // Fall through to regular editor
+          }
+        } catch (error) {
+          console.error('🎨 CART MODAL: Error getting Canva edit URL:', error);
+          // Fall through to regular editor
+        }
       }
 
       // CRITICAL FIX: Reset design state completely before loading cart item
@@ -89,7 +137,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
     }
   };
 
-  // Compute "each" price
+    // Compute "each" price
   const computeEach = (item: any): number => {
     const ropeMode = item.rope_pricing_mode || 'per_item';
     const pocketMode = item.pole_pocket_pricing_mode || 'per_item';
