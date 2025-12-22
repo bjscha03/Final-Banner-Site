@@ -234,6 +234,12 @@ export function useCartSync() {
         localStorage.removeItem('cart-storage');
         console.log('🚪 Cleared cart-storage from localStorage');
       }
+      
+      // CRITICAL FIX: Clear session cookie to prevent cross-account pollution
+      // Without this, the next user who logs in would get the previous user's guest cart!
+      cartSyncService.clearSessionCookie();
+      console.log('🚪 Cleared session cookie');
+      
       hasMergedRef.current = false;
       console.log('✅ Cart cleared from UI - will be restored from database on next login');
     }

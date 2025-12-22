@@ -1233,6 +1233,28 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     
     console.log('[BannerEditorLayout] Upsell - Using thumbnail URL:', thumbnailUrl ? thumbnailUrl.substring(0, 50) + '...' : 'null');
 
+    // CRITICAL FIX: Upload thumbnail to Cloudinary for persistence (SAME AS handleAddToCart)
+    // Without this, thumbnails are lost after logout/login
+    let upsellThumbnailFileKey: string | undefined = undefined;
+    if (thumbnailUrl && (thumbnailUrl.startsWith('data:') || thumbnailUrl.startsWith('blob:'))) {
+      console.log('📤 [UPSELL THUMBNAIL UPLOAD] Uploading thumbnail to Cloudinary...');
+      try {
+        const uploadResult = await uploadCanvasImageToCloudinary(thumbnailUrl, `banner-thumbnail-${Date.now()}.png`);
+        thumbnailUrl = uploadResult.secureUrl;
+        upsellThumbnailFileKey = uploadResult.fileKey;
+        console.log('✅ [UPSELL THUMBNAIL UPLOAD] Uploaded successfully:', { url: thumbnailUrl, fileKey: upsellThumbnailFileKey });
+      } catch (uploadError) {
+        console.error('❌ [UPSELL THUMBNAIL UPLOAD] Failed:', uploadError);
+      }
+    } else if (thumbnailUrl && thumbnailUrl.includes('cloudinary.com')) {
+      // Extract fileKey from existing Cloudinary URL
+      const match = thumbnailUrl.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\.[^.]+)?$/);
+      if (match) {
+        upsellThumbnailFileKey = match[1];
+        console.log('✅ [UPSELL THUMBNAIL] Using existing Cloudinary URL, fileKey:', upsellThumbnailFileKey);
+      }
+    }
+
     // BUG 3 FIX (UPSELL PATH): Extract overlay image from editor objects
     // CRITICAL: Get FRESH objects from store, not stale editorObjects variable
     const freshEditorObjectsUpsell = useEditorStore.getState().objects;
@@ -1327,7 +1349,12 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       textElements: textElementsFromEditorUpsell.length > 0 ? textElementsFromEditorUpsell : undefined,
       overlayImage: currentOverlayImageUpsell,
       canvasBackgroundColor: canvasBackgroundColor,
-      file: undefined,
+      // CRITICAL FIX: Include file with fileKey for thumbnail persistence
+      file: upsellThumbnailFileKey ? { 
+        fileKey: upsellThumbnailFileKey,
+        url: thumbnailUrl,
+        name: `banner-${Date.now()}.png`
+      } : undefined,
       thumbnailUrl: thumbnailUrl,
     };
 
