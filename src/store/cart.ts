@@ -108,7 +108,7 @@ export interface CartState {
   loadFromServer: () => Promise<void>;
   items: CartItem[];
   isLoading: boolean;  // Loading state for cart operations (merge, load from server)
-  isLoading: boolean;  // Loading state for cart operations (merge, load from server)
+  isSyncing: boolean;  // Flag to prevent loadFromServer from overwriting during sync
   discountCode: DiscountCode | null;
   addFromQuote: (quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => void;
   loadItemIntoQuote: (itemId: string) => CartItem | null;
@@ -198,6 +198,7 @@ export const useCartStore = create<CartState>()(
     (set, get) => ({
       items: [],
       isLoading: false,
+      isSyncing: false,
       discountCode: null,
       
       addFromQuote: (quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => {
@@ -672,6 +673,11 @@ export const useCartStore = create<CartState>()(
 
       // Sync cart to Neon database (for logged-in users)
       syncToServer: async () => {
+        // Set syncing flag to prevent loadFromServer from overwriting during sync
+        set({ isSyncing: true });
+        console.log('🔄 SYNC: Starting sync, isSyncing = true');
+        
+        try {
         const userId = cartSync.getUserId();
         const rawItems = get().items;
         
@@ -751,13 +757,22 @@ export const useCartStore = create<CartState>()(
         } else {
           console.error('❌ STORE: Failed to sync cart to server - cart will remain in localStorage');
         }
+        } finally {
+          // Always reset syncing flag when done
+          set({ isSyncing: false });
+          console.log('🔄 SYNC: Sync complete, isSyncing = false');
+        }
       },
 
       // Load cart from Neon database and merge with local
-      // Load cart from Neon database and merge with local
       loadFromServer: async () => {
         console.log('🔵 STORE: loadFromServer called');
-        console.log('🔵 STORE: loadFromServer STACK TRACE:', new Error().stack);
+        
+        // CRITICAL: Skip loading if a sync is in progress to prevent race conditions
+        if (get().isSyncing) {
+          console.log('⏳ STORE: Skipping loadFromServer - sync in progress');
+          return;
+        }
         console.log('🔵 STORE: loadFromServer STACK TRACE:', new Error().stack);
         const userId = cartSync.getUserId();
         console.log('🔵 STORE: Got user ID:', userId);
