@@ -1652,10 +1652,10 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
               onClick={handleAddToCart}
               disabled={!hasContent}
               size="sm"
-              className="min-h-[44px] min-w-[44px] bg-[#18448D] hover:bg-[#0f2d5c] text-white"
+              className="min-h-[44px] bg-[#18448D] hover:bg-[#0f2d5c] text-white px-2 sm:px-3"
             >
-              <ShoppingCart className="w-4 h-4 sm:mr-2" />
-              <span className="hidden sm:inline">{editingItemId ? 'Update Cart' : 'Add to Cart'}</span>
+              <ShoppingCart className="w-4 h-4 mr-1 sm:mr-2 flex-shrink-0" />
+              <span className="text-xs sm:text-sm whitespace-nowrap">{editingItemId ? 'Update' : 'Add to Cart'}</span>
             </Button>
             {/* Buy Now button - only show when not editing */}
             {!editingItemId && (
@@ -1663,10 +1663,10 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
                 onClick={handleBuyNow}
                 disabled={!hasContent}
                 size="sm"
-                className="min-h-[44px] min-w-[44px] bg-[#ff6b35] hover:bg-[#f7931e] text-white font-semibold"
+                className="min-h-[44px] bg-[#ff6b35] hover:bg-[#f7931e] text-white font-semibold px-2 sm:px-3"
               >
-                <CreditCard className="w-4 h-4 sm:mr-2" />
-                <span className="hidden sm:inline">Buy Now</span>
+                <CreditCard className="w-4 h-4 mr-1 sm:mr-2 flex-shrink-0" />
+                <span className="text-xs sm:text-sm whitespace-nowrap">Buy Now</span>
               </Button>
             )}
           </div>
