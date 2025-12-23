@@ -194,7 +194,7 @@ const HeroSection: React.FC = () => {
                 onClick={handleStartDesigning}
                 className="inline-flex items-center justify-center px-8 py-3.5 bg-[#18448D] hover:bg-[#1a4d9e] text-white text-base font-semibold rounded-lg transition-colors duration-200"
               >
-                Start Designing from Scratch
+                Upload or Create Your Banner
               </button>
 
               {/* Trust Indicators */}
@@ -339,7 +339,7 @@ const HeroSection: React.FC = () => {
                 </div>
 
                 {/* Pricing Note - More subtle */}
-                <p className="text-xs text-slate-500 text-center">
+                <p className="text-xs text-[#ff6b35] font-medium text-center">
                   Includes 24-hour production & free next-day air shipping
                 </p>
 
