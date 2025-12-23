@@ -399,7 +399,7 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
           accept="image/*,application/pdf"
           multiple
           onChange={handleFileSelect}
-          className="hidden"
+          className="absolute opacity-0 w-0 h-0 overflow-hidden"
         />
       </div>
 
