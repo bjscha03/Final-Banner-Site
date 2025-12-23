@@ -711,6 +711,13 @@ const QuickQuote: React.FC = () => {
               {/* Mobile-only Button Section */}
               <div className="lg:hidden flex justify-center">
                 <div className="w-full max-w-md space-y-4">
+                  {/* Free Shipping Reinforcement */}
+                  <p className="text-center text-sm text-[#18448D] font-medium flex items-center justify-center gap-1.5">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                    Includes FREE Next-Day Air Shipping
+                  </p>
                   <Button
                     onClick={handleStartDesign}
                     disabled={!isValid}
@@ -748,6 +755,13 @@ const QuickQuote: React.FC = () => {
 
               {/* Call-to-Action */}
               <div className="hidden lg:block space-y-4">
+                {/* Free Shipping Reinforcement */}
+                <p className="text-center text-sm text-[#18448D] font-medium flex items-center justify-center gap-1.5">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  Includes FREE Next-Day Air Shipping
+                </p>
                 <TooltipProvider>
                   <Tooltip>
                     <TooltipTrigger asChild>
