@@ -1,8 +1,8 @@
-const multipart = require('parse-multipart');
+const Busboy = require('busboy');
 const { v2: cloudinary } = require('cloudinary');
 
 const MAX_BYTES = 200 * 1024 * 1024;
-const ALLOWED = ['application/pdf','image/jpeg','image/jpg','image/png'];
+const ALLOWED = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif'];
 
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -36,59 +36,53 @@ exports.handler = async (event) => {
       return { statusCode: 400, body: 'Bad Content-Type. Got: ' + ct };
     }
 
-    const boundary = multipart.getBoundary(ct);
-    if (!boundary) {
-      console.log('Missing multipart boundary');
-      return { statusCode: 400, body: 'Missing multipart boundary' };
-    }
-    
     if (!event.body) {
       console.log('Empty body');
       return { statusCode: 400, body: 'Empty body' };
     }
 
-    console.log('Parsing multipart data...');
-    const buf = event.isBase64Encoded ? Buffer.from(event.body, 'base64') : Buffer.from(event.body, 'utf8');
-    console.log('Buffer size:', buf.length, 'bytes');
+    // Decode body if base64 encoded (common for binary data in Lambda/Netlify)
+    const bodyBuffer = event.isBase64Encoded 
+      ? Buffer.from(event.body, 'base64') 
+      : Buffer.from(event.body, 'binary');
+    
+    console.log('Body buffer size:', bodyBuffer.length, 'bytes');
 
-    let parts;
-    try {
-      parts = multipart.Parse(buf, boundary);
-      console.log('Multipart parsed successfully, parts:', parts.length);
-    } catch (e) {
-      console.error('Multipart parse error:', e);
-      return { statusCode: 400, body: 'Multipart parse error: ' + (e && e.message ? e.message : 'unknown') };
+    // Parse multipart form data using Busboy
+    const parseResult = await parseMultipart(ct, bodyBuffer);
+    
+    if (!parseResult.file) {
+      console.log('No file found in request');
+      return { statusCode: 400, body: 'No file field found in request' };
     }
 
-    const filePart = parts.find(p => p.filename && p.data);
-    if (!filePart) {
-      console.log('No file part found');
-      return { statusCode: 400, body: 'No file field named "file" found' };
-    }
-
-    const filename = filePart.filename;
-    const type = filePart.type;
-    const data = filePart.data;
+    const { filename, mimeType, data } = parseResult.file;
     
     console.log('File details:', {
       filename: filename,
-      type: type,
-      size: data.byteLength,
+      mimeType: mimeType,
+      size: data.length,
       maxAllowed: MAX_BYTES
     });
 
-    if (data.byteLength > MAX_BYTES) {
-      console.log('File too large:', data.byteLength, '>', MAX_BYTES);
+    if (data.length > MAX_BYTES) {
+      console.log('File too large:', data.length, '>', MAX_BYTES);
       return { statusCode: 413, body: 'File too large. Max ' + MAX_BYTES + ' bytes' };
     }
     
-    if (type && !ALLOWED.includes(type)) {
-      console.log('Unsupported media type:', type);
-      return { statusCode: 415, body: 'Unsupported media type: ' + type };
+    // More permissive type checking - allow if type is missing or matches allowed list
+    if (mimeType && !ALLOWED.includes(mimeType.toLowerCase())) {
+      // Check if it's an image by extension as fallback
+      const ext = filename.split('.').pop()?.toLowerCase();
+      const imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif', 'pdf'];
+      if (!imageExts.includes(ext || '')) {
+        console.log('Unsupported media type:', mimeType);
+        return { statusCode: 415, body: 'Unsupported media type: ' + mimeType };
+      }
+      console.log('Type not in allowed list but extension is valid:', ext);
     }
 
     const folder = process.env.CLOUDINARY_FOLDER || 'uploads';
-    const resourceType = 'auto';
 
     console.log('Starting Cloudinary upload...');
     const uploadStartTime = Date.now();
@@ -97,7 +91,7 @@ exports.handler = async (event) => {
       const stream = cloudinary.uploader.upload_stream(
         { 
           folder: folder, 
-          resource_type: resourceType, 
+          resource_type: 'auto', 
           filename_override: sanitize(filename), 
           use_filename: true, 
           unique_filename: true,
@@ -138,6 +132,61 @@ exports.handler = async (event) => {
     return { statusCode: 500, body: 'Server error: ' + (e && e.message ? e.message : 'unknown') };
   }
 };
+
+// Parse multipart form data using Busboy (more robust than parse-multipart)
+function parseMultipart(contentType, bodyBuffer) {
+  return new Promise((resolve, reject) => {
+    const result = { file: null };
+    
+    try {
+      const busboy = Busboy({ 
+        headers: { 'content-type': contentType },
+        limits: { fileSize: MAX_BYTES }
+      });
+      
+      const chunks = [];
+      let fileInfo = null;
+      
+      busboy.on('file', (fieldname, stream, info) => {
+        const { filename, encoding, mimeType } = info;
+        console.log('Busboy file event:', { fieldname, filename, encoding, mimeType });
+        fileInfo = { filename, mimeType };
+        
+        stream.on('data', (chunk) => {
+          chunks.push(chunk);
+        });
+        
+        stream.on('end', () => {
+          console.log('Busboy file stream ended, total chunks:', chunks.length);
+        });
+      });
+      
+      busboy.on('finish', () => {
+        console.log('Busboy parsing finished');
+        if (fileInfo && chunks.length > 0) {
+          result.file = {
+            filename: fileInfo.filename,
+            mimeType: fileInfo.mimeType,
+            data: Buffer.concat(chunks)
+          };
+        }
+        resolve(result);
+      });
+      
+      busboy.on('error', (err) => {
+        console.error('Busboy error:', err);
+        reject(err);
+      });
+      
+      // Write the buffer to busboy
+      busboy.end(bodyBuffer);
+      
+    } catch (err) {
+      console.error('Busboy setup error:', err);
+      reject(err);
+    }
+  });
+}
 
 function sanitize(name) {
   return name.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 150);
