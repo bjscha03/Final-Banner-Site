@@ -377,14 +377,10 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
     <div className="space-y-4">
       <h3 className="text-sm font-semibold text-gray-900">Uploads</h3>
       
-      <div
+      <label
         onDrop={handleDrop}
         onDragOver={handleDragOver}
-        className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-[#18448D] transition-colors cursor-pointer"
-        onClick={() => {
-          console.log('[AssetsPanel] Upload area clicked, triggering file input');
-          fileInputRef.current?.click();
-        }}
+        className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-[#18448D] transition-colors cursor-pointer block"
       >
         <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
         <p className="text-sm text-gray-600 mb-1">
@@ -399,9 +395,9 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
           accept="image/*,application/pdf"
           multiple
           onChange={handleFileSelect}
-          className="absolute opacity-0 w-0 h-0 overflow-hidden"
+          className="sr-only"
         />
-      </div>
+      </label>
 
       {uploading && (
         <div className="text-center text-sm text-gray-500">
