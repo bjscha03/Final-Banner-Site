@@ -110,13 +110,6 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({ onOpenAIModal, onExport, 
           </DropdownMenuContent>
         </DropdownMenu>
 
-        {onOpenAIModal && (
-          <Button variant="outline" size="sm" onClick={onOpenAIModal}>
-            <Sparkles className="h-4 w-4 mr-2" />
-            AI Generate
-          </Button>
-        )}
-        
         <Button 
           variant="outline" 
           size="sm"

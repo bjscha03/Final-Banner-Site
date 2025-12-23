@@ -1607,17 +1607,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
           </div>
           
           <div className="flex items-center gap-2">
-            {import.meta.env.VITE_AI_BANNER_ENABLED !== 'false' && (
-              <Button
-                onClick={handleAIGenerate}
-                variant="outline"
-                size="sm"
-                className="hidden sm:flex items-center gap-2"
-              >
-                <Sparkles className="w-4 h-4" />
-                AI Generate
-              </Button>
-            )}
+            
             {/* Canva Design Button - Admin only for testing */}
             {isAdminUser && (
               <Button
