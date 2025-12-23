@@ -486,7 +486,7 @@ const QuickQuote: React.FC = () => {
                   className="h-10 w-10 bg-white border border-slate-300 rounded-md hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
                   type="button"
                 >
-                  <Minus className="h-5 w-5 text-green-600 group-hover:text-[#18448D] transition-colors" />
+                  <Minus className="h-5 w-5 text-green-600 group-hover:text-[#ff6b35] transition-colors" />
                 </button>
 
                 <div className="text-center space-y-2">
@@ -517,7 +517,7 @@ const QuickQuote: React.FC = () => {
                   className="h-10 w-10 bg-white border border-slate-300 rounded-md hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
                   type="button"
                 >
-                  <Plus className="h-5 w-5 text-green-600 group-hover:text-[#18448D] transition-colors" />
+                  <Plus className="h-5 w-5 text-green-600 group-hover:text-[#ff6b35] transition-colors" />
                 </button>
               </div>
             </div>
@@ -659,7 +659,7 @@ const QuickQuote: React.FC = () => {
                     </div>
                     <div className="flex justify-between">
                       <span className="font-bold text-gray-800">Total with tax:</span>
-                      <span className="font-bold text-[#18448D]">{usd(totals.totalWithTax)}</span>
+                      <span className="font-bold text-[#ff6b35]">{usd(totals.totalWithTax)}</span>
                     </div>
                   </div>
                 </div>
@@ -712,7 +712,7 @@ const QuickQuote: React.FC = () => {
               <div className="lg:hidden flex justify-center">
                 <div className="w-full max-w-md space-y-4">
                   {/* Free Shipping Reinforcement */}
-                  <p className="text-center text-sm text-[#18448D] font-medium flex items-center justify-center gap-1.5">
+                  <p className="text-center text-sm text-[#ff6b35] font-medium flex items-center justify-center gap-1.5">
                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
@@ -756,7 +756,7 @@ const QuickQuote: React.FC = () => {
               {/* Call-to-Action */}
               <div className="hidden lg:block space-y-4">
                 {/* Free Shipping Reinforcement */}
-                <p className="text-center text-sm text-[#18448D] font-medium flex items-center justify-center gap-1.5">
+                <p className="text-center text-sm text-[#ff6b35] font-medium flex items-center justify-center gap-1.5">
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
