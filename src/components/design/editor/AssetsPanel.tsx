@@ -377,7 +377,17 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
     <div className="space-y-4">
       <h3 className="text-sm font-semibold text-gray-900">Uploads</h3>
       
+      <input
+        ref={fileInputRef}
+        id="assets-panel-file-input"
+        type="file"
+        accept="image/*,application/pdf"
+        multiple
+        onChange={handleFileSelect}
+        className="hidden"
+      />
       <label
+        htmlFor="assets-panel-file-input"
         onDrop={handleDrop}
         onDragOver={handleDragOver}
         className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-[#18448D] transition-colors cursor-pointer block"
@@ -389,14 +399,6 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
         <p className="text-xs text-gray-400">
           PNG, JPG, GIF, PDF up to 25MB
         </p>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*,application/pdf"
-          multiple
-          onChange={handleFileSelect}
-          className="sr-only"
-        />
       </label>
 
       {uploading && (
