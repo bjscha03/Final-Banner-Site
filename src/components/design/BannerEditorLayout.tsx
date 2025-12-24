@@ -112,6 +112,10 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
   // Close panel when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
+      // Don't interfere with file inputs
+      const target = event.target as HTMLElement;
+      if (target.tagName === 'INPUT' && (target as HTMLInputElement).type === 'file') return;
+      if (target.closest('label')?.querySelector('input[type="file"]')) return;
       console.log('[BannerEditorLayout] Click detected, target:', event.target);
       console.log('[BannerEditorLayout] desktopPanelRef.current:', desktopPanelRef.current);
       console.log('[BannerEditorLayout] mobilePanelRef.current:', mobilePanelRef.current);
