@@ -132,7 +132,6 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
         return;
       }
       
-      const target = event.target as HTMLElement;
       console.log('[BannerEditorLayout] Click is outside panel, checking if sidebar button or dropdown...');
       
       // Don't close if clicking on sidebar buttons
