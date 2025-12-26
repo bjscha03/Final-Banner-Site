@@ -390,8 +390,13 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
         htmlFor="assets-panel-file-input"
         onDrop={handleDrop}
         onDragOver={handleDragOver}
-        className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-[#18448D] transition-colors cursor-pointer block"
-      >
+        onClick={(e) => {
+          // Fallback for Chrome: explicitly trigger file input click
+          e.preventDefault();
+          e.stopPropagation();
+          fileInputRef.current?.click();
+        }}
+        className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-[#18448D] transition-colors cursor-pointer block">
         <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
         <p className="text-sm text-gray-600 mb-1">
           Click to upload or drag and drop
