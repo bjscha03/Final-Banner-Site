@@ -1552,7 +1552,18 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         type="file"
         accept="image/*"
         onChange={handleOverlayUpload}
-        className="hidden"
+        style={{
+          position: 'absolute',
+          width: '1px',
+          height: '1px',
+          padding: 0,
+          margin: '-1px',
+          overflow: 'hidden',
+          clip: 'rect(0, 0, 0, 0)',
+          whiteSpace: 'nowrap',
+          border: 0,
+        }}
+        tabIndex={-1}
       />
       
       <div className="bg-white border border-gray-200/60 rounded-lg overflow-hidden shadow-sm" style={{ touchAction: 'pan-y' }}>
@@ -1902,7 +1913,18 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         type="file"
         accept=".pdf,.jpg,.jpeg,.png"
         onChange={handleFileSelect}
-        className="hidden"
+        style={{
+          position: 'absolute',
+          width: '1px',
+          height: '1px',
+          padding: 0,
+          margin: '-1px',
+          overflow: 'hidden',
+          clip: 'rect(0, 0, 0, 0)',
+          whiteSpace: 'nowrap',
+          border: 0,
+        }}
+        tabIndex={-1}
       />
     </div>
     </>

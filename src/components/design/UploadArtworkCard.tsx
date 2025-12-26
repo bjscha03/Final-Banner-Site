@@ -209,11 +209,8 @@ const UploadArtworkCard: React.FC = () => {
     }
   };
 
-  const openFileDialog = (e?: React.MouseEvent) => {
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
+  const openFileDialog = () => {
+    console.log('[UploadArtworkCard] Opening file dialog');
     fileInputRef.current?.click();
   };
 

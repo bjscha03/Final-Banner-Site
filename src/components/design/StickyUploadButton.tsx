@@ -131,9 +131,7 @@ const StickyUploadButton: React.FC<StickyUploadButtonProps> = ({ isAIModalOpen =
     }
   };
 
-  const handleUploadClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleUploadClick = () => {
     console.log('[StickyUploadButton] Button clicked, triggering file input');
     fileInputRef.current?.click();
   };
@@ -192,7 +190,17 @@ const StickyUploadButton: React.FC<StickyUploadButtonProps> = ({ isAIModalOpen =
         type="file" 
         accept="image/*,.pdf" 
         onChange={handleFileInputChange} 
-        className="hidden" 
+        style={{
+          position: 'absolute',
+          width: '1px',
+          height: '1px',
+          padding: 0,
+          margin: '-1px',
+          overflow: 'hidden',
+          clip: 'rect(0, 0, 0, 0)',
+          whiteSpace: 'nowrap',
+          border: 0,
+        }}
         tabIndex={-1}
       />
       <style>{`

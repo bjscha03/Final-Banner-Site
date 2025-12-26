@@ -157,9 +157,8 @@ const UploadHeroSection: React.FC<UploadHeroSectionProps> = ({ onOpenAIModal, on
     }
   };
 
-  const handleUploadClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
+  const handleUploadClick = () => {
+    console.log('[UploadHeroSection] Upload button clicked');
     fileInputRef.current?.click();
   };
 
@@ -213,7 +212,24 @@ const UploadHeroSection: React.FC<UploadHeroSectionProps> = ({ onOpenAIModal, on
           </div>
         </div>
       </div>
-      <input ref={fileInputRef} type="file" accept="image/*,.pdf" onChange={handleFileInputChange} className="hidden" />
+      <input 
+        ref={fileInputRef} 
+        type="file" 
+        accept="image/*,.pdf" 
+        onChange={handleFileInputChange} 
+        style={{
+          position: 'absolute',
+          width: '1px',
+          height: '1px',
+          padding: 0,
+          margin: '-1px',
+          overflow: 'hidden',
+          clip: 'rect(0, 0, 0, 0)',
+          whiteSpace: 'nowrap',
+          border: 0,
+        }}
+        tabIndex={-1}
+      />
     </div>
   );
 };
