@@ -209,7 +209,11 @@ const UploadArtworkCard: React.FC = () => {
     }
   };
 
-  const openFileDialog = () => {
+  const openFileDialog = (e?: React.MouseEvent) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     fileInputRef.current?.click();
   };
 
@@ -265,7 +269,7 @@ const UploadArtworkCard: React.FC = () => {
               <p className="text-sm text-gray-500 mb-4">
                 Supports PDF, JPG, JPEG, PNG files up to 10MB
               </p>
-              <Button onClick={openFileDialog} disabled={isUploading}>
+              <Button type="button" onClick={openFileDialog} disabled={isUploading}>
                 Choose File
               </Button>
             </div>

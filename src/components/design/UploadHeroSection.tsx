@@ -157,7 +157,9 @@ const UploadHeroSection: React.FC<UploadHeroSectionProps> = ({ onOpenAIModal, on
     }
   };
 
-  const handleUploadClick = () => {
+  const handleUploadClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
     fileInputRef.current?.click();
   };
 
@@ -181,7 +183,7 @@ const UploadHeroSection: React.FC<UploadHeroSectionProps> = ({ onOpenAIModal, on
         <h2 className="text-3xl md:text-4xl font-bold mb-3 text-gray-900">Start by Uploading Your Artwork</h2>
         <p className="text-lg text-gray-600 mb-8">Upload your design file (JPG, PNG, PDF) or use our AI generator to create one in seconds</p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center mb-6">
-          <Button size="lg" className="bg-[#18448D] hover:bg-[#0f2d5f] text-white px-8 py-6 text-lg" onClick={handleUploadClick} disabled={isUploading}>
+          <Button type="button" size="lg" className="bg-[#18448D] hover:bg-[#0f2d5f] text-white px-8 py-6 text-lg" onClick={handleUploadClick} disabled={isUploading}>
             {isUploading ? (
               <>
                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-2"></div>
