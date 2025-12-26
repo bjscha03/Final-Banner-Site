@@ -1672,13 +1672,21 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
               
               {/* Button container with proper centering */}
               <div className="flex flex-col items-center gap-4 w-full">
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  className="px-6 py-3.5 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white rounded-xl font-medium transition-colors duration-200 w-full max-w-xs min-h-[48px] flex items-center justify-center gap-2 shadow-sm hover:shadow-md touch-manipulation"
-                >
-                  <Upload className="w-5 h-5" />
-                  Upload Artwork
-                </button>
+                {/* Upload button with file input overlay - Chrome-compatible */}
+                <div className="relative w-full max-w-xs">
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png"
+                    onChange={handleFileSelect}
+                    className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                    title="Click to upload"
+                  />
+                  <div className="px-6 py-3.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium transition-colors duration-200 w-full min-h-[48px] flex items-center justify-center gap-2 shadow-sm hover:shadow-md">
+                    <Upload className="w-5 h-5" />
+                    Upload Artwork
+                  </div>
+                </div>
                 {import.meta.env.VITE_AI_BANNER_ENABLED !== 'false' && onOpenAIModal && isAdminUser && (
                   <>
                     <div className="text-gray-400 text-sm">or</div>
@@ -1908,24 +1916,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       )}
 
       {/* Hidden File Input */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".pdf,.jpg,.jpeg,.png"
-        onChange={handleFileSelect}
-        style={{
-          position: 'absolute',
-          width: '1px',
-          height: '1px',
-          padding: 0,
-          margin: '-1px',
-          overflow: 'hidden',
-          clip: 'rect(0, 0, 0, 0)',
-          whiteSpace: 'nowrap',
-          border: 0,
-        }}
-        tabIndex={-1}
-      />
+      {/* File input moved to inline with button */}
     </div>
     </>
   );
