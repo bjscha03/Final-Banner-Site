@@ -377,37 +377,22 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
     <div className="space-y-4">
       <h3 className="text-sm font-semibold text-gray-900">Uploads</h3>
       
-      {/* Hidden file input - Chrome-compatible approach using sr-only pattern */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*,application/pdf"
-        multiple
-        onChange={handleFileSelect}
-        style={{
-          position: 'absolute',
-          width: '1px',
-          height: '1px',
-          padding: 0,
-          margin: '-1px',
-          overflow: 'hidden',
-          clip: 'rect(0, 0, 0, 0)',
-          whiteSpace: 'nowrap',
-          border: 0,
-        }}
-        tabIndex={-1}
-      />
-      {/* Clickable upload area - uses button for reliable Chrome support */}
-      <button
-        type="button"
-        onClick={() => {
-          console.log('[AssetsPanel] Upload button clicked');
-          fileInputRef.current?.click();
-        }}
+      {/* Upload area with file input overlay - Chrome-compatible */}
+      <div 
+        className="relative border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-[#18448D] transition-colors cursor-pointer"
         onDrop={handleDrop}
         onDragOver={handleDragOver}
-        className="w-full border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-[#18448D] transition-colors cursor-pointer bg-transparent"
       >
+        {/* File input covers the entire clickable area */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*,application/pdf"
+          multiple
+          onChange={handleFileSelect}
+          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+          title="Click to upload"
+        />
         <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
         <p className="text-sm text-gray-600 mb-1">
           Click to upload or drag and drop
@@ -415,7 +400,7 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
         <p className="text-xs text-gray-400">
           PNG, JPG, GIF, PDF up to 25MB
         </p>
-      </button>
+      </div>
 
       {uploading && (
         <div className="text-center text-sm text-gray-500">
