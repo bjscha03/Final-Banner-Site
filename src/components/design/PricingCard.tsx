@@ -217,6 +217,8 @@ const PricingCard: React.FC = () => {
   }[grommets];
 
   const handleAddToCart = () => {
+    console.time('handleAddToCart-total');
+    console.log('PERF: handleAddToCart START');
     // Check minimum order requirement
     if (!canProceed) {
       toast({
@@ -241,8 +243,13 @@ const PricingCard: React.FC = () => {
 
     // Show upsell modal if user should see it
     if (shouldShowUpsell) {
+      console.log('PERF: About to call setShowUpsellModal(true)');
+      console.time('setShowUpsellModal');
       setPendingAction('cart');
       setShowUpsellModal(true);
+      console.timeEnd('setShowUpsellModal');
+      console.timeEnd('handleAddToCart-total');
+      console.log('PERF: handleAddToCart COMPLETE - modal should be visible now');
       return;
     }
 
