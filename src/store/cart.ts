@@ -5,6 +5,11 @@ import { calculateTax, calculateTotalWithTax, getFeatureFlags, getPricingOptions
 import { cartSync } from '@/lib/cartSync';
 import { trackAddToCart, trackFBAddToCart } from '@/lib/analytics';
 
+
+// PERFORMANCE: Disable verbose logging in production for faster cart operations
+const CART_DEBUG = false;
+const debugLog = CART_DEBUG ? console.log.bind(console) : () => {};
+
 export type PricingMode = 'per_item' | 'per_order';
 
 export interface CartItem {
@@ -202,9 +207,9 @@ export const useCartStore = create<CartState>()(
       discountCode: null,
       
       addFromQuote: (quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => {
-        console.log('🚨 addFromQuote CALLED - Current items in cart:', get().items.length);
+        debugLog('🚨 addFromQuote CALLED - Current items in cart:', get().items.length);
         get().items.forEach((item, idx) => console.log(`  Existing item ${idx}: ${item.id}`));
-        console.log('🚨 addFromQuote CALLED - Current items in cart:', get().items.length);
+        debugLog('🚨 addFromQuote CALLED - Current items in cart:', get().items.length);
         get().items.forEach((item, idx) => console.log(`  Existing item ${idx}: ${item.id}`));
         // Capture design-page authoritative pricing when provided
         const usingAuthoritative = !!pricing;
@@ -245,14 +250,14 @@ export const useCartStore = create<CartState>()(
         const pole_pocket_pricing_mode: PricingMode = pricing?.pole_pocket_pricing_mode ?? 'per_item';
         const line_total_cents = pricing?.line_total_cents !== undefined ? pricing.line_total_cents : computedLine;
         
-        console.log('🔍 [ADD TO CART] Computed fallback values:', {
+        debugLog('🔍 [ADD TO CART] Computed fallback values:', {
           computedUnit,
           computedRope,
           computedPole,
           computedLine
         });
         
-        console.log('🔍 [UPDATE CART] Final pricing values:', {
+        debugLog('🔍 [UPDATE CART] Final pricing values:', {
           unit_price_cents,
           rope_cost_cents,
           pole_pocket_cost_cents,
@@ -262,19 +267,19 @@ export const useCartStore = create<CartState>()(
           pricingProvided: !!pricing
         });
         
-        console.log('🔍 [UPDATE CART] Pricing object received:', pricing);
-        console.log('🔍 [UPDATE CART] Computed fallback pole pocket cost:', computedPole);
-        console.log('🔍 [UPDATE CART] Final pole_pocket_cost_cents to be saved:', pole_pocket_cost_cents);
-        console.log('🔍 [UPDATE CART] Quote polePockets value:', quote.polePockets);
+        debugLog('🔍 [UPDATE CART] Pricing object received:', pricing);
+        debugLog('🔍 [UPDATE CART] Computed fallback pole pocket cost:', computedPole);
+        debugLog('🔍 [UPDATE CART] Final pole_pocket_cost_cents to be saved:', pole_pocket_cost_cents);
+        debugLog('🔍 [UPDATE CART] Quote polePockets value:', quote.polePockets);
 
         // Use the file key from the uploaded file
         const fileKey = quote.file?.fileKey;
-        console.log('📦 [CART STORE] Extracted fileKey:', fileKey);
-        console.log('📦 [CART STORE] quote.file object:', quote.file);
-        console.log('📦 [CART STORE] This fileKey should be the CANVAS THUMBNAIL key (includes text/images)');
-        console.log('📦 [CART STORE] Extracted fileKey:', fileKey);
-        console.log('📦 [CART STORE] quote.file object:', quote.file);
-        console.log('📦 [CART STORE] This fileKey should be the CANVAS THUMBNAIL key (includes text/images)');
+        debugLog('📦 [CART STORE] Extracted fileKey:', fileKey);
+        debugLog('📦 [CART STORE] quote.file object:', quote.file);
+        debugLog('📦 [CART STORE] This fileKey should be the CANVAS THUMBNAIL key (includes text/images)');
+        debugLog('📦 [CART STORE] Extracted fileKey:', fileKey);
+        debugLog('📦 [CART STORE] quote.file object:', quote.file);
+        debugLog('📦 [CART STORE] This fileKey should be the CANVAS THUMBNAIL key (includes text/images)');
 
         const newItem: CartItem = {
           id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
@@ -303,7 +308,7 @@ export const useCartStore = create<CartState>()(
             // PRIORITY: Use explicit fileUrl from PricingCard if provided (already validated)
             const explicitFileUrl = (quote as any).fileUrl;
             if (explicitFileUrl) {
-              console.log('[CART STORE] ✅ Using explicit fileUrl from PricingCard:', explicitFileUrl.substring(0, 80));
+              debugLog('[CART STORE] ✅ Using explicit fileUrl from PricingCard:', explicitFileUrl.substring(0, 80));
               return explicitFileUrl;
             }
             // Fallback: Check file and overlayImage
@@ -311,7 +316,7 @@ export const useCartStore = create<CartState>()(
             const fileKey = quote.file?.fileKey || (quote as any).overlayImage?.fileKey;
             const proofUrl = aiMetadata?.assets?.proofUrl;
             
-            console.log('[CART STORE] 🔍 File data:', {
+            debugLog('[CART STORE] 🔍 File data:', {
               fileUrl: fileUrl ? fileUrl.substring(0, 80) : 'NULL',
               originalUrl: (quote.file as any)?.originalUrl ? (quote.file as any).originalUrl.substring(0, 80) : 'NULL',
               blobUrl: quote.file?.url?.startsWith('blob:') ? 'YES' : 'NO',
@@ -329,14 +334,14 @@ export const useCartStore = create<CartState>()(
                 ? proofUrl 
                 : null;
             
-            console.log('[CART STORE] ��️ Original file_url:', finalUrl ? finalUrl.substring(0, 80) + '...' : 'NULL');
+            debugLog('[CART STORE] ��️ Original file_url:', finalUrl ? finalUrl.substring(0, 80) + '...' : 'NULL');
             return finalUrl;
           })(),
           thumbnail_url: (() => {
             // Store thumbnail for DISPLAY in cart (has grommets/text rendered)
             const thumbnailUrl = (quote as any).thumbnailUrl;
-            console.log('[CART STORE] 🖼️ Thumbnail URL for display:', thumbnailUrl ? thumbnailUrl.substring(0, 80) + '...' : 'NULL');
-            console.log('[CART STORE] 🖼️ Thumbnail URL details:', {
+            debugLog('[CART STORE] 🖼️ Thumbnail URL for display:', thumbnailUrl ? thumbnailUrl.substring(0, 80) + '...' : 'NULL');
+            debugLog('[CART STORE] 🖼️ Thumbnail URL details:', {
               isBlob: thumbnailUrl?.startsWith('blob:'),
               isData: thumbnailUrl?.startsWith('data:'),
               isCloudinary: thumbnailUrl?.includes('cloudinary.com'),
@@ -363,8 +368,8 @@ export const useCartStore = create<CartState>()(
           ...(aiMetadata || {}),
         };
 
-        console.log('🧮 CART: addFromQuote', { usingAuthoritative, pricing, computed: { unit: computedUnit, rope: computedRope, pole: computedPole, line: computedLine }, stored: newItem });
-        console.log('💾 CART STORAGE: Item added, will persist to localStorage');
+        debugLog('🧮 CART: addFromQuote', { usingAuthoritative, pricing, computed: { unit: computedUnit, rope: computedRope, pole: computedPole, line: computedLine }, stored: newItem });
+        debugLog('💾 CART STORAGE: Item added, will persist to localStorage');
         console.log("[CART STORE] About to add item to cart:", newItem);
         console.log("[CART STORE] Current cart items:", get().items);
         console.log("[CART STORE] 🔍 BEFORE SET - All items thumbnail_url:");
@@ -382,7 +387,7 @@ export const useCartStore = create<CartState>()(
         const userId = cartSync.getUserId();
         if (userId && typeof localStorage !== 'undefined') {
           localStorage.setItem('cart_owner_user_id', userId);
-          console.log('✅ CART: Set cart owner to:', userId);
+          debugLog('✅ CART: Set cart owner to:', userId);
         }
 
         // Track add to cart event
@@ -467,7 +472,7 @@ export const useCartStore = create<CartState>()(
       
       updateCartItem: (itemId: string, quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => {
         console.log('🔄 CART: updateCartItem called', { itemId, quote, pricing });
-        console.log('🔍 [UPDATE CART] Quote state:', {
+        debugLog('🔍 [UPDATE CART] Quote state:', {
           addRope: quote.addRope,
           polePockets: quote.polePockets,
           polePocketSize: quote.polePocketSize,
@@ -475,7 +480,7 @@ export const useCartStore = create<CartState>()(
           heightIn: quote.heightIn,
           quantity: quote.quantity
         });
-        console.log('🔍 [UPDATE CART] Authoritative pricing:', pricing);
+        debugLog('🔍 [UPDATE CART] Authoritative pricing:', pricing);
         
         // Find the existing item
         const existingItem = get().items.find(i => i.id === itemId);
@@ -523,14 +528,14 @@ export const useCartStore = create<CartState>()(
         const pole_pocket_pricing_mode: PricingMode = pricing?.pole_pocket_pricing_mode ?? 'per_item';
         const line_total_cents = pricing?.line_total_cents !== undefined ? pricing.line_total_cents : computedLine;
         
-        console.log('🔍 [ADD TO CART] Computed fallback values:', {
+        debugLog('🔍 [ADD TO CART] Computed fallback values:', {
           computedUnit,
           computedRope,
           computedPole,
           computedLine
         });
         
-        console.log('🔍 [UPDATE CART] Final pricing values:', {
+        debugLog('🔍 [UPDATE CART] Final pricing values:', {
           unit_price_cents,
           rope_cost_cents,
           pole_pocket_cost_cents,
@@ -540,10 +545,10 @@ export const useCartStore = create<CartState>()(
           pricingProvided: !!pricing
         });
         
-        console.log('🔍 [UPDATE CART] Pricing object received:', pricing);
-        console.log('🔍 [UPDATE CART] Computed fallback pole pocket cost:', computedPole);
-        console.log('🔍 [UPDATE CART] Final pole_pocket_cost_cents to be saved:', pole_pocket_cost_cents);
-        console.log('🔍 [UPDATE CART] Quote polePockets value:', quote.polePockets);
+        debugLog('🔍 [UPDATE CART] Pricing object received:', pricing);
+        debugLog('🔍 [UPDATE CART] Computed fallback pole pocket cost:', computedPole);
+        debugLog('🔍 [UPDATE CART] Final pole_pocket_cost_cents to be saved:', pole_pocket_cost_cents);
+        debugLog('🔍 [UPDATE CART] Quote polePockets value:', quote.polePockets);
 
         // Use the file key from the uploaded file
         const fileKey = quote.file?.fileKey;
@@ -590,13 +595,13 @@ export const useCartStore = create<CartState>()(
           ...(aiMetadata || {}),
         };
 
-        console.log('✅ CART: updateCartItem success', { updatedItem });
+        debugLog('✅ CART: updateCartItem success', { updatedItem });
         
         // CRITICAL FIX: Set cart owner to current user
         const userId = cartSync.getUserId();
         if (userId && typeof localStorage !== 'undefined') {
           localStorage.setItem('cart_owner_user_id', userId);
-          console.log('✅ CART: Set cart owner to:', userId);
+          debugLog('✅ CART: Set cart owner to:', userId);
         }
         
         set((state) => ({
@@ -685,7 +690,7 @@ export const useCartStore = create<CartState>()(
       syncToServer: async () => {
         // Set syncing flag to prevent loadFromServer from overwriting during sync
         set({ isSyncing: true });
-        console.log('🔄 SYNC: Starting sync, isSyncing = true');
+        debugLog('🔄 SYNC: Starting sync, isSyncing = true');
         
         try {
         const userId = cartSync.getUserId();
@@ -701,7 +706,7 @@ export const useCartStore = create<CartState>()(
         const items = rawItems.map(item => {
           const cleaned = { ...item };
           // DEBUG: Log thumbnail_url before cleaning
-          console.log('[syncToServer] Item thumbnail_url BEFORE cleaning:', {
+          debugLog('[syncToServer] Item thumbnail_url BEFORE cleaning:', {
             id: item.id,
             thumbnail_url: item.thumbnail_url ? item.thumbnail_url.substring(0, 100) : 'NULL',
             isBlob: item.thumbnail_url?.startsWith('blob:'),
@@ -710,31 +715,31 @@ export const useCartStore = create<CartState>()(
           });
           // Remove bad URLs from all URL fields
           if (isBadUrl(cleaned.thumbnail_url)) {
-            console.log('[syncToServer] ⚠️ STRIPPING bad thumbnail_url:', item.thumbnail_url?.substring(0, 50));
+            debugLog('[syncToServer] ⚠️ STRIPPING bad thumbnail_url:', item.thumbnail_url?.substring(0, 50));
             cleaned.thumbnail_url = undefined;
           }
           if (isBadUrl(cleaned.file_url)) {
-            console.log('[syncToServer] Stripping bad file_url');
+            debugLog('[syncToServer] Stripping bad file_url');
             cleaned.file_url = undefined;
           }
           if (isBadUrl(cleaned.web_preview_url)) {
-            console.log('[syncToServer] Stripping bad web_preview_url');
+            debugLog('[syncToServer] Stripping bad web_preview_url');
             cleaned.web_preview_url = undefined;
           }
           if (isBadUrl(cleaned.print_ready_url)) {
-            console.log('[syncToServer] Stripping bad print_ready_url');
+            debugLog('[syncToServer] Stripping bad print_ready_url');
             cleaned.print_ready_url = undefined;
           }
           // Clean overlay_image
           if (cleaned.overlay_image?.url && isBadUrl(cleaned.overlay_image.url)) {
-            console.log('[syncToServer] Stripping bad overlay_image.url');
+            debugLog('[syncToServer] Stripping bad overlay_image.url');
             cleaned.overlay_image = { ...cleaned.overlay_image, url: undefined };
           }
           // Clean overlay_images array
           if (Array.isArray(cleaned.overlay_images)) {
             cleaned.overlay_images = cleaned.overlay_images.map(img => {
               if (img?.url && isBadUrl(img.url)) {
-                console.log('[syncToServer] Stripping bad overlay_images[].url');
+                debugLog('[syncToServer] Stripping bad overlay_images[].url');
                 return { ...img, url: undefined };
               }
               return img;
@@ -747,7 +752,7 @@ export const useCartStore = create<CartState>()(
         // This ensures guest carts can be merged when user signs in
         if (!userId) {
           const sessionId = cartSync.getSessionId();
-          console.log('👤 No user logged in - saving guest cart with session ID:', sessionId ? `${sessionId.substring(0, 12)}...` : 'none');
+          debugLog('👤 No user logged in - saving guest cart with session ID:', sessionId ? `${sessionId.substring(0, 12)}...` : 'none');
           
           if (sessionId && items.length > 0) {
             const success = await cartSync.saveCart(items, undefined, sessionId);
@@ -770,7 +775,7 @@ export const useCartStore = create<CartState>()(
         } finally {
           // Always reset syncing flag when done
           set({ isSyncing: false });
-          console.log('🔄 SYNC: Sync complete, isSyncing = false');
+          debugLog('🔄 SYNC: Sync complete, isSyncing = false');
         }
       },
 
@@ -945,8 +950,8 @@ export const useCartStore = create<CartState>()(
       // Items ARE persisted to localStorage as a cache for page navigation
       // Server is the source of truth - useCartSync loads/merges from server
             onRehydrateStorage: () => (state) => {
-        console.log('💾 CART STORAGE: Rehydrating from localStorage...');
-        console.log('💾 CART STORAGE: Items count after rehydration:', state?.items?.length ?? 0);
+        debugLog('💾 CART STORAGE: Rehydrating from localStorage...');
+        debugLog('💾 CART STORAGE: Items count after rehydration:', state?.items?.length ?? 0);
         
         // CRITICAL FIX: Check if the cart belongs to the current user
         // Use BOTH localStorage cart_owner_user_id AND the stored _cartOwnerId
@@ -965,7 +970,7 @@ export const useCartStore = create<CartState>()(
           }
           
           console.log('�� CART STORAGE: Cart owner ID:', cartOwnerId);
-          console.log('💾 CART STORAGE: Current user ID:', currentUserId);
+          debugLog('💾 CART STORAGE: Current user ID:', currentUserId);
           
           // If cart belongs to a different user, clear it
           if (cartOwnerId && currentUserId && cartOwnerId !== currentUserId) {
@@ -1007,7 +1012,7 @@ export const useCartStore = create<CartState>()(
         
         if (state?.items?.length) {
           state.items.forEach((item, idx) => {
-            console.log('💾 CART STORAGE: Rehydrated item ' + idx + ': ' + item.id);
+            debugLog('💾 CART STORAGE: Rehydrated item ' + idx + ': ' + item.id);
           });
         }
       },
