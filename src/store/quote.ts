@@ -147,8 +147,6 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
     
     // Log grommet changes for debugging
     if (updates.grommets !== undefined) {
-      console.log('🏪 [QUOTE STORE] Grommets being updated to:', updates.grommets);
-      console.log('🏪 [QUOTE STORE] Previous grommets value:', get().grommets);
     }
     
     return { ...state, ...updates };
@@ -167,31 +165,15 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
     file: undefined,
   })),
   loadFromCartItem: (item: any, editingItemId?: string) => {
-    console.log('🔍🔍🔍 LOAD FROM CART - FULL ITEM:', JSON.stringify(item, null, 2));
-    console.log('🔍🔍🔍 item.overlay_image:', item.overlay_image);
-    console.log('🔍🔍🔍 item.file_url:', item.file_url);
-    console.log('🔍🔍🔍 item.file_key:', item.file_key);
-    console.log('🔍 QUOTE STORE: loadFromCartItem called with item:', item);
-    console.log('🔍 QUOTE STORE: item.image_scale:', item.image_scale);
-    console.log('🔍 QUOTE STORE: item.image_position:', item.image_position);
-    console.log('🔍 QUOTE STORE: item.overlay_image:', item.overlay_image);
     if (item.overlay_image) {
-      console.log('🔍 QUOTE STORE: overlay_image.url:', item.overlay_image.url);
-      console.log('🔍 QUOTE STORE: overlay_image.name:', item.overlay_image.name);
-      console.log('🔍 QUOTE STORE: overlay_image.fileKey:', item.overlay_image.fileKey);
     }
-    console.log('🔍 QUOTE STORE: item.text_elements:', item.text_elements);
-    console.log('🔍 QUOTE STORE: item.text_elements type:', typeof item.text_elements);
-    console.log('🔍 QUOTE STORE: item.text_elements isArray:', Array.isArray(item.text_elements));
     
     // CRITICAL FIX: Ensure text_elements is a proper array
     // PostgreSQL/Neon sometimes returns JSON arrays as objects with numeric keys
     let textElementsArray = item.text_elements || [];
     if (!Array.isArray(textElementsArray) && typeof textElementsArray === 'object') {
-      console.log('⚠️ QUOTE STORE: text_elements is not an array, converting from object');
       textElementsArray = Object.values(textElementsArray);
     }
-    console.log('🔍 QUOTE STORE: textElementsArray after conversion:', textElementsArray);
     
     // Migrate text elements to ensure they have xPercent and yPercent
     const migratedTextElements = textElementsArray.map((textEl: any) => {
@@ -207,7 +189,6 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
       };
     });
     
-    console.log('🔍 QUOTE STORE: Migrated text elements:', migratedTextElements);
     
     const newState = {
       ...get(),
@@ -231,21 +212,11 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
         const hasTextElements = textElementsArray && textElementsArray.length > 0;
         const shouldSkipFile = hasOverlayImage || hasOverlayImages || hasTextElements;
         
-        console.log('───────────────────────────────────────────────────────');
-        console.log('🔍 [FILE LOAD DECISION]');
-        console.log('  hasOverlayImage:', hasOverlayImage);
-        console.log('  hasOverlayImages:', hasOverlayImages, 'count:', item.overlay_images?.length || 0);
-        console.log('  hasTextElements:', hasTextElements, 'count:', textElementsArray?.length || 0);
-        console.log('  shouldSkipFile:', shouldSkipFile);
-        console.log('───────────────────────────────────────────────────────');
         
         if (shouldSkipFile) {
-          console.log('✅ [FILE LOAD] SKIPPING file load - would create duplicate/composite layer');
-          console.log('   Reason:', hasOverlayImage ? 'HAS_OVERLAY_IMAGE' : hasOverlayImages ? 'HAS_OVERLAY_IMAGES' : 'HAS_TEXT_ELEMENTS');
           return undefined;
         }
         
-        console.log('⚠️ [FILE LOAD] LOADING file - no overlay/text detected');
         
         return ((item.file_key || item.file_url || item.web_preview_url) ? (() => {
         let fileUrl: string;
@@ -257,36 +228,30 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
         } else {
           // No file_key - try to extract it from the URL
           const urlToCheck = item.web_preview_url || item.print_ready_url || item.file_url || '';
-          console.log('🔍 Extracting fileKey from URL:', urlToCheck);
           
           // Try to extract the public_id from the Cloudinary URL
           const uploadMatch = urlToCheck.match(/\/upload\/(.+?)(?:\?|$)/);
           if (uploadMatch) {
             let pathAfterUpload = uploadMatch[1];
-            console.log('📍 Path after /upload/:', pathAfterUpload);
             
             // Remove transformation parameters
             const versionMatch = pathAfterUpload.match(/(v\d+\/.+)/);
             if (versionMatch) {
               extractedFileKey = versionMatch[1];
               fileUrl = `https://res.cloudinary.com/dtrxl120u/image/upload/${extractedFileKey}`;
-              console.log('✅ Extracted fileKey:', extractedFileKey);
             } else {
               // No version number, try removing transformation params
               const cleanPath = pathAfterUpload.replace(/^[^/]*\//, '');
               if (cleanPath !== pathAfterUpload) {
                 extractedFileKey = cleanPath;
                 fileUrl = `https://res.cloudinary.com/dtrxl120u/image/upload/${extractedFileKey}`;
-                console.log('✅ Extracted fileKey (no version):', extractedFileKey);
               } else {
                 fileUrl = urlToCheck;
-                console.log('⚠️ Could not extract fileKey, using URL as-is');
               }
             }
           } else {
             // Not a Cloudinary URL, use as-is
             fileUrl = urlToCheck;
-            console.log('⚠️ Not a Cloudinary URL, using as-is');
           }
         }
         
@@ -301,7 +266,6 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
           artworkWidth: item.artwork_width,
           artworkHeight: item.artwork_height,
         };
-        console.log('📦 [FILE LOAD] Created file object:', { url: fileUrl?.substring(0, 60) + '...', fileKey: extractedFileKey });
         return fileObject;
       })() : undefined);
       })(),
@@ -312,7 +276,6 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
       overlayImages: (() => {
         // NEW: Load multiple overlay images
         if (item.overlay_images && Array.isArray(item.overlay_images)) {
-          console.log('🖼️ [MULTI-IMAGE] Loading overlay images array:', item.overlay_images.length);
           return item.overlay_images.map((img: any) => ({
             ...img,
             position: img.position || { x: 50, y: 50 }
@@ -320,7 +283,6 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
         }
         // BACKWARD COMPATIBILITY: Convert single overlayImage to array
         else if (item.overlay_image) {
-          console.log('🔄 [BACKWARD COMPAT] Converting single overlay_image to array');
           return [{
             ...item.overlay_image,
             position: item.overlay_image.position || { x: 50, y: 50 }
@@ -332,25 +294,16 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
       overlayImage: undefined,
     };
     
-    console.log('🔍 QUOTE STORE: Setting new state with imageScale:', newState.imageScale);
-    console.log('🔍 QUOTE STORE: Setting new state with imagePosition:', newState.imagePosition);
-    console.log('🔍 QUOTE STORE: Setting new state with overlayImage:', newState.overlayImage);
-    console.log('�� QUOTE STORE: Setting new state with textElements:', newState.textElements);
     
     set(newState);
     
     // CRITICAL: Load canvas background color into editor store
     if (item.canvas_background_color) {
-      console.log('🎨 QUOTE STORE: Loading canvas background color:', item.canvas_background_color);
       useEditorStore.getState().setCanvasBackgroundColor(item.canvas_background_color);
     }
     
     // Verify the state was set correctly
     const currentState = get();
-    console.log('✅ QUOTE STORE: After set, imageScale is:', currentState.imageScale);
-    console.log('✅ QUOTE STORE: After set, imagePosition is:', currentState.imagePosition);
-    console.log('✅ QUOTE STORE: After set, overlayImage is:', currentState.overlayImage);
-    console.log('✅ QUOTE STORE: After set, textElements is:', currentState.textElements);
   },
   getSquareFootage: () => {
     const state = get();
@@ -386,9 +339,6 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
   })),
   // Reset design area to default values
   resetDesign: () => {
-    console.log('═══════════════════════════════════════════════════════');
-    console.log('🔄 [RESET] resetDesign() called - clearing ALL state');
-    console.log('═══════════════════════════════════════════════════════');
     
     // Also clear editor canvas objects
     useEditorStore.getState().reset();
@@ -414,14 +364,6 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
     imagePosition: { x: 0, y: 0 },
   };
     
-    console.log('═══════════════════════════════════════════════════════');
-    console.log('🔄 [RESET] State reset complete - all cleared:');
-    console.log('  file: UNDEFINED');
-    console.log('  overlayImage: UNDEFINED');
-    console.log('  overlayImages: UNDEFINED');
-    console.log('  textElements: EMPTY ARRAY');
-    console.log('  editingItemId: NULL');
-    console.log('═══════════════════════════════════════════════════════');
     
     return set(resetState);
   }

@@ -1,4 +1,6 @@
-import React, { useMemo, useState, useEffect, Suspense, lazy } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
+import { flushSync } from 'react-dom';
+import { flushSync } from 'react-dom';
 import { ShoppingCart, CreditCard, Check, Truck, AlertTriangle, Ruler, Maximize2, Palette, Hash, DollarSign } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useQuoteStore, ORDER_SIZE_LIMIT_SQFT } from '@/store/quote';
@@ -9,9 +11,7 @@ import { validateMinimumOrder, canProceedToCheckout } from '@/lib/validation/min
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useScrollToTop } from '@/components/ScrollToTop';
-import { lazy, Suspense } from 'react';
-const UpsellModal = lazy(() => import('@/components/cart/UpsellModal'));
-import type { UpsellOption } from '@/components/cart/UpsellModal';
+import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
 import { useEditorStore } from '@/store/editor';
 
 
@@ -567,8 +567,10 @@ const PricingCard: React.FC = () => {
   // Handle upsell modal continue
   const handleUpsellContinue = (selectedOptions: UpsellOption[], dontAskAgain: boolean) => {
     // PERFORMANCE FIX: Close modal IMMEDIATELY for responsive UX
-    // All heavy work happens after the modal is closed
-    setShowUpsellModal(false);
+    // flushSync forces React to immediately update the DOM before continuing
+    flushSync(() => {
+      setShowUpsellModal(false);
+    });
     
     // Capture pendingAction before clearing it (needed for async work)
     const actionToPerform = pendingAction;
@@ -963,18 +965,14 @@ const PricingCard: React.FC = () => {
       </div>
 
       {/* Upsell Modal */}
-      {showUpsellModal && (
-        <Suspense fallback={null}>
-          <UpsellModal
-            isOpen={showUpsellModal}
-            onClose={handleUpsellClose}
-            quote={quote}
-            thumbnailUrl={canvasThumbnail || undefined}
-            onContinue={handleUpsellContinue}
-            actionType={pendingAction || 'cart'}
-          />
-        </Suspense>
-      )}
+      <UpsellModal
+        isOpen={showUpsellModal}
+        onClose={handleUpsellClose}
+        quote={quote}
+        thumbnailUrl={canvasThumbnail || undefined}
+        onContinue={handleUpsellContinue}
+        actionType={pendingAction || 'cart'}
+      />
     </div>
   );
 };
