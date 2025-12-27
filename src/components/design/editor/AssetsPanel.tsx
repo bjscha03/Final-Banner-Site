@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+
 import { useEditorStore } from '@/store/editor';
 import { convertPDFToImage } from '@/lib/pdfUtils';
 import { useQuoteStore } from '@/store/quote';
@@ -377,21 +378,19 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
     <div className="space-y-4">
       <h3 className="text-sm font-semibold text-gray-900">Uploads</h3>
       
-      {/* Upload area with file input overlay - Chrome-compatible */}
-      <div 
-        className="relative border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-[#18448D] transition-colors cursor-pointer"
+      {/* Upload area */}
+      <label 
+        className="block border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-[#E4002B] hover:bg-red-50 transition-colors cursor-pointer"
         onDrop={handleDrop}
         onDragOver={handleDragOver}
       >
-        {/* File input covers the entire clickable area */}
         <input
           ref={fileInputRef}
           type="file"
           accept="image/*,application/pdf"
           multiple
           onChange={handleFileSelect}
-          className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
-          title="Click to upload"
+          className="sr-only"
         />
         <Upload className="h-8 w-8 mx-auto text-gray-400 mb-2" />
         <p className="text-sm text-gray-600 mb-1">
@@ -400,7 +399,7 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
         <p className="text-xs text-gray-400">
           PNG, JPG, GIF, PDF up to 25MB
         </p>
-      </div>
+      </label>
 
       {uploading && (
         <div className="text-center text-sm text-gray-500">

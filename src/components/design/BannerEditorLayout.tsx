@@ -232,37 +232,49 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       }
       // Get current visibility state and selection
       const editorState = useEditorStore.getState();
-      const { showBleed, showSafeZone, showGrid, setShowBleed, setShowSafeZone, setShowGrid } = editorState;
-      const wasShowingBleed = showBleed;
-      const wasShowingSafeZone = showSafeZone;
-      const wasShowingGrid = showGrid;
       
       // CRITICAL: Clear selection to hide transformer boxes before generating thumbnail
       if (editorState.clearSelection) {
         editorState.clearSelection();
       }
       
-      // Hide borders and grid for clean thumbnail
-      setShowBleed(false);
-      setShowSafeZone(false);
-      setShowGrid(false);
-      
-      // Force immediate redraw to remove transformer from canvas
+      // Get the layer
       const layer = stage.getLayers()[0];
-      if (layer) {
-        layer.batchDraw();
+      if (!layer) {
+        console.error('[BannerEditorLayout] No layer found');
+        return null;
       }
       
-      // Wait for React to re-render (use setTimeout instead of requestAnimationFrame)
-      setTimeout(async () => {
+      // FIX: Use direct Konva node manipulation to hide guides WITHOUT React re-render
+      // This prevents the visual flash when generating thumbnails
+      const bleedNode = layer.findOne('.bleed-guide');
+      const safezoneNode = layer.findOne('.safezone-guide');
+      const gridNode = layer.findOne('.grid-guide');
+      const transformerNode = layer.findOne('Transformer');
+      
+      // Store original visibility
+      const bleedWasVisible = bleedNode?.visible() ?? false;
+      const safezoneWasVisible = safezoneNode?.visible() ?? false;
+      const gridWasVisible = gridNode?.visible() ?? false;
+      const transformerWasVisible = transformerNode?.visible() ?? false;
+      
+      // Hide guides directly on Konva nodes (no React re-render, no visual flash)
+      bleedNode?.visible(false);
+      safezoneNode?.visible(false);
+      gridNode?.visible(false);
+      transformerNode?.visible(false);
+      
+      // Force immediate redraw with hidden guides
+      layer.batchDraw();
+      
+      // Use requestAnimationFrame for a single frame delay (faster than setTimeout)
+      requestAnimationFrame(async () => {
         try {
           // Get the layer to find the banner bounds
-          const layer = stage.getLayers()[0];
-          if (!layer) {
+          // Re-get layer reference (we already validated it exists before requestAnimationFrame)
+          const currentLayer = stage.getLayers()[0];
+          if (!currentLayer) {
             console.error('[BannerEditorLayout] No layer found');
-            setShowBleed(wasShowingBleed);
-            setShowSafeZone(wasShowingSafeZone);
-            setShowGrid(wasShowingGrid);
             return;
           }
 
@@ -270,9 +282,12 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
           const backgroundRect = layer.getChildren()[0];
           if (!backgroundRect) {
             console.error('[BannerEditorLayout] No background rect found');
-            setShowBleed(wasShowingBleed);
-            setShowSafeZone(wasShowingSafeZone);
-            setShowGrid(wasShowingGrid);
+            // Restore visibility on Konva nodes directly (no React re-render flash)
+            bleedNode?.visible(bleedWasVisible);
+            safezoneNode?.visible(safezoneWasVisible);
+            gridNode?.visible(gridWasVisible);
+            transformerNode?.visible(transformerWasVisible);
+            layer.batchDraw();
             return;
           }
 
@@ -339,9 +354,12 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
               // Continue to generate thumbnail even with unloaded images
             }
             
-            setShowBleed(wasShowingBleed);
-            setShowSafeZone(wasShowingSafeZone);
-            setShowGrid(wasShowingGrid);
+            // Restore visibility on Konva nodes directly (no React re-render flash)
+            bleedNode?.visible(bleedWasVisible);
+            safezoneNode?.visible(safezoneWasVisible);
+            gridNode?.visible(gridWasVisible);
+            transformerNode?.visible(transformerWasVisible);
+            layer.batchDraw();
             
             if (retryCount >= 10) {
               // Don't return, let it continue to generate thumbnail
@@ -434,15 +452,21 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
 
           
           // Restore original visibility
-          setShowBleed(wasShowingBleed);
-          setShowSafeZone(wasShowingSafeZone);
-          setShowGrid(wasShowingGrid);
+          // Restore visibility on Konva nodes directly (no React re-render flash)
+          bleedNode?.visible(bleedWasVisible);
+          safezoneNode?.visible(safezoneWasVisible);
+          gridNode?.visible(gridWasVisible);
+          transformerNode?.visible(transformerWasVisible);
+          layer.batchDraw();
         } catch (error) {
           console.error('[BannerEditorLayout] Error generating thumbnail:', error);
           // Restore visibility even on error
-          setShowBleed(wasShowingBleed);
-          setShowSafeZone(wasShowingSafeZone);
-          setShowGrid(wasShowingGrid);
+          // Restore visibility on Konva nodes directly (no React re-render flash)
+          bleedNode?.visible(bleedWasVisible);
+          safezoneNode?.visible(safezoneWasVisible);
+          gridNode?.visible(gridWasVisible);
+          transformerNode?.visible(transformerWasVisible);
+          layer.batchDraw();
         }
       }, 100); // Wait 100ms for React to re-render
       
@@ -1698,10 +1722,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
         {activePanel && activePanelData && (
           <div
             ref={desktopPanelRef}
-            className="hidden lg:block absolute left-20 top-0 bottom-0 w-96 bg-white border-r border-gray-200 shadow-xl z-30 animate-slide-in pointer-events-auto"
-            style={{
-              animation: 'slideIn 250ms ease-out'
-            }}
+            className="hidden lg:block absolute left-20 top-0 bottom-0 w-96 bg-white border-r border-gray-200 shadow-xl z-30 pointer-events-auto"
           >
             <div className="h-full flex flex-col">
               {/* Panel Header */}
@@ -1715,8 +1736,8 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
                 </button>
               </div>
               
-              {/* Panel Content */}
-              <div className="flex-1 overflow-y-auto overflow-x-hidden p-4">
+              {/* Panel Content - removed overflow for Chrome file input compatibility */}
+              <div className="flex-1 p-4" style={{ overflow: 'visible' }}>
                 {activePanel && renderPanelContent(activePanel)}
               </div>
             </div>
@@ -1781,8 +1802,8 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
                 </button>
               </div>
               
-              {/* Panel Content */}
-              <div className="flex-1 overflow-y-auto overflow-x-hidden p-4">
+              {/* Panel Content - removed overflow for Chrome file input compatibility */}
+              <div className="flex-1 p-4" style={{ overflow: 'visible' }}>
                 {activePanel && renderPanelContent(activePanel)}
               </div>
             </div>

@@ -596,9 +596,9 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
             shadowOffset={{ x: 0, y: 2 }}
           />
           
-          {/* Grid */}
+          {/* Grid - wrapped in named Group for thumbnail generation */}
           {showGrid && (
-            <>
+            <Group name="grid-guide">
               {Array.from({ length: Math.ceil(widthIn / gridSize) + 1 }).map((_, i) => (
                 <Line
                   key={`grid-v-${i}`}
@@ -627,12 +627,13 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
                   listening={false}
                 />
               ))}
-            </>
+            </Group>
           )}
           
-          {/* Bleed area */}
+          {/* Bleed area - named for thumbnail generation to hide without React re-render */}
           {showBleed && (
             <Rect
+              name="bleed-guide"
               x={stagePos.x}
               y={stagePos.y}
               width={canvasWidthPx * scale}
@@ -644,9 +645,10 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
             />
           )}
           
-          {/* Safe zone */}
+          {/* Safe zone - named for thumbnail generation to hide without React re-render */}
           {showSafeZone && (
             <Rect
+              name="safezone-guide"
               x={stagePos.x + safeZoneMargin * PIXELS_PER_INCH * scale}
               y={stagePos.y + safeZoneMargin * PIXELS_PER_INCH * scale}
               width={(widthIn - safeZoneMargin * 2) * PIXELS_PER_INCH * scale}
