@@ -190,22 +190,13 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
   // Handle continue with selected options
   const handleContinue = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent click from bubbling to backdrop
-    console.log('[UpsellModal] handleContinue clicked');
-    console.log('[UpsellModal] selectedOptions:', selectedOptions);
-    console.log('[UpsellModal] dontAskAgain:', dontAskAgain);
-    console.log('[UpsellModal] Calling onContinue...');
     onContinue(selectedOptions, dontAskAgain);
-    console.log('[UpsellModal] onContinue called successfully');
   };
 
   // Handle skip without options
   const handleSkip = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent click from bubbling to backdrop
-    console.log('[UpsellModal] handleSkip clicked');
-    console.log('[UpsellModal] dontAskAgain:', dontAskAgain);
-    console.log('[UpsellModal] Calling onContinue with empty options...');
     onContinue([], dontAskAgain);
-    console.log('[UpsellModal] onContinue called successfully');
   };
 
   // Calculate total additional cost

@@ -24,11 +24,9 @@ const PricingCard: React.FC = () => {
   // If we were editing but file was deleted, clear editingItemId to revert to "Add to Cart" mode
   React.useEffect(() => {
     if (quote.editingItemId && !quote.file) {
-      console.log('🔄 PricingCard: File deleted while editing, clearing editingItemId');
       quote.set({ editingItemId: null });
     }
   }, [quote.file, quote.editingItemId]);
-  console.log("🔍 PricingCard - isEditing:", isEditing, "editingItemId:", quote.editingItemId);
   const { addFromQuote, updateCartItem } = useCartStore();
   const { toast } = useToast();
   const { scrollToTopBeforeNavigate } = useScrollToTop();
@@ -239,17 +237,13 @@ const PricingCard: React.FC = () => {
       return;
     }
     
-    console.log('[PricingCard] Adding to cart with content:', {
       hasFile: !!file,
       textElementsCount: quote.textElements.length,
       objectsCount: editorObjects.length
     });
 
     // Show upsell modal if user should see it
-    console.log("🎨 CHROME DEBUG: shouldShowUpsell =", shouldShowUpsell, "grommets =", quote.grommets, "polePockets =", quote.polePockets, "addRope =", quote.addRope, "dontShowUpsellAgain =", dontShowUpsellAgain);
     if (shouldShowUpsell) {
-      console.log('🎨 PRICING CARD: Showing upsell modal for ADD TO CART');
-      console.log('🎨 PRICING CARD: canvasThumbnail:', canvasThumbnail ? canvasThumbnail.substring(0, 50) + '...' : 'NULL');
       setPendingAction('cart');
       setShowUpsellModal(true);
       return;
@@ -273,7 +267,6 @@ const PricingCard: React.FC = () => {
     // CRITICAL FIX: For PDFs, after conversion to bitmap, file.url becomes a blob URL
     // but the original Cloudinary URL is preserved in file.originalUrl
     const pdfCloudinaryUrl = (file as any)?.originalUrl || file?.url;
-    console.log('[PricingCard] 🔍 Thumbnail debug:', {
       canvasThumbnail: canvasThumbnail ? (canvasThumbnail.startsWith('data:') ? 'BASE64 (will skip)' : canvasThumbnail.substring(0, 50)) : 'NULL',
       isPdf: file?.isPdf,
       fileUrl: file?.url ? file.url.substring(0, 80) : 'NULL',
@@ -299,7 +292,6 @@ const PricingCard: React.FC = () => {
           const beforeUpload = pdfUrl.substring(0, uploadIndex + 8);
           const afterUpload = pdfUrl.substring(uploadIndex + 8);
           thumbnailUrl = beforeUpload + 'pg_1,w_400/' + afterUpload.replace(/\.pdf$/i, '.png');
-          console.log('[PricingCard] PDF: Using Cloudinary pg_1 thumbnail:', thumbnailUrl);
         }
       } else {
         // PDF was converted to JPEG before upload - just use the JPEG URL with resize
@@ -311,14 +303,12 @@ const PricingCard: React.FC = () => {
         } else {
           thumbnailUrl = pdfCloudinaryUrl;
         }
-        console.log('[PricingCard] Converted PDF: Using JPEG URL as thumbnail:', thumbnailUrl ? thumbnailUrl.substring(0, 80) : 'NULL');
       }
     }
     
     // Priority 2: Use Cloudinary file URL (for images)
     if (!thumbnailUrl && file?.url && file.url.includes('cloudinary.com') && !file.url.startsWith('data:') && !file.url.startsWith('blob:')) {
       thumbnailUrl = file.url;
-      console.log('[PricingCard] Image: Using Cloudinary file URL:', thumbnailUrl.substring(0, 80));
     }
     
     // Priority 3: Check editor objects for Cloudinary URLs
@@ -330,26 +320,22 @@ const PricingCard: React.FC = () => {
       );
       if (cloudinaryImage?.url) {
         thumbnailUrl = cloudinaryImage.url;
-        console.log('[PricingCard] Editor: Using Cloudinary image from editor:', thumbnailUrl.substring(0, 80));
       }
     }
     
     // Priority 4: Only use canvas thumbnail if it's a short URL (not base64)
     if (!thumbnailUrl && canvasThumbnail && !canvasThumbnail.startsWith('data:') && !canvasThumbnail.startsWith('blob:') && canvasThumbnail.length < 500) {
       thumbnailUrl = canvasThumbnail;
-      console.log('[PricingCard] Using canvas thumbnail (non-base64):', thumbnailUrl.substring(0, 80));
     }
     
     // Final fallback: Use file URL even if not Cloudinary (but skip blob/data)
     if (!thumbnailUrl && file?.url && !file.url.startsWith('data:') && !file.url.startsWith('blob:')) {
       thumbnailUrl = file.url;
-      console.log('[PricingCard] Fallback: Using file URL:', thumbnailUrl.substring(0, 80));
     }
     
     if (!thumbnailUrl) {
       console.warn('[PricingCard] NO VALID THUMBNAIL - item will show No Image in checkout');
     } else {
-      console.log('[PricingCard] Final thumbnail URL:', thumbnailUrl.substring(0, 80));
     }
 
     
@@ -371,7 +357,6 @@ const PricingCard: React.FC = () => {
       thumbnailUrl: thumbnailUrl,
       fileUrl: file?.url && !file.url.startsWith('blob:') && !file.url.startsWith('data:') ? file.url : null,
     };
-    console.log('[PricingCard] Adding to cart with:', { thumbnailUrl, fileUrl: file?.url ? file.url.substring(0, 60) : 'NULL' });
     addFromQuote(quoteData as any, undefined, pricing);
     
     // Clear uploaded images from AssetsPanel after successful add to cart
@@ -386,11 +371,7 @@ const PricingCard: React.FC = () => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     
     // Reset design area after successful add
-    console.log('🔄 RESET: About to call resetDesign() after direct add (no upsell)');
-    console.log('🔄 RESET: Current file before reset:', quote.file);
     quote.resetDesign();
-    console.log('🔄 RESET: resetDesign() called');
-    console.log('🔄 RESET: Current file after reset:', quote.file);
   };
 
   const handleUpdateCartItem = () => {
@@ -422,10 +403,7 @@ const PricingCard: React.FC = () => {
     }
 
     // Show upsell modal if user should see it
-    console.log("🎨 CHROME DEBUG: shouldShowUpsell =", shouldShowUpsell, "grommets =", quote.grommets, "polePockets =", quote.polePockets, "addRope =", quote.addRope, "dontShowUpsellAgain =", dontShowUpsellAgain);
     if (shouldShowUpsell) {
-      console.log('🎨 PRICING CARD: Showing upsell modal for UPDATE CART');
-      console.log('🎨 PRICING CARD: canvasThumbnail:', canvasThumbnail ? canvasThumbnail.substring(0, 50) + '...' : 'NULL');
       setPendingAction('update');
       setShowUpsellModal(true);
       return;
@@ -474,7 +452,6 @@ const PricingCard: React.FC = () => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     
     // DON'T reset when updating - user may want to continue editing
-    console.log('🔄 UPDATE: Not resetting design after update (user may continue editing)');
   };
 
 
@@ -504,10 +481,7 @@ const PricingCard: React.FC = () => {
     }
 
     // Show upsell modal if user should see it
-    console.log("🎨 CHROME DEBUG: shouldShowUpsell =", shouldShowUpsell, "grommets =", quote.grommets, "polePockets =", quote.polePockets, "addRope =", quote.addRope, "dontShowUpsellAgain =", dontShowUpsellAgain);
     if (shouldShowUpsell) {
-      console.log('🎨 PRICING CARD: Showing upsell modal for CHECKOUT');
-      console.log('🎨 PRICING CARD: canvasThumbnail:', canvasThumbnail ? canvasThumbnail.substring(0, 50) + '...' : 'NULL');
       setPendingAction('checkout');
       setShowUpsellModal(true);
       return;
@@ -565,7 +539,6 @@ const PricingCard: React.FC = () => {
     if (!thumbnailUrl && file?.url && !file.url.startsWith('data:') && !file.url.startsWith('blob:')) {
       thumbnailUrl = file.url;
     }
-    console.log('[PricingCard] Thumbnail:', thumbnailUrl ? thumbnailUrl.substring(0, 60) : 'NULL');
     
     // Extract only data fields from quote store, not methods
     const quoteData = {
@@ -585,15 +558,10 @@ const PricingCard: React.FC = () => {
       thumbnailUrl: thumbnailUrl,
       fileUrl: file?.url && !file.url.startsWith('blob:') && !file.url.startsWith('data:') ? file.url : null,
     };
-    console.log('[PricingCard] Adding to cart with:', { thumbnailUrl, fileUrl: file?.url ? file.url.substring(0, 60) : 'NULL' });
     addFromQuote(quoteData as any, undefined, pricing);
     
     // Reset design area after navigating to checkout
-    console.log('🔄 RESET: About to call resetDesign() after direct checkout (no upsell)');
-    console.log('🔄 RESET: Current file before reset:', quote.file);
     quote.resetDesign();
-    console.log('🔄 RESET: resetDesign() called');
-    console.log('🔄 RESET: Current file after reset:', quote.file);
     
     scrollToTopBeforeNavigate();
     navigate('/checkout');
@@ -601,7 +569,14 @@ const PricingCard: React.FC = () => {
 
   // Handle upsell modal continue
   const handleUpsellContinue = (selectedOptions: UpsellOption[], dontAskAgain: boolean) => {
-    console.log("[PricingCard] handleUpsellContinue called with:", { selectedOptions, dontAskAgain, pendingAction });
+    // PERFORMANCE FIX: Close modal IMMEDIATELY for responsive UX
+    // All heavy work happens after the modal is closed
+    setShowUpsellModal(false);
+    
+    // Capture pendingAction before clearing it (needed for async work)
+    const actionToPerform = pendingAction;
+    const editingId = quote.editingItemId;
+    setPendingAction(null);
 
     // Save "don't ask again" preference
     if (dontAskAgain) {
@@ -609,6 +584,9 @@ const PricingCard: React.FC = () => {
       setDontShowUpsellAgain(true);
     }
 
+    // Use requestAnimationFrame to defer heavy work to next frame
+    // This allows the modal close animation to complete smoothly
+    requestAnimationFrame(() => {
     // Generate thumbnail for cart preview
     // CRITICAL: ALWAYS use persistent Cloudinary URLs - NEVER base64 data URLs
     let thumbnailUrl: string | null = null;
@@ -652,7 +630,6 @@ const PricingCard: React.FC = () => {
     if (!thumbnailUrl && file?.url && !file.url.startsWith('data:') && !file.url.startsWith('blob:')) {
       thumbnailUrl = file.url;
     }
-    console.log('[PricingCard] Thumbnail:', thumbnailUrl ? thumbnailUrl.substring(0, 60) : 'NULL');
 
     // Build updated quote object with selected options - extract only data fields
     let updatedQuote = {
@@ -673,7 +650,6 @@ const PricingCard: React.FC = () => {
       thumbnailUrl: thumbnailUrl,
       fileUrl: file?.url && !file.url.startsWith('blob:') && !file.url.startsWith('data:') ? file.url : null,
     };
-    console.log('[PricingCard] Upsell: Adding to cart with:', { thumbnailUrl, fileUrl: file?.url ? file.url.substring(0, 60) : 'NULL' });
     
     selectedOptions.forEach(option => {
       if (option.selected) {
@@ -702,9 +678,6 @@ const PricingCard: React.FC = () => {
 
       }
     });
-    // Close modal
-    setShowUpsellModal(false);
-
     // Recompute pricing with updated quote
     const updatedTotals = calcTotals({
       widthIn: updatedQuote.widthIn,
@@ -725,9 +698,7 @@ const PricingCard: React.FC = () => {
     };
 
     // Execute the pending action with updated quote and pricing
-    if (pendingAction === 'cart') {
-      console.log("[PricingCard] Adding to cart with quote:", updatedQuote);
-      console.log("[PricingCard] Pricing:", pricing);
+    if (actionToPerform === 'cart') {
       addFromQuote(updatedQuote, undefined, pricing);
       toast({
         title: "Added to Cart",
@@ -738,24 +709,16 @@ const PricingCard: React.FC = () => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
       
       // Reset design area after successful add
-      console.log('🔄 RESET: About to call resetDesign() after add (from upsell modal)');
-      console.log('🔄 RESET: Current file before reset:', quote.file);
       quote.resetDesign();
-      console.log('🔄 RESET: resetDesign() called');
-      console.log('🔄 RESET: Current file after reset:', quote.file);
-    } else if (pendingAction === 'checkout') {
+    } else if (actionToPerform === 'checkout') {
       addFromQuote(updatedQuote, undefined, pricing);
       scrollToTopBeforeNavigate();
       navigate('/checkout');
       
       // Reset design area after navigating to checkout
-      console.log('🔄 RESET: About to call resetDesign() after checkout (from upsell modal)');
-      console.log('🔄 RESET: Current file before reset:', quote.file);
       quote.resetDesign();
-      console.log('🔄 RESET: resetDesign() called');
-      console.log('🔄 RESET: Current file after reset:', quote.file);
-    } else if (pendingAction === 'update' && quote.editingItemId) {
-      updateCartItem(quote.editingItemId, updatedQuote as any, undefined, pricing);
+    } else if (actionToPerform === 'update' && editingId) {
+      updateCartItem(editingId!, updatedQuote as any, undefined, pricing);
       quote.set({ editingItemId: null });
       toast({
         title: "Cart Updated",
@@ -763,21 +726,15 @@ const PricingCard: React.FC = () => {
       });
       
       // DON'T reset when updating - user may want to continue editing
-      console.log('🔄 UPDATE: Not resetting design after update from upsell (user may continue editing)');
       
       // Scroll to top so user can see the cart
       window.scrollTo({ top: 0, behavior: 'smooth' });
       
       // Reset design area after successful update
-      console.log('🔄 RESET: About to call resetDesign() after update (from upsell modal)');
-      console.log('🔄 RESET: Current file before reset:', quote.file);
       quote.resetDesign();
-      console.log('🔄 RESET: resetDesign() called');
-      console.log('🔄 RESET: Current file after reset:', quote.file);
     }
 
-    // Reset pending action
-    setPendingAction(null);
+    }); // End requestAnimationFrame
   };
 
   // Handle upsell modal close

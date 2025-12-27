@@ -134,16 +134,6 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   // This prevents the image from appearing tiny/positioned when it should fill the entire preview
   
   // DEBUG: Log what we received
-  console.log('🎨 BannerPreview: Received props:', {
-    imageUrl: imageUrl ? imageUrl.substring(0, 50) + '...' : null,
-    isCanvasThumbnail,
-    widthIn,
-    heightIn,
-    hasTextElements: textElements?.length > 0,
-    hasOverlayImage: !!overlayImage,
-    imageScale,
-    imagePosition
-  });
 
   // Track image load errors
   const [imageError, setImageError] = useState(false);
@@ -153,7 +143,6 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   const [isMobile, setIsMobile] = useState(() => {
     if (typeof window === 'undefined') return false;
     const mobile = window.innerWidth < 768 || /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-    console.log('📱 BannerPreview: Initial isMobile =', mobile, 'width =', window.innerWidth, 'userAgent =', navigator.userAgent.substring(0, 50));
     return mobile;
   });
   const imgRef = useRef<HTMLImageElement>(null);
@@ -172,21 +161,12 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
     setImageError(false);
     
     // DEBUG: Log image URL information
-    console.log('🖼️ BannerPreview: Image URL changed:', {
-      imageUrl: imageUrl ? imageUrl.substring(0, 50) + '...' : null,
-      isCanvasThumbnail,
-      isBlob: imageUrl?.startsWith('blob:'),
-      isCloudinary: imageUrl?.includes('cloudinary'),
-      isHttps: imageUrl?.startsWith('https://'),
-      length: imageUrl?.length
-    });
     setImageLoaded(false);
   }, [imageUrl]);
 
   // Check if image is already loaded (for cached images on mobile)
   useEffect(() => {
     if (isMobile && imgRef.current && imgRef.current.complete) {
-      console.log('✅ MOBILE: Image already loaded (cached)');
       setImageLoaded(true);
     }
   }, [isMobile, imageUrl]);
@@ -213,14 +193,6 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   }
 
   // CRITICAL DEBUG - Log container dimensions for troubleshooting
-  console.log('🔴🔴🔴 BANNER PREVIEW DIMENSIONS:', {
-    widthIn,
-    heightIn,
-    aspectRatio,
-    previewWidth,
-    previewHeight,
-    imageUrl: imageUrl?.substring(0, 80)
-  });
 
   // Calculate grommet positions
   const grommetPositions = useMemo(() => {
@@ -239,49 +211,13 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   // This ensures Canva imports and uploaded images fill the entire preview correctly
   
   // DEBUG: Log all conditions for troubleshooting
-  console.log('🔍 BannerPreview render check:', {
-    isMobile,
-    hasImageUrl: !!imageUrl,
-    imageUrl: imageUrl?.substring(0, 60),
-    imageError,
-    isCanvasThumbnail,
-    previewWidth,
-    previewHeight
-  });
   
   // AGGRESSIVE DEBUG: What URL are we getting?
-  console.log('🚨🚨🚨 BANNER PREVIEW URL DEBUG 🚨🚨��:', {
-    imageUrl_full: imageUrl,
-    imageUrl_first100: imageUrl?.substring(0, 100),
-    isCloudinaryUrl,
-    isDataUrl,
-    isCanvasThumbnail,
-    overlayImage_url: overlayImage?.url?.substring(0, 100),
-    overlayImage_position: overlayImage?.position,
-    overlayImage_scale: overlayImage?.scale,
-  });
   
   // AGGRESSIVE DEBUG: What URL are we getting?
-  console.log('🚨🚨🚨 BANNER PREVIEW URL DEBUG 🚨🚨��:', {
-    imageUrl_full: imageUrl,
-    imageUrl_first100: imageUrl?.substring(0, 100),
-    isCloudinaryUrl,
-    isDataUrl,
-    isCanvasThumbnail,
-    overlayImage_url: overlayImage?.url?.substring(0, 100),
-    overlayImage_position: overlayImage?.position,
-    overlayImage_scale: overlayImage?.scale,
-  });
   
   // PRIORITY 1: Canvas thumbnail (Cloudinary URLs, etc.) - render full-bleed on both mobile and desktop
-  console.log('🧪 PRIORITY 1 CHECK:', {
-    isCanvasThumbnail,
-    hasImageUrl: !!imageUrl,
-    imageError,
-    willEnterCanvasThumbnailPath: isCanvasThumbnail && !!imageUrl && !imageError
-  });
   if (isCanvasThumbnail && imageUrl && !imageError) {
-    console.log('🖼️ CANVAS THUMBNAIL: Rendering full-bleed image (mobile-safe)');
     
     // Render with grommets if selected
     if (grommets !== 'none') {
@@ -304,7 +240,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
                 objectFit: 'contain',
                 objectPosition: 'center'
               }}
-              onLoad={(e) => { console.log('🔴 IMAGE LOADED:', { naturalWidth: (e.target as HTMLImageElement).naturalWidth, naturalHeight: (e.target as HTMLImageElement).naturalHeight }); setImageLoaded(true); }}
+              onLoad={(e) => { setImageLoaded(true); }}
               onError={() => setImageError(true)}
             />
             
@@ -365,7 +301,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
               objectFit: 'contain',
               objectPosition: 'center'
             }}
-            onLoad={(e) => { console.log('🔴 IMAGE LOADED:', { naturalWidth: (e.target as HTMLImageElement).naturalWidth, naturalHeight: (e.target as HTMLImageElement).naturalHeight }); setImageLoaded(true); }}
+            onLoad={(e) => { setImageLoaded(true); }}
             onError={() => setImageError(true)}
           />
         </div>
@@ -375,7 +311,6 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   
   // PRIORITY 2: Mobile fallback with positioned image (non-Cloudinary images)
   if (isMobile && imageUrl && !imageError) {
-    console.log('📱 MOBILE: Rendering positioned thumbnail with <img> tag');
     
     return (
       <div className={`flex items-center justify-center ${className}`}>
@@ -398,7 +333,6 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
               maxHeight: '100%'
             }}
             onLoad={() => {
-              console.log('✅ MOBILE: Thumbnail image loaded successfully');
               setImageLoaded(true);
             }}
             onError={(e) => {
@@ -455,14 +389,6 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   }
 
   // If this is a canvas thumbnail (data URL), render it simply
-  console.log('🎨 BannerPreview RENDER:', {
-    hasImageUrl: !!imageUrl,
-    isCanvasThumbnail,
-    imageUrlPrefix: imageUrl?.substring(0, 50),
-    grommets,
-    willRenderCanvasThumbnail: isCanvasThumbnail && !!imageUrl,
-    textElementsCount: textElements?.length || 0,
-  });
   
   if (isCanvasThumbnail && imageUrl) {
     // If grommets are selected, render with SVG overlay
@@ -642,19 +568,6 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
             const fontSizeInInches = textEl.fontSize * (heightIn / ESTIMATED_PREVIEW_BANNER_HEIGHT_PX);
             
             // DEBUG: Log the calculations
-            console.log('🖼️ BannerPreview text rendering:', {
-              content: textEl.content,
-              storedFontSize: textEl.fontSize,
-              heightIn,
-              ESTIMATED_PREVIEW_BANNER_HEIGHT_PX,
-              calculatedFontSizeInInches: fontSizeInInches,
-              xPercent: textEl.xPercent,
-              yPercent: textEl.yPercent,
-              viewBoxWidth,
-              viewBoxHeight,
-              calculatedX: (widthIn * textEl.xPercent / 100),
-              calculatedY: (heightIn * textEl.yPercent / 100),
-            });
             
             // The stored xPercent/yPercent represent the TOP-LEFT corner of the text div
             // But the text inside may be aligned left/center/right within that div
@@ -782,4 +695,4 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   );
 };
 
-export default BannerPreview;
+export default React.memo(BannerPreview);
