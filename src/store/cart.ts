@@ -144,7 +144,6 @@ const migrateCartItem = (item: CartItem): CartItem => {
     return item;
   }
 
-  console.log('🔧 Migrating old cart item:', item.id);
 
   // Recompute pricing from scratch
   const area = item.area_sqft || (item.width_in * item.height_in) / 144;
@@ -189,12 +188,6 @@ const migrateCartItem = (item: CartItem): CartItem => {
     line_total_cents,
   };
 
-  console.log('✅ Migrated item:', {
-    id: item.id,
-    old: { unit: item.unit_price_cents, rope: item.rope_cost_cents, pole: item.pole_pocket_cost_cents, line: item.line_total_cents },
-    new: { unit: unit_price_cents, rope: rope_cost_cents, pole: pole_pocket_cost_cents, line: line_total_cents }
-  });
-
   return migratedItem;
 };
 
@@ -208,9 +201,7 @@ export const useCartStore = create<CartState>()(
       
       addFromQuote: (quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => {
         debugLog('🚨 addFromQuote CALLED - Current items in cart:', get().items.length);
-        get().items.forEach((item, idx) => console.log(`  Existing item ${idx}: ${item.id}`));
         debugLog('🚨 addFromQuote CALLED - Current items in cart:', get().items.length);
-        get().items.forEach((item, idx) => console.log(`  Existing item ${idx}: ${item.id}`));
         // Capture design-page authoritative pricing when provided
         const usingAuthoritative = !!pricing;
 
@@ -370,18 +361,11 @@ export const useCartStore = create<CartState>()(
 
         debugLog('🧮 CART: addFromQuote', { usingAuthoritative, pricing, computed: { unit: computedUnit, rope: computedRope, pole: computedPole, line: computedLine }, stored: newItem });
         debugLog('💾 CART STORAGE: Item added, will persist to localStorage');
-        console.log("[CART STORE] About to add item to cart:", newItem);
-        console.log("[CART STORE] Current cart items:", get().items);
-        console.log("[CART STORE] 🔍 BEFORE SET - All items thumbnail_url:");
         get().items.forEach((item, idx) => {
-          console.log(`  Item ${idx} (${item.id}): thumbnail_url =`, item.thumbnail_url ? item.thumbnail_url.substring(0, 80) : 'NULL');
         });
         set((state) => ({ items: [...state.items, newItem] }));
 
-        console.log("[CART STORE] Item added successfully. New cart items:", get().items);
-        console.log("[CART STORE] 🔍 AFTER SET - All items thumbnail_url:");
         get().items.forEach((item, idx) => {
-          console.log(`  Item ${idx} (${item.id}): thumbnail_url =`, item.thumbnail_url ? item.thumbnail_url.substring(0, 80) : 'NULL');
         });
         // CRITICAL FIX: Set cart owner to current user
         const userId = cartSync.getUserId();
@@ -409,10 +393,8 @@ export const useCartStore = create<CartState>()(
       // Use setTimeout to ensure state has been updated before syncing
       setTimeout(() => {
         const itemsToSync = get().items;
-        console.log("[CART STORE] Syncing to server. Items count:", itemsToSync.length);
         // DEBUG: Log thumbnail_url for each item
         itemsToSync.forEach((item, idx) => {
-          console.log(`[CART STORE] Item ${idx} thumbnail_url:`, item.thumbnail_url ? item.thumbnail_url.substring(0, 80) : 'NULL');
         });
         get().syncToServer();
       }, 0);
@@ -451,10 +433,8 @@ export const useCartStore = create<CartState>()(
       // Use setTimeout to ensure state has been updated before syncing
       setTimeout(() => {
         const itemsToSync = get().items;
-        console.log("[CART STORE] Syncing to server. Items count:", itemsToSync.length);
         // DEBUG: Log thumbnail_url for each item
         itemsToSync.forEach((item, idx) => {
-          console.log(`[CART STORE] Item ${idx} thumbnail_url:`, item.thumbnail_url ? item.thumbnail_url.substring(0, 80) : 'NULL');
         });
         get().syncToServer();
       }, 0);
@@ -462,8 +442,6 @@ export const useCartStore = create<CartState>()(
       
       loadItemIntoQuote: (itemId: string) => {
         const item = get().items.find(i => i.id === itemId);
-        console.log('🛒 CART STORE: loadItemIntoQuote found item:', item);
-        console.log('🛒 CART STORE: item.overlay_image:', item?.overlay_image);
         if (!item) return null;
         
         // Return the item so the caller can load it into quote store
@@ -471,7 +449,6 @@ export const useCartStore = create<CartState>()(
       },
       
       updateCartItem: (itemId: string, quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => {
-        console.log('🔄 CART: updateCartItem called', { itemId, quote, pricing });
         debugLog('🔍 [UPDATE CART] Quote state:', {
           addRope: quote.addRope,
           polePockets: quote.polePockets,
@@ -611,10 +588,8 @@ export const useCartStore = create<CartState>()(
       // Use setTimeout to ensure state has been updated before syncing
       setTimeout(() => {
         const itemsToSync = get().items;
-        console.log("[CART STORE] Syncing to server. Items count:", itemsToSync.length);
         // DEBUG: Log thumbnail_url for each item
         itemsToSync.forEach((item, idx) => {
-          console.log(`[CART STORE] Item ${idx} thumbnail_url:`, item.thumbnail_url ? item.thumbnail_url.substring(0, 80) : 'NULL');
         });
         get().syncToServer();
       }, 0);
@@ -627,10 +602,8 @@ export const useCartStore = create<CartState>()(
       // Use setTimeout to ensure state has been updated before syncing
       setTimeout(() => {
         const itemsToSync = get().items;
-        console.log("[CART STORE] Syncing to server. Items count:", itemsToSync.length);
         // DEBUG: Log thumbnail_url for each item
         itemsToSync.forEach((item, idx) => {
-          console.log(`[CART STORE] Item ${idx} thumbnail_url:`, item.thumbnail_url ? item.thumbnail_url.substring(0, 80) : 'NULL');
         });
         get().syncToServer();
       }, 0);
@@ -642,19 +615,15 @@ export const useCartStore = create<CartState>()(
       // Use setTimeout to ensure state has been updated before syncing
       setTimeout(() => {
         const itemsToSync = get().items;
-        console.log("[CART STORE] Syncing to server. Items count:", itemsToSync.length);
         // DEBUG: Log thumbnail_url for each item
         itemsToSync.forEach((item, idx) => {
-          console.log(`[CART STORE] Item ${idx} thumbnail_url:`, item.thumbnail_url ? item.thumbnail_url.substring(0, 80) : 'NULL');
         });
         get().syncToServer();
       }, 0);
       },
 
       clearCartLocal: () => {
-        console.log("🧹 clearCartLocal: Clearing cart in memory ONLY (no server sync)");
         set({ items: [], discountCode: null });
-        console.log("✅ clearCartLocal: Cart cleared locally");
       },
 
       applyDiscountCode: (discount: DiscountCode) => {
@@ -757,7 +726,6 @@ export const useCartStore = create<CartState>()(
           if (sessionId && items.length > 0) {
             const success = await cartSync.saveCart(items, undefined, sessionId);
             if (success) {
-              console.log('✅ STORE: Guest cart synced to server successfully');
             } else {
               console.error('❌ STORE: Failed to sync guest cart to server');
             }
@@ -765,10 +733,8 @@ export const useCartStore = create<CartState>()(
           return;
         }
         
-        console.log('💾 STORE: Syncing cart to server...', { userId, itemCount: items.length });
         const success = await cartSync.saveCart(items, userId);
         if (success) {
-          console.log('✅ STORE: Cart synced to server successfully');
         } else {
           console.error('❌ STORE: Failed to sync cart to server - cart will remain in localStorage');
         }
@@ -781,51 +747,28 @@ export const useCartStore = create<CartState>()(
 
       // Load cart from Neon database and merge with local
       loadFromServer: async () => {
-        console.log('🔵 STORE: loadFromServer called');
         
         // CRITICAL: Skip loading if a sync is in progress to prevent race conditions
         if (get().isSyncing) {
-          console.log('⏳ STORE: Skipping loadFromServer - sync in progress');
           return;
         }
-        console.log('🔵 STORE: loadFromServer STACK TRACE:', new Error().stack);
         const userId = cartSync.getUserId();
-        console.log('🔵 STORE: Got user ID:', userId);
         
         if (!userId) {
-          console.log('❌ STORE: No user logged in, skipping server load');
           return;
         }
 
-        console.log('🔵 STORE: Loading cart from server...');
         const serverItems = await cartSync.loadCart(userId);
         const localItems = get().items;
         const cartOwnerId = typeof localStorage !== 'undefined' ? localStorage.getItem('cart_owner_user_id') : null;
         
-        console.log('🔵 STORE: Server items count:', serverItems.length);
-        console.log('🔵 STORE: Local items count:', localItems.length);
-        console.log('🔵 STORE: Cart owner ID:', cartOwnerId);
-        console.log('🔵 STORE: Current user ID:', userId);
         
         // CRITICAL FIX: Do NOT merge local items with server items!
         // This was causing cross-account cart pollution.
         // Server is the source of truth - just use server items.
         if (serverItems.length > 0) {
-          console.log("🖼️  STORE: Checking image URLs in server items:");
-          serverItems.forEach((item, idx) => {
-            console.log(`  Item ${idx}:`, {
-              id: item.id,
-              thumbnail_url: item.thumbnail_url ? item.thumbnail_url.substring(0, 80) : 'NULL',
-              web_preview_url: item.web_preview_url,
-              file_url: item.file_url,
-              print_ready_url: item.print_ready_url,
-              aiDesign_proofUrl: item.aiDesign?.assets?.proofUrl
-            });
-          });
-          
           // CRITICAL: Use ONLY server items - no merging with local items
           // Local items may belong to a different user
-          console.log('✅ STORE: Using server items ONLY (no merge) - ' + serverItems.length + ' items');
           set({ items: serverItems });
           
           // Set cart owner
@@ -843,8 +786,6 @@ export const useCartStore = create<CartState>()(
           // ONLY keep local items if cartOwnerId EXACTLY matches current user
           // Do NOT keep items if cartOwnerId is null (could be stale from another user)
           if (cartOwnerId === userId) {
-            console.log('✅ STORE: Server cart empty but local cart belongs to THIS user');
-            console.log('✅ STORE: Saving local cart to server');
             // Set cart owner to current user
             if (typeof localStorage !== 'undefined') {
               localStorage.setItem('cart_owner_user_id', userId);
@@ -854,8 +795,6 @@ export const useCartStore = create<CartState>()(
             return;
           } else {
             // cartOwnerId is null OR belongs to different user - CLEAR IT
-            console.log('⚠️ STORE: Server cart empty, clearing local cart (owner mismatch or null)');
-            console.log('⚠️ STORE: Cart owner:', cartOwnerId, 'Current user:', userId);
             set({ items: [] });
             if (typeof localStorage !== 'undefined') {
               localStorage.setItem('cart_owner_user_id', userId);
@@ -864,8 +803,6 @@ export const useCartStore = create<CartState>()(
           }
         }
         // Both server and local are empty
-        console.log('ℹ️  STORE: Both server and local carts are empty');
-        console.log('⚠️ CLEARING ITEMS TO EMPTY ARRAY!', new Error().stack); console.log('⚠️ CLEARING ITEMS TO EMPTY ARRAY!', new Error().stack); set({ items: [] });
       },
 
       getMigratedItems: () => {
@@ -969,12 +906,10 @@ export const useCartStore = create<CartState>()(
             console.error('💾 CART STORAGE: Error parsing current user:', e);
           }
           
-          console.log('�� CART STORAGE: Cart owner ID:', cartOwnerId);
           debugLog('💾 CART STORAGE: Current user ID:', currentUserId);
           
           // If cart belongs to a different user, clear it
           if (cartOwnerId && currentUserId && cartOwnerId !== currentUserId) {
-            console.log('⚠️ CART STORAGE: Cart belongs to different user, clearing items');
             if (state) {
               state.items = [];
             }
@@ -983,7 +918,6 @@ export const useCartStore = create<CartState>()(
           
           // ALSO: If user is logged in but cart has NO owner, clear it (might be stale guest cart)
           if (currentUserId && !cartOwnerId && state?.items?.length) {
-            console.log('⚠️ CART STORAGE: User logged in but cart has no owner - clearing stale items');
             if (state) {
               state.items = [];
             }
@@ -992,12 +926,10 @@ export const useCartStore = create<CartState>()(
           // ALSO: If there are items but no user logged in, keep them (guest cart is OK)
           // But log it for debugging
           if (!currentUserId && state?.items?.length) {
-            console.log('ℹ️ CART STORAGE: Guest cart with items - keeping for potential checkout');
           }
           
           // ALSO: If user is logged in but cart has NO owner, clear it (might be stale guest cart)
           if (currentUserId && !cartOwnerId && state?.items?.length) {
-            console.log('⚠️ CART STORAGE: User logged in but cart has no owner - clearing stale items');
             if (state) {
               state.items = [];
             }
@@ -1006,7 +938,6 @@ export const useCartStore = create<CartState>()(
           // ALSO: If there are items but no user logged in, keep them (guest cart is OK)
           // But log it for debugging
           if (!currentUserId && state?.items?.length) {
-            console.log('ℹ️ CART STORAGE: Guest cart with items - keeping for potential checkout');
           }
         }
         
