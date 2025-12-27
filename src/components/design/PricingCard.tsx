@@ -246,6 +246,7 @@ const PricingCard: React.FC = () => {
     });
 
     // Show upsell modal if user should see it
+    console.log("🎨 CHROME DEBUG: shouldShowUpsell =", shouldShowUpsell, "grommets =", quote.grommets, "polePockets =", quote.polePockets, "addRope =", quote.addRope, "dontShowUpsellAgain =", dontShowUpsellAgain);
     if (shouldShowUpsell) {
       console.log('🎨 PRICING CARD: Showing upsell modal for ADD TO CART');
       console.log('🎨 PRICING CARD: canvasThumbnail:', canvasThumbnail ? canvasThumbnail.substring(0, 50) + '...' : 'NULL');
@@ -421,6 +422,7 @@ const PricingCard: React.FC = () => {
     }
 
     // Show upsell modal if user should see it
+    console.log("🎨 CHROME DEBUG: shouldShowUpsell =", shouldShowUpsell, "grommets =", quote.grommets, "polePockets =", quote.polePockets, "addRope =", quote.addRope, "dontShowUpsellAgain =", dontShowUpsellAgain);
     if (shouldShowUpsell) {
       console.log('🎨 PRICING CARD: Showing upsell modal for UPDATE CART');
       console.log('🎨 PRICING CARD: canvasThumbnail:', canvasThumbnail ? canvasThumbnail.substring(0, 50) + '...' : 'NULL');
@@ -502,6 +504,7 @@ const PricingCard: React.FC = () => {
     }
 
     // Show upsell modal if user should see it
+    console.log("🎨 CHROME DEBUG: shouldShowUpsell =", shouldShowUpsell, "grommets =", quote.grommets, "polePockets =", quote.polePockets, "addRope =", quote.addRope, "dontShowUpsellAgain =", dontShowUpsellAgain);
     if (shouldShowUpsell) {
       console.log('🎨 PRICING CARD: Showing upsell modal for CHECKOUT');
       console.log('🎨 PRICING CARD: canvasThumbnail:', canvasThumbnail ? canvasThumbnail.substring(0, 50) + '...' : 'NULL');
