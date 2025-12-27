@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo, useState, useEffect, Suspense, lazy } from 'react';
 import { ShoppingCart, CreditCard, Check, Truck, AlertTriangle, Ruler, Maximize2, Palette, Hash, DollarSign } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useQuoteStore, ORDER_SIZE_LIMIT_SQFT } from '@/store/quote';
@@ -9,7 +9,9 @@ import { validateMinimumOrder, canProceedToCheckout } from '@/lib/validation/min
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useScrollToTop } from '@/components/ScrollToTop';
-import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
+import { lazy, Suspense } from 'react';
+const UpsellModal = lazy(() => import('@/components/cart/UpsellModal'));
+import type { UpsellOption } from '@/components/cart/UpsellModal';
 import { useEditorStore } from '@/store/editor';
 
 
@@ -236,11 +238,6 @@ const PricingCard: React.FC = () => {
       });
       return;
     }
-    
-      hasFile: !!file,
-      textElementsCount: quote.textElements.length,
-      objectsCount: editorObjects.length
-    });
 
     // Show upsell modal if user should see it
     if (shouldShowUpsell) {
@@ -966,14 +963,18 @@ const PricingCard: React.FC = () => {
       </div>
 
       {/* Upsell Modal */}
-      <UpsellModal
-        isOpen={showUpsellModal}
-        onClose={handleUpsellClose}
-        quote={quote}
-        thumbnailUrl={canvasThumbnail || undefined}
-        onContinue={handleUpsellContinue}
-        actionType={pendingAction || 'cart'}
-      />
+      {showUpsellModal && (
+        <Suspense fallback={null}>
+          <UpsellModal
+            isOpen={showUpsellModal}
+            onClose={handleUpsellClose}
+            quote={quote}
+            thumbnailUrl={canvasThumbnail || undefined}
+            onContinue={handleUpsellContinue}
+            actionType={pendingAction || 'cart'}
+          />
+        </Suspense>
+      )}
     </div>
   );
 };
