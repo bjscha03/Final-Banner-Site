@@ -226,6 +226,8 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
       // Otherwise we get double-rendering (main image + overlay = same image twice!)
       const isUsingOverlayAsMain = imageSource === overlayImageFileKey || imageSource === overlayImagesFileKey;
       
+      // CRITICAL: When using overlay as main, the stored transform was for overlay positioning,
+      // NOT for full-banner scaling. We must reset these so the PDF renders correctly.
       const requestBody = {
         orderId: order.id,
         bannerWidthIn: item.width_in,
@@ -235,9 +237,10 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
         imageSource: item.print_ready_url ? 'print_ready' : (item.web_preview_url ? 'web_preview' : 'uploaded'),
         bleedIn: 0.125, // Standard 1/8" bleed
         targetDpi: 150, // High quality for print
-        transform: item.transform || null, // Use stored transform if available
-        previewCanvasPx: item.preview_canvas_px || null,
-        textElements: item.text_elements || [], // Include text layers for rendering
+        // CRITICAL: When overlay is main image, DON'T use stored transform (it's for overlay positioning, not full-banner)
+        transform: isUsingOverlayAsMain ? null : (item.transform || null),
+        previewCanvasPx: isUsingOverlayAsMain ? null : (item.preview_canvas_px || null),
+        textElements: isUsingOverlayAsMain ? [] : (item.text_elements || []), // Text elements not relevant for overlay-as-main
         // CRITICAL: Skip overlayImage if we're already using it as the main image source
         overlayImage: isUsingOverlayAsMain ? null : (item.overlay_image || null),
         canvasBackgroundColor: item.canvas_background_color || '#FFFFFF' // Canvas background color

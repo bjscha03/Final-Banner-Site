@@ -260,6 +260,8 @@ const AdminOrders: React.FC = () => {
       // Otherwise we get double-rendering (main image + overlay = same image twice!)
       const isUsingOverlayAsMain = imageSource === overlayImageFileKey || imageSource === overlayImagesFileKey;
       
+      // CRITICAL: When using overlay as main, the stored transform was for overlay positioning,
+      // NOT for full-banner scaling. We must reset these so the PDF renders correctly.
       const requestBody = {
         orderId: orderId,
         bannerWidthIn: item.width_in,
@@ -269,9 +271,10 @@ const AdminOrders: React.FC = () => {
         imageSource: item.print_ready_url ? 'print_ready' : (item.web_preview_url ? 'web_preview' : 'uploaded'),
         bleedIn: 0.125,
         targetDpi: 150,
-        transform: item.transform || null,
-        previewCanvasPx: item.preview_canvas_px || null,
-        textElements: item.text_elements || [],
+        // CRITICAL: When overlay is main image, DON'T use stored transform (it's for overlay positioning, not full-banner)
+        transform: isUsingOverlayAsMain ? null : (item.transform || null),
+        previewCanvasPx: isUsingOverlayAsMain ? null : (item.preview_canvas_px || null),
+        textElements: isUsingOverlayAsMain ? [] : (item.text_elements || []),
         // CRITICAL: Skip overlayImage/overlayImages if we're already using it as the main image source
         overlayImage: isUsingOverlayAsMain ? null : (item.overlay_image || null),
         overlayImages: isUsingOverlayAsMain ? null : (item.overlay_images || null),

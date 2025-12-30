@@ -603,24 +603,50 @@ exports.handler = async (event) => {
     console.log(`[PDF] Preview canvas: ${previewW}×${previewH}px, scale factor: ${pxScale.toFixed(2)}`);
     
     // Calculate default transform if not provided
-    // Scale image to fill the banner (cover mode)
+    // For simple uploaded images without overlay, use "stretch to fill" mode
+    // This ensures the uploaded image fills the entire banner exactly
     let transform = req.transform;
     if (!transform) {
-      const scaleX = previewW / srcW;
-      const scaleY = previewH / srcH;
-      const scale = Math.max(scaleX, scaleY); // Cover mode - fill entire banner
-      const translateXpx = (previewW - srcW * scale) / 2; // Center horizontally
-      const translateYpx = (previewH - srcH * scale) / 2; // Center vertically
-      transform = { scale, translateXpx, translateYpx };
-      console.log(`[PDF] Auto-calculated transform: scale=${scale.toFixed(2)}, translate=(${translateXpx.toFixed(0)}, ${translateYpx.toFixed(0)})`);
+      // Calculate aspect ratios
+      const srcAspect = srcW / srcH;
+      const canvasAspect = previewW / previewH;
+      const aspectDiff = Math.abs(srcAspect - canvasAspect) / canvasAspect;
+      
+      // If aspect ratios are within 10%, use stretch-to-fill (fill mode)
+      // This is the expected behavior for uploaded banner designs
+      if (aspectDiff < 0.1) {
+        // Stretch to fill - resize will handle the actual stretching
+        transform = { scale: 1, translateXpx: 0, translateYpx: 0, stretchToFill: true };
+        console.log(`[PDF] Using stretch-to-fill mode (aspect ratio diff: ${(aspectDiff * 100).toFixed(1)}%)`);
+      } else {
+        // Aspect ratios differ significantly - use contain mode (no cropping)
+        const scaleX = previewW / srcW;
+        const scaleY = previewH / srcH;
+        const scale = Math.min(scaleX, scaleY); // Contain mode - fit entire image without cropping
+        const translateXpx = (previewW - srcW * scale) / 2; // Center horizontally
+        const translateYpx = (previewH - srcH * scale) / 2; // Center vertically
+        transform = { scale, translateXpx, translateYpx };
+        console.log(`[PDF] Using contain mode: scale=${scale.toFixed(2)}, translate=(${translateXpx.toFixed(0)}, ${translateYpx.toFixed(0)})`);
+      }
     }
 
-    const scaledImageW = Math.round(srcW * transform.scale * pxScale);
-    const scaledImageH = Math.round(srcH * transform.scale * pxScale);
-    const translateX = Math.round(transform.translateXpx * pxScale);
-    const translateY = Math.round(transform.translateYpx * pxScale);
-
-    console.log(`[PDF] Scaled image: ${scaledImageW}×${scaledImageH}px at (${translateX}, ${translateY})`);
+    // Handle stretch-to-fill mode vs. normal transform mode
+    let scaledImageW, scaledImageH, translateX, translateY;
+    
+    if (transform.stretchToFill) {
+      // Stretch-to-fill: resize directly to target dimensions (ignore source aspect ratio)
+      scaledImageW = targetPxW;
+      scaledImageH = targetPxH;
+      translateX = 0;
+      translateY = 0;
+      console.log(`[PDF] Stretch-to-fill: resizing ${srcW}×${srcH} to ${scaledImageW}×${scaledImageH}px`);
+    } else {
+      scaledImageW = Math.round(srcW * transform.scale * pxScale);
+      scaledImageH = Math.round(srcH * transform.scale * pxScale);
+      translateX = Math.round(transform.translateXpx * pxScale);
+      translateY = Math.round(transform.translateYpx * pxScale);
+      console.log(`[PDF] Scaled image: ${scaledImageW}×${scaledImageH}px at (${translateX}, ${translateY})`);
+    }
 
     const upscaledBuffer = await maybeUpscaleToFit(rotatedBuffer, scaledImageW, scaledImageH);
 
