@@ -732,7 +732,21 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
       return { url: item.web_preview_url, type: 'web_preview', isAI: true };
     }
     
-    // Fallback to original file_key for non-AI items
+    // CRITICAL: overlay_image.fileKey contains the ORIGINAL uploaded file (no grommets)
+    // file_key is the THUMBNAIL (has grommets baked in) - use overlay_image.fileKey first!
+    const overlayImageFileKey = item.overlay_image?.fileKey;
+    const overlayImagesFileKey = item.overlay_images?.[0]?.fileKey;
+    
+    // Prioritize clean original image over thumbnail with grommets
+    if (overlayImageFileKey) {
+      return { url: overlayImageFileKey, type: 'overlay_image', isAI: false };
+    }
+    
+    if (overlayImagesFileKey) {
+      return { url: overlayImagesFileKey, type: 'overlay_images', isAI: false };
+    }
+    
+    // Last resort: file_key (may have grommets baked in for older orders)
     if (item.file_key) {
       return { url: item.file_key, type: 'file_key', isAI: false };
     }
