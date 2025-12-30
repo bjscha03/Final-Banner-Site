@@ -250,18 +250,21 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       const bleedNode = layer.findOne('.bleed-guide');
       const safezoneNode = layer.findOne('.safezone-guide');
       const gridNode = layer.findOne('.grid-guide');
+      const grommetNode = layer.findOne('.grommet-guide');
       const transformerNode = layer.findOne('Transformer');
       
       // Store original visibility
       const bleedWasVisible = bleedNode?.visible() ?? false;
       const safezoneWasVisible = safezoneNode?.visible() ?? false;
       const gridWasVisible = gridNode?.visible() ?? false;
+      const grommetWasVisible = grommetNode?.visible() ?? false;
       const transformerWasVisible = transformerNode?.visible() ?? false;
       
       // Hide guides directly on Konva nodes (no React re-render, no visual flash)
       bleedNode?.visible(false);
       safezoneNode?.visible(false);
       gridNode?.visible(false);
+      grommetNode?.visible(false);
       transformerNode?.visible(false);
       
       // Force immediate redraw with hidden guides
@@ -286,6 +289,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
             bleedNode?.visible(bleedWasVisible);
             safezoneNode?.visible(safezoneWasVisible);
             gridNode?.visible(gridWasVisible);
+            grommetNode?.visible(grommetWasVisible);
             transformerNode?.visible(transformerWasVisible);
             layer.batchDraw();
             return;
@@ -358,6 +362,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
             bleedNode?.visible(bleedWasVisible);
             safezoneNode?.visible(safezoneWasVisible);
             gridNode?.visible(gridWasVisible);
+            grommetNode?.visible(grommetWasVisible);
             transformerNode?.visible(transformerWasVisible);
             layer.batchDraw();
             
@@ -456,6 +461,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
           bleedNode?.visible(bleedWasVisible);
           safezoneNode?.visible(safezoneWasVisible);
           gridNode?.visible(gridWasVisible);
+          grommetNode?.visible(grommetWasVisible);
           transformerNode?.visible(transformerWasVisible);
           layer.batchDraw();
         } catch (error) {
@@ -465,6 +471,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
           bleedNode?.visible(bleedWasVisible);
           safezoneNode?.visible(safezoneWasVisible);
           gridNode?.visible(gridWasVisible);
+          grommetNode?.visible(grommetWasVisible);
           transformerNode?.visible(transformerWasVisible);
           layer.batchDraw();
         }

@@ -416,8 +416,6 @@ exports.handler = async (event, context) => {
                 ${item.line_total_cents || 0},
                 ${item.file_key || null},
                 ${item.file_url || null},
-                ${item.print_ready_url || null},
-                ${item.web_preview_url || null},
                 ${item.text_elements ? JSON.stringify(item.text_elements) : '[]'},
                 ${item.overlay_image ? JSON.stringify(item.overlay_image) : null},
                 ${item.overlay_images ? JSON.stringify(item.overlay_images) : null},

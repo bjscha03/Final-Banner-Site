@@ -554,7 +554,8 @@ export const useCartStore = create<CartState>()(
           // CRITICAL: Never save blob URLs - they don't persist across sessions
           // Use thumbnailUrl if provided, otherwise fall back to file.url or existing
           // CRITICAL: For PDFs, use originalUrl (Cloudinary URL before blob conversion)
-          file_url: (quote as any).thumbnailUrl || ((quote.file as any)?.originalUrl || ((quote.file?.url?.startsWith('blob:')) ? null : quote.file?.url)) || aiMetadata?.assets?.proofUrl || existingItem.file_url,
+          // CRITICAL FIX: Never use thumbnailUrl for file_url - thumbnailUrl has grommets baked in
+          file_url: ((quote.file as any)?.originalUrl || ((quote.file?.url?.startsWith('blob:')) ? null : quote.file?.url)) || aiMetadata?.assets?.proofUrl || existingItem.file_url,
           thumbnail_url: (quote as any).thumbnailUrl || existingItem.thumbnail_url, // CRITICAL: Update thumbnail for cart display
           web_preview_url: aiMetadata?.assets?.proofUrl || existingItem.web_preview_url,
           print_ready_url: aiMetadata?.assets?.finalUrl || existingItem.print_ready_url,
