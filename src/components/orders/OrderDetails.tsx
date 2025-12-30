@@ -197,15 +197,22 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
       });
 
       // Determine the best image source
+      // CRITICAL: overlay_image.fileKey contains the ORIGINAL uploaded file (no grommets)
+      // file_key is the THUMBNAIL (has grommets baked in) - use overlay_image.fileKey first!
+      const overlayImageFileKey = item.overlay_image?.fileKey;
+      const overlayImagesFileKey = item.overlay_images?.[0]?.fileKey;
+      
       console.log('[PDF Download] Item image sources:', {
+        overlay_image_fileKey: overlayImageFileKey,
+        overlay_images_0_fileKey: overlayImagesFileKey,
         print_ready_url: item.print_ready_url,
-        web_preview_url: item.web_preview_url,
+        file_key: item.file_key,
         file_url: item.file_url,
-        file_key: item.file_key
+        web_preview_url: item.web_preview_url
       });
       
-      // CRITICAL FIX: Prioritize file_key (clean original) over file_url (may have grommets)
-      const imageSource = item.print_ready_url || item.file_key || item.file_url || item.web_preview_url;
+      // CRITICAL FIX: Prioritize overlay_image.fileKey (original upload) over file_key (thumbnail with grommets)
+      const imageSource = item.print_ready_url || overlayImageFileKey || overlayImagesFileKey || item.file_url || item.web_preview_url;
       
       if (!imageSource) {
         throw new Error('No image source available for this order item. Please contact support.');

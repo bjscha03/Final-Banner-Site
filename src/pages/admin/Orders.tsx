@@ -238,9 +238,13 @@ const AdminOrders: React.FC = () => {
       console.log("🟢 PDF Download - overlay_image:", item.overlay_image);
 
       // Determine the best image source
-      // For PDF/image uploads, check file_key first, then fall back to file_url
-      // CRITICAL FIX: Prioritize file_key (clean original) over web_preview_url (may have grommets)
-      const imageSource = item.print_ready_url || item.file_key || item.file_url || item.web_preview_url;
+      // CRITICAL: overlay_image.fileKey contains the ORIGINAL uploaded file (no grommets)
+      // file_key is the THUMBNAIL (has grommets baked in) - use overlay_image.fileKey first!
+      const overlayImageFileKey = item.overlay_image?.fileKey;
+      const overlayImagesFileKey = item.overlay_images?.[0]?.fileKey;
+      
+      // CRITICAL FIX: Prioritize overlay_image.fileKey (original upload) over file_key (thumbnail with grommets)
+      const imageSource = item.print_ready_url || overlayImageFileKey || overlayImagesFileKey || item.file_url || item.web_preview_url;
       const isCloudinaryKey = imageSource && !imageSource.startsWith('http');
       
       console.log('[PDF DEBUG] Image source resolution:', {
