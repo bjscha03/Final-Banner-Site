@@ -116,11 +116,9 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
 
   const handleFileDownload = async (fileKey: string, itemIndex: number) => {
     try {
-      const fileName = fileKey?.split('/').pop() || `banner-design-${order.id.slice(-8)}-item-${itemIndex + 1}.txt`;
-
       toast({
         title: "Download Started",
-        description: `Downloading ${fileName}...`,
+        description: "Preparing file download...",
       });
 
       // Use Netlify function for secure file downloads
@@ -134,13 +132,25 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
       }
 
       // Check if response is JSON (error) or file content
-      const contentType = response.headers.get('content-type');
+      const contentType = response.headers.get('content-type') || 'image/jpeg';
 
-      if (contentType && contentType.includes('application/json')) {
+      if (contentType.includes('application/json')) {
         // Handle JSON error response
         const result = await response.json();
         throw new Error(result.error || 'Download failed');
       }
+
+      // Determine file extension from content type
+      let extension = 'jpg';
+      if (contentType.includes('png')) extension = 'png';
+      else if (contentType.includes('gif')) extension = 'gif';
+      else if (contentType.includes('webp')) extension = 'webp';
+      else if (contentType.includes('pdf')) extension = 'pdf';
+      else if (contentType.includes('tiff')) extension = 'tiff';
+
+      // Build a proper filename with extension
+      const baseName = fileKey?.split('/').pop()?.split('.')[0] || `banner-${order.id.slice(-8)}-item-${itemIndex + 1}`;
+      const fileName = `${baseName}.${extension}`;
 
       // Handle file download
       const blob = await response.blob();

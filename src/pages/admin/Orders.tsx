@@ -180,11 +180,9 @@ const AdminOrders: React.FC = () => {
 
   const handleFileDownload = async (fileKey: string, orderId: string, itemIndex: number) => {
     try {
-      const fileName = fileKey?.split('/').pop() || `banner-design-${orderId.slice(-8)}-item-${itemIndex + 1}.txt`;
-
       toast({
         title: "Download Started",
-        description: `Downloading ${fileName}...`,
+        description: "Preparing file download...",
       });
 
       // Use Netlify function for secure file downloads
@@ -196,6 +194,19 @@ const AdminOrders: React.FC = () => {
       if (!response.ok) {
         throw new Error(`Download failed: ${response.statusText}`);
       }
+
+      // Get content type to determine file extension
+      const contentType = response.headers.get('content-type') || 'image/jpeg';
+      let extension = 'jpg';
+      if (contentType.includes('png')) extension = 'png';
+      else if (contentType.includes('gif')) extension = 'gif';
+      else if (contentType.includes('webp')) extension = 'webp';
+      else if (contentType.includes('pdf')) extension = 'pdf';
+      else if (contentType.includes('tiff')) extension = 'tiff';
+
+      // Build a proper filename with extension
+      const baseName = fileKey?.split('/').pop()?.split('.')[0] || `banner-${orderId.slice(-8)}-item-${itemIndex + 1}`;
+      const fileName = `${baseName}.${extension}`;
 
       // Create blob and download
       const blob = await response.blob();
