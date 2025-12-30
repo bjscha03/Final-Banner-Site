@@ -222,6 +222,10 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
       
       console.log('[PDF Download] Selected image source:', imageSource, 'isCloudinaryKey:', isCloudinaryKey);
 
+      // CRITICAL: If using overlay_image.fileKey as main image, DON'T also pass overlayImage
+      // Otherwise we get double-rendering (main image + overlay = same image twice!)
+      const isUsingOverlayAsMain = imageSource === overlayImageFileKey || imageSource === overlayImagesFileKey;
+      
       const requestBody = {
         orderId: order.id,
         bannerWidthIn: item.width_in,
@@ -234,7 +238,8 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
         transform: item.transform || null, // Use stored transform if available
         previewCanvasPx: item.preview_canvas_px || null,
         textElements: item.text_elements || [], // Include text layers for rendering
-        overlayImage: item.overlay_image || null, // Include overlay image (logo/graphic) if present
+        // CRITICAL: Skip overlayImage if we're already using it as the main image source
+        overlayImage: isUsingOverlayAsMain ? null : (item.overlay_image || null),
         canvasBackgroundColor: item.canvas_background_color || '#FFFFFF' // Canvas background color
       };
 

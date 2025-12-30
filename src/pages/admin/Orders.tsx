@@ -256,6 +256,10 @@ const AdminOrders: React.FC = () => {
         isCloudinaryKey
       });
 
+      // CRITICAL: If using overlay_image.fileKey as main image, DON'T also pass overlayImage
+      // Otherwise we get double-rendering (main image + overlay = same image twice!)
+      const isUsingOverlayAsMain = imageSource === overlayImageFileKey || imageSource === overlayImagesFileKey;
+      
       const requestBody = {
         orderId: orderId,
         bannerWidthIn: item.width_in,
@@ -268,8 +272,9 @@ const AdminOrders: React.FC = () => {
         transform: item.transform || null,
         previewCanvasPx: item.preview_canvas_px || null,
         textElements: item.text_elements || [],
-        overlayImage: item.overlay_image || null,
-        overlayImages: item.overlay_images || null,
+        // CRITICAL: Skip overlayImage/overlayImages if we're already using it as the main image source
+        overlayImage: isUsingOverlayAsMain ? null : (item.overlay_image || null),
+        overlayImages: isUsingOverlayAsMain ? null : (item.overlay_images || null),
         canvasBackgroundColor: item.canvas_background_color || '#FFFFFF'
       };
 
