@@ -310,12 +310,27 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
     try {
       setPrintPdfGenerating(prev => ({ ...prev, [index]: true }));
       
-      // Determine the best image source (same logic as regular PDF download)
-      // CRITICAL FIX: Prioritize file_key (clean original) over file_url (may have grommets)
-      const imageSource = item.print_ready_url || item.file_key || item.file_url || item.web_preview_url;
+      // CRITICAL: overlay_image.fileKey contains the ORIGINAL uploaded file (no grommets)
+      // file_key is the THUMBNAIL (has grommets baked in) - use overlay_image.fileKey first!
+      const overlayImageFileKey = item.overlay_image?.fileKey;
+      const overlayImagesFileKey = item.overlay_images?.[0]?.fileKey;
+      
+      console.log('[Print PDF] Item image sources:', {
+        overlay_image_fileKey: overlayImageFileKey,
+        overlay_images_0_fileKey: overlayImagesFileKey,
+        print_ready_url: item.print_ready_url,
+        file_key: item.file_key,
+        file_url: item.file_url,
+      });
+      
+      // CRITICAL FIX: Prioritize overlay_image.fileKey (original upload) over file_key (thumbnail with grommets)
+      const imageSource = item.print_ready_url || overlayImageFileKey || overlayImagesFileKey || item.file_url || item.web_preview_url;
       const isCloudinaryKey = !imageSource?.startsWith('http');
       
-      console.log('[Print PDF] Image source:', imageSource, 'isCloudinaryKey:', isCloudinaryKey);
+      // CRITICAL: If using overlay_image.fileKey as main image, DON'T use stored transform
+      const isUsingOverlayAsMain = imageSource === overlayImageFileKey || imageSource === overlayImagesFileKey;
+      
+      console.log('[Print PDF] Selected image source:', imageSource, 'isCloudinaryKey:', isCloudinaryKey, 'isUsingOverlayAsMain:', isUsingOverlayAsMain);
       
       const response = await fetch('/.netlify/functions/render-print-pdf', {
         method: 'POST',
@@ -328,8 +343,12 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
           bannerHeightIn: item.height_in,
           targetDpi: 150,
           bleedIn: 0.25,
-          textElements: item.text_elements || [],
+          // CRITICAL: When overlay is main image, DON'T use stored transform (it's for overlay positioning)
+          transform: isUsingOverlayAsMain ? null : (item.transform || null),
+          previewCanvasPx: isUsingOverlayAsMain ? null : (item.preview_canvas_px || null),
+          textElements: isUsingOverlayAsMain ? [] : (item.text_elements || []),
           applyColorCorrection: true,
+          canvasBackgroundColor: item.canvas_background_color || '#FFFFFF',
         }),
       });
 

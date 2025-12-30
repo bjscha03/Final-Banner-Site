@@ -228,13 +228,11 @@ async function createPrintPDF(imageBuffer, pageWidthIn, pageHeightIn, textElemen
         drawCropMarks(doc, bannerWidthIn, bannerHeightIn, bleedInches);
       }
 
-      // Add image (centered with bleed)
+      // Add image (fill entire banner area, stretching if needed)
+      // Do NOT use 'fit' as that maintains aspect ratio - we want the image to fill exactly
       doc.image(imageBuffer, bleedPt, bleedPt, {
         width: bannerWidthPt,
         height: bannerHeightPt,
-        fit: [bannerWidthPt, bannerHeightPt],
-        align: 'center',
-        valign: 'center',
       });
 
       // Add text elements (vector text, not rasterized)
