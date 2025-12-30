@@ -64,11 +64,17 @@ exports.handler = async (event, context) => {
     // Verify the order exists and contains the file (only for order-based downloads)
     if (!fileKey && key && order) {
       try {
+        // Check if the key matches file_key OR is contained in overlay_image/overlay_images JSON
+        // This handles both old orders (file_key) and new orders (overlay_image.fileKey)
         const orderResult = await sql`
-          SELECT o.id, o.email, oi.file_key
+          SELECT o.id, o.email, oi.file_key, oi.overlay_image, oi.overlay_images
           FROM orders o
           JOIN order_items oi ON o.id = oi.order_id
-          WHERE o.id = ${order} AND oi.file_key = ${key}
+          WHERE o.id = ${order} AND (
+            oi.file_key = ${key}
+            OR oi.overlay_image::text LIKE ${'%' + key + '%'}
+            OR oi.overlay_images::text LIKE ${'%' + key + '%'}
+          )
           LIMIT 1
         `;
 
