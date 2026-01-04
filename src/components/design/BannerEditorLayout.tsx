@@ -27,7 +27,8 @@ import {
   Sliders,
   Download, 
   Sparkles,
-  X
+  X,
+  Grid3X3
 } from 'lucide-react';
 import EditorCanvas from './editor/EditorCanvas';
 import AssetsPanel from './editor/AssetsPanel';
@@ -64,7 +65,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
   const navigate = useNavigate();
   const { user } = useAuth();
   const isAdminUser = user && isAdmin(user);
-  const { exportToJSON, setCanvasThumbnail, canvasThumbnail, objects: editorObjects, addObject, reset: resetEditor, canvasBackgroundColor, showGrommets, setShowGrommets } = useEditorStore();
+  const { exportToJSON, setCanvasThumbnail, canvasThumbnail, objects: editorObjects, addObject, reset: resetEditor, canvasBackgroundColor, showGrommets, setShowGrommets, showGrid, setShowGrid } = useEditorStore();
   const quote = useQuoteStore();
   const { set: setQuote, editingItemId, overlayImage, textElements, file, grommets, widthIn, heightIn, material, resetDesign } = quote;
   
@@ -1754,6 +1755,20 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
         {/* Canvas Area - Full Width (Both Mobile & Desktop) */}
         {/* CRITICAL: Single canvas instance ensures canvasRef always points to visible canvas */}
         <div className="flex flex-1 flex-col bg-gray-100 overflow-hidden relative z-0">
+          {/* Canvas Toolbar - Grid Toggle */}
+          <div className="flex items-center justify-end px-4 py-2 bg-white border-b border-gray-200">
+            <button
+              onClick={() => setShowGrid(!showGrid)}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                showGrid 
+                  ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' 
+                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+              }`}
+            >
+              <Grid3X3 className="w-4 h-4" />
+              <span className="hidden sm:inline">Show Grid</span>
+            </button>
+          </div>
           {/* Mobile: smaller padding, space for bottom toolbar; Desktop: normal padding */}
           <div className="flex-1 p-2 sm:p-4 lg:p-4 overflow-auto pb-20 lg:pb-4">
             <EditorCanvas 

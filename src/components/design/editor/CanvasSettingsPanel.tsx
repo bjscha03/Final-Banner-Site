@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
 import { useEditorStore } from '@/store/editor';
-import { Paintbrush, Grid3x3 } from 'lucide-react';
+import { Paintbrush } from 'lucide-react';
 import { HexColorPicker } from 'react-colorful';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Button } from '@/components/ui/button';
-import { Switch } from '@/components/ui/switch';
+// Switch removed - grid toggle moved above canvas
 
 const CanvasSettingsPanel: React.FC = () => {
-  const { canvasBackgroundColor, setCanvasBackgroundColor, showGrid, setShowGrid } = useEditorStore();
+  const { canvasBackgroundColor, setCanvasBackgroundColor } = useEditorStore();
   const [showPicker, setShowPicker] = useState(false);
   const [tempColor, setTempColor] = useState(canvasBackgroundColor || '#FFFFFF');
 
@@ -103,26 +103,6 @@ const CanvasSettingsPanel: React.FC = () => {
             </div>
           </PopoverContent>
         </Popover>
-      </div>
-
-      {/* Grid Toggle */}
-      <div className="border-t pt-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Grid3x3 className="w-4 h-4 text-gray-600" />
-            <Label htmlFor="grid-toggle" className="text-sm font-semibold cursor-pointer">
-              Show Grid
-            </Label>
-          </div>
-          <Switch
-            id="grid-toggle"
-            checked={showGrid}
-            onCheckedChange={setShowGrid}
-          />
-        </div>
-        <p className="text-xs text-gray-500 mt-2">
-          Display a grid overlay to help align elements on the canvas.
-        </p>
       </div>
 
       <div className="text-xs text-gray-600 space-y-1">
