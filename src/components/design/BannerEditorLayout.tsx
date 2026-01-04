@@ -1575,12 +1575,12 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     {
       id: 'colors' as PanelType,
       icon: <Palette className="w-6 h-6" />,
-      label: 'Colors',
+      label: 'Text Color',
     },
     {
       id: 'canvas' as PanelType,
       icon: <Sliders className="w-6 h-6" />,
-      label: 'Canvas',
+      label: 'Canvas Background Color',
     },
   ];
 
