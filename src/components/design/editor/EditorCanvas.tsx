@@ -437,34 +437,45 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
       const obj = objects.find(o => o.id === id);
       if (!obj) return pos;
       
-      // Get object dimensions
-      let objWidth: number;
-      let objHeight: number;
+      // Get object dimensions - in SCREEN PIXELS for snap calculations
+      let objWidthPx: number;
+      let objHeightPx: number;
       
       if (obj.type === 'image' || obj.type === 'shape') {
-        objWidth = (obj as any).width || 1;
-        objHeight = (obj as any).height || 1;
+        // Images and shapes store dimensions in inches
+        objWidthPx = (obj as any).width * PIXELS_PER_INCH * scale;
+        objHeightPx = (obj as any).height * PIXELS_PER_INCH * scale;
       } else if (obj.type === 'text') {
-        // For text, calculate dimensions based on content and fontSize
-        const textObj = obj as any;
-        const fontSize = textObj.fontSize || 0.5; // in inches
-        const textContent = textObj.content || '';
-        // Estimate width: ~0.6 of fontSize per character (rough approximation)
-        const estimatedWidth = textContent.length * fontSize * 0.5;
-        objWidth = textObj.width || Math.max(estimatedWidth, fontSize * 2);
-        objHeight = textObj.height || fontSize * 1.2; // line height ~1.2
+        // For text, get actual rendered dimensions from the Konva node
+        const stage = stageRef.current;
+        const node = stage?.findOne('#' + id);
+        if (node) {
+          // Get actual text dimensions from rendered node
+          objWidthPx = node.width() * node.scaleX();
+          objHeightPx = node.height() * node.scaleY();
+        } else {
+          // Fallback: estimate based on fontSize
+          const textObj = obj as any;
+          const fontSizePx = (textObj.fontSize || 0.5) * PIXELS_PER_INCH * scale;
+          const textContent = textObj.content || '';
+          objWidthPx = textContent.length * fontSizePx * 0.6;
+          objHeightPx = fontSizePx * 1.2;
+        }
       } else {
         return pos;
       }
       
-      // For rectangles, images, and other shapes with top-left positioning
+      // Convert dimensions back to inches for bounds checking
+      const objWidthIn = objWidthPx / (PIXELS_PER_INCH * scale);
+      const objHeightIn = objHeightPx / (PIXELS_PER_INCH * scale);
+      
       // Convert screen position to inches
       const xInches = (pos.x - stagePos.x) / (PIXELS_PER_INCH * scale);
       const yInches = (pos.y - stagePos.y) / (PIXELS_PER_INCH * scale);
       
       // Calculate object center position in screen pixels
-      const objCenterX = pos.x + (objWidth * PIXELS_PER_INCH * scale) / 2;
-      const objCenterY = pos.y + (objHeight * PIXELS_PER_INCH * scale) / 2;
+      const objCenterX = pos.x + objWidthPx / 2;
+      const objCenterY = pos.y + objHeightPx / 2;
       
       // Canvas center in screen pixels
       const canvasCenterX = stagePos.x + (canvasWidthPx * scale) / 2;
@@ -478,7 +489,7 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
       setSnapLines({ horizontal: nearHorizontalCenter, vertical: nearVerticalCenter });
       
       // Constrain to bounds
-      const constrained = constrainToBounds(xInches, yInches, objWidth, objHeight);
+      const constrained = constrainToBounds(xInches, yInches, objWidthIn, objHeightIn);
       
       // Convert back to screen coordinates
       let constrainedX = stagePos.x + constrained.x * PIXELS_PER_INCH * scale;
@@ -486,10 +497,10 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
       
       // Snap to center if close enough
       if (nearVerticalCenter) {
-        constrainedX = canvasCenterX - (objWidth * PIXELS_PER_INCH * scale) / 2;
+        constrainedX = canvasCenterX - objWidthPx / 2;
       }
       if (nearHorizontalCenter) {
-        constrainedY = canvasCenterY - (objHeight * PIXELS_PER_INCH * scale) / 2;
+        constrainedY = canvasCenterY - objHeightPx / 2;
       }
       
       return { x: constrainedX, y: constrainedY };
