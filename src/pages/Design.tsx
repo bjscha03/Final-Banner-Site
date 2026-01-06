@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import PageHeader from '@/components/PageHeader';
-import { Palette } from 'lucide-react';
+import { Palette, Info } from 'lucide-react';
 import BannerEditorLayout from '@/components/design/BannerEditorLayout';
 import NewAIGenerationModal from '@/components/design/NewAIGenerationModal';
 import { useQuoteStore, MaterialKey } from '@/store/quote';
@@ -89,6 +89,16 @@ const Design: React.FC = () => {
           subtitle="Create custom banners with our advanced design tools"
           icon={Palette}
         />
+      </div>
+      
+      {/* Preview Disclaimer */}
+      <div className="mx-4 sm:mx-6 lg:mx-8 my-4">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 flex items-start gap-3">
+          <Info className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
+          <p className="text-sm text-blue-800">
+            <span className="font-semibold">Preview only.</span> Our team personally reviews every banner before production and will reach out if anything needs attention.
+          </p>
+        </div>
       </div>
       
       <BannerEditorLayout onOpenAIModal={() => setAiModalOpen(true)} />
