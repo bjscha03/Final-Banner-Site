@@ -91,6 +91,15 @@ const Design: React.FC = () => {
         />
       </div>
       
+      {/* Decorative Banner Image - Between header and editor */}
+      <div className="w-full hidden lg:block">
+        <img 
+          src="https://res.cloudinary.com/dtrxl120u/image/upload/v1767723458/upscaled-2x-Screenshot_2025-10-07_at_2.29.47_PM_wegqxg_ubaxdz.png"
+          alt="Banner printing services"
+          className="w-full h-auto object-contain"
+        />
+      </div>
+      
       <BannerEditorLayout onOpenAIModal={() => setAiModalOpen(true)} />
       
       <NewAIGenerationModal 
