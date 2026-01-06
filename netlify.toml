@@ -118,60 +118,73 @@
   status = 200
   force = false
 
-# Temporarily disabled for local dev - CSP causing Netlify CLI crash
-# # [[headers]]
-# # for = "/*"
-#   [headers.values]
-#   Strict-Transport-Security = "max-age=63072000; includeSubDomains; preload"
-#   Content-Security-Policy = """
-#     default-src 'self';
-#     base-uri 'self';
-#     object-src 'none';
+# ==========================================
+# CACHE HEADERS FOR PERFORMANCE
+# ==========================================
 
-#     script-src
-#       'self' 'unsafe-inline' 'unsafe-eval'
-#       https://www.googletagmanager.com
-#       https://www.google-analytics.com
-#       https://www.google.com
-#       https://googleads.g.doubleclick.net
-#       https://stats.g.doubleclick.net
-#       https://connect.facebook.net
-#       https://www.paypal.com
-#       https://www.sandbox.paypal.com
-#       https://www.paypalobjects.com
-#       https://cdn.chatsimple.ai
-#       https://us-assets.i.posthog.com
-#       https://cdnjs.cloudflare.com
-#       https://fonts.googleapis.com
-#       https://*.cloudfront.net
-#       https://snap.licdn.com
-#       https://*.ads.linkedin.com;
-
-#     style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.chatsimple.ai https://us-assets.i.posthog.com;
-#     font-src  'self' data: https://fonts.gstatic.com;
-
-#     img-src   'self' data: blob: https://www.paypalobjects.com https://*.chatsimple.ai https://us-assets.i.posthog.com https://*.cloudfront.net https://*.amazonaws.com https://*.cloudinary.com https://res.cloudinary.com https://via.placeholder.com https://www.facebook.com https://connect.facebook.net https://www.google-analytics.com https://www.googletagmanager.com https://*.google-analytics.com https://*.ads.linkedin.com https://snap.licdn.com https://px.ads.linkedin.com https://*.paypal.com https://www.google.com https://googleads.g.doubleclick.net https://stats.g.doubleclick.net;
-
-#     connect-src 'self' blob: data: https://*.paypal.com https://www.sandbox.paypal.com https://www.paypalobjects.com https://*.chatsimple.ai https://api.expertise.ai https://us-assets.i.posthog.com https://*.posthog.com https://*.cloudfront.net https://*.amazonaws.com https://*.cloudinary.com https://res.cloudinary.com https://api.ipify.org https://pro.ip-api.com https://www.linkedin.com https://api.linkedin.com https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com https://www.google-analytics.com https://*.google-analytics.com https://api.us-east-2.aws.neon.tech https://*.neon.tech https://connect.facebook.net https://www.facebook.com https://snap.licdn.com https://*.ads.linkedin.com https://capig.madgicx.ai https://www.google.com https://googleads.g.doubleclick.net https://stats.g.doubleclick.net;
-
-#     frame-src 'self' https://*.paypal.com https://www.sandbox.paypal.com https://www.googletagmanager.com https://www.facebook.com https://connect.facebook.net blob:;
-#     frame-ancestors 'self';
-#     worker-src 'self' blob: https://cdnjs.cloudflare.com;
-#     media-src  'self' blob: https://*.cloudfront.net https://*.amazonaws.com https://*.cloudinary.com https://res.cloudinary.com;
-#   """
-#   X-Content-Type-Options = "nosniff"
-#   Referrer-Policy = "strict-origin-when-cross-origin"
-#   Permissions-Policy = "geolocation=(), microphone=(), camera=()"
-#   Cross-Origin-Opener-Policy = "same-origin-allow-popups"
-#   Cross-Origin-Resource-Policy = "cross-origin"
-
-# # Force cache busting for this deployment
+# JavaScript and CSS bundles - long cache with immutable (cache-busted filenames)
 [[headers]]
-for = "/assets/*"
+  for = "/assets/*.js"
   [headers.values]
-  Cache-Control = "no-cache, no-store, must-revalidate"
-  Pragma = "no-cache"
-  Expires = "0"
+  Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/assets/*.css"
+  [headers.values]
+  Cache-Control = "public, max-age=31536000, immutable"
+
+# Images - long cache
+[[headers]]
+  for = "/images/*"
+  [headers.values]
+  Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.png"
+  [headers.values]
+  Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.jpg"
+  [headers.values]
+  Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.webp"
+  [headers.values]
+  Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.svg"
+  [headers.values]
+  Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.ico"
+  [headers.values]
+  Cache-Control = "public, max-age=31536000, immutable"
+
+# Fonts - long cache
+[[headers]]
+  for = "/*.woff"
+  [headers.values]
+  Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*.woff2"
+  [headers.values]
+  Cache-Control = "public, max-age=31536000, immutable"
+
+# HTML - short cache for updates
+[[headers]]
+  for = "/"
+  [headers.values]
+  Cache-Control = "public, max-age=0, must-revalidate"
+
+[[headers]]
+  for = "/index.html"
+  [headers.values]
+  Cache-Control = "public, max-age=0, must-revalidate"
 
 # Edge Functions configuration
 [[edge_functions]]
