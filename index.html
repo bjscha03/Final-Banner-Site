@@ -1,62 +1,60 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
-    <!-- Preconnect to critical origins -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <!-- Preconnect hints - MUST be first after meta tags -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin>
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="dns-prefetch" href="https://www.googletagmanager.com">
     <link rel="dns-prefetch" href="https://connect.facebook.net">
     <link rel="dns-prefetch" href="https://t.contentsquare.net">
+    <link rel="dns-prefetch" href="https://d64gsuwffb70l.cloudfront.net">
 
-    <!-- Critical fonts - preload only the most common ones used on initial page load -->
-    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap" media="print" onload="this.media='all'">
-    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;700&display=swap"></noscript>
+    <!-- Critical CSS - inline for immediate rendering -->
+    <style>
+      /* Critical above-the-fold styles */
+      *,::before,::after{box-sizing:border-box;border:0 solid #e5e7eb}
+      html{line-height:1.5;-webkit-text-size-adjust:100%;font-family:ui-sans-serif,system-ui,sans-serif,"Apple Color Emoji","Segoe UI Emoji"}
+      body{margin:0;line-height:inherit}
+      h1,h2,h3,h4,h5,h6{font-size:inherit;font-weight:inherit}
+      a{color:inherit;text-decoration:inherit}
+      img,video{max-width:100%;height:auto}
+      button{background-color:transparent;cursor:pointer}
+      
+      /* Loading state */
+      #root:empty::after{content:"";position:fixed;top:50%;left:50%;width:40px;height:40px;margin:-20px 0 0 -20px;border:3px solid #e5e7eb;border-top-color:#3b82f6;border-radius:50%;animation:spin 1s linear infinite}
+      @keyframes spin{to{transform:rotate(360deg)}}
+      
+      /* Critical layout classes */
+      .min-h-screen{min-height:100vh}
+      .flex{display:flex}
+      .flex-col{flex-direction:column}
+      .items-center{align-items:center}
+      .justify-center{justify-content:center}
+      .text-center{text-align:center}
+      .font-bold{font-weight:700}
+      .text-4xl{font-size:2.25rem;line-height:2.5rem}
+      .text-5xl{font-size:3rem;line-height:1}
+      .text-6xl{font-size:3.75rem;line-height:1}
+      .leading-tight{line-height:1.25}
+      .bg-white{background-color:#fff}
+      .text-gray-500{color:#6b7280}
+      
+      @media(min-width:768px){.md\:text-5xl{font-size:3rem;line-height:1}}
+      @media(min-width:1024px){.lg\:text-6xl{font-size:3.75rem;line-height:1}}
+    </style>
 
-    <!-- Defer non-critical editor fonts - loaded async when needed -->
-    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=PT+Sans:wght@400;700&family=Merriweather:wght@400;700&family=Playfair+Display:wght@400;700&family=Nunito:wght@400;700&family=Ubuntu:wght@400;700&family=Mukta:wght@400;700&family=Rubik:wght@400;700&family=Work+Sans:wght@400;700&family=Noto+Sans:wght@400;700&family=Fira+Sans:wght@400;700&family=Quicksand:wght@400;700&family=Karla:wght@400;700&family=Barlow:wght@400;700&family=Oxygen:wght@400;700&family=Cabin:wght@400;700&family=Bebas+Neue&family=Anton&family=Pacifico&family=Dancing+Script:wght@400;700&family=Lobster&family=Righteous&family=Permanent+Marker&family=Indie+Flower&family=Shadows+Into+Light&family=Satisfy&family=Caveat:wght@400;700&family=Amatic+SC:wght@400;700&family=Architects+Daughter&family=Kalam:wght@400;700&family=Roboto+Mono:wght@400;700&family=Source+Code+Pro:wght@400;700&family=IBM+Plex+Mono:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" id="editor-fonts">
-    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=PT+Sans:wght@400;700&family=Merriweather:wght@400;700&family=Playfair+Display:wght@400;700&family=Nunito:wght@400;700&family=Ubuntu:wght@400;700&family=Mukta:wght@400;700&family=Rubik:wght@400;700&family=Work+Sans:wght@400;700&family=Noto+Sans:wght@400;700&family=Fira+Sans:wght@400;700&family=Quicksand:wght@400;700&family=Karla:wght@400;700&family=Barlow:wght@400;700&family=Oxygen:wght@400;700&family=Cabin:wght@400;700&family=Bebas+Neue&family=Anton&family=Pacifico&family=Dancing+Script:wght@400;700&family=Lobster&family=Righteous&family=Permanent+Marker&family=Indie+Flower&family=Shadows+Into+Light&family=Satisfy&family=Caveat:wght@400;700&family=Amatic+SC:wght@400;700&family=Architects+Daughter&family=Kalam:wght@400;700&family=Roboto+Mono:wght@400;700&family=Source+Code+Pro:wght@400;700&family=IBM+Plex+Mono:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" media="print" onload="this.media='all'">
+    <!-- Preload critical font (Poppins) -->
+    <link rel="preload" href="https://fonts.gstatic.com/s/poppins/v22/pxiEyp8kv8JHgFVrJJfecg.woff2" as="font" type="font/woff2" crossorigin>
+    
+    <!-- Load Poppins font with swap -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap" media="print" onload="this.media='all'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&display=swap"></noscript>
 
-    <!-- Defer analytics scripts - load after main content -->
-    <script>
-      // Defer loading of analytics scripts until after page load
-      window.addEventListener('load', function() {
-        // Google Analytics
-        var gtagScript = document.createElement('script');
-        gtagScript.src = 'https://www.googletagmanager.com/gtag/js?id=G-2TQ6JYYZV7';
-        gtagScript.async = true;
-        document.head.appendChild(gtagScript);
-        gtagScript.onload = function() {
-          window.dataLayer = window.dataLayer || [];
-          function gtag(){dataLayer.push(arguments);}
-          window.gtag = gtag;
-          gtag('js', new Date());
-          gtag('config', 'G-2TQ6JYYZV7');
-        };
-
-        // Contentsquare - defer by 2 seconds
-        setTimeout(function() {
-          var csScript = document.createElement('script');
-          csScript.src = 'https://t.contentsquare.net/uxa/f68a18990d1b7.js';
-          document.head.appendChild(csScript);
-        }, 2000);
-
-        // Meta Pixel
-        !function(f,b,e,v,n,t,s)
-        {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-        n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-        if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-        n.queue=[];t=b.createElement(e);t.async=!0;
-        t.src=v;s=b.getElementsByTagName(e)[0];
-        s.parentNode.insertBefore(t,s)}(window, document,'script',
-        'https://connect.facebook.net/en_US/fbevents.js');
-        fbq('init', '1487321805934457');
-        fbq('track', 'PageView');
-      });
-    </script>
-
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Editor fonts - load only when needed (after user interaction) -->
+    <link rel="prefetch" href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&family=Open+Sans:wght@400;700&family=Lato:wght@400;700&family=Montserrat:wght@400;700&family=Oswald:wght@400;700&family=Raleway:wght@400;700&family=PT+Sans:wght@400;700&family=Merriweather:wght@400;700&family=Playfair+Display:wght@400;700&family=Nunito:wght@400;700&family=Ubuntu:wght@400;700&family=Mukta:wght@400;700&family=Rubik:wght@400;700&family=Work+Sans:wght@400;700&family=Noto+Sans:wght@400;700&family=Fira+Sans:wght@400;700&family=Quicksand:wght@400;700&family=Karla:wght@400;700&family=Barlow:wght@400;700&family=Oxygen:wght@400;700&family=Cabin:wght@400;700&family=Bebas+Neue&family=Anton&family=Pacifico&family=Dancing+Script:wght@400;700&family=Lobster&family=Righteous&family=Permanent+Marker&family=Indie+Flower&family=Shadows+Into+Light&family=Satisfy&family=Caveat:wght@400;700&family=Amatic+SC:wght@400;700&family=Architects+Daughter&family=Kalam:wght@400;700&family=Roboto+Mono:wght@400;700&family=Source+Code+Pro:wght@400;700&family=IBM+Plex+Mono:wght@400;700&family=JetBrains+Mono:wght@400;700&display=swap" as="style">
 
     <title>Banners On The Fly - Professional Banners • Free Next-Day Air • 24-Hour Production</title>
     <meta name="description" content="Professional vinyl banners with free next-day air shipping and 24-hour production. Design custom banners online with live preview." />
@@ -89,14 +87,55 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
 
-    <!-- LinkedIn Insight Tag - deferred -->
+    <!-- Defer all analytics to after page is interactive -->
     <script>
-    window.addEventListener('load', function() {
+    // Wait for page to be fully loaded and idle
+    if ('requestIdleCallback' in window) {
+      requestIdleCallback(loadAnalytics, { timeout: 5000 });
+    } else {
+      setTimeout(loadAnalytics, 3000);
+    }
+
+    function loadAnalytics() {
+      // Google Analytics
+      var gtagScript = document.createElement('script');
+      gtagScript.src = 'https://www.googletagmanager.com/gtag/js?id=G-2TQ6JYYZV7';
+      gtagScript.async = true;
+      document.head.appendChild(gtagScript);
+      gtagScript.onload = function() {
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        window.gtag = gtag;
+        gtag('js', new Date());
+        gtag('config', 'G-2TQ6JYYZV7');
+      };
+
+      // Meta Pixel - defer by 1 second
+      setTimeout(function() {
+        !function(f,b,e,v,n,t,s)
+        {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+        n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+        if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+        n.queue=[];t=b.createElement(e);t.async=!0;
+        t.src=v;s=b.getElementsByTagName(e)[0];
+        s.parentNode.insertBefore(t,s)}(window, document,'script',
+        'https://connect.facebook.net/en_US/fbevents.js');
+        fbq('init', '1487321805934457');
+        fbq('track', 'PageView');
+      }, 1000);
+
+      // Contentsquare - defer by 3 seconds
+      setTimeout(function() {
+        var csScript = document.createElement('script');
+        csScript.src = 'https://t.contentsquare.net/uxa/f68a18990d1b7.js';
+        document.head.appendChild(csScript);
+      }, 3000);
+
+      // LinkedIn - defer by 5 seconds
       setTimeout(function() {
         _linkedin_partner_id = "8163164";
         window._linkedin_data_partner_ids = window._linkedin_data_partner_ids || [];
         window._linkedin_data_partner_ids.push(_linkedin_partner_id);
-        
         (function(l) {
           if (!l){window.lintrk = function(a,b){window.lintrk.q.push([a,b])};
           window.lintrk.q=[]}
@@ -105,8 +144,8 @@
           b.type = "text/javascript";b.async = true;
           b.src = "https://snap.licdn.com/li.lms-analytics/insight.min.js";
           s.parentNode.insertBefore(b, s);})(window.lintrk);
-      }, 3000);
-    });
+      }, 5000);
+    }
     </script>
     <noscript>
     <img height="1" width="1" style="display:none;" alt="" src="https://px.ads.linkedin.com/collect/?pid=8163164&fmt=gif" />

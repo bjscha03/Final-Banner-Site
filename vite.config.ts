@@ -30,13 +30,57 @@ export default defineConfig(({ mode }) => ({
     },
   },
   build: {
+    // Target modern browsers for smaller bundle
+    target: 'es2020',
+    // Increase chunk warning limit since we have manual chunks
+    chunkSizeWarningLimit: 600,
     rollupOptions: {
       output: {
         // Force new file names on each build to bust cache
-        entryFileNames: `assets/[name]-${Date.now()}.js`,
-        chunkFileNames: `assets/[name]-${Date.now()}.js`,
-        assetFileNames: `assets/[name]-${Date.now()}.[ext]`
-      }
-    }
-  }
+        entryFileNames: `assets/[name]-[hash].js`,
+        chunkFileNames: `assets/[name]-[hash].js`,
+        assetFileNames: `assets/[name]-[hash].[ext]`,
+        // Manual chunks for better code splitting
+        manualChunks: {
+          // React core - needed immediately
+          'react-core': ['react', 'react-dom'],
+          // React Router - needed for navigation
+          'react-router': ['react-router-dom'],
+          // UI library chunks
+          'radix-ui': [
+            '@radix-ui/react-dialog',
+            '@radix-ui/react-dropdown-menu',
+            '@radix-ui/react-select',
+            '@radix-ui/react-tabs',
+            '@radix-ui/react-toast',
+            '@radix-ui/react-tooltip',
+            '@radix-ui/react-popover',
+            '@radix-ui/react-accordion',
+            '@radix-ui/react-checkbox',
+            '@radix-ui/react-label',
+            '@radix-ui/react-radio-group',
+            '@radix-ui/react-slider',
+            '@radix-ui/react-switch',
+            '@radix-ui/react-scroll-area',
+            '@radix-ui/react-separator',
+            '@radix-ui/react-slot',
+            '@radix-ui/react-toggle',
+            '@radix-ui/react-toggle-group',
+          ],
+          // Canvas/Editor - lazy load for design pages only
+          'canvas-editor': ['konva', 'react-konva', 'use-image'],
+          // PDF handling - lazy load
+          'pdf-libs': ['pdfjs-dist', 'pdfkit'],
+          // Charts - only needed for admin
+          'charts': ['recharts'],
+          // Form handling
+          'forms': ['react-hook-form', '@hookform/resolvers', 'zod'],
+          // Utilities
+          'utils': ['date-fns', 'clsx', 'tailwind-merge', 'class-variance-authority'],
+          // State management
+          'state': ['zustand', '@tanstack/react-query'],
+        },
+      },
+    },
+  },
 }));
