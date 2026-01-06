@@ -13,12 +13,13 @@
  * to avoid code duplication and maintain single source of truth.
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Eye, ShoppingCart, RefreshCw } from 'lucide-react';
 import { useQuoteStore } from '@/store/quote';
 import { useEditorStore } from '@/store/editor';
 import { useToast } from '@/components/ui/use-toast';
+import { grommetPoints, grommetRadius } from '@/lib/preview/grommets';
 import {
   Dialog,
   DialogContent,
@@ -41,6 +42,15 @@ const EditorActionBar: React.FC<EditorActionBarProps> = ({ canvasRef, onGenerate
   
   // Check if there's any content on the canvas
   const hasContent = file || textElements.length > 0 || editorObjects.length > 0;
+
+  // Calculate grommet positions for preview overlay
+  const grommetPositions = useMemo(() => {
+    return grommetPoints(widthIn, heightIn, grommets);
+  }, [widthIn, heightIn, grommets]);
+
+  const grommetR = useMemo(() => {
+    return grommetRadius(widthIn, heightIn);
+  }, [widthIn, heightIn]);
 
   const handlePreview = () => {
     console.log('🔍 [EditorActionBar] Preview button clicked');
@@ -150,32 +160,91 @@ const EditorActionBar: React.FC<EditorActionBarProps> = ({ canvasRef, onGenerate
           </DialogHeader>
           
           <div className="space-y-4">
-            {/* Banner Details */}
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="font-semibold text-gray-700">Size:</span>{' '}
-                <span className="text-gray-900">{widthIn}" × {heightIn}"</span>
-              </div>
-              <div>
-                <span className="font-semibold text-gray-700">Material:</span>{' '}
-                <span className="text-gray-900">{material}</span>
-              </div>
-              <div>
-                <span className="font-semibold text-gray-700">Grommets:</span>{' '}
-                <span className="text-gray-900">{grommets === 'none' ? 'None' : grommets}</span>
-              </div>
-            </div>
-
-            {/* Preview Image */}
+            {/* Preview Image with Grommets Overlay */}
             {canvasThumbnail && (
               <div className="bg-gray-100 rounded-lg p-4 flex items-center justify-center">
-                <img
-                  src={canvasThumbnail}
-                  alt="Banner Preview"
-                  className="max-w-full max-h-[60vh] object-contain rounded shadow-lg"
-                />
+                <div className="relative inline-block">
+                  <img
+                    src={canvasThumbnail}
+                    alt="Banner Preview"
+                    className="max-w-full max-h-[60vh] object-contain rounded shadow-lg"
+                  />
+                  {/* Grommets SVG Overlay */}
+                  {grommets !== 'none' && grommetPositions.length > 0 && (
+                    <svg
+                      viewBox={`0 0 ${widthIn} ${heightIn}`}
+                      className="absolute inset-0 w-full h-full pointer-events-none"
+                      preserveAspectRatio="xMidYMid meet"
+                    >
+                      <defs>
+                        <radialGradient id="previewGrommetGradient" cx="30%" cy="30%">
+                          <stop offset="0%" stopColor="#e2e8f0" />
+                          <stop offset="50%" stopColor="#a0aec0" />
+                          <stop offset="100%" stopColor="#4a5568" />
+                        </radialGradient>
+                      </defs>
+                      {grommetPositions.map((point, index) => (
+                        <g key={index}>
+                          {/* Drop shadow */}
+                          <circle
+                            cx={point.x + 0.05}
+                            cy={point.y + 0.05}
+                            r={grommetR * 1.2}
+                            fill="#000000"
+                            opacity="0.2"
+                          />
+                          {/* Outer metallic ring */}
+                          <circle
+                            cx={point.x}
+                            cy={point.y}
+                            r={grommetR * 1.2}
+                            fill="url(#previewGrommetGradient)"
+                            stroke="#2d3748"
+                            strokeWidth={grommetR * 0.1}
+                          />
+                          {/* Inner hole */}
+                          <circle
+                            cx={point.x}
+                            cy={point.y}
+                            r={grommetR * 0.6}
+                            fill="#f7fafc"
+                            stroke="#cbd5e0"
+                            strokeWidth={grommetR * 0.05}
+                          />
+                          {/* Highlight for 3D effect */}
+                          <circle
+                            cx={point.x - grommetR * 0.3}
+                            cy={point.y - grommetR * 0.3}
+                            r={grommetR * 0.25}
+                            fill="#ffffff"
+                            opacity="0.5"
+                          />
+                        </g>
+                      ))}
+                    </svg>
+                  )}
+                </div>
               </div>
             )}
+
+            {/* Banner Details */}
+            <div className="p-4 bg-blue-50 rounded-lg border border-blue-200">
+              <h3 className="font-semibold text-gray-900 mb-2">Banner Details</h3>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div>
+                  <span className="text-gray-600">Size:</span>{' '}
+                  <span className="font-medium">{widthIn}" × {heightIn}"</span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Material:</span>{' '}
+                  <span className="font-medium">{material}</span>
+                </div>
+                <div>
+                  <span className="text-gray-600">Grommets:</span>{' '}
+                  <span className="font-medium">{grommets === 'none' ? 'None' : grommets}</span>
+                </div>
+              </div>
+            </div>
 
             {/* Info Text */}
             <p className="text-sm text-gray-600 text-center">

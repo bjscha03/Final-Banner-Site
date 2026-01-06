@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth, isAdmin } from '@/lib/auth';
+import { grommetPoints, grommetRadius } from '@/lib/preview/grommets';
 import {
   Dialog,
   DialogContent,
@@ -68,6 +69,15 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
   const { exportToJSON, setCanvasThumbnail, canvasThumbnail, objects: editorObjects, addObject, reset: resetEditor, canvasBackgroundColor, showGrommets, setShowGrommets, showGrid, setShowGrid } = useEditorStore();
   const quote = useQuoteStore();
   const { set: setQuote, editingItemId, overlayImage, textElements, file, grommets, widthIn, heightIn, material, resetDesign } = quote;
+
+  // Calculate grommet positions for preview overlay
+  const grommetPositions = useMemo(() => {
+    return grommetPoints(widthIn, heightIn, grommets);
+  }, [widthIn, heightIn, grommets]);
+
+  const grommetR = useMemo(() => {
+    return grommetRadius(widthIn, heightIn);
+  }, [widthIn, heightIn]);
   
   // Helper function to update grommets in quote store
   const setGrommets = (value: any) => {
@@ -1877,13 +1887,69 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
           </DialogHeader>
 
           <div className="mt-4">
-            <div className="bg-gray-100 p-4 rounded-lg">
+            <div className="bg-gray-100 p-4 rounded-lg flex items-center justify-center">
               {canvasThumbnail ? (
-                <img 
-                  src={canvasThumbnail} 
-                  alt="Banner Preview" 
-                  className="w-full h-auto rounded shadow-lg" 
-                />
+                <div className="relative inline-block">
+                  <img 
+                    src={canvasThumbnail} 
+                    alt="Banner Preview" 
+                    className="max-w-full max-h-[60vh] object-contain rounded shadow-lg" 
+                  />
+                  {/* Grommets SVG Overlay */}
+                  {grommets !== 'none' && grommetPositions.length > 0 && (
+                    <svg
+                      viewBox={`0 0 ${widthIn} ${heightIn}`}
+                      className="absolute inset-0 w-full h-full pointer-events-none"
+                      preserveAspectRatio="xMidYMid meet"
+                    >
+                      <defs>
+                        <radialGradient id="layoutPreviewGrommetGradient" cx="30%" cy="30%">
+                          <stop offset="0%" stopColor="#e2e8f0" />
+                          <stop offset="50%" stopColor="#a0aec0" />
+                          <stop offset="100%" stopColor="#4a5568" />
+                        </radialGradient>
+                      </defs>
+                      {grommetPositions.map((point, index) => (
+                        <g key={index}>
+                          {/* Drop shadow */}
+                          <circle
+                            cx={point.x + 0.05}
+                            cy={point.y + 0.05}
+                            r={grommetR * 1.2}
+                            fill="#000000"
+                            opacity="0.2"
+                          />
+                          {/* Outer metallic ring */}
+                          <circle
+                            cx={point.x}
+                            cy={point.y}
+                            r={grommetR * 1.2}
+                            fill="url(#layoutPreviewGrommetGradient)"
+                            stroke="#2d3748"
+                            strokeWidth={grommetR * 0.1}
+                          />
+                          {/* Inner hole */}
+                          <circle
+                            cx={point.x}
+                            cy={point.y}
+                            r={grommetR * 0.6}
+                            fill="#f7fafc"
+                            stroke="#cbd5e0"
+                            strokeWidth={grommetR * 0.05}
+                          />
+                          {/* Highlight for 3D effect */}
+                          <circle
+                            cx={point.x - grommetR * 0.3}
+                            cy={point.y - grommetR * 0.3}
+                            r={grommetR * 0.25}
+                            fill="#ffffff"
+                            opacity="0.5"
+                          />
+                        </g>
+                      ))}
+                    </svg>
+                  )}
+                </div>
               ) : (
                 <div className="text-center text-gray-500 py-8">
                   No preview available
@@ -1904,7 +1970,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
                 </div>
                 <div>
                   <span className="text-gray-600">Grommets:</span>{' '}
-                  <span className="font-medium">{grommets}</span>
+                  <span className="font-medium">{grommets === 'none' ? 'None' : grommets}</span>
                 </div>
               </div>
             </div>
