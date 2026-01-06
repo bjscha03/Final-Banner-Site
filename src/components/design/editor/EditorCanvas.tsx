@@ -245,6 +245,13 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
   const [editingTextValue, setEditingTextValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   
+  // State for center snap lines (alignment guides)
+  const [snapLines, setSnapLines] = useState<{ horizontal: boolean; vertical: boolean }>({
+    horizontal: false,
+    vertical: false,
+  });
+  const SNAP_TOLERANCE = 8; // pixels - distance from center to show snap line
+  
   // Ensure textarea focuses on mobile devices
   useEffect(() => {
     if (editingTextId && textareaRef.current) {
@@ -437,11 +444,11 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
       if (obj.type === 'image' || obj.type === 'shape') {
         objWidth = (obj as any).width || 1;
         objHeight = (obj as any).height || 1;
-        
-
+      } else if (obj.type === 'text') {
+        // For text, estimate dimensions or use stored width/height
+        objWidth = (obj as any).width || 2;
+        objHeight = (obj as any).height || 0.5;
       } else {
-        // For text, we can't easily get dimensions here, so allow free movement
-        // and constrain in dragEnd
         return pos;
       }
       
@@ -450,19 +457,35 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
       const xInches = (pos.x - stagePos.x) / (PIXELS_PER_INCH * scale);
       const yInches = (pos.y - stagePos.y) / (PIXELS_PER_INCH * scale);
       
+      // Calculate object center position in screen pixels
+      const objCenterX = pos.x + (objWidth * PIXELS_PER_INCH * scale) / 2;
+      const objCenterY = pos.y + (objHeight * PIXELS_PER_INCH * scale) / 2;
+      
+      // Canvas center in screen pixels
+      const canvasCenterX = stagePos.x + (canvasWidthPx * scale) / 2;
+      const canvasCenterY = stagePos.y + (canvasHeightPx * scale) / 2;
+      
+      // Check if near center and update snap lines
+      const nearHorizontalCenter = Math.abs(objCenterY - canvasCenterY) < SNAP_TOLERANCE;
+      const nearVerticalCenter = Math.abs(objCenterX - canvasCenterX) < SNAP_TOLERANCE;
+      
+      // Update snap line visibility
+      setSnapLines({ horizontal: nearHorizontalCenter, vertical: nearVerticalCenter });
+      
       // Constrain to bounds
       const constrained = constrainToBounds(xInches, yInches, objWidth, objHeight);
       
       // Convert back to screen coordinates
-      const constrainedX = stagePos.x + constrained.x * PIXELS_PER_INCH * scale;
-      const constrainedY = stagePos.y + constrained.y * PIXELS_PER_INCH * scale;
+      let constrainedX = stagePos.x + constrained.x * PIXELS_PER_INCH * scale;
+      let constrainedY = stagePos.y + constrained.y * PIXELS_PER_INCH * scale;
       
-      console.log('[DRAG BOUND]', { 
-        id, 
-        original: { x: pos.x, y: pos.y }, 
-        constrained: { x: constrainedX, y: constrainedY },
-        wasConstrained: constrained.isOutOfBounds
-      });
+      // Snap to center if close enough
+      if (nearVerticalCenter) {
+        constrainedX = canvasCenterX - (objWidth * PIXELS_PER_INCH * scale) / 2;
+      }
+      if (nearHorizontalCenter) {
+        constrainedY = canvasCenterY - (objHeight * PIXELS_PER_INCH * scale) / 2;
+      }
       
       return { x: constrainedX, y: constrainedY };
     };
@@ -470,6 +493,9 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
   
   const handleObjectDragEnd = (id: string, e: Konva.KonvaEventObject<DragEvent>) => {
     const node = e.target;
+    
+    // Clear snap lines when dragging ends
+    setSnapLines({ horizontal: false, vertical: false });
     
     console.log('[DRAG END] ========== START ==========');
     console.log('[DRAG END] Object ID:', id);
@@ -660,6 +686,37 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
             />
           )}
           
+          {/* Center Snap Lines - appear when dragging elements near center */}
+          {snapLines.vertical && (
+            <Line
+              name="snap-line-vertical"
+              points={[
+                stagePos.x + (canvasWidthPx * scale) / 2,
+                stagePos.y,
+                stagePos.x + (canvasWidthPx * scale) / 2,
+                stagePos.y + canvasHeightPx * scale
+              ]}
+              stroke="#ff00ff"
+              strokeWidth={1}
+              dash={[8, 4]}
+              listening={false}
+            />
+          )}
+          {snapLines.horizontal && (
+            <Line
+              name="snap-line-horizontal"
+              points={[
+                stagePos.x,
+                stagePos.y + (canvasHeightPx * scale) / 2,
+                stagePos.x + canvasWidthPx * scale,
+                stagePos.y + (canvasHeightPx * scale) / 2
+              ]}
+              stroke="#ff00ff"
+              strokeWidth={1}
+              dash={[8, 4]}
+              listening={false}
+            />
+          )}
           
           {/* Canvas objects - wrapped in Group with clipping to hide off-canvas parts */}
           <Group
