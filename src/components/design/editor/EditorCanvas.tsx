@@ -445,9 +445,14 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
         objWidth = (obj as any).width || 1;
         objHeight = (obj as any).height || 1;
       } else if (obj.type === 'text') {
-        // For text, estimate dimensions or use stored width/height
-        objWidth = (obj as any).width || 2;
-        objHeight = (obj as any).height || 0.5;
+        // For text, calculate dimensions based on content and fontSize
+        const textObj = obj as any;
+        const fontSize = textObj.fontSize || 0.5; // in inches
+        const textContent = textObj.content || '';
+        // Estimate width: ~0.6 of fontSize per character (rough approximation)
+        const estimatedWidth = textContent.length * fontSize * 0.5;
+        objWidth = textObj.width || Math.max(estimatedWidth, fontSize * 2);
+        objHeight = textObj.height || fontSize * 1.2; // line height ~1.2
       } else {
         return pos;
       }
@@ -778,6 +783,7 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
                     opacity={obj.opacity}
                     rotation={obj.rotation}
                     draggable={!obj.locked}
+                    dragBoundFunc={createDragBoundFunc(obj.id)}
                     onClick={(e) => handleObjectClick(obj.id, e)}
                     onTap={(e) => handleObjectClick(obj.id, e)}
                     onDblClick={() => handleTextDblClick(obj.id, obj.content)}
