@@ -1,631 +1,249 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Helmet } from 'react-helmet-async';
-import { Check, X, Trash2, Upload, Download, ExternalLink, Star, Package , ShoppingCart } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
-import { Checkbox } from '@/components/ui/checkbox';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
-import { useToast } from '@/hooks/use-toast';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { Event } from '@/types/events';
+import { useToast } from '@/components/ui/use-toast';
+import { useAuth, isAdmin } from '@/lib/auth';
+import { fetchEvents, deleteEvent, deleteAllEvents, insertEvents, Event } from '@/lib/events';
+import { Upload, Trash2, ArrowLeft, Download, RefreshCw } from 'lucide-react';
 
-export default function AdminEvents() {
+const AdminEvents: React.FC = () => {
+  const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
-  const [activeTab, setActiveTab] = useState<'pending' | 'approved' | 'rejected' | 'ingest'>('pending');
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const [events, setEvents] = useState<Event[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [categoryFilter, setCategoryFilter] = useState('');
-  const [locationFilter, setLocationFilter] = useState('');
-  const [categories, setCategories] = useState<any[]>([]);
-  const [locations, setLocations] = useState<string[]>([]);
-  const [selectedEvents, setSelectedEvents] = useState<Set<string>>(new Set());
-  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
-  const [ingestData, setIngestData] = useState('');
-  const [dryRun, setDryRun] = useState(true);
-  const [ingestLoading, setIngestLoading] = useState(false);
-  const [ingestResults, setIngestResults] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [uploading, setUploading] = useState(false);
 
   useEffect(() => {
-    // Fetch categories
-    fetch('/.netlify/functions/events-categories')
-      .then(res => res.json())
-      .then(data => setCategories(data.categories || []))
-      .catch(err => console.error('Error fetching categories:', err));
+    if (!authLoading && (!user || !isAdmin(user))) {
+      navigate('/');
+    }
+  }, [user, authLoading, navigate]);
+
+  useEffect(() => {
+    loadEvents();
   }, []);
 
-  useEffect(() => {
-    setSelectedEvents(new Set()); // Clear selection when changing tabs/filters
-    if (activeTab === 'ingest') return;
-    fetchEvents(activeTab);
-  }, [activeTab, searchTerm, categoryFilter, locationFilter]);
-
-  const fetchEvents = async (status: string) => {
-    setLoading(true);
+  const loadEvents = async () => {
     try {
-      const params = new URLSearchParams({
-        status,
-        limit: '100',
-        ...(searchTerm && { search: searchTerm }),
-        ...(categoryFilter && categoryFilter !== 'all' && { category: categoryFilter })
-      });
-
-      const response = await fetch(`/.netlify/functions/admin-events?${params}`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('admin_token') || 'admin'}`
-        }
-      });
-
-      if (!response.ok) throw new Error('Failed to fetch events');
-
-      const data = await response.json();
-      let eventsList = data.events || [];
-      
-      // Extract unique locations
-      const uniqueLocations = Array.from(new Set(
-        eventsList
-          .filter((e: any) => e.city && e.state)
-          .map((e: any) => `${e.city}, ${e.state}`)
-      )).sort();
-      setLocations(uniqueLocations);
-      
-      // Apply location filter (client-side)
-      if (locationFilter && locationFilter !== 'all') {
-        eventsList = eventsList.filter((e: any) => {
-          const eventLocation = e.city && e.state ? `${e.city}, ${e.state}` : null;
-          return eventLocation === locationFilter;
-        });
-      }
-      
-      setEvents(eventsList);
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive'
-      });
+      const data = await fetchEvents();
+      setEvents(data);
+    } catch (err) {
+      console.error('Error fetching events:', err);
+      toast({ title: 'Error', description: 'Failed to fetch events', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
   };
 
-  const updateEventStatus = async (eventId: string, status: 'approved' | 'rejected') => {
-    try {
-      const response = await fetch(`/.netlify/functions/admin-events/${eventId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('admin_token') || 'admin'}`
-        },
-        body: JSON.stringify({ status })
-      });
-
-      if (!response.ok) throw new Error('Failed to update event');
-
-      toast({
-        title: 'Success',
-        description: `Event ${status}`,
-      });
-
-      fetchEvents(activeTab);
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive'
-      });
-    }
-  };
-
-  const toggleFeatured = async (eventId: string, currentFeatured: boolean) => {
-    try {
-      const response = await fetch(`/.netlify/functions/admin-events/${eventId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('admin_token') || 'admin'}`
-        },
-        body: JSON.stringify({ is_featured: !currentFeatured })
-      });
-
-      if (!response.ok) throw new Error('Failed to update event');
-
-      toast({
-        title: 'Success',
-        description: `Event ${!currentFeatured ? 'featured' : 'unfeatured'}`,
-      });
-
-      fetchEvents(activeTab);
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive'
-      });
-    }
-  };
-
-  const deleteEvent = async (eventId: string) => {
-    if (!confirm('Are you sure you want to delete this event?')) return;
-
-    try {
-      const response = await fetch(`/.netlify/functions/admin-events/${eventId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('admin_token') || 'admin'}`
-        }
-      });
-
-      if (!response.ok) throw new Error('Failed to delete event');
-
-      toast({
-        title: 'Success',
-        description: 'Event deleted',
-      });
-
-      fetchEvents(activeTab);
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive'
-      });
-    }
-  };
-
-  const toggleEventSelection = (eventId: string) => {
-    const newSelection = new Set(selectedEvents);
-    if (newSelection.has(eventId)) {
-      newSelection.delete(eventId);
-    } else {
-      newSelection.add(eventId);
-    }
-    setSelectedEvents(newSelection);
-  };
-
-  const toggleSelectAll = () => {
-    if (selectedEvents.size === events.length) {
-      setSelectedEvents(new Set());
-    } else {
-      setSelectedEvents(new Set(events.map(e => e.id)));
-    }
-  };
-
-  const handleBulkDelete = async () => {
-    if (selectedEvents.size === 0) return;
-
-    try {
-      const deletePromises = Array.from(selectedEvents).map(eventId =>
-        fetch(`/.netlify/functions/admin-events/${eventId}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('admin_token') || 'admin'}`
-          }
-        })
-      );
-
-      const results = await Promise.all(deletePromises);
-      const failedCount = results.filter(r => !r.ok).length;
-
-      if (failedCount > 0) {
-        toast({
-          title: 'Partial Success',
-          description: `${selectedEvents.size - failedCount} events deleted, ${failedCount} failed`,
-          variant: 'destructive'
-        });
-      } else {
-        toast({
-          title: 'Success',
-          description: `${selectedEvents.size} events deleted`,
-        });
-      }
-
-      setSelectedEvents(new Set());
-      setShowBulkDeleteConfirm(false);
-      fetchEvents(activeTab);
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive'
-      });
-    }
-  };
-
-  const handleBulkIngest = async () => {
-    setIngestLoading(true);
-    setIngestResults(null);
-
-    try {
-      const eventsData = JSON.parse(ingestData);
+  const parseCSV = (text: string): Partial<Event>[] => {
+    const lines = text.split('\n').filter(line => line.trim());
+    if (lines.length < 2) return [];
+    
+    const headers = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/\s+/g, '_'));
+    const rows: Partial<Event>[] = [];
+    
+    for (let i = 1; i < lines.length; i++) {
+      const values: string[] = [];
+      let current = '';
+      let inQuotes = false;
       
-      if (!Array.isArray(eventsData)) {
-        throw new Error('Input must be a JSON array of events');
+      for (const char of lines[i]) {
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if (char === ',' && !inQuotes) {
+          values.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
       }
-
-      const response = await fetch('/.netlify/functions/admin-events-ingest', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('admin_token') || 'admin'}`
-        },
-        body: JSON.stringify({
-          events: eventsData,
-          dry_run: dryRun,
-          upsert: true
-        })
+      values.push(current.trim());
+      
+      const row: any = {};
+      headers.forEach((header, idx) => {
+        let key = header;
+        if (header === 'image_url' || header === 'imageurl' || header === 'image') key = 'image_url';
+        if (header === 'start_date' || header === 'startdate' || header === 'start') key = 'start_date';
+        if (header === 'end_date' || header === 'enddate' || header === 'end') key = 'end_date';
+        row[key] = values[idx] || '';
       });
+      
+      if (row.title) rows.push(row);
+    }
+    
+    return rows;
+  };
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Ingest failed');
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    
+    setUploading(true);
+    
+    try {
+      const text = await file.text();
+      const parsedEvents = parseCSV(text);
+      
+      if (parsedEvents.length === 0) {
+        throw new Error('No valid events found in CSV');
       }
-
-      const results = await response.json();
-      setIngestResults(results);
-
-      toast({
-        title: dryRun ? 'Dry Run Complete' : 'Ingest Complete',
-        description: `${results.results.inserted} inserted, ${results.results.updated} updated, ${results.results.skipped} skipped`,
-      });
-
-    } catch (error: any) {
-      toast({
-        title: 'Ingest Error',
-        description: error.message,
-        variant: 'destructive'
-      });
+      
+      // Delete all existing events
+      await deleteAllEvents();
+      
+      // Insert new events
+      const eventsToInsert = parsedEvents.map(e => ({
+        title: e.title || '',
+        category: e.category || 'Other',
+        location: e.location || '',
+        start_date: e.start_date || new Date().toISOString().split('T')[0],
+        end_date: e.end_date || e.start_date || new Date().toISOString().split('T')[0],
+        summary: e.summary || '',
+        website: e.website || '',
+        image_url: e.image_url || 'https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&q=80'
+      }));
+      
+      const success = await insertEvents(eventsToInsert);
+      
+      if (!success) throw new Error('Failed to insert events');
+      
+      toast({ title: 'Success', description: `Imported ${parsedEvents.length} events` });
+      loadEvents();
+    } catch (err: any) {
+      console.error('Error uploading CSV:', err);
+      toast({ title: 'Error', description: err.message || 'Failed to import CSV', variant: 'destructive' });
     } finally {
-      setIngestLoading(false);
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
-  const formatDate = (dateStr: string) => {
-    return new Date(dateStr).toLocaleDateString('en-US', { 
-      month: 'short', 
-      day: 'numeric', 
-      year: 'numeric' 
-    });
+  const handleDeleteEvent = async (id: string) => {
+    try {
+      const success = await deleteEvent(id);
+      if (!success) throw new Error('Delete failed');
+      setEvents(events.filter(e => e.id !== id));
+      toast({ title: 'Deleted', description: 'Event removed' });
+    } catch (err) {
+      toast({ title: 'Error', description: 'Failed to delete event', variant: 'destructive' });
+    }
   };
+
+  const handleDeleteAll = async () => {
+    if (!confirm('Delete ALL events? This cannot be undone.')) return;
+    try {
+      const success = await deleteAllEvents();
+      if (!success) throw new Error('Delete failed');
+      setEvents([]);
+      toast({ title: 'Deleted', description: 'All events removed' });
+    } catch (err) {
+      toast({ title: 'Error', description: 'Failed to delete events', variant: 'destructive' });
+    }
+  };
+
+  const downloadTemplate = () => {
+    const csv = 'ID,Title,Category,Location,Start Date,End Date,Summary,Website,Image URL\n' +
+      ',CES 2026,Trade Show,"Las Vegas, NV",2026-01-06,2026-01-09,"The world\'s largest consumer electronics show.",https://ces.tech,https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=800&q=80';
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'events_template.csv';
+    a.click();
+  };
+
+  if (authLoading || loading) {
+    return <div className="min-h-screen flex items-center justify-center"><div className="animate-pulse">Loading...</div></div>;
+  }
 
   return (
-    <>
-      <Helmet>
-        <title>Admin - Events Management | Banners On The Fly</title>
-      </Helmet>
-
-      <div className="min-h-screen bg-gray-50 py-8">
-        <div className="container mx-auto px-4">
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Events Management</h1>
-            <p className="text-gray-600">Manage event submissions and bulk import events</p>
+    <div className="min-h-screen bg-gray-50">
+      <div className="bg-[#18448D] text-white py-4 px-6">
+        <div className="container mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="sm" onClick={() => navigate('/admin/orders')} className="text-white hover:bg-white/20">
+              <ArrowLeft className="h-4 w-4 mr-2" /> Back
+            </Button>
+            <h1 className="text-xl font-bold">Events Management</h1>
           </div>
-
-          {/* Admin Navigation */}
-          <div className="mb-6">
-            <Tabs value="events" className="w-full">
-              <TabsList>
-                <TabsTrigger value="orders" className="flex items-center gap-2" asChild>
-                  <a href="/admin/orders">
-                    <Package className="h-4 w-4" />
-                    Orders
-                  </a>
-                </TabsTrigger>
-                <TabsTrigger value="events" className="flex items-center gap-2">
-                  <Star className="h-4 w-4" />
-                  Events
-                </TabsTrigger>
-                <TabsTrigger value="abandoned-carts" className="flex items-center gap-2" asChild>
-                  <a href="/admin/abandoned-carts">
-                    <ShoppingCart className="h-4 w-4" />
-                    Abandoned Carts
-                  </a>
-                </TabsTrigger>
-              </TabsList>
-            </Tabs>
-          </div>
-
-          {/* Events Status Tabs */}
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)}>
-            <TabsList className="mb-6">
-              <TabsTrigger value="pending">
-                Pending
-                {events.length > 0 && activeTab === 'pending' && (
-                  <Badge variant="secondary" className="ml-2">{events.length}</Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="approved">Approved</TabsTrigger>
-              <TabsTrigger value="rejected">Rejected</TabsTrigger>
-              <TabsTrigger value="ingest">
-                <Upload className="mr-2 h-4 w-4" />
-                Bulk Ingest
-              </TabsTrigger>
-            </TabsList>
-
-            {['pending', 'approved', 'rejected'].map(status => (
-              <TabsContent key={status} value={status}>
-                <Card>
-                  <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle className="capitalize">{status} Events</CardTitle>
-                        <CardDescription>
-                          {status === 'pending' && 'Review and approve/reject event submissions'}
-                          {status === 'approved' && 'Published events visible to users'}
-                          {status === 'rejected' && 'Rejected event submissions'}
-                        </CardDescription>
-                      </div>
-                      <div className="flex gap-2">
-                        <Input
-                          placeholder="Search events..."
-                          value={searchTerm}
-                          onChange={(e) => setSearchTerm(e.target.value)}
-                          className="max-w-xs"
-                        />
-                        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                          <SelectTrigger className="w-[180px]">
-                            <SelectValue placeholder="All Categories" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Categories</SelectItem>
-                            {categories.map(cat => (
-                              <SelectItem key={cat.slug} value={cat.slug}>{cat.name}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        <Select value={locationFilter} onValueChange={setLocationFilter}>
-                          <SelectTrigger className="w-[180px]">
-                            <SelectValue placeholder="All Locations" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="all">All Locations</SelectItem>
-                            {locations.map(loc => (
-                              <SelectItem key={loc} value={loc}>{loc}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                        {selectedEvents.size > 0 && (
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => setShowBulkDeleteConfirm(true)}
-                          >
-                            <Trash2 className="mr-2 h-4 w-4" />
-                            Delete Selected ({selectedEvents.size})
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent>
-                    {loading ? (
-                      <div className="text-center py-8">Loading...</div>
-                    ) : events.length === 0 ? (
-                      <div className="text-center py-8 text-gray-500">
-                        No {status} events found
-                      </div>
-                    ) : (
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead className="w-12">
-                              <Checkbox
-                                checked={selectedEvents.size === events.length && events.length > 0}
-                                onCheckedChange={toggleSelectAll}
-                              />
-                            </TableHead>
-                            <TableHead>Title</TableHead>
-                            <TableHead>Category</TableHead>
-                            <TableHead>Location</TableHead>
-                            <TableHead>Date</TableHead>
-                            <TableHead>Submitted By</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {events.map(event => (
-                            <TableRow key={event.id}>
-                              <TableCell>
-                                <Checkbox
-                                  checked={selectedEvents.has(event.id)}
-                                  onCheckedChange={() => toggleEventSelection(event.id)}
-                                />
-                              </TableCell>
-                              <TableCell>
-                                <div className="flex items-center gap-2">
-                                  {event.is_featured && <Star className="h-4 w-4 text-yellow-500 fill-yellow-500" />}
-                                  <Link 
-                                    to={`/events/${event.slug}`} 
-                                    target="_blank"
-                                    className="font-medium hover:text-[#18448D]"
-                                  >
-                                    {event.title}
-                                  </Link>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <Badge variant="outline">{event.category_name}</Badge>
-                              </TableCell>
-                              <TableCell>{event.city}, {event.state}</TableCell>
-                              <TableCell>{formatDate(event.start_at)}</TableCell>
-                              <TableCell className="text-sm text-gray-600">{event.created_by}</TableCell>
-                              <TableCell className="text-right">
-                                <div className="flex items-center justify-end gap-2">
-                                  {status === 'approved' && (
-                                    <Button
-                                      size="sm"
-                                      variant="ghost"
-                                      onClick={() => toggleFeatured(event.id, event.is_featured)}
-                                      title={event.is_featured ? 'Unfeature' : 'Feature'}
-                                    >
-                                      <Star className={`h-4 w-4 ${event.is_featured ? 'fill-yellow-500 text-yellow-500' : ''}`} />
-                                    </Button>
-                                  )}
-                                  {status === 'pending' && (
-                                    <>
-                                      <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        onClick={() => updateEventStatus(event.id, 'approved')}
-                                        title="Approve"
-                                      >
-                                        <Check className="h-4 w-4 text-green-600" />
-                                      </Button>
-                                      <Button
-                                        size="sm"
-                                        variant="ghost"
-                                        onClick={() => updateEventStatus(event.id, 'rejected')}
-                                        title="Reject"
-                                      >
-                                        <X className="h-4 w-4 text-red-600" />
-                                      </Button>
-                                    </>
-                                  )}
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    onClick={() => deleteEvent(event.id)}
-                                    title="Delete"
-                                  >
-                                    <Trash2 className="h-4 w-4 text-gray-600" />
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="ghost"
-                                    asChild
-                                    title="Preview"
-                                  >
-                                    <Link to={`/events/${event.slug}`} target="_blank">
-                                      <ExternalLink className="h-4 w-4" />
-                                    </Link>
-                                  </Button>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
-                    )}
-                  </CardContent>
-                </Card>
-              </TabsContent>
-            ))}
-
-            <TabsContent value="ingest">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <Card>
-                  <CardHeader>
-                    <CardTitle>Bulk Import Events</CardTitle>
-                    <CardDescription>
-                      Import multiple events from JSON. Paste your JSON array below.
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="ingest-data">Event Data (JSON Array)</Label>
-                      <Textarea
-                        id="ingest-data"
-                        value={ingestData}
-                        onChange={(e) => setIngestData(e.target.value)}
-                        placeholder='[{"title": "Event Name", "category_slug": "food-trucks", "city": "New York", "state": "NY", "start_at": "2025-07-15T10:00:00Z", ...}]'
-                        rows={15}
-                        className="font-mono text-sm"
-                      />
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        id="dry-run"
-                        checked={dryRun}
-                        onCheckedChange={setDryRun}
-                      />
-                      <Label htmlFor="dry-run">
-                        Dry Run (validate without inserting)
-                      </Label>
-                    </div>
-
-                    <Button
-                      onClick={handleBulkIngest}
-                      disabled={ingestLoading || !ingestData.trim()}
-                      className="w-full"
-                    >
-                      {ingestLoading ? 'Processing...' : (dryRun ? 'Validate Data' : 'Import Events')}
-                    </Button>
-                  </CardContent>
-                </Card>
-
-                {ingestResults && (
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>Ingest Results</CardTitle>
-                      <CardDescription>
-                        {ingestResults.dry_run ? 'Validation results (no changes made)' : 'Import completed'}
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="bg-blue-50 p-4 rounded-lg">
-                          <div className="text-2xl font-bold text-blue-700">{ingestResults.results.total}</div>
-                          <div className="text-sm text-gray-600">Total Events</div>
-                        </div>
-                        <div className="bg-green-50 p-4 rounded-lg">
-                          <div className="text-2xl font-bold text-green-700">{ingestResults.results.inserted}</div>
-                          <div className="text-sm text-gray-600">Inserted</div>
-                        </div>
-                        <div className="bg-yellow-50 p-4 rounded-lg">
-                          <div className="text-2xl font-bold text-yellow-700">{ingestResults.results.updated}</div>
-                          <div className="text-sm text-gray-600">Updated</div>
-                        </div>
-                        <div className="bg-gray-50 p-4 rounded-lg">
-                          <div className="text-2xl font-bold text-gray-700">{ingestResults.results.skipped}</div>
-                          <div className="text-sm text-gray-600">Skipped</div>
-                        </div>
-                      </div>
-
-                      {ingestResults.results.errors.length > 0 && (
-                        <div className="bg-red-50 p-4 rounded-lg">
-                          <h4 className="font-semibold text-red-700 mb-2">Errors</h4>
-                          <ul className="text-sm text-red-600 space-y-1">
-                            {ingestResults.results.errors.map((error: string, i: number) => (
-                              <li key={i}>{error}</li>
-                            ))}
-                          </ul>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-            </TabsContent>
-          </Tabs>
+          <span className="text-sm">{events.length} events</span>
         </div>
       </div>
 
-      {/* Bulk Delete Confirmation Dialog */}
-      <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Delete {selectedEvents.size} Event(s)?</AlertDialogTitle>
-            <AlertDialogDescription>
-              This action cannot be undone. This will permanently delete the selected events from the database.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleBulkDelete} className="bg-red-600 hover:bg-red-700">
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+      <div className="container mx-auto py-8 px-4">
+        {/* Actions */}
+        <div className="bg-white rounded-lg shadow p-6 mb-8">
+          <h2 className="text-lg font-semibold mb-4">Upload Events CSV</h2>
+          <p className="text-gray-600 text-sm mb-4">
+            Upload a CSV file with columns: ID, Title, Category, Location, Start Date, End Date, Summary, Website, Image URL. 
+            This will <strong>replace all existing events</strong>.
+          </p>
+          <div className="flex flex-wrap gap-3">
+            <input type="file" accept=".csv" ref={fileInputRef} onChange={handleFileUpload} className="hidden" />
+            <Button onClick={() => fileInputRef.current?.click()} disabled={uploading} className="bg-[#18448D] hover:bg-[#0f2d5c]">
+              <Upload className="h-4 w-4 mr-2" /> {uploading ? 'Uploading...' : 'Upload CSV'}
+            </Button>
+            <Button variant="outline" onClick={downloadTemplate}>
+              <Download className="h-4 w-4 mr-2" /> Download Template
+            </Button>
+            <Button variant="outline" onClick={loadEvents}>
+              <RefreshCw className="h-4 w-4 mr-2" /> Refresh
+            </Button>
+            <Button variant="destructive" onClick={handleDeleteAll}>
+              <Trash2 className="h-4 w-4 mr-2" /> Delete All
+            </Button>
+          </div>
+        </div>
+
+        {/* Events Table */}
+        <div className="bg-white rounded-lg shadow overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Event</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Category</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Location</th>
+                  <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Dates</th>
+                  <th className="text-right py-3 px-4 text-sm font-semibold text-gray-700">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {events.length === 0 ? (
+                  <tr><td colSpan={5} className="text-center py-12 text-gray-500">No events. Upload a CSV to get started.</td></tr>
+                ) : (
+                  events.map(event => (
+                    <tr key={event.id} className="border-b hover:bg-gray-50">
+                      <td className="py-3 px-4">
+                        <div className="flex items-center gap-3">
+                          <img src={event.image_url} alt="" className="w-12 h-12 rounded object-cover" />
+                          <div>
+                            <p className="font-medium text-gray-900 line-clamp-1">{event.title}</p>
+                            <a href={event.website} target="_blank" rel="noopener noreferrer" className="text-xs text-blue-600 hover:underline">Website</a>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="py-3 px-4"><span className="text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">{event.category}</span></td>
+                      <td className="py-3 px-4 text-sm text-gray-600">{event.location}</td>
+                      <td className="py-3 px-4 text-sm text-gray-600">{event.start_date} - {event.end_date}</td>
+                      <td className="py-3 px-4 text-right">
+                        <Button variant="ghost" size="sm" onClick={() => handleDeleteEvent(event.id)} className="text-red-600 hover:text-red-800 hover:bg-red-50">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
   );
-}
+};
+
+export default AdminEvents;

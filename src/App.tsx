@@ -56,18 +56,16 @@ const Blog = lazy(() => import("./pages/Blog"));
 const BlogPostPage = lazy(() => import("./pages/BlogPostPage"));
 const BlogTagPage = lazy(() => import("./pages/BlogTagPage"));
 
-// Events pages - lazy load
-const Events = lazy(() => import("./pages/Events"));
-const EventDetail = lazy(() => import("./pages/EventDetail"));
-const EventSubmit = lazy(() => import("./pages/EventSubmit"));
+// Event Discovery page - lazy load
+const EventDiscovery = lazy(() => import("./pages/EventDiscovery"));
 
 // Category/SEO pages - lazy load
 const CategoryPage = lazy(() => import("./pages/CategoryPage"));
 
 // Admin pages - lazy load (heavy, rarely accessed)
 const AdminOrders = lazy(() => import("./pages/admin/Orders"));
-const AdminEvents = lazy(() => import("./pages/admin/Events"));
 const AdminAbandonedCarts = lazy(() => import("./pages/admin/AbandonedCarts"));
+const AdminEvents = lazy(() => import("./pages/admin/Events"));
 const AdminSeed = lazy(() => import("./pages/AdminSeed"));
 const AdminSetup = lazy(() => import("./pages/AdminSetup"));
 
@@ -164,10 +162,8 @@ const App = () => (
             <Route path="/blog/:slug" element={<BlogPostPage />} />
             <Route path="/blog/tags/:tag" element={<BlogTagPage />} />
             
-            {/* Events */}
-            <Route path="/events" element={<Events />} />
-            <Route path="/events/:slug" element={<EventDetail />} />
-            <Route path="/events/submit" element={<EventSubmit />} />
+            {/* Event Discovery */}
+            <Route path="/events" element={<EventDiscovery />} />
             
             {/* Admin routes */}
             <Route path="/admin/orders" element={<AdminOrders />} />
