@@ -21,6 +21,7 @@ import { useCheckoutContext } from '@/store/checkoutContext';
 import { cartSyncService } from '@/lib/cartSync';
 import { trackBeginCheckout, trackViewCart, trackFBInitiateCheckout } from '@/lib/analytics';
 import { trackPromoEvent } from '@/lib/posthog';
+import DeliveryCountdown from '@/components/DeliveryCountdown';
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
@@ -369,6 +370,11 @@ const Checkout: React.FC = () => {
             <div className="text-center mb-8">
               <h1 className="text-4xl sm:text-5xl font-bold text-[#18448D] mb-3">Secure Checkout</h1>
               <p className="text-lg text-gray-600">Review your order and complete your purchase</p>
+            </div>
+            
+            {/* Delivery Countdown */}
+            <div className="mb-6">
+              <DeliveryCountdown />
             </div>
             
             {/* Trust Strip - Enhanced */}
