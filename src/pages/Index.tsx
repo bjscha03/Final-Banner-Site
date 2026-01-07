@@ -15,30 +15,24 @@ const Index: React.FC = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    // Handle OAuth success callback
     const oauthSuccess = searchParams.get('oauth');
     const provider = searchParams.get('provider');
     
     if (oauthSuccess === 'success' && provider) {
       console.log(`✅ OAuth success detected for ${provider}`);
       
-      
-      // Give extra time for localStorage to be read by auth system
       setTimeout(() => {
-        // Check if user is in localStorage
         const storedUser = localStorage.getItem('banners_current_user');
         
         if (storedUser) {
           const user = JSON.parse(storedUser);
           console.log('✅ User found in localStorage:', user.email);
           
-          // Show success message
           toast({
             title: "Welcome!",
             description: `Successfully signed in with ${provider === 'google' ? 'Google' : 'LinkedIn'}`,
           });
           
-          // Clean up URL parameters
           searchParams.delete('oauth');
           searchParams.delete('provider');
           setSearchParams(searchParams, { replace: true });
@@ -56,11 +50,11 @@ const Index: React.FC = () => {
 
   return (
     <Layout>
-      <PromoBanner />
-      <HeroSection />
-      <div className="max-w-4xl mx-auto px-4 py-6">
+      <div className="max-w-4xl mx-auto px-4 pt-4">
         <DeliveryCountdown />
       </div>
+      <PromoBanner />
+      <HeroSection />
       <CompanySpotlight />
       <TestimonialsSection />
       <WhyChooseUs />

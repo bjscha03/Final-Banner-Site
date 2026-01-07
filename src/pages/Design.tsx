@@ -7,6 +7,7 @@ import BannerEditorLayout from '@/components/design/BannerEditorLayout';
 import NewAIGenerationModal from '@/components/design/NewAIGenerationModal';
 import { useQuoteStore, MaterialKey } from '@/store/quote';
 import { useToast } from '@/components/ui/use-toast';
+import DeliveryCountdown from '@/components/DeliveryCountdown';
 
 const Design: React.FC = () => {
   const [aiModalOpen, setAiModalOpen] = useState(false);
@@ -82,6 +83,9 @@ const Design: React.FC = () => {
 
   return (
     <Layout>
+      <div className="max-w-4xl mx-auto px-4 pt-4">
+        <DeliveryCountdown />
+      </div>
       {/* Hide PageHeader on mobile to maximize canvas visibility - saves ~200-300px */}
       <div className="hidden lg:block">
         <PageHeader
