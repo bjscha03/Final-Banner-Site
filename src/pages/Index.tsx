@@ -50,10 +50,10 @@ const Index: React.FC = () => {
 
   return (
     <Layout>
-      <div className="max-w-4xl mx-auto px-4 pt-4">
+      <PromoBanner />
+      <div className="max-w-4xl mx-auto px-4 py-4">
         <DeliveryCountdown />
       </div>
-      <PromoBanner />
       <HeroSection />
       <CompanySpotlight />
       <TestimonialsSection />

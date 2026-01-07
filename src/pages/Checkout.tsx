@@ -369,7 +369,6 @@ const Checkout: React.FC = () => {
             </Button>
             <div className="text-center mb-8">
               <h1 className="text-4xl sm:text-5xl font-bold text-[#18448D] mb-3">Secure Checkout</h1>
-              <div className="mt-4"><DeliveryCountdown /></div>
               <p className="text-lg text-gray-600">Review your order and complete your purchase</p>
             </div>
             
@@ -414,6 +413,10 @@ const Checkout: React.FC = () => {
             </div>
           </div>
 
+            {/* Delivery Countdown - centered below trust strip */}
+            <div className="mt-6 max-w-2xl mx-auto">
+              <DeliveryCountdown />
+            </div>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
             {/* Order Summary - Takes 2 columns on large screens */}
             <div className="lg:col-span-2 space-y-6 w-full">

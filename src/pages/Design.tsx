@@ -80,12 +80,8 @@ const Design: React.FC = () => {
       }
     }
   }, [location.search, location.pathname, navigate, setFromQuickQuote, toast]);
-
   return (
     <Layout>
-      <div className="max-w-4xl mx-auto px-4 pt-4">
-        <DeliveryCountdown />
-      </div>
       {/* Hide PageHeader on mobile to maximize canvas visibility - saves ~200-300px */}
       <div className="hidden lg:block">
         <PageHeader
@@ -93,6 +89,11 @@ const Design: React.FC = () => {
           subtitle="Create custom banners with our advanced design tools"
           icon={Palette}
         />
+      </div>
+      
+      {/* Delivery Countdown - below PageHeader */}
+      <div className="max-w-4xl mx-auto px-4 py-4">
+        <DeliveryCountdown />
       </div>
       
       {/* Preview Disclaimer */}
