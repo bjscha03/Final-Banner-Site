@@ -1637,12 +1637,12 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
         <p className="text-sm">editorObjects: {editorObjects?.length || 0}</p>
       </div>
     )}
-    <div className="flex flex-col h-screen bg-gradient-to-br from-gray-50 to-gray-100">
+    <div className="flex flex-col h-[calc(100dvh-145px)] lg:h-screen bg-gradient-to-br from-gray-50 to-gray-100">
 
 
       {/* Professional Header */}
       <div className="bg-white border-b border-gray-200 shadow-sm z-20">
-        <div className="px-2 sm:px-4 py-2 sm:py-3 flex items-center justify-between">
+        <div className="px-2 sm:px-4 py-1.5 sm:py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Palette className="w-5 h-5 sm:w-6 sm:h-6 text-[#18448D] hidden xs:block" />
             <div>
@@ -1766,7 +1766,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
         {/* CRITICAL: Single canvas instance ensures canvasRef always points to visible canvas */}
         <div className="flex flex-1 flex-col bg-gray-100 overflow-hidden relative z-0">
           {/* Canvas Toolbar - Grid Toggle */}
-          <div className="flex items-center justify-end px-4 py-2 bg-white border-b border-gray-200">
+          <div className="flex items-center justify-end px-2 py-1 lg:px-4 lg:py-2 bg-white border-b border-gray-200">
             <button
               onClick={() => setShowGrid(!showGrid)}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
@@ -1780,7 +1780,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
             </button>
           </div>
           {/* Mobile: smaller padding, space for bottom toolbar; Desktop: normal padding */}
-          <div className="flex-1 p-2 sm:p-4 lg:p-4 overflow-auto pb-20 lg:pb-4">
+          <div className="flex-1 p-1 sm:p-2 lg:p-4 overflow-auto pb-16 lg:pb-4">
             <EditorCanvas 
               ref={canvasRef}
               selectedObjectId={selectedObjectId}

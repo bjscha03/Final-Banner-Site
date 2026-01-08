@@ -91,16 +91,19 @@ const Design: React.FC = () => {
         />
       </div>
       
-      {/* Delivery Countdown - below PageHeader */}
-      <div className="max-w-4xl mx-auto px-4 py-4">
-        <DeliveryCountdown />
+      {/* Delivery Countdown - compact on mobile, normal on desktop */}
+      <div className="max-w-4xl mx-auto px-2 py-1 lg:px-4 lg:py-4">
+        <DeliveryCountdown compactMode className="lg:hidden" />
+        <div className="hidden lg:block">
+          <DeliveryCountdown />
+        </div>
       </div>
       
-      {/* Preview Disclaimer */}
-      <div className="mx-4 sm:mx-6 lg:mx-8 my-4">
-        <div className="bg-blue-50 border border-blue-200 rounded-lg px-4 py-3 flex items-start gap-3">
-          <Info className="h-5 w-5 text-blue-500 flex-shrink-0 mt-0.5" />
-          <p className="text-sm text-blue-800">
+      {/* Preview Disclaimer - more compact on mobile */}
+      <div className="mx-2 lg:mx-8 my-1 lg:my-4">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg px-2 py-1.5 lg:px-4 lg:py-3 flex items-start gap-2 lg:gap-3">
+          <Info className="h-4 w-4 lg:h-5 lg:w-5 text-blue-500 flex-shrink-0 mt-0.5" />
+          <p className="text-xs lg:text-sm text-blue-800">
             <span className="font-semibold">Preview only.</span> Our team personally reviews every banner before production and will reach out if anything needs attention.
           </p>
         </div>
