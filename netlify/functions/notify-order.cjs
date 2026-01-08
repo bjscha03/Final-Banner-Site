@@ -1,5 +1,58 @@
 const { neon } = require('@neondatabase/serverless');
 
+// Generate a thumbnail URL from various image sources
+// Uses Cloudinary's URL transformation to resize images for email display
+function getThumbnailUrl(item, maxWidth = 300) {
+  // Priority order for image sources:
+  // 1. web_preview_url (AI-generated, already a Cloudinary URL)
+  // 2. print_ready_url (AI-generated, already a Cloudinary URL)
+  // 3. overlay_image.fileKey (uploaded image - needs to be converted to URL)
+  // 4. file_key (uploaded image - needs to be converted to URL)
+  
+  let imageUrl = null;
+  
+  if (item.web_preview_url) {
+    imageUrl = item.web_preview_url;
+  } else if (item.print_ready_url) {
+    imageUrl = item.print_ready_url;
+  } else if (item.overlay_image?.fileKey) {
+    // Convert Cloudinary public ID to URL
+    const fileKey = item.overlay_image.fileKey;
+    if (fileKey.startsWith('http')) {
+      imageUrl = fileKey;
+    } else {
+      // Assume it's a Cloudinary public ID
+      imageUrl = `https://res.cloudinary.com/dtrxl120u/image/upload/${fileKey}`;
+    }
+  } else if (item.file_key) {
+    const fileKey = item.file_key;
+    if (fileKey.startsWith('http')) {
+      imageUrl = fileKey;
+    } else {
+      // Assume it's a Cloudinary public ID
+      imageUrl = `https://res.cloudinary.com/dtrxl120u/image/upload/${fileKey}`;
+    }
+  }
+  
+  if (!imageUrl) return null;
+  
+  // Apply Cloudinary transformation for thumbnail sizing
+  // Insert width transformation into Cloudinary URL
+  if (imageUrl.includes('res.cloudinary.com') && imageUrl.includes('/upload/')) {
+    // Insert transformation after /upload/
+    return imageUrl.replace('/upload/', `/upload/w_${maxWidth},c_limit,f_auto,q_auto/`);
+  }
+  
+  // For fetch URLs, wrap in Cloudinary fetch
+  if (imageUrl.startsWith('http') && !imageUrl.includes('res.cloudinary.com')) {
+    return `https://res.cloudinary.com/dtrxl120u/image/fetch/w_${maxWidth},c_limit,f_auto,q_auto/${imageUrl}`;
+  }
+  
+  return imageUrl;
+}
+
+// Email-compatible logo header HTML
+
 // Email-compatible logo header HTML
 function createEmailLogoHeader() {
   const logoUrl = 'https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto,q_auto,w_300/https://bannersonthefly.com/cld-assets/images/logo-compact.svg';
@@ -128,12 +181,24 @@ async function sendEmail(type, payload) {
             
             <h4 style="color: #374151;">Items:</h4>
             ${payload.order.items.map(item => `
-              <div style="border-bottom: 1px solid #e5e7eb; padding: 10px 0;">
-                <p style="margin: 5px 0;"><strong>${item.name}</strong></p>
-                <p style="margin: 5px 0; color: #6b7280;">Quantity: ${item.quantity}</p>
-                <p style="margin: 5px 0; color: #6b7280;">${item.options}</p>
-                <p style="margin: 5px 0;"><strong>$${item.price.toFixed(2)}</strong></p>
-              </div>
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-bottom: 1px solid #e5e7eb; margin-bottom: 10px;">
+                <tr>
+                  ${item.thumbnailUrl ? `
+                  <td style="width: 130px; padding: 10px 15px 10px 0; vertical-align: top;">
+                    <img src="${item.thumbnailUrl}" 
+                         alt="Banner Preview" 
+                         width="120" 
+                         style="border-radius: 6px; border: 1px solid #e5e7eb; display: block; max-width: 120px;" />
+                  </td>
+                  ` : ''}
+                  <td style="padding: 10px 0; vertical-align: top;">
+                    <p style="margin: 5px 0;"><strong>${item.name}</strong></p>
+                    <p style="margin: 5px 0; color: #6b7280;">Quantity: ${item.quantity}</p>
+                    <p style="margin: 5px 0; color: #6b7280;">${item.options}</p>
+                    <p style="margin: 5px 0;"><strong>${item.price.toFixed(2)}</strong></p>
+                  </td>
+                </tr>
+              </table>
             `).join('')}
             
             <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #e5e7eb;">
@@ -193,12 +258,24 @@ async function sendEmail(type, payload) {
 
             <h4 style="color: #374151;">Items:</h4>
             ${payload.order.items.map(item => `
-              <div style="border-bottom: 1px solid #e5e7eb; padding: 10px 0;">
-                <p style="margin: 5px 0;"><strong>${item.name}</strong></p>
-                <p style="margin: 5px 0; color: #6b7280;">Quantity: ${item.quantity}</p>
-                <p style="margin: 5px 0; color: #6b7280;">${item.options}</p>
-                <p style="margin: 5px 0;"><strong>$${item.price.toFixed(2)}</strong></p>
-              </div>
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-bottom: 1px solid #e5e7eb; margin-bottom: 10px;">
+                <tr>
+                  ${item.thumbnailUrl ? `
+                  <td style="width: 130px; padding: 10px 15px 10px 0; vertical-align: top;">
+                    <img src="${item.thumbnailUrl}" 
+                         alt="Banner Preview" 
+                         width="120" 
+                         style="border-radius: 6px; border: 1px solid #e5e7eb; display: block; max-width: 120px;" />
+                  </td>
+                  ` : ''}
+                  <td style="padding: 10px 0; vertical-align: top;">
+                    <p style="margin: 5px 0;"><strong>${item.name}</strong></p>
+                    <p style="margin: 5px 0; color: #6b7280;">Quantity: ${item.quantity}</p>
+                    <p style="margin: 5px 0; color: #6b7280;">${item.options}</p>
+                    <p style="margin: 5px 0;"><strong>${item.price.toFixed(2)}</strong></p>
+                  </td>
+                </tr>
+              </table>
             `).join('')}
 
             <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #e5e7eb;">
@@ -420,7 +497,8 @@ exports.handler = async (event) => {
           polePocketCostCents: Math.round(polePocketCost),
           polePocketPosition: item.pole_pocket_position || item.pole_pockets,
           polePocketSize: item.pole_pocket_size,
-          baseCostCents: Math.round(baseCost)
+          baseCostCents: Math.round(baseCost),
+          thumbnailUrl: getThumbnailUrl(item, 300)
           };
         }),
         // FIX: Calculate correct subtotal, tax, and total from line_total_cents

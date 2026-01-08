@@ -89,6 +89,40 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
     return null;
   };
 
+  // Generate thumbnail URL from order item image sources
+  const getThumbnailUrl = (item: any, maxWidth: number = 200) => {
+    let imageUrl: string | null = null;
+    
+    if (item.web_preview_url) {
+      imageUrl = item.web_preview_url;
+    } else if (item.print_ready_url) {
+      imageUrl = item.print_ready_url;
+    } else if (item.overlay_image?.fileKey) {
+      const fileKey = item.overlay_image.fileKey;
+      imageUrl = fileKey.startsWith('http') 
+        ? fileKey 
+        : `https://res.cloudinary.com/dtrxl120u/image/upload/${fileKey}`;
+    } else if (item.file_key) {
+      const fileKey = item.file_key;
+      imageUrl = fileKey.startsWith('http') 
+        ? fileKey 
+        : `https://res.cloudinary.com/dtrxl120u/image/upload/${fileKey}`;
+    }
+    
+    if (!imageUrl) return null;
+    
+    // Apply Cloudinary transformation for thumbnail sizing
+    if (imageUrl.includes('res.cloudinary.com') && imageUrl.includes('/upload/')) {
+      return imageUrl.replace('/upload/', `/upload/w_${maxWidth},c_limit,f_auto,q_auto/`);
+    }
+    
+    if (imageUrl.startsWith('http') && !imageUrl.includes('res.cloudinary.com')) {
+      return `https://res.cloudinary.com/dtrxl120u/image/fetch/w_${maxWidth},c_limit,f_auto,q_auto/${imageUrl}`;
+    }
+    
+    return imageUrl;
+  };
+
   const orderDate = new Date(order.created_at).toLocaleDateString('en-US', {
     year: 'numeric',
     month: 'long',
@@ -548,7 +582,22 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
             <div className="space-y-4">
               {order.items.map((item, index) => (
                 <div key={index} className="border-2 border-slate-200 rounded-xl p-5 bg-white shadow-sm hover:shadow-md transition-shadow">
-                  <div className="flex justify-between items-start">
+                  <div className="flex gap-4">
+                    {/* Banner Thumbnail */}
+                    {getThumbnailUrl(item) && (
+                      <div className="flex-shrink-0">
+                        <img 
+                          src={getThumbnailUrl(item, 150)} 
+                          alt={`Banner ${index + 1} preview`}
+                          className="w-32 h-24 object-cover rounded-lg border border-slate-200 shadow-sm"
+                          onError={(e) => {
+                            // Hide image on error
+                            (e.target as HTMLImageElement).style.display = 'none';
+                          }}
+                        />
+                      </div>
+                    )}
+                    <div className="flex-1 flex justify-between items-start">
                     <div className="flex-1">
                       <h4 className="text-lg font-bold text-slate-900 mb-3">
                         Custom Banner {formatDimensions(item.width_in, item.height_in)}
@@ -699,6 +748,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                         )}
                       </div>
                     </div>
+                  </div>
                   </div>
                 </div>
               ))}

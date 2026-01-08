@@ -654,6 +654,9 @@ const AdminOrders: React.FC = () => {
                           Order
                         </th>
                         <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                          Preview
+                        </th>
+                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                           Customer
                         </th>
                         <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
@@ -780,6 +783,48 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
     return `Item ${index + 1}`;
   };
 
+  // Generate thumbnail URL from order item image sources
+  const getThumbnailUrl = (item: any, maxWidth: number = 80) => {
+    let imageUrl: string | null = null;
+    
+    if (item.web_preview_url) {
+      imageUrl = item.web_preview_url;
+    } else if (item.print_ready_url) {
+      imageUrl = item.print_ready_url;
+    } else if (item.overlay_image?.fileKey) {
+      const fileKey = item.overlay_image.fileKey;
+      imageUrl = fileKey.startsWith('http') 
+        ? fileKey 
+        : `https://res.cloudinary.com/dtrxl120u/image/upload/${fileKey}`;
+    } else if (item.file_key) {
+      const fileKey = item.file_key;
+      imageUrl = fileKey.startsWith('http') 
+        ? fileKey 
+        : `https://res.cloudinary.com/dtrxl120u/image/upload/${fileKey}`;
+    }
+    
+    if (!imageUrl) return null;
+    
+    if (imageUrl.includes('res.cloudinary.com') && imageUrl.includes('/upload/')) {
+      return imageUrl.replace('/upload/', `/upload/w_${maxWidth},c_limit,f_auto,q_auto/`);
+    }
+    
+    if (imageUrl.startsWith('http') && !imageUrl.includes('res.cloudinary.com')) {
+      return `https://res.cloudinary.com/dtrxl120u/image/fetch/w_${maxWidth},c_limit,f_auto,q_auto/${imageUrl}`;
+    }
+    
+    return imageUrl;
+  };
+
+  // Get first item thumbnail for order list display
+  const getFirstItemThumbnail = () => {
+    for (const item of order.items) {
+      const thumbUrl = getThumbnailUrl(item);
+      if (thumbUrl) return thumbUrl;
+    }
+    return null;
+  };
+
   const [isEditingTracking, setIsEditingTracking] = useState(false);
   const [editTrackingNumber, setEditTrackingNumber] = useState('');
   const [isSendingNotification, setIsSendingNotification] = useState(false);
@@ -838,6 +883,23 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
         <div className="text-sm font-medium text-gray-900">
           #{order.id ? order.id.slice(-8).toUpperCase() : 'UNKNOWN'}
         </div>
+      </td>
+      {/* Thumbnail Preview */}
+      <td className="px-3 py-3">
+        {getFirstItemThumbnail() ? (
+          <img 
+            src={getFirstItemThumbnail()} 
+            alt="Banner preview"
+            className="w-16 h-12 object-cover rounded border border-gray-200"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
+          />
+        ) : (
+          <div className="w-16 h-12 bg-gray-100 rounded border border-gray-200 flex items-center justify-center">
+            <span className="text-xs text-gray-400">No image</span>
+          </div>
+        )}
       </td>
       <td className="px-3 py-3 whitespace-nowrap">
         <div className="text-sm text-gray-900">
@@ -1062,21 +1124,81 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
       );
   };
 
+  // Generate thumbnail URL from order item image sources
+  const getThumbnailUrl = (item: any, maxWidth: number = 80) => {
+    let imageUrl: string | null = null;
+    
+    if (item.web_preview_url) {
+      imageUrl = item.web_preview_url;
+    } else if (item.print_ready_url) {
+      imageUrl = item.print_ready_url;
+    } else if (item.overlay_image?.fileKey) {
+      const fileKey = item.overlay_image.fileKey;
+      imageUrl = fileKey.startsWith('http') 
+        ? fileKey 
+        : `https://res.cloudinary.com/dtrxl120u/image/upload/${fileKey}`;
+    } else if (item.file_key) {
+      const fileKey = item.file_key;
+      imageUrl = fileKey.startsWith('http') 
+        ? fileKey 
+        : `https://res.cloudinary.com/dtrxl120u/image/upload/${fileKey}`;
+    }
+    
+    if (!imageUrl) return null;
+    
+    if (imageUrl.includes('res.cloudinary.com') && imageUrl.includes('/upload/')) {
+      return imageUrl.replace('/upload/', `/upload/w_${maxWidth},c_limit,f_auto,q_auto/`);
+    }
+    
+    if (imageUrl.startsWith('http') && !imageUrl.includes('res.cloudinary.com')) {
+      return `https://res.cloudinary.com/dtrxl120u/image/fetch/w_${maxWidth},c_limit,f_auto,q_auto/${imageUrl}`;
+    }
+    
+    return imageUrl;
+  };
+
+  // Get first item thumbnail for order list display
+  const getFirstItemThumbnail = () => {
+    for (const item of order.items) {
+      const thumbUrl = getThumbnailUrl(item);
+      if (thumbUrl) return thumbUrl;
+    }
+    return null;
+  };
+
   return (
     <div className="border-b border-gray-200 p-4 hover:bg-gray-50">
-      {/* Order Header */}
-      <div className="flex justify-between items-start mb-3">
-        <div>
-          <div className="font-mono text-sm font-semibold text-[#18448D]">
-            #{order.id.slice(-8).toUpperCase()}
+      {/* Thumbnail and Order Header */}
+      <div className="flex gap-3 mb-3">
+        {/* Thumbnail */}
+        {getFirstItemThumbnail() ? (
+          <img 
+            src={getFirstItemThumbnail()} 
+            alt="Banner preview"
+            className="w-16 h-12 object-cover rounded border border-gray-200 flex-shrink-0"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
+          />
+        ) : (
+          <div className="w-16 h-12 bg-gray-100 rounded border border-gray-200 flex items-center justify-center flex-shrink-0">
+            <span className="text-xs text-gray-400">No img</span>
           </div>
-          <div className="text-xs text-gray-500 mt-1">
-            {new Date(order.created_at).toLocaleDateString()}
+        )}
+        {/* Order Header */}
+        <div className="flex-1 flex justify-between items-start">
+          <div>
+            <div className="font-mono text-sm font-semibold text-[#18448D]">
+              #{order.id.slice(-8).toUpperCase()}
+            </div>
+            <div className="text-xs text-gray-500 mt-1">
+              {new Date(order.created_at).toLocaleDateString()}
+            </div>
           </div>
+          <Badge className={`${getStatusColor(order.status)} capitalize`}>
+            {order.status}
+          </Badge>
         </div>
-        <Badge className={`${getStatusColor(order.status)} capitalize`}>
-          {order.status}
-        </Badge>
       </div>
 
       {/* Customer Info */}
