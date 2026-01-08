@@ -35,7 +35,7 @@ exports.handler = async (event, context) => {
     const sql = neon(databaseUrl);
 
     // Get all carts (including recovered for analytics)
-    // NOTE: We don't select cart_contents to avoid massive response sizes
+    // NOTE: We extract only thumbnail URLs from cart_contents to avoid massive response sizes
     // cart_contents can contain full banner designs with base64 images (6MB+ response!)
     const carts = await sql`
       SELECT 
@@ -51,7 +51,14 @@ exports.handler = async (event, context) => {
         abandoned_at,
         recovered_at,
         recovered_order_id,
-        created_at
+        created_at,
+        -- Extract thumbnail URL from first cart item (priority: web_preview_url > print_ready_url > overlay_image.fileKey > file_key)
+        COALESCE(
+          cart_contents->0->>'web_preview_url',
+          cart_contents->0->>'print_ready_url',
+          cart_contents->0->'overlay_image'->>'fileKey',
+          cart_contents->0->>'file_key'
+        ) as first_item_thumbnail
       FROM abandoned_carts
       WHERE recovery_status IN ('active', 'abandoned', 'recovered')
       ORDER BY 

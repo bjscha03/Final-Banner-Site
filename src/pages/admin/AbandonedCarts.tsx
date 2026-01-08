@@ -24,6 +24,7 @@ interface AbandonedCart {
   recovered_at: string | null;
   recovered_order_id: string | null;
   created_at: string;
+  first_item_thumbnail: string | null; // Thumbnail URL for first cart item
 }
 
 interface RecoveryAnalytics {
@@ -32,6 +33,25 @@ interface RecoveryAnalytics {
   recoveredCount: number;
   recoveredFromEmailsCount: number;
 }
+
+
+// Generate optimized thumbnail URL using Cloudinary transformations
+const getThumbnailUrl = (imageUrl: string | null, maxWidth: number = 80): string | null => {
+  if (!imageUrl) return null;
+  
+  // If it is a Cloudinary URL, add transformation parameters
+  if (imageUrl.includes('res.cloudinary.com') && imageUrl.includes('/upload/')) {
+    return imageUrl.replace('/upload/', `/upload/w_${maxWidth},c_limit,f_auto,q_auto/`);
+  }
+  
+  // If it is a file key (not a full URL), construct Cloudinary URL
+  if (!imageUrl.startsWith('http')) {
+    return `https://res.cloudinary.com/dtrxl120u/image/upload/w_${maxWidth},c_limit,f_auto,q_auto/${imageUrl}`;
+  }
+  
+  // For external URLs, use Cloudinary fetch
+  return `https://res.cloudinary.com/dtrxl120u/image/fetch/w_${maxWidth},c_limit,f_auto,q_auto/${imageUrl}`;
+};
 
 const AbandonedCarts: React.FC = () => {
   const navigate = useNavigate();
@@ -251,6 +271,7 @@ const AbandonedCarts: React.FC = () => {
                   <thead className="bg-gray-50 border-b">
                     <tr>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Customer</th>
+                      <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Preview</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Items</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Value</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Abandoned</th>
@@ -267,6 +288,23 @@ const AbandonedCarts: React.FC = () => {
                         <td className="px-4 py-3">
                           <div className="text-sm font-medium">{cart.email || 'No email'}</div>
                           {cart.phone && <div className="text-xs text-gray-500">{cart.phone}</div>}
+                        </td>
+                        {/* Thumbnail Preview */}
+                        <td className="px-4 py-3">
+                          {getThumbnailUrl(cart.first_item_thumbnail) ? (
+                            <img 
+                              src={getThumbnailUrl(cart.first_item_thumbnail)!} 
+                              alt="Cart preview"
+                              className="w-16 h-12 object-cover rounded border border-gray-200"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                          ) : (
+                            <div className="w-16 h-12 bg-gray-100 rounded border border-gray-200 flex items-center justify-center">
+                              <span className="text-xs text-gray-400">No image</span>
+                            </div>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-sm">{cart.item_count || 0}</td>
                         <td className="px-4 py-3 text-sm font-medium">{usd(Number(cart.total_value) || 0)}</td>
@@ -345,23 +383,41 @@ const AbandonedCartCard: React.FC<AbandonedCartCardProps> = ({
   
   return (
     <div className={`border-b border-gray-200 p-4 hover:bg-gray-50 ${isRecovered ? 'opacity-50 bg-gray-50' : ''}`}>
-      {/* Customer Info */}
-      <div className="flex justify-between items-start mb-3">
-        <div className="flex-1">
-          <div className="text-sm font-semibold text-gray-900">
-            {cart.email || 'No email'}
+      {/* Thumbnail and Customer Info */}
+      <div className="flex gap-3 mb-3">
+        {/* Thumbnail */}
+        {getThumbnailUrl(cart.first_item_thumbnail) ? (
+          <img 
+            src={getThumbnailUrl(cart.first_item_thumbnail)!} 
+            alt="Cart preview"
+            className="w-16 h-12 object-cover rounded border border-gray-200 flex-shrink-0"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
+          />
+        ) : (
+          <div className="w-16 h-12 bg-gray-100 rounded border border-gray-200 flex items-center justify-center flex-shrink-0">
+            <span className="text-xs text-gray-400">No img</span>
           </div>
-          {cart.phone && (
-            <div className="text-xs text-gray-500 mt-1">{cart.phone}</div>
-          )}
-        </div>
-        <Badge variant={
+        )}
+        {/* Customer Info */}
+        <div className="flex-1 flex justify-between items-start">
+          <div className="flex-1">
+            <div className="text-sm font-semibold text-gray-900">
+              {cart.email || 'No email'}
+            </div>
+            {cart.phone && (
+              <div className="text-xs text-gray-500 mt-1">{cart.phone}</div>
+            )}
+          </div>
+          <Badge variant={
           cart.recovery_status === 'recovered' ? 'default' : 
           cart.recovery_status === 'abandoned' ? 'destructive' : 
           'secondary'
         } className={cart.recovery_status === 'recovered' ? 'bg-green-500' : ''}>
           {cart.recovery_status === 'recovered' ? '✓ Recovered' : cart.recovery_status}
         </Badge>
+        </div>
       </div>
 
       {/* Cart Details */}
