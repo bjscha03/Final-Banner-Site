@@ -4,10 +4,20 @@ import { useAuth, isAdmin } from '../../lib/auth';
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Shield, Mail, Loader2, RefreshCw, ShoppingCart } from 'lucide-react';
+import { Shield, Mail, Loader2, RefreshCw, ShoppingCart, Trash2 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { usd } from '@/lib/pricing';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Package, Star } from 'lucide-react';
 
 interface AbandonedCart {
@@ -61,6 +71,9 @@ const AbandonedCarts: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showAccessDenied, setShowAccessDenied] = useState(false);
   const [sendingEmail, setSendingEmail] = useState<Record<string, boolean>>({});
+  const [deletingCart, setDeletingCart] = useState<Record<string, boolean>>({});
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [cartToDelete, setCartToDelete] = useState<AbandonedCart | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -134,6 +147,60 @@ const AbandonedCarts: React.FC = () => {
     }
   };
 
+  // Open delete confirmation dialog
+  const openDeleteDialog = (cart: AbandonedCart) => {
+    setCartToDelete(cart);
+    setDeleteDialogOpen(true);
+  };
+
+  // Close delete dialog
+  const closeDeleteDialog = () => {
+    setDeleteDialogOpen(false);
+    setCartToDelete(null);
+  };
+
+  // Delete abandoned cart
+  const deleteCart = async () => {
+    if (!cartToDelete) return;
+
+    const cartId = cartToDelete.id;
+    const cartEmail = cartToDelete.email;
+
+    try {
+      setDeletingCart(prev => ({ ...prev, [cartId]: true }));
+      closeDeleteDialog();
+
+      const response = await fetch('/.netlify/functions/delete-abandoned-cart', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ cartId })
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || error.error || 'Failed to delete cart');
+      }
+
+      // Remove cart from UI
+      setCarts(prev => prev.filter(c => c.id !== cartId));
+
+      toast({
+        title: 'Cart Deleted',
+        description: `Successfully deleted abandoned cart for ${cartEmail || 'unknown user'}`,
+      });
+
+    } catch (error) {
+      console.error('Error deleting cart:', error);
+      toast({
+        title: 'Error',
+        description: error instanceof Error ? error.message : 'Failed to delete abandoned cart',
+        variant: 'destructive'
+      });
+    } finally {
+      setDeletingCart(prev => ({ ...prev, [cartId]: false }));
+    }
+  };
+
   const formatDate = (dateString: string) => {
     if (!dateString) return 'N/A';
     const date = new Date(dateString);
@@ -172,6 +239,30 @@ const AbandonedCarts: React.FC = () => {
 
   return (
     <Layout>
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Abandoned Cart</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to permanently delete this abandoned cart for{' '}
+              <strong>{cartToDelete?.email || 'unknown user'}</strong>?
+              <br /><br />
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={closeDeleteDialog}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={deleteCart}
+              className="bg-red-600 hover:bg-red-700 focus:ring-red-600"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="container mx-auto px-4 py-8">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
           <div className="flex items-center gap-3">
@@ -260,6 +351,8 @@ const AbandonedCarts: React.FC = () => {
                   sendRecoveryEmail={sendRecoveryEmail}
                   sendingEmail={sendingEmail}
                   getTimeSince={getTimeSince}
+                  onDelete={openDeleteDialog}
+                  deletingCart={deletingCart}
                 />
               ))}
             </div>
@@ -278,6 +371,7 @@ const AbandonedCarts: React.FC = () => {
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Emails Sent</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                       <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                      <th className="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Delete</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y">
@@ -350,6 +444,22 @@ const AbandonedCarts: React.FC = () => {
                             </div>
                           )}
                         </td>
+                        {/* Delete Button */}
+                        <td className="px-4 py-3 text-center">
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => openDeleteDialog(cart)}
+                            disabled={deletingCart[cart.id]}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            {deletingCart[cart.id] ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </td>
                       </tr>
                       );
                     })}
@@ -371,13 +481,17 @@ interface AbandonedCartCardProps {
   sendRecoveryEmail: (cartId: string, sequenceNumber: number) => void;
   sendingEmail: Record<string, boolean>;
   getTimeSince: (dateString: string) => string;
+  onDelete: (cart: AbandonedCart) => void;
+  deletingCart: Record<string, boolean>;
 }
 
 const AbandonedCartCard: React.FC<AbandonedCartCardProps> = ({
   cart,
   sendRecoveryEmail,
   sendingEmail,
-  getTimeSince
+  getTimeSince,
+  onDelete,
+  deletingCart
 }) => {
   const isRecovered = cart.recovery_status === 'recovered';
   
@@ -478,6 +592,23 @@ const AbandonedCartCard: React.FC<AbandonedCartCardProps> = ({
             ))}
           </div>
         )}
+        {/* Delete Button */}
+        <div className="mt-3 flex justify-center">
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={() => onDelete(cart)}
+            disabled={deletingCart[cart.id]}
+            className="text-red-600 hover:text-red-700 hover:bg-red-50 w-full"
+          >
+            {deletingCart[cart.id] ? (
+              <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            ) : (
+              <Trash2 className="h-4 w-4 mr-2" />
+            )}
+            Delete Cart
+          </Button>
+        </div>
       </div>
     </div>
   );
