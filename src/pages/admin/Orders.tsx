@@ -280,7 +280,8 @@ const AdminOrders: React.FC = () => {
         fileKey: isCloudinaryKey ? imageSource : null,
         imageUrl: isCloudinaryKey ? null : imageSource,
         imageSource: item.print_ready_url ? 'print_ready' : (item.web_preview_url ? 'web_preview' : 'uploaded'),
-        bleedIn: 0.125,
+        includeBleed: false, // Generate PDF at exact banner dimensions without bleed margins
+        bleedIn: 0,
         targetDpi: 150,
         // CRITICAL: When overlay is main image, DON'T use stored transform (it's for overlay positioning, not full-banner)
         transform: isUsingOverlayAsMain ? null : (item.transform || null),

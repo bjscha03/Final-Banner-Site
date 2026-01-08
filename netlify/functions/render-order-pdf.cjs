@@ -458,8 +458,10 @@ async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textEleme
         });
       }
 
-      // Draw crop marks for print cutting guides
-      drawCropMarks(doc, bannerWidthIn, bannerHeightIn, bleedIn);
+      // Draw crop marks for print cutting guides (only when bleed is included)
+      if (bleedIn > 0) {
+        drawCropMarks(doc, bannerWidthIn, bannerHeightIn, bleedIn);
+      }
 
       doc.end();
     } catch (err) {
@@ -535,10 +537,12 @@ exports.handler = async (event) => {
     
     console.log('[PDF] Design type:', hasBackgroundImage ? 'with background image' : 'text/overlay only');
 
-    const bleedIn = req.bleedIn ?? 0.125;
+    // includeBleed: if false, generate PDF at exact banner dimensions (no bleed margins)
+    const includeBleed = req.includeBleed !== false; // Default to true for backward compatibility
+    const bleedIn = includeBleed ? (req.bleedIn ?? 0.125) : 0;
     const targetDpi = req.targetDpi ?? chooseTargetDpi(req.bannerWidthIn, req.bannerHeightIn);
 
-    console.log(`[PDF] Banner: ${req.bannerWidthIn}×${req.bannerHeightIn} in, DPI: ${targetDpi}, Bleed: ${bleedIn} in`);
+    console.log(`[PDF] Banner: ${req.bannerWidthIn}×${req.bannerHeightIn} in, DPI: ${targetDpi}, Bleed: ${bleedIn} in (includeBleed: ${includeBleed})`);
 
     const finalWidthIn = req.bannerWidthIn + (bleedIn * 2);
     const finalHeightIn = req.bannerHeightIn + (bleedIn * 2);
