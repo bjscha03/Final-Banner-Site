@@ -1,5 +1,5 @@
 import React from 'react';
-import { Star, Quote } from 'lucide-react';
+import { Star, Quote, Sparkles } from 'lucide-react';
 
 const TestimonialsSection: React.FC = () => {
   const testimonials = [
@@ -30,67 +30,108 @@ const TestimonialsSection: React.FC = () => {
   ];
 
   return (
-    <section className="bg-gradient-to-br from-slate-50 via-white to-blue-50/30 py-16 md:py-20">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <section className="relative py-20 md:py-28 overflow-hidden">
+      {/* Vibrant gradient background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-slate-900 via-[#18448D] to-slate-900" />
+      
+      {/* Animated gradient orbs */}
+      <div className="absolute top-0 left-1/4 w-96 h-96 bg-[#ff6b35]/30 rounded-full blur-3xl animate-pulse" />
+      <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-[#18448D]/40 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-[#ff6b35]/20 to-[#18448D]/20 rounded-full blur-3xl" />
+      
+      {/* Decorative pattern overlay */}
+      <div className="absolute inset-0 opacity-5" style={{
+        backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
+      }} />
+      
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className="text-center mb-14">
-          <h2 className="text-3xl md:text-4xl font-black text-slate-900">
+        <div className="text-center mb-16">
+          <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white font-medium text-sm mb-6 shadow-lg">
+            <Sparkles className="w-4 h-4 text-[#ff6b35]" />
+            <span>Trusted by Thousands</span>
+          </div>
+          <h2 className="text-4xl md:text-5xl font-black text-white mb-4 drop-shadow-lg">
             Customer Reviews
           </h2>
+          <p className="text-lg text-blue-100/80 max-w-2xl mx-auto">
+            See what our customers have to say about their experience
+          </p>
         </div>
 
         {/* Reviews Grid */}
-        <div className="grid md:grid-cols-3 gap-8">
+        <div className="grid md:grid-cols-3 gap-8 lg:gap-10">
           {testimonials.map((testimonial, index) => (
             <div
               key={index}
-              className="group relative bg-white rounded-2xl p-8 transition-all duration-500 hover:-translate-y-2 hover:shadow-2xl shadow-lg shadow-slate-200/50"
+              className="group relative"
+              style={{ animationDelay: `${index * 150}ms` }}
             >
-              {/* Gradient border effect on hover */}
-              <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-[#18448D] via-[#ff6b35] to-[#18448D] opacity-0 group-hover:opacity-100 transition-opacity duration-500 -z-10 blur-sm scale-[1.02]" />
-              <div className="absolute inset-[1px] rounded-2xl bg-white -z-10" />
+              {/* Outer glow effect */}
+              <div className="absolute -inset-1 bg-gradient-to-r from-[#ff6b35] via-[#f7931e] to-[#18448D] rounded-3xl blur-lg opacity-40 group-hover:opacity-75 transition-all duration-500 group-hover:blur-xl" />
               
-              {/* Quote icon */}
-              <div className="absolute -top-4 -right-2 w-12 h-12 bg-gradient-to-br from-[#ff6b35] to-[#f7931e] rounded-full flex items-center justify-center shadow-lg transform group-hover:scale-110 group-hover:rotate-12 transition-all duration-300">
-                <Quote className="w-5 h-5 text-white fill-white" />
-              </div>
-              
-              {/* Star rating */}
-              <div className="flex items-center gap-1 mb-5">
-                {[...Array(testimonial.rating)].map((_, i) => (
-                  <Star 
-                    key={i} 
-                    className="h-5 w-5 fill-amber-400 text-amber-400 drop-shadow-sm" 
-                  />
-                ))}
-              </div>
-              
-              {/* Review text */}
-              <div className="mb-8">
-                <p className="text-slate-600 leading-relaxed text-[15px] italic">
-                  "{testimonial.text}"
-                </p>
-              </div>
-              
-              {/* Author section */}
-              <div className="flex items-center gap-4 pt-6 border-t border-slate-100">
-                <div className="relative">
-                  <div className="absolute inset-0 bg-gradient-to-br from-[#18448D] to-[#ff6b35] rounded-full blur-sm opacity-50 group-hover:opacity-75 transition-opacity" />
-                  <img
-                    src={testimonial.image}
-                    alt={testimonial.name}
-                    className="relative w-14 h-14 rounded-full object-cover ring-2 ring-white shadow-md"
-                  />
+              {/* Card */}
+              <div className="relative bg-gradient-to-br from-white via-white to-blue-50/50 rounded-3xl p-8 transition-all duration-500 group-hover:-translate-y-3 shadow-2xl shadow-black/20 border border-white/50 overflow-hidden">
+                {/* Inner decorative gradient */}
+                <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-[#ff6b35]/10 to-transparent rounded-full blur-2xl" />
+                <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-[#18448D]/10 to-transparent rounded-full blur-2xl" />
+                
+                {/* Quote icon with enhanced styling */}
+                <div className="absolute -top-5 -right-3 w-14 h-14 bg-gradient-to-br from-[#ff6b35] via-[#f7931e] to-[#ff8c42] rounded-2xl rotate-12 flex items-center justify-center shadow-xl shadow-orange-500/30 transform group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 border-2 border-white/30">
+                  <Quote className="w-6 h-6 text-white fill-white drop-shadow-md" />
                 </div>
-                <div>
-                  <div className="font-bold text-slate-900 text-lg group-hover:text-[#18448D] transition-colors">
-                    {testimonial.name}
+                
+                {/* Star rating with glow */}
+                <div className="relative flex items-center gap-1.5 mb-6">
+                  <div className="absolute inset-0 bg-amber-400/20 blur-xl rounded-full" />
+                  {[...Array(testimonial.rating)].map((_, i) => (
+                    <Star 
+                      key={i} 
+                      className="relative h-6 w-6 fill-amber-400 text-amber-400 drop-shadow-lg animate-pulse" 
+                      style={{ animationDelay: `${i * 100}ms`, animationDuration: '2s' }}
+                    />
+                  ))}
+                </div>
+                
+                {/* Review text */}
+                <div className="relative mb-8">
+                  <p className="text-slate-700 leading-relaxed text-base font-medium">
+                    <span className="text-3xl text-[#ff6b35] font-serif leading-none mr-1">"</span>
+                    {testimonial.text}
+                    <span className="text-3xl text-[#ff6b35] font-serif leading-none ml-1">"</span>
+                  </p>
+                </div>
+                
+                {/* Author section with enhanced styling */}
+                <div className="relative flex items-center gap-4 pt-6 border-t-2 border-gradient-to-r border-slate-100">
+                  {/* Decorative line */}
+                  <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-[#ff6b35] via-[#f7931e] to-[#18448D] opacity-30 group-hover:opacity-100 transition-opacity duration-500" />
+                  
+                  <div className="relative">
+                    {/* Multi-layer glow effect */}
+                    <div className="absolute -inset-2 bg-gradient-to-br from-[#ff6b35] to-[#18448D] rounded-full blur-md opacity-50 group-hover:opacity-80 transition-opacity duration-500 animate-pulse" />
+                    <div className="absolute -inset-1 bg-gradient-to-br from-[#ff6b35] to-[#18448D] rounded-full opacity-70" />
+                    <img
+                      src={testimonial.image}
+                      alt={testimonial.name}
+                      className="relative w-16 h-16 rounded-full object-cover ring-4 ring-white shadow-xl transform group-hover:scale-110 transition-transform duration-500"
+                    />
                   </div>
-                  <div className="text-sm text-slate-500">
-                    {testimonial.title}
+                  <div className="flex-1">
+                    <div className="font-bold text-slate-900 text-lg group-hover:text-[#18448D] transition-colors duration-300">
+                      {testimonial.name}
+                    </div>
+                    <div className="text-sm text-slate-500 font-medium">
+                      {testimonial.title}
+                    </div>
+                    <div className="text-sm font-bold bg-gradient-to-r from-[#ff6b35] via-[#f7931e] to-[#ff8c42] bg-clip-text text-transparent">
+                      {testimonial.company}
+                    </div>
                   </div>
-                  <div className="text-sm font-semibold bg-gradient-to-r from-[#ff6b35] to-[#f7931e] bg-clip-text text-transparent">
-                    {testimonial.company}
+                  
+                  {/* Verified badge */}
+                  <div className="absolute top-8 right-0 px-3 py-1 bg-gradient-to-r from-emerald-500 to-emerald-600 text-white text-xs font-bold rounded-full shadow-lg shadow-emerald-500/30">
+                    ✓ Verified
                   </div>
                 </div>
               </div>
