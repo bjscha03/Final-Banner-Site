@@ -3,9 +3,10 @@
  */
 
 import React, { useState, useMemo } from 'react';
-import { Search, Filter, Sparkles, BookOpen, TrendingUp, X } from 'lucide-react';
+import { Search, Filter, Sparkles, BookOpen, TrendingUp, X, Send, CheckCircle, Loader2 } from 'lucide-react';
 import { BlogCard } from './BlogCard';
 import { TagPill } from './TagPill';
+import { useToast } from '@/components/ui/use-toast';
 import type { BlogListItem } from '@/lib/blog';
 
 interface BlogListProps {
@@ -26,6 +27,12 @@ export function BlogList({
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [showAllTags, setShowAllTags] = useState(false);
+  
+  // Newsletter state
+  const [newsletterEmail, setNewsletterEmail] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const { toast } = useToast();
   
   const filteredPosts = useMemo(() => {
     return posts.filter(post => {
@@ -54,6 +61,78 @@ export function BlogList({
   const clearFilters = () => {
     setSearchQuery('');
     setSelectedTags([]);
+  };
+  
+  // Newsletter submit handler
+  const handleNewsletterSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!newsletterEmail.trim()) {
+      toast({
+        title: "Email Required",
+        description: "Please enter your email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    // Basic email validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newsletterEmail.trim())) {
+      toast({
+        title: "Invalid Email",
+        description: "Please enter a valid email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsSubmitting(true);
+    setSubmitStatus('idle');
+    
+    try {
+      const response = await fetch('/.netlify/functions/newsletter-signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: newsletterEmail.trim() }),
+      });
+      
+      const data = await response.json();
+      
+      if (response.ok && data.success) {
+        setSubmitStatus('success');
+        setNewsletterEmail('');
+        toast({
+          title: "You're subscribed! 🎉",
+          description: data.message || "Thanks for subscribing! Check your inbox for confirmation.",
+          duration: 5000,
+        });
+      } else {
+        setSubmitStatus('error');
+        toast({
+          title: "Subscription Failed",
+          description: data.error || "Failed to subscribe. Please try again.",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Newsletter signup error:', error);
+      setSubmitStatus('error');
+      toast({
+        title: "Network Error",
+        description: "Failed to connect. Please check your internet connection and try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
+      
+      // Reset status after 3 seconds
+      setTimeout(() => {
+        setSubmitStatus('idle');
+      }, 3000);
+    }
   };
   
   // Featured post is the first post when no filters are applied
@@ -261,16 +340,41 @@ export function BlogList({
           <p className="text-blue-100 text-lg mb-8 max-w-xl mx-auto">
             Join our newsletter for expert advice on banner design, marketing strategies, and exclusive offers.
           </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center max-w-lg mx-auto">
-            <input
-              type="email"
-              placeholder="Enter your email"
-              className="flex-grow px-6 py-4 rounded-xl border-2 border-white/30 bg-white/10 text-white placeholder-white/60 focus:border-white focus:bg-white/20 transition-all duration-300"
-            />
-            <button className="px-8 py-4 rounded-xl bg-gradient-to-r from-[#ff6b35] to-[#f7931e] text-white font-bold hover:from-[#ff7b45] hover:to-[#ffa32e] transition-all duration-300 transform hover:scale-105 shadow-lg">
-              Subscribe
-            </button>
-          </div>
+          
+          {submitStatus === 'success' ? (
+            <div className="flex items-center justify-center gap-3 text-white">
+              <CheckCircle className="w-6 h-6 text-green-400" />
+              <span className="text-lg font-semibold">Thanks for subscribing! Check your inbox.</span>
+            </div>
+          ) : (
+            <form onSubmit={handleNewsletterSubmit} className="flex flex-col sm:flex-row gap-4 justify-center max-w-lg mx-auto">
+              <input
+                type="email"
+                placeholder="Enter your email"
+                value={newsletterEmail}
+                onChange={(e) => setNewsletterEmail(e.target.value)}
+                disabled={isSubmitting}
+                className="flex-grow px-6 py-4 rounded-xl border-2 border-white/30 bg-white/10 text-white placeholder-white/60 focus:border-white focus:bg-white/20 transition-all duration-300 disabled:opacity-50"
+              />
+              <button 
+                type="submit"
+                disabled={isSubmitting}
+                className="px-8 py-4 rounded-xl bg-gradient-to-r from-[#ff6b35] to-[#f7931e] text-white font-bold hover:from-[#ff7b45] hover:to-[#ffa32e] transition-all duration-300 transform hover:scale-105 shadow-lg disabled:opacity-50 disabled:transform-none inline-flex items-center justify-center gap-2"
+              >
+                {isSubmitting ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>Subscribing...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-5 h-5" />
+                    <span>Subscribe</span>
+                  </>
+                )}
+              </button>
+            </form>
+          )}
         </div>
       </div>
     </div>
