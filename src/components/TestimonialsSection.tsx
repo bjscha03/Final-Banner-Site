@@ -1,5 +1,5 @@
 import React from 'react';
-import { Star, Quote, Sparkles } from 'lucide-react';
+import { Star,  Sparkles } from 'lucide-react';
 
 const TestimonialsSection: React.FC = () => {
   const testimonials = [
@@ -60,26 +60,22 @@ const TestimonialsSection: React.FC = () => {
         </div>
 
         {/* Reviews Grid */}
-        <div className="grid md:grid-cols-3 gap-8 lg:gap-10">
+        <div className="grid md:grid-cols-3 gap-8 lg:gap-10 pt-6">
           {testimonials.map((testimonial, index) => (
             <div
               key={index}
-              className="group relative"
+              className="group relative pt-4"
               style={{ animationDelay: `${index * 150}ms` }}
             >
               {/* Outer glow effect */}
-              <div className="absolute -inset-1 bg-gradient-to-r from-[#ff6b35] via-[#f7931e] to-[#18448D] rounded-3xl blur-lg opacity-40 group-hover:opacity-75 transition-all duration-500 group-hover:blur-xl" />
+              <div className="absolute -inset-1 top-3 bg-gradient-to-r from-[#ff6b35] via-[#f7931e] to-[#18448D] rounded-3xl blur-lg opacity-40 group-hover:opacity-75 transition-all duration-500 group-hover:blur-xl" />
+              
               
               {/* Card */}
               <div className="relative bg-gradient-to-br from-white via-white to-blue-50/50 rounded-3xl p-8 transition-all duration-500 group-hover:-translate-y-3 shadow-2xl shadow-black/20 border border-white/50 overflow-hidden">
                 {/* Inner decorative gradient */}
                 <div className="absolute top-0 right-0 w-40 h-40 bg-gradient-to-br from-[#ff6b35]/10 to-transparent rounded-full blur-2xl" />
                 <div className="absolute bottom-0 left-0 w-32 h-32 bg-gradient-to-tr from-[#18448D]/10 to-transparent rounded-full blur-2xl" />
-                
-                {/* Quote icon with enhanced styling */}
-                <div className="absolute -top-5 -right-3 w-14 h-14 bg-gradient-to-br from-[#ff6b35] via-[#f7931e] to-[#ff8c42] rounded-2xl rotate-12 flex items-center justify-center shadow-xl shadow-orange-500/30 transform group-hover:scale-110 group-hover:rotate-6 transition-all duration-500 border-2 border-white/30">
-                  <Quote className="w-6 h-6 text-white fill-white drop-shadow-md" />
-                </div>
                 
                 {/* Star rating with glow */}
                 <div className="relative flex items-center gap-1.5 mb-6">
