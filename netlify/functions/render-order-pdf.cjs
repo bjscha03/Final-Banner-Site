@@ -605,36 +605,37 @@ exports.handler = async (event) => {
 
     console.log(`[PDF] Preview canvas: ${previewW}×${previewH}px, scale factor: ${pxScale.toFixed(2)}`);
     
-    // Calculate default transform if not provided
-    // CRITICAL FIX: ALWAYS use stretch-to-fill mode to match customer preview
-    // The preview uses preserveAspectRatio="xMidYMid slice" which fills the entire banner
-    // We must match this behavior exactly - no contain mode, no white margins
-    let transform = req.transform;
-    if (!transform) {
-      // ALWAYS stretch to fill - this matches the customer preview behavior
-      // The customer saw their image filling the entire banner, so the PDF must do the same
-      transform = { scale: 1, translateXpx: 0, translateYpx: 0, stretchToFill: true };
-      console.log(`[PDF] Using stretch-to-fill mode (matching customer preview behavior)`);
-    }
-
-    // Handle stretch-to-fill mode vs. normal transform mode
-    let scaledImageW, scaledImageH, translateX, translateY;
+    // Use imageScale and imagePosition from customer banner designer
+    const imageScale = req.imageScale ?? 1;
+    const imagePosition = req.imagePosition || { x: 0, y: 0 };
     
-    if (transform.stretchToFill) {
-      // Stretch-to-fill: resize directly to target dimensions (ignore source aspect ratio)
-      scaledImageW = targetPxW;
-      scaledImageH = targetPxH;
-      translateX = 0;
-      translateY = 0;
-      console.log(`[PDF] Stretch-to-fill: resizing ${srcW}×${srcH} to ${scaledImageW}×${scaledImageH}px`);
-    } else {
-      scaledImageW = Math.round(srcW * transform.scale * pxScale);
-      scaledImageH = Math.round(srcH * transform.scale * pxScale);
-      translateX = Math.round(transform.translateXpx * pxScale);
-      translateY = Math.round(transform.translateYpx * pxScale);
-      console.log(`[PDF] Scaled image: ${scaledImageW}×${scaledImageH}px at (${translateX}, ${translateY})`);
-    }
+    console.log(`[PDF] Customer design: imageScale=${imageScale}, imagePosition=${JSON.stringify(imagePosition)}`);
 
+    // Calculate image dimensions - first calculate base size to cover (xMidYMid slice behavior)
+    const imgAspect = srcW / srcH;
+    const canvasAspect = targetPxW / targetPxH;
+    
+    let scaledImageW, scaledImageH;
+    
+    if (imgAspect > canvasAspect) {
+      scaledImageH = targetPxH;
+      scaledImageW = Math.round(targetPxH * imgAspect);
+    } else {
+      scaledImageW = targetPxW;
+      scaledImageH = Math.round(targetPxW / imgAspect);
+    }
+    
+    // Apply customer scale factor
+    scaledImageW = Math.round(scaledImageW * imageScale);
+    scaledImageH = Math.round(scaledImageH * imageScale);
+    
+    // Calculate position - image is centered, then offset by position
+    const centerOffsetX = (targetPxW - scaledImageW) / 2;
+    const centerOffsetY = (targetPxH - scaledImageH) / 2;
+    const translateX = Math.round(centerOffsetX + (imagePosition.x * 0.01 * targetPxW));
+    const translateY = Math.round(centerOffsetY + (imagePosition.y * 0.01 * targetPxH));
+    
+    console.log(`[PDF] Image: ${scaledImageW}x${scaledImageH}px at (${translateX}, ${translateY})`);
     const upscaledBuffer = await maybeUpscaleToFit(rotatedBuffer, scaledImageW, scaledImageH);
 
     const resizedBuffer = await sharp(upscaledBuffer)

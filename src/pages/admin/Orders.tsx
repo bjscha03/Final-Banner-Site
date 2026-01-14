@@ -290,7 +290,10 @@ const AdminOrders: React.FC = () => {
         // CRITICAL: Skip overlayImage/overlayImages if we're already using it as the main image source
         overlayImage: isUsingOverlayAsMain ? null : (item.overlay_image || null),
         overlayImages: isUsingOverlayAsMain ? null : (item.overlay_images || null),
-        canvasBackgroundColor: item.canvas_background_color || '#FFFFFF'
+        canvasBackgroundColor: item.canvas_background_color || '#FFFFFF',
+        // Customer's image positioning from banner designer
+        imageScale: item.image_scale ?? 1,
+        imagePosition: item.image_position || { x: 0, y: 0 }
       };
 
       console.log('🔴 PDF REQUEST:', JSON.stringify(requestBody, null, 2));
