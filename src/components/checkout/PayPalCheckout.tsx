@@ -185,6 +185,8 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
             overlay_image: item.overlay_image,
             overlay_images: item.overlay_images,
             canvas_background_color: item.canvas_background_color,
+            image_scale: item.image_scale,
+            image_position: item.image_position,
           })),
         }),
       });
@@ -292,6 +294,8 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
             overlay_image: item.overlay_image,
             overlay_images: item.overlay_images,
             canvas_background_color: item.canvas_background_color,
+            image_scale: item.image_scale,
+            image_position: item.image_position,
           })),
           email: user?.email || `guest-${Date.now()}@bannersonthefly.com`,
           user_id: user?.id || null,
@@ -402,6 +406,8 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
             overlay_image: item.overlay_image,
             overlay_images: item.overlay_images,
             canvas_background_color: item.canvas_background_color,
+            image_scale: item.image_scale,
+            image_position: item.image_position,
           })),
         }),
       });
