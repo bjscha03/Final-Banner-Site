@@ -636,8 +636,13 @@ exports.handler = async (event) => {
     const imageInContainerOffsetX = (containerW - scaledImageW) / 2;
     const imageInContainerOffsetY = (containerH - scaledImageH) / 2;
     
-    const translateX = Math.round(containerOffsetX + imageInContainerOffsetX + (imagePosition.x * 0.01 * targetPxW));
-    const translateY = Math.round(containerOffsetY + imageInContainerOffsetY + (imagePosition.y * 0.01 * targetPxH));
+    // imagePosition is in units that get multiplied by 0.01 to get inches
+    // Convert from inches to pixels by multiplying by DPI
+    const positionOffsetX = imagePosition.x * 0.01 * targetDpi;
+    const positionOffsetY = imagePosition.y * 0.01 * targetDpi;
+    
+    const translateX = Math.round(containerOffsetX + imageInContainerOffsetX + positionOffsetX);
+    const translateY = Math.round(containerOffsetY + imageInContainerOffsetY + positionOffsetY);
     
     console.log(`[PDF] Container: ${containerW}x${containerH}px, Image: ${scaledImageW}x${scaledImageH}px at (${translateX}, ${translateY})`);
     const upscaledBuffer = await maybeUpscaleToFit(rotatedBuffer, scaledImageW, scaledImageH);
