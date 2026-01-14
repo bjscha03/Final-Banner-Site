@@ -505,6 +505,13 @@ exports.handler = async (event) => {
     }
 
     const req = JSON.parse(event.body);
+    
+    // DEBUG: Log all received values for image positioning
+    console.log('[PDF] ======= RECEIVED REQUEST =======');
+    console.log('[PDF] imageScale:', req.imageScale, 'type:', typeof req.imageScale);
+    console.log('[PDF] imagePosition:', JSON.stringify(req.imagePosition), 'type:', typeof req.imagePosition);
+    console.log('[PDF] Full request keys:', Object.keys(req).join(', '));
+    console.log('[PDF] ================================');
     console.log('[PDF] Parsed request:', JSON.stringify(req, null, 2));
     console.log('[PDF] Request keys:', Object.keys(req));
     console.log('[PDF] CRITICAL - textElements received:', req.textElements);
@@ -644,6 +651,7 @@ exports.handler = async (event) => {
     const translateX = Math.round(containerOffsetX + imageInContainerOffsetX + positionOffsetX);
     const translateY = Math.round(containerOffsetY + imageInContainerOffsetY + positionOffsetY);
     
+    console.log('[PDF] ======= POSITIONING CALCULATION =======');    console.log('[PDF] targetPxW:', targetPxW, 'targetPxH:', targetPxH);    console.log('[PDF] targetDpi:', targetDpi);    console.log('[PDF] imageScale (applied):', imageScale);    console.log('[PDF] imagePosition (applied):', JSON.stringify(imagePosition));    console.log('[PDF] containerOffsetX:', containerOffsetX, 'containerOffsetY:', containerOffsetY);    console.log('[PDF] positionOffsetX:', positionOffsetX, 'positionOffsetY:', positionOffsetY);    console.log('[PDF] ========================================');
     console.log(`[PDF] Container: ${containerW}x${containerH}px, Image: ${scaledImageW}x${scaledImageH}px at (${translateX}, ${translateY})`);
     const upscaledBuffer = await maybeUpscaleToFit(rotatedBuffer, scaledImageW, scaledImageH);
 
