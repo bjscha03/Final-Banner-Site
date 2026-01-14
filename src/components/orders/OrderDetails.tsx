@@ -33,7 +33,6 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
   const { toast } = useToast();
   const { user } = useAuth();
   const [pdfGenerating, setPdfGenerating] = useState<Record<number, boolean>>({});
-  const [printPdfGenerating, setPrintPdfGenerating] = useState<Record<number, boolean>>({});
   const isAdminUser = user && isAdmin(user);
   const [qualityCheckOpen, setQualityCheckOpen] = useState(false);
   const [qualityCheckData, setQualityCheckData] = useState<any>(null);
@@ -364,94 +363,6 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
   };
 
   // Handler for print-grade PDF download (Beta)
-  const handlePrintGradePdfDownload = async (item: any, index: number) => {
-    try {
-      setPrintPdfGenerating(prev => ({ ...prev, [index]: true }));
-      
-      // CRITICAL: overlay_image.fileKey contains the ORIGINAL uploaded file (no grommets)
-      // file_key is the THUMBNAIL (has grommets baked in) - use overlay_image.fileKey first!
-      const overlayImageFileKey = item.overlay_image?.fileKey;
-      const overlayImagesFileKey = item.overlay_images?.[0]?.fileKey;
-      
-      console.log('[Print PDF] Item image sources:', {
-        overlay_image_fileKey: overlayImageFileKey,
-        overlay_images_0_fileKey: overlayImagesFileKey,
-        print_ready_url: item.print_ready_url,
-        file_key: item.file_key,
-        file_url: item.file_url,
-      });
-      
-      // CRITICAL FIX: Prioritize overlay_image.fileKey (original upload) over file_key (thumbnail with grommets)
-      const imageSource = item.print_ready_url || overlayImageFileKey || overlayImagesFileKey || item.file_url || item.web_preview_url;
-      const isCloudinaryKey = !imageSource?.startsWith('http');
-      
-      // CRITICAL: If using overlay_image.fileKey as main image, DON'T use stored transform
-      const isUsingOverlayAsMain = imageSource === overlayImageFileKey || imageSource === overlayImagesFileKey;
-      
-      console.log('[Print PDF] Selected image source:', imageSource, 'isCloudinaryKey:', isCloudinaryKey, 'isUsingOverlayAsMain:', isUsingOverlayAsMain);
-      
-      const response = await fetch('/.netlify/functions/render-print-pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          orderId: order.id,
-          fileKey: isCloudinaryKey ? imageSource : null,
-          imageUrl: isCloudinaryKey ? null : imageSource,
-          bannerWidthIn: item.width_in,
-          bannerHeightIn: item.height_in,
-          targetDpi: 150,
-          bleedIn: 0.25,
-          // CRITICAL: When overlay is main image, DON'T use stored transform (it's for overlay positioning)
-          transform: isUsingOverlayAsMain ? null : (item.transform || null),
-          previewCanvasPx: isUsingOverlayAsMain ? null : (item.preview_canvas_px || null),
-          textElements: isUsingOverlayAsMain ? [] : (item.text_elements || []),
-          applyColorCorrection: true,
-          canvasBackgroundColor: item.canvas_background_color || '#FFFFFF',
-        }),
-      });
-
-      if (!response.ok) {
-        let errorMessage = 'Failed to generate print-grade PDF';
-        try {
-          const contentType = response.headers.get('Content-Type');
-          if (contentType?.includes('application/json')) {
-            const errorData = await response.json();
-            errorMessage = errorData.message || errorData.error || errorMessage;
-          } else {
-            const errorText = await response.text();
-            errorMessage = errorText || errorMessage;
-          }
-        } catch (parseError) {
-          console.error('[Print-Grade PDF] Error parsing error response:', parseError);
-        }
-        throw new Error(errorMessage);
-      }
-
-      const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `banner-${order.id}-item-${index + 1}-print-grade.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-
-      toast({
-        title: 'Print-Grade PDF Downloaded',
-        description: 'High-quality print-ready PDF generated successfully.',
-      });
-    } catch (error) {
-      console.error('Error generating print-grade PDF:', error);
-      toast({
-        title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to generate print-grade PDF',
-        variant: 'destructive',
-      });
-    } finally {
-      setPrintPdfGenerating(prev => ({ ...prev, [index]: false }));
-    }
-  };
 
   // Handler for quality check modal
   const handleQualityCheck = (item: any) => {
@@ -697,23 +608,6 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                           </Button>
                         )}
                         
-                        {/* Print-Grade PDF Button (Beta) - Feature Flagged */}
-                        {isAdminUser && printPipelineEnabled && (item.file_key || item.print_ready_url || item.web_preview_url) && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handlePrintGradePdfDownload(item, index)}
-                            disabled={printPdfGenerating[index]}
-                            className="min-w-[60px] bg-gradient-to-r from-blue-50 to-purple-50 border-blue-300 hover:from-blue-100 hover:to-purple-100"
-                          >
-                            {printPdfGenerating[index] ? (
-                              <Loader2 className="h-3 w-3 mr-1 text-blue-600 animate-spin" />
-                            ) : (
-                              <Sparkles className="h-3 w-3 mr-1 text-blue-600" />
-                            )}
-                            {printPdfGenerating[index] ? 'Generating...' : 'Print PDF'}
-                          </Button>
-                        )}
 
                         {/* Quality Button - Feature Flagged */}
                         {isAdminUser && printPipelineEnabled && (item.file_key || item.print_ready_url || item.web_preview_url) && (
