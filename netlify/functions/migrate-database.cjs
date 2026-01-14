@@ -159,6 +159,16 @@ exports.handler = async (event, context) => {
       CHECK (username IS NULL OR LENGTH(TRIM(username)) > 0)
     `;
 
+    // 7. Add thumbnail_url column to order_items table
+    console.log('Adding thumbnail_url column to order_items...');
+    try {
+      await sql`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS thumbnail_url text`;
+      results.push('thumbnail_url column added to order_items');
+    } catch (thumbErr) {
+      console.log('thumbnail_url column may already exist:', thumbErr.message);
+      results.push('thumbnail_url column already exists');
+    }
+
     // Add constraint for username format (alphanumeric + underscore/dash)
     await sql`
       ALTER TABLE profiles 

@@ -283,6 +283,14 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
       // Otherwise we get double-rendering (main image + overlay = same image twice!)
       const isUsingOverlayAsMain = imageSource === overlayImageFileKey || imageSource === overlayImagesFileKey;
       
+      
+      console.log('[PDF Download] ======= OVERLAY-AS-MAIN DEBUG =======');
+      console.log('[PDF Download] imageSource:', imageSource);
+      console.log('[PDF Download] overlayImageFileKey:', overlayImageFileKey);
+      console.log('[PDF Download] isUsingOverlayAsMain:', isUsingOverlayAsMain);
+      console.log('[PDF Download] Will set fileKey to:', isUsingOverlayAsMain ? 'NULL (blank canvas)' : imageSource);
+      console.log('[PDF Download] Will pass overlayImage:', item.overlay_image ? 'YES with scale=' + item.overlay_image.scale : 'NO');
+      console.log('[PDF Download] =====================================');
       // CRITICAL: When using overlay as main, the stored transform was for overlay positioning,
       // NOT for full-banner scaling. We must reset these so the PDF renders correctly.
       const requestBody = {

@@ -787,7 +787,20 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   };
 
   // Generate thumbnail URL from order item image sources
+  // PRIORITY: Use stored thumbnail_url first (has correct design composition)
   const getThumbnailUrl = (item: any, maxWidth: number = 80) => {
+    // CRITICAL: Use thumbnail_url first - it contains the accurate rendered design
+    // with correct image positioning, overlays, text elements, and grommets
+    if (item.thumbnail_url) {
+      const thumbUrl = item.thumbnail_url;
+      // Apply Cloudinary transformation for sizing
+      if (thumbUrl.includes('res.cloudinary.com') && thumbUrl.includes('/upload/')) {
+        return thumbUrl.replace('/upload/', `/upload/w_${maxWidth},c_limit,f_auto,q_auto/`);
+      }
+      return thumbUrl;
+    }
+    
+    // Fallback to raw image sources (legacy orders without thumbnail_url)
     let imageUrl: string | null = null;
     
     if (item.web_preview_url) {
@@ -1128,7 +1141,20 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
   };
 
   // Generate thumbnail URL from order item image sources
+  // PRIORITY: Use stored thumbnail_url first (has correct design composition)
   const getThumbnailUrl = (item: any, maxWidth: number = 80) => {
+    // CRITICAL: Use thumbnail_url first - it contains the accurate rendered design
+    // with correct image positioning, overlays, text elements, and grommets
+    if (item.thumbnail_url) {
+      const thumbUrl = item.thumbnail_url;
+      // Apply Cloudinary transformation for sizing
+      if (thumbUrl.includes('res.cloudinary.com') && thumbUrl.includes('/upload/')) {
+        return thumbUrl.replace('/upload/', `/upload/w_${maxWidth},c_limit,f_auto,q_auto/`);
+      }
+      return thumbUrl;
+    }
+    
+    // Fallback to raw image sources (legacy orders without thumbnail_url)
     let imageUrl: string | null = null;
     
     if (item.web_preview_url) {
