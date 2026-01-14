@@ -259,12 +259,11 @@ async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textEleme
       });
 
       // Add the base image
+      // Add the base image - CRITICAL: Use stretch-to-fill, NOT contain/fit mode
+      // This matches the customer preview which uses preserveAspectRatio="xMidYMid slice"
       doc.image(imgBuffer, 0, 0, {
         width: pageWidthPt,
         height: pageHeightPt,
-        fit: [pageWidthPt, pageHeightPt],
-        align: 'center',
-        valign: 'center',
       });
 
       // Render text layers on top of the image
@@ -607,31 +606,15 @@ exports.handler = async (event) => {
     console.log(`[PDF] Preview canvas: ${previewW}×${previewH}px, scale factor: ${pxScale.toFixed(2)}`);
     
     // Calculate default transform if not provided
-    // For simple uploaded images without overlay, use "stretch to fill" mode
-    // This ensures the uploaded image fills the entire banner exactly
+    // CRITICAL FIX: ALWAYS use stretch-to-fill mode to match customer preview
+    // The preview uses preserveAspectRatio="xMidYMid slice" which fills the entire banner
+    // We must match this behavior exactly - no contain mode, no white margins
     let transform = req.transform;
     if (!transform) {
-      // Calculate aspect ratios
-      const srcAspect = srcW / srcH;
-      const canvasAspect = previewW / previewH;
-      const aspectDiff = Math.abs(srcAspect - canvasAspect) / canvasAspect;
-      
-      // If aspect ratios are within 10%, use stretch-to-fill (fill mode)
-      // This is the expected behavior for uploaded banner designs
-      if (aspectDiff < 0.1) {
-        // Stretch to fill - resize will handle the actual stretching
-        transform = { scale: 1, translateXpx: 0, translateYpx: 0, stretchToFill: true };
-        console.log(`[PDF] Using stretch-to-fill mode (aspect ratio diff: ${(aspectDiff * 100).toFixed(1)}%)`);
-      } else {
-        // Aspect ratios differ significantly - use contain mode (no cropping)
-        const scaleX = previewW / srcW;
-        const scaleY = previewH / srcH;
-        const scale = Math.min(scaleX, scaleY); // Contain mode - fit entire image without cropping
-        const translateXpx = (previewW - srcW * scale) / 2; // Center horizontally
-        const translateYpx = (previewH - srcH * scale) / 2; // Center vertically
-        transform = { scale, translateXpx, translateYpx };
-        console.log(`[PDF] Using contain mode: scale=${scale.toFixed(2)}, translate=(${translateXpx.toFixed(0)}, ${translateYpx.toFixed(0)})`);
-      }
+      // ALWAYS stretch to fill - this matches the customer preview behavior
+      // The customer saw their image filling the entire banner, so the PDF must do the same
+      transform = { scale: 1, translateXpx: 0, translateYpx: 0, stretchToFill: true };
+      console.log(`[PDF] Using stretch-to-fill mode (matching customer preview behavior)`);
     }
 
     // Handle stretch-to-fill mode vs. normal transform mode
