@@ -300,7 +300,9 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
         textElements: isUsingOverlayAsMain ? [] : (item.text_elements || []), // Text elements not relevant for overlay-as-main
         // CRITICAL: Skip overlayImage if we're already using it as the main image source
         overlayImage: isUsingOverlayAsMain ? null : (item.overlay_image || null),
-        canvasBackgroundColor: item.canvas_background_color || '#FFFFFF' // Canvas background color
+        canvasBackgroundColor: item.canvas_background_color || '#FFFFFF', // Canvas background color
+        imageScale: item.image_scale ?? 1,
+        imagePosition: item.image_position || { x: 0, y: 0 }
       };
 
       console.log('[PDF Download] Sending request:', requestBody);
