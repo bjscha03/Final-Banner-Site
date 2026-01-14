@@ -611,31 +611,35 @@ exports.handler = async (event) => {
     
     console.log(`[PDF] Customer design: imageScale=${imageScale}, imagePosition=${JSON.stringify(imagePosition)}`);
 
-    // Calculate image dimensions - first calculate base size to cover (xMidYMid slice behavior)
+    // CRITICAL FIX: Match PreviewCanvas.tsx - use container-based scaling
+    // imageScale=1 fills canvas, imageScale=0.5 = 50% of canvas
+    const containerW = Math.round(targetPxW * imageScale);
+    const containerH = Math.round(targetPxH * imageScale);
+    
+    // Use cover behavior within the container
     const imgAspect = srcW / srcH;
-    const canvasAspect = targetPxW / targetPxH;
+    const containerAspect = containerW / containerH;
     
     let scaledImageW, scaledImageH;
     
-    if (imgAspect > canvasAspect) {
-      scaledImageH = targetPxH;
-      scaledImageW = Math.round(targetPxH * imgAspect);
+    if (imgAspect > containerAspect) {
+      scaledImageH = containerH;
+      scaledImageW = Math.round(containerH * imgAspect);
     } else {
-      scaledImageW = targetPxW;
-      scaledImageH = Math.round(targetPxW / imgAspect);
+      scaledImageW = containerW;
+      scaledImageH = Math.round(containerW / imgAspect);
     }
     
-    // Apply customer scale factor
-    scaledImageW = Math.round(scaledImageW * imageScale);
-    scaledImageH = Math.round(scaledImageH * imageScale);
+    // Center container in canvas, then center image in container
+    const containerOffsetX = (targetPxW - containerW) / 2;
+    const containerOffsetY = (targetPxH - containerH) / 2;
+    const imageInContainerOffsetX = (containerW - scaledImageW) / 2;
+    const imageInContainerOffsetY = (containerH - scaledImageH) / 2;
     
-    // Calculate position - image is centered, then offset by position
-    const centerOffsetX = (targetPxW - scaledImageW) / 2;
-    const centerOffsetY = (targetPxH - scaledImageH) / 2;
-    const translateX = Math.round(centerOffsetX + (imagePosition.x * 0.01 * targetPxW));
-    const translateY = Math.round(centerOffsetY + (imagePosition.y * 0.01 * targetPxH));
+    const translateX = Math.round(containerOffsetX + imageInContainerOffsetX + (imagePosition.x * 0.01 * targetPxW));
+    const translateY = Math.round(containerOffsetY + imageInContainerOffsetY + (imagePosition.y * 0.01 * targetPxH));
     
-    console.log(`[PDF] Image: ${scaledImageW}x${scaledImageH}px at (${translateX}, ${translateY})`);
+    console.log(`[PDF] Container: ${containerW}x${containerH}px, Image: ${scaledImageW}x${scaledImageH}px at (${translateX}, ${translateY})`);
     const upscaledBuffer = await maybeUpscaleToFit(rotatedBuffer, scaledImageW, scaledImageH);
 
     const resizedBuffer = await sharp(upscaledBuffer)
