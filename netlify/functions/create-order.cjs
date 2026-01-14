@@ -385,6 +385,7 @@ exports.handler = async (event, context) => {
         console.log("[Create Order] Cleaned item file_key:", item.file_key, "file_url:", item.file_url ? item.file_url.substring(0, 80) : null);
         console.log('Inserting order item:', JSON.stringify(item, null, 2));
         console.log('Item details - width_in:', item.width_in, 'height_in:', item.height_in, 'file_key:', item.file_key, 'text_elements:', item.text_elements);
+        console.log('Item image positioning - image_scale:', item.image_scale, 'image_position:', JSON.stringify(item.image_position));
         try {
           // Convert pole_pockets to boolean for database (boolean column)
           const polePocketsValue = item.pole_pockets &&

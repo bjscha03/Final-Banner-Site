@@ -148,6 +148,7 @@ const AddToCartButton: React.FC<AddToCartButtonProps> = ({
       }
 
       // Extract quote data
+      console.log("🎯 AddToCart: imageScale=", quote.imageScale, "imagePosition=", quote.imagePosition);
       const quoteData = {
         widthIn: quote.widthIn,
         heightIn: quote.heightIn,
