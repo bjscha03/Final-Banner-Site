@@ -289,8 +289,8 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
         orderId: order.id,
         bannerWidthIn: item.width_in,
         bannerHeightIn: item.height_in,
-        fileKey: isCloudinaryKey ? imageSource : null,
-        imageUrl: isCloudinaryKey ? null : imageSource,
+        fileKey: isUsingOverlayAsMain ? null : (isCloudinaryKey ? imageSource : null),
+        imageUrl: isUsingOverlayAsMain ? null : (isCloudinaryKey ? null : imageSource),
         imageSource: item.print_ready_url ? 'print_ready' : (item.web_preview_url ? 'web_preview' : 'uploaded'),
         bleedIn: 0.125, // Standard 1/8" bleed
         targetDpi: 150, // High quality for print
@@ -298,8 +298,8 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
         transform: isUsingOverlayAsMain ? null : (item.transform || null),
         previewCanvasPx: isUsingOverlayAsMain ? null : (item.preview_canvas_px || null),
         textElements: isUsingOverlayAsMain ? [] : (item.text_elements || []), // Text elements not relevant for overlay-as-main
-        // CRITICAL: Skip overlayImage if we're already using it as the main image source
-        overlayImage: isUsingOverlayAsMain ? null : (item.overlay_image || null),
+        // Always pass overlayImage - when used as main, fileKey/imageUrl are null so PDF creates blank canvas
+        overlayImage: item.overlay_image || null, // Always pass overlay image for correct positioning
         canvasBackgroundColor: item.canvas_background_color || '#FFFFFF', // Canvas background color
         imageScale: item.image_scale ?? 1,
         imagePosition: item.image_position || { x: 0, y: 0 }
