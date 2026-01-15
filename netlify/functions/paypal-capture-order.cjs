@@ -238,7 +238,7 @@ exports.handler = async (event) => {
             id, order_id, width_in, height_in, quantity, material,
             grommets, rope_feet, pole_pockets, pole_pocket_position, pole_pocket_size, pole_pocket_cost_cents,
             line_total_cents, file_key, file_url, print_ready_url, web_preview_url,
-            text_elements, overlay_image
+            text_elements, overlay_image, thumbnail_url
           ) VALUES (
             ${randomUUID()},
             ${orderId},
@@ -258,7 +258,8 @@ exports.handler = async (event) => {
             ${item.print_ready_url || null},
             ${item.web_preview_url || null},
             ${item.text_elements ? JSON.stringify(item.text_elements) : '[]'},
-            ${item.overlay_image ? JSON.stringify(item.overlay_image) : null}
+            ${item.overlay_image ? JSON.stringify(item.overlay_image) : null},
+            ${item.thumbnail_url || null}
           )
         `;
       }

@@ -3,11 +3,22 @@ const { neon } = require('@neondatabase/serverless');
 // Generate a thumbnail URL from various image sources
 // Uses Cloudinary's URL transformation to resize images for email display
 function getThumbnailUrl(item, maxWidth = 300) {
-  // Priority order for image sources:
-  // 1. web_preview_url (AI-generated, already a Cloudinary URL)
-  // 2. print_ready_url (AI-generated, already a Cloudinary URL)
-  // 3. overlay_image.fileKey (uploaded image - needs to be converted to URL)
-  // 4. file_key (uploaded image - needs to be converted to URL)
+  // PRIORITY: Use thumbnail_url first - it contains the accurately rendered design
+  // with correct image positioning, overlays, text elements, and grommets baked in
+  if (item.thumbnail_url) {
+    const thumbUrl = item.thumbnail_url;
+    // Apply Cloudinary transformation for sizing if it is a Cloudinary URL
+    if (thumbUrl.includes("res.cloudinary.com") && thumbUrl.includes("/upload/")) {
+      return thumbUrl.replace("/upload/", "/upload/w_" + maxWidth + ",c_limit,f_auto,q_auto/");
+    }
+    // For other URLs, use Cloudinary fetch to resize
+    if (thumbUrl.startsWith("http") && !thumbUrl.includes("res.cloudinary.com")) {
+      return "https://res.cloudinary.com/dtrxl120u/image/fetch/w_" + maxWidth + ",c_limit,f_auto,q_auto/" + thumbUrl;
+    }
+    return thumbUrl;
+  }
+
+  // Fallback: Priority order for legacy orders without thumbnail_url:
   
   let imageUrl = null;
   
