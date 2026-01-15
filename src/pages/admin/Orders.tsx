@@ -267,31 +267,30 @@ const AdminOrders: React.FC = () => {
         isCloudinaryKey
       });
 
-      // CRITICAL: If using overlay_image.fileKey as main image, DON'T also pass overlayImage
-      // Otherwise we get double-rendering (main image + overlay = same image twice!)
-      const isUsingOverlayAsMain = imageSource === overlayImageFileKey || imageSource === overlayImagesFileKey;
+      // Check if user designed with OVERLAY positioning (blank canvas + positioned image)
+      const hasOverlayWithPosition = item.overlay_image && item.overlay_image.position && item.overlay_image.scale;
       
-      // CRITICAL: When using overlay as main, the stored transform was for overlay positioning,
-      // NOT for full-banner scaling. We must reset these so the PDF renders correctly.
+      // CRITICAL FIX: If user has overlay_image with position/scale, that IS their design!
+      const isOverlayOnlyDesign = hasOverlayWithPosition && !item.print_ready_url && !item.web_preview_url;
+      
+      console.log('[PDF DEBUG] Design type detection:', {hasOverlayWithPosition, isOverlayOnlyDesign});
+      
       const requestBody = {
         orderId: orderId,
         bannerWidthIn: item.width_in,
         bannerHeightIn: item.height_in,
-        fileKey: isCloudinaryKey ? imageSource : null,
-        imageUrl: isCloudinaryKey ? null : imageSource,
+        fileKey: isOverlayOnlyDesign ? null : (isCloudinaryKey ? imageSource : null),
+        imageUrl: isOverlayOnlyDesign ? null : (isCloudinaryKey ? null : imageSource),
         imageSource: item.print_ready_url ? 'print_ready' : (item.web_preview_url ? 'web_preview' : 'uploaded'),
-        includeBleed: false, // Generate PDF at exact banner dimensions without bleed margins
+        includeBleed: false,
         bleedIn: 0,
         targetDpi: 150,
-        // CRITICAL: When overlay is main image, DON'T use stored transform (it's for overlay positioning, not full-banner)
-        transform: isUsingOverlayAsMain ? null : (item.transform || null),
-        previewCanvasPx: isUsingOverlayAsMain ? null : (item.preview_canvas_px || null),
-        textElements: isUsingOverlayAsMain ? [] : (item.text_elements || []),
-        // CRITICAL: Skip overlayImage/overlayImages if we're already using it as the main image source
-        overlayImage: isUsingOverlayAsMain ? null : (item.overlay_image || null),
-        overlayImages: isUsingOverlayAsMain ? null : (item.overlay_images || null),
+        transform: isOverlayOnlyDesign ? null : (item.transform || null),
+        previewCanvasPx: isOverlayOnlyDesign ? null : (item.preview_canvas_px || null),
+        textElements: item.text_elements || [],
+        overlayImage: item.overlay_image || null,
+        overlayImages: item.overlay_images || null,
         canvasBackgroundColor: item.canvas_background_color || '#FFFFFF',
-        // Customer's image positioning from banner designer
         imageScale: item.image_scale ?? 1,
         imagePosition: item.image_position || { x: 0, y: 0 }
       };
