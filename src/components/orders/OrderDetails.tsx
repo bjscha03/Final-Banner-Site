@@ -90,6 +90,20 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
 
   // Generate thumbnail URL from order item image sources
   const getThumbnailUrl = (item: any, maxWidth: number = 200) => {
+    // CRITICAL: Use thumbnail_url first - it contains the accurate rendered design
+    // with correct image positioning, overlays, text elements, and grommets
+    if (item.thumbnail_url) {
+      const thumbUrl = item.thumbnail_url;
+      if (thumbUrl.includes("res.cloudinary.com") && thumbUrl.includes("/upload/")) {
+        return thumbUrl.replace("/upload/", `/upload/w_${maxWidth},c_limit,f_auto,q_auto/`);
+      }
+      if (thumbUrl.startsWith("http") && !thumbUrl.includes("res.cloudinary.com")) {
+        return `https://res.cloudinary.com/dtrxl120u/image/fetch/w_${maxWidth},c_limit,f_auto,q_auto/${thumbUrl}`;
+      }
+      return thumbUrl;
+    }
+
+    // Fallback to raw image sources (legacy orders without thumbnail_url)
     let imageUrl: string | null = null;
     
     if (item.web_preview_url) {
