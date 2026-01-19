@@ -867,6 +867,12 @@ exports.handler = async (event) => {
           .toBuffer();
         
         console.log('[PDF] Overlay resized successfully');
+        // Snap bottom/right edges: if overlay almost reaches edge, extend to fill gap
+        const bottomGap = targetPxH - (overlayTop + overlayHeightPx);
+        const rightGap = targetPxW - (overlayLeft + overlayWidthPx);
+        if (bottomGap > 0 && bottomGap < SNAP) { overlayHeightPx += bottomGap; console.log("[PDF] Extended height to fill bottom gap:", bottomGap); }
+        if (rightGap > 0 && rightGap < SNAP) { overlayWidthPx += rightGap; console.log("[PDF] Extended width to fill right gap:", rightGap); }
+        if ((bottomGap > 0 && bottomGap < SNAP) || (rightGap > 0 && rightGap < SNAP)) { overlayResized = await sharp(overlayBuffer).rotate().resize(overlayWidthPx, overlayHeightPx, { fit: "fill" }).toBuffer(); console.log("[PDF] Re-resized overlay to", overlayWidthPx, "x", overlayHeightPx); }
         
         // CRITICAL: Clip overlay to canvas bounds
         let finalLeft = overlayLeft, finalTop = overlayTop;
@@ -970,6 +976,12 @@ exports.handler = async (event) => {
               background: { r: 0, g: 0, b: 0, alpha: 0 }
             })
             .toBuffer();
+          // Snap bottom/right edges
+          const bottomGap2 = targetPxH - (overlayTop + overlayHeightPx);
+          const rightGap2 = targetPxW - (overlayLeft + overlayWidthPx);
+          if (bottomGap2 > 0 && bottomGap2 < SNAP2) { overlayHeightPx += bottomGap2; }
+          if (rightGap2 > 0 && rightGap2 < SNAP2) { overlayWidthPx += rightGap2; }
+          if ((bottomGap2 > 0 && bottomGap2 < SNAP2) || (rightGap2 > 0 && rightGap2 < SNAP2)) { overlayResized = await sharp(overlayBuffer).rotate().resize(overlayWidthPx, overlayHeightPx, { fit: "fill" }).toBuffer(); }
           
           // CRITICAL: Clip overlay to canvas bounds
           let finalLeft = overlayLeft, finalTop = overlayTop;
