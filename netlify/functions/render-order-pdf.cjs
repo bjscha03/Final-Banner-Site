@@ -544,7 +544,7 @@ exports.handler = async (event) => {
     console.log('[PDF] Design type:', hasBackgroundImage ? 'with background image' : 'text/overlay only');
 
     // includeBleed: if false, generate PDF at exact banner dimensions (no bleed margins)
-    const includeBleed = req.includeBleed !== false; // Default to true for backward compatibility
+    const includeBleed = req.includeBleed === true; // Default to false - exact banner size
     const bleedIn = includeBleed ? (req.bleedIn ?? 0.125) : 0;
     const targetDpi = req.targetDpi ?? chooseTargetDpi(req.bannerWidthIn, req.bannerHeightIn);
 
