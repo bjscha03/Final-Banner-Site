@@ -13,7 +13,7 @@ import {
   setHourInBusinessTz,
   getNextCutoffTime,
   getEstimatedDeliveryDate,
-  formatCountdown,
+
   formatDeliveryDate,
   BUSINESS_TIMEZONE,
   DeliveryConfig,
@@ -174,22 +174,6 @@ describe('deliveryTimeHelpers', () => {
     });
   });
 
-  describe('formatCountdown', () => {
-    it('formats hours and minutes', () => {
-      const ms = (5 * 60 + 12) * 60 * 1000; // 5h 12m
-      expect(formatCountdown(ms)).toBe('05h 12m');
-    });
-
-    it('formats with days for > 24h', () => {
-      const ms = (28 * 60 + 15) * 60 * 1000; // 28h 15m = 1d 4h 15m
-      expect(formatCountdown(ms)).toBe('1d 04h 15m');
-    });
-
-    it('returns 00h 00m for zero or negative', () => {
-      expect(formatCountdown(0)).toBe('00h 00m');
-      expect(formatCountdown(-1000)).toBe('00h 00m');
-    });
-  });
 
   describe('getNextCutoffTime', () => {
     it('returns today cutoff if before cutoff on business day', () => {

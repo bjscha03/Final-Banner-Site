@@ -7,7 +7,6 @@ import BannerEditorLayout from '@/components/design/BannerEditorLayout';
 import NewAIGenerationModal from '@/components/design/NewAIGenerationModal';
 import { useQuoteStore, MaterialKey } from '@/store/quote';
 import { useToast } from '@/components/ui/use-toast';
-import DeliveryCountdown from '@/components/DeliveryCountdown';
 
 const Design: React.FC = () => {
   const [aiModalOpen, setAiModalOpen] = useState(false);
@@ -90,14 +89,7 @@ const Design: React.FC = () => {
           icon={Palette}
         />
       </div>
-      
-      {/* Delivery Countdown - compact on mobile, normal on desktop */}
-      <div className="max-w-4xl mx-auto px-2 py-1 lg:px-4 lg:py-4">
-        <DeliveryCountdown compactMode className="lg:hidden" />
-        <div className="hidden lg:block">
-          <DeliveryCountdown />
-        </div>
-      </div>
+
       
       {/* Preview Disclaimer - more compact on mobile */}
       <div className="mx-2 lg:mx-8 my-1 lg:my-4">

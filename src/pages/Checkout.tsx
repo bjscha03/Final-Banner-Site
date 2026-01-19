@@ -21,7 +21,6 @@ import { useCheckoutContext } from '@/store/checkoutContext';
 import { cartSyncService } from '@/lib/cartSync';
 import { trackBeginCheckout, trackViewCart, trackFBInitiateCheckout } from '@/lib/analytics';
 import { trackPromoEvent } from '@/lib/posthog';
-import DeliveryCountdown from '@/components/DeliveryCountdown';
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
@@ -413,10 +412,6 @@ const Checkout: React.FC = () => {
             </div>
           </div>
 
-            {/* Delivery Countdown - centered below trust strip */}
-            <div className="mt-6 max-w-2xl mx-auto">
-              <DeliveryCountdown />
-            </div>
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
             {/* Order Summary - Takes 2 columns on large screens */}
             <div className="lg:col-span-2 space-y-6 w-full">

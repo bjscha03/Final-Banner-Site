@@ -247,26 +247,6 @@ export function getEstimatedDeliveryDate(
   return deliveryDate;
 }
 
-/**
- * Format countdown as "05h 12m" or "1d 04h 12m"
- */
-export function formatCountdown(ms: number): string {
-  if (ms <= 0) return '00h 00m';
-  
-  const totalMinutes = Math.floor(ms / (1000 * 60));
-  const totalHours = Math.floor(totalMinutes / 60);
-  const days = Math.floor(totalHours / 24);
-  const hours = totalHours % 24;
-  const minutes = totalMinutes % 60;
-  
-  if (days > 0) {
-    return `${days}d ${hours.toString().padStart(2, '0')}h ${minutes.toString().padStart(2, '0')}m`;
-  }
-  return `${hours.toString().padStart(2, '0')}h ${minutes.toString().padStart(2, '0')}m`;
-}
-
-/**
- * Format date for display (e.g., "Friday, Jan 9")
  */
 export function formatDeliveryDate(date: Date, userTimezone?: string): string {
   const tz = userTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone;

@@ -8,7 +8,6 @@ import TestimonialsSection from '@/components/TestimonialsSection';
 import WhyChooseUs from '@/components/WhyChooseUs';
 import PromoBanner from '@/components/PromoBanner';
 import PricingTable from '@/components/PricingTable';
-import DeliveryCountdown from '@/components/DeliveryCountdown';
 
 const Index: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -51,9 +50,6 @@ const Index: React.FC = () => {
   return (
     <Layout>
       <PromoBanner />
-      <div className="max-w-4xl mx-auto px-4 py-4">
-        <DeliveryCountdown />
-      </div>
       <HeroSection />
       <CompanySpotlight />
       <TestimonialsSection />
