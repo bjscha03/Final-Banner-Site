@@ -850,7 +850,7 @@ exports.handler = async (event) => {
         let overlayLeft = Math.round(bleedPx + overlayTopLeftX);
         let overlayTop = Math.round(bleedPx + overlayTopLeftY);
         // Snap to edge if within 50px threshold
-        const SNAP = 50;
+        const SNAP = 200; // Generous threshold for edge snapping
         if (overlayLeft > 0 && overlayLeft < SNAP) { overlayLeft = 0; console.log("[PDF] Snapped left to 0"); }
         if (overlayTop > 0 && overlayTop < SNAP) { overlayTop = 0; console.log("[PDF] Snapped top to 0"); }
         
@@ -870,9 +870,9 @@ exports.handler = async (event) => {
         // Snap bottom/right edges: if overlay almost reaches edge, extend to fill gap
         const bottomGap = targetPxH - (overlayTop + overlayHeightPx);
         const rightGap = targetPxW - (overlayLeft + overlayWidthPx);
-        if (bottomGap > 0 && bottomGap < SNAP) { overlayHeightPx += bottomGap; console.log("[PDF] Extended height to fill bottom gap:", bottomGap); }
-        if (rightGap > 0 && rightGap < SNAP) { overlayWidthPx += rightGap; console.log("[PDF] Extended width to fill right gap:", rightGap); }
-        if ((bottomGap > 0 && bottomGap < SNAP) || (rightGap > 0 && rightGap < SNAP)) { overlayResized = await sharp(overlayBuffer).rotate().resize(overlayWidthPx, overlayHeightPx, { fit: "fill" }).toBuffer(); console.log("[PDF] Re-resized overlay to", overlayWidthPx, "x", overlayHeightPx); }
+        if (bottomGap > 0 && (bottomGap < SNAP || bottomGap < targetPxH * 0.05)) { overlayHeightPx += bottomGap; console.log("[PDF] Extended height to fill bottom gap:", bottomGap); }
+        if (rightGap > 0 && (rightGap < SNAP || rightGap < targetPxW * 0.05)) { overlayWidthPx += rightGap; console.log("[PDF] Extended width to fill right gap:", rightGap); }
+        if ((bottomGap > 0 && (bottomGap < SNAP || bottomGap < targetPxH * 0.05)) || (rightGap > 0 && (rightGap < SNAP || rightGap < targetPxW * 0.05))) { overlayResized = await sharp(overlayBuffer).rotate().resize(overlayWidthPx, overlayHeightPx, { fit: "fill" }).toBuffer(); console.log("[PDF] Re-resized overlay to", overlayWidthPx, "x", overlayHeightPx); }
         
         // CRITICAL: Clip overlay to canvas bounds
         let finalLeft = overlayLeft, finalTop = overlayTop;
@@ -963,7 +963,7 @@ exports.handler = async (event) => {
           let overlayLeft = Math.round(bleedPx + overlayTopLeftX);
           let overlayTop = Math.round(bleedPx + overlayTopLeftY);
           // Snap to edge if within 50px threshold
-          const SNAP2 = 50;
+          const SNAP2 = 200;
           if (overlayLeft > 0 && overlayLeft < SNAP2) { overlayLeft = 0; console.log("[PDF] Snapped left to 0"); }
           if (overlayTop > 0 && overlayTop < SNAP2) { overlayTop = 0; console.log("[PDF] Snapped top to 0"); }
           
@@ -979,9 +979,9 @@ exports.handler = async (event) => {
           // Snap bottom/right edges
           const bottomGap2 = targetPxH - (overlayTop + overlayHeightPx);
           const rightGap2 = targetPxW - (overlayLeft + overlayWidthPx);
-          if (bottomGap2 > 0 && bottomGap2 < SNAP2) { overlayHeightPx += bottomGap2; }
-          if (rightGap2 > 0 && rightGap2 < SNAP2) { overlayWidthPx += rightGap2; }
-          if ((bottomGap2 > 0 && bottomGap2 < SNAP2) || (rightGap2 > 0 && rightGap2 < SNAP2)) { overlayResized = await sharp(overlayBuffer).rotate().resize(overlayWidthPx, overlayHeightPx, { fit: "fill" }).toBuffer(); }
+          if (bottomGap2 > 0 && (bottomGap2 < SNAP2 || bottomGap2 < targetPxH * 0.05)) { overlayHeightPx += bottomGap2; }
+          if (rightGap2 > 0 && (rightGap2 < SNAP2 || rightGap2 < targetPxW * 0.05)) { overlayWidthPx += rightGap2; }
+          if ((bottomGap2 > 0 && (bottomGap2 < SNAP2 || bottomGap2 < targetPxH * 0.05)) || (rightGap2 > 0 && (rightGap2 < SNAP2 || rightGap2 < targetPxW * 0.05))) { overlayResized = await sharp(overlayBuffer).rotate().resize(overlayWidthPx, overlayHeightPx, { fit: "fill" }).toBuffer(); }
           
           // CRITICAL: Clip overlay to canvas bounds
           let finalLeft = overlayLeft, finalTop = overlayTop;
