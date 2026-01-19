@@ -847,8 +847,12 @@ exports.handler = async (event) => {
         const overlayTopLeftY = (req.overlayImage.position.y / 100) * bannerAreaHeightPx;
         
         // Add bleed offset to get final position on canvas
-        const overlayLeft = Math.round(bleedPx + overlayTopLeftX);
-        const overlayTop = Math.round(bleedPx + overlayTopLeftY);
+        let overlayLeft = Math.round(bleedPx + overlayTopLeftX);
+        let overlayTop = Math.round(bleedPx + overlayTopLeftY);
+        // Snap to edge if within 50px threshold
+        const SNAP = 50;
+        if (overlayLeft > 0 && overlayLeft < SNAP) { overlayLeft = 0; console.log("[PDF] Snapped left to 0"); }
+        if (overlayTop > 0 && overlayTop < SNAP) { overlayTop = 0; console.log("[PDF] Snapped top to 0"); }
         
         console.log('[PDF] Overlay position on canvas:', overlayLeft, ',', overlayTop);
         
@@ -950,8 +954,12 @@ exports.handler = async (event) => {
           const overlayTopLeftX = (overlay.position.x / 100) * bannerAreaWidthPx;
           const overlayTopLeftY = (overlay.position.y / 100) * bannerAreaHeightPx;
           
-          const overlayLeft = Math.round(bleedPx + overlayTopLeftX);
-          const overlayTop = Math.round(bleedPx + overlayTopLeftY);
+          let overlayLeft = Math.round(bleedPx + overlayTopLeftX);
+          let overlayTop = Math.round(bleedPx + overlayTopLeftY);
+          // Snap to edge if within 50px threshold
+          const SNAP2 = 50;
+          if (overlayLeft > 0 && overlayLeft < SNAP2) { overlayLeft = 0; console.log("[PDF] Snapped left to 0"); }
+          if (overlayTop > 0 && overlayTop < SNAP2) { overlayTop = 0; console.log("[PDF] Snapped top to 0"); }
           
           // Resize overlay to target dimensions
           // CRITICAL: .rotate() with no args auto-rotates based on EXIF orientation
