@@ -854,7 +854,7 @@ exports.handler = async (event) => {
         
         // Resize overlay to target dimensions while maintaining aspect ratio
         // CRITICAL: .rotate() with no args auto-rotates based on EXIF orientation
-        const overlayResized = await sharp(overlayBuffer)
+        let overlayResized = await sharp(overlayBuffer)
           .rotate() // Auto-rotate based on EXIF orientation data
           .resize(overlayWidthPx, overlayHeightPx, {
             fit: 'contain', // Maintain aspect ratio
@@ -864,12 +864,20 @@ exports.handler = async (event) => {
         
         console.log('[PDF] Overlay resized successfully');
         
-        // Add overlay to composite layers
-        compositeLayers.push({
-          input: overlayResized,
-          top: overlayTop,
-          left: overlayLeft,
-        });
+        // CRITICAL: Clip overlay to canvas bounds
+        let finalLeft = overlayLeft, finalTop = overlayTop;
+        let cropLeft = 0, cropTop = 0, cropWidth = overlayWidthPx, cropHeight = overlayHeightPx;
+        if (finalLeft < 0) { cropLeft = -finalLeft; cropWidth -= cropLeft; finalLeft = 0; }
+        if (finalTop < 0) { cropTop = -finalTop; cropHeight -= cropTop; finalTop = 0; }
+        if (finalLeft + cropWidth > targetPxW) cropWidth = targetPxW - finalLeft;
+        if (finalTop + cropHeight > targetPxH) cropHeight = targetPxH - finalTop;
+        if (cropWidth > 0 && cropHeight > 0) {
+          if (cropLeft || cropTop || cropWidth !== overlayWidthPx || cropHeight !== overlayHeightPx) {
+            console.log('[PDF] Cropping overlay to', cropLeft, cropTop, cropWidth, cropHeight);
+            overlayResized = await sharp(overlayResized).extract({left:cropLeft,top:cropTop,width:cropWidth,height:cropHeight}).toBuffer();
+          }
+          compositeLayers.push({input: overlayResized, top: finalTop, left: finalLeft});
+        } else console.log('[PDF] Overlay outside canvas');
         
         console.log('[PDF] ✅ Overlay added to composite layers');
         console.log('[PDF] Total composite layers:', compositeLayers.length);
@@ -947,7 +955,7 @@ exports.handler = async (event) => {
           
           // Resize overlay to target dimensions
           // CRITICAL: .rotate() with no args auto-rotates based on EXIF orientation
-          const overlayResized = await sharp(overlayBuffer)
+          let overlayResized = await sharp(overlayBuffer)
             .rotate() // Auto-rotate based on EXIF orientation data
             .resize(overlayWidthPx, overlayHeightPx, {
               fit: 'contain',
@@ -955,12 +963,20 @@ exports.handler = async (event) => {
             })
             .toBuffer();
           
-          // Add overlay to composite layers
-          compositeLayers.push({
-            input: overlayResized,
-            top: overlayTop,
-            left: overlayLeft,
-          });
+          // CRITICAL: Clip overlay to canvas bounds
+          let finalLeft = overlayLeft, finalTop = overlayTop;
+          let cropLeft = 0, cropTop = 0, cropWidth = overlayWidthPx, cropHeight = overlayHeightPx;
+          if (finalLeft < 0) { cropLeft = -finalLeft; cropWidth -= cropLeft; finalLeft = 0; }
+          if (finalTop < 0) { cropTop = -finalTop; cropHeight -= cropTop; finalTop = 0; }
+          if (finalLeft + cropWidth > targetPxW) cropWidth = targetPxW - finalLeft;
+          if (finalTop + cropHeight > targetPxH) cropHeight = targetPxH - finalTop;
+          if (cropWidth > 0 && cropHeight > 0) {
+            if (cropLeft || cropTop || cropWidth !== overlayWidthPx || cropHeight !== overlayHeightPx) {
+              console.log('[PDF] Cropping overlay to', cropLeft, cropTop, cropWidth, cropHeight);
+              overlayResized = await sharp(overlayResized).extract({left:cropLeft,top:cropTop,width:cropWidth,height:cropHeight}).toBuffer();
+            }
+            compositeLayers.push({input: overlayResized, top: finalTop, left: finalLeft});
+          } else console.log('[PDF] Overlay outside canvas');
           
           console.log('[PDF] ✅ Overlay', i + 1, 'added at', overlayLeft, ',', overlayTop);
         } catch (overlayError) {
