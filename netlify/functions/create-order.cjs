@@ -399,7 +399,7 @@ exports.handler = async (event, context) => {
               INSERT INTO order_items (
                 id, order_id, width_in, height_in, quantity, material,
                 grommets, rope_feet, pole_pockets, pole_pocket_position, pole_pocket_size, pole_pocket_cost_cents,
-                line_total_cents, file_key, file_url, print_ready_url, web_preview_url, text_elements, overlay_image, overlay_images, canvas_background_color, image_scale, image_position, thumbnail_url
+                line_total_cents, file_key, file_url, print_ready_url, web_preview_url, text_elements, overlay_image, overlay_images, canvas_background_color, image_scale, image_position, thumbnail_url, final_render_url, final_render_file_key, final_render_width_px, final_render_height_px, final_render_dpi
               )
               VALUES (
                 ${randomUUID()},
@@ -425,7 +425,12 @@ exports.handler = async (event, context) => {
                 ${item.canvas_background_color || '#FFFFFF'},
                 ${item.image_scale ?? 1},
                 ${item.image_position ? JSON.stringify(item.image_position) : '{"x": 0, "y": 0}'},
-                ${item.thumbnail_url || null}
+                ${item.thumbnail_url || null},
+                ${item.final_render_url || null},
+                ${item.final_render_file_key || null},
+                ${item.final_render_width_px || null},
+                ${item.final_render_height_px || null},
+                ${item.final_render_dpi || null}
               )
             `;
           } catch (textElementsError) {

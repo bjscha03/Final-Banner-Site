@@ -89,6 +89,14 @@ export interface CartItem {
     };
   };
   created_at: string;
+
+  // Final render snapshot for pixel-perfect admin PDF generation
+  // These fields capture exactly what the user saw at checkout time
+  final_render_url?: string;           // Cloudinary URL of high-res canvas snapshot
+  final_render_file_key?: string;      // Cloudinary file key for direct access
+  final_render_width_px?: number;      // Width in pixels
+  final_render_height_px?: number;     // Height in pixels
+  final_render_dpi?: number;           // DPI used (typically 150)
 }
 
 export interface AuthoritativePricing {
@@ -356,6 +364,12 @@ export const useCartStore = create<CartState>()(
           artwork_width: quote.file?.artworkWidth,
           artwork_height: quote.file?.artworkHeight,
           created_at: new Date().toISOString(),
+          // FINAL_RENDER: High-res snapshot for admin PDF
+          final_render_url: (quote as any).finalRenderUrl || undefined,
+          final_render_file_key: (quote as any).finalRenderFileKey || undefined,
+          final_render_width_px: (quote as any).finalRenderWidthPx || undefined,
+          final_render_height_px: (quote as any).finalRenderHeightPx || undefined,
+          final_render_dpi: (quote as any).finalRenderDpi || undefined,
           ...(aiMetadata || {}),
         };
 
@@ -570,6 +584,12 @@ export const useCartStore = create<CartState>()(
           canvas_background_color: (quote as any).canvasBackgroundColor || '#FFFFFF',
           image_scale: quote.imageScale || 1,
           image_position: quote.imagePosition || { x: 0, y: 0 },
+          // FINAL_RENDER: High-res snapshot for admin PDF
+          final_render_url: (quote as any).finalRenderUrl || existingItem.final_render_url,
+          final_render_file_key: (quote as any).finalRenderFileKey || existingItem.final_render_file_key,
+          final_render_width_px: (quote as any).finalRenderWidthPx || existingItem.final_render_width_px,
+          final_render_height_px: (quote as any).finalRenderHeightPx || existingItem.final_render_height_px,
+          final_render_dpi: (quote as any).finalRenderDpi || existingItem.final_render_dpi,
           ...(aiMetadata || {}),
         };
 

@@ -13,6 +13,7 @@ import {
 import { uploadCanvasImageToCloudinary } from '@/utils/uploadCanvasImage';
 import { useEditorStore } from '@/store/editor';
 import { useQuoteStore } from '@/store/quote';
+import { generateFinalRender } from '@/utils/generateFinalRender';
 import { useCartStore } from '@/store/cart';
 import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
 import { 
@@ -1149,6 +1150,17 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     
     console.log('📝 [TEXT SYNC] Extracted text elements from editor:', textElementsFromEditor);
     console.log('📝 [TEXT SYNC] Old quote.textElements:', freshQuoteForCart.textElements);
+
+    // FINAL_RENDER: Generate high-res snapshot for admin PDF (NON-BLOCKING)
+    let finalRenderResult: { url: string; fileKey: string; widthPx: number; heightPx: number; dpi: number } | null = null;
+    try {
+      const stage = canvasRef.current?.getStage?.();
+      if (stage) {
+        console.log("[FINAL_RENDER] Generating snapshot...");
+        finalRenderResult = await generateFinalRender(stage, widthIn, heightIn);
+        if (finalRenderResult) { console.log("[FINAL_RENDER] Success"); }
+      }
+    } catch (err) { console.error("[FINAL_RENDER] Error:", err); }
     const quoteData = {
       widthIn: freshQuoteForCart.widthIn,
       heightIn: freshQuoteForCart.heightIn,
@@ -1170,6 +1182,12 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
         url: thumbnailUrl,
         name: `banner-${Date.now()}.png`
       } : freshQuoteForCart.file,
+      // FINAL_RENDER: High-res snapshot for admin PDF
+      finalRenderUrl: finalRenderResult?.url,
+      finalRenderFileKey: finalRenderResult?.fileKey,
+      finalRenderWidthPx: finalRenderResult?.widthPx,
+      finalRenderHeightPx: finalRenderResult?.heightPx,
+      finalRenderDpi: finalRenderResult?.dpi,
     };
     
     // DIAGNOSTIC: Show what we're about to save
