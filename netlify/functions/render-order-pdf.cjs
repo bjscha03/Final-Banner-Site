@@ -843,8 +843,10 @@ exports.handler = async (event) => {
         const bleedPx = bleedIn * targetDpi;
         
         // Calculate top-left position of overlay within banner area
-        const overlayTopLeftX = (req.overlayImage.position.x / 100) * bannerAreaWidthPx;
-        const overlayTopLeftY = (req.overlayImage.position.y / 100) * bannerAreaHeightPx;
+        const overlayCenterX = (req.overlayImage.position.x / 100) * bannerAreaWidthPx;
+        const overlayCenterY = (req.overlayImage.position.y / 100) * bannerAreaHeightPx;
+        const overlayTopLeftX = overlayCenterX - (overlayWidthPx / 2);
+        const overlayTopLeftY = overlayCenterY - (overlayHeightPx / 2);
         
         // Add bleed offset to get final position on canvas
         const overlayLeft = Math.round(bleedPx + overlayTopLeftX);
@@ -947,8 +949,10 @@ exports.handler = async (event) => {
           const bannerAreaHeightPx = req.bannerHeightIn * targetDpi;
           const bleedPx = bleedIn * targetDpi;
           
-          const overlayTopLeftX = (overlay.position.x / 100) * bannerAreaWidthPx;
-          const overlayTopLeftY = (overlay.position.y / 100) * bannerAreaHeightPx;
+          const overlayCenterX = (overlay.position.x / 100) * bannerAreaWidthPx;
+          const overlayCenterY = (overlay.position.y / 100) * bannerAreaHeightPx;
+          const overlayTopLeftX = overlayCenterX - (overlayWidthPx / 2);
+          const overlayTopLeftY = overlayCenterY - (overlayHeightPx / 2);
           
           const overlayLeft = Math.round(bleedPx + overlayTopLeftX);
           const overlayTop = Math.round(bleedPx + overlayTopLeftY);
