@@ -292,7 +292,8 @@ const AdminOrders: React.FC = () => {
         overlayImages: item.overlay_images || null,
         canvasBackgroundColor: item.canvas_background_color || '#FFFFFF',
         imageScale: item.image_scale ?? 1,
-        imagePosition: item.image_position || { x: 0, y: 0 }
+        imagePosition: item.image_position || { x: 0, y: 0 },
+        thumbnailUrl: item.thumbnail_url || null
       };
 
       console.log('🔴 PDF REQUEST:', JSON.stringify(requestBody, null, 2));
