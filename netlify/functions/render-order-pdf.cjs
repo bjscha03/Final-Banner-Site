@@ -544,7 +544,7 @@ exports.handler = async (event) => {
     console.log('[PDF] Design type:', hasBackgroundImage ? 'with background image' : 'text/overlay only');
 
     // includeBleed: if false, generate PDF at exact banner dimensions (no bleed margins)
-    const includeBleed = req.includeBleed === true; // Default to false - exact banner size
+    const includeBleed = req.includeBleed !== false; // Default to true for backward compatibility
     const bleedIn = includeBleed ? (req.bleedIn ?? 0.125) : 0;
     const targetDpi = req.targetDpi ?? chooseTargetDpi(req.bannerWidthIn, req.bannerHeightIn);
 
@@ -807,7 +807,7 @@ exports.handler = async (event) => {
         // overlayImage.position is percentage-based (0-100) relative to banner area
         
         // Get aspect ratio from overlay metadata or stored value
-        const overlayAspectRatio = overlaySourceW / overlaySourceH; // Always use actual image dimensions, ignore stored aspectRatio
+        const overlayAspectRatio = req.overlayImage.aspectRatio || (overlaySourceW / overlaySourceH);
         console.log('[PDF] Overlay aspect ratio:', overlayAspectRatio);
         
         // Calculate overlay dimensions matching BannerEditorLayout.tsx logic:
@@ -847,12 +847,8 @@ exports.handler = async (event) => {
         const overlayTopLeftY = (req.overlayImage.position.y / 100) * bannerAreaHeightPx;
         
         // Add bleed offset to get final position on canvas
-        let overlayLeft = Math.round(bleedPx + overlayTopLeftX);
-        let overlayTop = Math.round(bleedPx + overlayTopLeftY);
-        // Snap to edge if within 50px threshold
-        const SNAP = 200; const bawp = req.bannerWidthIn * targetDpi; const bahp = req.bannerHeightIn * targetDpi; if (overlayWidthPx >= bawp * 0.95 && overlayHeightPx >= bahp * 0.95) { console.log("[PDF] Full-bleed overlay"); overlayWidthPx = Math.round(bawp); overlayHeightPx = Math.round(bahp); overlayLeft = Math.round(bleedPx); overlayTop = Math.round(bleedPx); }
-        if (overlayLeft > 0 && overlayLeft < SNAP) { overlayLeft = 0; console.log("[PDF] Snapped left to 0"); }
-        if (overlayTop > 0 && overlayTop < SNAP) { overlayTop = 0; console.log("[PDF] Snapped top to 0"); }
+        const overlayLeft = Math.round(bleedPx + overlayTopLeftX);
+        const overlayTop = Math.round(bleedPx + overlayTopLeftY);
         
         console.log('[PDF] Overlay position on canvas:', overlayLeft, ',', overlayTop);
         
@@ -867,12 +863,6 @@ exports.handler = async (event) => {
           .toBuffer();
         
         console.log('[PDF] Overlay resized successfully');
-        // Snap bottom/right edges: if overlay almost reaches edge, extend to fill gap
-        const bottomGap = targetPxH - (overlayTop + overlayHeightPx);
-        const rightGap = targetPxW - (overlayLeft + overlayWidthPx);
-        if (bottomGap > 0 && (bottomGap < SNAP || bottomGap < targetPxH * 0.05)) { overlayHeightPx += bottomGap; console.log("[PDF] Extended height to fill bottom gap:", bottomGap); }
-        if (rightGap > 0 && (rightGap < SNAP || rightGap < targetPxW * 0.05)) { overlayWidthPx += rightGap; console.log("[PDF] Extended width to fill right gap:", rightGap); }
-        if ((bottomGap > 0 && (bottomGap < SNAP || bottomGap < targetPxH * 0.05)) || (rightGap > 0 && (rightGap < SNAP || rightGap < targetPxW * 0.05))) { overlayResized = await sharp(overlayBuffer).rotate().resize(overlayWidthPx, overlayHeightPx, { fit: "fill" }).toBuffer(); console.log("[PDF] Re-resized overlay to", overlayWidthPx, "x", overlayHeightPx); }
         
         // CRITICAL: Clip overlay to canvas bounds
         let finalLeft = overlayLeft, finalTop = overlayTop;
@@ -932,7 +922,7 @@ exports.handler = async (event) => {
           // - defaultWidthInches = 4
           // - widthInches = defaultWidthInches * scale (e.g., 4 * 6 = 24 inches)
           // - heightInches = widthInches / aspectRatio
-          const overlayAspectRatio = overlaySourceW / overlaySourceH; // Always use actual image dimensions
+          const overlayAspectRatio = overlay.aspectRatio || (overlaySourceW / overlaySourceH);
           const defaultWidthInches = 4;
           const overlayWidthIn = defaultWidthInches * overlay.scale;
           const overlayHeightIn = overlayWidthIn / overlayAspectRatio;
@@ -960,12 +950,8 @@ exports.handler = async (event) => {
           const overlayTopLeftX = (overlay.position.x / 100) * bannerAreaWidthPx;
           const overlayTopLeftY = (overlay.position.y / 100) * bannerAreaHeightPx;
           
-          let overlayLeft = Math.round(bleedPx + overlayTopLeftX);
-          let overlayTop = Math.round(bleedPx + overlayTopLeftY);
-          // Snap to edge if within 50px threshold
-          const SNAP2 = 200;
-          if (overlayLeft > 0 && overlayLeft < SNAP2) { overlayLeft = 0; console.log("[PDF] Snapped left to 0"); }
-          if (overlayTop > 0 && overlayTop < SNAP2) { overlayTop = 0; console.log("[PDF] Snapped top to 0"); }
+          const overlayLeft = Math.round(bleedPx + overlayTopLeftX);
+          const overlayTop = Math.round(bleedPx + overlayTopLeftY);
           
           // Resize overlay to target dimensions
           // CRITICAL: .rotate() with no args auto-rotates based on EXIF orientation
@@ -976,12 +962,6 @@ exports.handler = async (event) => {
               background: { r: 0, g: 0, b: 0, alpha: 0 }
             })
             .toBuffer();
-          // Snap bottom/right edges
-          const bottomGap2 = targetPxH - (overlayTop + overlayHeightPx);
-          const rightGap2 = targetPxW - (overlayLeft + overlayWidthPx);
-          if (bottomGap2 > 0 && (bottomGap2 < SNAP2 || bottomGap2 < targetPxH * 0.05)) { overlayHeightPx += bottomGap2; }
-          if (rightGap2 > 0 && (rightGap2 < SNAP2 || rightGap2 < targetPxW * 0.05)) { overlayWidthPx += rightGap2; }
-          if ((bottomGap2 > 0 && (bottomGap2 < SNAP2 || bottomGap2 < targetPxH * 0.05)) || (rightGap2 > 0 && (rightGap2 < SNAP2 || rightGap2 < targetPxW * 0.05))) { overlayResized = await sharp(overlayBuffer).rotate().resize(overlayWidthPx, overlayHeightPx, { fit: "fill" }).toBuffer(); }
           
           // CRITICAL: Clip overlay to canvas bounds
           let finalLeft = overlayLeft, finalTop = overlayTop;
