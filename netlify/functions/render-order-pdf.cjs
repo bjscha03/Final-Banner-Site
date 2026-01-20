@@ -543,7 +543,7 @@ exports.handler = async (event) => {
     
     console.log('[PDF] Design type:', hasBackgroundImage ? 'with background image' : 'text/overlay only');
 
-    if(req.finalRenderUrl||req.finalRenderFileKey){
+    if(req.finalRenderUrl||req.finalRenderFileKey||req.thumbnailUrl){
       console.log('[PDF] Using FINAL RENDER');
       try{
         let b;
