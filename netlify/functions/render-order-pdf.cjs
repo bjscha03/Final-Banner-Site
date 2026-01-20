@@ -543,12 +543,12 @@ exports.handler = async (event) => {
     
     console.log('[PDF] Design type:', hasBackgroundImage ? 'with background image' : 'text/overlay only');
 
-    if(req.finalRenderUrl||req.finalRenderFileKey){
+    if(req.finalRenderUrl||req.finalRenderFileKey||req.thumbnailUrl){
       console.log('[PDF] Using FINAL RENDER');
       try{
         let b;
         if(req.finalRenderFileKey){b=await fetchImage(req.finalRenderFileKey,true);}
-        else{b=await fetchImage(req.finalRenderUrl,false);}
+        else if(req.finalRenderUrl){b=await fetchImage(req.finalRenderUrl,false);}else{console.log("[PDF] Using thumbnailUrl");b=await fetchImage(req.thumbnailUrl,false);}
         const dpi=req.targetDpi||chooseTargetDpi(req.bannerWidthIn,req.bannerHeightIn);
         const w=req.bannerWidthIn;
         const h=req.bannerHeightIn;
