@@ -850,7 +850,7 @@ exports.handler = async (event) => {
         let overlayLeft = Math.round(bleedPx + overlayTopLeftX);
         let overlayTop = Math.round(bleedPx + overlayTopLeftY);
         // Snap to edge if within 50px threshold
-        const SNAP = 200; // Generous threshold for edge snapping
+        const SNAP = 200; const bawp = req.bannerWidthIn * targetDpi; const bahp = req.bannerHeightIn * targetDpi; if (overlayWidthPx >= bawp * 0.95 && overlayHeightPx >= bahp * 0.95) { console.log("[PDF] Full-bleed overlay"); overlayWidthPx = Math.round(bawp); overlayHeightPx = Math.round(bahp); overlayLeft = Math.round(bleedPx); overlayTop = Math.round(bleedPx); }
         if (overlayLeft > 0 && overlayLeft < SNAP) { overlayLeft = 0; console.log("[PDF] Snapped left to 0"); }
         if (overlayTop > 0 && overlayTop < SNAP) { overlayTop = 0; console.log("[PDF] Snapped top to 0"); }
         
