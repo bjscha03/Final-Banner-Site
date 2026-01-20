@@ -542,35 +542,6 @@ exports.handler = async (event) => {
     }
     
     console.log('[PDF] Design type:', hasBackgroundImage ? 'with background image' : 'text/overlay only');
-    // THUMBNAIL-FIRST: If thumbnailUrl provided, use it for exact design match
-    if (req.thumbnailUrl && req.thumbnailUrl.includes('cloudinary')) {
-      console.log('[PDF] Using thumbnailUrl:', req.thumbnailUrl);
-      try {
-        const thumbBuffer = await fetchImage(req.thumbnailUrl, false);
-        if (thumbBuffer) {
-          const incBleed = req.includeBleed !== false;
-          const bleed = incBleed ? (req.bleedIn || 0.125) : 0;
-          const dpi = req.targetDpi || chooseTargetDpi(req.bannerWidthIn, req.bannerHeightIn);
-          const wIn = req.bannerWidthIn + (bleed * 2);
-          const hIn = req.bannerHeightIn + (bleed * 2);
-          const wPx = Math.round(wIn * dpi);
-          const hPx = Math.round(hIn * dpi);
-          const resized = await sharp(thumbBuffer).resize(wPx, hPx, {fit:'fill'}).png().toBuffer();
-          const doc = new PDFDocument({size:[wIn*72,hIn*72],margin:0});
-          const chunks = [];
-          doc.on('data', c => chunks.push(c));
-          const done = new Promise(r => doc.on('end', () => r(Buffer.concat(chunks))));
-          doc.image(resized, 0, 0, {width:wIn*72, height:hIn*72});
-          if (incBleed) drawCropMarks(doc, req.bannerWidthIn, req.bannerHeightIn, bleed);
-          doc.end();
-          const pdf = await done;
-          console.log('[PDF] Thumbnail PDF done, size:', pdf.length);
-          return {statusCode:200, headers:{'Content-Type':'application/pdf'}, body:pdf.toString('base64'), isBase64Encoded:true};
-        }
-      } catch (e) { console.error('[PDF] Thumbnail failed:', e.message); }
-    }
-
-
 
     // includeBleed: if false, generate PDF at exact banner dimensions (no bleed margins)
     const includeBleed = req.includeBleed !== false; // Default to true for backward compatibility
