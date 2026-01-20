@@ -555,7 +555,7 @@ exports.handler = async (event) => {
         const pw=Math.round(w*dpi);
         const ph=Math.round(h*dpi);
         console.log('[PDF] Target:',pw,'x',ph);
-        let rb;const meta=await sharp(b).metadata();if(meta.width===pw&&meta.height===ph){rb=b;console.log('[PDF] Skip resize, already correct size');}else{rb=await sharp(b).resize(pw,ph,{fit:'fill'}).png().toBuffer();}
+        let rb;const meta=await sharp(b).metadata();if(meta.width===pw&&meta.height===ph){rb=b;console.log('[PDF] Skip resize, already correct size');}else{rb=await sharp(b).resize(pw,ph,{fit:'cover'}).png().toBuffer();}
         const pdw=w*72;
         const pdh=h*72;
         const ch=[];
