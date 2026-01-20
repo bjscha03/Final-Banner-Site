@@ -543,63 +543,6 @@ exports.handler = async (event) => {
     
     console.log('[PDF] Design type:', hasBackgroundImage ? 'with background image' : 'text/overlay only');
 
-    // FINAL_RENDER: If final_render_url is available, use it for pixel-perfect PDF
-    if (req.finalRenderUrl) {
-      console.log("[PDF][FINAL_RENDER] Using pre-rendered snapshot:", req.finalRenderUrl);
-      try {
-        const finalRenderBuffer = await fetchImage(req.finalRenderUrl, false);
-        if (finalRenderBuffer) {
-          console.log("[PDF][FINAL_RENDER] Snapshot fetched successfully");
-          const targetDpi = req.targetDpi ?? chooseTargetDpi(req.bannerWidthIn, req.bannerHeightIn);
-          const includeBleed = req.includeBleed !== false;
-          const bleedIn = includeBleed ? (req.bleedIn ?? 0.125) : 0;
-          const finalWidthIn = req.bannerWidthIn + (bleedIn * 2);
-          const finalHeightIn = req.bannerHeightIn + (bleedIn * 2);
-          const targetPxW = Math.round(finalWidthIn * targetDpi);
-          const targetPxH = Math.round(finalHeightIn * targetDpi);
-          
-          const resizedBuffer = await sharp(finalRenderBuffer)
-            .resize(targetPxW, targetPxH, { fit: "fill" })
-            .png()
-            .toBuffer();
-          
-          const doc = new PDFDocument({
-            size: [finalWidthIn * 72, finalHeightIn * 72],
-            margin: 0,
-          });
-          const chunks = [];
-          doc.on("data", (chunk) => chunks.push(chunk));
-          
-          const pdfPromise = new Promise((resolve) => {
-            doc.on("end", () => resolve(Buffer.concat(chunks)));
-          });
-          
-          doc.image(resizedBuffer, 0, 0, {
-            width: finalWidthIn * 72,
-            height: finalHeightIn * 72,
-          });
-          
-          if (includeBleed) {
-            drawCropMarks(doc, req.bannerWidthIn, req.bannerHeightIn, bleedIn);
-          }
-          
-          doc.end();
-          const pdfBuffer = await pdfPromise;
-          console.log("[PDF][FINAL_RENDER] PDF generated successfully, size:", pdfBuffer.length);
-          
-          return {
-            statusCode: 200,
-            headers: { "Content-Type": "application/pdf" },
-            body: pdfBuffer.toString("base64"),
-            isBase64Encoded: true,
-          };
-        }
-      } catch (err) {
-        console.error("[PDF][FINAL_RENDER] Error, falling back:", err.message);
-      }
-    }
-
-
     // includeBleed: if false, generate PDF at exact banner dimensions (no bleed margins)
     const includeBleed = req.includeBleed !== false; // Default to true for backward compatibility
     const bleedIn = includeBleed ? (req.bleedIn ?? 0.125) : 0;
