@@ -543,48 +543,33 @@ exports.handler = async (event) => {
     
     console.log('[PDF] Design type:', hasBackgroundImage ? 'with background image' : 'text/overlay only');
 
-    // ========== PRIORITY 1: Use finalRenderUrl if available (pixel-perfect snapshot) ==========
-    if (req.finalRenderUrl || req.finalRenderFileKey) {
-      console.log('[PDF] Using FINAL RENDER snapshot - pixel-perfect customer design');
-      console.log('[PDF] finalRenderUrl:', req.finalRenderUrl);
-      console.log('[PDF] finalRenderFileKey:', req.finalRenderFileKey);
-      
-      try {
-        // Fetch the final render image
-        let finalRenderBuffer;
-        if (req.finalRenderFileKey) {
-          finalRenderBuffer = await fetchImage(req.finalRenderFileKey, true);
-        } else {
-          finalRenderBuffer = await fetchImage(req.finalRenderUrl, false);
-        }
-        
-        // Get dimensions and resize to target
-        const frTargetDpi = req.targetDpi || chooseTargetDpi(req.bannerWidthIn, req.ba        const frTargetDpi = req.targetDpi || chnnerWidthIn;
-        const frHeightIn = req.bannerHeightIn;
-        const frTargetPxW = Math.round(frWidthIn * frTargetDpi);
-        const frTargetPx        const frTargetPx        const frTargetPx        const frTargetPx        const frTargetPxar        const frTargetPx        const frTargetPx      ;
-        
-        // Resize final render to target dimensions
-        const frResizedBuff        const frResizedBuff        const frResizedBuff      etPx        const frResizedBuff        const frResizedBuff        const f();         
-        /        /        /        /        /            /        /        /  dthIn * 72;
-        const frPdfHeightPts        const frPdfHeightPts        const frPdfHeightPts        const frPdfHc = new PDFDocument        const frPdfHeightPts        const frPdfHeightPts        const fr('d        hu    => fr        const frPdfHeightPts        const frPrP        const frPdfHeightPts        const frPdfHeightPts        const frPdfHeightPts        const frPdfHc = new PDFDocument        const frPdfHe f        const frPdfHeightPts        const              const frPdfHeightPts        const frPdfHeightPts       ncat(frChunks);
-        console.log('[PDF] Generated using FINAL RENDER, size:', frPdfBuffer.length);
-        
-        return {
-          statusCode: 200,
-          headers: {
-            'Content-Type': 'application/pdf',
-            'Content-Disposition': 'attachment; filename=banner-order-' + req.orderId + '.pdf',
-          },
-          body: frPdfBuffer.toString('base64'),
-          isBase64Encoded: true,
-        };
-      } catch (finalRenderErr) {
-        console.error('[PDF] Final render failed, falling back to reconstruction:', finalRenderErr.message);
-        // Fall through to reconstruction logic
-      }
+    if(req.finalRenderUrl||req.finalRenderFileKey){
+      console.log('[PDF] Using FINAL RENDER');
+      try{
+        let b;
+        if(req.finalRenderFileKey){b=await fetchImage(req.finalRenderFileKey,true);}
+        else{b=await fetchImage(req.finalRenderUrl,false);}
+        const dpi=req.targetDpi||chooseTargetDpi(req.bannerWidthIn,req.bannerHeightIn);
+        const w=req.bannerWidthIn;
+        const h=req.bannerHeightIn;
+        const pw=Math.round(w*dpi);
+        const ph=Math.round(h*dpi);
+        console.log('[PDF] Target:',pw,'x',ph);
+        const rb=await sharp(b).resize(pw,ph,{fit:'fill'}).png().toBuffer();
+        const pdw=w*72;
+        const pdh=h*72;
+        const ch=[];
+        const doc=new PDFDocument({size:[pdw,pdh],margin:0});
+        doc.on('data',(c)=>ch.push(c));
+        const done=new Promise((r)=>doc.on('end',r));
+        doc.image(rb,0,0,{width:pdw,height:pdh});
+        doc.end();
+        await done;
+        const pdf=Buffer.concat(ch);
+        console.log('[PDF] Done:',pdf.length);
+        return{statusCode:200,headers:{"Content-Type":"application/pdf","Content-Disposition":"attachment; filename=banner-"+req.orderId+".pdf"},body:pdf.toString('base64'),isBase64Encoded:true};
+      }catch(e){console.error('[PDF] FR fail:',e.message);}
     }
-    // ========== END FINAL RENDER PRIORITY ==========
 
 
     // includeBleed: if false, generate PDF at exact banner dimensions (no bleed margins)
