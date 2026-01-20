@@ -548,14 +548,14 @@ exports.handler = async (event) => {
       try{
         let b;
         if(req.finalRenderFileKey){b=await fetchImage(req.finalRenderFileKey,true);}
-        else if(req.finalRenderUrl){b=await fetchImage(req.finalRenderUrl,false);}else{console.log("[PDF] Using thumbnailUrl");b=await fetchImage(req.thumbnailUrl,false);}
+        else if(req.finalRenderUrl){b=await fetchImage(req.finalRenderUrl,false);}else{console.log("[PDF] Using thumbnailUrl");let url=req.thumbnailUrl;const pw2=Math.round(req.bannerWidthIn*(req.targetDpi||150));const ph2=Math.round(req.bannerHeightIn*(req.targetDpi||150));if(url.includes("cloudinary.com")&&url.includes("/upload/")){url=url.replace("/upload/","/upload/w_"+pw2+",h_"+ph2+",c_fill/");console.log("[PDF] Cloudinary optimized URL:",url);}b=await fetchImage(url,false);}
         const dpi=req.targetDpi||chooseTargetDpi(req.bannerWidthIn,req.bannerHeightIn);
         const w=req.bannerWidthIn;
         const h=req.bannerHeightIn;
         const pw=Math.round(w*dpi);
         const ph=Math.round(h*dpi);
         console.log('[PDF] Target:',pw,'x',ph);
-        const rb=await sharp(b).resize(pw,ph,{fit:'fill'}).png().toBuffer();
+        let rb;const meta=await sharp(b).metadata();if(meta.width===pw&&meta.height===ph){rb=b;console.log('[PDF] Skip resize, already correct size');}else{rb=await sharp(b).resize(pw,ph,{fit:'fill'}).png().toBuffer();}
         const pdw=w*72;
         const pdh=h*72;
         const ch=[];
