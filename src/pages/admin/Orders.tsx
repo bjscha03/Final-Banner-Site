@@ -279,6 +279,13 @@ const AdminOrders: React.FC = () => {
         orderId: orderId,
         bannerWidthIn: item.width_in,
         bannerHeightIn: item.height_in,
+        // PRIORITY 1: Use final_render if available (pixel-perfect snapshot of customer design)
+        finalRenderUrl: item.final_render_url || null,
+        finalRenderFileKey: item.final_render_file_key || null,
+        finalRenderWidthPx: item.final_render_width_px || null,
+        finalRenderHeightPx: item.final_render_height_px || null,
+        finalRenderDpi: item.final_render_dpi || null,
+        // FALLBACK: Reconstruction data for older orders without final_render
         fileKey: isOverlayOnlyDesign ? null : (isCloudinaryKey ? imageSource : null),
         imageUrl: isOverlayOnlyDesign ? null : (isCloudinaryKey ? null : imageSource),
         imageSource: item.print_ready_url ? 'print_ready' : (item.web_preview_url ? 'web_preview' : 'uploaded'),

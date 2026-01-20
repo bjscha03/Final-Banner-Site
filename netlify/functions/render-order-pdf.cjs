@@ -543,6 +543,50 @@ exports.handler = async (event) => {
     
     console.log('[PDF] Design type:', hasBackgroundImage ? 'with background image' : 'text/overlay only');
 
+    // ========== PRIORITY 1: Use finalRenderUrl if available (pixel-perfect snapshot) ==========
+    if (req.finalRenderUrl || req.finalRenderFileKey) {
+      console.log('[PDF] Using FINAL RENDER snapshot - pixel-perfect customer design');
+      console.log('[PDF] finalRenderUrl:', req.finalRenderUrl);
+      console.log('[PDF] finalRenderFileKey:', req.finalRenderFileKey);
+      
+      try {
+        // Fetch the final render image
+        let finalRenderBuffer;
+        if (req.finalRenderFileKey) {
+          finalRenderBuffer = await fetchImage(req.finalRenderFileKey, true);
+        } else {
+          finalRenderBuffer = await fetchImage(req.finalRenderUrl, false);
+        }
+        
+        // Get dimensions and resize to target
+        const frTargetDpi = req.targetDpi || chooseTargetDpi(req.bannerWidthIn, req.ba        const frTargetDpi = req.targetDpi || chnnerWidthIn;
+        const frHeightIn = req.bannerHeightIn;
+        const frTargetPxW = Math.round(frWidthIn * frTargetDpi);
+        const frTargetPx        const frTargetPx        const frTargetPx        const frTargetPx        const frTargetPxar        const frTargetPx        const frTargetPx      ;
+        
+        // Resize final render to target dimensions
+        const frResizedBuff        const frResizedBuff        const frResizedBuff      etPx        const frResizedBuff        const frResizedBuff        const f();         
+        /        /        /        /        /            /        /        /  dthIn * 72;
+        const frPdfHeightPts        const frPdfHeightPts        const frPdfHeightPts        const frPdfHc = new PDFDocument        const frPdfHeightPts        const frPdfHeightPts        const fr('d        hu    => fr        const frPdfHeightPts        const frPrP        const frPdfHeightPts        const frPdfHeightPts        const frPdfHeightPts        const frPdfHc = new PDFDocument        const frPdfHe f        const frPdfHeightPts        const              const frPdfHeightPts        const frPdfHeightPts       ncat(frChunks);
+        console.log('[PDF] Generated using FINAL RENDER, size:', frPdfBuffer.length);
+        
+        return {
+          statusCode: 200,
+          headers: {
+            'Content-Type': 'application/pdf',
+            'Content-Disposition': 'attachment; filename=banner-order-' + req.orderId + '.pdf',
+          },
+          body: frPdfBuffer.toString('base64'),
+          isBase64Encoded: true,
+        };
+      } catch (finalRenderErr) {
+        console.error('[PDF] Final render failed, falling back to reconstruction:', finalRenderErr.message);
+        // Fall through to reconstruction logic
+      }
+    }
+    // ========== END FINAL RENDER PRIORITY ==========
+
+
     // includeBleed: if false, generate PDF at exact banner dimensions (no bleed margins)
     const includeBleed = req.includeBleed !== false; // Default to true for backward compatibility
     const bleedIn = includeBleed ? (req.bleedIn ?? 0.125) : 0;
