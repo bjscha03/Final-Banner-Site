@@ -24,7 +24,6 @@ export interface CartItem {
   pole_pocket_position?: string;      // pole pocket position (e.g., "top", "bottom", "top-bottom")
   rope_feet: number;
   area_sqft: number;
-  reinforced_edges: boolean;          // Hem/reinforced edges (free option)
 
   // Authoritative pricing fields captured at Add to Cart time
   unit_price_cents: number;           // base banner price per item
@@ -293,7 +292,6 @@ export const useCartStore = create<CartState>()(
           pole_pocket_position: quote.polePockets,
           rope_feet: ropeFeet,
           area_sqft: area,
-          reinforced_edges: quote.reinforcedEdges !== false, // Default true
           unit_price_cents,
           rope_cost_cents,
           rope_pricing_mode,
@@ -559,7 +557,6 @@ export const useCartStore = create<CartState>()(
           pole_pocket_position: quote.polePockets,
           rope_feet: ropeFeet,
           area_sqft: area,
-          reinforced_edges: quote.reinforcedEdges !== false, // Default true
           unit_price_cents,
           rope_cost_cents,
           rope_pricing_mode,

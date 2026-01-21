@@ -1,5 +1,3 @@
-import { calculateMultiBannerDiscountCents, getMultiBannerDiscountMessage } from './multi-banner-discount';
-
 /**
  * Single source of truth for cart pricing calculations
  * All UI surfaces must use computeCartTotals() to ensure consistency
@@ -46,8 +44,6 @@ export interface CartTotals {
   // Cart-level totals
   subtotalCents: MoneyCents;     // sum of all line totals
   discountsCents: MoneyCents;    // applied discounts
-  multiBannerDiscountCents: MoneyCents; // 5% off additional banners
-  multiBannerDiscountMessage: string | null; // display message
   subtotalAfterDiscountsCents: MoneyCents; // subtotal - discounts
   taxCents: MoneyCents;          // tax on subtotal after discounts
   shippingCents: MoneyCents;     // shipping cost
@@ -105,14 +101,7 @@ export const computeCartTotals = (cart: Cart): CartTotals => {
     itemTotals.reduce((sum, item) => sum + item.lineTotalCents, 0)
   );
 
-  
-  // Calculate multi-banner discount (5% off each additional banner)
-  const multiBannerDiscountCents = calculateMultiBannerDiscountCents(
-    itemTotals.map(item => ({ line_total_cents: item.lineTotalCents }))
-  );
-  const multiBannerDiscountMessage = getMultiBannerDiscountMessage(cart.items.length);
-
-  const discountsCents = (cart.discountsCents ?? 0) + multiBannerDiscountCents;
+  const discountsCents = cart.discountsCents ?? 0;
   const subtotalAfterDiscountsCents = roundToCents(subtotalCents - discountsCents);
 
   // Tax is calculated on subtotal after discounts
@@ -125,8 +114,6 @@ export const computeCartTotals = (cart: Cart): CartTotals => {
     itemTotals,
     subtotalCents,
     discountsCents,
-    multiBannerDiscountCents,
-    multiBannerDiscountMessage,
     subtotalAfterDiscountsCents,
     taxCents,
     shippingCents,
