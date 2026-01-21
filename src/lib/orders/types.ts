@@ -17,6 +17,7 @@ export interface OrderItem {
   rope_cost_cents?: number;
   rope_pricing_mode?: 'per_item' | 'per_order';
   area_sqft: number;
+  reinforced_edges?: boolean;
   unit_price_cents: number;
   line_total_cents: number;
   file_key?: string;

@@ -45,6 +45,7 @@ export interface QuoteState {
   polePockets: string;
   polePocketSize: PolePocketSize;
   addRope: boolean;
+  reinforcedEdges: boolean; // Hem/reinforced edges option (free, default: true)
   previewScalePct: number;
   textElements: TextElement[];
   editingItemId?: string | null; // ID of cart item being edited, if any
@@ -122,6 +123,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
   polePockets: 'none',
   polePocketSize: '2',
   addRope: false, // Preserve rope selection
+  reinforcedEdges: true, // Default to reinforced edges (best practice, free)
   previewScalePct: 100,
   textElements: [],
   editingItemId: null,
@@ -200,6 +202,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
       polePockets: item.pole_pocket_position || item.pole_pockets || 'none',
       polePocketSize: item.pole_pocket_size || '2',
       addRope: item.rope_feet > 0,
+      reinforcedEdges: item.reinforced_edges !== false, // Default true if not specified
       textElements: migratedTextElements,
       editingItemId: editingItemId || null, // Preserve editingItemId if provided
       // CRITICAL FIX: Don't load file as background if there's an overlay_image OR text elements
@@ -352,6 +355,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
     polePockets: 'none',
     polePocketSize: '2',
     addRope: false,
+    reinforcedEdges: true,
     previewScalePct: 100,
     textElements: [],
     editingItemId: null,

@@ -26,7 +26,7 @@ const polePocketSizeOptions = [
 ];
 
 const OptionsCard: React.FC = () => {
-  const { polePockets, polePocketSize, addRope, grommets, widthIn, heightIn, quantity, set } = useQuoteStore();
+  const { polePockets, polePocketSize, addRope, grommets, reinforcedEdges, widthIn, heightIn, quantity, set } = useQuoteStore();
   const [showPolePocketInfo, setShowPolePocketInfo] = useState(false);
   const [showRopeInfo, setShowRopeInfo] = useState(false);
 
@@ -264,6 +264,35 @@ const OptionsCard: React.FC = () => {
               </div>
             )}
           </div>
+        </div>
+
+        
+        {/* Reinforced Edges Section */}
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <span className="text-sm">🔲</span>
+            <h3 className="text-sm font-medium text-gray-700">Reinforced Edges</h3>
+          </div>
+          <div className="flex items-center space-x-3">
+            <Checkbox
+              id="reinforced-edges"
+              checked={reinforcedEdges}
+              onCheckedChange={(checked) => set({ reinforcedEdges: checked as boolean })}
+            />
+            <label htmlFor="reinforced-edges" className="text-sm text-gray-700 cursor-pointer flex-1">
+              Hem / Reinforced Edges (Free)
+            </label>
+          </div>
+          {reinforcedEdges && (
+            <div className="mt-3 bg-green-50 p-3 rounded-lg">
+              <div className="text-xs font-medium text-green-800">
+                ✓ Reinforced edges included at no extra charge
+              </div>
+              <div className="text-xs text-green-700 mt-1">
+                Your banner edges will be heat-sealed and reinforced for durability.
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Rope Section */}

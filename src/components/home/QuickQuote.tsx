@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Minus, Plus, ArrowRight, Truck, Zap, Package, Palette, DollarSign, Check, Hash, Ruler } from 'lucide-react';
 import { MaterialKey } from '@/store/quote';
 import { calcTotals, usd, formatArea, PRICE_PER_SQFT, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
+import { calculateQuickQuoteDiscountCents, getMultiBannerPromoMessage } from '@/lib/multi-banner-discount';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -246,6 +247,10 @@ const QuickQuote: React.FC = () => {
 
         showMinOrderAdjustment = featureFlagTotals.min_order_adjustment_cents > 0;
         minOrderAdjustmentCents = featureFlagTotals.min_order_adjustment_cents;
+
+        // Calculate multi-banner discount
+        const unitPriceCents = Math.round(baseTotals.materialTotal * 100 / quantity);
+        const multiBannerDiscountCents = calculateQuickQuoteDiscountCents(unitPriceCents, quantity);
       }
 
       return {
