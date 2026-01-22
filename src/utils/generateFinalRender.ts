@@ -6,7 +6,7 @@ import Konva from 'konva';
 import { uploadCanvasImageToCloudinary } from './uploadCanvasImage';
 
 const TARGET_DPI = 150;
-const SCREEN_DPI = 96;
+const PIXELS_PER_INCH = 96; // Screen DPI - matches EditorCanvas.tsx
 
 export interface FinalRenderResult {
   url: string;
@@ -25,8 +25,7 @@ export async function generateFinalRender(
     console.log('[FINAL_RENDER] Starting high-resolution snapshot...');
     console.log('[FINAL_RENDER] Banner dimensions:', widthIn, 'x', heightIn, 'inches');
 
-    // Get the layer and background rect to find the exact banner bounds
-    // This matches how generateThumbnail works in BannerEditorLayout.tsx
+    // Get the layer
     const layer = stage.getLayers()[0];
     if (!layer) {
       console.error('[FINAL_RENDER] No layer found');
@@ -74,30 +73,43 @@ export async function generateFinalRender(
       return null;
     }
 
-    // Get the actual position and size of the banner area
+    // Get the position and SCALED size of the banner area on screen
     const x = backgroundRect.x();
     const y = backgroundRect.y();
-    const canvasWidth = backgroundRect.width();
-    const canvasHeight = backgroundRect.height();
+    const scaledWidth = backgroundRect.width();
+    const scaledHeight = backgroundRect.height();
 
-    console.log('[FINAL_RENDER] Banner bounds:', { x, y, width: canvasWidth, height: canvasHeight });
+    // Calculate the actual banner dimensions in pixels at screen DPI
+    const fullWidthPx = widthIn * PIXELS_PER_INCH;
+    const fullHeightPx = heightIn * PIXELS_PER_INCH;
 
-    // Calculate pixelRatio to achieve target DPI
-    // The canvas renders at screen DPI, we want to upscale for print
-    const pixelRatio = TARGET_DPI / SCREEN_DPI;
-    const widthPx = Math.round(widthIn * TARGET_DPI);
-    const heightPx = Math.round(heightIn * TARGET_DPI);
+    // Calculate the current scale factor (how much the canvas is scaled down to fit screen)
+    const currentScale = scaledWidth / fullWidthPx;
 
-    console.log('[FINAL_RENDER] Target output:', widthPx, 'x', heightPx, 'px at', TARGET_DPI, 'DPI');
-    console.log('[FINAL_RENDER] Using pixelRatio:', pixelRatio);
+    console.log('[FINAL_RENDER] Scaled bounds on screen:', { x, y, width: scaledWidth, height: scaledHeight });
+    console.log('[FINAL_RENDER] Current display scale:', currentScale);
+    console.log('[FINAL_RENDER] Full size at 96 DPI:', fullWidthPx, 'x', fullHeightPx, 'px');
+
+    // Calculate target output dimensions at print DPI
+    const targetWidthPx = Math.round(widthIn * TARGET_DPI);
+    const targetHeightPx = Math.round(heightIn * TARGET_DPI);
+
+    // Calculate the pixelRatio needed to achieve target DPI output
+    // We need to account for the current scale of the canvas
+    // pixelRatio = (targetDPI / screenDPI) / currentScale
+    // This gives us the correct upscale factor to achieve print resolution
+    const pixelRatio = (TARGET_DPI / PIXELS_PER_INCH) / currentScale;
+
+    console.log('[FINAL_RENDER] Target output:', targetWidthPx, 'x', targetHeightPx, 'px at', TARGET_DPI, 'DPI');
+    console.log('[FINAL_RENDER] Using pixelRatio:', pixelRatio.toFixed(4));
 
     // CRITICAL: Capture ONLY the banner area using x, y, width, height
-    // This ensures the PDF matches exactly what the customer designed
+    // The pixelRatio accounts for both the current scale AND the DPI upscale
     const dataUrl = stage.toDataURL({
       x: x,
       y: y,
-      width: canvasWidth,
-      height: canvasHeight,
+      width: scaledWidth,
+      height: scaledHeight,
       pixelRatio: pixelRatio,
       mimeType: 'image/png',
       quality: 1
@@ -133,8 +145,8 @@ export async function generateFinalRender(
     return {
       url: uploadResult.secureUrl,
       fileKey: uploadResult.publicId || uploadResult.fileKey,
-      widthPx,
-      heightPx,
+      widthPx: targetWidthPx,
+      heightPx: targetHeightPx,
       dpi: TARGET_DPI
     };
   } catch (error) {
