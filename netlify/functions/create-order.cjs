@@ -54,19 +54,57 @@ const getFeatureFlags = () => {
   };
 };
 
+// Quantity discount tiers - "Buy More, Save More"
+// Must match src/lib/quantity-discount.ts exactly
+const QUANTITY_DISCOUNT_TIERS = [
+  { minQuantity: 1, discountRate: 0.00 },
+  { minQuantity: 2, discountRate: 0.05 },
+  { minQuantity: 3, discountRate: 0.07 },
+  { minQuantity: 4, discountRate: 0.10 },
+  { minQuantity: 5, discountRate: 0.13 },
+];
+
+const getQuantityDiscountRate = (quantity) => {
+  // Find the highest tier that the quantity qualifies for
+  let discountRate = 0;
+  for (const tier of QUANTITY_DISCOUNT_TIERS) {
+    if (quantity >= tier.minQuantity) {
+      discountRate = tier.discountRate;
+    }
+  }
+  return discountRate;
+};
+
+const calculateQuantityDiscount = (subtotalCents, quantity) => {
+  const discountRate = getQuantityDiscountRate(quantity);
+  const discountCents = Math.round(subtotalCents * discountRate);
+  return { discountRate, discountCents };
+};
+
 const computeTotals = (items, taxRate, opts) => {
   const raw = items.reduce((sum, i) => sum + i.line_total_cents, 0);
   const adjusted = Math.max(raw, opts.minFloorCents || 0);
   const minAdj = Math.max(0, adjusted - raw);
 
+  // Calculate total quantity across all items
+  const totalQuantity = items.reduce((sum, i) => sum + (i.quantity || 1), 0);
+
+  // Apply quantity discount ("Buy More, Save More")
+  const quantityDiscount = calculateQuantityDiscount(adjusted, totalQuantity);
+  const subtotalAfterQuantityDiscount = adjusted - quantityDiscount.discountCents;
+
   const shipping_cents = opts.freeShipping ? 0 : 0;
-  const tax_cents = Math.round(adjusted * taxRate);
-  const total_cents = adjusted + tax_cents + shipping_cents;
+  const tax_cents = Math.round(subtotalAfterQuantityDiscount * taxRate);
+  const total_cents = subtotalAfterQuantityDiscount + tax_cents + shipping_cents;
 
   return {
     raw_subtotal_cents: raw,
     adjusted_subtotal_cents: adjusted,
     min_order_adjustment_cents: minAdj,
+    total_quantity: totalQuantity,
+    quantity_discount_rate: quantityDiscount.discountRate,
+    quantity_discount_cents: quantityDiscount.discountCents,
+    subtotal_after_quantity_discount_cents: subtotalAfterQuantityDiscount,
     shipping_cents,
     tax_cents,
     total_cents,

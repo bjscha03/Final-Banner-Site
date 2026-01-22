@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Trash2, Plus, Minus, ShoppingBag, Edit, Eye } from 'lucide-react';
+import { X, Trash2, Plus, Minus, ShoppingBag, Edit, Eye, Tag } from 'lucide-react';
 import BannerPreview from './cart/BannerPreview';
 import { useNavigate } from 'react-router-dom';
 import { usd } from '@/lib/pricing';
@@ -15,7 +15,7 @@ interface CartModalProps {
 
 const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
-  const { items: rawItems, getMigratedItems, updateQuantity, removeItem, loadItemIntoQuote, getSubtotalCents, getTaxCents, getTotalCents } = useCartStore();
+  const { items: rawItems, getMigratedItems, updateQuantity, removeItem, loadItemIntoQuote, getSubtotalCents, getTaxCents, getTotalCents, getQuantityDiscountInfo } = useCartStore();
   
   // CRITICAL: Use migrated items to ensure rope/pole pocket costs are calculated
   const items = getMigratedItems();
@@ -154,6 +154,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
   const subtotalCents = getSubtotalCents();
   const taxCents = getTaxCents();
   const totalCents = getTotalCents();
+  const quantityDiscountInfo = getQuantityDiscountInfo();
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
@@ -375,6 +376,15 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                 <span className="font-medium">Subtotal:</span>
                 <span className="font-semibold">{usd(subtotalCents/100)}</span>
               </div>
+              {quantityDiscountInfo.discountCents > 0 && (
+                <div className="flex justify-between text-green-600">
+                  <span className="font-medium flex items-center gap-1">
+                    <Tag className="h-4 w-4" />
+                    Quantity discount ({Math.round(quantityDiscountInfo.discountRate * 100)}% off):
+                  </span>
+                  <span className="font-semibold">-{usd(quantityDiscountInfo.discountCents/100)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-green-600 font-semibold">
                 <span>Shipping:</span>
                 <span>FREE</span>
@@ -388,8 +398,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                 <span className="text-[#18448D]">{usd(totalCents/100)}</span>
               </div>
 
-              <button 
-                onClick={handleCheckout} 
+              <button
+                onClick={handleCheckout}
                 className="w-full mt-4 bg-[#ff6b35] hover:bg-[#e16629] text-white py-4 rounded-lg font-bold text-lg shadow-lg hover:shadow-xl transition-all duration-200 transform hover:scale-[1.02]"
               >
                 Proceed to Checkout

@@ -3,8 +3,6 @@
  * All UI surfaces must use computeCartTotals() to ensure consistency
  */
 
-import { calculateQuantityDiscount } from './quantity-discount';
-
 // Core types for the new pricing system
 export type MoneyCents = number; // integer cents
 
@@ -42,17 +40,11 @@ export interface CartTotals {
     perItemOptionsCents: MoneyCents;
     perOrderOptionsCents: MoneyCents;
   }>;
-
+  
   // Cart-level totals
-  subtotalCents: MoneyCents;     // sum of all line totals (before any discounts)
-  discountsCents: MoneyCents;    // applied promo/coupon discounts
-
-  // Quantity discount - "Buy More, Save More"
-  totalQuantity: number;          // total qty across all items
-  quantityDiscountRate: number;   // e.g., 0.05 for 5%
-  quantityDiscountCents: MoneyCents; // discount amount in cents
-
-  subtotalAfterDiscountsCents: MoneyCents; // subtotal - all discounts (promo + qty)
+  subtotalCents: MoneyCents;     // sum of all line totals
+  discountsCents: MoneyCents;    // applied discounts
+  subtotalAfterDiscountsCents: MoneyCents; // subtotal - discounts
   taxCents: MoneyCents;          // tax on subtotal after discounts
   shippingCents: MoneyCents;     // shipping cost
   totalCents: MoneyCents;        // final total
@@ -109,21 +101,10 @@ export const computeCartTotals = (cart: Cart): CartTotals => {
     itemTotals.reduce((sum, item) => sum + item.lineTotalCents, 0)
   );
 
-  // Total quantity across all items (for quantity discount)
-  const totalQuantity = cart.items.reduce((sum, item) => sum + item.qty, 0);
-
-  // Calculate quantity discount ("Buy More, Save More")
-  const quantityDiscountResult = calculateQuantityDiscount(subtotalCents, totalQuantity);
-  const quantityDiscountRate = quantityDiscountResult.discountRate;
-  const quantityDiscountCents = quantityDiscountResult.discountCents;
-
-  // Promo/coupon discounts (separate from quantity discount)
   const discountsCents = cart.discountsCents ?? 0;
+  const subtotalAfterDiscountsCents = roundToCents(subtotalCents - discountsCents);
 
-  // Subtotal after ALL discounts (quantity + promo)
-  const subtotalAfterDiscountsCents = roundToCents(subtotalCents - quantityDiscountCents - discountsCents);
-
-  // Tax is calculated on subtotal after all discounts
+  // Tax is calculated on subtotal after discounts
   const taxCents = roundToCents(subtotalAfterDiscountsCents * cart.taxRatePct / 100);
 
   const shippingCents = cart.shippingCents;
@@ -133,9 +114,6 @@ export const computeCartTotals = (cart: Cart): CartTotals => {
     itemTotals,
     subtotalCents,
     discountsCents,
-    totalQuantity,
-    quantityDiscountRate,
-    quantityDiscountCents,
     subtotalAfterDiscountsCents,
     taxCents,
     shippingCents,

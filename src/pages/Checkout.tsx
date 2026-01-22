@@ -12,7 +12,7 @@ import PayPalCheckout from '@/components/checkout/PayPalCheckout';
 import SignUpEncouragementModal from '@/components/checkout/SignUpEncouragementModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Package, Truck, Plus, Minus, Trash2, Zap, Plane, Eye } from 'lucide-react';
+import { ArrowLeft, Package, Truck, Plus, Minus, Trash2, Zap, Plane, Eye, Tag } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { emailApi } from '@/lib/api';
 import { CartItem } from '@/store/cart';
@@ -24,8 +24,8 @@ import { trackPromoEvent } from '@/lib/posthog';
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
-  const { items: rawItems, getMigratedItems, isLoading, syncToServer, clearCart, getSubtotalCents, getTaxCents, getTotalCents, updateQuantity, removeItem, discountCode, applyDiscountCode, removeDiscountCode, getDiscountAmountCents } = useCartStore();
-  
+  const { items: rawItems, getMigratedItems, isLoading, syncToServer, clearCart, getSubtotalCents, getTaxCents, getTotalCents, updateQuantity, removeItem, discountCode, applyDiscountCode, removeDiscountCode, getDiscountAmountCents, getQuantityDiscountInfo } = useCartStore();
+
   // CRITICAL: Use migrated items to ensure rope/pole pocket costs are calculated
   const items = getMigratedItems();
   const { user } = useAuth();
@@ -45,6 +45,7 @@ const Checkout: React.FC = () => {
   const taxCents = getTaxCents();
   const totalCents = getTotalCents();
   const discountAmountCents = getDiscountAmountCents();
+  const quantityDiscountInfo = getQuantityDiscountInfo();
   
 
   // Calculate feature flag pricing details
@@ -682,6 +683,17 @@ const Checkout: React.FC = () => {
                       <span className="text-gray-700 font-medium">Minimum order adjustment</span>
                       <span className="text-gray-900 font-semibold">
                         {usd(minOrderAdjustmentCents / 100)}
+                      </span>
+                    </div>
+                  )}
+                  {quantityDiscountInfo.discountCents > 0 && (
+                    <div className="flex justify-between items-center text-base bg-green-50 -mx-6 px-6 py-2 rounded-lg">
+                      <span className="text-green-700 font-medium flex items-center gap-1.5">
+                        <Tag className="h-4 w-4" />
+                        Quantity discount ({Math.round(quantityDiscountInfo.discountRate * 100)}% off)
+                      </span>
+                      <span className="text-green-700 font-bold">
+                        -{usd(quantityDiscountInfo.discountCents / 100)}
                       </span>
                     </div>
                   )}

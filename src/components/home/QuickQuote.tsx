@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Minus, Plus, ArrowRight, Truck, Zap, Package, Palette, DollarSign, Check, Hash, Ruler } from 'lucide-react';
+import { Minus, Plus, ArrowRight, Truck, Zap, Package, Palette, DollarSign, Check, Hash, Ruler, Tag } from 'lucide-react';
 import { MaterialKey } from '@/store/quote';
 import { calcTotals, usd, formatArea, PRICE_PER_SQFT, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
+import { calculateQuantityDiscount, getAllDiscountTiers } from '@/lib/quantity-discount';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -194,8 +195,8 @@ const QuickQuote: React.FC = () => {
     }
   };
 
-  // Safe calculation with error handling and feature flag support
-  const { totals, showMinOrderAdjustment, minOrderAdjustmentCents } = React.useMemo(() => {
+  // Safe calculation with error handling, feature flag support, and quantity discount
+  const { totals, showMinOrderAdjustment, minOrderAdjustmentCents, quantityDiscountCents, quantityDiscountRate } = React.useMemo(() => {
     try {
       // Ensure all values are valid before calculating
       if (widthIn <= 0 || heightIn <= 0 || quantity <= 0) {
@@ -211,7 +212,9 @@ const QuickQuote: React.FC = () => {
         return {
           totals: fallbackTotals,
           showMinOrderAdjustment: false,
-          minOrderAdjustmentCents: 0
+          minOrderAdjustmentCents: 0,
+          quantityDiscountCents: 0,
+          quantityDiscountRate: 0
         };
       }
 
@@ -233,25 +236,49 @@ const QuickQuote: React.FC = () => {
       let showMinOrderAdjustment = false;
       let minOrderAdjustmentCents = 0;
 
+      // Calculate quantity discount ("Buy More, Save More")
+      const subtotalCents = Math.round(baseTotals.materialTotal * 100);
+      const qtyDiscountResult = calculateQuantityDiscount(subtotalCents, quantity);
+      const quantityDiscountCents = qtyDiscountResult.discountCents;
+      const quantityDiscountRate = qtyDiscountResult.discountRate;
+
       if (flags.freeShipping || flags.minOrderFloor) {
-        const items: PricingItem[] = [{ line_total_cents: Math.round(baseTotals.materialTotal * 100) }];
+        const items: PricingItem[] = [{ line_total_cents: subtotalCents, quantity }];
         const featureFlagTotals = computeTotals(items, 0.06, pricingOptions);
+
+        // After feature flag adjustments and quantity discount
+        const adjustedSubtotalCents = featureFlagTotals.adjusted_subtotal_cents - featureFlagTotals.quantity_discount_cents;
+        const taxCents = featureFlagTotals.tax_cents;
+        const totalCents = adjustedSubtotalCents + taxCents;
 
         finalTotals = {
           ...baseTotals,
-          materialTotal: featureFlagTotals.adjusted_subtotal_cents / 100,
-          tax: featureFlagTotals.tax_cents / 100,
-          totalWithTax: featureFlagTotals.total_cents / 100
+          materialTotal: adjustedSubtotalCents / 100,
+          tax: taxCents / 100,
+          totalWithTax: totalCents / 100
         };
 
         showMinOrderAdjustment = featureFlagTotals.min_order_adjustment_cents > 0;
         minOrderAdjustmentCents = featureFlagTotals.min_order_adjustment_cents;
+      } else {
+        // Apply quantity discount without feature flags
+        const subtotalAfterDiscount = subtotalCents - quantityDiscountCents;
+        const taxCents = Math.round(subtotalAfterDiscount * 0.06);
+
+        finalTotals = {
+          ...baseTotals,
+          materialTotal: subtotalAfterDiscount / 100,
+          tax: taxCents / 100,
+          totalWithTax: (subtotalAfterDiscount + taxCents) / 100
+        };
       }
 
       return {
         totals: finalTotals,
         showMinOrderAdjustment,
-        minOrderAdjustmentCents
+        minOrderAdjustmentCents,
+        quantityDiscountCents,
+        quantityDiscountRate
       };
     } catch (error) {
       console.error('Error calculating totals:', error);
@@ -267,7 +294,9 @@ const QuickQuote: React.FC = () => {
       return {
         totals: fallbackTotals,
         showMinOrderAdjustment: false,
-        minOrderAdjustmentCents: 0
+        minOrderAdjustmentCents: 0,
+        quantityDiscountCents: 0,
+        quantityDiscountRate: 0
       };
     }
   }, [widthIn, heightIn, quantity, material]);
@@ -641,12 +670,21 @@ const QuickQuote: React.FC = () => {
                   <div className="mt-3 pt-3 border-t border-green-200/50 space-y-1 text-sm">
                     <div className="flex justify-between">
                       <span className="text-gray-600">Banner subtotal:</span>
-                      <span className="font-semibold text-gray-800">{usd(totals.materialTotal - (showMinOrderAdjustment ? minOrderAdjustmentCents / 100 : 0))}</span>
+                      <span className="font-semibold text-gray-800">{usd((totals.materialTotal + quantityDiscountCents / 100) - (showMinOrderAdjustment ? minOrderAdjustmentCents / 100 : 0))}</span>
                     </div>
                     {showMinOrderAdjustment && (
                       <div className="flex justify-between">
                         <span className="text-gray-600">Minimum order adjustment:</span>
                         <span className="font-semibold text-gray-800">{usd(minOrderAdjustmentCents / 100)}</span>
+                      </div>
+                    )}
+                    {quantityDiscountCents > 0 && (
+                      <div className="flex justify-between text-green-600">
+                        <span className="flex items-center gap-1">
+                          <Tag className="h-3.5 w-3.5" />
+                          Quantity discount ({Math.round(quantityDiscountRate * 100)}% off):
+                        </span>
+                        <span className="font-semibold">-{usd(quantityDiscountCents / 100)}</span>
                       </div>
                     )}
                     <div className="flex justify-between">
@@ -661,6 +699,34 @@ const QuickQuote: React.FC = () => {
                       <span className="font-bold text-gray-800">Total with tax:</span>
                       <span className="font-bold text-[#ff6b35]">{usd(totals.totalWithTax)}</span>
                     </div>
+                  </div>
+                </div>
+
+                {/* Buy More, Save More! Tier Table */}
+                <div className="mt-4 bg-green-50 border border-green-200 rounded-md p-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Tag className="h-4 w-4 text-green-600" />
+                    <span className="font-bold text-green-800 text-sm">Buy More, Save More!</span>
+                  </div>
+                  <div className="grid grid-cols-5 gap-1 text-center text-xs">
+                    {getAllDiscountTiers().map((tier) => (
+                      <div
+                        key={tier.minQuantity}
+                        className={`p-1.5 rounded ${
+                          quantity >= tier.minQuantity &&
+                          (tier.minQuantity === 5 || quantity < (getAllDiscountTiers().find(t => t.minQuantity > tier.minQuantity)?.minQuantity || 999))
+                            ? 'bg-green-200 border border-green-400'
+                            : 'bg-white border border-green-100'
+                        }`}
+                      >
+                        <div className="font-semibold text-gray-700">
+                          {tier.minQuantity === 5 ? '5+' : tier.minQuantity}
+                        </div>
+                        <div className={`font-bold ${tier.discountRate > 0 ? 'text-green-600' : 'text-gray-400'}`}>
+                          {tier.label}
+                        </div>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>

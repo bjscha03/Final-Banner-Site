@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { QuoteState, MaterialKey, Grommets, TextElement } from './quote';
 import { calculateTax, calculateTotalWithTax, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
+import { calculateQuantityDiscount } from '@/lib/quantity-discount';
 import { cartSync } from '@/lib/cartSync';
 import { trackAddToCart, trackFBAddToCart } from '@/lib/analytics';
 
@@ -136,6 +137,12 @@ export interface CartState {
   getTaxCents: () => number;
   getTotalCents: () => number;
   getItemCount: () => number;
+  // Quantity discount - "Buy More, Save More"
+  getQuantityDiscountInfo: () => {
+    totalQuantity: number;
+    discountRate: number;
+    discountCents: number;
+  };
 }
 
 
@@ -830,13 +837,18 @@ export const useCartStore = create<CartState>()(
         return get().items.map(migrateCartItem);
       },
 
+      // NOTE: getSubtotalCents returns the RAW subtotal (before quantity discount)
+      // This is needed for displaying the original subtotal before discounts
       getSubtotalCents: () => {
         const flags = getFeatureFlags();
         const items = get().items.map(migrateCartItem); // Migrate items before calculating
 
         if (flags.freeShipping || flags.minOrderFloor) {
           const pricingOptions = getPricingOptions();
-          const pricingItems: PricingItem[] = items.map(item => ({ line_total_cents: item.line_total_cents }));
+          const pricingItems: PricingItem[] = items.map(item => ({
+            line_total_cents: item.line_total_cents,
+            quantity: item.quantity
+          }));
           const totals = computeTotals(pricingItems, 0.06, pricingOptions);
           return totals.adjusted_subtotal_cents;
         }
@@ -850,13 +862,19 @@ export const useCartStore = create<CartState>()(
 
         if (flags.freeShipping || flags.minOrderFloor) {
           const pricingOptions = getPricingOptions();
-          const pricingItems: PricingItem[] = items.map(item => ({ line_total_cents: item.line_total_cents }));
+          const pricingItems: PricingItem[] = items.map(item => ({
+            line_total_cents: item.line_total_cents,
+            quantity: item.quantity
+          }));
           const totals = computeTotals(pricingItems, 0.06, pricingOptions);
           return totals.tax_cents;
         }
 
-        const subtotal = get().getSubtotalCents();
-        return Math.round(calculateTax(subtotal / 100) * 100);
+        // Apply quantity discount before calculating tax
+        const rawSubtotal = get().getSubtotalCents();
+        const quantityDiscountInfo = get().getQuantityDiscountInfo();
+        const subtotalAfterDiscount = rawSubtotal - quantityDiscountInfo.discountCents;
+        return Math.round(calculateTax(subtotalAfterDiscount / 100) * 100);
       },
 
       getTotalCents: () => {
@@ -866,15 +884,22 @@ export const useCartStore = create<CartState>()(
         let total;
         if (flags.freeShipping || flags.minOrderFloor) {
           const pricingOptions = getPricingOptions();
-          const pricingItems: PricingItem[] = items.map(item => ({ line_total_cents: item.line_total_cents }));
+          const pricingItems: PricingItem[] = items.map(item => ({
+            line_total_cents: item.line_total_cents,
+            quantity: item.quantity
+          }));
           const totals = computeTotals(pricingItems, 0.06, pricingOptions);
           total = totals.total_cents;
         } else {
-          const subtotal = get().getSubtotalCents();
-          total = Math.round(calculateTotalWithTax(subtotal / 100) * 100);
+          // Apply quantity discount before calculating total
+          const rawSubtotal = get().getSubtotalCents();
+          const quantityDiscountInfo = get().getQuantityDiscountInfo();
+          const subtotalAfterDiscount = rawSubtotal - quantityDiscountInfo.discountCents;
+          const tax = Math.round(calculateTax(subtotalAfterDiscount / 100) * 100);
+          total = subtotalAfterDiscount + tax;
         }
 
-        // Subtract discount from total
+        // Subtract promo/coupon discount from total
         const discountAmount = get().getDiscountAmountCents();
         return Math.max(0, total - discountAmount);
       },
@@ -882,6 +907,21 @@ export const useCartStore = create<CartState>()(
 
       getItemCount: () => {
         return get().items.reduce((total, item) => total + item.quantity, 0);
+      },
+
+      // Get quantity discount info for "Buy More, Save More" display
+      getQuantityDiscountInfo: () => {
+        const items = get().items.map(migrateCartItem);
+        const totalQuantity = items.reduce((total, item) => total + item.quantity, 0);
+        const rawSubtotal = items.reduce((total, item) => total + item.line_total_cents, 0);
+
+        const discountResult = calculateQuantityDiscount(rawSubtotal, totalQuantity);
+
+        return {
+          totalQuantity,
+          discountRate: discountResult.discountRate,
+          discountCents: discountResult.discountCents,
+        };
       }
     }),
     {

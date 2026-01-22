@@ -1,9 +1,11 @@
 /**
  * Unified Pricing Module - Single Source of Truth
- * 
+ *
  * This module contains ALL pricing calculations for the application.
  * All touchpoints (Cart, Checkout, Email, My Orders, Admin) use these functions.
  */
+
+import { calculateQuantityDiscount } from './quantity-discount';
 
 // ============================================================================
 // CONSTANTS
@@ -53,6 +55,11 @@ export interface PricingBreakdown {
 
 export interface OrderTotals {
   subtotal_cents: number;
+  // Quantity discount - "Buy More, Save More"
+  total_quantity: number;
+  quantity_discount_rate: number;    // e.g., 0.05 for 5%
+  quantity_discount_cents: number;   // discount amount in cents
+  subtotal_after_discount_cents: number;
   tax_cents: number;
   total_cents: number;
 }
@@ -177,18 +184,32 @@ export function getItemPricingBreakdown(item: OrderItemInput): PricingBreakdown 
 
 /**
  * Calculate order totals from array of items
+ * Includes quantity discount ("Buy More, Save More")
  */
 export function calculateOrderTotals(items: OrderItemInput[]): OrderTotals {
   const subtotal_cents = items.reduce((sum, item) => {
     const breakdown = getItemPricingBreakdown(item);
     return sum + breakdown.subtotal_cents;
   }, 0);
-  
-  const tax_cents = Math.round(subtotal_cents * TAX_RATE);
-  const total_cents = subtotal_cents + tax_cents;
-  
+
+  // Calculate total quantity across all items
+  const total_quantity = items.reduce((sum, item) => sum + item.quantity, 0);
+
+  // Apply quantity discount ("Buy More, Save More")
+  const quantityDiscountResult = calculateQuantityDiscount(subtotal_cents, total_quantity);
+  const quantity_discount_rate = quantityDiscountResult.discountRate;
+  const quantity_discount_cents = quantityDiscountResult.discountCents;
+  const subtotal_after_discount_cents = subtotal_cents - quantity_discount_cents;
+
+  const tax_cents = Math.round(subtotal_after_discount_cents * TAX_RATE);
+  const total_cents = subtotal_after_discount_cents + tax_cents;
+
   return {
     subtotal_cents,
+    total_quantity,
+    quantity_discount_rate,
+    quantity_discount_cents,
+    subtotal_after_discount_cents,
     tax_cents,
     total_cents,
   };
@@ -300,15 +321,29 @@ export function generateItemBreakdown(item: OrderItemInput): BreakdownLine[] {
 
 /**
  * Generate order summary lines (for cart/checkout)
+ * Includes quantity discount line when applicable
  */
 export function generateOrderSummary(items: OrderItemInput[]): BreakdownLine[] {
   const totals = calculateOrderTotals(items);
-  
-  return [
+
+  const lines: BreakdownLine[] = [
     {
       label: 'Subtotal',
       value_cents: totals.subtotal_cents,
     },
+  ];
+
+  // Add quantity discount line if applicable
+  if (totals.quantity_discount_cents > 0) {
+    const discountPercent = Math.round(totals.quantity_discount_rate * 100);
+    lines.push({
+      label: `Quantity discount (${discountPercent}% off)`,
+      value_cents: -totals.quantity_discount_cents, // Negative to show as discount
+      description: `${totals.total_quantity} items - Buy More, Save More!`,
+    });
+  }
+
+  lines.push(
     {
       label: 'Free Next-Day Air',
       value_cents: 0,
@@ -320,6 +355,8 @@ export function generateOrderSummary(items: OrderItemInput[]): BreakdownLine[] {
     {
       label: 'Total',
       value_cents: totals.total_cents,
-    },
-  ];
+    }
+  );
+
+  return lines;
 }

@@ -1,5 +1,4 @@
 import { MaterialKey } from '@/store/quote';
-import { calculateQuantityDiscount } from './quantity-discount';
 
 export const PRICE_PER_SQFT = {
   '13oz': 4.5,
@@ -179,7 +178,6 @@ export const formatDimensions = (widthIn: number, heightIn: number): string => {
 
 export interface PricingItem {
   line_total_cents: number;
-  quantity?: number; // qty per line item (for quantity discount calculation)
 }
 
 export interface PricingOptions {
@@ -192,17 +190,13 @@ export interface PricingTotals {
   raw_subtotal_cents: number;
   adjusted_subtotal_cents: number;
   min_order_adjustment_cents: number;
-  // Quantity discount - "Buy More, Save More"
-  total_quantity: number;
-  quantity_discount_rate: number;    // e.g., 0.05 for 5%
-  quantity_discount_cents: number;   // discount amount in cents
   shipping_cents: number;
   tax_cents: number;
   total_cents: number;
 }
 
 /**
- * Compute order totals with feature flag support and quantity discount
+ * Compute order totals with feature flag support
  */
 export function computeTotals(
   items: PricingItem[],
@@ -210,33 +204,17 @@ export function computeTotals(
   opts: PricingOptions
 ): PricingTotals {
   const raw = items.reduce((sum, i) => sum + i.line_total_cents, 0);
-
-  // Apply minimum order floor adjustment first
   const adjusted = Math.max(raw, opts.minFloorCents || 0);
   const minAdj = Math.max(0, adjusted - raw);
 
-  // Calculate total quantity across all items (for quantity discount)
-  const total_quantity = items.reduce((sum, i) => sum + (i.quantity || 1), 0);
-
-  // Calculate quantity discount ("Buy More, Save More")
-  const quantityDiscountResult = calculateQuantityDiscount(adjusted, total_quantity);
-  const quantity_discount_rate = quantityDiscountResult.discountRate;
-  const quantity_discount_cents = quantityDiscountResult.discountCents;
-
-  // Subtotal after quantity discount
-  const subtotalAfterQuantityDiscount = adjusted - quantity_discount_cents;
-
   const shipping_cents = opts.freeShipping ? 0 : 0;
-  const tax_cents = Math.round(subtotalAfterQuantityDiscount * taxRate);
-  const total_cents = subtotalAfterQuantityDiscount + tax_cents + shipping_cents;
+  const tax_cents = Math.round(adjusted * taxRate);
+  const total_cents = adjusted + tax_cents + shipping_cents;
 
   return {
     raw_subtotal_cents: raw,
     adjusted_subtotal_cents: adjusted,
     min_order_adjustment_cents: minAdj,
-    total_quantity,
-    quantity_discount_rate,
-    quantity_discount_cents,
     shipping_cents,
     tax_cents,
     total_cents,
