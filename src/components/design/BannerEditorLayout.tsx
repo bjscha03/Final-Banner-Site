@@ -1032,12 +1032,22 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     } else if (imageObjects.length > 0) {
       console.log('🖼️ [MULTI-IMAGE SAVE] Extracting ALL image objects:', imageObjects.length);
       currentOverlayImages = imageObjects.map((overlayObj, index) => {
-        const xPercent = (overlayObj.x / widthIn) * 100;
-        const yPercent = (overlayObj.y / heightIn) * 100;
-        const aspectRatio = overlayObj.width && overlayObj.height ? overlayObj.width / overlayObj.height : 1;
+        // CRITICAL FIX: Editor stores x,y as CENTER point of the image
+        // PDF expects position as TOP-LEFT corner percentage
+        // Calculate top-left corner from center: topLeft = center - (size / 2)
+        const imageWidthIn = overlayObj.width || 0;
+        const imageHeightIn = overlayObj.height || 0;
+        const topLeftX = overlayObj.x - (imageWidthIn / 2);
+        const topLeftY = overlayObj.y - (imageHeightIn / 2);
+
+        // Convert top-left position to percentage of banner dimensions
+        const xPercent = (topLeftX / widthIn) * 100;
+        const yPercent = (topLeftY / heightIn) * 100;
+
+        const aspectRatio = imageWidthIn && imageHeightIn ? imageWidthIn / imageHeightIn : 1;
         const defaultWidthInches = 4;
-        const scale = overlayObj.width ? overlayObj.width / defaultWidthInches : 1;
-        
+        const scale = imageWidthIn ? imageWidthIn / defaultWidthInches : 1;
+
         const imageData = {
           name: overlayObj.name || `overlay-image-${index + 1}`,
           url: overlayObj.url || '',
@@ -1046,8 +1056,11 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
           scale: scale,
           aspectRatio: aspectRatio,
         };
-        
+
         console.log(`🖼️ [MULTI-IMAGE SAVE] Image ${index + 1}:`, imageData);
+        console.log(`  - Editor center: (${overlayObj.x}, ${overlayObj.y}) inches`);
+        console.log(`  - Image size: ${imageWidthIn}x${imageHeightIn} inches`);
+        console.log(`  - Top-left: (${topLeftX}, ${topLeftY}) inches -> (${xPercent.toFixed(1)}%, ${yPercent.toFixed(1)}%)`);
         return imageData;
       });
       
