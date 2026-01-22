@@ -543,33 +543,83 @@ exports.handler = async (event) => {
     
     console.log('[PDF] Design type:', hasBackgroundImage ? 'with background image' : 'text/overlay only');
 
-    if(req.finalRenderUrl||req.finalRenderFileKey||req.thumbnailUrl){
-      console.log('[PDF] Using FINAL RENDER');
-      try{
-        let b;
-        if(req.finalRenderFileKey){b=await fetchImage(req.finalRenderFileKey,true);}
-        else if(req.finalRenderUrl){b=await fetchImage(req.finalRenderUrl,false);}else{console.log("[PDF] Using thumbnailUrl");let url=req.thumbnailUrl;const pw2=Math.round(req.bannerWidthIn*(req.targetDpi||150));const ph2=Math.round(req.bannerHeightIn*(req.targetDpi||150));if(url.includes("cloudinary.com")&&url.includes("/upload/")){url=url.replace("/upload/","/upload/w_"+pw2+",h_"+ph2+",c_fill/");console.log("[PDF] Cloudinary optimized URL:",url);}b=await fetchImage(url,false);}
-        const dpi=req.targetDpi||chooseTargetDpi(req.bannerWidthIn,req.bannerHeightIn);
-        const w=req.bannerWidthIn;
-        const h=req.bannerHeightIn;
-        const pw=Math.round(w*dpi);
-        const ph=Math.round(h*dpi);
-        console.log('[PDF] Target:',pw,'x',ph);
-        let rb;const meta=await sharp(b).metadata();if(meta.width===pw&&meta.height===ph){rb=b;console.log('[PDF] Skip resize, already correct size');}else{rb=await sharp(b).resize(pw,ph,{fit:'fill'}).png().toBuffer();}
-        const pdw=w*72;
-        const pdh=h*72;
-        const ch=[];
-        const doc=new PDFDocument({size:[pdw,pdh],margin:0});
-        doc.on('data',(c)=>ch.push(c));
-        const done=new Promise((r)=>doc.on('end',r));
-        doc.image(rb,0,0,{width:pdw,height:pdh});
-        doc.end();
-        await done;
-        const pdf=Buffer.concat(ch);
-        console.log('[PDF] Done:',pdf.length);
-        return{statusCode:200,headers:{"Content-Type":"application/pdf","Content-Disposition":"attachment; filename=banner-"+req.orderId+".pdf"},body:pdf.toString('base64'),isBase64Encoded:true};
-      }catch(e){console.error('[PDF] FR fail:',e.message);}
+    // PRIORITY 1: Use high-resolution final_render snapshot (captured at checkout)
+    // This is the pixel-perfect snapshot of exactly what the customer designed
+    const hasFinalRender = req.finalRenderUrl || req.finalRenderFileKey;
+
+    if (hasFinalRender) {
+      console.log('[PDF] Using FINAL RENDER (high-res snapshot from checkout)');
+      try {
+        let imageBuffer;
+        if (req.finalRenderFileKey) {
+          console.log('[PDF] Fetching final render by fileKey:', req.finalRenderFileKey);
+          imageBuffer = await fetchImage(req.finalRenderFileKey, true);
+        } else if (req.finalRenderUrl) {
+          console.log('[PDF] Fetching final render by URL:', req.finalRenderUrl.substring(0, 80));
+          imageBuffer = await fetchImage(req.finalRenderUrl, false);
+        }
+
+        const dpi = req.targetDpi || chooseTargetDpi(req.bannerWidthIn, req.bannerHeightIn);
+        const bannerWidthIn = req.bannerWidthIn;
+        const bannerHeightIn = req.bannerHeightIn;
+        const targetWidthPx = Math.round(bannerWidthIn * dpi);
+        const targetHeightPx = Math.round(bannerHeightIn * dpi);
+
+        console.log('[PDF] Final render target dimensions:', targetWidthPx, 'x', targetHeightPx, 'px at', dpi, 'DPI');
+
+        // Check source dimensions and resize if needed
+        const sourceMeta = await sharp(imageBuffer).metadata();
+        console.log('[PDF] Final render source dimensions:', sourceMeta.width, 'x', sourceMeta.height);
+
+        let resizedBuffer;
+        if (sourceMeta.width === targetWidthPx && sourceMeta.height === targetHeightPx) {
+          resizedBuffer = imageBuffer;
+          console.log('[PDF] Final render already at correct size, skipping resize');
+        } else {
+          console.log('[PDF] Resizing final render to target dimensions');
+          resizedBuffer = await sharp(imageBuffer)
+            .resize(targetWidthPx, targetHeightPx, { fit: 'fill' })
+            .png()
+            .toBuffer();
+        }
+
+        // Create PDF with exact banner dimensions
+        const pdfWidthPt = bannerWidthIn * 72;
+        const pdfHeightPt = bannerHeightIn * 72;
+
+        const pdfChunks = [];
+        const pdfDoc = new PDFDocument({ size: [pdfWidthPt, pdfHeightPt], margin: 0 });
+        pdfDoc.on('data', (chunk) => pdfChunks.push(chunk));
+        const pdfDone = new Promise((resolve) => pdfDoc.on('end', resolve));
+
+        pdfDoc.image(resizedBuffer, 0, 0, { width: pdfWidthPt, height: pdfHeightPt });
+        pdfDoc.end();
+        await pdfDone;
+
+        const pdfBuffer = Buffer.concat(pdfChunks);
+        console.log('[PDF] Final render PDF generated successfully:', pdfBuffer.length, 'bytes');
+
+        return {
+          statusCode: 200,
+          headers: {
+            "Content-Type": "application/pdf",
+            "Content-Disposition": `attachment; filename="banner-${req.orderId}-print-ready.pdf"`,
+            "X-PDF-DPI": dpi.toString(),
+            "X-PDF-Source": "final_render"
+          },
+          body: pdfBuffer.toString('base64'),
+          isBase64Encoded: true
+        };
+      } catch (finalRenderError) {
+        console.error('[PDF] Final render failed, falling back to reconstruction:', finalRenderError.message);
+        // Continue to reconstruction path below
+      }
     }
+
+    // NOTE: thumbnailUrl is NOT used here because it's low-resolution (for cart display only)
+    // Instead, we fall through to the reconstruction path which rebuilds the banner
+    // from its components (background, overlays, text) at print resolution
+    console.log('[PDF] No final_render available, using reconstruction path');
 
 
     // includeBleed: if false, generate PDF at exact banner dimensions (no bleed margins)
