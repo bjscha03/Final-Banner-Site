@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { ArrowRight, Minus, Plus } from 'lucide-react';
+import { ArrowRight, Minus, Plus, Tag } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { MaterialKey } from '@/store/quote';
 import { calcTotals, usd, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
+import { calculateQuantityDiscount } from '@/lib/quantity-discount';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -58,8 +59,8 @@ const HeroSection: React.FC = () => {
     return () => clearTimeout(timer);
   }, [widthInput, heightInput, quantityInput]);
 
-  // Safe calculation with error handling and feature flag support
-  const { totals } = React.useMemo(() => {
+  // Safe calculation with error handling, feature flag support, and quantity discount
+  const { totals, quantityDiscountCents, quantityDiscountRate } = React.useMemo(() => {
     try {
       if (widthIn < 1 || heightIn < 1 || quantity < 1) {
         const fallbackTotals = {
@@ -72,7 +73,9 @@ const HeroSection: React.FC = () => {
           totalWithTax: 0
         };
         return {
-          totals: fallbackTotals
+          totals: fallbackTotals,
+          quantityDiscountCents: 0,
+          quantityDiscountRate: 0
         };
       }
 
@@ -88,22 +91,46 @@ const HeroSection: React.FC = () => {
       const flags = getFeatureFlags();
       const pricingOptions = getPricingOptions();
 
+      // Calculate quantity discount ("Buy More, Save More")
+      const subtotalCents = Math.round(baseTotals.materialTotal * 100);
+      const qtyDiscountResult = calculateQuantityDiscount(subtotalCents, quantity);
+      const quantityDiscountCents = qtyDiscountResult.discountCents;
+      const quantityDiscountRate = qtyDiscountResult.discountRate;
+
       let finalTotals = baseTotals;
 
       if (flags.freeShipping || flags.minOrderFloor) {
-        const items: PricingItem[] = [{ line_total_cents: Math.round(baseTotals.materialTotal * 100) }];
+        const items: PricingItem[] = [{ line_total_cents: subtotalCents, quantity }];
         const featureFlagTotals = computeTotals(items, 0.06, pricingOptions);
+
+        // After feature flag adjustments and quantity discount
+        const adjustedSubtotalCents = featureFlagTotals.adjusted_subtotal_cents - featureFlagTotals.quantity_discount_cents;
+        const taxCents = featureFlagTotals.tax_cents;
+        const totalCents = adjustedSubtotalCents + taxCents;
 
         finalTotals = {
           ...baseTotals,
-          materialTotal: featureFlagTotals.adjusted_subtotal_cents / 100,
-          tax: featureFlagTotals.tax_cents / 100,
-          totalWithTax: featureFlagTotals.total_cents / 100
+          materialTotal: adjustedSubtotalCents / 100,
+          tax: taxCents / 100,
+          totalWithTax: totalCents / 100
+        };
+      } else {
+        // Apply quantity discount without feature flags
+        const subtotalAfterDiscount = subtotalCents - quantityDiscountCents;
+        const taxCents = Math.round(subtotalAfterDiscount * 0.06);
+
+        finalTotals = {
+          ...baseTotals,
+          materialTotal: subtotalAfterDiscount / 100,
+          tax: taxCents / 100,
+          totalWithTax: (subtotalAfterDiscount + taxCents) / 100
         };
       }
 
       return {
-        totals: finalTotals
+        totals: finalTotals,
+        quantityDiscountCents,
+        quantityDiscountRate
       };
     } catch (error) {
       console.error('Error calculating totals:', error);
@@ -117,7 +144,9 @@ const HeroSection: React.FC = () => {
         totalWithTax: 0
       };
       return {
-        totals: fallbackTotals
+        totals: fallbackTotals,
+        quantityDiscountCents: 0,
+        quantityDiscountRate: 0
       };
     }
   }, [widthIn, heightIn, quantity, material]);
@@ -343,12 +372,28 @@ const HeroSection: React.FC = () => {
                   Includes 24-hour production & free next-day air shipping
                 </p>
 
+                {/* Quantity Discount Display */}
+                {quantityDiscountCents > 0 && (
+                  <div className="bg-green-50 border border-green-200 rounded-xl p-3">
+                    <div className="flex items-center justify-between">
+                      <span className="flex items-center gap-1.5 text-sm font-medium text-green-700">
+                        <Tag className="h-4 w-4" />
+                        {Math.round(quantityDiscountRate * 100)}% Multi-Banner Discount
+                      </span>
+                      <span className="text-sm font-bold text-green-600">-{usd(quantityDiscountCents / 100)}</span>
+                    </div>
+                  </div>
+                )}
+
                 {/* Estimated Total */}
                 <div className="bg-gradient-to-r from-slate-900 to-slate-800 text-white rounded-xl p-4">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-slate-300">Estimated Total</span>
                     <span className="text-2xl font-bold">{usd(totals.totalWithTax)}</span>
                   </div>
+                  {quantityDiscountCents > 0 && (
+                    <p className="text-xs text-green-400 mt-1 text-right">You're saving {usd(quantityDiscountCents / 100)}!</p>
+                  )}
                 </div>
 
                 {/* Continue Button */}
