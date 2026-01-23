@@ -15,7 +15,7 @@ interface CartModalProps {
 
 const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
-  const { items: rawItems, getMigratedItems, updateQuantity, removeItem, loadItemIntoQuote, getSubtotalCents, getTaxCents, getTotalCents, getQuantityDiscountInfo } = useCartStore();
+  const { items: rawItems, getMigratedItems, updateQuantity, removeItem, loadItemIntoQuote, getSubtotalCents, getTaxCents, getTotalCents, getResolvedDiscount } = useCartStore();
   
   // CRITICAL: Use migrated items to ensure rope/pole pocket costs are calculated
   const items = getMigratedItems();
@@ -154,7 +154,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
   const subtotalCents = getSubtotalCents();
   const taxCents = getTaxCents();
   const totalCents = getTotalCents();
-  const quantityDiscountInfo = getQuantityDiscountInfo();
+  const resolvedDiscount = getResolvedDiscount();
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
@@ -376,13 +376,19 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                 <span className="font-medium">Subtotal:</span>
                 <span className="font-semibold">{usd(subtotalCents/100)}</span>
               </div>
-              {quantityDiscountInfo.discountCents > 0 && (
-                <div className="flex justify-between text-green-600">
-                  <span className="font-medium flex items-center gap-1">
-                    <Tag className="h-4 w-4" />
-                    Quantity discount ({Math.round(quantityDiscountInfo.discountRate * 100)}% off):
-                  </span>
-                  <span className="font-semibold">-{usd(quantityDiscountInfo.discountCents/100)}</span>
+              {/* Single "Best Discount Wins" line - no stacking */}
+              {resolvedDiscount.appliedDiscountAmountCents > 0 && (
+                <div className="space-y-1">
+                  <div className="flex justify-between text-green-600">
+                    <span className="font-medium flex items-center gap-1">
+                      <Tag className="h-4 w-4" />
+                      {resolvedDiscount.appliedDiscountLabel}
+                    </span>
+                    <span className="font-semibold">-{usd(resolvedDiscount.appliedDiscountAmountCents/100)}</span>
+                  </div>
+                  {resolvedDiscount.helperMessage && (
+                    <p className="text-xs text-gray-500 italic">{resolvedDiscount.helperMessage}</p>
+                  )}
                 </div>
               )}
               <div className="flex justify-between text-green-600 font-semibold">

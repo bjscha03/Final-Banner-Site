@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware';
 import { QuoteState, MaterialKey, Grommets, TextElement } from './quote';
 import { calculateTax, calculateTotalWithTax, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
 import { calculateQuantityDiscount } from '@/lib/quantity-discount';
+import { resolveBestDiscount, ResolvedDiscount, PromoDiscountInput } from '@/lib/discount-resolver';
 import { cartSync } from '@/lib/cartSync';
 import { trackAddToCart, trackFBAddToCart } from '@/lib/analytics';
 
@@ -143,6 +144,8 @@ export interface CartState {
     discountRate: number;
     discountCents: number;
   };
+  // Best Discount Resolver - "Best Discount Wins" (no stacking)
+  getResolvedDiscount: () => ResolvedDiscount;
 }
 
 
@@ -662,26 +665,10 @@ export const useCartStore = create<CartState>()(
         set({ discountCode: null });
       },
 
+      // Uses "Best Discount Wins" logic - only returns the single best discount amount
       getDiscountAmountCents: () => {
-        const discount = get().discountCode;
-        if (!discount) return 0;
-
-        // Get subtotal AFTER quantity discount to avoid double discounting
-        const rawSubtotal = get().getSubtotalCents();
-        const quantityDiscountInfo = get().getQuantityDiscountInfo();
-        const subtotalAfterQuantityDiscount = rawSubtotal - quantityDiscountInfo.discountCents;
-
-        // Use percentage discount if available
-        if (discount.discountPercentage) {
-          return Math.round(subtotalAfterQuantityDiscount * (discount.discountPercentage / 100));
-        }
-
-        // Otherwise use fixed amount discount
-        if (discount.discountAmountCents) {
-          return Math.min(discount.discountAmountCents, subtotalAfterQuantityDiscount);
-        }
-
-        return 0;
+        const resolved = get().getResolvedDiscount();
+        return resolved.appliedDiscountAmountCents;
       },
 
       
@@ -859,52 +846,21 @@ export const useCartStore = create<CartState>()(
         return items.reduce((total, item) => total + item.line_total_cents, 0);
       },
 
+      // Tax calculated AFTER applying the single best discount
       getTaxCents: () => {
-        const flags = getFeatureFlags();
-        const items = get().items.map(migrateCartItem); // Migrate items before calculating
-
-        if (flags.freeShipping || flags.minOrderFloor) {
-          const pricingOptions = getPricingOptions();
-          const pricingItems: PricingItem[] = items.map(item => ({
-            line_total_cents: item.line_total_cents,
-            quantity: item.quantity
-          }));
-          const totals = computeTotals(pricingItems, 0.06, pricingOptions);
-          return totals.tax_cents;
-        }
-
-        // Apply quantity discount before calculating tax
         const rawSubtotal = get().getSubtotalCents();
-        const quantityDiscountInfo = get().getQuantityDiscountInfo();
-        const subtotalAfterDiscount = rawSubtotal - quantityDiscountInfo.discountCents;
+        const resolved = get().getResolvedDiscount();
+        const subtotalAfterDiscount = rawSubtotal - resolved.appliedDiscountAmountCents;
         return Math.round(calculateTax(subtotalAfterDiscount / 100) * 100);
       },
 
+      // Total = subtotal - best discount + tax (no stacking)
       getTotalCents: () => {
-        const flags = getFeatureFlags();
-        const items = get().items.map(migrateCartItem); // Migrate items before calculating
-
-        let total;
-        if (flags.freeShipping || flags.minOrderFloor) {
-          const pricingOptions = getPricingOptions();
-          const pricingItems: PricingItem[] = items.map(item => ({
-            line_total_cents: item.line_total_cents,
-            quantity: item.quantity
-          }));
-          const totals = computeTotals(pricingItems, 0.06, pricingOptions);
-          total = totals.total_cents;
-        } else {
-          // Apply quantity discount before calculating total
-          const rawSubtotal = get().getSubtotalCents();
-          const quantityDiscountInfo = get().getQuantityDiscountInfo();
-          const subtotalAfterDiscount = rawSubtotal - quantityDiscountInfo.discountCents;
-          const tax = Math.round(calculateTax(subtotalAfterDiscount / 100) * 100);
-          total = subtotalAfterDiscount + tax;
-        }
-
-        // Subtract promo/coupon discount from total
-        const discountAmount = get().getDiscountAmountCents();
-        return Math.max(0, total - discountAmount);
+        const rawSubtotal = get().getSubtotalCents();
+        const resolved = get().getResolvedDiscount();
+        const subtotalAfterDiscount = rawSubtotal - resolved.appliedDiscountAmountCents;
+        const tax = Math.round(calculateTax(subtotalAfterDiscount / 100) * 100);
+        return Math.max(0, subtotalAfterDiscount + tax);
       },
 
 
@@ -925,6 +881,22 @@ export const useCartStore = create<CartState>()(
           discountRate: discountResult.discountRate,
           discountCents: discountResult.discountCents,
         };
+      },
+
+      // Best Discount Resolver - "Best Discount Wins" (no stacking)
+      getResolvedDiscount: () => {
+        const items = get().items.map(migrateCartItem);
+        const subtotalCents = items.reduce((total, item) => total + item.line_total_cents, 0);
+        const quantity = items.reduce((total, item) => total + item.quantity, 0);
+
+        const discountCode = get().discountCode;
+        const promoDiscount: PromoDiscountInput | null = discountCode ? {
+          code: discountCode.code,
+          discountPercentage: discountCode.discountPercentage,
+          discountAmountCents: discountCode.discountAmountCents || undefined,
+        } : null;
+
+        return resolveBestDiscount({ subtotalCents, quantity, promoDiscount });
       }
     }),
     {

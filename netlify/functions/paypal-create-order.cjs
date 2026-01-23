@@ -37,6 +37,56 @@ const calculateQuantityDiscount = (subtotalCents, quantity) => {
   return { discountRate, discountCents };
 };
 
+/**
+ * "Best Discount Wins" - server-side discount resolver
+ * Only one discount is applied: whichever is higher (quantity or promo)
+ */
+const resolveBestDiscount = (subtotalCents, quantity, promoDiscount = null) => {
+  // Calculate quantity discount
+  const quantityDiscountRate = getQuantityDiscountRate(quantity);
+  const quantityDiscountAmountCents = Math.round(subtotalCents * quantityDiscountRate);
+
+  // Calculate promo discount
+  let promoDiscountAmountCents = 0;
+  let promoDiscountRate = 0;
+  if (promoDiscount) {
+    if (promoDiscount.discountPercentage) {
+      promoDiscountRate = promoDiscount.discountPercentage / 100;
+      promoDiscountAmountCents = Math.round(subtotalCents * promoDiscountRate);
+    } else if (promoDiscount.discountAmountCents) {
+      promoDiscountAmountCents = Math.min(promoDiscount.discountAmountCents, subtotalCents);
+      promoDiscountRate = subtotalCents > 0 ? promoDiscountAmountCents / subtotalCents : 0;
+    }
+  }
+
+  // Pick the better one (higher amount wins)
+  if (quantityDiscountAmountCents >= promoDiscountAmountCents && quantityDiscountAmountCents > 0) {
+    return {
+      appliedDiscountType: 'quantity',
+      appliedDiscountAmountCents: quantityDiscountAmountCents,
+      appliedDiscountRate: quantityDiscountRate,
+      quantityDiscountCents: quantityDiscountAmountCents,
+      promoDiscountCents: 0, // Not applied
+    };
+  } else if (promoDiscountAmountCents > 0) {
+    return {
+      appliedDiscountType: 'promo',
+      appliedDiscountAmountCents: promoDiscountAmountCents,
+      appliedDiscountRate: promoDiscountRate,
+      quantityDiscountCents: 0, // Not applied
+      promoDiscountCents: promoDiscountAmountCents,
+    };
+  }
+
+  return {
+    appliedDiscountType: 'none',
+    appliedDiscountAmountCents: 0,
+    appliedDiscountRate: 0,
+    quantityDiscountCents: 0,
+    promoDiscountCents: 0,
+  };
+};
+
 const computeTotals = (items, taxRate, opts, promoDiscount = null) => {
   const raw = items.reduce((sum, i) => sum + i.line_total_cents, 0);
   const adjusted = Math.max(raw, opts.minFloorCents || 0);
@@ -45,35 +95,26 @@ const computeTotals = (items, taxRate, opts, promoDiscount = null) => {
   // Calculate total quantity across all items
   const totalQuantity = items.reduce((sum, i) => sum + (i.quantity || 1), 0);
 
-  // Apply quantity discount ("Buy More, Save More")
-  const quantityDiscount = calculateQuantityDiscount(adjusted, totalQuantity);
-  const subtotalAfterQuantityDiscount = adjusted - quantityDiscount.discountCents;
-
-  // Apply promo/coupon discount (e.g., NEW20)
-  let promo_discount_cents = 0;
-  if (promoDiscount) {
-    if (promoDiscount.discountPercentage) {
-      promo_discount_cents = Math.round(subtotalAfterQuantityDiscount * (promoDiscount.discountPercentage / 100));
-    } else if (promoDiscount.discountAmountCents) {
-      promo_discount_cents = Math.min(promoDiscount.discountAmountCents, subtotalAfterQuantityDiscount);
-    }
-  }
-  const subtotalAfterPromo = subtotalAfterQuantityDiscount - promo_discount_cents;
+  // "Best Discount Wins" - only ONE discount applied
+  const bestDiscount = resolveBestDiscount(adjusted, totalQuantity, promoDiscount);
+  const subtotalAfterDiscount = adjusted - bestDiscount.appliedDiscountAmountCents;
 
   const shipping_cents = opts.freeShipping ? 0 : 0; // Always free for US
-  const tax_cents = Math.round(subtotalAfterPromo * taxRate);
-  const total_cents = subtotalAfterPromo + tax_cents + shipping_cents;
+  const tax_cents = Math.round(subtotalAfterDiscount * taxRate);
+  const total_cents = subtotalAfterDiscount + tax_cents + shipping_cents;
 
   return {
     raw_subtotal_cents: raw,
     adjusted_subtotal_cents: adjusted,
     min_order_adjustment_cents: minAdj,
     total_quantity: totalQuantity,
-    quantity_discount_rate: quantityDiscount.discountRate,
-    quantity_discount_cents: quantityDiscount.discountCents,
-    subtotal_after_quantity_discount_cents: subtotalAfterQuantityDiscount,
-    promo_discount_cents,
-    subtotal_after_promo_cents: subtotalAfterPromo,
+    applied_discount_type: bestDiscount.appliedDiscountType,
+    applied_discount_cents: bestDiscount.appliedDiscountAmountCents,
+    applied_discount_rate: bestDiscount.appliedDiscountRate,
+    quantity_discount_rate: getQuantityDiscountRate(totalQuantity),
+    quantity_discount_cents: bestDiscount.quantityDiscountCents,
+    promo_discount_cents: bestDiscount.promoDiscountCents,
+    subtotal_after_discount_cents: subtotalAfterDiscount,
     shipping_cents,
     tax_cents,
     total_cents,

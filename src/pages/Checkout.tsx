@@ -24,7 +24,7 @@ import { trackPromoEvent } from '@/lib/posthog';
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
-  const { items: rawItems, getMigratedItems, isLoading, syncToServer, clearCart, getSubtotalCents, getTaxCents, getTotalCents, updateQuantity, removeItem, discountCode, applyDiscountCode, removeDiscountCode, getDiscountAmountCents, getQuantityDiscountInfo } = useCartStore();
+  const { items: rawItems, getMigratedItems, isLoading, syncToServer, clearCart, getSubtotalCents, getTaxCents, getTotalCents, updateQuantity, removeItem, discountCode, applyDiscountCode, removeDiscountCode, getResolvedDiscount } = useCartStore();
 
   // CRITICAL: Use migrated items to ensure rope/pole pocket costs are calculated
   const items = getMigratedItems();
@@ -44,8 +44,7 @@ const Checkout: React.FC = () => {
   const subtotalCents = getSubtotalCents();
   const taxCents = getTaxCents();
   const totalCents = getTotalCents();
-  const discountAmountCents = getDiscountAmountCents();
-  const quantityDiscountInfo = getQuantityDiscountInfo();
+  const resolvedDiscount = getResolvedDiscount();
   
 
   // Calculate feature flag pricing details
@@ -686,15 +685,21 @@ const Checkout: React.FC = () => {
                       </span>
                     </div>
                   )}
-                  {quantityDiscountInfo.discountCents > 0 && (
-                    <div className="flex justify-between items-center text-base bg-green-50 -mx-6 px-6 py-2 rounded-lg">
-                      <span className="text-green-700 font-medium flex items-center gap-1.5">
-                        <Tag className="h-4 w-4" />
-                        Quantity discount ({Math.round(quantityDiscountInfo.discountRate * 100)}% off)
-                      </span>
-                      <span className="text-green-700 font-bold">
-                        -{usd(quantityDiscountInfo.discountCents / 100)}
-                      </span>
+                  {/* Single "Best Discount Wins" line - no stacking */}
+                  {resolvedDiscount.appliedDiscountAmountCents > 0 && (
+                    <div className="bg-green-50 -mx-6 px-6 py-2 rounded-lg space-y-1">
+                      <div className="flex justify-between items-center text-base">
+                        <span className="text-green-700 font-medium flex items-center gap-1.5">
+                          <Tag className="h-4 w-4" />
+                          {resolvedDiscount.appliedDiscountLabel}
+                        </span>
+                        <span className="text-green-700 font-bold">
+                          -{usd(resolvedDiscount.appliedDiscountAmountCents / 100)}
+                        </span>
+                      </div>
+                      {resolvedDiscount.helperMessage && (
+                        <p className="text-xs text-gray-500 italic">{resolvedDiscount.helperMessage}</p>
+                      )}
                     </div>
                   )}
                   <div className="flex justify-between items-center text-base">
@@ -712,14 +717,6 @@ const Checkout: React.FC = () => {
                       {usd(taxCents / 100)}
                     </span>
                   </div>
-                  {discountAmountCents > 0 && (
-                    <div className="flex justify-between items-center text-base bg-green-50 -mx-6 px-6 py-3 rounded-lg">
-                      <span className="text-green-800 font-semibold">Discount ({discountCode?.discountPercentage}%)</span>
-                      <span className="text-green-700 font-bold text-lg">
-                        -{usd(discountAmountCents / 100)}
-                      </span>
-                    </div>
-                  )}
                   <div className="flex justify-between items-center border-t-2 border-[#18448D] pt-4 mt-4 bg-gradient-to-r from-blue-50 to-indigo-50 -mx-6 px-6 py-4 rounded-lg">
                     <span className="text-xl font-bold text-[#18448D]">Total</span>
                     <span className="text-3xl font-bold text-[#18448D]">

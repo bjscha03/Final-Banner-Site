@@ -6,6 +6,7 @@
  */
 
 import { calculateQuantityDiscount } from './quantity-discount';
+import { resolveBestDiscount, ResolvedDiscount, PromoDiscountInput } from './discount-resolver';
 
 // ============================================================================
 // CONSTANTS
@@ -55,10 +56,18 @@ export interface PricingBreakdown {
 
 export interface OrderTotals {
   subtotal_cents: number;
-  // Quantity discount - "Buy More, Save More"
   total_quantity: number;
-  quantity_discount_rate: number;    // e.g., 0.05 for 5%
-  quantity_discount_cents: number;   // discount amount in cents
+
+  // "Best Discount Wins" - only ONE discount is applied
+  applied_discount_type: 'quantity' | 'promo' | 'none';
+  applied_discount_cents: number;     // the single best discount amount
+  applied_discount_label: string;     // e.g., "Quantity discount (13% off)"
+  helper_message: string | null;      // shown when both discounts were available
+
+  // Metadata (for display)
+  quantity_discount_rate: number;     // e.g., 0.05 for 5%
+  quantity_discount_cents: number;    // what qty discount WOULD be
+
   subtotal_after_discount_cents: number;
   tax_cents: number;
   total_cents: number;
@@ -184,9 +193,12 @@ export function getItemPricingBreakdown(item: OrderItemInput): PricingBreakdown 
 
 /**
  * Calculate order totals from array of items
- * Includes quantity discount ("Buy More, Save More")
+ * Uses "Best Discount Wins" logic - only ONE discount is applied
  */
-export function calculateOrderTotals(items: OrderItemInput[]): OrderTotals {
+export function calculateOrderTotals(
+  items: OrderItemInput[],
+  promoDiscount?: PromoDiscountInput | null
+): OrderTotals {
   const subtotal_cents = items.reduce((sum, item) => {
     const breakdown = getItemPricingBreakdown(item);
     return sum + breakdown.subtotal_cents;
@@ -195,20 +207,26 @@ export function calculateOrderTotals(items: OrderItemInput[]): OrderTotals {
   // Calculate total quantity across all items
   const total_quantity = items.reduce((sum, item) => sum + item.quantity, 0);
 
-  // Apply quantity discount ("Buy More, Save More")
-  const quantityDiscountResult = calculateQuantityDiscount(subtotal_cents, total_quantity);
-  const quantity_discount_rate = quantityDiscountResult.discountRate;
-  const quantity_discount_cents = quantityDiscountResult.discountCents;
-  const subtotal_after_discount_cents = subtotal_cents - quantity_discount_cents;
+  // "Best Discount Wins" - resolve which discount to apply
+  const resolved = resolveBestDiscount({
+    subtotalCents: subtotal_cents,
+    quantity: total_quantity,
+    promoDiscount,
+  });
 
+  const subtotal_after_discount_cents = subtotal_cents - resolved.appliedDiscountAmountCents;
   const tax_cents = Math.round(subtotal_after_discount_cents * TAX_RATE);
   const total_cents = subtotal_after_discount_cents + tax_cents;
 
   return {
     subtotal_cents,
     total_quantity,
-    quantity_discount_rate,
-    quantity_discount_cents,
+    applied_discount_type: resolved.appliedDiscountType,
+    applied_discount_cents: resolved.appliedDiscountAmountCents,
+    applied_discount_label: resolved.appliedDiscountLabel,
+    helper_message: resolved.helperMessage,
+    quantity_discount_rate: resolved.quantityDiscountRate,
+    quantity_discount_cents: resolved.quantityDiscountAmountCents,
     subtotal_after_discount_cents,
     tax_cents,
     total_cents,
@@ -321,10 +339,13 @@ export function generateItemBreakdown(item: OrderItemInput): BreakdownLine[] {
 
 /**
  * Generate order summary lines (for cart/checkout)
- * Includes quantity discount line when applicable
+ * Uses "Best Discount Wins" logic - only ONE discount is shown
  */
-export function generateOrderSummary(items: OrderItemInput[]): BreakdownLine[] {
-  const totals = calculateOrderTotals(items);
+export function generateOrderSummary(
+  items: OrderItemInput[],
+  promoDiscount?: PromoDiscountInput | null
+): BreakdownLine[] {
+  const totals = calculateOrderTotals(items, promoDiscount);
 
   const lines: BreakdownLine[] = [
     {
@@ -333,13 +354,12 @@ export function generateOrderSummary(items: OrderItemInput[]): BreakdownLine[] {
     },
   ];
 
-  // Add quantity discount line if applicable
-  if (totals.quantity_discount_cents > 0) {
-    const discountPercent = Math.round(totals.quantity_discount_rate * 100);
+  // Add the SINGLE best discount line if applicable
+  if (totals.applied_discount_cents > 0) {
     lines.push({
-      label: `Quantity discount (${discountPercent}% off)`,
-      value_cents: -totals.quantity_discount_cents, // Negative to show as discount
-      description: `${totals.total_quantity} items - Buy More, Save More!`,
+      label: totals.applied_discount_label,
+      value_cents: -totals.applied_discount_cents, // Negative to show as discount
+      description: totals.helper_message || undefined,
     });
   }
 

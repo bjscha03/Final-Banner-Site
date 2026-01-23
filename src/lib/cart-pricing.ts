@@ -3,7 +3,8 @@
  * All UI surfaces must use computeCartTotals() to ensure consistency
  */
 
-import { calculateQuantityDiscount } from './quantity-discount';
+import { calculateQuantityDiscount, getQuantityDiscountRate } from './quantity-discount';
+import { resolveBestDiscount, PromoDiscountInput } from './discount-resolver';
 
 // Core types for the new pricing system
 export type MoneyCents = number; // integer cents
@@ -29,7 +30,7 @@ export type Cart = {
   items: CartItem[];
   shippingCents: MoneyCents;   // 0 when FREE
   taxRatePct: number;          // e.g., 6 for 6%
-  discountsCents?: MoneyCents; // sum of applied discounts (positive number)
+  promoDiscount?: PromoDiscountInput | null; // Promo code discount (if any)
 };
 
 // Computed totals interface
@@ -45,15 +46,20 @@ export interface CartTotals {
 
   // Cart-level totals
   subtotalCents: MoneyCents;     // sum of all line totals (before any discounts)
-  discountsCents: MoneyCents;    // applied promo/coupon discounts
-
-  // Quantity discount - "Buy More, Save More"
   totalQuantity: number;          // total qty across all items
-  quantityDiscountRate: number;   // e.g., 0.05 for 5%
-  quantityDiscountCents: MoneyCents; // discount amount in cents
 
-  subtotalAfterDiscountsCents: MoneyCents; // subtotal - all discounts (promo + qty)
-  taxCents: MoneyCents;          // tax on subtotal after discounts
+  // "Best Discount Wins" - only ONE discount is applied
+  appliedDiscountType: 'quantity' | 'promo' | 'none';
+  appliedDiscountCents: MoneyCents; // the single best discount amount
+  appliedDiscountLabel: string;     // e.g., "Quantity discount (13% off)" or "NEW20 (20% off)"
+  helperMessage: string | null;     // "Discounts can't be combined..." when both available
+
+  // Metadata for display (not applied)
+  quantityDiscountRate: number;   // e.g., 0.05 for 5%
+  quantityDiscountCents: MoneyCents; // what qty discount WOULD be
+
+  subtotalAfterDiscountsCents: MoneyCents; // subtotal - best discount
+  taxCents: MoneyCents;          // tax on subtotal after discount
   shippingCents: MoneyCents;     // shipping cost
   totalCents: MoneyCents;        // final total
 }
@@ -112,18 +118,17 @@ export const computeCartTotals = (cart: Cart): CartTotals => {
   // Total quantity across all items (for quantity discount)
   const totalQuantity = cart.items.reduce((sum, item) => sum + item.qty, 0);
 
-  // Calculate quantity discount ("Buy More, Save More")
-  const quantityDiscountResult = calculateQuantityDiscount(subtotalCents, totalQuantity);
-  const quantityDiscountRate = quantityDiscountResult.discountRate;
-  const quantityDiscountCents = quantityDiscountResult.discountCents;
+  // "Best Discount Wins" - resolve which discount to apply
+  const resolved = resolveBestDiscount({
+    subtotalCents,
+    quantity: totalQuantity,
+    promoDiscount: cart.promoDiscount,
+  });
 
-  // Promo/coupon discounts (separate from quantity discount)
-  const discountsCents = cart.discountsCents ?? 0;
+  // Subtotal after the SINGLE best discount
+  const subtotalAfterDiscountsCents = roundToCents(subtotalCents - resolved.appliedDiscountAmountCents);
 
-  // Subtotal after ALL discounts (quantity + promo)
-  const subtotalAfterDiscountsCents = roundToCents(subtotalCents - quantityDiscountCents - discountsCents);
-
-  // Tax is calculated on subtotal after all discounts
+  // Tax is calculated on subtotal after discount
   const taxCents = roundToCents(subtotalAfterDiscountsCents * cart.taxRatePct / 100);
 
   const shippingCents = cart.shippingCents;
@@ -132,10 +137,13 @@ export const computeCartTotals = (cart: Cart): CartTotals => {
   return {
     itemTotals,
     subtotalCents,
-    discountsCents,
     totalQuantity,
-    quantityDiscountRate,
-    quantityDiscountCents,
+    appliedDiscountType: resolved.appliedDiscountType,
+    appliedDiscountCents: resolved.appliedDiscountAmountCents,
+    appliedDiscountLabel: resolved.appliedDiscountLabel,
+    helperMessage: resolved.helperMessage,
+    quantityDiscountRate: resolved.quantityDiscountRate,
+    quantityDiscountCents: resolved.quantityDiscountAmountCents,
     subtotalAfterDiscountsCents,
     taxCents,
     shippingCents,
