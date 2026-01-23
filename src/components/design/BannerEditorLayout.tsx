@@ -927,7 +927,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
 
   const handleAddToCart = async () => {
     console.log(`🎯 [BannerEditorLayout] ${editingItemId ? 'Update' : 'Add to'} Cart button clicked`);
-    
+
     if (!hasContent) {
       toast({
         title: 'Content Required',
@@ -943,13 +943,14 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       console.log('🔄 [UPDATE CART] Clearing selection...');
       editorState.clearSelection();
     }
-    
+
     // Force immediate thumbnail generation (don't rely on auto-generation)
     console.log('🔄 [UPDATE CART] Generating fresh thumbnail NOW...');
     generateThumbnail();
-    
-    // Wait for thumbnail to be generated and stored
-    await new Promise(resolve => setTimeout(resolve, 300));
+
+    // PERFORMANCE FIX: Reduced wait time from 300ms to 100ms
+    // Thumbnail generation is synchronous, we just need a tick for state update
+    await new Promise(resolve => setTimeout(resolve, 100));
     console.log('✅ [UPDATE CART] Fresh thumbnail generated');
 
     // CRITICAL: Get FRESH thumbnail from store after generation (not stale canvasThumbnail variable)
@@ -959,9 +960,9 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
 
     // Now use the fresh thumbnail from the store
     let thumbnailUrl = freshThumbnail;
-    
+
     console.log('🎨 [ADD TO CART] canvasThumbnail:', canvasThumbnail ? canvasThumbnail.substring(0, 50) + '...' : 'NULL');
-    
+
     // Fallback to file URL if canvas thumbnail not available
     if (!thumbnailUrl && file && file.url) {
       thumbnailUrl = file.url;
@@ -975,11 +976,21 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
         console.log('🎨 [ADD TO CART] Using firstImage.url:', thumbnailUrl ? thumbnailUrl.substring(0, 50) + '...' : 'NULL');
       }
     }
-    
+
     console.log('🎨 [ADD TO CART] Final thumbnail URL:', thumbnailUrl ? thumbnailUrl.substring(0, 50) + '...' : 'NULL');
-    
+
+    // PERFORMANCE FIX: Check if upsell should be shown BEFORE Cloudinary upload
+    // This shows the modal immediately instead of waiting for upload
+    if (shouldShowUpsell && !editingItemId) {
+      console.log('🚀 [FAST UPSELL] Showing upsell modal IMMEDIATELY (before Cloudinary upload)');
+      setPendingAction('cart');
+      setShowUpsellModal(true);
+      return; // Exit early - Cloudinary upload will happen in handleUpsellContinue
+    }
+
     // CRITICAL FIX: Upload thumbnail to Cloudinary for persistence
     // This ensures thumbnails persist after logout/login
+    // NOTE: This only runs when upsell is NOT shown (editing or upsell disabled)
     let thumbnailFileKey: string | undefined = undefined;
     if (thumbnailUrl && (thumbnailUrl.startsWith('data:') || thumbnailUrl.startsWith('blob:'))) {
       console.log('📤 [THUMBNAIL UPLOAD] Uploading thumbnail to Cloudinary...');
@@ -1212,23 +1223,12 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       thumbnailUrl: thumbnailUrl,
     };
     
-    console.log('�� [ADD TO CART] Quote data:', quoteData);
+    console.log('📦 [ADD TO CART] Quote data:', quoteData);
     console.log('📦 [ADD TO CART] Thumbnail URL type:', typeof thumbnailUrl);
     console.log('📦 [ADD TO CART] Thumbnail URL value:', thumbnailUrl);
-    
-    // Show upsell modal if user should see it
-    if (shouldShowUpsell && !editingItemId) {
-      console.log('🎨 BANNER EDITOR: Showing upsell modal for ADD TO CART');
-      console.log('🎨 BANNER EDITOR: canvasThumbnail:', canvasThumbnail ? canvasThumbnail.substring(0, 50) + '...' : 'NULL');
-      setPendingAction('cart');
-      setShowUpsellModal(true);
-      return;
-    }
-    
-    // BUG 3A FIX: Skip upsell when updating existing items
-    if (editingItemId && shouldShowUpsell) {
-      console.log('🔄 [BUG 3A FIX] Skipping upsell modal because editing existing item:', editingItemId);
-    }
+
+    // NOTE: Upsell check moved earlier (before Cloudinary upload) for faster modal display
+    // If we reach here, either upsell is disabled or we're editing an existing item
 
     // CRITICAL: Update existing item if editing, otherwise add new item
     if (editingItemId) {
