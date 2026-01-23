@@ -382,12 +382,12 @@ const QuickQuote: React.FC = () => {
               {/* Size Selection */}
               <div>
 
-              <div className="grid grid-cols-2 gap-6 mb-6">
-                <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-6">
+                <div className="space-y-2">
                   <label className="block text-sm font-semibold text-gray-800 tracking-wide">
                     Width (inches)
                   </label>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <button
                       onClick={(e) => {
                         e.preventDefault();
@@ -395,10 +395,10 @@ const QuickQuote: React.FC = () => {
                         adjustWidth(-1);
                       }}
                       disabled={widthIn <= 1}
-                      className="h-10 w-10 bg-white border border-slate-300 rounded-md hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
+                      className="h-11 w-11 flex-shrink-0 bg-white border border-slate-300 rounded-md hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
                       type="button"
                     >
-                      <Minus className="h-4 w-4 text-blue-600 group-hover:text-blue-700 transition-colors" />
+                      <Minus className="h-4 w-4 text-blue-600" />
                     </button>
                     <Input
                       id="qq-width"
@@ -406,7 +406,7 @@ const QuickQuote: React.FC = () => {
                       value={widthInput}
                       onChange={(e) => setWidthInput(e.target.value)}
                       onBlur={handleWidthBlur}
-                      className="flex-1 min-w-[5rem] text-center bg-white border border-slate-300 rounded-md px-4 py-2 text-base font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
+                      className="flex-1 text-center bg-white border border-slate-300 rounded-md px-3 py-2 text-base font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors h-11"
                       min="1"
                       max="1000"
                     />
@@ -417,22 +417,22 @@ const QuickQuote: React.FC = () => {
                         adjustWidth(1);
                       }}
                       disabled={widthIn >= 1000}
-                      className="h-10 w-10 bg-white border border-slate-300 rounded-md hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
+                      className="h-11 w-11 flex-shrink-0 bg-white border border-slate-300 rounded-md hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
                       type="button"
                     >
-                      <Plus className="h-4 w-4 text-blue-600 group-hover:text-blue-700 transition-colors" />
+                      <Plus className="h-4 w-4 text-blue-600" />
                     </button>
                   </div>
                   {widthError && (
-                    <p className="text-xs text-red-500 mt-2 font-medium">{widthError}</p>
+                    <p className="text-xs text-red-500 mt-1 font-medium">{widthError}</p>
                   )}
                 </div>
 
-                <div className="space-y-3">
+                <div className="space-y-2">
                   <label className="block text-sm font-semibold text-gray-800 tracking-wide">
                     Height (inches)
                   </label>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-2">
                     <button
                       onClick={(e) => {
                         e.preventDefault();
@@ -440,17 +440,17 @@ const QuickQuote: React.FC = () => {
                         adjustHeight(-1);
                       }}
                       disabled={heightIn <= 1}
-                      className="h-10 w-10 bg-white border border-slate-300 rounded-md hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
+                      className="h-11 w-11 flex-shrink-0 bg-white border border-slate-300 rounded-md hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
                       type="button"
                     >
-                      <Minus className="h-4 w-4 text-blue-600 group-hover:text-blue-700 transition-colors" />
+                      <Minus className="h-4 w-4 text-blue-600" />
                     </button>
                     <Input
                       type="number"
                       value={heightInput}
                       onChange={(e) => setHeightInput(e.target.value)}
                       onBlur={handleHeightBlur}
-                      className="flex-1 min-w-[5rem] text-center bg-white border border-slate-300 rounded-md px-4 py-2 text-base font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
+                      className="flex-1 text-center bg-white border border-slate-300 rounded-md px-3 py-2 text-base font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors h-11"
                       min="1"
                       max="1000"
                     />
@@ -461,14 +461,14 @@ const QuickQuote: React.FC = () => {
                         adjustHeight(1);
                       }}
                       disabled={heightIn >= 1000}
-                      className="h-10 w-10 bg-white border border-slate-300 rounded-md hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
+                      className="h-11 w-11 flex-shrink-0 bg-white border border-slate-300 rounded-md hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
                       type="button"
                     >
-                      <Plus className="h-4 w-4 text-blue-600 group-hover:text-blue-700 transition-colors" />
+                      <Plus className="h-4 w-4 text-blue-600" />
                     </button>
                   </div>
                   {heightError && (
-                    <p className="text-xs text-red-500 mt-2 font-medium">{heightError}</p>
+                    <p className="text-xs text-red-500 mt-1 font-medium">{heightError}</p>
                   )}
                 </div>
               </div>
