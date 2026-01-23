@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Tag, Plane, ChevronRight } from 'lucide-react';
+import { Tag, RefreshCw, ChevronRight } from 'lucide-react';
 
 const PROMO_CODE = 'NEW20';
 
@@ -19,7 +19,7 @@ const PromoBanner: React.FC = () => {
   return (
     <div className="bg-orange-500 text-white">
       {/* Row 1: Main promo message */}
-      <div className="py-2 px-4 text-center border-b border-orange-400/30">
+      <div className="py-2 px-4 text-center">
         <button
           onClick={handleCopyCode}
           className="inline-flex items-center gap-2 hover:opacity-90 transition-opacity cursor-pointer group"
@@ -39,16 +39,16 @@ const PromoBanner: React.FC = () => {
       </div>
 
       {/* Row 2: Feature badges */}
-      <div className="py-1.5 px-4 text-center bg-orange-600/50">
-        <div className="flex items-center justify-center gap-2 md:gap-6 text-xs font-medium">
+      <div className="py-1.5 px-4 text-center bg-orange-600">
+        <div className="flex items-center justify-center gap-4 md:gap-6 text-xs font-medium tracking-wide">
           <span className="flex items-center gap-1.5">
-            <Plane className="w-3.5 h-3.5" />
+            <RefreshCw className="w-3.5 h-3.5" />
             FREE NEXT-DAY AIR SHIPPING
           </span>
-          <span className="hidden sm:inline text-orange-300">•</span>
-          <span className="hidden sm:inline">PROFESSIONAL QUALITY</span>
-          <span className="hidden sm:inline text-orange-300">•</span>
-          <span className="hidden sm:inline">24-HOUR PRODUCTION</span>
+          <span className="text-orange-300">›</span>
+          <span>PROFESSIONAL QUALITY</span>
+          <span className="text-orange-300">›</span>
+          <span>24-HOUR PRODUCTION</span>
         </div>
       </div>
     </div>

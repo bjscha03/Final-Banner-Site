@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ShoppingCart, Menu, X, User, LogOut, Package, Shield, Sparkles } from 'lucide-react';
+import { ShoppingCart, Menu, X, User, LogOut, Package, Shield, HelpCircle } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import ScrollToTopLink from './ScrollToTopLink';
 import Logo from './Logo';
@@ -12,7 +12,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Button } from '@/components/ui/button';
 
 interface HeaderProps {
   cartCount?: number;
@@ -55,80 +54,58 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
   };
 
   return (
-    <header className="bg-white shadow-lg sticky top-0 z-50">
+    <header className="bg-white border-b border-slate-200 sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16 relative">
-          {/* Mobile: Hamburger Menu (Left) */}
-          <div className="md:hidden flex items-center">
+        <div className="flex items-center justify-between h-16">
+          {/* Left: Hamburger Menu (always visible, even on desktop) */}
+          <div className="flex items-center w-24">
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="p-2 text-gray-700 hover:text-blue-700 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+              className="p-2 text-slate-600 hover:text-slate-900 transition-colors"
               aria-label="Toggle menu"
             >
               {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
           </div>
 
-          {/* Logo - Centered on Mobile, Left on Desktop */}
-          <div className="flex-shrink-0 md:static absolute left-1/2 md:left-auto -translate-x-1/2 md:translate-x-0">
+          {/* Center: Logo */}
+          <div className="flex-shrink-0">
             <ScrollToTopLink to="/" className="flex items-center">
-              <Logo variant="compact" height={56} className="h-14 max-w-[320px] object-contain" animated />
+              <Logo variant="compact" height={48} className="h-12 object-contain" animated />
             </ScrollToTopLink>
           </div>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex space-x-8">
-            {navItems.map((item) => (
-              <Link
-                key={item.name}
-                to={item.href}
-                className={`px-3 py-2 text-sm font-medium transition-colors ${
-                  location.pathname === item.href
-                    ? 'text-blue-700 border-b-2 border-blue-700'
-                    : 'text-gray-700 hover:text-blue-700'
-                }`}
-              >
-                {item.name}
-              </Link>
-            ))}
-          </nav>
-
-          {/* Right Side Actions - Cart & User Menu */}
-          <div className="flex items-center space-x-2 md:space-x-4">
-            <button
-              onClick={onCartClick}
-              aria-label="Shopping cart"
-              className="relative p-2 text-gray-700 hover:text-blue-700 transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center"
+          {/* Right: Help, User, Cart Icons */}
+          <div className="flex items-center justify-end w-24 gap-1">
+            {/* Help Icon */}
+            <ScrollToTopLink
+              to="/faq"
+              className="p-2 text-slate-500 hover:text-slate-700 transition-colors"
+              aria-label="Help & FAQ"
             >
-              <ShoppingCart className="h-6 w-6" />
-              {cartCount > 0 && (
-                <span className="absolute -top-1 -right-1 bg-orange-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-semibold">
-                  {cartCount}
-                </span>
-              )}
-            </button>
+              <HelpCircle className="h-5 w-5" />
+            </ScrollToTopLink>
 
+            {/* User Icon / Dropdown */}
             {!loading && (
-              <>
-                {user ? (
-                  // Authenticated user menu
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" className="hidden md:flex items-center space-x-2">
-                        <User className="h-5 w-5" />
-                        <span className="text-sm font-medium">
-                          {user.email?.split('@')[0] || 'Account'}
-                        </span>
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="p-2 text-slate-500 hover:text-slate-700 transition-colors"
+                    aria-label="Account"
+                  >
+                    <User className="h-5 w-5" />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  {user ? (
+                    <>
                       <DropdownMenuItem asChild>
                         <ScrollToTopLink to="/my-orders" className="flex items-center">
                           <Package className="h-4 w-4 mr-2" />
                           My Orders
                         </ScrollToTopLink>
                       </DropdownMenuItem>
-                      
                       {isAdmin(user) && (
                         <>
                           <DropdownMenuSeparator />
@@ -145,111 +122,94 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
                         <LogOut className="h-4 w-4 mr-2" />
                         Sign Out
                       </DropdownMenuItem>
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                ) : (
-                  // Unauthenticated user buttons
-                  <>
-                    <div className="hidden md:flex flex-col items-end">
-                      <Button
-                        variant="ghost"
-                        asChild
-                        className="flex items-center space-x-2"
-                      >
-                        <ScrollToTopLink to="/sign-in">
-                          <User className="h-5 w-5" />
-                          <span className="text-sm font-medium">Sign In</span>
+                    </>
+                  ) : (
+                    <>
+                      <DropdownMenuItem asChild>
+                        <ScrollToTopLink to="/sign-in" className="flex items-center">
+                          <User className="h-4 w-4 mr-2" />
+                          Sign In
                         </ScrollToTopLink>
-                      </Button>
-                      <ScrollToTopLink 
-                        to="/sign-up" 
-                        className="text-xs text-gray-500 hover:text-[#18448D] -mt-1"
-                        title="Optional: Track orders and save designs"
-                      >
-                        or create account
-                      </ScrollToTopLink>
-                    </div>
-                  </>
-                )}
-              </>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <ScrollToTopLink to="/sign-up" className="flex items-center">
+                          <User className="h-4 w-4 mr-2" />
+                          Create Account
+                        </ScrollToTopLink>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
             )}
 
+            {/* Cart Icon */}
+            <button
+              onClick={onCartClick}
+              aria-label="Shopping cart"
+              className="relative p-2 text-slate-500 hover:text-slate-700 transition-colors"
+            >
+              <ShoppingCart className="h-5 w-5" />
+              {cartCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 bg-green-500 text-white text-[10px] rounded-full h-4 w-4 flex items-center justify-center font-bold">
+                  {cartCount}
+                </span>
+              )}
+            </button>
           </div>
         </div>
 
-        {/* Mobile Navigation */}
+        {/* Slide-out Navigation Menu (works on all screen sizes) */}
         {isMenuOpen && (
-          <div className="md:hidden">
-            <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-gray-50">
+          <div className="absolute left-0 top-full w-64 bg-white shadow-lg border-r border-slate-200 z-50">
+            <div className="py-2">
               {navItems.map((item) => (
                 <ScrollToTopLink
                   key={item.name}
                   to={item.href}
-                  className={`block px-3 py-2 text-base font-medium ${
+                  className={`block px-4 py-3 text-sm font-medium border-b border-slate-100 ${
                     location.pathname === item.href
-                      ? 'text-blue-700 bg-blue-50'
-                      : 'text-gray-700 hover:text-blue-700'
+                      ? 'text-[#18448D] bg-blue-50'
+                      : 'text-slate-700 hover:text-[#18448D] hover:bg-slate-50'
                   }`}
                   onClick={() => setIsMenuOpen(false)}
                 >
                   {item.name}
                 </ScrollToTopLink>
               ))}
-              <div className="border-t pt-3 mt-3">
-                {!loading && (
+
+              {/* Account section in menu */}
+              <div className="border-t border-slate-200 mt-2 pt-2">
+                {!loading && user && (
                   <>
-                    {user ? (
-                      // Authenticated mobile menu
-                      <>
-                        <ScrollToTopLink
-                          to="/my-orders"
-                          className="flex items-center space-x-2 text-gray-700 hover:text-blue-700 w-full px-3 py-2 text-base font-medium"
-                          onClick={() => setIsMenuOpen(false)}
-                        >
-                          <Package className="h-5 w-5" />
-                          <span>My Orders</span>
-                        </ScrollToTopLink>
-                        {isAdmin(user) && (
-                          <ScrollToTopLink
-                            to="/admin/orders"
-                            className="flex items-center space-x-2 text-gray-700 hover:text-blue-700 w-full px-3 py-2 text-base font-medium"
-                            onClick={() => setIsMenuOpen(false)}
-                          >
-                            <Shield className="h-5 w-5" />
-                            <span>Admin: Orders</span>
-                          </ScrollToTopLink>
-                        )}
-                        <button
-                          onClick={() => {
-                            handleSignOut();
-                            setIsMenuOpen(false);
-                          }}
-                          className="flex items-center space-x-2 text-gray-700 hover:text-blue-700 w-full px-3 py-2 text-base font-medium"
-                        >
-                          <LogOut className="h-5 w-5" />
-                          <span>Sign Out</span>
-                        </button>
-                      </>
-                    ) : (
-                      // Unauthenticated mobile menu
-                      <>
-                        <ScrollToTopLink
-                          to="/sign-in"
-                          className="flex items-center space-x-2 text-gray-700 hover:text-blue-700 w-full px-3 py-2 text-base font-medium"
-                          onClick={() => setIsMenuOpen(false)}
-                        >
-                          <User className="h-5 w-5" />
-                          <span>Sign In</span>
-                        </ScrollToTopLink>
-                        <ScrollToTopLink
-                          to="/sign-up"
-                          className="w-full mt-1 text-sm text-gray-600 hover:text-[#18448D] px-3 py-1"
-                          onClick={() => setIsMenuOpen(false)}
-                        >
-                          Create account (optional - track orders & save designs)
-                        </ScrollToTopLink>
-                      </>
+                    <ScrollToTopLink
+                      to="/my-orders"
+                      className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-700 hover:text-[#18448D] hover:bg-slate-50"
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      <Package className="h-4 w-4" />
+                      My Orders
+                    </ScrollToTopLink>
+                    {isAdmin(user) && (
+                      <ScrollToTopLink
+                        to="/admin/orders"
+                        className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-700 hover:text-[#18448D] hover:bg-slate-50"
+                        onClick={() => setIsMenuOpen(false)}
+                      >
+                        <Shield className="h-4 w-4" />
+                        Admin: Orders
+                      </ScrollToTopLink>
                     )}
+                    <button
+                      onClick={() => {
+                        handleSignOut();
+                        setIsMenuOpen(false);
+                      }}
+                      className="flex items-center gap-2 w-full px-4 py-3 text-sm font-medium text-slate-700 hover:text-[#18448D] hover:bg-slate-50 text-left"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      Sign Out
+                    </button>
                   </>
                 )}
               </div>
