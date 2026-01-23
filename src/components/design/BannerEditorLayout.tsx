@@ -1200,12 +1200,17 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       overlayImages: currentOverlayImages, // NEW: Save ALL overlay images
       canvasBackgroundColor: canvasBackgroundColor,
       thumbnailUrl: thumbnailUrl, // CRITICAL: Include thumbnail for cart display
-      // CRITICAL FIX: Include file with fileKey for thumbnail persistence
-      file: thumbnailFileKey ? { 
-        fileKey: thumbnailFileKey,
-        url: thumbnailUrl,
-        name: `banner-${Date.now()}.png`
-      } : freshQuoteForCart.file,
+      // CRITICAL FIX: Only save file if there are NO text elements and NO overlay images
+      // If there ARE text/overlay elements, the thumbnail has them baked in -
+      // we DON'T want to load the thumbnail as a background when editing!
+      // The thumbnail is only for cart/checkout display, NOT for editor reload.
+      file: (textElementsFromEditor.length > 0 || (currentOverlayImages && currentOverlayImages.length > 0))
+        ? undefined  // Don't save file - elements are stored separately
+        : (thumbnailFileKey ? {
+            fileKey: thumbnailFileKey,
+            url: thumbnailUrl,
+            name: `banner-${Date.now()}.png`
+          } : freshQuoteForCart.file),
       // FINAL_RENDER: High-res snapshot for admin PDF
       finalRenderUrl: finalRenderResult?.url,
       finalRenderFileKey: finalRenderResult?.fileKey,
