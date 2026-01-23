@@ -41,7 +41,7 @@ const materials: MaterialOption[] = [
     name: '18oz Vinyl',
     subtitle: 'Heavy-duty vinyl',
     category: 'vinyl',
-    imagePath: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1762035586/unnamed-2_ucrvav.jpg'
+    imagePath: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1769209691/White-label_Outdoor_Banner_3_Product_from_4over_vfdbxc.png'
   },
   {
     key: 'mesh',
