@@ -23,12 +23,7 @@ const About: React.FC = () => {
     navigate('/contact');
   };
 
-  const stats = [
-    { icon: Clock, value: '24hr', label: 'Production Time', color: 'from-blue-500 to-blue-600', iconColor: 'text-blue-600' },
-    { icon: Shield, value: '100%', label: 'Satisfaction Rate', color: 'from-green-500 to-green-600', iconColor: 'text-green-600' },
-    { icon: Users, value: '10k+', label: 'Happy Customers', color: 'from-orange-500 to-orange-600', iconColor: 'text-orange-600' },
-    { icon: Award, value: 'Free', label: 'Next-Day Air Shipping', color: 'from-purple-500 to-purple-600', iconColor: 'text-purple-600' }
-  ];
+
 
   const values = [
     {
@@ -75,27 +70,7 @@ const About: React.FC = () => {
       />
       
       <div className="min-h-screen bg-gray-50 relative overflow-hidden">
-        {/* Hero Section */}
-        <div className="relative pt-12 pb-24 px-4 sm:px-6 lg:px-8">
-          <div className="max-w-7xl mx-auto">
-            <div className="text-center mb-16">
 
-              {/* Stats Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 max-w-5xl mx-auto">
-                {stats.map((stat, index) => (
-                  <div key={index} className="group relative">
-                    
-                    <div className="relative bg-white p-6 rounded-2xl shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 border border-gray-100">
-                      <stat.icon className={`h-8 w-8 ${stat.iconColor} mx-auto mb-3`} />
-                      <div className="text-3xl font-bold text-gray-900 mb-1">{stat.value}</div>
-                      <div className="text-sm text-gray-600">{stat.label}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
 
         {/* Story Section */}
         <div className="relative py-20 bg-white">
