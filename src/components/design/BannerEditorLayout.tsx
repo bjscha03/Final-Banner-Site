@@ -761,29 +761,46 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
         }
         
         loadedKeys.push(key);
-        console.log(`🖼️ [IMAGE LOAD] Loading image ${index + 1}/${imagesToLoad.length}`);
-        
+        console.log(`🖼️ [IMAGE LOAD] Loading image ${index + 1}/${imagesToLoad.length}`, overlayImg);
+
         // Extract fileKey
         let extractedFileKey = overlayImg.fileKey;
         if (!extractedFileKey && overlayImg.url) {
-          const match = overlayImg.url.match(/\/upload\/(?:v\d+\/)?(. +?)(?:\?|$)/);
+          const match = overlayImg.url.match(/\/upload\/(?:v\d+\/)?(.+?)(?:\?|$)/);
           if (match) extractedFileKey = match[1];
         }
-        const originalUrl = extractedFileKey 
+        const originalUrl = extractedFileKey
           ? `https://res.cloudinary.com/dtrxl120u/image/upload/${extractedFileKey}`
           : overlayImg.url;
 
-        // Convert percentage position to inches
-        const xInches = overlayImg.position?.x != null ? (overlayImg.position.x / 100) * currentWidthIn : currentWidthIn / 2;
-        const yInches = overlayImg.position?.y != null ? (overlayImg.position.y / 100) * currentHeightIn : currentHeightIn / 2;
-        
-        // Calculate dimensions
-        const defaultWidthInches = 4;
-        const imageScale = overlayImg.scale || 1;
-        const aspectRatio = overlayImg.aspectRatio || 1;
-        const widthInches = defaultWidthInches * imageScale;
-        const heightInches = widthInches / aspectRatio;
-        
+        // Calculate dimensions - prefer saved dimensions, fallback to scale-based calculation
+        let widthInches: number;
+        let heightInches: number;
+
+        if (overlayImg.widthIn && overlayImg.heightIn) {
+          // Use saved dimensions (most accurate)
+          widthInches = overlayImg.widthIn;
+          heightInches = overlayImg.heightIn;
+        } else {
+          // Fallback: calculate from scale and aspect ratio
+          const defaultWidthInches = 4;
+          const imageScale = overlayImg.scale || 1;
+          const aspectRatio = overlayImg.aspectRatio || 1;
+          widthInches = defaultWidthInches * imageScale;
+          heightInches = widthInches / aspectRatio;
+        }
+
+        // Position is stored as TOP-LEFT corner percentage
+        // Editor also uses TOP-LEFT, so just convert percentage to inches
+        const xInches = overlayImg.position?.x != null ? (overlayImg.position.x / 100) * currentWidthIn : 0;
+        const yInches = overlayImg.position?.y != null ? (overlayImg.position.y / 100) * currentHeightIn : 0;
+
+        console.log(`🖼️ [IMAGE LOAD] Position:`, {
+          storedPercent: overlayImg.position,
+          inches: { x: xInches, y: yInches },
+          size: { w: widthInches, h: heightInches }
+        });
+
         addObject({
           type: 'image',
           url: originalUrl,
@@ -798,8 +815,8 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
           visible: true,
           locked: false,
         });
-        
-        console.log(`✅ [IMAGE LOAD] Image ${index + 1} added to canvas`)
+
+        console.log(`✅ [IMAGE LOAD] Image ${index + 1} added at (${xInches.toFixed(2)}, ${yInches.toFixed(2)})`)
       });
 
       // Load text elements if present
@@ -1043,17 +1060,14 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     } else if (imageObjects.length > 0) {
       console.log('🖼️ [MULTI-IMAGE SAVE] Extracting ALL image objects:', imageObjects.length);
       currentOverlayImages = imageObjects.map((overlayObj, index) => {
-        // CRITICAL FIX: Editor stores x,y as CENTER point of the image
-        // PDF expects position as TOP-LEFT corner percentage
-        // Calculate top-left corner from center: topLeft = center - (size / 2)
+        // Editor stores x,y as TOP-LEFT corner of the image (in inches)
+        // Convert directly to percentage of banner dimensions
         const imageWidthIn = overlayObj.width || 0;
         const imageHeightIn = overlayObj.height || 0;
-        const topLeftX = overlayObj.x - (imageWidthIn / 2);
-        const topLeftY = overlayObj.y - (imageHeightIn / 2);
 
-        // Convert top-left position to percentage of banner dimensions
-        const xPercent = (topLeftX / widthIn) * 100;
-        const yPercent = (topLeftY / heightIn) * 100;
+        // x,y is already top-left, convert to percentage directly
+        const xPercent = (overlayObj.x / widthIn) * 100;
+        const yPercent = (overlayObj.y / heightIn) * 100;
 
         const aspectRatio = imageWidthIn && imageHeightIn ? imageWidthIn / imageHeightIn : 1;
         const defaultWidthInches = 4;
@@ -1066,12 +1080,15 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
           position: { x: xPercent, y: yPercent },
           scale: scale,
           aspectRatio: aspectRatio,
+          // Also save actual dimensions for accurate restoration
+          widthIn: imageWidthIn,
+          heightIn: imageHeightIn,
         };
 
         console.log(`🖼️ [MULTI-IMAGE SAVE] Image ${index + 1}:`, imageData);
-        console.log(`  - Editor center: (${overlayObj.x}, ${overlayObj.y}) inches`);
+        console.log(`  - Editor top-left: (${overlayObj.x}, ${overlayObj.y}) inches`);
         console.log(`  - Image size: ${imageWidthIn}x${imageHeightIn} inches`);
-        console.log(`  - Top-left: (${topLeftX}, ${topLeftY}) inches -> (${xPercent.toFixed(1)}%, ${yPercent.toFixed(1)}%)`);
+        console.log(`  - Saved position: (${xPercent.toFixed(1)}%, ${yPercent.toFixed(1)}%)`);
         return imageData;
       });
       
