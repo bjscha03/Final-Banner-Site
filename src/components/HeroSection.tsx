@@ -20,12 +20,12 @@ const HeroSection: React.FC = () => {
         {/* Centered Content */}
         <div className="text-center text-white space-y-4">
           {/* Main Heading */}
-          <div className="space-y-2">
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight">
-              <span className="text-orange-500">CUSTOM BANNERS</span>
+          <div className="space-y-3">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight uppercase">
+              Custom Banners
             </h1>
-            <p className="text-xl md:text-2xl lg:text-3xl font-medium text-white/90">
-              Printed Fast, Shipped <span className="text-orange-500 italic font-bold">FREE</span> Next-Day Air
+            <p className="text-lg md:text-xl lg:text-2xl font-normal text-slate-200">
+              Printed Fast, Shipped <span className="text-orange-400 italic font-semibold">FREE</span> Next-Day Air
             </p>
           </div>
 

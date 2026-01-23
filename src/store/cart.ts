@@ -666,18 +666,21 @@ export const useCartStore = create<CartState>()(
         const discount = get().discountCode;
         if (!discount) return 0;
 
-        const subtotal = get().getSubtotalCents();
-        
+        // Get subtotal AFTER quantity discount to avoid double discounting
+        const rawSubtotal = get().getSubtotalCents();
+        const quantityDiscountInfo = get().getQuantityDiscountInfo();
+        const subtotalAfterQuantityDiscount = rawSubtotal - quantityDiscountInfo.discountCents;
+
         // Use percentage discount if available
         if (discount.discountPercentage) {
-          return Math.round(subtotal * (discount.discountPercentage / 100));
+          return Math.round(subtotalAfterQuantityDiscount * (discount.discountPercentage / 100));
         }
-        
+
         // Otherwise use fixed amount discount
         if (discount.discountAmountCents) {
-          return Math.min(discount.discountAmountCents, subtotal);
+          return Math.min(discount.discountAmountCents, subtotalAfterQuantityDiscount);
         }
-        
+
         return 0;
       },
 
