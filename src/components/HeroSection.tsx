@@ -18,14 +18,19 @@ const HeroSection: React.FC = () => {
     <section className="bg-[#1a2332]">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-20">
         {/* Centered Content */}
-        <div className="text-center text-white space-y-6">
+        <div className="text-center text-white space-y-4">
           {/* Main Heading */}
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold leading-tight max-w-4xl mx-auto">
-            Custom Vinyl Banners — Printed Fast, Shipped Next-Day Air
-          </h1>
+          <div className="space-y-2">
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-extrabold tracking-tight">
+              <span className="text-orange-500">CUSTOM BANNERS</span>
+            </h1>
+            <p className="text-xl md:text-2xl lg:text-3xl font-medium text-white/90">
+              Printed Fast, Shipped <span className="text-orange-500 italic font-bold">FREE</span> Next-Day Air
+            </p>
+          </div>
 
           {/* Subheading */}
-          <p className="text-base md:text-lg text-slate-300">
+          <p className="text-base md:text-lg text-slate-300 pt-2">
             24-Hour Production • Free Next-Day Air Shipping • 20% Off First Order
           </p>
 
