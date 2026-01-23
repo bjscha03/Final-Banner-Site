@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { ShoppingCart, Menu, X, User, LogOut, Package, Shield, HelpCircle } from 'lucide-react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import ScrollToTopLink from './ScrollToTopLink';
-import Logo from './Logo';
 import { useAuth, isAdmin } from '@/lib/auth';
 import { useToast } from '@/components/ui/use-toast';
 import {
@@ -71,7 +70,11 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
           {/* Center: Logo */}
           <div className="flex-shrink-0">
             <ScrollToTopLink to="/" className="flex items-center">
-              <Logo variant="compact" height={40} className="h-8 md:h-10 object-contain" animated />
+              <img
+                src="/images/header-logo.png"
+                alt="Banners On The Fly"
+                className="h-8 md:h-10 w-auto max-w-[180px] md:max-w-[240px] object-contain"
+              />
             </ScrollToTopLink>
           </div>
 
