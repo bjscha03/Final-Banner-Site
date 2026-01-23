@@ -73,7 +73,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
               <img
                 src="/images/header-logo.png"
                 alt="Banners On The Fly"
-                className="h-8 md:h-10 w-auto max-w-[180px] md:max-w-[240px] object-contain"
+                className="h-8 md:h-12 w-auto max-w-[180px] md:max-w-[280px] object-contain"
               />
             </ScrollToTopLink>
           </div>
