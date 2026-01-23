@@ -5,7 +5,6 @@ import Header from './Header';
 import Footer from './Footer';
 import CartModal from './CartModal';
 import ScrollToTop from './ScrollToTop';
-import StickyCart from './StickyCart';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -25,22 +24,21 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
       <main className="w-full max-w-[100vw] overflow-x-hidden">
         {children}
       </main>
-      
+
       {/* Decorative Banner Image - Sits above footer */}
       <div className="w-full">
-        <img 
+        <img
           src="https://res.cloudinary.com/dtrxl120u/image/upload/v1767723458/upscaled-2x-Screenshot_2025-10-07_at_2.29.47_PM_wegqxg_ubaxdz.png"
           alt="Banner printing services"
           className="w-full h-auto object-contain"
         />
       </div>
-      
+
       <Footer />
       <CartModal
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
       />
-      <StickyCart onOpenCart={() => setIsCartOpen(true)} isCartOpen={isCartOpen} />
     </div>
   );
 };

@@ -369,9 +369,9 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
             )}
           </div>
 
-          {/* Footer */}
+          {/* Footer - pb-20 adds space above chat widget */}
           {items.length > 0 && (
-            <div className="border-t border-gray-200 p-6 space-y-3 bg-white shadow-lg">
+            <div className="border-t border-gray-200 p-6 pb-20 space-y-3 bg-white shadow-lg">
               <div className="flex justify-between text-gray-700">
                 <span className="font-medium">Subtotal:</span>
                 <span className="font-semibold">{usd(subtotalCents/100)}</span>
