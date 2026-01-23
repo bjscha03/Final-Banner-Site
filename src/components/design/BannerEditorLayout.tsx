@@ -1807,8 +1807,8 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
                 </button>
               </div>
               
-              {/* Panel Content - removed overflow for Chrome file input compatibility */}
-              <div className="flex-1 p-4" style={{ overflow: 'visible' }}>
+              {/* Panel Content - overflow-y-auto to allow scrolling for long content like Inspector */}
+              <div className="flex-1 p-4 overflow-y-auto">
                 {activePanel && renderPanelContent(activePanel)}
               </div>
             </div>
@@ -1887,8 +1887,8 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
                 </button>
               </div>
               
-              {/* Panel Content - removed overflow for Chrome file input compatibility */}
-              <div className="flex-1 p-4" style={{ overflow: 'visible' }}>
+              {/* Panel Content - overflow-y-auto to allow scrolling for long content like Inspector */}
+              <div className="flex-1 p-4 overflow-y-auto">
                 {activePanel && renderPanelContent(activePanel)}
               </div>
             </div>
