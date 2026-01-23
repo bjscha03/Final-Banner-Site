@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { trackMaterialSelected } from '@/lib/analytics';
-import { Palette } from 'lucide-react';
+import { Palette, ZoomIn, Check } from 'lucide-react';
 import { useQuoteStore, MaterialKey } from '@/store/quote';
 import { PRICE_PER_SQFT } from '@/lib/pricing';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import Lightbox from './Lightbox';
@@ -101,108 +100,123 @@ const MaterialCard: React.FC = () => {
     setLightboxImage(null);
   };
 
-  const renderMaterialOption = (materialOption: MaterialOption) => (
-    <div key={materialOption.key} className={`flex items-center space-x-2 md:space-x-3 p-2 md:p-3 rounded-lg transition-colors border-2 ${material === materialOption.key ? "border-orange-500 bg-orange-50" : "border-transparent hover:bg-gray-50"}`}>
-      <RadioGroupItem value={materialOption.key} id={materialOption.key} />
-      <div className="flex-1 flex items-center justify-between">
-        <div className="flex items-center space-x-3">
-          {/* Clickable thumbnail */}
+  const renderMaterialOption = (materialOption: MaterialOption) => {
+    const isSelected = material === materialOption.key;
+
+    return (
+      <div
+        key={materialOption.key}
+        onClick={() => handleMaterialChange(materialOption.key)}
+        className={`relative cursor-pointer rounded-xl transition-all duration-200 overflow-hidden ${
+          isSelected
+            ? "ring-2 ring-orange-500 bg-orange-50 shadow-md"
+            : "bg-white hover:bg-gray-50 border border-gray-200 hover:border-gray-300 hover:shadow-sm"
+        }`}
+      >
+        <div className="flex items-center p-3 gap-3">
+          {/* Selection indicator */}
+          <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
+            isSelected
+              ? "border-orange-500 bg-orange-500"
+              : "border-gray-300 bg-white"
+          }`}>
+            {isSelected && <Check className="w-4 h-4 text-white" />}
+          </div>
+
+          {/* Clickable thumbnail with zoom indicator */}
           <button
             onClick={(e) => handleThumbnailClick(materialOption, e)}
-            className="w-14 h-14 rounded border-2 border-gray-200 hover:border-gray-300 transition-colors overflow-hidden focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            aria-label={`View ${materialOption.name} sample image`}
+            className="relative flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden group focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+            aria-label={`Click to enlarge ${materialOption.name} sample image`}
             type="button"
           >
             {imageErrors.has(materialOption.key) ? (
-              // Fallback placeholder if image fails to load
               <div className="w-full h-full bg-slate-100 flex items-center justify-center">
                 <Palette className="h-6 w-6 text-gray-400" />
               </div>
             ) : (
-              <img
-                src={materialOption.imagePath}
-                alt={`${materialOption.name} material sample`}
-                className="w-full h-full object-cover"
-                onError={() => {
-                  setImageErrors(prev => new Set(prev).add(materialOption.key));
-                }}
-              />
+              <>
+                <img
+                  src={materialOption.imagePath}
+                  alt={`${materialOption.name} material sample`}
+                  className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-110"
+                  onError={() => {
+                    setImageErrors(prev => new Set(prev).add(materialOption.key));
+                  }}
+                />
+                {/* Zoom overlay on hover */}
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-200 flex items-center justify-center">
+                  <ZoomIn className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                </div>
+              </>
             )}
           </button>
-          <div>
-            <div className="flex items-center space-x-2">
-              <Label htmlFor={materialOption.key} className="font-medium text-gray-900 cursor-pointer">
+
+          {/* Material info */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Label
+                htmlFor={materialOption.key}
+                className={`font-semibold cursor-pointer ${isSelected ? 'text-orange-900' : 'text-gray-900'}`}
+              >
                 {materialOption.name}
               </Label>
               {materialOption.popular && (
-                <Badge className="text-xs px-3 py-1 rounded-full bg-orange-500 text-white font-bold shadow-sm border-0">
+                <Badge className="text-[10px] px-2 py-0.5 rounded-full bg-gradient-to-r from-orange-500 to-orange-600 text-white font-bold shadow-sm border-0">
                   Popular
                 </Badge>
               )}
             </div>
-            <p className="text-sm text-gray-500">{materialOption.subtitle}</p>
+            <p className={`text-xs mt-0.5 ${isSelected ? 'text-orange-700' : 'text-gray-500'}`}>
+              {materialOption.subtitle}
+            </p>
+          </div>
+
+          {/* Price */}
+          <div className="flex-shrink-0 text-right">
+            <p className={`text-base font-bold ${isSelected ? 'text-orange-600' : 'text-green-600'}`}>
+              ${PRICE_PER_SQFT[materialOption.key].toFixed(2)}
+            </p>
+            <p className="text-[10px] text-gray-500">per sq ft</p>
           </div>
         </div>
-        <div className="text-right">
-          <p className="text-sm font-semibold text-green-600">
-            ${PRICE_PER_SQFT[materialOption.key].toFixed(2)}
-          </p>
-          <p className="text-xs text-gray-500">per sq ft</p>
-        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <>
-      <div className="relative bg-white border border-purple-200/40 rounded-lg overflow-hidden shadow-sm backdrop-blur-sm">
-        {/* Decorative background elements */}
-        <div className="absolute inset-0 opacity-30">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-orange-500/10 rounded-full blur-2xl"></div>
-          <div className="absolute bottom-0 left-0 w-24 h-24 bg-orange-500/10 rounded-full blur-2xl"></div>
-        </div>
+      <div className="space-y-5">
+        {/* Hint text */}
+        <p className="text-xs text-gray-500 flex items-center gap-1.5">
+          <ZoomIn className="w-3.5 h-3.5" />
+          Click any image to enlarge
+        </p>
 
-        {/* Header */}
-        <div className="relative bg-slate-50 px-6 py-4 border-b border-slate-200 backdrop-blur-sm">
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <div className="w-12 h-12 bg-orange-500 rounded-lg flex items-center justify-center shadow-sm">
-                <Palette className="w-6 h-6 text-white" />
-              </div>
-              <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full shadow-sm animate-pulse"></div>
-            </div>
-            <div>
-              <h3 className="text-xl font-bold text-slate-900 tracking-tight">Material</h3>
-              <p className="text-sm text-gray-600 font-medium">Choose your banner material</p>
-            </div>
+        {/* VINYL Section */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="w-1 h-4 bg-orange-500 rounded-full"></div>
+            <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+              Vinyl Materials
+            </h4>
+          </div>
+          <div className="space-y-2">
+            {vinylMaterials.map(renderMaterialOption)}
           </div>
         </div>
 
-        <div className="relative p-6">
-
-          <RadioGroup value={material} onValueChange={handleMaterialChange} className="space-y-6">
-            {/* VINYL Section */}
-            <div className="space-y-4">
-              <h4 className="text-base font-bold text-gray-800 flex items-center gap-2">
-                <div className="w-2 h-2 bg-white rounded-full"></div>
-                VINYL MATERIALS
-              </h4>
-              <div className="space-y-2">
-                {vinylMaterials.map(renderMaterialOption)}
-              </div>
-            </div>
-
-            {/* SPECIALTY Section */}
-            <div className="space-y-4">
-              <h4 className="text-base font-bold text-gray-800 flex items-center gap-2">
-                <div className="w-2 h-2 bg-white rounded-full"></div>
-                SPECIALTY MATERIALS
-              </h4>
-              <div className="space-y-2">
-                {specialtyMaterials.map(renderMaterialOption)}
-              </div>
-            </div>
-          </RadioGroup>
+        {/* SPECIALTY Section */}
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="w-1 h-4 bg-blue-500 rounded-full"></div>
+            <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+              Specialty Materials
+            </h4>
+          </div>
+          <div className="space-y-2">
+            {specialtyMaterials.map(renderMaterialOption)}
+          </div>
         </div>
       </div>
 
