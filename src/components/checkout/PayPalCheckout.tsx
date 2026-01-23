@@ -22,7 +22,7 @@ interface PayPalConfig {
 const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onError, disabled = false }) => {
   const { toast } = useToast();
   const { user } = useAuth();
-  const { items } = useCartStore();
+  const { items, discountCode } = useCartStore();
   const [paypalConfig, setPaypalConfig] = useState<PayPalConfig | null>(null);
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
@@ -311,6 +311,12 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
           })),
           email: user?.email || `guest-${Date.now()}@bannersonthefly.com`,
           user_id: user?.id || null,
+          // Include discount code for server-side validation and total calculation
+          discountCode: discountCode ? {
+            code: discountCode.code,
+            discountPercentage: discountCode.discountPercentage,
+            discountAmountCents: discountCode.discountAmountCents,
+          } : null,
         }),
       });
 

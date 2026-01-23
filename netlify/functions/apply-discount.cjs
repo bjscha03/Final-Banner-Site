@@ -28,7 +28,24 @@ exports.handler = async (event, context) => {
     const normalizedEmail = email ? email.toLowerCase() : null;
     console.log('[apply-discount] Applying:', { code: normalizedCode, orderId, userId, email: normalizedEmail });
 
-    // First, check if the code exists and if user has already used it
+    // SPECIAL HANDLING: NEW20 is a hardcoded first-order-only promo code
+    // It's not in the database, so we handle it as a special case
+    if (normalizedCode === 'NEW20') {
+      console.log('[apply-discount] NEW20 code - no database tracking needed (virtual promo)');
+      // NEW20 doesn't need to be marked as used in discount_codes table
+      // The first-order validation in validate-discount-code.cjs uses the orders table directly
+      return {
+        statusCode: 200, headers,
+        body: JSON.stringify({
+          success: true,
+          code: 'NEW20',
+          discountPercentage: 20,
+          discountAmountCents: null
+        })
+      };
+    }
+
+    // Standard flow: check if the code exists in database
     const existingCode = await sql`
       SELECT id, code, cart_id, discount_percentage, discount_amount_cents, used, used_by_email, used_by_user_id, single_use
       FROM discount_codes

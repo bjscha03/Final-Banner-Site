@@ -48,9 +48,88 @@ exports.handler = async (event, context) => {
 
     console.log('[validate-discount-code] Validating:', { code: normalizedCode, email: normalizedEmail, userId });
 
-    // Look up the discount code with per-user tracking fields
+    // SPECIAL HANDLING: NEW20 is a hardcoded first-order-only promo code
+    // It doesn't need to exist in the database - we handle it as a special case
+    if (normalizedCode === 'NEW20') {
+      console.log('[validate-discount-code] NEW20 code detected - checking first-order eligibility');
+
+      // Require email for NEW20 validation
+      if (!normalizedEmail) {
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            valid: false,
+            error: 'Please enter your email to use this code'
+          })
+        };
+      }
+
+      // Check if this email has any previous PAID orders
+      const existingOrders = await sql`
+        SELECT id, status, created_at
+        FROM orders
+        WHERE email = ${normalizedEmail}
+          AND status = 'paid'
+        LIMIT 1
+      `;
+
+      if (existingOrders.length > 0) {
+        console.log('[validate-discount-code] NEW20 rejected - email has prior paid orders:', normalizedEmail);
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            valid: false,
+            error: 'NEW20 is valid for first-time customers only. You have a previous order with this email.'
+          })
+        };
+      }
+
+      // Also check by user_id if provided
+      if (userId) {
+        const existingUserOrders = await sql`
+          SELECT id, status, created_at
+          FROM orders
+          WHERE user_id = ${userId}
+            AND status = 'paid'
+          LIMIT 1
+        `;
+
+        if (existingUserOrders.length > 0) {
+          console.log('[validate-discount-code] NEW20 rejected - user has prior paid orders:', userId);
+          return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({
+              valid: false,
+              error: 'NEW20 is valid for first-time customers only. You have a previous order on this account.'
+            })
+          };
+        }
+      }
+
+      // NEW20 is valid for this first-time customer
+      console.log('[validate-discount-code] NEW20 approved for first-time customer:', normalizedEmail);
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          valid: true,
+          discount: {
+            id: 'NEW20_PROMO',  // Virtual ID for static promo
+            code: 'NEW20',
+            discountPercentage: 20,
+            discountAmountCents: null,
+            expiresAt: '2099-12-31T23:59:59Z'  // Never expires
+          }
+        })
+      };
+    }
+
+    // Standard discount code lookup for non-NEW20 codes
     const discountCodes = await sql`
-      SELECT 
+      SELECT
         id,
         code,
         discount_percentage,
@@ -71,9 +150,9 @@ exports.handler = async (event, context) => {
       return {
         statusCode: 200,
         headers,
-        body: JSON.stringify({ 
-          valid: false, 
-          error: 'Invalid discount code' 
+        body: JSON.stringify({
+          valid: false,
+          error: 'Invalid discount code'
         })
       };
     }

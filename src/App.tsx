@@ -9,8 +9,9 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { useCartSync } from "@/hooks/useCartSync";
 import { useCartRevalidation } from "@/hooks/useCartRevalidation";
 import { initPostHog } from "@/lib/posthog";
-import { PromoPopup } from "@/components/PromoPopup";
-import { usePromoPopup } from "@/hooks/usePromoPopup";
+// DISABLED: Popup promo flow replaced with static NEW20 code in PromoBanner
+// import { PromoPopup } from "@/components/PromoPopup";
+// import { usePromoPopup } from "@/hooks/usePromoPopup";
 
 // Critical path - load immediately for homepage
 import Index from "./pages/Index";
@@ -92,17 +93,13 @@ const CartSyncWrapper = ({ children }: { children: React.ReactNode }) => {
     initPostHog();
   }, []);
 
-  // Promo popup logic - only show on homepage
-  const isHomepage = location.pathname === '/';
-  const { showPopup, popupSource, closePopup } = usePromoPopup({
-    delaySeconds: 11, // Show popup after 11 seconds
-    enableExitIntent: true,
-  });
-  
+  // DISABLED: Popup promo flow replaced with static NEW20 code in PromoBanner
+  // The PromoBanner now shows "New Customers: 20% OFF with code NEW20" with click-to-copy
+  // Server-side validation in validate-discount-code.cjs enforces first-order-only
+
   return (
     <>
       {children}
-      {isHomepage && showPopup && <PromoPopup onClose={closePopup} source={popupSource} />}
     </>
   );
 };

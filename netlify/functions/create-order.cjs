@@ -81,7 +81,7 @@ const calculateQuantityDiscount = (subtotalCents, quantity) => {
   return { discountRate, discountCents };
 };
 
-const computeTotals = (items, taxRate, opts) => {
+const computeTotals = (items, taxRate, opts, promoDiscount = null) => {
   const raw = items.reduce((sum, i) => sum + i.line_total_cents, 0);
   const adjusted = Math.max(raw, opts.minFloorCents || 0);
   const minAdj = Math.max(0, adjusted - raw);
@@ -93,9 +93,20 @@ const computeTotals = (items, taxRate, opts) => {
   const quantityDiscount = calculateQuantityDiscount(adjusted, totalQuantity);
   const subtotalAfterQuantityDiscount = adjusted - quantityDiscount.discountCents;
 
+  // Apply promo/coupon discount (e.g., NEW20)
+  let promo_discount_cents = 0;
+  if (promoDiscount) {
+    if (promoDiscount.discountPercentage) {
+      promo_discount_cents = Math.round(subtotalAfterQuantityDiscount * (promoDiscount.discountPercentage / 100));
+    } else if (promoDiscount.discountAmountCents) {
+      promo_discount_cents = Math.min(promoDiscount.discountAmountCents, subtotalAfterQuantityDiscount);
+    }
+  }
+  const subtotalAfterPromo = subtotalAfterQuantityDiscount - promo_discount_cents;
+
   const shipping_cents = opts.freeShipping ? 0 : 0;
-  const tax_cents = Math.round(subtotalAfterQuantityDiscount * taxRate);
-  const total_cents = subtotalAfterQuantityDiscount + tax_cents + shipping_cents;
+  const tax_cents = Math.round(subtotalAfterPromo * taxRate);
+  const total_cents = subtotalAfterPromo + tax_cents + shipping_cents;
 
   return {
     raw_subtotal_cents: raw,
@@ -105,6 +116,8 @@ const computeTotals = (items, taxRate, opts) => {
     quantity_discount_rate: quantityDiscount.discountRate,
     quantity_discount_cents: quantityDiscount.discountCents,
     subtotal_after_quantity_discount_cents: subtotalAfterQuantityDiscount,
+    promo_discount_cents,
+    subtotal_after_promo_cents: subtotalAfterPromo,
     shipping_cents,
     tax_cents,
     total_cents,
