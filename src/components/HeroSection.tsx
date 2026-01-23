@@ -29,8 +29,8 @@ const HeroSection: React.FC = () => {
             </p>
           </div>
 
-          {/* Subheading */}
-          <p className="text-base md:text-lg text-slate-300 pt-2">
+          {/* Subheading - Bold feature points */}
+          <p className="text-base md:text-lg text-slate-300 pt-2 font-bold">
             24-Hour Production • Free Next-Day Air Shipping • 20% Off First Order
           </p>
 

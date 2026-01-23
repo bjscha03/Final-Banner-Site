@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { X, Trash2, Plus, Minus, ShoppingBag, Edit, Eye, Tag } from 'lucide-react';
 import BannerPreview from './cart/BannerPreview';
 import { useNavigate } from 'react-router-dom';
@@ -8,6 +8,16 @@ import { useToast } from '@/hooks/use-toast';
 import { useQuoteStore } from '@/store/quote';
 import { useAuth } from '@/lib/auth';
 
+// Declare Tidio global for TypeScript
+declare global {
+  interface Window {
+    tidioChatApi?: {
+      hide: () => void;
+      show: () => void;
+    };
+  }
+}
+
 interface CartModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -16,13 +26,26 @@ interface CartModalProps {
 const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const { items: rawItems, getMigratedItems, updateQuantity, removeItem, loadItemIntoQuote, getSubtotalCents, getTaxCents, getTotalCents, getResolvedDiscount } = useCartStore();
-  
+
   // CRITICAL: Use migrated items to ensure rope/pole pocket costs are calculated
   const items = getMigratedItems();
   const { toast } = useToast();
   const { loadFromCartItem } = useQuoteStore();
   const { user } = useAuth();
-  
+
+  // Hide Tidio chat widget when cart modal is open
+  useEffect(() => {
+    if (isOpen && window.tidioChatApi) {
+      window.tidioChatApi.hide();
+    }
+    return () => {
+      // Show Tidio again when modal closes
+      if (window.tidioChatApi) {
+        window.tidioChatApi.show();
+      }
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleCheckout = () => {
@@ -369,9 +392,9 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
             )}
           </div>
 
-          {/* Footer - pb-20 adds space above chat widget */}
+          {/* Footer */}
           {items.length > 0 && (
-            <div className="border-t border-gray-200 p-6 pb-20 space-y-3 bg-white shadow-lg">
+            <div className="border-t border-gray-200 p-6 space-y-3 bg-white shadow-lg">
               <div className="flex justify-between text-gray-700">
                 <span className="font-medium">Subtotal:</span>
                 <span className="font-semibold">{usd(subtotalCents/100)}</span>

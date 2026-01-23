@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Tag, RefreshCw, ChevronRight } from 'lucide-react';
+import { Tag, ChevronRight } from 'lucide-react';
 
 const PROMO_CODE = 'NEW20';
 
@@ -18,8 +18,8 @@ const PromoBanner: React.FC = () => {
 
   return (
     <div className="bg-orange-500 text-white">
-      {/* Row 1: Main promo message */}
-      <div className="py-1.5 px-4 text-center">
+      {/* Single row: Main promo message */}
+      <div className="py-2 px-4 text-center">
         <button
           onClick={handleCopyCode}
           className="inline-flex items-center gap-2 hover:opacity-90 transition-opacity cursor-pointer group"
@@ -36,20 +36,6 @@ const PromoBanner: React.FC = () => {
             <span className="text-xs bg-white/20 px-2 py-0.5 rounded animate-pulse">Copied!</span>
           )}
         </button>
-      </div>
-
-      {/* Row 2: Feature badges - same orange background */}
-      <div className="py-1.5 px-4 text-center">
-        <div className="flex items-center justify-center gap-3 md:gap-4 text-xs font-medium">
-          <span className="flex items-center gap-1.5">
-            <RefreshCw className="w-3.5 h-3.5" />
-            FREE NEXT-DAY AIR SHIPPING
-          </span>
-          <span className="opacity-60">›</span>
-          <span>PROFESSIONAL QUALITY</span>
-          <span className="opacity-60">›</span>
-          <span>24-HOUR PRODUCTION</span>
-        </div>
       </div>
     </div>
   );
