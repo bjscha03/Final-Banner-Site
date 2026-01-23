@@ -9,12 +9,12 @@ const Privacy: React.FC = () => {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           {/* Header */}
           <div className="text-center mb-12">
-            <div className="flex items-center justify-center mb-4">
-              <Shield className="h-8 w-8 text-orange-500 mr-3" />
-              <h1 className="text-4xl font-bold bg-slate-50 bg-clip-text text-transparent">
-                Privacy Policy
-              </h1>
+            <div className="flex justify-center mb-4">
+              <Shield className="h-8 w-8 text-orange-500" />
             </div>
+            <h1 className="text-4xl font-bold text-gray-900 mb-4">
+              Privacy Policy
+            </h1>
             <p className="text-xl text-gray-700 max-w-2xl mx-auto">
               BPS Sales Group, Inc. DBA Banners on the Fly
             </p>
