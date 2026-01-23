@@ -12,7 +12,7 @@ import PayPalCheckout from '@/components/checkout/PayPalCheckout';
 import SignUpEncouragementModal from '@/components/checkout/SignUpEncouragementModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Package, Truck, Plus, Minus, Trash2, Zap, Plane, Eye, Tag } from 'lucide-react';
+import { ArrowLeft, Package, Truck, Plus, Minus, Trash2, Eye, Tag } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { emailApi } from '@/lib/api';
 import { CartItem } from '@/store/cart';
@@ -374,42 +374,6 @@ const Checkout: React.FC = () => {
             <div className="mb-6">
             </div>
             
-            {/* Trust Strip - Enhanced */}
-            <div className="mt-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200 shadow-sm">
-              <div className="flex flex-wrap items-center justify-center gap-8 text-sm sm:text-base">
-                <div className="flex items-center gap-3">
-                  <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-[#18448D] to-[#2563eb] rounded-full flex items-center justify-center shadow-md">
-                    <Zap className="w-6 h-6 text-white" />
-                  </div>
-                  <div className="text-left">
-                    <span className="font-bold text-gray-900 block">24-Hour Production</span>
-                    <span className="text-xs text-gray-600">Fast turnaround guaranteed</span>
-                  </div>
-                </div>
-                
-                <div className="flex items-center gap-3">
-                  <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-[#18448D] to-[#2563eb] rounded-full flex items-center justify-center shadow-md">
-                    <Plane className="w-6 h-6 text-white" />
-                  </div>
-                  <div className="text-left">
-                    <span className="font-bold text-gray-900 block">Free Next Day Air</span>
-                    <span className="text-xs text-gray-600">Complimentary shipping</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <div className="flex-shrink-0 w-12 h-12 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center shadow-md">
-                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
-                    </svg>
-                  </div>
-                  <div className="text-left">
-                    <span className="font-bold text-gray-900 block">Secure Payment</span>
-                    <span className="text-xs text-gray-600">SSL encrypted checkout</span>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 lg:gap-8">
@@ -486,64 +450,19 @@ const Checkout: React.FC = () => {
                         </div>
                       </div>
 
-                      {/* Two column layout on desktop, stacked on mobile */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                        {/* Left column: Meta information */}
-                        <div className="space-y-2 text-sm">
-                          <p className="flex items-center gap-2">
-                            <span className="font-semibold text-gray-800 min-w-[80px]">Material:</span>
-                            <span className="text-gray-600">{item.material}</span>
-                          </p>
-                          <p className="flex items-center gap-2">
-                            <span className="font-semibold text-gray-800 min-w-[80px]">Grommets:</span>
-                            <span className="text-gray-600">{item.grommets}</span>
-                          </p>
-                          {item.rope_feet > 0 && (
-                            <p><span className="font-medium text-gray-700">Rope:</span> {item.rope_feet.toFixed(1)} ft</p>
-                          )}
-                          {item.pole_pocket_position && item.pole_pocket_position !== "none" && (
-                            <p>
-                              <span className="font-medium text-gray-700">Pole Pockets:</span> {item.pole_pocket_position}
-                              {item.pole_pocket_size && ` (${item.pole_pocket_size} inch)`}
-                            </p>
-                          )}
-                          {item.file_name && (
-                            <p className="truncate" title={item.file_name}>
-                              <span className="font-medium text-gray-700">File:</span> {item.file_name}
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Right column: Price Breakdown */}
-                        <div className="p-3 bg-gray-50 rounded-lg">
-                          <h4 className="text-sm font-semibold text-[#18448D] mb-2">Price Breakdown</h4>
-                          <div className="space-y-1 text-sm">
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Base banner:</span>
-                              <span className="text-gray-900 font-medium">{usd((item.unit_price_cents * item.quantity) / 100)}</span>
-                            </div>
-                            {ropeCost > 0 && (
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Rope{ropeMode === 'per_item' && item.rope_feet ? ` (${item.rope_feet.toFixed(1)}ft)` : ''}:</span>
-                                <span className="text-gray-900 font-medium">
-                                  {usd(ropeCost / 100)}
-                                </span>
-                              </div>
-                            )}
-                            {item.pole_pockets !== "none" && pocketCost > 0 && (
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Pole pockets:</span>
-                                <span className="text-gray-900 font-medium">
-                                  {usd(pocketCost / 100)}
-                                </span>
-                              </div>
-                            )}
-                            <div className="flex justify-between font-semibold border-t border-gray-300 pt-2 mt-2">
-                              <span className="text-gray-900">Line total:</span>
-                              <span className="text-gray-900">{usd(item.line_total_cents / 100)}</span>
-                            </div>
-                          </div>
-                        </div>
+                      {/* Item specifications */}
+                      <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-gray-600 mb-4">
+                        <span><span className="font-medium text-gray-700">Material:</span> {item.material}</span>
+                        <span><span className="font-medium text-gray-700">Grommets:</span> {item.grommets}</span>
+                        {item.rope_feet > 0 && (
+                          <span><span className="font-medium text-gray-700">Rope:</span> {item.rope_feet.toFixed(1)} ft</span>
+                        )}
+                        {item.pole_pocket_position && item.pole_pocket_position !== "none" && (
+                          <span>
+                            <span className="font-medium text-gray-700">Pole Pockets:</span> {item.pole_pocket_position}
+                            {item.pole_pocket_size && ` (${item.pole_pocket_size}")`}
+                          </span>
+                        )}
                       </div>
 
                       {/* Quantity Controls and Remove Button */}
