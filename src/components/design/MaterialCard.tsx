@@ -48,7 +48,7 @@ const materials: MaterialOption[] = [
     name: 'Mesh Fence Application',
     subtitle: 'Wind-resistant mesh',
     category: 'specialty',
-    imagePath: `/direct-assets/materials/mesh.svg?v=${CACHE_BUST}`
+    imagePath: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1769209380/White-label_Outdoor_Mesh_Banner_1_Product_from_4over_ivkbqu.png'
   }
 ];
 
