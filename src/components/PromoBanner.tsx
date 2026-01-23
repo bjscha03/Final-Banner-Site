@@ -19,7 +19,7 @@ const PromoBanner: React.FC = () => {
   return (
     <div className="bg-orange-500 text-white">
       {/* Row 1: Main promo message */}
-      <div className="py-2 px-4 text-center">
+      <div className="py-1.5 px-4 text-center">
         <button
           onClick={handleCopyCode}
           className="inline-flex items-center gap-2 hover:opacity-90 transition-opacity cursor-pointer group"
@@ -38,16 +38,16 @@ const PromoBanner: React.FC = () => {
         </button>
       </div>
 
-      {/* Row 2: Feature badges */}
-      <div className="py-1.5 px-4 text-center bg-orange-600">
-        <div className="flex items-center justify-center gap-4 md:gap-6 text-xs font-medium tracking-wide">
+      {/* Row 2: Feature badges - same orange background */}
+      <div className="py-1.5 px-4 text-center">
+        <div className="flex items-center justify-center gap-3 md:gap-4 text-xs font-medium">
           <span className="flex items-center gap-1.5">
             <RefreshCw className="w-3.5 h-3.5" />
             FREE NEXT-DAY AIR SHIPPING
           </span>
-          <span className="text-orange-300">›</span>
+          <span className="opacity-60">›</span>
           <span>PROFESSIONAL QUALITY</span>
-          <span className="text-orange-300">›</span>
+          <span className="opacity-60">›</span>
           <span>24-HOUR PRODUCTION</span>
         </div>
       </div>
