@@ -34,7 +34,7 @@ const materials: MaterialOption[] = [
     subtitle: 'Premium outdoor vinyl',
     popular: true,
     category: 'vinyl',
-    imagePath: `/direct-assets/materials/15oz.svg?v=${CACHE_BUST}`
+    imagePath: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1769209584/White-label_Outdoor_Banner_1_Product_from_4over_aas332.png'
   },
   {
     key: '18oz',
