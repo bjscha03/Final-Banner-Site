@@ -28,7 +28,7 @@ const materials: MaterialOption[] = [
     key: '13oz',
     name: '13oz Vinyl',
     subtitle: 'Standard outdoor banner',
-    imagePath: `/direct-assets/materials/13oz.svg?v=${CACHE_BUST}`
+    imagePath: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1769209469/White-Label_Banners_-2_from_4over_nedg8n.png'
   },
   {
     key: '15oz',
