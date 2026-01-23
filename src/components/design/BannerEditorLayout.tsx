@@ -1604,6 +1604,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
   };
 
   // Define sidebar button configuration (without components to avoid stale closures)
+  // Order: Uploads, Size, Material, Options, Text, Text Color, Canvas Background, Inspector
   const sidebarButtons = [
     {
       id: 'uploads' as PanelType,
@@ -1611,9 +1612,9 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       label: 'Uploads',
     },
     {
-      id: 'text' as PanelType,
-      icon: <Type className="w-6 h-6" />,
-      label: 'Text',
+      id: 'size' as PanelType,
+      icon: <Maximize2 className="w-6 h-6" />,
+      label: 'Size',
     },
     {
       id: 'material' as PanelType,
@@ -1621,20 +1622,14 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       label: 'Material',
     },
     {
-      id: 'size' as PanelType,
-      icon: <Maximize2 className="w-6 h-6" />,
-      label: 'Size/Quantity',
-    },
-    {
       id: 'options' as PanelType,
       icon: <Wrench className="w-6 h-6" />,
       label: 'Options',
     },
-
     {
-      id: 'inspector' as PanelType,
-      icon: <Eye className="w-6 h-6" />,
-      label: 'Inspector',
+      id: 'text' as PanelType,
+      icon: <Type className="w-6 h-6" />,
+      label: 'Text',
     },
     {
       id: 'colors' as PanelType,
@@ -1644,7 +1639,12 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     {
       id: 'canvas' as PanelType,
       icon: <Sliders className="w-6 h-6" />,
-      label: 'Canvas Background Color',
+      label: 'Canvas Background',
+    },
+    {
+      id: 'inspector' as PanelType,
+      icon: <Eye className="w-6 h-6" />,
+      label: 'Inspector',
     },
   ];
 
