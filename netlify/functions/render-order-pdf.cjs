@@ -569,9 +569,34 @@ exports.handler = async (event) => {
 
     console.log(`[PDF] Final dimensions: ${finalWidthIn}×${finalHeightIn} in = ${targetPxW}×${targetPxH}px`);
 
-    // Fetch image using fileKey if available, otherwise imageUrl, or create white canvas for text-only
+    // PRIORITY: Use thumbnail if available - this IS exactly what the user designed
+    // The thumbnail is the rendered preview that the customer approved
     let sourceBuffer;
-    if (req.fileKey) {
+    if (req.thumbnailUrl && !req.thumbnailUrl.startsWith('blob:')) {
+      console.log('[PDF] Using THUMBNAIL - exact customer design:', req.thumbnailUrl);
+      sourceBuffer = await fetchImage(req.thumbnailUrl, false);
+
+      // When using thumbnail, skip all the complex positioning - just stretch to fill PDF
+      // The thumbnail already contains the exact design the customer approved
+      const pdfBuffer = await sharp(sourceBuffer)
+        .resize(targetPxW, targetPxH, { fit: 'fill' })
+        .jpeg({ quality: 90 })
+        .toBuffer()
+        .then(imgBuf => rasterToPdfBuffer(imgBuf, finalWidthIn, finalHeightIn, [], req.bannerWidthIn, req.bannerHeightIn, null, bleedIn));
+
+      console.log(`[PDF] PDF generated from thumbnail: ${pdfBuffer.length} bytes`);
+      return {
+        statusCode: 200,
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `attachment; filename="order-${req.orderId}-print-ready.pdf"`,
+          'X-PDF-DPI': targetDpi.toString(),
+          'X-PDF-Bleed': bleedIn.toString(),
+        },
+        body: pdfBuffer.toString('base64'),
+        isBase64Encoded: true,
+      };
+    } else if (req.fileKey) {
       sourceBuffer = await fetchImage(req.fileKey, true);
     } else if (req.imageUrl) {
       sourceBuffer = await fetchImage(req.imageUrl, false);
