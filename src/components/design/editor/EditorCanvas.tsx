@@ -386,23 +386,20 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
   }, [selectedIds, objects]);
   
   const handleStageClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
-    // Only clear selection if clicking on the stage itself or the background rect
-    const target = e.target;
-    const stage = e.target.getStage();
-    const isBackgroundRect = target.name?.() === 'background-rect';
+    // Only clear selection if clicking directly on the stage or background
+    // Check if the click target is the stage itself or the background rect
+    const clickedOnEmpty = e.target === e.target.getStage() || e.target.name() === 'background-rect';
 
-    if (target === stage || isBackgroundRect) {
+    if (clickedOnEmpty) {
       clearSelection();
     }
   };
 
   const handleObjectClick = (id: string, e: Konva.KonvaEventObject<MouseEvent>) => {
-    // CRITICAL: Stop event propagation to prevent stage click from firing
+    // Use Konva's cancelBubble to prevent stage click handler from firing
+    // Do NOT use e.evt.stopPropagation() as it breaks Konva's internal drag handling
     e.cancelBubble = true;
-    if (e.evt) {
-      e.evt.stopPropagation();
-    }
-    const addToSelection = e.evt.shiftKey || e.evt.metaKey || e.evt.ctrlKey;
+    const addToSelection = e.evt?.shiftKey || e.evt?.metaKey || e.evt?.ctrlKey;
     selectObject(id, addToSelection);
   };
   
