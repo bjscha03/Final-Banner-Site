@@ -946,9 +946,9 @@ const PricingCard: React.FC = () => {
         <div className="space-y-4 mt-8">
           {/* Add to Cart Button */}
           <button
-            onClick={isEditing ? handleUpdateCartItem : handleAddToCart} 
+            onClick={isEditing ? handleUpdateCartItem : handleAddToCart}
             disabled={!finalCanProceed}
-            className={`w-full py-5 rounded-lg font-bold text-xl shadow-sm transition-all duration-300 flex items-center justify-center gap-3 relative overflow-hidden ${finalCanProceed ? 'bg-orange-500 hover:bg-orange-600 text-white hover:shadow-sm transform hover:scale-105' : 'bg-gray-400 text-gray-600 cursor-not-allowed'}`}
+            className={`w-full py-5 rounded-lg font-bold text-xl shadow-sm transition-all duration-300 flex items-center justify-center gap-3 relative overflow-hidden ${finalCanProceed ? 'bg-orange-500 hover:bg-orange-600 text-white hover:shadow-sm transform hover:scale-105 cursor-pointer' : 'bg-gray-400 text-gray-600 cursor-not-allowed'}`}
           >
             <div className="absolute inset-0 bg-white opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             <div className="relative flex items-center gap-3">

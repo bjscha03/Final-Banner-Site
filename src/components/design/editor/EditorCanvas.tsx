@@ -386,13 +386,22 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
   }, [selectedIds, objects]);
   
   const handleStageClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
-    if (e.target === e.target.getStage()) {
+    // Only clear selection if clicking on the stage itself or the background rect
+    const target = e.target;
+    const stage = e.target.getStage();
+    const isBackgroundRect = target.name?.() === 'background-rect';
+
+    if (target === stage || isBackgroundRect) {
       clearSelection();
     }
   };
-  
+
   const handleObjectClick = (id: string, e: Konva.KonvaEventObject<MouseEvent>) => {
+    // CRITICAL: Stop event propagation to prevent stage click from firing
     e.cancelBubble = true;
+    if (e.evt) {
+      e.evt.stopPropagation();
+    }
     const addToSelection = e.evt.shiftKey || e.evt.metaKey || e.evt.ctrlKey;
     selectObject(id, addToSelection);
   };
@@ -625,6 +634,7 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
         <Layer>
           {/* Background */}
           <Rect
+            name="background-rect"
             x={stagePos.x}
             y={stagePos.y}
             width={canvasWidthPx * scale}
@@ -633,8 +643,6 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
             shadowColor="black"
             shadowBlur={10}
             shadowOpacity={0.2}
-            onClick={handleStageClick}
-            onTap={handleStageClick}
             shadowOffset={{ x: 0, y: 2 }}
           />
           

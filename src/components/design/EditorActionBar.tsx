@@ -129,7 +129,7 @@ const EditorActionBar: React.FC<EditorActionBarProps> = ({ canvasRef, onGenerate
           disabled={!hasContent}
           className={`shadow-lg hover:shadow-xl transition-all duration-200 flex items-center gap-2 ${
             hasContent
-              ? 'bg-[#18448D] hover:bg-[#0f2d5c] text-white'
+              ? 'bg-[#18448D] hover:bg-[#0f2d5c] text-white cursor-pointer'
               : 'bg-gray-400 text-gray-600 cursor-not-allowed'
           }`}
           size="lg"
