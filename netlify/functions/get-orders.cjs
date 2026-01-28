@@ -53,86 +53,26 @@ exports.handler = async (event, context) => {
     const offset = (page - 1) * limit;
 
     let orders;
-    
+
     if (user_id) {
       // Get orders for specific user
       console.log('Fetching orders for user:', user_id);
       orders = await sql`
-        SELECT o.id, o.user_id, o.email, o.subtotal_cents, o.tax_cents, o.total_cents,
-               o.status, o.tracking_number, o.created_at, o.updated_at,
-               json_agg(
-                 json_build_object(
-                   'id', oi.id,
-                   'width_in', oi.width_in,
-                   'height_in', oi.height_in,
-                   'quantity', oi.quantity,
-                   'material', oi.material,
-                   'grommets', COALESCE(oi.grommets, 'none'),
-                   'rope_feet', COALESCE(oi.rope_feet, 0),
-                   'pole_pockets', COALESCE(oi.pole_pockets, false),
-                   'pole_pocket_position', oi.pole_pocket_position,
-                   'pole_pocket_size', oi.pole_pocket_size,
-                   'pole_pocket_cost_cents', oi.pole_pocket_cost_cents,
-                   'line_total_cents', oi.line_total_cents,
-                   'file_key', oi.file_key,
-                   'file_url', oi.file_url,
-                   'thumbnail_url', oi.thumbnail_url,
-                   'design_service_enabled', COALESCE(oi.design_service_enabled, false),
-                   'design_request_text', oi.design_request_text,
-                   'design_draft_preference', oi.design_draft_preference,
-                   'design_draft_contact', oi.design_draft_contact,
-                   'design_uploaded_assets', COALESCE(oi.design_uploaded_assets, '[]'::jsonb),
-                   'final_print_pdf_url', oi.final_print_pdf_url,
-                   'final_print_pdf_file_key', oi.final_print_pdf_file_key,
-                   'final_print_pdf_uploaded_at', oi.final_print_pdf_uploaded_at
-                 )
-               ) as items
-        FROM orders o
-        LEFT JOIN order_items oi ON o.id = oi.order_id
-        WHERE o.user_id = ${user_id}
-        GROUP BY o.id, o.user_id, o.email, o.subtotal_cents, o.tax_cents, o.total_cents,
-                 o.status, o.tracking_number, o.created_at, o.updated_at
-        ORDER BY o.created_at DESC
+        SELECT id, user_id, email, subtotal_cents, tax_cents, total_cents,
+               status, tracking_number, created_at, updated_at
+        FROM orders
+        WHERE user_id = ${user_id}
+        ORDER BY created_at DESC
         LIMIT ${limit} OFFSET ${offset}
       `;
     } else {
       // Get all orders (admin view)
       console.log('Fetching all orders');
       orders = await sql`
-        SELECT o.id, o.user_id, o.email, o.subtotal_cents, o.tax_cents, o.total_cents,
-               o.status, o.tracking_number, o.created_at, o.updated_at,
-               json_agg(
-                 json_build_object(
-                   'id', oi.id,
-                   'width_in', oi.width_in,
-                   'height_in', oi.height_in,
-                   'quantity', oi.quantity,
-                   'material', oi.material,
-                   'grommets', COALESCE(oi.grommets, 'none'),
-                   'rope_feet', COALESCE(oi.rope_feet, 0),
-                   'pole_pockets', COALESCE(oi.pole_pockets, false),
-                   'pole_pocket_position', oi.pole_pocket_position,
-                   'pole_pocket_size', oi.pole_pocket_size,
-                   'pole_pocket_cost_cents', oi.pole_pocket_cost_cents,
-                   'line_total_cents', oi.line_total_cents,
-                   'file_key', oi.file_key,
-                   'file_url', oi.file_url,
-                   'thumbnail_url', oi.thumbnail_url,
-                   'design_service_enabled', COALESCE(oi.design_service_enabled, false),
-                   'design_request_text', oi.design_request_text,
-                   'design_draft_preference', oi.design_draft_preference,
-                   'design_draft_contact', oi.design_draft_contact,
-                   'design_uploaded_assets', COALESCE(oi.design_uploaded_assets, '[]'::jsonb),
-                   'final_print_pdf_url', oi.final_print_pdf_url,
-                   'final_print_pdf_file_key', oi.final_print_pdf_file_key,
-                   'final_print_pdf_uploaded_at', oi.final_print_pdf_uploaded_at
-                 )
-               ) as items
-        FROM orders o
-        LEFT JOIN order_items oi ON o.id = oi.order_id
-        GROUP BY o.id, o.user_id, o.email, o.subtotal_cents, o.tax_cents, o.total_cents,
-                 o.status, o.tracking_number, o.created_at, o.updated_at
-        ORDER BY o.created_at DESC
+        SELECT id, user_id, email, subtotal_cents, tax_cents, total_cents,
+               status, tracking_number, created_at, updated_at
+        FROM orders
+        ORDER BY created_at DESC
         LIMIT ${limit} OFFSET ${offset}
       `;
     }
@@ -152,7 +92,7 @@ exports.handler = async (event, context) => {
       tracking_number: order.tracking_number,
       tracking_carrier: order.tracking_number ? 'fedex' : null,
       created_at: order.created_at,
-      items: order.items || []
+      items: []
     }));
 
     return {
