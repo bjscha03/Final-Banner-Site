@@ -231,6 +231,16 @@ exports.handler = async (event) => {
       console.log("[PayPal Capture] Inserting", cartItems.length, "items into order_items table");
       console.log("[PayPal Capture] First item overlay_image:", cartItems[0]?.overlay_image ? "EXISTS" : "NULL");
       console.log("[PayPal Capture] First item text_elements:", cartItems[0]?.text_elements ? "EXISTS" : "NULL");
+
+      // DEBUG: Log design service fields for each item
+      cartItems.forEach((item, idx) => {
+        console.log(`[PayPal Capture] Item ${idx} design_service_enabled:`, item.design_service_enabled);
+        console.log(`[PayPal Capture] Item ${idx} design_request_text:`, item.design_request_text ? item.design_request_text.substring(0, 50) : null);
+        console.log(`[PayPal Capture] Item ${idx} design_draft_preference:`, item.design_draft_preference);
+        console.log(`[PayPal Capture] Item ${idx} design_draft_contact:`, item.design_draft_contact);
+        console.log(`[PayPal Capture] Item ${idx} design_uploaded_assets:`, item.design_uploaded_assets?.length || 0);
+      });
+
       for (const rawItem of cartItems) {
         const item = cleanItemForDb(rawItem);
         console.log("[PayPal Capture] Cleaned item file_key:", item.file_key, "file_url:", item.file_url ? item.file_url.substring(0, 80) : null);

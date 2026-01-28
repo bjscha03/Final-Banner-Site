@@ -1063,7 +1063,15 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
         });
       } else {
         console.log('➕ [ADD TO CART DESIGN SERVICE] Adding new design service item');
-        addFromQuote({ ...freshQuoteForCart, ...designServiceData } as any, undefined, pricing);
+        const cartItemData = { ...freshQuoteForCart, ...designServiceData };
+        console.log('🎨 [DESIGN SERVICE DEBUG] Data being added to cart:', {
+          design_service_enabled: cartItemData.design_service_enabled,
+          design_request_text: cartItemData.design_request_text?.substring(0, 50),
+          design_draft_preference: cartItemData.design_draft_preference,
+          design_draft_contact: cartItemData.design_draft_contact,
+          design_uploaded_assets_count: cartItemData.design_uploaded_assets?.length || 0,
+        });
+        addFromQuote(cartItemData as any, undefined, pricing);
         toast({
           title: "Added to Cart",
           description: "Your design service request has been added to the cart.",
