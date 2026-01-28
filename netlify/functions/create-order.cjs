@@ -170,7 +170,9 @@ async function sendOrderConfirmationEmail(orderId) {
   try {
     console.log('Sending order confirmation email for order:', orderId);
 
-    const response = await fetch(`${process.env.URL || 'https://bannersonthefly.com'}/.netlify/functions/notify-order`, {
+    // CRITICAL: Use non-www URL to avoid redirect issues with POST requests
+    // Netlify redirects www to non-www, and POST requests don't follow redirects
+    const response = await fetch('https://bannersonthefly.com/.netlify/functions/notify-order', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

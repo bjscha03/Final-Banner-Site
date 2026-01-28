@@ -84,16 +84,23 @@ async function processAIArtworkForOrder(orderId, cartItems) {
 async function sendOrderNotificationEmail(orderId) {
   try {
     console.log('Triggering notification for PayPal order:', orderId);
-    // Use the production URL or the one from environment variables
-    const siteURL = process.env.URL || 'https://bannersonthefly.com';
-    const notifyURL = `${siteURL}/.netlify/functions/notify-order`;
+    // CRITICAL: Use non-www URL to avoid redirect issues with POST requests
+    // Netlify redirects www to non-www, and POST requests don't follow redirects
+    const notifyURL = 'https://bannersonthefly.com/.netlify/functions/notify-order';
 
-    // Fire-and-forget request. We don't need to wait for the response.
-    // The notify-order function will handle its own logic, including logging.
+    // Fire-and-forget request with proper error logging
     fetch(notifyURL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ orderId }),
+    }).then(response => {
+      if (response.ok) {
+        console.log('✅ Notification email triggered successfully for order:', orderId);
+      } else {
+        console.error('❌ Notification email failed:', response.status, response.statusText);
+      }
+    }).catch(err => {
+      console.error('❌ Notification email fetch error:', err.message);
     });
 
     console.log('Notification request sent for order:', orderId);
