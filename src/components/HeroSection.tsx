@@ -57,7 +57,7 @@ const HeroSection: React.FC = () => {
   };
 
   return (
-    <section className="bg-slate-950 py-3 sm:py-4 md:py-6">
+    <section className="bg-white py-3 sm:py-4 md:py-6">
       {/* Banner Container with vinyl effect */}
       <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-6">
         <div
