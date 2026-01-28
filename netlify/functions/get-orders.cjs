@@ -60,8 +60,6 @@ exports.handler = async (event, context) => {
       orders = await sql`
         SELECT o.id, o.user_id, o.email, o.subtotal_cents, o.tax_cents, o.total_cents,
                o.status, o.tracking_number, o.created_at, o.updated_at,
-               o.shipping_name, o.shipping_street, o.shipping_city, o.shipping_state,
-               o.shipping_zip, o.shipping_country, o.customer_name,
                json_agg(
                  json_build_object(
                    'id', oi.id,
@@ -75,18 +73,9 @@ exports.handler = async (event, context) => {
                    'pole_pocket_position', oi.pole_pocket_position,
                    'pole_pocket_size', oi.pole_pocket_size,
                    'pole_pocket_cost_cents', oi.pole_pocket_cost_cents,
-                   'area_sqft', (oi.width_in * oi.height_in / 144.0),
-                   'unit_price_cents', (oi.line_total_cents / oi.quantity),
                    'line_total_cents', oi.line_total_cents,
                    'file_key', oi.file_key,
                    'file_url', oi.file_url,
-                   'print_ready_url', oi.print_ready_url,
-                   'web_preview_url', oi.web_preview_url,
-                   'text_elements', COALESCE(oi.text_elements, '[]'::jsonb),
-                   'overlay_image', oi.overlay_image,
-                   'canvas_background_color', COALESCE(oi.canvas_background_color, '#FFFFFF'),
-                   'image_scale', COALESCE(oi.image_scale, 1),
-                   'image_position', COALESCE(oi.image_position, '{"x": 0, "y": 0}'::jsonb),
                    'thumbnail_url', oi.thumbnail_url,
                    'design_service_enabled', COALESCE(oi.design_service_enabled, false),
                    'design_request_text', oi.design_request_text,
@@ -102,9 +91,7 @@ exports.handler = async (event, context) => {
         LEFT JOIN order_items oi ON o.id = oi.order_id
         WHERE o.user_id = ${user_id}
         GROUP BY o.id, o.user_id, o.email, o.subtotal_cents, o.tax_cents, o.total_cents,
-                 o.status, o.tracking_number, o.created_at, o.updated_at,
-                 o.shipping_name, o.shipping_street, o.shipping_city, o.shipping_state,
-                 o.shipping_zip, o.shipping_country, o.customer_name
+                 o.status, o.tracking_number, o.created_at, o.updated_at
         ORDER BY o.created_at DESC
         LIMIT ${limit} OFFSET ${offset}
       `;
@@ -114,8 +101,6 @@ exports.handler = async (event, context) => {
       orders = await sql`
         SELECT o.id, o.user_id, o.email, o.subtotal_cents, o.tax_cents, o.total_cents,
                o.status, o.tracking_number, o.created_at, o.updated_at,
-               o.shipping_name, o.shipping_street, o.shipping_city, o.shipping_state,
-               o.shipping_zip, o.shipping_country, o.customer_name,
                json_agg(
                  json_build_object(
                    'id', oi.id,
@@ -129,18 +114,9 @@ exports.handler = async (event, context) => {
                    'pole_pocket_position', oi.pole_pocket_position,
                    'pole_pocket_size', oi.pole_pocket_size,
                    'pole_pocket_cost_cents', oi.pole_pocket_cost_cents,
-                   'area_sqft', (oi.width_in * oi.height_in / 144.0),
-                   'unit_price_cents', (oi.line_total_cents / oi.quantity),
                    'line_total_cents', oi.line_total_cents,
                    'file_key', oi.file_key,
                    'file_url', oi.file_url,
-                   'print_ready_url', oi.print_ready_url,
-                   'web_preview_url', oi.web_preview_url,
-                   'text_elements', COALESCE(oi.text_elements, '[]'::jsonb),
-                   'overlay_image', oi.overlay_image,
-                   'canvas_background_color', COALESCE(oi.canvas_background_color, '#FFFFFF'),
-                   'image_scale', COALESCE(oi.image_scale, 1),
-                   'image_position', COALESCE(oi.image_position, '{"x": 0, "y": 0}'::jsonb),
                    'thumbnail_url', oi.thumbnail_url,
                    'design_service_enabled', COALESCE(oi.design_service_enabled, false),
                    'design_request_text', oi.design_request_text,
@@ -155,9 +131,7 @@ exports.handler = async (event, context) => {
         FROM orders o
         LEFT JOIN order_items oi ON o.id = oi.order_id
         GROUP BY o.id, o.user_id, o.email, o.subtotal_cents, o.tax_cents, o.total_cents,
-                 o.status, o.tracking_number, o.created_at, o.updated_at,
-                 o.shipping_name, o.shipping_street, o.shipping_city, o.shipping_state,
-                 o.shipping_zip, o.shipping_country, o.customer_name
+                 o.status, o.tracking_number, o.created_at, o.updated_at
         ORDER BY o.created_at DESC
         LIMIT ${limit} OFFSET ${offset}
       `;
@@ -165,25 +139,18 @@ exports.handler = async (event, context) => {
 
     console.log(`Found ${orders.length} orders`);
 
-    // Format the response
+    // Format the response - only use columns that definitely exist
     const formattedOrders = orders.map(order => ({
       id: order.id,
       user_id: order.user_id,
       email: order.email,
-      customer_name: order.customer_name,
       subtotal_cents: order.subtotal_cents,
       tax_cents: order.tax_cents,
       total_cents: order.total_cents,
       status: order.status,
       currency: 'USD',
       tracking_number: order.tracking_number,
-      tracking_carrier: order.tracking_number ? 'fedex' : null, // Default to fedex when tracking exists
-      shipping_name: order.shipping_name,
-      shipping_street: order.shipping_street,
-      shipping_city: order.shipping_city,
-      shipping_state: order.shipping_state,
-      shipping_zip: order.shipping_zip,
-      shipping_country: order.shipping_country,
+      tracking_carrier: order.tracking_number ? 'fedex' : null,
       created_at: order.created_at,
       items: order.items || []
     }));
