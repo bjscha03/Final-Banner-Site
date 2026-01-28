@@ -695,12 +695,15 @@ exports.handler = async (event) => {
     const invoiceUrl = `${origin}/orders/${orderId}`;
 
     // Convert database order to email format
+    // Use customer_name first, then shipping_name as fallback (shipping_name often has the actual name)
+    const customerName = order.customer_name || order.shipping_name || 'Valued Customer';
+
     const emailPayload = {
       to: order.email,
       order: {
         id: order.id,
         number: order.id ? order.id.slice(-8).toUpperCase() : 'UNKNOWN',
-        customerName: (order.customer_name || 'Customer'),
+        customerName: customerName,
         items: itemRows.map((item) => {
           // Calculate cost breakdown
           const ropeCost = (item.rope_feet || 0) * 2 * item.quantity * 100; // in cents

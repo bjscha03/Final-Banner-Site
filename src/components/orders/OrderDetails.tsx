@@ -214,49 +214,49 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
         description: `Preparing ${asset.name} for download...`,
       });
 
-      let downloadUrl = asset.url;
+      const isPdf = asset.type === 'application/pdf' || asset.name.toLowerCase().endsWith('.pdf');
+      console.log('[Asset Download] Starting download:', { name: asset.name, type: asset.type, isPdf, url: asset.url });
 
-      // For Cloudinary URLs, add fl_attachment to force download with correct filename
-      // This is especially important for PDFs which may otherwise open in browser
-      if (downloadUrl.includes('cloudinary.com')) {
-        // Check if it's a PDF (by type or filename)
-        const isPdf = asset.type === 'application/pdf' || asset.name.toLowerCase().endsWith('.pdf');
-
-        if (isPdf) {
-          // For PDFs on Cloudinary, we need to use fl_attachment flag
-          // Transform: /upload/ to /upload/fl_attachment/
-          downloadUrl = downloadUrl.replace('/upload/', `/upload/fl_attachment:${encodeURIComponent(asset.name)}/`);
-          console.log('[Asset Download] Using Cloudinary fl_attachment for PDF:', downloadUrl);
-        } else {
-          // For images, add fl_attachment to force download
-          downloadUrl = downloadUrl.replace('/upload/', `/upload/fl_attachment:${encodeURIComponent(asset.name)}/`);
-        }
-      }
-
-      // Fetch the file
-      const response = await fetch(downloadUrl);
+      // For Cloudinary raw resources (like PDFs), we need to fetch directly
+      // The fl_attachment transformation doesn't work well for raw resources
+      // Instead, we fetch the file and create a blob download
+      const response = await fetch(asset.url);
 
       if (!response.ok) {
         throw new Error(`Download failed: ${response.statusText}`);
       }
 
-      // Create blob and trigger download with original filename
+      // Get the blob with correct MIME type
       const blob = await response.blob();
-      const url = window.URL.createObjectURL(blob);
+
+      // For PDFs, ensure the blob has the correct MIME type
+      const finalBlob = isPdf
+        ? new Blob([blob], { type: 'application/pdf' })
+        : blob;
+
+      console.log('[Asset Download] Blob created:', { size: finalBlob.size, type: finalBlob.type });
+
+      // Create object URL and trigger download
+      const blobUrl = window.URL.createObjectURL(finalBlob);
       const link = document.createElement('a');
-      link.href = url;
+      link.href = blobUrl;
       link.download = asset.name; // Use the original filename which includes extension
+      link.style.display = 'none';
       document.body.appendChild(link);
       link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+
+      // Cleanup
+      setTimeout(() => {
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+      }, 100);
 
       toast({
         title: "Download Complete",
         description: `Successfully downloaded ${asset.name}`,
       });
     } catch (error) {
-      console.error('Error downloading asset:', error);
+      console.error('[Asset Download] Error:', error);
       toast({
         title: "Download Failed",
         description: error.message || "Could not download the file. Please try again.",
@@ -773,27 +773,9 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                       </div>
 
                       <div className="mt-2 space-y-2">
-                        
-                        {/* Admin PDF Download Button */}
-                        {isAdminUser && (item.file_key || item.print_ready_url || item.web_preview_url) && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handlePdfDownload(item, index)}
-                            disabled={pdfGenerating[index]}
-                            className="min-w-[60px]"
-                          >
-                            {pdfGenerating[index] ? (
-                              <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                            ) : (
-                              <Download className="h-3 w-3 mr-1" />
-                            )}
-                            {pdfGenerating[index] ? 'Generating...' : 'PDF'}
-                          </Button>
-                        )}
-                        
-                        {/* Admin File Download Button */}
-                        {isAdminUser && (item.file_key || item.print_ready_url || item.web_preview_url) && (
+
+                        {/* Admin File Download Button - for self-designed orders */}
+                        {isAdminUser && !item.design_service_enabled && (item.file_key || item.print_ready_url || item.web_preview_url) && (
                           <Button
                             variant="outline"
                             size="sm"
