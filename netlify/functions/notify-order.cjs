@@ -206,7 +206,7 @@ async function sendEmail(type, payload) {
                     <p style="margin: 5px 0;"><strong>${item.name}</strong></p>
                     <p style="margin: 5px 0; color: #6b7280;">Quantity: ${item.quantity}</p>
                     <p style="margin: 5px 0; color: #6b7280;">${item.options}</p>
-                    <p style="margin: 5px 0;"><strong>${item.price.toFixed(2)}</strong></p>
+                    <p style="margin: 5px 0;"><strong>$${(item.price || 0).toFixed(2)}</strong></p>
                   </td>
                 </tr>
               </table>
@@ -283,7 +283,7 @@ async function sendEmail(type, payload) {
                     <p style="margin: 5px 0;"><strong>${item.name}</strong></p>
                     <p style="margin: 5px 0; color: #6b7280;">Quantity: ${item.quantity}</p>
                     <p style="margin: 5px 0; color: #6b7280;">${item.options}</p>
-                    <p style="margin: 5px 0;"><strong>${item.price.toFixed(2)}</strong></p>
+                    <p style="margin: 5px 0;"><strong>$${(item.price || 0).toFixed(2)}</strong></p>
                   </td>
                 </tr>
               </table>
