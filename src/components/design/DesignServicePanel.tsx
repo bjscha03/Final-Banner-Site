@@ -317,13 +317,13 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
             id="design-request"
             value={designRequestText}
             onChange={(e) => setDesignRequestText(e.target.value)}
-            placeholder="Example: I need a banner for my grand opening. Include 'GRAND OPENING' at the top, our business name 'Joe's Auto Shop', phone number (555-123-4567), and the date March 15, 2025. Use red and black colors."
+            placeholder="Example: I need a banner for a grand opening. Include the headline &quot;GRAND OPENING&quot; at the top and our business name &quot;Joe's Auto Shop.&quot; Use bold, easy-to-read lettering with red and black colors."
             className="min-h-[120px] resize-none border-slate-200 focus:border-slate-400 focus:ring-slate-400"
             rows={5}
           />
           <div className="flex justify-between items-center mt-2">
             <p className="text-xs text-slate-500">
-              Include text, colors, and layout preferences
+              Include your message, colors, style, and any layout preferences. The more details you provide, the better we can design your banner.
             </p>
             <span className={`text-xs font-medium ${designRequestText.length >= 10 ? 'text-green-600' : 'text-slate-400'}`}>
               {designRequestText.length}/10 min
