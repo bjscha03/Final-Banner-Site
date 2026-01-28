@@ -177,43 +177,17 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
   const isBannerConfigValid = hasBannerDimensions && hasMaterial;
 
   return (
-    <div className="flex flex-col h-full bg-slate-50 overflow-auto">
-      {/* Clean Header */}
-      <div className="p-6 border-b border-slate-200 bg-white">
-        <div className="flex items-center justify-between mb-2">
-          <h2 className="text-xl font-bold text-slate-900">
-            Let Our Team Design It
-          </h2>
-          <span
-            className="px-3 py-1 text-xs font-semibold text-white rounded-full"
-            style={{ backgroundColor: BRAND_ORANGE }}
-          >
-            Free Service
-          </span>
-        </div>
-        <p className="text-sm text-slate-600 mb-4">
-          Tell us what you need and we'll create a professional design for you.
-        </p>
-        <button
-          onClick={onSwitchToDesigner}
-          className="inline-flex items-center gap-1.5 text-sm font-medium transition-colors hover:underline"
-          style={{ color: BRAND_BLUE }}
-        >
-          <ArrowLeft className="w-4 h-4" />
-          I'd rather design it myself
-        </button>
-      </div>
-
-      {/* Banner Size Summary */}
-      <div className="px-6 py-4 bg-white border-b border-slate-200">
-        <div className="flex items-center gap-4">
+    <div className="flex flex-col h-full bg-slate-50 overflow-hidden">
+      {/* Compact Header with Banner Size Summary */}
+      <div className="px-4 py-3 border-b border-slate-200 bg-white flex items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
           {/* Mini Banner Preview with Material Texture and Grommets */}
           <div
-            className="relative rounded overflow-hidden border border-slate-300 shadow-sm"
+            className="relative rounded overflow-hidden border border-slate-300 shadow-sm flex-shrink-0"
             style={{
-              width: Math.min(100, (widthIn / heightIn) * 50),
-              height: 50,
-              minWidth: 60,
+              width: Math.min(80, (widthIn / heightIn) * 40),
+              height: 40,
+              minWidth: 50,
             }}
           >
             {/* Material texture background */}
@@ -227,12 +201,12 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
               <div className="absolute inset-0 bg-slate-100" />
             )}
 
-            {/* White banner area overlay with placeholder text */}
+            {/* White banner area overlay */}
             <div
               className="absolute inset-[8%] bg-white/90 border border-slate-200 flex items-center justify-center"
               style={{ borderRadius: 2 }}
             >
-              <p className="text-[7px] font-medium text-slate-400 text-center leading-tight px-1">
+              <p className="text-[6px] font-medium text-slate-400 text-center leading-tight px-0.5">
                 Your Design
               </p>
             </div>
@@ -241,8 +215,7 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
             {grommets !== 'none' && grommetPositions.map((point, idx) => {
               const leftPercent = (point.x / widthIn) * 100;
               const topPercent = (point.y / heightIn) * 100;
-              // Scale grommet size for 50px height preview
-              const grommetSize = Math.max(3, Math.min(6, (grommetR / heightIn) * 50 * 1.5));
+              const grommetSize = Math.max(2, Math.min(4, (grommetR / heightIn) * 40 * 1.5));
 
               return (
                 <div
@@ -274,85 +247,92 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
           </div>
 
           {/* Banner Details */}
-          <div className="flex-1">
-            <p className="text-lg font-bold text-slate-900">
-              {widthIn}" × {heightIn}"
-            </p>
-            <div className="flex items-center gap-2 flex-wrap">
+          <div>
+            <div className="flex items-center gap-2">
+              <p className="text-base font-bold text-slate-900">
+                {widthIn}" × {heightIn}"
+              </p>
               <span
-                className="px-2 py-0.5 text-xs font-medium text-white rounded"
+                className="px-1.5 py-0.5 text-[10px] font-medium text-white rounded"
                 style={{ backgroundColor: BRAND_BLUE }}
               >
                 {material}
               </span>
               {grommets !== 'none' && (
-                <span className="px-2 py-0.5 text-xs font-medium bg-slate-200 text-slate-700 rounded">
+                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-slate-200 text-slate-700 rounded">
                   {grommets}
                 </span>
               )}
-              <span className="text-xs text-slate-500">
-                {material && grommets !== 'none' ? '' : 'Set options in sidebar'}
-              </span>
             </div>
+            <p className="text-xs text-slate-500">Set options in sidebar →</p>
           </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <span
+            className="px-2 py-0.5 text-[10px] font-semibold text-white rounded-full"
+            style={{ backgroundColor: BRAND_ORANGE }}
+          >
+            Free Design
+          </span>
+          <button
+            onClick={onSwitchToDesigner}
+            className="text-xs font-medium transition-colors hover:underline"
+            style={{ color: BRAND_BLUE }}
+          >
+            DIY instead
+          </button>
         </div>
       </div>
 
-      {/* Main Content */}
-      <div className="flex-1 p-6 space-y-5 overflow-auto">
-        {/* Step 1: Description */}
-        <div className="bg-white rounded-lg p-5 border border-slate-200 shadow-sm">
-          <div className="flex items-center gap-3 mb-3">
+      {/* Main Content - Compact layout to fit without scrolling */}
+      <div className="flex-1 p-3 space-y-2 overflow-auto">
+        {/* Step 1: Description - Compact */}
+        <div className="bg-white rounded-lg p-3 border border-slate-200 shadow-sm">
+          <div className="flex items-center gap-2 mb-2">
             <div
-              className="flex items-center justify-center w-7 h-7 rounded-full text-white text-sm font-bold"
+              className="flex items-center justify-center w-5 h-5 rounded-full text-white text-xs font-bold flex-shrink-0"
               style={{ backgroundColor: BRAND_BLUE }}
             >
               1
             </div>
-            <Label htmlFor="design-request" className="text-base font-semibold text-slate-900">
+            <Label htmlFor="design-request" className="text-sm font-semibold text-slate-900">
               Describe Your Banner
             </Label>
+            <span className={`ml-auto text-xs font-medium ${designRequestText.length >= 10 ? 'text-green-600' : 'text-slate-400'}`}>
+              {designRequestText.length}/10
+            </span>
           </div>
           <Textarea
             id="design-request"
             value={designRequestText}
             onChange={(e) => setDesignRequestText(e.target.value)}
-            placeholder="Example: I need a banner for a grand opening. Include the headline &quot;GRAND OPENING&quot; at the top and our business name &quot;Joe's Auto Shop.&quot; Use bold, easy-to-read lettering with red and black colors."
-            className="min-h-[120px] resize-none border-slate-200 focus:border-slate-400 focus:ring-slate-400"
-            rows={5}
+            placeholder="Example: Grand opening banner for Joe's Auto Shop. Headline: 'GRAND OPENING' - red and black colors, bold text."
+            className="min-h-[60px] resize-none border-slate-200 focus:border-slate-400 focus:ring-slate-400 text-sm"
+            rows={2}
           />
-          <div className="flex justify-between items-center mt-2">
-            <p className="text-xs text-slate-500">
-              Include your message, colors, style, and any layout preferences. The more details you provide, the better we can design your banner.
-            </p>
-            <span className={`text-xs font-medium ${designRequestText.length >= 10 ? 'text-green-600' : 'text-slate-400'}`}>
-              {designRequestText.length}/10 min
-            </span>
-          </div>
         </div>
 
-        {/* Step 2: File Upload */}
-        <div className="bg-white rounded-lg p-5 border border-slate-200 shadow-sm">
-          <div className="flex items-center gap-3 mb-3">
+        {/* Step 2: File Upload - Compact */}
+        <div className="bg-white rounded-lg p-3 border border-slate-200 shadow-sm">
+          <div className="flex items-center gap-2 mb-2">
             <div
-              className="flex items-center justify-center w-7 h-7 rounded-full text-white text-sm font-bold"
+              className="flex items-center justify-center w-5 h-5 rounded-full text-white text-xs font-bold flex-shrink-0"
               style={{ backgroundColor: BRAND_BLUE }}
             >
               2
             </div>
-            <div>
-              <Label className="text-base font-semibold text-slate-900">
-                Upload Assets
-              </Label>
-              <span className="text-xs text-slate-500 ml-2">(optional)</span>
-            </div>
+            <Label className="text-sm font-semibold text-slate-900">
+              Upload Assets
+            </Label>
+            <span className="text-xs text-slate-500">(optional)</span>
           </div>
 
           <div
             onDrop={handleDrop}
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
-            className={`border-2 border-dashed rounded-lg p-5 text-center transition-all cursor-pointer ${
+            className={`border-2 border-dashed rounded-lg p-3 text-center transition-all cursor-pointer ${
               dragActive
                 ? 'border-slate-400 bg-slate-50'
                 : 'border-slate-300 hover:border-slate-400 hover:bg-slate-50'
@@ -368,52 +348,44 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
               className="hidden"
             />
             {isUploading ? (
-              <div className="flex flex-col items-center gap-2">
-                <Loader2 className="w-6 h-6 text-slate-500 animate-spin" />
+              <div className="flex items-center justify-center gap-2">
+                <Loader2 className="w-4 h-4 text-slate-500 animate-spin" />
                 <p className="text-sm text-slate-600">Uploading...</p>
               </div>
             ) : (
-              <div className="flex flex-col items-center gap-2">
-                <Upload className="w-6 h-6 text-slate-400" />
+              <div className="flex items-center justify-center gap-2">
+                <Upload className="w-4 h-4 text-slate-400" />
                 <p className="text-sm text-slate-600">
-                  Drop files here or <span style={{ color: BRAND_BLUE }} className="font-medium">browse</span>
+                  Drop files or <span style={{ color: BRAND_BLUE }} className="font-medium">browse</span>
                 </p>
-                <p className="text-xs text-slate-400">PNG, JPG, PDF, SVG • Max 10MB</p>
+                <span className="text-xs text-slate-400">• PNG, JPG, PDF, SVG</span>
               </div>
             )}
           </div>
 
           {uploadError && (
-            <div className="flex items-center gap-2 text-red-600 text-sm mt-3 p-3 bg-red-50 rounded-lg border border-red-200">
-              <AlertCircle className="w-4 h-4 flex-shrink-0" />
+            <div className="flex items-center gap-2 text-red-600 text-xs mt-2 p-2 bg-red-50 rounded border border-red-200">
+              <AlertCircle className="w-3 h-3 flex-shrink-0" />
               {uploadError}
             </div>
           )}
 
-          {/* Uploaded Files List */}
+          {/* Uploaded Files List - Compact */}
           {uploadedAssets.length > 0 && (
-            <div className="space-y-2 mt-4">
-              <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Uploaded Files</p>
+            <div className="flex flex-wrap gap-2 mt-2">
               {uploadedAssets.map((asset, index) => (
-                <div key={index} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
-                  <div className="flex items-center gap-3">
-                    <div className="p-1.5 bg-white rounded border border-slate-200">
-                      {asset.type.includes('image') ? (
-                        <Image className="w-4 h-4 text-slate-600" />
-                      ) : (
-                        <FileText className="w-4 h-4" style={{ color: BRAND_ORANGE }} />
-                      )}
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-slate-900 truncate max-w-[180px]">{asset.name}</p>
-                      <p className="text-xs text-slate-500">{formatFileSize(asset.size)}</p>
-                    </div>
-                  </div>
+                <div key={index} className="flex items-center gap-1.5 px-2 py-1 bg-slate-50 rounded border border-slate-200 text-xs">
+                  {asset.type.includes('image') ? (
+                    <Image className="w-3 h-3 text-slate-600" />
+                  ) : (
+                    <FileText className="w-3 h-3" style={{ color: BRAND_ORANGE }} />
+                  )}
+                  <span className="font-medium text-slate-700 truncate max-w-[100px]">{asset.name}</span>
                   <button
                     onClick={() => handleRemoveAsset(index)}
-                    className="p-1.5 hover:bg-red-50 rounded transition-colors group"
+                    className="p-0.5 hover:bg-red-100 rounded transition-colors"
                   >
-                    <X className="w-4 h-4 text-slate-400 group-hover:text-red-500" />
+                    <X className="w-3 h-3 text-slate-400 hover:text-red-500" />
                   </button>
                 </div>
               ))}
@@ -421,141 +393,100 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
           )}
         </div>
 
-        {/* Step 3: Contact Preference */}
-        <div className="bg-white rounded-lg p-5 border border-slate-200 shadow-sm">
-          <div className="flex items-center gap-3 mb-3">
+        {/* Step 3: Contact Preference - Compact */}
+        <div className="bg-white rounded-lg p-3 border border-slate-200 shadow-sm">
+          <div className="flex items-center gap-2 mb-2">
             <div
-              className="flex items-center justify-center w-7 h-7 rounded-full text-white text-sm font-bold"
+              className="flex items-center justify-center w-5 h-5 rounded-full text-white text-xs font-bold flex-shrink-0"
               style={{ backgroundColor: BRAND_BLUE }}
             >
               3
             </div>
-            <Label className="text-base font-semibold text-slate-900">
-              How Should We Contact You?
+            <Label className="text-sm font-semibold text-slate-900">
+              Contact for Drafts
             </Label>
           </div>
 
-          <RadioGroup
-            value={draftPreference}
-            onValueChange={(value) => setDraftPreference(value as 'email' | 'text')}
-            className="grid grid-cols-2 gap-3 mb-4"
-          >
-            <div
-              className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                draftPreference === 'email'
-                  ? 'border-slate-400 bg-slate-50'
-                  : 'border-slate-200 hover:border-slate-300'
-              }`}
-              onClick={() => setDraftPreference('email')}
+          <div className="flex gap-2">
+            <RadioGroup
+              value={draftPreference}
+              onValueChange={(value) => setDraftPreference(value as 'email' | 'text')}
+              className="flex gap-2"
             >
-              <RadioGroupItem value="email" id="email" className="sr-only" />
-              <Mail className={`w-5 h-5 ${draftPreference === 'email' ? 'text-slate-700' : 'text-slate-400'}`} />
-              <div>
-                <Label htmlFor="email" className="text-sm font-medium text-slate-900 cursor-pointer">Email</Label>
+              <div
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded border cursor-pointer transition-all ${
+                  draftPreference === 'email'
+                    ? 'border-slate-400 bg-slate-50'
+                    : 'border-slate-200 hover:border-slate-300'
+                }`}
+                onClick={() => setDraftPreference('email')}
+              >
+                <RadioGroupItem value="email" id="email" className="sr-only" />
+                <Mail className={`w-3.5 h-3.5 ${draftPreference === 'email' ? 'text-slate-700' : 'text-slate-400'}`} />
+                <Label htmlFor="email" className="text-xs font-medium text-slate-900 cursor-pointer">Email</Label>
               </div>
-            </div>
-            <div
-              className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
-                draftPreference === 'text'
-                  ? 'border-slate-400 bg-slate-50'
-                  : 'border-slate-200 hover:border-slate-300'
-              }`}
-              onClick={() => setDraftPreference('text')}
-            >
-              <RadioGroupItem value="text" id="text" className="sr-only" />
-              <Phone className={`w-5 h-5 ${draftPreference === 'text' ? 'text-slate-700' : 'text-slate-400'}`} />
-              <div>
-                <Label htmlFor="text" className="text-sm font-medium text-slate-900 cursor-pointer">Text</Label>
+              <div
+                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded border cursor-pointer transition-all ${
+                  draftPreference === 'text'
+                    ? 'border-slate-400 bg-slate-50'
+                    : 'border-slate-200 hover:border-slate-300'
+                }`}
+                onClick={() => setDraftPreference('text')}
+              >
+                <RadioGroupItem value="text" id="text" className="sr-only" />
+                <Phone className={`w-3.5 h-3.5 ${draftPreference === 'text' ? 'text-slate-700' : 'text-slate-400'}`} />
+                <Label htmlFor="text" className="text-xs font-medium text-slate-900 cursor-pointer">Text</Label>
               </div>
-            </div>
-          </RadioGroup>
+            </RadioGroup>
 
-          <div>
             <Input
               type={draftPreference === 'email' ? 'email' : 'tel'}
               placeholder={draftPreference === 'email' ? 'your@email.com' : '(555) 123-4567'}
               value={draftContact}
               onChange={(e) => setDraftContact(e.target.value)}
-              className={`h-11 ${
+              className={`flex-1 h-8 text-sm ${
                 !draftContact || isValidContact
                   ? 'border-slate-200 focus:border-slate-400 focus:ring-slate-400'
                   : 'border-red-300 focus:border-red-500 focus:ring-red-500'
               }`}
             />
-            {draftContact && !isValidContact && (
-              <p className="text-xs text-red-500 mt-2 flex items-center gap-1">
-                <AlertCircle className="w-3 h-3" />
-                {draftPreference === 'email' ? 'Enter a valid email' : 'Enter a valid phone number'}
-              </p>
-            )}
           </div>
+          {draftContact && !isValidContact && (
+            <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
+              <AlertCircle className="w-3 h-3" />
+              {draftPreference === 'email' ? 'Enter a valid email' : 'Enter a valid phone number'}
+            </p>
+          )}
         </div>
 
-        {/* What Happens Next */}
-        <div className="bg-white rounded-lg p-5 border border-slate-200 shadow-sm">
-          <h3 className="text-sm font-semibold text-slate-900 mb-3">What Happens Next</h3>
-          <ol className="space-y-3">
-            <li className="flex items-start gap-3">
-              <span
-                className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white"
-                style={{ backgroundColor: BRAND_BLUE }}
-              >1</span>
-              <p className="text-sm text-slate-600">Complete your order with size and material options</p>
-            </li>
-            <li className="flex items-start gap-3">
-              <span
-                className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white"
-                style={{ backgroundColor: BRAND_BLUE }}
-              >2</span>
-              <p className="text-sm text-slate-600">We create your design and send the first draft within a few hours</p>
-            </li>
-            <li className="flex items-start gap-3">
-              <span
-                className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white"
-                style={{ backgroundColor: BRAND_BLUE }}
-              >3</span>
-              <p className="text-sm text-slate-600">Review and request changes — we'll send as many drafts as needed</p>
-            </li>
-            <li className="flex items-start gap-3">
-              <span
-                className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white"
-                style={{ backgroundColor: BRAND_BLUE }}
-              >4</span>
-              <p className="text-sm text-slate-600">Once approved, we print and ship your banner</p>
-            </li>
-          </ol>
-          <p className="text-xs text-slate-500 mt-4 pt-3 border-t border-slate-100">
-            Please respond within 24 hours of receiving each draft. If we don't hear back, we'll assume the design is approved and proceed to print.
-          </p>
-        </div>
-
-        {/* Validation Status */}
-        <div className={`sticky bottom-0 flex items-center gap-3 p-4 rounded-lg border shadow-sm ${
+        {/* Validation Status - Compact */}
+        <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${
           isFormValid && isBannerConfigValid
             ? 'bg-green-50 border-green-200'
             : 'bg-amber-50 border-amber-200'
         }`}>
           {isFormValid && isBannerConfigValid ? (
             <>
-              <CheckCircle2 className="w-5 h-5 text-green-600 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm font-medium text-green-800">Ready to add to cart</p>
-              </div>
+              <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
+              <p className="text-xs font-medium text-green-800">Ready to add to cart</p>
             </>
           ) : (
             <>
-              <AlertCircle className="w-5 h-5 text-amber-600 flex-shrink-0" />
-              <div className="flex-1">
-                <p className="text-sm text-amber-800">
-                  {!isBannerConfigValid && 'Set banner size & material. '}
-                  {designRequestText.length < 10 && 'Add description. '}
-                  {!draftContact && 'Enter contact info.'}
-                  {draftContact && !isValidContact && 'Fix contact info.'}
-                </p>
-              </div>
+              <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+              <p className="text-xs text-amber-800">
+                {!isBannerConfigValid && 'Set size & material. '}
+                {designRequestText.length < 10 && 'Add description. '}
+                {!draftContact && 'Enter contact.'}
+                {draftContact && !isValidContact && 'Fix contact.'}
+              </p>
             </>
           )}
         </div>
+
+        {/* What Happens Next - Condensed to single line */}
+        <p className="text-[11px] text-slate-500 text-center px-2">
+          After ordering: We'll create your design → Send drafts via {draftPreference} → Revise until you approve → Print & ship!
+        </p>
       </div>
     </div>
   );
