@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useCartStore } from '@/store/cart';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth, isAdmin } from '@/lib/auth';
-import { ShoppingCart, Package, Calendar, CreditCard, Mail, User, Download, FileText, Sparkles, Info, MapPin, Loader2 } from 'lucide-react';
+import { ShoppingCart, Package, Calendar, CreditCard, Mail, User, Download, FileText, Sparkles, Info, MapPin, Loader2, Palette, Phone, Upload, ExternalLink, MessageSquare } from 'lucide-react';
 import TrackingBadge from './TrackingBadge';
 import PDFQualityCheck from '../admin/PDFQualityCheck';
 import { isPrintPipelineEnabled } from '../../utils/printPipeline';
@@ -26,9 +26,10 @@ import {
 interface OrderDetailsProps {
   order: Order;
   trigger?: React.ReactNode;
+  onUploadFinalPdf?: (orderId: string, itemIndex: number, file: File) => void;
 }
 
-const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
+const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFinalPdf }) => {
   const { addFromQuote } = useCartStore();
   const { toast } = useToast();
   const { user } = useAuth();
@@ -505,6 +506,144 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger }) => {
                   <p className="text-gray-700">{order.shipping_country}</p>
                 )}
               </div>
+            </div>
+          )}
+
+          {/* Design Service Section - Admin Only (for design service orders) */}
+          {isAdminUser && order.items.some(item => item.design_service_enabled) && (
+            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+              <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                <Palette className="h-5 w-5 text-purple-600 mr-2" />
+                Design Service Request
+                <span className="ml-2 px-2 py-0.5 text-xs font-medium bg-purple-600 text-white rounded-full">
+                  We Design It
+                </span>
+              </h3>
+              {order.items.map((item, itemIndex) => ({ item, itemIndex }))
+                .filter(({ item }) => item.design_service_enabled)
+                .map(({ item, itemIndex }) => (
+                <div key={itemIndex} className="space-y-4">
+                  {/* Contact Preference */}
+                  <div className="flex items-start gap-3">
+                    {item.design_draft_preference === 'email' ? (
+                      <Mail className="h-4 w-4 text-purple-500 mt-0.5" />
+                    ) : (
+                      <Phone className="h-4 w-4 text-purple-500 mt-0.5" />
+                    )}
+                    <div>
+                      <p className="text-sm font-medium text-gray-700">Draft Delivery</p>
+                      <p className="text-gray-900">
+                        {item.design_draft_preference === 'email' ? 'Email: ' : 'Text: '}
+                        <span className="font-medium">{item.design_draft_contact}</span>
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Description */}
+                  <div className="flex items-start gap-3">
+                    <MessageSquare className="h-4 w-4 text-purple-500 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-700 mb-1">Design Description</p>
+                      <div className="bg-white border border-purple-100 rounded-lg p-3 whitespace-pre-wrap text-gray-800 text-sm">
+                        {item.design_request_text || 'No description provided'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Uploaded Assets */}
+                  {item.design_uploaded_assets && item.design_uploaded_assets.length > 0 && (
+                    <div className="flex items-start gap-3">
+                      <Upload className="h-4 w-4 text-purple-500 mt-0.5" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-gray-700 mb-2">
+                          Uploaded Assets ({item.design_uploaded_assets.length})
+                        </p>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                          {item.design_uploaded_assets.map((asset, assetIdx) => (
+                            <a
+                              key={assetIdx}
+                              href={asset.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-2 bg-white border border-purple-100 rounded-lg p-2 hover:bg-purple-50 transition-colors group"
+                            >
+                              {asset.type.startsWith('image/') ? (
+                                <img
+                                  src={asset.url}
+                                  alt={asset.name}
+                                  className="w-10 h-10 object-cover rounded border"
+                                />
+                              ) : (
+                                <div className="w-10 h-10 bg-purple-100 rounded flex items-center justify-center">
+                                  <FileText className="h-5 w-5 text-purple-600" />
+                                </div>
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-gray-900 truncate">{asset.name}</p>
+                                <p className="text-xs text-gray-500">{(asset.size / 1024).toFixed(1)} KB</p>
+                              </div>
+                              <ExternalLink className="h-3 w-3 text-gray-400 group-hover:text-purple-600" />
+                            </a>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Final Print PDF - Admin Upload Section */}
+                  <div className="flex items-start gap-3 pt-3 border-t border-purple-200">
+                    <FileText className="h-4 w-4 text-purple-500 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-gray-700 mb-2">Final Print PDF</p>
+                      {item.final_print_pdf_url ? (
+                        <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-lg p-3">
+                          <FileText className="h-5 w-5 text-green-600" />
+                          <div className="flex-1">
+                            <p className="text-sm font-medium text-green-800">PDF Uploaded</p>
+                            <p className="text-xs text-green-600">
+                              {item.final_print_pdf_uploaded_at
+                                ? new Date(item.final_print_pdf_uploaded_at).toLocaleString()
+                                : 'Date not available'}
+                            </p>
+                          </div>
+                          <a
+                            href={item.final_print_pdf_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-1.5 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 flex items-center gap-1"
+                          >
+                            <Download className="h-3 w-3" />
+                            Download
+                          </a>
+                        </div>
+                      ) : (
+                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-amber-800 text-sm">
+                          <p className="font-medium">⏳ Awaiting Final PDF</p>
+                          <p className="text-xs mt-1 mb-2">Upload the final print-ready PDF once the design is approved.</p>
+                          {onUploadFinalPdf && (
+                            <label className="inline-flex items-center gap-2 px-3 py-1.5 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 cursor-pointer transition-colors">
+                              <Upload className="h-3 w-3" />
+                              Upload PDF
+                              <input
+                                type="file"
+                                accept=".pdf,application/pdf"
+                                className="hidden"
+                                onChange={(e) => {
+                                  const file = e.target.files?.[0];
+                                  if (file) {
+                                    onUploadFinalPdf(order.id, itemIndex, file);
+                                    e.target.value = ''; // Reset input
+                                  }
+                                }}
+                              />
+                            </label>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 

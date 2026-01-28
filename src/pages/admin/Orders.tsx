@@ -22,7 +22,9 @@ import {
   X,
   FileText,
   Mail,
-  Loader2
+  Loader2,
+  Palette,
+  Upload
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -404,6 +406,61 @@ const AdminOrders: React.FC = () => {
     }
   };
 
+  // Handler for uploading Final Print PDF for design service orders
+  const handleUploadFinalPdf = async (orderId: string, itemIndex: number, file: File) => {
+    try {
+      toast({
+        title: "Uploading Final PDF",
+        description: "Please wait while the PDF is being uploaded...",
+      });
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('orderId', orderId);
+      formData.append('itemIndex', itemIndex.toString());
+
+      const response = await fetch('/.netlify/functions/upload-final-print-pdf', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.error || 'Failed to upload PDF');
+      }
+
+      // Update local state with the new PDF URL
+      setOrders(prevOrders =>
+        prevOrders.map(order => {
+          if (order.id !== orderId) return order;
+          const newItems = [...order.items];
+          if (newItems[itemIndex]) {
+            newItems[itemIndex] = {
+              ...newItems[itemIndex],
+              final_print_pdf_url: result.url,
+              final_print_pdf_file_key: result.fileKey,
+              final_print_pdf_uploaded_at: result.uploadedAt,
+            };
+          }
+          return { ...order, items: newItems };
+        })
+      );
+
+      toast({
+        title: "PDF Uploaded",
+        description: "Final print PDF has been uploaded successfully.",
+      });
+    } catch (error) {
+      console.error('Upload Final PDF failed:', error);
+      toast({
+        title: "Upload Failed",
+        description: error.message || "Could not upload PDF. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'paid':
@@ -648,6 +705,7 @@ const AdminOrders: React.FC = () => {
                       onFileDownload={handleFileDownload}
                       onPdfDownload={handlePdfDownload}
                       onSendShippingNotification={handleSendShippingNotification}
+                      onUploadFinalPdf={handleUploadFinalPdf}
                       getStatusColor={getStatusColor}
                       pdfLoadingStates={pdfLoadingStates}
                       getItemsSummary={getItemsSummary}
@@ -702,6 +760,7 @@ const AdminOrders: React.FC = () => {
                           onFileDownload={handleFileDownload}
                           onPdfDownload={handlePdfDownload}
                           onSendShippingNotification={handleSendShippingNotification}
+                          onUploadFinalPdf={handleUploadFinalPdf}
                           getStatusColor={getStatusColor}
                           pdfLoadingStates={pdfLoadingStates}
                           getItemsSummary={getItemsSummary}
@@ -727,6 +786,7 @@ interface AdminOrderRowProps {
   onFileDownload: (fileKey: string, orderId: string, itemIndex: number) => void;
   onPdfDownload: (item: any, itemIndex: number, orderId: string) => void;
   onSendShippingNotification: (orderId: string) => void;
+  onUploadFinalPdf?: (orderId: string, itemIndex: number, file: File) => void;
   getStatusColor: (status: string) => string;
   getItemsSummary: (order: Order) => string;
   pdfLoadingStates: Record<string, boolean>;
@@ -739,6 +799,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   onFileDownload,
   onPdfDownload,
   onSendShippingNotification,
+  onUploadFinalPdf,
   getStatusColor,
   getItemsSummary,
   pdfLoadingStates
@@ -945,9 +1006,18 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
         </div>
       </td>
       <td className="px-3 py-3 whitespace-nowrap">
-        <Badge className={`${getStatusColor(order.status)} capitalize`}>
-          {order.status}
-        </Badge>
+        <div className="flex flex-col gap-1">
+          <Badge className={`${getStatusColor(order.status)} capitalize`}>
+            {order.status}
+          </Badge>
+          {/* Design Service Badge */}
+          {order.items.some(item => item.design_service_enabled) && (
+            <Badge className="bg-purple-100 text-purple-800 text-xs">
+              <Palette className="h-3 w-3 mr-1" />
+              Design Service
+            </Badge>
+          )}
+        </div>
       </td>
       {/* PDF Column */}
       <td className="px-3 py-3">
@@ -1070,6 +1140,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
         <div className="flex items-center justify-end gap-2 sm:gap-3">
           <OrderDetails
             order={order}
+            onUploadFinalPdf={onUploadFinalPdf}
             trigger={
               <Button variant="ghost" size="sm">
                 <Eye className="h-4 w-4 mr-1" />
@@ -1123,6 +1194,7 @@ interface AdminOrderCardProps {
   onFileDownload: (fileKey: string, orderId: string, itemIndex: number) => void;
   onPdfDownload: (item: any, itemIndex: number, orderId: string) => void;
   onSendShippingNotification: (orderId: string) => void;
+  onUploadFinalPdf?: (orderId: string, itemIndex: number, file: File) => void;
   getStatusColor: (status: string) => string;
   getItemsSummary: (order: Order) => string;
   pdfLoadingStates: Record<string, boolean>;
@@ -1131,6 +1203,7 @@ interface AdminOrderCardProps {
 const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
   order,
   onPdfDownload,
+  onUploadFinalPdf,
   getStatusColor,
   getItemsSummary,
   pdfLoadingStates
@@ -1231,9 +1304,18 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
               {new Date(order.created_at).toLocaleDateString()}
             </div>
           </div>
-          <Badge className={`${getStatusColor(order.status)} capitalize`}>
-            {order.status}
-          </Badge>
+          <div className="flex flex-col gap-1 items-end">
+            <Badge className={`${getStatusColor(order.status)} capitalize`}>
+              {order.status}
+            </Badge>
+            {/* Design Service Badge */}
+            {order.items.some(item => item.design_service_enabled) && (
+              <Badge className="bg-purple-100 text-purple-800 text-xs">
+                <Palette className="h-3 w-3 mr-1" />
+                Design
+              </Badge>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1322,7 +1404,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
             <DialogHeader>
               <DialogTitle>Order #{order.id.slice(-8).toUpperCase()}</DialogTitle>
             </DialogHeader>
-            <OrderDetails order={order} />
+            <OrderDetails order={order} onUploadFinalPdf={onUploadFinalPdf} />
           </DialogContent>
         </Dialog>
       </div>

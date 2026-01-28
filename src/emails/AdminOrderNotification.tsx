@@ -23,6 +23,15 @@ interface AdminOrderNotificationProps {
       quantity: number;
       price: number;
       options: string;
+      // Design Service fields
+      design_service_enabled?: boolean;
+      design_request_text?: string;
+      design_draft_preference?: 'email' | 'text';
+      design_draft_contact?: string;
+      design_uploaded_assets?: Array<{
+        name: string;
+        url: string;
+      }>;
     }>;
     subtotal: number;
     tax: number;
@@ -174,6 +183,44 @@ export default function AdminOrderNotification({ order, invoiceUrl }: AdminOrder
                   <Text style={addressText}>{order.shipping_country}</Text>
                 )}
               </div>
+            </Section>
+          )}
+
+          {/* Design Service Request Section */}
+          {order.items.some(item => item.design_service_enabled) && (
+            <Section style={designServiceSection}>
+              <Heading style={designServiceHeading}>⚡ Design Service Order</Heading>
+              <Text style={designServiceAlert}>
+                This customer has requested our design team to create their banner.
+              </Text>
+              {order.items.filter(item => item.design_service_enabled).map((item, index) => (
+                <div key={index} style={designServiceBox}>
+                  <div style={designServiceRow}>
+                    <Text style={designServiceLabel}>Draft Delivery:</Text>
+                    <Text style={designServiceValue}>
+                      {item.design_draft_preference === 'email' ? '📧 Email' : '📱 Text'}: {item.design_draft_contact}
+                    </Text>
+                  </div>
+                  {item.design_request_text && (
+                    <div style={designServiceRow}>
+                      <Text style={designServiceLabel}>Design Description:</Text>
+                      <Text style={designServiceDescription}>{item.design_request_text}</Text>
+                    </div>
+                  )}
+                  {item.design_uploaded_assets && item.design_uploaded_assets.length > 0 && (
+                    <div style={designServiceRow}>
+                      <Text style={designServiceLabel}>Uploaded Assets ({item.design_uploaded_assets.length}):</Text>
+                      <div>
+                        {item.design_uploaded_assets.map((asset, assetIdx) => (
+                          <Text key={assetIdx} style={assetLink}>
+                            <Link href={asset.url} style={link}>📎 {asset.name}</Link>
+                          </Text>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
             </Section>
           )}
 
@@ -439,4 +486,69 @@ const footerText = {
   color: '#6b7280',
   fontSize: '12px',
   margin: '4px 0',
+};
+
+// Design Service styles
+const designServiceSection = {
+  padding: '0 24px 16px',
+};
+
+const designServiceHeading = {
+  color: '#7c3aed',
+  fontSize: '18px',
+  fontWeight: '700',
+  margin: '0 0 8px',
+};
+
+const designServiceAlert = {
+  backgroundColor: '#faf5ff',
+  border: '1px solid #c4b5fd',
+  borderRadius: '8px',
+  padding: '12px',
+  color: '#6b21a8',
+  fontSize: '14px',
+  marginBottom: '16px',
+};
+
+const designServiceBox = {
+  backgroundColor: '#f9fafb',
+  border: '1px solid #e5e7eb',
+  borderRadius: '8px',
+  padding: '16px',
+  marginBottom: '8px',
+};
+
+const designServiceRow = {
+  marginBottom: '12px',
+};
+
+const designServiceLabel = {
+  color: '#6b7280',
+  fontSize: '12px',
+  fontWeight: '600',
+  textTransform: 'uppercase' as const,
+  margin: '0 0 4px',
+};
+
+const designServiceValue = {
+  color: '#111827',
+  fontSize: '14px',
+  margin: '0',
+};
+
+const designServiceDescription = {
+  color: '#374151',
+  fontSize: '14px',
+  margin: '0',
+  whiteSpace: 'pre-wrap' as const,
+  backgroundColor: '#ffffff',
+  border: '1px solid #e5e7eb',
+  borderRadius: '4px',
+  padding: '8px',
+};
+
+const assetLink = {
+  color: '#7c3aed',
+  fontSize: '13px',
+  margin: '2px 0',
 };

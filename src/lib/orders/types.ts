@@ -2,6 +2,14 @@ export type MaterialKey = '13oz' | '15oz' | '18oz' | 'mesh';
 export type OrderStatus = 'paid' | 'pending' | 'failed' | 'refunded' | 'shipped';
 export type TrackingCarrier = 'fedex';
 
+export interface DesignServiceAsset {
+  name: string;
+  type: string;
+  size: number;
+  url: string;
+  fileKey?: string;
+}
+
 export interface OrderItem {
   width_in: number;
   height_in: number;
@@ -28,6 +36,16 @@ export interface OrderItem {
   overlay_image?: any;
   transform?: any;
   preview_canvas_px?: any;
+
+  // Design Service fields - "Let Our Team Design It" flow
+  design_service_enabled?: boolean;
+  design_request_text?: string;
+  design_draft_preference?: 'email' | 'text';
+  design_draft_contact?: string;
+  design_uploaded_assets?: DesignServiceAsset[];
+  final_print_pdf_url?: string;
+  final_print_pdf_file_key?: string;
+  final_print_pdf_uploaded_at?: string;
 }
 
 export interface Order {

@@ -99,6 +99,22 @@ export interface CartItem {
   final_render_width_px?: number;      // Width in pixels
   final_render_height_px?: number;     // Height in pixels
   final_render_dpi?: number;           // DPI used (typically 150)
+
+  // Design Service fields - "Let Our Team Design It" flow
+  design_service_enabled?: boolean;              // True if customer chose design service
+  design_request_text?: string;                  // Customer's description of what they want
+  design_draft_preference?: 'email' | 'text';    // How customer wants draft delivered
+  design_draft_contact?: string;                 // Email or phone for draft delivery
+  design_uploaded_assets?: Array<{               // Files customer uploaded for design reference
+    name: string;
+    type: string;
+    size: number;
+    url: string;
+    fileKey?: string;
+  }>;
+  final_print_pdf_url?: string;                  // Admin-uploaded final print PDF
+  final_print_pdf_file_key?: string;             // Cloudinary file key for final PDF
+  final_print_pdf_uploaded_at?: string;          // ISO timestamp of when admin uploaded PDF
 }
 
 export interface AuthoritativePricing {
@@ -380,6 +396,12 @@ export const useCartStore = create<CartState>()(
           final_render_width_px: (quote as any).finalRenderWidthPx || undefined,
           final_render_height_px: (quote as any).finalRenderHeightPx || undefined,
           final_render_dpi: (quote as any).finalRenderDpi || undefined,
+          // Design Service fields
+          design_service_enabled: (quote as any).design_service_enabled || undefined,
+          design_request_text: (quote as any).design_request_text || undefined,
+          design_draft_preference: (quote as any).design_draft_preference || undefined,
+          design_draft_contact: (quote as any).design_draft_contact || undefined,
+          design_uploaded_assets: (quote as any).design_uploaded_assets || undefined,
           ...(aiMetadata || {}),
         };
 
@@ -600,6 +622,12 @@ export const useCartStore = create<CartState>()(
           final_render_width_px: (quote as any).finalRenderWidthPx || existingItem.final_render_width_px,
           final_render_height_px: (quote as any).finalRenderHeightPx || existingItem.final_render_height_px,
           final_render_dpi: (quote as any).finalRenderDpi || existingItem.final_render_dpi,
+          // Design Service fields
+          design_service_enabled: (quote as any).design_service_enabled || existingItem.design_service_enabled,
+          design_request_text: (quote as any).design_request_text || existingItem.design_request_text,
+          design_draft_preference: (quote as any).design_draft_preference || existingItem.design_draft_preference,
+          design_draft_contact: (quote as any).design_draft_contact || existingItem.design_draft_contact,
+          design_uploaded_assets: (quote as any).design_uploaded_assets || existingItem.design_uploaded_assets,
           ...(aiMetadata || {}),
         };
 

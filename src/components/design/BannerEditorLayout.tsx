@@ -41,6 +41,7 @@ import CanvasSettingsPanel from './editor/CanvasSettingsPanel';
 import MaterialCard from './MaterialCard';
 import SizeQuantityCard from './SizeQuantityCard';
 import OptionsCard from './OptionsCard';
+import DesignServicePanel, { DesignServiceAsset } from './DesignServicePanel';
 // PricingCard removed - users add to cart via blue button
 
 
@@ -58,6 +59,13 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
   const [showUpsellModal, setShowUpsellModal] = useState(false);
   const [pendingAction, setPendingAction] = useState<'cart' | 'checkout' | null>(null);
   const [dontShowUpsellAgain, setDontShowUpsellAgain] = useState(false);
+
+  // Design Service mode state
+  const [designServiceMode, setDesignServiceMode] = useState(false);
+  const [designRequestText, setDesignRequestText] = useState('');
+  const [draftPreference, setDraftPreference] = useState<'email' | 'text'>('email');
+  const [draftContact, setDraftContact] = useState('');
+  const [designUploadedAssets, setDesignUploadedAssets] = useState<DesignServiceAsset[]>([]);
 
 
 
@@ -118,9 +126,20 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
   }, []);
 
   const { addFromQuote, updateCartItem } = useCartStore();
-  
-  // Check if there's any content on the canvas
+
+  // Check if there's any content on the canvas (or valid design service request)
   const hasContent = file || textElements.length > 0 || editorObjects.length > 0;
+
+  // For design service mode, check if form is valid
+  const isDesignServiceFormValid = designServiceMode &&
+    designRequestText.trim().length >= 10 &&
+    draftContact.trim() &&
+    (draftPreference === 'email'
+      ? /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draftContact)
+      : /^[\d\s\-()+ ]{10,}$/.test(draftContact.replace(/\D/g, '')));
+
+  // Enable add to cart if either canvas has content OR design service form is valid
+  const canAddToCart = designServiceMode ? isDesignServiceFormValid : hasContent;
   // Close panel when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -944,6 +963,99 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
 
   const handleAddToCart = async () => {
     console.log(`🎯 [BannerEditorLayout] ${editingItemId ? 'Update' : 'Add to'} Cart button clicked`);
+    console.log(`🎨 [BannerEditorLayout] Design service mode: ${designServiceMode}`);
+
+    // Handle design service mode differently
+    if (designServiceMode) {
+      if (!isDesignServiceFormValid) {
+        toast({
+          title: 'Form Incomplete',
+          description: 'Please fill in all required fields for the design service.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // For design service, skip thumbnail generation - just proceed to add to cart
+      console.log('🎨 [DESIGN SERVICE] Adding design service order to cart');
+
+      // Calculate pricing for design service order
+      const sqft = (widthIn * heightIn) / 144;
+      const basePrice = material === '13oz Vinyl' ? 3.50 : 4.50;
+      const unitPrice = sqft * basePrice;
+
+      const ropeFeet = quote.addRope ? (widthIn / 12) : 0;
+      const ropePrice = ropeFeet > 0 ? (ropeFeet * 2 * quote.quantity) : 0;
+
+      let polePocketPrice = 0;
+      if (quote.polePockets && quote.polePockets !== 'none') {
+        const setupFee = 15;
+        const pricePerLinearFoot = 2;
+        let linearFeet = 0;
+        switch (quote.polePockets) {
+          case 'top':
+          case 'bottom':
+            linearFeet = widthIn / 12; break;
+          case 'left':
+          case 'right':
+            linearFeet = heightIn / 12; break;
+          case 'top-bottom':
+            linearFeet = (widthIn / 12) * 2; break;
+          default:
+            linearFeet = 0;
+        }
+        polePocketPrice = (setupFee + (linearFeet * pricePerLinearFoot)) * quote.quantity;
+      }
+
+      const lineTotal = (unitPrice * quote.quantity) + ropePrice + polePocketPrice;
+
+      const pricing = {
+        unit_price_cents: Math.round(unitPrice * 100),
+        rope_cost_cents: Math.round(ropePrice * 100),
+        rope_pricing_mode: 'per_item' as const,
+        pole_pocket_cost_cents: Math.round(polePocketPrice * 100),
+        pole_pocket_pricing_mode: 'per_item' as const,
+        line_total_cents: Math.round(lineTotal * 100),
+      };
+
+      // Create design service cart item data
+      const designServiceData = {
+        design_service_enabled: true,
+        design_request_text: designRequestText,
+        design_draft_preference: draftPreference,
+        design_draft_contact: draftContact,
+        design_uploaded_assets: designUploadedAssets,
+      };
+
+      // Get fresh quote for cart
+      const freshQuoteForCart = useQuoteStore.getState();
+
+      if (editingItemId) {
+        console.log('🔄 [UPDATE CART DESIGN SERVICE] Updating existing item:', editingItemId);
+        updateCartItem(editingItemId, { ...freshQuoteForCart, ...designServiceData } as any, undefined, pricing);
+        toast({
+          title: "Cart Updated",
+          description: "Your design service request has been updated.",
+        });
+      } else {
+        console.log('➕ [ADD TO CART DESIGN SERVICE] Adding new design service item');
+        addFromQuote({ ...freshQuoteForCart, ...designServiceData } as any, undefined, pricing);
+        toast({
+          title: "Added to Cart",
+          description: "Your design service request has been added to the cart.",
+        });
+      }
+
+      // Reset design service form
+      setDesignRequestText('');
+      setDraftContact('');
+      setDesignUploadedAssets([]);
+      setDesignServiceMode(false);
+
+      // Scroll to top
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
 
     if (!hasContent) {
       toast({
@@ -1738,7 +1850,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
             </Button>
             <Button
               onClick={handleAddToCart}
-              disabled={!hasContent}
+              disabled={!canAddToCart}
               size="sm"
               className="min-h-[44px] bg-[#18448D] hover:bg-[#0f2d5c] text-white px-2 sm:px-3"
             >
@@ -1749,7 +1861,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
             {!editingItemId && (
               <Button
                 onClick={handleBuyNow}
-                disabled={!hasContent}
+                disabled={!canAddToCart}
                 size="sm"
                 className="min-h-[44px] bg-[#ff6b35] hover:bg-[#f7931e] text-white font-semibold px-2 sm:px-3"
               >
@@ -1818,28 +1930,61 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
         {/* Canvas Area - Full Width (Both Mobile & Desktop) */}
         {/* CRITICAL: Single canvas instance ensures canvasRef always points to visible canvas */}
         <div className="flex flex-1 flex-col bg-gray-100 overflow-hidden relative z-0">
-          {/* Canvas Toolbar - Grid Toggle */}
-          <div className="flex items-center justify-end px-2 py-1 lg:px-4 lg:py-2 bg-white border-b border-gray-200">
+          {/* Canvas Toolbar - Grid Toggle + Design Service Toggle */}
+          <div className="flex items-center justify-between px-2 py-1 lg:px-4 lg:py-2 bg-white border-b border-gray-200">
+            {/* Design Service Toggle */}
             <button
-              onClick={() => setShowGrid(!showGrid)}
+              onClick={() => setDesignServiceMode(!designServiceMode)}
               className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-                showGrid 
-                  ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' 
-                  : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                designServiceMode
+                  ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+                  : 'bg-gradient-to-r from-[#18448D] to-indigo-600 text-white hover:from-[#0f2d5c] hover:to-indigo-700'
               }`}
             >
-              <Grid3X3 className="w-4 h-4" />
-              <span className="hidden sm:inline">Show Grid</span>
+              <Sparkles className="w-4 h-4" />
+              <span className="hidden sm:inline">{designServiceMode ? 'Design It Myself' : 'Let Us Design It'}</span>
+              <span className="sm:hidden">{designServiceMode ? 'DIY' : 'Pro'}</span>
             </button>
+
+            {/* Grid Toggle - only show when not in design service mode */}
+            {!designServiceMode && (
+              <button
+                onClick={() => setShowGrid(!showGrid)}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                  showGrid
+                    ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                }`}
+              >
+                <Grid3X3 className="w-4 h-4" />
+                <span className="hidden sm:inline">Show Grid</span>
+              </button>
+            )}
           </div>
-          {/* Mobile: smaller padding, space for bottom toolbar; Desktop: normal padding */}
-          <div className="flex-1 p-1 sm:p-2 lg:p-4 overflow-auto pb-16 lg:pb-4">
-            <EditorCanvas 
-              ref={canvasRef}
-              selectedObjectId={selectedObjectId}
-              onSelectObject={setSelectedObjectId}
+
+          {/* Conditional Content: Design Service Panel OR Canvas */}
+          {designServiceMode ? (
+            <DesignServicePanel
+              designRequestText={designRequestText}
+              setDesignRequestText={setDesignRequestText}
+              draftPreference={draftPreference}
+              setDraftPreference={setDraftPreference}
+              draftContact={draftContact}
+              setDraftContact={setDraftContact}
+              uploadedAssets={designUploadedAssets}
+              setUploadedAssets={setDesignUploadedAssets}
+              onSwitchToDesigner={() => setDesignServiceMode(false)}
             />
-          </div>
+          ) : (
+            /* Mobile: smaller padding, space for bottom toolbar; Desktop: normal padding */
+            <div className="flex-1 p-1 sm:p-2 lg:p-4 overflow-auto pb-16 lg:pb-4">
+              <EditorCanvas
+                ref={canvasRef}
+                selectedObjectId={selectedObjectId}
+                onSelectObject={setSelectedObjectId}
+              />
+            </div>
+          )}
         </div>
 
         {/* Mobile Bottom Toolbar */}
