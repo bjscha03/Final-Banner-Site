@@ -48,7 +48,7 @@ interface AdminOrderNotificationProps {
 }
 
 export default function AdminOrderNotification({ order, invoiceUrl }: AdminOrderNotificationProps) {
-  const formattedDate = order.created_at 
+  const formattedDate = order.created_at
     ? new Date(order.created_at).toLocaleString('en-US', {
         year: 'numeric',
         month: 'long',
@@ -93,76 +93,87 @@ export default function AdminOrderNotification({ order, invoiceUrl }: AdminOrder
             </Text>
           </Section>
 
-          {/* Order Summary */}
+          {/* Order Quick Summary Card */}
+          <Section style={quickSummaryCard}>
+            <div style={summaryRow}>
+              <div style={summaryItem}>
+                <Text style={summaryLabel}>Order #</Text>
+                <Text style={summaryValue}>{order.number}</Text>
+              </div>
+              <div style={summaryItem}>
+                <Text style={summaryLabel}>Total</Text>
+                <Text style={summaryValueHighlight}>${order.total.toFixed(2)}</Text>
+              </div>
+            </div>
+          </Section>
+
+          {/* Order Details */}
           <Section style={content}>
-            <Heading style={sectionTitle}>Order Information</Heading>
-            
-            <div style={detailRow}>
-              <Text style={label}>Order Number:</Text>
-              <Text style={value}>#{order.number}</Text>
-            </div>
-            
-            <div style={detailRow}>
-              <Text style={label}>Order ID:</Text>
-              <Text style={value}>{order.id}</Text>
-            </div>
-            
-            <div style={detailRow}>
-              <Text style={label}>Customer:</Text>
-              <Text style={value}>{order.customerName}</Text>
-            </div>
-            
-            <div style={detailRow}>
-              <Text style={label}>Email:</Text>
-              <Text style={value}>
-                <Link href={`mailto:${order.email}`} style={link}>
-                  {order.email}
-                </Link>
-              </Text>
-            </div>
-            
-            <div style={detailRow}>
-              <Text style={label}>Order Date:</Text>
-              <Text style={value}>{formattedDate}</Text>
-            </div>
-            
-            <div style={detailRow}>
-              <Text style={label}>Total Amount:</Text>
-              <Text style={totalValue}>${order.total.toFixed(2)}</Text>
+            <Heading style={sectionTitle}>📋 Order Details</Heading>
+
+            <div style={detailsCard}>
+              <div style={detailRowStyled}>
+                <Text style={label}>Customer Name</Text>
+                <Text style={value}>{order.customerName}</Text>
+              </div>
+
+              <div style={detailRowStyled}>
+                <Text style={label}>Email Address</Text>
+                <Text style={value}>
+                  <Link href={`mailto:${order.email}`} style={link}>
+                    {order.email}
+                  </Link>
+                </Text>
+              </div>
+
+              <div style={detailRowStyled}>
+                <Text style={label}>Order Date</Text>
+                <Text style={value}>{formattedDate}</Text>
+              </div>
+
+              <div style={detailRowStyled}>
+                <Text style={label}>Order ID</Text>
+                <Text style={valueMonospace}>{order.id}</Text>
+              </div>
             </div>
           </Section>
 
           {/* Order Items */}
           <Section style={itemsSection}>
-            <Heading style={sectionTitle}>Order Items</Heading>
-            {order.items.map((item, index) => (
-              <div key={index} style={itemBox}>
-                <div style={itemHeader}>
-                  <Text style={itemName}>{item.name}</Text>
-                  <Text style={itemPrice}>${item.price.toFixed(2)}</Text>
+            <Heading style={sectionTitle}>🛒 Order Items</Heading>
+            <div style={itemsContainer}>
+              {order.items.map((item, index) => (
+                <div key={index} style={itemBox}>
+                  <div style={itemHeader}>
+                    <Text style={itemName}>{item.name}</Text>
+                    <Text style={itemPrice}>${item.price.toFixed(2)}</Text>
+                  </div>
+                  <Text style={itemDetails}>Qty: {item.quantity}</Text>
+                  {item.options && (
+                    <Text style={itemOptions}>{item.options}</Text>
+                  )}
+                  {item.design_service_enabled && (
+                    <Text style={designBadge}>✨ Design Service</Text>
+                  )}
                 </div>
-                <Text style={itemDetails}>Quantity: {item.quantity}</Text>
-                {item.options && (
-                  <Text style={itemDetails}>{item.options}</Text>
-                )}
-              </div>
-            ))}
-            
-            {/* Order Totals */}
-            <div style={totalsBox}>
-              <div style={totalRow}>
-                <Text style={totalLabel}>Subtotal:</Text>
-                <Text style={totalAmount}>${order.subtotal.toFixed(2)}</Text>
-              </div>
-              {order.tax > 0 && (
+              ))}
+
+              {/* Order Totals */}
+              <div style={totalsBox}>
                 <div style={totalRow}>
-                  <Text style={totalLabel}>Tax:</Text>
-                  <Text style={totalAmount}>${order.tax.toFixed(2)}</Text>
+                  <Text style={totalLabel}>Subtotal</Text>
+                  <Text style={totalAmount}>${order.subtotal.toFixed(2)}</Text>
                 </div>
-              )}
-              <div style={finalTotalRow}>
-                <Text style={finalTotalLabel}>Total:</Text>
-                <Text style={finalTotalAmount}>${order.total.toFixed(2)}</Text>
+                {order.tax > 0 && (
+                  <div style={totalRow}>
+                    <Text style={totalLabel}>Tax</Text>
+                    <Text style={totalAmount}>${order.tax.toFixed(2)}</Text>
+                  </div>
+                )}
+                <div style={finalTotalRow}>
+                  <Text style={finalTotalLabel}>Total Paid</Text>
+                  <Text style={finalTotalAmount}>${order.total.toFixed(2)}</Text>
+                </div>
               </div>
             </div>
           </Section>
@@ -170,9 +181,9 @@ export default function AdminOrderNotification({ order, invoiceUrl }: AdminOrder
           {/* Shipping Address */}
           {(order.shipping_name || order.shipping_street) && (
             <Section style={shippingSection}>
-              <Heading style={sectionTitle}>Shipping Address</Heading>
+              <Heading style={sectionTitle}>📦 Shipping Address</Heading>
               <div style={addressBox}>
-                {order.shipping_name && <Text style={addressText}>{order.shipping_name}</Text>}
+                {order.shipping_name && <Text style={addressName}>{order.shipping_name}</Text>}
                 {order.shipping_street && <Text style={addressText}>{order.shipping_street}</Text>}
                 {(order.shipping_city || order.shipping_state || order.shipping_zip) && (
                   <Text style={addressText}>
@@ -189,31 +200,31 @@ export default function AdminOrderNotification({ order, invoiceUrl }: AdminOrder
           {/* Design Service Request Section */}
           {order.items.some(item => item.design_service_enabled) && (
             <Section style={designServiceSection}>
-              <Heading style={designServiceHeading}>⚡ Design Service Order</Heading>
+              <Heading style={designServiceHeading}>⚡ Action Required: Design Service Order</Heading>
               <Text style={designServiceAlert}>
-                This customer has requested our design team to create their banner.
+                This customer has requested our design team to create their banner. Please review the details below and begin working on their design.
               </Text>
               {order.items.filter(item => item.design_service_enabled).map((item, index) => (
                 <div key={index} style={designServiceBox}>
                   <div style={designServiceRow}>
-                    <Text style={designServiceLabel}>Draft Delivery:</Text>
+                    <Text style={designServiceLabel}>How to Send Drafts</Text>
                     <Text style={designServiceValue}>
-                      {item.design_draft_preference === 'email' ? '📧 Email' : '📱 Text'}: {item.design_draft_contact}
+                      {item.design_draft_preference === 'email' ? '📧 Email' : '📱 Text Message'}: {item.design_draft_contact}
                     </Text>
                   </div>
                   {item.design_request_text && (
                     <div style={designServiceRow}>
-                      <Text style={designServiceLabel}>Design Description:</Text>
+                      <Text style={designServiceLabel}>Customer's Design Description</Text>
                       <Text style={designServiceDescription}>{item.design_request_text}</Text>
                     </div>
                   )}
                   {item.design_uploaded_assets && item.design_uploaded_assets.length > 0 && (
                     <div style={designServiceRow}>
-                      <Text style={designServiceLabel}>Uploaded Assets ({item.design_uploaded_assets.length}):</Text>
-                      <div>
+                      <Text style={designServiceLabel}>Customer's Uploaded Files ({item.design_uploaded_assets.length})</Text>
+                      <div style={assetsContainer}>
                         {item.design_uploaded_assets.map((asset, assetIdx) => (
                           <Text key={assetIdx} style={assetLink}>
-                            <Link href={asset.url} style={link}>📎 {asset.name}</Link>
+                            <Link href={asset.url} style={assetLinkStyle}>📎 {asset.name}</Link>
                           </Text>
                         ))}
                       </div>
@@ -227,7 +238,7 @@ export default function AdminOrderNotification({ order, invoiceUrl }: AdminOrder
           {/* Action Button */}
           <Section style={actionSection}>
             <Link href={invoiceUrl} style={actionButton}>
-              View Full Order Details
+              View Full Order in Admin Panel
             </Link>
           </Section>
 
@@ -236,16 +247,19 @@ export default function AdminOrderNotification({ order, invoiceUrl }: AdminOrder
           {/* Footer */}
           <Section style={footer}>
             <Text style={footerText}>
-              This is an automated notification from Banners On The Fly order system.
+              This is an automated notification from Banners On The Fly.
             </Text>
-            <Text style={footerText}>
-              <Link href="https://bannersonthefly.com" style={link}>
-                Visit website
+            <Text style={footerLinks}>
+              <Link href="https://bannersonthefly.com" style={footerLink}>
+                Website
               </Link>
               {' • '}
-              <Link href={`mailto:${order.email}`} style={link}>
-                Contact customer
+              <Link href={`mailto:${order.email}`} style={footerLink}>
+                Email Customer
               </Link>
+            </Text>
+            <Text style={footerCopyright}>
+              © {new Date().getFullYear()} Banners On The Fly. All rights reserved.
             </Text>
           </Section>
         </Container>
@@ -263,41 +277,85 @@ const main = {
 const container = {
   backgroundColor: '#ffffff',
   margin: '0 auto',
-  padding: '20px 0 48px',
+  padding: '0',
   marginBottom: '64px',
   maxWidth: '600px',
-  borderRadius: '8px',
-  boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
+  borderRadius: '12px',
+  boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+  overflow: 'hidden' as const,
 };
 
 const logoSection = {
   textAlign: 'center' as const,
-  padding: '20px 30px 10px',
+  padding: '24px 30px 16px',
   backgroundColor: '#ffffff',
 };
 
 const logoStyle = {
   display: 'block',
   margin: '0 auto',
-  maxWidth: '200px',
+  maxWidth: '180px',
   height: 'auto',
 };
 
 const header = {
-  padding: '24px 24px 0',
+  background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+  padding: '32px 24px',
   textAlign: 'center' as const,
 };
 
 const headerTitle = {
-  color: '#059669',
-  fontSize: '24px',
+  color: '#ffffff',
+  fontSize: '26px',
   fontWeight: '700',
   margin: '0 0 8px',
 };
 
 const headerSubtitle = {
+  color: 'rgba(255, 255, 255, 0.9)',
+  fontSize: '15px',
+  margin: '0',
+};
+
+// Quick Summary Card
+const quickSummaryCard = {
+  backgroundColor: '#f0fdf4',
+  padding: '20px 24px',
+  borderBottom: '1px solid #d1fae5',
+};
+
+const summaryRow = {
+  display: 'flex',
+  justifyContent: 'space-around',
+  alignItems: 'center',
+  textAlign: 'center' as const,
+};
+
+const summaryItem = {
+  flex: '1',
+};
+
+const summaryLabel = {
   color: '#6b7280',
-  fontSize: '16px',
+  fontSize: '12px',
+  fontWeight: '600',
+  textTransform: 'uppercase' as const,
+  letterSpacing: '0.5px',
+  margin: '0 0 4px',
+};
+
+const summaryValue = {
+  color: '#1f2937',
+  fontSize: '20px',
+  fontWeight: '700',
+  margin: '0',
+  fontFamily: 'monospace',
+};
+
+const summaryValueHighlight = {
+  color: '#059669',
+  fontSize: '24px',
+  fontWeight: '700',
   margin: '0',
 };
 
@@ -306,100 +364,130 @@ const content = {
 };
 
 const sectionTitle = {
-  color: '#374151',
-  fontSize: '18px',
-  fontWeight: '600',
+  color: '#1f2937',
+  fontSize: '16px',
+  fontWeight: '700',
   margin: '0 0 16px',
 };
 
-const detailRow = {
+// Details Card
+const detailsCard = {
+  backgroundColor: '#f9fafb',
+  border: '1px solid #e5e7eb',
+  borderRadius: '8px',
+  padding: '16px',
+  overflow: 'hidden' as const,
+};
+
+const detailRowStyled = {
   display: 'flex',
+  justifyContent: 'space-between',
   alignItems: 'center',
-  marginBottom: '12px',
-  gap: '12px',
+  padding: '10px 0',
+  borderBottom: '1px solid #e5e7eb',
 };
 
 const label = {
   color: '#6b7280',
-  fontSize: '14px',
+  fontSize: '13px',
   fontWeight: '600',
   margin: '0',
-  minWidth: '120px',
-  display: 'inline-block',
 };
 
 const value = {
   color: '#1f2937',
   fontSize: '14px',
+  fontWeight: '500',
   margin: '0',
-  flex: '1',
+  textAlign: 'right' as const,
 };
 
-const totalValue = {
-  color: '#059669',
-  fontSize: '16px',
-  fontWeight: '700',
+const valueMonospace = {
+  color: '#1f2937',
+  fontSize: '12px',
+  fontWeight: '500',
   margin: '0',
-  flex: '1',
+  fontFamily: 'monospace',
+  textAlign: 'right' as const,
 };
 
 const link = {
   color: '#2563eb',
-  textDecoration: 'underline',
+  textDecoration: 'none',
+  fontWeight: '500',
 };
 
 const itemsSection = {
   padding: '0 24px 24px',
 };
 
-const itemBox = {
-  backgroundColor: '#f9fafb',
+const itemsContainer = {
+  backgroundColor: '#ffffff',
   border: '1px solid #e5e7eb',
-  borderRadius: '6px',
+  borderRadius: '8px',
+  overflow: 'hidden' as const,
+};
+
+const itemBox = {
   padding: '16px',
-  marginBottom: '12px',
+  borderBottom: '1px solid #f3f4f6',
+};
+
+const itemOptions = {
+  color: '#6b7280',
+  fontSize: '13px',
+  margin: '4px 0 0',
+};
+
+const designBadge = {
+  display: 'inline-block',
+  backgroundColor: '#faf5ff',
+  color: '#7c3aed',
+  fontSize: '11px',
+  fontWeight: '600',
+  padding: '4px 8px',
+  borderRadius: '4px',
+  marginTop: '8px',
 };
 
 const itemHeader = {
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'center',
-  marginBottom: '8px',
+  marginBottom: '6px',
 };
 
 const itemName = {
   color: '#1f2937',
-  fontSize: '16px',
+  fontSize: '15px',
   fontWeight: '600',
   margin: '0',
 };
 
 const itemPrice = {
   color: '#059669',
-  fontSize: '16px',
+  fontSize: '15px',
   fontWeight: '700',
   margin: '0',
 };
 
 const itemDetails = {
   color: '#6b7280',
-  fontSize: '14px',
-  margin: '4px 0',
+  fontSize: '13px',
+  margin: '2px 0 0',
 };
 
 const totalsBox = {
-  backgroundColor: '#f3f4f6',
-  border: '1px solid #d1d5db',
-  borderRadius: '6px',
+  backgroundColor: '#f9fafb',
   padding: '16px',
-  marginTop: '16px',
 };
 
 const totalRow = {
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'center',
-  marginBottom: '8px',
+  padding: '8px 0',
+  borderBottom: '1px solid #e5e7eb',
 };
 
 const totalLabel = {
@@ -418,8 +506,7 @@ const finalTotalRow = {
   display: 'flex',
   justifyContent: 'space-between',
   alignItems: 'center',
-  paddingTop: '8px',
-  borderTop: '1px solid #d1d5db',
+  padding: '16px 0 0',
   marginTop: '8px',
 };
 
@@ -432,7 +519,7 @@ const finalTotalLabel = {
 
 const finalTotalAmount = {
   color: '#059669',
-  fontSize: '18px',
+  fontSize: '20px',
   fontWeight: '700',
   margin: '0',
 };
@@ -444,96 +531,124 @@ const shippingSection = {
 const addressBox = {
   backgroundColor: '#f9fafb',
   border: '1px solid #e5e7eb',
-  borderRadius: '6px',
+  borderRadius: '8px',
   padding: '16px',
 };
 
-const addressText = {
+const addressName = {
   color: '#1f2937',
+  fontSize: '15px',
+  fontWeight: '600',
+  margin: '0 0 4px',
+};
+
+const addressText = {
+  color: '#4b5563',
   fontSize: '14px',
-  lineHeight: '1.5',
+  lineHeight: '1.6',
   margin: '0',
-  whiteSpace: 'pre-wrap' as const,
 };
 
 const actionSection = {
-  padding: '0 24px 24px',
+  padding: '8px 24px 32px',
   textAlign: 'center' as const,
 };
 
 const actionButton = {
-  backgroundColor: '#2563eb',
+  backgroundColor: '#059669',
   color: '#ffffff',
-  padding: '12px 24px',
+  padding: '14px 32px',
   textDecoration: 'none',
-  borderRadius: '6px',
+  borderRadius: '8px',
   display: 'inline-block',
   fontWeight: '600',
-  fontSize: '14px',
+  fontSize: '15px',
 };
 
 const hr = {
   borderColor: '#e5e7eb',
-  margin: '20px 0',
+  margin: '0',
 };
 
 const footer = {
-  padding: '0 24px',
+  padding: '24px',
+  backgroundColor: '#f9fafb',
   textAlign: 'center' as const,
 };
 
 const footerText = {
   color: '#6b7280',
-  fontSize: '12px',
-  margin: '4px 0',
+  fontSize: '13px',
+  margin: '0 0 8px',
+};
+
+const footerLinks = {
+  color: '#6b7280',
+  fontSize: '13px',
+  margin: '0 0 12px',
+};
+
+const footerLink = {
+  color: '#2563eb',
+  textDecoration: 'none',
+};
+
+const footerCopyright = {
+  color: '#9ca3af',
+  fontSize: '11px',
+  margin: '0',
 };
 
 // Design Service styles
 const designServiceSection = {
-  padding: '0 24px 16px',
+  padding: '0 24px 24px',
 };
 
 const designServiceHeading = {
   color: '#7c3aed',
   fontSize: '18px',
   fontWeight: '700',
-  margin: '0 0 8px',
+  margin: '0 0 12px',
 };
 
 const designServiceAlert = {
   backgroundColor: '#faf5ff',
-  border: '1px solid #c4b5fd',
+  border: '2px solid #c4b5fd',
   borderRadius: '8px',
-  padding: '12px',
+  padding: '16px',
   color: '#6b21a8',
   fontSize: '14px',
+  lineHeight: '1.5',
   marginBottom: '16px',
+  textAlign: 'center' as const,
 };
 
 const designServiceBox = {
-  backgroundColor: '#f9fafb',
-  border: '1px solid #e5e7eb',
+  backgroundColor: '#ffffff',
+  border: '1px solid #e9d5ff',
   borderRadius: '8px',
   padding: '16px',
-  marginBottom: '8px',
-};
-
-const designServiceRow = {
   marginBottom: '12px',
 };
 
+const designServiceRow = {
+  marginBottom: '16px',
+};
+
 const designServiceLabel = {
-  color: '#6b7280',
-  fontSize: '12px',
-  fontWeight: '600',
+  color: '#7c3aed',
+  fontSize: '11px',
+  fontWeight: '700',
   textTransform: 'uppercase' as const,
-  margin: '0 0 4px',
+  letterSpacing: '0.5px',
+  margin: '0 0 6px',
 };
 
 const designServiceValue = {
-  color: '#111827',
+  color: '#1f2937',
   fontSize: '14px',
   margin: '0',
+  fontWeight: '500',
 };
 
 const designServiceDescription = {
@@ -541,14 +656,27 @@ const designServiceDescription = {
   fontSize: '14px',
   margin: '0',
   whiteSpace: 'pre-wrap' as const,
-  backgroundColor: '#ffffff',
-  border: '1px solid #e5e7eb',
-  borderRadius: '4px',
+  backgroundColor: '#faf5ff',
+  border: '1px solid #e9d5ff',
+  borderRadius: '6px',
+  padding: '12px',
+  lineHeight: '1.5',
+};
+
+const assetsContainer = {
+  backgroundColor: '#faf5ff',
+  borderRadius: '6px',
   padding: '8px',
 };
 
 const assetLink = {
+  margin: '4px 0',
+  display: 'block',
+};
+
+const assetLinkStyle = {
   color: '#7c3aed',
   fontSize: '13px',
-  margin: '2px 0',
+  textDecoration: 'none',
+  fontWeight: '500',
 };

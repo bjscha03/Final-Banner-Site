@@ -1,16 +1,14 @@
 import React, { useState } from 'react';
 import { Order } from '../../lib/orders/types';
-import { usd, calculateUnitPriceFromOrder } from "@/lib/pricing";
+import { usd } from "@/lib/pricing";
 import { formatDimensions } from "@/lib/order-pricing";
 import OrderItemBreakdown from "./OrderItemBreakdown";
 import { Button } from '@/components/ui/button';
 import { useCartStore } from '@/store/cart';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth, isAdmin } from '@/lib/auth';
-import { ShoppingCart, Package, Calendar, CreditCard, Mail, User, Download, FileText, Sparkles, Info, MapPin, Loader2, Palette, Phone, Upload, ExternalLink, MessageSquare } from 'lucide-react';
+import { ShoppingCart, Package, Calendar, CreditCard, Mail, User, Download, FileText, Sparkles, MapPin, Loader2, Palette, Phone, Upload, MessageSquare } from 'lucide-react';
 import TrackingBadge from './TrackingBadge';
-import PDFQualityCheck from '../admin/PDFQualityCheck';
-import { isPrintPipelineEnabled } from '../../utils/printPipeline';
 import {
   Dialog,
   DialogContent,
@@ -19,9 +17,6 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 
-
-// Helper function to calculate unit price from order data
-    
 
 interface OrderDetailsProps {
   order: Order;
@@ -35,25 +30,6 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
   const { user } = useAuth();
   const [pdfGenerating, setPdfGenerating] = useState<Record<number, boolean>>({});
   const isAdminUser = user && isAdmin(user);
-  const [qualityCheckOpen, setQualityCheckOpen] = useState(false);
-  const [qualityCheckData, setQualityCheckData] = useState<any>(null);
-  const printPipelineEnabled = isPrintPipelineEnabled();
-
-  // Debug logging
-  console.log('🔍 Print Pipeline Debug:', {
-    printPipelineEnabled,
-    isAdminUser,
-    envVar: import.meta.env.VITE_ENABLE_PRINT_PIPELINE,
-    user: user?.email
-  });
-
-  // Debug logging
-  console.log('🔍 Print Pipeline Debug:', {
-    printPipelineEnabled,
-    isAdminUser,
-    envVar: import.meta.env.VITE_ENABLE_PRINT_PIPELINE,
-    user: user?.email
-  });
 
   // Helper function to get the best download URL for an item (AI or uploaded)
   const getBestDownloadUrl = (item: any) => {
@@ -427,23 +403,6 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
     }
   };
 
-  // Handler for print-grade PDF download (Beta)
-
-  // Handler for quality check modal
-  const handleQualityCheck = (item: any) => {
-    setQualityCheckData({
-      bannerWidthIn: item.width_in,
-      bannerHeightIn: item.height_in,
-      fileKey: item.file_key,
-      logoKey: item.logo_key,
-      aiImageKey: item.ai_image_key,
-      targetDpi: 150,
-    });
-    setQualityCheckOpen(true);
-  };
-
-
-
   const defaultTrigger = (
     <Button variant="outline" size="sm">
       View Details
@@ -793,9 +752,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                           {usd((item.line_total_cents || 0) / 100)}
                         </p>
                       </div>
-                      <p className="text-sm text-slate-600 font-medium">
-                        {usd((calculateUnitPriceFromOrder(item) || 0) / 100)} each
-                      </p>
+
                       <div className="mt-2 space-y-2">
                         
                         {/* Admin PDF Download Button */}
@@ -846,19 +803,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                         )}
                         
 
-                        {/* Quality Button - Feature Flagged */}
-                        {isAdminUser && printPipelineEnabled && (item.file_key || item.print_ready_url || item.web_preview_url) && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleQualityCheck(item)}
-                            className="min-w-[60px] text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-                          >
-                            <Info className="h-3 w-3 mr-1" />
-                            Quality
-                          </Button>
-                        )}
-                        
+
                         {isAdminUser && !item.file_key && !item.print_ready_url && !item.web_preview_url && (
                           <div className="text-xs text-gray-500 text-center py-1">
                             <FileText className="h-3 w-3 inline mr-1" />
@@ -921,15 +866,6 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
           </div>
         </div>
       </DialogContent>
-
-      {/* Quality Modal */}
-      {qualityCheckData && (
-        <PDFQualityCheck
-          isOpen={qualityCheckOpen}
-          onClose={() => setQualityCheckOpen(false)}
-          orderData={qualityCheckData}
-        />
-      )}
     </Dialog>
   );
 };

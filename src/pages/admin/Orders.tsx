@@ -1023,8 +1023,10 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
       <td className="px-3 py-3">
         <div className="flex flex-col space-y-1">
           {/* Show uploaded Final PDFs for design service orders */}
-          {order.items.map((item, index) => (
-            item.final_print_pdf_url && (
+          {order.items
+            .map((item, index) => ({ item, index }))
+            .filter(({ item }) => item.final_print_pdf_url)
+            .map(({ item, index }) => (
               <a
                 key={`final-pdf-${index}`}
                 href={item.final_print_pdf_url}
@@ -1035,8 +1037,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                 <Download className="h-3 w-3 mr-1" />
                 Final PDF {order.items.length > 1 ? `#${index + 1}` : ''}
               </a>
-            )
-          ))}
+            ))}
           {/* Show Generate PDF buttons for regular orders */}
           {getFilesWithDownload().length > 0 ? (
             getFilesWithDownload().map(({ item, index }) => (
@@ -1364,8 +1365,10 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
           <div className="text-xs text-gray-500 mb-2">Print Files</div>
           <div className="flex flex-wrap gap-2">
             {/* Show uploaded Final PDFs for design service orders */}
-            {order.items.map((item, index) => (
-              item.final_print_pdf_url && (
+            {order.items
+              .map((item, index) => ({ item, index }))
+              .filter(({ item }) => item.final_print_pdf_url)
+              .map(({ item, index }) => (
                 <a
                   key={`final-pdf-${index}`}
                   href={item.final_print_pdf_url}
@@ -1376,8 +1379,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
                   <Download className="h-3 w-3 mr-1" />
                   Final PDF {order.items.length > 1 ? `#${index + 1}` : ''}
                 </a>
-              )
-            ))}
+              ))}
             {/* Show Generate PDF buttons for regular orders */}
             {getFilesWithDownload().map(({ item, index }) => (
               <Button
