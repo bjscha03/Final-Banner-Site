@@ -405,6 +405,16 @@ export const useCartStore = create<CartState>()(
           ...(aiMetadata || {}),
         };
 
+        // DEBUG: Log design service fields explicitly
+        console.log('🎨 [CART STORE] Design service fields in newItem:', {
+          design_service_enabled: newItem.design_service_enabled,
+          design_request_text: newItem.design_request_text?.substring(0, 50),
+          design_draft_preference: newItem.design_draft_preference,
+          design_draft_contact: newItem.design_draft_contact,
+          design_uploaded_assets_count: newItem.design_uploaded_assets?.length || 0,
+          quote_design_service_enabled: (quote as any).design_service_enabled,
+        });
+
         debugLog('🧮 CART: addFromQuote', { usingAuthoritative, pricing, computed: { unit: computedUnit, rope: computedRope, pole: computedPole, line: computedLine }, stored: newItem });
         debugLog('💾 CART STORAGE: Item added, will persist to localStorage');
         get().items.forEach((item, idx) => {
