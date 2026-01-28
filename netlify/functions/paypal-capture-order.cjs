@@ -245,7 +245,8 @@ exports.handler = async (event) => {
             id, order_id, width_in, height_in, quantity, material,
             grommets, rope_feet, pole_pockets, pole_pocket_position, pole_pocket_size, pole_pocket_cost_cents,
             line_total_cents, file_key, file_url, print_ready_url, web_preview_url,
-            text_elements, overlay_image, thumbnail_url
+            text_elements, overlay_image, thumbnail_url,
+            design_service_enabled, design_request_text, design_draft_preference, design_draft_contact, design_uploaded_assets
           ) VALUES (
             ${randomUUID()},
             ${orderId},
@@ -266,7 +267,12 @@ exports.handler = async (event) => {
             ${item.web_preview_url || null},
             ${item.text_elements ? JSON.stringify(item.text_elements) : '[]'},
             ${item.overlay_image ? JSON.stringify(item.overlay_image) : null},
-            ${item.thumbnail_url || null}
+            ${item.thumbnail_url || null},
+            ${item.design_service_enabled || false},
+            ${item.design_request_text || null},
+            ${item.design_draft_preference || null},
+            ${item.design_draft_contact || null},
+            ${item.design_uploaded_assets ? JSON.stringify(item.design_uploaded_assets) : '[]'}
           )
         `;
       }

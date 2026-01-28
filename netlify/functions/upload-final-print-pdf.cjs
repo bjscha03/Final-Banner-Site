@@ -122,32 +122,35 @@ exports.handler = async (event) => {
     const itemIdx = parseInt(itemIndex || '0', 10);
     const now = new Date().toISOString();
 
-    // Get the order items
-    const orderRows = await sql`SELECT items FROM orders WHERE id = ${orderId}`;
-    
-    if (orderRows.length === 0) {
-      return { statusCode: 404, headers, body: JSON.stringify({ error: 'Order not found' }) };
+    // Get the order items from order_items table
+    const orderItemRows = await sql`
+      SELECT id FROM order_items
+      WHERE order_id = ${orderId}
+      ORDER BY id ASC
+    `;
+
+    if (orderItemRows.length === 0) {
+      return { statusCode: 404, headers, body: JSON.stringify({ error: 'Order items not found' }) };
     }
 
-    // Update the specific item in the items array
-    let items = orderRows[0].items;
-    if (typeof items === 'string') {
-      items = JSON.parse(items);
+    // Get the specific item by index
+    if (itemIdx < 0 || itemIdx >= orderItemRows.length) {
+      return { statusCode: 400, headers, body: JSON.stringify({ error: 'Invalid item index' }) };
     }
 
-    if (itemIdx >= 0 && itemIdx < items.length) {
-      items[itemIdx] = {
-        ...items[itemIdx],
-        final_print_pdf_url: uploadResult.secure_url,
-        final_print_pdf_file_key: uploadResult.public_id,
-        final_print_pdf_uploaded_at: now,
-      };
+    const orderItemId = orderItemRows[itemIdx].id;
 
-      // Save back to database
-      await sql`UPDATE orders SET items = ${JSON.stringify(items)} WHERE id = ${orderId}`;
-      
-      console.log('[Upload Final PDF] Order updated successfully');
-    }
+    // Update the specific order_item with the final PDF info
+    await sql`
+      UPDATE order_items
+      SET
+        final_print_pdf_url = ${uploadResult.secure_url},
+        final_print_pdf_file_key = ${uploadResult.public_id},
+        final_print_pdf_uploaded_at = ${now}
+      WHERE id = ${orderItemId}
+    `;
+
+    console.log('[Upload Final PDF] Order item updated successfully:', orderItemId);
 
     return {
       statusCode: 200,
