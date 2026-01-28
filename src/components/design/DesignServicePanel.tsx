@@ -507,23 +507,26 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
                 className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white"
                 style={{ backgroundColor: BRAND_BLUE }}
               >2</span>
-              <p className="text-sm text-slate-600">We create your design (1-2 business days)</p>
+              <p className="text-sm text-slate-600">We create your design and send the first draft within a few hours</p>
             </li>
             <li className="flex items-start gap-3">
               <span
                 className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white"
                 style={{ backgroundColor: BRAND_BLUE }}
               >3</span>
-              <p className="text-sm text-slate-600">You approve the design via {draftPreference}</p>
+              <p className="text-sm text-slate-600">Review and request changes — we'll send as many drafts as needed</p>
             </li>
             <li className="flex items-start gap-3">
               <span
                 className="flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold text-white"
                 style={{ backgroundColor: BRAND_BLUE }}
               >4</span>
-              <p className="text-sm text-slate-600">We print and ship your banner</p>
+              <p className="text-sm text-slate-600">Once approved, we print and ship your banner</p>
             </li>
           </ol>
+          <p className="text-xs text-slate-500 mt-4 pt-3 border-t border-slate-100">
+            Please respond within 24 hours of receiving each draft. If we don't hear back, we'll assume the design is approved and proceed to print.
+          </p>
         </div>
 
         {/* Validation Status */}
