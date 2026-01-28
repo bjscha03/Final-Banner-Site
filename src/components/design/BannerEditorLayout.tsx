@@ -2211,23 +2211,38 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
 
         {/* Mobile Bottom Toolbar - Hidden in design service mode */}
         {!designServiceMode && (
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-20 safe-area-inset-bottom">
+        <div
+          className="lg:hidden fixed bottom-0 left-0 right-0 shadow-2xl z-20 safe-area-inset-bottom"
+          style={{
+            background: 'linear-gradient(135deg, #18448D 0%, #1e3a6e 100%)',
+            borderTop: '2px solid rgba(255,255,255,0.2)',
+          }}
+        >
           <div className="flex overflow-x-auto scrollbar-hide">
             {sidebarButtons.map((button) => (
               <button
                 key={button.id}
                 data-sidebar-button
                 onClick={() => togglePanel(button.id)}
-                className={`flex-shrink-0 flex flex-col items-center justify-center py-2 px-3 min-w-[70px] min-h-[60px] transition-all duration-200 ${
+                className={`flex-shrink-0 flex flex-col items-center justify-center py-3 px-4 min-w-[75px] min-h-[70px] transition-all duration-200 ${
                   activePanel === button.id
-                    ? 'text-[#18448D] bg-blue-50 border-t-2 border-[#18448D]'
-                    : 'text-gray-600 hover:text-[#18448D] hover:bg-gray-50'
+                    ? 'bg-white/20'
+                    : 'hover:bg-white/10'
                 }`}
+                style={{
+                  borderTop: activePanel === button.id ? '3px solid #ff6b35' : '3px solid transparent',
+                }}
               >
-                <div className="w-5 h-5 flex items-center justify-center">
-                  {React.cloneElement(button.icon as React.ReactElement, { className: 'w-5 h-5' })}
+                <div className="w-6 h-6 flex items-center justify-center">
+                  {React.cloneElement(button.icon as React.ReactElement, {
+                    className: 'w-6 h-6',
+                    style: { color: activePanel === button.id ? '#ff6b35' : 'white' }
+                  })}
                 </div>
-                <span className="text-[10px] mt-1 font-medium leading-tight text-center whitespace-nowrap">
+                <span
+                  className="text-[11px] mt-1.5 font-semibold leading-tight text-center whitespace-nowrap"
+                  style={{ color: activePanel === button.id ? '#ff6b35' : 'white' }}
+                >
                   {button.label.split('/')[0]}
                 </span>
               </button>
