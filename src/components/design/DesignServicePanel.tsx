@@ -216,49 +216,44 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
   const isBannerConfigValid = hasBannerDimensions && hasMaterial;
 
   return (
-    <div
-      className="flex flex-col h-full overflow-hidden"
-      style={{
-        background: `linear-gradient(135deg, ${BRAND_BLUE_LIGHT} 0%, #ffffff 50%, ${BRAND_ORANGE_LIGHT} 100%)`,
-      }}
-    >
-      {/* Hero Header */}
+    <div className="flex flex-col h-full overflow-hidden bg-gradient-to-br from-slate-50 via-white to-orange-50/30">
+      {/* Hero Header - More impactful */}
       <div
-        className="px-4 py-3 border-b shadow-sm"
+        className="px-5 py-4 shadow-lg"
         style={{
-          background: `linear-gradient(135deg, ${BRAND_BLUE} 0%, #2563eb 100%)`,
-          borderColor: 'rgba(255,255,255,0.1)',
+          background: `linear-gradient(135deg, ${BRAND_BLUE} 0%, #1e40af 50%, #3b82f6 100%)`,
         }}
       >
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center"
+              className="w-12 h-12 rounded-2xl flex items-center justify-center shadow-lg"
               style={{
-                background: 'rgba(255,255,255,0.15)',
-                backdropFilter: 'blur(8px)',
+                background: 'linear-gradient(135deg, rgba(255,255,255,0.25) 0%, rgba(255,255,255,0.1) 100%)',
+                backdropFilter: 'blur(10px)',
+                border: '1px solid rgba(255,255,255,0.2)',
               }}
             >
-              <Sparkles className="w-5 h-5 text-white" />
+              <Sparkles className="w-6 h-6 text-white" />
             </div>
             <div>
-              <h2 className="text-lg font-bold text-white">Let Us Design It</h2>
-              <p className="text-xs text-blue-100">Free professional design service</p>
+              <h2 className="text-xl font-bold text-white tracking-tight">Let Us Design It</h2>
+              <p className="text-sm text-blue-200">Free professional design service</p>
             </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             <span
-              className="px-2.5 py-1 text-xs font-bold text-white rounded-full shadow-lg"
+              className="px-4 py-1.5 text-sm font-black text-white rounded-full shadow-xl animate-pulse"
               style={{
-                background: `linear-gradient(135deg, ${BRAND_ORANGE} 0%, #f97316 100%)`,
-                boxShadow: '0 2px 8px rgba(255,107,53,0.4)',
+                background: `linear-gradient(135deg, ${BRAND_ORANGE} 0%, #ea580c 100%)`,
+                boxShadow: '0 4px 15px rgba(255,107,53,0.5)',
               }}
             >
               FREE
             </span>
             <button
               onClick={onSwitchToDesigner}
-              className="px-3 py-1.5 text-xs font-medium text-white/90 hover:text-white bg-white/10 hover:bg-white/20 rounded-lg transition-all"
+              className="px-4 py-2 text-sm font-semibold text-white bg-white/15 hover:bg-white/25 rounded-xl transition-all border border-white/20"
             >
               DIY instead
             </button>
@@ -267,25 +262,25 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
       </div>
 
       {/* Main Content - Two Column Layout */}
-      <div className="flex-1 p-3 overflow-auto">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 h-full">
+      <div className="flex-1 p-4 lg:p-5 overflow-auto">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-5">
 
           {/* Left Column: Banner Configuration */}
-          <div className="space-y-2">
-            {/* Size Selection */}
+          <div className="space-y-4">
+            {/* Size Selection Card */}
             <div
-              className="rounded-xl p-3 border"
+              className="rounded-2xl p-4 bg-white border-2 border-slate-100"
               style={{
-                background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
-                borderColor: 'rgba(24, 68, 141, 0.15)',
-                boxShadow: '0 2px 8px rgba(24, 68, 141, 0.08)',
+                boxShadow: '0 4px 20px rgba(0, 0, 0, 0.06)',
               }}
             >
-              <div className="flex items-center gap-2 mb-2">
-                <Ruler className="w-4 h-4" style={{ color: BRAND_BLUE }} />
-                <Label className="text-sm font-semibold text-slate-800">Banner Size</Label>
+              <div className="flex items-center gap-2.5 mb-3">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${BRAND_BLUE}15` }}>
+                  <Ruler className="w-4 h-4" style={{ color: BRAND_BLUE }} />
+                </div>
+                <span className="text-sm font-bold text-slate-800">Banner Size</span>
               </div>
-              <div className="grid grid-cols-4 gap-1.5 mb-2">
+              <div className="grid grid-cols-4 gap-2">
                 {SIZE_PRESETS.map(preset => (
                   <button
                     key={preset.label}
@@ -293,13 +288,14 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
                       set({ widthIn: preset.w, heightIn: preset.h });
                       setShowCustomSize(false);
                     }}
-                    className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    className={`py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ${
                       widthIn === preset.w && heightIn === preset.h
-                        ? 'text-white shadow-md'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        ? 'text-white shadow-lg scale-[1.02]'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:scale-[1.02]'
                     }`}
                     style={widthIn === preset.w && heightIn === preset.h ? {
                       background: `linear-gradient(135deg, ${BRAND_BLUE} 0%, #2563eb 100%)`,
+                      boxShadow: '0 4px 12px rgba(24, 68, 141, 0.35)',
                     } : {}}
                   >
                     {preset.label}
@@ -308,31 +304,31 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
               </div>
               <button
                 onClick={() => setShowCustomSize(!showCustomSize)}
-                className="text-xs text-slate-500 hover:text-slate-700 flex items-center gap-1"
+                className="mt-3 text-xs font-medium text-slate-500 hover:text-slate-700 flex items-center gap-1.5 transition-colors"
               >
-                <ChevronDown className={`w-3 h-3 transition-transform ${showCustomSize ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${showCustomSize ? 'rotate-180' : ''}`} />
                 Custom size
               </button>
               {showCustomSize && (
-                <div className="grid grid-cols-2 gap-2 mt-2">
+                <div className="grid grid-cols-2 gap-3 mt-3 pt-3 border-t border-slate-100">
                   <div>
-                    <Label className="text-xs text-slate-500">Width (in)</Label>
+                    <Label className="text-xs font-medium text-slate-500 mb-1 block">Width (inches)</Label>
                     <Input
                       type="number"
                       value={widthIn}
                       onChange={(e) => set({ widthIn: parseInt(e.target.value) || 12 })}
-                      className="h-8 text-sm"
+                      className="h-10 text-sm font-medium"
                       min={12}
                       max={192}
                     />
                   </div>
                   <div>
-                    <Label className="text-xs text-slate-500">Height (in)</Label>
+                    <Label className="text-xs font-medium text-slate-500 mb-1 block">Height (inches)</Label>
                     <Input
                       type="number"
                       value={heightIn}
                       onChange={(e) => set({ heightIn: parseInt(e.target.value) || 12 })}
-                      className="h-8 text-sm"
+                      className="h-10 text-sm font-medium"
                       min={12}
                       max={120}
                     />
@@ -342,27 +338,25 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
             </div>
 
             {/* Material & Quantity Row */}
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-2 gap-4">
               {/* Material */}
               <div
-                className="rounded-xl p-3 border"
-                style={{
-                  background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
-                  borderColor: 'rgba(24, 68, 141, 0.15)',
-                  boxShadow: '0 2px 8px rgba(24, 68, 141, 0.08)',
-                }}
+                className="rounded-2xl p-4 bg-white border-2 border-slate-100"
+                style={{ boxShadow: '0 4px 20px rgba(0, 0, 0, 0.06)' }}
               >
-                <div className="flex items-center gap-2 mb-2">
-                  <Palette className="w-4 h-4" style={{ color: BRAND_BLUE }} />
-                  <Label className="text-sm font-semibold text-slate-800">Material</Label>
+                <div className="flex items-center gap-2.5 mb-3">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${BRAND_BLUE}15` }}>
+                    <Palette className="w-4 h-4" style={{ color: BRAND_BLUE }} />
+                  </div>
+                  <span className="text-sm font-bold text-slate-800">Material</span>
                 </div>
                 <Select value={material} onValueChange={(value) => set({ material: value as MaterialKey })}>
-                  <SelectTrigger className="h-8 text-sm">
+                  <SelectTrigger className="h-10 text-sm font-medium border-2 border-slate-200 hover:border-slate-300 transition-colors">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     {MATERIAL_OPTIONS.map(mat => (
-                      <SelectItem key={mat.key} value={mat.key}>
+                      <SelectItem key={mat.key} value={mat.key} className="font-medium">
                         {mat.name} (${mat.price}/sqft)
                       </SelectItem>
                     ))}
@@ -372,31 +366,32 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
 
               {/* Quantity */}
               <div
-                className="rounded-xl p-3 border"
-                style={{
-                  background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
-                  borderColor: 'rgba(24, 68, 141, 0.15)',
-                  boxShadow: '0 2px 8px rgba(24, 68, 141, 0.08)',
-                }}
+                className="rounded-2xl p-4 bg-white border-2 border-slate-100"
+                style={{ boxShadow: '0 4px 20px rgba(0, 0, 0, 0.06)' }}
               >
-                <div className="flex items-center gap-2 mb-2">
-                  <Settings className="w-4 h-4" style={{ color: BRAND_BLUE }} />
-                  <Label className="text-sm font-semibold text-slate-800">Quantity</Label>
+                <div className="flex items-center gap-2.5 mb-3">
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${BRAND_BLUE}15` }}>
+                    <Settings className="w-4 h-4" style={{ color: BRAND_BLUE }} />
+                  </div>
+                  <span className="text-sm font-bold text-slate-800">Quantity</span>
                 </div>
-                <div className="flex items-center justify-center gap-3">
+                <div className="flex items-center justify-center gap-4">
                   <button
                     onClick={() => set({ quantity: Math.max(1, quantity - 1) })}
-                    className="w-7 h-7 rounded-full flex items-center justify-center bg-slate-100 hover:bg-slate-200 transition-colors"
+                    className="w-10 h-10 rounded-xl flex items-center justify-center bg-slate-100 hover:bg-slate-200 transition-all hover:scale-105 active:scale-95"
                   >
-                    <Minus className="w-3 h-3 text-slate-600" />
+                    <Minus className="w-4 h-4 text-slate-600" />
                   </button>
-                  <span className="text-lg font-bold text-slate-800 w-8 text-center">{quantity}</span>
+                  <span className="text-2xl font-bold text-slate-800 w-10 text-center">{quantity}</span>
                   <button
                     onClick={() => set({ quantity: quantity + 1 })}
-                    className="w-7 h-7 rounded-full flex items-center justify-center transition-colors"
-                    style={{ background: BRAND_BLUE }}
+                    className="w-10 h-10 rounded-xl flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-lg"
+                    style={{
+                      background: `linear-gradient(135deg, ${BRAND_ORANGE} 0%, #ea580c 100%)`,
+                      boxShadow: '0 4px 12px rgba(255, 107, 53, 0.35)',
+                    }}
                   >
-                    <Plus className="w-3 h-3 text-white" />
+                    <Plus className="w-4 h-4 text-white" />
                   </button>
                 </div>
               </div>
@@ -404,29 +399,28 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
 
             {/* Grommets */}
             <div
-              className="rounded-xl p-3 border"
-              style={{
-                background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
-                borderColor: 'rgba(24, 68, 141, 0.15)',
-                boxShadow: '0 2px 8px rgba(24, 68, 141, 0.08)',
-              }}
+              className="rounded-2xl p-4 bg-white border-2 border-slate-100"
+              style={{ boxShadow: '0 4px 20px rgba(0, 0, 0, 0.06)' }}
             >
-              <div className="flex items-center gap-2 mb-2">
-                <Settings className="w-4 h-4" style={{ color: BRAND_BLUE }} />
-                <Label className="text-sm font-semibold text-slate-800">Grommets</Label>
+              <div className="flex items-center gap-2.5 mb-3">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${BRAND_BLUE}15` }}>
+                  <Settings className="w-4 h-4" style={{ color: BRAND_BLUE }} />
+                </div>
+                <span className="text-sm font-bold text-slate-800">Grommets</span>
               </div>
-              <div className="grid grid-cols-4 gap-1.5">
+              <div className="grid grid-cols-4 gap-2">
                 {GROMMET_OPTIONS.map(opt => (
                   <button
                     key={opt.id}
                     onClick={() => set({ grommets: opt.id })}
-                    className={`px-2 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    className={`py-2.5 rounded-xl text-xs font-semibold transition-all duration-200 ${
                       grommets === opt.id
-                        ? 'text-white shadow-md'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        ? 'text-white shadow-lg scale-[1.02]'
+                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200 hover:scale-[1.02]'
                     }`}
                     style={grommets === opt.id ? {
                       background: `linear-gradient(135deg, ${BRAND_BLUE} 0%, #2563eb 100%)`,
+                      boxShadow: '0 4px 12px rgba(24, 68, 141, 0.35)',
                     } : {}}
                   >
                     {opt.label}
@@ -435,50 +429,51 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
               </div>
             </div>
 
-            {/* Pricing Summary */}
+            {/* Pricing Summary - Make it POP */}
             <div
-              className="rounded-xl p-3 border"
+              className="rounded-2xl p-4 border-2"
               style={{
-                background: `linear-gradient(135deg, ${BRAND_ORANGE_LIGHT} 0%, #ffffff 100%)`,
-                borderColor: 'rgba(255, 107, 53, 0.2)',
-                boxShadow: '0 2px 8px rgba(255, 107, 53, 0.1)',
+                background: `linear-gradient(135deg, ${BRAND_ORANGE}08 0%, ${BRAND_ORANGE}15 100%)`,
+                borderColor: `${BRAND_ORANGE}30`,
+                boxShadow: '0 4px 20px rgba(255, 107, 53, 0.1)',
               }}
             >
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-xs text-slate-500">{sqFt.toFixed(1)} sq ft × {quantity}</p>
+                  <p className="text-sm font-medium text-slate-600">{sqFt.toFixed(1)} sq ft × {quantity}</p>
                   <p className="text-xs text-slate-500 mt-0.5">{widthIn}" × {heightIn}" • {material}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-lg font-bold" style={{ color: BRAND_ORANGE }}>{usd(pricing.totalWithTax)}</p>
-                  <p className="text-[10px] text-slate-400">incl. tax</p>
+                  <p className="text-2xl font-black" style={{ color: BRAND_ORANGE }}>{usd(pricing.totalWithTax)}</p>
+                  <p className="text-xs font-medium text-slate-400">incl. tax</p>
                 </div>
               </div>
             </div>
           </div>
 
           {/* Right Column: Design Details */}
-          <div className="space-y-2">
+          <div className="space-y-4">
             {/* Step 1: Description */}
             <div
-              className="rounded-xl p-3 border"
-              style={{
-                background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
-                borderColor: 'rgba(24, 68, 141, 0.15)',
-                boxShadow: '0 2px 8px rgba(24, 68, 141, 0.08)',
-              }}
+              className="rounded-2xl p-4 bg-white border-2 border-slate-100"
+              style={{ boxShadow: '0 4px 20px rgba(0, 0, 0, 0.06)' }}
             >
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2.5 mb-3">
                 <div
-                  className="flex items-center justify-center w-5 h-5 rounded-full text-white text-xs font-bold flex-shrink-0"
-                  style={{ background: `linear-gradient(135deg, ${BRAND_BLUE} 0%, #2563eb 100%)` }}
+                  className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md"
+                  style={{
+                    background: `linear-gradient(135deg, ${BRAND_ORANGE} 0%, #ea580c 100%)`,
+                    boxShadow: '0 2px 8px rgba(255, 107, 53, 0.4)',
+                  }}
                 >
                   1
                 </div>
-                <Label htmlFor="design-request" className="text-sm font-semibold text-slate-800">
-                  Describe Your Banner
-                </Label>
-                <span className={`ml-auto text-xs font-medium ${designRequestText.length >= 10 ? 'text-green-600' : 'text-slate-400'}`}>
+                <span className="text-sm font-bold text-slate-800">Describe Your Banner</span>
+                <span className={`ml-auto text-xs font-semibold px-2 py-0.5 rounded-full ${
+                  designRequestText.length >= 10
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-slate-100 text-slate-500'
+                }`}>
                   {designRequestText.length}/10+
                 </span>
               </div>
@@ -487,40 +482,42 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
                 value={designRequestText}
                 onChange={(e) => setDesignRequestText(e.target.value)}
                 placeholder="Example: Grand opening banner for Joe's Auto Shop. 'GRAND OPENING' - red and black colors, bold text."
-                className="min-h-[50px] resize-none border-slate-200 focus:border-blue-400 focus:ring-blue-400 text-sm"
-                rows={2}
+                className="min-h-[70px] resize-none border-2 border-slate-200 focus:border-blue-400 focus:ring-blue-400 text-sm rounded-xl"
+                rows={3}
               />
             </div>
 
             {/* Step 2: File Upload */}
             <div
-              className="rounded-xl p-3 border"
-              style={{
-                background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
-                borderColor: 'rgba(24, 68, 141, 0.15)',
-                boxShadow: '0 2px 8px rgba(24, 68, 141, 0.08)',
-              }}
+              className="rounded-2xl p-4 bg-white border-2 border-slate-100"
+              style={{ boxShadow: '0 4px 20px rgba(0, 0, 0, 0.06)' }}
             >
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2.5 mb-3">
                 <div
-                  className="flex items-center justify-center w-5 h-5 rounded-full text-white text-xs font-bold flex-shrink-0"
-                  style={{ background: `linear-gradient(135deg, ${BRAND_BLUE} 0%, #2563eb 100%)` }}
+                  className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md"
+                  style={{
+                    background: `linear-gradient(135deg, ${BRAND_ORANGE} 0%, #ea580c 100%)`,
+                    boxShadow: '0 2px 8px rgba(255, 107, 53, 0.4)',
+                  }}
                 >
                   2
                 </div>
-                <Label className="text-sm font-semibold text-slate-800">Upload Assets</Label>
-                <span className="text-xs text-slate-400">(optional)</span>
+                <span className="text-sm font-bold text-slate-800">Upload Assets</span>
+                <span className="text-xs font-medium text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">(optional)</span>
               </div>
 
               <div
                 onDrop={handleDrop}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
-                className={`border-2 border-dashed rounded-lg p-2 text-center transition-all cursor-pointer ${
+                className={`border-2 border-dashed rounded-xl p-4 text-center transition-all cursor-pointer ${
                   dragActive
                     ? 'border-blue-400 bg-blue-50'
-                    : 'border-slate-300 hover:border-blue-400 hover:bg-blue-50/50'
+                    : 'border-slate-200 hover:border-blue-400 hover:bg-blue-50/50'
                 }`}
+                style={{
+                  background: dragActive ? undefined : 'linear-gradient(135deg, #fafafa 0%, #f5f5f5 100%)',
+                }}
                 onClick={() => fileInputRef.current?.click()}
               >
                 <input
@@ -532,42 +529,51 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
                   className="hidden"
                 />
                 {isUploading ? (
-                  <div className="flex items-center justify-center gap-2">
-                    <Loader2 className="w-4 h-4 animate-spin" style={{ color: BRAND_BLUE }} />
-                    <p className="text-sm text-slate-600">Uploading...</p>
+                  <div className="flex items-center justify-center gap-3">
+                    <Loader2 className="w-5 h-5 animate-spin" style={{ color: BRAND_BLUE }} />
+                    <p className="text-sm font-medium text-slate-600">Uploading...</p>
                   </div>
                 ) : (
-                  <div className="flex items-center justify-center gap-2">
-                    <Upload className="w-4 h-4" style={{ color: BRAND_BLUE }} />
+                  <div className="flex items-center justify-center gap-3">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: `${BRAND_BLUE}15` }}>
+                      <Upload className="w-5 h-5" style={{ color: BRAND_BLUE }} />
+                    </div>
                     <p className="text-sm text-slate-600">
-                      Drop or <span style={{ color: BRAND_BLUE }} className="font-medium">browse</span>
+                      Drop files or <span style={{ color: BRAND_BLUE }} className="font-semibold">browse</span>
                     </p>
                   </div>
                 )}
               </div>
 
               {uploadError && (
-                <div className="flex items-center gap-2 text-red-600 text-xs mt-2 p-2 bg-red-50 rounded border border-red-200">
-                  <AlertCircle className="w-3 h-3 flex-shrink-0" />
-                  {uploadError}
+                <div className="flex items-center gap-2 text-red-600 text-xs mt-3 p-3 bg-red-50 rounded-xl border border-red-200">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span className="font-medium">{uploadError}</span>
                 </div>
               )}
 
               {uploadedAssets.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-2">
+                <div className="flex flex-wrap gap-2 mt-3">
                   {uploadedAssets.map((asset, index) => (
-                    <div key={index} className="flex items-center gap-1 px-2 py-1 bg-blue-50 rounded border border-blue-200 text-xs">
+                    <div
+                      key={index}
+                      className="flex items-center gap-2 px-3 py-2 rounded-xl border-2 text-xs transition-all hover:scale-[1.02]"
+                      style={{
+                        background: asset.type.includes('image') ? `${BRAND_BLUE}08` : `${BRAND_ORANGE}08`,
+                        borderColor: asset.type.includes('image') ? `${BRAND_BLUE}25` : `${BRAND_ORANGE}25`,
+                      }}
+                    >
                       {asset.type.includes('image') ? (
-                        <Image className="w-3 h-3" style={{ color: BRAND_BLUE }} />
+                        <Image className="w-4 h-4" style={{ color: BRAND_BLUE }} />
                       ) : (
-                        <FileText className="w-3 h-3" style={{ color: BRAND_ORANGE }} />
+                        <FileText className="w-4 h-4" style={{ color: BRAND_ORANGE }} />
                       )}
-                      <span className="font-medium text-slate-700 truncate max-w-[80px]">{asset.name}</span>
+                      <span className="font-semibold text-slate-700 truncate max-w-[100px]">{asset.name}</span>
                       <button
                         onClick={() => handleRemoveAsset(index)}
-                        className="p-0.5 hover:bg-red-100 rounded transition-colors"
+                        className="p-1 hover:bg-red-100 rounded-lg transition-all hover:scale-110"
                       >
-                        <X className="w-3 h-3 text-slate-400 hover:text-red-500" />
+                        <X className="w-3.5 h-3.5 text-slate-400 hover:text-red-500" />
                       </button>
                     </div>
                   ))}
@@ -577,52 +583,51 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
 
             {/* Step 3: Contact Preference */}
             <div
-              className="rounded-xl p-3 border"
-              style={{
-                background: 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)',
-                borderColor: 'rgba(24, 68, 141, 0.15)',
-                boxShadow: '0 2px 8px rgba(24, 68, 141, 0.08)',
-              }}
+              className="rounded-2xl p-4 bg-white border-2 border-slate-100"
+              style={{ boxShadow: '0 4px 20px rgba(0, 0, 0, 0.06)' }}
             >
-              <div className="flex items-center gap-2 mb-2">
+              <div className="flex items-center gap-2.5 mb-3">
                 <div
-                  className="flex items-center justify-center w-5 h-5 rounded-full text-white text-xs font-bold flex-shrink-0"
-                  style={{ background: `linear-gradient(135deg, ${BRAND_BLUE} 0%, #2563eb 100%)` }}
+                  className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md"
+                  style={{
+                    background: `linear-gradient(135deg, ${BRAND_ORANGE} 0%, #ea580c 100%)`,
+                    boxShadow: '0 2px 8px rgba(255, 107, 53, 0.4)',
+                  }}
                 >
                   3
                 </div>
-                <Label className="text-sm font-semibold text-slate-800">Contact for Drafts</Label>
+                <span className="text-sm font-bold text-slate-800">Contact for Drafts</span>
               </div>
 
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 <RadioGroup
                   value={draftPreference}
                   onValueChange={(value) => setDraftPreference(value as 'email' | 'text')}
-                  className="flex gap-1.5"
+                  className="flex gap-2"
                 >
                   <div
-                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border cursor-pointer transition-all ${
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
                       draftPreference === 'email'
-                        ? 'border-blue-400 bg-blue-50'
-                        : 'border-slate-200 hover:border-slate-300'
+                        ? 'border-blue-400 bg-blue-50 shadow-md scale-[1.02]'
+                        : 'border-slate-200 hover:border-slate-300 hover:scale-[1.02]'
                     }`}
                     onClick={() => setDraftPreference('email')}
                   >
                     <RadioGroupItem value="email" id="email-ds" className="sr-only" />
-                    <Mail className={`w-3.5 h-3.5 ${draftPreference === 'email' ? 'text-blue-600' : 'text-slate-400'}`} />
-                    <Label htmlFor="email-ds" className="text-xs font-medium cursor-pointer">Email</Label>
+                    <Mail className={`w-4 h-4 ${draftPreference === 'email' ? 'text-blue-600' : 'text-slate-400'}`} />
+                    <Label htmlFor="email-ds" className="text-sm font-semibold cursor-pointer">Email</Label>
                   </div>
                   <div
-                    className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border cursor-pointer transition-all ${
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-xl border-2 cursor-pointer transition-all duration-200 ${
                       draftPreference === 'text'
-                        ? 'border-blue-400 bg-blue-50'
-                        : 'border-slate-200 hover:border-slate-300'
+                        ? 'border-blue-400 bg-blue-50 shadow-md scale-[1.02]'
+                        : 'border-slate-200 hover:border-slate-300 hover:scale-[1.02]'
                     }`}
                     onClick={() => setDraftPreference('text')}
                   >
                     <RadioGroupItem value="text" id="text-ds" className="sr-only" />
-                    <Phone className={`w-3.5 h-3.5 ${draftPreference === 'text' ? 'text-blue-600' : 'text-slate-400'}`} />
-                    <Label htmlFor="text-ds" className="text-xs font-medium cursor-pointer">Text</Label>
+                    <Phone className={`w-4 h-4 ${draftPreference === 'text' ? 'text-blue-600' : 'text-slate-400'}`} />
+                    <Label htmlFor="text-ds" className="text-sm font-semibold cursor-pointer">Text</Label>
                   </div>
                 </RadioGroup>
 
@@ -631,7 +636,7 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
                   placeholder={draftPreference === 'email' ? 'your@email.com' : '(555) 123-4567'}
                   value={draftContact}
                   onChange={(e) => setDraftContact(e.target.value)}
-                  className={`flex-1 h-8 text-sm ${
+                  className={`flex-1 h-11 text-sm font-medium border-2 rounded-xl ${
                     !draftContact || isValidContact
                       ? 'border-slate-200 focus:border-blue-400 focus:ring-blue-400'
                       : 'border-red-300 focus:border-red-500 focus:ring-red-500'
@@ -639,38 +644,45 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
                 />
               </div>
               {draftContact && !isValidContact && (
-                <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-                  <AlertCircle className="w-3 h-3" />
-                  {draftPreference === 'email' ? 'Enter a valid email' : 'Enter a valid phone number'}
-                </p>
+                <div className="flex items-center gap-2 text-red-600 text-xs mt-3 p-2 bg-red-50 rounded-lg">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  <span className="font-medium">{draftPreference === 'email' ? 'Enter a valid email address' : 'Enter a valid phone number'}</span>
+                </div>
               )}
             </div>
 
-            {/* Validation Status */}
+            {/* Validation Status - Make it POP */}
             <div
-              className={`flex items-center gap-2 px-3 py-2 rounded-xl border ${
+              className={`flex items-center gap-3 px-4 py-3 rounded-2xl border-2 transition-all duration-300 ${
                 isFormValid && isBannerConfigValid
-                  ? 'bg-gradient-to-r from-green-50 to-emerald-50 border-green-300'
-                  : 'bg-gradient-to-r from-amber-50 to-orange-50 border-amber-300'
+                  ? 'border-green-300'
+                  : 'border-amber-300'
               }`}
               style={{
+                background: isFormValid && isBannerConfigValid
+                  ? 'linear-gradient(135deg, #dcfce7 0%, #bbf7d0 100%)'
+                  : 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
                 boxShadow: isFormValid && isBannerConfigValid
-                  ? '0 2px 8px rgba(34, 197, 94, 0.15)'
-                  : '0 2px 8px rgba(245, 158, 11, 0.15)',
+                  ? '0 4px 15px rgba(34, 197, 94, 0.25)'
+                  : '0 4px 15px rgba(245, 158, 11, 0.25)',
               }}
             >
               {isFormValid && isBannerConfigValid ? (
                 <>
-                  <CheckCircle2 className="w-4 h-4 text-green-600 flex-shrink-0" />
-                  <p className="text-xs font-medium text-green-800">Ready to add to cart!</p>
+                  <div className="w-8 h-8 rounded-xl bg-green-500 flex items-center justify-center shadow-lg">
+                    <CheckCircle2 className="w-5 h-5 text-white" />
+                  </div>
+                  <p className="text-sm font-bold text-green-800">Ready to add to cart!</p>
                 </>
               ) : (
                 <>
-                  <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0" />
-                  <p className="text-xs text-amber-800">
+                  <div className="w-8 h-8 rounded-xl bg-amber-500 flex items-center justify-center shadow-lg">
+                    <AlertCircle className="w-5 h-5 text-white" />
+                  </div>
+                  <p className="text-sm font-semibold text-amber-800">
                     {designRequestText.length < 10 && 'Add description (10+ chars). '}
-                    {!draftContact && 'Enter contact. '}
-                    {draftContact && !isValidContact && 'Fix contact.'}
+                    {!draftContact && 'Enter contact info. '}
+                    {draftContact && !isValidContact && 'Fix contact info.'}
                   </p>
                 </>
               )}
