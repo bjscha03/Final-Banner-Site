@@ -1994,6 +1994,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
               widthIn={widthIn}
               heightIn={heightIn}
               material={material}
+              grommets={grommets}
             />
           ) : (
             /* Mobile: smaller padding, space for bottom toolbar; Desktop: normal padding */
@@ -2106,67 +2107,77 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
 
           <div className="mt-4">
             <div className="bg-gray-100 p-4 rounded-lg flex items-center justify-center">
-              {canvasThumbnail ? (
-                <div className="relative inline-block">
-                  <img 
-                    src={canvasThumbnail} 
-                    alt="Banner Preview" 
-                    className="max-w-full max-h-[60vh] object-contain rounded shadow-lg" 
-                  />
-                  {/* Grommets SVG Overlay */}
-                  {grommets !== 'none' && grommetPositions.length > 0 && (
-                    <svg
-                      viewBox={`0 0 ${widthIn} ${heightIn}`}
-                      className="absolute inset-0 w-full h-full pointer-events-none"
-                      preserveAspectRatio="xMidYMid meet"
+              {canvasThumbnail || designServiceMode ? (
+                <div
+                  className="relative rounded shadow-lg overflow-hidden"
+                  style={{
+                    // Calculate dimensions to fit within max constraints while maintaining aspect ratio
+                    width: widthIn >= heightIn
+                      ? `min(100%, min(800px, 60vh * ${widthIn / heightIn}))`
+                      : `calc(min(60vh, 500px) * ${widthIn / heightIn})`,
+                    aspectRatio: `${widthIn} / ${heightIn}`,
+                    maxHeight: '60vh',
+                    maxWidth: '100%',
+                  }}
+                >
+                  {/* Background - either canvas thumbnail or design service placeholder */}
+                  {designServiceMode ? (
+                    <div
+                      className="absolute inset-0 flex flex-col items-center justify-center bg-white border-2 border-slate-200"
+                      style={{ backgroundColor: '#f8fafc' }}
                     >
-                      <defs>
-                        <radialGradient id="layoutPreviewGrommetGradient" cx="30%" cy="30%">
-                          <stop offset="0%" stopColor="#e2e8f0" />
-                          <stop offset="50%" stopColor="#a0aec0" />
-                          <stop offset="100%" stopColor="#4a5568" />
-                        </radialGradient>
-                      </defs>
-                      {grommetPositions.map((point, index) => (
-                        <g key={index}>
-                          {/* Drop shadow */}
-                          <circle
-                            cx={point.x + 0.05}
-                            cy={point.y + 0.05}
-                            r={grommetR * 1.2}
-                            fill="#000000"
-                            opacity="0.2"
-                          />
-                          {/* Outer metallic ring */}
-                          <circle
-                            cx={point.x}
-                            cy={point.y}
-                            r={grommetR * 1.2}
-                            fill="url(#layoutPreviewGrommetGradient)"
-                            stroke="#2d3748"
-                            strokeWidth={grommetR * 0.1}
-                          />
-                          {/* Inner hole */}
-                          <circle
-                            cx={point.x}
-                            cy={point.y}
-                            r={grommetR * 0.6}
-                            fill="#f7fafc"
-                            stroke="#cbd5e0"
-                            strokeWidth={grommetR * 0.05}
-                          />
-                          {/* Highlight for 3D effect */}
-                          <circle
-                            cx={point.x - grommetR * 0.3}
-                            cy={point.y - grommetR * 0.3}
-                            r={grommetR * 0.25}
-                            fill="#ffffff"
-                            opacity="0.5"
-                          />
-                        </g>
-                      ))}
-                    </svg>
+                      <p className="text-2xl font-bold text-slate-400">Your Custom Design</p>
+                      <p className="text-sm text-slate-400 mt-2">Our team will create this for you</p>
+                    </div>
+                  ) : (
+                    <img
+                      src={canvasThumbnail}
+                      alt="Banner Preview"
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
                   )}
+
+                  {/* Grommets overlay using percentage positioning */}
+                  {grommets !== 'none' && grommetPositions.length > 0 && grommetPositions.map((point, index) => {
+                    const leftPercent = (point.x / widthIn) * 100;
+                    const topPercent = (point.y / heightIn) * 100;
+                    // Grommet size scales with preview - approximately 1.5% of width
+                    const grommetSizePercent = Math.max(2, Math.min(4, (grommetR / widthIn) * 100 * 2.5));
+
+                    return (
+                      <div
+                        key={`preview-grommet-${index}`}
+                        className="absolute rounded-full pointer-events-none"
+                        style={{
+                          left: `${leftPercent}%`,
+                          top: `${topPercent}%`,
+                          width: `${grommetSizePercent}%`,
+                          paddingBottom: `${grommetSizePercent}%`,
+                          transform: 'translate(-50%, -50%)',
+                        }}
+                      >
+                        {/* Outer ring */}
+                        <div
+                          className="absolute inset-0 rounded-full"
+                          style={{
+                            background: 'linear-gradient(135deg, #e2e8f0 0%, #a0aec0 50%, #4a5568 100%)',
+                            boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                          }}
+                        />
+                        {/* Inner hole */}
+                        <div
+                          className="absolute rounded-full bg-gray-100 border border-gray-300"
+                          style={{
+                            left: '50%',
+                            top: '50%',
+                            width: '50%',
+                            height: '50%',
+                            transform: 'translate(-50%, -50%)',
+                          }}
+                        />
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="text-center text-gray-500 py-8">

@@ -19,6 +19,9 @@ import { Image as ImageIcon, Loader2 } from 'lucide-react';
 
 import { TextElement } from '@/store/quote';
 
+// Brand colors
+const BRAND_BLUE = '#18448D';
+
 interface BannerPreviewProps {
   widthIn: number;
   heightIn: number;
@@ -36,6 +39,7 @@ interface BannerPreviewProps {
   };
   imageScale?: number;
   imagePosition?: { x: number; y: number };
+  designServiceEnabled?: boolean;
 }
 
 interface Point {
@@ -122,7 +126,8 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   textElements = [],
   overlayImage,
   imageScale = 1,
-  imagePosition = { x: 0, y: 0 }
+  imagePosition = { x: 0, y: 0 },
+  designServiceEnabled = false,
 }) => {
   // Detect if imageUrl is a canvas thumbnail (data URL) or Cloudinary URL that should fill the preview
   // These should be rendered as full-bleed images, NOT with overlayImage positioning
@@ -206,16 +211,81 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   // Grommet radius (scaled to banner dimensions)
   const grommetRadius = Math.min(widthIn, heightIn) * 0.03;
 
+  // PRIORITY 0: Design Service placeholder - show branded placeholder for design service orders
+  if (designServiceEnabled) {
+    return (
+      <div className={`flex items-center justify-center ${className}`}>
+        <div
+          className="relative rounded-lg overflow-hidden border-2 flex items-center justify-center"
+          style={{
+            width: `${previewWidth}px`,
+            height: `${previewHeight}px`,
+            borderColor: BRAND_BLUE,
+            backgroundColor: '#f8fafc',
+          }}
+        >
+          {/* Subtle pattern background */}
+          <div
+            className="absolute inset-0 opacity-5"
+            style={{
+              backgroundImage: `repeating-linear-gradient(45deg, ${BRAND_BLUE} 0, ${BRAND_BLUE} 1px, transparent 0, transparent 50%)`,
+              backgroundSize: '10px 10px',
+            }}
+          />
+          <div className="text-center relative z-10 px-2">
+            <p
+              className="text-sm sm:text-base font-bold"
+              style={{ color: BRAND_BLUE }}
+            >
+              Your Custom Design
+            </p>
+            <p className="text-xs text-slate-500 mt-1">
+              {widthIn}" × {heightIn}"
+            </p>
+          </div>
+
+          {/* Grommets overlay for design service */}
+          {grommets !== 'none' && grommetPositions.map((pos, idx) => {
+            const leftPercent = (pos.x / widthIn) * 100;
+            const topPercent = (pos.y / heightIn) * 100;
+            const grommetSizePx = (grommetRadius / widthIn) * previewWidth * 2;
+
+            return (
+              <div
+                key={`grommet-ds-${idx}`}
+                className="absolute rounded-full bg-gray-700 border-2 border-gray-500"
+                style={{
+                  left: `${leftPercent}%`,
+                  top: `${topPercent}%`,
+                  width: `${grommetSizePx}px`,
+                  height: `${grommetSizePx}px`,
+                  transform: 'translate(-50%, -50%)',
+                  boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.3), 0 1px 2px rgba(0,0,0,0.2)',
+                  zIndex: 10
+                }}
+              >
+                <div
+                  className="absolute rounded-full bg-gray-100 border border-gray-300"
+                  style={{
+                    left: '50%',
+                    top: '50%',
+                    width: '60%',
+                    height: '60%',
+                    transform: 'translate(-50%, -50%)'
+                  }}
+                />
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  }
+
   // CANVAS THUMBNAIL CHECK - Must come BEFORE mobile check
   // If the imageUrl is from Cloudinary or a full URL, render it full-bleed without position transforms
   // This ensures Canva imports and uploaded images fill the entire preview correctly
-  
-  // DEBUG: Log all conditions for troubleshooting
-  
-  // AGGRESSIVE DEBUG: What URL are we getting?
-  
-  // AGGRESSIVE DEBUG: What URL are we getting?
-  
+
   // PRIORITY 1: Canvas thumbnail (Cloudinary URLs, etc.) - render full-bleed on both mobile and desktop
   if (isCanvasThumbnail && imageUrl && !imageError) {
     

@@ -273,6 +273,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                           imageScale={item.image_scale}
                           imagePosition={item.image_position}
                           className="flex-shrink-0"
+                          designServiceEnabled={item.design_service_enabled}
                         />
                       </div>
 

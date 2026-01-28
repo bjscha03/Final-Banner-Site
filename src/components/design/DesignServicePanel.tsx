@@ -1,14 +1,24 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo } from 'react';
 import { Upload, X, Loader2, Mail, Phone, FileText, Image, AlertCircle, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { grommetPoints, grommetRadius } from '@/lib/preview/grommets';
+import type { Grommets } from '@/store/quote';
 
 // Brand colors
 const BRAND_BLUE = '#18448D';
 const BRAND_ORANGE = '#ff6b35';
+
+// Material texture images (from MaterialCard.tsx)
+const MATERIAL_IMAGES: Record<string, string> = {
+  '13oz': 'https://res.cloudinary.com/dtrxl120u/image/upload/v1769209469/White-Label_Banners_-2_from_4over_nedg8n.png',
+  '15oz': 'https://res.cloudinary.com/dtrxl120u/image/upload/v1769209584/White-label_Outdoor_Banner_1_Product_from_4over_aas332.png',
+  '18oz': 'https://res.cloudinary.com/dtrxl120u/image/upload/v1769209691/White-label_Outdoor_Banner_3_Product_from_4over_vfdbxc.png',
+  'mesh': 'https://res.cloudinary.com/dtrxl120u/image/upload/v1769209380/White-label_Outdoor_Mesh_Banner_1_Product_from_4over_ivkbqu.png',
+};
 
 export interface DesignServiceAsset {
   name: string;
@@ -32,6 +42,7 @@ interface DesignServicePanelProps {
   widthIn?: number;
   heightIn?: number;
   material?: string;
+  grommets?: Grommets;
 }
 
 const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
@@ -47,6 +58,7 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
   widthIn = 48,
   heightIn = 24,
   material = '13oz',
+  grommets = 'none',
 }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState('');
@@ -55,6 +67,15 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
 
   const acceptedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/svg+xml'];
   const maxSizeBytes = 10 * 1024 * 1024; // 10MB Cloudinary limit
+
+  // Calculate grommet positions for mini preview
+  const grommetPositions = useMemo(() => {
+    return grommetPoints(widthIn, heightIn, grommets);
+  }, [widthIn, heightIn, grommets]);
+
+  const grommetR = useMemo(() => {
+    return grommetRadius(widthIn, heightIn);
+  }, [widthIn, heightIn]);
 
   const formatFileSize = (bytes: number): string => {
     if (bytes === 0) return '0 Bytes';
@@ -186,16 +207,70 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
       {/* Banner Size Summary */}
       <div className="px-6 py-4 bg-white border-b border-slate-200">
         <div className="flex items-center gap-4">
-          {/* Mini Banner Preview */}
+          {/* Mini Banner Preview with Material Texture and Grommets */}
           <div
-            className="bg-slate-100 border border-slate-300 rounded flex items-center justify-center"
+            className="relative rounded overflow-hidden border border-slate-300 shadow-sm"
             style={{
               width: Math.min(100, (widthIn / heightIn) * 50),
               height: 50,
               minWidth: 60,
             }}
           >
-            <p className="text-[10px] font-medium text-slate-500">Preview</p>
+            {/* Material texture background */}
+            {MATERIAL_IMAGES[material] ? (
+              <img
+                src={MATERIAL_IMAGES[material]}
+                alt={`${material} material`}
+                className="absolute inset-0 w-full h-full object-cover opacity-40"
+              />
+            ) : (
+              <div className="absolute inset-0 bg-slate-100" />
+            )}
+
+            {/* White banner area overlay with placeholder text */}
+            <div
+              className="absolute inset-[8%] bg-white/90 border border-slate-200 flex items-center justify-center"
+              style={{ borderRadius: 2 }}
+            >
+              <p className="text-[7px] font-medium text-slate-400 text-center leading-tight px-1">
+                Your Design
+              </p>
+            </div>
+
+            {/* Mini grommets */}
+            {grommets !== 'none' && grommetPositions.map((point, idx) => {
+              const leftPercent = (point.x / widthIn) * 100;
+              const topPercent = (point.y / heightIn) * 100;
+              // Scale grommet size for 50px height preview
+              const grommetSize = Math.max(3, Math.min(6, (grommetR / heightIn) * 50 * 1.5));
+
+              return (
+                <div
+                  key={`mini-grommet-${idx}`}
+                  className="absolute rounded-full"
+                  style={{
+                    left: `${leftPercent}%`,
+                    top: `${topPercent}%`,
+                    width: `${grommetSize}px`,
+                    height: `${grommetSize}px`,
+                    transform: 'translate(-50%, -50%)',
+                    background: 'linear-gradient(135deg, #cbd5e1 0%, #64748b 100%)',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.2)',
+                  }}
+                >
+                  <div
+                    className="absolute rounded-full bg-slate-100"
+                    style={{
+                      left: '50%',
+                      top: '50%',
+                      width: '40%',
+                      height: '40%',
+                      transform: 'translate(-50%, -50%)',
+                    }}
+                  />
+                </div>
+              );
+            })}
           </div>
 
           {/* Banner Details */}
@@ -203,15 +278,20 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
             <p className="text-lg font-bold text-slate-900">
               {widthIn}" × {heightIn}"
             </p>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <span
                 className="px-2 py-0.5 text-xs font-medium text-white rounded"
                 style={{ backgroundColor: BRAND_BLUE }}
               >
                 {material}
               </span>
+              {grommets !== 'none' && (
+                <span className="px-2 py-0.5 text-xs font-medium bg-slate-200 text-slate-700 rounded">
+                  {grommets}
+                </span>
+              )}
               <span className="text-xs text-slate-500">
-                Set size & material in sidebar
+                {material && grommets !== 'none' ? '' : 'Set options in sidebar'}
               </span>
             </div>
           </div>

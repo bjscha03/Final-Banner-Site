@@ -2,6 +2,9 @@ import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { TextElement } from '@/store/quote';
 import PdfImagePreview from '@/components/preview/PdfImagePreview';
 
+// Brand colors
+const BRAND_BLUE = '#18448D';
+
 interface BannerThumbnailProps {
   fileUrl?: string;
   aiDesignUrl?: string;
@@ -12,6 +15,7 @@ interface BannerThumbnailProps {
   widthIn: number;
   heightIn: number;
   className?: string;
+  designServiceEnabled?: boolean;
 }
 
 /**
@@ -33,7 +37,8 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
   textElements = [],
   widthIn,
   heightIn,
-  className = 'w-20 h-20 sm:w-24 sm:h-24'
+  className = 'w-20 h-20 sm:w-24 sm:h-24',
+  designServiceEnabled = false,
 }) => {
   const [status, setStatus] = useState<'loading' | 'loaded' | 'error'>('loading');
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -225,6 +230,48 @@ const BannerThumbnail: React.FC<BannerThumbnailProps> = ({
       </div>
     </div>
   );
+
+  // Design Service placeholder - special styled thumbnail for design service orders
+  const renderDesignServicePlaceholder = () => (
+    <div
+      className={`${className} rounded-lg border-2 flex items-center justify-center flex-shrink-0 relative overflow-hidden`}
+      style={{
+        borderColor: BRAND_BLUE,
+        backgroundColor: '#f8fafc',
+      }}
+    >
+      {/* Subtle pattern background */}
+      <div
+        className="absolute inset-0 opacity-5"
+        style={{
+          backgroundImage: `repeating-linear-gradient(45deg, ${BRAND_BLUE} 0, ${BRAND_BLUE} 1px, transparent 0, transparent 50%)`,
+          backgroundSize: '8px 8px',
+        }}
+      />
+      <div className="text-center relative z-10 px-1">
+        <div
+          className="text-[8px] sm:text-[10px] font-bold leading-tight"
+          style={{ color: BRAND_BLUE }}
+        >
+          Your Custom
+        </div>
+        <div
+          className="text-[8px] sm:text-[10px] font-bold leading-tight"
+          style={{ color: BRAND_BLUE }}
+        >
+          Design
+        </div>
+        <div className="text-[6px] sm:text-[8px] text-slate-500 mt-0.5 font-medium">
+          {widthIn}" × {heightIn}"
+        </div>
+      </div>
+    </div>
+  );
+
+  // If design service is enabled, show the special placeholder
+  if (designServiceEnabled) {
+    return renderDesignServicePlaceholder();
+  }
 
   if (isPdf && fileUrl) {
     console.log('📄 Rendering PDF thumbnail:', fileUrl);
