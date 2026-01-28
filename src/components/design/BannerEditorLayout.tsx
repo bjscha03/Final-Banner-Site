@@ -2095,13 +2095,11 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden relative isolate">
         
-        {/* Left Sidebar - Icon Only (Desktop) */}
+        {/* Left Sidebar - Icon Only (Desktop) - Hidden in design service mode */}
+        {!designServiceMode && (
         <div className="hidden lg:flex flex-col bg-white border-r border-gray-200 w-20 z-10">
           <div className="flex-1 flex flex-col py-4 gap-1">
-            {/* Filter out 'uploads' button when in design service mode - users upload within the form */}
-            {sidebarButtons
-              .filter(button => !(designServiceMode && button.id === 'uploads'))
-              .map((button) => (
+            {sidebarButtons.map((button) => (
               <button
                 key={button.id}
                 data-sidebar-button
@@ -2122,9 +2120,10 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
             ))}
           </div>
         </div>
+        )}
 
-        {/* Expanded Panel (Desktop) - Overlays Canvas */}
-        {activePanel && activePanelData && (
+        {/* Expanded Panel (Desktop) - Overlays Canvas - Hidden in design service mode */}
+        {!designServiceMode && activePanel && activePanelData && (
           <div
             ref={desktopPanelRef}
             className="hidden lg:block absolute left-20 top-0 bottom-0 w-96 bg-white border-r border-gray-200 shadow-xl z-30 pointer-events-auto"
@@ -2196,10 +2195,6 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
               uploadedAssets={designUploadedAssets}
               setUploadedAssets={setDesignUploadedAssets}
               onSwitchToDesigner={() => setDesignServiceMode(false)}
-              widthIn={widthIn}
-              heightIn={heightIn}
-              material={material}
-              grommets={grommets}
             />
           ) : (
             /* Mobile: smaller padding, space for bottom toolbar; Desktop: normal padding */
@@ -2213,13 +2208,11 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
           )}
         </div>
 
-        {/* Mobile Bottom Toolbar */}
+        {/* Mobile Bottom Toolbar - Hidden in design service mode */}
+        {!designServiceMode && (
         <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-20 safe-area-inset-bottom">
           <div className="flex overflow-x-auto scrollbar-hide">
-            {/* Filter out 'uploads' button when in design service mode - users upload within the form */}
-            {sidebarButtons
-              .filter(button => !(designServiceMode && button.id === 'uploads'))
-              .map((button) => (
+            {sidebarButtons.map((button) => (
               <button
                 key={button.id}
                 data-sidebar-button
@@ -2240,9 +2233,10 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
             ))}
           </div>
         </div>
+        )}
 
-        {/* Mobile Expanded Panel - Slides Up from Bottom */}
-        {activePanel && activePanelData && (
+        {/* Mobile Expanded Panel - Slides Up from Bottom - Hidden in design service mode */}
+        {!designServiceMode && activePanel && activePanelData && (
           <div
             ref={mobilePanelRef}
             className="lg:hidden fixed inset-x-0 bottom-0 bg-white border-t border-gray-200 shadow-2xl z-40 animate-slide-up"
