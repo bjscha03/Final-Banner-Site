@@ -2098,7 +2098,10 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
         {/* Left Sidebar - Icon Only (Desktop) */}
         <div className="hidden lg:flex flex-col bg-white border-r border-gray-200 w-20 z-10">
           <div className="flex-1 flex flex-col py-4 gap-1">
-            {sidebarButtons.map((button) => (
+            {/* Filter out 'uploads' button when in design service mode - users upload within the form */}
+            {sidebarButtons
+              .filter(button => !(designServiceMode && button.id === 'uploads'))
+              .map((button) => (
               <button
                 key={button.id}
                 data-sidebar-button
