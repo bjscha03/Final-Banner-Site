@@ -1000,8 +1000,17 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
         return;
       }
 
-      // For design service, skip thumbnail generation - just proceed to add to cart
-      console.log('🎨 [DESIGN SERVICE] Adding design service order to cart');
+      // For design service, show upsell modal (for rope, pole pockets, etc.)
+      // Only show if not editing an existing item
+      if (!editingItemId && shouldShowUpsell) {
+        console.log('🎨 [DESIGN SERVICE] Showing upsell modal for design service order');
+        setPendingAction('cart');
+        setShowUpsellModal(true);
+        return;
+      }
+
+      // No upsell needed - proceed to add to cart
+      console.log('🎨 [DESIGN SERVICE] Adding design service order to cart (no upsell)');
 
       // Calculate pricing for design service order
       const sqft = (widthIn * heightIn) / 144;
@@ -1432,7 +1441,38 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
   // Handle Buy Now - adds to cart and goes directly to checkout
   const handleBuyNow = () => {
     console.log('🛒 [BannerEditorLayout] Buy Now button clicked');
-    
+    console.log('🎨 [BannerEditorLayout] Design service mode:', designServiceMode);
+
+    // For design service mode, check form validity instead of canvas content
+    if (designServiceMode) {
+      if (!isDesignServiceFormValid) {
+        // Determine what's missing for more specific error message
+        let missingItems: string[] = [];
+        if (!hasBannerDimensions) missingItems.push('banner dimensions');
+        if (!hasMaterial) missingItems.push('material type');
+        if (designRequestText.trim().length < 10) missingItems.push('design description (10+ characters)');
+        if (!draftContact.trim()) missingItems.push('contact information');
+
+        const description = missingItems.length > 0
+          ? `Please provide: ${missingItems.join(', ')}`
+          : 'Please fill in all required fields for the design service.';
+
+        toast({
+          title: 'Form Incomplete',
+          description,
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      // For design service, show upsell modal for checkout
+      console.log('🎨 BANNER EDITOR: Showing upsell modal for DESIGN SERVICE BUY NOW');
+      setPendingAction('checkout');
+      setShowUpsellModal(true);
+      return;
+    }
+
+    // Regular mode - check for canvas content
     if (!hasContent) {
       toast({
         title: 'Content Required',
@@ -1452,21 +1492,164 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
 
     // No upsell needed - proceed directly to add to cart and checkout
     console.log('🛒 [BUY NOW] No upsell, adding to cart and navigating to checkout');
-    
+
     // Trigger the add to cart flow first
     handleAddToCart();
-    
+
     // Navigate to checkout
     navigate('/checkout');
   };
 
   const handleUpsellContinue = async (selectedOptions: UpsellOption[], dontAskAgain: boolean) => {
-    console.log("[BannerEditorLayout] handleUpsellContinue called with:", { selectedOptions, dontAskAgain, pendingAction });
+    console.log("[BannerEditorLayout] handleUpsellContinue called with:", { selectedOptions, dontAskAgain, pendingAction, designServiceMode });
 
     // Save "don't ask again" preference
     if (dontAskAgain) {
       localStorage.setItem('upsell-dont-show-again', 'true');
       setDontShowUpsellAgain(true);
+    }
+
+    // DESIGN SERVICE MODE: Handle separately - no thumbnail generation needed
+    if (designServiceMode) {
+      console.log('🎨 [DESIGN SERVICE UPSELL] Handling design service order after upsell');
+
+      // Get fresh quote for cart
+      const freshQuoteForCart = useQuoteStore.getState();
+
+      // Start with base quote properties and apply upsell selections
+      let updatedQuote = {
+        widthIn: freshQuoteForCart.widthIn,
+        heightIn: freshQuoteForCart.heightIn,
+        quantity: freshQuoteForCart.quantity,
+        material: freshQuoteForCart.material,
+        grommets: freshQuoteForCart.grommets,
+        polePockets: freshQuoteForCart.polePockets,
+        polePocketSize: freshQuoteForCart.polePocketSize,
+        addRope: freshQuoteForCart.addRope,
+        previewScalePct: freshQuoteForCart.previewScalePct,
+      };
+
+      // Apply selected upsell options
+      selectedOptions.forEach(option => {
+        if (!option.selected) return;
+
+        if (option.id === 'grommets' && option.grommetSelection) {
+          updatedQuote.grommets = option.grommetSelection as any;
+        } else if (option.id === 'rope') {
+          updatedQuote.addRope = true;
+        } else if (option.id === 'polePockets' && option.polePocketSelection) {
+          updatedQuote.polePockets = option.polePocketSelection;
+          updatedQuote.polePocketSize = option.polePocketSize || '2';
+        }
+      });
+
+      // Calculate pricing with upsells
+      const sqft = (widthIn * heightIn) / 144;
+      const basePrice = material === '13oz Vinyl' ? 3.50 : 4.50;
+      const unitPrice = sqft * basePrice;
+
+      const ropeFeet = updatedQuote.addRope ? (widthIn / 12) : 0;
+      const ropePrice = ropeFeet > 0 ? (ropeFeet * 2 * freshQuoteForCart.quantity) : 0;
+
+      let polePocketPrice = 0;
+      if (updatedQuote.polePockets && updatedQuote.polePockets !== 'none') {
+        const setupFee = 15;
+        const pricePerLinearFoot = 2;
+        let linearFeet = 0;
+        switch (updatedQuote.polePockets) {
+          case 'top':
+          case 'bottom':
+            linearFeet = widthIn / 12; break;
+          case 'left':
+          case 'right':
+            linearFeet = heightIn / 12; break;
+          case 'top-bottom':
+            linearFeet = (widthIn / 12) * 2; break;
+          default:
+            linearFeet = 0;
+        }
+        polePocketPrice = (setupFee + (linearFeet * pricePerLinearFoot)) * freshQuoteForCart.quantity;
+      }
+
+      const lineTotal = (unitPrice * freshQuoteForCart.quantity) + ropePrice + polePocketPrice;
+
+      const pricing = {
+        unit_price_cents: Math.round(unitPrice * 100),
+        rope_cost_cents: Math.round(ropePrice * 100),
+        rope_pricing_mode: 'per_item' as const,
+        pole_pocket_cost_cents: Math.round(polePocketPrice * 100),
+        pole_pocket_pricing_mode: 'per_item' as const,
+        line_total_cents: Math.round(lineTotal * 100),
+      };
+
+      // Create design service data object
+      const designServiceData = {
+        design_service_enabled: true,
+        design_request_text: designRequestText,
+        design_draft_preference: draftPreference,
+        design_draft_contact: draftContact,
+        design_uploaded_assets: designUploadedAssets,
+      };
+
+      // Merge quote with design service data
+      const cartItemData = { ...updatedQuote, ...designServiceData };
+      console.log('🎨 [DESIGN SERVICE UPSELL DEBUG] Adding to cart:', {
+        design_service_enabled: cartItemData.design_service_enabled,
+        design_request_text: cartItemData.design_request_text?.substring(0, 50),
+        design_draft_preference: cartItemData.design_draft_preference,
+        design_draft_contact: cartItemData.design_draft_contact,
+        design_uploaded_assets_count: cartItemData.design_uploaded_assets?.length || 0,
+        grommets: cartItemData.grommets,
+        addRope: cartItemData.addRope,
+        polePockets: cartItemData.polePockets,
+      });
+
+      // Add to cart or update existing item
+      if (editingItemId) {
+        console.log('🔄 [DESIGN SERVICE UPSELL] Updating existing item:', editingItemId);
+        updateCartItem(editingItemId, cartItemData as any, undefined, pricing);
+        toast({
+          title: "Cart Updated",
+          description: "Your design service request has been updated with selected options.",
+        });
+      } else {
+        console.log('➕ [DESIGN SERVICE UPSELL] Adding new design service item to cart');
+        addFromQuote(cartItemData as any, undefined, pricing);
+
+        if (pendingAction === 'checkout') {
+          toast({
+            title: "Proceeding to Checkout",
+            description: "Your design service request has been added. Redirecting to checkout...",
+          });
+        } else {
+          toast({
+            title: "Added to Cart",
+            description: "Your design service request has been added to the cart with selected options.",
+          });
+        }
+      }
+
+      // Reset design service form
+      setDesignRequestText('');
+      setDraftContact('');
+      setDesignUploadedAssets([]);
+      setDesignServiceMode(false);
+
+      // Close modal and reset
+      setShowUpsellModal(false);
+      setShowGrommets(false);
+      setQuote({ grommets: 'none' });
+
+      // Navigate based on pending action
+      if (pendingAction === 'checkout') {
+        console.log('🛒 [DESIGN SERVICE UPSELL] Navigating to checkout');
+        navigate('/checkout');
+      } else {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+
+      setPendingAction(null);
+      return; // Exit early for design service mode
     }
 
     // CRITICAL: Apply grommet selection to canvas BEFORE generating thumbnail

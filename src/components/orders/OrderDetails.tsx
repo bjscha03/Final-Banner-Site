@@ -230,6 +230,46 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
     }
   };
 
+  // Download design service asset with correct filename and extension
+  const handleAssetDownload = async (asset: { url: string; name: string; type: string }) => {
+    try {
+      toast({
+        title: "Download Started",
+        description: `Preparing ${asset.name} for download...`,
+      });
+
+      // Fetch the file from Cloudinary URL
+      const response = await fetch(asset.url);
+
+      if (!response.ok) {
+        throw new Error(`Download failed: ${response.statusText}`);
+      }
+
+      // Create blob and trigger download with original filename
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = asset.name; // Use the original filename which includes extension
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "Download Complete",
+        description: `Successfully downloaded ${asset.name}`,
+      });
+    } catch (error) {
+      console.error('Error downloading asset:', error);
+      toast({
+        title: "Download Failed",
+        description: error.message || "Could not download the file. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   const handleReorder = (itemIndex: number) => {
     const item = order.items[itemIndex];
     
@@ -581,12 +621,10 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                       <div className="p-4">
                         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                           {item.design_uploaded_assets.map((asset, assetIdx) => (
-                            <a
+                            <button
                               key={assetIdx}
-                              href={asset.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl p-3 hover:bg-purple-50 hover:border-purple-300 transition-all duration-200 group shadow-sm hover:shadow-md"
+                              onClick={() => handleAssetDownload(asset)}
+                              className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl p-3 hover:bg-purple-50 hover:border-purple-300 transition-all duration-200 group shadow-sm hover:shadow-md text-left"
                             >
                               {asset.type.startsWith('image/') ? (
                                 <img
@@ -603,8 +641,8 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                                 <p className="text-sm font-semibold text-gray-900 truncate">{asset.name}</p>
                                 <p className="text-xs text-gray-500">{(asset.size / 1024).toFixed(1)} KB</p>
                               </div>
-                              <ExternalLink className="h-4 w-4 text-gray-400 group-hover:text-purple-600 transition-colors" />
-                            </a>
+                              <Download className="h-4 w-4 text-gray-400 group-hover:text-purple-600 transition-colors" />
+                            </button>
                           ))}
                         </div>
                       </div>

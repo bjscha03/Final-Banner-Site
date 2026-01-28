@@ -1022,6 +1022,22 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
       {/* PDF Column */}
       <td className="px-3 py-3">
         <div className="flex flex-col space-y-1">
+          {/* Show uploaded Final PDFs for design service orders */}
+          {order.items.map((item, index) => (
+            item.final_print_pdf_url && (
+              <a
+                key={`final-pdf-${index}`}
+                href={item.final_print_pdf_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center text-xs text-purple-600 hover:text-purple-800 font-medium"
+              >
+                <Download className="h-3 w-3 mr-1" />
+                Final PDF {order.items.length > 1 ? `#${index + 1}` : ''}
+              </a>
+            )
+          ))}
+          {/* Show Generate PDF buttons for regular orders */}
           {getFilesWithDownload().length > 0 ? (
             getFilesWithDownload().map(({ item, index }) => (
               <Button
@@ -1046,10 +1062,13 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
               </Button>
             ))
           ) : (
-            <div className="text-xs text-gray-500 flex items-center">
-              <FileText className="h-3 w-3 mr-1" />
-              No files
-            </div>
+            // Only show "No files" if there are no final PDFs either
+            !order.items.some(item => item.final_print_pdf_url) && (
+              <div className="text-xs text-gray-500 flex items-center">
+                <FileText className="h-3 w-3 mr-1" />
+                No files
+              </div>
+            )
           )}
         </div>
       </td>
@@ -1340,10 +1359,26 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
       </div>
 
       {/* PDF Downloads */}
-      {getFilesWithDownload().length > 0 && (
+      {(getFilesWithDownload().length > 0 || order.items.some(item => item.final_print_pdf_url)) && (
         <div className="mb-3">
           <div className="text-xs text-gray-500 mb-2">Print Files</div>
           <div className="flex flex-wrap gap-2">
+            {/* Show uploaded Final PDFs for design service orders */}
+            {order.items.map((item, index) => (
+              item.final_print_pdf_url && (
+                <a
+                  key={`final-pdf-${index}`}
+                  href={item.final_print_pdf_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center text-xs text-purple-600 hover:text-purple-800 font-medium bg-purple-50 px-3 py-1.5 rounded"
+                >
+                  <Download className="h-3 w-3 mr-1" />
+                  Final PDF {order.items.length > 1 ? `#${index + 1}` : ''}
+                </a>
+              )
+            ))}
+            {/* Show Generate PDF buttons for regular orders */}
             {getFilesWithDownload().map(({ item, index }) => (
               <Button
                 key={index}
