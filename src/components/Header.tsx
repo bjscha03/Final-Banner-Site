@@ -78,17 +78,8 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
             </ScrollToTopLink>
           </div>
 
-          {/* Right: Help, User, Cart Icons */}
+          {/* Right: User, Cart Icons */}
           <div className="flex items-center justify-end w-24 gap-1">
-            {/* Help Icon */}
-            <ScrollToTopLink
-              to="/faq"
-              className="p-2 text-slate-500 hover:text-slate-700 transition-colors"
-              aria-label="Help & FAQ"
-            >
-              <HelpCircle className="h-5 w-5" />
-            </ScrollToTopLink>
-
             {/* User Icon / Dropdown */}
             {!loading && (
               <DropdownMenu>

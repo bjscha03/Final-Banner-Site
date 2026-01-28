@@ -2216,25 +2216,27 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
           style={{
             background: 'linear-gradient(135deg, #18448D 0%, #1e3a6e 100%)',
             borderTop: '3px solid #ff6b35',
+            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
           }}
         >
           <div
             className="flex overflow-x-auto scrollbar-hide justify-around"
-            style={{ paddingBottom: 'max(12px, env(safe-area-inset-bottom))' }}
+            style={{ minHeight: '70px' }}
           >
             {sidebarButtons.map((button) => (
               <button
                 key={button.id}
                 data-sidebar-button
                 onClick={() => togglePanel(button.id)}
-                className={`flex-1 flex flex-col items-center justify-start pt-3 pb-2 px-1 transition-all duration-200 ${
+                className={`flex-1 flex flex-col items-center justify-center py-2 px-1 transition-all duration-200 ${
                   activePanel === button.id
                     ? 'bg-white/20'
                     : 'active:bg-white/10'
                 }`}
+                style={{ minHeight: '70px' }}
               >
                 <div
-                  className="w-7 h-7 flex items-center justify-center rounded-lg"
+                  className="w-6 h-6 flex items-center justify-center rounded-lg mb-1"
                   style={{
                     backgroundColor: activePanel === button.id ? 'rgba(255,107,53,0.2)' : 'transparent',
                   }}
@@ -2245,10 +2247,9 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
                   })}
                 </div>
                 <span
-                  className="text-[9px] font-bold text-center mt-1"
+                  className="text-[10px] font-bold text-center leading-tight"
                   style={{
                     color: activePanel === button.id ? '#ff6b35' : 'white',
-                    lineHeight: '1.2',
                   }}
                 >
                   {button.label.split('/')[0].split(' ')[0]}
