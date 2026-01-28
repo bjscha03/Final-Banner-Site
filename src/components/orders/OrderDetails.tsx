@@ -511,78 +511,99 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
 
           {/* Design Service Section - Admin Only (for design service orders) */}
           {isAdminUser && order.items.some(item => item.design_service_enabled) && (
-            <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-              <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
-                <Palette className="h-5 w-5 text-purple-600 mr-2" />
-                Design Service Request
-                <span className="ml-2 px-2 py-0.5 text-xs font-medium bg-purple-600 text-white rounded-full">
-                  We Design It
+            <div className="bg-gradient-to-br from-purple-50 via-violet-50 to-fuchsia-50 border-2 border-purple-300 rounded-2xl p-6 shadow-lg">
+              {/* Header with gradient accent */}
+              <div className="flex items-center gap-3 mb-6 pb-4 border-b-2 border-purple-200">
+                <div className="p-2.5 bg-gradient-to-br from-purple-600 to-violet-600 rounded-xl shadow-md">
+                  <Palette className="h-6 w-6 text-white" />
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl font-bold text-purple-900">Design Service Request</h3>
+                  <p className="text-sm text-purple-600">Customer requested our team to create their design</p>
+                </div>
+                <span className="px-3 py-1.5 text-sm font-bold bg-gradient-to-r from-purple-600 to-violet-600 text-white rounded-full shadow-md">
+                  ✨ We Design It
                 </span>
-              </h3>
+              </div>
+
               {order.items.map((item, itemIndex) => ({ item, itemIndex }))
                 .filter(({ item }) => item.design_service_enabled)
                 .map(({ item, itemIndex }) => (
-                <div key={itemIndex} className="space-y-4">
-                  {/* Contact Preference */}
-                  <div className="flex items-start gap-3">
-                    {item.design_draft_preference === 'email' ? (
-                      <Mail className="h-4 w-4 text-purple-500 mt-0.5" />
-                    ) : (
-                      <Phone className="h-4 w-4 text-purple-500 mt-0.5" />
-                    )}
-                    <div>
-                      <p className="text-sm font-medium text-gray-700">Draft Delivery</p>
-                      <p className="text-gray-900">
-                        {item.design_draft_preference === 'email' ? 'Email: ' : 'Text: '}
-                        <span className="font-medium">{item.design_draft_contact}</span>
-                      </p>
+                <div key={itemIndex} className="space-y-5">
+                  {/* Contact Info Card */}
+                  <div className="bg-white/80 backdrop-blur rounded-xl p-4 border border-purple-200 shadow-sm">
+                    <div className="flex items-center gap-3">
+                      <div className={`p-2 rounded-lg ${item.design_draft_preference === 'email' ? 'bg-blue-100' : 'bg-green-100'}`}>
+                        {item.design_draft_preference === 'email' ? (
+                          <Mail className="h-5 w-5 text-blue-600" />
+                        ) : (
+                          <Phone className="h-5 w-5 text-green-600" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-xs font-semibold text-purple-600 uppercase tracking-wide">Send Draft Via</p>
+                        <p className="text-lg font-bold text-gray-900">
+                          {item.design_draft_preference === 'email' ? '📧 Email' : '📱 Text Message'}
+                        </p>
+                      </div>
+                      <div className="ml-auto px-4 py-2 bg-purple-100 rounded-lg">
+                        <p className="text-sm font-bold text-purple-800">{item.design_draft_contact}</p>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Description */}
-                  <div className="flex items-start gap-3">
-                    <MessageSquare className="h-4 w-4 text-purple-500 mt-0.5" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-700 mb-1">Design Description</p>
-                      <div className="bg-white border border-purple-100 rounded-lg p-3 whitespace-pre-wrap text-gray-800 text-sm">
+                  {/* Design Description Card */}
+                  <div className="bg-white/80 backdrop-blur rounded-xl border border-purple-200 shadow-sm overflow-hidden">
+                    <div className="px-4 py-3 bg-gradient-to-r from-purple-100 to-violet-100 border-b border-purple-200">
+                      <div className="flex items-center gap-2">
+                        <MessageSquare className="h-4 w-4 text-purple-600" />
+                        <p className="text-sm font-bold text-purple-800">Customer's Design Description</p>
+                      </div>
+                    </div>
+                    <div className="p-4">
+                      <div className="bg-gray-50 rounded-lg p-4 whitespace-pre-wrap text-gray-800 text-sm leading-relaxed border border-gray-200">
                         {item.design_request_text || 'No description provided'}
                       </div>
                     </div>
                   </div>
 
-                  {/* Uploaded Assets */}
+                  {/* Uploaded Assets Card */}
                   {item.design_uploaded_assets && item.design_uploaded_assets.length > 0 && (
-                    <div className="flex items-start gap-3">
-                      <Upload className="h-4 w-4 text-purple-500 mt-0.5" />
-                      <div className="flex-1">
-                        <p className="text-sm font-medium text-gray-700 mb-2">
-                          Uploaded Assets ({item.design_uploaded_assets.length})
-                        </p>
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    <div className="bg-white/80 backdrop-blur rounded-xl border border-purple-200 shadow-sm overflow-hidden">
+                      <div className="px-4 py-3 bg-gradient-to-r from-purple-100 to-violet-100 border-b border-purple-200">
+                        <div className="flex items-center gap-2">
+                          <Upload className="h-4 w-4 text-purple-600" />
+                          <p className="text-sm font-bold text-purple-800">
+                            Customer's Assets ({item.design_uploaded_assets.length} files)
+                          </p>
+                        </div>
+                      </div>
+                      <div className="p-4">
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                           {item.design_uploaded_assets.map((asset, assetIdx) => (
                             <a
                               key={assetIdx}
                               href={asset.url}
                               target="_blank"
                               rel="noopener noreferrer"
-                              className="flex items-center gap-2 bg-white border border-purple-100 rounded-lg p-2 hover:bg-purple-50 transition-colors group"
+                              className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-xl p-3 hover:bg-purple-50 hover:border-purple-300 transition-all duration-200 group shadow-sm hover:shadow-md"
                             >
                               {asset.type.startsWith('image/') ? (
                                 <img
                                   src={asset.url}
                                   alt={asset.name}
-                                  className="w-10 h-10 object-cover rounded border"
+                                  className="w-12 h-12 object-cover rounded-lg border-2 border-white shadow"
                                 />
                               ) : (
-                                <div className="w-10 h-10 bg-purple-100 rounded flex items-center justify-center">
-                                  <FileText className="h-5 w-5 text-purple-600" />
+                                <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center border-2 border-white shadow">
+                                  <FileText className="h-6 w-6 text-purple-600" />
                                 </div>
                               )}
                               <div className="flex-1 min-w-0">
-                                <p className="text-xs font-medium text-gray-900 truncate">{asset.name}</p>
+                                <p className="text-sm font-semibold text-gray-900 truncate">{asset.name}</p>
                                 <p className="text-xs text-gray-500">{(asset.size / 1024).toFixed(1)} KB</p>
                               </div>
-                              <ExternalLink className="h-3 w-3 text-gray-400 group-hover:text-purple-600" />
+                              <ExternalLink className="h-4 w-4 text-gray-400 group-hover:text-purple-600 transition-colors" />
                             </a>
                           ))}
                         </div>
@@ -590,40 +611,55 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                     </div>
                   )}
 
-                  {/* Final Print PDF - Admin Upload Section */}
-                  <div className="flex items-start gap-3 pt-3 border-t border-purple-200">
-                    <FileText className="h-4 w-4 text-purple-500 mt-0.5" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium text-gray-700 mb-2">Final Print PDF</p>
+                  {/* Final Print PDF Section */}
+                  <div className="bg-white/80 backdrop-blur rounded-xl border border-purple-200 shadow-sm overflow-hidden">
+                    <div className="px-4 py-3 bg-gradient-to-r from-purple-100 to-violet-100 border-b border-purple-200">
+                      <div className="flex items-center gap-2">
+                        <FileText className="h-4 w-4 text-purple-600" />
+                        <p className="text-sm font-bold text-purple-800">Final Print PDF</p>
+                      </div>
+                    </div>
+                    <div className="p-4">
                       {item.final_print_pdf_url ? (
-                        <div className="flex items-center gap-3 bg-green-50 border border-green-200 rounded-lg p-3">
-                          <FileText className="h-5 w-5 text-green-600" />
+                        <div className="flex items-center gap-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl p-4">
+                          <div className="p-3 bg-green-500 rounded-xl shadow-md">
+                            <FileText className="h-6 w-6 text-white" />
+                          </div>
                           <div className="flex-1">
-                            <p className="text-sm font-medium text-green-800">PDF Uploaded</p>
-                            <p className="text-xs text-green-600">
-                              {item.final_print_pdf_uploaded_at
+                            <p className="text-base font-bold text-green-800">✅ PDF Ready for Print</p>
+                            <p className="text-sm text-green-600">
+                              Uploaded {item.final_print_pdf_uploaded_at
                                 ? new Date(item.final_print_pdf_uploaded_at).toLocaleString()
-                                : 'Date not available'}
+                                : ''}
                             </p>
                           </div>
                           <a
                             href={item.final_print_pdf_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="px-3 py-1.5 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 flex items-center gap-1"
+                            className="px-5 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm font-bold rounded-xl hover:from-green-700 hover:to-emerald-700 flex items-center gap-2 shadow-md transition-all duration-200"
                           >
-                            <Download className="h-3 w-3" />
-                            Download
+                            <Download className="h-4 w-4" />
+                            Download PDF
                           </a>
                         </div>
                       ) : (
-                        <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-amber-800 text-sm">
-                          <p className="font-medium">⏳ Awaiting Final PDF</p>
-                          <p className="text-xs mt-1 mb-2">Upload the final print-ready PDF once the design is approved.</p>
+                        <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-300 rounded-xl p-4">
+                          <div className="flex items-start gap-3">
+                            <div className="p-2 bg-amber-100 rounded-lg">
+                              <span className="text-xl">⏳</span>
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-base font-bold text-amber-800">Awaiting Final PDF</p>
+                              <p className="text-sm text-amber-700 mt-1">
+                                Upload the final print-ready PDF once the design is complete and approved by the customer.
+                              </p>
+                            </div>
+                          </div>
                           {onUploadFinalPdf && (
-                            <label className="inline-flex items-center gap-2 px-3 py-1.5 bg-purple-600 text-white text-sm font-medium rounded-lg hover:bg-purple-700 cursor-pointer transition-colors">
-                              <Upload className="h-3 w-3" />
-                              Upload PDF
+                            <label className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-600 to-violet-600 text-white text-sm font-bold rounded-xl hover:from-purple-700 hover:to-violet-700 cursor-pointer transition-all duration-200 shadow-md">
+                              <Upload className="h-4 w-4" />
+                              Upload Final PDF
                               <input
                                 type="file"
                                 accept=".pdf,application/pdf"

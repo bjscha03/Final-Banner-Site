@@ -72,13 +72,13 @@ exports.handler = async (event, context) => {
 
     // Get order items
     const itemsResult = await sql`
-      SELECT 
-        width_in, 
-        height_in, 
-        quantity, 
-        material, 
-        grommets, 
-        rope_feet, 
+      SELECT
+        width_in,
+        height_in,
+        quantity,
+        material,
+        grommets,
+        rope_feet,
         pole_pockets,
         pole_pocket_position,
         pole_pocket_size,
@@ -88,8 +88,20 @@ exports.handler = async (event, context) => {
         print_ready_url,
         web_preview_url,
         text_elements,
-        overlay_image
-      FROM order_items 
+        overlay_image,
+        thumbnail_url,
+        canvas_background_color,
+        image_scale,
+        image_position,
+        design_service_enabled,
+        design_request_text,
+        design_draft_preference,
+        design_draft_contact,
+        design_uploaded_assets,
+        final_print_pdf_url,
+        final_print_pdf_file_key,
+        final_print_pdf_uploaded_at
+      FROM order_items
       WHERE order_id = ${orderId}
       ORDER BY created_at
     `;

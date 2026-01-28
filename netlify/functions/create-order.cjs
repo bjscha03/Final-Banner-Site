@@ -491,7 +491,8 @@ exports.handler = async (event, context) => {
               INSERT INTO order_items (
                 id, order_id, width_in, height_in, quantity, material,
                 grommets, rope_feet, pole_pockets, pole_pocket_position, pole_pocket_size, pole_pocket_cost_cents,
-                line_total_cents, file_key, file_url, print_ready_url, web_preview_url, text_elements, overlay_image, overlay_images, canvas_background_color, image_scale, image_position, thumbnail_url, final_render_url, final_render_file_key, final_render_width_px, final_render_height_px, final_render_dpi
+                line_total_cents, file_key, file_url, print_ready_url, web_preview_url, text_elements, overlay_image, overlay_images, canvas_background_color, image_scale, image_position, thumbnail_url, final_render_url, final_render_file_key, final_render_width_px, final_render_height_px, final_render_dpi,
+                design_service_enabled, design_request_text, design_draft_preference, design_draft_contact, design_uploaded_assets
               )
               VALUES (
                 ${randomUUID()},
@@ -522,7 +523,12 @@ exports.handler = async (event, context) => {
                 ${item.final_render_file_key || null},
                 ${item.final_render_width_px || null},
                 ${item.final_render_height_px || null},
-                ${item.final_render_dpi || null}
+                ${item.final_render_dpi || null},
+                ${item.design_service_enabled || false},
+                ${item.design_request_text || null},
+                ${item.design_draft_preference || null},
+                ${item.design_draft_contact || null},
+                ${item.design_uploaded_assets ? JSON.stringify(item.design_uploaded_assets) : '[]'}
               )
             `;
           } catch (textElementsError) {
