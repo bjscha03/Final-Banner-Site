@@ -1076,6 +1076,10 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
       setDesignUploadedAssets([]);
       setDesignServiceMode(false);
 
+      // Reset grommets on canvas after adding to cart
+      setShowGrommets(false);
+      setQuote({ grommets: 'none' });
+
       // Scroll to top
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
