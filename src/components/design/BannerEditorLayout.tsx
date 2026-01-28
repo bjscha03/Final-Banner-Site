@@ -2212,31 +2212,29 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
         {/* Mobile Bottom Toolbar - Hidden in design service mode */}
         {!designServiceMode && (
         <div
-          className="lg:hidden fixed bottom-0 left-0 right-0 shadow-2xl z-20"
+          className="lg:hidden fixed left-0 right-0 shadow-2xl z-20"
           style={{
             background: 'linear-gradient(135deg, #18448D 0%, #1e3a6e 100%)',
             borderTop: '3px solid #ff6b35',
-            paddingBottom: 'env(safe-area-inset-bottom, 0px)',
+            bottom: 0,
+            paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
+            paddingTop: '8px',
           }}
         >
-          <div
-            className="flex overflow-x-auto scrollbar-hide justify-around"
-            style={{ minHeight: '70px' }}
-          >
+          <div className="flex justify-around items-start">
             {sidebarButtons.map((button) => (
               <button
                 key={button.id}
                 data-sidebar-button
                 onClick={() => togglePanel(button.id)}
-                className={`flex-1 flex flex-col items-center justify-center py-2 px-1 transition-all duration-200 ${
+                className={`flex-1 flex flex-col items-center px-1 transition-all duration-200 ${
                   activePanel === button.id
                     ? 'bg-white/20'
                     : 'active:bg-white/10'
                 }`}
-                style={{ minHeight: '70px' }}
               >
                 <div
-                  className="w-6 h-6 flex items-center justify-center rounded-lg mb-1"
+                  className="w-7 h-7 flex items-center justify-center rounded-lg"
                   style={{
                     backgroundColor: activePanel === button.id ? 'rgba(255,107,53,0.2)' : 'transparent',
                   }}
@@ -2247,9 +2245,12 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
                   })}
                 </div>
                 <span
-                  className="text-[10px] font-bold text-center leading-tight"
                   style={{
                     color: activePanel === button.id ? '#ff6b35' : 'white',
+                    fontSize: '11px',
+                    fontWeight: 700,
+                    marginTop: '4px',
+                    lineHeight: 1,
                   }}
                 >
                   {button.label.split('/')[0].split(' ')[0]}
