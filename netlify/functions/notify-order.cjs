@@ -117,7 +117,324 @@ function createEmailContainer(content) {
   `;
 }
 
+// Create improved admin order email HTML matching AdminOrderNotification.tsx design
+function createAdminOrderEmailHtml(payload) {
+  const order = payload.order;
+  const invoiceUrl = payload.invoiceUrl;
+  const logoUrl = 'https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto,q_auto,w_300/https://bannersonthefly.com/cld-assets/images/logo-compact.svg';
 
+  // Format date
+  const formattedDate = order.created_at
+    ? new Date(order.created_at).toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'America/New_York'
+      })
+    : new Date().toLocaleString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        timeZone: 'America/New_York'
+      });
+
+  // Calculate totals
+  const total = order.total ?? (order.totalCents || 0) / 100;
+  const subtotal = order.subtotal ?? (order.subtotalCents || 0) / 100;
+  const tax = order.tax ?? (order.taxCents || 0) / 100;
+
+  // Check if any items have design service enabled
+  const hasDesignService = order.items.some(item => item.design_service_enabled);
+
+  // Generate items HTML
+  const itemsHtml = order.items.map(item => `
+    <tr>
+      <td style="padding: 16px; border-bottom: 1px solid #f3f4f6;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+          <tr>
+            ${item.thumbnailUrl ? `
+            <td style="width: 80px; vertical-align: top; padding-right: 16px;">
+              <img src="${item.thumbnailUrl}" alt="Banner" width="80" style="border-radius: 6px; border: 1px solid #e5e7eb; display: block;" />
+            </td>
+            ` : ''}
+            <td style="vertical-align: top;">
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                <tr>
+                  <td style="font-size: 15px; font-weight: 600; color: #1f2937; padding-bottom: 4px;">${item.name}</td>
+                  <td style="font-size: 15px; font-weight: 700; color: #059669; text-align: right;">$${(item.price || 0).toFixed(2)}</td>
+                </tr>
+              </table>
+              <p style="margin: 2px 0; font-size: 13px; color: #6b7280;">Qty: ${item.quantity}</p>
+              ${item.options ? `<p style="margin: 4px 0 0; font-size: 13px; color: #6b7280;">${item.options}</p>` : ''}
+              ${item.design_service_enabled ? `
+                <span style="display: inline-block; background-color: #faf5ff; color: #7c3aed; font-size: 11px; font-weight: 600; padding: 4px 8px; border-radius: 4px; margin-top: 8px;">✨ Design Service</span>
+              ` : ''}
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  `).join('');
+
+  // Generate design service section HTML
+  let designServiceHtml = '';
+  if (hasDesignService) {
+    const designItems = order.items.filter(item => item.design_service_enabled);
+    designServiceHtml = `
+      <!-- Design Service Section -->
+      <tr>
+        <td style="padding: 0 24px 24px;">
+          <h3 style="color: #7c3aed; font-size: 18px; font-weight: 700; margin: 0 0 12px;">⚡ Action Required: Design Service Order</h3>
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #faf5ff; border: 2px solid #c4b5fd; border-radius: 8px; margin-bottom: 16px;">
+            <tr>
+              <td style="padding: 16px; color: #6b21a8; font-size: 14px; line-height: 1.5; text-align: center;">
+                This customer has requested our design team to create their banner. Please review the details below and begin working on their design.
+              </td>
+            </tr>
+          </table>
+          ${designItems.map(item => `
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #ffffff; border: 1px solid #e9d5ff; border-radius: 8px; margin-bottom: 12px;">
+              <tr>
+                <td style="padding: 16px;">
+                  <p style="color: #7c3aed; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 6px;">How to Send Drafts</p>
+                  <p style="color: #1f2937; font-size: 14px; font-weight: 500; margin: 0 0 16px;">${item.design_draft_preference === 'email' ? '📧 Email' : '📱 Text Message'}: ${item.design_draft_contact || 'Not provided'}</p>
+
+                  ${item.design_request_text ? `
+                    <p style="color: #7c3aed; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 6px;">Customer's Design Description</p>
+                    <div style="background-color: #faf5ff; border: 1px solid #e9d5ff; border-radius: 6px; padding: 12px; margin-bottom: 16px;">
+                      <p style="color: #374151; font-size: 14px; line-height: 1.5; margin: 0; white-space: pre-wrap;">${item.design_request_text}</p>
+                    </div>
+                  ` : ''}
+
+                  ${item.design_uploaded_assets && item.design_uploaded_assets.length > 0 ? `
+                    <p style="color: #7c3aed; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 6px;">Customer's Uploaded Files (${item.design_uploaded_assets.length})</p>
+                    <div style="background-color: #faf5ff; border-radius: 6px; padding: 8px;">
+                      ${item.design_uploaded_assets.map(asset => `
+                        <p style="margin: 4px 0;"><a href="${asset.url}" style="color: #7c3aed; font-size: 13px; text-decoration: none; font-weight: 500;">📎 ${asset.name}</a></p>
+                      `).join('')}
+                    </div>
+                  ` : ''}
+                </td>
+              </tr>
+            </table>
+          `).join('')}
+        </td>
+      </tr>
+    `;
+  }
+
+  // Generate shipping address HTML
+  let shippingHtml = '';
+  if (order.shipping_name || order.shipping_street) {
+    shippingHtml = `
+      <!-- Shipping Address -->
+      <tr>
+        <td style="padding: 0 24px 24px;">
+          <h3 style="color: #1f2937; font-size: 16px; font-weight: 700; margin: 0 0 16px;">📦 Shipping Address</h3>
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px;">
+            <tr>
+              <td style="padding: 16px;">
+                ${order.shipping_name ? `<p style="color: #1f2937; font-size: 15px; font-weight: 600; margin: 0 0 4px;">${order.shipping_name}</p>` : ''}
+                ${order.shipping_street ? `<p style="color: #4b5563; font-size: 14px; line-height: 1.6; margin: 0;">${order.shipping_street}</p>` : ''}
+                ${(order.shipping_city || order.shipping_state || order.shipping_zip) ? `<p style="color: #4b5563; font-size: 14px; line-height: 1.6; margin: 0;">${order.shipping_city || ''}${order.shipping_city && order.shipping_state ? ', ' : ''}${order.shipping_state || ''} ${order.shipping_zip || ''}</p>` : ''}
+                ${order.shipping_country && order.shipping_country !== 'US' ? `<p style="color: #4b5563; font-size: 14px; line-height: 1.6; margin: 0;">${order.shipping_country}</p>` : ''}
+              </td>
+            </tr>
+          </table>
+        </td>
+      </tr>
+    `;
+  }
+
+  return `
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+      <title>New Order - Banners on the Fly</title>
+    </head>
+    <body style="margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Ubuntu, sans-serif; line-height: 1.6; color: #333333; background-color: #f6f9fc;">
+      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0; padding: 20px 0; background-color: #f6f9fc;">
+        <tr>
+          <td align="center">
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="margin: 0 auto; background-color: #ffffff; border-radius: 12px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15); overflow: hidden;">
+
+              <!-- Logo Section -->
+              <tr>
+                <td style="text-align: center; padding: 24px 30px 16px; background-color: #ffffff;">
+                  <img src="${logoUrl}" alt="Banners On The Fly" width="180" style="display: block; margin: 0 auto; max-width: 180px; height: auto;" />
+                </td>
+              </tr>
+
+              <!-- Header with Gradient -->
+              <tr>
+                <td style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); padding: 32px 24px; text-align: center;">
+                  <h1 style="color: #ffffff; font-size: 26px; font-weight: 700; margin: 0 0 8px;">🎉 New Order Received!</h1>
+                  <p style="color: rgba(255, 255, 255, 0.9); font-size: 15px; margin: 0;">A customer has placed a new order on Banners On The Fly</p>
+                </td>
+              </tr>
+
+              <!-- Quick Summary Card -->
+              <tr>
+                <td style="background-color: #f0fdf4; padding: 20px 24px; border-bottom: 1px solid #d1fae5;">
+                  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                    <tr>
+                      <td width="50%" style="text-align: center;">
+                        <p style="color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 4px;">Order #</p>
+                        <p style="color: #1f2937; font-size: 20px; font-weight: 700; margin: 0; font-family: monospace;">${order.number}</p>
+                      </td>
+                      <td width="50%" style="text-align: center;">
+                        <p style="color: #6b7280; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin: 0 0 4px;">Total</p>
+                        <p style="color: #059669; font-size: 24px; font-weight: 700; margin: 0;">$${total.toFixed(2)}</p>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+              <!-- Order Details -->
+              <tr>
+                <td style="padding: 24px;">
+                  <h3 style="color: #1f2937; font-size: 16px; font-weight: 700; margin: 0 0 16px;">📋 Order Details</h3>
+                  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px;">
+                    <tr>
+                      <td style="padding: 10px 16px; border-bottom: 1px solid #e5e7eb;">
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                          <tr>
+                            <td style="color: #6b7280; font-size: 13px; font-weight: 600;">Customer Name</td>
+                            <td style="color: #1f2937; font-size: 14px; font-weight: 500; text-align: right;">${order.customerName || 'Valued Customer'}</td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 10px 16px; border-bottom: 1px solid #e5e7eb;">
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                          <tr>
+                            <td style="color: #6b7280; font-size: 13px; font-weight: 600;">Email Address</td>
+                            <td style="color: #1f2937; font-size: 14px; font-weight: 500; text-align: right;"><a href="mailto:${order.email}" style="color: #2563eb; text-decoration: none;">${order.email}</a></td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 10px 16px; border-bottom: 1px solid #e5e7eb;">
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                          <tr>
+                            <td style="color: #6b7280; font-size: 13px; font-weight: 600;">Order Date</td>
+                            <td style="color: #1f2937; font-size: 14px; font-weight: 500; text-align: right;">${formattedDate}</td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 10px 16px;">
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                          <tr>
+                            <td style="color: #6b7280; font-size: 13px; font-weight: 600;">Order ID</td>
+                            <td style="color: #1f2937; font-size: 12px; font-weight: 500; text-align: right; font-family: monospace;">${order.id}</td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+              <!-- Order Items -->
+              <tr>
+                <td style="padding: 0 24px 24px;">
+                  <h3 style="color: #1f2937; font-size: 16px; font-weight: 700; margin: 0 0 16px;">🛒 Order Items</h3>
+                  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #ffffff; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+                    ${itemsHtml}
+                    <!-- Totals -->
+                    <tr>
+                      <td style="background-color: #f9fafb; padding: 16px;">
+                        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                          <tr>
+                            <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;">
+                              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                <tr>
+                                  <td style="color: #6b7280; font-size: 14px;">Subtotal</td>
+                                  <td style="color: #1f2937; font-size: 14px; text-align: right;">$${subtotal.toFixed(2)}</td>
+                                </tr>
+                              </table>
+                            </td>
+                          </tr>
+                          ${tax > 0 ? `
+                          <tr>
+                            <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;">
+                              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                <tr>
+                                  <td style="color: #6b7280; font-size: 14px;">Tax</td>
+                                  <td style="color: #1f2937; font-size: 14px; text-align: right;">$${tax.toFixed(2)}</td>
+                                </tr>
+                              </table>
+                            </td>
+                          </tr>
+                          ` : ''}
+                          <tr>
+                            <td style="padding: 16px 0 0;">
+                              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                <tr>
+                                  <td style="color: #1f2937; font-size: 16px; font-weight: 700;">Total Paid</td>
+                                  <td style="color: #059669; font-size: 20px; font-weight: 700; text-align: right;">$${total.toFixed(2)}</td>
+                                </tr>
+                              </table>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+              ${shippingHtml}
+
+              ${designServiceHtml}
+
+              <!-- Action Button -->
+              <tr>
+                <td style="padding: 8px 24px 32px; text-align: center;">
+                  <a href="${invoiceUrl}" style="background-color: #059669; color: #ffffff; padding: 14px 32px; text-decoration: none; border-radius: 8px; display: inline-block; font-weight: 600; font-size: 15px;">View Full Order in Admin Panel</a>
+                </td>
+              </tr>
+
+              <!-- Divider -->
+              <tr>
+                <td>
+                  <hr style="border: none; border-top: 1px solid #e5e7eb; margin: 0;" />
+                </td>
+              </tr>
+
+              <!-- Footer -->
+              <tr>
+                <td style="padding: 24px; background-color: #f9fafb; text-align: center;">
+                  <p style="color: #6b7280; font-size: 13px; margin: 0 0 8px;">This is an automated notification from Banners On The Fly.</p>
+                  <p style="color: #6b7280; font-size: 13px; margin: 0 0 12px;">
+                    <a href="https://bannersonthefly.com" style="color: #2563eb; text-decoration: none;">Website</a>
+                    &nbsp;•&nbsp;
+                    <a href="mailto:${order.email}" style="color: #2563eb; text-decoration: none;">Email Customer</a>
+                  </p>
+                  <p style="color: #9ca3af; font-size: 11px; margin: 0;">© ${new Date().getFullYear()} Banners On The Fly. All rights reserved.</p>
+                </td>
+              </tr>
+
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `;
+}
 
 const headers = {
   'Content-Type': 'application/json',
@@ -251,78 +568,9 @@ async function sendEmail(type, payload) {
         </table>
       `);
     } else if (type === 'order.admin_notification') {
+      // Use improved admin email template matching AdminOrderNotification.tsx
       subject = `🎉 New Order #${payload.order.number} - ${payload.order.total ? '$' + payload.order.total.toFixed(2) : '$' + ((payload.order.totalCents || 0) / 100).toFixed(2)}`;
-      html = createEmailContainer(`
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0; padding: 20px;">
-          <tr>
-            <td>
-              <h2 style="color: #059669; margin: 0 0 20px 0; font-size: 28px; text-align: center;">🎉 New Order Received!</h2>
-          <p>A customer has placed a new order on Banners On The Fly</p>
-
-          <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h3 style="margin-top: 0; color: #374151;">Order Information</h3>
-            <p><strong>Order Number:</strong> #${payload.order.number}</p>
-            <p><strong>Order ID:</strong> ${payload.order.id}</p>
-            <p><strong>Customer:</strong> ${(payload.order.customerName || 'Valued Customer')}</p>
-            <p><strong>Email:</strong> <a href="mailto:${payload.order.email}">${payload.order.email}</a></p>
-            <p><strong>Total Amount:</strong> <span style="color: #059669; font-weight: bold;">${payload.order.total ? '$' + payload.order.total.toFixed(2) : '$' + ((payload.order.totalCents || 0) / 100).toFixed(2)}</span></p>
-
-            <h4 style="color: #374151;">Items:</h4>
-            ${payload.order.items.map(item => `
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-bottom: 1px solid #e5e7eb; margin-bottom: 10px;">
-                <tr>
-                  ${item.thumbnailUrl ? `
-                  <td style="width: 130px; padding: 10px 15px 10px 0; vertical-align: top;">
-                    <img src="${item.thumbnailUrl}" 
-                         alt="Banner Preview" 
-                         width="120" 
-                         style="border-radius: 6px; border: 1px solid #e5e7eb; display: block; max-width: 120px;" />
-                  </td>
-                  ` : ''}
-                  <td style="padding: 10px 0; vertical-align: top;">
-                    <p style="margin: 5px 0;"><strong>${item.name}</strong></p>
-                    <p style="margin: 5px 0; color: #6b7280;">Quantity: ${item.quantity}</p>
-                    <p style="margin: 5px 0; color: #6b7280;">${item.options}</p>
-                    <p style="margin: 5px 0;"><strong>$${(item.price || 0).toFixed(2)}</strong></p>
-                  </td>
-                </tr>
-              </table>
-            `).join('')}
-
-            <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #e5e7eb;">
-              <p style="margin: 5px 0;">Subtotal: ${payload.order.subtotal ? '$' + payload.order.subtotal.toFixed(2) : '$' + ((payload.order.subtotalCents || 0) / 100).toFixed(2)}</p>
-              ${(payload.order.tax || payload.order.taxCents) > 0 ? `<p style="margin: 5px 0;">Tax: ${payload.order.tax ? '$' + payload.order.tax.toFixed(2) : '$' + ((payload.order.taxCents || 0) / 100).toFixed(2)}</p>` : ''}
-              <p style="margin: 5px 0; font-size: 18px;"><strong>Total: ${payload.order.total ? '$' + payload.order.total.toFixed(2) : '$' + ((payload.order.totalCents || 0) / 100).toFixed(2)}</strong></p>
-            </div>
-          </div>
-
-          ${payload.order.shipping_name ? `
-            <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <h3 style="margin-top: 0; color: #374151;">Shipping Address</h3>
-              <p style="margin: 5px 0; font-weight: 600;">${payload.order.shipping_name}</p>
-              ${payload.order.shipping_street ? `<p style="margin: 5px 0;">${payload.order.shipping_street}</p>` : ''}
-              ${(payload.order.shipping_city || payload.order.shipping_state || payload.order.shipping_zip) ? `<p style="margin: 5px 0;">${payload.order.shipping_city || ''}${payload.order.shipping_city && payload.order.shipping_state ? ', ' : ''}${payload.order.shipping_state || ''} ${payload.order.shipping_zip || ''}</p>` : ''}
-              ${payload.order.shipping_country && payload.order.shipping_country !== 'US' ? `<p style="margin: 5px 0;">${payload.order.shipping_country}</p>` : ''}
-            </div>
-          ` : ''}
-
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${payload.invoiceUrl}"
-               style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
-              View Full Order Details
-            </a>
-          </div>
-
-          <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
-          <p style="color: #6b7280; font-size: 12px;">
-            This is an automated notification from Banners On The Fly order system.<br>
-            <a href="mailto:${payload.order.email}">Contact customer</a> •
-            <a href="https://bannersonthefly.com">Visit website</a>
-          </p>
-            </td>
-          </tr>
-        </table>
-      `);
+      html = createAdminOrderEmailHtml(payload);
     } else {
       return { ok: false, error: `Unknown email type: ${type}` };
     }

@@ -51,6 +51,7 @@ export interface UpsellModalProps {
   thumbnailUrl?: string; // Canvas thumbnail for preview
   onContinue: (selectedOptions: UpsellOption[], dontAskAgain: boolean) => void;
   actionType: 'cart' | 'checkout' | 'update';
+  designServiceEnabled?: boolean; // For design service orders to show placeholder thumbnail
 }
 
 const UpsellModal: React.FC<UpsellModalProps> = ({
@@ -59,7 +60,8 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
   quote,
   thumbnailUrl,
   onContinue,
-  actionType
+  actionType,
+  designServiceEnabled = false,
 }) => {
   const [selectedOptions, setSelectedOptions] = useState<UpsellOption[]>([]);
   const [dontAskAgain, setDontAskAgain] = useState(false);
@@ -326,6 +328,7 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
                 className="flex-shrink-0"
                 imageScale={quote.imageScale}
                 imagePosition={quote.imagePosition}
+                designServiceEnabled={designServiceEnabled}
               />
               <div className="flex-1 min-w-0">
                 <h3 className="font-semibold text-gray-900 text-lg">

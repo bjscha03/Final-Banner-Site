@@ -214,8 +214,27 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
         description: `Preparing ${asset.name} for download...`,
       });
 
-      // Fetch the file from Cloudinary URL
-      const response = await fetch(asset.url);
+      let downloadUrl = asset.url;
+
+      // For Cloudinary URLs, add fl_attachment to force download with correct filename
+      // This is especially important for PDFs which may otherwise open in browser
+      if (downloadUrl.includes('cloudinary.com')) {
+        // Check if it's a PDF (by type or filename)
+        const isPdf = asset.type === 'application/pdf' || asset.name.toLowerCase().endsWith('.pdf');
+
+        if (isPdf) {
+          // For PDFs on Cloudinary, we need to use fl_attachment flag
+          // Transform: /upload/ to /upload/fl_attachment/
+          downloadUrl = downloadUrl.replace('/upload/', `/upload/fl_attachment:${encodeURIComponent(asset.name)}/`);
+          console.log('[Asset Download] Using Cloudinary fl_attachment for PDF:', downloadUrl);
+        } else {
+          // For images, add fl_attachment to force download
+          downloadUrl = downloadUrl.replace('/upload/', `/upload/fl_attachment:${encodeURIComponent(asset.name)}/`);
+        }
+      }
+
+      // Fetch the file
+      const response = await fetch(downloadUrl);
 
       if (!response.ok) {
         throw new Error(`Download failed: ${response.statusText}`);

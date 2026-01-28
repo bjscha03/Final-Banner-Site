@@ -2415,6 +2415,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
         thumbnailUrl={canvasThumbnail || undefined}
         onContinue={handleUpsellContinue}
         actionType={pendingAction || 'cart'}
+        designServiceEnabled={designServiceMode}
       />
 
     </>
