@@ -130,13 +130,19 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
   // Check if there's any content on the canvas (or valid design service request)
   const hasContent = file || textElements.length > 0 || editorObjects.length > 0;
 
-  // For design service mode, check if form is valid
+  // Check if banner dimensions and material are valid
+  const hasBannerDimensions = widthIn > 0 && heightIn > 0;
+  const hasMaterial = material && ['13oz', '15oz', '18oz', 'mesh'].includes(material);
+  const isBannerConfigValid = hasBannerDimensions && hasMaterial;
+
+  // For design service mode, check if form is valid (including banner config)
   const isDesignServiceFormValid = designServiceMode &&
     designRequestText.trim().length >= 10 &&
     draftContact.trim() &&
     (draftPreference === 'email'
       ? /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draftContact)
-      : /^[\d\s\-()+ ]{10,}$/.test(draftContact.replace(/\D/g, '')));
+      : /^[\d\s\-()+ ]{10,}$/.test(draftContact.replace(/\D/g, ''))) &&
+    isBannerConfigValid; // CRITICAL: Must have valid banner config!
 
   // Enable add to cart if either canvas has content OR design service form is valid
   const canAddToCart = designServiceMode ? isDesignServiceFormValid : hasContent;
@@ -968,9 +974,20 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
     // Handle design service mode differently
     if (designServiceMode) {
       if (!isDesignServiceFormValid) {
+        // Determine what's missing for more specific error message
+        let missingItems: string[] = [];
+        if (!hasBannerDimensions) missingItems.push('banner dimensions');
+        if (!hasMaterial) missingItems.push('material type');
+        if (designRequestText.trim().length < 10) missingItems.push('design description (10+ characters)');
+        if (!draftContact.trim()) missingItems.push('contact information');
+
+        const description = missingItems.length > 0
+          ? `Please provide: ${missingItems.join(', ')}`
+          : 'Please fill in all required fields for the design service.';
+
         toast({
           title: 'Form Incomplete',
-          description: 'Please fill in all required fields for the design service.',
+          description,
           variant: 'destructive',
         });
         return;
@@ -1974,6 +1991,9 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
               uploadedAssets={designUploadedAssets}
               setUploadedAssets={setDesignUploadedAssets}
               onSwitchToDesigner={() => setDesignServiceMode(false)}
+              widthIn={widthIn}
+              heightIn={heightIn}
+              material={material}
             />
           ) : (
             /* Mobile: smaller padding, space for bottom toolbar; Desktop: normal padding */
