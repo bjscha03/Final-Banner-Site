@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Package, Calendar, Mail, CreditCard, Truck, CheckCircle, Clock, AlertCircle } from 'lucide-react';
+import { Package, Calendar, Mail, CreditCard, Truck, CheckCircle, Clock, AlertCircle, Palette, MessageSquare, Phone, Upload } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { useScrollToTop } from '@/components/ScrollToTop';
 import { calculatePolePocketCostFromOrder, calculateUnitPriceFromOrder } from '@/lib/pricing';
@@ -17,6 +17,16 @@ interface OrderItem {
   pole_pocket_size?: string;
   pole_pocket_cost_cents?: number;
   line_total_cents: number;
+  // Design Service fields
+  design_service_enabled?: boolean;
+  design_request_text?: string;
+  design_draft_preference?: 'email' | 'text';
+  design_draft_contact?: string;
+  design_uploaded_assets?: Array<{
+    name: string;
+    url: string;
+    type?: string;
+  }>;
 }
 
 interface Order {
@@ -267,6 +277,73 @@ const OrderDetail: React.FC = () => {
               ))}
             </div>
           </div>
+
+          {/* Design Service Section - Customer View */}
+          {order.items.some(item => item.design_service_enabled) && (
+            <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-lg shadow-sm border-2 border-purple-200 p-6 mb-6">
+              <div className="flex items-center gap-3 mb-4 pb-4 border-b border-purple-200">
+                <div className="p-2 bg-purple-600 rounded-lg">
+                  <Palette className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold text-purple-900">Design Service Order</h2>
+                  <p className="text-sm text-purple-600">Our team is creating your custom design</p>
+                </div>
+              </div>
+
+              {order.items.filter(item => item.design_service_enabled).map((item, index) => (
+                <div key={index} className="space-y-4">
+                  {/* Contact Preference */}
+                  <div className="bg-white rounded-lg p-4 border border-purple-100">
+                    <div className="flex items-center gap-3">
+                      {item.design_draft_preference === 'email' ? (
+                        <Mail className="h-5 w-5 text-blue-600" />
+                      ) : (
+                        <Phone className="h-5 w-5 text-green-600" />
+                      )}
+                      <div>
+                        <p className="text-xs font-semibold text-purple-600 uppercase tracking-wide">Draft Delivery Method</p>
+                        <p className="text-gray-900 font-medium">
+                          {item.design_draft_preference === 'email' ? 'Email' : 'Text'}: {item.design_draft_contact}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Design Description */}
+                  {item.design_request_text && (
+                    <div className="bg-white rounded-lg p-4 border border-purple-100">
+                      <div className="flex items-center gap-2 mb-2">
+                        <MessageSquare className="h-4 w-4 text-purple-600" />
+                        <p className="text-xs font-semibold text-purple-600 uppercase tracking-wide">Your Design Description</p>
+                      </div>
+                      <p className="text-gray-700 text-sm whitespace-pre-wrap">{item.design_request_text}</p>
+                    </div>
+                  )}
+
+                  {/* Uploaded Assets Count */}
+                  {item.design_uploaded_assets && item.design_uploaded_assets.length > 0 && (
+                    <div className="bg-white rounded-lg p-4 border border-purple-100">
+                      <div className="flex items-center gap-2">
+                        <Upload className="h-4 w-4 text-purple-600" />
+                        <p className="text-sm text-gray-700">
+                          <span className="font-semibold text-purple-700">{item.design_uploaded_assets.length}</span> reference file(s) uploaded
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Timeline Info */}
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                    <p className="text-sm text-amber-800">
+                      <span className="font-semibold">⏰ Response Policy:</span> Please respond within 24 hours of receiving each draft.
+                      If we don't hear back, we'll assume the design is approved and proceed to print.
+                    </p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* Order Summary */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">

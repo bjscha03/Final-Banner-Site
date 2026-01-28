@@ -38,6 +38,15 @@ interface OrderConfirmationProps {
       polePocketPosition?: string;
       polePocketSize?: string;
       baseCostCents?: number;
+      // Design Service fields
+      design_service_enabled?: boolean;
+      design_request_text?: string;
+      design_draft_preference?: 'email' | 'text';
+      design_draft_contact?: string;
+      design_uploaded_assets?: Array<{
+        name: string;
+        url: string;
+      }>;
     }>;
     subtotal?: number;
     subtotalCents?: number;
@@ -218,6 +227,43 @@ export default function OrderConfirmation({ order, invoiceUrl }: OrderConfirmati
               </Section>
             )}
 
+            {/* Design Service Section - Customer Confirmation */}
+            {order.items.some(item => item.design_service_enabled) && (
+              <Section style={designServiceSection}>
+                <Heading style={designServiceHeading}>✨ Design Service Confirmed</Heading>
+                <Text style={designServiceIntro}>
+                  Great news! Our design team will create your custom banner for you.
+                </Text>
+                {order.items.filter(item => item.design_service_enabled).map((item, index) => (
+                  <div key={index} style={designServiceBox}>
+                    <div style={designServiceRow}>
+                      <Text style={designServiceLabel}>We'll send drafts via:</Text>
+                      <Text style={designServiceValue}>
+                        {item.design_draft_preference === 'email' ? '📧 Email' : '📱 Text'} to {item.design_draft_contact}
+                      </Text>
+                    </div>
+                    {item.design_uploaded_assets && item.design_uploaded_assets.length > 0 && (
+                      <div style={designServiceRow}>
+                        <Text style={designServiceLabel}>Your uploaded files:</Text>
+                        <Text style={designServiceValue}>{item.design_uploaded_assets.length} file(s) received</Text>
+                      </div>
+                    )}
+                  </div>
+                ))}
+                <div style={designServiceTimeline}>
+                  <Text style={designServiceTimelineTitle}>📋 Design Process Timeline</Text>
+                  <ul style={designServiceTimelineList}>
+                    <li style={designServiceTimelineItem}>✅ First draft sent within a few hours</li>
+                    <li style={designServiceTimelineItem}>✅ Unlimited revisions until you're happy</li>
+                    <li style={designServiceTimelineItem}>✅ Once approved, we print and ship</li>
+                  </ul>
+                  <Text style={designServiceNote}>
+                    ⏰ Please respond within 24 hours of receiving each draft. If we don't hear back, we'll assume the design is approved and proceed to print.
+                  </Text>
+                </div>
+              </Section>
+            )}
+
             {/* Order Detail Button */}
             <Section style={buttonContainer}>
               <Button style={button} href={`${process.env.PUBLIC_SITE_URL || 'https://bannersonthefly.com'}/orders/${order.id}`}>
@@ -234,15 +280,24 @@ export default function OrderConfirmation({ order, invoiceUrl }: OrderConfirmati
               </Section>
             )}
 
-            {/* What's Next */}
+            {/* What's Next - Different content for design service vs regular orders */}
             <Section style={nextStepsSection}>
               <Heading style={sectionTitle}>What's Next?</Heading>
-              <ul style={nextStepsList}>
-                <li style={nextStepsItem}>We'll review your order and contact you within 24 hours</li>
-                <li style={nextStepsItem}>Production typically takes 3-5 business days</li>
-                <li style={nextStepsItem}>You'll receive tracking information once shipped</li>
-                <li style={nextStepsItem}>Questions? Contact us at support@bannersonthefly.com</li>
-              </ul>
+              {order.items.some(item => item.design_service_enabled) ? (
+                <ul style={nextStepsList}>
+                  <li style={nextStepsItem}>Watch for your first design draft (coming soon!)</li>
+                  <li style={nextStepsItem}>Reply with any changes you'd like</li>
+                  <li style={nextStepsItem}>Once approved, we'll print and ship your banner</li>
+                  <li style={nextStepsItem}>Questions? Contact us at support@bannersonthefly.com</li>
+                </ul>
+              ) : (
+                <ul style={nextStepsList}>
+                  <li style={nextStepsItem}>We'll review your order and contact you within 24 hours</li>
+                  <li style={nextStepsItem}>Production typically takes 3-5 business days</li>
+                  <li style={nextStepsItem}>You'll receive tracking information once shipped</li>
+                  <li style={nextStepsItem}>Questions? Contact us at support@bannersonthefly.com</li>
+                </ul>
+              )}
             </Section>
           </Section>
 
@@ -615,4 +670,92 @@ const breakdownTotalValue = {
   fontWeight: "600",
   color: "#1f2937",
   margin: "0",
+};
+
+// Design Service styles
+const designServiceSection = {
+  backgroundColor: '#faf5ff',
+  border: '2px solid #c4b5fd',
+  borderRadius: '12px',
+  padding: '24px',
+  margin: '30px 0',
+};
+
+const designServiceHeading = {
+  fontSize: '20px',
+  fontWeight: 'bold',
+  color: '#7c3aed',
+  margin: '0 0 12px 0',
+};
+
+const designServiceIntro = {
+  fontSize: '16px',
+  color: '#6b21a8',
+  margin: '0 0 20px 0',
+  lineHeight: '1.5',
+};
+
+const designServiceBox = {
+  backgroundColor: '#ffffff',
+  border: '1px solid #e9d5ff',
+  borderRadius: '8px',
+  padding: '16px',
+  marginBottom: '16px',
+};
+
+const designServiceRow = {
+  marginBottom: '12px',
+};
+
+const designServiceLabel = {
+  fontSize: '13px',
+  fontWeight: '600',
+  color: '#7c3aed',
+  margin: '0 0 4px 0',
+  textTransform: 'uppercase' as const,
+  letterSpacing: '0.5px',
+};
+
+const designServiceValue = {
+  fontSize: '15px',
+  color: '#1f2937',
+  margin: '0',
+};
+
+const designServiceTimeline = {
+  backgroundColor: '#ffffff',
+  border: '1px solid #e9d5ff',
+  borderRadius: '8px',
+  padding: '16px',
+};
+
+const designServiceTimelineTitle = {
+  fontSize: '14px',
+  fontWeight: '600',
+  color: '#7c3aed',
+  margin: '0 0 12px 0',
+};
+
+const designServiceTimelineList = {
+  margin: '0 0 16px 0',
+  paddingLeft: '0',
+  listStyle: 'none' as const,
+};
+
+const designServiceTimelineItem = {
+  fontSize: '14px',
+  color: '#374151',
+  margin: '0 0 8px 0',
+  lineHeight: '1.5',
+};
+
+const designServiceNote = {
+  fontSize: '13px',
+  color: '#92400e',
+  backgroundColor: '#fef3c7',
+  border: '1px solid #fcd34d',
+  borderRadius: '6px',
+  padding: '12px',
+  margin: '0',
+  lineHeight: '1.5',
 };

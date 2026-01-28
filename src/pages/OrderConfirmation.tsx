@@ -5,7 +5,7 @@ import { Order } from '../lib/orders/types';
 import { usd, formatDimensions } from '@/lib/pricing';
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
-import { CheckCircle, Printer, Package, ArrowRight, Home } from 'lucide-react';
+import { CheckCircle, Printer, Package, ArrowRight, Home, Palette, Mail, Phone, MessageSquare, Upload } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useScrollToTop } from '@/components/ScrollToTop';
 
@@ -261,13 +261,92 @@ const OrderConfirmation: React.FC = () => {
               </p>
             </div>
 
-            {/* Next Steps */}
+            {/* Design Service Section - Customer Confirmation */}
+            {order.items.some(item => item.design_service_enabled) && (
+              <div className="bg-gradient-to-br from-purple-50 to-violet-50 border-2 border-purple-200 rounded-lg p-6 mt-6">
+                <div className="flex items-center gap-3 mb-4 pb-4 border-b border-purple-200">
+                  <div className="p-2 bg-purple-600 rounded-lg">
+                    <Palette className="h-5 w-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-purple-900">✨ Design Service Confirmed!</h3>
+                    <p className="text-sm text-purple-600">Our team will create your custom design</p>
+                  </div>
+                </div>
+
+                {order.items.filter(item => item.design_service_enabled).map((item, index) => (
+                  <div key={index} className="space-y-3">
+                    {/* Contact Preference */}
+                    <div className="bg-white rounded-lg p-3 border border-purple-100 flex items-center gap-3">
+                      {item.design_draft_preference === 'email' ? (
+                        <Mail className="h-4 w-4 text-blue-600" />
+                      ) : (
+                        <Phone className="h-4 w-4 text-green-600" />
+                      )}
+                      <div>
+                        <p className="text-xs text-purple-600 font-medium">Draft Delivery</p>
+                        <p className="text-sm text-gray-900">
+                          {item.design_draft_preference === 'email' ? 'Email' : 'Text'}: {item.design_draft_contact}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Design Description Preview */}
+                    {item.design_request_text && (
+                      <div className="bg-white rounded-lg p-3 border border-purple-100">
+                        <div className="flex items-center gap-2 mb-1">
+                          <MessageSquare className="h-4 w-4 text-purple-600" />
+                          <p className="text-xs text-purple-600 font-medium">Your Design Request</p>
+                        </div>
+                        <p className="text-sm text-gray-700 line-clamp-3">{item.design_request_text}</p>
+                      </div>
+                    )}
+
+                    {/* Uploaded Assets */}
+                    {item.design_uploaded_assets && item.design_uploaded_assets.length > 0 && (
+                      <div className="bg-white rounded-lg p-3 border border-purple-100 flex items-center gap-2">
+                        <Upload className="h-4 w-4 text-purple-600" />
+                        <p className="text-sm text-gray-700">
+                          <span className="font-medium text-purple-700">{item.design_uploaded_assets.length}</span> reference file(s) uploaded
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                {/* Timeline */}
+                <div className="mt-4 pt-4 border-t border-purple-200">
+                  <p className="text-sm text-purple-800 font-medium mb-2">📋 What Happens Next:</p>
+                  <ul className="text-sm text-purple-700 space-y-1">
+                    <li>✅ First draft sent within a few hours</li>
+                    <li>✅ Unlimited revisions until you're happy</li>
+                    <li>✅ Once approved, we print and ship</li>
+                  </ul>
+                  <div className="mt-3 bg-amber-50 border border-amber-200 rounded p-3">
+                    <p className="text-xs text-amber-800">
+                      ⏰ Please respond within 24 hours of receiving each draft. If we don't hear back, we'll assume the design is approved.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Next Steps - Different for design service vs regular orders */}
             <div className="bg-slate-50 border border-slate-200 rounded-lg p-6 mt-6 print:bg-gray-50 print:border-gray-300">
               <h3 className="font-semibold text-blue-900 mb-2">What's Next?</h3>
-              <ul className="text-blue-800 text-sm space-y-1">
-                <li>• You'll receive tracking information once shipped</li>
-                <li>• Questions? Contact us at support@bannersonthefly.com</li>
-              </ul>
+              {order.items.some(item => item.design_service_enabled) ? (
+                <ul className="text-blue-800 text-sm space-y-1">
+                  <li>• Watch for your first design draft (coming soon!)</li>
+                  <li>• Reply with any changes you'd like</li>
+                  <li>• Once approved, we'll print and ship your banner</li>
+                  <li>• Questions? Contact us at support@bannersonthefly.com</li>
+                </ul>
+              ) : (
+                <ul className="text-blue-800 text-sm space-y-1">
+                  <li>• You'll receive tracking information once shipped</li>
+                  <li>• Questions? Contact us at support@bannersonthefly.com</li>
+                </ul>
+              )}
             </div>
           </div>
 
