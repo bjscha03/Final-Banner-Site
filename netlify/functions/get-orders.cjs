@@ -84,7 +84,15 @@ exports.handler = async (event, context) => {
                    'canvas_background_color', COALESCE(oi.canvas_background_color, '#FFFFFF'),
                    'image_scale', COALESCE(oi.image_scale, 1),
                    'image_position', COALESCE(oi.image_position, '{"x": 0, "y": 0}'::jsonb),
-                   'thumbnail_url', oi.thumbnail_url
+                   'thumbnail_url', oi.thumbnail_url,
+                   'design_service_enabled', COALESCE(oi.design_service_enabled, false),
+                   'design_request_text', oi.design_request_text,
+                   'design_draft_preference', oi.design_draft_preference,
+                   'design_draft_contact', oi.design_draft_contact,
+                   'design_uploaded_assets', COALESCE(oi.design_uploaded_assets, '[]'::jsonb),
+                   'final_print_pdf_url', oi.final_print_pdf_url,
+                   'final_print_pdf_file_key', oi.final_print_pdf_file_key,
+                   'final_print_pdf_uploaded_at', oi.final_print_pdf_uploaded_at
                  )
                ) as items
         FROM orders o
@@ -124,7 +132,15 @@ exports.handler = async (event, context) => {
                    'canvas_background_color', COALESCE(oi.canvas_background_color, '#FFFFFF'),
                    'image_scale', COALESCE(oi.image_scale, 1),
                    'image_position', COALESCE(oi.image_position, '{"x": 0, "y": 0}'::jsonb),
-                   'thumbnail_url', oi.thumbnail_url
+                   'thumbnail_url', oi.thumbnail_url,
+                   'design_service_enabled', COALESCE(oi.design_service_enabled, false),
+                   'design_request_text', oi.design_request_text,
+                   'design_draft_preference', oi.design_draft_preference,
+                   'design_draft_contact', oi.design_draft_contact,
+                   'design_uploaded_assets', COALESCE(oi.design_uploaded_assets, '[]'::jsonb),
+                   'final_print_pdf_url', oi.final_print_pdf_url,
+                   'final_print_pdf_file_key', oi.final_print_pdf_file_key,
+                   'final_print_pdf_uploaded_at', oi.final_print_pdf_uploaded_at
                  )
                ) as items
         FROM orders o

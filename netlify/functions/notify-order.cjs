@@ -498,7 +498,8 @@ exports.handler = async (event) => {
               : (item.pole_pockets && item.pole_pockets !== 'none' && item.pole_pockets !== false && item.pole_pockets !== 'false')
                 ? 'Pole Pockets: Yes'
                 : null,
-            item.file_key ? `File: ${item.file_key}` : null
+            item.file_key ? `File: ${item.file_key}` : null,
+            item.design_service_enabled ? '⚡ Design Service Order' : null
           ].filter(Boolean).join(' • '),
           // Cost breakdown data
           material: item.material,
@@ -509,7 +510,13 @@ exports.handler = async (event) => {
           polePocketPosition: item.pole_pocket_position || item.pole_pockets,
           polePocketSize: item.pole_pocket_size,
           baseCostCents: Math.round(baseCost),
-          thumbnailUrl: getThumbnailUrl(item, 300)
+          thumbnailUrl: getThumbnailUrl(item, 300),
+          // Design Service fields
+          design_service_enabled: item.design_service_enabled || false,
+          design_request_text: item.design_request_text || null,
+          design_draft_preference: item.design_draft_preference || null,
+          design_draft_contact: item.design_draft_contact || null,
+          design_uploaded_assets: item.design_uploaded_assets || []
           };
         }),
         // FIX: Calculate correct subtotal, tax, and total from line_total_cents

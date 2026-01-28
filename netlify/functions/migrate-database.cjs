@@ -169,6 +169,34 @@ exports.handler = async (event, context) => {
       results.push('thumbnail_url column already exists');
     }
 
+    // 8. Add Design Service columns to order_items table
+    console.log('Adding Design Service columns to order_items...');
+    try {
+      await sql`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS design_service_enabled BOOLEAN DEFAULT FALSE`;
+      await sql`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS design_request_text TEXT`;
+      await sql`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS design_draft_preference VARCHAR(10)`;
+      await sql`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS design_draft_contact VARCHAR(255)`;
+      await sql`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS design_uploaded_assets JSONB DEFAULT '[]'::jsonb`;
+      await sql`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS final_print_pdf_url TEXT`;
+      await sql`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS final_print_pdf_file_key TEXT`;
+      await sql`ALTER TABLE order_items ADD COLUMN IF NOT EXISTS final_print_pdf_uploaded_at TIMESTAMP WITH TIME ZONE`;
+      results.push('Design Service columns added to order_items');
+    } catch (dsErr) {
+      console.log('Design Service columns may already exist:', dsErr.message);
+      results.push('Design Service columns already exist or error: ' + dsErr.message);
+    }
+
+    // 9. Add admin notification columns to orders table
+    console.log('Adding admin notification columns to orders...');
+    try {
+      await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS admin_notification_status TEXT`;
+      await sql`ALTER TABLE orders ADD COLUMN IF NOT EXISTS admin_notification_sent_at TIMESTAMP WITH TIME ZONE`;
+      results.push('Admin notification columns added to orders');
+    } catch (adminErr) {
+      console.log('Admin notification columns may already exist:', adminErr.message);
+      results.push('Admin notification columns already exist');
+    }
+
     // Add constraint for username format (alphanumeric + underscore/dash)
     await sql`
       ALTER TABLE profiles 
