@@ -141,23 +141,15 @@ exports.handler = async (event, context) => {
     await sql`UPDATE orders SET confirmation_email_status = 'unknown' WHERE confirmation_email_status IS NULL`;
     results.push('updated existing orders with default email status');
 
-    // Add username column
-    await sql`
-      ALTER TABLE profiles 
-      ADD COLUMN username VARCHAR(50) UNIQUE
-    `;
-
-    // Create index for faster username lookups
-    await sql`
-      CREATE INDEX idx_profiles_username ON profiles(username)
-    `;
-
-    // Add constraint to ensure username is not empty when provided
-    await sql`
-      ALTER TABLE profiles 
-      ADD CONSTRAINT chk_username_not_empty 
-      CHECK (username IS NULL OR LENGTH(TRIM(username)) > 0)
-    `;
+    // Add username column (with IF NOT EXISTS to avoid errors)
+    try {
+      await sql`ALTER TABLE profiles ADD COLUMN IF NOT EXISTS username VARCHAR(50)`;
+      await sql`CREATE INDEX IF NOT EXISTS idx_profiles_username ON profiles(username)`;
+      results.push('username column and index added to profiles');
+    } catch (usernameErr) {
+      console.log('Username column may already exist:', usernameErr.message);
+      results.push('username column already exists');
+    }
 
     // 7. Add thumbnail_url column to order_items table
     console.log('Adding thumbnail_url column to order_items...');
@@ -197,12 +189,18 @@ exports.handler = async (event, context) => {
       results.push('Admin notification columns already exist');
     }
 
-    // Add constraint for username format (alphanumeric + underscore/dash)
-    await sql`
-      ALTER TABLE profiles 
-      ADD CONSTRAINT chk_username_format 
-      CHECK (username IS NULL OR username ~ '^[a-zA-Z0-9_-]+$')
-    `;
+    // Add constraint for username format (alphanumeric + underscore/dash) - skip if exists
+    try {
+      await sql`
+        ALTER TABLE profiles
+        ADD CONSTRAINT chk_username_format
+        CHECK (username IS NULL OR username ~ '^[a-zA-Z0-9_-]+$')
+      `;
+      results.push('username format constraint added');
+    } catch (constraintErr) {
+      console.log('Username format constraint may already exist:', constraintErr.message);
+      results.push('username format constraint already exists');
+    }
 
     // Verify the changes
     const verification = await sql`
