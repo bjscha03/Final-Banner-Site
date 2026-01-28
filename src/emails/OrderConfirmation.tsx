@@ -35,8 +35,6 @@ interface OrderConfirmationProps {
       polePocketCostCents?: number;
       polePocketPosition?: string;
       polePocketSize?: string;
-      polePocketPosition?: string;
-      polePocketSize?: string;
       baseCostCents?: number;
       // Design Service fields
       design_service_enabled?: boolean;
@@ -69,7 +67,7 @@ interface OrderConfirmationProps {
 export default function OrderConfirmation({ order, invoiceUrl }: OrderConfirmationProps) {
   // Format date in US Eastern timezone - use toLocaleString for proper formatting
   const now = new Date();
-  const orderDate = now.toLocaleString('en-US', {
+  const orderDateFormatted = now.toLocaleString('en-US', {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
@@ -120,7 +118,7 @@ export default function OrderConfirmation({ order, invoiceUrl }: OrderConfirmati
               <Column style={orderDetails}>
                 <Text style={orderLabel}>Order #</Text>
                 <Text style={orderNumberStyle}>{orderNumber}</Text>
-                <Text style={orderDate}>{orderDate}</Text>
+                <Text style={orderDate}>{orderDateFormatted}</Text>
               </Column>
             </Row>
           </Section>
