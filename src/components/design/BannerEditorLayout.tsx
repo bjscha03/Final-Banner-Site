@@ -2212,45 +2212,64 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
         {/* Mobile Bottom Toolbar - Hidden in design service mode */}
         {!designServiceMode && (
         <div
-          className="lg:hidden fixed left-0 right-0 shadow-2xl z-20"
+          className="lg:hidden fixed left-0 right-0 z-20"
           style={{
-            background: 'linear-gradient(135deg, #18448D 0%, #1e3a6e 100%)',
-            borderTop: '3px solid #ff6b35',
             bottom: 0,
-            paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
-            paddingTop: '8px',
           }}
         >
-          <div className="flex justify-around items-start">
+          {/* Main toolbar content - fixed 60px height */}
+          <div
+            style={{
+              background: 'linear-gradient(135deg, #18448D 0%, #1e3a6e 100%)',
+              borderTop: '3px solid #ff6b35',
+              height: '60px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-around',
+              boxShadow: '0 -4px 20px rgba(0,0,0,0.3)',
+            }}
+          >
             {sidebarButtons.map((button) => (
               <button
                 key={button.id}
                 data-sidebar-button
                 onClick={() => togglePanel(button.id)}
-                className={`flex-1 flex flex-col items-center px-1 transition-all duration-200 ${
-                  activePanel === button.id
-                    ? 'bg-white/20'
-                    : 'active:bg-white/10'
-                }`}
+                style={{
+                  flex: 1,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  height: '60px',
+                  padding: '0 4px',
+                  background: activePanel === button.id ? 'rgba(255,255,255,0.2)' : 'transparent',
+                }}
               >
                 <div
-                  className="w-7 h-7 flex items-center justify-center rounded-lg"
                   style={{
+                    width: '24px',
+                    height: '24px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: '6px',
                     backgroundColor: activePanel === button.id ? 'rgba(255,107,53,0.2)' : 'transparent',
                   }}
                 >
                   {React.cloneElement(button.icon as React.ReactElement, {
-                    className: 'w-5 h-5',
-                    style: { color: activePanel === button.id ? '#ff6b35' : 'white' }
+                    style: {
+                      width: '20px',
+                      height: '20px',
+                      color: activePanel === button.id ? '#ff6b35' : 'white'
+                    }
                   })}
                 </div>
                 <span
                   style={{
                     color: activePanel === button.id ? '#ff6b35' : 'white',
-                    fontSize: '11px',
+                    fontSize: '10px',
                     fontWeight: 700,
-                    marginTop: '4px',
-                    lineHeight: 1,
+                    marginTop: '2px',
                   }}
                 >
                   {button.label.split('/')[0].split(' ')[0]}
@@ -2258,6 +2277,13 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
               </button>
             ))}
           </div>
+          {/* Safe area spacer - separate from content */}
+          <div
+            style={{
+              background: 'linear-gradient(135deg, #18448D 0%, #1e3a6e 100%)',
+              height: 'env(safe-area-inset-bottom, 0px)',
+            }}
+          />
         </div>
         )}
 
