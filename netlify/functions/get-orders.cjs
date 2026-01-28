@@ -58,7 +58,10 @@ exports.handler = async (event, context) => {
       // Get orders for specific user
       console.log('Fetching orders for user:', user_id);
       orders = await sql`
-        SELECT o.*,
+        SELECT o.id, o.user_id, o.email, o.subtotal_cents, o.tax_cents, o.total_cents,
+               o.status, o.tracking_number, o.created_at, o.updated_at,
+               o.shipping_name, o.shipping_street, o.shipping_city, o.shipping_state,
+               o.shipping_zip, o.shipping_country, o.customer_name,
                json_agg(
                  json_build_object(
                    'id', oi.id,
@@ -98,7 +101,10 @@ exports.handler = async (event, context) => {
         FROM orders o
         LEFT JOIN order_items oi ON o.id = oi.order_id
         WHERE o.user_id = ${user_id}
-        GROUP BY o.id, o.user_id, o.email, o.subtotal_cents, o.tax_cents, o.total_cents, o.status, o.tracking_number, o.created_at, o.updated_at
+        GROUP BY o.id, o.user_id, o.email, o.subtotal_cents, o.tax_cents, o.total_cents,
+                 o.status, o.tracking_number, o.created_at, o.updated_at,
+                 o.shipping_name, o.shipping_street, o.shipping_city, o.shipping_state,
+                 o.shipping_zip, o.shipping_country, o.customer_name
         ORDER BY o.created_at DESC
         LIMIT ${limit} OFFSET ${offset}
       `;
@@ -106,7 +112,10 @@ exports.handler = async (event, context) => {
       // Get all orders (admin view)
       console.log('Fetching all orders');
       orders = await sql`
-        SELECT o.*,
+        SELECT o.id, o.user_id, o.email, o.subtotal_cents, o.tax_cents, o.total_cents,
+               o.status, o.tracking_number, o.created_at, o.updated_at,
+               o.shipping_name, o.shipping_street, o.shipping_city, o.shipping_state,
+               o.shipping_zip, o.shipping_country, o.customer_name,
                json_agg(
                  json_build_object(
                    'id', oi.id,
@@ -145,7 +154,10 @@ exports.handler = async (event, context) => {
                ) as items
         FROM orders o
         LEFT JOIN order_items oi ON o.id = oi.order_id
-        GROUP BY o.id, o.user_id, o.email, o.subtotal_cents, o.tax_cents, o.total_cents, o.status, o.tracking_number, o.created_at, o.updated_at
+        GROUP BY o.id, o.user_id, o.email, o.subtotal_cents, o.tax_cents, o.total_cents,
+                 o.status, o.tracking_number, o.created_at, o.updated_at,
+                 o.shipping_name, o.shipping_street, o.shipping_city, o.shipping_state,
+                 o.shipping_zip, o.shipping_country, o.customer_name
         ORDER BY o.created_at DESC
         LIMIT ${limit} OFFSET ${offset}
       `;
