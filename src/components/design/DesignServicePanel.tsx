@@ -266,8 +266,9 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-5">
 
           {/* Left Column: Banner Configuration */}
-          <div className="space-y-4">
-            {/* Size Selection Card */}
+          <div className="flex flex-col h-full">
+            <div className="flex-1 space-y-4">
+            {/* Step 1: Size Selection Card */}
             <div
               className="rounded-2xl p-4 bg-white border-2 border-slate-100"
               style={{
@@ -275,8 +276,14 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
               }}
             >
               <div className="flex items-center gap-2.5 mb-3">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${BRAND_BLUE}15` }}>
-                  <Ruler className="w-4 h-4" style={{ color: BRAND_BLUE }} />
+                <div
+                  className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md"
+                  style={{
+                    background: `linear-gradient(135deg, ${BRAND_ORANGE} 0%, #ea580c 100%)`,
+                    boxShadow: '0 2px 8px rgba(255, 107, 53, 0.4)',
+                  }}
+                >
+                  1
                 </div>
                 <span className="text-sm font-bold text-slate-800">Banner Size</span>
               </div>
@@ -337,16 +344,22 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
               )}
             </div>
 
-            {/* Material & Quantity Row */}
+            {/* Step 2 & 3: Material & Quantity Row */}
             <div className="grid grid-cols-2 gap-4">
-              {/* Material */}
+              {/* Step 2: Material */}
               <div
                 className="rounded-2xl p-4 bg-white border-2 border-slate-100"
                 style={{ boxShadow: '0 4px 20px rgba(0, 0, 0, 0.06)' }}
               >
                 <div className="flex items-center gap-2.5 mb-3">
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${BRAND_BLUE}15` }}>
-                    <Palette className="w-4 h-4" style={{ color: BRAND_BLUE }} />
+                  <div
+                    className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md"
+                    style={{
+                      background: `linear-gradient(135deg, ${BRAND_ORANGE} 0%, #ea580c 100%)`,
+                      boxShadow: '0 2px 8px rgba(255, 107, 53, 0.4)',
+                    }}
+                  >
+                    2
                   </div>
                   <span className="text-sm font-bold text-slate-800">Material</span>
                 </div>
@@ -364,14 +377,20 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
                 </Select>
               </div>
 
-              {/* Quantity */}
+              {/* Step 3: Quantity */}
               <div
                 className="rounded-2xl p-4 bg-white border-2 border-slate-100"
                 style={{ boxShadow: '0 4px 20px rgba(0, 0, 0, 0.06)' }}
               >
                 <div className="flex items-center gap-2.5 mb-3">
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${BRAND_BLUE}15` }}>
-                    <Settings className="w-4 h-4" style={{ color: BRAND_BLUE }} />
+                  <div
+                    className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md"
+                    style={{
+                      background: `linear-gradient(135deg, ${BRAND_ORANGE} 0%, #ea580c 100%)`,
+                      boxShadow: '0 2px 8px rgba(255, 107, 53, 0.4)',
+                    }}
+                  >
+                    3
                   </div>
                   <span className="text-sm font-bold text-slate-800">Quantity</span>
                 </div>
@@ -397,14 +416,20 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
               </div>
             </div>
 
-            {/* Grommets */}
+            {/* Step 4: Grommets */}
             <div
               className="rounded-2xl p-4 bg-white border-2 border-slate-100"
               style={{ boxShadow: '0 4px 20px rgba(0, 0, 0, 0.06)' }}
             >
               <div className="flex items-center gap-2.5 mb-3">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${BRAND_BLUE}15` }}>
-                  <Settings className="w-4 h-4" style={{ color: BRAND_BLUE }} />
+                <div
+                  className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-md"
+                  style={{
+                    background: `linear-gradient(135deg, ${BRAND_ORANGE} 0%, #ea580c 100%)`,
+                    boxShadow: '0 2px 8px rgba(255, 107, 53, 0.4)',
+                  }}
+                >
+                  4
                 </div>
                 <span className="text-sm font-bold text-slate-800">Grommets</span>
               </div>
@@ -428,10 +453,11 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
                 ))}
               </div>
             </div>
+            </div>
 
-            {/* Pricing Summary - Make it POP */}
+            {/* Pricing Summary - Pinned to bottom of left column */}
             <div
-              className="rounded-2xl p-4 border-2"
+              className="rounded-2xl p-4 border-2 mt-auto"
               style={{
                 background: `linear-gradient(135deg, ${BRAND_ORANGE}08 0%, ${BRAND_ORANGE}15 100%)`,
                 borderColor: `${BRAND_ORANGE}30`,
@@ -452,8 +478,9 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
           </div>
 
           {/* Right Column: Design Details */}
-          <div className="space-y-4">
-            {/* Step 1: Description */}
+          <div className="flex flex-col h-full">
+            <div className="flex-1 space-y-4">
+            {/* Step 5: Description */}
             <div
               className="rounded-2xl p-4 bg-white border-2 border-slate-100"
               style={{ boxShadow: '0 4px 20px rgba(0, 0, 0, 0.06)' }}
@@ -466,7 +493,7 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
                     boxShadow: '0 2px 8px rgba(255, 107, 53, 0.4)',
                   }}
                 >
-                  1
+                  5
                 </div>
                 <span className="text-sm font-bold text-slate-800">Describe Your Banner</span>
                 <span className={`ml-auto text-xs font-semibold px-2 py-0.5 rounded-full ${
@@ -487,7 +514,7 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
               />
             </div>
 
-            {/* Step 2: File Upload */}
+            {/* Step 6: File Upload */}
             <div
               className="rounded-2xl p-4 bg-white border-2 border-slate-100"
               style={{ boxShadow: '0 4px 20px rgba(0, 0, 0, 0.06)' }}
@@ -500,7 +527,7 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
                     boxShadow: '0 2px 8px rgba(255, 107, 53, 0.4)',
                   }}
                 >
-                  2
+                  6
                 </div>
                 <span className="text-sm font-bold text-slate-800">Upload Assets</span>
                 <span className="text-xs font-medium text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full">(optional)</span>
@@ -581,7 +608,7 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
               )}
             </div>
 
-            {/* Step 3: Contact Preference */}
+            {/* Step 7: Contact Preference */}
             <div
               className="rounded-2xl p-4 bg-white border-2 border-slate-100"
               style={{ boxShadow: '0 4px 20px rgba(0, 0, 0, 0.06)' }}
@@ -594,7 +621,7 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
                     boxShadow: '0 2px 8px rgba(255, 107, 53, 0.4)',
                   }}
                 >
-                  3
+                  7
                 </div>
                 <span className="text-sm font-bold text-slate-800">Contact for Drafts</span>
               </div>
@@ -650,10 +677,11 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
                 </div>
               )}
             </div>
+            </div>
 
-            {/* Validation Status - Make it POP */}
+            {/* Validation Status - Pinned to bottom of right column */}
             <div
-              className={`flex items-center gap-3 px-4 py-3 rounded-2xl border-2 transition-all duration-300 ${
+              className={`flex items-center gap-3 px-4 py-3 rounded-2xl border-2 transition-all duration-300 mt-auto ${
                 isFormValid && isBannerConfigValid
                   ? 'border-green-300'
                   : 'border-amber-300'
