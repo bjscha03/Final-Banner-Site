@@ -885,10 +885,17 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
 
   const handlePreview = () => {
     console.log('🔍 [BannerEditorLayout] Preview button clicked');
-    
+
+    // For design service mode, we don't need a canvas thumbnail - show placeholder preview
+    if (designServiceMode) {
+      console.log('🔍 [BannerEditorLayout] Design service mode - showing placeholder preview');
+      setShowPreview(true);
+      return;
+    }
+
     // Regenerate thumbnail to ensure it's up-to-date with latest changes
     console.log('🔍 [BannerEditorLayout] Regenerating thumbnail before preview');
-    
+
     // Small delay to ensure thumbnail is generated
     setTimeout(() => {
       if (!canvasThumbnail) {
