@@ -193,6 +193,12 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
             final_render_width_px: item.final_render_width_px,
             final_render_height_px: item.final_render_height_px,
             final_render_dpi: item.final_render_dpi,
+            // Design Service fields - "Let Us Design It" orders
+            design_service_enabled: item.design_service_enabled,
+            design_request_text: item.design_request_text,
+            design_draft_preference: item.design_draft_preference,
+            design_draft_contact: item.design_draft_contact,
+            design_uploaded_assets: item.design_uploaded_assets,
           })),
         }),
       });
@@ -308,6 +314,12 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
             final_render_width_px: item.final_render_width_px,
             final_render_height_px: item.final_render_height_px,
             final_render_dpi: item.final_render_dpi,
+            // Design Service fields - "Let Us Design It" orders
+            design_service_enabled: item.design_service_enabled,
+            design_request_text: item.design_request_text,
+            design_draft_preference: item.design_draft_preference,
+            design_draft_contact: item.design_draft_contact,
+            design_uploaded_assets: item.design_uploaded_assets,
           })),
           email: user?.email || `guest-${Date.now()}@bannersonthefly.com`,
           user_id: user?.id || null,
@@ -432,6 +444,12 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
             final_render_width_px: item.final_render_width_px,
             final_render_height_px: item.final_render_height_px,
             final_render_dpi: item.final_render_dpi,
+            // Design Service fields - "Let Us Design It" orders
+            design_service_enabled: item.design_service_enabled,
+            design_request_text: item.design_request_text,
+            design_draft_preference: item.design_draft_preference,
+            design_draft_contact: item.design_draft_contact,
+            design_uploaded_assets: item.design_uploaded_assets,
           })),
         }),
       });
