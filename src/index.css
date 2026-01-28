@@ -87,6 +87,22 @@
   }
 }
 
+@layer utilities {
+  /* Hide scrollbar but keep functionality */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari and Opera */
+  }
+
+  /* Safe area inset for iOS devices with notch/home indicator */
+  .safe-area-inset-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
 @layer components {
   /* Mobile-optimized button styles */
   .btn-mobile {

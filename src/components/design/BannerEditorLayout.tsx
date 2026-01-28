@@ -2162,7 +2162,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
             >
               <Sparkles className="w-4 h-4" />
               <span className="hidden sm:inline">{designServiceMode ? 'Design It Myself' : 'Let Us Design It'}</span>
-              <span className="sm:hidden">{designServiceMode ? 'DIY' : 'Pro'}</span>
+              <span className="sm:hidden">{designServiceMode ? 'DIY' : 'Let Us Design It'}</span>
             </button>
 
             {/* Grid Toggle - only show when not in design service mode */}
@@ -2211,21 +2211,26 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
         </div>
 
         {/* Mobile Bottom Toolbar */}
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-20">
-          <div className="flex overflow-x-auto">
-            {sidebarButtons.map((button) => (
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg z-20 safe-area-inset-bottom">
+          <div className="flex overflow-x-auto scrollbar-hide">
+            {/* Filter out 'uploads' button when in design service mode - users upload within the form */}
+            {sidebarButtons
+              .filter(button => !(designServiceMode && button.id === 'uploads'))
+              .map((button) => (
               <button
                 key={button.id}
                 data-sidebar-button
                 onClick={() => togglePanel(button.id)}
-                className={`flex-shrink-0 flex flex-col items-center justify-center py-3 px-4 min-w-[80px] min-h-[56px] transition-all duration-200 ${
+                className={`flex-shrink-0 flex flex-col items-center justify-center py-2 px-3 min-w-[70px] min-h-[60px] transition-all duration-200 ${
                   activePanel === button.id
                     ? 'text-[#18448D] bg-blue-50 border-t-2 border-[#18448D]'
                     : 'text-gray-600 hover:text-[#18448D] hover:bg-gray-50'
                 }`}
               >
-                {button.icon}
-                <span className="text-xs mt-1 font-medium truncate w-full text-center">
+                <div className="w-5 h-5 flex items-center justify-center">
+                  {React.cloneElement(button.icon as React.ReactElement, { className: 'w-5 h-5' })}
+                </div>
+                <span className="text-[10px] mt-1 font-medium leading-tight text-center whitespace-nowrap">
                   {button.label.split('/')[0]}
                 </span>
               </button>
