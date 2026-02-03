@@ -166,14 +166,15 @@ const PrintReadyUploadPanel: React.FC<PrintReadyUploadPanelProps> = ({ open, onC
   };
 
   const handleAddToCart = async () => {
-    if (!quote.file) {
-      toast({
-        title: "File Required",
-        description: "Please upload your print-ready file before adding to cart.",
-        variant: "destructive",
-      });
-      return;
-    }
+    // TEMPORARY: Allow add to cart without file for testing
+    // if (!quote.file) {
+    //   toast({
+    //     title: "File Required",
+    //     description: "Please upload your print-ready file before adding to cart.",
+    //     variant: "destructive",
+    //   });
+    //   return;
+    // }
 
     if (!quote.widthIn || !quote.heightIn) {
       toast({
@@ -206,9 +207,11 @@ const PrintReadyUploadPanel: React.FC<PrintReadyUploadPanelProps> = ({ open, onC
 
       onClose();
     } catch (error) {
+      console.error("Add to cart error:", error);
+      const errorMessage = error instanceof Error ? error.message : "Failed to add to cart. Please try again.";
       toast({
         title: "Error",
-        description: "Failed to add to cart. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
