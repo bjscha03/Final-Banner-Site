@@ -47,11 +47,13 @@ import DesignServicePanel, { DesignServiceAsset } from './DesignServicePanel';
 
 interface BannerEditorLayoutProps {
   onOpenAIModal?: () => void;
+  designServiceMode?: boolean;
+  onDesignServiceModeChange?: (mode: boolean) => void;
 }
 
 type PanelType = 'uploads' | 'text' | 'material' | 'size' | 'options' | 'inspector' | 'colors' | 'canvas' | null;
 
-const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }) => {
+const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, designServiceMode: externalDesignServiceMode, onDesignServiceModeChange }) => {
   const [selectedObjectId, setSelectedObjectId] = useState<string | null>(null);
   const [activePanel, setActivePanel] = useState<PanelType>(null);
   const canvasRef = useRef<any>(null);
@@ -61,7 +63,9 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal }
   const [dontShowUpsellAgain, setDontShowUpsellAgain] = useState(false);
 
   // Design Service mode state
-  const [designServiceMode, setDesignServiceMode] = useState(false);
+  const [internalDesignServiceMode, setInternalDesignServiceMode] = useState(false);
+  const designServiceMode = externalDesignServiceMode !== undefined ? externalDesignServiceMode : internalDesignServiceMode;
+  const setDesignServiceMode = onDesignServiceModeChange || setInternalDesignServiceMode;
   const [designRequestText, setDesignRequestText] = useState('');
   const [draftPreference, setDraftPreference] = useState<'email' | 'text'>('email');
   const [draftContact, setDraftContact] = useState('');
