@@ -223,8 +223,8 @@ const PrintReadyUploadPanel: React.FC<PrintReadyUploadPanelProps> = ({ open, onC
         onClick={onClose}
       />
       
-      <div className="fixed inset-x-0 bottom-0 lg:inset-y-0 lg:right-0 lg:left-auto lg:w-[600px] bg-white z-50 shadow-2xl overflow-y-auto">
-        <div className="sticky top-0 bg-white border-b border-gray-200 px-4 lg:px-6 py-4 flex items-center justify-between z-10">
+      <div className="fixed inset-x-0 bottom-0 lg:inset-y-0 lg:right-0 lg:left-auto lg:w-[600px] bg-white z-50 shadow-2xl overflow-y-auto max-h-[90vh] lg:max-h-full rounded-t-2xl lg:rounded-none">
+        <div className="bg-white border-b border-gray-200 px-4 lg:px-6 py-4 flex items-center justify-between">
           <div>
             <h2 className="text-xl lg:text-2xl font-bold text-gray-900">Upload Your Finished Banner Design</h2>
             <p className="text-sm text-gray-600 mt-1">Skip the design tool — just tell us the specs and upload your file.</p>
