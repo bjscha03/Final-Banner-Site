@@ -345,12 +345,13 @@ const PrintReadyUploadPanel: React.FC<PrintReadyUploadPanelProps> = ({ open, onC
                     </div>
                   </div>
                   <Button
-                    variant="ghost"
+                    variant="outline"
                     size="sm"
                     onClick={removeFile}
-                    className="text-gray-400 hover:text-gray-600"
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200"
                   >
-                    <X className="h-4 w-4" />
+                    <X className="h-4 w-4 mr-1" />
+                    Remove
                   </Button>
                 </div>
               </div>
