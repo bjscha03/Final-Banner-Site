@@ -97,6 +97,17 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
   const [initialOverlayPinchDistance, setInitialOverlayPinchDistance] = useState(0);
   const [pinchStartOverlayScale, setPinchStartOverlayScale] = useState(0.3);
 
+  // Mobile detection for auto-select behavior after upload
+  const [isMobile, setIsMobile] = useState(false);
+  
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(max-width: 639px)");
+    setIsMobile(mediaQuery.matches);
+    const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
+    mediaQuery.addEventListener("change", handler);
+    return () => mediaQuery.removeEventListener("change", handler);
+  }, []);
+
   // Canva OAuth integration uses Netlify functions (canva-start.cjs)
   // The Design Button SDK is China-only (canva.cn), so we use OAuth flow instead
 
@@ -112,7 +123,8 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     if (hadFile && !hasFile && !editingItemId) {
       setImagePosition({ x: 0, y: 0 });
       setImageScale(1);
-      setIsImageSelected(false);
+      // Auto-select image on mobile for immediate interaction
+      setIsImageSelected(isMobile);
       setIsDraggingImage(false);
       setIsResizingImage(false);
       setResizeHandle(null);
@@ -538,7 +550,8 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       // Reset image state immediately for instant rendering
       setImageScale(1);
       setImagePosition({ x: 0, y: 0 });
-      setIsImageSelected(false);
+      // Auto-select image on mobile for immediate interaction
+      setIsImageSelected(isMobile);
       setIsUploading(false);
       
       // Show success toast immediately
@@ -886,7 +899,8 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     // Only deselect if clicking on empty canvas area (not on interactive elements)
     if (!isInteractiveElement) {
       setSelectedTextId(null);
-      setIsImageSelected(false);
+      // Auto-select image on mobile for immediate interaction
+      setIsImageSelected(isMobile);
       setIsOverlaySelected(false);
       console.log('🔵 Deselected all - clicked on canvas background');
     }
@@ -916,7 +930,8 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     
     if (!isInteractiveElement) {
       setSelectedTextId(null);
-      setIsImageSelected(false);
+      // Auto-select image on mobile for immediate interaction
+      setIsImageSelected(isMobile);
       setIsOverlaySelected(false);
       console.log('🔵 Deselected all - tapped on canvas background');
     }
@@ -1512,11 +1527,12 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     };
     
     const handleTouchEnd = () => {
-      // Auto-deselect overlay after drag/resize on mobile for better UX
-      if (isDraggingOverlay || isResizingOverlay) {
-        setIsOverlaySelected(false);
-        console.log('🔵 Auto-deselected overlay after touch drag/resize');
-      }
+      // REMOVED: Auto-deselect was causing unexpected deselection issues
+      // Keep selection active so users can continue interacting with the image
+      // if (isDraggingOverlay || isResizingOverlay) {
+      //   setIsOverlaySelected(false);
+      //   console.log('🔵 Auto-deselected overlay after touch drag/resize');
+      // }
       
       setIsDraggingImage(false);
       setIsResizingImage(false);
@@ -1756,7 +1772,8 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                     if (e.target === e.currentTarget) {
                       setSelectedTextId(null);
                       setShowTextPanel(false);
-                      setIsImageSelected(false);
+                      // Auto-select image on mobile for immediate interaction
+      setIsImageSelected(isMobile);
                       console.log('🔵 Deselected image - clicked outside preview area');
                     }
                   }}
