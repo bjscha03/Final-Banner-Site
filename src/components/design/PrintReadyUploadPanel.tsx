@@ -7,7 +7,7 @@ import { useToast } from '@/components/ui/use-toast';
 import MaterialCard from './MaterialCard';
 import OptionsCard from './OptionsCard';
 import SizeCard from './SizeCard';
-import { computeTotals } from '@/lib/pricing';
+import { calcTotals } from '@/lib/pricing';
 
 interface PrintReadyUploadPanelProps {
   open: boolean;
@@ -188,14 +188,21 @@ const PrintReadyUploadPanel: React.FC<PrintReadyUploadPanelProps> = ({ open, onC
     setIsAddingToCart(true);
 
     try {
-      const totals = computeTotals(quote);
+      const totals = calcTotals({
+        widthIn: quote.widthIn,
+        heightIn: quote.heightIn,
+        qty: quote.quantity,
+        material: quote.material,
+        addRope: quote.addRope,
+        polePockets: quote.polePockets
+      });
       const pricing = {
-        unit_price_cents: totals.unitPriceCents,
-        rope_cost_cents: totals.ropeCostCents,
-        rope_pricing_mode: totals.ropePricingMode,
-        pole_pocket_cost_cents: totals.polePocketCostCents,
-        pole_pocket_pricing_mode: totals.polePocketPricingMode,
-        line_total_cents: totals.lineTotalCents,
+        unit_price_cents: Math.round(totals.unit * 100),
+        rope_cost_cents: Math.round(totals.rope * 100),
+        rope_pricing_mode: 'per_item' as const,
+        pole_pocket_cost_cents: Math.round(totals.polePocket * 100),
+        pole_pocket_pricing_mode: 'per_item' as const,
+        line_total_cents: Math.round(totals.materialTotal * 100),
       };
 
       addFromQuote(quote, undefined, pricing);
