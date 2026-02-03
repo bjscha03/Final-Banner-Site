@@ -31,7 +31,9 @@ const Design: React.FC = () => {
 
   // Shared handler for "Let Us Design It" flow
   const handleLetUsDesign = () => {
+    console.log('🔥 handleLetUsDesign called - setting designServiceMode to true');
     setDesignServiceMode(true);
+    console.log('🔥 designServiceMode state updated');
     // Scroll to editor area on mobile after a short delay
     setTimeout(() => {
       editorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
