@@ -4,6 +4,7 @@ import Layout from '@/components/Layout';
 import PageHeader from '@/components/PageHeader';
 import { Palette, Info, Sparkles, Upload } from 'lucide-react';
 import BannerEditorLayout from '@/components/design/BannerEditorLayout';
+import PrintReadyUploadPanel from '@/components/design/PrintReadyUploadPanel';
 import NewAIGenerationModal from '@/components/design/NewAIGenerationModal';
 import { useQuoteStore, MaterialKey } from '@/store/quote';
 import { useToast } from '@/components/ui/use-toast';
@@ -22,6 +23,7 @@ import { Button } from '@/components/ui/button';
 
 const Design: React.FC = () => {
   const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [printReadyPanelOpen, setPrintReadyPanelOpen] = useState(false);
   const [designServiceMode, setDesignServiceMode] = useState(false);
   const editorRef = useRef<HTMLDivElement>(null);
   const location = useLocation();
@@ -42,15 +44,7 @@ const Design: React.FC = () => {
 
   // Handler for "I already have a print-ready file" - scrolls to editor/upload area
   const handleScrollToEditor = () => {
-    editorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    // Optional: briefly highlight the Uploads button area
-    const uploadsButton = document.querySelector('[data-sidebar-button]');
-    if (uploadsButton) {
-      uploadsButton.classList.add('ring-2', 'ring-orange-400', 'ring-offset-2');
-      setTimeout(() => {
-        uploadsButton.classList.remove('ring-2', 'ring-orange-400', 'ring-offset-2');
-      }, 1500);
-    }
+    setPrintReadyPanelOpen(true);
   };
 
   // Handle AI modal parameter
@@ -206,6 +200,11 @@ const Design: React.FC = () => {
       <NewAIGenerationModal 
         open={aiModalOpen} 
         onOpenChange={setAiModalOpen} 
+      />
+      
+      <PrintReadyUploadPanel 
+        open={printReadyPanelOpen} 
+        onClose={() => setPrintReadyPanelOpen(false)} 
       />
     </Layout>
   );
