@@ -388,14 +388,14 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
 
   // File upload logic
   const acceptedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
-  const maxSizeBytes = 100 * 1024 * 1024; // 100MB
+  const maxSizeBytes = 50 * 1024 * 1024; // 50MB for better reliability // 100MB
 
   const validateFile = (file: File): string | null => {
     if (!acceptedTypes.includes(file.type)) {
       return 'Please upload a PDF, JPG, JPEG, or PNG file.';
     }
     if (file.size > maxSizeBytes) {
-      return 'File size must be less than 100MB.';
+      return 'File size must be less than 50MB.';
     }
     return null;
   };
@@ -547,12 +547,28 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         previewScalePct: 100
       });
       
-      // Reset image state immediately for instant rendering
-      setImageScale(1);
-      setImagePosition({ x: 0, y: 0 });
-      // Auto-select image on mobile for immediate interaction
-      setIsImageSelected(isMobile);
-      setIsUploading(false);
+      // CRITICAL: Preload image before marking upload complete
+      // This ensures the image is actually ready to render
+      const preloadImg = new Image();
+      preloadImg.onload = () => {
+        console.log("✅ Image preloaded and ready to render");
+        // Reset image state for instant rendering
+        setImageScale(1);
+        setImagePosition({ x: 0, y: 0 });
+        // Auto-select image on mobile for immediate interaction
+        setIsImageSelected(isMobile);
+        setIsUploading(false);
+      };
+      preloadImg.onerror = () => {
+        console.error("❌ Image preload failed");
+        setIsUploading(false);
+        toast({
+          title: "Image Load Error",
+          description: "Image uploaded but failed to load. Please try again.",
+          variant: "destructive"
+        });
+      };
+      preloadImg.src = permanentUrl;
       
       // Show success toast immediately
       toast({
