@@ -2161,7 +2161,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
             {!designServiceMode && (
             <button
               onClick={() => setDesignServiceMode(true)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors bg-gradient-to-r from-[#18448D] to-indigo-600 text-white hover:from-[#0f2d5c] hover:to-indigo-700"
+              className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors bg-gradient-to-r from-[#18448D] to-indigo-600 text-white hover:from-[#0f2d5c] hover:to-indigo-700"
             >
               <Sparkles className="w-4 h-4" />
               <span className="hidden sm:inline">Let Us Design It</span>
