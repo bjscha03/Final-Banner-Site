@@ -53,8 +53,8 @@ const materials: MaterialOption[] = [
 
 const QuickQuote: React.FC = () => {
   const navigate = useNavigate();
-  const [widthIn, setWidthIn] = useState(48);
-  const [heightIn, setHeightIn] = useState(24);
+  const [widthIn, setWidthIn] = useState(36);
+  const [heightIn, setHeightIn] = useState(60);
   const [quantity, setQuantity] = useState(1);
   const [material, setMaterial] = useState<MaterialKey>('13oz');
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -65,8 +65,8 @@ const QuickQuote: React.FC = () => {
   } | null>(null);
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
   
-  const [widthInput, setWidthInput] = useState('48');
-  const [heightInput, setHeightInput] = useState('24');
+  const [widthInput, setWidthInput] = useState('36');
+  const [heightInput, setHeightInput] = useState('60');
   const [quantityInput, setQuantityInput] = useState('1');
   const [widthError, setWidthError] = useState('');
   const [heightError, setHeightError] = useState('');
@@ -333,12 +333,12 @@ const QuickQuote: React.FC = () => {
   };
 
   const handleReset = () => {
-    setWidthIn(48);
-    setHeightIn(24);
+    setWidthIn(36);
+    setHeightIn(60);
     setQuantity(1);
     setMaterial('13oz');
-    setWidthInput('48');
-    setHeightInput('24');
+    setWidthInput('36');
+    setHeightInput('60');
     setQuantityInput('1');
     setWidthError('');
     setHeightError('');
@@ -348,9 +348,9 @@ const QuickQuote: React.FC = () => {
   const selectedMaterial = materials.find(m => m.key === material);
 
   return (
-    <section id="quick-quote" className="py-16 bg-slate-50">
+    <section id="quick-quote" className="py-8 bg-slate-50">
 <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-12">
+        <div className="text-center mb-8">
           <h2 className="text-4xl md:text-5xl font-bold text-slate-900 mb-4">
             Get Your Quote in Seconds
           </h2>
@@ -359,7 +359,7 @@ const QuickQuote: React.FC = () => {
           </p>
         </div>
 
-        <div className="grid lg:grid-cols-2 gap-10 lg:gap-10">
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-8">
           {/* Left Column - Configuration */}
           <div className="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-lg order-1 lg:order-1" style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.06)' }}>
 {/* Header - Choose Size */}
@@ -658,7 +658,7 @@ const QuickQuote: React.FC = () => {
               <div className="text-center mb-8">
                 <div className="relative inline-block mb-4">
                   <div className="text-5xl md:text-6xl font-bold text-slate-900" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                    {usd(totals.totalWithTax)}
+                    {usd(totals.materialTotal)}
                   </div>
                   </div>
 
