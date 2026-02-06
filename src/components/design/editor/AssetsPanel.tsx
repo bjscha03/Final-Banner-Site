@@ -94,6 +94,21 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
           
           console.log('[AssetsPanel] PDF converted successfully:', pdfPreview.width, 'x', pdfPreview.height);
           setUploadedImages((prev) => [...prev, newImage]);
+          
+          // AUTO-ADD: Automatically add PDF to canvas after conversion
+          console.log("[AssetsPanel] Auto-adding PDF to canvas");
+          setTimeout(async () => {
+            try {
+              await handleAddToCanvas(newImage);
+              toast({
+                title: "PDF added to banner",
+                duration: 2000,
+              });
+              console.log("[AssetsPanel] PDF added and remains in list");
+            } catch (error) {
+              console.error("[AssetsPanel] ERROR in PDF auto-add:", error);
+            }
+          }, 100);
         } catch (error) {
           console.error('[AssetsPanel] Error converting PDF:', error);
           alert(`Failed to load PDF: ${file.name}. Please try again.`);
