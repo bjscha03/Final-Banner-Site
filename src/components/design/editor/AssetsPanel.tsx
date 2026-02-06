@@ -6,7 +6,7 @@ import { useQuoteStore } from '@/store/quote';
 import { Button } from '@/components/ui/button';
 import { Upload, X, Image as ImageIcon , Plus } from 'lucide-react';
 import { Card } from '@/components/ui/card';
-
+import { useToast } from '@/components/ui/use-toast';
 interface UploadedImage {
   id: string;
   url: string;
@@ -34,7 +34,7 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
   const { widthIn, heightIn, editingItemId } = useQuoteStore();
 
   // Sync local state with persistent store
-  useEffect(() => {
+  const { toast } = useToast();  useEffect(() => {
     persistentUploadedImages = uploadedImages;
   }, [uploadedImages]);
 
@@ -173,30 +173,20 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
               );
               console.log('[AssetsPanel] Image updated with Cloudinary URL and fileKey');
               
-              // 🔥 MOBILE UX: Auto-add to canvas AFTER Cloudinary upload completes
-              if (isMobileDevice) {
-                console.log('[AssetsPanel] 📱 MOBILE - Auto-adding with Cloudinary URL');
-                setTimeout(async () => {
-                  try {
-                    console.log('[AssetsPanel] 📱 Calling handleAddToCanvas with Cloudinary image...');
-                    await handleAddToCanvas(cloudinaryImage);
-                    console.log('[AssetsPanel] 📱 ✅ handleAddToCanvas completed');
-                    
-                    // Remove from uploaded list
-                    console.log('[AssetsPanel] 📱 Removing from uploadedImages list');
-                    setUploadedImages((prev) => prev.filter((img) => img.id !== imageId));
-                    
-                    // Close panel
-                    console.log('[AssetsPanel] 📱 Closing panel');
-                    if (onClose) {
-                      onClose();
-                      console.log('[AssetsPanel] 📱 ✅ Panel closed');
-                    }
-                  } catch (error) {
-                    console.error('[AssetsPanel] 📱 ❌ ERROR in auto-add:', error);
-                  }
-                }, 100);
-              }
+              // AUTO-ADD: Automatically add image to canvas after upload completes
+              console.log("[AssetsPanel] Auto-adding image to canvas");
+              setTimeout(async () => {
+                try {
+                  await handleAddToCanvas(cloudinaryImage);
+                  toast({
+                    title: "Image added to banner",
+                    duration: 2000,
+                  });
+                  console.log("[AssetsPanel] Image added and remains in list");
+                } catch (error) {
+                  console.error("[AssetsPanel] ERROR in auto-add:", error);
+                }
+              }, 100);
             } else {
               console.error('[AssetsPanel] Cloudinary upload failed:', response.status, response.statusText);
               
