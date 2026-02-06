@@ -114,8 +114,8 @@ export const getSizeLimitMessage = (sqft: number): string | null => {
 };
 
 export const useQuoteStore = create<QuoteState>((set, get) => ({
-  widthIn: 48,
-  heightIn: 24,
+  widthIn: 60,
+  heightIn: 36,
   quantity: 1,
   material: '13oz',
   grommets: 'none',
@@ -344,8 +344,8 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
     useEditorStore.getState().reset();
     
     const resetState = {
-    widthIn: 48,
-    heightIn: 24,
+    widthIn: 60,
+    heightIn: 36,
     quantity: 1,
     material: '13oz',
     grommets: 'none',

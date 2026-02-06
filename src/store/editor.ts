@@ -136,7 +136,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   maxHistorySteps: 50,
   brandColors: ['#18448D', '#ff6b35', '#f7931e'],
   customSwatches: [],
-  showGrid: true,
+  showGrid: false,
   snapToGrid: false,
   gridSize: 1,
   showRulers: false,

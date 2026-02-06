@@ -53,8 +53,8 @@ const materials: MaterialOption[] = [
 
 const QuickQuote: React.FC = () => {
   const navigate = useNavigate();
-  const [widthIn, setWidthIn] = useState(36);
-  const [heightIn, setHeightIn] = useState(60);
+  const [widthIn, setWidthIn] = useState(60);
+  const [heightIn, setHeightIn] = useState(36);
   const [quantity, setQuantity] = useState(1);
   const [material, setMaterial] = useState<MaterialKey>('13oz');
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -65,8 +65,8 @@ const QuickQuote: React.FC = () => {
   } | null>(null);
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
   
-  const [widthInput, setWidthInput] = useState('36');
-  const [heightInput, setHeightInput] = useState('60');
+  const [widthInput, setWidthInput] = useState('60');
+  const [heightInput, setHeightInput] = useState('36');
   const [quantityInput, setQuantityInput] = useState('1');
   const [widthError, setWidthError] = useState('');
   const [heightError, setHeightError] = useState('');
@@ -333,12 +333,12 @@ const QuickQuote: React.FC = () => {
   };
 
   const handleReset = () => {
-    setWidthIn(36);
-    setHeightIn(60);
+    setWidthIn(60);
+    setHeightIn(36);
     setQuantity(1);
     setMaterial('13oz');
-    setWidthInput('36');
-    setHeightInput('60');
+    setWidthInput('60');
+    setHeightInput('36');
     setQuantityInput('1');
     setWidthError('');
     setHeightError('');
