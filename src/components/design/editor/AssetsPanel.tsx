@@ -193,11 +193,20 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
               setTimeout(async () => {
                 try {
                   await handleAddToCanvas(cloudinaryImage);
-                  toast({
-                    title: "Image added to banner",
-                    duration: 2000,
-                  });
-                  console.log("[AssetsPanel] Image added and remains in list");
+                  
+                  // Mobile UX: Close panel and remove from list for clean experience
+                  if (isMobileDevice) {
+                    console.log("[AssetsPanel] MOBILE - Removing from list and closing panel");
+                    setUploadedImages((prev) => prev.filter((img) => img.id !== imageId));
+                    if (onClose) onClose();
+                  } else {
+                    // Desktop: Show toast and keep in list for re-adding
+                    toast({
+                      title: "Image added to banner",
+                      duration: 2000,
+                    });
+                    console.log("[AssetsPanel] Image added and remains in list");
+                  }
                 } catch (error) {
                   console.error("[AssetsPanel] ERROR in auto-add:", error);
                 }
