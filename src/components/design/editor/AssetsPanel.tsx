@@ -66,6 +66,8 @@ const logUploadError = (file: File, status: number, errorBody: string) => {
 };
 
 
+// Create a persistent store for uploaded images (survives component re-renders)
+let persistentUploadedImages: UploadedImage[] = [];
 
 interface AssetsPanelProps {
   onClose?: () => void;
