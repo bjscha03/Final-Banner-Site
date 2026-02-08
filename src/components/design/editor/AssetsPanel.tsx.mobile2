@@ -18,13 +18,6 @@ interface UploadedImage {
   cloudinaryUrl?: string; // Permanent Cloudinary URL
 }
 
-interface UploadError {
-  message: string;
-  fileName: string;
-  canRetry: boolean;
-  retryFile?: File;
-}
-
 // Create a persistent store for uploaded images (survives component re-renders)
 let persistentUploadedImages: UploadedImage[] = [];
 
@@ -37,7 +30,6 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>(persistentUploadedImages);
   const [uploading, setUploading] = useState(false);
-  const [uploadError, setUploadError] = useState<UploadError | null>(null);
   const { addObject } = useEditorStore();
   const { widthIn, heightIn, editingItemId } = useQuoteStore();
 
@@ -200,7 +192,6 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
               console.log("[AssetsPanel] Auto-adding image to canvas");
               setTimeout(async () => {
                 try {
-                  await handleAddToCanvas(cloudinaryImage);
                   
                   // Mobile UX: Close panel and remove from list for clean experience
                   if (isMobileDevice) {
@@ -214,18 +205,7 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
                       duration: 2000,
                     });
                     console.log("[AssetsPanel] Image added and remains in list");
-                  }
-                } catch (error) {
-                  console.error("[AssetsPanel] ERROR in auto-add:", error);
-                }
-              }, 100);
-            } else {
-              console.error('[AssetsPanel] Cloudinary upload failed:', response.status, response.statusText);
-              
-              // On mobile, still try to add with blob URL as fallback
-              if (isMobileDevice) {
-                console.log('[AssetsPanel] 📱 MOBILE - Cloudinary failed, using blob URL as fallback');
-                setTimeout(async () => {
+                  }                setTimeout(async () => {
                   try {
                     await handleAddToCanvas(tempImage);
                     setUploadedImages((prev) => prev.filter((img) => img.id !== imageId));
