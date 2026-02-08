@@ -2306,7 +2306,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
           <>
             {/* Backdrop */}
             <div
-              className="lg:hidden fixed inset-0 bg-black/70 z-40"
+              className="lg:hidden fixed inset-0 bg-black/50 z-40"
               onClick={() => setActivePanel(null)}
             />
             {/* Panel */}

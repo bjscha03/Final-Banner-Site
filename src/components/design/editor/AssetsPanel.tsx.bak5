@@ -110,13 +110,6 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
 
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     console.log('[AssetsPanel] handleFileSelect called');
-
-    // CRITICAL: Close panel immediately on mobile to prevent duplicate additions
-    const isMobile = typeof window !== 'undefined' && window.innerWidth < 1024;
-    if (isMobile && onClose) {
-      console.log('[AssetsPanel] 📱 MOBILE - Closing panel immediately on file select');
-      onClose();
-    }
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
@@ -256,6 +249,7 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
               console.log("[AssetsPanel] Auto-adding image to canvas");
               try {
                 await handleAddToCanvas(cloudinaryImage);
+                if (onClose) onClose();
                 toast({
                   title: "✓ Image added",
                   duration: 1500,
@@ -273,6 +267,7 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
                   try {
                     await handleAddToCanvas(tempImage);
                     setUploadedImages((prev) => prev.filter((img) => img.id !== imageId));
+                    if (onClose) onClose();
                   } catch (error) {
                     console.error('[AssetsPanel] 📱 ❌ ERROR in fallback auto-add:', error);
                   }
@@ -289,6 +284,7 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
                 try {
                   await handleAddToCanvas(tempImage);
                   setUploadedImages((prev) => prev.filter((img) => img.id !== imageId));
+                  if (onClose) onClose();
                 } catch (error) {
                   console.error('[AssetsPanel] 📱 ❌ ERROR in fallback auto-add:', error);
                 }
