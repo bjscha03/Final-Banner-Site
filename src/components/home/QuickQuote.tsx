@@ -51,6 +51,21 @@ const materials: MaterialOption[] = [
   }
 ];
 
+// Popular size presets (landscape orientation)
+interface SizePreset {
+  label: string;
+  w: number;
+  h: number;
+}
+
+const sizePresets: SizePreset[] = [
+  { label: '2×4 ft', w: 48, h: 24 },
+  { label: '3×5 ft', w: 60, h: 36 },
+  { label: '4×8 ft', w: 96, h: 48 },
+  { label: '2×6 ft', w: 72, h: 24 },
+  { label: '6×10 ft', w: 120, h: 72 },
+];
+
 const QuickQuote: React.FC = () => {
   const navigate = useNavigate();
   const [widthIn, setWidthIn] = useState(60);
@@ -151,6 +166,21 @@ const QuickQuote: React.FC = () => {
       setHeightInput(newValue.toString());
       setHeightError('');
     }
+  };
+
+  const setDimensions = (width: number, height: number) => {
+    if (width >= 1 && width <= 1000 && height >= 1 && height <= 1000) {
+      setWidthIn(width);
+      setHeightIn(height);
+      setWidthInput(width.toString());
+      setHeightInput(height.toString());
+      setWidthError('');
+      setHeightError('');
+    }
+  };
+
+  const isActivePreset = (preset: SizePreset): boolean => {
+    return widthIn === preset.w && heightIn === preset.h;
   };
 
   const adjustQuantity = (delta: number) => {
@@ -381,6 +411,45 @@ const QuickQuote: React.FC = () => {
             <div className="relative p-8 space-y-8">
               {/* Size Selection */}
               <div>
+
+                {/* Popular Size Presets */}
+                <div className="mb-6">
+                  <label className="block text-sm font-semibold text-gray-800 tracking-wide mb-3">
+                    Popular sizes (ft)
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {sizePresets.map((preset) => (
+                      <button
+                        key={preset.label}
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          setDimensions(preset.w, preset.h);
+                        }}
+                        className={`px-4 py-2 rounded-md text-sm font-medium transition-all ${
+                          isActivePreset(preset)
+                            ? 'bg-orange-500 text-white border-2 border-orange-600 shadow-md'
+                            : 'bg-white text-slate-700 border-2 border-slate-300 hover:border-orange-400 hover:bg-orange-50'
+                        }`}
+                      >
+                        {preset.label}
+                      </button>
+                    ))}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        // Just focus the width input to indicate custom mode
+                        document.getElementById('qq-width')?.focus();
+                      }}
+                      className="px-4 py-2 rounded-md text-sm font-medium bg-white text-slate-700 border-2 border-slate-300 hover:border-slate-400 hover:bg-slate-50 transition-all"
+                    >
+                      Custom
+                    </button>
+                  </div>
+                </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 mb-6">
                 <div className="space-y-2">
