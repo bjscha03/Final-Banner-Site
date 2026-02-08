@@ -534,6 +534,15 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
                     </div>
                     <p className="text-xs text-gray-600 truncate p-1">
                       {image.name}
+                    </p>
+                  </div>
+                </div>
+              </Card>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {uploadedImages.length === 0 && !uploading && (
         <div className="text-center text-xs text-gray-400 py-4">
