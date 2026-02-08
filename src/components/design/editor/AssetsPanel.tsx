@@ -78,6 +78,7 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>(persistentUploadedImages);
   const [uploading, setUploading] = useState(false);
+  const [insertedImageIds, setInsertedImageIds] = useState<Set<string>>(new Set());
   const [uploadError, setUploadError] = useState<UploadError | null>(null);
   const handleRetry = () => {
     if (uploadError?.retryFile) {
@@ -183,12 +184,8 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
         };
         
         img.onload = async () => {
-          console.log('[AssetsPanel] Image onload fired for:', file.name);
-          console.log('[AssetsPanel] Image dimensions:', img.width, 'x', img.height);
-          
           const imageId = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
           
-          // Add image immediately with blob URL for instant preview
           const tempImage: UploadedImage = {
             id: imageId,
             url,
@@ -197,114 +194,129 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
             height: img.height,
           };
           
-          console.log('[AssetsPanel] Adding image to state:', tempImage);
-          setUploadedImages((prev) => {
-            console.log('[AssetsPanel] Previous uploadedImages:', prev);
-            const newImages = [...prev, tempImage];
-            console.log('[AssetsPanel] New uploadedImages:', newImages);
-            return newImages;
-          });
-          console.log('[AssetsPanel] Image added with blob URL:', file.name);
+          console.log('[AssetsPanel] 🚀 CANVA-STYLE: Image loaded, instant insert');
+          setUploadedImages((prev) => [...prev, tempImage]);
           
-          // Detect if mobile for auto-add behavior
-          const windowWidth = typeof window !== 'undefined' ? window.innerWidth : 9999;
-          const hasTouchSupport = 'ontouchstart' in window;
-          const isMobileDevice = windowWidth < 1024 || (hasTouchSupport && windowWidth < 1280);
+          // ============================================================
+          // CANVA-STYLE: INSTANT INSERT (no delay, no manual click)
+          // ============================================================
           
-          console.log('[AssetsPanel] 🔍 MOBILE DETECTION:', {
-            windowWidth,
-            hasTouchSupport,
-            isMobileDevice,
-            onCloseExists: !!onClose
-          });
+          // Deduplication           // Deduplication           // Deduplication           // nsole.l         tsPanel] ⚠️ Already inserted, skipping:', imageId);
+            return;
+          }
           
-          // Upload to Cloudinary FIRST (critical for mobile to avoid blob URL CORS issues)
+          // Mark as inserted to prevent race conditions
+          setInsertedImageIds(prev => new Set(prev).add(imageId));
+          
           try {
-            console.log('[AssetsPanel] Uploading to Cloudinary in background:', file.name);
-            const formData = new FormData();
-            formData.append('file', file);
-
-            const response = await fetch('/.netlify/functions/upload-file', {
-              method: 'POST',
-              body: formData,
-            });
-
-            if (response.ok) {
-              const result = await response.json();
-              console.log('[AssetsPanel] Cloudinary upload success:', result);
-              
-              // Update the image with Cloudinary URL
-              const cloudinaryImage = { ...tempImage, url: result.secureUrl, fileKey: result.publicId || result.fileKey, cloudinaryUrl: result.secureUrl };
-              
-              setUploadedImages((prev) => 
-                prev.map((img) => 
-                  img.id === imageId 
-                    ? cloudinaryImage
-                    : img
-                )
-              );
-              console.log('[AssetsPanel] Image updated with Cloudinary URL and fileKey');
-              
-              // AUTO-ADD: Automatically add image to canvas after upload completes
-              console.log("[AssetsPanel] Auto-adding image to canvas");
-              setTimeout(async () => {
-                try {
-                  await handleAddToCanvas(cloudinaryImage);
-                  
-                  // Mobile UX: Close panel and remove from list for clean experience
-                  if (isMobileDevice) {
-                    console.log("[AssetsPanel] MOBILE - Removing from list and closing panel");
-                    setUploadedImages((prev) => prev.filter((img) => img.id !== imageId));
-                    if (onClose) onClose();
-                  } else {
-                    // Desktop: Show toast and keep in list for re-adding
-                    toast({
-                      title: "Image added to banner",
-                      duration: 2000,
-                    });
-                    console.log("[AssetsPanel] Image added and remains in list");
-                  }
-                } catch (error) {
-                  console.error("[AssetsPanel] ERROR in auto-add:", error);
-                }
-              }, 100);
-            } else {
-              console.error('[AssetsPanel] Cloudinary upload failed:', response.status, response.statusText);
-              
-              // On mobile, still try to add with blob URL as fallback
-              if (isMobileDevice) {
-                console.log('[AssetsPanel] 📱 MOBILE - Cloudinary failed, using blob URL as fallback');
-                setTimeout(async () => {
-                  try {
-                    await handleAddToCanvas(tempImage);
-                    setUploadedImages((prev) => prev.filter((img) => img.id !== imageId));
-                    if (onClose) onClose();
-                  } catch (error) {
-                    console.error('[AssetsPanel] 📱 ❌ ERROR in fallback auto-add:', error);
-                  }
-                }, 100);
-              }
-            }
-          } catch (error) {
-            console.error('[AssetsPanel] Error uploading to Cloudinary:', error);
+            // Calculate size (max 50% of canvas)
+            const maxWidth = widthIn * 0.5;
+            const maxHeight = heightIn * 0.5;
+            const aspectRatio = tempImage.width / tempImage.height;
             
-            // On mobile, still try to add with blob URL as fallback
-            if (isMobileDevice) {
-              console.log('[AssetsPanel] 📱 MOBILE - Cloudinary error, using blob URL as fallback');
-              setTimeout(async () => {
-                try {
-                  await handleAddToCanvas(tempImage);
-                  setUploadedImages((prev) => prev.filter((img) => img.id !== imageId));
-                  if (onClose) onClose();
-                } catch (error) {
-                  console.error('[AssetsPanel] 📱 ❌ ERROR in fallback auto-add:', error);
-                }
-              }, 100);
+            let width = maxWidth;
+            let height = width / aspectRatio;
+            
+            if (height > maxHeight) {
+              height = maxHeight;
+              width = height * aspectRatio;
             }
+
+            const imageObject = {
+              type: 'image' as const,
+              url: tempImage.url, // Start with blob URL
+              x: widthIn / 2 - width / 2,
+              y: heightIn / 2 - height / 2,
+              width,
+              height,
+              rotation: 0,
+              opacity: 1,
+              locked: false,
+              visible: true,
+              isPDF: false,
+              cloudinaryPublicId: undefined,
+              name: tempImage.name,
+            };
+            
+            // INSTANT INSERT (no setTimeout delay)
+            console.log('[AssetsPanel] ✓ Inserting to canvas NOW');
+            addObject(imageObject);
+            
+            // Get inserted object ID for Cloudinary upgrade
+            const objects = useEditorStore.getState().objects;
+            const addedObject = objects[objects.length - 1];
+            const canvasObjectId = addedObject?.id;
+            
+            // INSTANT PANEL CLOSE (Canva-style UX)
+            console.log('[AssetsPanel] ✓ Closing panel immediately');
+            if (onClose) {
+              onClose();
+            }
+            
+            // Micro-feedback toast
+            toast({
+              title: "✓ Image added",
+              duration: 1500,
+            });
+            
+            // Background: Upload to Cloudinary and upgrade URL
+            (async () => {
+              try {
+                const formData = new FormData();
+                formData.append('file', file);
+
+                const response = await fetch('/.netlify/functions/upload-file', {
+                  method: 'POST',
+                  body: formData,
+                });
+
+                if (response.ok) {
+                  const result = await response.json();
+                  
+                  // Update state with Cloudinary URL
+                  const cloudinaryImage = { 
+                    ...tempImage, 
+                    url: result.secureUrl, 
+                    fileKey: result.publicId || result.fileKey, 
+                    cloudinaryUrl: result.secureUrl 
+                  };
+                  
+                  setUploadedImages((prev) => 
+                    prev.map((img) => img.id === imageId ? cloudinaryImage : img)
+                  );
+                  
+                  // Upgrade canvas object to Cloudinary URL
+                  if (canvasObjectId) {
+                    const { updateObject } = useEditorStore.getState();
+                    updateObject(canvasObjectId, {
+                      url: result.secureUrl,
+                      cloudinaryPublicId: result.publicId || result.fileKey,
+                    });
+                    console.log('[AssetsPanel] ✓ Upgraded to Cloudinary URL');
+                  }
+                } else {
+                  console.error('[AssetsPanel] ⚠️ Cloudinary upload failed');
+                  toast({
+                    title: "Upload warning",
+                    description: "Image added but may not save to cart.",
+                    variant: "destructive",
+                    duration: 3000,
+                  });
+                }
+              } catch (error) {
+                console.error('[AssetsPanel] ⚠️ Cloudinary error:', error);
+              }
+            })();
+            
+          } catch (error) {
+            console.error('[AssetsPanel] ❌ ERROR inserting to canvas:', error);
+            toast({
+              title: "Failed to add image",
+              variant: "destructive",
+              duration: 2000,
+            });
           }
         };
-        
-        console.log('[AssetsPanel] Setting img.src to trigger onload:', url);
         img.src = url;
       }
     }
@@ -513,24 +525,6 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
                     </div>
                     <p className="text-xs text-gray-600 truncate p-1">
                       {image.name}
-                    </p>
-                  </div>
-                  <Button
-                    onClick={() => handleAddToCanvas(image)}
-                    size="sm"
-                    className="w-full text-xs h-7"
-                    variant="outline"
-                  >
-                    <Plus className="h-3 w-3 mr-1" />
-                    Add to Canvas
-                  </Button>
-                </div>
-              </Card>
-              );
-            })}
-          </div>
-        </div>
-      )}
 
       {uploadedImages.length === 0 && !uploading && (
         <div className="text-center text-xs text-gray-400 py-4">
