@@ -169,6 +169,28 @@ export const formatDimensions = (widthIn: number, heightIn: number): string => {
   return `${widthIn}" × ${heightIn}"`;
 };
 
+/**
+ * Format inches to feet with smart decimal handling
+ * - No decimals when divisible by 12 (e.g., 60" -> "5ft")
+ * - One decimal when not divisible by 12 (e.g., 30" -> "2.5ft")
+ */
+export const formatFeet = (inches: number): string => {
+  const feet = inches / 12;
+  // Check if divisible by 12 (no remainder)
+  if (inches % 12 === 0) {
+    return `${feet}ft`;
+  }
+  // Show one decimal place
+  return `${feet.toFixed(1)}ft`;
+};
+
+/**
+ * Format dimensions in feet (e.g., "5ft × 3ft")
+ */
+export const formatDimensionsInFeet = (widthIn: number, heightIn: number): string => {
+  return `${formatFeet(widthIn)} × ${formatFeet(heightIn)}`;
+};
+
 // Feature flag support for new pricing logic
 // Environment variables:
 // FEATURE_FREE_SHIPPING=1 (enables free shipping on all orders)

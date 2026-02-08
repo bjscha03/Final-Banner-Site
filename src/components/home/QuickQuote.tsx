@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Minus, Plus, ArrowRight, Truck, Zap, Package, Palette, DollarSign, Check, Hash, Ruler, Tag } from 'lucide-react';
 import { MaterialKey } from '@/store/quote';
-import { calcTotals, usd, formatArea, PRICE_PER_SQFT, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
+import { calcTotals, usd, formatArea, formatDimensionsInFeet, PRICE_PER_SQFT, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
 import { calculateQuantityDiscount, getAllDiscountTiers } from '@/lib/quantity-discount';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -479,8 +479,11 @@ const QuickQuote: React.FC = () => {
                   <p className="text-sm font-medium text-gray-600 mb-2">
                     Total area: <span className="font-bold text-blue-700">{formatArea(totals.area)}</span>
                   </p>
-                  <p className="text-xl font-bold text-slate-900">
-                    {widthIn}" × {heightIn}"
+                  <p className="text-2xl font-bold text-slate-900">
+                    {formatDimensionsInFeet(widthIn, heightIn)}
+                  </p>
+                  <p className="text-sm text-gray-500 mt-1">
+                    ({widthIn}" × {heightIn}")
                   </p>
                 </div>
               </div>
