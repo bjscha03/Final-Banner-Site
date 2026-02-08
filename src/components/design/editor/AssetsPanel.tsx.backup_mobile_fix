@@ -436,6 +436,7 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
 
   return (
     <div className="space-y-4">
+      <h3 className="text-sm font-semibold text-gray-900">Uploads</h3>
       
       {/* Upload area */}
       <label 
