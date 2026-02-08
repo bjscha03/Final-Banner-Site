@@ -406,7 +406,16 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
             duration: 4000,
           });
       }
+    } catch (error) {
+      console.error('[AssetsPanel] Failed to upload to Cloudinary:', error);
+      toast({
+        title: "Upload warning",
+        description: "Using temporary image. May not save to cart.",
+        variant: "destructive",
+        duration: 3000,
+      });
     }
+
     
     // Calculate size to fit on canvas (max 50% of canvas width/height)
     const maxWidth = widthIn * 0.5;
