@@ -258,7 +258,6 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
                   }
                   console.error("[AssetsPanel] ERROR in auto-add:", error);
                 }
-              }, 100);
             } else {
               console.error('[AssetsPanel] Cloudinary upload failed:', response.status, response.statusText);
               
