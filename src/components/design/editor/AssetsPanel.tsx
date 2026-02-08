@@ -386,13 +386,13 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
             statusText: uploadResponse.statusText,
             errorBody: errorText
           });
-          alert(`Failed to upload image to cloud storage. Error: ${uploadResponse.status} ${uploadResponse.statusText}. Please try again.`);
-          return;
-        }
-      } catch (error) {
-        console.error('[IMAGE ADD] Error uploading to Cloudinary:', error);
-        alert('Failed to upload image to cloud storage. Please try again.');
-        return;
+          // Show warning but continue - blob URL still works
+          toast({
+            title: "Upload warning",
+            description: "Using temporary image. May not save to cart.",
+            variant: "destructive",
+            duration: 4000,
+          });
       }
     }
     
