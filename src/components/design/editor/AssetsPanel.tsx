@@ -18,6 +18,93 @@ interface UploadedImage {
   cloudinaryUrl?: string; // Permanent Cloudinary URL
 }
 
+interface UploadError {
+  message: string;
+  fileName: string;
+  canRetry: boolean;
+  retryFile?: File;
+}
+
+
+// Supported file types
+const SUPPORTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
+const SUPPORTED_TYPES = [...SUPPORTED_IMAGE_TYPES, 'application/pdf'];
+const MAX_FILE_SIZE = 25 * 1024 * 1024;
+const HEIC_EXTENSIONS = ['.heic', '.heif'];
+
+const isHEICFile = (fileName: string): boolean => {
+  const lowerName = fileName.toLowerCase();
+  return HEIC_EXTENSIONS.some(ext => lowerName.endsWith(ext));
+};
+
+const validateFile = (file: File): { valid: boolean; error?: string } => {
+  if (isHEICFile(file.name)) {
+    return { valid: false, error: 'HEIC not supported yet — please export as JPG/PNG.' };
+  }
+  if (file.size > MAX_FILE_SIZE) {
+    return { valid: false, error: `File too large. Maximum size is ${Math.round(MAX_FILE_SIZE / 1024 / 1024)}MB.` };
+  }
+  if (!SUPPORTED_TYPES.includes(file.type)) {
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    const validExts = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'pdf'];
+    if (!ext || !validExts.includes(ext)) {
+      return { valid: false, error: 'Unsupported file type. Please use PNG, JPG, GIF, WEBP, or PDF.' };
+    }
+  }
+  return { valid: true };
+};
+
+const logUploadError = (file: File, status: number, errorBody: string) => {
+  console.error('[UPLOAD ERROR]', {
+    fileName: file.name,
+    fileSize: file.size,
+    mimeType: file.type,
+    statusCode: status,
+    errorBody: errorBody,
+    timestamp: new Date().toISOString()
+  });
+};
+
+
+// Supported file types
+const SUPPORTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
+const SUPPORTED_TYPES = [...SUPPORTED_IMAGE_TYPES, 'application/pdf'];
+const MAX_FILE_SIZE = 25 * 1024 * 1024;
+const HEIC_EXTENSIONS = ['.heic', '.heif'];
+
+const isHEICFile = (fileName: string): boolean => {
+  const lowerName = fileName.toLowerCase();
+  return HEIC_EXTENSIONS.some(ext => lowerName.endsWith(ext));
+};
+
+const validateFile = (file: File): { valid: boolean; error?: string } => {
+  if (isHEICFile(file.name)) {
+    return { valid: false, error: 'HEIC not supported yet — please export as JPG/PNG.' };
+  }
+  if (file.size > MAX_FILE_SIZE) {
+    return { valid: false, error: `File too large. Maximum size is ${Math.round(MAX_FILE_SIZE / 1024 / 1024)}MB.` };
+  }
+  if (!SUPPORTED_TYPES.includes(file.type)) {
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    const validExts = ['png', 'jpg', 'jpeg', 'gif', 'webp', 'pdf'];
+    if (!ext || !validExts.includes(ext)) {
+      return { valid: false, error: 'Unsupported file type. Please use PNG, JPG, GIF, WEBP, or PDF.' };
+    }
+  }
+  return { valid: true };
+};
+
+const logUploadError = (file: File, status: number, errorBody: string) => {
+  console.error('[UPLOAD ERROR]', {
+    fileName: file.name,
+    fileSize: file.size,
+    mimeType: file.type,
+    statusCode: status,
+    errorBody: errorBody,
+    timestamp: new Date().toISOString()
+  });
+};
+
 // Create a persistent store for uploaded images (survives component re-renders)
 let persistentUploadedImages: UploadedImage[] = [];
 
@@ -30,6 +117,15 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [uploadedImages, setUploadedImages] = useState<UploadedImage[]>(persistentUploadedImages);
   const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<UploadError | null>(null);
+  const handleRetry = () => {
+    if (uploadError?.retryFile) {
+      setUploadError(null);
+      handleFileSelect({ target: { files: [uploadError.retryFile] } } as any);
+    }
+  };
+
+
   const { addObject } = useEditorStore();
   const { widthIn, heightIn, editingItemId } = useQuoteStore();
 
