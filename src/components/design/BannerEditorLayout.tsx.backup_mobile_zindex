@@ -2306,13 +2306,13 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
           <>
             {/* Backdrop */}
             <div
-              className="lg:hidden fixed inset-0 bg-black/80 z-[9998]"
+              className="lg:hidden fixed inset-0 bg-black/80 z-50"
               onClick={() => setActivePanel(null)}
             />
             {/* Panel */}
             <div
               ref={mobilePanelRef}
-              className="lg:hidden fixed inset-x-0 bottom-0 bg-white rounded-t-2xl shadow-2xl z-[9999]"
+              className="lg:hidden fixed inset-x-0 bottom-0 bg-white rounded-t-2xl shadow-2xl z-[60]"
               style={{
                 height: '75vh',
                 maxHeight: '75vh',
