@@ -206,10 +206,10 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
           });
           console.log('[AssetsPanel] Image added with blob URL:', file.name);
 
-          // AUTO-ADD IMMEDIATELY: Add to canvas with blob URL for instant feedback (ALL DEVICES)
-          console.log('[AssetsPanel] 🚀 AUTO-ADD - Adding to canvas immediately with blob URL');
-          {
-            
+          // AUTO-ADD IMMEDIATELY: Add to canvas with blob URL for instant feedback
+          const isMobileDevice = typeof window !== 'undefined' && window.innerWidth < 1024;
+          if (isMobileDevice) {
+            console.log('[AssetsPanel] 📱 MOBILE - Adding to canvas immediately with blob URL');
             try {
               await handleAddToCanvas(tempImage);
               if (onClose) onClose();  // Close panel AFTER adding to canvas
