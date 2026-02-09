@@ -129,7 +129,7 @@ export function GrommetPicker({
   };
 
   const renderMobileSheet = () => (
-    <div className="fixed inset-0 z-[100] flex items-end" style={{ touchAction: 'none', pointerEvents: 'auto' }}>
+    <div className="fixed inset-0 z-[999999] flex items-end" style={{ touchAction: 'none', pointerEvents: 'auto' }}>
       {/* Backdrop */}
       <div
         className="absolute inset-0 bg-black/50 backdrop-blur-sm"
@@ -202,7 +202,7 @@ export function GrommetPicker({
   const renderDesktopDropdown = () => (
     <div
       data-grommet-dropdown
-      className="fixed bg-white border border-gray-200 rounded-xl shadow-xl z-[100] overflow-hidden max-h-[60vh] overflow-y-auto min-w-[300px]"
+      className="fixed bg-white border border-gray-200 rounded-xl shadow-xl z-[999999] overflow-hidden max-h-[60vh] overflow-y-auto min-w-[300px]"
       style={{
         top: `${dropdownPosition.top}px`,
         left: `${dropdownPosition.left}px`,
