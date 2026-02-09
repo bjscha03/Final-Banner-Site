@@ -205,24 +205,18 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
             return newImages;
           });
           console.log('[AssetsPanel] Image added with blob URL:', file.name);
-
-          // AUTO-ADD IMMEDIATELY: Add to canvas with blob URL for instant feedback
-          const isMobileDevice = typeof window !== 'undefined' && window.innerWidth < 1024;
-          if (isMobileDevice) {
-            console.log('[AssetsPanel] 📱 MOBILE - Adding to canvas immediately with blob URL');
-            try {
-              await handleAddToCanvas(tempImage);
-              if (onClose) onClose();  // Close panel AFTER adding to canvas
-              toast({
-                title: "✓ Image added",
-                duration: 1500,
-              });
-            } catch (error) {
-              console.error('[AssetsPanel] ERROR in immediate auto-add:', error);
-            }
-          }
           
-          // Cloudinary upload happens in background (old mobile detection removed)
+          // Detect if mobile for auto-add behavior
+          const windowWidth = typeof window !== 'undefined' ? window.innerWidth : 9999;
+          const hasTouchSupport = 'ontouchstart' in window;
+          const isMobileDevice = windowWidth < 1024 || (hasTouchSupport && windowWidth < 1280);
+          
+          console.log('[AssetsPanel] 🔍 MOBILE DETECTION:', {
+            windowWidth,
+            hasTouchSupport,
+            isMobileDevice,
+            onCloseExists: !!onClose
+          });
           
           // Upload to Cloudinary FIRST (critical for mobile to avoid blob URL CORS issues)
           try {
@@ -250,6 +244,18 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
                 )
               );
               console.log('[AssetsPanel] Image updated with Cloudinary URL and fileKey');
+              
+              // AUTO-ADD: Automatically add image to canvas after upload completes
+              console.log("[AssetsPanel] Auto-adding image to canvas");
+              try {
+                await handleAddToCanvas(cloudinaryImage);
+                toast({
+                  title: "✓ Image added",
+                  duration: 1500,
+                });
+              } catch (error) {
+                console.error("[AssetsPanel] ERROR in auto-add:", error);
+              }
             } else {
               console.error('[AssetsPanel] Cloudinary upload failed:', response.status, response.statusText);
               

@@ -222,7 +222,17 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
             }
           }
           
-          // Cloudinary upload happens in background (old mobile detection removed)
+          // Detect if mobile for auto-add behavior
+          const windowWidth = typeof window !== 'undefined' ? window.innerWidth : 9999;
+          const hasTouchSupport = 'ontouchstart' in window;
+          const isMobileDevice = windowWidth < 1024 || (hasTouchSupport && windowWidth < 1280);
+          
+          console.log('[AssetsPanel] 🔍 MOBILE DETECTION:', {
+            windowWidth,
+            hasTouchSupport,
+            isMobileDevice,
+            onCloseExists: !!onClose
+          });
           
           // Upload to Cloudinary FIRST (critical for mobile to avoid blob URL CORS issues)
           try {
