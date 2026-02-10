@@ -153,11 +153,11 @@ const StickyUploadButton: React.FC<StickyUploadButtonProps> = ({ isAIModalOpen =
 
   return (
     <>
-      <div className="fixed bottom-6 right-6 z-[9999] pointer-events-auto">
+      <div className="fixed bottom-6 right-6 z-[90] pointer-events-auto">
         <div className="relative animate-bounce-slow">
           <button 
             onClick={handleDismiss} 
-            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors shadow-lg z-[10000]" 
+            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center hover:bg-red-600 transition-colors shadow-lg z-[91]" 
             aria-label="Dismiss"
             type="button"
           >
@@ -165,7 +165,7 @@ const StickyUploadButton: React.FC<StickyUploadButtonProps> = ({ isAIModalOpen =
           </button>
           <Button 
             size="lg" 
-            className="bg-[#18448D] hover:bg-[#0f2d5f] text-white shadow-2xl px-6 py-6 text-base font-semibold relative z-[9999]" 
+            className="bg-[#18448D] hover:bg-[#0f2d5f] text-white shadow-2xl px-6 py-6 text-base font-semibold relative z-[90]" 
             onClick={handleUploadClick} 
             disabled={isUploading}
             type="button"
