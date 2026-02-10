@@ -2224,7 +2224,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
         </div>
 
         {/* Mobile Bottom Toolbar - Hidden in design service mode */}
-        {!designServiceMode && (
+        {!designServiceMode && !activePanel && (
         <div
           className="lg:hidden fixed left-0 right-0 z-20"
           style={{
