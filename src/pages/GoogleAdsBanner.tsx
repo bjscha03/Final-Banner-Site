@@ -1,19 +1,19 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { Upload, Shield, Clock, Star, ChevronDown, ChevronUp, CheckCircle, Truck, Users, FileCheck, X, Loader2, ArrowRight, Brush, Minus, Plus } from 'lucide-react';
+import { Upload, Shield, Clock, Star, ChevronDown, ChevronUp, CheckCircle, Truck, Users, FileCheck, X, Loader2, ArrowRight, Brush, Minus, Plus, Lock } from 'lucide-react';
 import { useQuoteStore, type MaterialKey } from '@/store/quote';
 import { useCartStore } from '@/store/cart';
 import { useUIStore } from '@/store/ui';
 import { calcTotals, usd } from '@/lib/pricing';
 
 const PRESET_SIZES = [
-  { label: "2' x 4'", w: 24, h: 48 },
-  { label: "3' x 6'", w: 36, h: 72 },
-  { label: "4' x 8'", w: 48, h: 96 },
-  { label: "2' x 6'", w: 24, h: 72 },
-  { label: "3' x 8'", w: 36, h: 96 },
-  { label: "4' x 10'", w: 48, h: 120 },
+  { label: "2' x 4'", w: 48, h: 24 },
+  { label: "3' x 6'", w: 72, h: 36 },
+  { label: "4' x 8'", w: 96, h: 48 },
+  { label: "2' x 6'", w: 72, h: 24 },
+  { label: "3' x 8'", w: 96, h: 36 },
+  { label: "4' x 10'", w: 120, h: 48 },
 ];
 
 const MATERIALS: { key: string; label: string; mapped: MaterialKey }[] = [
@@ -42,9 +42,9 @@ const GoogleAdsBanner: React.FC = () => {
   const orderRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [widthFt, setWidthFt] = useState(4);
+  const [widthFt, setWidthFt] = useState(8);
   const [widthInR, setWidthInR] = useState(0);
-  const [heightFt, setHeightFt] = useState(2);
+  const [heightFt, setHeightFt] = useState(4);
   const [heightInR, setHeightInR] = useState(0);
   const [material, setMaterial] = useState<MaterialKey>('13oz');
   const [grommets, setGrommets] = useState('none');
@@ -210,23 +210,20 @@ const GoogleAdsBanner: React.FC = () => {
               Need help designing? Let us design it for you
             </a>
 
-            {/* Urgency line */}
-            <p className="mt-6 text-sm text-gray-400 tracking-wide">
-              Order today. Ships tomorrow.
-            </p>
+
           </div>
         </section>
 
-        <section ref={orderRef} id="order-builder" className="py-10 px-4 bg-white">
+        <section ref={orderRef} id="order-builder" className="py-12 px-4 bg-white">
           <div className="max-w-4xl mx-auto">
-            <h2 className="text-2xl md:text-3xl font-bold text-center mb-8">Build Your Banner</h2>
-            <div className="grid md:grid-cols-2 gap-8">
-              <div className="space-y-6">
+            <h2 className="text-2xl md:text-3xl font-bold text-center mb-10">Build Your Banner</h2>
+            <div className="grid md:grid-cols-2 gap-10">
+              <div className="space-y-8">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Popular Sizes</label>
                   <div className="grid grid-cols-3 gap-2">
                     {PRESET_SIZES.map((p, i) => (
-                      <button key={i} onClick={() => applyPreset(i)} className={`border rounded-lg py-2 px-3 text-sm font-medium transition-colors ${activePreset === i ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-gray-200 hover:border-gray-400 text-gray-700'}`}>
+                      <button key={i} onClick={() => applyPreset(i)} className={`border rounded-xl py-2.5 px-3 text-sm font-medium transition-all ${activePreset === i ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-gray-200 hover:border-gray-400 text-gray-700'}`}>
                         {p.label}
                       </button>
                     ))}
@@ -238,18 +235,18 @@ const GoogleAdsBanner: React.FC = () => {
                     <div>
                       <span className="text-xs text-gray-500">Width</span>
                       <div className="flex gap-1 mt-1">
-                        <input type="number" min={1} max={50} value={widthFt} onChange={e => { setWidthFt(+e.target.value); setActivePreset(null); }} className="w-16 border rounded px-2 py-1.5 text-sm" />
+                        <input type="number" min={1} max={50} value={widthFt} onChange={e => { setWidthFt(+e.target.value); setActivePreset(null); }} className="w-16 border rounded-lg px-2 py-1.5 text-sm" />
                         <span className="self-center text-xs text-gray-500">ft</span>
-                        <input type="number" min={0} max={11} value={widthInR} onChange={e => { setWidthInR(+e.target.value); setActivePreset(null); }} className="w-16 border rounded px-2 py-1.5 text-sm" />
+                        <input type="number" min={0} max={11} value={widthInR} onChange={e => { setWidthInR(+e.target.value); setActivePreset(null); }} className="w-16 border rounded-lg px-2 py-1.5 text-sm" />
                         <span className="self-center text-xs text-gray-500">in</span>
                       </div>
                     </div>
                     <div>
                       <span className="text-xs text-gray-500">Height</span>
                       <div className="flex gap-1 mt-1">
-                        <input type="number" min={1} max={50} value={heightFt} onChange={e => { setHeightFt(+e.target.value); setActivePreset(null); }} className="w-16 border rounded px-2 py-1.5 text-sm" />
+                        <input type="number" min={1} max={50} value={heightFt} onChange={e => { setHeightFt(+e.target.value); setActivePreset(null); }} className="w-16 border rounded-lg px-2 py-1.5 text-sm" />
                         <span className="self-center text-xs text-gray-500">ft</span>
-                        <input type="number" min={0} max={11} value={heightInR} onChange={e => { setHeightInR(+e.target.value); setActivePreset(null); }} className="w-16 border rounded px-2 py-1.5 text-sm" />
+                        <input type="number" min={0} max={11} value={heightInR} onChange={e => { setHeightInR(+e.target.value); setActivePreset(null); }} className="w-16 border rounded-lg px-2 py-1.5 text-sm" />
                         <span className="self-center text-xs text-gray-500">in</span>
                       </div>
                     </div>
@@ -257,35 +254,66 @@ const GoogleAdsBanner: React.FC = () => {
                   <p className="text-xs text-gray-500 mt-1">{sqft.toFixed(1)} sq ft</p>
                 </div>
                 <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Material</label>
+                  <select value={MATERIALS.find(m => m.mapped === material)?.key || '13oz'} onChange={e => { const sel = MATERIALS.find(m => m.key === e.target.value); if (sel) setMaterial(sel.mapped); }} className="w-full border rounded-xl px-3 py-2.5 text-sm bg-white">
+                    {MATERIALS.map(m => (<option key={m.key} value={m.key}>{m.label}</option>))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Upload Your Artwork</label>
+                  {!uploadedFile ? (
+                    <div onDrop={onDrop} onDragOver={e => { e.preventDefault(); setDragActive(true); }} onDragLeave={() => setDragActive(false)} onClick={() => fileInputRef.current?.click()} className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all duration-200 ${dragActive ? 'border-orange-400 bg-orange-50 scale-[1.01] shadow-md' : 'border-gray-300 bg-gray-50/50 hover:border-orange-300 hover:bg-orange-50/30'}`}>
+                      <input ref={fileInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png,.ai,.eps" onChange={e => { const f = e.target.files?.[0]; if (f) handleFileUpload(f); }} className="hidden" />
+                      {isUploading ? (
+                        <div className="flex flex-col items-center">
+                          <Loader2 className="h-10 w-10 text-orange-500 animate-spin mb-2" />
+                          <p className="text-sm text-gray-600">Uploading...</p>
+                        </div>
+                      ) : (
+                        <>
+                          <Upload className="h-10 w-10 text-gray-400 mx-auto mb-3" />
+                          <p className="font-semibold text-gray-800">Drag &amp; Drop or Click to Upload</p>
+                          <p className="text-xs text-gray-500 mt-1">PDF, PNG, JPG, AI, EPS - Max 10 MB</p>
+                        </>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="border-2 rounded-xl p-4 flex items-center justify-between bg-green-50 border-green-300 shadow-sm">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-5 w-5 text-green-600" />
+                        <span className="text-sm font-semibold text-green-800">File Ready ✓</span>
+                        <span className="text-sm font-semibold text-green-800 truncate max-w-[160px]">{uploadedFile.name}</span>
+                      </div>
+                      <button onClick={() => { setUploadedFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="text-gray-400 hover:text-gray-600 transition-colors"><X className="h-4 w-4" /></button>
+                    </div>
+                  )}
+                  {uploadError && <p className="text-xs text-red-600 mt-2">{uploadError}</p>}
+                  <p className="text-xs text-gray-400 mt-2 text-center">Every file reviewed by a real designer before printing.</p>
+                </div>
+                <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Quantity</label>
                   <div className="flex items-center gap-3">
-                    <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="w-9 h-9 flex items-center justify-center border border-gray-200 rounded-lg hover:border-gray-400 transition-colors">
+                    <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="w-9 h-9 flex items-center justify-center border border-gray-200 rounded-xl hover:border-gray-400 transition-colors">
                       <Minus className="h-4 w-4 text-gray-600" />
                     </button>
-                    <input type="number" min={1} max={999} value={quantity} onChange={e => setQuantity(Math.max(1, +e.target.value || 1))} className="w-20 border rounded-lg px-3 py-1.5 text-sm text-center" />
-                    <button onClick={() => setQuantity(q => Math.min(999, q + 1))} className="w-9 h-9 flex items-center justify-center border border-gray-200 rounded-lg hover:border-gray-400 transition-colors">
+                    <input type="number" min={1} max={999} value={quantity} onChange={e => setQuantity(Math.max(1, +e.target.value || 1))} className="w-20 border rounded-xl px-3 py-1.5 text-sm text-center" />
+                    <button onClick={() => setQuantity(q => Math.min(999, q + 1))} className="w-9 h-9 flex items-center justify-center border border-gray-200 rounded-xl hover:border-gray-400 transition-colors">
                       <Plus className="h-4 w-4 text-gray-600" />
                     </button>
                   </div>
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Material</label>
-                  <select value={MATERIALS.find(m => m.mapped === material)?.key || '13oz'} onChange={e => { const sel = MATERIALS.find(m => m.key === e.target.value); if (sel) setMaterial(sel.mapped); }} className="w-full border rounded-lg px-3 py-2 text-sm bg-white">
-                    {MATERIALS.map(m => (<option key={m.key} value={m.key}>{m.label}</option>))}
-                  </select>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Finishing Options</label>
                   <div className="space-y-3">
                     <div>
                       <span className="text-xs text-gray-600">Grommets</span>
-                      <select value={grommets} onChange={e => setGrommets(e.target.value)} className="w-full border rounded px-3 py-1.5 text-sm mt-1 bg-white">
+                      <select value={grommets} onChange={e => setGrommets(e.target.value)} className="w-full border rounded-xl px-3 py-1.5 text-sm mt-1 bg-white">
                         {GROMMET_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                       </select>
                     </div>
                     <div>
                       <span className="text-xs text-gray-600">Pole Pockets</span>
-                      <select value={polePockets} onChange={e => setPolePockets(e.target.value)} className="w-full border rounded px-3 py-1.5 text-sm mt-1 bg-white">
+                      <select value={polePockets} onChange={e => setPolePockets(e.target.value)} className="w-full border rounded-xl px-3 py-1.5 text-sm mt-1 bg-white">
                         <option value="none">None</option>
                         <option value="top">Top</option>
                         <option value="bottom">Bottom</option>
@@ -307,46 +335,22 @@ const GoogleAdsBanner: React.FC = () => {
               </div>
 
               <div className="space-y-6">
-                <div className="bg-gray-50 border border-gray-200 rounded-xl p-6 text-center">
+                <div className="rounded-xl p-6 text-center" style={{ background: "#F7F8FA", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
                   <p className="text-sm text-gray-500 mb-1">Your Price</p>
-                  <p className="text-4xl font-extrabold text-gray-900">{usd(totals.materialTotal)}</p>
-                  <p className="text-sm text-green-600 font-medium mt-1">Includes FREE Next-Day Air</p>
-                  <p className="text-xs text-gray-400 mt-1">+ {usd(totals.tax)} tax</p>
+                  <p className="text-5xl font-extrabold text-gray-900 leading-tight">{usd(totals.materialTotal)}</p>
+                  <p className="text-base text-green-600 font-semibold mt-2">FREE Next-Day Air Included</p>
+                  <p className="text-sm text-gray-500 mt-1">Printed within 24 hours.</p>
+                  <p className="text-xs text-gray-400 mt-3">Tax calculated at checkout</p>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Upload Your Artwork</label>
-                  {!uploadedFile ? (
-                    <div onDrop={onDrop} onDragOver={e => { e.preventDefault(); setDragActive(true); }} onDragLeave={() => setDragActive(false)} onClick={() => fileInputRef.current?.click()} className={`border-2 border-dashed rounded-xl p-8 text-center cursor-pointer transition-colors ${dragActive ? 'border-orange-400 bg-orange-50' : 'border-gray-300 hover:border-gray-400'}`}>
-                      <input ref={fileInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png,.ai,.eps" onChange={e => { const f = e.target.files?.[0]; if (f) handleFileUpload(f); }} className="hidden" />
-                      {isUploading ? (
-                        <div className="flex flex-col items-center">
-                          <Loader2 className="h-10 w-10 text-orange-500 animate-spin mb-2" />
-                          <p className="text-sm text-gray-600">Uploading...</p>
-                        </div>
-                      ) : (
-                        <>
-                          <Upload className="h-10 w-10 text-gray-400 mx-auto mb-2" />
-                          <p className="font-medium text-gray-800">Drag &amp; Drop or Click to Upload</p>
-                          <p className="text-xs text-gray-500 mt-1">PDF, PNG, JPG, AI, EPS - Max 10 MB</p>
-                        </>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="border rounded-xl p-4 flex items-center justify-between bg-green-50 border-green-200">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="h-5 w-5 text-green-600" />
-                        <span className="text-sm font-medium text-gray-800 truncate max-w-[200px]">{uploadedFile.name}</span>
-                      </div>
-                      <button onClick={() => { setUploadedFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="text-gray-400 hover:text-gray-600"><X className="h-4 w-4" /></button>
-                    </div>
-                  )}
-                  {uploadError && <p className="text-xs text-red-600 mt-2">{uploadError}</p>}
-                </div>
-
-                <button onClick={handleCheckout} disabled={!uploadedFile} className={`w-full font-bold text-lg py-4 rounded-lg shadow-lg transition-colors ${uploadedFile ? 'bg-orange-500 hover:bg-orange-600 text-white cursor-pointer' : 'bg-gray-300 text-gray-500 cursor-not-allowed'}`}>
+                <button onClick={handleCheckout} disabled={!uploadedFile} className={`group w-full font-bold text-lg py-5 rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${uploadedFile ? 'bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white cursor-pointer shadow-orange-500/30' : 'bg-orange-300 text-white/80 cursor-not-allowed'}`}>
                   Upload &amp; Checkout
+                  <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
                 </button>
+                <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400 mt-1">
+                  <Lock className="h-3 w-3" />
+                  <span>Secure checkout.</span>
+                </div>
                 {!uploadedFile && <p className="text-xs text-center text-gray-400">Upload your artwork to continue</p>}
               </div>
             </div>
