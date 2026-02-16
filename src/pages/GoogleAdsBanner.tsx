@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { Upload, Shield, Clock, Star, ChevronDown, ChevronUp, CheckCircle, Truck, Users, FileCheck, X, Loader2 } from 'lucide-react';
+import { Upload, Shield, Clock, Star, ChevronDown, ChevronUp, CheckCircle, Truck, Users, FileCheck, X, Loader2, ArrowRight, Brush, Minus, Plus } from 'lucide-react';
 import { useQuoteStore, type MaterialKey } from '@/store/quote';
 import { useCartStore } from '@/store/cart';
 import { useUIStore } from '@/store/ui';
@@ -57,6 +57,7 @@ const GoogleAdsBanner: React.FC = () => {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [activePreset, setActivePreset] = useState<number | null>(2);
   const [dragActive, setDragActive] = useState(false);
+  const [quantity, setQuantity] = useState(1);
 
   const quoteStore = useQuoteStore();
   const cartStore = useCartStore();
@@ -65,7 +66,7 @@ const GoogleAdsBanner: React.FC = () => {
   const widthIn = widthFt * 12 + widthInR;
   const heightIn = heightFt * 12 + heightInR;
   const sqft = (widthIn * heightIn) / 144;
-  const totals = calcTotals({ widthIn, heightIn, qty: 1, material, addRope, polePockets });
+  const totals = calcTotals({ widthIn, heightIn, qty: quantity, material, addRope, polePockets });
 
   useEffect(() => {
     const gclid = searchParams.get('gclid');
@@ -123,7 +124,7 @@ const GoogleAdsBanner: React.FC = () => {
   const handleCheckout = useCallback(() => {
     if (!uploadedFile) return;
     quoteStore.set({
-      widthIn, heightIn, quantity: 1, material,
+      widthIn, heightIn, quantity, material,
       grommets: grommets as any, polePockets, addRope,
       file: { name: uploadedFile.name, url: uploadedFile.url, fileKey: uploadedFile.fileKey, size: uploadedFile.size, isPdf: uploadedFile.isPdf, type: uploadedFile.isPdf ? 'application/pdf' : 'image/*' } as any,
     });
@@ -152,27 +153,64 @@ const GoogleAdsBanner: React.FC = () => {
           </div>
         </header>
 
-        <section className="bg-gradient-to-b from-gray-50 to-white py-10 md:py-14 px-4">
-          <div className="max-w-3xl mx-auto text-center">
-            <h1 className="text-3xl md:text-5xl font-extrabold leading-tight mb-4">
-              Custom Banner Printing &ndash; <span className="text-orange-500">24 Hour Production</span>
+        {/* HERO */}
+        <section className="relative overflow-hidden pt-14 pb-16 md:pt-20 md:pb-20 px-4" style={{ background: 'linear-gradient(180deg, #F9FAFB 0%, #EEF2F7 100%)' }}>
+          {/* Subtle radial glow behind headline */}
+          <div className="absolute inset-0 flex items-start justify-center pointer-events-none" aria-hidden="true">
+            <div className="w-[600px] h-[400px] mt-8 rounded-full opacity-40" style={{ background: 'radial-gradient(circle, rgba(251,146,60,0.12) 0%, transparent 70%)' }} />
+          </div>
+
+          <div className="relative max-w-3xl mx-auto text-center">
+            <h1 className="text-3xl sm:text-4xl md:text-[3.25rem] font-black leading-[1.15] tracking-tight mb-5">
+              Custom Banner Printing&nbsp;&ndash;{' '}
+              <span className="text-orange-500">24&nbsp;Hour Production</span>
             </h1>
-            <p className="text-lg md:text-xl text-gray-600 mb-6">
-              Upload your file, choose your size, and get <strong>FREE Next-Day Air</strong> shipping.
+
+            <p className="text-lg md:text-xl text-gray-500 mb-10 max-w-xl mx-auto leading-relaxed">
+              Upload your file, choose your size, and get{' '}
+              <strong className="text-gray-700">FREE Next-Day Air</strong> shipping.
             </p>
-            <ul className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-sm md:text-base text-gray-700 mb-8">
-              <li className="flex items-center gap-1.5"><Clock className="h-4 w-4 text-orange-500" /> Printed within 24 hours</li>
-              <li className="flex items-center gap-1.5"><Truck className="h-4 w-4 text-orange-500" /> Free Next-Day Air shipping</li>
-              <li className="flex items-center gap-1.5"><Star className="h-4 w-4 text-orange-500" /> 20% Off First Order (code <strong>NEW20</strong>)</li>
-              <li className="flex items-center gap-1.5"><Shield className="h-4 w-4 text-orange-500" /> Secure Checkout</li>
-              <li className="flex items-center gap-1.5"><FileCheck className="h-4 w-4 text-orange-500" /> Every order reviewed by a real designer</li>
-            </ul>
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
-              <button onClick={scrollToOrder} className="bg-orange-500 hover:bg-orange-600 text-white font-bold text-lg px-8 py-4 rounded-lg shadow-lg transition-colors w-full sm:w-auto">
-                Start Your Order
-              </button>
-              <a href="/contact" className="text-sm text-gray-500 underline hover:text-gray-700">Need Help Designing? Let Us Design It</a>
+
+            {/* Trust icon row */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-x-4 gap-y-3 max-w-2xl mx-auto mb-10">
+              {[
+                { icon: <Clock className="h-4 w-4 text-orange-500 shrink-0" />, text: 'Printed within 24 hours' },
+                { icon: <Truck className="h-4 w-4 text-orange-500 shrink-0" />, text: 'Free Next-Day Air' },
+                { icon: <Star className="h-4 w-4 text-orange-500 shrink-0" />, label: <>20% Off <span className="font-semibold">NEW20</span></> },
+                { icon: <Shield className="h-4 w-4 text-orange-500 shrink-0" />, text: 'Secure Checkout' },
+                { icon: <Brush className="h-4 w-4 text-orange-500 shrink-0" />, text: 'Real Designer Review' },
+              ].map((item, i) => (
+                <div key={i} className="flex items-center justify-center gap-1.5 text-[13px] md:text-sm text-gray-600">
+                  {item.icon}
+                  <span>{item.label || item.text}</span>
+                </div>
+              ))}
             </div>
+
+            {/* CTA cluster */}
+            <div className="flex flex-col items-center gap-3">
+              <button
+                onClick={scrollToOrder}
+                className="group inline-flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white font-bold text-lg px-10 py-4 rounded-xl shadow-[0_4px_14px_rgba(251,146,60,0.4)] hover:shadow-[0_6px_20px_rgba(251,146,60,0.5)] transition-all duration-150 w-full sm:w-auto"
+              >
+                Start Your Order
+                <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
+              </button>
+              <span className="text-xs text-gray-400 tracking-wide">Takes less than 60 seconds</span>
+            </div>
+
+            {/* Secondary link */}
+            <a
+              href="/contact"
+              className="inline-block mt-4 text-sm text-gray-400 hover:text-gray-600 hover:underline transition-colors"
+            >
+              Need help designing? Let us design it for you
+            </a>
+
+            {/* Urgency line */}
+            <p className="mt-6 text-sm text-gray-400 tracking-wide">
+              Order today. Ships tomorrow.
+            </p>
           </div>
         </section>
 
@@ -214,6 +252,18 @@ const GoogleAdsBanner: React.FC = () => {
                     </div>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">{sqft.toFixed(1)} sq ft</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Quantity</label>
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="w-9 h-9 flex items-center justify-center border border-gray-200 rounded-lg hover:border-gray-400 transition-colors">
+                      <Minus className="h-4 w-4 text-gray-600" />
+                    </button>
+                    <input type="number" min={1} max={999} value={quantity} onChange={e => setQuantity(Math.max(1, +e.target.value || 1))} className="w-20 border rounded-lg px-3 py-1.5 text-sm text-center" />
+                    <button onClick={() => setQuantity(q => Math.min(999, q + 1))} className="w-9 h-9 flex items-center justify-center border border-gray-200 rounded-lg hover:border-gray-400 transition-colors">
+                      <Plus className="h-4 w-4 text-gray-600" />
+                    </button>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Material</label>
