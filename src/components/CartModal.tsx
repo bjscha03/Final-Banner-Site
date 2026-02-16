@@ -33,6 +33,9 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
   const { loadFromCartItem } = useQuoteStore();
   const { user } = useAuth();
 
+  // Detect if user came from Google Ads landing page
+  const isGoogleAdsLanding = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('isGoogleAdsLanding') === 'true';
+
   // Hide Tidio chat widget when cart modal is open
   useEffect(() => {
     if (isOpen && window.tidioChatApi) {
@@ -251,30 +254,38 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                     <div key={item.id} className="bg-white rounded-xl p-4 shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
                       {/* Thumbnail on top - centered */}
                       <div className="flex justify-center mb-4">
-                        {/* DEBUG: Log thumbnail source */}
-                        {console.log('🛒 CART MODAL: Rendering thumbnail for item:', {
-                          itemId: item.id,
-                          thumbnail_url: item.thumbnail_url ? item.thumbnail_url.substring(0, 80) + '...' : 'NULL',
-                          file_url: item.file_url ? item.file_url.substring(0, 50) + '...' : null,
-                          isDataUrl: item.file_url?.startsWith('data:image/'),
-                          web_preview_url: item.web_preview_url,
-                          print_ready_url: item.print_ready_url,
-                          aiProofUrl: item.aiDesign?.assets?.proofUrl
-                        })}
-                        <BannerPreview
-                          key={`thumbnail-${item.id}-${item.text_elements?.length || 0}-${item.image_scale || 1}`}
-                          widthIn={item.width_in}
-                          heightIn={item.height_in}
-                          grommets={item.grommets}
-                          imageUrl={item.thumbnail_url || item.file_url || item.web_preview_url || item.print_ready_url || item.aiDesign?.assets?.proofUrl}
-                          material={item.material}
-                          textElements={item.text_elements}
-                          overlayImage={item.overlay_image}
-                          imageScale={item.image_scale}
-                          imagePosition={item.image_position}
-                          className="flex-shrink-0"
-                          designServiceEnabled={item.design_service_enabled}
-                        />
+                        {isGoogleAdsLanding ? (
+                          (() => {
+                            const imgSrc = item.thumbnail_url || item.file_url || item.web_preview_url || item.print_ready_url || item.aiDesign?.assets?.proofUrl;
+                            return imgSrc ? (
+                              <img
+                                src={imgSrc}
+                                alt={`Banner ${item.width_in}" x ${item.height_in}"`}
+                                className="max-h-[120px] rounded-lg border border-gray-200 shadow-sm bg-white object-contain"
+                              />
+                            ) : (
+                              <div className="flex flex-col items-center justify-center h-[80px] px-6 rounded-lg border border-gray-200 bg-gray-50 text-gray-500 text-sm">
+                                <span className="font-medium">[File Uploaded]</span>
+                                {item.file_name && <span className="text-xs text-gray-400 mt-1 truncate max-w-[180px]">{item.file_name}</span>}
+                              </div>
+                            );
+                          })()
+                        ) : (
+                          <BannerPreview
+                            key={`thumbnail-${item.id}-${item.text_elements?.length || 0}-${item.image_scale || 1}`}
+                            widthIn={item.width_in}
+                            heightIn={item.height_in}
+                            grommets={item.grommets}
+                            imageUrl={item.thumbnail_url || item.file_url || item.web_preview_url || item.print_ready_url || item.aiDesign?.assets?.proofUrl}
+                            material={item.material}
+                            textElements={item.text_elements}
+                            overlayImage={item.overlay_image}
+                            imageScale={item.image_scale}
+                            imagePosition={item.image_position}
+                            className="flex-shrink-0"
+                            designServiceEnabled={item.design_service_enabled}
+                          />
+                        )}
                       </div>
 
                       {/* Title and Price on same line */}
@@ -368,14 +379,16 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                         </div>
                         
                         <div className="flex items-center gap-1.5">
-                          <button 
-                            onClick={() => handleEdit(item.id)} 
-                            className="flex items-center gap-1 px-2.5 py-1.5 bg-[#18448D] hover:bg-[#0f2d5c] text-white rounded-lg text-xs font-medium transition-colors shadow-sm hover:shadow-md"
-                            aria-label="Edit banner"
-                          >
-                            <Edit className="h-3.5 w-3.5" />
-                            <span>Edit</span>
-                          </button>
+                          {!isGoogleAdsLanding && (
+                            <button 
+                              onClick={() => handleEdit(item.id)} 
+                              className="flex items-center gap-1 px-2.5 py-1.5 bg-[#18448D] hover:bg-[#0f2d5c] text-white rounded-lg text-xs font-medium transition-colors shadow-sm hover:shadow-md"
+                              aria-label="Edit banner"
+                            >
+                              <Edit className="h-3.5 w-3.5" />
+                              <span>Edit</span>
+                            </button>
+                          )}
                           <button 
                             onClick={() => removeItem(item.id)} 
                             className="flex items-center gap-1 px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-xs font-medium transition-colors"

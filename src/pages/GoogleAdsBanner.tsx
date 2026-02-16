@@ -69,6 +69,8 @@ const GoogleAdsBanner: React.FC = () => {
   const totals = calcTotals({ widthIn, heightIn, qty: quantity, material, addRope, polePockets });
 
   useEffect(() => {
+    // Flag this session as coming from Google Ads landing page
+    sessionStorage.setItem('isGoogleAdsLanding', 'true');
     const gclid = searchParams.get('gclid');
     if (gclid) sessionStorage.setItem('gclid', gclid);
     ['utm_source','utm_medium','utm_campaign','utm_term','utm_content'].forEach(k => {
@@ -162,13 +164,14 @@ const GoogleAdsBanner: React.FC = () => {
 
           <div className="relative max-w-3xl mx-auto text-center">
             <h1 className="text-3xl sm:text-4xl md:text-[3.25rem] font-black leading-[1.15] tracking-tight mb-5">
-              Custom Banner Printing&nbsp;&ndash;{' '}
+              Custom Banner Printing&nbsp;&ndash;
+              <br />
               <span className="text-orange-500">24&nbsp;Hour Production</span>
             </h1>
 
             <p className="text-lg md:text-xl text-gray-500 mb-10 max-w-xl mx-auto leading-relaxed">
               Upload your file, choose your size, and get{' '}
-              <strong className="text-gray-700">FREE Next-Day Air</strong> shipping.
+              <strong className="text-gray-700 whitespace-nowrap">FREE Next-Day Air&nbsp;Shipping</strong>.
             </p>
 
             {/* Trust icon row */}
