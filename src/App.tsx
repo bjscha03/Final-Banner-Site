@@ -63,6 +63,9 @@ const EventDiscovery = lazy(() => import("./pages/EventDiscovery"));
 // Category/SEO pages - lazy load
 const CategoryPage = lazy(() => import("./pages/CategoryPage"));
 
+// Google Ads landing page - lazy load
+const GoogleAdsBanner = lazy(() => import("./pages/GoogleAdsBanner"));
+
 // Admin pages - lazy load (heavy, rarely accessed)
 const AdminOrders = lazy(() => import("./pages/admin/Orders"));
 const AdminAbandonedCarts = lazy(() => import("./pages/admin/AbandonedCarts"));
@@ -184,6 +187,9 @@ const App = () => (
             <Route path="/event-banners" element={<CategoryPage />} />
             <Route path="/custom-banners" element={<CategoryPage />} />
             <Route path="/construction-banners" element={<CategoryPage />} />
+
+            {/* Google Ads landing page */}
+            <Route path="/google-ads-banner" element={<GoogleAdsBanner />} />
           </Routes>
           </Suspense>
           </CartSyncWrapper>
