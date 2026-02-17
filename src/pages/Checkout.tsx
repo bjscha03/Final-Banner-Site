@@ -560,32 +560,17 @@ const Checkout: React.FC = () => {
                       )}
                     </div>
                   ) : (
-                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl p-4 shadow-sm">
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center">
-                            <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                          </div>
-                          <div>
-                            <p className="text-base font-bold text-green-900">
-                              {discountCode.code} Applied!
-                            </p>
-                            <p className="text-sm text-green-700">
-                              {discountCode.discountPercentage}% discount on your order
-                            </p>
-                          </div>
-                        </div>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={handleRemoveDiscount}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-100 font-semibold"
-                        >
-                          Remove
-                        </Button>
-                      </div>
+                    <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-3 py-2">
+                      <span className="text-sm font-semibold text-green-800 flex items-center gap-1.5">
+                        <Tag className="h-3.5 w-3.5" />
+                        {discountCode.code} &mdash; {discountCode.discountPercentage}% off
+                      </span>
+                      <button
+                        onClick={handleRemoveDiscount}
+                        className="text-xs text-red-500 hover:text-red-700 font-medium"
+                      >
+                        Remove
+                      </button>
                     </div>
                   )}
                 </div>
@@ -637,26 +622,11 @@ const Checkout: React.FC = () => {
                       {usd(taxCents / 100)}
                     </span>
                   </div>
-                  <div className="flex justify-between items-center border-t-2 border-[#18448D] pt-4 mt-4 bg-gradient-to-r from-blue-50 to-indigo-50 -mx-6 px-6 py-4 rounded-lg">
-                    <span className="text-xl font-bold text-[#18448D]">Total</span>
-                    <span className="text-3xl font-bold text-[#18448D]">
+                  <div className="flex justify-between items-center border-t border-gray-300 pt-3 mt-3">
+                    <span className="text-lg font-bold text-gray-900">Total</span>
+                    <span className="text-xl font-bold text-gray-900">
                       {usd(totalCents / 100)}
                     </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Shipping Info */}
-              <div className="bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl p-6 shadow-md">
-                <div className="flex items-start gap-4">
-                  <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center flex-shrink-0 shadow-lg">
-                    <Truck className="h-7 w-7 text-white" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-green-900 text-lg mb-2">🎉 FREE Next-Day Air Shipping!</h3>
-                    <p className="text-green-800 text-base leading-relaxed">
-                      Your order ships completely FREE via next-day air. After payment, we'll provide tracking information for your shipment.
-                    </p>
                   </div>
                 </div>
               </div>
