@@ -194,99 +194,45 @@ const GoogleAdsBanner: React.FC = () => {
         </header>
 
         {/* HERO */}
-        <section className="relative overflow-hidden pt-14 pb-16 md:pt-20 md:pb-20 px-4" style={{ background: 'linear-gradient(180deg, #F9FAFB 0%, #EEF2F7 100%)' }}>
-          {/* Subtle radial glow behind headline */}
-          <div className="absolute inset-0 flex items-start justify-center pointer-events-none" aria-hidden="true">
-            <div className="w-[600px] h-[400px] mt-8 rounded-full opacity-40" style={{ background: 'radial-gradient(circle, rgba(251,146,60,0.12) 0%, transparent 70%)' }} />
-          </div>
-
-          <div className="relative max-w-3xl mx-auto text-center">
-            <h1 className="text-3xl sm:text-4xl md:text-[3.25rem] font-black leading-[1.4] tracking-tight mb-7">
-              Custom Banner Printing&nbsp;&ndash;
+        <section className="px-4 pt-10 pb-12 md:pt-14 md:pb-14" style={{ background: 'linear-gradient(180deg, #F9FAFB 0%, #EEF2F7 100%)' }}>
+          <div className="max-w-2xl mx-auto text-center space-y-5">
+            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight leading-tight">
+              Custom Banner Printing
               <br />
-              <span className="text-orange-500">24&nbsp;Hour Production</span>
+              <span className="text-orange-500">24-Hour Production</span>
             </h1>
 
-            <p className="text-lg md:text-xl text-gray-500 mb-12 max-w-xl mx-auto leading-relaxed">
-              Upload your file, choose your size, and get{' '}
-              <strong className="text-gray-700 whitespace-nowrap">FREE Next-Day Air&nbsp;Shipping</strong>.
+            <p className="text-base md:text-lg text-gray-500 max-w-lg mx-auto leading-relaxed">
+              Upload your file, pick a size, and get <strong className="text-gray-700">FREE Next-Day Air Shipping</strong>.
             </p>
 
-            {/* Benefits strip */}
-            <div className="rounded-xl px-6 py-4 max-w-4xl mx-auto mb-10" style={{ background: '#F8F9FB' }}>
-              <div className="hidden md:flex items-center justify-between">
-                {[
-                  { icon: <Clock className="h-3.5 w-3.5 shrink-0" />, text: 'Printed in 24 Hours' },
-                  { icon: <Truck className="h-3.5 w-3.5 shrink-0" />, text: 'FREE Next-Day Air' },
-                  { icon: <Star className="h-3.5 w-3.5 shrink-0" />, text: '20% Off First Order (NEW20)' },
-                  { icon: <Shield className="h-3.5 w-3.5 shrink-0" />, text: 'Secure Checkout' },
-                  { icon: <Brush className="h-3.5 w-3.5 shrink-0" />, text: 'Reviewed by a Designer' },
-                ].map((item, i, arr) => (
-                  <React.Fragment key={i}>
-                    <div className="group flex items-center gap-2 py-1">
-                      <span className="text-orange-500 transition-colors group-hover:text-orange-600">
-                        {item.icon}
-                      </span>
-                      <span className="text-[13px] font-medium text-gray-600 tracking-wide">
-                        {item.text}
-                      </span>
-                    </div>
-                    {i < arr.length - 1 && (<div className="h-4 w-px bg-gray-200" />)}
-                  </React.Fragment>
-                ))}
-              </div>
-              <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:hidden">
-                {[
-                  { icon: <Clock className="h-3.5 w-3.5 shrink-0" />, text: 'Printed in 24 Hours' },
-                  { icon: <Truck className="h-3.5 w-3.5 shrink-0" />, text: 'FREE Next-Day Air' },
-                  { icon: <Star className="h-3.5 w-3.5 shrink-0" />, text: '20% Off (NEW20)' },
-                  { icon: <Shield className="h-3.5 w-3.5 shrink-0" />, text: 'Secure Checkout' },
-                  { icon: <Brush className="h-3.5 w-3.5 shrink-0" />, text: 'Designer Reviewed' },
-                ].map((item, i) => (
-                  <div key={i} className="flex items-center justify-center gap-1.5 py-1">
-                    <span className="text-orange-500">{item.icon}</span>
-                    <span className="text-[12px] font-medium text-gray-600">{item.text}</span>
-                  </div>
-                ))}
-              </div>
+            {/* Inline benefit pills */}
+            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[13px] text-gray-500">
+              {[
+                { icon: <Clock className="h-3.5 w-3.5 text-orange-500" />, label: '24-Hr Print' },
+                { icon: <Truck className="h-3.5 w-3.5 text-orange-500" />, label: 'Free Next-Day Air' },
+                { icon: <Tag className="h-3.5 w-3.5 text-orange-500" />, label: '20% Off \u00b7 NEW20' },
+                { icon: <Brush className="h-3.5 w-3.5 text-orange-500" />, label: 'Designer Reviewed' },
+              ].map((b, i) => (
+                <span key={i} className="inline-flex items-center gap-1.5 font-medium">
+                  {b.icon} {b.label}
+                </span>
+              ))}
             </div>
 
-            {/* CTA cluster */}
-            <div className="flex flex-col items-center gap-3">
+            <div className="pt-2 flex flex-col items-center gap-2">
               <button
                 onClick={scrollToOrder}
-                className="group inline-flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white font-bold text-lg px-10 py-4 rounded-xl shadow-[0_4px_14px_rgba(251,146,60,0.4)] hover:shadow-[0_6px_20px_rgba(251,146,60,0.5)] transition-all duration-150 w-full sm:w-auto"
+                className="group inline-flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white font-bold text-lg px-10 py-4 rounded-xl shadow-[0_4px_14px_rgba(251,146,60,0.4)] hover:shadow-[0_6px_20px_rgba(251,146,60,0.5)] transition-all w-full sm:w-auto"
               >
                 Start Your Order
                 <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
               </button>
-              <span className="text-xs text-gray-400 tracking-wide">Takes less than 60 seconds</span>
-            </div>
-
-            {/* Secondary link */}
-            <a
-              href="/design"
-              className="inline-block mt-4 text-sm text-gray-400 hover:text-gray-600 hover:underline transition-colors"
-            >
-              Need help designing? Use our free design tool
-            </a>
-
-
-          </div>
-        </section>
-
-
-        {/* Product Gallery */}
-        <section className="py-10 px-4 bg-white">
-          <div className="max-w-4xl mx-auto">
-            <h2 className="text-2xl font-bold text-center mb-6">Our Banners in Action</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <img src="https://res.cloudinary.com/dtrxl120u/image/upload/v1759799151/banner-outdoor-event_sample.jpg" alt="Outdoor event banner" className="rounded-xl w-full h-48 object-cover" loading="lazy" />
-              <img src="https://res.cloudinary.com/dtrxl120u/image/upload/v1759799151/banner-storefront_sample.jpg" alt="Storefront banner" className="rounded-xl w-full h-48 object-cover" loading="lazy" />
-              <img src="https://res.cloudinary.com/dtrxl120u/image/upload/v1759799151/banner-tradeshow_sample.jpg" alt="Trade show banner" className="rounded-xl w-full h-48 object-cover" loading="lazy" />
+              <span className="text-xs text-gray-400">Takes less than 60 seconds &middot; <a href="/design" className="underline hover:text-gray-600">or use our free design tool</a></span>
             </div>
           </div>
         </section>
+
 
         <section ref={orderRef} id="order-builder" className="py-12 px-4 bg-white">
           <div className="max-w-4xl mx-auto">
