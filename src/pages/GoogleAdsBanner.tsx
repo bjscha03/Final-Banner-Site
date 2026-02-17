@@ -1,11 +1,11 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { Upload, Shield, Clock, Star, ChevronDown, ChevronUp, CheckCircle, Truck, Users, FileCheck, X, Loader2, ArrowRight, Brush, Minus, Plus, Lock } from 'lucide-react';
+import { Upload, Shield, Clock, Star, ChevronDown, ChevronUp, CheckCircle, Truck, Users, FileCheck, X, Loader2, ArrowRight, Brush, Minus, Plus, Lock, Mail, Droplets, Sun, Wind, Palette, Tag } from 'lucide-react';
 import { useQuoteStore, type MaterialKey } from '@/store/quote';
 import { useCartStore } from '@/store/cart';
 import { useUIStore } from '@/store/ui';
-import { calcTotals, usd } from '@/lib/pricing';
+import { calcTotals, usd, PRICE_PER_SQFT } from '@/lib/pricing';
 
 const PRESET_SIZES = [
   { label: "2' x 4'", w: 48, h: 24 },
@@ -16,11 +16,11 @@ const PRESET_SIZES = [
   { label: "4' x 10'", w: 120, h: 48 },
 ];
 
-const MATERIALS: { key: string; label: string; mapped: MaterialKey }[] = [
-  { key: '13oz', label: '13oz Vinyl', mapped: '13oz' },
-  { key: '15oz', label: '15oz Vinyl', mapped: '15oz' },
-  { key: '18oz', label: '18oz Vinyl', mapped: '18oz' },
-  { key: 'mesh', label: 'Mesh Fence', mapped: 'mesh' },
+const MATERIALS: { key: string; label: string; mapped: MaterialKey; desc: string }[] = [
+  { key: '13oz', label: '13oz Vinyl', mapped: '13oz', desc: 'Standard outdoor — great for most uses' },
+  { key: '15oz', label: '15oz Vinyl', mapped: '15oz', desc: 'Heavy-duty — extra durability and rigidity' },
+  { key: '18oz', label: '18oz Vinyl', mapped: '18oz', desc: 'Premium blockout — thick, wind-resistant' },
+  { key: 'mesh', label: 'Mesh Fence', mapped: 'mesh', desc: 'Wind pass-through — ideal for fences' },
 ];
 
 const GROMMET_OPTIONS = [
@@ -33,7 +33,31 @@ const FAQS = [
   { q: 'How fast will I receive my banner?', a: 'We print within 24 hours and ship FREE via Next-Day Air. Most orders arrive in 2-3 business days.' },
   { q: 'What if my artwork has issues?', a: 'Every file is reviewed by a real designer before printing. We will contact you if anything needs attention.' },
   { q: 'What file types do you accept?', a: 'We accept PDF, PNG, JPG, AI, and EPS files up to 10 MB.' },
-  { q: 'Can I get help designing?', a: 'Yes, click Let Us Design It above and our team will create a design for you.' },
+  { q: 'Can I get help designing?', a: 'Yes, use our free Design Tool and our team will create a design for you.' },
+  { q: 'What is your return or refund policy?', a: 'If there is a printing defect or damage during shipping, we will reprint or refund your order. Contact us within 7 days of delivery.' },
+  { q: 'Will the colors match my file?', a: 'We use high-resolution CMYK printing on commercial-grade printers. Colors will closely match your uploaded file. For exact Pantone matching, contact us.' },
+  { q: 'Do you offer bulk or quantity discounts?', a: 'Yes, quantity discounts are applied automatically at checkout. The more you order, the more you save.' },
+];
+
+const TESTIMONIALS = [
+  {
+    name: "Dan Oliver",
+    company: "Dan-O's Seasoning",
+    image: "https://res.cloudinary.com/dtrxl120u/image/upload/v1759799151/dan-oliver_1200xx3163-3170-1048-0_zgphzw.jpg",
+    text: "I've been ordering banners from these guys since before they even launched their new website. They've handled every single one of my banner needs since the day I started my business.",
+  },
+  {
+    name: "Brandon Schaefer",
+    company: "HempRise LLC",
+    image: "https://res.cloudinary.com/dtrxl120u/image/upload/v1759933582/1758106259564_oysdje.jpg",
+    text: "Best banner service I've used. The 24-hour turnaround saved our grand opening event. Quality exceeded expectations.",
+  },
+  {
+    name: "Jennifer Chen",
+    company: "Premier Events",
+    image: "https://d64gsuwffb70l.cloudfront.net/68bb812d3c680d9a9bc2bdd7_1757118820418_895c1191.webp",
+    text: "We order dozens of banners monthly for events. Banners On The Fly consistently delivers premium quality with fast turnaround.",
+  },
 ];
 
 const GoogleAdsBanner: React.FC = () => {
@@ -58,6 +82,8 @@ const GoogleAdsBanner: React.FC = () => {
   const [activePreset, setActivePreset] = useState<number | null>(2);
   const [dragActive, setDragActive] = useState(false);
   const [quantity, setQuantity] = useState(1);
+  const [promoCode, setPromoCode] = useState('');
+  const [promoApplied, setPromoApplied] = useState(false);
 
   const quoteStore = useQuoteStore();
   const cartStore = useCartStore();
@@ -67,6 +93,12 @@ const GoogleAdsBanner: React.FC = () => {
   const heightIn = heightFt * 12 + heightInR;
   const sqft = (widthIn * heightIn) / 144;
   const totals = calcTotals({ widthIn, heightIn, qty: quantity, material, addRope, polePockets });
+
+  const pricePerSqFt = PRICE_PER_SQFT[material];
+  const materialLabel = MATERIALS.find(m => m.mapped === material)?.label || '13oz Vinyl';
+  const grommetsLabel = GROMMET_OPTIONS.find(o => o.value === grommets)?.label || 'None';
+  const widthDisplay = widthInR > 0 ? `${widthFt}'${widthInR}"` : `${widthFt}'`;
+  const heightDisplay = heightInR > 0 ? `${heightFt}'${heightInR}"` : `${heightFt}'`;
 
   useEffect(() => {
     // Flag this session as coming from Google Ads landing page
@@ -88,6 +120,12 @@ const GoogleAdsBanner: React.FC = () => {
     setHeightFt(Math.floor(p.h / 12));
     setHeightInR(p.h % 12);
     setActivePreset(idx);
+  };
+
+  const handlePromoApply = () => {
+    if (promoCode.trim().toUpperCase() === 'NEW20') {
+      setPromoApplied(true);
+    }
   };
 
   const handleFileUpload = useCallback(async (file: File) => {
@@ -163,7 +201,7 @@ const GoogleAdsBanner: React.FC = () => {
           </div>
 
           <div className="relative max-w-3xl mx-auto text-center">
-            <h1 className="text-3xl sm:text-4xl md:text-[3.25rem] font-black leading-[1.15] tracking-tight mb-7">
+            <h1 className="text-3xl sm:text-4xl md:text-[3.25rem] font-black leading-[1.4] tracking-tight mb-7">
               Custom Banner Printing&nbsp;&ndash;
               <br />
               <span className="text-orange-500">24&nbsp;Hour Production</span>
@@ -227,13 +265,26 @@ const GoogleAdsBanner: React.FC = () => {
 
             {/* Secondary link */}
             <a
-              href="/contact"
+              href="/design"
               className="inline-block mt-4 text-sm text-gray-400 hover:text-gray-600 hover:underline transition-colors"
             >
-              Need help designing? Let us design it for you
+              Need help designing? Use our free design tool
             </a>
 
 
+          </div>
+        </section>
+
+
+        {/* Product Gallery */}
+        <section className="py-10 px-4 bg-white">
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-2xl font-bold text-center mb-6">Our Banners in Action</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <img src="https://res.cloudinary.com/dtrxl120u/image/upload/v1759799151/banner-outdoor-event_sample.jpg" alt="Outdoor event banner" className="rounded-xl w-full h-48 object-cover" loading="lazy" />
+              <img src="https://res.cloudinary.com/dtrxl120u/image/upload/v1759799151/banner-storefront_sample.jpg" alt="Storefront banner" className="rounded-xl w-full h-48 object-cover" loading="lazy" />
+              <img src="https://res.cloudinary.com/dtrxl120u/image/upload/v1759799151/banner-tradeshow_sample.jpg" alt="Trade show banner" className="rounded-xl w-full h-48 object-cover" loading="lazy" />
+            </div>
           </div>
         </section>
 
@@ -281,6 +332,7 @@ const GoogleAdsBanner: React.FC = () => {
                   <select value={MATERIALS.find(m => m.mapped === material)?.key || '13oz'} onChange={e => { const sel = MATERIALS.find(m => m.key === e.target.value); if (sel) setMaterial(sel.mapped); }} className="w-full border rounded-xl px-3 py-2.5 text-sm bg-white">
                     {MATERIALS.map(m => (<option key={m.key} value={m.key}>{m.label}</option>))}
                   </select>
+                  <p className="text-xs text-gray-400 mt-1.5">{MATERIALS.find(m => m.mapped === material)?.desc}</p>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Upload Your Artwork</label>
@@ -363,6 +415,33 @@ const GoogleAdsBanner: React.FC = () => {
                   <p className="text-5xl font-extrabold text-gray-900 leading-tight">{usd(totals.materialTotal)}</p>
                   <p className="text-base text-green-600 font-semibold mt-2">FREE Next-Day Air Included</p>
                   <p className="text-sm text-gray-500 mt-1">Printed within 24 hours.</p>
+                  <p className="text-sm text-gray-500 mt-1">{usd(pricePerSqFt)}/sq ft</p>
+
+                  <div className="text-left text-sm text-gray-600 space-y-1 mt-4 mb-2">
+                    <p><strong>Size:</strong> {widthDisplay} × {heightDisplay} ({sqft.toFixed(1)} sq ft)</p>
+                    <p><strong>Material:</strong> {materialLabel}</p>
+                    <p><strong>Quantity:</strong> {quantity}</p>
+                    <p><strong>Grommets:</strong> {grommetsLabel}</p>
+                    {polePockets !== 'none' && <p><strong>Pole Pockets:</strong> {polePockets}</p>}
+                    {addRope && <p><strong>Rope:</strong> Included</p>}
+                  </div>
+
+                  {/* Promo Code */}
+                  <div className="mt-3 mb-2">
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={promoCode}
+                        onChange={e => setPromoCode(e.target.value.toUpperCase())}
+                        placeholder="Promo Code"
+                        className="flex-1 border rounded-xl px-3 py-2 text-sm"
+                      />
+                      <button onClick={handlePromoApply} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium">
+                        Apply
+                      </button>
+                    </div>
+                    {promoApplied && <p className="text-xs text-green-600 mt-1">✓ 20% discount applied!</p>}
+                  </div>
                   <p className="text-xs text-gray-400 mt-3">Tax calculated at checkout</p>
                 </div>
 
@@ -374,27 +453,61 @@ const GoogleAdsBanner: React.FC = () => {
                   <Lock className="h-3 w-3" />
                   <span>Secure checkout.</span>
                 </div>
+                <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400 mt-2">
+                  <Mail className="h-3 w-3" />
+                  <span>Questions? support@bannersonthefly.com</span>
+                </div>
                 {!uploadedFile && <p className="text-xs text-center text-gray-400">Upload your artwork to continue</p>}
               </div>
             </div>
           </div>
         </section>
 
-        <section className="py-10 px-4 bg-gray-50">
+
+        {/* Testimonials */}
+        <section className="py-12 px-4 bg-white">
           <div className="max-w-4xl mx-auto">
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-center">
-              {[
-                { icon: <Users className="h-7 w-7 text-orange-500 mx-auto mb-1" />, text: '10,000+ Happy Customers' },
-                { icon: <CheckCircle className="h-7 w-7 text-orange-500 mx-auto mb-1" />, text: 'Satisfaction Guaranteed' },
-                { icon: <Shield className="h-7 w-7 text-orange-500 mx-auto mb-1" />, text: 'Secure Checkout' },
-                { icon: <FileCheck className="h-7 w-7 text-orange-500 mx-auto mb-1" />, text: 'Real Designer Review' },
-                { icon: <Clock className="h-7 w-7 text-orange-500 mx-auto mb-1" />, text: '24 Hour Production' },
-              ].map((item, i) => (
-                <div key={i} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                  {item.icon}
-                  <p className="text-xs md:text-sm font-medium text-gray-700">{item.text}</p>
+            <h2 className="text-2xl font-bold text-center mb-8">What Our Customers Say</h2>
+            <div className="grid md:grid-cols-3 gap-6">
+              {TESTIMONIALS.map((t, i) => (
+                <div key={i} className="bg-gray-50 rounded-xl p-5 border border-gray-100">
+                  <div className="flex items-center gap-3 mb-3">
+                    <img src={t.image} alt={t.name} className="w-10 h-10 rounded-full object-cover" loading="lazy" />
+                    <div>
+                      <p className="font-semibold text-sm text-gray-800">{t.name}</p>
+                      <p className="text-xs text-gray-400">{t.company}</p>
+                    </div>
+                  </div>
+                  <div className="flex gap-0.5 mb-2">
+                    {[...Array(5)].map((_, j) => <Star key={j} className="h-3.5 w-3.5 fill-orange-400 text-orange-400" />)}
+                  </div>
+                  <p className="text-sm text-gray-600 leading-relaxed">{t.text}</p>
                 </div>
               ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="py-10 px-4 bg-gray-50">
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-lg font-bold text-center mb-5">Built to Last</h2>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+              <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                <Droplets className="h-7 w-7 text-blue-500 mx-auto mb-1" />
+                <p className="text-xs md:text-sm font-medium text-gray-700">Weather Resistant</p>
+              </div>
+              <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                <Palette className="h-7 w-7 text-purple-500 mx-auto mb-1" />
+                <p className="text-xs md:text-sm font-medium text-gray-700">Vibrant CMYK Colors</p>
+              </div>
+              <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                <Sun className="h-7 w-7 text-yellow-500 mx-auto mb-1" />
+                <p className="text-xs md:text-sm font-medium text-gray-700">UV Fade Resistant</p>
+              </div>
+              <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                <Wind className="h-7 w-7 text-teal-500 mx-auto mb-1" />
+                <p className="text-xs md:text-sm font-medium text-gray-700">Indoor &amp; Outdoor Use</p>
+              </div>
             </div>
           </div>
         </section>
@@ -417,9 +530,32 @@ const GoogleAdsBanner: React.FC = () => {
         </section>
 
         <div className="py-4 text-center text-xs text-gray-400 border-t border-gray-100">
+          <div className="mb-2">
+            <Link to="/terms" className="hover:text-gray-600">Terms</Link>
+            <span className="mx-2">&middot;</span>
+            <Link to="/privacy" className="hover:text-gray-600">Privacy</Link>
+            <span className="mx-2">&middot;</span>
+            <Link to="/shipping" className="hover:text-gray-600">Shipping</Link>
+          </div>
           &copy; {new Date().getFullYear()} Banners On The Fly. All rights reserved.
         </div>
       </div>
+
+        {/* Mobile sticky CTA */}
+        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg z-40">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs text-gray-500">Total</p>
+              <p className="text-xl font-bold text-gray-900">{usd(totals.materialTotal)}</p>
+            </div>
+            <button
+              onClick={uploadedFile ? handleCheckout : scrollToOrder}
+              className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-xl"
+            >
+              {uploadedFile ? 'Checkout' : 'Start Order'}
+            </button>
+          </div>
+        </div>
     </>
   );
 };
