@@ -163,31 +163,33 @@ const GoogleAdsBanner: React.FC = () => {
           </div>
 
           <div className="relative max-w-3xl mx-auto text-center">
-            <h1 className="text-3xl sm:text-4xl md:text-[3.25rem] font-black leading-[1.15] tracking-tight mb-5">
+            <h1 className="text-3xl sm:text-4xl md:text-[3.25rem] font-black leading-[1.15] tracking-tight mb-7">
               Custom Banner Printing&nbsp;&ndash;
               <br />
               <span className="text-orange-500">24&nbsp;Hour Production</span>
             </h1>
 
-            <p className="text-lg md:text-xl text-gray-500 mb-10 max-w-xl mx-auto leading-relaxed">
+            <p className="text-lg md:text-xl text-gray-500 mb-12 max-w-xl mx-auto leading-relaxed">
               Upload your file, choose your size, and get{' '}
               <strong className="text-gray-700 whitespace-nowrap">FREE Next-Day Air&nbsp;Shipping</strong>.
             </p>
 
-            {/* Trust icon row */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-x-4 gap-y-3 max-w-2xl mx-auto mb-10">
-              {[
-                { icon: <Clock className="h-4 w-4 text-orange-500 shrink-0" />, text: 'Printed within 24 hours' },
-                { icon: <Truck className="h-4 w-4 text-orange-500 shrink-0" />, text: 'Free Next-Day Air' },
-                { icon: <Star className="h-4 w-4 text-orange-500 shrink-0" />, label: <>20% Off <span className="font-semibold">NEW20</span></> },
-                { icon: <Shield className="h-4 w-4 text-orange-500 shrink-0" />, text: 'Secure Checkout' },
-                { icon: <Brush className="h-4 w-4 text-orange-500 shrink-0" />, text: 'Real Designer Review' },
-              ].map((item, i) => (
-                <div key={i} className="flex items-center justify-center gap-1.5 text-[13px] md:text-sm text-gray-600">
-                  {item.icon}
-                  <span>{item.label || item.text}</span>
-                </div>
-              ))}
+            {/* Benefits strip */}
+            <div className="rounded-xl px-4 py-3.5 md:py-4 max-w-3xl mx-auto mb-10" style={{ background: '#F8F9FB' }}>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-x-2 gap-y-3 md:gap-y-0">
+                {[
+                  { icon: <Clock className="h-3.5 w-3.5 shrink-0" />, text: 'Printed in 24 Hours' },
+                  { icon: <Truck className="h-3.5 w-3.5 shrink-0" />, text: 'FREE Next-Day Air' },
+                  { icon: <Star className="h-3.5 w-3.5 shrink-0" />, text: '20% Off First Order (NEW20)' },
+                  { icon: <Shield className="h-3.5 w-3.5 shrink-0" />, text: 'Secure Checkout' },
+                  { icon: <Brush className="h-3.5 w-3.5 shrink-0" />, text: 'Reviewed by a Real Designer' },
+                ].map((item, i) => (
+                  <div key={i} className="group flex items-center justify-center gap-1.5 py-1">
+                    <span className="text-orange-500 transition-colors group-hover:text-orange-600">{item.icon}</span>
+                    <span className="text-[12.5px] md:text-[13px] font-medium text-gray-600 tracking-wide whitespace-nowrap">{item.text}</span>
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* CTA cluster */}
