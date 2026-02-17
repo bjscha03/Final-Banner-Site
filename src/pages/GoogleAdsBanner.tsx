@@ -175,18 +175,39 @@ const GoogleAdsBanner: React.FC = () => {
             </p>
 
             {/* Benefits strip */}
-            <div className="rounded-xl px-4 py-3.5 md:py-4 max-w-3xl mx-auto mb-10" style={{ background: '#F8F9FB' }}>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-x-2 gap-y-3 md:gap-y-0">
+            <div className="rounded-xl px-6 py-4 max-w-4xl mx-auto mb-10" style={{ background: '#F8F9FB' }}>
+              <div className="hidden md:flex items-center justify-between">
                 {[
                   { icon: <Clock className="h-3.5 w-3.5 shrink-0" />, text: 'Printed in 24 Hours' },
                   { icon: <Truck className="h-3.5 w-3.5 shrink-0" />, text: 'FREE Next-Day Air' },
                   { icon: <Star className="h-3.5 w-3.5 shrink-0" />, text: '20% Off First Order (NEW20)' },
                   { icon: <Shield className="h-3.5 w-3.5 shrink-0" />, text: 'Secure Checkout' },
-                  { icon: <Brush className="h-3.5 w-3.5 shrink-0" />, text: 'Reviewed by a Real Designer' },
+                  { icon: <Brush className="h-3.5 w-3.5 shrink-0" />, text: 'Reviewed by a Designer' },
+                ].map((item, i, arr) => (
+                  <React.Fragment key={i}>
+                    <div className="group flex items-center gap-2 py-1">
+                      <span className="text-orange-500 transition-colors group-hover:text-orange-600">
+                        {item.icon}
+                      </span>
+                      <span className="text-[13px] font-medium text-gray-600 tracking-wide">
+                        {item.text}
+                      </span>
+                    </div>
+                    {i < arr.length - 1 && (<div className="h-4 w-px bg-gray-200" />)}
+                  </React.Fragment>
+                ))}
+              </div>
+              <div className="grid grid-cols-2 gap-x-6 gap-y-3 md:hidden">
+                {[
+                  { icon: <Clock className="h-3.5 w-3.5 shrink-0" />, text: 'Printed in 24 Hours' },
+                  { icon: <Truck className="h-3.5 w-3.5 shrink-0" />, text: 'FREE Next-Day Air' },
+                  { icon: <Star className="h-3.5 w-3.5 shrink-0" />, text: '20% Off (NEW20)' },
+                  { icon: <Shield className="h-3.5 w-3.5 shrink-0" />, text: 'Secure Checkout' },
+                  { icon: <Brush className="h-3.5 w-3.5 shrink-0" />, text: 'Designer Reviewed' },
                 ].map((item, i) => (
-                  <div key={i} className="group flex items-center justify-center gap-1.5 py-1">
-                    <span className="text-orange-500 transition-colors group-hover:text-orange-600">{item.icon}</span>
-                    <span className="text-[12.5px] md:text-[13px] font-medium text-gray-600 tracking-wide whitespace-nowrap">{item.text}</span>
+                  <div key={i} className="flex items-center justify-center gap-1.5 py-1">
+                    <span className="text-orange-500">{item.icon}</span>
+                    <span className="text-[12px] font-medium text-gray-600">{item.text}</span>
                   </div>
                 ))}
               </div>
