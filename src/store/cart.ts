@@ -92,6 +92,9 @@ export interface CartItem {
   };
   created_at: string;
 
+  // Source tracking: which page/flow created this cart item
+  source?: 'google-ads' | 'design' | 'homepage';
+
   // Final render snapshot for pixel-perfect admin PDF generation
   // These fields capture exactly what the user saw at checkout time
   final_render_url?: string;           // Cloudinary URL of high-res canvas snapshot
@@ -390,6 +393,8 @@ export const useCartStore = create<CartState>()(
           artwork_width: quote.file?.artworkWidth,
           artwork_height: quote.file?.artworkHeight,
           created_at: new Date().toISOString(),
+          // Auto-detect source based on current page
+          source: (typeof window !== 'undefined' && window.location.pathname.includes('google-ads')) ? 'google-ads' : 'design',
           // FINAL_RENDER: High-res snapshot for admin PDF
           final_render_url: (quote as any).finalRenderUrl || undefined,
           final_render_file_key: (quote as any).finalRenderFileKey || undefined,

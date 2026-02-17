@@ -33,8 +33,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
   const { loadFromCartItem } = useQuoteStore();
   const { user } = useAuth();
 
-  // Detect if user came from Google Ads landing page
-  const isGoogleAdsLanding = typeof sessionStorage !== 'undefined' && sessionStorage.getItem('isGoogleAdsLanding') === 'true';
+  // Per-item source detection replaces session-wide isGoogleAdsLanding flag
+  // Each cart item now has a 'source' field set at add-to-cart time
 
   // Hide Tidio chat widget when cart modal is open
   useEffect(() => {
@@ -254,7 +254,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                     <div key={item.id} className="bg-white rounded-xl p-4 shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
                       {/* Thumbnail on top - centered */}
                       <div className="flex justify-center mb-4">
-                        {isGoogleAdsLanding ? (
+                        {item.source === 'google-ads' ? (
                           (() => {
                             const imgSrc = item.thumbnail_url || item.file_url || item.web_preview_url || item.print_ready_url || item.aiDesign?.assets?.proofUrl;
                             return imgSrc ? (
@@ -379,7 +379,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                         </div>
                         
                         <div className="flex items-center gap-1.5">
-                          {!isGoogleAdsLanding && (
+                          {item.source !== 'google-ads' && (
                             <button 
                               onClick={() => handleEdit(item.id)} 
                               className="flex items-center gap-1 px-2.5 py-1.5 bg-[#18448D] hover:bg-[#0f2d5c] text-white rounded-lg text-xs font-medium transition-colors shadow-sm hover:shadow-md"

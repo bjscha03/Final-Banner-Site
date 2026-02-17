@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useMemo, useEffect } from 'react';
 import { X, Upload, FileText, Image as ImageIcon, Loader2, AlertTriangle, Check, Package, Palette, Settings, ShoppingCart } from 'lucide-react';
 import { useQuoteStore } from '@/store/quote';
 import { useCartStore } from '@/store/cart';
@@ -8,6 +8,7 @@ import MaterialCard from './MaterialCard';
 import OptionsCard from './OptionsCard';
 import SizeCard from './SizeCard';
 import { calcTotals } from '@/lib/pricing';
+import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
 
 interface PrintReadyUploadPanelProps {
   open: boolean;
@@ -23,6 +24,24 @@ const PrintReadyUploadPanel: React.FC<PrintReadyUploadPanelProps> = ({ open, onC
   const [uploadError, setUploadError] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
+
+  // Upsell modal state
+  const [showUpsellModal, setShowUpsellModal] = useState(false);
+  const [dontShowUpsellAgain, setDontShowUpsellAgain] = useState(false);
+
+  useEffect(() => {
+    const dontShow = localStorage.getItem('upsell-dont-show-again') === 'true';
+    setDontShowUpsellAgain(dontShow);
+  }, []);
+
+  const shouldShowUpsell = useMemo(() => {
+    if (dontShowUpsellAgain) return false;
+    let availableOptions = 0;
+    if (quote.grommets === 'none' && quote.polePockets === 'none') availableOptions++;
+    if (!quote.addRope) availableOptions++;
+    if (quote.polePockets === 'none' && quote.grommets === 'none') availableOptions++;
+    return availableOptions > 0;
+  }, [quote.grommets, quote.addRope, quote.polePockets, dontShowUpsellAgain]);
 
   const maxSizeBytes = 10 * 1024 * 1024;
 
@@ -185,6 +204,12 @@ const PrintReadyUploadPanel: React.FC<PrintReadyUploadPanelProps> = ({ open, onC
       return;
     }
 
+    // Show upsell modal if available options exist
+    if (shouldShowUpsell) {
+      setShowUpsellModal(true);
+      return;
+    }
+
     setIsAddingToCart(true);
 
     try {
@@ -224,6 +249,57 @@ const PrintReadyUploadPanel: React.FC<PrintReadyUploadPanelProps> = ({ open, onC
     } finally {
       setIsAddingToCart(false);
     }
+  };
+
+  const handleUpsellContinue = (selectedOptions: UpsellOption[], dontAskAgain: boolean) => {
+    setShowUpsellModal(false);
+    if (dontAskAgain) {
+      localStorage.setItem('upsell-dont-show-again', 'true');
+      setDontShowUpsellAgain(true);
+    }
+    selectedOptions.forEach(option => {
+      if (option.selected) {
+        switch (option.id) {
+          case 'grommets':
+            if (option.grommetSelection) quote.set({ grommets: option.grommetSelection as any });
+            break;
+          case 'rope':
+            quote.set({ addRope: true });
+            break;
+          case 'polePockets':
+            if (option.polePocketSelection) quote.set({ polePockets: option.polePocketSelection as any });
+            if (option.polePocketSize) quote.set({ polePocketSize: option.polePocketSize as any });
+            break;
+        }
+      }
+    });
+    const q = useQuoteStore.getState();
+    const totals = calcTotals({
+      widthIn: q.widthIn,
+      heightIn: q.heightIn,
+      qty: q.quantity,
+      material: q.material,
+      addRope: q.addRope,
+      polePockets: q.polePockets
+    });
+    const pricing = {
+      unit_price_cents: Math.round(totals.unit * 100),
+      rope_cost_cents: Math.round(totals.rope * 100),
+      rope_pricing_mode: 'per_item' as const,
+      pole_pocket_cost_cents: Math.round(totals.polePocket * 100),
+      pole_pocket_pricing_mode: 'per_item' as const,
+      line_total_cents: Math.round(totals.materialTotal * 100),
+    };
+    addFromQuote(q, undefined, pricing);
+    toast({
+      title: "Added to Cart",
+      description: q.widthIn + '" × ' + q.heightIn + '" banner added successfully.',
+    });
+    onClose();
+  };
+
+  const handleUpsellClose = () => {
+    setShowUpsellModal(false);
   };
 
   return (
@@ -386,6 +462,14 @@ const PrintReadyUploadPanel: React.FC<PrintReadyUploadPanelProps> = ({ open, onC
           </div>
         </div>
       </div>
+
+      <UpsellModal
+        isOpen={showUpsellModal}
+        onClose={handleUpsellClose}
+        quote={quote}
+        onContinue={handleUpsellContinue}
+        actionType="cart"
+      />
     </>
   );
 };
