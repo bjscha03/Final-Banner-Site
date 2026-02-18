@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, ShoppingCart, CreditCard, Check, ChevronDown, Eye } from 'lucide-react';
+import { X, ShoppingCart, CreditCard, Check, ChevronDown, Eye, Loader2 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { QuoteState, Grommets, PolePocketSize } from '@/store/quote';
 import { formatDimensions, usd, ropeCost, polePocketCost } from '@/lib/pricing';
@@ -52,6 +52,7 @@ export interface UpsellModalProps {
   onContinue: (selectedOptions: UpsellOption[], dontAskAgain: boolean) => void;
   actionType: 'cart' | 'checkout' | 'update';
   designServiceEnabled?: boolean; // For design service orders to show placeholder thumbnail
+  isProcessing?: boolean; // Show loading state on buttons during async operations
 }
 
 const UpsellModal: React.FC<UpsellModalProps> = ({
@@ -62,6 +63,7 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
   onContinue,
   actionType,
   designServiceEnabled = false,
+  isProcessing = false,
 }) => {
   const [selectedOptions, setSelectedOptions] = useState<UpsellOption[]>([]);
   const [dontAskAgain, setDontAskAgain] = useState(false);
@@ -192,12 +194,14 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
   // Handle continue with selected options
   const handleContinue = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent click from bubbling to backdrop
+    if (isProcessing) return; // Prevent double-clicks during processing
     onContinue(selectedOptions, dontAskAgain);
   };
 
   // Handle skip without options
   const handleSkip = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent click from bubbling to backdrop
+    if (isProcessing) return; // Prevent double-clicks during processing
     onContinue([], dontAskAgain);
   };
 
@@ -450,26 +454,43 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
           <div className="space-y-3">
             <button
               onClick={handleContinue}
+              disabled={isProcessing}
               className={`w-full py-4 px-6 rounded-xl font-bold text-white transition-all ${
-                hasSelectedOptions
-                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
-                  : 'bg-gray-900 hover:bg-black'
+                isProcessing
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : hasSelectedOptions
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700'
+                    : 'bg-gray-900 hover:bg-black'
               }`}
             >
               <div className="flex items-center justify-center gap-3">
-                {React.createElement(actionIcon, { className: "h-5 w-5" })}
-                <span>
-                  {hasSelectedOptions 
-                    ? `Add Selected & ${actionText} (+${usd(totalAdditionalCost)})`
-                    : actionText
-                  }
-                </span>
+                {isProcessing ? (
+                  <>
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                    <span>Processing...</span>
+                  </>
+                ) : (
+                  <>
+                    {React.createElement(actionIcon, { className: "h-5 w-5" })}
+                    <span>
+                      {hasSelectedOptions 
+                        ? `Add Selected & ${actionText} (+${usd(totalAdditionalCost)})`
+                        : actionText
+                      }
+                    </span>
+                  </>
+                )}
               </div>
             </button>
             
             <button
               onClick={handleSkip}
-              className="w-full py-3 px-4 border-2 border-gray-300 rounded-xl font-semibold text-gray-700 hover:bg-gray-50 transition-colors"
+              disabled={isProcessing}
+              className={`w-full py-3 px-4 border-2 border-gray-300 rounded-xl font-semibold transition-colors ${
+                isProcessing
+                  ? 'text-gray-400 cursor-not-allowed'
+                  : 'text-gray-700 hover:bg-gray-50'
+              }`}
             >
               No thanks, continue without
             </button>

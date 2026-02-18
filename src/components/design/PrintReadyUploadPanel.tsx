@@ -27,6 +27,7 @@ const PrintReadyUploadPanel: React.FC<PrintReadyUploadPanelProps> = ({ open, onC
 
   // Upsell modal state
   const [showUpsellModal, setShowUpsellModal] = useState(false);
+  const [isProcessingUpsell, setIsProcessingUpsell] = useState(false);
   const [dontShowUpsellAgain, setDontShowUpsellAgain] = useState(false);
 
   useEffect(() => {
@@ -252,6 +253,7 @@ const PrintReadyUploadPanel: React.FC<PrintReadyUploadPanelProps> = ({ open, onC
   };
 
   const handleUpsellContinue = (selectedOptions: UpsellOption[], dontAskAgain: boolean) => {
+    setIsProcessingUpsell(true);
     setShowUpsellModal(false);
     if (dontAskAgain) {
       sessionStorage.setItem('upsell-dont-show-again', 'true');
@@ -295,6 +297,7 @@ const PrintReadyUploadPanel: React.FC<PrintReadyUploadPanelProps> = ({ open, onC
       title: "Added to Cart",
       description: q.widthIn + '" × ' + q.heightIn + '" banner added successfully.',
     });
+    setIsProcessingUpsell(false);
     onClose();
   };
 
@@ -469,6 +472,7 @@ const PrintReadyUploadPanel: React.FC<PrintReadyUploadPanelProps> = ({ open, onC
         quote={quote}
         onContinue={handleUpsellContinue}
         actionType="cart"
+        isProcessing={isProcessingUpsell}
       />
     </>
   );

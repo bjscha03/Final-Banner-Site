@@ -59,6 +59,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
   const canvasRef = useRef<any>(null);
   const [showPreview, setShowPreview] = useState(false);
   const [showUpsellModal, setShowUpsellModal] = useState(false);
+  const [isProcessingUpsell, setIsProcessingUpsell] = useState(false);
   const [pendingAction, setPendingAction] = useState<'cart' | 'checkout' | null>(null);
   const [dontShowUpsellAgain, setDontShowUpsellAgain] = useState(false);
 
@@ -1515,6 +1516,8 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
   };
 
   const handleUpsellContinue = async (selectedOptions: UpsellOption[], dontAskAgain: boolean) => {
+    setIsProcessingUpsell(true);
+    try {
     console.log("[BannerEditorLayout] handleUpsellContinue called with:", { selectedOptions, dontAskAgain, pendingAction, designServiceMode });
 
     // Save "don't ask again" preference
@@ -1937,6 +1940,9 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
     }
     
     setPendingAction(null);
+    } finally {
+      setIsProcessingUpsell(false);
+    }
   };
 
   const handleUpsellClose = () => {
@@ -2494,6 +2500,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
         onContinue={handleUpsellContinue}
         actionType={pendingAction || 'cart'}
         designServiceEnabled={designServiceMode}
+        isProcessing={isProcessingUpsell}
       />
 
     </>

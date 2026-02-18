@@ -35,6 +35,7 @@ const PricingCard: React.FC = () => {
   
   // Upsell modal state
   const [showUpsellModal, setShowUpsellModal] = useState(false);
+  const [isProcessingUpsell, setIsProcessingUpsell] = useState(false);
   const [pendingAction, setPendingAction] = useState<'cart' | 'checkout' | null>(null);
   const [dontShowUpsellAgain, setDontShowUpsellAgain] = useState(false);
 
@@ -573,6 +574,7 @@ const PricingCard: React.FC = () => {
 
   // Handle upsell modal continue
   const handleUpsellContinue = (selectedOptions: UpsellOption[], dontAskAgain: boolean) => {
+    setIsProcessingUpsell(true);
     // PERFORMANCE FIX: Close modal IMMEDIATELY for responsive UX
     // flushSync forces React to immediately update the DOM before continuing
     flushSync(() => {
@@ -740,6 +742,7 @@ const PricingCard: React.FC = () => {
       quote.resetDesign();
     }
 
+    setIsProcessingUpsell(false);
     }); // End requestAnimationFrame
   };
 
@@ -979,6 +982,7 @@ const PricingCard: React.FC = () => {
         thumbnailUrl={canvasThumbnail || undefined}
         onContinue={handleUpsellContinue}
         actionType={pendingAction || 'cart'}
+        isProcessing={isProcessingUpsell}
       />
     </div>
   );
