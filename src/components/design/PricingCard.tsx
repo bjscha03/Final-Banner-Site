@@ -66,7 +66,7 @@ const PricingCard: React.FC = () => {
 
   // Load "don't show again" preference from localStorage
   useEffect(() => {
-    const dontShow = localStorage.getItem('upsell-dont-show-again') === 'true';
+    const dontShow = sessionStorage.getItem('upsell-dont-show-again') === 'true';
     setDontShowUpsellAgain(dontShow);
   }, []);
 
@@ -586,7 +586,7 @@ const PricingCard: React.FC = () => {
 
     // Save "don't ask again" preference
     if (dontAskAgain) {
-      localStorage.setItem('upsell-dont-show-again', 'true');
+      sessionStorage.setItem('upsell-dont-show-again', 'true');
       setDontShowUpsellAgain(true);
     }
 

@@ -133,9 +133,9 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
     return availableOptions > 0;
   }, [grommets, quote.addRope, quote.polePockets, dontShowUpsellAgain]);
 
-  // Load "don't show again" preference from localStorage
+  // Load "don't show again" preference from sessionStorage
   useEffect(() => {
-    const dontShow = localStorage.getItem('upsell-dont-show-again') === 'true';
+    const dontShow = sessionStorage.getItem('upsell-dont-show-again') === 'true';
     setDontShowUpsellAgain(dontShow);
   }, []);
 
@@ -1519,7 +1519,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
 
     // Save "don't ask again" preference
     if (dontAskAgain) {
-      localStorage.setItem('upsell-dont-show-again', 'true');
+      sessionStorage.setItem('upsell-dont-show-again', 'true');
       setDontShowUpsellAgain(true);
     }
 

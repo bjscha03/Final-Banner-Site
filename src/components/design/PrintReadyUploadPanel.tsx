@@ -30,7 +30,7 @@ const PrintReadyUploadPanel: React.FC<PrintReadyUploadPanelProps> = ({ open, onC
   const [dontShowUpsellAgain, setDontShowUpsellAgain] = useState(false);
 
   useEffect(() => {
-    const dontShow = localStorage.getItem('upsell-dont-show-again') === 'true';
+    const dontShow = sessionStorage.getItem('upsell-dont-show-again') === 'true';
     setDontShowUpsellAgain(dontShow);
   }, []);
 
@@ -254,7 +254,7 @@ const PrintReadyUploadPanel: React.FC<PrintReadyUploadPanelProps> = ({ open, onC
   const handleUpsellContinue = (selectedOptions: UpsellOption[], dontAskAgain: boolean) => {
     setShowUpsellModal(false);
     if (dontAskAgain) {
-      localStorage.setItem('upsell-dont-show-again', 'true');
+      sessionStorage.setItem('upsell-dont-show-again', 'true');
       setDontShowUpsellAgain(true);
     }
     selectedOptions.forEach(option => {
