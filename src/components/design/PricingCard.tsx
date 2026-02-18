@@ -1,6 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react';
 import { flushSync } from 'react-dom';
-import { flushSync } from 'react-dom';
 import { ShoppingCart, CreditCard, Check, Truck, AlertTriangle, Ruler, Maximize2, Palette, Hash, DollarSign } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useQuoteStore, ORDER_SIZE_LIMIT_SQFT } from '@/store/quote';

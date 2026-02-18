@@ -30,7 +30,8 @@ import {
   Download, 
   Sparkles,
   X,
-  Grid3X3
+  Grid3X3,
+  Loader2
 } from 'lucide-react';
 import EditorCanvas from './editor/EditorCanvas';
 import AssetsPanel from './editor/AssetsPanel';
@@ -60,6 +61,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
   const [showPreview, setShowPreview] = useState(false);
   const [showUpsellModal, setShowUpsellModal] = useState(false);
   const [isProcessingUpsell, setIsProcessingUpsell] = useState(false);
+  const [isProcessingCart, setIsProcessingCart] = useState(false);
   const [pendingAction, setPendingAction] = useState<'cart' | 'checkout' | null>(null);
   const [dontShowUpsellAgain, setDontShowUpsellAgain] = useState(false);
 
@@ -990,6 +992,8 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
   };
 
   const handleAddToCart = async () => {
+    setIsProcessingCart(true);
+    try {
     console.log(`🎯 [BannerEditorLayout] ${editingItemId ? 'Update' : 'Add to'} Cart button clicked`);
     console.log(`🎨 [BannerEditorLayout] Design service mode: ${designServiceMode}`);
 
@@ -1451,6 +1455,9 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
     console.log('🔄 RESET: About to call resetDesign() after add to cart');
     resetDesign();
     console.log('🔄 RESET: resetDesign() called');
+    } finally {
+      setIsProcessingCart(false);
+    }
   };
 
   // Handle Buy Now - adds to cart and goes directly to checkout
@@ -2089,12 +2096,21 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
             </Button>
             <Button
               onClick={handleAddToCart}
-              disabled={!canAddToCart}
+              disabled={!canAddToCart || isProcessingCart}
               size="sm"
               className="min-h-[44px] bg-[#18448D] hover:bg-[#0f2d5c] text-white px-2 sm:px-3"
             >
-              <ShoppingCart className="w-4 h-4 mr-1 sm:mr-2 flex-shrink-0" />
-              <span className="text-xs sm:text-sm whitespace-nowrap">{editingItemId ? 'Update' : 'Add to Cart'}</span>
+              {isProcessingCart ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-1 sm:mr-2 flex-shrink-0 animate-spin" />
+                  <span className="text-xs sm:text-sm whitespace-nowrap">{editingItemId ? 'Updating...' : 'Adding...'}</span>
+                </>
+              ) : (
+                <>
+                  <ShoppingCart className="w-4 h-4 mr-1 sm:mr-2 flex-shrink-0" />
+                  <span className="text-xs sm:text-sm whitespace-nowrap">{editingItemId ? 'Update' : 'Add to Cart'}</span>
+                </>
+              )}
             </Button>
             {/* Buy Now button - only show when not editing */}
             {!editingItemId && (
