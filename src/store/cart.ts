@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { QuoteState, MaterialKey, Grommets, TextElement } from './quote';
-import { calculateTax, calculateTotalWithTax, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
+import { calculateTax, calculateTotalWithTax, getFeatureFlags, getPricingOptions, computeTotals, PricingItem, MINIMUM_UNIT_PRICE_CENTS } from '@/lib/pricing';
 import { calculateQuantityDiscount } from '@/lib/quantity-discount';
 import { resolveBestDiscount, ResolvedDiscount, PromoDiscountInput } from '@/lib/discount-resolver';
 import { cartSync } from '@/lib/cartSync';
@@ -185,7 +185,7 @@ const migrateCartItem = (item: CartItem): CartItem => {
   // Recompute pricing from scratch
   const area = item.area_sqft || (item.width_in * item.height_in) / 144;
   const pricePerSqFt = ({ '13oz': 4.5, '15oz': 6.0, '18oz': 7.5, 'mesh': 6.0 } as Record<MaterialKey, number>)[item.material];
-  const unit_price_cents = Math.round(area * (pricePerSqFt ?? 4.5) * 100);
+  const unit_price_cents = Math.max(MINIMUM_UNIT_PRICE_CENTS, Math.round(area * (pricePerSqFt ?? 4.5) * 100));
 
   // Compute rope cost
   const ropeFeet = item.rope_feet || 0;
@@ -245,7 +245,7 @@ export const useCartStore = create<CartState>()(
         // Compute fallbacks if not provided
         const area = (quote.widthIn * quote.heightIn) / 144;
         const pricePerSqFt = ({ '13oz': 4.5, '15oz': 6.0, '18oz': 7.5, 'mesh': 6.0 } as Record<MaterialKey, number>)[quote.material];
-        const computedUnit = Math.round(area * (pricePerSqFt ?? 4.5) * 100);
+        const computedUnit = Math.max(MINIMUM_UNIT_PRICE_CENTS, Math.round(area * (pricePerSqFt ?? 4.5) * 100));
         const ropeFeet = quote.addRope ? quote.widthIn / 12 : 0;
         const computedRope = Math.round(ropeFeet * 2 * quote.quantity * 100);
         const computedPole = (() => {
@@ -533,7 +533,7 @@ export const useCartStore = create<CartState>()(
         // Compute fallbacks if not provided
         const area = (quote.widthIn * quote.heightIn) / 144;
         const pricePerSqFt = ({ '13oz': 4.5, '15oz': 6.0, '18oz': 7.5, 'mesh': 6.0 } as Record<MaterialKey, number>)[quote.material];
-        const computedUnit = Math.round(area * (pricePerSqFt ?? 4.5) * 100);
+        const computedUnit = Math.max(MINIMUM_UNIT_PRICE_CENTS, Math.round(area * (pricePerSqFt ?? 4.5) * 100));
         const ropeFeet = quote.addRope ? quote.widthIn / 12 : 0;
         const computedRope = Math.round(ropeFeet * 2 * quote.quantity * 100);
         const computedPole = (() => {

@@ -10,6 +10,10 @@ export const PRICE_PER_SQFT = {
 
 export const TAX_RATE = 0.06; // 6% tax rate
 
+// Minimum unit price per banner (in dollars)
+// No banner should ever be priced below this amount regardless of size
+export const MINIMUM_UNIT_PRICE = 20; // $20.00
+export const MINIMUM_UNIT_PRICE_CENTS = 2000; // $20.00 in cents
 export const inchesToSqFt = (widthIn: number, heightIn: number): number => {
   return (widthIn * heightIn) / 144;
 };
@@ -73,7 +77,7 @@ export function calcTotals({
   polePockets = 'none'
 }: CalcTotalsParams): CalcTotalsResult {
   const area = inchesToSqFt(widthIn, heightIn);
-  const unit = area * PRICE_PER_SQFT[material];
+  const unit = Math.max(MINIMUM_UNIT_PRICE, area * PRICE_PER_SQFT[material]);
   const rope = addRope ? ropeCost(widthIn, qty) : 0;
   const polePocket = polePocketCost(widthIn, heightIn, polePockets, qty);
   const materialTotal = unit * qty + rope + polePocket;
