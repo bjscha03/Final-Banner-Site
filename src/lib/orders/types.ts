@@ -65,6 +65,7 @@ export interface Order {
   shipping_notification_sent_at?: string | null;
   shipping_name?: string | null;
   shipping_street?: string | null;
+  shipping_street2?: string | null;
   shipping_city?: string | null;
   shipping_state?: string | null;
   shipping_zip?: string | null;

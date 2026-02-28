@@ -515,6 +515,9 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                 {order.shipping_street && (
                   <p className="text-gray-700">{order.shipping_street}</p>
                 )}
+                {order.shipping_street2 && (
+                  <p className="text-gray-700">{order.shipping_street2}</p>
+                )}
                 {(order.shipping_city || order.shipping_state || order.shipping_zip) && (
                   <p className="text-gray-700">
                     {order.shipping_city}{order.shipping_city && order.shipping_state ? ', ' : ''}{order.shipping_state} {order.shipping_zip}

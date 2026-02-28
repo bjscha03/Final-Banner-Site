@@ -86,6 +86,7 @@ exports.handler = async (event, context) => {
     const shippingAddress = shipping ? {
       name: shipping.name?.full_name || '',
       street: shipping.address?.address_line_1 || '',
+      street2: shipping.address?.address_line_2 || '',
       city: shipping.address?.admin_area_2 || '',
       state: shipping.address?.admin_area_1 || '',
       zip: shipping.address?.postal_code || '',
