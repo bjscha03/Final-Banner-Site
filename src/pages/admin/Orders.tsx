@@ -319,22 +319,22 @@ const AdminOrders: React.FC = () => {
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
-      // Response is JSON with Cloudinary URL
+      // Response is JSON with base64-encoded PDF
       const result = await response.json();
       if (result.error) {
         throw new Error(result.error || 'PDF generation failed');
       }
-      if (!result.pdfUrl) {
-        throw new Error('No PDF URL in response');
+      if (!result.pdfBase64) {
+        throw new Error('No PDF data in response');
       }
 
-      // Fetch PDF from Cloudinary
-      const pdfResp = await fetch(result.pdfUrl);
-      if (!pdfResp.ok) {
-        throw new Error('Failed to fetch PDF from storage');
+      // Decode base64 to binary
+      const binaryString = atob(result.pdfBase64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
       }
-      const ab = await pdfResp.arrayBuffer();
-      const blob = new Blob([ab], { type: 'application/pdf' });
+      const blob = new Blob([bytes], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
 
       const link = document.createElement('a');

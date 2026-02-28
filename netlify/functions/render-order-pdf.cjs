@@ -611,11 +611,12 @@ exports.handler = async (event) => {
         .then(imgBuf => rasterToPdfBuffer(imgBuf, finalWidthIn, finalHeightIn, [], req.bannerWidthIn, req.bannerHeightIn, null, bleedIn));
 
       console.log(`[PDF] PDF generated from thumbnail: ${pdfBuffer.length} bytes`);
-      const pdfUrl = await uploadPdfToCloudinary(pdfBuffer, req.orderId);
+      const pdfBase64 = pdfBuffer.toString('base64');
+      console.log('[PDF] Base64 length:', pdfBase64.length);
       return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pdfUrl: pdfUrl, dpi: targetDpi, bleed: bleedIn }),
+        body: JSON.stringify({ pdfBase64, dpi: targetDpi, bleed: bleedIn }),
       };
       sourceBuffer = await fetchImage(req.fileKey, true);
     } else if (req.imageUrl) {
@@ -1053,15 +1054,14 @@ exports.handler = async (event) => {
     const pdfBuffer = await rasterToPdfBuffer(merged, finalWidthIn, finalHeightIn, req.textElements, req.bannerWidthIn, req.bannerHeightIn, req.previewCanvasPx, bleedIn);
     console.log(`[PDF] PDF generated: ${pdfBuffer.length} bytes`);
 
-    // Upload to Cloudinary to avoid 6MB Netlify response size limit
-    console.log('[PDF] Uploading to Cloudinary, size:', pdfBuffer.length, 'bytes');
-    const pdfUrl = await uploadPdfToCloudinary(pdfBuffer, req.orderId);
+    const pdfBase64 = pdfBuffer.toString('base64');
+    console.log('[PDF] Base64 length:', pdfBase64.length, 'chars (binary:', pdfBuffer.length, 'bytes)');
     console.log('[PDF] === PDF render complete ===');
 
     return {
       statusCode: 200,
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pdfUrl: pdfUrl, dpi: targetDpi, bleed: bleedIn }),
+      body: JSON.stringify({ pdfBase64, dpi: targetDpi, bleed: bleedIn }),
     };
   } catch (error) {
     console.error('[PDF] Error:', error);
