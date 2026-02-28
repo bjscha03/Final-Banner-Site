@@ -327,24 +327,13 @@ const AdminOrders: React.FC = () => {
       }
       
       if (result.pdfUrl) {
-        // Download the PDF from Cloudinary URL
-        const pdfResponse = await fetch(result.pdfUrl);
-        const blob = await pdfResponse.blob();
-        const url = window.URL.createObjectURL(blob);
-        
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `order-${orderId.slice(-8)}-banner-${itemIndex + 1}-print-ready.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        // Clean up the blob URL
-        window.URL.revokeObjectURL(url);
+        // Open the Cloudinary URL directly to download the PDF
+        // Avoids cross-origin fetch issues that can corrupt binary data
+        window.open(result.pdfUrl, '_blank');
 
         toast({
-          title: "PDF Downloaded",
-          description: `Print-ready PDF ready for production.`,
+          title: "PDF Ready",
+          description: "PDF opened in new tab. Save it from there.",
         });
       } else {
         throw new Error('No PDF URL in response');
