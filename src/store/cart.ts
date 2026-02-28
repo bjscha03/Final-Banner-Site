@@ -368,7 +368,7 @@ export const useCartStore = create<CartState>()(
           })(),
           thumbnail_url: (() => {
             // Store thumbnail for DISPLAY in cart (has grommets/text rendered)
-            const thumbnailUrl = (quote as any).thumbnailUrl;
+            const thumbnailUrl = (quote as any).thumbnailUrl || (quote.file as any)?.thumbnailUrl;
             debugLog('[CART STORE] 🖼️ Thumbnail URL for display:', thumbnailUrl ? thumbnailUrl.substring(0, 80) + '...' : 'NULL');
             debugLog('[CART STORE] 🖼️ Thumbnail URL details:', {
               isBlob: thumbnailUrl?.startsWith('blob:'),

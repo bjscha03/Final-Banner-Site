@@ -69,6 +69,12 @@ function calcGrommetPts(w: number, h: number, mode: string): { x: number; y: num
   return pts.filter(p => { const k = p.x.toFixed(2) + "," + p.y.toFixed(2); if (seen.has(k)) return false; seen.add(k); return true; });
 }
 
+
+// Convert Cloudinary PDF URL to an image thumbnail (renders page 1)
+function getPdfThumbnailUrl(pdfUrl: string): string {
+  if (!pdfUrl || !pdfUrl.includes('cloudinary.com') || !pdfUrl.toLowerCase().endsWith('.pdf')) return pdfUrl;
+  return pdfUrl.replace('/upload/', '/upload/pg_1,f_jpg,w_800/');
+}
 const GoogleAdsBanner: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -85,7 +91,7 @@ const GoogleAdsBanner: React.FC = () => {
   const [addRope, setAddRope] = useState(false);
   const [hemming, setHemming] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
-  const [uploadedFile, setUploadedFile] = useState<{name: string; url: string; fileKey: string; size: number; isPdf: boolean} | null>(null);
+  const [uploadedFile, setUploadedFile] = useState<{name: string; url: string; fileKey: string; size: number; isPdf: boolean; thumbnailUrl?: string} | null>(null);
   const [uploadError, setUploadError] = useState('');
   const [activePreset, setActivePreset] = useState<number | null>(2);
   const [dragActive, setDragActive] = useState(false);
@@ -200,7 +206,7 @@ const GoogleAdsBanner: React.FC = () => {
       const res = await fetch('/.netlify/functions/upload-file', { method: 'POST', body: formData });
       if (!res.ok) throw new Error('Upload failed');
       const data = await res.json();
-      setUploadedFile({ name: file.name, url: data.secureUrl, fileKey: data.fileKey || data.publicId, size: file.size, isPdf: file.type === 'application/pdf' });
+      setUploadedFile({ name: file.name, url: data.secureUrl, fileKey: data.fileKey || data.publicId, size: file.size, isPdf: file.type === 'application/pdf', thumbnailUrl: file.type === 'application/pdf' ? getPdfThumbnailUrl(data.secureUrl) : undefined });
     } catch {
       setUploadError('Upload failed. Please try again.');
     } finally {
@@ -218,10 +224,6 @@ const GoogleAdsBanner: React.FC = () => {
   // Open preview modal instead of going straight to checkout
   const handleCheckout = useCallback(() => {
     if (!uploadedFile) return;
-    if (uploadedFile.isPdf) {
-      doCheckout({ x: 0, y: 0 }, 1);
-      return;
-    }
     setImgPos({ x: 0, y: 0 });
     setImgScale(1);
     setShowPreview(true);
@@ -235,7 +237,8 @@ const GoogleAdsBanner: React.FC = () => {
       imagePosition: pos,
       imageScale: scale,
       fitMode: fitMode,
-      file: { name: uploadedFile.name, url: uploadedFile.url, fileKey: uploadedFile.fileKey, size: uploadedFile.size, isPdf: uploadedFile.isPdf, type: uploadedFile.isPdf ? 'application/pdf' : 'image/*' } as any,
+      thumbnailUrl: uploadedFile.thumbnailUrl,
+      file: { name: uploadedFile.name, url: uploadedFile.url, fileKey: uploadedFile.fileKey, size: uploadedFile.size, isPdf: uploadedFile.isPdf, thumbnailUrl: uploadedFile.thumbnailUrl, type: uploadedFile.isPdf ? 'application/pdf' : 'image/*' } as any,
     });
     const pricing = {
       unit_price_cents: Math.round(totals.unit * 100),
@@ -651,7 +654,7 @@ const GoogleAdsBanner: React.FC = () => {
                 onTouchEnd={onPreviewTouchEnd}
               >
                 <img
-                  src={uploadedFile.url}
+                  src={uploadedFile.thumbnailUrl || uploadedFile.url}
                   alt="Banner preview"
                   className={`absolute inset-0 w-full h-full pointer-events-none ${fitMode === 'fill' ? 'object-cover' : fitMode === 'fit' ? 'object-contain' : 'object-fill'}`}
                   style={fitMode === 'fill' ? { transform: `translate(${imgPos.x}px, ${imgPos.y}px) scale(${imgScale})` } : {}}
