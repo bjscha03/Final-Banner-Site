@@ -128,6 +128,39 @@ const GoogleAdsBanner: React.FC = () => {
     }
   };
 
+  // Compress images client-side to stay under Netlify's 6 MB function limit
+  const compressImage = useCallback(async (file: File): Promise<File> => {
+    // Skip PDFs and files already under 4.5 MB
+    if (file.type === 'application/pdf' || file.size <= 4.5 * 1024 * 1024) return file;
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        // Cap at 4000px on longest side to keep file size reasonable
+        const maxDim = 4000;
+        let { width, height } = img;
+        if (width > maxDim || height > maxDim) {
+          const ratio = Math.min(maxDim / width, maxDim / height);
+          width = Math.round(width * ratio);
+          height = Math.round(height * ratio);
+        }
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) { resolve(file); return; }
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => {
+          if (!blob || blob.size >= file.size) { resolve(file); return; }
+          const compressed = new File([blob], file.name.replace(/.png$/i, '.jpg'), { type: 'image/jpeg' });
+          console.log('Compressed:', file.size, '->', compressed.size);
+          resolve(compressed);
+        }, 'image/jpeg', 0.85);
+      };
+      img.onerror = () => resolve(file);
+      img.src = URL.createObjectURL(file);
+    });
+  }, [compressImage]);
+
   const handleFileUpload = useCallback(async (file: File) => {
     setUploadError('');
     const accepted = ['application/pdf','image/jpeg','image/png'];
@@ -142,8 +175,9 @@ const GoogleAdsBanner: React.FC = () => {
     }
     setIsUploading(true);
     try {
+      const uploadFile = await compressImage(file);
       const formData = new FormData();
-      formData.append('file', file);
+      formData.append('file', uploadFile);
       const res = await fetch('/.netlify/functions/upload-file', { method: 'POST', body: formData });
       if (!res.ok) throw new Error('Upload failed');
       const data = await res.json();
@@ -153,7 +187,7 @@ const GoogleAdsBanner: React.FC = () => {
     } finally {
       setIsUploading(false);
     }
-  }, []);
+  }, [compressImage]);
 
   const onDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -213,7 +247,7 @@ const GoogleAdsBanner: React.FC = () => {
 
   const onPreviewMouseUp = useCallback(() => {
     setIsDraggingPreview(false);
-  }, []);
+  }, [compressImage]);
 
   const onPreviewTouchStart = useCallback((e: React.TouchEvent) => {
     if (e.touches.length === 2) {
@@ -252,7 +286,7 @@ const GoogleAdsBanner: React.FC = () => {
   const onPreviewTouchEnd = useCallback(() => {
     setIsDraggingPreview(false);
     setLastPinchDist(null);
-  }, []);
+  }, [compressImage]);
 
   return (
     <>
