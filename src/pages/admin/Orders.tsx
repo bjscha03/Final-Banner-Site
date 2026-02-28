@@ -257,7 +257,7 @@ const AdminOrders: React.FC = () => {
       const overlayImagesFileKey = item.overlay_images?.[0]?.fileKey;
       
       // CRITICAL FIX: Prioritize overlay_image.fileKey (original upload) over file_key (thumbnail with grommets)
-      const imageSource = item.print_ready_url || overlayImageFileKey || overlayImagesFileKey || item.file_url || item.web_preview_url;
+      const imageSource = item.print_ready_url || overlayImageFileKey || overlayImagesFileKey || item.file_url || item.web_preview_url || item.file_key;
       const isCloudinaryKey = imageSource && !imageSource.startsWith('http');
       
       console.log('[PDF DEBUG] Image source resolution:', {

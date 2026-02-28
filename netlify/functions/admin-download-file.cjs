@@ -33,9 +33,7 @@ exports.handler = async (event, context) => {
       headers,
       body: JSON.stringify({ error: 'Method not allowed' }),
     };
-
-    // Initialize database connection
-    const sql = neon(process.env.NETLIFY_DATABASE_URL);  }
+  }
 
   try {
     const { fileKey } = event.queryStringParameters || {};

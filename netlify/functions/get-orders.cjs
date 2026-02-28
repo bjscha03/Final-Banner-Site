@@ -81,6 +81,7 @@ exports.handler = async (event, context) => {
                    'web_preview_url', oi.web_preview_url,
                    'text_elements', COALESCE(oi.text_elements, '[]'::jsonb),
                    'overlay_image', oi.overlay_image,
+                   'overlay_images', oi.overlay_images,
                    'canvas_background_color', COALESCE(oi.canvas_background_color, '#FFFFFF'),
                    'image_scale', COALESCE(oi.image_scale, 1),
                    'image_position', COALESCE(oi.image_position, '{"x": 0, "y": 0}'::jsonb),
@@ -129,6 +130,7 @@ exports.handler = async (event, context) => {
                    'web_preview_url', oi.web_preview_url,
                    'text_elements', COALESCE(oi.text_elements, '[]'::jsonb),
                    'overlay_image', oi.overlay_image,
+                   'overlay_images', oi.overlay_images,
                    'canvas_background_color', COALESCE(oi.canvas_background_color, '#FFFFFF'),
                    'image_scale', COALESCE(oi.image_scale, 1),
                    'image_position', COALESCE(oi.image_position, '{"x": 0, "y": 0}'::jsonb),
@@ -168,6 +170,7 @@ exports.handler = async (event, context) => {
       tracking_carrier: order.tracking_number ? 'fedex' : null, // Default to fedex when tracking exists
       shipping_name: order.shipping_name,
       shipping_street: order.shipping_street,
+      shipping_street2: order.shipping_street2,
       shipping_city: order.shipping_city,
       shipping_state: order.shipping_state,
       shipping_zip: order.shipping_zip,
