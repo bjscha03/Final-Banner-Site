@@ -21,7 +21,7 @@ const sql = neon(process.env.NETLIFY_DATABASE_URL);
  * Choose target DPI based on banner size
  */
 function chooseTargetDpi(wIn, hIn) {
-  return 150; // 150 DPI for print-ready quality (was 100 DPI)
+  return 100; // 100 DPI - balanced for print quality vs Netlify 6MB response limit
 }
 
 /**
@@ -606,13 +606,21 @@ exports.handler = async (event) => {
       // The thumbnail already contains the exact design the customer approved
       const pdfBuffer = await sharp(sourceBuffer)
         .resize(targetPxW, targetPxH, { fit: 'fill' })
-        .jpeg({ quality: 90 })
+        .jpeg({ quality: 65, chromaSubsampling: "4:2:0" })
         .toBuffer()
         .then(imgBuf => rasterToPdfBuffer(imgBuf, finalWidthIn, finalHeightIn, [], req.bannerWidthIn, req.bannerHeightIn, null, bleedIn));
 
       console.log(`[PDF] PDF generated from thumbnail: ${pdfBuffer.length} bytes`);
-      const pdfBase64 = pdfBuffer.toString('base64');
+      let pdfBase64 = pdfBuffer.toString('base64');
       console.log('[PDF] Base64 length:', pdfBase64.length);
+      // Safety: if base64 > 5MB, re-encode at lower quality
+      if (pdfBase64.length > 5 * 1024 * 1024) {
+        console.warn('[PDF] Base64 too large (' + pdfBase64.length + ' chars), re-encoding at quality 40');
+        const smallerImg = await sharp(sourceBuffer).resize(targetPxW, targetPxH, { fit: "fill" }).jpeg({ quality: 40, chromaSubsampling: "4:2:0" }).toBuffer();
+        const smallerPdf = await rasterToPdfBuffer(smallerImg, finalWidthIn, finalHeightIn, [], req.bannerWidthIn, req.bannerHeightIn, null, bleedIn);
+        pdfBase64 = smallerPdf.toString("base64");
+        console.log('[PDF] Re-encoded base64 length:', pdfBase64.length);
+      }
       return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json' },
@@ -1046,7 +1054,7 @@ exports.handler = async (event) => {
 
     const merged = await sharp(backgroundCanvas)
       .composite(compositeLayers)
-      .jpeg({ quality: 85, chromaSubsampling: '4:2:0', progressive: true }) // JPEG compression to reduce PDF size below 6MB limit
+      .jpeg({ quality: 65, chromaSubsampling: '4:2:0', progressive: true }) // JPEG compression to reduce PDF size below 6MB limit
       .toBuffer();
 
     console.log('[PDF] Image composited onto canvas (with overlay if provided)');
@@ -1054,8 +1062,16 @@ exports.handler = async (event) => {
     const pdfBuffer = await rasterToPdfBuffer(merged, finalWidthIn, finalHeightIn, req.textElements, req.bannerWidthIn, req.bannerHeightIn, req.previewCanvasPx, bleedIn);
     console.log(`[PDF] PDF generated: ${pdfBuffer.length} bytes`);
 
-    const pdfBase64 = pdfBuffer.toString('base64');
+    let pdfBase64 = pdfBuffer.toString('base64');
     console.log('[PDF] Base64 length:', pdfBase64.length, 'chars (binary:', pdfBuffer.length, 'bytes)');
+    // Safety: if base64 > 5MB, re-encode at lower quality
+    if (pdfBase64.length > 5 * 1024 * 1024) {
+      console.warn('[PDF] Base64 too large (' + pdfBase64.length + ' chars), re-encoding at quality 40');
+      const smallerImg = await sharp(backgroundCanvas).composite(compositeLayers).jpeg({ quality: 40, chromaSubsampling: "4:2:0" }).toBuffer();
+      const smallerPdf = await rasterToPdfBuffer(smallerImg, finalWidthIn, finalHeightIn, req.textElements, req.bannerWidthIn, req.bannerHeightIn, req.previewCanvasPx, bleedIn);
+      pdfBase64 = smallerPdf.toString("base64");
+      console.log('[PDF] Re-encoded base64 length:', pdfBase64.length);
+    }
     console.log('[PDF] === PDF render complete ===');
 
     return {
