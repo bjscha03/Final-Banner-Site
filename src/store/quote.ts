@@ -87,6 +87,7 @@ export interface QuoteState {
   canvaDesignId?: string;              // Canva design ID for re-editing
   imageScale?: number;                 // Background image scale (for uploaded images)
   imagePosition?: { x: number; y: number }; // Background image position (for uploaded images)
+  fitMode?: 'fill' | 'fit' | 'stretch';  // Image fit mode for uploaded images
   set: (partial: Partial<QuoteState>) => void;
   setFromQuickQuote: (params: QuickQuoteParams) => void;
   loadFromCartItem: (item: any, editingItemId?: string) => void;
@@ -131,6 +132,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
   overlayImages: undefined,
   imageScale: 1,
   imagePosition: { x: 0, y: 0 },
+  fitMode: 'fill',
   set: (partial) => set((state) => {
     // Handle mutual exclusivity between grommets and pole pockets
     const updates = { ...partial };
@@ -272,6 +274,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
 
       imageScale: item.image_scale || 1,
       imagePosition: item.image_position || { x: 0, y: 0 },
+      fitMode: item.fit_mode || 'fill',
       // CRITICAL FIX: Single source of truth = overlayImages (array)
       overlayImages: (() => {
         // NEW: Load multiple overlay images
@@ -362,6 +365,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
     overlayImages: undefined,
     imageScale: 1,
     imagePosition: { x: 0, y: 0 },
+    fitMode: 'fill',
   };
     
     

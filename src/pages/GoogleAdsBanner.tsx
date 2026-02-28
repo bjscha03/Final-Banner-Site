@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { Upload, Shield, Clock, Star, ChevronDown, ChevronUp, CheckCircle, Truck, Users, FileCheck, X, Loader2, ArrowRight, Brush, Minus, Plus, Lock, Mail, Droplets, Sun, Wind, Palette, Tag, Move, ZoomIn, ZoomOut } from 'lucide-react';
+import { Upload, Shield, Clock, Star, CheckCircle, Truck, Users, FileCheck, X, Loader2, ArrowRight, Brush, Minus, Plus, Lock, Mail, Droplets, Sun, Wind, Palette, Tag, Move, ZoomIn, ZoomOut } from 'lucide-react';
 import { useQuoteStore, type MaterialKey } from '@/store/quote';
 import { useCartStore } from '@/store/cart';
 import { useUIStore } from '@/store/ui';
@@ -27,16 +27,6 @@ const GROMMET_OPTIONS = [
   { value: 'none', label: 'None' },
   { value: '4-corners', label: '4 Corners' },
   { value: 'every-2-3ft', label: 'Every 2 Feet' },
-];
-
-const FAQS = [
-  { q: 'How fast will I receive my banner?', a: 'We print within 24 hours and ship FREE via Next-Day Air. Most orders arrive in 2-3 business days.' },
-  { q: 'What if my artwork has issues?', a: 'Every file is reviewed by a real designer before printing. We will contact you if anything needs attention.' },
-  { q: 'What file types do you accept?', a: 'We accept PDF, PNG, JPG, AI, and EPS files up to 10 MB.' },
-  { q: 'Can I get help designing?', a: 'Yes, use our free Design Tool and our team will create a design for you.' },
-  { q: 'What is your return or refund policy?', a: 'If there is a printing defect or damage during shipping, we will reprint or refund your order. Contact us within 7 days of delivery.' },
-  { q: 'Will the colors match my file?', a: 'We use high-resolution CMYK printing on commercial-grade printers. Colors will closely match your uploaded file. For exact Pantone matching, contact us.' },
-  { q: 'Do you offer bulk or quantity discounts?', a: 'Yes, quantity discounts are applied automatically at checkout. The more you order, the more you save.' },
 ];
 
 const TESTIMONIALS = [
@@ -78,7 +68,6 @@ const GoogleAdsBanner: React.FC = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<{name: string; url: string; fileKey: string; size: number; isPdf: boolean} | null>(null);
   const [uploadError, setUploadError] = useState('');
-  const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [activePreset, setActivePreset] = useState<number | null>(2);
   const [dragActive, setDragActive] = useState(false);
   const [quantity, setQuantity] = useState(1);
@@ -89,9 +78,11 @@ const GoogleAdsBanner: React.FC = () => {
   const [showPreview, setShowPreview] = useState(false);
   const [imgPos, setImgPos] = useState({ x: 0, y: 0 });
   const [imgScale, setImgScale] = useState(1);
+  const [fitMode, setFitMode] = useState<'fill' | 'fit' | 'stretch'>('fill');
   const [isDraggingPreview, setIsDraggingPreview] = useState(false);
   const [dragStartPt, setDragStartPt] = useState({ x: 0, y: 0 });
   const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
+  const [lastPinchDist, setLastPinchDist] = useState<number | null>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
 
   const quoteStore = useQuoteStore();
@@ -139,9 +130,10 @@ const GoogleAdsBanner: React.FC = () => {
 
   const handleFileUpload = useCallback(async (file: File) => {
     setUploadError('');
-    const accepted = ['application/pdf','image/jpeg','image/png','image/jpg'];
-    if (!accepted.includes(file.type) && !file.name.match(/\.(ai|eps)$/i)) {
-      setUploadError('Please upload a PDF, PNG, JPG, AI, or EPS file.');
+    const accepted = ['application/pdf','image/jpeg','image/png'];
+    const ext = file.name.split('.').pop()?.toLowerCase() || '';
+    if (!accepted.includes(file.type) && !['pdf','png','jpg','jpeg'].includes(ext)) {
+      setUploadError('Please upload a PDF, PNG, JPG, or JPEG file.');
       return;
     }
     if (file.size > 10 * 1024 * 1024) {
@@ -189,6 +181,7 @@ const GoogleAdsBanner: React.FC = () => {
       grommets: grommets as any, polePockets, addRope,
       imagePosition: pos,
       imageScale: scale,
+      fitMode: fitMode,
       file: { name: uploadedFile.name, url: uploadedFile.url, fileKey: uploadedFile.fileKey, size: uploadedFile.size, isPdf: uploadedFile.isPdf, type: uploadedFile.isPdf ? 'application/pdf' : 'image/*' } as any,
     });
     const pricing = {
@@ -223,6 +216,13 @@ const GoogleAdsBanner: React.FC = () => {
   }, []);
 
   const onPreviewTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      setLastPinchDist(Math.sqrt(dx * dx + dy * dy));
+      setIsDraggingPreview(false);
+      return;
+    }
     if (e.touches.length !== 1) return;
     const t = e.touches[0];
     setIsDraggingPreview(true);
@@ -231,16 +231,27 @@ const GoogleAdsBanner: React.FC = () => {
   }, [imgPos]);
 
   const onPreviewTouchMove = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2 && lastPinchDist !== null) {
+      e.preventDefault();
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const delta = dist / lastPinchDist;
+      setImgScale(s => Math.min(3, Math.max(0.5, s * delta)));
+      setLastPinchDist(dist);
+      return;
+    }
     if (!isDraggingPreview || e.touches.length !== 1) return;
     e.preventDefault();
     const t = e.touches[0];
-    const dx = (t.clientX - dragStartPt.x) * 1.5;
-    const dy = (t.clientY - dragStartPt.y) * 1.5;
-    setImgPos({ x: dragStartPos.x + dx, y: dragStartPos.y + dy });
-  }, [isDraggingPreview, dragStartPt, dragStartPos]);
+    const dx2 = (t.clientX - dragStartPt.x) * 1.5;
+    const dy2 = (t.clientY - dragStartPt.y) * 1.5;
+    setImgPos({ x: dragStartPos.x + dx2, y: dragStartPos.y + dy2 });
+  }, [isDraggingPreview, dragStartPt, dragStartPos, lastPinchDist]);
 
   const onPreviewTouchEnd = useCallback(() => {
     setIsDraggingPreview(false);
+    setLastPinchDist(null);
   }, []);
 
   return (
@@ -348,7 +359,7 @@ const GoogleAdsBanner: React.FC = () => {
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Upload Your Artwork</label>
                   {!uploadedFile ? (
                     <div onDrop={onDrop} onDragOver={e => { e.preventDefault(); setDragActive(true); }} onDragLeave={() => setDragActive(false)} onClick={() => fileInputRef.current?.click()} className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all duration-200 ${dragActive ? 'border-orange-400 bg-orange-50 scale-[1.01] shadow-md' : 'border-gray-300 bg-gray-50/50 hover:border-orange-300 hover:bg-orange-50/30'}`}>
-                      <input ref={fileInputRef} type="file" accept=".pdf,.jpg,.jpeg,.png,.ai,.eps" onChange={e => { const f = e.target.files?.[0]; if (f) handleFileUpload(f); }} className="hidden" />
+                      <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,application/pdf,.png,.jpg,.jpeg,.pdf" onChange={e => { const f = e.target.files?.[0]; if (f) handleFileUpload(f); }} className="hidden" />
                       {isUploading ? (
                         <div className="flex flex-col items-center">
                           <Loader2 className="h-10 w-10 text-orange-500 animate-spin mb-2" />
@@ -358,7 +369,7 @@ const GoogleAdsBanner: React.FC = () => {
                         <>
                           <Upload className="h-10 w-10 text-gray-400 mx-auto mb-3" />
                           <p className="font-semibold text-gray-800">Drag &amp; Drop or Click to Upload</p>
-                          <p className="text-xs text-gray-500 mt-1">PDF, PNG, JPG, AI, EPS - Max 10 MB</p>
+                          <p className="text-xs text-gray-500 mt-1">PDF, PNG, JPG, JPEG — Max 10 MB</p>
                         </>
                       )}
                     </div>
@@ -522,23 +533,6 @@ const GoogleAdsBanner: React.FC = () => {
           </div>
         </section>
 
-        <section className="py-10 px-4 bg-white">
-          <div className="max-w-2xl mx-auto">
-            <h2 className="text-2xl font-bold text-center mb-6">Frequently Asked Questions</h2>
-            <div className="space-y-3">
-              {FAQS.map((faq, i) => (
-                <div key={i} className="border border-gray-200 rounded-lg overflow-hidden">
-                  <button onClick={() => setOpenFaq(openFaq === i ? null : i)} className="w-full flex items-center justify-between px-4 py-3 text-left font-medium text-gray-800 hover:bg-gray-50 transition-colors">
-                    <span>{faq.q}</span>
-                    {openFaq === i ? <ChevronUp className="h-4 w-4 text-gray-400" /> : <ChevronDown className="h-4 w-4 text-gray-400" />}
-                  </button>
-                  {openFaq === i && <div className="px-4 pb-3 text-sm text-gray-600">{faq.a}</div>}
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
         <div className="py-4 text-center text-xs text-gray-400 border-t border-gray-100">
           <div className="mb-2">
             <Link to="/terms" className="hover:text-gray-600">Terms</Link>
@@ -578,7 +572,19 @@ const GoogleAdsBanner: React.FC = () => {
               </button>
             </div>
             <div className="p-4 flex-1 overflow-auto">
-              <p className="text-sm text-gray-500 mb-3 flex items-center gap-1"><Move className="w-4 h-4" /> Drag to reposition your image on the banner</p>
+              <p className="text-sm text-gray-500 mb-3 flex items-center gap-1"><Move className="w-4 h-4" /> {fitMode === 'fill' ? 'Drag to reposition · Pinch or use buttons to zoom' : 'Choose how your image fits the banner'}</p>
+              <div className="flex items-center gap-2 mb-3">
+                <span className="text-xs font-medium text-gray-500">Fit:</span>
+                {(['fill', 'fit', 'stretch'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => { setFitMode(mode); if (mode !== 'fill') { setImgPos({ x: 0, y: 0 }); setImgScale(1); } }}
+                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${fitMode === mode ? 'bg-orange-500 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
+                  >
+                    {mode.charAt(0).toUpperCase() + mode.slice(1)}
+                  </button>
+                ))}
+              </div>
               <div
                 ref={previewContainerRef}
                 className="relative w-full border-2 border-dashed border-gray-300 rounded-lg overflow-hidden select-none"
@@ -594,17 +600,17 @@ const GoogleAdsBanner: React.FC = () => {
                 <img
                   src={uploadedFile.url}
                   alt="Banner preview"
-                  className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-                  style={{ transform: `translate(${imgPos.x}px, ${imgPos.y}px) scale(${imgScale})` }}
+                  className={`absolute inset-0 w-full h-full pointer-events-none ${fitMode === 'fill' ? 'object-cover' : fitMode === 'fit' ? 'object-contain' : 'object-fill'}`}
+                  style={fitMode === 'fill' ? { transform: `translate(${imgPos.x}px, ${imgPos.y}px) scale(${imgScale})` } : {}}
                   draggable={false}
                 />
               </div>
-              <div className="flex items-center justify-center gap-4 mt-3">
+              {fitMode === 'fill' && <div className="flex items-center justify-center gap-4 mt-3">
                 <button onClick={() => setImgScale(s => Math.max(0.5, s - 0.1))} className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200"><ZoomOut className="w-5 h-5" /></button>
                 <span className="text-sm font-medium text-gray-600">{Math.round(imgScale * 100)}%</span>
                 <button onClick={() => setImgScale(s => Math.min(3, s + 0.1))} className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200"><ZoomIn className="w-5 h-5" /></button>
                 <button onClick={() => { setImgPos({ x: 0, y: 0 }); setImgScale(1); }} className="text-sm text-orange-600 hover:text-orange-700 font-medium ml-2">Reset</button>
-              </div>
+              </div>}
             </div>
             <div className="flex gap-3 p-4 border-t">
               <button onClick={() => setShowPreview(false)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50">Cancel</button>
