@@ -319,25 +319,25 @@ const AdminOrders: React.FC = () => {
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
-      // Response is always JSON with a Cloudinary URL
-      const result = await response.json();
+      // Get the PDF binary data using arrayBuffer for proper binary handling
+      const arrayBuffer = await response.arrayBuffer();
+      const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
       
-      if (result.error) {
-        throw new Error(result.error || result.message || 'PDF generation failed');
-      }
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `order-${orderId.slice(-8)}-banner-${itemIndex + 1}-print-ready.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
       
-      if (result.pdfUrl) {
-        // Open the Cloudinary URL directly to download the PDF
-        // Avoids cross-origin fetch issues that can corrupt binary data
-        window.open(result.pdfUrl, '_blank');
+      // Clean up the blob URL
+      window.URL.revokeObjectURL(url);
 
-        toast({
-          title: "PDF Ready",
-          description: "PDF opened in new tab. Save it from there.",
-        });
-      } else {
-        throw new Error('No PDF URL in response');
-      }
+      toast({
+        title: "PDF Downloaded",
+        description: "Print-ready PDF downloaded successfully.",
+      });
     } catch (error) {
       console.error('PDF Download Error:', error);
       toast({

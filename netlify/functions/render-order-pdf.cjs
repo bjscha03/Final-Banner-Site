@@ -621,12 +621,16 @@ exports.handler = async (event) => {
         .then(imgBuf => rasterToPdfBuffer(imgBuf, finalWidthIn, finalHeightIn, [], req.bannerWidthIn, req.bannerHeightIn, null, bleedIn));
 
       console.log(`[PDF] PDF generated from thumbnail: ${pdfBuffer.length} bytes`);
-      // Upload to Cloudinary to avoid 6MB response size limit
-      const pdfUrl = await uploadPdfToCloudinary(pdfBuffer, req.orderId);
       return {
         statusCode: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pdfUrl, dpi: targetDpi, bleed: bleedIn }),
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Content-Disposition': `attachment; filename="order-${req.orderId}-print-ready.pdf"`,
+          'X-PDF-DPI': targetDpi.toString(),
+          'X-PDF-Bleed': bleedIn.toString(),
+        },
+        body: pdfBuffer.toString('base64'),
+        isBase64Encoded: true,
       };
       sourceBuffer = await fetchImage(req.fileKey, true);
     } else if (req.imageUrl) {
@@ -1064,15 +1068,20 @@ exports.handler = async (event) => {
     const pdfBuffer = await rasterToPdfBuffer(merged, finalWidthIn, finalHeightIn, req.textElements, req.bannerWidthIn, req.bannerHeightIn, req.previewCanvasPx, bleedIn);
     console.log(`[PDF] PDF generated: ${pdfBuffer.length} bytes`);
 
-    // Upload to Cloudinary to avoid 6MB response size limit
-    console.log('[PDF] Uploading PDF to Cloudinary...');
-    const pdfUrl = await uploadPdfToCloudinary(pdfBuffer, req.orderId);
+    // Return PDF directly as binary response
+    console.log('[PDF] Returning PDF as binary response, size:', pdfBuffer.length, 'bytes');
     console.log('[PDF] === PDF render complete ===');
 
     return {
       statusCode: 200,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pdfUrl, dpi: targetDpi, bleed: bleedIn }),
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="order-${req.orderId}-print-ready.pdf"`,
+        'X-PDF-DPI': targetDpi.toString(),
+        'X-PDF-Bleed': bleedIn.toString(),
+      },
+      body: pdfBuffer.toString('base64'),
+      isBase64Encoded: true,
     };
   } catch (error) {
     console.error('[PDF] Error:', error);
