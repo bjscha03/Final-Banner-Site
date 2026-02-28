@@ -254,24 +254,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                     <div key={item.id} className="bg-white rounded-xl p-4 shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
                       {/* Thumbnail on top - centered */}
                       <div className="flex justify-center mb-4">
-                        {item.source === 'google-ads' ? (
-                          (() => {
-                            const imgSrc = item.thumbnail_url || item.file_url || item.web_preview_url || item.print_ready_url || item.aiDesign?.assets?.proofUrl;
-                            return imgSrc ? (
-                              <img
-                                src={imgSrc}
-                                alt={`Banner ${item.width_in}" x ${item.height_in}"`}
-                                className="max-h-[120px] rounded-lg border border-gray-200 shadow-sm bg-white object-contain"
-                              />
-                            ) : (
-                              <div className="flex flex-col items-center justify-center h-[80px] px-6 rounded-lg border border-gray-200 bg-gray-50 text-gray-500 text-sm">
-                                <span className="font-medium">[File Uploaded]</span>
-                                {item.file_name && <span className="text-xs text-gray-400 mt-1 truncate max-w-[180px]">{item.file_name}</span>}
-                              </div>
-                            );
-                          })()
-                        ) : (
-                          <BannerPreview
+                        <BannerPreview
                             key={`thumbnail-${item.id}-${item.text_elements?.length || 0}-${item.image_scale || 1}`}
                             widthIn={item.width_in}
                             heightIn={item.height_in}
@@ -286,7 +269,6 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                             className="flex-shrink-0"
                             designServiceEnabled={item.design_service_enabled}
                           />
-                        )}
                       </div>
 
                       {/* Title and Price on same line */}
