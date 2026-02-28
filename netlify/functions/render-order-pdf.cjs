@@ -498,9 +498,9 @@ async function uploadPdfToCloudinary(pdfBuffer, orderId) {
       {
         resource_type: 'raw',
         folder: 'order-pdfs',
-        public_id: `order-${orderId}-print-ready-${Date.now()}`,
+        public_id: 'order-' + orderId + '-print-ready-' + Date.now(),
         format: 'pdf',
-        access_mode: 'public',
+        type: 'upload',
       },
       (error, result) => {
         if (error) {
@@ -508,16 +508,7 @@ async function uploadPdfToCloudinary(pdfBuffer, orderId) {
           reject(error);
         } else {
           console.log('[PDF] Cloudinary upload success:', result.secure_url);
-          // Generate a signed URL with fl_attachment to force browser download
-          const signedUrl = cloudinary.url(result.public_id, {
-            resource_type: 'raw',
-            type: 'upload',
-            sign_url: true,
-            secure: true,
-            flags: 'attachment',
-          });
-          console.log('[PDF] Signed download URL:', signedUrl);
-          resolve(signedUrl);
+          resolve(result.secure_url);
         }
       }
     );
@@ -621,16 +612,11 @@ exports.handler = async (event) => {
         .then(imgBuf => rasterToPdfBuffer(imgBuf, finalWidthIn, finalHeightIn, [], req.bannerWidthIn, req.bannerHeightIn, null, bleedIn));
 
       console.log(`[PDF] PDF generated from thumbnail: ${pdfBuffer.length} bytes`);
+      const pdfUrl = await uploadPdfToCloudinary(pdfBuffer, req.orderId);
       return {
         statusCode: 200,
-        headers: {
-          'Content-Type': 'application/pdf',
-          'Content-Disposition': `attachment; filename="order-${req.orderId}-print-ready.pdf"`,
-          'X-PDF-DPI': targetDpi.toString(),
-          'X-PDF-Bleed': bleedIn.toString(),
-        },
-        body: pdfBuffer.toString('base64'),
-        isBase64Encoded: true,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pdfUrl: pdfUrl, dpi: targetDpi, bleed: bleedIn }),
       };
       sourceBuffer = await fetchImage(req.fileKey, true);
     } else if (req.imageUrl) {
@@ -1068,20 +1054,15 @@ exports.handler = async (event) => {
     const pdfBuffer = await rasterToPdfBuffer(merged, finalWidthIn, finalHeightIn, req.textElements, req.bannerWidthIn, req.bannerHeightIn, req.previewCanvasPx, bleedIn);
     console.log(`[PDF] PDF generated: ${pdfBuffer.length} bytes`);
 
-    // Return PDF directly as binary response
-    console.log('[PDF] Returning PDF as binary response, size:', pdfBuffer.length, 'bytes');
+    // Upload to Cloudinary to avoid 6MB Netlify response size limit
+    console.log('[PDF] Uploading to Cloudinary, size:', pdfBuffer.length, 'bytes');
+    const pdfUrl = await uploadPdfToCloudinary(pdfBuffer, req.orderId);
     console.log('[PDF] === PDF render complete ===');
 
     return {
       statusCode: 200,
-      headers: {
-        'Content-Type': 'application/pdf',
-        'Content-Disposition': `attachment; filename="order-${req.orderId}-print-ready.pdf"`,
-        'X-PDF-DPI': targetDpi.toString(),
-        'X-PDF-Bleed': bleedIn.toString(),
-      },
-      body: pdfBuffer.toString('base64'),
-      isBase64Encoded: true,
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ pdfUrl: pdfUrl, dpi: targetDpi, bleed: bleedIn }),
     };
   } catch (error) {
     console.error('[PDF] Error:', error);

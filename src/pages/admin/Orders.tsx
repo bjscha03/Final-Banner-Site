@@ -319,19 +319,30 @@ const AdminOrders: React.FC = () => {
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
-      // Get the PDF binary data using arrayBuffer for proper binary handling
-      const arrayBuffer = await response.arrayBuffer();
-      const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
+      // Response is JSON with Cloudinary URL
+      const result = await response.json();
+      if (result.error) {
+        throw new Error(result.error || 'PDF generation failed');
+      }
+      if (!result.pdfUrl) {
+        throw new Error('No PDF URL in response');
+      }
+
+      // Fetch PDF from Cloudinary
+      const pdfResp = await fetch(result.pdfUrl);
+      if (!pdfResp.ok) {
+        throw new Error('Failed to fetch PDF from storage');
+      }
+      const ab = await pdfResp.arrayBuffer();
+      const blob = new Blob([ab], { type: 'application/pdf' });
       const url = window.URL.createObjectURL(blob);
-      
+
       const link = document.createElement('a');
       link.href = url;
       link.download = `order-${orderId.slice(-8)}-banner-${itemIndex + 1}-print-ready.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      
-      // Clean up the blob URL
       window.URL.revokeObjectURL(url);
 
       toast({
