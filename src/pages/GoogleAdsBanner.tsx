@@ -7,25 +7,6 @@ import { useCartStore } from '@/store/cart';
 import { useUIStore } from '@/store/ui';
 import { calcTotals, usd, PRICE_PER_SQFT } from '@/lib/pricing';
 
-// Calculate grommet positions for preview overlay
-function calcGrommetPts(w: number, h: number, mode: string): { x: number; y: number }[] {
-  const m = 1;
-  const corners = [{ x: m, y: m }, { x: w - m, y: m }, { x: m, y: h - m }, { x: w - m, y: h - m }];
-  if (mode === "none") return [];
-  if (mode === "4-corners") return corners;
-  if (mode === "top-corners") return [corners[0], corners[1]];
-  if (mode === "left-corners") return [corners[0], corners[2]];
-  if (mode === "right-corners") return [corners[1], corners[3]];
-  const spacing = mode === "every-1-2ft" ? 18 : 24;
-  const pts = [...corners];
-  const uw = Math.max(0, w - 2 * m), nw = Math.floor(uw / spacing);
-  if (nw > 0) { const ws = uw / (nw + 1); for (let i = 1; i <= nw; i++) { pts.push({ x: m + i * ws, y: m }); pts.push({ x: m + i * ws, y: h - m }); } }
-  const uh = Math.max(0, h - 2 * m), nh = Math.floor(uh / spacing);
-  if (nh > 0) { const hs = uh / (nh + 1); for (let i = 1; i <= nh; i++) { pts.push({ x: m, y: m + i * hs }); pts.push({ x: w - m, y: m + i * hs }); } }
-  const seen = new Set<string>();
-  return pts.filter(p => { const k = p.x.toFixed(2) + "," + p.y.toFixed(2); if (seen.has(k)) return false; seen.add(k); return true; });
-}
-
 const PRESET_SIZES = [
   { label: "2' x 4'", w: 48, h: 24 },
   { label: "3' x 6'", w: 72, h: 36 },
@@ -68,6 +49,25 @@ const TESTIMONIALS = [
     text: "We order dozens of banners monthly for events. Banners On The Fly consistently delivers premium quality with fast turnaround.",
   },
 ];
+
+// Calculate grommet positions for preview overlay
+function calcGrommetPts(w: number, h: number, mode: string): { x: number; y: number }[] {
+  const m = 1;
+  const corners = [{ x: m, y: m }, { x: w - m, y: m }, { x: m, y: h - m }, { x: w - m, y: h - m }];
+  if (mode === "none") return [];
+  if (mode === "4-corners") return corners;
+  if (mode === "top-corners") return [corners[0], corners[1]];
+  if (mode === "left-corners") return [corners[0], corners[2]];
+  if (mode === "right-corners") return [corners[1], corners[3]];
+  const spacing = mode === "every-1-2ft" ? 18 : 24;
+  const pts = [...corners];
+  const uw = Math.max(0, w - 2 * m), nw = Math.floor(uw / spacing);
+  if (nw > 0) { const ws = uw / (nw + 1); for (let i = 1; i <= nw; i++) { pts.push({ x: m + i * ws, y: m }); pts.push({ x: m + i * ws, y: h - m }); } }
+  const uh = Math.max(0, h - 2 * m), nh = Math.floor(uh / spacing);
+  if (nh > 0) { const hs = uh / (nh + 1); for (let i = 1; i <= nh; i++) { pts.push({ x: m, y: m + i * hs }); pts.push({ x: w - m, y: m + i * hs }); } }
+  const seen = new Set<string>();
+  return pts.filter(p => { const k = p.x.toFixed(2) + "," + p.y.toFixed(2); if (seen.has(k)) return false; seen.add(k); return true; });
+}
 
 const GoogleAdsBanner: React.FC = () => {
   const navigate = useNavigate();
