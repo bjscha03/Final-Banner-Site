@@ -500,6 +500,7 @@ async function uploadPdfToCloudinary(pdfBuffer, orderId) {
         folder: 'order-pdfs',
         public_id: `order-${orderId}-print-ready-${Date.now()}`,
         format: 'pdf',
+        access_mode: 'public',
       },
       (error, result) => {
         if (error) {
@@ -507,7 +508,16 @@ async function uploadPdfToCloudinary(pdfBuffer, orderId) {
           reject(error);
         } else {
           console.log('[PDF] Cloudinary upload success:', result.secure_url);
-          resolve(result.secure_url);
+          // Generate a signed URL with fl_attachment to force browser download
+          const signedUrl = cloudinary.url(result.public_id, {
+            resource_type: 'raw',
+            type: 'upload',
+            sign_url: true,
+            secure: true,
+            flags: 'attachment',
+          });
+          console.log('[PDF] Signed download URL:', signedUrl);
+          resolve(signedUrl);
         }
       }
     );
