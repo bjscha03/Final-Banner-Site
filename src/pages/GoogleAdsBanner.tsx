@@ -178,7 +178,7 @@ const GoogleAdsBanner: React.FC = () => {
       img.onerror = () => resolve(file);
       img.src = URL.createObjectURL(file);
     });
-  }, [compressImage]);
+  }, []);
 
   const handleFileUpload = useCallback(async (file: File) => {
     setUploadError('');
@@ -266,7 +266,7 @@ const GoogleAdsBanner: React.FC = () => {
 
   const onPreviewMouseUp = useCallback(() => {
     setIsDraggingPreview(false);
-  }, [compressImage]);
+  }, []);
 
   const onPreviewTouchStart = useCallback((e: React.TouchEvent) => {
     if (e.touches.length === 2) {
@@ -305,7 +305,7 @@ const GoogleAdsBanner: React.FC = () => {
   const onPreviewTouchEnd = useCallback(() => {
     setIsDraggingPreview(false);
     setLastPinchDist(null);
-  }, [compressImage]);
+  }, []);
 
   return (
     <>
