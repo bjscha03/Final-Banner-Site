@@ -7,6 +7,25 @@ import { useCartStore } from '@/store/cart';
 import { useUIStore } from '@/store/ui';
 import { calcTotals, usd, PRICE_PER_SQFT } from '@/lib/pricing';
 
+// Calculate grommet positions for preview overlay
+function calcGrommetPts(w: number, h: number, mode: string): { x: number; y: number }[] {
+  const m = 1;
+  const corners = [{ x: m, y: m }, { x: w - m, y: m }, { x: m, y: h - m }, { x: w - m, y: h - m }];
+  if (mode === "none") return [];
+  if (mode === "4-corners") return corners;
+  if (mode === "top-corners") return [corners[0], corners[1]];
+  if (mode === "left-corners") return [corners[0], corners[2]];
+  if (mode === "right-corners") return [corners[1], corners[3]];
+  const spacing = mode === "every-1-2ft" ? 18 : 24;
+  const pts = [...corners];
+  const uw = Math.max(0, w - 2 * m), nw = Math.floor(uw / spacing);
+  if (nw > 0) { const ws = uw / (nw + 1); for (let i = 1; i <= nw; i++) { pts.push({ x: m + i * ws, y: m }); pts.push({ x: m + i * ws, y: h - m }); } }
+  const uh = Math.max(0, h - 2 * m), nh = Math.floor(uh / spacing);
+  if (nh > 0) { const hs = uh / (nh + 1); for (let i = 1; i <= nh; i++) { pts.push({ x: m, y: m + i * hs }); pts.push({ x: w - m, y: m + i * hs }); } }
+  const seen = new Set<string>();
+  return pts.filter(p => { const k = p.x.toFixed(2) + "," + p.y.toFixed(2); if (seen.has(k)) return false; seen.add(k); return true; });
+}
+
 const PRESET_SIZES = [
   { label: "2' x 4'", w: 48, h: 24 },
   { label: "3' x 6'", w: 72, h: 36 },
@@ -638,6 +657,17 @@ const GoogleAdsBanner: React.FC = () => {
                   style={fitMode === 'fill' ? { transform: `translate(${imgPos.x}px, ${imgPos.y}px) scale(${imgScale})` } : {}}
                   draggable={false}
                 />
+                {/* Grommet overlay */}
+                {grommets !== "none" && calcGrommetPts(widthIn, heightIn, grommets).map((pos, idx) => {
+                  const leftPct = (pos.x / widthIn) * 100;
+                  const topPct = (pos.y / heightIn) * 100;
+                  const dotSize = Math.max(6, Math.min(12, 200 / Math.max(widthIn, heightIn)));
+                  return (
+                    <div key={`grommet-preview-${idx}`} className="absolute rounded-full pointer-events-none" style={{ left: `${leftPct}%`, top: `${topPct}%`, width: `${dotSize}px`, height: `${dotSize}px`, transform: "translate(-50%, -50%)", background: "radial-gradient(circle at 30% 30%, #e2e8f0, #4a5568)", border: "1px solid #2d3748", boxShadow: "inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 1px rgba(0,0,0,0.2)", zIndex: 10 }}>
+                      <div className="absolute rounded-full" style={{ left: "50%", top: "50%", width: "50%", height: "50%", transform: "translate(-50%, -50%)", background: "#f7fafc", border: "0.5px solid #cbd5e0" }} />
+                    </div>
+                  );
+                })}
               </div>
               {fitMode === 'fill' && <div className="flex items-center justify-center gap-4 mt-3">
                 <button onClick={() => setImgScale(s => Math.max(0.5, s - 0.1))} className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200"><ZoomOut className="w-5 h-5" /></button>

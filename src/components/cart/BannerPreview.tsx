@@ -39,6 +39,7 @@ interface BannerPreviewProps {
   };
   imageScale?: number;
   imagePosition?: { x: number; y: number };
+  fitMode?: 'fill' | 'fit' | 'stretch';
   designServiceEnabled?: boolean;
 }
 
@@ -127,6 +128,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   overlayImage,
   imageScale = 1,
   imagePosition = { x: 0, y: 0 },
+  fitMode = 'fill',
   designServiceEnabled = false,
 }) => {
   // Detect if imageUrl is a canvas thumbnail (data URL) or Cloudinary URL that should fill the preview
@@ -307,8 +309,9 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
               alt="Banner preview"
               className="absolute inset-0 w-full h-full"
               style={{
-                objectFit: 'contain',
-                objectPosition: 'center'
+                objectFit: fitMode === 'fill' ? 'cover' : fitMode === 'stretch' ? 'fill' : 'contain',
+                objectPosition: 'center',
+                ...(fitMode === 'fill' ? { transform: `translate(${imagePosition.x}px, ${imagePosition.y}px) scale(${imageScale})` } : {})
               }}
               onLoad={(e) => { setImageLoaded(true); }}
               onError={() => setImageError(true)}
@@ -368,8 +371,9 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
             alt="Banner preview"
             className="w-full h-full"
             style={{
-              objectFit: 'contain',
-              objectPosition: 'center'
+              objectFit: fitMode === 'fill' ? 'cover' : fitMode === 'stretch' ? 'fill' : 'contain',
+              objectPosition: 'center',
+              ...(fitMode === 'fill' ? { transform: `translate(${imagePosition.x}px, ${imagePosition.y}px) scale(${imageScale})` } : {})
             }}
             onLoad={(e) => { setImageLoaded(true); }}
             onError={() => setImageError(true)}
@@ -396,7 +400,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
             ref={imgRef}
             src={imageUrl} 
             alt="Banner preview"
-            className="w-full h-full object-contain"
+            className={`w-full h-full ${fitMode === 'fill' ? 'object-cover' : fitMode === 'stretch' ? 'object-fill' : 'object-contain'}`}
             style={{
               display: 'block',
               maxWidth: '100%',
@@ -518,7 +522,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
           <img 
             src={imageUrl} 
             alt="Banner preview"
-            className="w-full h-full object-contain"
+            className={`w-full h-full ${fitMode === 'fill' ? 'object-cover' : fitMode === 'stretch' ? 'object-fill' : 'object-contain'}`}
           />
         </div>
       </div>

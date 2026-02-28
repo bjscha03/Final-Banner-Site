@@ -282,6 +282,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                             overlayImage={item.overlay_image}
                             imageScale={item.image_scale}
                             imagePosition={item.image_position}
+                            fitMode={item.fit_mode || "fill"}
                             className="flex-shrink-0"
                             designServiceEnabled={item.design_service_enabled}
                           />

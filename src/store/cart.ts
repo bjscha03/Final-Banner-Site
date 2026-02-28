@@ -64,6 +64,7 @@ export interface CartItem {
   canvas_background_color?: string;    // Canvas background color (hex)
   image_scale?: number;                // Background image scale (for uploaded images)
   image_position?: { x: number; y: number }; // Background image position (for uploaded images)
+  fit_mode?: 'fill' | 'fit' | 'stretch';     // Image fit mode (for uploaded images)
   aiDesign?: {
     prompt: string;
     styles: string[];
@@ -390,6 +391,7 @@ export const useCartStore = create<CartState>()(
           canvas_background_color: (quote as any).canvasBackgroundColor || '#FFFFFF',
           image_scale: quote.imageScale || 1,
           image_position: quote.imagePosition || { x: 0, y: 0 },
+          fit_mode: quote.fitMode || 'fill',
           artwork_width: quote.file?.artworkWidth,
           artwork_height: quote.file?.artworkHeight,
           created_at: new Date().toISOString(),
@@ -631,6 +633,7 @@ export const useCartStore = create<CartState>()(
           canvas_background_color: (quote as any).canvasBackgroundColor || '#FFFFFF',
           image_scale: quote.imageScale || 1,
           image_position: quote.imagePosition || { x: 0, y: 0 },
+          fit_mode: quote.fitMode || 'fill',
           // FINAL_RENDER: High-res snapshot for admin PDF
           final_render_url: (quote as any).finalRenderUrl || existingItem.final_render_url,
           final_render_file_key: (quote as any).finalRenderFileKey || existingItem.final_render_file_key,

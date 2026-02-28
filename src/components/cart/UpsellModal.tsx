@@ -332,6 +332,7 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
                 className="flex-shrink-0"
                 imageScale={quote.imageScale}
                 imagePosition={quote.imagePosition}
+                fitMode={quote.fitMode || "fill"}
                 designServiceEnabled={designServiceEnabled}
               />
               <div className="flex-1 min-w-0">
