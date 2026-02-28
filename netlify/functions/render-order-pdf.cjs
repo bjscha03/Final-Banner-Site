@@ -496,10 +496,9 @@ async function uploadPdfToCloudinary(pdfBuffer, orderId) {
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
       {
-        resource_type: 'raw',
+        resource_type: 'image',
         folder: 'order-pdfs',
         public_id: 'order-' + orderId + '-print-ready-' + Date.now(),
-        format: 'pdf',
         type: 'upload',
       },
       (error, result) => {
