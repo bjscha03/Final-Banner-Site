@@ -319,16 +319,17 @@ const AdminOrders: React.FC = () => {
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
-      // Check if response is JSON (error) or PDF (success)
-      const contentType = response.headers.get('content-type');
+      // Response is always JSON with a Cloudinary URL
+      const result = await response.json();
       
-      if (contentType?.includes('application/json')) {
-        // Error response
-        const result = await response.json();
+      if (result.error) {
         throw new Error(result.error || result.message || 'PDF generation failed');
-      } else if (contentType?.includes('application/pdf')) {
-        // Success - PDF binary response
-        const blob = await response.blob();
+      }
+      
+      if (result.pdfUrl) {
+        // Download the PDF from Cloudinary URL
+        const pdfResponse = await fetch(result.pdfUrl);
+        const blob = await pdfResponse.blob();
         const url = window.URL.createObjectURL(blob);
         
         const link = document.createElement('a');
@@ -346,7 +347,7 @@ const AdminOrders: React.FC = () => {
           description: `Print-ready PDF ready for production.`,
         });
       } else {
-        throw new Error('Unexpected response type: ' + contentType);
+        throw new Error('No PDF URL in response');
       }
     } catch (error) {
       console.error('PDF Download Error:', error);
