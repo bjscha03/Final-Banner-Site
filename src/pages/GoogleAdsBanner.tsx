@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { Upload, Shield, Clock, Star, ChevronDown, ChevronUp, CheckCircle, Truck, Users, FileCheck, X, Loader2, ArrowRight, Brush, Minus, Plus, Lock, Mail, Droplets, Sun, Wind, Palette, Tag } from 'lucide-react';
+import { Upload, Shield, Clock, Star, ChevronDown, ChevronUp, CheckCircle, Truck, Users, FileCheck, X, Loader2, ArrowRight, Brush, Minus, Plus, Lock, Mail, Droplets, Sun, Wind, Palette, Tag, Move, ZoomIn, ZoomOut } from 'lucide-react';
 import { useQuoteStore, type MaterialKey } from '@/store/quote';
 import { useCartStore } from '@/store/cart';
 import { useUIStore } from '@/store/ui';
@@ -85,6 +85,15 @@ const GoogleAdsBanner: React.FC = () => {
   const [promoCode, setPromoCode] = useState('');
   const [promoApplied, setPromoApplied] = useState(false);
 
+  // Preview modal state
+  const [showPreview, setShowPreview] = useState(false);
+  const [imgPos, setImgPos] = useState({ x: 0, y: 0 });
+  const [imgScale, setImgScale] = useState(1);
+  const [isDraggingPreview, setIsDraggingPreview] = useState(false);
+  const [dragStartPt, setDragStartPt] = useState({ x: 0, y: 0 });
+  const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
+  const previewContainerRef = useRef<HTMLDivElement>(null);
+
   const quoteStore = useQuoteStore();
   const cartStore = useCartStore();
   const { setIsCartOpen } = useUIStore();
@@ -161,11 +170,25 @@ const GoogleAdsBanner: React.FC = () => {
     if (f) handleFileUpload(f);
   }, [handleFileUpload]);
 
+  // Open preview modal instead of going straight to checkout
   const handleCheckout = useCallback(() => {
+    if (!uploadedFile) return;
+    if (uploadedFile.isPdf) {
+      doCheckout({ x: 0, y: 0 }, 1);
+      return;
+    }
+    setImgPos({ x: 0, y: 0 });
+    setImgScale(1);
+    setShowPreview(true);
+  }, [uploadedFile]);
+
+  const doCheckout = useCallback((pos: { x: number; y: number }, scale: number) => {
     if (!uploadedFile) return;
     quoteStore.set({
       widthIn, heightIn, quantity, material,
       grommets: grommets as any, polePockets, addRope,
+      imagePosition: pos,
+      imageScale: scale,
       file: { name: uploadedFile.name, url: uploadedFile.url, fileKey: uploadedFile.fileKey, size: uploadedFile.size, isPdf: uploadedFile.isPdf, type: uploadedFile.isPdf ? 'application/pdf' : 'image/*' } as any,
     });
     const pricing = {
@@ -176,8 +199,49 @@ const GoogleAdsBanner: React.FC = () => {
     };
     cartStore.addFromQuote(useQuoteStore.getState(), undefined, pricing);
     setIsCartOpen(true);
+    setShowPreview(false);
     navigate('/checkout');
   }, [uploadedFile, widthIn, heightIn, material, grommets, polePockets, addRope, totals, quoteStore, cartStore, setIsCartOpen, navigate]);
+
+  // Preview drag handlers
+  const onPreviewMouseDown = useCallback((e: React.MouseEvent) => {
+    e.preventDefault();
+    setIsDraggingPreview(true);
+    setDragStartPt({ x: e.clientX, y: e.clientY });
+    setDragStartPos({ ...imgPos });
+  }, [imgPos]);
+
+  const onPreviewMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isDraggingPreview) return;
+    const dx = (e.clientX - dragStartPt.x) * 1.5;
+    const dy = (e.clientY - dragStartPt.y) * 1.5;
+    setImgPos({ x: dragStartPos.x + dx, y: dragStartPos.y + dy });
+  }, [isDraggingPreview, dragStartPt, dragStartPos]);
+
+  const onPreviewMouseUp = useCallback(() => {
+    setIsDraggingPreview(false);
+  }, []);
+
+  const onPreviewTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length !== 1) return;
+    const t = e.touches[0];
+    setIsDraggingPreview(true);
+    setDragStartPt({ x: t.clientX, y: t.clientY });
+    setDragStartPos({ ...imgPos });
+  }, [imgPos]);
+
+  const onPreviewTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!isDraggingPreview || e.touches.length !== 1) return;
+    e.preventDefault();
+    const t = e.touches[0];
+    const dx = (t.clientX - dragStartPt.x) * 1.5;
+    const dy = (t.clientY - dragStartPt.y) * 1.5;
+    setImgPos({ x: dragStartPos.x + dx, y: dragStartPos.y + dy });
+  }, [isDraggingPreview, dragStartPt, dragStartPos]);
+
+  const onPreviewTouchEnd = useCallback(() => {
+    setIsDraggingPreview(false);
+  }, []);
 
   return (
     <>
@@ -502,6 +566,53 @@ const GoogleAdsBanner: React.FC = () => {
             </button>
           </div>
         </div>
+
+      {/* Preview Modal */}
+      {showPreview && uploadedFile && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 border-b">
+              <h3 className="text-lg font-bold text-gray-900">Position Your Image</h3>
+              <button onClick={() => setShowPreview(false)} className="p-1 hover:bg-gray-100 rounded-full">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4 flex-1 overflow-auto">
+              <p className="text-sm text-gray-500 mb-3 flex items-center gap-1"><Move className="w-4 h-4" /> Drag to reposition your image on the banner</p>
+              <div
+                ref={previewContainerRef}
+                className="relative w-full border-2 border-dashed border-gray-300 rounded-lg overflow-hidden select-none"
+                style={{ aspectRatio: `${widthIn} / ${heightIn}`, cursor: isDraggingPreview ? "grabbing" : "grab" }}
+                onMouseDown={onPreviewMouseDown}
+                onMouseMove={onPreviewMouseMove}
+                onMouseUp={onPreviewMouseUp}
+                onMouseLeave={onPreviewMouseUp}
+                onTouchStart={onPreviewTouchStart}
+                onTouchMove={onPreviewTouchMove}
+                onTouchEnd={onPreviewTouchEnd}
+              >
+                <img
+                  src={uploadedFile.url}
+                  alt="Banner preview"
+                  className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+                  style={{ transform: `translate(${imgPos.x}px, ${imgPos.y}px) scale(${imgScale})` }}
+                  draggable={false}
+                />
+              </div>
+              <div className="flex items-center justify-center gap-4 mt-3">
+                <button onClick={() => setImgScale(s => Math.max(0.5, s - 0.1))} className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200"><ZoomOut className="w-5 h-5" /></button>
+                <span className="text-sm font-medium text-gray-600">{Math.round(imgScale * 100)}%</span>
+                <button onClick={() => setImgScale(s => Math.min(3, s + 0.1))} className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200"><ZoomIn className="w-5 h-5" /></button>
+                <button onClick={() => { setImgPos({ x: 0, y: 0 }); setImgScale(1); }} className="text-sm text-orange-600 hover:text-orange-700 font-medium ml-2">Reset</button>
+              </div>
+            </div>
+            <div className="flex gap-3 p-4 border-t">
+              <button onClick={() => setShowPreview(false)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50">Cancel</button>
+              <button onClick={() => doCheckout(imgPos, imgScale)} className="flex-1 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold shadow-lg">Confirm & Checkout</button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
