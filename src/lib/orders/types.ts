@@ -70,6 +70,9 @@ export interface Order {
   shipping_state?: string | null;
   shipping_zip?: string | null;
   shipping_country?: string | null;
+  applied_discount_cents?: number;
+  applied_discount_label?: string;
+  applied_discount_type?: string;
 }
 
 export interface CreateOrderData {
@@ -85,6 +88,9 @@ export interface CreateOrderData {
   shipping_state?: string | null;
   shipping_zip?: string | null;
   shipping_country?: string | null;
+  applied_discount_cents?: number;
+  applied_discount_label?: string;
+  applied_discount_type?: string;
 }
 
 export interface OrdersAdapter {

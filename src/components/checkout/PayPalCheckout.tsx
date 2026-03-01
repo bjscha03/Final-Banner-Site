@@ -8,7 +8,7 @@ import { Loader2 } from 'lucide-react';
 
 interface PayPalCheckoutProps {
   total: number;
-  onSuccess: (orderId: string) => void;
+  onSuccess: (orderId: string, orderData?: any) => void; // orderData includes server-computed pricing
   onError: (error: any) => void;
   disabled?: boolean;
 }
@@ -206,7 +206,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
 
       if (response.ok) {
         const result = await response.json();
-        onSuccess(result.id);
+        onSuccess(result.id, result.order);
       } else {
         throw new Error('Test payment failed');
       }
@@ -491,7 +491,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
 
       // Use database order ID if available, otherwise PayPal order ID
       const orderId = orderResult?.orderId || data.orderID;
-      onSuccess(orderId);
+      onSuccess(orderId, orderResult?.order);
     } catch (e: any) {
       console.error('Payment exception:', e);
       alert('Network error capturing payment. Please try again.');

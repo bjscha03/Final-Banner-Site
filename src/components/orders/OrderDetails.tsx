@@ -851,6 +851,18 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                 </span>
               </div>
               
+              {/* Discount - from server-computed values */}
+              {(order.applied_discount_cents ?? 0) > 0 && (
+                <div className="flex justify-between items-center py-2">
+                  <span className="text-base font-medium text-green-600">
+                    {order.applied_discount_label || "Discount"}
+                  </span>
+                  <span className="text-lg font-semibold text-green-600">
+                    -{usd((order.applied_discount_cents ?? 0) / 100)}
+                  </span>
+                </div>
+              )}
+              
               {/* Tax */}
               <div className="flex justify-between items-center py-2 border-b border-slate-300">
                 <span className="text-base font-medium text-slate-700">Tax (6%)</span>
@@ -859,11 +871,11 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                 </span>
               </div>
               
-              {/* Total - Calculated from line items + tax */}
+              {/* Total - Uses server-computed total (includes discount) */}
               <div className="flex justify-between items-center pt-3 pb-1">
                 <span className="text-xl font-bold text-[#18448D]">Total</span>
                 <span className="text-2xl font-bold text-[#ff6b35]">
-                  {usd((order.items.reduce((sum, item) => sum + (item.line_total_cents || 0), 0) + order.tax_cents) / 100)}
+                  {usd((order.total_cents) / 100)}
                 </span>
               </div>
             </div>

@@ -28,6 +28,7 @@ const calculateUnitPrice = (item: any) => {
   const items = state?.items || [];
   const total = state?.total || 0;
   const discountCode = state?.discountCode || null;
+  const serverPricing = state?.serverPricing || null; // Server-computed pricing from create-order
 
   // Calculate pricing breakdown using the same logic as cart store
 
@@ -65,24 +66,25 @@ const calculateUnitPrice = (item: any) => {
       return { subtotal: 0, tax: 0, total: 0, discountCents: 0, discountLabel: "" };
     }
 
-    const flags = getFeatureFlags();
-
-    if (flags.freeShipping || flags.minOrderFloor) {
-      const pricingOptions = getPricingOptions();
-      const pricingItems: PricingItem[] = items.map((item: any) => ({
-        line_total_cents: item.line_total_cents
-      }));
-      const totals = computeTotals(pricingItems, 0.06, pricingOptions, discountCode);
+    // FIXED: Use server-computed pricing when available (includes discount calculations)
+    // The server-side computeTotals in create-order.cjs handles promo + quantity discounts correctly.
+    // Client-side computeTotals does NOT support promo discounts, so we must use server values.
+    if (serverPricing) {
+      const discountLabel = serverPricing.applied_discount_type === 'quantity'
+        ? 'Qty Discount'
+        : serverPricing.applied_discount_type === 'promo'
+          ? 'Promo: ' + (serverPricing.applied_discount_label || discountCode?.code || 'Applied')
+          : '';
       return {
-        subtotal: totals.adjusted_subtotal_cents,
-        tax: totals.tax_cents,
-        total: totals.total_cents,
-        discountCents: totals.applied_discount_cents || 0,
-        discountLabel: totals.applied_discount_type === "quantity" ? "Qty Discount (" + Math.round((totals.applied_discount_rate || 0) * 100) + "% off)" : totals.applied_discount_type === "promo" ? "Promo: " + (discountCode?.code || "Applied") : "",
+        subtotal: serverPricing.subtotal_cents || 0,
+        tax: serverPricing.tax_cents || 0,
+        total: serverPricing.total_cents || 0,
+        discountCents: serverPricing.applied_discount_cents || 0,
+        discountLabel,
       };
     }
 
-    // Fallback calculation
+    // Fallback: client-side calculation (no discount support - only for old orders without serverPricing)
     const subtotalCents = items.reduce((sum: number, item: any) => sum + item.line_total_cents, 0);
     const taxCents = Math.round(subtotalCents * 0.06);
     const totalCents = subtotalCents + taxCents;
