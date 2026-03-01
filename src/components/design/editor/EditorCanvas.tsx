@@ -932,57 +932,79 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
       
 
       {/* ADDED: Ruler overlays with inch markings (hidden on mobile) */}
-      {/* Top ruler */}
+      {/* Top ruler - adaptive label step for readability on large banners */}
+      {(() => {
+        const pxPerInch = PIXELS_PER_INCH * scale;
+        const labelStep = pxPerInch >= 28 ? 1 : pxPerInch >= 14 ? 2 : pxPerInch >= 8 ? 5 : pxPerInch >= 4 ? 12 : 24;
+        return (
       <div
         className="absolute pointer-events-none hidden sm:block"
         style={{
           left: stagePos.x,
-          top: Math.max(stagePos.y - 20, 0),
+          top: Math.max(stagePos.y - 22, 0),
           width: canvasWidthPx * scale,
-          height: 20,
+          height: 22,
           overflow: "hidden",
         }}
       >
-        <div className="w-full h-full bg-gray-200/80 border-b border-gray-400 flex items-end relative">
-          {Array.from({ length: Math.ceil(widthIn) + 1 }).map((_, i) => (
+        <div className="w-full h-full bg-gray-200/90 border-b border-gray-400 flex items-end relative">
+          {Array.from({ length: Math.ceil(widthIn) + 1 }).map((_, i) => {
+            const showLabel = i % labelStep === 0;
+            return (
             <React.Fragment key={`ruler-top-${i}`}>
-              <div className="absolute bottom-0" style={{ left: i * PIXELS_PER_INCH * scale }}>
-                <div className="w-px h-3 bg-gray-600" />
-                <span className="absolute text-[9px] text-gray-600 select-none" style={{ left: 2, bottom: 4 }}>{i}</span>
+              <div className="absolute bottom-0" style={{ left: i * pxPerInch }}>
+                <div className={`w-px ${showLabel ? "h-3" : "h-2"} bg-gray-600`} />
+                {showLabel && (
+                  <span className="absolute text-[10px] font-medium text-gray-700 select-none" style={{ left: 2, bottom: 5 }}>{i}"</span>
+                )}
               </div>
-              {i < widthIn && (
-                <div className="absolute bottom-0 w-px h-2 bg-gray-400" style={{ left: (i + 0.5) * PIXELS_PER_INCH * scale }} />
+              {i < widthIn && pxPerInch >= 6 && (
+                <div className="absolute bottom-0 w-px h-1.5 bg-gray-400" style={{ left: (i + 0.5) * pxPerInch }} />
               )}
             </React.Fragment>
-          ))}
+            );
+          })}
         </div>
       </div>
+        );
+      })()}
 
-      {/* Left ruler */}
+      {/* Left ruler - adaptive label step for readability on large banners */}
+      {(() => {
+        const pxPerInch = PIXELS_PER_INCH * scale;
+        const labelStep = pxPerInch >= 28 ? 1 : pxPerInch >= 14 ? 2 : pxPerInch >= 8 ? 5 : pxPerInch >= 4 ? 12 : 24;
+        return (
       <div
         className="absolute pointer-events-none hidden sm:block"
         style={{
-          left: Math.max(stagePos.x - 20, 0),
+          left: Math.max(stagePos.x - 22, 0),
           top: stagePos.y,
-          width: 20,
+          width: 22,
           height: canvasHeightPx * scale,
           overflow: "hidden",
         }}
       >
-        <div className="w-full h-full bg-gray-200/80 border-r border-gray-400 relative">
-          {Array.from({ length: Math.ceil(heightIn) + 1 }).map((_, i) => (
+        <div className="w-full h-full bg-gray-200/90 border-r border-gray-400 relative">
+          {Array.from({ length: Math.ceil(heightIn) + 1 }).map((_, i) => {
+            const showLabel = i % labelStep === 0;
+            return (
             <React.Fragment key={`ruler-left-${i}`}>
-              <div className="absolute right-0" style={{ top: i * PIXELS_PER_INCH * scale }}>
-                <div className="h-px w-3 bg-gray-600" />
-                <span className="absolute text-[9px] text-gray-600 select-none" style={{ right: 4, top: 2, writingMode: "vertical-lr" as any }}>{i}</span>
+              <div className="absolute right-0" style={{ top: i * pxPerInch }}>
+                <div className={`h-px ${showLabel ? "w-3" : "w-2"} bg-gray-600`} />
+                {showLabel && (
+                  <span className="absolute text-[10px] font-medium text-gray-700 select-none" style={{ right: 5, top: 2, writingMode: "vertical-lr" as any }}>{i}"</span>
+                )}
               </div>
-              {i < heightIn && (
-                <div className="absolute right-0 h-px w-2 bg-gray-400" style={{ top: (i + 0.5) * PIXELS_PER_INCH * scale }} />
+              {i < heightIn && pxPerInch >= 6 && (
+                <div className="absolute right-0 h-px w-1.5 bg-gray-400" style={{ top: (i + 0.5) * pxPerInch }} />
               )}
             </React.Fragment>
-          ))}
+            );
+          })}
         </div>
       </div>
+        );
+      })()}
       {/* Text Editing Input - Shows when double-clicking text */}
       {editingTextId && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/20 z-50">
