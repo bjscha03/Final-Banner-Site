@@ -1976,7 +1976,11 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
     }
     
     setPendingAction(null);
+    } catch (error) {
+      console.error("[UPSELL] Error in handleUpsellContinue:", error);
+      toast({ title: "Error", description: "Something went wrong. Please try again.", variant: "destructive" });
     } finally {
+      setShowUpsellModal(false);
       setIsProcessingUpsell(false);
     }
   };
