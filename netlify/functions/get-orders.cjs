@@ -156,14 +156,20 @@ exports.handler = async (event, context) => {
     console.log(`Found ${orders.length} orders`);
 
     // Format the response
-    const formattedOrders = orders.map(order => ({
+    const formattedOrders = orders.map(order => {
+      // Recalculate totals from line items (DB values may be incorrect)
+      const _items = order.items || [];
+      const _recalcSubtotal = _items.reduce((sum, item) => sum + (Number(item.line_total_cents) || 0), 0);
+      const _recalcTax = Math.round(_recalcSubtotal * 0.06);
+      const _recalcTotal = _recalcSubtotal + _recalcTax;
+      return {
       id: order.id,
       user_id: order.user_id,
       email: order.email,
       customer_name: order.customer_name,
-      subtotal_cents: order.subtotal_cents,
-      tax_cents: order.tax_cents,
-      total_cents: order.total_cents,
+      subtotal_cents: _recalcSubtotal,
+      tax_cents: _recalcTax,
+      total_cents: _recalcTotal,
       status: order.status,
       currency: 'USD',
       tracking_number: order.tracking_number,
@@ -176,8 +182,9 @@ exports.handler = async (event, context) => {
       shipping_zip: order.shipping_zip,
       shipping_country: order.shipping_country,
       created_at: order.created_at,
-      items: order.items || []
-    }));
+      items: _items
+    };
+    });
 
     return {
       statusCode: 200,
