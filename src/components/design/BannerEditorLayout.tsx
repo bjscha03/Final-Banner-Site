@@ -1510,7 +1510,6 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
     }
 
     // Show upsell modal if user should see it
-    }
 
     if (shouldShowUpsell) {
       console.log('🎨 BANNER EDITOR: Showing upsell modal for BUY NOW (checkout)');
