@@ -299,8 +299,8 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
       setPdfGenerating(prev => ({ ...prev, [index]: true }));
       
       toast({
-        title: "Generating Print-Ready PDF",
-        description: "Creating high-quality PDF with proper dimensions and bleed...",
+        title: "Generating Print-Ready File",
+        description: "Creating high-quality JPEG with proper dimensions and bleed...",
       });
 
       // Determine the best image source
@@ -400,21 +400,21 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `order-${order.id.slice(-8)}-banner-${index + 1}-print-ready.pdf`;
+      link.download = `order-${order.id.slice(-8)}-banner-${index + 1}-print-ready.jpg`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
       toast({
-        title: "PDF Downloaded",
-        description: `Print-ready PDF (${dpi} DPI with ${bleed}" bleed) ready for production.`,
+        title: "Print File Downloaded",
+        description: `Print-ready JPEG (${dpi} DPI with ${bleed}" bleed) ready for production.`,
       });
     } catch (error) {
       console.error('[PDF Download] Error:', error);
       toast({
-        title: "PDF Generation Failed",
-        description: error instanceof Error ? error.message : "Failed to generate PDF",
+        title: "File Generation Failed",
+        description: error instanceof Error ? error.message : "Failed to generate print file",
         variant: "destructive",
       });
     } finally {
@@ -630,12 +630,12 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                     </div>
                   )}
 
-                  {/* Final Print PDF Section */}
+                  {/* Final Print File (JPEG) Section */}
                   <div className="bg-white/80 backdrop-blur rounded-xl border border-purple-200 shadow-sm overflow-hidden">
                     <div className="px-4 py-3 bg-gradient-to-r from-purple-100 to-violet-100 border-b border-purple-200">
                       <div className="flex items-center gap-2">
                         <FileText className="h-4 w-4 text-purple-600" />
-                        <p className="text-sm font-bold text-purple-800">Final Print PDF</p>
+                        <p className="text-sm font-bold text-purple-800">Final Print File (JPEG)</p>
                       </div>
                     </div>
                     <div className="p-4">
@@ -645,7 +645,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                             <FileText className="h-6 w-6 text-white" />
                           </div>
                           <div className="flex-1">
-                            <p className="text-base font-bold text-green-800">✅ PDF Ready for Print</p>
+                            <p className="text-base font-bold text-green-800">✅ JPEG Ready for Print</p>
                             <p className="text-sm text-green-600">
                               Uploaded {item.final_print_pdf_uploaded_at
                                 ? new Date(item.final_print_pdf_uploaded_at).toLocaleString()
@@ -659,7 +659,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                             className="px-5 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm font-bold rounded-xl hover:from-green-700 hover:to-emerald-700 flex items-center gap-2 shadow-md transition-all duration-200"
                           >
                             <Download className="h-4 w-4" />
-                            Download PDF
+                            Download JPEG
                           </a>
                         </div>
                       ) : (
@@ -669,19 +669,19 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                               <span className="text-xl">⏳</span>
                             </div>
                             <div className="flex-1">
-                              <p className="text-base font-bold text-amber-800">Awaiting Final PDF</p>
+                              <p className="text-base font-bold text-amber-800">Awaiting Final JPEG</p>
                               <p className="text-sm text-amber-700 mt-1">
-                                Upload the final print-ready PDF once the design is complete and approved by the customer.
+                                Upload the final print-ready JPEG once the design is complete and approved by the customer.
                               </p>
                             </div>
                           </div>
                           {onUploadFinalPdf && (
                             <label className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-600 to-violet-600 text-white text-sm font-bold rounded-xl hover:from-purple-700 hover:to-violet-700 cursor-pointer transition-all duration-200 shadow-md">
                               <Upload className="h-4 w-4" />
-                              Upload Final PDF
+                              Upload Final JPEG
                               <input
                                 type="file"
-                                accept=".pdf,application/pdf"
+                                accept=".jpg,.jpeg,image/jpeg"
                                 className="hidden"
                                 onChange={(e) => {
                                   const file = e.target.files?.[0];

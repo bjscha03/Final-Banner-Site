@@ -2201,19 +2201,8 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
           {/* Canvas Toolbar - Grid Toggle + Design Service Toggle */}
           <div className="flex items-center justify-between px-2 py-1 lg:px-4 lg:py-2 bg-white border-b border-gray-200">
             {/* Design Service Toggle - Only show when NOT in design service mode (panel has its own DIY button) */}
-            {!designServiceMode && (
-            <button
-              onClick={() => setDesignServiceMode(true)}
-              className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-md text-sm font-medium transition-colors bg-gradient-to-r from-[#18448D] to-indigo-600 text-white hover:from-[#0f2d5c] hover:to-indigo-700"
-            >
-              <Sparkles className="w-4 h-4" />
-              <span className="hidden sm:inline">Let Us Design It</span>
-              <span className="sm:hidden">Let Us Design It</span>
-            </button>
-            )}
-
-            {/* Spacer when in design service mode to maintain layout */}
-            {designServiceMode && <div />}
+            {/* Spacer to maintain layout */}
+            <div />
 
             {/* Grid Toggle - only show when not in design service mode */}
             {!designServiceMode && (
