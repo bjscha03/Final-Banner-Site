@@ -160,8 +160,11 @@ exports.handler = async (event, context) => {
       // Recalculate totals from line items (DB values may be incorrect)
       const _items = order.items || [];
       const _recalcSubtotal = _items.reduce((sum, item) => sum + (Number(item.line_total_cents) || 0), 0);
-      const _recalcTax = Math.round(_recalcSubtotal * 0.06);
-      const _recalcTotal = _recalcSubtotal + _recalcTax;
+      // Subtract discount before computing tax/total (same pattern as notify-order.cjs)
+      const _discountCents = Number(order.applied_discount_cents) || 0;
+      const _afterDiscount = _recalcSubtotal - _discountCents;
+      const _recalcTax = Math.round(_afterDiscount * 0.06);
+      const _recalcTotal = _afterDiscount + _recalcTax;
       return {
       id: order.id,
       user_id: order.user_id,
@@ -181,6 +184,9 @@ exports.handler = async (event, context) => {
       shipping_state: order.shipping_state,
       shipping_zip: order.shipping_zip,
       shipping_country: order.shipping_country,
+      applied_discount_cents: Number(order.applied_discount_cents) || 0,
+      applied_discount_label: order.applied_discount_label || '',
+      applied_discount_type: order.applied_discount_type || 'none',
       created_at: order.created_at,
       items: _items
     };

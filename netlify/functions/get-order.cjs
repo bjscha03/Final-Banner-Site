@@ -54,6 +54,9 @@ exports.handler = async (event, context) => {
         total_cents,
         status,
         tracking_number,
+        applied_discount_cents,
+        applied_discount_label,
+        applied_discount_type,
         created_at,
         updated_at
       FROM orders
