@@ -48,6 +48,13 @@ const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading = false }) =>
     return `${itemCount} banners (${uniqueItems} designs)`;
   };
 
+  // Calculate correct total from line items (DB total_cents can be stale/incorrect)
+  const getOrderTotal = (order: Order): number => {
+    const subtotal = order.items.reduce((sum, item) => sum + item.line_total_cents, 0);
+    const tax = Math.round(subtotal * 0.06);
+    return subtotal + tax;
+  };
+
   const handleReorderAll = (order: Order) => {
     let totalItems = 0;
 
@@ -161,7 +168,7 @@ const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading = false }) =>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <div className="text-sm font-semibold text-gray-900">
-                    {usd(order.total_cents / 100)}
+                    {usd(getOrderTotal(order) / 100)}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -221,7 +228,7 @@ const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading = false }) =>
             <div className="mb-3">
               <p className="text-sm text-gray-900 mb-1">{getItemsSummary(order)}</p>
               <p className="text-lg font-semibold text-gray-900">
-                {usd(order.total_cents / 100)}
+                {usd(getOrderTotal(order) / 100)}
               </p>
             </div>
 

@@ -328,10 +328,9 @@ exports.handler = async (event, context) => {
       });
     }
 
-    // Apply feature flag pricing logic if enabled
+    // ALWAYS recalculate totals server-side from line_total_cents
     const flags = getFeatureFlags();
-    if (flags.freeShipping || flags.minOrderFloor) {
-      console.log('🏁 Feature flags enabled:', flags);
+    {
 
       const taxRate = 0.06; // 6% tax rate
       const pricingOptions = {
@@ -340,7 +339,7 @@ exports.handler = async (event, context) => {
         shippingMethodLabel: flags.shippingMethodLabel
       };
 
-      // Recalculate totals with feature flags
+      // Recalculate totals from line items
       const recalculatedTotals = computeTotals(orderData.items || [], taxRate, pricingOptions);
 
       // Log pricing calculation
@@ -362,7 +361,7 @@ exports.handler = async (event, context) => {
       orderData.min_order_adjustment_cents = recalculatedTotals.min_order_adjustment_cents;
       orderData.shipping_cents = recalculatedTotals.shipping_cents;
 
-      console.log('✅ Updated order totals with feature flags:', {
+      console.log('✅ Server-recalculated order totals:', {
         subtotal_cents: orderData.subtotal_cents,
         tax_cents: orderData.tax_cents,
         total_cents: orderData.total_cents,
