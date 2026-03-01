@@ -867,7 +867,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
               <div className="flex justify-between items-center py-2 border-b border-slate-300">
                 <span className="text-base font-medium text-slate-700">Tax (6%)</span>
                 <span className="text-lg font-semibold text-slate-900">
-                  {usd(order.tax_cents / 100)}
+                  {usd(Math.round((order.items.reduce((sum, item) => sum + (item.line_total_cents || 0), 0) - (order.applied_discount_cents || 0)) * 0.06) / 100)}
                 </span>
               </div>
               
@@ -875,7 +875,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
               <div className="flex justify-between items-center pt-3 pb-1">
                 <span className="text-xl font-bold text-[#18448D]">Total</span>
                 <span className="text-2xl font-bold text-[#ff6b35]">
-                  {usd((order.total_cents) / 100)}
+                  {(() => { const sub = order.items.reduce((s, i) => s + (i.line_total_cents || 0), 0); const disc = order.applied_discount_cents || 0; const after = sub - disc; const tax = Math.round(after * 0.06); return usd((after + tax) / 100); })()}
                 </span>
               </div>
             </div>

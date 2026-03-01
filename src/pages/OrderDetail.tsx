@@ -41,6 +41,9 @@ interface Order {
   tracking_carrier?: string;
   created_at: string;
   items: OrderItem[];
+  applied_discount_cents?: number;
+  applied_discount_label?: string;
+  applied_discount_type?: string;
 }
 
 const OrderDetail: React.FC = () => {
@@ -350,18 +353,26 @@ const OrderDetail: React.FC = () => {
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Order Summary</h2>
             <div className="space-y-2">
               {(() => {
-                // Calculate correct subtotal and tax from line totals
-                // Database subtotal_cents and tax_cents are incorrect, so calculate from line_total_cents
-                const calculatedSubtotal = order.items.reduce((sum, item) => sum + item.line_total_cents, 0);
-                const calculatedTax = Math.round(calculatedSubtotal * 0.06);
-                const calculatedTotal = calculatedSubtotal + calculatedTax;
+                // Recalculate tax/total from line items minus discount
+                // Same approach as notify-order.cjs
+                const rawSubtotal = order.items.reduce((sum, item) => sum + item.line_total_cents, 0);
+                const discountCents = order.applied_discount_cents || 0;
+                const afterDiscount = rawSubtotal - discountCents;
+                const calculatedTax = Math.round(afterDiscount * 0.06);
+                const calculatedTotal = afterDiscount + calculatedTax;
                 
                 return (
-                  <>
+                    <>
                     <div className="flex justify-between text-gray-600">
                       <span>Subtotal</span>
-                      <span>{formatCurrency(calculatedSubtotal)}</span>
+                      <span>{formatCurrency(rawSubtotal)}</span>
                     </div>
+                    {discountCents > 0 && (
+                      <div className="flex justify-between text-green-600 font-medium">
+                        <span>{order.applied_discount_label || "Discount"}</span>
+                        <span>-{formatCurrency(discountCents)}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between text-gray-600">
                       <span>Tax</span>
                       <span>{formatCurrency(calculatedTax)}</span>
@@ -372,7 +383,7 @@ const OrderDetail: React.FC = () => {
                         <span>{formatCurrency(calculatedTotal)}</span>
                       </div>
                     </div>
-                  </>
+                    </>
                 );
               })()}
             </div>
