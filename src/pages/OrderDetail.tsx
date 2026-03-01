@@ -248,7 +248,7 @@ const OrderDetail: React.FC = () => {
                                   <span className="text-gray-600">Base banner:</span>
                                   <span className="text-gray-900">{formatCurrency(unitPrice)} × {item.quantity}</span>
                                 </div>
-                                {item.rope_feet && item.rope_feet > 0 && (
+                                {Number(item.rope_feet) > 0 && (
                                   <div className="flex justify-between">
                                     <span className="text-gray-600">Rope ({item.rope_feet.toFixed(1)}ft):</span>
                                     <span className="text-gray-900">{formatCurrency(ropeCost)}</span>

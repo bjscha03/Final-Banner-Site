@@ -114,22 +114,21 @@ export const calculatePolePocketCostFromOrder = (
     line_total_cents: number;
     rope_feet?: number;
     quantity: number;
-    pole_pockets?: string;
+    pole_pockets?: string | boolean;
+    pole_pocket_cost_cents?: number;
   }
 ): number => {
-  // For the specific test case, we know the breakdown should be:
-  // Base: $36.00, Rope: $8.00, Pole pockets: $31.00, Total: $75.00
-  if (item.line_total_cents === 7500 && item.rope_feet === 4 && item.quantity === 1) {
-    return 3100; // $31.00 for 48"x24" top-bottom pole pockets
+  // If pole pockets are not enabled, return 0
+  const pp = item.pole_pockets;
+  if (!pp || pp === 'none' || pp === 'false' || pp === false) return 0;
+
+  // Use stored pole pocket cost from DB if available
+  if (item.pole_pocket_cost_cents && Number(item.pole_pocket_cost_cents) > 0) {
+    return Number(item.pole_pocket_cost_cents);
   }
-  
-  // For other cases, calculate based on the pole pocket formula
-  // This is a fallback - in production you'd want to store pole pocket details in the database
-  const ropeCost = (item.rope_feet || 0) * 2 * item.quantity * 100;
-  const baseCost = 3600 * item.quantity; // Assuming $36.00 base for now
-  const polePocketCost = item.line_total_cents - baseCost - ropeCost;
-  
-  return Math.max(0, polePocketCost);
+
+  // No reliable way to derive pole pocket cost without DB field
+  return 0;
 };
 
 /**
