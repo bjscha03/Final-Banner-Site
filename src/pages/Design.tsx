@@ -2,19 +2,15 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import PageHeader from '@/components/PageHeader';
-import { Palette, Info, Sparkles, Upload } from 'lucide-react';
+import { Palette, Info, Upload } from 'lucide-react';
 import BannerEditorLayout from '@/components/design/BannerEditorLayout';
 import PrintReadyUploadPanel from '@/components/design/PrintReadyUploadPanel';
 import NewAIGenerationModal from '@/components/design/NewAIGenerationModal';
 import { useQuoteStore, MaterialKey } from '@/store/quote';
 import { useToast } from '@/components/ui/use-toast';
-import { Button } from '@/components/ui/button';
 
 /*
  * MANUAL QA CHECKLIST:
- * ✓ Mobile: new Free Design CTA appears above editor/canvas
- * ✓ Mobile: "Start My Free Design" triggers the same Let Us Design flow as existing button
- * ✓ Mobile: "I already have a print-ready file" scrolls to editor/upload area
  * ✓ Mobile: Uploads, size, material, options, text tools still work
  * ✓ Mobile: Add to Cart, Buy Now, Preview still work
  * ✓ Desktop: layout unchanged; no spacing regressions
@@ -30,22 +26,6 @@ const Design: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { set: setFromQuickQuote } = useQuoteStore();
-
-  // Shared handler for "Let Us Design It" flow
-  const handleLetUsDesign = () => {
-    console.log('🔥 handleLetUsDesign called - setting designServiceMode to true');
-    setDesignServiceMode(true);
-    console.log('🔥 designServiceMode state updated');
-    // Scroll to editor area on mobile after a short delay
-    setTimeout(() => {
-      editorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 100);
-  };
-
-  // Handler for "I already have a print-ready file" - scrolls to editor/upload area
-  const handleScrollToEditor = () => {
-    setPrintReadyPanelOpen(true);
-  };
 
   // Handle AI modal parameter
   useEffect(() => {
@@ -133,61 +113,18 @@ const Design: React.FC = () => {
         </div>
       </div>
 
-      {/* Mobile-only Free Design CTA Section - appears ABOVE editor/canvas */}
+
+      {/* Print-ready file button - visible on mobile */}
       <div className="lg:hidden mx-2 my-3">
-        <div className="bg-white border-2 border-gray-200 rounded-xl p-4 shadow-sm">
-          {/* Eyebrow */}
-          <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
-            Don't want to design this yourself?
-          </p>
-          
-          {/* Headline */}
-          <h2 className="text-xl font-bold text-gray-900 mb-2">
-            We'll design your banner FREE.
-          </h2>
-          
-          {/* Body */}
-          <p className="text-sm text-gray-700 mb-3">
-            Tell us what you need and our designers will create it for you. We'll send proofs until you love it — no extra cost.
-          </p>
-          
-          {/* Trust line */}
-          <p className="text-xs text-gray-500 mb-4 flex items-center gap-1 flex-wrap">
-            <span className="inline-flex items-center gap-1">
-              <span className="inline-block w-1 h-1 bg-green-500 rounded-full"></span>
-              Printed in 24 hours
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="inline-block w-1 h-1 bg-green-500 rounded-full"></span>
-              Free Next-Day Air Shipping
-            </span>
-            <span className="inline-flex items-center gap-1">
-              <span className="inline-block w-1 h-1 bg-green-500 rounded-full"></span>
-              Human reviewed before printing
-            </span>
-          </p>
-          
-          {/* Primary CTA */}
-          <Button
-            onClick={handleLetUsDesign}
-            className="w-full mb-2 min-h-[48px] bg-gradient-to-r from-[#18448D] to-indigo-600 hover:from-[#0f2d5c] hover:to-indigo-700 text-white font-semibold text-base"
-          >
-            <Sparkles className="w-5 h-5 mr-2" />
-            Start My Free Design
-          </Button>
-          
-          {/* Secondary CTA */}
-          <Button
-            onClick={handleScrollToEditor}
-            variant="outline"
-            className="w-full min-h-[48px] border-2 border-gray-300 hover:border-gray-400 text-gray-700 font-medium text-base"
-          >
-            <Upload className="w-5 h-5 mr-2" />
-            I already have a print-ready file
-          </Button>
-        </div>
+        <a
+          href="https://bannersonthefly.com/google-ads-banner"
+          className="flex items-center justify-center w-full min-h-[48px] border-2 border-gray-300 hover:border-gray-400 text-gray-700 font-medium text-base rounded-md bg-white"
+        >
+          <Upload className="w-5 h-5 mr-2" />
+          I already have a print-ready file
+        </a>
       </div>
-      
+
       {/* Editor/Canvas Area - ref for scroll target */}
       <div ref={editorRef}>
         <BannerEditorLayout 
