@@ -270,6 +270,19 @@ exports.handler = async (event, context) => {
       console.warn('⚠️ Shipping address migration warning:', migrationError.message);
       // Continue anyway - columns might already exist
     }
+
+    // AUTO-MIGRATE: Add discount columns to orders table
+    try {
+      await sql`
+        ALTER TABLE orders
+        ADD COLUMN IF NOT EXISTS applied_discount_cents INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS applied_discount_label TEXT DEFAULT '',
+        ADD COLUMN IF NOT EXISTS applied_discount_type TEXT DEFAULT 'none'
+      `;
+      console.log('✅ Database migration: discount columns verified/created');
+    } catch (migrationError) {
+      console.warn('⚠️ Discount columns migration warning:', migrationError.message);
+    }
     
     try {
       await sql`
@@ -340,11 +353,11 @@ exports.handler = async (event, context) => {
       };
 
       // Recalculate totals from line items
-      const recalculatedTotals = computeTotals(orderData.items || [], taxRate, pricingOptions);
+      const recalculatedTotals = computeTotals(orderData.items || [], taxRate, pricingOptions, orderData.discountCode || null);
 
       // Log pricing calculation
       console.info('pricing', {
-        orderId,
+        orderId: 'pending',  // NOTE: orderId not yet generated at this point
         raw_subtotal_cents: recalculatedTotals.raw_subtotal_cents,
         adjusted_subtotal_cents: recalculatedTotals.adjusted_subtotal_cents,
         min_order_adjustment_cents: recalculatedTotals.min_order_adjustment_cents,
@@ -360,6 +373,17 @@ exports.handler = async (event, context) => {
       orderData.total_cents = recalculatedTotals.total_cents;
       orderData.min_order_adjustment_cents = recalculatedTotals.min_order_adjustment_cents;
       orderData.shipping_cents = recalculatedTotals.shipping_cents;
+      orderData.applied_discount_cents = recalculatedTotals.applied_discount_cents || 0;
+      orderData.applied_discount_type = recalculatedTotals.applied_discount_type || 'none';
+      // Build human-readable discount label
+      if (recalculatedTotals.applied_discount_type === 'quantity') {
+        const pct = Math.round(recalculatedTotals.applied_discount_rate * 100);
+        orderData.applied_discount_label = 'Qty Discount (' + pct + '% off)';
+      } else if (recalculatedTotals.applied_discount_type === 'promo') {
+        orderData.applied_discount_label = 'Promo: ' + (orderData.discountCode && orderData.discountCode.code ? orderData.discountCode.code : 'Applied');
+      } else {
+        orderData.applied_discount_label = '';
+      }
 
       console.log('✅ Server-recalculated order totals:', {
         subtotal_cents: orderData.subtotal_cents,
@@ -460,8 +484,8 @@ exports.handler = async (event, context) => {
     console.log('Final email for order:', userEmail);
 
     const orderResult = await sql`
-      INSERT INTO orders (id, user_id, email, subtotal_cents, tax_cents, total_cents, status, paypal_order_id, paypal_capture_id, shipping_name, shipping_street, shipping_street2, shipping_city, shipping_state, shipping_zip, shipping_country)
-      VALUES (${orderId}, ${finalUserId}, ${userEmail}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, 'paid', ${orderData.paypal_order_id || null}, ${orderData.paypal_capture_id || null}, ${orderData.shipping_name || null}, ${orderData.shipping_street || null}, ${orderData.shipping_street2 || null}, ${orderData.shipping_city || null}, ${orderData.shipping_state || null}, ${orderData.shipping_zip || null}, ${orderData.shipping_country || 'US'})
+      INSERT INTO orders (id, user_id, email, subtotal_cents, tax_cents, total_cents, status, paypal_order_id, paypal_capture_id, shipping_name, shipping_street, shipping_street2, shipping_city, shipping_state, shipping_zip, shipping_country, applied_discount_cents, applied_discount_label, applied_discount_type)
+      VALUES (${orderId}, ${finalUserId}, ${userEmail}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, 'paid', ${orderData.paypal_order_id || null}, ${orderData.paypal_capture_id || null}, ${orderData.shipping_name || null}, ${orderData.shipping_street || null}, ${orderData.shipping_street2 || null}, ${orderData.shipping_city || null}, ${orderData.shipping_state || null}, ${orderData.shipping_zip || null}, ${orderData.shipping_country || 'US'}, ${orderData.applied_discount_cents || 0}, ${orderData.applied_discount_label || ''}, ${orderData.applied_discount_type || 'none'})
       RETURNING *
     `;
 

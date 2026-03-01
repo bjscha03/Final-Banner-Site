@@ -27,6 +27,7 @@ const calculateUnitPrice = (item: any) => {
   // Get data from navigation state or defaults
   const items = state?.items || [];
   const total = state?.total || 0;
+  const discountCode = state?.discountCode || null;
 
   // Calculate pricing breakdown using the same logic as cart store
 
@@ -61,7 +62,7 @@ const calculateUnitPrice = (item: any) => {
   }, [orderId]); // Track once when orderId is available
   const calculatePricingBreakdown = () => {
     if (items.length === 0) {
-      return { subtotal: 0, tax: 0, total: 0 };
+      return { subtotal: 0, tax: 0, total: 0, discountCents: 0, discountLabel: "" };
     }
 
     const flags = getFeatureFlags();
@@ -71,11 +72,13 @@ const calculateUnitPrice = (item: any) => {
       const pricingItems: PricingItem[] = items.map((item: any) => ({
         line_total_cents: item.line_total_cents
       }));
-      const totals = computeTotals(pricingItems, 0.06, pricingOptions);
+      const totals = computeTotals(pricingItems, 0.06, pricingOptions, discountCode);
       return {
         subtotal: totals.adjusted_subtotal_cents,
         tax: totals.tax_cents,
-        total: totals.total_cents
+        total: totals.total_cents,
+        discountCents: totals.applied_discount_cents || 0,
+        discountLabel: totals.applied_discount_type === "quantity" ? "Qty Discount (" + Math.round((totals.applied_discount_rate || 0) * 100) + "% off)" : totals.applied_discount_type === "promo" ? "Promo: " + (discountCode?.code || "Applied") : "",
       };
     }
 
@@ -87,7 +90,9 @@ const calculateUnitPrice = (item: any) => {
     return {
       subtotal: subtotalCents,
       tax: taxCents,
-      total: totalCents
+      total: totalCents,
+      discountCents: 0,
+      discountLabel: "",
     };
   };
 
@@ -190,6 +195,14 @@ const calculateUnitPrice = (item: any) => {
                     {usd(pricing.subtotal / 100)}
                   </span>
                 </div>
+                {pricing.discountCents > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-green-600">{pricing.discountLabel || "Discount"}</span>
+                    <span className="text-green-600">
+                      -{usd(pricing.discountCents / 100)}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center">
                   <span className="text-gray-700">Tax (6%)</span>
                   <span className="text-gray-900">

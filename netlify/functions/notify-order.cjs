@@ -148,10 +148,10 @@ function createAdminOrderEmailHtml(payload) {
   const tax = order.tax ?? (order.taxCents || 0) / 100;
 
   // Discount info from order (best-discount-wins logic applied at checkout)
-  const discountCents = order.applied_discount_cents || 0;
+  const discountCents = order.discountCents || 0;
   const discountDollars = discountCents / 100;
-  const discountLabel = order.applied_discount_label || '';
-  const discountType = order.applied_discount_type || 'none';
+  const discountLabel = order.discountLabel || '';
+  const discountType = order.discountType || 'none';
 
   // Check if any items have design service enabled
   const hasDesignService = order.items.some(item => item.design_service_enabled);

@@ -200,6 +200,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
             design_draft_contact: item.design_draft_contact,
             design_uploaded_assets: item.design_uploaded_assets,
           })),
+          discountCode: discountCode ? { code: discountCode.code, discountPercentage: discountCode.discountPercentage, discountAmountCents: discountCode.discountAmountCents } : null,
         }),
       });
 
@@ -462,6 +463,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
               design_uploaded_assets: item.design_uploaded_assets,
             };
           }),
+          discountCode: discountCode ? { code: discountCode.code, discountPercentage: discountCode.discountPercentage, discountAmountCents: discountCode.discountAmountCents } : null,
         }),
       });
 

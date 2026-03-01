@@ -329,7 +329,8 @@ const Checkout: React.FC = () => {
           fromCheckout: true,
           orderId: orderId,
           items: items,
-          total: getTotalCents()
+          total: getTotalCents(),
+          discountCode: discountCode ? { code: discountCode.code, discountPercentage: discountCode.discountPercentage, discountAmountCents: discountCode.discountAmountCents } : null
         }
       });
 
