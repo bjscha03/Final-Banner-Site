@@ -930,6 +930,59 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
         </Layer>
       </Stage>
       
+
+      {/* ADDED: Ruler overlays with inch markings (hidden on mobile) */}
+      {/* Top ruler */}
+      <div
+        className="absolute pointer-events-none hidden sm:block"
+        style={{
+          left: stagePos.x,
+          top: Math.max(stagePos.y - 20, 0),
+          width: canvasWidthPx * scale,
+          height: 20,
+          overflow: "hidden",
+        }}
+      >
+        <div className="w-full h-full bg-gray-200/80 border-b border-gray-400 flex items-end relative">
+          {Array.from({ length: Math.ceil(widthIn) + 1 }).map((_, i) => (
+            <React.Fragment key={`ruler-top-${i}`}>
+              <div className="absolute bottom-0" style={{ left: i * PIXELS_PER_INCH * scale }}>
+                <div className="w-px h-3 bg-gray-600" />
+                <span className="absolute text-[9px] text-gray-600 select-none" style={{ left: 2, bottom: 4 }}>{i}</span>
+              </div>
+              {i < widthIn && (
+                <div className="absolute bottom-0 w-px h-2 bg-gray-400" style={{ left: (i + 0.5) * PIXELS_PER_INCH * scale }} />
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
+
+      {/* Left ruler */}
+      <div
+        className="absolute pointer-events-none hidden sm:block"
+        style={{
+          left: Math.max(stagePos.x - 20, 0),
+          top: stagePos.y,
+          width: 20,
+          height: canvasHeightPx * scale,
+          overflow: "hidden",
+        }}
+      >
+        <div className="w-full h-full bg-gray-200/80 border-r border-gray-400 relative">
+          {Array.from({ length: Math.ceil(heightIn) + 1 }).map((_, i) => (
+            <React.Fragment key={`ruler-left-${i}`}>
+              <div className="absolute right-0" style={{ top: i * PIXELS_PER_INCH * scale }}>
+                <div className="h-px w-3 bg-gray-600" />
+                <span className="absolute text-[9px] text-gray-600 select-none" style={{ right: 4, top: 2, writingMode: "vertical-lr" as any }}>{i}</span>
+              </div>
+              {i < heightIn && (
+                <div className="absolute right-0 h-px w-2 bg-gray-400" style={{ top: (i + 0.5) * PIXELS_PER_INCH * scale }} />
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
       {/* Text Editing Input - Shows when double-clicking text */}
       {editingTextId && (
         <div className="absolute inset-0 flex items-center justify-center bg-black/20 z-50">

@@ -65,15 +65,26 @@ export async function uploadUrlToCloudinary(
   }
 }
 
+/**
+ * AI Upscale Hook – scaffolding for Cloudinary AI Super Resolution.
+ * Gated behind ENABLE_UPSCALE feature flag (default: false).
+ * When enabled, applies Cloudinary's upscale effect to artwork before print export.
+ */
+export const ENABLE_UPSCALE = typeof import.meta !== "undefined"
+  ? (import.meta as any).env?.VITE_ENABLE_UPSCALE === "true"
+  : process.env.ENABLE_UPSCALE === "true";
+
 export async function upscaleForPrint(
   sourceUrl: string,
   options: {
     widthInches: number;
     heightInches: number;
     dpi?: number;
+    useAiUpscale?: boolean; // opt-in per call; still requires feature flag
   }
 ): Promise<{ url: string; publicId: string }> {
-  const dpi = options.dpi || 150;
+  // CHANGED: Default DPI 150 -> 300 for print-grade JPEG output
+  const dpi = options.dpi || 300;
   const targetWidth = Math.round(options.widthInches * dpi);
   const targetHeight = Math.round(options.heightInches * dpi);
 
@@ -82,12 +93,14 @@ export async function upscaleForPrint(
   const result = await cloudinary.uploader.upload(sourceUrl, {
     folder: 'ai-generated-banners/final',
     transformation: [
+      // UPSCALE HOOK: When feature flag + caller opts in, apply AI super-resolution
+      ...(ENABLE_UPSCALE && options.useAiUpscale ? [{ effect: "upscale" }] : []),
       {
         width: targetWidth,
         height: targetHeight,
         crop: 'fill',
         quality: 'auto:best',
-        fetch_format: 'auto',
+        fetch_format: 'jpeg',       // CHANGED: Always output JPEG for vendors
       },
     ],
   });

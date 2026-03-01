@@ -53,6 +53,130 @@ const OptionsCard: React.FC = () => {
 
   return (
     <div className="space-y-5">
+      {/* Grommets Section - REORDERED: now first; radio buttons instead of toggle+dropdown */}
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <div className="w-1 h-4 bg-blue-500 rounded-full"></div>
+          <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
+            Grommets
+          </h4>
+          <span className="text-xs font-bold text-green-600 bg-green-100 px-2 py-1 rounded-full">FREE</span>
+        </div>
+
+        <div className="space-y-2">
+          <label
+            onClick={() => {
+              const { setShowGrommets } = useEditorStore.getState();
+              set({ grommets: 'none' as Grommets });
+              setShowGrommets(false);
+            }}
+            className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 ${
+              grommets === 'none'
+                ? "ring-2 ring-blue-500 bg-blue-50 shadow-md"
+                : "bg-white hover:bg-gray-50 border border-gray-200 hover:border-gray-300"
+            }`}
+          >
+            <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+              grommets === 'none' ? "border-blue-500 bg-blue-500" : "border-gray-300 bg-white"
+            }`}>
+              {grommets === 'none' && <Circle className="w-2 h-2 text-white fill-white" />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold text-gray-900 text-sm">None</div>
+              <p className="text-xs text-gray-500">No grommets</p>
+            </div>
+          </label>
+          <label
+            onClick={() => {
+              const { setShowGrommets } = useEditorStore.getState();
+              set({ grommets: '4-corners' as Grommets });
+              setShowGrommets(true);
+            }}
+            className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 ${
+              grommets === '4-corners'
+                ? "ring-2 ring-blue-500 bg-blue-50 shadow-md"
+                : "bg-white hover:bg-gray-50 border border-gray-200 hover:border-gray-300"
+            }`}
+          >
+            <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+              grommets === '4-corners' ? "border-blue-500 bg-blue-500" : "border-gray-300 bg-white"
+            }`}>
+              {grommets === '4-corners' && <Circle className="w-2 h-2 text-white fill-white" />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold text-gray-900 text-sm">4 Corners</div>
+              <p className="text-xs text-gray-500">One grommet in each corner</p>
+            </div>
+          </label>
+          <label
+            onClick={() => {
+              const { setShowGrommets } = useEditorStore.getState();
+              set({ grommets: 'top-corners' as Grommets });
+              setShowGrommets(true);
+            }}
+            className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 ${
+              grommets === 'top-corners'
+                ? "ring-2 ring-blue-500 bg-blue-50 shadow-md"
+                : "bg-white hover:bg-gray-50 border border-gray-200 hover:border-gray-300"
+            }`}
+          >
+            <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+              grommets === 'top-corners' ? "border-blue-500 bg-blue-500" : "border-gray-300 bg-white"
+            }`}>
+              {grommets === 'top-corners' && <Circle className="w-2 h-2 text-white fill-white" />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold text-gray-900 text-sm">Top Corners</div>
+              <p className="text-xs text-gray-500">Two grommets on top edge</p>
+            </div>
+          </label>
+          <label
+            onClick={() => {
+              const { setShowGrommets } = useEditorStore.getState();
+              set({ grommets: 'every-2-3ft' as Grommets });
+              setShowGrommets(true);
+            }}
+            className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 ${
+              grommets === 'every-2-3ft'
+                ? "ring-2 ring-blue-500 bg-blue-50 shadow-md"
+                : "bg-white hover:bg-gray-50 border border-gray-200 hover:border-gray-300"
+            }`}
+          >
+            <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+              grommets === 'every-2-3ft' ? "border-blue-500 bg-blue-500" : "border-gray-300 bg-white"
+            }`}>
+              {grommets === 'every-2-3ft' && <Circle className="w-2 h-2 text-white fill-white" />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold text-gray-900 text-sm">Every 2-3 ft</div>
+              <p className="text-xs text-gray-500">Spaced along edges</p>
+            </div>
+          </label>
+          <label
+            onClick={() => {
+              const { setShowGrommets } = useEditorStore.getState();
+              set({ grommets: 'every-1-2ft' as Grommets });
+              setShowGrommets(true);
+            }}
+            className={`flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all duration-200 ${
+              grommets === 'every-1-2ft'
+                ? "ring-2 ring-blue-500 bg-blue-50 shadow-md"
+                : "bg-white hover:bg-gray-50 border border-gray-200 hover:border-gray-300"
+            }`}
+          >
+            <div className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-all ${
+              grommets === 'every-1-2ft' ? "border-blue-500 bg-blue-500" : "border-gray-300 bg-white"
+            }`}>
+              {grommets === 'every-1-2ft' && <Circle className="w-2 h-2 text-white fill-white" />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-semibold text-gray-900 text-sm">Every 1-2 ft</div>
+              <p className="text-xs text-gray-500">Closely spaced along edges</p>
+            </div>
+          </label>
+        </div>
+      </div>
+
       {/* Pole Pockets Section */}
       <div className="space-y-3">
         <div className="flex items-center gap-2">
@@ -162,78 +286,6 @@ const OptionsCard: React.FC = () => {
         )}
       </div>
 
-      {/* Grommets Section */}
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <div className="w-1 h-4 bg-blue-500 rounded-full"></div>
-          <h4 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">
-            Grommets
-          </h4>
-        </div>
-
-        {/* Grommets Toggle Card */}
-        <div
-          onClick={() => {
-            const { setShowGrommets } = useEditorStore.getState();
-            if (grommets === 'none') {
-              set({ grommets: '4-corners' as Grommets });
-              setShowGrommets(true);
-            } else {
-              set({ grommets: 'none' as Grommets });
-              setShowGrommets(false);
-            }
-          }}
-          className={`relative cursor-pointer rounded-xl transition-all duration-200 overflow-hidden ${
-            grommets !== 'none'
-              ? "ring-2 ring-blue-500 bg-blue-50 shadow-md"
-              : "bg-white hover:bg-gray-50 border border-gray-200 hover:border-gray-300 hover:shadow-sm"
-          }`}
-        >
-          <div className="flex items-center p-3 gap-3">
-            {/* Selection indicator */}
-            <div className={`flex-shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center transition-all ${
-              grommets !== 'none'
-                ? "border-blue-500 bg-blue-500"
-                : "border-gray-300 bg-white"
-            }`}>
-              {grommets !== 'none' && <Check className="w-4 h-4 text-white" />}
-            </div>
-
-            {/* Info */}
-            <div className="flex-1 min-w-0">
-              <div className="font-semibold text-gray-900">Add Grommets</div>
-              <p className="text-xs text-gray-500">Metal rings for hanging</p>
-            </div>
-
-            {/* Free badge */}
-            <div className="flex-shrink-0">
-              <span className="text-xs font-bold text-green-600 bg-green-100 px-2 py-1 rounded-full">
-                FREE
-              </span>
-            </div>
-          </div>
-        </div>
-
-        {/* Configuration when enabled */}
-        {grommets !== 'none' && (
-          <div className="space-y-3 pl-2 border-l-2 border-blue-200 ml-3">
-            <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">Placement</label>
-              <Select value={grommets} onValueChange={(value) => set({ grommets: value as Grommets })}>
-                <SelectTrigger className="w-full bg-white">
-                  <SelectValue placeholder="Choose placement" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="4-corners">4 Corners</SelectItem>
-                  <SelectItem value="top-corners">Top Corners Only</SelectItem>
-                  <SelectItem value="every-2-3ft">Every 2-3 feet</SelectItem>
-                  <SelectItem value="every-1-2ft">Every 1-2 feet</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        )}
-      </div>
 
       {/* Rope Section */}
       <div className="space-y-3">

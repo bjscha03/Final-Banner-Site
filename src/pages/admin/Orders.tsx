@@ -244,7 +244,7 @@ const AdminOrders: React.FC = () => {
       setPdfLoadingStates(prev => ({ ...prev, [loadingKey]: true }));
       
       toast({
-        title: "Generating Print-Ready PDF",
+        title: "Generating Print-Ready File",
         description: "Creating high-quality PDF with proper dimensions and bleed...",
       });
       console.log("🟢 PDF Download - Item data:", item);
@@ -346,14 +346,14 @@ const AdminOrders: React.FC = () => {
       window.URL.revokeObjectURL(url);
 
       toast({
-        title: "PDF Downloaded",
-        description: "Print-ready PDF downloaded successfully.",
+        title: "Print File Downloaded",
+        description: "Print-ready file downloaded successfully.",
       });
     } catch (error) {
       console.error('PDF Download Error:', error);
       toast({
-        title: "PDF Generation Failed",
-        description: error instanceof Error ? error.message : "Failed to generate PDF",
+        title: "Print File Generation Failed",
+        description: error instanceof Error ? error.message : "Failed to generate print file",
         variant: "destructive",
       });
     } finally {
@@ -411,7 +411,7 @@ const AdminOrders: React.FC = () => {
   const handleUploadFinalPdf = async (orderId: string, itemIndex: number, file: File) => {
     try {
       toast({
-        title: "Uploading Final PDF",
+        title: "Uploading Final Print File",
         description: "Please wait while the PDF is being uploaded...",
       });
 
@@ -449,14 +449,14 @@ const AdminOrders: React.FC = () => {
       );
 
       toast({
-        title: "PDF Uploaded",
-        description: "Final print PDF has been uploaded successfully.",
+        title: "Print File Uploaded",
+        description: "Final print file has been uploaded successfully.",
       });
     } catch (error) {
-      console.error('Upload Final PDF failed:', error);
+      console.error('Upload Final Print File failed:', error);
       toast({
         title: "Upload Failed",
-        description: error.message || "Could not upload PDF. Please try again.",
+        description: error.message || "Could not upload print file. Please try again.",
         variant: "destructive",
       });
     }
@@ -1023,7 +1023,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
       {/* PDF Column */}
       <td className="px-3 py-3">
         <div className="flex flex-col space-y-1">
-          {/* Show uploaded Final PDFs for design service orders */}
+          {/* Show uploaded Final Print Files for design service orders */}
           {order.items
             .map((item, index) => ({ item, index }))
             .filter(({ item }) => item.final_print_pdf_url)
@@ -1036,7 +1036,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                 className="inline-flex items-center text-xs text-purple-600 hover:text-purple-800 font-medium"
               >
                 <Download className="h-3 w-3 mr-1" />
-                Final PDF {order.items.length > 1 ? `#${index + 1}` : ''}
+                Final Print File {order.items.length > 1 ? `#${index + 1}` : ''}
               </a>
             ))}
           {/* Show Generate PDF buttons for regular orders */}
@@ -1064,7 +1064,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
               </Button>
             ))
           ) : (
-            // Only show "No files" if there are no final PDFs either
+            // Only show "No files" if there are no final print files either
             !order.items.some(item => item.final_print_pdf_url) && (
               <div className="text-xs text-gray-500 flex items-center">
                 <FileText className="h-3 w-3 mr-1" />
@@ -1360,12 +1360,12 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
         <div className="text-lg font-bold text-[#18448D]">{usd(order.total_cents / 100)}</div>
       </div>
 
-      {/* PDF Downloads */}
+      {/* Print File Downloads */}
       {(getFilesWithDownload().length > 0 || order.items.some(item => item.final_print_pdf_url)) && (
         <div className="mb-3">
           <div className="text-xs text-gray-500 mb-2">Print Files</div>
           <div className="flex flex-wrap gap-2">
-            {/* Show uploaded Final PDFs for design service orders */}
+            {/* Show uploaded Final Print Files for design service orders */}
             {order.items
               .map((item, index) => ({ item, index }))
               .filter(({ item }) => item.final_print_pdf_url)
@@ -1378,7 +1378,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
                   className="inline-flex items-center text-xs text-purple-600 hover:text-purple-800 font-medium bg-purple-50 px-3 py-1.5 rounded"
                 >
                   <Download className="h-3 w-3 mr-1" />
-                  Final PDF {order.items.length > 1 ? `#${index + 1}` : ''}
+                  Final Print File {order.items.length > 1 ? `#${index + 1}` : ''}
                 </a>
               ))}
             {/* Show Generate PDF buttons for regular orders */}

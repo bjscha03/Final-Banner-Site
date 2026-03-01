@@ -1,8 +1,8 @@
 /**
- * Print-Grade PDF Generator (Beta)
+ * Print-Grade PDF/JPEG Generator (Beta)
  * 
  * Generates high-quality, print-ready PDFs with:
- * - Lossless PNG images at exact DPI
+ * - JPEG images at 300 DPI for vendor output
  * - sRGB color space
  * - Vector text (not rasterized)
  * - Crop marks for cutting guides
@@ -33,10 +33,10 @@ function isPrintPipelineEnabled() {
  */
 function getPrintConfig() {
   return {
-    defaultDpi: parseInt(process.env.PRINT_DEFAULT_DPI || '150', 10),
+    defaultDpi: parseInt(process.env.PRINT_DEFAULT_DPI || '300', 10),
     bleedInches: parseFloat(process.env.PRINT_BLEED_IN || '0.25'),
     colorSpace: process.env.PRINT_COLOR_SPACE || 'srgb',
-    format: process.env.PRINT_FORMAT || 'png',
+    format: process.env.PRINT_FORMAT || 'jpeg',
   };
 }
 
@@ -50,7 +50,7 @@ function buildPrintCloudinaryUrl(publicId, widthPx, heightPx, applyColorCorrecti
     height: heightPx,
     crop: 'fill',
     gravity: 'center',
-    format: 'png',
+    format: 'jpeg',
     // NO quality parameter - we want maximum quality
     // NO dpr - we want exact pixels
   };
@@ -84,7 +84,7 @@ async function fetchPrintImage(fileKey, widthPx, heightPx, applyColorCorrection 
       height: heightPx,
       crop: 'fill',
       gravity: 'center',
-      format: 'png',
+      format: 'jpeg',
     };
     
     if (applyColorCorrection) {
@@ -118,7 +118,7 @@ async function fetchPrintImage(fileKey, widthPx, heightPx, applyColorCorrection 
     } else {
       // Fallback: build URL manually from result
       const baseUrl = `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload`;
-      const transformStr = `w_${widthPx},h_${heightPx},c_fill,g_center,f_png`;
+      const transformStr = `w_${widthPx},h_${heightPx},c_fill,g_center,f_jpeg`;
       url = `${baseUrl}/${transformStr}/${fileKey}`;
     }
     console.log('[Print-PDF] Using secure URL:', url);
@@ -302,7 +302,7 @@ exports.handler = async (event) => {
       imageUrl,
       bannerWidthIn,
       bannerHeightIn,
-      targetDpi = 150,
+      targetDpi = 300,
       bleedIn = 0.25,
       textElements = [],
       applyColorCorrection = true,

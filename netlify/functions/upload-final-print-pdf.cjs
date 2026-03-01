@@ -1,5 +1,5 @@
 /**
- * Upload Final Print PDF for Design Service Orders
+ * Upload Final Print PDF/JPEG for Design Service Orders
  * This function allows admins to upload the final print-ready PDF
  * for orders where the customer requested "Let Us Design It"
  */
@@ -93,9 +93,11 @@ exports.handler = async (event) => {
 
     const { filename, mimeType, data } = parseResult.file;
 
-    // Validate it's a PDF
-    if (mimeType !== 'application/pdf' && !filename.toLowerCase().endsWith('.pdf')) {
-      return { statusCode: 400, headers, body: JSON.stringify({ error: 'Only PDF files are allowed' }) };
+    // CHANGED: Accept both PDF and JPEG files (vendors now accept JPEG)
+    const isPdf = mimeType === 'application/pdf' || filename.toLowerCase().endsWith('.pdf');
+    const isJpeg = mimeType === 'image/jpeg' || filename.toLowerCase().endsWith('.jpg') || filename.toLowerCase().endsWith('.jpeg');
+    if (!isPdf && !isJpeg) {
+      return { statusCode: 400, headers, body: JSON.stringify({ error: 'Only PDF or JPEG files are allowed' }) };
     }
 
     console.log('[Upload Final PDF] Uploading to Cloudinary:', { filename, size: data.length });
@@ -105,7 +107,7 @@ exports.handler = async (event) => {
       const uploadStream = cloudinary.uploader.upload_stream(
         {
           folder: 'final-print-pdfs',
-          resource_type: 'raw',
+          resource_type: 'auto'  // CHANGED: 'auto' handles both PDF and JPEG,
           public_id: `order-${orderId}-final-${Date.now()}`,
         },
         (error, result) => {

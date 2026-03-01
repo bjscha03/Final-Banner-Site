@@ -147,6 +147,12 @@ function createAdminOrderEmailHtml(payload) {
   const subtotal = order.subtotal ?? (order.subtotalCents || 0) / 100;
   const tax = order.tax ?? (order.taxCents || 0) / 100;
 
+  // Discount info from order (best-discount-wins logic applied at checkout)
+  const discountCents = order.applied_discount_cents || 0;
+  const discountDollars = discountCents / 100;
+  const discountLabel = order.applied_discount_label || '';
+  const discountType = order.applied_discount_type || 'none';
+
   // Check if any items have design service enabled
   const hasDesignService = order.items.some(item => item.design_service_enabled);
 
@@ -367,6 +373,18 @@ function createAdminOrderEmailHtml(payload) {
                               </table>
                             </td>
                           </tr>
+                          ${discountCents > 0 ? `
+                          <tr>
+                            <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;">
+                              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                                <tr>
+                                  <td style="color: #059669; font-size: 14px;">${discountLabel || 'Discount'}</td>
+                                  <td style="color: #059669; font-size: 14px; text-align: right;">-$${discountDollars.toFixed(2)}</td>
+                                </tr>
+                              </table>
+                            </td>
+                          </tr>
+                          ` : ''}
                           ${tax > 0 ? `
                           <tr>
                             <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb;">
@@ -531,6 +549,7 @@ async function sendEmail(type, payload) {
             
             <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #e5e7eb;">
               <p style="margin: 5px 0;">Subtotal: ${payload.order.subtotal ? '$' + payload.order.subtotal.toFixed(2) : '$' + ((payload.order.subtotalCents || 0) / 100).toFixed(2)}</p>
+              ${payload.order.discountCents > 0 ? `<p style="margin: 5px 0; color: #059669;">${payload.order.discountLabel || 'Discount'}: -$${(payload.order.discountCents / 100).toFixed(2)}</p>` : ''}
               ${(payload.order.tax || payload.order.taxCents) > 0 ? `<p style="margin: 5px 0;">Tax: ${payload.order.tax ? '$' + payload.order.tax.toFixed(2) : '$' + ((payload.order.taxCents || 0) / 100).toFixed(2)}</p>` : ''}
               <p style="margin: 5px 0; font-size: 18px;"><strong>Total: ${payload.order.total ? '$' + payload.order.total.toFixed(2) : '$' + ((payload.order.totalCents || 0) / 100).toFixed(2)}</strong></p>
             </div>
@@ -778,26 +797,35 @@ exports.handler = async (event) => {
         },
         get tax() {
           const calculatedSubtotal = itemRows.reduce((sum, item) => sum + item.line_total_cents, 0);
-          const calculatedTax = Math.round(calculatedSubtotal * 0.06);
+          const discount = order.applied_discount_cents || 0;
+          const calculatedTax = Math.round((calculatedSubtotal - discount) * 0.06);
           return calculatedTax / 100;
         },
         get total() {
           const calculatedSubtotal = itemRows.reduce((sum, item) => sum + item.line_total_cents, 0);
-          const calculatedTax = Math.round(calculatedSubtotal * 0.06);
-          const calculatedTotal = calculatedSubtotal + calculatedTax;
+          const discount = order.applied_discount_cents || 0;
+          const afterDiscount = calculatedSubtotal - discount;
+          const calculatedTax = Math.round(afterDiscount * 0.06);
+          const calculatedTotal = afterDiscount + calculatedTax;
           return calculatedTotal / 100;
         },
         get subtotalCents() {
           return itemRows.reduce((sum, item) => sum + item.line_total_cents, 0);
         },
+        discountCents: order.applied_discount_cents || 0,
+        discountLabel: order.applied_discount_label || "",
+        discountType: order.applied_discount_type || "none",
         get taxCents() {
           const calculatedSubtotal = itemRows.reduce((sum, item) => sum + item.line_total_cents, 0);
-          return Math.round(calculatedSubtotal * 0.06);
+          const discount = order.applied_discount_cents || 0;
+          return Math.round((calculatedSubtotal - discount) * 0.06);
         },
         get totalCents() {
           const calculatedSubtotal = itemRows.reduce((sum, item) => sum + item.line_total_cents, 0);
-          const calculatedTax = Math.round(calculatedSubtotal * 0.06);
-          return calculatedSubtotal + calculatedTax;
+          const discount = order.applied_discount_cents || 0;
+          const afterDiscount = calculatedSubtotal - discount;
+          const calculatedTax = Math.round(afterDiscount * 0.06);
+          return afterDiscount + calculatedTax;
         },
         shipping_name: order.shipping_name,
         shipping_street: order.shipping_street,

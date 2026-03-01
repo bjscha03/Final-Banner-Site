@@ -1,12 +1,20 @@
-// FINAL_RENDER: Generate high-resolution canvas snapshot for admin PDF
+// FINAL_RENDER: Generate high-resolution canvas snapshot as JPEG for print vendors.
+// CHANGED (2026-03-01): Switched from PNG@150 DPI to JPEG@300 DPI per vendor requirements.
 // NON-BLOCKING: All errors are caught and return null instead of throwing.
 // CRITICAL: Captures ONLY the banner area (no margins/rulers) - matching customer preview exactly.
 
 import Konva from 'konva';
 import { uploadCanvasImageToCloudinary } from './uploadCanvasImage';
 
-const TARGET_DPI = 150;
+// CHANGED: 150 -> 300 DPI for print-grade JPEG output
+const TARGET_DPI = 300;
 const PIXELS_PER_INCH = 96; // Screen DPI - matches EditorCanvas.tsx
+
+// JPEG quality 0.92 balances file size vs. print quality
+const JPEG_QUALITY = 0.92;
+
+// Safety cap: 200 megapixels max to avoid browser crashes on huge banners
+const MAX_MEGAPIXELS = 200_000_000;
 
 export interface FinalRenderResult {
   url: string;
@@ -22,7 +30,7 @@ export async function generateFinalRender(
   heightIn: number
 ): Promise<FinalRenderResult | null> {
   try {
-    console.log('[FINAL_RENDER] Starting high-resolution snapshot...');
+    console.log('[FINAL_RENDER] Starting high-resolution JPEG snapshot...');
     console.log('[FINAL_RENDER] Banner dimensions:', widthIn, 'x', heightIn, 'inches');
 
     // Get the layer
@@ -91,16 +99,27 @@ export async function generateFinalRender(
     console.log('[FINAL_RENDER] Full size at 96 DPI:', fullWidthPx, 'x', fullHeightPx, 'px');
 
     // Calculate target output dimensions at print DPI
-    const targetWidthPx = Math.round(widthIn * TARGET_DPI);
-    const targetHeightPx = Math.round(heightIn * TARGET_DPI);
+    let targetWidthPx = Math.round(widthIn * TARGET_DPI);
+    let targetHeightPx = Math.round(heightIn * TARGET_DPI);
+
+    // SAFETY CAP: Clamp to MAX_MEGAPIXELS to prevent browser tab crash on very large banners
+    const totalPixels = targetWidthPx * targetHeightPx;
+    let effectiveDpi = TARGET_DPI;
+    if (totalPixels > MAX_MEGAPIXELS) {
+      const scaleFactor = Math.sqrt(MAX_MEGAPIXELS / totalPixels);
+      targetWidthPx = Math.round(targetWidthPx * scaleFactor);
+      targetHeightPx = Math.round(targetHeightPx * scaleFactor);
+      effectiveDpi = Math.round(TARGET_DPI * scaleFactor);
+      console.warn('[FINAL_RENDER] Output clamped to', MAX_MEGAPIXELS / 1e6, 'MP. Effective DPI:', effectiveDpi);
+    }
 
     // Calculate the pixelRatio needed to achieve target DPI output
     // We need to account for the current scale of the canvas
     // pixelRatio = (targetDPI / screenDPI) / currentScale
     // This gives us the correct upscale factor to achieve print resolution
-    const pixelRatio = (TARGET_DPI / PIXELS_PER_INCH) / currentScale;
+    const pixelRatio = (effectiveDpi / PIXELS_PER_INCH) / currentScale;
 
-    console.log('[FINAL_RENDER] Target output:', targetWidthPx, 'x', targetHeightPx, 'px at', TARGET_DPI, 'DPI');
+    console.log('[FINAL_RENDER] Target output:', targetWidthPx, 'x', targetHeightPx, 'px at', effectiveDpi, 'DPI');
     console.log('[FINAL_RENDER] Using pixelRatio:', pixelRatio.toFixed(4));
 
     // CRITICAL: Capture ONLY the banner area using x, y, width, height
@@ -111,8 +130,9 @@ export async function generateFinalRender(
       width: scaledWidth,
       height: scaledHeight,
       pixelRatio: pixelRatio,
-      mimeType: 'image/png',
-      quality: 1
+      // CHANGED: mimeType from image/png to image/jpeg for vendor requirements
+      mimeType: 'image/jpeg',
+      quality: JPEG_QUALITY
     });
 
     // Restore visibility of hidden elements
@@ -128,10 +148,10 @@ export async function generateFinalRender(
       return null;
     }
 
-    console.log('[FINAL_RENDER] Data URL generated successfully, length:', dataUrl.length, 'chars');
+    console.log('[FINAL_RENDER] JPEG data URL generated successfully, length:', dataUrl.length, 'chars');
 
     // Upload with a unique filename for final renders
-    const fileName = `final-render-${Date.now()}.png`;
+    const fileName = `final-render-${Date.now()}.jpg`;
     const uploadResult = await uploadCanvasImageToCloudinary(dataUrl, fileName);
 
     if (!uploadResult || !uploadResult.secureUrl) {
@@ -147,7 +167,7 @@ export async function generateFinalRender(
       fileKey: uploadResult.publicId || uploadResult.fileKey,
       widthPx: targetWidthPx,
       heightPx: targetHeightPx,
-      dpi: TARGET_DPI
+      dpi: effectiveDpi
     };
   } catch (error) {
     console.error('[FINAL_RENDER] Error generating snapshot:', error);

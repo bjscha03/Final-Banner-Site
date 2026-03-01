@@ -64,6 +64,10 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
   const [isProcessingCart, setIsProcessingCart] = useState(false);
   const [pendingAction, setPendingAction] = useState<'cart' | 'checkout' | null>(null);
   const [dontShowUpsellAgain, setDontShowUpsellAgain] = useState(false);
+  const [showNoFinishingModal, setShowNoFinishingModal] = useState(false);
+  const [noFinishPendingAction, setNoFinishPendingAction] = useState<'cart' | 'checkout' | null>(null);
+  const noFinishingBypassRef = useRef(false);
+
 
   // Design Service mode state
   const [internalDesignServiceMode, setInternalDesignServiceMode] = useState(false);
@@ -135,6 +139,10 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
     // Only show upsell if there are actually options to offer
     return availableOptions > 0;
   }, [grommets, quote.addRope, quote.polePockets, dontShowUpsellAgain]);
+
+  // No-finishing check: true when zero finishing options selected
+  const hasNoFinishing = grommets === 'none' && quote.polePockets === 'none' && !quote.addRope;
+
 
   // Load "don't show again" preference from sessionStorage
   useEffect(() => {
@@ -1021,6 +1029,13 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
 
       // For design service, show upsell modal (for rope, pole pockets, etc.)
       // Only show if not editing an existing item
+      // No-finishing confirmation - check BEFORE upsell (design service)
+      if (hasNoFinishing && !noFinishingBypassRef.current && !editingItemId) {
+        setNoFinishPendingAction('cart');
+        setShowNoFinishingModal(true);
+        return;
+      }
+
       if (!editingItemId && shouldShowUpsell) {
         console.log('🎨 [DESIGN SERVICE] Showing upsell modal for design service order');
         setPendingAction('cart');
@@ -1174,6 +1189,13 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
 
     // PERFORMANCE FIX: Check if upsell should be shown BEFORE Cloudinary upload
     // This shows the modal immediately instead of waiting for upload
+    // No-finishing confirmation - check BEFORE upsell (regular cart)
+    if (hasNoFinishing && !noFinishingBypassRef.current && !editingItemId) {
+      setNoFinishPendingAction('cart');
+      setShowNoFinishingModal(true);
+      return;
+    }
+
     if (shouldShowUpsell && !editingItemId) {
       console.log('🚀 [FAST UPSELL] Showing upsell modal IMMEDIATELY (before Cloudinary upload)');
       setPendingAction('cart');
@@ -1505,6 +1527,13 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
     }
 
     // Show upsell modal if user should see it
+    // No-finishing confirmation - check BEFORE upsell (buy now)
+    if (hasNoFinishing && !noFinishingBypassRef.current) {
+      setNoFinishPendingAction('checkout');
+      setShowNoFinishingModal(true);
+      return;
+    }
+
     if (shouldShowUpsell) {
       console.log('🎨 BANNER EDITOR: Showing upsell modal for BUY NOW (checkout)');
       setPendingAction('checkout');
@@ -1950,6 +1979,24 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
     } finally {
       setIsProcessingUpsell(false);
     }
+  };
+
+  // No-finishing confirmation handlers
+  const handleNoFinishingConfirm = () => {
+    setShowNoFinishingModal(false);
+    noFinishingBypassRef.current = true;
+    if (noFinishPendingAction === 'checkout') {
+      handleBuyNow();
+    } else {
+      handleAddToCart();
+    }
+    setTimeout(() => { noFinishingBypassRef.current = false; }, 200);
+  };
+
+  const handleNoFinishingCancel = () => {
+    setShowNoFinishingModal(false);
+    setNoFinishPendingAction(null);
+    setIsProcessingCart(false);
   };
 
   const handleUpsellClose = () => {
@@ -2508,6 +2555,27 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
           </div>
         </DialogContent>
       </Dialog>
+      {/* No-Finishing Confirmation Modal */}
+      <Dialog open={showNoFinishingModal} onOpenChange={(open) => !open && handleNoFinishingCancel()}>
+        <DialogContent className='max-w-md'>
+          <DialogHeader>
+            <DialogTitle>No Finishing Options Selected</DialogTitle>
+          </DialogHeader>
+          <div className='py-4 space-y-3'>
+            <p className='text-sm text-gray-600'>
+              You have not added any finishing options (grommets, pole pockets, or rope).
+            </p>
+            <p className='text-sm text-gray-600'>
+              Are you sure you want to continue without finishing?
+            </p>
+          </div>
+          <div className='flex gap-3 justify-end'>
+            <Button variant='outline' onClick={handleNoFinishingCancel}>Go Back</Button>
+            <Button onClick={handleNoFinishingConfirm}>Continue Without Finishing</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       <UpsellModal
         isOpen={showUpsellModal}
         onClose={handleUpsellClose}
