@@ -245,7 +245,7 @@ const AdminOrders: React.FC = () => {
       
       toast({
         title: "Generating Print-Ready File",
-        description: "Creating high-quality PDF with proper dimensions and bleed...",
+        description: "Creating high-quality JPEG with proper dimensions and bleed...",
       });
       console.log("🟢 PDF Download - Item data:", item);
       console.log("🟢 PDF Download - overlay_image:", item.overlay_image);
@@ -322,10 +322,10 @@ const AdminOrders: React.FC = () => {
       // Response is JSON with base64-encoded PDF
       const result = await response.json();
       if (result.error) {
-        throw new Error(result.error || 'PDF generation failed');
+        throw new Error(result.error || 'Print file generation failed');
       }
       if (!result.pdfBase64) {
-        throw new Error('No PDF data in response');
+        throw new Error('No print file data in response');
       }
 
       // Decode base64 to binary
@@ -334,12 +334,12 @@ const AdminOrders: React.FC = () => {
       for (let i = 0; i < binaryString.length; i++) {
         bytes[i] = binaryString.charCodeAt(i);
       }
-      const blob = new Blob([bytes], { type: 'application/pdf' });
+      const blob = new Blob([bytes], { type: 'image/jpeg' });
       const url = window.URL.createObjectURL(blob);
 
       const link = document.createElement('a');
       link.href = url;
-      link.download = `order-${orderId.slice(-8)}-banner-${itemIndex + 1}-print-ready.pdf`;
+      link.download = `order-${orderId.slice(-8)}-banner-${itemIndex + 1}-print-ready.jpg`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -412,7 +412,7 @@ const AdminOrders: React.FC = () => {
     try {
       toast({
         title: "Uploading Final Print File",
-        description: "Please wait while the PDF is being uploaded...",
+        description: "Please wait while the file is being uploaded...",
       });
 
       const formData = new FormData();
@@ -428,7 +428,7 @@ const AdminOrders: React.FC = () => {
       const result = await response.json();
 
       if (!response.ok || !result.success) {
-        throw new Error(result.error || 'Failed to upload PDF');
+        throw new Error(result.error || 'Failed to upload file');
       }
 
       // Update local state with the new PDF URL
@@ -741,7 +741,7 @@ const AdminOrders: React.FC = () => {
                           Status
                         </th>
                         <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
-                          PDF
+                          Print File
                         </th>
                         <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
                           Tracking
@@ -1020,7 +1020,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
           )}
         </div>
       </td>
-      {/* PDF Column */}
+      {/* Print File Column */}
       <td className="px-3 py-3">
         <div className="flex flex-col space-y-1">
           {/* Show uploaded Final Print Files for design service orders */}
@@ -1039,7 +1039,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                 Final Print File {order.items.length > 1 ? `#${index + 1}` : ''}
               </a>
             ))}
-          {/* Show Generate PDF buttons for regular orders */}
+          {/* Show Generate Print File buttons for regular orders */}
           {getFilesWithDownload().length > 0 ? (
             getFilesWithDownload().map(({ item, index }) => (
               <Button
@@ -1058,7 +1058,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                 ) : (
                   <>
                     <FileText className="h-3 w-3 mr-1" />
-                    PDF
+                    JPEG
                   </>
                 )}
               </Button>
@@ -1381,7 +1381,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
                   Final Print File {order.items.length > 1 ? `#${index + 1}` : ''}
                 </a>
               ))}
-            {/* Show Generate PDF buttons for regular orders */}
+            {/* Show Generate Print File buttons for regular orders */}
             {getFilesWithDownload().map(({ item, index }) => (
               <Button
                 key={index}
@@ -1399,7 +1399,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
                 ) : (
                   <>
                     <FileText className="h-3 w-3 mr-1" />
-                    PDF {index + 1}
+                    JPEG {index + 1}
                   </>
                 )}
               </Button>
