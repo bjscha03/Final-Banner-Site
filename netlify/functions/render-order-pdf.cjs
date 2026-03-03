@@ -604,6 +604,24 @@ exports.handler = async (event) => {
 
       // When using thumbnail, skip all the complex positioning - just stretch to fill PDF
       // The thumbnail already contains the exact design the customer approved
+      // JPEG FORMAT: Return JPEG directly without PDF wrapping
+      if (req.format === 'jpeg') {
+        const jpegBuffer = await sharp(sourceBuffer)
+          .resize(targetPxW, targetPxH, { fit: 'fill' })
+          .jpeg({ quality: 65, chromaSubsampling: "4:2:0" })
+          .toBuffer();
+        let jpegBase64 = jpegBuffer.toString('base64');
+        if (jpegBase64.length > 5 * 1024 * 1024) {
+          const smaller = await sharp(sourceBuffer).resize(targetPxW, targetPxH, { fit: "fill" }).jpeg({ quality: 40, chromaSubsampling: "4:2:0" }).toBuffer();
+          jpegBase64 = smaller.toString('base64');
+        }
+        return {
+          statusCode: 200,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pdfBase64: jpegBase64, dpi: targetDpi, bleed: bleedIn, format: 'jpeg' }),
+        };
+      }
+
       const pdfBuffer = await sharp(sourceBuffer)
         .resize(targetPxW, targetPxH, { fit: 'fill' })
         .jpeg({ quality: 65, chromaSubsampling: "4:2:0" })
@@ -1058,6 +1076,20 @@ exports.handler = async (event) => {
       .toBuffer();
 
     console.log('[PDF] Image composited onto canvas (with overlay if provided)');
+
+    // JPEG FORMAT: Return composited JPEG directly without PDF wrapping
+    if (req.format === 'jpeg') {
+      let jpegBase64 = merged.toString('base64');
+      if (jpegBase64.length > 5 * 1024 * 1024) {
+        const smaller = await sharp(backgroundCanvas).composite(compositeLayers).jpeg({ quality: 40, chromaSubsampling: "4:2:0" }).toBuffer();
+        jpegBase64 = smaller.toString('base64');
+      }
+      return {
+        statusCode: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pdfBase64: jpegBase64, dpi: targetDpi, bleed: bleedIn, format: 'jpeg' }),
+      };
+    }
 
     const pdfBuffer = await rasterToPdfBuffer(merged, finalWidthIn, finalHeightIn, req.textElements, req.bannerWidthIn, req.bannerHeightIn, req.previewCanvasPx, bleedIn);
     console.log(`[PDF] PDF generated: ${pdfBuffer.length} bytes`);

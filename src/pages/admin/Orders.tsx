@@ -302,7 +302,8 @@ const AdminOrders: React.FC = () => {
         canvasBackgroundColor: item.canvas_background_color || '#FFFFFF',
         imageScale: item.image_scale ?? 1,
         imagePosition: item.image_position || { x: 0, y: 0 },
-        thumbnailUrl: item.thumbnail_url || null
+        thumbnailUrl: item.thumbnail_url || null,
+        format: 'jpeg'  // Return JPEG directly instead of PDF
       };
 
       console.log('🔴 PDF REQUEST:', JSON.stringify(requestBody, null, 2));
