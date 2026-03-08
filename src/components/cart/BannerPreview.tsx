@@ -218,10 +218,15 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
     return (
       <div className={`flex items-center justify-center ${className}`}>
         <div
-          className="relative rounded-lg overflow-hidden border-2 flex items-center justify-center"
+          className="relative"
           style={{
             width: `${previewWidth}px`,
             height: `${previewHeight}px`,
+          }}
+        >
+        <div
+          className="absolute inset-0 rounded-lg overflow-hidden border-2 flex items-center justify-center"
+          style={{
             borderColor: BRAND_BLUE,
             backgroundColor: '#f8fafc',
           }}
@@ -244,6 +249,8 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
             <p className="text-xs text-slate-500 mt-1">
               {widthIn}" × {heightIn}"
             </p>
+          </div>
+
           </div>
 
           {/* Grommets overlay for design service */}
@@ -296,11 +303,14 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
       return (
         <div className={`flex items-center justify-center ${className}`}>
           <div 
-            className="relative rounded-lg overflow-hidden shadow-lg border-2 border-gray-200"
+            className="relative"
             style={{
               width: `${previewWidth}px`,
               height: `${previewHeight}px`,
             }}
+          >
+          <div
+            className="rounded-lg overflow-hidden shadow-lg border-2 border-gray-200 absolute inset-0"
           >
             {/* Canvas thumbnail as background image (mobile-safe) */}
             <img 
@@ -317,6 +327,8 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
               onError={() => setImageError(true)}
             />
             
+            </div>
+
             {/* Grommets overlay */}
             {grommetPositions.map((pos, idx) => {
               const leftPercent = (pos.x / widthIn) * 100;
@@ -389,11 +401,14 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
     return (
       <div className={`flex items-center justify-center ${className}`}>
         <div 
-          className="relative rounded-lg overflow-hidden shadow-lg border-2 border-gray-200 bg-white"
+          className="relative"
           style={{
             width: `${previewWidth}px`,
             height: `${previewHeight}px`,
           }}
+        >
+        <div
+          className="rounded-lg overflow-hidden shadow-lg border-2 border-gray-200 bg-white absolute inset-0"
         >
           {/* Main banner image */}
           <img 
@@ -415,6 +430,8 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
             }}
           />
           
+          </div>
+
           {/* Grommets overlay using absolute positioned divs */}
           {grommets !== 'none' && grommetPositions.map((pos, idx) => {
             // Convert grommet position from inches to percentage
@@ -533,7 +550,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   return (
     <div className={`flex items-center justify-center ${className}`}>
       <div 
-        className="relative rounded-lg overflow-hidden shadow-lg border-2 border-gray-200"
+        className="relative rounded-lg shadow-lg border-2 border-gray-200"
         style={{
           width: `${previewWidth}px`,
           height: `${previewHeight}px`,
@@ -544,6 +561,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
           height="100%"
           viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}
           preserveAspectRatio="xMidYMid meet"
+          overflow="visible"
           className="bg-white"
         >
           {/* Background */}
