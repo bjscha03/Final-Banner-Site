@@ -327,14 +327,17 @@ const AdminOrders: React.FC = () => {
       }
 
       if (result.downloadUrl) {
-        // High-res JPEG hosted on Cloudinary - download via URL
+        // High-res JPEG hosted on Cloudinary - fetch as blob to force download
+        const imgResponse = await fetch(result.downloadUrl);
+        const blob = await imgResponse.blob();
+        const blobUrl = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
-        link.href = result.downloadUrl;
+        link.href = blobUrl;
         link.download = `order-${orderId.slice(-8)}-banner-${itemIndex + 1}-print-ready.jpg`;
-        link.target = '_blank';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
       } else if (result.pdfBase64) {
         // Legacy base64 fallback
         const binaryString = atob(result.pdfBase64);
