@@ -328,8 +328,15 @@ const AdminOrders: React.FC = () => {
 
       if (result.downloadUrl) {
         // High-res JPEG hosted on Cloudinary - fetch as blob to force download
-        const imgResponse = await fetch(result.downloadUrl);
+        let imgResponse = await fetch(result.downloadUrl);
+        // If transformed URL fails, fall back to raw Cloudinary URL
+        if (!imgResponse.ok && result.rawUrl) {
+          console.warn('Transformed URL failed, falling back to raw URL');
+          imgResponse = await fetch(result.rawUrl);
+        }
+        if (!imgResponse.ok) throw new Error('Failed to download image: ' + imgResponse.status);
         const blob = await imgResponse.blob();
+        if (blob.size === 0) throw new Error('Downloaded file is empty');
         const blobUrl = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = blobUrl;

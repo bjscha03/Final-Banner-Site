@@ -47,9 +47,17 @@ function stripCloudinaryTransforms(url) {
  * Inserts e_upscale, e_enhance, resize to 150 DPI dimensions, q_100, f_jpg
  */
 function buildPrintTransformUrl(cloudinaryUrl, bannerWidthIn, bannerHeightIn) {
-  const pxW = Math.round(bannerWidthIn * 150);
-  const pxH = Math.round(bannerHeightIn * 150);
-  const transforms = 'e_upscale,e_enhance,w_' + pxW + ',h_' + pxH + ',c_fill,q_100,f_jpg';
+  const MAX_PIXELS = 25000000; // Cloudinary transform limit ~25MP
+  let pxW = Math.round(bannerWidthIn * 150);
+  let pxH = Math.round(bannerHeightIn * 150);
+  // Scale down proportionally if over pixel cap
+  const totalPx = pxW * pxH;
+  if (totalPx > MAX_PIXELS) {
+    const scale = Math.sqrt(MAX_PIXELS / totalPx);
+    pxW = Math.round(pxW * scale);
+    pxH = Math.round(pxH * scale);
+  }
+  const transforms = 'w_' + pxW + ',h_' + pxH + ',c_fill,q_100,f_jpg';
   return cloudinaryUrl.replace('/upload/', '/upload/' + transforms + '/');
 }
 
@@ -649,7 +657,7 @@ exports.handler = async (event) => {
         return {
           statusCode: 200,
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ downloadUrl: buildPrintTransformUrl(cloudUrl, req.bannerWidthIn, req.bannerHeightIn), dpi: 150, bleed: bleedIn, format: 'jpeg' }),
+          body: JSON.stringify({ downloadUrl: buildPrintTransformUrl(cloudUrl, req.bannerWidthIn, req.bannerHeightIn), rawUrl: cloudUrl, dpi: 150, bleed: bleedIn, format: 'jpeg' }),
         };
       }
       const pdfBuffer = await sharp(sourceBuffer)
@@ -1125,7 +1133,7 @@ exports.handler = async (event) => {
       return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ downloadUrl: buildPrintTransformUrl(cloudUrl, req.bannerWidthIn, req.bannerHeightIn), dpi: 150, bleed: bleedIn, format: 'jpeg' }),
+        body: JSON.stringify({ downloadUrl: buildPrintTransformUrl(cloudUrl, req.bannerWidthIn, req.bannerHeightIn), rawUrl: cloudUrl, dpi: 150, bleed: bleedIn, format: 'jpeg' }),
       };
     }
     const pdfBuffer = await rasterToPdfBuffer(merged, finalWidthIn, finalHeightIn, req.textElements, req.bannerWidthIn, req.bannerHeightIn, req.previewCanvasPx, bleedIn);
