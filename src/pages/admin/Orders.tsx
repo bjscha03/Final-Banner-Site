@@ -320,31 +320,40 @@ const AdminOrders: React.FC = () => {
         throw new Error(`HTTP ${response.status}: ${errorText}`);
       }
 
-      // Response is JSON with base64-encoded PDF
+      // Response is JSON with Cloudinary download URL
       const result = await response.json();
       if (result.error) {
         throw new Error(result.error || 'Print file generation failed');
       }
-      if (!result.pdfBase64) {
-        throw new Error('No print file data in response');
-      }
 
-      // Decode base64 to binary
-      const binaryString = atob(result.pdfBase64);
-      const bytes = new Uint8Array(binaryString.length);
-      for (let i = 0; i < binaryString.length; i++) {
-        bytes[i] = binaryString.charCodeAt(i);
+      if (result.downloadUrl) {
+        // High-res JPEG hosted on Cloudinary - download via URL
+        const link = document.createElement('a');
+        link.href = result.downloadUrl;
+        link.download = `order-${orderId.slice(-8)}-banner-${itemIndex + 1}-print-ready.jpg`;
+        link.target = '_blank';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      } else if (result.pdfBase64) {
+        // Legacy base64 fallback
+        const binaryString = atob(result.pdfBase64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        const blob = new Blob([bytes], { type: 'image/jpeg' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `order-${orderId.slice(-8)}-banner-${itemIndex + 1}-print-ready.jpg`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      } else {
+        throw new Error("No print file data in response");
       }
-      const blob = new Blob([bytes], { type: 'image/jpeg' });
-      const url = window.URL.createObjectURL(blob);
-
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `order-${orderId.slice(-8)}-banner-${itemIndex + 1}-print-ready.jpg`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
 
       toast({
         title: "Print File Downloaded",

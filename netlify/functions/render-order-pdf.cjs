@@ -22,11 +22,11 @@ const sql = neon(process.env.NETLIFY_DATABASE_URL);
  */
 function chooseTargetDpi(wIn, hIn) {
   // Smart DPI: aim for 150 but cap total pixels for Netlify 6MB response limit
-  const MAX_PX = 10000000;
-  const ideal = 150;
+  const MAX_PX = 50000000;
+  const ideal = 300;
   if ((wIn * ideal) * (hIn * ideal) <= MAX_PX) return ideal;
   const scaled = Math.floor(Math.sqrt(MAX_PX / (wIn * hIn)));
-  return Math.max(scaled, 50);
+  return Math.max(scaled, 100);
 }
 /**
  * Clamp a value between min and max
@@ -623,19 +623,22 @@ exports.handler = async (event) => {
         const jpegBuffer = await sharp(sourceBuffer)
           .resize(targetPxW, targetPxH, { fit: 'fill' })
           .withMetadata({ density: targetDpi })
-          .jpeg({ quality: 85, chromaSubsampling: '4:2:0', progressive: true })
+          .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
           .toBuffer();
         console.log('[JPEG] Thumbnail JPEG size:', jpegBuffer.length, 'bytes');
-        let jpegBase64 = jpegBuffer.toString('base64');
-        if (jpegBase64.length > 5 * 1024 * 1024) {
-          console.warn('[JPEG] Too large, re-encoding at q60');
-          const smaller = await sharp(sourceBuffer).resize(targetPxW, targetPxH, { fit: 'fill' }).withMetadata({ density: targetDpi }).jpeg({ quality: 60, chromaSubsampling: '4:2:0' }).toBuffer();
-          jpegBase64 = smaller.toString('base64');
-        }
+        // Upload to Cloudinary (bypasses 6MB response limit)
+        const cloudUrl = await new Promise((resolve, reject) => {
+          const stream = cloudinary.uploader.upload_stream(
+            { resource_type: 'image', folder: 'order-prints', public_id: 'print-' + (req.orderId || 'unknown') + '-' + Date.now(), format: 'jpg' },
+            (err, result) => err ? reject(err) : resolve(result.secure_url)
+          );
+          stream.end(jpegBuffer);
+        });
+        console.log('[JPEG] Uploaded to Cloudinary:', cloudUrl);
         return {
           statusCode: 200,
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pdfBase64: jpegBase64, dpi: targetDpi, bleed: bleedIn, format: 'jpeg' }),
+          body: JSON.stringify({ downloadUrl: cloudUrl, dpi: targetDpi, bleed: bleedIn, format: 'jpeg' }),
         };
       }
       const pdfBuffer = await sharp(sourceBuffer)
@@ -1093,23 +1096,25 @@ exports.handler = async (event) => {
 
     console.log('[PDF] Image composited onto canvas (with overlay if provided)');
 
-    // JPEG FORMAT: Return composited JPEG directly without PDF wrapping
+    // JPEG FORMAT: Render high-res composited JPEG, upload to Cloudinary
     if (req.format === 'jpeg') {
-      const jpegWithMeta = await sharp(merged)
+      const jpegBuffer = await sharp(merged)
         .withMetadata({ density: targetDpi })
-        .jpeg({ quality: 85, chromaSubsampling: '4:2:0', progressive: true })
+        .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
         .toBuffer();
-      console.log('[JPEG] Composited JPEG size:', jpegWithMeta.length, 'bytes at', targetDpi, 'DPI');
-      let jpegBase64 = jpegWithMeta.toString('base64');
-      if (jpegBase64.length > 5 * 1024 * 1024) {
-        console.warn('[JPEG] Too large, re-encoding at q60');
-        const smaller = await sharp(backgroundCanvas).composite(compositeLayers).withMetadata({ density: targetDpi }).jpeg({ quality: 60, chromaSubsampling: '4:2:0' }).toBuffer();
-        jpegBase64 = smaller.toString('base64');
-      }
+      console.log('[JPEG] Composited JPEG size:', jpegBuffer.length, 'bytes at', targetDpi, 'DPI');
+      const cloudUrl = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { resource_type: 'image', folder: 'order-prints', public_id: 'print-' + (req.orderId || 'unknown') + '-' + Date.now(), format: 'jpg' },
+          (err, result) => err ? reject(err) : resolve(result.secure_url)
+        );
+        stream.end(jpegBuffer);
+      });
+      console.log('[JPEG] Uploaded to Cloudinary:', cloudUrl);
       return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pdfBase64: jpegBase64, dpi: targetDpi, bleed: bleedIn, format: 'jpeg' }),
+        body: JSON.stringify({ downloadUrl: cloudUrl, dpi: targetDpi, bleed: bleedIn, format: 'jpeg' }),
       };
     }
     const pdfBuffer = await rasterToPdfBuffer(merged, finalWidthIn, finalHeightIn, req.textElements, req.bannerWidthIn, req.bannerHeightIn, req.previewCanvasPx, bleedIn);
