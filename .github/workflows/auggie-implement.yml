@@ -1,0 +1,67 @@
+name: Auto-Implement Issue with Auggie
+
+on:
+  issues:
+    types: [labeled]
+
+jobs:
+  implement:
+    if: github.event.label.name == 'auto-implement'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Auggie CLI
+        run: npm install -g @augmentcode/auggie
+
+      - name: Run Auggie to implement changes
+        env:
+          AUGMENT_SESSION_AUTH: ${{ secrets.AUGMENT_SESSION_AUTH }}
+        run: |
+          ISSUE_TITLE="${{ github.event.issue.title }}"
+          ISSUE_BODY="${{ github.event.issue.body }}"
+
+          auggie --print --quiet "You are working on this repository. Implement the following change request by editing the appropriate files:
+
+          Title: $ISSUE_TITLE
+
+          Details: $ISSUE_BODY
+
+          Make the necessary file edits. Do not commit the changes - just edit the files."
+
+      - name: Commit and push changes
+        run: |
+          git config --global user.name "Augment Code Bot"
+          git config --global user.email "augment-bot@noreply.com"
+          git add -A
+          git diff --staged --quiet || git commit -m "Auto-implement: ${{ github.event.issue.title }} (Issue #${{ github.event.issue.number }})"
+          git push
+
+      - name: Comment and close issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ github.event.issue.number }},
+              body: '✅ Changes implemented and pushed to main. Netlify will deploy shortly!'
+            });
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: ${{ github.event.issue.number }},
+              state: 'closed'
+            });
