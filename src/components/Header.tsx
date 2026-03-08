@@ -141,7 +141,7 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
             <button
               onClick={onCartClick}
               aria-label="Shopping cart"
-              className="relative p-2 text-slate-500 hover:text-slate-700 transition-colors"
+              className="relative p-2 text-orange-500 hover:text-orange-600 transition-colors"
             >
               <ShoppingCart className="h-5 w-5" />
               {cartCount > 0 && (
