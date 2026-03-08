@@ -29,17 +29,10 @@ jobs:
       - name: Run Auggie to implement changes
         env:
           AUGMENT_SESSION_AUTH: ${{ secrets.AUGMENT_SESSION_AUTH }}
+          ISSUE_TITLE: ${{ github.event.issue.title }}
+          ISSUE_BODY: ${{ github.event.issue.body }}
         run: |
-          ISSUE_TITLE="${{ github.event.issue.title }}"
-          ISSUE_BODY="${{ github.event.issue.body }}"
-
-          auggie --print --quiet "You are working on this repository. Implement the following change request by editing the appropriate files:
-
-          Title: $ISSUE_TITLE
-
-          Details: $ISSUE_BODY
-
-          Make the necessary file edits. Do not commit the changes - just edit the files."
+          auggie --print --quiet "Implement this change in the repo. Edit files but do not commit. Title: ${ISSUE_TITLE} Details: ${ISSUE_BODY}"
 
       - name: Commit and push changes
         run: |
