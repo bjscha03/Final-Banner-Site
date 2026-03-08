@@ -21,9 +21,13 @@ const sql = neon(process.env.NETLIFY_DATABASE_URL);
  * Choose target DPI based on banner size
  */
 function chooseTargetDpi(wIn, hIn) {
-  return 100; // 100 DPI - balanced for print quality vs Netlify 6MB response limit
+  // Smart DPI: aim for 150 but cap total pixels for Netlify 6MB response limit
+  const MAX_PX = 10000000;
+  const ideal = 150;
+  if ((wIn * ideal) * (hIn * ideal) <= MAX_PX) return ideal;
+  const scaled = Math.floor(Math.sqrt(MAX_PX / (wIn * hIn)));
+  return Math.max(scaled, 50);
 }
-
 /**
  * Clamp a value between min and max
  */
@@ -31,6 +35,13 @@ function clamp(val, min, max) {
   return Math.max(min, Math.min(max, val));
 }
 
+/**
+ * Strip Cloudinary width/resize transforms from URL to get original resolution
+ */
+function stripCloudinaryTransforms(url) {
+  if (!url || !url.includes('res.cloudinary.com')) return url;
+  return url.replace(/\/upload\/[^/]+\//, '/upload/');
+}
 /**
  * Draw crop marks on PDF for print cutting guides
  * Crop marks are placed at the corners of the banner area (inside the bleed)
@@ -599,20 +610,26 @@ exports.handler = async (event) => {
     // The thumbnail is the rendered preview that the customer approved
     let sourceBuffer;
     if (req.thumbnailUrl && !req.thumbnailUrl.startsWith('blob:')) {
-      console.log('[PDF] Using THUMBNAIL - exact customer design:', req.thumbnailUrl);
-      sourceBuffer = await fetchImage(req.thumbnailUrl, false);
+      const printThumbUrl = stripCloudinaryTransforms(req.thumbnailUrl);
+      console.log('[PDF] Using THUMBNAIL for print (original res):', printThumbUrl);
+      console.log('[PDF] Original thumbnail URL was:', req.thumbnailUrl);
+      sourceBuffer = await fetchImage(printThumbUrl, false);
 
       // When using thumbnail, skip all the complex positioning - just stretch to fill PDF
       // The thumbnail already contains the exact design the customer approved
       // JPEG FORMAT: Return JPEG directly without PDF wrapping
       if (req.format === 'jpeg') {
+        console.log('[JPEG] Thumbnail path: resizing to', targetPxW, 'x', targetPxH, 'at', targetDpi, 'DPI');
         const jpegBuffer = await sharp(sourceBuffer)
           .resize(targetPxW, targetPxH, { fit: 'fill' })
-          .jpeg({ quality: 65, chromaSubsampling: "4:2:0" })
+          .withMetadata({ density: targetDpi })
+          .jpeg({ quality: 85, chromaSubsampling: '4:2:0', progressive: true })
           .toBuffer();
+        console.log('[JPEG] Thumbnail JPEG size:', jpegBuffer.length, 'bytes');
         let jpegBase64 = jpegBuffer.toString('base64');
         if (jpegBase64.length > 5 * 1024 * 1024) {
-          const smaller = await sharp(sourceBuffer).resize(targetPxW, targetPxH, { fit: "fill" }).jpeg({ quality: 40, chromaSubsampling: "4:2:0" }).toBuffer();
+          console.warn('[JPEG] Too large, re-encoding at q60');
+          const smaller = await sharp(sourceBuffer).resize(targetPxW, targetPxH, { fit: 'fill' }).withMetadata({ density: targetDpi }).jpeg({ quality: 60, chromaSubsampling: '4:2:0' }).toBuffer();
           jpegBase64 = smaller.toString('base64');
         }
         return {
@@ -621,7 +638,6 @@ exports.handler = async (event) => {
           body: JSON.stringify({ pdfBase64: jpegBase64, dpi: targetDpi, bleed: bleedIn, format: 'jpeg' }),
         };
       }
-
       const pdfBuffer = await sharp(sourceBuffer)
         .resize(targetPxW, targetPxH, { fit: 'fill' })
         .jpeg({ quality: 65, chromaSubsampling: "4:2:0" })
@@ -1079,9 +1095,15 @@ exports.handler = async (event) => {
 
     // JPEG FORMAT: Return composited JPEG directly without PDF wrapping
     if (req.format === 'jpeg') {
-      let jpegBase64 = merged.toString('base64');
+      const jpegWithMeta = await sharp(merged)
+        .withMetadata({ density: targetDpi })
+        .jpeg({ quality: 85, chromaSubsampling: '4:2:0', progressive: true })
+        .toBuffer();
+      console.log('[JPEG] Composited JPEG size:', jpegWithMeta.length, 'bytes at', targetDpi, 'DPI');
+      let jpegBase64 = jpegWithMeta.toString('base64');
       if (jpegBase64.length > 5 * 1024 * 1024) {
-        const smaller = await sharp(backgroundCanvas).composite(compositeLayers).jpeg({ quality: 40, chromaSubsampling: "4:2:0" }).toBuffer();
+        console.warn('[JPEG] Too large, re-encoding at q60');
+        const smaller = await sharp(backgroundCanvas).composite(compositeLayers).withMetadata({ density: targetDpi }).jpeg({ quality: 60, chromaSubsampling: '4:2:0' }).toBuffer();
         jpegBase64 = smaller.toString('base64');
       }
       return {
@@ -1090,7 +1112,6 @@ exports.handler = async (event) => {
         body: JSON.stringify({ pdfBase64: jpegBase64, dpi: targetDpi, bleed: bleedIn, format: 'jpeg' }),
       };
     }
-
     const pdfBuffer = await rasterToPdfBuffer(merged, finalWidthIn, finalHeightIn, req.textElements, req.bannerWidthIn, req.bannerHeightIn, req.previewCanvasPx, bleedIn);
     console.log(`[PDF] PDF generated: ${pdfBuffer.length} bytes`);
 
