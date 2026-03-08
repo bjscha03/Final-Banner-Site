@@ -43,6 +43,17 @@ function stripCloudinaryTransforms(url) {
   return url.replace(/\/upload\/[^/]+\//, '/upload/');
 }
 /**
+ * Build a Cloudinary transformation URL for print-quality output.
+ * Inserts e_upscale, e_enhance, resize to 150 DPI dimensions, q_100, f_jpg
+ */
+function buildPrintTransformUrl(cloudinaryUrl, bannerWidthIn, bannerHeightIn) {
+  const pxW = Math.round(bannerWidthIn * 150);
+  const pxH = Math.round(bannerHeightIn * 150);
+  const transforms = 'e_upscale,e_enhance,w_' + pxW + ',h_' + pxH + ',c_fill,q_100,f_jpg';
+  return cloudinaryUrl.replace('/upload/', '/upload/' + transforms + '/');
+}
+
+/**
  * Draw crop marks on PDF for print cutting guides
  * Crop marks are placed at the corners of the banner area (inside the bleed)
  */
@@ -638,7 +649,7 @@ exports.handler = async (event) => {
         return {
           statusCode: 200,
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ downloadUrl: cloudUrl, dpi: targetDpi, bleed: bleedIn, format: 'jpeg' }),
+          body: JSON.stringify({ downloadUrl: buildPrintTransformUrl(cloudUrl, req.bannerWidthIn, req.bannerHeightIn), dpi: 150, bleed: bleedIn, format: 'jpeg' }),
         };
       }
       const pdfBuffer = await sharp(sourceBuffer)
@@ -1114,7 +1125,7 @@ exports.handler = async (event) => {
       return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ downloadUrl: cloudUrl, dpi: targetDpi, bleed: bleedIn, format: 'jpeg' }),
+        body: JSON.stringify({ downloadUrl: buildPrintTransformUrl(cloudUrl, req.bannerWidthIn, req.bannerHeightIn), dpi: 150, bleed: bleedIn, format: 'jpeg' }),
       };
     }
     const pdfBuffer = await rasterToPdfBuffer(merged, finalWidthIn, finalHeightIn, req.textElements, req.bannerWidthIn, req.bannerHeightIn, req.previewCanvasPx, bleedIn);
