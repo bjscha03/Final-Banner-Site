@@ -385,7 +385,13 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
     }
   }, [selectedIds, objects]);
   
-  const handleStageClick = (e: Konva.KonvaEventObject<MouseEvent>) => {
+  const handleStageClick = (e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
+    // CRITICAL: Check if event was already handled by an object
+    // This prevents clearing selection when tapping on objects
+    if (e.cancelBubble) {
+      return;
+    }
+    
     // Only clear selection if clicking directly on the stage or background
     // Check if the click target is the stage itself or the background rect
     const clickedOnEmpty = e.target === e.target.getStage() || e.target.name() === 'background-rect';
@@ -396,16 +402,25 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
   };
 
   const handleObjectClick = (id: string, e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
-    // Use Konva's cancelBubble to prevent stage click handler from firing
+    // CRITICAL: Stop propagation to prevent stage from clearing selection
     e.cancelBubble = true;
     
-    // For touch events, we need to be more aggressive with selection
-    // Check if already selected to avoid toggle behavior on simple taps
-    if (!selectedIds.includes(id)) {
-      const nativeEvent = e.evt as MouseEvent;
-      const addToSelection = nativeEvent?.shiftKey || nativeEvent?.metaKey || nativeEvent?.ctrlKey;
-      selectObject(id, addToSelection);
+    // Also stop native event propagation for touch events
+    if (e.evt) {
+      e.evt.stopPropagation();
+      e.evt.preventDefault();
     }
+    
+    // Always ensure object is selected
+    const nativeEvent = e.evt as MouseEvent;
+    // Select the object (selectObject handles the toggle logic for shift-click)\n    const addToSelection = nativeEvent?.shiftKey || nativeEvent?.metaKey || nativeEvent?.ctrlKey;
+    if (addToSelection) {
+      selectObject(id, true);
+    } else if (!selectedIds.includes(id)) {
+      // Only re-select if not already selected (avoids unnecessary state updates)
+      selectObject(id, false);
+    }
+    // If already selected without modifier, keep it selected (do nothing)
   };
   
   // Handle drag start - ensure object is selected when drag begins
