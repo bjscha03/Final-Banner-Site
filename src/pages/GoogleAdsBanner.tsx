@@ -235,21 +235,6 @@ const GoogleAdsBanner: React.FC = () => {
   }, [uploadedFile]);
 
 // Trigger upsell modal after confirming position
-  const handleConfirmPosition = useCallback((pos: { x: number; y: number }, scale: number) => {
-    if (!uploadedFile) return;
-    // Convert pixel position to percentage for responsive thumbnail display
-    const container = previewContainerRef.current;
-    const containerWidth = container?.offsetWidth || 1;
-    const containerHeight = container?.offsetHeight || 1;
-    const posPercent = {
-      x: (pos.x / containerWidth) * 100,
-      y: (pos.y / containerHeight) * 100
-    };
-    setPendingCheckoutData({ pos: posPercent, scale });
-    setShowPreview(false);
-    setShowUpsellModal(true);
-  }, [uploadedFile]);
-
   // Actually perform checkout after upsell decision
   const performCheckout = useCallback((selectedOptions: UpsellOption[]) => {
     if (!uploadedFile || !pendingCheckoutData) return;
@@ -302,6 +287,32 @@ const GoogleAdsBanner: React.FC = () => {
     setPendingCheckoutData(null);
     navigate('/checkout');
   }, [uploadedFile, pendingCheckoutData, grommets, addRope, polePockets, widthIn, heightIn, quantity, material, quoteStore, cartStore, setIsCartOpen, navigate]);
+
+
+// Trigger upsell modal after confirming position
+  const handleConfirmPosition = useCallback((pos: { x: number; y: number }, scale: number) => {
+    if (!uploadedFile) return;
+    // Convert pixel position to percentage for responsive thumbnail display
+    const container = previewContainerRef.current;
+    const containerWidth = container?.offsetWidth || 1;
+    const containerHeight = container?.offsetHeight || 1;
+    const posPercent = {
+      x: (pos.x / containerWidth) * 100,
+      y: (pos.y / containerHeight) * 100
+    };
+    setPendingCheckoutData({ pos: posPercent, scale });
+    setShowPreview(false);
+    
+    // Skip upsell if all options are already selected
+    const hasFinishing = grommets !== 'none' || polePockets !== 'none';
+    const hasRope = addRope;
+    if (hasFinishing && hasRope) {
+      // Go directly to checkout with current options
+      performCheckout([]);
+    } else {
+      setShowUpsellModal(true);
+    }
+  }, [uploadedFile, grommets, polePockets, addRope, performCheckout]);
 
   // Handle upsell modal continue
   const handleUpsellContinue = useCallback((selectedOptions: UpsellOption[], dontAskAgain: boolean) => {
@@ -736,26 +747,33 @@ const GoogleAdsBanner: React.FC = () => {
                 onTouchMove={onPreviewTouchMove}
                 onTouchEnd={onPreviewTouchEnd}
               >
-                <img
-                  src={uploadedFile.thumbnailUrl || uploadedFile.url}
-                  alt="Banner preview"
-                  className="absolute inset-0 w-full h-full pointer-events-none object-cover"
+                <div
+                  className="absolute inset-0 w-full h-full"
                   style={{ transform: `translate(${imgPos.x}px, ${imgPos.y}px) scale(${imgScale})` }}
-                  draggable={false}
-                />
-                {/* Corner resize handles */}
-                {['top-left', 'top-right', 'bottom-left', 'bottom-right'].map((corner) => (
-                  <div
-                    key={corner}
-                    onMouseDown={onCornerMouseDown}
-                    className="absolute w-4 h-4 bg-white border-2 border-blue-500 rounded-full cursor-nwse-resize z-20 hover:bg-blue-50"
-                    style={{
-                      ...(corner.includes('top') ? { top: '-8px' } : { bottom: '-8px' }),
-                      ...(corner.includes('left') ? { left: '-8px' } : { right: '-8px' }),
-                      cursor: corner === 'top-left' || corner === 'bottom-right' ? 'nwse-resize' : 'nesw-resize'
-                    }}
+                >
+                  <img
+                    src={uploadedFile.thumbnailUrl || uploadedFile.url}
+                    alt="Banner preview"
+                    className="absolute inset-0 w-full h-full pointer-events-none object-cover"
+                    draggable={false}
                   />
-                ))}
+                  {/* Corner resize handles - positioned at image corners */}
+                  {['top-left', 'top-right', 'bottom-left', 'bottom-right'].map((corner) => (
+                    <div
+                      key={corner}
+                      onMouseDown={onCornerMouseDown}
+                      className="absolute w-5 h-5 bg-white border-2 border-blue-500 rounded-full z-20 hover:bg-blue-100 pointer-events-auto shadow-md"
+                      style={{
+                        top: corner.includes('top') ? 0 : 'auto',
+                        bottom: corner.includes('bottom') ? 0 : 'auto',
+                        left: corner.includes('left') ? 0 : 'auto',
+                        right: corner.includes('right') ? 0 : 'auto',
+                        transform: `translate(${corner.includes('left') ? '-50%' : '50%'}, ${corner.includes('top') ? '-50%' : '50%'})`,
+                        cursor: corner === 'top-left' || corner === 'bottom-right' ? 'nwse-resize' : 'nesw-resize'
+                      }}
+                    />
+                  ))}
+                </div>
                 {/* Grommet overlay */}
                 {grommets !== "none" && calcGrommetPts(widthIn, heightIn, grommets).map((pos, idx) => {
                   const leftPct = (pos.x / widthIn) * 100;
