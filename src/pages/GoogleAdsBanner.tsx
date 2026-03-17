@@ -104,6 +104,10 @@ const GoogleAdsBanner: React.FC = () => {
   const [dragStartPt, setDragStartPt] = useState({ x: 0, y: 0 });
   const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
   const [lastPinchDist, setLastPinchDist] = useState<number | null>(null);
+  const [isResizing, setIsResizing] = useState(false);
+  const [resizeStartScale, setResizeStartScale] = useState(1);
+  const [resizeStartDist, setResizeStartDist] = useState(0);
+  const [resizeCenter, setResizeCenter] = useState({ x: 0, y: 0 });
   const previewContainerRef = useRef<HTMLDivElement>(null);
 
   // Upsell modal state
@@ -233,7 +237,15 @@ const GoogleAdsBanner: React.FC = () => {
 // Trigger upsell modal after confirming position
   const handleConfirmPosition = useCallback((pos: { x: number; y: number }, scale: number) => {
     if (!uploadedFile) return;
-    setPendingCheckoutData({ pos, scale });
+    // Convert pixel position to percentage for responsive thumbnail display
+    const container = previewContainerRef.current;
+    const containerWidth = container?.offsetWidth || 1;
+    const containerHeight = container?.offsetHeight || 1;
+    const posPercent = {
+      x: (pos.x / containerWidth) * 100,
+      y: (pos.y / containerHeight) * 100
+    };
+    setPendingCheckoutData({ pos: posPercent, scale });
     setShowPreview(false);
     setShowUpsellModal(true);
   }, [uploadedFile]);
@@ -319,6 +331,40 @@ const GoogleAdsBanner: React.FC = () => {
   const onPreviewMouseUp = useCallback(() => {
     setIsDraggingPreview(false);
   }, []);
+
+  // Corner resize handlers
+  const onCornerMouseDown = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    const container = previewContainerRef.current;
+    if (!container) return;
+    const rect = container.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    const dx = e.clientX - centerX;
+    const dy = e.clientY - centerY;
+    setResizeStartDist(Math.sqrt(dx * dx + dy * dy));
+    setResizeStartScale(imgScale);
+    setResizeCenter({ x: centerX, y: centerY });
+    setIsResizing(true);
+  }, [imgScale]);
+
+  useEffect(() => {
+    if (!isResizing) return;
+    const handleMouseMove = (e: MouseEvent) => {
+      const dx = e.clientX - resizeCenter.x;
+      const dy = e.clientY - resizeCenter.y;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const scaleFactor = dist / (resizeStartDist || 1);
+      setImgScale(Math.max(0.5, Math.min(3, resizeStartScale * scaleFactor)));
+    };
+    const handleMouseUp = () => setIsResizing(false);
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isResizing, resizeCenter, resizeStartDist, resizeStartScale]);
 
   const onPreviewTouchStart = useCallback((e: React.TouchEvent) => {
     if (e.touches.length === 2) {
@@ -697,6 +743,19 @@ const GoogleAdsBanner: React.FC = () => {
                   style={{ transform: `translate(${imgPos.x}px, ${imgPos.y}px) scale(${imgScale})` }}
                   draggable={false}
                 />
+                {/* Corner resize handles */}
+                {['top-left', 'top-right', 'bottom-left', 'bottom-right'].map((corner) => (
+                  <div
+                    key={corner}
+                    onMouseDown={onCornerMouseDown}
+                    className="absolute w-4 h-4 bg-white border-2 border-blue-500 rounded-full cursor-nwse-resize z-20 hover:bg-blue-50"
+                    style={{
+                      ...(corner.includes('top') ? { top: '-8px' } : { bottom: '-8px' }),
+                      ...(corner.includes('left') ? { left: '-8px' } : { right: '-8px' }),
+                      cursor: corner === 'top-left' || corner === 'bottom-right' ? 'nwse-resize' : 'nesw-resize'
+                    }}
+                  />
+                ))}
                 {/* Grommet overlay */}
                 {grommets !== "none" && calcGrommetPts(widthIn, heightIn, grommets).map((pos, idx) => {
                   const leftPct = (pos.x / widthIn) * 100;
@@ -738,6 +797,8 @@ const GoogleAdsBanner: React.FC = () => {
           addRope,
           thumbnailUrl: uploadedFile?.thumbnailUrl || uploadedFile?.url,
           file: uploadedFile ? { name: uploadedFile.name, url: uploadedFile.url } : undefined,
+          imagePosition: pendingCheckoutData?.pos,
+          imageScale: pendingCheckoutData?.scale,
         } as any}
         thumbnailUrl={uploadedFile?.thumbnailUrl || uploadedFile?.url}
         actionType="checkout"

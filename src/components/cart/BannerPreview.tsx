@@ -321,7 +321,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
               style={{
                 objectFit: fitMode === 'fill' ? 'cover' : fitMode === 'stretch' ? 'fill' : 'contain',
                 objectPosition: 'center',
-                ...(fitMode === 'fill' ? { transform: `translate(${imagePosition.x}px, ${imagePosition.y}px) scale(${imageScale})` } : {})
+                ...(fitMode === 'fill' ? { transform: `translate(${imagePosition.x}%, ${imagePosition.y}%) scale(${imageScale})` } : {})
               }}
               onLoad={(e) => { setImageLoaded(true); }}
               onError={() => setImageError(true)}
@@ -385,7 +385,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
             style={{
               objectFit: fitMode === 'fill' ? 'cover' : fitMode === 'stretch' ? 'fill' : 'contain',
               objectPosition: 'center',
-              ...(fitMode === 'fill' ? { transform: `translate(${imagePosition.x}px, ${imagePosition.y}px) scale(${imageScale})` } : {})
+              ...(fitMode === 'fill' ? { transform: `translate(${imagePosition.x}%, ${imagePosition.y}%) scale(${imageScale})` } : {})
             }}
             onLoad={(e) => { setImageLoaded(true); }}
             onError={() => setImageError(true)}
