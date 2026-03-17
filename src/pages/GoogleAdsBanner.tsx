@@ -693,8 +693,8 @@ const GoogleAdsBanner: React.FC = () => {
                 <img
                   src={uploadedFile.thumbnailUrl || uploadedFile.url}
                   alt="Banner preview"
-                  className={`absolute inset-0 w-full h-full pointer-events-none ${fitMode === 'fill' ? 'object-cover' : fitMode === 'fit' ? 'object-contain' : 'object-fill'}`}
-                  style={fitMode === 'fill' ? { transform: `translate(${imgPos.x}px, ${imgPos.y}px) scale(${imgScale})` } : {}}
+                  className="absolute inset-0 w-full h-full pointer-events-none object-cover"
+                  style={{ transform: `translate(${imgPos.x}px, ${imgPos.y}px) scale(${imgScale})` }}
                   draggable={false}
                 />
                 {/* Grommet overlay */}
