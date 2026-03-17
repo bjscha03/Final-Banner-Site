@@ -1037,7 +1037,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
 
       // Calculate pricing for design service order
       const sqft = (widthIn * heightIn) / 144;
-      const basePrice = material === '13oz Vinyl' ? 3.50 : 4.50;
+      const basePrice = material === '13oz' ? 3.50 : 4.50;
       const unitPrice = sqft * basePrice;
 
       const ropeFeet = quote.addRope ? (widthIn / 12) : 0;
@@ -1296,7 +1296,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
     
     // Calculate pricing using CORRECT pricing functions (matching upsell path)
     const sqft = (widthIn * heightIn) / 144;
-    const basePrice = material === '13oz Vinyl' ? 3.50 : 4.50;
+    const basePrice = material === '13oz' ? 3.50 : 4.50;
     const unitPrice = sqft * basePrice;
     
     // CORRECT rope pricing: $2 per linear foot (width in feet × 2 × quantity)
@@ -1575,7 +1575,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
 
       // Calculate pricing with upsells
       const sqft = (widthIn * heightIn) / 144;
-      const basePrice = material === '13oz Vinyl' ? 3.50 : 4.50;
+      const basePrice = material === '13oz' ? 3.50 : 4.50;
       const unitPrice = sqft * basePrice;
 
       const ropeFeet = updatedQuote.addRope ? (widthIn / 12) : 0;
@@ -1702,7 +1702,8 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
     console.log('🔄 [BUG 1 FIX] Editor objects count:', editorObjects.length);
     generateThumbnail();
     // Wait for thumbnail to be generated and stored (generateThumbnail has 200ms internal delay)
-    await new Promise(resolve => setTimeout(resolve, 300));
+    const thumbnailWaitMs = (widthIn >= 60) ? 800 : 400;
+    await new Promise(resolve => setTimeout(resolve, thumbnailWaitMs));
     
     // BUG 1 FIX: Get FRESH thumbnail from store after generation
     const freshThumbnail = useEditorStore.getState().canvasThumbnail;
@@ -1867,7 +1868,7 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
 
     // Calculate pricing with upsells using CORRECT pricing functions
     const sqft = (widthIn * heightIn) / 144;
-    const basePrice = material === '13oz Vinyl' ? 3.50 : 4.50;
+    const basePrice = material === '13oz' ? 3.50 : 4.50;
     const unitPrice = sqft * basePrice;
     
     // CORRECT rope pricing: $2 per linear foot (width in feet × 2 × quantity)
@@ -1953,9 +1954,12 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
     }
     
     setPendingAction(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error("[UPSELL] Error in handleUpsellContinue:", error);
-      toast({ title: "Error", description: "Something went wrong. Please try again.", variant: "destructive" });
+      console.error("[UPSELL] Error message:", error?.message);
+      console.error("[UPSELL] Error stack:", error?.stack);
+      console.error("[UPSELL] Error name:", error?.name);
+      toast({ title: "Error", description: "Something went wrong: " + (error?.message || "Unknown error") + ". Please try again.", variant: "destructive" });
     } finally {
       setShowUpsellModal(false);
       setIsProcessingUpsell(false);

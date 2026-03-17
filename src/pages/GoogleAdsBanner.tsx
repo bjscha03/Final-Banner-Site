@@ -7,6 +7,7 @@ import { useCartStore } from '@/store/cart';
 import { useUIStore } from '@/store/ui';
 import { calcTotals, usd, PRICE_PER_SQFT } from '@/lib/pricing';
 import { DESIGN_GROMMET_OPTIONS } from '@/lib/grommets';
+import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
 
 const PRESET_SIZES = [
   { label: "2' x 4'", w: 48, h: 24 },
@@ -99,12 +100,16 @@ const GoogleAdsBanner: React.FC = () => {
   const [showPreview, setShowPreview] = useState(false);
   const [imgPos, setImgPos] = useState({ x: 0, y: 0 });
   const [imgScale, setImgScale] = useState(1);
-  const [fitMode, setFitMode] = useState<'fill' | 'fit' | 'stretch'>('fill');
   const [isDraggingPreview, setIsDraggingPreview] = useState(false);
   const [dragStartPt, setDragStartPt] = useState({ x: 0, y: 0 });
   const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
   const [lastPinchDist, setLastPinchDist] = useState<number | null>(null);
   const previewContainerRef = useRef<HTMLDivElement>(null);
+
+  // Upsell modal state
+  const [showUpsellModal, setShowUpsellModal] = useState(false);
+  const [isProcessingUpsell, setIsProcessingUpsell] = useState(false);
+  const [pendingCheckoutData, setPendingCheckoutData] = useState<{pos: {x: number; y: number}; scale: number} | null>(null);
 
   const quoteStore = useQuoteStore();
   const cartStore = useCartStore();
@@ -225,29 +230,77 @@ const GoogleAdsBanner: React.FC = () => {
     setShowPreview(true);
   }, [uploadedFile]);
 
-  const doCheckout = useCallback((pos: { x: number; y: number }, scale: number) => {
+// Trigger upsell modal after confirming position
+  const handleConfirmPosition = useCallback((pos: { x: number; y: number }, scale: number) => {
     if (!uploadedFile) return;
+    setPendingCheckoutData({ pos, scale });
+    setShowPreview(false);
+    setShowUpsellModal(true);
+  }, [uploadedFile]);
+
+  // Actually perform checkout after upsell decision
+  const performCheckout = useCallback((selectedOptions: UpsellOption[]) => {
+    if (!uploadedFile || !pendingCheckoutData) return;
+    
+    let finalGrommets = grommets;
+    let finalRope = addRope;
+    let finalPolePockets = polePockets;
+    let finalPolePocketSize = '2';
+    
+    selectedOptions.forEach(opt => {
+      if (opt.selected) {
+        if (opt.id === 'grommets' && opt.grommetSelection) {
+          finalGrommets = opt.grommetSelection;
+        }
+        if (opt.id === 'rope') {
+          finalRope = true;
+        }
+        if (opt.id === 'polePockets' && opt.polePocketSelection) {
+          finalPolePockets = opt.polePocketSelection;
+          finalPolePocketSize = opt.polePocketSize || '2';
+        }
+      }
+    });
+    
+    const updatedTotals = calcTotals({ 
+      widthIn, heightIn, qty: quantity, material, 
+      addRope: finalRope, polePockets: finalPolePockets 
+    });
+    
     quoteStore.set({
       widthIn, heightIn, quantity, material,
-      grommets: grommets as any, polePockets, addRope,
-      imagePosition: pos,
-      imageScale: scale,
-      fitMode: fitMode,
+      grommets: finalGrommets as any, 
+      polePockets: finalPolePockets, 
+      polePocketSize: finalPolePocketSize as any,
+      addRope: finalRope,
+      imagePosition: pendingCheckoutData.pos,
+      imageScale: pendingCheckoutData.scale,
+      fitMode: 'fill',
       thumbnailUrl: uploadedFile.thumbnailUrl,
       file: { name: uploadedFile.name, url: uploadedFile.url, fileKey: uploadedFile.fileKey, size: uploadedFile.size, isPdf: uploadedFile.isPdf, thumbnailUrl: uploadedFile.thumbnailUrl, type: uploadedFile.isPdf ? 'application/pdf' : 'image/*' } as any,
     });
     const pricing = {
-      unit_price_cents: Math.round(totals.unit * 100),
-      rope_cost_cents: Math.round(totals.rope * 100),
-      pole_pocket_cost_cents: Math.round(totals.polePocket * 100),
-      line_total_cents: Math.round(totals.materialTotal * 100),
+      unit_price_cents: Math.round(updatedTotals.unit * 100),
+      rope_cost_cents: Math.round(updatedTotals.rope * 100),
+      pole_pocket_cost_cents: Math.round(updatedTotals.polePocket * 100),
+      line_total_cents: Math.round(updatedTotals.materialTotal * 100),
     };
     cartStore.addFromQuote(useQuoteStore.getState(), undefined, pricing);
     setIsCartOpen(true);
-    setShowPreview(false);
+    setPendingCheckoutData(null);
     navigate('/checkout');
-  }, [uploadedFile, widthIn, heightIn, material, grommets, polePockets, addRope, totals, quoteStore, cartStore, setIsCartOpen, navigate]);
+  }, [uploadedFile, pendingCheckoutData, grommets, addRope, polePockets, widthIn, heightIn, quantity, material, quoteStore, cartStore, setIsCartOpen, navigate]);
 
+  // Handle upsell modal continue
+  const handleUpsellContinue = useCallback((selectedOptions: UpsellOption[], dontAskAgain: boolean) => {
+    setIsProcessingUpsell(true);
+    setShowUpsellModal(false);
+    if (dontAskAgain) {
+      sessionStorage.setItem('upsell-dont-show-again', 'true');
+    }
+    performCheckout(selectedOptions);
+    setIsProcessingUpsell(false);
+  }, [performCheckout]);
   // Preview drag handlers
   const onPreviewMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -624,19 +677,7 @@ const GoogleAdsBanner: React.FC = () => {
               </button>
             </div>
             <div className="p-4 flex-1 overflow-auto">
-              <p className="text-sm text-gray-500 mb-3 flex items-center gap-1"><Move className="w-4 h-4" /> {fitMode === 'fill' ? 'Drag to reposition · Pinch or use buttons to zoom' : 'Choose how your image fits the banner'}</p>
-              <div className="flex items-center gap-2 mb-3">
-                <span className="text-xs font-medium text-gray-500">Fit:</span>
-                {(['fill', 'fit', 'stretch'] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    onClick={() => { setFitMode(mode); if (mode !== 'fill') { setImgPos({ x: 0, y: 0 }); setImgScale(1); } }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${fitMode === mode ? 'bg-orange-500 text-white shadow-sm' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'}`}
-                  >
-                    {mode.charAt(0).toUpperCase() + mode.slice(1)}
-                  </button>
-                ))}
-              </div>
+              <p className="text-sm text-gray-500 mb-3 flex items-center gap-1"><Move className="w-4 h-4" /> Drag to reposition · Pinch or use buttons to zoom</p>
               <div
                 ref={previewContainerRef}
                 className="relative w-full border-2 border-dashed border-gray-300 rounded-lg overflow-hidden select-none"
@@ -668,20 +709,39 @@ const GoogleAdsBanner: React.FC = () => {
                   );
                 })}
               </div>
-              {fitMode === 'fill' && <div className="flex items-center justify-center gap-4 mt-3">
+              <div className="flex items-center justify-center gap-4 mt-3">
                 <button onClick={() => setImgScale(s => Math.max(0.5, s - 0.1))} className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200"><ZoomOut className="w-5 h-5" /></button>
                 <span className="text-sm font-medium text-gray-600">{Math.round(imgScale * 100)}%</span>
                 <button onClick={() => setImgScale(s => Math.min(3, s + 0.1))} className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200"><ZoomIn className="w-5 h-5" /></button>
                 <button onClick={() => { setImgPos({ x: 0, y: 0 }); setImgScale(1); }} className="text-sm text-orange-600 hover:text-orange-700 font-medium ml-2">Reset</button>
-              </div>}
+              </div>
             </div>
             <div className="flex gap-3 p-4 border-t">
               <button onClick={() => setShowPreview(false)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50">Cancel</button>
-              <button onClick={() => doCheckout(imgPos, imgScale)} className="flex-1 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold shadow-lg">Confirm & Checkout</button>
+              <button onClick={() => handleConfirmPosition(imgPos, imgScale)} className="flex-1 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold shadow-lg">Confirm & Checkout</button>
             </div>
           </div>
         </div>
       )}
+      {/* Upsell Modal */}
+      <UpsellModal
+        isOpen={showUpsellModal}
+        onClose={() => setShowUpsellModal(false)}
+        onContinue={handleUpsellContinue}
+        quote={{
+          widthIn,
+          heightIn,
+          quantity,
+          material,
+          grommets: grommets as any,
+          polePockets,
+          addRope,
+          thumbnailUrl: uploadedFile?.thumbnailUrl,
+        } as any}
+        thumbnailUrl={uploadedFile?.thumbnailUrl}
+        actionType="checkout"
+        isProcessing={isProcessingUpsell}
+      />
     </>
   );
 };
