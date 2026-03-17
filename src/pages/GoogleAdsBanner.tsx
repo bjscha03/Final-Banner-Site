@@ -234,10 +234,10 @@ const GoogleAdsBanner: React.FC = () => {
     setShowPreview(true);
   }, [uploadedFile]);
 
-// Trigger upsell modal after confirming position
-  // Actually perform checkout after upsell decision
-  const performCheckout = useCallback((selectedOptions: UpsellOption[]) => {
-    if (!uploadedFile || !pendingCheckoutData) return;
+// Actually perform checkout after upsell decision
+  const performCheckout = useCallback((selectedOptions: UpsellOption[], directData?: { pos: { x: number; y: number }, scale: number }) => {
+    const checkoutData = directData || pendingCheckoutData;
+    if (!uploadedFile || !checkoutData) return;
     
     let finalGrommets = grommets;
     let finalRope = addRope;
@@ -270,8 +270,8 @@ const GoogleAdsBanner: React.FC = () => {
       polePockets: finalPolePockets, 
       polePocketSize: finalPolePocketSize as any,
       addRope: finalRope,
-      imagePosition: pendingCheckoutData.pos,
-      imageScale: pendingCheckoutData.scale,
+      imagePosition: checkoutData.pos,
+      imageScale: checkoutData.scale,
       fitMode: 'fill',
       thumbnailUrl: uploadedFile.thumbnailUrl,
       file: { name: uploadedFile.name, url: uploadedFile.url, fileKey: uploadedFile.fileKey, size: uploadedFile.size, isPdf: uploadedFile.isPdf, thumbnailUrl: uploadedFile.thumbnailUrl, type: uploadedFile.isPdf ? 'application/pdf' : 'image/*' } as any,
@@ -307,8 +307,8 @@ const GoogleAdsBanner: React.FC = () => {
     const hasFinishing = grommets !== 'none' || polePockets !== 'none';
     const hasRope = addRope;
     if (hasFinishing && hasRope) {
-      // Go directly to checkout with current options
-      performCheckout([]);
+      // Go directly to checkout with current options, passing data directly
+      performCheckout([], { pos: posPercent, scale });
     } else {
       setShowUpsellModal(true);
     }
@@ -738,7 +738,7 @@ const GoogleAdsBanner: React.FC = () => {
               <div
                 ref={previewContainerRef}
                 className="relative w-full border-2 border-dashed border-gray-300 rounded-lg overflow-hidden select-none"
-                style={{ aspectRatio: `${widthIn} / ${heightIn}`, cursor: isDraggingPreview ? "grabbing" : "grab" }}
+                style={{ aspectRatio: `${widthIn} / ${heightIn}`, cursor: isDraggingPreview ? "grabbing" : "grab", touchAction: "none" }}
                 onMouseDown={onPreviewMouseDown}
                 onMouseMove={onPreviewMouseMove}
                 onMouseUp={onPreviewMouseUp}
@@ -762,7 +762,7 @@ const GoogleAdsBanner: React.FC = () => {
                     <div
                       key={corner}
                       onMouseDown={onCornerMouseDown}
-                      className="absolute w-5 h-5 bg-white border-2 border-blue-500 rounded-full z-20 hover:bg-blue-100 pointer-events-auto shadow-md"
+                      className="absolute w-4 h-4 bg-white border-2 border-orange-500 rounded-sm z-20 hover:bg-orange-50 pointer-events-auto shadow-md"
                       style={{
                         top: corner.includes('top') ? 0 : 'auto',
                         bottom: corner.includes('bottom') ? 0 : 'auto',
