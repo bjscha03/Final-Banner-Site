@@ -401,26 +401,13 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
     }
   };
 
-  const handleObjectClick = (id: string, e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
-    // CRITICAL: Stop propagation to prevent stage from clearing selection
+  const handleObjectClick = (id: string, e: Konva.KonvaEventObject<MouseEvent>) => {
+    // Prevent stage click from clearing selection
     e.cancelBubble = true;
     
-    // Also stop native event propagation for touch events
-    if (e.evt) {
-      e.evt.stopPropagation();
-      e.evt.preventDefault();
-    }
-    
-    // Always ensure object is selected
-    const nativeEvent = e.evt as MouseEvent;
-    // Select the object (selectObject handles the toggle logic for shift-click)\n    const addToSelection = nativeEvent?.shiftKey || nativeEvent?.metaKey || nativeEvent?.ctrlKey;
-    if (addToSelection) {
-      selectObject(id, true);
-    } else if (!selectedIds.includes(id)) {
-      // Only re-select if not already selected (avoids unnecessary state updates)
-      selectObject(id, false);
-    }
-    // If already selected without modifier, keep it selected (do nothing)
+    const nativeEvent = e.evt;
+    const addToSelection = nativeEvent?.shiftKey || nativeEvent?.metaKey || nativeEvent?.ctrlKey;
+    selectObject(id, addToSelection);
   };
   
   // Handle drag start - ensure object is selected when drag begins
