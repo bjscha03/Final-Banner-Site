@@ -452,8 +452,10 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
       </label>
 
       {uploading && (
-        <div className="text-center text-sm text-gray-500">
-          Uploading...
+        <div className="flex flex-col items-center justify-center py-6 px-4">
+          <div className="animate-spin rounded-full h-10 w-10 border-4 border-orange-200 border-t-orange-500 mb-3"></div>
+          <p className="text-sm font-medium text-gray-700">Uploading your image...</p>
+          <p className="text-xs text-gray-500 mt-1">Please wait</p>
         </div>
       )}
 

@@ -395,12 +395,24 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
     }
   };
 
-  const handleObjectClick = (id: string, e: Konva.KonvaEventObject<MouseEvent>) => {
+  const handleObjectClick = (id: string, e: Konva.KonvaEventObject<MouseEvent | TouchEvent>) => {
     // Use Konva's cancelBubble to prevent stage click handler from firing
-    // Do NOT use e.evt.stopPropagation() as it breaks Konva's internal drag handling
     e.cancelBubble = true;
-    const addToSelection = e.evt?.shiftKey || e.evt?.metaKey || e.evt?.ctrlKey;
-    selectObject(id, addToSelection);
+    
+    // For touch events, we need to be more aggressive with selection
+    // Check if already selected to avoid toggle behavior on simple taps
+    if (!selectedIds.includes(id)) {
+      const nativeEvent = e.evt as MouseEvent;
+      const addToSelection = nativeEvent?.shiftKey || nativeEvent?.metaKey || nativeEvent?.ctrlKey;
+      selectObject(id, addToSelection);
+    }
+  };
+  
+  // Handle drag start - ensure object is selected when drag begins
+  const handleObjectDragStart = (id: string) => {
+    if (!selectedIds.includes(id)) {
+      selectObject(id, false);
+    }
   };
   
   // Helper function to constrain object within canvas boundaries
@@ -776,6 +788,7 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
                     dragBoundFunc={createDragBoundFunc(obj.id)}
                     onClick={(e) => handleObjectClick(obj.id, e)}
                     onTap={(e) => handleObjectClick(obj.id, e)}
+                    onDragStart={() => handleObjectDragStart(obj.id)}
                     onDragEnd={(e) => handleObjectDragEnd(obj.id, e)}
                     onTransformEnd={(e) => handleObjectTransformEnd(obj.id, e)}
                   />
@@ -804,6 +817,7 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
                     onTap={(e) => handleObjectClick(obj.id, e)}
                     onDblClick={() => handleTextDblClick(obj.id, obj.content)}
                     onDblTap={() => handleTextDblClick(obj.id, obj.content)}
+                    onDragStart={() => handleObjectDragStart(obj.id)}
                     onDragEnd={(e) => handleObjectDragEnd(obj.id, e)}
                     onTransformEnd={(e) => handleObjectTransformEnd(obj.id, e)}
                   />
@@ -826,6 +840,7 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
                   dragBoundFunc: createDragBoundFunc(obj.id),
                   onClick: (e: Konva.KonvaEventObject<MouseEvent>) => handleObjectClick(obj.id, e),
                   onTap: (e: Konva.KonvaEventObject<MouseEvent>) => handleObjectClick(obj.id, e),
+                  onDragStart: () => handleObjectDragStart(obj.id),
                   onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => handleObjectDragEnd(obj.id, e),
                   onTransformEnd: (e: Konva.KonvaEventObject<Event>) => handleObjectTransformEnd(obj.id, e),
                 };
