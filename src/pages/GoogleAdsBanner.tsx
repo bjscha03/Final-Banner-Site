@@ -6,6 +6,7 @@ import { useQuoteStore, type MaterialKey } from '@/store/quote';
 import { useCartStore } from '@/store/cart';
 import { useUIStore } from '@/store/ui';
 import { calcTotals, usd, PRICE_PER_SQFT } from '@/lib/pricing';
+import { DESIGN_GROMMET_OPTIONS } from '@/lib/grommets';
 
 const PRESET_SIZES = [
   { label: "2' x 4'", w: 48, h: 24 },
@@ -23,11 +24,6 @@ const MATERIALS: { key: string; label: string; mapped: MaterialKey; desc: string
   { key: 'mesh', label: 'Mesh Fence', mapped: 'mesh', desc: 'Wind pass-through — ideal for fences' },
 ];
 
-const GROMMET_OPTIONS = [
-  { value: 'none', label: 'None' },
-  { value: '4-corners', label: '4 Corners' },
-  { value: 'every-2-3ft', label: 'Every 2 Feet' },
-];
 
 const TESTIMONIALS = [
   {
@@ -121,7 +117,7 @@ const GoogleAdsBanner: React.FC = () => {
 
   const pricePerSqFt = PRICE_PER_SQFT[material];
   const materialLabel = MATERIALS.find(m => m.mapped === material)?.label || '13oz Vinyl';
-  const grommetsLabel = GROMMET_OPTIONS.find(o => o.value === grommets)?.label || 'None';
+  const grommetsLabel = DESIGN_GROMMET_OPTIONS.find(o => o.value === grommets)?.label || 'None';
   const widthDisplay = widthInR > 0 ? `${widthFt}'${widthInR}"` : `${widthFt}'`;
   const heightDisplay = heightInR > 0 ? `${heightFt}'${heightInR}"` : `${heightFt}'`;
 
@@ -460,7 +456,7 @@ const GoogleAdsBanner: React.FC = () => {
                     <div>
                       <span className="text-xs text-gray-600">Grommets</span>
                       <select value={grommets} onChange={e => setGrommets(e.target.value)} className="w-full border rounded-xl px-3 py-1.5 text-sm mt-1 bg-white">
-                        {GROMMET_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        {DESIGN_GROMMET_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                       </select>
                     </div>
                     <div>

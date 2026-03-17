@@ -7,6 +7,7 @@ import { useCartStore } from '@/store/cart';
 import { useToast } from '@/hooks/use-toast';
 import { useQuoteStore } from '@/store/quote';
 import { useAuth } from '@/lib/auth';
+import { getGrommetLabel } from '@/lib/grommets';
 
 // Declare Tidio global for TypeScript
 declare global {
@@ -292,7 +293,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                         <div className="space-y-1 text-xs text-gray-600">
                           <p><span className="font-medium text-gray-700">Material:</span> {item.material}</p>
                           {item.grommets && item.grommets !== 'none' && (
-                            <p><span className="font-medium text-gray-700">Grommets:</span> {item.grommets}</p>
+                            <p><span className="font-medium text-gray-700">Grommets:</span> {getGrommetLabel(item.grommets)}</p>
                           )}
                           {ropeCost > 0 && item.rope_feet && (
                             <p><span className="font-medium text-gray-700">Rope:</span> {item.rope_feet.toFixed(1)}ft</p>

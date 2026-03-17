@@ -4,6 +4,7 @@ import { Package, Calendar, Mail, CreditCard, Truck, CheckCircle, Clock, AlertCi
 import Layout from '@/components/Layout';
 import { useScrollToTop } from '@/components/ScrollToTop';
 import { calculatePolePocketCostFromOrder, calculateUnitPriceFromOrder } from '@/lib/pricing';
+import { getGrommetLabel } from '@/lib/grommets';
 
 interface OrderItem {
   width_in: number;
@@ -217,7 +218,7 @@ const OrderDetail: React.FC = () => {
                       <div className="space-y-1 text-sm text-gray-600">
                         <p><span className="font-medium">Material:</span> {item.material}</p>
                         <p><span className="font-medium">Quantity:</span> {item.quantity}</p>
-                        <p><span className="font-medium">Grommets:</span> {item.grommets}</p>
+                        <p><span className="font-medium">Grommets:</span> {getGrommetLabel(item.grommets)}</p>
                         {item.rope_feet > 0 && (
                           <p><span className="font-medium">Rope:</span> {item.rope_feet} feet</p>
                         )}

@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getOrdersAdapter } from '../lib/orders/adapter';
 import { Order } from '../lib/orders/types';
 import { usd, formatDimensions } from '@/lib/pricing';
+import { getGrommetLabel } from '@/lib/grommets';
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Printer, Package, ArrowRight, Home, Palette, Mail, Phone, MessageSquare, Upload } from 'lucide-react';
@@ -183,7 +184,7 @@ const OrderConfirmation: React.FC = () => {
                         <div className="text-sm text-gray-600 mt-2 space-y-1">
                           <p>Material: {item.material}</p>
                           <p>Area: {item.area_sqft.toFixed(2)} sq ft</p>
-                          {item.grommets && <p>Grommets: {item.grommets}</p>}
+                          {item.grommets && <p>Grommets: {getGrommetLabel(item.grommets)}</p>}
                           {item.rope_feet && item.rope_feet > 0 && (
                             <p>Rope: {item.rope_feet.toFixed(1)} ft</p>
                           )}

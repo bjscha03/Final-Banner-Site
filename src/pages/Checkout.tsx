@@ -6,6 +6,7 @@ import { getOrdersAdapter } from '../lib/orders/adapter';
 import { OrderItem } from '../lib/orders/types';
 
 import Layout from '@/components/Layout';
+import { getGrommetLabel } from '@/lib/grommets';
 import { usd, formatDimensions, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
 import { validateMinimumOrder, canProceedToCheckout } from '@/lib/validation/minimumOrder';
 import PayPalCheckout from '@/components/checkout/PayPalCheckout';
@@ -457,7 +458,7 @@ const Checkout: React.FC = () => {
                       {/* Item specifications */}
                       <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-gray-600 mb-4">
                         <span><span className="font-medium text-gray-700">Material:</span> {item.material}</span>
-                        <span><span className="font-medium text-gray-700">Grommets:</span> {item.grommets}</span>
+                        <span><span className="font-medium text-gray-700">Grommets:</span> {getGrommetLabel(item.grommets)}</span>
                         {item.rope_feet > 0 && (
                           <span><span className="font-medium text-gray-700">Rope:</span> {item.rope_feet.toFixed(1)} ft</span>
                         )}
