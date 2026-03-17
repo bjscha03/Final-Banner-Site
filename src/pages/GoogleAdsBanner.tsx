@@ -736,9 +736,10 @@ const GoogleAdsBanner: React.FC = () => {
           grommets: grommets as any,
           polePockets,
           addRope,
-          thumbnailUrl: uploadedFile?.thumbnailUrl,
+          thumbnailUrl: uploadedFile?.thumbnailUrl || uploadedFile?.url,
+          file: uploadedFile ? { name: uploadedFile.name, url: uploadedFile.url } : undefined,
         } as any}
-        thumbnailUrl={uploadedFile?.thumbnailUrl}
+        thumbnailUrl={uploadedFile?.thumbnailUrl || uploadedFile?.url}
         actionType="checkout"
         isProcessing={isProcessingUpsell}
       />
