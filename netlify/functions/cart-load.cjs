@@ -74,6 +74,7 @@ exports.handler = async (event, context) => {
       console.log('[cart-load] Item', index + 1, 'raw data:', {
         id: item.id,
         file_key: item.file_key,
+        is_pdf: item.is_pdf,
         file_url: item.file_url ? item.file_url.substring(0, 80) : null,
         thumbnail_url: item.thumbnail_url ? item.thumbnail_url.substring(0, 80) : null,
         has_text_elements: !!item.text_elements && item.text_elements.length > 0,
@@ -91,9 +92,16 @@ exports.handler = async (event, context) => {
         
         // Reconstruct thumbnail_url if missing (use resized version for cart display)
         if (!enhanced.thumbnail_url || enhanced.thumbnail_url.startsWith('blob:') || enhanced.thumbnail_url.startsWith('data:')) {
-          // Use Cloudinary transformations for optimized thumbnail
-          enhanced.thumbnail_url = `${CLOUDINARY_BASE}/w_400,h_400,c_fit,q_auto,f_auto/${item.file_key}`;
-          console.log('[cart-load] Reconstructed thumbnail_url from file_key:', enhanced.thumbnail_url);
+          // CRITICAL: Use PDF-specific transformation for PDF files
+          if (item.is_pdf) {
+            // PDF needs pg_1 to get first page and f_jpg to convert to image format
+            enhanced.thumbnail_url = `${CLOUDINARY_BASE}/pg_1,f_jpg,w_400,h_400,c_fit,q_auto/${item.file_key}`;
+            console.log('[cart-load] Reconstructed PDF thumbnail_url with pg_1,f_jpg:', enhanced.thumbnail_url);
+          } else {
+            // Regular image - use standard transformations
+            enhanced.thumbnail_url = `${CLOUDINARY_BASE}/w_400,h_400,c_fit,q_auto,f_auto/${item.file_key}`;
+            console.log('[cart-load] Reconstructed thumbnail_url from file_key:', enhanced.thumbnail_url);
+          }
         }
       }
       
@@ -131,12 +139,13 @@ exports.handler = async (event, context) => {
       console.log('[cart-load] ==========================================');
       console.log('[cart-load] Item', idx + 1, 'FULL DEBUG:');
       console.log('[cart-load]   ID:', item.id);
+      console.log('[cart-load]   is_pdf:', item.is_pdf);
       console.log('[cart-load]   file_key:', item.file_key || 'NULL');
       console.log('[cart-load]   file_url:', item.file_url || 'NULL');
       console.log('[cart-load]   thumbnail_url:', item.thumbnail_url || 'NULL');
       console.log('[cart-load]   has_text:', !!(item.text_elements && item.text_elements.length > 0));
       console.log('[cart-load]   has_overlays:', !!(item.overlay_images && item.overlay_images.length > 0) || !!item.overlay_image);
-      console.log('[cart-load] ==========================================');
+      console.log('[cart-load] ============================================');
     });
 
     return {
