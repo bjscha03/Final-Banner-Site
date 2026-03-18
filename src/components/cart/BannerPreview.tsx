@@ -418,8 +418,10 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
             className={`w-full h-full ${fitMode === 'fill' ? 'object-cover' : fitMode === 'stretch' ? 'object-fill' : 'object-contain'}`}
             style={{
               display: 'block',
-              maxWidth: '100%',
-              maxHeight: '100%'
+              objectPosition: 'center',
+              ...(fitMode === 'fill' && imagePosition && imageScale ? {
+                transform: `translate(${imagePosition.x}%, ${imagePosition.y}%) scale(${imageScale})`
+              } : {})
             }}
             onLoad={() => {
               setImageLoaded(true);
