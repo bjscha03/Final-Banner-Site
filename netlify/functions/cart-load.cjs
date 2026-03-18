@@ -66,9 +66,19 @@ exports.handler = async (event, context) => {
 
     const rawCartData = result && result.length > 0 ? result[0].cart_data : [];
 
-    // CRITICAL FIX: Reconstruct image URLs from file_key when thumbnail_url and file_url are missing
-    // This ensures thumbnails display correctly after logout/login
+    // CRITICAL FIX: Reconstruct image URLs from file_key when thumbnail_url is missing or invalid
+    // This ensures thumbnails display correctly across devices (mobile -> desktop sync)
     const CLOUDINARY_BASE = 'https://res.cloudinary.com/dtrxl120u/image/upload';
+    
+    // Helper: Check if URL is a valid, permanent Cloudinary URL
+    const isValidCloudinaryUrl = (url) => {
+      if (!url || typeof url !== 'string') return false;
+      if (url.trim() === '') return false;
+      if (url.startsWith('blob:')) return false;
+      if (url.startsWith('data:')) return false;
+      if (!url.startsWith('https://res.cloudinary.com/')) return false;
+      return true;
+    };
     
     const cartData = rawCartData.map((item, index) => {
       console.log('[cart-load] Item', index + 1, 'raw data:', {
@@ -82,32 +92,35 @@ exports.handler = async (event, context) => {
       });
       const enhanced = { ...item };
       
-      // If we have file_key but no displayable URLs, reconstruct them
+      // AGGRESSIVE URL RECONSTRUCTION: Always reconstruct from file_key if URL isn't valid Cloudinary
+      // This fixes cross-device sync issues where mobile saves blob/data/empty URLs that don't work on desktop
       if (item.file_key) {
-        // Reconstruct file_url if missing
-        if (!enhanced.file_url || enhanced.file_url.startsWith('blob:') || enhanced.file_url.startsWith('data:')) {
+        // Reconstruct file_url if not a valid Cloudinary URL
+        if (!isValidCloudinaryUrl(enhanced.file_url)) {
           enhanced.file_url = `${CLOUDINARY_BASE}/${item.file_key}`;
           console.log('[cart-load] Reconstructed file_url from file_key:', enhanced.file_url);
         }
         
-        // Reconstruct thumbnail_url if missing (use resized version for cart display)
-        if (!enhanced.thumbnail_url || enhanced.thumbnail_url.startsWith('blob:') || enhanced.thumbnail_url.startsWith('data:')) {
-          // CRITICAL: Use PDF-specific transformation for PDF files
+        // ALWAYS reconstruct thumbnail_url from file_key if not a valid Cloudinary URL
+        // This is the critical fix for cross-device thumbnail display
+        if (!isValidCloudinaryUrl(enhanced.thumbnail_url)) {
           if (item.is_pdf) {
             // PDF needs pg_1 to get first page and f_jpg to convert to image format
             enhanced.thumbnail_url = `${CLOUDINARY_BASE}/pg_1,f_jpg,w_400,h_400,c_fit,q_auto/${item.file_key}`;
-            console.log('[cart-load] Reconstructed PDF thumbnail_url with pg_1,f_jpg:', enhanced.thumbnail_url);
+            console.log('[cart-load] Reconstructed PDF thumbnail_url:', enhanced.thumbnail_url);
           } else {
             // Regular image - use standard transformations
             enhanced.thumbnail_url = `${CLOUDINARY_BASE}/w_400,h_400,c_fit,q_auto,f_auto/${item.file_key}`;
-            console.log('[cart-load] Reconstructed thumbnail_url from file_key:', enhanced.thumbnail_url);
+            console.log('[cart-load] Reconstructed thumbnail_url:', enhanced.thumbnail_url);
           }
         }
+      } else {
+        console.log('[cart-load] WARNING: Item', index + 1, 'has no file_key - cannot reconstruct URLs');
       }
       
       // Also check overlay_image for file_key reconstruction
       if (enhanced.overlay_image && enhanced.overlay_image.fileKey) {
-        if (!enhanced.overlay_image.url || enhanced.overlay_image.url.startsWith('blob:') || enhanced.overlay_image.url.startsWith('data:')) {
+        if (!isValidCloudinaryUrl(enhanced.overlay_image.url)) {
           enhanced.overlay_image = {
             ...enhanced.overlay_image,
             url: `${CLOUDINARY_BASE}/${enhanced.overlay_image.fileKey}`
@@ -119,7 +132,7 @@ exports.handler = async (event, context) => {
       // Check overlay_images array
       if (Array.isArray(enhanced.overlay_images)) {
         enhanced.overlay_images = enhanced.overlay_images.map(img => {
-          if (img.fileKey && (!img.url || img.url.startsWith('blob:') || img.url.startsWith('data:'))) {
+          if (img.fileKey && !isValidCloudinaryUrl(img.url)) {
             return {
               ...img,
               url: `${CLOUDINARY_BASE}/${img.fileKey}`
@@ -136,7 +149,7 @@ exports.handler = async (event, context) => {
     
     // Log thumbnail reconstruction results with FULL URLs for debugging
     cartData.forEach((item, idx) => {
-      console.log('[cart-load] ==========================================');
+      console.log('[cart-load] ============================================');
       console.log('[cart-load] Item', idx + 1, 'FULL DEBUG:');
       console.log('[cart-load]   ID:', item.id);
       console.log('[cart-load]   is_pdf:', item.is_pdf);
