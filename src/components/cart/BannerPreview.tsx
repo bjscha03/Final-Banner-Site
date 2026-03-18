@@ -312,20 +312,26 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
           <div
             className="rounded-lg overflow-hidden shadow-lg border-2 border-gray-200 absolute inset-0"
           >
-            {/* Canvas thumbnail as background image (mobile-safe) */}
-            <img 
-              ref={imgRef}
-              src={imageUrl}
-              alt="Banner preview"
+            {/* Wrapper div for transform - matches preview modal structure */}
+            <div
               className="absolute inset-0 w-full h-full"
               style={{
-                objectFit: fitMode === 'fill' ? 'cover' : fitMode === 'stretch' ? 'fill' : 'contain',
-                objectPosition: 'center',
-                ...(fitMode === 'fill' ? { transform: `translate(${imagePosition.x}%, ${imagePosition.y}%) scale(${imageScale})` } : {})
+                transform: fitMode === 'fill' && imagePosition && imageScale 
+                  ? `translate(${(imagePosition.x / 100) * previewWidth}px, ${(imagePosition.y / 100) * previewHeight}px) scale(${imageScale})`
+                  : undefined,
+                transformOrigin: 'center center'
               }}
-              onLoad={(e) => { setImageLoaded(true); }}
-              onError={() => setImageError(true)}
-            />
+            >
+              <img 
+                ref={imgRef}
+                src={imageUrl}
+                alt="Banner preview"
+                className="absolute inset-0 w-full h-full object-cover"
+                draggable={false}
+                onLoad={(e) => { setImageLoaded(true); }}
+                onError={() => setImageError(true)}
+              />
+            </div>
             
             </div>
 
@@ -377,19 +383,26 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
             height: `${previewHeight}px`,
           }}
         >
-          <img 
-            ref={imgRef}
-            src={imageUrl} 
-            alt="Banner preview"
-            className="w-full h-full"
+          {/* Wrapper div for transform - matches preview modal structure */}
+          <div
+            className="absolute inset-0 w-full h-full"
             style={{
-              objectFit: fitMode === 'fill' ? 'cover' : fitMode === 'stretch' ? 'fill' : 'contain',
-              objectPosition: 'center',
-              ...(fitMode === 'fill' ? { transform: `translate(${imagePosition.x}%, ${imagePosition.y}%) scale(${imageScale})` } : {})
+              transform: fitMode === 'fill' && imagePosition && imageScale 
+                ? `translate(${(imagePosition.x / 100) * previewWidth}px, ${(imagePosition.y / 100) * previewHeight}px) scale(${imageScale})`
+                : undefined,
+              transformOrigin: 'center center'
             }}
-            onLoad={(e) => { setImageLoaded(true); }}
-            onError={() => setImageError(true)}
-          />
+          >
+            <img 
+              ref={imgRef}
+              src={imageUrl} 
+              alt="Banner preview"
+              className="w-full h-full object-cover"
+              draggable={false}
+              onLoad={(e) => { setImageLoaded(true); }}
+              onError={() => setImageError(true)}
+            />
+          </div>
         </div>
       </div>
     );
@@ -410,27 +423,31 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
         <div
           className="rounded-lg overflow-hidden shadow-lg border-2 border-gray-200 bg-white absolute inset-0"
         >
-          {/* Main banner image */}
-          <img 
-            ref={imgRef}
-            src={imageUrl} 
-            alt="Banner preview"
-            className={`w-full h-full ${fitMode === 'fill' ? 'object-cover' : fitMode === 'stretch' ? 'object-fill' : 'object-contain'}`}
+          {/* Wrapper div for transform - matches preview modal structure */}
+          <div
+            className="absolute inset-0 w-full h-full"
             style={{
-              display: 'block',
-              objectPosition: 'center',
-              ...(fitMode === 'fill' && imagePosition && imageScale ? {
-                transform: `translate(${imagePosition.x}%, ${imagePosition.y}%) scale(${imageScale})`
-              } : {})
+              transform: fitMode === 'fill' && imagePosition && imageScale 
+                ? `translate(${(imagePosition.x / 100) * previewWidth}px, ${(imagePosition.y / 100) * previewHeight}px) scale(${imageScale})`
+                : undefined,
+              transformOrigin: 'center center'
             }}
-            onLoad={() => {
-              setImageLoaded(true);
-            }}
-            onError={(e) => {
-              console.error('❌ MOBILE: Thumbnail image failed to load:', imageUrl);
-              setImageError(true);
-            }}
-          />
+          >
+            <img 
+              ref={imgRef}
+              src={imageUrl} 
+              alt="Banner preview"
+              className="w-full h-full object-cover"
+              draggable={false}
+              onLoad={() => {
+                setImageLoaded(true);
+              }}
+              onError={(e) => {
+                console.error('❌ MOBILE: Thumbnail image failed to load:', imageUrl);
+                setImageError(true);
+              }}
+            />
+          </div>
           
           </div>
 
