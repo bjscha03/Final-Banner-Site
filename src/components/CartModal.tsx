@@ -431,8 +431,11 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
               >
                 Proceed to Checkout
               </button>
+              {/* Friday shipping badge */}
+              <div className="flex items-center justify-center gap-2 mt-3 py-2 px-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <span className="text-sm font-medium text-blue-700">📦 Friday orders arrive Tuesday.</span>
+              </div>
             </div>
-          )}
         </div>
       </div>
     </div>
