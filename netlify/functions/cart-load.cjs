@@ -31,17 +31,10 @@ exports.handler = async (event, context) => {
     let result;
 
     if (userId) {
-      // Check if userId is a valid UUID
       if (!uuidRegex.test(userId)) {
         console.log('[cart-load] Invalid UUID format for userId, returning empty cart');
-        return {
-          statusCode: 200,
-          headers,
-          body: JSON.stringify({ cartData: [] })
-        };
+        return { statusCode: 200, headers, body: JSON.stringify({ cartData: [] }) };
       }
-      
-      // Load authenticated user's cart
       console.log('[cart-load] Querying database for user_id:', userId);
       result = await sql`
         SELECT cart_data, updated_at, user_id
@@ -49,13 +42,8 @@ exports.handler = async (event, context) => {
         WHERE user_id = ${userId} AND status = 'active'
         LIMIT 1
       `;
-      console.log('[cart-load] Query result:', { 
-        found: result.length > 0, 
-        user_id: result.length > 0 ? result[0].user_id : null,
-        itemCount: result.length > 0 ? result[0].cart_data.length : 0
-      });
+      console.log('[cart-load] Query result:', { found: result.length > 0, itemCount: result.length > 0 ? result[0].cart_data.length : 0 });
     } else if (sessionId) {
-      // Load guest cart
       result = await sql`
         SELECT cart_data, updated_at
         FROM user_carts
@@ -67,7 +55,6 @@ exports.handler = async (event, context) => {
     const rawCartData = result && result.length > 0 ? result[0].cart_data : [];
 
     // CRITICAL FIX: Reconstruct image URLs from file_key when thumbnail_url is missing or invalid
-    // This ensures thumbnails display correctly across devices (mobile -> desktop sync)
     const CLOUDINARY_BASE = 'https://res.cloudinary.com/dtrxl120u/image/upload';
     
     // Helper: Check if URL is a valid, permanent Cloudinary URL
@@ -79,43 +66,83 @@ exports.handler = async (event, context) => {
       if (!url.startsWith('https://res.cloudinary.com/')) return false;
       return true;
     };
+
+    // NEW FALLBACK: Extract file_key (public ID) from Cloudinary URL
+    // URL format: https://res.cloudinary.com/{cloud}/image/upload/{transforms}/{public_id}.{ext}
+    const extractFileKeyFromUrl = (url) => {
+      if (!isValidCloudinaryUrl(url)) return null;
+      try {
+        // Remove query string if present
+        const urlWithoutQuery = url.split('?')[0];
+        // Get the last path segment (filename with extension)
+        const pathParts = urlWithoutQuery.split('/');
+        const filename = pathParts[pathParts.length - 1];
+        // Remove extension to get public ID
+        const lastDot = filename.lastIndexOf('.');
+        if (lastDot > 0) {
+          return filename.substring(0, lastDot);
+        }
+        // No extension found, return whole filename
+        return filename;
+      } catch (e) {
+        console.log('[cart-load] Failed to extract file_key from URL:', url);
+        return null;
+      }
+    };
     
     const cartData = rawCartData.map((item, index) => {
       console.log('[cart-load] Item', index + 1, 'raw data:', {
         id: item.id,
-        file_key: item.file_key,
+        file_key: item.file_key || 'NULL',
         is_pdf: item.is_pdf,
-        file_url: item.file_url ? item.file_url.substring(0, 80) : null,
-        thumbnail_url: item.thumbnail_url ? item.thumbnail_url.substring(0, 80) : null,
-        has_text_elements: !!item.text_elements && item.text_elements.length > 0,
-        has_overlay_images: !!item.overlay_images && item.overlay_images.length > 0
+        file_url: item.file_url ? item.file_url.substring(0, 80) : 'NULL',
+        thumbnail_url: item.thumbnail_url ? item.thumbnail_url.substring(0, 80) : 'NULL'
       });
+      
       const enhanced = { ...item };
       
-      // AGGRESSIVE URL RECONSTRUCTION: Always reconstruct from file_key if URL isn't valid Cloudinary
-      // This fixes cross-device sync issues where mobile saves blob/data/empty URLs that don't work on desktop
-      if (item.file_key) {
-        // Reconstruct file_url if not a valid Cloudinary URL
-        if (!isValidCloudinaryUrl(enhanced.file_url)) {
-          enhanced.file_url = `${CLOUDINARY_BASE}/${item.file_key}`;
-          console.log('[cart-load] Reconstructed file_url from file_key:', enhanced.file_url);
-        }
-        
-        // ALWAYS reconstruct thumbnail_url from file_key if not a valid Cloudinary URL
-        // This is the critical fix for cross-device thumbnail display
-        if (!isValidCloudinaryUrl(enhanced.thumbnail_url)) {
-          if (item.is_pdf) {
-            // PDF needs pg_1 to get first page and f_jpg to convert to image format
-            enhanced.thumbnail_url = `${CLOUDINARY_BASE}/pg_1,f_jpg,w_400,h_400,c_fit,q_auto/${item.file_key}`;
-            console.log('[cart-load] Reconstructed PDF thumbnail_url:', enhanced.thumbnail_url);
-          } else {
-            // Regular image - use standard transformations
-            enhanced.thumbnail_url = `${CLOUDINARY_BASE}/w_400,h_400,c_fit,q_auto,f_auto/${item.file_key}`;
-            console.log('[cart-load] Reconstructed thumbnail_url:', enhanced.thumbnail_url);
+      // Try to get file_key from stored value or extract from URLs
+      let fileKey = item.file_key;
+      
+      // FALLBACK: If file_key is missing, try to extract from file_url or thumbnail_url
+      if (!fileKey) {
+        // Try file_url first
+        if (isValidCloudinaryUrl(item.file_url)) {
+          fileKey = extractFileKeyFromUrl(item.file_url);
+          if (fileKey) {
+            console.log('[cart-load] Extracted file_key from file_url:', fileKey);
+            enhanced.file_key = fileKey;
           }
         }
+        // Try thumbnail_url if still missing
+        if (!fileKey && isValidCloudinaryUrl(item.thumbnail_url)) {
+          fileKey = extractFileKeyFromUrl(item.thumbnail_url);
+          if (fileKey) {
+            console.log('[cart-load] Extracted file_key from thumbnail_url:', fileKey);
+            enhanced.file_key = fileKey;
+          }
+        }
+      }
+      
+      // Now reconstruct URLs if we have a file_key
+      if (fileKey) {
+        // Reconstruct file_url if not a valid Cloudinary URL
+        if (!isValidCloudinaryUrl(enhanced.file_url)) {
+          enhanced.file_url = `${CLOUDINARY_BASE}/${fileKey}`;
+          console.log('[cart-load] Reconstructed file_url:', enhanced.file_url);
+        }
+        
+        // ALWAYS reconstruct thumbnail_url if not a valid Cloudinary URL
+        if (!isValidCloudinaryUrl(enhanced.thumbnail_url)) {
+          if (item.is_pdf) {
+            enhanced.thumbnail_url = `${CLOUDINARY_BASE}/pg_1,f_jpg,w_400,h_400,c_fit,q_auto/${fileKey}`;
+          } else {
+            enhanced.thumbnail_url = `${CLOUDINARY_BASE}/w_400,h_400,c_fit,q_auto,f_auto/${fileKey}`;
+          }
+          console.log('[cart-load] Reconstructed thumbnail_url:', enhanced.thumbnail_url);
+        }
       } else {
-        console.log('[cart-load] WARNING: Item', index + 1, 'has no file_key - cannot reconstruct URLs');
+        console.log('[cart-load] WARNING: Item', index + 1, 'has no file_key and could not extract from URLs');
       }
       
       // Also check overlay_image for file_key reconstruction
@@ -125,7 +152,6 @@ exports.handler = async (event, context) => {
             ...enhanced.overlay_image,
             url: `${CLOUDINARY_BASE}/${enhanced.overlay_image.fileKey}`
           };
-          console.log('[cart-load] Reconstructed overlay_image.url from fileKey');
         }
       }
       
@@ -133,10 +159,7 @@ exports.handler = async (event, context) => {
       if (Array.isArray(enhanced.overlay_images)) {
         enhanced.overlay_images = enhanced.overlay_images.map(img => {
           if (img.fileKey && !isValidCloudinaryUrl(img.url)) {
-            return {
-              ...img,
-              url: `${CLOUDINARY_BASE}/${img.fileKey}`
-            };
+            return { ...img, url: `${CLOUDINARY_BASE}/${img.fileKey}` };
           }
           return img;
         });
@@ -147,18 +170,13 @@ exports.handler = async (event, context) => {
 
     console.log('[cart-load] Cart loaded:', { itemCount: cartData.length });
     
-    // Log thumbnail reconstruction results with FULL URLs for debugging
+    // Log final results
     cartData.forEach((item, idx) => {
-      console.log('[cart-load] ============================================');
-      console.log('[cart-load] Item', idx + 1, 'FULL DEBUG:');
-      console.log('[cart-load]   ID:', item.id);
-      console.log('[cart-load]   is_pdf:', item.is_pdf);
-      console.log('[cart-load]   file_key:', item.file_key || 'NULL');
-      console.log('[cart-load]   file_url:', item.file_url || 'NULL');
-      console.log('[cart-load]   thumbnail_url:', item.thumbnail_url || 'NULL');
-      console.log('[cart-load]   has_text:', !!(item.text_elements && item.text_elements.length > 0));
-      console.log('[cart-load]   has_overlays:', !!(item.overlay_images && item.overlay_images.length > 0) || !!item.overlay_image);
-      console.log('[cart-load] ============================================');
+      console.log('[cart-load] FINAL Item', idx + 1, ':', {
+        id: item.id,
+        file_key: item.file_key || 'NULL',
+        thumbnail_url: item.thumbnail_url ? item.thumbnail_url.substring(0, 80) : 'NULL'
+      });
     });
 
     return {
