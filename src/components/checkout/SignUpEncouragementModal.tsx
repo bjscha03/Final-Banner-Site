@@ -28,8 +28,11 @@ const SignUpEncouragementModal: React.FC<SignUpEncouragementModalProps> = ({
       guestSessionId: guestSessionId ? `${guestSessionId.substring(0, 12)}...` : 'none'
     });
     setCheckoutContext('/checkout', guestSessionId);
-    navigate('/sign-up?from=checkout');
+    // FIX: Close modal first, then navigate with setTimeout for mobile touch support
     onClose();
+    setTimeout(() => {
+      navigate('/sign-up?from=checkout');
+    }, 10);
   };
 
   const handleSignIn = () => {
@@ -39,8 +42,11 @@ const SignUpEncouragementModal: React.FC<SignUpEncouragementModalProps> = ({
       guestSessionId: guestSessionId ? `${guestSessionId.substring(0, 12)}...` : 'none'
     });
     setCheckoutContext('/checkout', guestSessionId);
-    navigate('/sign-in?from=checkout');
+    // FIX: Close modal first, then navigate with setTimeout for mobile touch support
     onClose();
+    setTimeout(() => {
+      navigate('/sign-in?from=checkout');
+    }, 10);
   };
 
   const handleContinueAsGuest = () => {
