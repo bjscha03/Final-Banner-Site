@@ -468,12 +468,6 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
             );
           })}
           
-          {/* Loading state overlay - only show while image is loading */}
-          {!imageLoaded && (
-            <div className="absolute inset-0 flex items-center justify-center bg-gray-50">
-              <div className="text-gray-400 text-xs">Loading...</div>
-            </div>
-          )}
         </div>
       </div>
     );
