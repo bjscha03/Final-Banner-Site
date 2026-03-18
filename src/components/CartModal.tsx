@@ -436,6 +436,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                 <span className="text-sm font-medium text-blue-700">📦 Friday orders arrive Tuesday.</span>
               </div>
             </div>
+          )}
         </div>
       </div>
     </div>
