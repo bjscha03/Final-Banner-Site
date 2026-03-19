@@ -562,6 +562,23 @@ const GoogleAdsBanner: React.FC = () => {
                     </div>
                   </div>
                   <p className="text-xs text-gray-500 mt-1">{sqft.toFixed(1)} sq ft</p>
+                  {/* Dimension preview canvas — adjusts to banner aspect ratio */}
+                  <div className="mt-3 flex justify-center">
+                    <div
+                      className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg relative transition-all duration-300 ease-out"
+                      style={{
+                        aspectRatio: `${widthIn || 96} / ${heightIn || 48}`,
+                        width: `min(100%, ${140 * ((widthIn || 96) / (heightIn || 48))}px)`,
+                        maxHeight: '140px',
+                      }}
+                    >
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <span className="text-xs text-gray-400 font-medium whitespace-nowrap">
+                          {widthDisplay} × {heightDisplay}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Material</label>
