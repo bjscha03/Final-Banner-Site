@@ -590,21 +590,23 @@ const GoogleAdsBanner: React.FC = () => {
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Upload Your Artwork</label>
                   {!uploadedFile ? (
-                    <div onDrop={onDrop} onDragOver={e => { e.preventDefault(); setDragActive(true); }} onDragLeave={() => setDragActive(false)} onClick={() => fileInputRef.current?.click()} className={`border-2 border-dashed rounded-xl p-6 md:p-10 text-center cursor-pointer transition-all duration-200 flex flex-col items-center justify-center ${dragActive ? 'border-orange-400 bg-orange-50 scale-[1.01] shadow-md' : 'border-gray-300 bg-gray-50/50 hover:border-orange-300 hover:bg-orange-50/30'}`} style={{ aspectRatio: `${widthIn || 96} / ${heightIn || 48}`, maxHeight: '260px', maxWidth: '100%' }}>
-                      <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,application/pdf,.png,.jpg,.jpeg,.pdf" onChange={e => { const f = e.target.files?.[0]; if (f) handleFileUpload(f); }} className="hidden" />
-                      {isUploading ? (
-                        <div className="flex flex-col items-center">
-                          <Loader2 className="h-10 w-10 text-orange-500 animate-spin mb-2" />
-                          <p className="text-sm text-gray-600">Uploading...</p>
-                        </div>
-                      ) : (
-                        <>
-                          <Upload className="h-10 w-10 text-gray-400 mx-auto mb-2" />
-                          <p className="font-semibold text-gray-800">Drag &amp; Drop or Click to Upload</p>
-                          <p className="text-xs text-gray-500 mt-1">PDF, PNG, JPG, JPEG — Max 10 MB</p>
-                          <p className="text-[10px] text-gray-400 mt-1.5">{widthDisplay} × {heightDisplay}</p>
-                        </>
-                      )}
+                    <div onDrop={onDrop} onDragOver={e => { e.preventDefault(); setDragActive(true); }} onDragLeave={() => setDragActive(false)} onClick={() => fileInputRef.current?.click()} className={`relative border-2 border-dashed rounded-xl text-center cursor-pointer transition-all duration-200 overflow-hidden ${dragActive ? 'border-orange-400 bg-orange-50 scale-[1.01] shadow-md' : 'border-gray-300 bg-gray-50/50 hover:border-orange-300 hover:bg-orange-50/30'}`} style={{ aspectRatio: `${widthIn || 96} / ${heightIn || 48}`, maxHeight: '260px', maxWidth: '100%', minHeight: '100px' }}>
+                      <div className="absolute inset-0 flex flex-col items-center justify-center p-4 md:p-10">
+                        <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,application/pdf,.png,.jpg,.jpeg,.pdf" onChange={e => { const f = e.target.files?.[0]; if (f) handleFileUpload(f); }} className="hidden" />
+                        {isUploading ? (
+                          <div className="flex flex-col items-center">
+                            <Loader2 className="h-10 w-10 text-orange-500 animate-spin mb-2" />
+                            <p className="text-sm text-gray-600">Uploading...</p>
+                          </div>
+                        ) : (
+                          <>
+                            <Upload className="h-8 w-8 md:h-10 md:w-10 text-gray-400 mx-auto mb-1 md:mb-2" />
+                            <p className="font-semibold text-gray-800 text-sm md:text-base">Drag &amp; Drop or Click to Upload</p>
+                            <p className="text-xs text-gray-500 mt-0.5 md:mt-1">PDF, PNG, JPG, JPEG — Max 10 MB</p>
+                            <p className="text-[10px] text-gray-400 mt-1">{widthDisplay} × {heightDisplay}</p>
+                          </>
+                        )}
+                      </div>
                     </div>
                   ) : (
                     <div className="border-2 rounded-xl bg-green-50 border-green-300 shadow-sm">
