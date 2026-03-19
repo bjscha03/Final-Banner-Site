@@ -326,7 +326,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
                 ref={imgRef}
                 src={imageUrl}
                 alt="Banner preview"
-                className="absolute inset-0 w-full h-full object-cover"
+                className="absolute inset-0 w-full h-full object-contain"
                 draggable={false}
                 onLoad={(e) => { setImageLoaded(true); }}
                 onError={() => setImageError(true)}
@@ -397,7 +397,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
               ref={imgRef}
               src={imageUrl} 
               alt="Banner preview"
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
               draggable={false}
               onLoad={(e) => { setImageLoaded(true); }}
               onError={() => setImageError(true)}
@@ -437,7 +437,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
               ref={imgRef}
               src={imageUrl} 
               alt="Banner preview"
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
               draggable={false}
               onLoad={() => {
                 setImageLoaded(true);
