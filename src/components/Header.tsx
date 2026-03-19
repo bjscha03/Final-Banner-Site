@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { ShoppingCart, Menu, X, User, LogOut, Package, Shield, HelpCircle } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { ShoppingCart, Menu, X, User, LogOut, Package, Shield } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import ScrollToTopLink from './ScrollToTopLink';
 import { useAuth, isAdmin } from '@/lib/auth';
@@ -23,6 +23,19 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  // Close mobile menu when clicking outside
+  useEffect(() => {
+    if (!isMenuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setIsMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isMenuOpen]);
 
   const navItems = [
     { name: 'Home', href: '/' },
@@ -57,14 +70,94 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           {/* Left: Hamburger Menu (always visible, even on desktop) */}
-          <div className="flex items-center w-24">
+          <div className="flex items-center w-24" ref={menuRef}>
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
               className="p-2 text-slate-600 hover:text-slate-900 transition-colors"
               aria-label="Toggle menu"
+              aria-expanded={isMenuOpen}
             >
               {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
+
+            {/* Slide-out Navigation Menu (works on all screen sizes) */}
+            {isMenuOpen && (
+              <div className="absolute left-0 top-full w-64 bg-white shadow-lg border-r border-slate-200 z-50">
+                <div className="py-2">
+                  {navItems.map((item) => (
+                    <ScrollToTopLink
+                      key={item.name}
+                      to={item.href}
+                      className={`block px-4 py-3 text-sm font-medium border-b border-slate-100 ${
+                        location.pathname === item.href
+                          ? 'text-[#18448D] bg-blue-50'
+                          : 'text-slate-700 hover:text-[#18448D] hover:bg-slate-50'
+                      }`}
+                      onClick={() => setIsMenuOpen(false)}
+                    >
+                      {item.name}
+                    </ScrollToTopLink>
+                  ))}
+
+                  {/* Account section in menu */}
+                  <div className="border-t border-slate-200 mt-2 pt-2">
+                    {!loading && (
+                      user ? (
+                        <>
+                          <ScrollToTopLink
+                            to="/my-orders"
+                            className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-700 hover:text-[#18448D] hover:bg-slate-50"
+                            onClick={() => setIsMenuOpen(false)}
+                          >
+                            <Package className="h-4 w-4" />
+                            My Orders
+                          </ScrollToTopLink>
+                          {isAdmin(user) && (
+                            <ScrollToTopLink
+                              to="/admin/orders"
+                              className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-700 hover:text-[#18448D] hover:bg-slate-50"
+                              onClick={() => setIsMenuOpen(false)}
+                            >
+                              <Shield className="h-4 w-4" />
+                              Admin: Orders
+                            </ScrollToTopLink>
+                          )}
+                          <button
+                            onClick={() => {
+                              handleSignOut();
+                              setIsMenuOpen(false);
+                            }}
+                            className="flex items-center gap-2 w-full px-4 py-3 text-sm font-medium text-slate-700 hover:text-[#18448D] hover:bg-slate-50 text-left"
+                          >
+                            <LogOut className="h-4 w-4" />
+                            Sign Out
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <ScrollToTopLink
+                            to="/sign-in"
+                            className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-700 hover:text-[#18448D] hover:bg-slate-50"
+                            onClick={() => setIsMenuOpen(false)}
+                          >
+                            <User className="h-4 w-4" />
+                            Sign In
+                          </ScrollToTopLink>
+                          <ScrollToTopLink
+                            to="/sign-up"
+                            className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-700 hover:text-[#18448D] hover:bg-slate-50"
+                            onClick={() => setIsMenuOpen(false)}
+                          >
+                            <User className="h-4 w-4" />
+                            Create Account
+                          </ScrollToTopLink>
+                        </>
+                      )
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Center: Logo */}
@@ -152,64 +245,6 @@ const Header: React.FC<HeaderProps> = ({ cartCount = 0, onCartClick }) => {
             </button>
           </div>
         </div>
-
-        {/* Slide-out Navigation Menu (works on all screen sizes) */}
-        {isMenuOpen && (
-          <div className="absolute left-0 top-full w-64 bg-white shadow-lg border-r border-slate-200 z-50">
-            <div className="py-2">
-              {navItems.map((item) => (
-                <ScrollToTopLink
-                  key={item.name}
-                  to={item.href}
-                  className={`block px-4 py-3 text-sm font-medium border-b border-slate-100 ${
-                    location.pathname === item.href
-                      ? 'text-[#18448D] bg-blue-50'
-                      : 'text-slate-700 hover:text-[#18448D] hover:bg-slate-50'
-                  }`}
-                  onClick={() => setIsMenuOpen(false)}
-                >
-                  {item.name}
-                </ScrollToTopLink>
-              ))}
-
-              {/* Account section in menu */}
-              <div className="border-t border-slate-200 mt-2 pt-2">
-                {!loading && user && (
-                  <>
-                    <ScrollToTopLink
-                      to="/my-orders"
-                      className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-700 hover:text-[#18448D] hover:bg-slate-50"
-                      onClick={() => setIsMenuOpen(false)}
-                    >
-                      <Package className="h-4 w-4" />
-                      My Orders
-                    </ScrollToTopLink>
-                    {isAdmin(user) && (
-                      <ScrollToTopLink
-                        to="/admin/orders"
-                        className="flex items-center gap-2 px-4 py-3 text-sm font-medium text-slate-700 hover:text-[#18448D] hover:bg-slate-50"
-                        onClick={() => setIsMenuOpen(false)}
-                      >
-                        <Shield className="h-4 w-4" />
-                        Admin: Orders
-                      </ScrollToTopLink>
-                    )}
-                    <button
-                      onClick={() => {
-                        handleSignOut();
-                        setIsMenuOpen(false);
-                      }}
-                      className="flex items-center gap-2 w-full px-4 py-3 text-sm font-medium text-slate-700 hover:text-[#18448D] hover:bg-slate-50 text-left"
-                    >
-                      <LogOut className="h-4 w-4" />
-                      Sign Out
-                    </button>
-                  </>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </header>
   );

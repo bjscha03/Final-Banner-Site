@@ -741,8 +741,12 @@ const Checkout: React.FC = () => {
                         
                         // Sync cart to database (this ensures all items are saved)
                         if (items.length > 0) {
-                          await syncToServer();
-                          console.log('✅ CHECKOUT: Guest cart synced to database via syncToServer');
+                          try {
+                            await syncToServer();
+                          } catch (syncError) {
+                            console.error('Failed to sync cart before sign-in:', syncError);
+                            // Continue with navigation even if sync fails
+                          }
                         }
                         
                         // Set checkout context
