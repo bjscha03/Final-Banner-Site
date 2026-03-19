@@ -28,6 +28,7 @@ const MATERIALS: { key: string; label: string; mapped: MaterialKey; desc: string
   { key: 'mesh', label: 'Mesh Fence', mapped: 'mesh', desc: 'Wind pass-through — ideal for fences' },
 ];
 
+const PROMO_NEW20_DISCOUNT_RATE = 0.2;
 
 const TESTIMONIALS = [
   {
@@ -142,7 +143,7 @@ const GoogleAdsBanner: React.FC = () => {
 
   // Quantity discount info
   const quantityDiscountRate = getQuantityDiscountRate(quantity);
-  const discountedTotal = promoApplied ? totals.materialTotal * 0.8 : totals.materialTotal;
+  const discountedTotal = promoApplied ? totals.materialTotal * (1 - PROMO_NEW20_DISCOUNT_RATE) : totals.materialTotal;
 
   useEffect(() => {
     // Flag this session as coming from Google Ads landing page
@@ -450,7 +451,10 @@ const GoogleAdsBanner: React.FC = () => {
             >
               <ShoppingCart className="h-5 w-5" />
               {cartItemCount > 0 && (
-                <span className="absolute -top-0.5 -right-0.5 bg-green-500 text-white text-[10px] rounded-full h-4 w-4 flex items-center justify-center font-bold">
+                <span
+                  className="absolute -top-0.5 -right-0.5 bg-green-500 text-white text-[10px] rounded-full h-4 w-4 flex items-center justify-center font-bold"
+                  aria-label={`${cartItemCount} items in cart`}
+                >
                   {cartItemCount}
                 </span>
               )}
@@ -675,7 +679,7 @@ const GoogleAdsBanner: React.FC = () => {
                           {promoCode} — 20% off
                         </span>
                         <button
-                          onClick={() => { setPromoApplied(false); setPromoCode(''); }}
+                          onClick={() => { setPromoApplied(false); setPromoCode(''); sessionStorage.removeItem('pendingPromoCode'); }}
                           className="text-xs text-red-500 hover:text-red-700 font-medium"
                         >
                           Remove
