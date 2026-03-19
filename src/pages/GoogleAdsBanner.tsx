@@ -1,13 +1,16 @@
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { Upload, Shield, Clock, Star, CheckCircle, Truck, Users, FileCheck, X, Loader2, ArrowRight, Brush, Minus, Plus, Lock, Mail, Droplets, Sun, Wind, Palette, Tag, Move, ZoomIn, ZoomOut } from 'lucide-react';
+import { Upload, Shield, Clock, Star, CheckCircle, Truck, Users, FileCheck, X, Loader2, ArrowRight, Brush, Minus, Plus, Lock, Mail, Droplets, Sun, Wind, Palette, Tag, Move, ZoomIn, ZoomOut, ShoppingCart } from 'lucide-react';
 import { useQuoteStore, type MaterialKey } from '@/store/quote';
 import { useCartStore } from '@/store/cart';
 import { useUIStore } from '@/store/ui';
 import { calcTotals, usd, PRICE_PER_SQFT } from '@/lib/pricing';
 import { DESIGN_GROMMET_OPTIONS } from '@/lib/grommets';
 import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
+import CartModal from '@/components/CartModal';
+import { getEstimatedDeliveryDate, formatDeliveryDate } from '@/lib/deliveryTimeHelpers';
+import { getQuantityDiscountRate } from '@/lib/quantity-discount';
 
 const PRESET_SIZES = [
   { label: "2' x 4'", w: 48, h: 24 },
@@ -117,7 +120,8 @@ const GoogleAdsBanner: React.FC = () => {
 
   const quoteStore = useQuoteStore();
   const cartStore = useCartStore();
-  const { setIsCartOpen } = useUIStore();
+  const { isCartOpen, setIsCartOpen } = useUIStore();
+  const cartItemCount = useCartStore(s => s.getItemCount());
 
   const widthIn = widthFt * 12 + widthInR;
   const heightIn = heightFt * 12 + heightInR;
@@ -129,6 +133,16 @@ const GoogleAdsBanner: React.FC = () => {
   const grommetsLabel = DESIGN_GROMMET_OPTIONS.find(o => o.value === grommets)?.label || 'None';
   const widthDisplay = widthInR > 0 ? `${widthFt}'${widthInR}"` : `${widthFt}'`;
   const heightDisplay = heightInR > 0 ? `${heightFt}'${heightInR}"` : `${heightFt}'`;
+
+  // Dynamic delivery estimate
+  const deliveryEstimate = useMemo(() => {
+    const deliveryDate = getEstimatedDeliveryDate(new Date());
+    return formatDeliveryDate(deliveryDate);
+  }, []);
+
+  // Quantity discount info
+  const quantityDiscountRate = getQuantityDiscountRate(quantity);
+  const discountedTotal = promoApplied ? totals.materialTotal * 0.8 : totals.materialTotal;
 
   useEffect(() => {
     // Flag this session as coming from Google Ads landing page
@@ -155,6 +169,7 @@ const GoogleAdsBanner: React.FC = () => {
   const handlePromoApply = () => {
     if (promoCode.trim().toUpperCase() === 'NEW20') {
       setPromoApplied(true);
+      sessionStorage.setItem('pendingPromoCode', 'NEW20');
     }
   };
 
@@ -425,8 +440,21 @@ const GoogleAdsBanner: React.FC = () => {
       </Helmet>
       <div className="min-h-screen bg-white text-gray-900">
         <header className="w-full border-b border-gray-100 bg-white py-3 px-4 sticky top-0 z-50">
-          <div className="max-w-5xl mx-auto flex items-center justify-center">
+          <div className="max-w-5xl mx-auto flex items-center justify-between">
+            <div className="w-10" />
             <img src="/images/header-logo.png" alt="Banners On The Fly" className="h-10 object-contain" loading="eager" />
+            <button
+              onClick={() => setIsCartOpen(true)}
+              aria-label="Shopping cart"
+              className="relative p-2 text-orange-500 hover:text-orange-600 transition-colors"
+            >
+              <ShoppingCart className="h-5 w-5" />
+              {cartItemCount > 0 && (
+                <span className="absolute -top-0.5 -right-0.5 bg-green-500 text-white text-[10px] rounded-full h-4 w-4 flex items-center justify-center font-bold">
+                  {cartItemCount}
+                </span>
+              )}
+            </button>
           </div>
         </header>
 
@@ -559,6 +587,14 @@ const GoogleAdsBanner: React.FC = () => {
                       <Plus className="h-4 w-4 text-gray-600" />
                     </button>
                   </div>
+                  {quantityDiscountRate > 0 && (
+                    <p className="text-xs text-green-600 font-medium mt-1.5">
+                      🎉 {Math.round(quantityDiscountRate * 100)}% bulk discount applied at checkout
+                    </p>
+                  )}
+                  {quantity === 1 && (
+                    <p className="text-xs text-gray-400 mt-1.5">Order 2+ for up to 13% off</p>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Finishing Options</label>
@@ -595,7 +631,15 @@ const GoogleAdsBanner: React.FC = () => {
               <div className="space-y-6">
                 <div className="rounded-xl p-6 text-center" style={{ background: "#F7F8FA", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
                   <p className="text-sm text-gray-500 mb-1">Your Price</p>
-                  <p className="text-5xl font-extrabold text-gray-900 leading-tight">{usd(totals.materialTotal)}</p>
+                  {promoApplied ? (
+                    <>
+                      <p className="text-2xl text-gray-400 line-through leading-tight">{usd(totals.materialTotal)}</p>
+                      <p className="text-5xl font-extrabold text-green-600 leading-tight">{usd(discountedTotal)}</p>
+                      <p className="text-sm text-green-600 font-semibold mt-1">You save {usd(totals.materialTotal - discountedTotal)}!</p>
+                    </>
+                  ) : (
+                    <p className="text-5xl font-extrabold text-gray-900 leading-tight">{usd(totals.materialTotal)}</p>
+                  )}
                   <p className="text-base text-green-600 font-semibold mt-2">FREE Next-Day Air Included</p>
                   <p className="text-sm text-gray-500 mt-1">Printed within 24 hours.</p>
                   <p className="text-sm text-gray-500 mt-1">{usd(pricePerSqFt)}/sq ft</p>
@@ -611,19 +655,33 @@ const GoogleAdsBanner: React.FC = () => {
 
                   {/* Promo Code */}
                   <div className="mt-3 mb-2">
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={promoCode}
-                        onChange={e => setPromoCode(e.target.value.toUpperCase())}
-                        placeholder="Promo Code"
-                        className="flex-1 border rounded-xl px-3 py-2 text-sm"
-                      />
-                      <button onClick={handlePromoApply} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium">
-                        Apply
-                      </button>
-                    </div>
-                    {promoApplied && <p className="text-xs text-green-600 mt-1">✓ 20% discount applied!</p>}
+                    {!promoApplied ? (
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={promoCode}
+                          onChange={e => setPromoCode(e.target.value.toUpperCase())}
+                          placeholder="Promo Code"
+                          className="flex-1 border rounded-xl px-3 py-2 text-sm"
+                        />
+                        <button onClick={handlePromoApply} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium">
+                          Apply
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-3 py-2">
+                        <span className="text-sm font-semibold text-green-800 flex items-center gap-1.5">
+                          <Tag className="h-3.5 w-3.5" />
+                          {promoCode} — 20% off
+                        </span>
+                        <button
+                          onClick={() => { setPromoApplied(false); setPromoCode(''); }}
+                          className="text-xs text-red-500 hover:text-red-700 font-medium"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
                   </div>
                   <p className="text-xs text-gray-400 mt-3">Tax calculated at checkout</p>
                 </div>
@@ -634,7 +692,7 @@ const GoogleAdsBanner: React.FC = () => {
                 </button>
                 {/* Friday shipping badge */}
                 <div className="flex items-center justify-center gap-2 mt-3 py-2 px-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <span className="text-sm font-medium text-blue-700">📦 Friday orders arrive Tuesday.</span>
+                  <span className="text-sm font-medium text-blue-700">📦 Order now, estimated delivery {deliveryEstimate}.</span>
                 </div>
                 <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400 mt-1">
                   <Lock className="h-3 w-3" />
@@ -716,7 +774,14 @@ const GoogleAdsBanner: React.FC = () => {
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-xs text-gray-500">Total</p>
-              <p className="text-xl font-bold text-gray-900">{usd(totals.materialTotal)}</p>
+              {promoApplied ? (
+                <div className="flex items-center gap-2">
+                  <p className="text-sm text-gray-400 line-through">{usd(totals.materialTotal)}</p>
+                  <p className="text-xl font-bold text-green-600">{usd(discountedTotal)}</p>
+                </div>
+              ) : (
+                <p className="text-xl font-bold text-gray-900">{usd(totals.materialTotal)}</p>
+              )}
             </div>
             <button
               onClick={uploadedFile ? handleCheckout : scrollToOrder}
@@ -825,6 +890,11 @@ const GoogleAdsBanner: React.FC = () => {
         thumbnailUrl={uploadedFile?.thumbnailUrl || uploadedFile?.url}
         actionType="checkout"
         isProcessing={isProcessingUpsell}
+      />
+      {/* Cart Modal */}
+      <CartModal
+        isOpen={isCartOpen}
+        onClose={() => setIsCartOpen(false)}
       />
     </>
   );

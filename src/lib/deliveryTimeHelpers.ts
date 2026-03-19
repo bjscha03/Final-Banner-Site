@@ -247,6 +247,8 @@ export function getEstimatedDeliveryDate(
   return deliveryDate;
 }
 
+/**
+ * Format delivery date for display
  */
 export function formatDeliveryDate(date: Date, userTimezone?: string): string {
   const tz = userTimezone || Intl.DateTimeFormat().resolvedOptions().timeZone;

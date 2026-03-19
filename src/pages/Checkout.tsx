@@ -125,6 +125,15 @@ const Checkout: React.FC = () => {
     };
     checkAdminStatus();
   }, [user?.email]);
+
+  // Pre-fill promo code from landing page if available
+  useEffect(() => {
+    const pendingPromo = sessionStorage.getItem('pendingPromoCode');
+    if (pendingPromo && !discountCode) {
+      setDiscountCodeInput(pendingPromo);
+      sessionStorage.removeItem('pendingPromoCode');
+    }
+  }, [discountCode]);
   // Cart management functions
   const handleIncreaseQuantity = (itemId: string) => {
     const item = items.find(i => i.id === itemId);
