@@ -13,12 +13,12 @@ import { getEstimatedDeliveryDate, formatDeliveryDate } from '@/lib/deliveryTime
 import { getQuantityDiscountRate } from '@/lib/quantity-discount';
 
 const PRESET_SIZES = [
-  { label: "2' x 4'", w: 48, h: 24 },
-  { label: "3' x 6'", w: 72, h: 36 },
-  { label: "4' x 8'", w: 96, h: 48 },
-  { label: "2' x 6'", w: 72, h: 24 },
-  { label: "3' x 8'", w: 96, h: 36 },
-  { label: "4' x 10'", w: 120, h: 48 },
+  { label: "2' × 4'", w: 48, h: 24 },
+  { label: "2' × 6'", w: 72, h: 24 },
+  { label: "3' × 6'", w: 72, h: 36 },
+  { label: "3' × 8'", w: 96, h: 36 },
+  { label: "4' × 8'", w: 96, h: 48 },
+  { label: "4' × 10'", w: 120, h: 48 },
 ];
 
 const MATERIALS: { key: string; label: string; mapped: MaterialKey; desc: string }[] = [
@@ -83,9 +83,9 @@ const GoogleAdsBanner: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Use string state for dimension inputs so users can clear and retype freely
-  const [widthFtStr, setWidthFtStr] = useState('8');
+  const [widthFtStr, setWidthFtStr] = useState('4');
   const [widthInRStr, setWidthInRStr] = useState('0');
-  const [heightFtStr, setHeightFtStr] = useState('4');
+  const [heightFtStr, setHeightFtStr] = useState('2');
   const [heightInRStr, setHeightInRStr] = useState('0');
   // Derived numeric values for calculations (treat empty as 0)
   const widthFt = parseInt(widthFtStr, 10) || 0;
@@ -100,7 +100,7 @@ const GoogleAdsBanner: React.FC = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<{name: string; url: string; fileKey: string; size: number; isPdf: boolean; thumbnailUrl?: string} | null>(null);
   const [uploadError, setUploadError] = useState('');
-  const [activePreset, setActivePreset] = useState<number | null>(2);
+  const [activePreset, setActivePreset] = useState<number | null>(0);
   const [dragActive, setDragActive] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [promoCode, setPromoCode] = useState('');

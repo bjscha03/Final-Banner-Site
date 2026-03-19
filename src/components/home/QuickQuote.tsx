@@ -59,17 +59,18 @@ interface SizePreset {
 }
 
 const sizePresets: SizePreset[] = [
-  { label: '2×4 ft', w: 48, h: 24 },
-  { label: '3×5 ft', w: 60, h: 36 },
-  { label: '4×8 ft', w: 96, h: 48 },
-  { label: '2×6 ft', w: 72, h: 24 },
-  { label: '6×10 ft', w: 120, h: 72 },
+  { label: "2' × 4'", w: 48, h: 24 },
+  { label: "2' × 6'", w: 72, h: 24 },
+  { label: "3' × 6'", w: 72, h: 36 },
+  { label: "3' × 8'", w: 96, h: 36 },
+  { label: "4' × 8'", w: 96, h: 48 },
+  { label: "4' × 10'", w: 120, h: 48 },
 ];
 
 const QuickQuote: React.FC = () => {
   const navigate = useNavigate();
-  const [widthIn, setWidthIn] = useState(60);
-  const [heightIn, setHeightIn] = useState(36);
+  const [widthIn, setWidthIn] = useState(48);
+  const [heightIn, setHeightIn] = useState(24);
   const [quantity, setQuantity] = useState(1);
   const [material, setMaterial] = useState<MaterialKey>('13oz');
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -80,8 +81,8 @@ const QuickQuote: React.FC = () => {
   } | null>(null);
   const [imageErrors, setImageErrors] = useState<Set<string>>(new Set());
   
-  const [widthInput, setWidthInput] = useState('60');
-  const [heightInput, setHeightInput] = useState('36');
+  const [widthInput, setWidthInput] = useState('48');
+  const [heightInput, setHeightInput] = useState('24');
   const [quantityInput, setQuantityInput] = useState('1');
   const [widthError, setWidthError] = useState('');
   const [heightError, setHeightError] = useState('');

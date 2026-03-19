@@ -16,10 +16,12 @@ const SizeQuantityCard: React.FC = () => {
 
   const quickQuantities = [1, 2, 5, 10];
   const quickSizes = [
-    { w: 48, h: 24, label: '4×2 ft' },
-    { w: 72, h: 36, label: '6×3 ft' },
-    { w: 96, h: 48, label: '8×4 ft' },
-    { w: 120, h: 60, label: '10×5 ft' }
+    { w: 48, h: 24, label: "2' × 4'" },
+    { w: 72, h: 24, label: "2' × 6'" },
+    { w: 72, h: 36, label: "3' × 6'" },
+    { w: 96, h: 36, label: "3' × 8'" },
+    { w: 96, h: 48, label: "4' × 8'" },
+    { w: 120, h: 48, label: "4' × 10'" },
   ];
 
   // Update local state when store values change
