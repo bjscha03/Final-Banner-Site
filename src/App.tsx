@@ -78,6 +78,9 @@ const LogoShowcase = lazy(() => import("./pages/LogoShowcase"));
 const BannerDesignerTest = lazy(() => import("./pages/BannerDesignerTest"));
 const PdfDiagnostic = lazy(() => import("./pages/PdfDiagnostic"));
 
+// 404 page
+const NotFound = lazy(() => import("./pages/NotFound"));
+
 // Wrapper to sync cart when user logs in and enable cross-device revalidation
 const CartSyncWrapper = ({ children }: { children: React.ReactNode }) => {
   useCartSync();
@@ -190,6 +193,9 @@ const App = () => (
 
             {/* Google Ads landing page */}
             <Route path="/google-ads-banner" element={<GoogleAdsBanner />} />
+
+            {/* 404 – catch-all must be last */}
+            <Route path="*" element={<NotFound />} />
           </Routes>
           </Suspense>
           </CartSyncWrapper>

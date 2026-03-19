@@ -59,14 +59,10 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
   };
 
   const handleEdit = async (itemId: string) => {
-    console.log('🛒 CART MODAL: handleEdit called with itemId:', itemId);
-    
     try {
       const item = loadItemIntoQuote(itemId);
-      console.log('🛒 CART MODAL: loadItemIntoQuote returned:', item);
       
       if (!item) {
-        console.error('❌ CART MODAL: Item not found in cart:', itemId);
         toast({
           title: "Error",
           description: "Could not find the item to edit.",
@@ -77,7 +73,6 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
 
       // Check if this is a Canva design
       if (item.canva_design_id && user?.id) {
-        console.log('🎨 CART MODAL: Canva design detected, getting edit URL...');
         toast({
           title: "Opening Canva...",
           description: "Redirecting to Canva editor",
@@ -96,7 +91,6 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
           const data = await response.json();
           
           if (data.success && data.editUrl) {
-            console.log('🎨 CART MODAL: Got Canva edit URL, opening...');
             // Store the item ID so we can update it when user returns
             sessionStorage.setItem('canva-editing-cart-item-id', itemId);
             sessionStorage.setItem('canva-editing-width', String(item.width_in));
@@ -105,57 +99,38 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
             window.open(data.editUrl, '_blank');
             return;
           } else if (data.needsAuth) {
-            console.log('🎨 CART MODAL: Canva auth needed, redirecting to new design...');
             toast({
               title: "Canva session expired",
               description: "Opening a new Canva session with your banner dimensions",
             });
             // Fall through to open new Canva session
-          } else {
-            console.log('🎨 CART MODAL: Could not get edit URL, falling back to regular editor');
-            // Fall through to regular editor
           }
+          // else: fall through to regular editor
         } catch (error) {
-          console.error('🎨 CART MODAL: Error getting Canva edit URL:', error);
+          console.error('Error getting Canva edit URL:', error);
           // Fall through to regular editor
         }
       }
 
-      // CRITICAL FIX: Reset design state completely before loading cart item
+      // Reset design state completely before loading cart item
       // This prevents image duplication from previous state
-      console.log('🛒 CART MODAL: Resetting design state before loading cart item');
       const { resetDesign } = useQuoteStore.getState();
       resetDesign();
       
       // Small delay to ensure reset completes before loading new item
       setTimeout(() => {
-        console.log("🔍🔍🔍 [CART MODAL] FULL ITEM DATA:", JSON.stringify(item, null, 2));
-        console.log("🔍🔍🔍 [CART MODAL] item.overlay_image:", item.overlay_image);
-        if (item.overlay_image) {
-          console.log("🔍🔍🔍 [CART MODAL] overlay_image.url:", item.overlay_image.url);
-          console.log("🔍🔍🔍 [CART MODAL] overlay_image.fileKey:", item.overlay_image.fileKey);
-        }
-        console.log('🛒 CART MODAL: Loading cart item into quote store with editingItemId:', itemId);
         loadFromCartItem(item, itemId);
       }, 50);
       
-      console.log('🛒 CART MODAL: item.overlay_image:', item.overlay_image);
-      
-      // Close modal
-      console.log('🛒 CART MODAL: Closing modal and navigating to /design-editor');
+      // Close modal and navigate to advanced design editor page
       onClose();
-      
-      // Navigate to advanced design editor page
       navigate('/design-editor');
-      
-      // Scroll to top
       setTimeout(() => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
-        console.log('✅ CART MODAL: Navigation complete, editingItemId should be set');
       }, 100);
       
     } catch (error) {
-      console.error('❌ CART MODAL: Error in handleEdit:', error);
+      console.error('Error in handleEdit:', error);
       toast({
         title: "Error",
         description: "Failed to load item for editing. Please try again.",
@@ -193,7 +168,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
             <h2 className="text-xl font-bold text-gray-900 flex items-center">
               <ShoppingBag className="h-6 w-6 mr-2 text-[#18448D]" /> Shopping Cart ({items.length})
             </h2>
-            <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
+            <button onClick={onClose} aria-label="Close cart" className="p-2 hover:bg-gray-100 rounded-lg transition-colors">
               <X className="h-6 w-6 text-gray-600" />
             </button>
           </div>
@@ -222,34 +197,9 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                   </p>
                 </div>
                 {items.map((item) => {
-                  console.log('🔍 [CART MODAL] RAW ITEM DATA:', {
-                    id: item.id,
-                    rope_cost_cents: item.rope_cost_cents,
-                    pole_pocket_cost_cents: item.pole_pocket_cost_cents,
-                    rope_feet: item.rope_feet,
-                    pole_pockets: item.pole_pockets,
-                    line_total_cents: item.line_total_cents,
-                    unit_price_cents: item.unit_price_cents
-                  });
-                  
                   const eachCents = computeEach(item);
                   const ropeCost = item.rope_cost_cents || 0;
                   const pocketCost = item.pole_pocket_cost_cents || 0;
-                  
-                  console.log('🔍 [CART MODAL] COMPUTED VALUES:', {
-                    ropeCost,
-                    pocketCost,
-                    eachCents
-                  });
-                  
-                  console.log('🛒 CART MODAL: Pole pocket data:', {
-                    id: item.id,
-                    pole_pockets: item.pole_pockets,
-                    pole_pocket_position: item.pole_pocket_position,
-                    pole_pocket_cost_cents: item.pole_pocket_cost_cents,
-                    pole_pocket_pricing_mode: item.pole_pocket_pricing_mode,
-                    pocketCost
-                  });
 
                   return (
                     <div key={item.id} className="bg-white rounded-xl p-4 shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
@@ -323,7 +273,6 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                                 <span className="text-gray-900 font-medium">{usd(ropeCost/100)}</span>
                               </div>
                             )}
-                            {console.log('🔍 [PRICE BREAKDOWN] Checking pole pocket cost:', { pocketCost, pole_pocket_cost_cents: item.pole_pocket_cost_cents, pole_pockets: item.pole_pockets, willShow: pocketCost > 0 })}
                             {pocketCost > 0 && (
                               <div className="flex justify-between">
                                 <span className="text-gray-600">Pole pockets:</span>

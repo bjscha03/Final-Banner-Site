@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Mail, Phone, MapPin, Linkedin, Send, CheckCircle, AlertCircle } from 'lucide-react';
+import { Mail, MapPin, Linkedin, Send, CheckCircle, AlertCircle } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
+import ScrollToTopLink from '@/components/ScrollToTopLink';
 
 const Footer: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -114,17 +114,12 @@ const Footer: React.FC = () => {
             <ul className="space-y-2">
               {quickLinks.map((link, index) => (
                 <li key={index}>
-                  <Link
+                  <ScrollToTopLink
                     to={link.href}
-                    onClick={() => {
-                      setTimeout(() => {
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                      }, 100);
-                    }}
                     className="text-gray-300 hover:text-orange-400 transition-colors text-sm"
                   >
                     {link.name}
-                  </Link>
+                  </ScrollToTopLink>
                 </li>
               ))}
             </ul>
@@ -136,17 +131,12 @@ const Footer: React.FC = () => {
             <ul className="space-y-2">
               {supportLinks.map((link, index) => (
                 <li key={index}>
-                  <Link
+                  <ScrollToTopLink
                     to={link.href}
-                    onClick={() => {
-                      setTimeout(() => {
-                        window.scrollTo({ top: 0, behavior: 'smooth' });
-                      }, 100);
-                    }}
                     className="text-gray-300 hover:text-orange-400 transition-colors text-sm"
                   >
                     {link.name}
-                  </Link>
+                  </ScrollToTopLink>
                 </li>
               ))}
             </ul>
@@ -218,7 +208,7 @@ const Footer: React.FC = () => {
         <div className="border-t border-gray-800 mt-12 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <p className="text-gray-400 text-sm">
-              © 2024 Banners On The Fly. All rights reserved.
+              © {new Date().getFullYear()} Banners On The Fly. All rights reserved.
             </p>
             <div className="flex items-center space-x-6 mt-4 md:mt-0">
               <span className="text-gray-400 text-sm">Trusted by 10,000+ businesses</span>

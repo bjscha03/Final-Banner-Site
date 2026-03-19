@@ -24,8 +24,20 @@ const Index: React.FC = () => {
         const storedUser = localStorage.getItem('banners_current_user');
         
         if (storedUser) {
-          const user = JSON.parse(storedUser);
-          console.log('✅ User found in localStorage:', user.email);
+          let user: { email?: string } | null = null;
+          try {
+            const parsed = JSON.parse(storedUser);
+            // Ensure the parsed value is a plain object with at least an email
+            if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+              user = parsed as { email?: string };
+            } else {
+              localStorage.removeItem('banners_current_user');
+            }
+          } catch {
+            // Malformed JSON in localStorage – clear it and bail out
+            localStorage.removeItem('banners_current_user');
+          }
+          if (!user) return;
           
           toast({
             title: "Welcome!",
