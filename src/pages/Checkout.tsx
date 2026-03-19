@@ -293,6 +293,9 @@ const Checkout: React.FC = () => {
     );
   }
   
+  // Detect if user came from Google Ads landing page
+  const isFromGoogleAds = sessionStorage.getItem('isGoogleAdsLanding') === 'true' || items.some(item => item.source === 'google-ads');
+
   // Redirect if cart is empty
   if (items.length === 0) {
     return (
@@ -304,10 +307,10 @@ const Checkout: React.FC = () => {
               <h2 className="mt-4 text-2xl font-bold text-[#18448D]">Your cart is empty</h2>
               <p className="mt-2 text-gray-600">Add some items to your cart before checking out.</p>
               <Button
-                onClick={() => navigate('/design')}
+                onClick={() => navigate(isFromGoogleAds ? '/google-ads-banner' : '/design')}
                 className="mt-6"
               >
-                Start Designing
+                {isFromGoogleAds ? 'Order a Banner' : 'Start Designing'}
               </Button>
             </div>
           </div>
@@ -518,6 +521,18 @@ const Checkout: React.FC = () => {
                       </div>
                     </div>
                   );})}
+                </div>
+
+                {/* Add Another Banner button */}
+                <div className="mt-4">
+                  <Button
+                    variant="outline"
+                    onClick={() => navigate(isFromGoogleAds ? '/google-ads-banner' : '/design')}
+                    className="w-full border-dashed border-2 border-gray-300 text-gray-600 hover:border-[#18448D] hover:text-[#18448D] hover:bg-blue-50 transition-all py-3"
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Another Banner
+                  </Button>
                 </div>
 
                 {/* Discount Code Section */}
