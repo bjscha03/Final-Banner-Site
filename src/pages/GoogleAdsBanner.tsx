@@ -589,12 +589,12 @@ const GoogleAdsBanner: React.FC = () => {
                       )}
                     </div>
                   ) : (
-                    <div className="border-2 rounded-xl overflow-visible bg-green-50 border-green-300 shadow-sm">
+                    <div className="border-2 rounded-xl bg-green-50 border-green-300 shadow-sm">
                       {/* Interactive inline preview - drag to reposition, zoom controls */}
                       <p className="text-xs text-gray-500 px-3 pt-2 flex items-center gap-1"><Move className="w-3.5 h-3.5" /> Drag to reposition · Use buttons to zoom</p>
                       <div
                         ref={previewContainerRef}
-                        className="relative bg-gray-100 mx-auto border border-dashed border-gray-300 rounded-lg select-none"
+                        className="relative bg-gray-100 mx-auto border border-dashed border-gray-300 rounded-lg select-none overflow-hidden"
                         style={{ aspectRatio: `${widthIn || 96} / ${heightIn || 48}`, maxHeight: '260px', maxWidth: '100%', cursor: isDraggingPreview ? "grabbing" : "grab", touchAction: "none" }}
                         onMouseDown={onPreviewMouseDown}
                         onMouseMove={onPreviewMouseMove}
@@ -875,7 +875,7 @@ const GoogleAdsBanner: React.FC = () => {
             <div className="p-4 flex-1 overflow-auto">
               <p className="text-sm text-gray-500 mb-3 flex items-center gap-1"><Move className="w-4 h-4" /> Drag to reposition · Pinch or use buttons to zoom</p>
               <div
-                className="relative w-full border-2 border-dashed border-gray-300 rounded-lg select-none"
+                className="relative w-full border-2 border-dashed border-gray-300 rounded-lg select-none overflow-hidden"
                 style={{ aspectRatio: `${widthIn} / ${heightIn}`, cursor: isDraggingPreview ? "grabbing" : "grab", touchAction: "none" }}
                 onMouseDown={onPreviewMouseDown}
                 onMouseMove={onPreviewMouseMove}
