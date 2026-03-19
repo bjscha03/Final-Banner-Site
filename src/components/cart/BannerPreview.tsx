@@ -16,6 +16,7 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { Grommets } from '@/store/quote';
 import { Image as ImageIcon, Loader2 } from 'lucide-react';
+import { grommetRadius as calcGrommetRadius } from '@/lib/preview/grommets';
 
 import { TextElement } from '@/store/quote';
 
@@ -210,8 +211,8 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   const viewBoxWidth = widthIn;
   const viewBoxHeight = heightIn;
   
-  // Grommet radius (scaled to banner dimensions)
-  const grommetRadius = Math.min(widthIn, heightIn) * 0.03;
+  // Grommet radius (using proper scaling function from grommets.ts)
+  const grommetRadius = calcGrommetRadius(widthIn, heightIn);
 
   // PRIORITY 0: Design Service placeholder - show branded placeholder for design service orders
   if (designServiceEnabled) {
@@ -257,12 +258,12 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
           {grommets !== 'none' && grommetPositions.map((pos, idx) => {
             const leftPercent = (pos.x / widthIn) * 100;
             const topPercent = (pos.y / heightIn) * 100;
-            const grommetSizePx = (grommetRadius / widthIn) * previewWidth * 2;
+            const grommetSizePx = Math.max(5, (grommetRadius / widthIn) * previewWidth * 2);
 
             return (
               <div
                 key={`grommet-ds-${idx}`}
-                className="absolute rounded-full bg-gray-700 border-2 border-gray-500"
+                className="absolute rounded-full bg-gray-700 border border-gray-400"
                 style={{
                   left: `${leftPercent}%`,
                   top: `${topPercent}%`,
@@ -339,12 +340,12 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
             {grommetPositions.map((pos, idx) => {
               const leftPercent = (pos.x / widthIn) * 100;
               const topPercent = (pos.y / heightIn) * 100;
-              const grommetSizePx = (grommetRadius / widthIn) * previewWidth * 2;
+              const grommetSizePx = Math.max(5, (grommetRadius / widthIn) * previewWidth * 2);
               
               return (
                 <div
                   key={`grommet-canvas-${idx}`}
-                  className="absolute rounded-full bg-gray-700 border-2 border-gray-500"
+                  className="absolute rounded-full bg-gray-700 border border-gray-400"
                   style={{
                     left: `${leftPercent}%`,
                     top: `${topPercent}%`,
@@ -457,12 +458,12 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
             const leftPercent = (pos.x / widthIn) * 100;
             const topPercent = (pos.y / heightIn) * 100;
             // Convert grommet radius from inches to pixels (approximate)
-            const grommetSizePx = (grommetRadius / widthIn) * previewWidth * 2;
+            const grommetSizePx = Math.max(5, (grommetRadius / widthIn) * previewWidth * 2);
             
             return (
               <div
                 key={`grommet-mobile-${idx}`}
-                className="absolute rounded-full bg-gray-700 border-2 border-gray-500"
+                className="absolute rounded-full bg-gray-700 border border-gray-400"
                 style={{
                   left: `${leftPercent}%`,
                   top: `${topPercent}%`,
