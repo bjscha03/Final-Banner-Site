@@ -82,10 +82,16 @@ const GoogleAdsBanner: React.FC = () => {
   const orderRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [widthFt, setWidthFt] = useState(8);
-  const [widthInR, setWidthInR] = useState(0);
-  const [heightFt, setHeightFt] = useState(4);
-  const [heightInR, setHeightInR] = useState(0);
+  // Use string state for dimension inputs so users can clear and retype freely
+  const [widthFtStr, setWidthFtStr] = useState('8');
+  const [widthInRStr, setWidthInRStr] = useState('0');
+  const [heightFtStr, setHeightFtStr] = useState('4');
+  const [heightInRStr, setHeightInRStr] = useState('0');
+  // Derived numeric values for calculations (treat empty as 0)
+  const widthFt = parseInt(widthFtStr, 10) || 0;
+  const widthInR = parseInt(widthInRStr, 10) || 0;
+  const heightFt = parseInt(heightFtStr, 10) || 0;
+  const heightInR = parseInt(heightInRStr, 10) || 0;
   const [material, setMaterial] = useState<MaterialKey>('13oz');
   const [grommets, setGrommets] = useState('none');
   const [polePockets, setPolePockets] = useState('none');
@@ -160,10 +166,10 @@ const GoogleAdsBanner: React.FC = () => {
 
   const applyPreset = (idx: number) => {
     const p = PRESET_SIZES[idx];
-    setWidthFt(Math.floor(p.w / 12));
-    setWidthInR(p.w % 12);
-    setHeightFt(Math.floor(p.h / 12));
-    setHeightInR(p.h % 12);
+    setWidthFtStr(String(Math.floor(p.w / 12)));
+    setWidthInRStr(String(p.w % 12));
+    setHeightFtStr(String(Math.floor(p.h / 12)));
+    setHeightInRStr(String(p.h % 12));
     setActivePreset(idx);
   };
 
@@ -242,15 +248,7 @@ const GoogleAdsBanner: React.FC = () => {
     if (f) handleFileUpload(f);
   }, [handleFileUpload]);
 
-  // Open preview modal instead of going straight to checkout
-  const handleCheckout = useCallback(() => {
-    if (!uploadedFile) return;
-    setImgPos({ x: 0, y: 0 });
-    setImgScale(1);
-    setShowPreview(true);
-  }, [uploadedFile]);
-
-// Actually perform checkout after upsell decision
+  // Actually perform checkout after upsell decision
   const performCheckout = useCallback((selectedOptions: UpsellOption[], directData?: { pos: { x: number; y: number }, scale: number }) => {
     const checkoutData = directData || pendingCheckoutData;
     if (!uploadedFile || !checkoutData) return;
@@ -303,6 +301,29 @@ const GoogleAdsBanner: React.FC = () => {
     setPendingCheckoutData(null);
     navigate('/checkout');
   }, [uploadedFile, pendingCheckoutData, grommets, addRope, polePockets, widthIn, heightIn, quantity, material, quoteStore, cartStore, setIsCartOpen, navigate]);
+
+  // Proceed directly to checkout using current inline preview position
+  const handleCheckout = useCallback(() => {
+    if (!uploadedFile) return;
+    // Convert pixel position to percentage for responsive thumbnail display
+    const container = previewContainerRef.current;
+    const containerWidth = container?.offsetWidth || 1;
+    const containerHeight = container?.offsetHeight || 1;
+    const posPercent = {
+      x: (imgPos.x / containerWidth) * 100,
+      y: (imgPos.y / containerHeight) * 100
+    };
+    setPendingCheckoutData({ pos: posPercent, scale: imgScale });
+
+    // Skip upsell if all options are already selected
+    const hasFinishing = grommets !== 'none' || polePockets !== 'none';
+    const hasRope = addRope;
+    if (hasFinishing && hasRope) {
+      performCheckout([], { pos: posPercent, scale: imgScale });
+    } else {
+      setShowUpsellModal(true);
+    }
+  }, [uploadedFile, imgPos, imgScale, grommets, polePockets, addRope, performCheckout]);
 
 
 // Trigger upsell modal after confirming position
@@ -524,18 +545,18 @@ const GoogleAdsBanner: React.FC = () => {
                     <div>
                       <span className="text-xs text-gray-500">Width</span>
                       <div className="flex gap-1 mt-1">
-                        <input type="number" min={1} max={50} value={widthFt} onChange={e => { setWidthFt(+e.target.value); setActivePreset(null); }} className="w-16 border rounded-lg px-2 py-1.5 text-sm" />
+                        <input type="number" min={1} max={50} value={widthFtStr} onChange={e => { setWidthFtStr(e.target.value); setActivePreset(null); }} onBlur={() => { const n = parseInt(widthFtStr, 10); setWidthFtStr(String(isNaN(n) ? 1 : Math.max(1, Math.min(50, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
                         <span className="self-center text-xs text-gray-500">ft</span>
-                        <input type="number" min={0} max={11} value={widthInR} onChange={e => { setWidthInR(+e.target.value); setActivePreset(null); }} className="w-16 border rounded-lg px-2 py-1.5 text-sm" />
+                        <input type="number" min={0} max={11} value={widthInRStr} onChange={e => { setWidthInRStr(e.target.value); setActivePreset(null); }} onBlur={() => { const n = parseInt(widthInRStr, 10); setWidthInRStr(String(isNaN(n) ? 0 : Math.max(0, Math.min(11, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
                         <span className="self-center text-xs text-gray-500">in</span>
                       </div>
                     </div>
                     <div>
                       <span className="text-xs text-gray-500">Height</span>
                       <div className="flex gap-1 mt-1">
-                        <input type="number" min={1} max={50} value={heightFt} onChange={e => { setHeightFt(+e.target.value); setActivePreset(null); }} className="w-16 border rounded-lg px-2 py-1.5 text-sm" />
+                        <input type="number" min={1} max={50} value={heightFtStr} onChange={e => { setHeightFtStr(e.target.value); setActivePreset(null); }} onBlur={() => { const n = parseInt(heightFtStr, 10); setHeightFtStr(String(isNaN(n) ? 1 : Math.max(1, Math.min(50, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
                         <span className="self-center text-xs text-gray-500">ft</span>
-                        <input type="number" min={0} max={11} value={heightInR} onChange={e => { setHeightInR(+e.target.value); setActivePreset(null); }} className="w-16 border rounded-lg px-2 py-1.5 text-sm" />
+                        <input type="number" min={0} max={11} value={heightInRStr} onChange={e => { setHeightInRStr(e.target.value); setActivePreset(null); }} onBlur={() => { const n = parseInt(heightInRStr, 10); setHeightInRStr(String(isNaN(n) ? 0 : Math.max(0, Math.min(11, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
                         <span className="self-center text-xs text-gray-500">in</span>
                       </div>
                     </div>
@@ -544,7 +565,7 @@ const GoogleAdsBanner: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Material</label>
-                  <select value={MATERIALS.find(m => m.mapped === material)?.key || '13oz'} onChange={e => { const sel = MATERIALS.find(m => m.key === e.target.value); if (sel) setMaterial(sel.mapped); }} className="w-full border rounded-xl px-3 py-2.5 text-sm bg-white">
+                  <select value={MATERIALS.find(m => m.mapped === material)?.key || '13oz'} onChange={e => { const sel = MATERIALS.find(m => m.key === e.target.value); if (sel) setMaterial(sel.mapped); }} className="w-full border rounded-xl px-3 py-2.5 text-base bg-white">
                     {MATERIALS.map(m => (<option key={m.key} value={m.key}>{m.label}</option>))}
                   </select>
                   <p className="text-xs text-gray-400 mt-1.5">{MATERIALS.find(m => m.mapped === material)?.desc}</p>
@@ -568,21 +589,57 @@ const GoogleAdsBanner: React.FC = () => {
                       )}
                     </div>
                   ) : (
-                    <div className="border-2 rounded-xl overflow-hidden bg-green-50 border-green-300 shadow-sm">
-                      {/* Thumbnail preview of uploaded file */}
-                      <div className="relative bg-gray-100 mx-auto" style={{ aspectRatio: `${widthIn || 96} / ${heightIn || 48}`, maxHeight: '200px', maxWidth: '100%' }}>
-                        <img
-                          src={uploadedFile.thumbnailUrl || uploadedFile.url}
-                          alt="Uploaded artwork preview"
-                          className="absolute inset-0 w-full h-full object-contain"
-                        />
+                    <div className="border-2 rounded-xl overflow-visible bg-green-50 border-green-300 shadow-sm">
+                      {/* Interactive inline preview - drag to reposition, zoom controls */}
+                      <p className="text-xs text-gray-500 px-3 pt-2 flex items-center gap-1"><Move className="w-3.5 h-3.5" /> Drag to reposition · Use buttons to zoom</p>
+                      <div
+                        ref={previewContainerRef}
+                        className="relative bg-gray-100 mx-auto border border-dashed border-gray-300 rounded-lg select-none"
+                        style={{ aspectRatio: `${widthIn || 96} / ${heightIn || 48}`, maxHeight: '260px', maxWidth: '100%', cursor: isDraggingPreview ? "grabbing" : "grab", touchAction: "none" }}
+                        onMouseDown={onPreviewMouseDown}
+                        onMouseMove={onPreviewMouseMove}
+                        onMouseUp={onPreviewMouseUp}
+                        onMouseLeave={onPreviewMouseUp}
+                        onTouchStart={onPreviewTouchStart}
+                        onTouchMove={onPreviewTouchMove}
+                        onTouchEnd={onPreviewTouchEnd}
+                      >
+                        <div
+                          className="absolute inset-0 w-full h-full"
+                          style={{ transform: `translate(${imgPos.x}px, ${imgPos.y}px) scale(${imgScale})` }}
+                        >
+                          <img
+                            src={uploadedFile.thumbnailUrl || uploadedFile.url}
+                            alt="Uploaded artwork preview"
+                            className="absolute inset-0 w-full h-full pointer-events-none object-contain"
+                            draggable={false}
+                          />
+                        </div>
+                        {/* Grommet overlay on inline preview */}
+                        {grommets !== "none" && calcGrommetPts(widthIn, heightIn, grommets).map((pos, idx) => {
+                          const leftPct = (pos.x / widthIn) * 100;
+                          const topPct = (pos.y / heightIn) * 100;
+                          const dotSize = Math.max(5, Math.min(10, 150 / Math.max(widthIn, heightIn)));
+                          return (
+                            <div key={`inline-grommet-${idx}`} className="absolute rounded-full pointer-events-none" style={{ left: `${leftPct}%`, top: `${topPct}%`, width: `${dotSize}px`, height: `${dotSize}px`, transform: "translate(-50%, -50%)", background: "radial-gradient(circle at 30% 30%, #e2e8f0, #4a5568)", border: "1px solid #2d3748", boxShadow: "inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 1px rgba(0,0,0,0.2)", zIndex: 10 }}>
+                              <div className="absolute rounded-full" style={{ left: "50%", top: "50%", width: "50%", height: "50%", transform: "translate(-50%, -50%)", background: "#f7fafc", border: "0.5px solid #cbd5e0" }} />
+                            </div>
+                          );
+                        })}
                       </div>
-                      <div className="p-3 flex items-center justify-between">
+                      {/* Zoom controls */}
+                      <div className="flex items-center justify-center gap-3 py-2">
+                        <button onClick={() => setImgScale(s => Math.max(0.5, s - 0.1))} className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200"><ZoomOut className="w-4 h-4" /></button>
+                        <span className="text-xs font-medium text-gray-600">{Math.round(imgScale * 100)}%</span>
+                        <button onClick={() => setImgScale(s => Math.min(3, s + 0.1))} className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200"><ZoomIn className="w-4 h-4" /></button>
+                        <button onClick={() => { setImgPos({ x: 0, y: 0 }); setImgScale(1); }} className="text-xs text-orange-600 hover:text-orange-700 font-medium ml-1 py-1 px-2">Reset</button>
+                      </div>
+                      <div className="p-3 flex items-center justify-between border-t border-green-200">
                         <div className="flex items-center gap-2 min-w-0">
                           <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
                           <span className="text-sm font-semibold text-green-800 truncate">{uploadedFile.name}</span>
                         </div>
-                        <button onClick={() => { setUploadedFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="ml-2 flex-shrink-0 p-1.5 rounded-full hover:bg-green-100 text-gray-500 hover:text-gray-700 transition-colors"><X className="h-4 w-4" /></button>
+                        <button onClick={() => { setUploadedFile(null); setImgPos({ x: 0, y: 0 }); setImgScale(1); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="ml-2 flex-shrink-0 p-1.5 rounded-full hover:bg-green-100 text-gray-500 hover:text-gray-700 transition-colors"><X className="h-4 w-4" /></button>
                       </div>
                     </div>
                   )}
@@ -595,7 +652,7 @@ const GoogleAdsBanner: React.FC = () => {
                     <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="w-9 h-9 flex items-center justify-center border border-gray-200 rounded-xl hover:border-gray-400 transition-colors">
                       <Minus className="h-4 w-4 text-gray-600" />
                     </button>
-                    <input type="number" min={1} max={999} value={quantity} onChange={e => setQuantity(Math.max(1, +e.target.value || 1))} className="w-20 border rounded-xl px-3 py-1.5 text-sm text-center" />
+                    <input type="number" min={1} max={999} value={quantity} onChange={e => setQuantity(Math.max(1, +e.target.value || 1))} className="w-20 border rounded-xl px-3 py-1.5 text-base text-center" />
                     <button onClick={() => setQuantity(q => Math.min(999, q + 1))} className="w-9 h-9 flex items-center justify-center border border-gray-200 rounded-xl hover:border-gray-400 transition-colors">
                       <Plus className="h-4 w-4 text-gray-600" />
                     </button>
@@ -614,13 +671,13 @@ const GoogleAdsBanner: React.FC = () => {
                   <div className="space-y-3">
                     <div>
                       <span className="text-xs text-gray-600">Grommets</span>
-                      <select value={grommets} onChange={e => setGrommets(e.target.value)} className="w-full border rounded-xl px-3 py-1.5 text-sm mt-1 bg-white">
+                      <select value={grommets} onChange={e => setGrommets(e.target.value)} className="w-full border rounded-xl px-3 py-1.5 text-base mt-1 bg-white">
                         {DESIGN_GROMMET_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                       </select>
                     </div>
                     <div>
                       <span className="text-xs text-gray-600">Pole Pockets</span>
-                      <select value={polePockets} onChange={e => setPolePockets(e.target.value)} className="w-full border rounded-xl px-3 py-1.5 text-sm mt-1 bg-white">
+                      <select value={polePockets} onChange={e => setPolePockets(e.target.value)} className="w-full border rounded-xl px-3 py-1.5 text-base mt-1 bg-white">
                         <option value="none">None</option>
                         <option value="top">Top</option>
                         <option value="bottom">Bottom</option>
@@ -675,7 +732,7 @@ const GoogleAdsBanner: React.FC = () => {
                           value={promoCode}
                           onChange={e => setPromoCode(e.target.value.toUpperCase())}
                           placeholder="Promo Code"
-                          className="flex-1 border rounded-xl px-3 py-2 text-sm"
+                          className="flex-1 border rounded-xl px-3 py-2 text-base"
                         />
                         <button onClick={handlePromoApply} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium">
                           Apply
@@ -700,7 +757,7 @@ const GoogleAdsBanner: React.FC = () => {
                 </div>
 
                 <button onClick={handleCheckout} disabled={!uploadedFile} className={`group w-full font-bold text-lg py-5 rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${uploadedFile ? 'bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white cursor-pointer shadow-orange-500/30' : 'bg-orange-300 text-white/80 cursor-not-allowed'}`}>
-                  Upload &amp; Checkout
+                  Checkout
                   <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
                 </button>
                 {/* Friday shipping badge */}
@@ -818,8 +875,7 @@ const GoogleAdsBanner: React.FC = () => {
             <div className="p-4 flex-1 overflow-auto">
               <p className="text-sm text-gray-500 mb-3 flex items-center gap-1"><Move className="w-4 h-4" /> Drag to reposition · Pinch or use buttons to zoom</p>
               <div
-                ref={previewContainerRef}
-                className="relative w-full border-2 border-dashed border-gray-300 rounded-lg overflow-hidden select-none"
+                className="relative w-full border-2 border-dashed border-gray-300 rounded-lg select-none"
                 style={{ aspectRatio: `${widthIn} / ${heightIn}`, cursor: isDraggingPreview ? "grabbing" : "grab", touchAction: "none" }}
                 onMouseDown={onPreviewMouseDown}
                 onMouseMove={onPreviewMouseMove}
