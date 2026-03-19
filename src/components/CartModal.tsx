@@ -328,7 +328,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                               className="flex items-center gap-1 px-2.5 py-1.5 bg-[#18448D] hover:bg-[#0f2d5c] text-white rounded-lg text-xs font-medium transition-colors shadow-sm hover:shadow-md"
                               aria-label="Order another banner"
                             >
-                              <Edit className="h-3.5 w-3.5" />
+                              <Plus className="h-3.5 w-3.5" />
                               <span>New Banner</span>
                             </button>
                           )}

@@ -570,7 +570,7 @@ const GoogleAdsBanner: React.FC = () => {
                   ) : (
                     <div className="border-2 rounded-xl overflow-hidden bg-green-50 border-green-300 shadow-sm">
                       {/* Thumbnail preview of uploaded file */}
-                      <div className="relative w-full bg-gray-100" style={{ aspectRatio: `${widthIn} / ${heightIn}`, maxHeight: '200px' }}>
+                      <div className="relative w-full bg-gray-100" style={{ aspectRatio: `${widthIn || 96} / ${heightIn || 48}`, maxHeight: '200px' }}>
                         <img
                           src={uploadedFile.thumbnailUrl || uploadedFile.url}
                           alt="Uploaded artwork preview"
@@ -843,6 +843,9 @@ const GoogleAdsBanner: React.FC = () => {
                   {['top-left', 'top-right', 'bottom-left', 'bottom-right'].map((corner) => (
                     <div
                       key={corner}
+                      role="slider"
+                      aria-label={`Resize from ${corner} corner`}
+                      tabIndex={0}
                       onMouseDown={onCornerMouseDown}
                       className="absolute w-7 h-7 sm:w-5 sm:h-5 bg-white border-2 border-orange-500 rounded-sm z-20 hover:bg-orange-50 pointer-events-auto shadow-md"
                       style={{
