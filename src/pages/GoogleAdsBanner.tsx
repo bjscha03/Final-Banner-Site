@@ -552,7 +552,7 @@ const GoogleAdsBanner: React.FC = () => {
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Upload Your Artwork</label>
                   {!uploadedFile ? (
-                    <div onDrop={onDrop} onDragOver={e => { e.preventDefault(); setDragActive(true); }} onDragLeave={() => setDragActive(false)} onClick={() => fileInputRef.current?.click()} className={`border-2 border-dashed rounded-xl p-10 text-center cursor-pointer transition-all duration-200 ${dragActive ? 'border-orange-400 bg-orange-50 scale-[1.01] shadow-md' : 'border-gray-300 bg-gray-50/50 hover:border-orange-300 hover:bg-orange-50/30'}`}>
+                    <div onDrop={onDrop} onDragOver={e => { e.preventDefault(); setDragActive(true); }} onDragLeave={() => setDragActive(false)} onClick={() => fileInputRef.current?.click()} className={`border-2 border-dashed rounded-xl p-6 md:p-10 text-center cursor-pointer transition-all duration-200 ${dragActive ? 'border-orange-400 bg-orange-50 scale-[1.01] shadow-md' : 'border-gray-300 bg-gray-50/50 hover:border-orange-300 hover:bg-orange-50/30'}`}>
                       <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,application/pdf,.png,.jpg,.jpeg,.pdf" onChange={e => { const f = e.target.files?.[0]; if (f) handleFileUpload(f); }} className="hidden" />
                       {isUploading ? (
                         <div className="flex flex-col items-center">
@@ -568,13 +568,22 @@ const GoogleAdsBanner: React.FC = () => {
                       )}
                     </div>
                   ) : (
-                    <div className="border-2 rounded-xl p-4 flex items-center justify-between bg-green-50 border-green-300 shadow-sm">
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="h-5 w-5 text-green-600" />
-                        <span className="text-sm font-semibold text-green-800">File Ready ✓</span>
-                        <span className="text-sm font-semibold text-green-800 truncate max-w-[160px]">{uploadedFile.name}</span>
+                    <div className="border-2 rounded-xl overflow-hidden bg-green-50 border-green-300 shadow-sm">
+                      {/* Thumbnail preview of uploaded file */}
+                      <div className="relative w-full bg-gray-100" style={{ aspectRatio: `${widthIn} / ${heightIn}`, maxHeight: '200px' }}>
+                        <img
+                          src={uploadedFile.thumbnailUrl || uploadedFile.url}
+                          alt="Uploaded artwork preview"
+                          className="absolute inset-0 w-full h-full object-contain"
+                        />
                       </div>
-                      <button onClick={() => { setUploadedFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="text-gray-400 hover:text-gray-600 transition-colors"><X className="h-4 w-4" /></button>
+                      <div className="p-3 flex items-center justify-between">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
+                          <span className="text-sm font-semibold text-green-800 truncate">{uploadedFile.name}</span>
+                        </div>
+                        <button onClick={() => { setUploadedFile(null); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="ml-2 flex-shrink-0 p-1.5 rounded-full hover:bg-green-100 text-gray-500 hover:text-gray-700 transition-colors"><X className="h-4 w-4" /></button>
+                      </div>
                     </div>
                   )}
                   {uploadError && <p className="text-xs text-red-600 mt-2">{uploadError}</p>}
@@ -761,7 +770,7 @@ const GoogleAdsBanner: React.FC = () => {
           </div>
         </section>
 
-        <div className="py-4 text-center text-xs text-gray-400 border-t border-gray-100">
+        <div className="py-4 pb-24 md:pb-4 text-center text-xs text-gray-400 border-t border-gray-100">
           <div className="mb-2">
             <Link to="/terms" className="hover:text-gray-600">Terms</Link>
             <span className="mx-2">&middot;</span>
@@ -798,11 +807,11 @@ const GoogleAdsBanner: React.FC = () => {
 
       {/* Preview Modal */}
       {showPreview && uploadedFile && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[90vh] flex flex-col">
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm sm:p-4">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-3xl w-full max-h-[95vh] sm:max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between p-4 border-b">
               <h3 className="text-lg font-bold text-gray-900">Position Your Image</h3>
-              <button onClick={() => setShowPreview(false)} className="p-1 hover:bg-gray-100 rounded-full">
+              <button onClick={() => setShowPreview(false)} className="p-2 hover:bg-gray-100 rounded-full">
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -830,12 +839,12 @@ const GoogleAdsBanner: React.FC = () => {
                     className="absolute inset-0 w-full h-full pointer-events-none object-cover"
                     draggable={false}
                   />
-                  {/* Corner resize handles - positioned at image corners */}
+                  {/* Corner resize handles - larger touch targets on mobile */}
                   {['top-left', 'top-right', 'bottom-left', 'bottom-right'].map((corner) => (
                     <div
                       key={corner}
                       onMouseDown={onCornerMouseDown}
-                      className="absolute w-4 h-4 bg-white border-2 border-orange-500 rounded-sm z-20 hover:bg-orange-50 pointer-events-auto shadow-md"
+                      className="absolute w-7 h-7 sm:w-5 sm:h-5 bg-white border-2 border-orange-500 rounded-sm z-20 hover:bg-orange-50 pointer-events-auto shadow-md"
                       style={{
                         top: corner.includes('top') ? 0 : 'auto',
                         bottom: corner.includes('bottom') ? 0 : 'auto',
@@ -859,16 +868,16 @@ const GoogleAdsBanner: React.FC = () => {
                   );
                 })}
               </div>
-              <div className="flex items-center justify-center gap-4 mt-3">
-                <button onClick={() => setImgScale(s => Math.max(0.5, s - 0.1))} className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200"><ZoomOut className="w-5 h-5" /></button>
+              <div className="flex items-center justify-center gap-3 sm:gap-4 mt-3">
+                <button onClick={() => setImgScale(s => Math.max(0.5, s - 0.1))} className="p-3 sm:p-2 rounded-lg bg-gray-100 hover:bg-gray-200"><ZoomOut className="w-5 h-5" /></button>
                 <span className="text-sm font-medium text-gray-600">{Math.round(imgScale * 100)}%</span>
-                <button onClick={() => setImgScale(s => Math.min(3, s + 0.1))} className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200"><ZoomIn className="w-5 h-5" /></button>
-                <button onClick={() => { setImgPos({ x: 0, y: 0 }); setImgScale(1); }} className="text-sm text-orange-600 hover:text-orange-700 font-medium ml-2">Reset</button>
+                <button onClick={() => setImgScale(s => Math.min(3, s + 0.1))} className="p-3 sm:p-2 rounded-lg bg-gray-100 hover:bg-gray-200"><ZoomIn className="w-5 h-5" /></button>
+                <button onClick={() => { setImgPos({ x: 0, y: 0 }); setImgScale(1); }} className="text-sm text-orange-600 hover:text-orange-700 font-medium ml-2 py-2 px-3">Reset</button>
               </div>
             </div>
             <div className="flex gap-3 p-4 border-t">
-              <button onClick={() => setShowPreview(false)} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50">Cancel</button>
-              <button onClick={() => handleConfirmPosition(imgPos, imgScale)} className="flex-1 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold shadow-lg">Confirm & Checkout</button>
+              <button onClick={() => setShowPreview(false)} className="flex-1 py-3.5 sm:py-3 rounded-xl border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50">Cancel</button>
+              <button onClick={() => handleConfirmPosition(imgPos, imgScale)} className="flex-1 py-3.5 sm:py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold shadow-lg">Confirm & Checkout</button>
             </div>
           </div>
         </div>

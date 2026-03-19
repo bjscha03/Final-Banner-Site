@@ -322,6 +322,16 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                               <span>Edit</span>
                             </button>
                           )}
+                          {item.source === 'google-ads' && (
+                            <button 
+                              onClick={() => { onClose(); navigate('/google-ads-banner'); }} 
+                              className="flex items-center gap-1 px-2.5 py-1.5 bg-[#18448D] hover:bg-[#0f2d5c] text-white rounded-lg text-xs font-medium transition-colors shadow-sm hover:shadow-md"
+                              aria-label="Order another banner"
+                            >
+                              <Edit className="h-3.5 w-3.5" />
+                              <span>New Banner</span>
+                            </button>
+                          )}
                           <button 
                             onClick={() => removeItem(item.id)} 
                             className="flex items-center gap-1 px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-xs font-medium transition-colors"
