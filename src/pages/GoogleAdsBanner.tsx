@@ -9,7 +9,7 @@ import { calcTotals, usd, PRICE_PER_SQFT } from '@/lib/pricing';
 import { DESIGN_GROMMET_OPTIONS } from '@/lib/grommets';
 import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
 import CartModal from '@/components/CartModal';
-import { getEstimatedDeliveryDate, formatDeliveryDate } from '@/lib/deliveryTimeHelpers';
+
 import { getQuantityDiscountRate } from '@/lib/quantity-discount';
 
 const PRESET_SIZES = [
@@ -161,12 +161,6 @@ const GoogleAdsBanner: React.FC = () => {
   const grommetsLabel = DESIGN_GROMMET_OPTIONS.find(o => o.value === grommets)?.label || 'None';
   const widthDisplay = widthInR > 0 ? `${widthFt}'${widthInR}"` : `${widthFt}'`;
   const heightDisplay = heightInR > 0 ? `${heightFt}'${heightInR}"` : `${heightFt}'`;
-
-  // Dynamic delivery estimate
-  const deliveryEstimate = useMemo(() => {
-    const deliveryDate = getEstimatedDeliveryDate(new Date());
-    return formatDeliveryDate(deliveryDate);
-  }, []);
 
   // Quantity discount info
   const quantityDiscountRate = getQuantityDiscountRate(quantity);
@@ -799,7 +793,7 @@ const GoogleAdsBanner: React.FC = () => {
                 </button>
                 {/* Friday shipping badge */}
                 <div className="flex items-center justify-center gap-2 mt-3 py-2 px-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <span className="text-sm font-medium text-blue-700">📦 Order now, estimated delivery {deliveryEstimate}.</span>
+                  <span className="text-sm font-medium text-blue-700">📦 Orders made on Friday will be delivered on Tuesday.</span>
                 </div>
                 <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400 mt-1">
                   <Lock className="h-3 w-3" />
