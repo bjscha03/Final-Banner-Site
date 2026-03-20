@@ -140,18 +140,20 @@ const GoogleAdsBanner: React.FC = () => {
     setImgScale(1);
   }, [widthIn, heightIn]);
 
-  // Compute responsive preview canvas style based on banner dimensions
-  const previewCanvasStyle = useMemo(() => {
+  // Compute responsive canvas style for a given max height, preserving banner aspect ratio
+  const getCanvasStyle = useCallback((maxH: number) => {
     const w = widthIn || 96;
     const h = heightIn || 48;
     const ar = w / h;
-    const maxH = 260;
     return {
       aspectRatio: `${w} / ${h}`,
       width: `min(100%, ${Math.round(maxH * ar)}px)`,
       maxHeight: `${maxH}px`,
     };
   }, [widthIn, heightIn]);
+
+  const previewCanvasStyle = useMemo(() => getCanvasStyle(260), [getCanvasStyle]);
+  const dimPreviewCanvasStyle = useMemo(() => getCanvasStyle(140), [getCanvasStyle]);
   const totals = calcTotals({ widthIn, heightIn, qty: quantity, material, addRope, polePockets });
 
   const pricePerSqFt = PRICE_PER_SQFT[material];
@@ -585,11 +587,7 @@ const GoogleAdsBanner: React.FC = () => {
                   <div className="mt-3 flex justify-center">
                     <div
                       className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg relative transition-all duration-300 ease-out"
-                      style={{
-                        aspectRatio: `${widthIn || 96} / ${heightIn || 48}`,
-                        width: `min(100%, ${Math.round(140 * ((widthIn || 96) / (heightIn || 48)))}px)`,
-                        maxHeight: '140px',
-                      }}
+                      style={dimPreviewCanvasStyle}
                     >
                       <div className="absolute inset-0 flex items-center justify-center">
                         <span className="text-xs text-gray-400 font-medium whitespace-nowrap">
