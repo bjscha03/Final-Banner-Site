@@ -133,6 +133,25 @@ const GoogleAdsBanner: React.FC = () => {
   const widthIn = widthFt * 12 + widthInR;
   const heightIn = heightFt * 12 + heightInR;
   const sqft = (widthIn * heightIn) / 144;
+
+  // Reset image position/scale when dimensions change to prevent clipping
+  useEffect(() => {
+    setImgPos({ x: 0, y: 0 });
+    setImgScale(1);
+  }, [widthIn, heightIn]);
+
+  // Compute responsive preview canvas style based on banner dimensions
+  const previewCanvasStyle = useMemo(() => {
+    const w = widthIn || 96;
+    const h = heightIn || 48;
+    const ar = w / h;
+    const maxH = 260;
+    return {
+      aspectRatio: `${w} / ${h}`,
+      width: `min(100%, ${Math.round(maxH * ar)}px)`,
+      maxHeight: `${maxH}px`,
+    };
+  }, [widthIn, heightIn]);
   const totals = calcTotals({ widthIn, heightIn, qty: quantity, material, addRope, polePockets });
 
   const pricePerSqFt = PRICE_PER_SQFT[material];
@@ -568,7 +587,7 @@ const GoogleAdsBanner: React.FC = () => {
                       className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg relative transition-all duration-300 ease-out"
                       style={{
                         aspectRatio: `${widthIn || 96} / ${heightIn || 48}`,
-                        width: `min(100%, ${140 * ((widthIn || 96) / (heightIn || 48))}px)`,
+                        width: `min(100%, ${Math.round(140 * ((widthIn || 96) / (heightIn || 48)))}px)`,
                         maxHeight: '140px',
                       }}
                     >
@@ -590,7 +609,7 @@ const GoogleAdsBanner: React.FC = () => {
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Upload Your Artwork</label>
                   {!uploadedFile ? (
-                    <div onDrop={onDrop} onDragOver={e => { e.preventDefault(); setDragActive(true); }} onDragLeave={() => setDragActive(false)} onClick={() => fileInputRef.current?.click()} className={`relative border-2 border-dashed rounded-xl text-center cursor-pointer transition-all duration-200 overflow-hidden ${dragActive ? 'border-orange-400 bg-orange-50 scale-[1.01] shadow-md' : 'border-gray-300 bg-gray-50/50 hover:border-orange-300 hover:bg-orange-50/30'}`} style={{ aspectRatio: `${widthIn || 96} / ${heightIn || 48}`, maxHeight: '260px', maxWidth: '100%', minHeight: '100px' }}>
+                    <div onDrop={onDrop} onDragOver={e => { e.preventDefault(); setDragActive(true); }} onDragLeave={() => setDragActive(false)} onClick={() => fileInputRef.current?.click()} className={`relative border-2 border-dashed rounded-xl text-center cursor-pointer transition-all duration-300 ease-out overflow-hidden mx-auto ${dragActive ? 'border-orange-400 bg-orange-50 scale-[1.01] shadow-md' : 'border-gray-300 bg-gray-50/50 hover:border-orange-300 hover:bg-orange-50/30'}`} style={previewCanvasStyle}>
                       <div className="absolute inset-0 flex flex-col items-center justify-center p-4 md:p-10">
                         <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,application/pdf,.png,.jpg,.jpeg,.pdf" onChange={e => { const f = e.target.files?.[0]; if (f) handleFileUpload(f); }} className="hidden" />
                         {isUploading ? (
@@ -614,8 +633,8 @@ const GoogleAdsBanner: React.FC = () => {
                       <p className="text-xs text-gray-500 px-3 pt-2 flex items-center gap-1"><Move className="w-3.5 h-3.5" /> Drag to reposition · Use buttons to zoom</p>
                       <div
                         ref={previewContainerRef}
-                        className="relative bg-gray-100 mx-auto border border-dashed border-gray-300 rounded-lg select-none overflow-hidden"
-                        style={{ aspectRatio: `${widthIn || 96} / ${heightIn || 48}`, maxHeight: '260px', maxWidth: '100%', cursor: isDraggingPreview ? "grabbing" : "grab", touchAction: "none" }}
+                        className="relative bg-gray-100 mx-auto border border-dashed border-gray-300 rounded-lg select-none overflow-hidden transition-all duration-300 ease-out"
+                        style={{ ...previewCanvasStyle, cursor: isDraggingPreview ? "grabbing" : "grab", touchAction: "none" }}
                         onMouseDown={onPreviewMouseDown}
                         onMouseMove={onPreviewMouseMove}
                         onMouseUp={onPreviewMouseUp}
@@ -895,8 +914,8 @@ const GoogleAdsBanner: React.FC = () => {
             <div className="p-4 flex-1 overflow-auto">
               <p className="text-sm text-gray-500 mb-3 flex items-center gap-1"><Move className="w-4 h-4" /> Drag to reposition · Pinch or use buttons to zoom</p>
               <div
-                className="relative w-full border-2 border-dashed border-gray-300 rounded-lg select-none overflow-hidden"
-                style={{ aspectRatio: `${widthIn} / ${heightIn}`, cursor: isDraggingPreview ? "grabbing" : "grab", touchAction: "none" }}
+                className="relative w-full border-2 border-dashed border-gray-300 rounded-lg select-none overflow-hidden transition-all duration-300 ease-out"
+                style={{ aspectRatio: `${widthIn || 96} / ${heightIn || 48}`, cursor: isDraggingPreview ? "grabbing" : "grab", touchAction: "none" }}
                 onMouseDown={onPreviewMouseDown}
                 onMouseMove={onPreviewMouseMove}
                 onMouseUp={onPreviewMouseUp}
