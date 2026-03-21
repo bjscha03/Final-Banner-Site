@@ -1,18 +1,21 @@
 import React from 'react';
 import { Star, ArrowRight } from 'lucide-react';
+import { useScrollReveal } from '@/hooks/useScrollReveal';
 
 const CompanySpotlight: React.FC = () => {
+  const { ref, isVisible } = useScrollReveal(0.1);
+
   return (
-    <section className="bg-slate-50 py-12">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm">
+    <section className="bg-slate-50 py-16">
+      <div ref={ref} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className={`bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-shadow duration-500 scroll-reveal ${isVisible ? 'visible' : ''}`}>
           <div className="grid md:grid-cols-2 gap-0">
             {/* Image */}
-            <div className="relative h-64 md:h-full min-h-[400px] bg-slate-100">
+            <div className="relative h-64 md:h-full min-h-[400px] bg-slate-100 overflow-hidden group">
               <img
                 src="https://res.cloudinary.com/dtrxl120u/image/upload/v1759799151/dan-oliver_1200xx3163-3170-1048-0_zgphzw.jpg"
                 alt="Dan Oliver - Dan-O's Seasoning"
-                className="w-full h-full object-cover"
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
                 loading="eager"
                 onError={(e) => {
                   console.error('Image failed to load:', e);
@@ -57,7 +60,7 @@ const CompanySpotlight: React.FC = () => {
 
               <a
                 href="/design"
-                className="inline-flex items-center justify-center bg-orange-500 hover:bg-orange-600 text-white font-semibold text-lg px-8 py-4 rounded-md shadow-sm transition-colors group"
+                className="inline-flex items-center justify-center bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-red-500 text-white font-semibold text-lg px-8 py-4 rounded-lg shadow-lg hover:shadow-orange-500/30 hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5 group"
               >
                 Start your order
                 <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />

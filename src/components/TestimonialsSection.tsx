@@ -1,7 +1,10 @@
 import React from 'react';
 import { Star,  Sparkles } from 'lucide-react';
+import { useScrollReveal } from '@/hooks/useScrollReveal';
 
 const TestimonialsSection: React.FC = () => {
+  const { ref, isVisible } = useScrollReveal(0.1);
+
   const testimonials = [
     {
       name: "Dan Oliver",
@@ -44,9 +47,9 @@ const TestimonialsSection: React.FC = () => {
         backgroundImage: `url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")`,
       }} />
       
-      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div ref={ref} className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Section Header */}
-        <div className="text-center mb-16">
+        <div className={`text-center mb-16 scroll-reveal ${isVisible ? 'visible' : ''}`}>
           <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white font-medium text-sm mb-6 shadow-lg">
             <Sparkles className="w-4 h-4 text-[#ff6b35]" />
             <span>Trusted by Thousands</span>
@@ -64,8 +67,8 @@ const TestimonialsSection: React.FC = () => {
           {testimonials.map((testimonial, index) => (
             <div
               key={index}
-              className="group relative pt-4"
-              style={{ animationDelay: `${index * 150}ms` }}
+              className={`group relative pt-4 scroll-reveal ${isVisible ? 'visible' : ''}`}
+              style={{ transitionDelay: `${(index + 1) * 150}ms` }}
             >
               {/* Outer glow effect */}
               <div className="absolute -inset-1 top-3 bg-gradient-to-r from-[#ff6b35] via-[#f7931e] to-[#18448D] rounded-3xl blur-lg opacity-40 group-hover:opacity-75 transition-all duration-500 group-hover:blur-xl" />

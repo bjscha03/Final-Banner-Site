@@ -85,6 +85,8 @@ const Footer: React.FC = () => {
 
   return (
     <footer className="bg-black text-white relative">
+      {/* Top gradient accent */}
+      <div className="h-1 bg-gradient-to-r from-orange-500 via-[#18448D] to-orange-500" />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid md:grid-cols-4 gap-8">
           {/* Company Info */}

@@ -388,6 +388,43 @@
   .stagger-animation {
     animation-delay: var(--stagger-delay, 0ms);
   }
+
+  /* Scroll-reveal animations */
+  .scroll-reveal {
+    opacity: 0;
+    transform: translateY(32px);
+    transition: opacity 0.7s cubic-bezier(0.16, 1, 0.3, 1),
+                transform 0.7s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .scroll-reveal.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .scroll-reveal-delay-1 { transition-delay: 100ms; }
+  .scroll-reveal-delay-2 { transition-delay: 200ms; }
+  .scroll-reveal-delay-3 { transition-delay: 300ms; }
+  .scroll-reveal-delay-4 { transition-delay: 400ms; }
+  .scroll-reveal-delay-5 { transition-delay: 500ms; }
+  .scroll-reveal-delay-6 { transition-delay: 600ms; }
+
+  /* Animated gradient shimmer for promo banner */
+  @keyframes promo-shimmer {
+    0% { background-position: -200% center; }
+    100% { background-position: 200% center; }
+  }
+
+  .promo-shimmer {
+    background-size: 200% 100%;
+    animation: promo-shimmer 6s linear infinite;
+  }
+
+  /* Hero button shine sweep */
+  @keyframes btn-shine {
+    0% { transform: translateX(-100%) skewX(-15deg); }
+    100% { transform: translateX(200%) skewX(-15deg); }
+  }
 }
 
 @layer base {

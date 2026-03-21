@@ -2,9 +2,11 @@ import React from 'react';
 import { Check, Columns3, Cable } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { MaterialKey } from '@/store/quote';
+import { useScrollReveal } from '@/hooks/useScrollReveal';
 
 const PricingTable: React.FC = () => {
   const navigate = useNavigate();
+  const { ref, isVisible } = useScrollReveal(0.1);
 
   const materials = [
     {
@@ -127,16 +129,16 @@ const PricingTable: React.FC = () => {
   };
 
   return (
-    <section className="py-20 bg-white relative overflow-hidden">
+    <section className="py-20 bg-gradient-to-b from-slate-50 to-white relative overflow-hidden">
       {/* Background Pattern */}
       <div className="absolute inset-0 opacity-30">
         <div className="absolute top-0 right-1/4 w-80 h-80 bg-white rounded-full blur-3xl"></div>
         <div className="absolute bottom-0 left-1/4 w-80 h-80 bg-white rounded-full blur-3xl"></div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+      <div ref={ref} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Header Section */}
-        <div className="text-center mb-16">
+        <div className={`text-center mb-16 scroll-reveal ${isVisible ? 'visible' : ''}`}>
           <h2 className="text-4xl font-bold text-slate-900 mb-6">
             Material Pricing
           </h2>
@@ -154,7 +156,8 @@ const PricingTable: React.FC = () => {
                 material.popular
                   ? 'material-card-popular'
                   : 'material-card'
-              } relative flex flex-col h-full`}
+              } relative flex flex-col h-full scroll-reveal ${isVisible ? 'visible' : ''}`}
+              style={{ transitionDelay: `${(index + 1) * 150}ms` }}
             >
               {/* Popular Badge - Fixed Height */}
               <div className="h-12 flex items-center justify-center mb-2">
