@@ -407,6 +407,7 @@
   .scroll-reveal-delay-3 { transition-delay: 300ms; }
   .scroll-reveal-delay-4 { transition-delay: 400ms; }
   .scroll-reveal-delay-5 { transition-delay: 500ms; }
+  .scroll-reveal-delay-6 { transition-delay: 600ms; }
 
   /* Animated gradient shimmer for promo banner */
   @keyframes promo-shimmer {

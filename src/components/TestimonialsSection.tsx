@@ -68,7 +68,7 @@ const TestimonialsSection: React.FC = () => {
             <div
               key={index}
               className={`group relative pt-4 scroll-reveal ${isVisible ? 'visible' : ''}`}
-              style={{ animationDelay: `${index * 150}ms`, transitionDelay: `${(index + 1) * 150}ms` }}
+              style={{ transitionDelay: `${(index + 1) * 150}ms` }}
             >
               {/* Outer glow effect */}
               <div className="absolute -inset-1 top-3 bg-gradient-to-r from-[#ff6b35] via-[#f7931e] to-[#18448D] rounded-3xl blur-lg opacity-40 group-hover:opacity-75 transition-all duration-500 group-hover:blur-xl" />

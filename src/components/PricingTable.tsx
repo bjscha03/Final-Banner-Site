@@ -157,7 +157,7 @@ const PricingTable: React.FC = () => {
                   ? 'material-card-popular'
                   : 'material-card'
               } relative flex flex-col h-full scroll-reveal ${isVisible ? 'visible' : ''}`}
-              style={{ transitionDelay: `${(index + 1) * 100}ms` }}
+              style={{ transitionDelay: `${(index + 1) * 150}ms` }}
             >
               {/* Popular Badge - Fixed Height */}
               <div className="h-12 flex items-center justify-center mb-2">
