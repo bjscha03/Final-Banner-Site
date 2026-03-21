@@ -159,18 +159,19 @@ const HeroSection: React.FC = () => {
 
               {/* Action Buttons */}
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-                {/* Upload or Create Button - Orange */}
+                {/* Upload or Create Button - Orange with shine */}
                 <button
                   onClick={handleUploadOrCreate}
-                  className="px-8 py-3.5 bg-orange-500 hover:bg-orange-600 text-white text-base font-semibold rounded-lg transition-colors duration-200 min-w-[200px] shadow-lg hover:shadow-xl"
+                  className="group relative px-8 py-3.5 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-red-500 text-white text-base font-semibold rounded-lg transition-all duration-300 min-w-[200px] shadow-lg hover:shadow-orange-500/40 hover:shadow-xl hover:-translate-y-0.5 overflow-hidden"
                 >
-                  Upload or Create
+                  <span className="relative z-10">Upload or Create</span>
+                  <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent opacity-0 group-hover:opacity-100 group-hover:animate-[btn-shine_0.8s_ease-in-out]" />
                 </button>
 
                 {/* Quick Quote Button - Dark outline */}
                 <button
                   onClick={() => setShowQuickQuote(true)}
-                  className="px-8 py-3.5 bg-slate-700/50 hover:bg-slate-700 border border-slate-500 text-white text-base font-semibold rounded-lg transition-colors duration-200 min-w-[200px] flex items-center justify-center gap-2 shadow-lg hover:shadow-xl backdrop-blur-sm"
+                  className="px-8 py-3.5 bg-slate-700/50 hover:bg-slate-600/70 border border-slate-400/50 hover:border-slate-300 text-white text-base font-semibold rounded-lg transition-all duration-300 min-w-[200px] flex items-center justify-center gap-2 shadow-lg hover:shadow-xl backdrop-blur-sm hover:-translate-y-0.5"
                 >
                   <FileText className="w-4 h-4" />
                   Quick Quote

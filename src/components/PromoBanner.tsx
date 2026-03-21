@@ -17,9 +17,9 @@ const PromoBanner: React.FC = () => {
   };
 
   return (
-    <div className="bg-orange-500 text-white">
+    <div className="bg-gradient-to-r from-orange-500 via-orange-400 to-orange-600 promo-shimmer text-white">
       {/* Single row: Main promo message */}
-      <div className="py-2 px-4 text-center">
+      <div className="py-2.5 px-4 text-center">
         <button
           onClick={handleCopyCode}
           className="inline-flex items-center gap-2 hover:opacity-90 transition-opacity cursor-pointer group"
