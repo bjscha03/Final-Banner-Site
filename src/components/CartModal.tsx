@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { X, Trash2, Plus, Minus, ShoppingBag, Edit, Eye, Tag } from 'lucide-react';
 import BannerPreview from './cart/BannerPreview';
 import { useNavigate } from 'react-router-dom';
@@ -8,16 +8,6 @@ import { useToast } from '@/hooks/use-toast';
 import { useQuoteStore } from '@/store/quote';
 import { useAuth } from '@/lib/auth';
 import { getGrommetLabel } from '@/lib/grommets';
-
-// Declare Tidio global for TypeScript
-declare global {
-  interface Window {
-    tidioChatApi?: {
-      hide: () => void;
-      show: () => void;
-    };
-  }
-}
 
 interface CartModalProps {
   isOpen: boolean;
@@ -37,18 +27,6 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
   // Per-item source detection replaces session-wide isGoogleAdsLanding flag
   // Each cart item now has a 'source' field set at add-to-cart time
 
-  // Hide Tidio chat widget when cart modal is open
-  useEffect(() => {
-    if (isOpen && window.tidioChatApi) {
-      window.tidioChatApi.hide();
-    }
-    return () => {
-      // Show Tidio again when modal closes
-      if (window.tidioChatApi) {
-        window.tidioChatApi.show();
-      }
-    };
-  }, [isOpen]);
 
   if (!isOpen) return null;
 
