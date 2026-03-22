@@ -3,6 +3,23 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
+/** Vite plugin: convert injected CSS <link> tags to non-blocking loads */
+function deferCssPlugin() {
+  return {
+    name: 'defer-css',
+    enforce: 'post' as const,
+    transformIndexHtml(html: string) {
+      // Match Vite-injected CSS link tags (e.g. <link rel="stylesheet" crossorigin href="/assets/index-xxx.css">)
+      return html.replace(
+        /<link rel="stylesheet"([^>]*?) href="(\/assets\/[^"]+\.css)"([^>]*)>/g,
+        (_match, before, href, after) =>
+          `<link rel="stylesheet"${before} href="${href}"${after} media="print" onload="this.media='all'">\n` +
+          `<noscript><link rel="stylesheet"${before} href="${href}"${after}></noscript>`
+      );
+    },
+  };
+}
+
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
   server: {
@@ -11,6 +28,7 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
+    deferCssPlugin(),
     nodePolyfills({
       // Enable polyfills for specific globals and modules
       globals: {
