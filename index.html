@@ -89,13 +89,12 @@
       fbq('track', 'PageView');
     </script>
 
-    <!-- Microsoft Clarity Analytics -->
-    <script type="text/javascript">
-      (function(c,l,a,r,i,t,y){
-        c[a]=c[a]||function(){(c[a].q=c[a].q||[]).push(arguments)};
-        t=l.createElement(r);t.async=1;t.src="https://www.clarity.ms/tag/"+i;
-        y=l.getElementsByTagName(r)[0];y.parentNode.insertBefore(t,y);
-      })(window, document, "clarity", "script", "vb952a5v2f");
+    <!-- Google Analytics stub — must be defined before any component calls gtag() -->
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-2TQ6JYYZV7');
     </script>
   </head>
 
@@ -107,7 +106,17 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
 
-    <!-- Defer all analytics to after page is interactive -->
+    <!-- Defer Google Tag Manager to after page load -->
+    <script>
+      window.addEventListener('load', function() {
+        var s = document.createElement('script');
+        s.src = 'https://www.googletagmanager.com/gtag/js?id=G-2TQ6JYYZV7';
+        s.async = true;
+        document.head.appendChild(s);
+      });
+    </script>
+
+    <!-- Defer remaining analytics to after page is interactive -->
     <script>
     // Wait for page to be fully loaded and idle
     if ('requestIdleCallback' in window) {
@@ -117,19 +126,6 @@
     }
 
     function loadAnalytics() {
-      // Google Analytics
-      var gtagScript = document.createElement('script');
-      gtagScript.src = 'https://www.googletagmanager.com/gtag/js?id=G-2TQ6JYYZV7';
-      gtagScript.async = true;
-      document.head.appendChild(gtagScript);
-      gtagScript.onload = function() {
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){dataLayer.push(arguments);}
-        window.gtag = gtag;
-        gtag('js', new Date());
-        gtag('config', 'G-2TQ6JYYZV7');
-      };
-
       // Meta Pixel — only the script download is deferred; stub is already in <head>
       var fbScript = document.createElement('script');
       fbScript.async = true;
