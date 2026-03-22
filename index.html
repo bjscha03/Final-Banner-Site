@@ -77,6 +77,18 @@
     <meta name="twitter:title" content="Banners On The Fly - Professional Banners • Free Next-Day Air • 24-Hour Production" />
     <meta name="twitter:description" content="Professional vinyl banners with free next-day air shipping and 24-hour production. Design custom banners online with live preview." />
     <meta name="twitter:image" content="https://bannersonthefly.com/images/logo-social.svg" />
+    <!-- Facebook Pixel stub — synchronous so early fbq() calls are queued -->
+    <script>
+      !function(f,b,e,v,n)
+      {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+      n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+      if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+      n.queue=[];}(window, document,'script',
+      'https://connect.facebook.net/en_US/fbevents.js');
+      fbq('init', '1487321805934457');
+      fbq('track', 'PageView');
+    </script>
+
     <!-- Microsoft Clarity Analytics -->
     <script type="text/javascript">
       (function(c,l,a,r,i,t,y){
@@ -118,19 +130,11 @@
         gtag('config', 'G-2TQ6JYYZV7');
       };
 
-      // Meta Pixel - defer by 1 second
-      setTimeout(function() {
-        !function(f,b,e,v,n,t,s)
-        {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
-        n.callMethod.apply(n,arguments):n.queue.push(arguments)};
-        if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
-        n.queue=[];t=b.createElement(e);t.async=!0;
-        t.src=v;s=b.getElementsByTagName(e)[0];
-        s.parentNode.insertBefore(t,s)}(window, document,'script',
-        'https://connect.facebook.net/en_US/fbevents.js');
-        fbq('init', '1487321805934457');
-        fbq('track', 'PageView');
-      }, 1000);
+      // Meta Pixel — only the script download is deferred; stub is already in <head>
+      var fbScript = document.createElement('script');
+      fbScript.async = true;
+      fbScript.src = 'https://connect.facebook.net/en_US/fbevents.js';
+      document.head.appendChild(fbScript);
 
       // Contentsquare - defer by 3 seconds
       setTimeout(function() {
