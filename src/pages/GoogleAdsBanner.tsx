@@ -34,13 +34,13 @@ const TESTIMONIALS = [
   {
     name: "Dan Oliver",
     company: "Dan-O's Seasoning",
-    image: "https://res.cloudinary.com/dtrxl120u/image/upload/v1759799151/dan-oliver_1200xx3163-3170-1048-0_zgphzw.jpg",
+    image: "https://res.cloudinary.com/dtrxl120u/image/upload/w_140,h_140,c_fill,f_auto,q_auto/v1759799151/dan-oliver_1200xx3163-3170-1048-0_zgphzw.jpg",
     text: "I've been ordering banners from these guys since before they even launched their new website. They've handled every single one of my banner needs since the day I started my business.",
   },
   {
     name: "Brandon Schaefer",
     company: "HempRise LLC",
-    image: "https://res.cloudinary.com/dtrxl120u/image/upload/v1759933582/1758106259564_oysdje.jpg",
+    image: "https://res.cloudinary.com/dtrxl120u/image/upload/w_140,h_140,c_fill,f_auto,q_auto/v1759933582/1758106259564_oysdje.jpg",
     text: "Best banner service I've used. The 24-hour turnaround saved our grand opening event. Quality exceeded expectations.",
   },
   {
@@ -479,7 +479,7 @@ const GoogleAdsBanner: React.FC = () => {
         <header className="w-full border-b border-gray-100 bg-white py-3 px-4 sticky top-0 z-50">
           <div className="max-w-5xl mx-auto flex items-center justify-between">
             <div className="w-10" />
-            <img src="/images/header-logo.png" alt="Banners On The Fly" className="h-10 object-contain" loading="eager" />
+            <img src="/images/header-logo.png" alt="Banners On The Fly" width="248" height="70" className="h-10 object-contain" loading="eager" />
             <button
               onClick={() => setIsCartOpen(true)}
               aria-label="Shopping cart"
@@ -818,7 +818,7 @@ const GoogleAdsBanner: React.FC = () => {
               {TESTIMONIALS.map((t, i) => (
                 <div key={i} className="bg-gray-50 rounded-xl p-5 border border-gray-100">
                   <div className="flex items-center gap-3 mb-3">
-                    <img src={t.image} alt={t.name} className="w-10 h-10 rounded-full object-cover" loading="lazy" />
+                    <img src={t.image} alt={t.name} width="70" height="70" className="w-10 h-10 rounded-full object-cover" loading="lazy" />
                     <div>
                       <p className="font-semibold text-sm text-gray-800">{t.name}</p>
                       <p className="text-xs text-gray-400">{t.company}</p>

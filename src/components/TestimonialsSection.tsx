@@ -10,7 +10,7 @@ const TestimonialsSection: React.FC = () => {
       name: "Dan Oliver",
       title: "Founder",
       company: "Dan-O's Seasoning",
-      image: "https://res.cloudinary.com/dtrxl120u/image/upload/v1759799151/dan-oliver_1200xx3163-3170-1048-0_zgphzw.jpg",
+      image: "https://res.cloudinary.com/dtrxl120u/image/upload/w_140,h_140,c_fill,f_auto,q_auto/v1759799151/dan-oliver_1200xx3163-3170-1048-0_zgphzw.jpg",
       rating: 5,
       text: "I've been ordering banners from these guys since before they even launched their new website. They've handled every single one of my banner needs since the day I started my business."
     },
@@ -18,7 +18,7 @@ const TestimonialsSection: React.FC = () => {
       name: "Brandon Schaefer",
       title: "Marketing Manager",
       company: "HempRise LLC",
-      image: "https://res.cloudinary.com/dtrxl120u/image/upload/v1759933582/1758106259564_oysdje.jpg",
+      image: "https://res.cloudinary.com/dtrxl120u/image/upload/w_140,h_140,c_fill,f_auto,q_auto/v1759933582/1758106259564_oysdje.jpg",
       rating: 5,
       text: "Best banner service I've used. The 24-hour turnaround saved our grand opening event. Quality exceeded expectations and pricing was very competitive."
     },
@@ -113,6 +113,8 @@ const TestimonialsSection: React.FC = () => {
                     <img
                       src={testimonial.image}
                       alt={testimonial.name}
+                      width="70"
+                      height="70"
                       className="relative w-16 h-16 rounded-full object-cover ring-4 ring-white shadow-xl transform group-hover:scale-110 transition-transform duration-500"
                     />
                   </div>
