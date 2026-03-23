@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { Upload, Shield, Clock, Star, CheckCircle, Truck, Users, FileCheck, X, Loader2, ArrowRight, Brush, Minus, Plus, Lock, Mail, Droplets, Sun, Wind, Palette, Tag, Move, ZoomIn, ZoomOut, ShoppingCart } from 'lucide-react';
+import { Upload, Shield, Clock, Star, CheckCircle, Truck, Users, FileCheck, X, Loader2, ArrowRight, Brush, Minus, Plus, Lock, Mail, Droplets, Sun, Wind, Palette, Tag, Move, ZoomIn, ZoomOut, ShoppingCart, Ruler } from 'lucide-react';
 import { useQuoteStore, type MaterialKey } from '@/store/quote';
 import { useCartStore } from '@/store/cart';
 import { useUIStore } from '@/store/ui';
@@ -606,15 +606,18 @@ const GoogleAdsBanner: React.FC = () => {
                   </div>
                   <p className="text-xs text-gray-500 mt-1">{sqft.toFixed(1)} sq ft</p>
                   {/* Dimension preview canvas — adjusts to banner aspect ratio */}
-                  <div className="mt-3 flex justify-center">
+                  <label className="block text-sm font-semibold text-gray-700 mb-2 mt-4">Banner Size Preview</label>
+                  <div className="flex justify-center mb-6">
                     <div
-                      className="bg-gray-50 border-2 border-dashed border-gray-300 rounded-lg relative transition-all duration-300 ease-out"
+                      className="bg-gray-100/70 border border-gray-200 rounded-lg relative transition-all duration-300 ease-out"
                       style={dimPreviewCanvasStyle}
                     >
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <span className="text-xs text-gray-400 font-medium whitespace-nowrap">
+                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
+                        <Ruler className="h-4 w-4 text-gray-300" />
+                        <span className="text-xs text-gray-500 font-medium whitespace-nowrap">
                           {widthDisplay} × {heightDisplay}
                         </span>
+                        <span className="text-[10px] text-gray-400">Preview of selected size</span>
                       </div>
                     </div>
                   </div>
