@@ -508,8 +508,9 @@ const GoogleAdsBanner: React.FC = () => {
             </h1>
 
             <p className="text-base md:text-lg text-gray-500 max-w-lg mx-auto leading-relaxed">
-              Upload your file, pick a size, and get <strong className="text-gray-700">FREE Next-Day Air Shipping</strong>.
+              Printed in 24 hours + <strong className="text-gray-700">Free Next-Day Air Shipping</strong>.
             </p>
+            <p className="text-sm text-gray-400">Most orders arrive in 2 business days.</p>
 
             {/* Inline benefit pills */}
             <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[13px] text-gray-500">
@@ -526,14 +527,28 @@ const GoogleAdsBanner: React.FC = () => {
             </div>
 
             <div className="pt-2 flex flex-col items-center gap-2">
+              <p className="text-sm text-gray-500 font-medium">Order today to start 24-hour production.</p>
               <button
                 onClick={scrollToOrder}
                 className="group inline-flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white font-bold text-lg px-10 py-4 rounded-xl shadow-[0_4px_14px_rgba(251,146,60,0.4)] hover:shadow-[0_6px_20px_rgba(251,146,60,0.5)] transition-all w-full sm:w-auto"
               >
-                Start Your Order
-                <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
+                Upload &amp; Start Your Order →
               </button>
               <span className="text-xs text-gray-400">Takes less than 60 seconds &middot; <a href="/design" className="underline hover:text-gray-600">or use our free design tool</a></span>
+
+              {/* Trust bar */}
+              <div className="mt-3 flex flex-col items-center gap-1.5">
+                <div className="flex items-center gap-2">
+                  <img
+                    src="https://res.cloudinary.com/dtrxl120u/image/upload/w_96,h_96,c_fill,f_auto,q_auto/v1759799151/dan-oliver_1200xx3163-3170-1048-0_zgphzw.jpg"
+                    alt="Dan Oliver, Dan-O's Seasoning"
+                    className="h-9 w-9 rounded-full shadow-sm ring-1 ring-gray-200 object-cover"
+                  />
+                  <span className="text-orange-400 text-sm tracking-tight" role="img" aria-label="Rated 5 out of 5 stars">★★★★★</span>
+                </div>
+                <p className="text-xs text-gray-500 font-medium">Trusted by Dan-O&rsquo;s Seasoning &amp; 1,000+ customers</p>
+                <p className="text-[11px] text-gray-400">Used by Louisville businesses and events</p>
+              </div>
             </div>
           </div>
         </section>
