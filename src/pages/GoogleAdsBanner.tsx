@@ -120,6 +120,9 @@ const GoogleAdsBanner: React.FC = () => {
   const [resizeCenter, setResizeCenter] = useState({ x: 0, y: 0 });
   const previewContainerRef = useRef<HTMLDivElement>(null);
 
+  // Drag hint auto-fade state
+  const [showDragHint, setShowDragHint] = useState(false);
+
   // Upsell modal state
   const [showUpsellModal, setShowUpsellModal] = useState(false);
   const [isProcessingUpsell, setIsProcessingUpsell] = useState(false);
@@ -139,6 +142,16 @@ const GoogleAdsBanner: React.FC = () => {
     setImgPos({ x: 0, y: 0 });
     setImgScale(1);
   }, [widthIn, heightIn]);
+
+  // Show drag hint briefly when artwork is first uploaded
+  useEffect(() => {
+    if (uploadedFile) {
+      setShowDragHint(true);
+      const timer = setTimeout(() => setShowDragHint(false), 2000);
+      return () => clearTimeout(timer);
+    }
+    setShowDragHint(false);
+  }, [uploadedFile]);
 
   // Compute responsive canvas style for a given max height, preserving banner aspect ratio
   const getCanvasStyle = useCallback((maxH: number) => {
@@ -635,52 +648,84 @@ const GoogleAdsBanner: React.FC = () => {
                       </div>
                     </div>
                   ) : (
-                    <div className="border-2 rounded-xl bg-green-50 border-green-300 shadow-sm">
-                      {/* Interactive inline preview - drag to reposition, zoom controls */}
-                      <p className="text-xs text-gray-500 px-3 pt-2 flex items-center gap-1"><Move className="w-3.5 h-3.5" /> Drag to reposition · Use buttons to zoom</p>
-                      <div
-                        ref={previewContainerRef}
-                        className="relative bg-gray-100 mx-auto border border-dashed border-gray-300 rounded-lg select-none overflow-hidden transition-all duration-300 ease-out"
-                        style={{ ...previewCanvasStyle, cursor: isDraggingPreview ? "grabbing" : "grab", touchAction: "none" }}
-                        onMouseDown={onPreviewMouseDown}
-                        onMouseMove={onPreviewMouseMove}
-                        onMouseUp={onPreviewMouseUp}
-                        onMouseLeave={onPreviewMouseUp}
-                        onTouchStart={onPreviewTouchStart}
-                        onTouchMove={onPreviewTouchMove}
-                        onTouchEnd={onPreviewTouchEnd}
-                      >
+                    <div>
+                      {/* Preview labeling */}
+                      <div className="mb-2">
+                        <h3 className="text-sm font-bold text-gray-800">Live Banner Preview</h3>
+                        <p className="text-xs text-gray-400">Final print preview — what you see is what you get</p>
+                      </div>
+                      {/* Banner preview with depth background */}
+                      <div className="rounded-xl p-4 md:p-6" style={{ background: 'linear-gradient(180deg, #f5f6f8 0%, #e9edf2 100%)' }}>
+                        {/* Banner surface */}
                         <div
-                          className="absolute inset-0 w-full h-full"
-                          style={{ transform: `translate(${imgPos.x}px, ${imgPos.y}px) scale(${imgScale})` }}
+                          ref={previewContainerRef}
+                          className="relative mx-auto rounded-sm select-none overflow-hidden transition-all duration-300 ease-out"
+                          style={{
+                            ...previewCanvasStyle,
+                            cursor: isDraggingPreview ? "grabbing" : "grab",
+                            touchAction: "none",
+                            backgroundColor: '#fafafa',
+                            border: '1px solid #e2e5ea',
+                            boxShadow: '0 4px 16px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06), inset 0 0 0 1px rgba(255,255,255,0.6)',
+                          }}
+                          onMouseDown={onPreviewMouseDown}
+                          onMouseMove={onPreviewMouseMove}
+                          onMouseUp={onPreviewMouseUp}
+                          onMouseLeave={onPreviewMouseUp}
+                          onTouchStart={onPreviewTouchStart}
+                          onTouchMove={onPreviewTouchMove}
+                          onTouchEnd={onPreviewTouchEnd}
                         >
-                          <img
-                            src={uploadedFile.thumbnailUrl || uploadedFile.url}
-                            alt="Uploaded artwork preview"
-                            className="absolute inset-0 w-full h-full pointer-events-none object-contain"
-                            draggable={false}
-                          />
-                        </div>
-                        {/* Grommet overlay on inline preview */}
-                        {grommets !== "none" && calcGrommetPts(widthIn, heightIn, grommets).map((pos, idx) => {
-                          const leftPct = (pos.x / widthIn) * 100;
-                          const topPct = (pos.y / heightIn) * 100;
-                          const dotSize = Math.max(5, Math.min(10, 150 / Math.max(widthIn, heightIn)));
-                          return (
-                            <div key={`inline-grommet-${idx}`} className="absolute rounded-full pointer-events-none" style={{ left: `${leftPct}%`, top: `${topPct}%`, width: `${dotSize}px`, height: `${dotSize}px`, transform: "translate(-50%, -50%)", background: "radial-gradient(circle at 30% 30%, #e2e8f0, #4a5568)", border: "1px solid #2d3748", boxShadow: "inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 1px rgba(0,0,0,0.2)", zIndex: 10 }}>
-                              <div className="absolute rounded-full" style={{ left: "50%", top: "50%", width: "50%", height: "50%", transform: "translate(-50%, -50%)", background: "#f7fafc", border: "0.5px solid #cbd5e0" }} />
+                          <div
+                            className="absolute inset-0 w-full h-full"
+                            style={{ transform: `translate(${imgPos.x}px, ${imgPos.y}px) scale(${imgScale})` }}
+                          >
+                            <img
+                              src={uploadedFile.thumbnailUrl || uploadedFile.url}
+                              alt="Uploaded artwork preview"
+                              className="absolute inset-0 w-full h-full pointer-events-none object-contain"
+                              draggable={false}
+                            />
+                          </div>
+                          {/* Drag indicator overlay */}
+                          {showDragHint && (
+                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20" style={{ animation: 'fadeOut 0.5s ease-out 1.5s forwards' }}>
+                              <span className="bg-black/60 text-white text-xs px-3 py-1.5 rounded-full backdrop-blur-sm">
+                                Drag to reposition • Use buttons to zoom
+                              </span>
                             </div>
-                          );
-                        })}
+                          )}
+                          {/* Grommet overlay on inline preview */}
+                          {grommets !== "none" && calcGrommetPts(widthIn, heightIn, grommets).map((pos, idx) => {
+                            const leftPct = (pos.x / widthIn) * 100;
+                            const topPct = (pos.y / heightIn) * 100;
+                            const dotSize = Math.max(6, Math.min(12, 180 / Math.max(widthIn, heightIn)));
+                            return (
+                              <div key={`inline-grommet-${idx}`} className="absolute rounded-full pointer-events-none" style={{ left: `${leftPct}%`, top: `${topPct}%`, width: `${dotSize}px`, height: `${dotSize}px`, transform: "translate(-50%, -50%)", background: 'radial-gradient(circle at 40% 35%, #d1d5db, #6b7280)', border: '1px solid #9ca3af', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.25), 0 0.5px 1px rgba(0,0,0,0.15)', zIndex: 10 }}>
+                                <div className="absolute rounded-full" style={{ left: "50%", top: "50%", width: "45%", height: "45%", transform: "translate(-50%, -50%)", background: '#374151', border: '0.5px solid #4b5563' }} />
+                              </div>
+                            );
+                          })}
+                        </div>
+                        {/* Zoom controls - grouped in rounded container */}
+                        <div className="flex items-center justify-center mt-3">
+                          <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm rounded-full px-3 py-1.5 shadow-sm border border-gray-200/60">
+                            <button onClick={() => setImgScale(s => Math.max(0.5, s - 0.1))} className="p-1.5 rounded-full hover:bg-gray-100 transition-colors" aria-label="Zoom out"><ZoomOut className="w-4 h-4 text-gray-600" /></button>
+                            <span className="text-xs font-medium text-gray-500 min-w-[3ch] text-center">{Math.round(imgScale * 100)}%</span>
+                            <button onClick={() => setImgScale(s => Math.min(3, s + 0.1))} className="p-1.5 rounded-full hover:bg-gray-100 transition-colors" aria-label="Zoom in"><ZoomIn className="w-4 h-4 text-gray-600" /></button>
+                            <div className="w-px h-4 bg-gray-200" />
+                            <button onClick={() => { setImgPos({ x: 0, y: 0 }); setImgScale(1); }} className="text-xs text-orange-600 hover:text-orange-700 font-medium px-1.5">Reset</button>
+                          </div>
+                        </div>
                       </div>
-                      {/* Zoom controls */}
-                      <div className="flex items-center justify-center gap-3 py-2">
-                        <button onClick={() => setImgScale(s => Math.max(0.5, s - 0.1))} className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200"><ZoomOut className="w-4 h-4" /></button>
-                        <span className="text-xs font-medium text-gray-600">{Math.round(imgScale * 100)}%</span>
-                        <button onClick={() => setImgScale(s => Math.min(3, s + 0.1))} className="p-2 rounded-lg bg-gray-100 hover:bg-gray-200"><ZoomIn className="w-4 h-4" /></button>
-                        <button onClick={() => { setImgPos({ x: 0, y: 0 }); setImgScale(1); }} className="text-xs text-orange-600 hover:text-orange-700 font-medium ml-1 py-1 px-2">Reset</button>
-                      </div>
-                      <div className="p-3 flex items-center justify-between border-t border-green-200">
+                      {/* Size dimensions below preview */}
+                      <p className="text-xs text-gray-400 text-center mt-2">
+                        Size: {widthFt} ft{widthInR > 0 ? ` ${widthInR} in` : ''} × {heightFt} ft{heightInR > 0 ? ` ${heightInR} in` : ''} ({sqft.toFixed(1)} sq ft)
+                      </p>
+                      {/* Confidence text */}
+                      <p className="text-xs text-gray-500 text-center mt-1 font-medium">Your design will be printed based on this preview</p>
+                      {/* File info bar */}
+                      <div className="mt-2 p-3 flex items-center justify-between bg-green-50 border border-green-200 rounded-lg">
                         <div className="flex items-center gap-2 min-w-0">
                           <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
                           <span className="text-sm font-semibold text-green-800 truncate">{uploadedFile.name}</span>
@@ -913,72 +958,95 @@ const GoogleAdsBanner: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm sm:p-4">
           <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-3xl w-full max-h-[95vh] sm:max-h-[90vh] flex flex-col">
             <div className="flex items-center justify-between p-4 border-b">
-              <h3 className="text-lg font-bold text-gray-900">Position Your Image</h3>
+              <div>
+                <h3 className="text-lg font-bold text-gray-900">Live Banner Preview</h3>
+                <p className="text-xs text-gray-400">Final print preview — what you see is what you get</p>
+              </div>
               <button onClick={() => setShowPreview(false)} className="p-2 hover:bg-gray-100 rounded-full">
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="p-4 flex-1 overflow-auto">
               <p className="text-sm text-gray-500 mb-3 flex items-center gap-1"><Move className="w-4 h-4" /> Drag to reposition · Pinch or use buttons to zoom</p>
-              <div
-                className="relative w-full border-2 border-dashed border-gray-300 rounded-lg select-none overflow-hidden transition-all duration-300 ease-out"
-                style={{ aspectRatio: `${widthIn || 96} / ${heightIn || 48}`, cursor: isDraggingPreview ? "grabbing" : "grab", touchAction: "none" }}
-                onMouseDown={onPreviewMouseDown}
-                onMouseMove={onPreviewMouseMove}
-                onMouseUp={onPreviewMouseUp}
-                onMouseLeave={onPreviewMouseUp}
-                onTouchStart={onPreviewTouchStart}
-                onTouchMove={onPreviewTouchMove}
-                onTouchEnd={onPreviewTouchEnd}
-              >
+              {/* Banner surface with gradient background */}
+              <div className="rounded-lg p-4" style={{ background: 'linear-gradient(180deg, #f5f6f8 0%, #e9edf2 100%)' }}>
                 <div
-                  className="absolute inset-0 w-full h-full"
-                  style={{ transform: `translate(${imgPos.x}px, ${imgPos.y}px) scale(${imgScale})` }}
+                  className="relative w-full rounded-sm select-none overflow-hidden transition-all duration-300 ease-out"
+                  style={{
+                    aspectRatio: `${widthIn || 96} / ${heightIn || 48}`,
+                    cursor: isDraggingPreview ? "grabbing" : "grab",
+                    touchAction: "none",
+                    backgroundColor: '#fafafa',
+                    border: '1px solid #e2e5ea',
+                    boxShadow: '0 4px 16px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06), inset 0 0 0 1px rgba(255,255,255,0.6)',
+                  }}
+                  onMouseDown={onPreviewMouseDown}
+                  onMouseMove={onPreviewMouseMove}
+                  onMouseUp={onPreviewMouseUp}
+                  onMouseLeave={onPreviewMouseUp}
+                  onTouchStart={onPreviewTouchStart}
+                  onTouchMove={onPreviewTouchMove}
+                  onTouchEnd={onPreviewTouchEnd}
                 >
-                  <img
-                    src={uploadedFile.thumbnailUrl || uploadedFile.url}
-                    alt="Banner preview"
-                    className="absolute inset-0 w-full h-full pointer-events-none object-contain"
-                    draggable={false}
-                  />
-                  {/* Corner resize handles - larger touch targets on mobile */}
-                  {['top-left', 'top-right', 'bottom-left', 'bottom-right'].map((corner) => (
-                    <div
-                      key={corner}
-                      role="slider"
-                      aria-label={`Resize from ${corner} corner`}
-                      tabIndex={0}
-                      onMouseDown={onCornerMouseDown}
-                      className="absolute w-7 h-7 sm:w-5 sm:h-5 bg-white border-2 border-orange-500 rounded-sm z-20 hover:bg-orange-50 pointer-events-auto shadow-md"
-                      style={{
-                        top: corner.includes('top') ? 0 : 'auto',
-                        bottom: corner.includes('bottom') ? 0 : 'auto',
-                        left: corner.includes('left') ? 0 : 'auto',
-                        right: corner.includes('right') ? 0 : 'auto',
-                        transform: `translate(${corner.includes('left') ? '-50%' : '50%'}, ${corner.includes('top') ? '-50%' : '50%'})`,
-                        cursor: corner === 'top-left' || corner === 'bottom-right' ? 'nwse-resize' : 'nesw-resize'
-                      }}
+                  <div
+                    className="absolute inset-0 w-full h-full"
+                    style={{ transform: `translate(${imgPos.x}px, ${imgPos.y}px) scale(${imgScale})` }}
+                  >
+                    <img
+                      src={uploadedFile.thumbnailUrl || uploadedFile.url}
+                      alt="Banner preview"
+                      className="absolute inset-0 w-full h-full pointer-events-none object-contain"
+                      draggable={false}
                     />
-                  ))}
+                    {/* Corner resize handles - larger touch targets on mobile */}
+                    {['top-left', 'top-right', 'bottom-left', 'bottom-right'].map((corner) => (
+                      <div
+                        key={corner}
+                        role="slider"
+                        aria-label={`Resize from ${corner} corner`}
+                        tabIndex={0}
+                        onMouseDown={onCornerMouseDown}
+                        className="absolute w-7 h-7 sm:w-5 sm:h-5 bg-white border-2 border-orange-500 rounded-sm z-20 hover:bg-orange-50 pointer-events-auto shadow-md"
+                        style={{
+                          top: corner.includes('top') ? 0 : 'auto',
+                          bottom: corner.includes('bottom') ? 0 : 'auto',
+                          left: corner.includes('left') ? 0 : 'auto',
+                          right: corner.includes('right') ? 0 : 'auto',
+                          transform: `translate(${corner.includes('left') ? '-50%' : '50%'}, ${corner.includes('top') ? '-50%' : '50%'})`,
+                          cursor: corner === 'top-left' || corner === 'bottom-right' ? 'nwse-resize' : 'nesw-resize'
+                        }}
+                      />
+                    ))}
+                  </div>
+                  {/* Grommet overlay */}
+                  {grommets !== "none" && calcGrommetPts(widthIn, heightIn, grommets).map((pos, idx) => {
+                    const leftPct = (pos.x / widthIn) * 100;
+                    const topPct = (pos.y / heightIn) * 100;
+                    const dotSize = Math.max(6, Math.min(12, 200 / Math.max(widthIn, heightIn)));
+                    return (
+                      <div key={`grommet-preview-${idx}`} className="absolute rounded-full pointer-events-none" style={{ left: `${leftPct}%`, top: `${topPct}%`, width: `${dotSize}px`, height: `${dotSize}px`, transform: "translate(-50%, -50%)", background: 'radial-gradient(circle at 40% 35%, #d1d5db, #6b7280)', border: '1px solid #9ca3af', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.25), 0 0.5px 1px rgba(0,0,0,0.15)', zIndex: 10 }}>
+                        <div className="absolute rounded-full" style={{ left: "50%", top: "50%", width: "45%", height: "45%", transform: "translate(-50%, -50%)", background: '#374151', border: '0.5px solid #4b5563' }} />
+                      </div>
+                    );
+                  })}
                 </div>
-                {/* Grommet overlay */}
-                {grommets !== "none" && calcGrommetPts(widthIn, heightIn, grommets).map((pos, idx) => {
-                  const leftPct = (pos.x / widthIn) * 100;
-                  const topPct = (pos.y / heightIn) * 100;
-                  const dotSize = Math.max(6, Math.min(12, 200 / Math.max(widthIn, heightIn)));
-                  return (
-                    <div key={`grommet-preview-${idx}`} className="absolute rounded-full pointer-events-none" style={{ left: `${leftPct}%`, top: `${topPct}%`, width: `${dotSize}px`, height: `${dotSize}px`, transform: "translate(-50%, -50%)", background: "radial-gradient(circle at 30% 30%, #e2e8f0, #4a5568)", border: "1px solid #2d3748", boxShadow: "inset 0 1px 2px rgba(0,0,0,0.3), 0 1px 1px rgba(0,0,0,0.2)", zIndex: 10 }}>
-                      <div className="absolute rounded-full" style={{ left: "50%", top: "50%", width: "50%", height: "50%", transform: "translate(-50%, -50%)", background: "#f7fafc", border: "0.5px solid #cbd5e0" }} />
-                    </div>
-                  );
-                })}
               </div>
-              <div className="flex items-center justify-center gap-3 sm:gap-4 mt-3">
-                <button onClick={() => setImgScale(s => Math.max(0.5, s - 0.1))} className="p-3 sm:p-2 rounded-lg bg-gray-100 hover:bg-gray-200"><ZoomOut className="w-5 h-5" /></button>
-                <span className="text-sm font-medium text-gray-600">{Math.round(imgScale * 100)}%</span>
-                <button onClick={() => setImgScale(s => Math.min(3, s + 0.1))} className="p-3 sm:p-2 rounded-lg bg-gray-100 hover:bg-gray-200"><ZoomIn className="w-5 h-5" /></button>
-                <button onClick={() => { setImgPos({ x: 0, y: 0 }); setImgScale(1); }} className="text-sm text-orange-600 hover:text-orange-700 font-medium ml-2 py-2 px-3">Reset</button>
+              {/* Size below preview */}
+              <p className="text-xs text-gray-400 text-center mt-2">
+                Size: {widthFt} ft{widthInR > 0 ? ` ${widthInR} in` : ''} × {heightFt} ft{heightInR > 0 ? ` ${heightInR} in` : ''} ({sqft.toFixed(1)} sq ft)
+              </p>
+              {/* Zoom controls */}
+              <div className="flex items-center justify-center mt-3">
+                <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm rounded-full px-3 py-1.5 shadow-sm border border-gray-200/60">
+                  <button onClick={() => setImgScale(s => Math.max(0.5, s - 0.1))} className="p-2 sm:p-1.5 rounded-full hover:bg-gray-100 transition-colors" aria-label="Zoom out"><ZoomOut className="w-5 h-5 text-gray-600" /></button>
+                  <span className="text-sm font-medium text-gray-500 min-w-[3ch] text-center">{Math.round(imgScale * 100)}%</span>
+                  <button onClick={() => setImgScale(s => Math.min(3, s + 0.1))} className="p-2 sm:p-1.5 rounded-full hover:bg-gray-100 transition-colors" aria-label="Zoom in"><ZoomIn className="w-5 h-5 text-gray-600" /></button>
+                  <div className="w-px h-4 bg-gray-200" />
+                  <button onClick={() => { setImgPos({ x: 0, y: 0 }); setImgScale(1); }} className="text-sm text-orange-600 hover:text-orange-700 font-medium px-2">Reset</button>
+                </div>
               </div>
+              {/* Confidence text */}
+              <p className="text-xs text-gray-500 text-center mt-2 font-medium">Your design will be printed based on this preview</p>
             </div>
             <div className="flex gap-3 p-4 border-t">
               <button onClick={() => setShowPreview(false)} className="flex-1 py-3.5 sm:py-3 rounded-xl border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50">Cancel</button>
