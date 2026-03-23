@@ -537,17 +537,17 @@ const GoogleAdsBanner: React.FC = () => {
               <span className="text-xs text-gray-400">Takes less than 60 seconds &middot; <a href="/design" className="underline hover:text-gray-600">or use our free design tool</a></span>
 
               {/* Trust bar */}
-              <div className="mt-3 flex flex-col items-center gap-1.5">
-                <div className="flex items-center gap-2">
+              <div className="mt-4 flex flex-col items-center gap-2">
+                <div className="flex flex-col sm:flex-row items-center gap-2.5">
                   <img
-                    src="https://res.cloudinary.com/dtrxl120u/image/upload/w_96,h_96,c_fill,f_auto,q_auto/v1759799151/dan-oliver_1200xx3163-3170-1048-0_zgphzw.jpg"
+                    src="https://res.cloudinary.com/dtrxl120u/image/upload/w_128,h_128,c_fill,f_auto,q_auto/v1759799151/dan-oliver_1200xx3163-3170-1048-0_zgphzw.jpg"
                     alt="Dan Oliver, Dan-O's Seasoning"
-                    className="h-9 w-9 rounded-full shadow-sm ring-1 ring-gray-200 object-cover"
+                    className="h-[60px] w-[60px] rounded-full shadow-md ring-2 ring-gray-200 object-cover"
                   />
-                  <span className="text-orange-400 text-sm tracking-tight" role="img" aria-label="Rated 5 out of 5 stars">★★★★★</span>
+                  <span className="text-orange-400 text-base tracking-wide" role="img" aria-label="Rated 5 out of 5 stars">★★★★★</span>
                 </div>
-                <p className="text-xs text-gray-500 font-medium">Trusted by Dan-O&rsquo;s Seasoning &amp; 1,000+ customers</p>
-                <p className="text-[11px] text-gray-400">Used by Louisville businesses and events</p>
+                <p className="text-xs text-gray-500 font-medium">Trusted by Dan-O&rsquo;s Seasoning + 1,000+ customers</p>
+                <p className="text-[11px] text-gray-500 font-medium">Used by Louisville businesses and events</p>
               </div>
             </div>
           </div>
