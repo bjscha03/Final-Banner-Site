@@ -577,3 +577,9 @@ embed[type="application/pdf"] .pdfViewer .toolbar {
     backface-visibility: hidden;
   }
 }
+
+/* Fade-out animation for drag hint on Google Ads banner preview */
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
