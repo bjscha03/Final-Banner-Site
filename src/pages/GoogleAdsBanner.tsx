@@ -21,11 +21,11 @@ const PRESET_SIZES = [
   { label: "4' × 10'", w: 120, h: 48 },
 ];
 
-const MATERIALS: { key: string; label: string; mapped: MaterialKey; desc: string }[] = [
-  { key: '13oz', label: '13oz Vinyl', mapped: '13oz', desc: 'Standard outdoor — great for most uses' },
-  { key: '15oz', label: '15oz Vinyl', mapped: '15oz', desc: 'Heavy-duty — extra durability and rigidity' },
-  { key: '18oz', label: '18oz Vinyl', mapped: '18oz', desc: 'Premium blockout — thick, wind-resistant' },
-  { key: 'mesh', label: 'Mesh Fence', mapped: 'mesh', desc: 'Wind pass-through — ideal for fences' },
+const MATERIALS: { key: string; label: string; mapped: MaterialKey; desc: string; image: string }[] = [
+  { key: '13oz', label: '13oz Vinyl', mapped: '13oz', desc: 'Standard outdoor — great for most uses', image: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_80,h_80,c_fill,f_auto,q_auto/v1769209469/White-Label_Banners_-2_from_4over_nedg8n.png' },
+  { key: '15oz', label: '15oz Vinyl', mapped: '15oz', desc: 'Heavy-duty — extra durability and rigidity', image: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_80,h_80,c_fill,f_auto,q_auto/v1769209584/White-label_Outdoor_Banner_1_Product_from_4over_aas332.png' },
+  { key: '18oz', label: '18oz Vinyl', mapped: '18oz', desc: 'Premium blockout — thick, wind-resistant', image: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_80,h_80,c_fill,f_auto,q_auto/v1769209691/White-label_Outdoor_Banner_3_Product_from_4over_vfdbxc.png' },
+  { key: 'mesh', label: 'Mesh Fence', mapped: 'mesh', desc: 'Wind pass-through — ideal for fences', image: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_80,h_80,c_fill,f_auto,q_auto/v1769209380/White-label_Outdoor_Mesh_Banner_1_Product_from_4over_ivkbqu.png' },
 ];
 
 const PROMO_NEW20_DISCOUNT_RATE = 0.2;
@@ -93,6 +93,8 @@ const GoogleAdsBanner: React.FC = () => {
   const heightFt = parseInt(heightFtStr, 10) || 0;
   const heightInR = parseInt(heightInRStr, 10) || 0;
   const [material, setMaterial] = useState<MaterialKey>('13oz');
+  const [materialDropdownOpen, setMaterialDropdownOpen] = useState(false);
+  const materialDropdownRef = useRef<HTMLDivElement>(null);
   const [grommets, setGrommets] = useState('none');
   const [polePockets, setPolePockets] = useState('none');
   const [addRope, setAddRope] = useState(false);
@@ -153,6 +155,19 @@ const GoogleAdsBanner: React.FC = () => {
     setShowDragHint(false);
   }, [uploadedFile]);
 
+  // Close material dropdown on outside click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (materialDropdownRef.current && !materialDropdownRef.current.contains(e.target as Node)) {
+        setMaterialDropdownOpen(false);
+      }
+    };
+    if (materialDropdownOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [materialDropdownOpen]);
+
   // Compute responsive canvas style for a given max height, preserving banner aspect ratio
   const getCanvasStyle = useCallback((maxH: number) => {
     const w = widthIn || 96;
@@ -170,7 +185,8 @@ const GoogleAdsBanner: React.FC = () => {
   const totals = calcTotals({ widthIn, heightIn, qty: quantity, material, addRope, polePockets });
 
   const pricePerSqFt = PRICE_PER_SQFT[material];
-  const materialLabel = MATERIALS.find(m => m.mapped === material)?.label || '13oz Vinyl';
+  const selectedMaterial = MATERIALS.find(m => m.mapped === material) || MATERIALS[0];
+  const materialLabel = selectedMaterial.label;
   const grommetsLabel = DESIGN_GROMMET_OPTIONS.find(o => o.value === grommets)?.label || 'None';
   const widthDisplay = widthInR > 0 ? `${widthFt}'${widthInR}"` : `${widthFt}'`;
   const heightDisplay = heightInR > 0 ? `${heightFt}'${heightInR}"` : `${heightFt}'`;
@@ -622,12 +638,54 @@ const GoogleAdsBanner: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <div>
+                <div ref={materialDropdownRef} className="relative">
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Material</label>
-                  <select value={MATERIALS.find(m => m.mapped === material)?.key || '13oz'} onChange={e => { const sel = MATERIALS.find(m => m.key === e.target.value); if (sel) setMaterial(sel.mapped); }} className="w-full border rounded-xl px-3 py-2.5 text-base bg-white">
-                    {MATERIALS.map(m => (<option key={m.key} value={m.key}>{m.label}</option>))}
-                  </select>
-                  <p className="text-xs text-gray-400 mt-1.5">{MATERIALS.find(m => m.mapped === material)?.desc}</p>
+                  {/* Custom dropdown trigger */}
+                  <button
+                    type="button"
+                    onClick={() => setMaterialDropdownOpen(prev => !prev)}
+                    className="w-full border rounded-xl px-3 py-2.5 text-base bg-white flex items-center gap-3 cursor-pointer hover:border-gray-400 transition-colors"
+                  >
+                    <img
+                      src={selectedMaterial.image}
+                      alt={selectedMaterial.label}
+                      className="w-9 h-9 rounded object-cover flex-shrink-0 bg-gray-100"
+                      onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    />
+                    <span className="font-medium text-gray-800">{selectedMaterial.label}</span>
+                    <svg className={`ml-auto w-4 h-4 text-gray-400 transition-transform ${materialDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                  </button>
+                  {/* Dropdown options */}
+                  {materialDropdownOpen && (
+                    <div className="absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden max-h-72 overflow-y-auto">
+                      {MATERIALS.map(m => (
+                        <button
+                          key={m.key}
+                          type="button"
+                          onClick={() => { setMaterial(m.mapped); setMaterialDropdownOpen(false); }}
+                          className={`w-full flex items-center gap-3 px-3 py-3 text-left transition-colors cursor-pointer ${
+                            m.mapped === material
+                              ? 'bg-orange-50 border-l-2 border-orange-500'
+                              : 'hover:bg-gray-50 border-l-2 border-transparent'
+                          }`}
+                        >
+                          <img
+                            src={m.image}
+                            alt={m.label}
+                            className="w-10 h-10 rounded object-cover flex-shrink-0 bg-gray-100"
+                            onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                          />
+                          <div className="min-w-0">
+                            <div className={`text-sm font-medium ${m.mapped === material ? 'text-orange-700' : 'text-gray-800'}`}>{m.label}</div>
+                            <div className="text-xs text-gray-400 truncate">{m.desc}</div>
+                          </div>
+                          {m.mapped === material && (
+                            <CheckCircle className="ml-auto w-4 h-4 text-orange-500 flex-shrink-0" />
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Upload Your Artwork</label>
