@@ -24,7 +24,9 @@ import {
   Mail,
   Loader2,
   Palette,
-  Upload
+  Upload,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -45,6 +47,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 
+const PAGE_SIZE = 20;
+
 const AdminOrders: React.FC = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
@@ -56,6 +60,8 @@ const AdminOrders: React.FC = () => {
   const { toast } = useToast();
   const [pdfLoadingStates, setPdfLoadingStates] = useState<Record<string, boolean>>({});
   const [activeAdminTab, setActiveAdminTab] = useState<'orders' | 'events' | 'abandoned-carts'>('orders');
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
   useEffect(() => {
 
     // Show access denied message instead of immediate redirect
@@ -82,11 +88,11 @@ const AdminOrders: React.FC = () => {
     }
   }, [orders, searchQuery]);
 
-  const loadOrders = async () => {
+  const loadOrders = async (p: number = page) => {
     try {
       setLoading(true);
       const ordersAdapter = await getOrdersAdapter();
-      const allOrders = await ordersAdapter.listAll();
+      const allOrders = await ordersAdapter.listAll(p);
       
       // DEBUG: Log what we got from database
       console.log('🔵 [Orders.tsx] loadOrders() received:', allOrders.length, 'orders');
@@ -100,6 +106,7 @@ const AdminOrders: React.FC = () => {
         }
       }
       
+      setHasMore(allOrders.length === PAGE_SIZE);
       setOrders(allOrders);
     } catch (error) {
       console.error('Error loading orders:', error);
@@ -111,6 +118,13 @@ const AdminOrders: React.FC = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const goToPage = (newPage: number) => {
+    setPage(newPage);
+    loadOrders(newPage);
+    // Scroll to top of orders section
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleAddTracking = async (orderId: string, carrier: TrackingCarrier, trackingNumber: string) => {
@@ -793,6 +807,33 @@ const AdminOrders: React.FC = () => {
               </>
             )}
           </div>
+
+          {/* Pagination */}
+          {!loading && (page > 1 || hasMore) && (
+            <div className="flex items-center justify-between mt-6">
+              <Button
+                variant="outline"
+                onClick={() => goToPage(page - 1)}
+                disabled={page <= 1}
+                className="flex items-center gap-1"
+              >
+                <ChevronLeft className="h-4 w-4" />
+                Previous
+              </Button>
+              <span className="text-sm text-gray-600">
+                Page {page}
+              </span>
+              <Button
+                variant="outline"
+                onClick={() => goToPage(page + 1)}
+                disabled={!hasMore}
+                className="flex items-center gap-1"
+              >
+                Next
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          )}
         </div>
       </div>
     </Layout>
