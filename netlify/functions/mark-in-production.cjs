@@ -187,12 +187,12 @@ exports.handler = async (event) => {
 
     const order = orderResult[0];
 
-    // Prevent duplicate sends
-    if (order.production_email_sent) {
+    // Prevent duplicate sends (also check status in case column doesn't exist yet)
+    if (order.production_email_sent || order.status === 'in_production') {
       return {
         statusCode: 400,
         headers,
-        body: JSON.stringify({ ok: false, error: 'Production email already sent for this order' })
+        body: JSON.stringify({ ok: false, error: 'Order is already in production' })
       };
     }
 
@@ -242,35 +242,42 @@ exports.handler = async (event) => {
 
     if (!emailResult.ok) {
       console.error(`Failed to send production email for order ${orderId}:`, emailResult.error);
-      return {
-        statusCode: 500,
-        headers,
-        body: JSON.stringify({
-          ok: false,
-          error: 'Failed to send email',
-          details: emailResult.error
-        })
-      };
     }
 
-    // Update order status to in_production and mark email as sent
-    await sql`
-      UPDATE orders
-      SET status = 'in_production',
-          production_email_sent = true,
-          production_email_sent_at = NOW(),
-          updated_at = NOW()
-      WHERE id = ${orderId}
-    `;
+    // Update order status to in_production regardless of email outcome
+    // Try with production_email columns first; fall back to status-only if columns don't exist yet
+    try {
+      await sql`
+        UPDATE orders
+        SET status = 'in_production',
+            production_email_sent = ${emailResult.ok},
+            production_email_sent_at = ${emailResult.ok ? new Date().toISOString() : null},
+            updated_at = NOW()
+        WHERE id = ${orderId}
+      `;
+    } catch (updateError) {
+      // If the production_email columns don't exist yet (migration not run), update status only
+      console.warn('Full update failed, trying status-only update:', updateError.message);
+      await sql`
+        UPDATE orders
+        SET status = 'in_production',
+            updated_at = NOW()
+        WHERE id = ${orderId}
+      `;
+    }
 
-    console.log(`Production notification sent for order ${orderId} to ${customerEmail}`);
+    console.log(`Order ${orderId} marked as in production. Email ${emailResult.ok ? 'sent' : 'failed'} to ${customerEmail}`);
 
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
         ok: true,
-        message: 'Order marked as in production and customer notified',
+        message: emailResult.ok
+          ? 'Order marked as in production and customer notified'
+          : 'Order marked as in production (email delivery failed)',
+        emailSent: emailResult.ok,
+        emailError: emailResult.ok ? undefined : emailResult.error,
         emailId: emailResult.id
       })
     };

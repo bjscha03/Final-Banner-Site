@@ -464,17 +464,25 @@ const AdminOrders: React.FC = () => {
             ? {
                 ...order,
                 status: 'in_production' as const,
-                production_email_sent: true,
+                production_email_sent: result.emailSent ?? true,
                 production_email_sent_at: new Date().toISOString()
               }
             : order
         )
       );
 
-      toast({
-        title: "Order In Production",
-        description: `Customer notified: Order is now in production`,
-      });
+      if (result.emailSent === false) {
+        toast({
+          title: "Order In Production",
+          description: "Order status updated, but the notification email could not be sent.",
+          variant: "default",
+        });
+      } else {
+        toast({
+          title: "Order In Production",
+          description: `Customer notified: Order is now in production`,
+        });
+      }
     } catch (error) {
       console.error('Mark in production failed:', error);
       toast({
