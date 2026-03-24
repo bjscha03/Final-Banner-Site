@@ -29,7 +29,7 @@ interface UploadError {
 // Supported file types
 const SUPPORTED_IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/gif', 'image/webp'];
 const SUPPORTED_TYPES = [...SUPPORTED_IMAGE_TYPES, 'application/pdf'];
-const MAX_FILE_SIZE = 25 * 1024 * 1024;
+const MAX_FILE_SIZE = 50 * 1024 * 1024;
 const HEIC_EXTENSIONS = ['.heic', '.heif'];
 
 const isHEICFile = (fileName: string): boolean => {
@@ -116,9 +116,9 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
     setUploading(true);
 
     for (const file of Array.from(files)) {
-      // Validate file size (25MB max)
-      if (file.size > 25 * 1024 * 1024) {
-        alert(`File ${file.name} is too large. Maximum size is 25MB.`);
+      // Validate file size (50MB max)
+      if (file.size > 50 * 1024 * 1024) {
+        alert(`File ${file.name} is too large. Please upload a file under 50MB.`);
         continue;
       }
 

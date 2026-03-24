@@ -90,7 +90,7 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const acceptedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png', 'image/svg+xml'];
-  const maxSizeBytes = 10 * 1024 * 1024; // 10MB Cloudinary limit
+  const maxSizeBytes = 50 * 1024 * 1024; // 50MB upload limit
 
   // Calculate grommet positions for mini preview
   const grommetPositions = useMemo(() => {
@@ -144,7 +144,7 @@ const DesignServicePanel: React.FC<DesignServicePanelProps> = ({
       
       // Validate file size
       if (file.size > maxSizeBytes) {
-        setUploadError(`${file.name}: File exceeds 10MB limit.`);
+        setUploadError(`${file.name}: File too large. Please upload a file under 50MB.`);
         continue;
       }
 

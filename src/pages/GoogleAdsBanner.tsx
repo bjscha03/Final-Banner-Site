@@ -265,8 +265,8 @@ const GoogleAdsBanner: React.FC = () => {
       setUploadError('Please upload a PDF, PNG, JPG, or JPEG file.');
       return;
     }
-    if (file.size > 10 * 1024 * 1024) {
-      setUploadError('File must be under 10 MB.');
+    if (file.size > 50 * 1024 * 1024) {
+      setUploadError('File too large. Please upload a file under 50MB.');
       return;
     }
     setIsUploading(true);
@@ -702,7 +702,7 @@ const GoogleAdsBanner: React.FC = () => {
                           <>
                             <Upload className="h-8 w-8 md:h-10 md:w-10 text-gray-400 mx-auto mb-1 md:mb-2" />
                             <p className="font-semibold text-gray-800 text-sm md:text-base">Drag &amp; Drop or Click to Upload</p>
-                            <p className="text-xs text-gray-500 mt-0.5 md:mt-1">PDF, PNG, JPG, JPEG — Max 10 MB</p>
+                            <p className="text-xs text-gray-500 mt-0.5 md:mt-1">PDF, PNG, JPG, JPEG — Max 50 MB</p>
                             <p className="text-[10px] text-gray-400 mt-1">{widthDisplay} × {heightDisplay}</p>
                           </>
                         )}

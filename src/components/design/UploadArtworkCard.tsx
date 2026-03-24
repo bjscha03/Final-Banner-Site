@@ -12,8 +12,8 @@ const UploadArtworkCard: React.FC = () => {
 
   const acceptedTypes = ['application/pdf', 'image/jpeg', 'image/jpg', 'image/png'];
   const maxSizeBytes = 100 * 1024 * 1024; // 100MB theoretical limit
-  const cloudinaryLimit = 10 * 1024 * 1024; // 10MB Cloudinary free tier limit
-  const largeSizeThreshold = 15 * 1024 * 1024; // 15MB threshold for direct upload
+  const cloudinaryLimit = 50 * 1024 * 1024; // 50MB upload limit
+  const largeSizeThreshold = 50 * 1024 * 1024; // 50MB threshold for direct upload
 
   const validateFile = (file: File): string | null => {
     if (!acceptedTypes.includes(file.type)) {
@@ -23,7 +23,7 @@ const UploadArtworkCard: React.FC = () => {
       return `File size must be less than ${maxSizeBytes / (1024 * 1024)}MB.`;
     }
     if (file.size > cloudinaryLimit) {
-      return `File size (${(file.size / (1024 * 1024)).toFixed(1)}MB) exceeds the 10MB limit. Please compress your file or upgrade your plan.`;
+      return `File size (${(file.size / (1024 * 1024)).toFixed(1)}MB) exceeds the 50MB limit. Please compress your file.`;
     }
     return null;
   };
@@ -116,10 +116,9 @@ const UploadArtworkCard: React.FC = () => {
 
       let result;
       
-      // Route based on file size - but currently all files must be under 10MB
+      // Route based on file size
       if (file.size >= largeSizeThreshold) {
-        // Large files would use direct upload, but Cloudinary free tier doesn't support this
-        setUploadError(`File size (${(file.size / (1024 * 1024)).toFixed(1)}MB) exceeds the 10MB limit. Please compress your file or upgrade your Cloudinary plan.`);
+        setUploadError(`File too large. Please upload a file under 50MB.`);
         return;
       } else {
         // Small files use function upload
@@ -227,8 +226,8 @@ const UploadArtworkCard: React.FC = () => {
       <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg flex items-start gap-2">
         <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
         <div className="text-sm text-amber-800">
-          <p className="font-medium">File Size Limit: 10MB</p>
-          <p>Large files may fail to upload. Consider compressing PDFs or upgrading your plan for larger files.</p>
+          <p className="font-medium">File Size Limit: 50MB</p>
+          <p>Large files may take longer to upload. Consider compressing PDFs for faster uploads.</p>
         </div>
       </div>
 
@@ -264,7 +263,7 @@ const UploadArtworkCard: React.FC = () => {
                 Drop your file here or click to browse
               </p>
               <p className="text-sm text-gray-500 mb-4">
-                Supports PDF, JPG, JPEG, PNG files up to 10MB
+                Supports PDF, JPG, JPEG, PNG files up to 50MB
               </p>
               <Button type="button" onClick={openFileDialog} disabled={isUploading}>
                 Choose File
@@ -309,10 +308,10 @@ const UploadArtworkCard: React.FC = () => {
           <strong>Supported formats:</strong> PDF, JPG, JPEG, PNG
         </p>
         <p>
-          <strong>Maximum file size:</strong> 10MB (due to current plan limitations)
+          <strong>Maximum file size:</strong> 50MB
         </p>
         <p>
-          For larger files, please compress your PDF or contact support about upgrading your plan.
+          For larger files, please compress your PDF before uploading.
         </p>
       </div>
     </div>

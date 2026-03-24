@@ -44,7 +44,7 @@ const PrintReadyUploadPanel: React.FC<PrintReadyUploadPanelProps> = ({ open, onC
     return availableOptions > 0;
   }, [quote.grommets, quote.addRope, quote.polePockets, dontShowUpsellAgain]);
 
-  const maxSizeBytes = 10 * 1024 * 1024;
+  const maxSizeBytes = 50 * 1024 * 1024;
 
   if (!open) return null;
 
