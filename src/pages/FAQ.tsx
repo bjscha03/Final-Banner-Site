@@ -70,7 +70,7 @@ const FAQ: React.FC = () => {
     },
     {
       question: "Do you offer installation services?",
-      answer: "While we don't provide installation services directly, we can recommend trusted installation partners in your area. We also provide detailed hanging instructions with every order.",
+      answer: "We do not offer installation services or hanging instructions. Our banners are designed for straightforward setup and can be installed using common tools and standard mounting methods. Most customers are able to install their banner quickly using grommets, rope, zip ties, or mounting hardware.",
       category: "Installation"
     }
   ];
