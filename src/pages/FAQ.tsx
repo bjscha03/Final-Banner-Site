@@ -45,7 +45,7 @@ const FAQ: React.FC = () => {
     },
     {
       question: "Do you offer bulk discounts?",
-      answer: "Yes, we offer volume discounts for orders of 10+ banners. Contact our sales team for custom pricing on large orders or recurring business partnerships.",
+      answer: "Yes — we offer automatic volume discounts based on quantity:\n\n• 2 banners: 5% off\n• 3 banners: 7% off\n• 4 banners: 10% off\n• 5+ banners: 13% off\n\nDiscounts are applied automatically when you increase quantity. No codes needed — savings are built directly into the pricing.",
       category: "Pricing"
     },
     {
@@ -169,7 +169,7 @@ const FAQ: React.FC = () => {
                   {openIndex === index && (
                     <div className="px-6 pb-4">
                       <div className="border-t border-gray-200 pt-4">
-                        <p className="text-gray-700 leading-relaxed">
+                        <p className="text-gray-700 leading-relaxed whitespace-pre-line">
                           {faq.answer}
                         </p>
                       </div>
