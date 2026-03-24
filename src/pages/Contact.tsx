@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Mail, Clock, Shield, Send, Phone, MessageCircle, CheckCircle, AlertCircle, MapPin, Zap, HeadphonesIcon } from 'lucide-react';
+import { Mail, Clock, Shield, Send, Phone, MessageCircle, CheckCircle, AlertCircle, MapPin, Zap } from 'lucide-react';
 import Layout from '@/components/Layout';
 import PageHeader from '@/components/PageHeader';
 import { useToast } from '@/components/ui/use-toast';
@@ -122,19 +122,6 @@ const Contact: React.FC = () => {
                           <p className="font-bold text-gray-900 text-lg mb-1">Email Support</p>
                           <p className="text-gray-600">support@bannersonthefly.com</p>
                           <p className="text-sm text-gray-500 mt-1">Response within 2 hours</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-start group/item">
-                        <div className="flex-shrink-0">
-                          <div className="w-14 h-14 bg-[#18448D] rounded-2xl flex items-center justify-center shadow-lg transform group-hover/item:scale-110 transition-transform">
-                            <HeadphonesIcon className="h-7 w-7 text-white" />
-                          </div>
-                        </div>
-                        <div className="ml-5">
-                          <p className="font-bold text-gray-900 text-lg mb-1">Live Chat</p>
-                          <p className="text-gray-600">Available 24/7</p>
-                          <p className="text-sm text-gray-500 mt-1">Instant assistance</p>
                         </div>
                       </div>
 
