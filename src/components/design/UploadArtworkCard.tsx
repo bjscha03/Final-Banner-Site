@@ -227,7 +227,7 @@ const UploadArtworkCard: React.FC = () => {
         <AlertTriangle className="h-5 w-5 text-amber-600 mt-0.5 flex-shrink-0" />
         <div className="text-sm text-amber-800">
           <p className="font-medium">File Size Limit: 50MB</p>
-          <p>Large files may fail to upload. Consider compressing PDFs or upgrading your plan for larger files.</p>
+          <p>Large files may take longer to upload. Consider compressing PDFs for faster uploads.</p>
         </div>
       </div>
 
@@ -311,7 +311,7 @@ const UploadArtworkCard: React.FC = () => {
           <strong>Maximum file size:</strong> 50MB
         </p>
         <p>
-          For larger files, please compress your PDF or contact support about upgrading your plan.
+          For larger files, please compress your PDF before uploading.
         </p>
       </div>
     </div>
