@@ -88,11 +88,11 @@ const AdminOrders: React.FC = () => {
     }
   }, [orders, searchQuery]);
 
-  const loadOrders = async (p: number = page) => {
+  const loadOrders = async (pageToLoad: number = page) => {
     try {
       setLoading(true);
       const ordersAdapter = await getOrdersAdapter();
-      const allOrders = await ordersAdapter.listAll(p);
+      const allOrders = await ordersAdapter.listAll(pageToLoad);
       
       // DEBUG: Log what we got from database
       console.log('🔵 [Orders.tsx] loadOrders() received:', allOrders.length, 'orders');
