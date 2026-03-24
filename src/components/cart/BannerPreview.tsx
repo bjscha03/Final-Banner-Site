@@ -132,14 +132,12 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   fitMode = 'fill',
   designServiceEnabled = false,
 }) => {
-  // Detect if imageUrl is a canvas thumbnail (data URL) or Cloudinary URL that should fill the preview
-  // These should be rendered as full-bleed images, NOT with overlayImage positioning
-  const isCloudinaryUrl = imageUrl?.includes('cloudinary');
+  // Detect if imageUrl is a canvas thumbnail (data URL from stage.toDataURL())
+  // Only data URLs are true canvas thumbnails with the full design baked in.
+  // Cloudinary URLs from user uploads (e.g. Google Ads Banner page) are raw artwork
+  // that need imagePosition/imageScale transforms applied to match the user's preview.
   const isDataUrl = imageUrl?.startsWith('data:image/');
-  const isCanvasThumbnail = isDataUrl || isCloudinaryUrl;
-  
-  // For Cloudinary URLs (like Canva imports), we MUST render full-bleed and ignore overlayImage
-  // This prevents the image from appearing tiny/positioned when it should fill the entire preview
+  const isCanvasThumbnail = isDataUrl;
   
   // DEBUG: Log what we received
 
@@ -602,8 +600,8 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
               <g clipPath={`url(#banner-clip-${widthIn}-${heightIn})`}>
                 <image
                   href={imageUrl}
-                  x={(viewBoxWidth - viewBoxWidth * imageScale) / 2 + (imagePosition.x * 0.01)}
-                  y={(viewBoxHeight - viewBoxHeight * imageScale) / 2 + (imagePosition.y * 0.01)}
+                  x={(viewBoxWidth - viewBoxWidth * imageScale) / 2 + (imagePosition.x / 100) * viewBoxWidth}
+                  y={(viewBoxHeight - viewBoxHeight * imageScale) / 2 + (imagePosition.y / 100) * viewBoxHeight}
                   width={viewBoxWidth * imageScale}
                   height={viewBoxHeight * imageScale}
                   preserveAspectRatio="xMidYMid meet"
