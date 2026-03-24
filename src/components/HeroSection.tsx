@@ -148,13 +148,16 @@ const HeroSection: React.FC = () => {
                   Custom Banners
                 </h1>
                 <p className="text-lg md:text-xl lg:text-2xl font-normal text-slate-200 drop-shadow-md">
-                  Printed Fast, Shipped <span className="text-orange-400 italic font-semibold">FREE</span> Next-Day Air
+                  Printed in 24 Hours • Free <span className="text-orange-400 italic font-semibold">Next-Day Air</span> Shipping
+                </p>
+                <p className="text-sm md:text-base text-slate-400 drop-shadow-sm">
+                  Order today to start 24-hour production.
                 </p>
               </div>
 
               {/* Subheading - Bold feature points */}
-              <p className="text-base md:text-lg text-slate-300 pt-2 font-bold drop-shadow-sm">
-                24-Hour Production • Free Next-Day Air Shipping • 20% Off First Order
+              <p className="text-lg md:text-xl text-slate-300 pt-3 font-bold drop-shadow-sm tracking-wide">
+                <span className="font-extrabold">24-Hour Production</span> • <span className="font-extrabold">Free Next-Day Air Shipping</span> • <span className="font-extrabold">20% Off First Order</span>
               </p>
 
               {/* Action Buttons */}
@@ -164,7 +167,7 @@ const HeroSection: React.FC = () => {
                   onClick={handleUploadOrCreate}
                   className="group relative px-8 py-3.5 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-red-500 text-white text-base font-semibold rounded-lg transition-all duration-300 min-w-[200px] shadow-lg hover:shadow-orange-500/40 hover:shadow-xl hover:-translate-y-0.5 overflow-hidden"
                 >
-                  <span className="relative z-10">Upload or Create</span>
+                  <span className="relative z-10">Upload Your Design →</span>
                   <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent opacity-0 group-hover:opacity-100 group-hover:animate-[btn-shine_0.8s_ease-in-out]" />
                 </button>
 
@@ -174,7 +177,7 @@ const HeroSection: React.FC = () => {
                   className="px-8 py-3.5 bg-slate-700/50 hover:bg-slate-600/70 border border-slate-400/50 hover:border-slate-300 text-white text-base font-semibold rounded-lg transition-all duration-300 min-w-[200px] flex items-center justify-center gap-2 shadow-lg hover:shadow-xl backdrop-blur-sm hover:-translate-y-0.5"
                 >
                   <FileText className="w-4 h-4" />
-                  Quick Quote
+                  Get a Quick Quote
                 </button>
               </div>
 
@@ -182,7 +185,7 @@ const HeroSection: React.FC = () => {
               <div className="flex flex-wrap items-center justify-center gap-6 pt-6 text-sm text-slate-300">
                 <div className="flex items-center gap-2">
                   <Star className="w-4 h-4 text-yellow-400 fill-yellow-400 drop-shadow-sm" />
-                  <span>10,000+ happy customers</span>
+                  <span>Trusted by 10,000+ customers nationwide</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <Lock className="w-4 h-4 text-slate-400" />
