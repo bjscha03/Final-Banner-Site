@@ -29,11 +29,18 @@ const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading = false }) =>
         return 'bg-amber-100 text-amber-800';
       case 'failed':
         return 'bg-red-100 text-red-800';
+      case 'in_production':
+        return 'bg-yellow-100 text-yellow-800';
       case 'refunded':
         return 'bg-gray-100 text-gray-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  const getStatusLabel = (status: string): string => {
+    if (status === 'in_production') return 'In Production';
+    return status;
   };
 
   const getItemsSummary = (order: Order): string => {
@@ -173,7 +180,7 @@ const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading = false }) =>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
                   <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${getStatusColor(order.status)}`}>
-                    {order.status}
+                    {getStatusLabel(order.status)}
                   </span>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
@@ -221,7 +228,7 @@ const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading = false }) =>
                 </p>
               </div>
               <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${getStatusColor(order.status)}`}>
-                {order.status}
+                {getStatusLabel(order.status)}
               </span>
             </div>
 

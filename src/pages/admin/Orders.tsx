@@ -441,6 +441,50 @@ const AdminOrders: React.FC = () => {
     }
   };
 
+  const handleMarkInProduction = async (orderId: string) => {
+    try {
+      const response = await fetch('/.netlify/functions/mark-in-production', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ orderId }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result.ok) {
+        throw new Error(result.error || 'Failed to mark order as in production');
+      }
+
+      // Update local state immediately
+      setOrders(prevOrders =>
+        prevOrders.map(order =>
+          order.id === orderId
+            ? {
+                ...order,
+                status: 'in_production' as const,
+                production_email_sent: true,
+                production_email_sent_at: new Date().toISOString()
+              }
+            : order
+        )
+      );
+
+      toast({
+        title: "Order In Production",
+        description: `Customer notified: Order is now in production`,
+      });
+    } catch (error) {
+      console.error('Mark in production failed:', error);
+      toast({
+        title: "Failed to Update Status",
+        description: error instanceof Error ? error.message : "Could not update order status. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Handler for uploading Final Print PDF for design service orders
   const handleUploadFinalPdf = async (orderId: string, itemIndex: number, file: File) => {
     try {
@@ -506,11 +550,18 @@ const AdminOrders: React.FC = () => {
         return 'bg-amber-100 text-amber-800';
       case 'failed':
         return 'bg-red-100 text-red-800';
+      case 'in_production':
+        return 'bg-yellow-100 text-yellow-800';
       case 'refunded':
         return 'bg-gray-100 text-gray-800';
       default:
         return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  const getStatusLabel = (status: string): string => {
+    if (status === 'in_production') return 'In Production';
+    return status;
   };
 
   const getItemsSummary = (order: Order): string => {
@@ -644,13 +695,27 @@ const AdminOrders: React.FC = () => {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
             <div className="bg-white rounded-2xl shadow-lg p-6">
               <div className="flex items-center">
                 <Package className="h-8 w-8 text-blue-600" />
                 <div className="ml-4">
                   <p className="text-sm text-gray-600">Total Orders</p>
                   <p className="text-2xl font-bold text-gray-900">{orders.length}</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="bg-white rounded-2xl shadow-lg p-6">
+              <div className="flex items-center">
+                <div className="h-8 w-8 bg-yellow-100 rounded-full flex items-center justify-center">
+                  <div className="h-4 w-4 bg-yellow-600 rounded-full"></div>
+                </div>
+                <div className="ml-4">
+                  <p className="text-sm text-gray-600">In Production</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {orders.filter(o => o.status === 'in_production').length}
+                  </p>
                 </div>
               </div>
             </div>
@@ -675,7 +740,7 @@ const AdminOrders: React.FC = () => {
                 <div className="ml-4">
                   <p className="text-sm text-gray-600">Pending</p>
                   <p className="text-2xl font-bold text-gray-900">
-                    {orders.filter(o => !o.tracking_number).length}
+                    {orders.filter(o => !o.tracking_number && o.status !== 'in_production').length}
                   </p>
                 </div>
               </div>
@@ -740,8 +805,10 @@ const AdminOrders: React.FC = () => {
                       onFileDownload={handleFileDownload}
                       onPdfDownload={handlePdfDownload}
                       onSendShippingNotification={handleSendShippingNotification}
+                      onMarkInProduction={handleMarkInProduction}
                       onUploadFinalPdf={handleUploadFinalPdf}
                       getStatusColor={getStatusColor}
+                      getStatusLabel={getStatusLabel}
                       pdfLoadingStates={pdfLoadingStates}
                       getItemsSummary={getItemsSummary}
                     />
@@ -795,8 +862,10 @@ const AdminOrders: React.FC = () => {
                           onFileDownload={handleFileDownload}
                           onPdfDownload={handlePdfDownload}
                           onSendShippingNotification={handleSendShippingNotification}
+                          onMarkInProduction={handleMarkInProduction}
                           onUploadFinalPdf={handleUploadFinalPdf}
                           getStatusColor={getStatusColor}
+                          getStatusLabel={getStatusLabel}
                           pdfLoadingStates={pdfLoadingStates}
                           getItemsSummary={getItemsSummary}
                         />
@@ -848,8 +917,10 @@ interface AdminOrderRowProps {
   onFileDownload: (fileKey: string, orderId: string, itemIndex: number) => void;
   onPdfDownload: (item: any, itemIndex: number, orderId: string) => void;
   onSendShippingNotification: (orderId: string) => void;
+  onMarkInProduction: (orderId: string) => void;
   onUploadFinalPdf?: (orderId: string, itemIndex: number, file: File) => void;
   getStatusColor: (status: string) => string;
+  getStatusLabel: (status: string) => string;
   getItemsSummary: (order: Order) => string;
   pdfLoadingStates: Record<string, boolean>;
 }
@@ -861,8 +932,10 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   onFileDownload,
   onPdfDownload,
   onSendShippingNotification,
+  onMarkInProduction,
   onUploadFinalPdf,
   getStatusColor,
+  getStatusLabel,
   getItemsSummary,
   pdfLoadingStates
 }) => {
@@ -974,6 +1047,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   const [isEditingTracking, setIsEditingTracking] = useState(false);
   const [editTrackingNumber, setEditTrackingNumber] = useState('');
   const [isSendingNotification, setIsSendingNotification] = useState(false);
+  const [isMarkingProduction, setIsMarkingProduction] = useState(false);
 
   const handleAddTracking = () => {
     if (trackingNumber.trim()) {
@@ -1006,6 +1080,15 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
       await onSendShippingNotification(order.id);
     } finally {
       setIsSendingNotification(false);
+    }
+  };
+
+  const handleMarkInProduction = async () => {
+    setIsMarkingProduction(true);
+    try {
+      await onMarkInProduction(order.id);
+    } finally {
+      setIsMarkingProduction(false);
     }
   };
 
@@ -1070,9 +1153,8 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
       <td className="px-3 py-3 whitespace-nowrap">
         <div className="flex flex-col gap-1">
           <Badge className={`${getStatusColor(order.status)} capitalize`}>
-            {order.status}
+            {getStatusLabel(order.status)}
           </Badge>
-          {/* Design Service Badge */}
           {order.items.some(item => item.design_service_enabled) && (
             <Badge className="bg-purple-100 text-purple-800 text-xs">
               <Palette className="h-3 w-3 mr-1" />
@@ -1231,6 +1313,37 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
             }
           />
 
+          {/* Mark as In Production Button - show for paid orders not yet in production */}
+          {order.status === 'paid' && !order.production_email_sent && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleMarkInProduction}
+              disabled={isMarkingProduction}
+              className="text-xs border-yellow-400 text-yellow-700 hover:bg-yellow-50"
+            >
+              {isMarkingProduction ? (
+                <>
+                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                <>
+                  <Package className="h-3 w-3 mr-1" />
+                  Mark In Production
+                </>
+              )}
+            </Button>
+          )}
+
+          {/* Show in-production timestamp */}
+          {order.status === 'in_production' && order.production_email_sent_at && (
+            <div className="text-xs text-yellow-700 flex items-center">
+              <Package className="h-3 w-3 mr-1" />
+              In Production {new Date(order.production_email_sent_at).toLocaleDateString()}
+            </div>
+          )}
+
           {/* Send Shipping Notification Button */}
           {order.tracking_number && !order.shipping_notification_sent && (
             <Button
@@ -1276,8 +1389,10 @@ interface AdminOrderCardProps {
   onFileDownload: (fileKey: string, orderId: string, itemIndex: number) => void;
   onPdfDownload: (item: any, itemIndex: number, orderId: string) => void;
   onSendShippingNotification: (orderId: string) => void;
+  onMarkInProduction: (orderId: string) => void;
   onUploadFinalPdf?: (orderId: string, itemIndex: number, file: File) => void;
   getStatusColor: (status: string) => string;
+  getStatusLabel: (status: string) => string;
   getItemsSummary: (order: Order) => string;
   pdfLoadingStates: Record<string, boolean>;
 }
@@ -1285,11 +1400,23 @@ interface AdminOrderCardProps {
 const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
   order,
   onPdfDownload,
+  onMarkInProduction,
   onUploadFinalPdf,
   getStatusColor,
+  getStatusLabel,
   getItemsSummary,
   pdfLoadingStates
 }) => {
+  const [isMarkingProduction, setIsMarkingProduction] = useState(false);
+
+  const handleMarkInProduction = async () => {
+    setIsMarkingProduction(true);
+    try {
+      await onMarkInProduction(order.id);
+    } finally {
+      setIsMarkingProduction(false);
+    }
+  };
   const getFilesWithDownload = () => {
     return order.items
       .map((item, index) => ({ item, index }))
@@ -1388,9 +1515,8 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
           </div>
           <div className="flex flex-col gap-1 items-end">
             <Badge className={`${getStatusColor(order.status)} capitalize`}>
-              {order.status}
+              {getStatusLabel(order.status)}
             </Badge>
-            {/* Design Service Badge */}
             {order.items.some(item => item.design_service_enabled) && (
               <Badge className="bg-purple-100 text-purple-800 text-xs">
                 <Palette className="h-3 w-3 mr-1" />
@@ -1491,7 +1617,38 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
       )}
 
       {/* View Details Button */}
-      <div className="mt-3 pt-3 border-t border-gray-200">
+      <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
+        {/* Mark as In Production Button - show for paid orders not yet in production */}
+        {order.status === 'paid' && !order.production_email_sent && (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleMarkInProduction}
+            disabled={isMarkingProduction}
+            className="w-full text-xs border-yellow-400 text-yellow-700 hover:bg-yellow-50"
+          >
+            {isMarkingProduction ? (
+              <>
+                <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                Updating...
+              </>
+            ) : (
+              <>
+                <Package className="h-3 w-3 mr-1" />
+                Mark as In Production
+              </>
+            )}
+          </Button>
+        )}
+
+        {/* Show in-production timestamp */}
+        {order.status === 'in_production' && order.production_email_sent_at && (
+          <div className="text-xs text-yellow-700 flex items-center justify-center">
+            <Package className="h-3 w-3 mr-1" />
+            In Production since {new Date(order.production_email_sent_at).toLocaleDateString()}
+          </div>
+        )}
+
         <Dialog>
           <DialogTrigger asChild>
             <Button size="sm" variant="outline" className="w-full">
