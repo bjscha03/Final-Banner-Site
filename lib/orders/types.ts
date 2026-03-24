@@ -25,6 +25,9 @@ export interface Order {
   items: OrderItem[];
   tracking_number?: string | null;
   tracking_carrier?: TrackingCarrier | null;
+  production_email_sent?: boolean;
+  production_email_sent_at?: string | null;
+  shipping_notification_sent?: boolean;
 }
 
 export interface CreateOrderData {

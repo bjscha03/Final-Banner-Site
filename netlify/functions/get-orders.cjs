@@ -187,6 +187,9 @@ exports.handler = async (event, context) => {
       applied_discount_cents: Number(order.applied_discount_cents) || 0,
       applied_discount_label: order.applied_discount_label || '',
       applied_discount_type: order.applied_discount_type || 'none',
+      production_email_sent: order.production_email_sent || false,
+      production_email_sent_at: order.production_email_sent_at || null,
+      shipping_notification_sent: order.shipping_notification_sent || false,
       created_at: order.created_at,
       items: _items
     };
