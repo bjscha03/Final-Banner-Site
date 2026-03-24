@@ -157,7 +157,7 @@ const HeroSection: React.FC = () => {
 
               {/* Subheading - Bold feature points */}
               <p className="text-lg md:text-xl text-slate-300 pt-3 font-bold drop-shadow-sm tracking-wide">
-                <span className="font-extrabold">24-Hour Production</span> • <span className="font-extrabold">Free Next-Day Air Shipping</span> • <span className="font-extrabold">20% Off First Order</span>
+                <span className="font-extrabold">High-quality vinyl</span> • <span className="font-extrabold">Designer reviewed</span> • <span className="font-extrabold">20% off your first order</span>
               </p>
 
               {/* Action Buttons */}
