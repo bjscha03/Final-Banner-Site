@@ -313,27 +313,15 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
           <div
             className="rounded-lg overflow-hidden shadow-lg border-2 border-gray-200 absolute inset-0"
           >
-            {/* Wrapper div for transform - matches preview modal structure */}
-            <div
-              className="absolute inset-0 w-full h-full"
-              style={{
-                transform: fitMode === 'fill' && imagePosition && imageScale 
-                  ? `translate(${(imagePosition.x / 100) * previewWidth}px, ${(imagePosition.y / 100) * previewHeight}px) scale(${imageScale})`
-                  : undefined,
-                transformOrigin: 'center center'
-              }}
-            >
               <img 
                 ref={imgRef}
                 src={imageUrl}
                 alt="Banner preview"
-                className="absolute inset-0 w-full h-full object-contain"
+                className="absolute inset-0 w-full h-full object-cover"
                 draggable={false}
                 onLoad={(e) => { setImageLoaded(true); }}
                 onError={() => setImageError(true)}
               />
-            </div>
-            
             </div>
 
             {/* Grommets overlay */}
@@ -384,26 +372,15 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
             height: `${previewHeight}px`,
           }}
         >
-          {/* Wrapper div for transform - matches preview modal structure */}
-          <div
-            className="absolute inset-0 w-full h-full"
-            style={{
-              transform: fitMode === 'fill' && imagePosition && imageScale 
-                ? `translate(${(imagePosition.x / 100) * previewWidth}px, ${(imagePosition.y / 100) * previewHeight}px) scale(${imageScale})`
-                : undefined,
-              transformOrigin: 'center center'
-            }}
-          >
-            <img 
+          <img 
               ref={imgRef}
               src={imageUrl} 
               alt="Banner preview"
-              className="w-full h-full object-contain"
+              className="w-full h-full object-cover"
               draggable={false}
               onLoad={(e) => { setImageLoaded(true); }}
               onError={() => setImageError(true)}
             />
-          </div>
         </div>
       </div>
     );
