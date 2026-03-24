@@ -8,6 +8,7 @@ import ResetPassword from '../emails/ResetPassword';
 import OrderConfirmation from '../emails/OrderConfirmation';
 import OrderShipped from '../emails/OrderShipped';
 import OrderCanceled from '../emails/OrderCanceled';
+import OrderInProduction from '../emails/OrderInProduction';
 import ContactReceived from '../emails/ContactReceived';
 import ContactAcknowledgment from '../emails/ContactAcknowledgment';
 import AdminOrderNotification from '../emails/AdminOrderNotification';
@@ -155,6 +156,7 @@ export async function sendEmail(
     | 'user.reset'
     | 'order.confirmation'
     | 'order.shipped'
+    | 'order.in_production'
     | 'order.canceled'
     | 'order.admin_notification'
     | 'contact.received'
@@ -223,6 +225,10 @@ export async function sendEmail(
       'order.shipped': {
         subject: `Your order #${payload?.order?.order_number || payload?.order?.number || payload?.order?.id} is on the way`,
         react: React.createElement(OrderShipped, payload),
+      },
+      'order.in_production': {
+        subject: 'Your Banner is Now in Production 🎯',
+        react: React.createElement(OrderInProduction, payload),
       },
       'order.canceled': {
         subject: `Order #${payload?.order?.order_number || payload?.order?.number || payload?.order?.id} canceled`,
