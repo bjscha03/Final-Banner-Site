@@ -576,7 +576,6 @@ const GoogleAdsBanner: React.FC = () => {
                   <span className="text-orange-400 text-base tracking-wide" role="img" aria-label="Rated 5 out of 5 stars">★★★★★</span>
                 </div>
                 <p className="text-xs text-gray-500 font-medium">Trusted by Dan-O&rsquo;s Seasoning + 1,000+ customers</p>
-                <p className="text-[11px] text-gray-500 font-medium">Used by Louisville businesses and events</p>
               </div>
             </div>
           </div>
