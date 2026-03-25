@@ -65,6 +65,10 @@ interface EditorCanvasProps {
 
 const PIXELS_PER_INCH = 96;
 const GHOST_CLICK_DEBOUNCE_MS = 500;
+// Time to keep pinch guard active after gesture ends to prevent ghost-click deselection
+const PINCH_GUARD_TIMEOUT_MS = 400;
+// Small delay to allow touch event processing to complete before resetting touch count
+const TOUCH_END_RESET_DELAY_MS = 50;
 
 // Image component for rendering uploaded images
 const CanvasImage: React.FC<{
@@ -429,17 +433,15 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
     };
     
     const handleTouchEnd = (e: TouchEvent) => {
-      // Small delay before resetting to allow event processing to complete
       setTimeout(() => {
         activeTouchCountRef.current = e.touches.length;
-      }, 50);
+      }, TOUCH_END_RESET_DELAY_MS);
       
       if (e.touches.length < 2) {
         lastPinchDistRef.current = null;
-        // Keep isPinchingRef true briefly to prevent ghost-click deselection
         setTimeout(() => {
           isPinchingRef.current = false;
-        }, 400);
+        }, PINCH_GUARD_TIMEOUT_MS);
       }
     };
     
