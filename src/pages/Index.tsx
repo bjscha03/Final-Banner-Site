@@ -8,6 +8,7 @@ import TestimonialsSection from '@/components/TestimonialsSection';
 import WhyChooseUs from '@/components/WhyChooseUs';
 import PromoBanner from '@/components/PromoBanner';
 import PricingTable from '@/components/PricingTable';
+import DeliveryCarousel from '@/components/home/DeliveryCarousel';
 
 const Index: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -63,6 +64,7 @@ const Index: React.FC = () => {
     <Layout>
       <PromoBanner />
       <HeroSection />
+      <DeliveryCarousel />
       <CompanySpotlight />
       <TestimonialsSection />
       <WhyChooseUs />
