@@ -29,6 +29,7 @@ const DeliveryCarousel: React.FC = () => {
   const dragStartX = useRef(0);
   const scrollStartX = useRef(0);
   const pointerTypeRef = useRef<string>('mouse');
+  const hadPointerDownRef = useRef(false);
 
   // Seamless infinite scroll reset
   useEffect(() => {
@@ -75,6 +76,7 @@ const DeliveryCarousel: React.FC = () => {
   // Touch/drag handlers for mobile swipe
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
     pointerTypeRef.current = e.pointerType;
+    hadPointerDownRef.current = true;
     setIsDragging(true);
     dragStartX.current = e.clientX;
     scrollStartX.current = trackRef.current?.scrollLeft ?? 0;
@@ -141,7 +143,11 @@ const DeliveryCarousel: React.FC = () => {
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
         onKeyDown={handleKeyDown}
-        onFocus={() => setIsPaused(true)}
+        onFocus={() => {
+          // Only pause for keyboard focus, not pointer/touch focus
+          if (!hadPointerDownRef.current) setIsPaused(true);
+          hadPointerDownRef.current = false;
+        }}
         onBlur={() => setIsPaused(false)}
       >
         {allImages.map((img, i) => (
