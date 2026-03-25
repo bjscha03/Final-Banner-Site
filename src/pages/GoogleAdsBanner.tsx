@@ -582,6 +582,7 @@ const GoogleAdsBanner: React.FC = () => {
           </div>
         </section>
 
+        <DeliveryCarousel />
 
         <section ref={orderRef} id="order-builder" className="py-12 px-4 bg-white">
           <div className="max-w-4xl mx-auto">
