@@ -64,6 +64,7 @@ interface EditorCanvasProps {
 }
 
 const PIXELS_PER_INCH = 96;
+const GHOST_CLICK_DEBOUNCE_MS = 350;
 
 // Image component for rendering uploaded images
 const CanvasImage: React.FC<{
@@ -77,11 +78,12 @@ const CanvasImage: React.FC<{
   draggable: boolean;
   onClick: (e: Konva.KonvaEventObject<MouseEvent>) => void;
   onTap: (e: Konva.KonvaEventObject<MouseEvent>) => void;
+  onDragStart?: () => void;
   onDragEnd: (e: Konva.KonvaEventObject<DragEvent>) => void;
   onTransformEnd: (e: Konva.KonvaEventObject<Event>) => void;
   dragBoundFunc?: (pos: { x: number; y: number }) => { x: number; y: number };
   id: string;
-}> = ({ url, x, y, width, height, rotation, opacity, draggable, onClick, onTap, onDragEnd, onTransformEnd, dragBoundFunc, id }) => {
+}> = ({ url, x, y, width, height, rotation, opacity, draggable, onClick, onTap, onDragStart, onDragEnd, onTransformEnd, dragBoundFunc, id }) => {
   const [image, imageStatus] = usePreloadedImage(url, 'anonymous');
   
   // Trigger re-render when image loads by using useEffect
@@ -140,6 +142,7 @@ const CanvasImage: React.FC<{
       dragBoundFunc={dragBoundFunc}
       onClick={onClick}
       onTap={onTap}
+      onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onTransformEnd={onTransformEnd}
     />
@@ -244,6 +247,9 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
   const [editingTextId, setEditingTextId] = useState<string | null>(null);
   const [editingTextValue, setEditingTextValue] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  
+  // Timestamp of last selection event - used to prevent mobile ghost-click deselection
+  const lastSelectTimeRef = useRef<number>(0);
   
   // State for center snap lines (alignment guides)
   const [snapLines, setSnapLines] = useState<{ horizontal: boolean; vertical: boolean }>({
@@ -392,6 +398,12 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
       return;
     }
     
+    // Guard against mobile ghost clicks: browsers may emulate a click event
+    // ~300ms after a touch, which can land on the background and clear selection
+    if (Date.now() - lastSelectTimeRef.current < GHOST_CLICK_DEBOUNCE_MS) {
+      return;
+    }
+    
     // Only clear selection if clicking directly on the stage or background
     // Check if the click target is the stage itself or the background rect
     const clickedOnEmpty = e.target === e.target.getStage() || e.target.name() === 'background-rect';
@@ -404,6 +416,9 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
   const handleObjectClick = (id: string, e: Konva.KonvaEventObject<MouseEvent>) => {
     // Prevent stage click from clearing selection
     e.cancelBubble = true;
+    
+    // Record selection time to guard against mobile ghost-click deselection
+    lastSelectTimeRef.current = Date.now();
     
     const nativeEvent = e.evt;
     const addToSelection = nativeEvent?.shiftKey || nativeEvent?.metaKey || nativeEvent?.ctrlKey;
@@ -566,6 +581,12 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
     setEditingTextId(id);
     setEditingTextValue(currentText);
     selectObject(id);
+  };
+
+  // Forward double-click/tap from Transformer to text editing
+  const handleTransformerDblInteraction = () => {
+    const textObj = objects.find(obj => selectedIds.includes(obj.id) && obj.type === 'text');
+    if (textObj) handleTextDblClick(textObj.id, textObj.content);
   };
 
   const handleObjectTransformEnd = (id: string, e: Konva.KonvaEventObject<Event>) => {
@@ -933,8 +954,15 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
             anchorFill="#18448D"
             anchorStroke="#ffffff"
             anchorStrokeWidth={2}
-            anchorSize={10}
+            anchorSize={12}
             anchorCornerRadius={2}
+            // Prevent clicks inside the selection box from falling through
+            // to the background, which would cause unwanted deselection
+            shouldOverdrawWholeArea={true}
+            padding={4}
+            // Forward double-click/tap to text editing when a text object is selected
+            onDblClick={handleTransformerDblInteraction}
+            onDblTap={handleTransformerDblInteraction}
             boundBoxFunc={(oldBox, newBox) => {
               // Remove minimum size constraint to prevent snapping
               // Allow any size for smooth resizing
