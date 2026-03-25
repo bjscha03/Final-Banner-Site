@@ -64,7 +64,11 @@ interface EditorCanvasProps {
 }
 
 const PIXELS_PER_INCH = 96;
-const GHOST_CLICK_DEBOUNCE_MS = 350;
+const GHOST_CLICK_DEBOUNCE_MS = 500;
+// Time to keep pinch guard active after gesture ends to prevent ghost-click deselection
+const PINCH_GUARD_TIMEOUT_MS = 400;
+// Small delay to allow touch event processing to complete before resetting touch count
+const TOUCH_END_RESET_DELAY_MS = 50;
 
 // Image component for rendering uploaded images
 const CanvasImage: React.FC<{
@@ -239,6 +243,7 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
     moveSelected,
     getBleedSize,
     getSafeZoneMargin,
+    isAddingImage,
   } = useEditorStore();
   
   const [stageSize, setStageSize] = useState({ width: 800, height: 600 });
@@ -250,6 +255,13 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
   
   // Timestamp of last selection event - used to prevent mobile ghost-click deselection
   const lastSelectTimeRef = useRef<number>(0);
+  
+  // Track active touch count to prevent deselection during multi-touch gestures
+  const activeTouchCountRef = useRef<number>(0);
+  
+  // Pinch-to-zoom state for scaling selected objects on mobile
+  const lastPinchDistRef = useRef<number | null>(null);
+  const isPinchingRef = useRef<boolean>(false);
   
   // State for center snap lines (alignment guides)
   const [snapLines, setSnapLines] = useState<{ horizontal: boolean; vertical: boolean }>({
@@ -360,6 +372,90 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [deleteSelected, duplicateSelected, undo, redo, canUndo, canRedo, moveSelected]);
   
+  // Pinch-to-zoom: scale the selected object when user pinches on mobile
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    
+    const handleTouchStart = (e: TouchEvent) => {
+      activeTouchCountRef.current = e.touches.length;
+      
+      if (e.touches.length === 2) {
+        // Calculate initial pinch distance
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        lastPinchDistRef.current = Math.sqrt(dx * dx + dy * dy);
+        isPinchingRef.current = true;
+        // Prevent default to stop browser zoom
+        e.preventDefault();
+      }
+    };
+    
+    const handleTouchMove = (e: TouchEvent) => {
+      activeTouchCountRef.current = e.touches.length;
+      
+      if (e.touches.length === 2 && lastPinchDistRef.current !== null && selectedIds.length > 0) {
+        e.preventDefault();
+        
+        // Calculate new distance between fingers
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        
+        // Calculate scale delta
+        const delta = dist / lastPinchDistRef.current;
+        lastPinchDistRef.current = dist;
+        
+        // Scale the selected object(s)
+        const selectedObj = objects.find(obj => selectedIds.includes(obj.id));
+        if (selectedObj && (selectedObj.type === 'image' || selectedObj.type === 'shape')) {
+          const currentWidth = (selectedObj as any).width || 1;
+          const currentHeight = (selectedObj as any).height || 1;
+          const newWidth = Math.max(0.1, currentWidth * delta);
+          const newHeight = Math.max(0.1, currentHeight * delta);
+          
+          // Keep the object centered while scaling
+          const dw = newWidth - currentWidth;
+          const dh = newHeight - currentHeight;
+          
+          updateObject(selectedObj.id, {
+            width: newWidth,
+            height: newHeight,
+            x: selectedObj.x - dw / 2,
+            y: selectedObj.y - dh / 2,
+          });
+        } else if (selectedObj && selectedObj.type === 'text') {
+          const currentFontSize = (selectedObj as any).fontSize || 0.5;
+          const newFontSize = Math.max(0.05, currentFontSize * delta);
+          updateObject(selectedObj.id, { fontSize: newFontSize });
+        }
+      }
+    };
+    
+    const handleTouchEnd = (e: TouchEvent) => {
+      setTimeout(() => {
+        activeTouchCountRef.current = e.touches.length;
+      }, TOUCH_END_RESET_DELAY_MS);
+      
+      if (e.touches.length < 2) {
+        lastPinchDistRef.current = null;
+        setTimeout(() => {
+          isPinchingRef.current = false;
+        }, PINCH_GUARD_TIMEOUT_MS);
+      }
+    };
+    
+    container.addEventListener('touchstart', handleTouchStart, { passive: false });
+    container.addEventListener('touchmove', handleTouchMove, { passive: false });
+    container.addEventListener('touchend', handleTouchEnd);
+    
+    return () => {
+      container.removeEventListener('touchstart', handleTouchStart);
+      container.removeEventListener('touchmove', handleTouchMove);
+      container.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [selectedIds, objects, updateObject]);
+  
   // Update transformer when selection changes
   useEffect(() => {
     if (!transformerRef.current || !stageRef.current) return;
@@ -401,6 +497,11 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
     // Guard against mobile ghost clicks: browsers may emulate a click event
     // ~300ms after a touch, which can land on the background and clear selection
     if (Date.now() - lastSelectTimeRef.current < GHOST_CLICK_DEBOUNCE_MS) {
+      return;
+    }
+    
+    // Prevent deselection during or immediately after multi-touch gestures (pinch-to-zoom)
+    if (isPinchingRef.current || activeTouchCountRef.current >= 2) {
       return;
     }
     
@@ -1117,6 +1218,17 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
           >
             <Trash2 className="w-5 h-5" />
           </button>
+        </div>
+      )}
+      
+      {/* Loading overlay when image is being added to canvas */}
+      {isAddingImage && (
+        <div className="absolute inset-0 bg-black/30 flex items-center justify-center z-40 pointer-events-none rounded-lg">
+          <div className="bg-white rounded-xl px-6 py-4 flex flex-col items-center shadow-xl">
+            <div className="animate-spin rounded-full h-10 w-10 border-4 border-gray-200 border-t-[#18448D] mb-3"></div>
+            <p className="text-sm font-semibold text-gray-800">Loading your image...</p>
+            <p className="text-xs text-gray-500 mt-1">This may take a moment</p>
+          </div>
         </div>
       )}
       

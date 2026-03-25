@@ -88,7 +88,9 @@ interface EditorState {
   lastSaved: Date | null;
   isDirty: boolean;
   canvasThumbnail: string | null;
+  isAddingImage: boolean;
   
+  setIsAddingImage: (loading: boolean) => void;
   addObject: (object: Partial<CanvasObject>) => void;
   updateObject: (id: string, updates: Partial<CanvasObject>) => void;
   deleteObject: (id: string) => void;
@@ -147,6 +149,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   contextPreviewType: 'storefront',
   canvasBackgroundColor: '#FFFFFF',
   canvasThumbnail: null,
+  isAddingImage: false,
   isExporting: false,
   exportProgress: 0,
   exportUrls: {},
@@ -155,6 +158,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   isSaving: false,
   lastSaved: null,
   isDirty: false,
+  
+  setIsAddingImage: (loading) => set({ isAddingImage: loading }),
   
   addObject: (object) => {
     console.log('[EDITOR STORE] addObject called with:', {
