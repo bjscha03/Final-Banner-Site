@@ -1,25 +1,25 @@
 import React, { useRef, useEffect, useState, useCallback } from 'react';
 
 const DELIVERY_IMAGES = [
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460966/download_cz20yn.jpg', alt: 'Delivered banner order' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460965/download-13_vmyxvp.jpg', alt: 'Delivered banner order' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460966/download-16_hck4qs.jpg', alt: 'Delivered banner order' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460966/download-18_yyyu7k.jpg', alt: 'Delivered banner order' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460966/download-17_htewfz.jpg', alt: 'Delivered banner order' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460966/download-15_rpzqgf.jpg', alt: 'Delivered banner order' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460966/download-14_y2hhkv.jpg', alt: 'Delivered banner order' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460965/download-12_tnp4g2.jpg', alt: 'Delivered banner order' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460954/download-10_dknhmc.jpg', alt: 'Delivered banner order' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460954/download-9_hpdvaf.jpg', alt: 'Delivered banner order' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460954/download-11_hxfr9e.jpg', alt: 'Delivered banner order' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460953/download-7_eoowij.jpg', alt: 'Delivered banner order' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460953/download-8_xlfbuv.jpg', alt: 'Delivered banner order' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460953/download-1_un1zb8.jpg', alt: 'Delivered banner order' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460953/download-4_mags5c.jpg', alt: 'Delivered banner order' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460953/download-3_sokqqv.jpg', alt: 'Delivered banner order' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460953/download-6_xtzq7z.jpg', alt: 'Delivered banner order' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460953/download-2_pzrd1q.jpg', alt: 'Delivered banner order' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460953/download-5_wolqqp.jpg', alt: 'Delivered banner order' },
+  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460966/download_cz20yn.jpg', alt: 'Customer delivery photo 1 – custom vinyl banner' },
+  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460965/download-13_vmyxvp.jpg', alt: 'Customer delivery photo 2 – printed banner package' },
+  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460966/download-16_hck4qs.jpg', alt: 'Customer delivery photo 3 – banner order unboxing' },
+  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460966/download-18_yyyu7k.jpg', alt: 'Customer delivery photo 4 – next-day air banner shipment' },
+  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460966/download-17_htewfz.jpg', alt: 'Customer delivery photo 5 – rush order banner delivery' },
+  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460966/download-15_rpzqgf.jpg', alt: 'Customer delivery photo 6 – finished banner product' },
+  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460966/download-14_y2hhkv.jpg', alt: 'Customer delivery photo 7 – banner with grommets' },
+  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460965/download-12_tnp4g2.jpg', alt: 'Customer delivery photo 8 – outdoor banner installed' },
+  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460954/download-10_dknhmc.jpg', alt: 'Customer delivery photo 9 – event banner delivered' },
+  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460954/download-9_hpdvaf.jpg', alt: 'Customer delivery photo 10 – trade show banner' },
+  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460954/download-11_hxfr9e.jpg', alt: 'Customer delivery photo 11 – business banner order' },
+  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460953/download-7_eoowij.jpg', alt: 'Customer delivery photo 12 – promotional banner' },
+  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460953/download-8_xlfbuv.jpg', alt: 'Customer delivery photo 13 – custom printed banner' },
+  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460953/download-1_un1zb8.jpg', alt: 'Customer delivery photo 14 – vinyl banner shipment' },
+  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460953/download-4_mags5c.jpg', alt: 'Customer delivery photo 15 – storefront banner' },
+  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460953/download-3_sokqqv.jpg', alt: 'Customer delivery photo 16 – grand opening banner' },
+  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460953/download-6_xtzq7z.jpg', alt: 'Customer delivery photo 17 – banner display setup' },
+  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460953/download-2_pzrd1q.jpg', alt: 'Customer delivery photo 18 – indoor banner installation' },
+  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460953/download-5_wolqqp.jpg', alt: 'Customer delivery photo 19 – completed banner order' },
 ];
 
 const DeliveryCarousel: React.FC = () => {
@@ -89,6 +89,19 @@ const DeliveryCarousel: React.FC = () => {
     setIsDragging(false);
   }, []);
 
+  const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
+    const track = trackRef.current;
+    if (!track) return;
+    const scrollAmount = 220;
+    if (e.key === 'ArrowRight') {
+      track.scrollLeft += scrollAmount;
+      e.preventDefault();
+    } else if (e.key === 'ArrowLeft') {
+      track.scrollLeft -= scrollAmount;
+      e.preventDefault();
+    }
+  }, []);
+
   // Duplicate images for seamless loop
   const allImages = [...DELIVERY_IMAGES, ...DELIVERY_IMAGES];
 
@@ -107,7 +120,10 @@ const DeliveryCarousel: React.FC = () => {
       {/* Carousel track */}
       <div
         ref={trackRef}
-        className="flex gap-3 overflow-x-hidden cursor-grab select-none"
+        role="region"
+        aria-label="Delivery photo carousel"
+        tabIndex={0}
+        className="flex gap-3 overflow-x-hidden cursor-grab select-none focus:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 focus-visible:ring-offset-2 rounded-sm"
         style={{ WebkitOverflowScrolling: 'touch' }}
         onMouseEnter={() => setIsPaused(true)}
         onMouseLeave={() => { setIsPaused(false); setIsDragging(false); }}
@@ -115,6 +131,9 @@ const DeliveryCarousel: React.FC = () => {
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
+        onKeyDown={handleKeyDown}
+        onFocus={() => setIsPaused(true)}
+        onBlur={() => setIsPaused(false)}
       >
         {allImages.map((img, i) => (
           <div
