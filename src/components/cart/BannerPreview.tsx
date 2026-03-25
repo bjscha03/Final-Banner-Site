@@ -42,6 +42,7 @@ interface BannerPreviewProps {
   imagePosition?: { x: number; y: number };
   fitMode?: 'fill' | 'fit' | 'stretch';
   designServiceEnabled?: boolean;
+  source?: string;
 }
 
 interface Point {
@@ -131,13 +132,19 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   imagePosition = { x: 0, y: 0 },
   fitMode = 'fill',
   designServiceEnabled = false,
+  source,
 }) => {
-  // Detect if imageUrl is a canvas thumbnail (data URL from stage.toDataURL())
-  // Only data URLs are true canvas thumbnails with the full design baked in.
-  // Cloudinary URLs from user uploads (e.g. Google Ads Banner page) are raw artwork
-  // that need imagePosition/imageScale transforms applied to match the user's preview.
+  // Detect if imageUrl is a canvas thumbnail with the full design baked in.
+  // Canvas thumbnails should be rendered full-bleed without position/scale transforms
+  // and without re-rendering text elements or overlay images on top.
+  //
+  // Two cases:
+  // 1. Data URLs (from stage.toDataURL()) - direct canvas captures
+  // 2. Cloudinary URLs from the design editor - canvas snapshots uploaded to Cloudinary
+  //    These are identified by source === 'design' (the cart item tracks its origin page).
+  //    Google Ads Banner items (source === 'google-ads') use raw artwork that needs transforms.
   const isDataUrl = imageUrl?.startsWith('data:image/');
-  const isCanvasThumbnail = isDataUrl;
+  const isCanvasThumbnail = isDataUrl || source === 'design';
   
   // DEBUG: Log what we received
 
