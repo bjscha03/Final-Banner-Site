@@ -138,13 +138,11 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   // Canvas thumbnails should be rendered full-bleed without position/scale transforms
   // and without re-rendering text elements or overlay images on top.
   //
-  // Two cases:
-  // 1. Data URLs (from stage.toDataURL()) - direct canvas captures
-  // 2. Cloudinary URLs from the design editor - canvas snapshots uploaded to Cloudinary
-  //    These are identified by source === 'design' (the cart item tracks its origin page).
-  //    Google Ads Banner items (source === 'google-ads') use raw artwork that needs transforms.
+  // Only data URLs (from stage.toDataURL()) are direct canvas captures with positioning
+  // already baked in. Cloudinary URLs from both the design page and Google Ads page use
+  // raw artwork that needs imagePosition/imageScale transforms applied.
   const isDataUrl = imageUrl?.startsWith('data:image/');
-  const isCanvasThumbnail = isDataUrl || source === 'design';
+  const isCanvasThumbnail = isDataUrl;
   
   // DEBUG: Log what we received
 
