@@ -11,6 +11,7 @@ import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
 import CartModal from '@/components/CartModal';
 
 import { getQuantityDiscountRate } from '@/lib/quantity-discount';
+import DeliveryCarousel from '@/components/home/DeliveryCarousel';
 
 const PRESET_SIZES = [
   { label: "2' × 4'", w: 48, h: 24 },
@@ -977,6 +978,8 @@ const GoogleAdsBanner: React.FC = () => {
             </div>
           </div>
         </section>
+
+        <DeliveryCarousel />
 
         <div className="py-4 pb-24 md:pb-4 text-center text-xs text-gray-400 border-t border-gray-100">
           <div className="mb-2">

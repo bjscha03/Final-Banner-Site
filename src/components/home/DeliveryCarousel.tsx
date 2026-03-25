@@ -28,6 +28,7 @@ const DeliveryCarousel: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
   const dragStartX = useRef(0);
   const scrollStartX = useRef(0);
+  const pointerTypeRef = useRef<string>('mouse');
 
   // Seamless infinite scroll reset
   useEffect(() => {
@@ -73,6 +74,7 @@ const DeliveryCarousel: React.FC = () => {
 
   // Touch/drag handlers for mobile swipe
   const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    pointerTypeRef.current = e.pointerType;
     setIsDragging(true);
     dragStartX.current = e.clientX;
     scrollStartX.current = trackRef.current?.scrollLeft ?? 0;
@@ -87,6 +89,10 @@ const DeliveryCarousel: React.FC = () => {
 
   const handlePointerUp = useCallback(() => {
     setIsDragging(false);
+    // On touch devices, resume autoscroll after interaction
+    if (pointerTypeRef.current === 'touch') {
+      setIsPaused(false);
+    }
   }, []);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent) => {
@@ -114,6 +120,9 @@ const DeliveryCarousel: React.FC = () => {
         </h2>
         <p className="mt-2 text-sm sm:text-base text-gray-500">
           Photos from actual Banners on the Fly deliveries
+        </p>
+        <p className="mt-1 text-xs text-gray-400 italic">
+          Personal details are removed for privacy
         </p>
       </div>
 
