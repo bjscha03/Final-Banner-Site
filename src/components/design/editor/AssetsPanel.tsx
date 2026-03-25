@@ -87,7 +87,7 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
   };
 
 
-  const { addObject } = useEditorStore();
+  const { addObject, setIsAddingImage } = useEditorStore();
   const { widthIn, heightIn, editingItemId } = useQuoteStore();
 
   // Sync local state with persistent store
@@ -156,6 +156,7 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
           console.log("[AssetsPanel] Auto-adding PDF to canvas");
           setTimeout(async () => {
             try {
+              setIsAddingImage(true);
               await handleAddToCanvas(newImage);
               toast({
                 title: "PDF added to banner",
@@ -164,6 +165,8 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
               console.log("[AssetsPanel] PDF added and remains in list");
             } catch (error) {
               console.error("[AssetsPanel] ERROR in PDF auto-add:", error);
+            } finally {
+              setIsAddingImage(false);
             }
           }, 100);
         } catch (error) {
@@ -211,6 +214,7 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
           {
             
             try {
+              setIsAddingImage(true);
               await handleAddToCanvas(tempImage);
               if (onClose) onClose();  // Close panel AFTER adding to canvas
               toast({
@@ -219,6 +223,8 @@ const AssetsPanel: React.FC<AssetsPanelProps> = ({ onClose }) => {
               });
             } catch (error) {
               console.error('[AssetsPanel] ERROR in immediate auto-add:', error);
+            } finally {
+              setIsAddingImage(false);
             }
           }
           
