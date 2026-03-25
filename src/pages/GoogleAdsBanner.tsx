@@ -980,8 +980,6 @@ const GoogleAdsBanner: React.FC = () => {
           </div>
         </section>
 
-        <DeliveryCarousel />
-
         <div className="py-4 pb-24 md:pb-4 text-center text-xs text-gray-400 border-t border-gray-100">
           <div className="mb-2">
             <Link to="/terms" className="hover:text-gray-600">Terms</Link>

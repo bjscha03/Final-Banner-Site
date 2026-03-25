@@ -10,7 +10,6 @@ import { calcTotals, usd, PRICE_PER_SQFT } from '@/lib/pricing';
 import { DESIGN_GROMMET_OPTIONS } from '@/lib/grommets';
 import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
 import { getQuantityDiscountRate } from '@/lib/quantity-discount';
-import DeliveryCarousel from '@/components/home/DeliveryCarousel';
 import { useToast } from '@/components/ui/use-toast';
 
 const PRESET_SIZES = [
@@ -949,8 +948,6 @@ const Design: React.FC = () => {
           </div>
         </div>
       </section>
-
-      <DeliveryCarousel />
 
       {/* Mobile sticky CTA */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg z-40">
