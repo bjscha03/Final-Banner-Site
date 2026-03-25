@@ -449,6 +449,7 @@ const Checkout: React.FC = () => {
                           fitMode={item.fit_mode || "fill"}
                           className="flex-shrink-0"
                           designServiceEnabled={item.design_service_enabled}
+                          source={item.source}
                         />
                       </div>
 
