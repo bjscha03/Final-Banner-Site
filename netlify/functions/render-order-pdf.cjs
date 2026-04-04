@@ -721,7 +721,7 @@ exports.handler = async (event) => {
           channels: 3,
           background: rgb,
         },
-      }).jpeg({ quality: 100 }).toBuffer();
+      }).jpeg({ quality: 90 }).toBuffer();
       
       console.log('[PDF] Created blank canvas:', targetPxW, 'x', targetPxH);
     }
@@ -789,8 +789,8 @@ exports.handler = async (event) => {
     console.log('[PDF] ======= POSITIONING CALCULATION =======');    console.log('[PDF] targetPxW:', targetPxW, 'targetPxH:', targetPxH);    console.log('[PDF] targetDpi:', targetDpi);    console.log('[PDF] imageScale (applied):', imageScale);    console.log('[PDF] imagePosition (applied):', JSON.stringify(imagePosition));    console.log('[PDF] containerOffsetX:', containerOffsetX, 'containerOffsetY:', containerOffsetY);    console.log('[PDF] positionOffsetX:', positionOffsetX, 'positionOffsetY:', positionOffsetY);    console.log('[PDF] ========================================');
     console.log(`[PDF] Container: ${containerW}x${containerH}px, Image: ${scaledImageW}x${scaledImageH}px at (${translateX}, ${translateY})`);
     const upscaledBuffer = await maybeUpscaleToFit(rotatedBuffer, scaledImageW, scaledImageH);
-    // Free intermediate buffers to reduce peak memory
-    sourceBuffer = null;
+    // Free intermediate buffers to reduce peak memory (keep sourceBuffer for text-only designs)
+    if (!isTextOnlyDesign) sourceBuffer = null;
     rotatedBuffer = null;
 
     const resizedBuffer = await sharp(upscaledBuffer)
@@ -822,7 +822,7 @@ exports.handler = async (event) => {
         background: canvasBgRgb,
       },
     })
-      .jpeg({ quality: 100 })
+      .jpeg({ quality: 90 })
       .toBuffer();
 
     // Get actual dimensions of resized image
