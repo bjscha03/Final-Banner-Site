@@ -8,6 +8,9 @@ const PDFDocument = require('pdfkit');
 const cloudinary = require('cloudinary').v2;
 const { neon } = require('@neondatabase/serverless');
 
+// Limit sharp thread pool to reduce peak memory usage in constrained environments
+sharp.concurrency(1);
+
 // Configure Cloudinary
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -613,15 +616,25 @@ exports.handler = async (event) => {
     // includeBleed: if false, generate PDF at exact banner dimensions (no bleed margins)
     const includeBleed = req.includeBleed !== false; // Default to true for backward compatibility
     const bleedIn = includeBleed ? (req.bleedIn ?? 0.125) : 0;
-    const targetDpi = req.targetDpi ?? chooseTargetDpi(req.bannerWidthIn, req.bannerHeightIn);
-
-    console.log(`[PDF] Banner: ${req.bannerWidthIn}×${req.bannerHeightIn} in, DPI: ${targetDpi}, Bleed: ${bleedIn} in (includeBleed: ${includeBleed})`);
+    let targetDpi = req.targetDpi ?? chooseTargetDpi(req.bannerWidthIn, req.bannerHeightIn);
 
     const finalWidthIn = req.bannerWidthIn + (bleedIn * 2);
     const finalHeightIn = req.bannerHeightIn + (bleedIn * 2);
+
+    // CRITICAL: Enforce pixel safety cap even when targetDpi is provided by the request.
+    // Without this, large banners (e.g. 4'×10' at 150 DPI = 129 MP) cause OOM in the
+    // 2 GB Netlify function.  The cap mirrors chooseTargetDpi()'s 50 MP limit.
+    const MAX_SAFE_PX = 50_000_000;
+    if (finalWidthIn * targetDpi * finalHeightIn * targetDpi > MAX_SAFE_PX) {
+      const safeDpi = Math.floor(Math.sqrt(MAX_SAFE_PX / (finalWidthIn * finalHeightIn)));
+      console.log(`[PDF] ⚠️ Pixel cap: ${targetDpi} DPI would produce ${Math.round(finalWidthIn * targetDpi * finalHeightIn * targetDpi / 1e6)}MP – clamping to ${safeDpi} DPI (${MAX_SAFE_PX / 1e6}MP limit)`);
+      targetDpi = Math.max(safeDpi, 72);
+    }
+
     const targetPxW = Math.round(finalWidthIn * targetDpi);
     const targetPxH = Math.round(finalHeightIn * targetDpi);
 
+    console.log(`[PDF] Banner: ${req.bannerWidthIn}×${req.bannerHeightIn} in, DPI: ${targetDpi}, Bleed: ${bleedIn} in (includeBleed: ${includeBleed})`);
     console.log(`[PDF] Final dimensions: ${finalWidthIn}×${finalHeightIn} in = ${targetPxW}×${targetPxH}px`);
 
     // PRIORITY: Use thumbnail if available - this IS exactly what the user designed
@@ -656,7 +669,7 @@ exports.handler = async (event) => {
         return {
           statusCode: 200,
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ downloadUrl: buildPrintTransformUrl(cloudUrl, req.bannerWidthIn, req.bannerHeightIn), rawUrl: cloudUrl, dpi: 150, bleed: bleedIn, format: 'jpeg' }),
+          body: JSON.stringify({ downloadUrl: buildPrintTransformUrl(cloudUrl, req.bannerWidthIn, req.bannerHeightIn), rawUrl: cloudUrl, dpi: targetDpi, bleed: bleedIn, format: 'jpeg' }),
         };
       }
       const pdfBuffer = await sharp(sourceBuffer)
@@ -708,7 +721,7 @@ exports.handler = async (event) => {
           channels: 3,
           background: rgb,
         },
-      }).png().toBuffer();
+      }).jpeg({ quality: 100 }).toBuffer();
       
       console.log('[PDF] Created blank canvas:', targetPxW, 'x', targetPxH);
     }
@@ -776,6 +789,9 @@ exports.handler = async (event) => {
     console.log('[PDF] ======= POSITIONING CALCULATION =======');    console.log('[PDF] targetPxW:', targetPxW, 'targetPxH:', targetPxH);    console.log('[PDF] targetDpi:', targetDpi);    console.log('[PDF] imageScale (applied):', imageScale);    console.log('[PDF] imagePosition (applied):', JSON.stringify(imagePosition));    console.log('[PDF] containerOffsetX:', containerOffsetX, 'containerOffsetY:', containerOffsetY);    console.log('[PDF] positionOffsetX:', positionOffsetX, 'positionOffsetY:', positionOffsetY);    console.log('[PDF] ========================================');
     console.log(`[PDF] Container: ${containerW}x${containerH}px, Image: ${scaledImageW}x${scaledImageH}px at (${translateX}, ${translateY})`);
     const upscaledBuffer = await maybeUpscaleToFit(rotatedBuffer, scaledImageW, scaledImageH);
+    // Free intermediate buffers to reduce peak memory
+    sourceBuffer = null;
+    rotatedBuffer = null;
 
     const resizedBuffer = await sharp(upscaledBuffer)
       .resize(scaledImageW, scaledImageH, {
@@ -806,7 +822,7 @@ exports.handler = async (event) => {
         background: canvasBgRgb,
       },
     })
-      .png()
+      .jpeg({ quality: 100 })
       .toBuffer();
 
     // Get actual dimensions of resized image
@@ -1108,16 +1124,10 @@ exports.handler = async (event) => {
       }
     }
 
-    const merged = await sharp(backgroundCanvas)
-      .composite(compositeLayers)
-      .jpeg({ quality: 65, chromaSubsampling: '4:2:0', progressive: true }) // JPEG compression to reduce PDF size below 6MB limit
-      .toBuffer();
-
-    console.log('[PDF] Image composited onto canvas (with overlay if provided)');
-
-    // JPEG FORMAT: Render high-res composited JPEG, upload to Cloudinary
+    // JPEG FORMAT: composite directly at print quality to avoid double-encode
     if (req.format === 'jpeg') {
-      const jpegBuffer = await sharp(merged)
+      const jpegBuffer = await sharp(backgroundCanvas)
+        .composite(compositeLayers)
         .withMetadata({ density: targetDpi })
         .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
         .toBuffer();
@@ -1133,9 +1143,16 @@ exports.handler = async (event) => {
       return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ downloadUrl: buildPrintTransformUrl(cloudUrl, req.bannerWidthIn, req.bannerHeightIn), rawUrl: cloudUrl, dpi: 150, bleed: bleedIn, format: 'jpeg' }),
+        body: JSON.stringify({ downloadUrl: buildPrintTransformUrl(cloudUrl, req.bannerWidthIn, req.bannerHeightIn), rawUrl: cloudUrl, dpi: targetDpi, bleed: bleedIn, format: 'jpeg' }),
       };
     }
+
+    const merged = await sharp(backgroundCanvas)
+      .composite(compositeLayers)
+      .jpeg({ quality: 65, chromaSubsampling: '4:2:0', progressive: true }) // JPEG compression to reduce PDF size below 6MB limit
+      .toBuffer();
+
+    console.log('[PDF] Image composited onto canvas (with overlay if provided)');
     const pdfBuffer = await rasterToPdfBuffer(merged, finalWidthIn, finalHeightIn, req.textElements, req.bannerWidthIn, req.bannerHeightIn, req.previewCanvasPx, bleedIn);
     console.log(`[PDF] PDF generated: ${pdfBuffer.length} bytes`);
 
