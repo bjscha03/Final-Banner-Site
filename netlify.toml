@@ -22,7 +22,7 @@
   memory = 1008
 
 [functions."render-order-pdf"]
-  timeout = 60
+  timeout = 120
   memory = 2048
 
 [functions."ai-generate-banner"]
