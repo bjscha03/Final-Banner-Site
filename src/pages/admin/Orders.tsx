@@ -322,16 +322,48 @@ const AdminOrders: React.FC = () => {
 
       console.log('🔴 PDF REQUEST:', JSON.stringify(requestBody, null, 2));
 
-      const response = await fetch('/.netlify/functions/render-order-pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
-      });
+      // Retry logic for transient 504 timeouts
+      let response: Response | null = null;
+      const maxRetries = 2;
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        try {
+          if (attempt > 0) {
+            toast({
+              title: "Retrying Print File Generation",
+              description: `Attempt ${attempt + 1} of ${maxRetries + 1}...`,
+            });
+          }
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 150000); // 150s client timeout
+          response = await fetch('/.netlify/functions/render-order-pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody),
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+          // If we get a 504, retry
+          if (response.status === 504 && attempt < maxRetries) {
+            console.warn(`PDF generation got 504 on attempt ${attempt + 1}, retrying...`);
+            continue;
+          }
+          break;
+        } catch (fetchError: any) {
+          if (fetchError.name === 'AbortError') {
+            if (attempt < maxRetries) {
+              console.warn(`PDF generation timed out on attempt ${attempt + 1}, retrying...`);
+              continue;
+            }
+            throw new Error('Print file generation timed out. Please try again.');
+          }
+          throw fetchError;
+        }
+      }
 
-      if (!response.ok) {
-        const errorText = await response.text();
+      if (!response || !response.ok) {
+        const errorText = response ? await response.text() : 'No response';
         console.error('PDF generation failed:', errorText);
-        throw new Error(`HTTP ${response.status}: ${errorText}`);
+        throw new Error(`HTTP ${response?.status || 'unknown'}: ${errorText}`);
       }
 
       // Response is JSON with Cloudinary download URL

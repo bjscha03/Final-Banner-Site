@@ -169,7 +169,7 @@ async function fetchImage(urlOrKey, isFileKey = false) {
     console.log('[PDF] Generated Cloudinary URL:', cloudinaryUrl);
     
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000); // 15 second timeout
+    const timeout = setTimeout(() => controller.abort(), 45000); // 45 second timeout
     
     try {
       const response = await fetch(cloudinaryUrl, { signal: controller.signal });
@@ -187,7 +187,7 @@ async function fetchImage(urlOrKey, isFileKey = false) {
     } catch (error) {
       clearTimeout(timeout);
       if (error.name === 'AbortError') {
-        throw new Error('Image fetch timed out after 15 seconds');
+        throw new Error('Image fetch timed out after 45 seconds');
       }
       throw error;
     }
@@ -201,7 +201,7 @@ async function fetchImage(urlOrKey, isFileKey = false) {
     }
     
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
+    const timeout = setTimeout(() => controller.abort(), 45000);
     
     try {
       const response = await fetch(fetchUrl, { signal: controller.signal });
@@ -219,9 +219,8 @@ async function fetchImage(urlOrKey, isFileKey = false) {
     } catch (error) {
       clearTimeout(timeout);
       if (error.name === 'AbortError') {
-        throw new Error('Image fetch timed out after 15 seconds');
+        throw new Error('Image fetch timed out after 45 seconds');
       }
-      console.error('[PDF] Error fetching image from URL:', error);
       console.error('[PDF] Error fetching image from URL:', error);
       throw error;
     }
@@ -682,6 +681,7 @@ exports.handler = async (event) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pdfBase64, dpi: targetDpi, bleed: bleedIn }),
       };
+    } else if (req.fileKey) {
       sourceBuffer = await fetchImage(req.fileKey, true);
     } else if (req.imageUrl) {
       sourceBuffer = await fetchImage(req.imageUrl, false);
