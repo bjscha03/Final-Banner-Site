@@ -45,24 +45,7 @@ function stripCloudinaryTransforms(url) {
   if (!url || !url.includes('res.cloudinary.com')) return url;
   return url.replace(/\/upload\/[^/]+\//, '/upload/');
 }
-/**
- * Build a Cloudinary transformation URL for print-quality output.
- * Inserts e_upscale, e_enhance, resize to 150 DPI dimensions, q_100, f_jpg
- */
-function buildPrintTransformUrl(cloudinaryUrl, bannerWidthIn, bannerHeightIn) {
-  const MAX_PIXELS = 25000000; // Cloudinary transform limit ~25MP
-  let pxW = Math.round(bannerWidthIn * 150);
-  let pxH = Math.round(bannerHeightIn * 150);
-  // Scale down proportionally if over pixel cap
-  const totalPx = pxW * pxH;
-  if (totalPx > MAX_PIXELS) {
-    const scale = Math.sqrt(MAX_PIXELS / totalPx);
-    pxW = Math.round(pxW * scale);
-    pxH = Math.round(pxH * scale);
-  }
-  const transforms = 'w_' + pxW + ',h_' + pxH + ',c_pad,b_white,q_100,f_jpg';
-  return cloudinaryUrl.replace('/upload/', '/upload/' + transforms + '/');
-}
+
 
 /**
  * Draw crop marks on PDF for print cutting guides
@@ -675,10 +658,13 @@ exports.handler = async (event) => {
         console.log('[JPEG_EXPORT_DEBUG] Aspect ratio check: source=', (frMeta.width / frMeta.height).toFixed(4), 'target=', (targetPxW / targetPxH).toFixed(4), 'ordered=', (req.bannerWidthIn / req.bannerHeightIn).toFixed(4));
 
         if (req.format === 'jpeg') {
-          // Resize to target print dimensions preserving aspect ratio (contain + pad)
+          // Resize to exact target print dimensions — NO padding.
+          // The final render is a pixel-perfect Konva snapshot that already has the
+          // correct aspect ratio, so fit:'fill' produces no visible distortion and
+          // guarantees zero white-space borders.
           console.log('[JPEG] Final render path: resizing to', targetPxW, '×', targetPxH, 'at', targetDpi, 'DPI');
           const jpegBuffer = await sharp(finalRenderBuffer)
-            .resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground })
+            .resize(targetPxW, targetPxH, { fit: 'fill' })
             .withMetadata({ density: targetDpi })
             .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
             .toBuffer();
@@ -738,15 +724,14 @@ exports.handler = async (event) => {
       console.log('[PDF] Original thumbnail URL was:', req.thumbnailUrl);
       sourceBuffer = await fetchImage(printThumbUrl, false);
 
-      // When using thumbnail, resize preserving aspect ratio with padding
-      // The thumbnail already contains the exact design the customer approved
-      // Using fit:'contain' prevents stretching - any small aspect ratio mismatch
-      // gets filled with the banner's background color instead of distorting the image
       // JPEG FORMAT: Return JPEG directly without PDF wrapping
+      // Use fit:'fill' to produce exact target dimensions with NO padding.
+      // The thumbnail is the customer-approved design — any tiny aspect-ratio
+      // difference is imperceptible when scaled, and padding is explicitly wrong.
       if (req.format === 'jpeg') {
         console.log('[JPEG] Thumbnail path: resizing to', targetPxW, 'x', targetPxH, 'at', targetDpi, 'DPI');
         const jpegBuffer = await sharp(sourceBuffer)
-          .resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground })
+          .resize(targetPxW, targetPxH, { fit: 'fill' })
           .withMetadata({ density: targetDpi })
           .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
           .toBuffer();
