@@ -627,7 +627,7 @@ exports.handler = async (event) => {
 
     // Parse background color for padding (used by contain/pad resizes)
     const bgColorForPad = req.canvasBackgroundColor || '#FFFFFF';
-    const hexToRgbPad = (hex) => {
+    const parseHexColor = (hex) => {
       const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
       return result ? {
         r: parseInt(result[1], 16),
@@ -635,7 +635,7 @@ exports.handler = async (event) => {
         b: parseInt(result[3], 16)
       } : { r: 255, g: 255, b: 255 };
     };
-    const padBackground = hexToRgbPad(bgColorForPad);
+    const padBackground = parseHexColor(bgColorForPad);
 
     // PRIORITY 1: Use final_render if available - this is a pixel-perfect snapshot
     // of the customer's design captured at high DPI directly from the Konva canvas.
@@ -876,6 +876,9 @@ exports.handler = async (event) => {
     const resizedBuffer = await sharp(upscaledBuffer)
       .resize(scaledImageW, scaledImageH, {
         kernel: 'cubic', // Faster than lanczos3
+        // Use 'cover' (not 'contain') because scaledImageW/H are already computed
+        // from the source image's aspect ratio (cover logic above). The image will
+        // be composited onto a background canvas, so padding is handled there.
         fit: 'cover',
       })
       .toBuffer();
