@@ -263,6 +263,13 @@ const AdminOrders: React.FC = () => {
       });
       console.log("🟢 PDF Download - Item data:", item);
       console.log("🟢 PDF Download - overlay_image:", item.overlay_image);
+      console.log('[JPEG_EXPORT_DEBUG] ======= ADMIN JPEG DOWNLOAD =======');
+      console.log('[JPEG_EXPORT_DEBUG] Item final_render_url:', item.final_render_url || 'MISSING');
+      console.log('[JPEG_EXPORT_DEBUG] Item final_render_file_key:', item.final_render_file_key || 'MISSING');
+      console.log('[JPEG_EXPORT_DEBUG] Item final_render_dpi:', item.final_render_dpi || 'MISSING');
+      console.log('[JPEG_EXPORT_DEBUG] Item dimensions:', item.width_in, '×', item.height_in, 'inches');
+      console.log('[JPEG_EXPORT_DEBUG] Will use:', item.final_render_url || item.final_render_file_key ? 'FINAL_RENDER (pixel-perfect)' : 'FALLBACK (reconstruction)');
+      console.log('[JPEG_EXPORT_DEBUG] =================================');
 
       // Determine the best image source
       // CRITICAL: overlay_image.fileKey contains the ORIGINAL uploaded file (no grommets)
