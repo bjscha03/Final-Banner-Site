@@ -579,19 +579,21 @@ exports.handler = async (event) => {
     console.log('[PDF] CRITICAL - overlayImage received:', req.overlayImage);
     console.log('[PDF] CRITICAL - overlayImage exists:', !!req.overlayImage);
 
-    // Accept fileKey, imageUrl, OR text-only designs (no background image)
+    // Accept fileKey, imageUrl, text-only designs, OR final_render data
     // For text-only designs, we create a white/colored canvas as background
     const hasBackgroundImage = req.fileKey || req.imageUrl;
     const hasTextOrOverlay = (req.textElements && req.textElements.length > 0) || req.overlayImage;
+    const hasFinalRender = req.finalRenderUrl || req.finalRenderFileKey;
     
-    if (!req.orderId || !req.bannerWidthIn || !req.bannerHeightIn || (!hasBackgroundImage && !hasTextOrOverlay)) {
+    if (!req.orderId || !req.bannerWidthIn || !req.bannerHeightIn || (!hasBackgroundImage && !hasTextOrOverlay && !hasFinalRender)) {
       console.error('[PDF] Missing required fields:', {
         orderId: !!req.orderId,
         bannerWidthIn: !!req.bannerWidthIn,
         bannerHeightIn: !!req.bannerHeightIn,
         fileKey: !!req.fileKey,
         imageUrl: !!req.imageUrl,
-        hasTextOrOverlay: hasTextOrOverlay
+        hasTextOrOverlay: hasTextOrOverlay,
+        hasFinalRender: hasFinalRender
       });
       return {
         statusCode: 400,
@@ -599,7 +601,16 @@ exports.handler = async (event) => {
       };
     }
     
-    console.log('[PDF] Design type:', hasBackgroundImage ? 'with background image' : 'text/overlay only');
+    console.log('[PDF] Design type:', hasBackgroundImage ? 'with background image' : (hasFinalRender ? 'final_render available' : 'text/overlay only'));
+    console.log('[JPEG_EXPORT_DEBUG] ======= EXPORT PIPELINE =======');
+    console.log('[JPEG_EXPORT_DEBUG] Ordered dimensions:', req.bannerWidthIn, '×', req.bannerHeightIn, 'inches');
+    console.log('[JPEG_EXPORT_DEBUG] Has final_render:', !!hasFinalRender);
+    console.log('[JPEG_EXPORT_DEBUG] finalRenderUrl:', req.finalRenderUrl ? req.finalRenderUrl.substring(0, 80) + '...' : 'NONE');
+    console.log('[JPEG_EXPORT_DEBUG] finalRenderFileKey:', req.finalRenderFileKey || 'NONE');
+    console.log('[JPEG_EXPORT_DEBUG] Has background image:', !!hasBackgroundImage);
+    console.log('[JPEG_EXPORT_DEBUG] Has text/overlay:', !!hasTextOrOverlay);
+    console.log('[JPEG_EXPORT_DEBUG] thumbnailUrl:', req.thumbnailUrl ? req.thumbnailUrl.substring(0, 80) + '...' : 'NONE');
+    console.log('[JPEG_EXPORT_DEBUG] ================================');
 
     // includeBleed: if false, generate PDF at exact banner dimensions (no bleed margins)
     const includeBleed = req.includeBleed !== false; // Default to true for backward compatibility
@@ -659,6 +670,9 @@ exports.handler = async (event) => {
         // Verify the fetched image dimensions
         const frMeta = await sharp(finalRenderBuffer).metadata();
         console.log('[PDF] Final render actual dimensions:', frMeta.width, '×', frMeta.height, 'px');
+        console.log('[JPEG_EXPORT_DEBUG] Final render source: w=', frMeta.width, 'h=', frMeta.height, 'format=', frMeta.format);
+        console.log('[JPEG_EXPORT_DEBUG] Target output: w=', targetPxW, 'h=', targetPxH, 'dpi=', targetDpi);
+        console.log('[JPEG_EXPORT_DEBUG] Aspect ratio check: source=', (frMeta.width / frMeta.height).toFixed(4), 'target=', (targetPxW / targetPxH).toFixed(4), 'ordered=', (req.bannerWidthIn / req.bannerHeightIn).toFixed(4));
 
         if (req.format === 'jpeg') {
           // Resize to target print dimensions preserving aspect ratio (contain + pad)
