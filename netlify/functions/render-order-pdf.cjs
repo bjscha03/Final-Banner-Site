@@ -60,7 +60,7 @@ function buildPrintTransformUrl(cloudinaryUrl, bannerWidthIn, bannerHeightIn) {
     pxW = Math.round(pxW * scale);
     pxH = Math.round(pxH * scale);
   }
-  const transforms = 'w_' + pxW + ',h_' + pxH + ',c_fill,q_100,f_jpg';
+  const transforms = 'w_' + pxW + ',h_' + pxH + ',c_pad,b_white,q_100,f_jpg';
   return cloudinaryUrl.replace('/upload/', '/upload/' + transforms + '/');
 }
 
@@ -601,18 +601,6 @@ exports.handler = async (event) => {
     
     console.log('[PDF] Design type:', hasBackgroundImage ? 'with background image' : 'text/overlay only');
 
-    // DISABLED: final_render canvas capture has aspect ratio issues
-    // Always use reconstruction path - rebuilds banner from original images at print resolution
-    // This is more reliable because it uses the source images directly, not a screen capture
-    console.log('[PDF] Using RECONSTRUCTION path (rebuilds from original images at print DPI)');
-
-    // Log what final_render data was available (for debugging)
-    if (req.finalRenderUrl || req.finalRenderFileKey) {
-      console.log('[PDF] Note: final_render data exists but is SKIPPED due to known capture issues');
-      console.log('[PDF] finalRenderFileKey:', req.finalRenderFileKey || 'none');
-    }
-
-
     // includeBleed: if false, generate PDF at exact banner dimensions (no bleed margins)
     const includeBleed = req.includeBleed !== false; // Default to true for backward compatibility
     const bleedIn = includeBleed ? (req.bleedIn ?? 0.125) : 0;
@@ -637,7 +625,97 @@ exports.handler = async (event) => {
     console.log(`[PDF] Banner: ${req.bannerWidthIn}×${req.bannerHeightIn} in, DPI: ${targetDpi}, Bleed: ${bleedIn} in (includeBleed: ${includeBleed})`);
     console.log(`[PDF] Final dimensions: ${finalWidthIn}×${finalHeightIn} in = ${targetPxW}×${targetPxH}px`);
 
-    // PRIORITY: Use thumbnail if available - this IS exactly what the user designed
+    // Parse background color for padding (used by contain/pad resizes)
+    const bgColorForPad = req.canvasBackgroundColor || '#FFFFFF';
+    const hexToRgbPad = (hex) => {
+      const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+      return result ? {
+        r: parseInt(result[1], 16),
+        g: parseInt(result[2], 16),
+        b: parseInt(result[3], 16)
+      } : { r: 255, g: 255, b: 255 };
+    };
+    const padBackground = hexToRgbPad(bgColorForPad);
+
+    // PRIORITY 1: Use final_render if available - this is a pixel-perfect snapshot
+    // of the customer's design captured at high DPI directly from the Konva canvas.
+    // The final_render already has the correct aspect ratio (widthIn × heightIn).
+    if (req.finalRenderUrl || req.finalRenderFileKey) {
+      console.log('[PDF] Using FINAL_RENDER path (pixel-perfect canvas snapshot)');
+      console.log('[PDF] finalRenderFileKey:', req.finalRenderFileKey || 'none');
+      console.log('[PDF] finalRenderUrl:', req.finalRenderUrl ? req.finalRenderUrl.substring(0, 80) + '...' : 'none');
+      console.log('[PDF] finalRenderDpi:', req.finalRenderDpi || 'unknown');
+      console.log('[PDF] finalRenderSize:', req.finalRenderWidthPx, '×', req.finalRenderHeightPx, 'px');
+
+      try {
+        let finalRenderBuffer;
+        if (req.finalRenderFileKey) {
+          finalRenderBuffer = await fetchImage(req.finalRenderFileKey, true);
+        } else {
+          const rawUrl = stripCloudinaryTransforms(req.finalRenderUrl);
+          finalRenderBuffer = await fetchImage(rawUrl, false);
+        }
+
+        // Verify the fetched image dimensions
+        const frMeta = await sharp(finalRenderBuffer).metadata();
+        console.log('[PDF] Final render actual dimensions:', frMeta.width, '×', frMeta.height, 'px');
+
+        if (req.format === 'jpeg') {
+          // Resize to target print dimensions preserving aspect ratio (contain + pad)
+          console.log('[JPEG] Final render path: resizing to', targetPxW, '×', targetPxH, 'at', targetDpi, 'DPI');
+          const jpegBuffer = await sharp(finalRenderBuffer)
+            .resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground })
+            .withMetadata({ density: targetDpi })
+            .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
+            .toBuffer();
+          console.log('[JPEG] Final render JPEG size:', jpegBuffer.length, 'bytes');
+
+          const cloudUrl = await new Promise((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream(
+              { resource_type: 'image', folder: 'order-prints', public_id: 'print-' + (req.orderId || 'unknown') + '-' + Date.now(), format: 'jpg' },
+              (err, result) => err ? reject(err) : resolve(result.secure_url)
+            );
+            stream.end(jpegBuffer);
+          });
+          console.log('[JPEG] Uploaded to Cloudinary:', cloudUrl);
+          return {
+            statusCode: 200,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ downloadUrl: buildPrintTransformUrl(cloudUrl, req.bannerWidthIn, req.bannerHeightIn), rawUrl: cloudUrl, dpi: targetDpi, bleed: bleedIn, format: 'jpeg' }),
+          };
+        }
+
+        // PDF format: resize and wrap in PDF
+        const pdfImgBuffer = await sharp(finalRenderBuffer)
+          .resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground })
+          .jpeg({ quality: 65, chromaSubsampling: '4:2:0' })
+          .toBuffer();
+        const pdfBuffer = await rasterToPdfBuffer(pdfImgBuffer, finalWidthIn, finalHeightIn, [], req.bannerWidthIn, req.bannerHeightIn, null, bleedIn);
+        console.log(`[PDF] PDF generated from final_render: ${pdfBuffer.length} bytes`);
+        let pdfBase64 = pdfBuffer.toString('base64');
+        if (pdfBase64.length > 5 * 1024 * 1024) {
+          console.warn('[PDF] Base64 too large, re-encoding at quality 40');
+          const smallerImg = await sharp(finalRenderBuffer)
+            .resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground })
+            .jpeg({ quality: 40, chromaSubsampling: '4:2:0' })
+            .toBuffer();
+          const smallerPdf = await rasterToPdfBuffer(smallerImg, finalWidthIn, finalHeightIn, [], req.bannerWidthIn, req.bannerHeightIn, null, bleedIn);
+          pdfBase64 = smallerPdf.toString('base64');
+        }
+        return {
+          statusCode: 200,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ pdfBase64, dpi: targetDpi, bleed: bleedIn }),
+        };
+      } catch (frError) {
+        console.error('[PDF] Final render path failed, falling back to reconstruction:', frError.message);
+        // Fall through to thumbnail/reconstruction paths below
+      }
+    } else {
+      console.log('[PDF] No final_render data available, using reconstruction path');
+    }
+
+    // PRIORITY 2: Use thumbnail if available - this IS exactly what the user designed
     // The thumbnail is the rendered preview that the customer approved
     let sourceBuffer;
     if (req.thumbnailUrl && !req.thumbnailUrl.startsWith('blob:')) {
@@ -646,13 +724,15 @@ exports.handler = async (event) => {
       console.log('[PDF] Original thumbnail URL was:', req.thumbnailUrl);
       sourceBuffer = await fetchImage(printThumbUrl, false);
 
-      // When using thumbnail, skip all the complex positioning - just stretch to fill PDF
+      // When using thumbnail, resize preserving aspect ratio with padding
       // The thumbnail already contains the exact design the customer approved
+      // Using fit:'contain' prevents stretching - any small aspect ratio mismatch
+      // gets filled with the banner's background color instead of distorting the image
       // JPEG FORMAT: Return JPEG directly without PDF wrapping
       if (req.format === 'jpeg') {
         console.log('[JPEG] Thumbnail path: resizing to', targetPxW, 'x', targetPxH, 'at', targetDpi, 'DPI');
         const jpegBuffer = await sharp(sourceBuffer)
-          .resize(targetPxW, targetPxH, { fit: 'fill' })
+          .resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground })
           .withMetadata({ density: targetDpi })
           .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
           .toBuffer();
@@ -673,7 +753,7 @@ exports.handler = async (event) => {
         };
       }
       const pdfBuffer = await sharp(sourceBuffer)
-        .resize(targetPxW, targetPxH, { fit: 'fill' })
+        .resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground })
         .jpeg({ quality: 65, chromaSubsampling: "4:2:0" })
         .toBuffer()
         .then(imgBuf => rasterToPdfBuffer(imgBuf, finalWidthIn, finalHeightIn, [], req.bannerWidthIn, req.bannerHeightIn, null, bleedIn));
@@ -684,7 +764,7 @@ exports.handler = async (event) => {
       // Safety: if base64 > 5MB, re-encode at lower quality
       if (pdfBase64.length > 5 * 1024 * 1024) {
         console.warn('[PDF] Base64 too large (' + pdfBase64.length + ' chars), re-encoding at quality 40');
-        const smallerImg = await sharp(sourceBuffer).resize(targetPxW, targetPxH, { fit: "fill" }).jpeg({ quality: 40, chromaSubsampling: "4:2:0" }).toBuffer();
+        const smallerImg = await sharp(sourceBuffer).resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground }).jpeg({ quality: 40, chromaSubsampling: "4:2:0" }).toBuffer();
         const smallerPdf = await rasterToPdfBuffer(smallerImg, finalWidthIn, finalHeightIn, [], req.bannerWidthIn, req.bannerHeightIn, null, bleedIn);
         pdfBase64 = smallerPdf.toString("base64");
         console.log('[PDF] Re-encoded base64 length:', pdfBase64.length);
@@ -796,7 +876,7 @@ exports.handler = async (event) => {
     const resizedBuffer = await sharp(upscaledBuffer)
       .resize(scaledImageW, scaledImageH, {
         kernel: 'cubic', // Faster than lanczos3
-        fit: 'fill',
+        fit: 'cover',
       })
       .toBuffer();
 
