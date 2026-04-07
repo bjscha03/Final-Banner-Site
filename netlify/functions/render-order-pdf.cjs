@@ -695,7 +695,7 @@ exports.handler = async (event) => {
           return {
             statusCode: 200,
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ downloadUrl: buildPrintTransformUrl(cloudUrl, req.bannerWidthIn, req.bannerHeightIn), rawUrl: cloudUrl, dpi: targetDpi, bleed: bleedIn, format: 'jpeg' }),
+            body: JSON.stringify({ downloadUrl: cloudUrl, rawUrl: cloudUrl, dpi: targetDpi, bleed: bleedIn, format: 'jpeg' }),
           };
         }
 
@@ -763,7 +763,7 @@ exports.handler = async (event) => {
         return {
           statusCode: 200,
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ downloadUrl: buildPrintTransformUrl(cloudUrl, req.bannerWidthIn, req.bannerHeightIn), rawUrl: cloudUrl, dpi: targetDpi, bleed: bleedIn, format: 'jpeg' }),
+          body: JSON.stringify({ downloadUrl: cloudUrl, rawUrl: cloudUrl, dpi: targetDpi, bleed: bleedIn, format: 'jpeg' }),
         };
       }
       const pdfBuffer = await sharp(sourceBuffer)
@@ -1240,7 +1240,7 @@ exports.handler = async (event) => {
       return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ downloadUrl: buildPrintTransformUrl(cloudUrl, req.bannerWidthIn, req.bannerHeightIn), rawUrl: cloudUrl, dpi: targetDpi, bleed: bleedIn, format: 'jpeg' }),
+        body: JSON.stringify({ downloadUrl: cloudUrl, rawUrl: cloudUrl, dpi: targetDpi, bleed: bleedIn, format: 'jpeg' }),
       };
     }
 
