@@ -682,7 +682,7 @@ exports.handler = async (event) => {
           console.log('[JPEG] Final render path: resizing to', targetPxW, '×', targetPxH, 'at', targetDpi, 'DPI');
           console.log('[JPEG_EXPORT_DEBUG] EXPORT SOURCE CONFIRMED = final_render (NO fallback, NO reconstruction)');
           const jpegBuffer = await sharp(finalRenderBuffer)
-            .resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground })
+            .resize(targetPxW, targetPxH, { fit: 'fill' })
             .withMetadata({ density: targetDpi })
             .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
             .toBuffer();
@@ -705,7 +705,7 @@ exports.handler = async (event) => {
 
         // PDF format: resize and wrap in PDF
         const pdfImgBuffer = await sharp(finalRenderBuffer)
-          .resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground })
+          .resize(targetPxW, targetPxH, { fit: 'fill' })
           .jpeg({ quality: 65, chromaSubsampling: '4:2:0' })
           .toBuffer();
         const pdfBuffer = await rasterToPdfBuffer(pdfImgBuffer, finalWidthIn, finalHeightIn, [], req.bannerWidthIn, req.bannerHeightIn, null, bleedIn);
@@ -714,7 +714,7 @@ exports.handler = async (event) => {
         if (pdfBase64.length > 5 * 1024 * 1024) {
           console.warn('[PDF] Base64 too large, re-encoding at quality 40');
           const smallerImg = await sharp(finalRenderBuffer)
-            .resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground })
+            .resize(targetPxW, targetPxH, { fit: 'fill' })
             .jpeg({ quality: 40, chromaSubsampling: '4:2:0' })
             .toBuffer();
           const smallerPdf = await rasterToPdfBuffer(smallerImg, finalWidthIn, finalHeightIn, [], req.bannerWidthIn, req.bannerHeightIn, null, bleedIn);
@@ -768,7 +768,7 @@ exports.handler = async (event) => {
       if (req.format === 'jpeg') {
         console.log('[JPEG] ⚠️ FALLBACK: Using thumbnail for JPEG export (no final_render available)');
         const jpegBuffer = await sharp(sourceBuffer)
-          .resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground })
+          .resize(targetPxW, targetPxH, { fit: 'fill' })
           .withMetadata({ density: targetDpi })
           .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
           .toBuffer();
@@ -798,7 +798,7 @@ exports.handler = async (event) => {
       // PDF OUTPUT: Use thumbnail for PDF
       console.log('[JPEG_EXPORT_DEBUG] Using thumbnail for PDF export');
       const pdfBuffer = await sharp(sourceBuffer)
-        .resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground })
+        .resize(targetPxW, targetPxH, { fit: 'fill' })
         .jpeg({ quality: 65, chromaSubsampling: "4:2:0" })
         .toBuffer()
         .then(imgBuf => rasterToPdfBuffer(imgBuf, finalWidthIn, finalHeightIn, [], req.bannerWidthIn, req.bannerHeightIn, null, bleedIn));
@@ -809,7 +809,7 @@ exports.handler = async (event) => {
       // Safety: if base64 > 5MB, re-encode at lower quality
       if (pdfBase64.length > 5 * 1024 * 1024) {
         console.warn('[PDF] Base64 too large (' + pdfBase64.length + ' chars), re-encoding at quality 40');
-        const smallerImg = await sharp(sourceBuffer).resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground }).jpeg({ quality: 40, chromaSubsampling: "4:2:0" }).toBuffer();
+        const smallerImg = await sharp(sourceBuffer).resize(targetPxW, targetPxH, { fit: 'fill' }).jpeg({ quality: 40, chromaSubsampling: "4:2:0" }).toBuffer();
         const smallerPdf = await rasterToPdfBuffer(smallerImg, finalWidthIn, finalHeightIn, [], req.bannerWidthIn, req.bannerHeightIn, null, bleedIn);
         pdfBase64 = smallerPdf.toString("base64");
         console.log('[PDF] Re-encoded base64 length:', pdfBase64.length);
