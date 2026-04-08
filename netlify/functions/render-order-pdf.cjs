@@ -749,26 +749,9 @@ exports.handler = async (event) => {
       console.log('[PDF] ⚠️ No final_render data available');
       console.log('[JPEG_EXPORT_DEBUG] EXPORT SOURCE = NONE (final_render missing)');
 
-      // FAIL-SAFE: For JPEG format, final_render is REQUIRED.
-      // Do NOT silently fall back to thumbnail or reconstruction.
-      if (req.format === 'jpeg') {
-        console.error('[JPEG_EXPORT_DEBUG] ❌ JPEG EXPORT BLOCKED — no final_render data. Cannot produce accurate print file.');
-        console.error('[JPEG_EXPORT_DEBUG] ❌ thumbnailUrl present:', !!req.thumbnailUrl);
-        console.error('[JPEG_EXPORT_DEBUG] ❌ fileKey present:', !!req.fileKey);
-        console.error('[JPEG_EXPORT_DEBUG] ❌ imageUrl present:', !!req.imageUrl);
-        return {
-          statusCode: 400,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            error: 'No final render snapshot available for this order. The canvas state was not captured at submission time. JPEG export requires the exact canvas snapshot to ensure the print file matches the submitted design. This order may have been placed before the final render feature was enabled.',
-            source: 'final_render_missing',
-            hasThumbnail: !!req.thumbnailUrl,
-            hasFileKey: !!req.fileKey,
-            hasImageUrl: !!req.imageUrl,
-          }),
-        };
-      }
-      console.log('[PDF] Using reconstruction path for PDF format');
+      // FALLBACK: Use thumbnail or uploaded file for JPEG when final_render is missing
+      // This allows orders placed before final_render feature to still export
+      console.warn('[JPEG_EXPORT_DEBUG] ⚠️ No final_render - using fallback path');
     }
 
     // PRIORITY 2 (PDF ONLY): Use thumbnail if available.
@@ -781,18 +764,39 @@ exports.handler = async (event) => {
       console.log('[PDF] Original thumbnail URL was:', req.thumbnailUrl);
       sourceBuffer = await fetchImage(printThumbUrl, false);
 
-      // DEFENSIVE: Block any JPEG path that reaches here without final_render
+      // JPEG OUTPUT: Use thumbnail for JPEG when final_render is missing
       if (req.format === 'jpeg') {
-        console.error('[JPEG_EXPORT_DEBUG] ❌ DEFENSIVE GUARD: JPEG export reached thumbnail fallback path — this should not happen.');
+        console.log('[JPEG] ⚠️ FALLBACK: Using thumbnail for JPEG export (no final_render available)');
+        const jpegBuffer = await sharp(sourceBuffer)
+          .resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground })
+          .withMetadata({ density: targetDpi })
+          .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
+          .toBuffer();
+        console.log('[JPEG] Thumbnail JPEG size:', jpegBuffer.length, 'bytes');
+
+        const cloudUrl = await new Promise((resolve, reject) => {
+          const stream = cloudinary.uploader.upload_stream(
+            { resource_type: 'image', folder: 'order-prints', public_id: 'print-' + (req.orderId || 'unknown') + '-' + Date.now(), format: 'jpg' },
+            (err, result) => err ? reject(err) : resolve(result.secure_url)
+          );
+          stream.end(jpegBuffer);
+        });
+        console.log('[JPEG] ✅ Uploaded to Cloudinary:', cloudUrl);
         return {
-          statusCode: 500,
+          statusCode: 200,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            error: 'JPEG export requires final_render data. Thumbnail fallback is not permitted for print files.',
-            source: 'thumbnail_fallback_blocked',
+            url: cloudUrl,
+            format: 'jpeg',
+            dpi: targetDpi,
+            source: 'thumbnail_fallback',
+            warning: 'Generated from thumbnail - final_render was not available for this order'
           }),
         };
       }
+
+      // PDF OUTPUT: Use thumbnail for PDF
+      console.log('[JPEG_EXPORT_DEBUG] Using thumbnail for PDF export');
       const pdfBuffer = await sharp(sourceBuffer)
         .resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground })
         .jpeg({ quality: 65, chromaSubsampling: "4:2:0" })
