@@ -820,9 +820,32 @@ exports.handler = async (event) => {
         body: JSON.stringify({ pdfBase64, dpi: targetDpi, bleed: bleedIn }),
       };
     } else if (req.fileKey) {
+      console.log('[PDF] Using fileKey:', req.fileKey);
       sourceBuffer = await fetchImage(req.fileKey, true);
+      const hasOv1 = req.overlayImages && req.overlayImages.length > 0;
+      const hasTx1 = req.textElements && req.textElements.length > 0;
+      const hasOI1 = req.overlayImage && (req.overlayImage.url || req.overlayImage.fileKey);
+      if (req.format === 'jpeg' && !hasOv1 && !hasTx1 && !hasOI1) {
+        console.log('[JPEG] PRINT-READY: fileKey direct');
+        const jpegBuf = await sharp(sourceBuffer).resize(targetPxW, targetPxH, { fit: 'fill' }).withMetadata({ density: targetDpi }).jpeg({ quality: 92 }).toBuffer();
+        const cloudUrl = await new Promise((r, j) => { const s = cloudinary.uploader.upload_stream({ resource_type: 'image', folder: 'order-prints', public_id: 'print-' + (req.orderId || 'x') + '-' + Date.now(), format: 'jpg' }, (e, x) => e ? j
+(e) : r(x.secure_url)); s.end(jpegBuf); });
+        console.log('[JPEG] Uploaded:', cloudUrl);
+        return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ downloadUrl: cloudUrl, rawUrl: cloudUrl, format: 'jpeg', dpi: targetDpi, source: 'fileKey_direct' }) };
+      }
     } else if (req.imageUrl) {
+      console.log('[PDF] Using imageUrl:', req.imageUrl);
       sourceBuffer = await fetchImage(req.imageUrl, false);
+      const hasOv2 = req.overlayImages && req.overlayImages.length > 0;
+      const hasTx2 = req.textElements && req.textElements.length > 0;
+      const hasOI2 = req.overlayImage && (req.overlayImage.url || req.overlayImage.fileKey);
+      if (req.format === 'jpeg' && !hasOv2 && !hasTx2 && !hasOI2) {
+        console.log('[JPEG] PRINT-READY: imageUrl direct');
+        const jpegBuf = await sharp(sourceBuffer).resize(targetPxW, targetPxH, { fit: 'fill' }).withMetadata({ density: targetDpi }).jpeg({ quality: 92 }).toBuffer();
+        const cloudUrl = await new Promise((r, j) => { const s = cloudinary.uploader.upload_stream({ resource_type: 'image', folder: 'order-prints', public_id: 'print-' + (req.orderId || 'x') + '-' + Date.now(), format: 'jpg' }, (e, x) => e ? j
+(e) : r(x.secure_url)); s.end(jpegBuf); });
+        return { statusCode: 200, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ downloadUrl: cloudUrl, rawUrl: cloudUrl, format: 'jpeg', dpi: targetDpi, source: 'imageUrl_direct' }) };
+      }
     } else {
       // Text-only design: create a white (or colored) background canvas
       const bgColor = req.canvasBackgroundColor || '#FFFFFF';
