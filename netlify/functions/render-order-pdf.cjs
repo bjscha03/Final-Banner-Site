@@ -659,7 +659,7 @@ exports.handler = async (event) => {
 
         if (req.format === 'jpeg') {
           // Resize to exact target print dimensions using fit:'contain' to prevent
-          // any aspect-ratio distortion.  The background colour fills any sub-pixel
+          // any aspect-ratio distortion.  The background color fills any sub-pixel
           // padding so it is invisible.  fit:'fill' would stretch the image if the
           // source and target ratios differ even slightly.
           console.log('[JPEG] Final render path: resizing to', targetPxW, '×', targetPxH, 'at', targetDpi, 'DPI');
@@ -726,7 +726,7 @@ exports.handler = async (event) => {
 
       // JPEG FORMAT: Return JPEG directly without PDF wrapping
       // Use fit:'contain' with background padding to prevent aspect-ratio distortion.
-      // The canvas background colour fills any sub-pixel padding so it is invisible.
+      // The canvas background color fills any sub-pixel padding so it is invisible.
       if (req.format === 'jpeg') {
         console.log('[JPEG] Thumbnail path: resizing to', targetPxW, 'x', targetPxH, 'at', targetDpi, 'DPI');
         const jpegBuffer = await sharp(sourceBuffer)
