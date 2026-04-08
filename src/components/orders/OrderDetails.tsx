@@ -347,20 +347,31 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
         orderId: order.id,
         bannerWidthIn: item.width_in,
         bannerHeightIn: item.height_in,
+        // PRIORITY 1: Use final_render if available (pixel-perfect snapshot of customer design)
+        finalRenderUrl: item.final_render_url || null,
+        finalRenderFileKey: item.final_render_file_key || null,
+        finalRenderWidthPx: item.final_render_width_px || null,
+        finalRenderHeightPx: item.final_render_height_px || null,
+        finalRenderDpi: item.final_render_dpi || null,
+        // FALLBACK: Reconstruction data for older orders without final_render
         fileKey: isUsingOverlayAsMain ? null : (isCloudinaryKey ? imageSource : null),
         imageUrl: isUsingOverlayAsMain ? null : (isCloudinaryKey ? null : imageSource),
         imageSource: item.print_ready_url ? 'print_ready' : (item.web_preview_url ? 'web_preview' : 'uploaded'),
-        bleedIn: 0.125, // Standard 1/8" bleed
-        targetDpi: 150, // High quality for print
+        includeBleed: false,
+        bleedIn: 0,
+        targetDpi: 300, // Print-ready 300 DPI
         // CRITICAL: When overlay is main image, DON'T use stored transform (it's for overlay positioning, not full-banner)
         transform: isUsingOverlayAsMain ? null : (item.transform || null),
         previewCanvasPx: isUsingOverlayAsMain ? null : (item.preview_canvas_px || null),
         textElements: isUsingOverlayAsMain ? [] : (item.text_elements || []), // Text elements not relevant for overlay-as-main
         // Always pass overlayImage - when used as main, fileKey/imageUrl are null so PDF creates blank canvas
         overlayImage: item.overlay_image || null, // Always pass overlay image for correct positioning
+        overlayImages: item.overlay_images || null,
         canvasBackgroundColor: item.canvas_background_color || '#FFFFFF', // Canvas background color
         imageScale: item.image_scale ?? 1,
-        imagePosition: item.image_position || { x: 0, y: 0 }
+        imagePosition: item.image_position || { x: 0, y: 0 },
+        thumbnailUrl: item.thumbnail_url || null,
+        format: 'jpeg'  // Return JPEG directly instead of PDF
       };
 
       console.log('[PDF Download] Sending request:', requestBody);
@@ -389,22 +400,52 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
         throw new Error(errorMessage);
       }
 
-      // Get PDF metadata from headers
-      const dpi = response.headers.get('X-PDF-DPI') || '150';
-      const bleed = response.headers.get('X-PDF-Bleed') || '0.125';
+      // Response is JSON with Cloudinary download URL (JPEG format)
+      const result = await response.json();
+      if (result.error) {
+        throw new Error(result.error || 'Print file generation failed');
+      }
 
-      // Handle binary PDF response
-      const blob = await response.blob();
-      console.log('[PDF Download] Received PDF blob:', blob.size, 'bytes');
+      const dpi = result.dpi || 300;
+      const bleed = result.bleed || 0;
 
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `order-${order.id.slice(-8)}-banner-${index + 1}-print-ready.jpg`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      if (result.downloadUrl) {
+        // High-res JPEG hosted on Cloudinary - fetch as blob to force download
+        let imgResponse = await fetch(result.downloadUrl);
+        if (!imgResponse.ok && result.rawUrl) {
+          console.warn('Transformed URL failed, falling back to raw URL');
+          imgResponse = await fetch(result.rawUrl);
+        }
+        if (!imgResponse.ok) throw new Error('Failed to download image: ' + imgResponse.status);
+        const blob = await imgResponse.blob();
+        if (blob.size === 0) throw new Error('Downloaded file is empty');
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `order-${order.id.slice(-8)}-banner-${index + 1}-print-ready.jpg`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      } else if (result.pdfBase64) {
+        // Legacy base64 fallback
+        const binaryString = atob(result.pdfBase64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        const blob = new Blob([bytes], { type: 'image/jpeg' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `order-${order.id.slice(-8)}-banner-${index + 1}-print-ready.jpg`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+      } else {
+        throw new Error("No print file data in response");
+      }
 
       toast({
         title: "Print File Downloaded",
