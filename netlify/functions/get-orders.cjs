@@ -56,9 +56,11 @@ exports.handler = async (event, context) => {
 
     const sql = neon(dbUrl);
 
-    // --- Diagnostic: verify connectivity + row count ---
-    const [countRow] = await sql`SELECT current_schema() AS schema, COUNT(*) AS cnt FROM orders`;
-    console.log(`[get-orders] schema=${countRow.schema}  orders COUNT(*)=${countRow.cnt}`);
+    // --- Diagnostic: verify connectivity + row count (cheap on PK-indexed table) ---
+    if (process.env.DEBUG_ORDERS) {
+      const [countRow] = await sql`SELECT current_schema() AS schema, COUNT(*) AS cnt FROM orders`;
+      console.log(`[get-orders] schema=${countRow.schema}  orders COUNT(*)=${countRow.cnt}`);
+    }
 
     const { user_id, page = 1 } = event.queryStringParameters || {};
     const limit = 20;
@@ -225,7 +227,7 @@ exports.handler = async (event, context) => {
       body: JSON.stringify(formattedOrders),
     };
   } catch (error) {
-    console.error('[get-orders] Error fetching orders:', error.message, error.stack);
+    console.error('[get-orders] Error fetching orders:', error.message);
     return {
       statusCode: 500,
       headers,
