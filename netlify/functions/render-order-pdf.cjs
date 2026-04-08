@@ -1252,18 +1252,26 @@ exports.handler = async (event) => {
       }
     }
 
-    // JPEG FORMAT: Block reconstruction path for JPEG export — final_render is required.
-    // This path should be unreachable for JPEG (we return errors above), but add
-    // a defensive guard in case code flow changes in the future.
+    // JPEG FORMAT: Output JPEG from reconstructed image when final_render is not available
     if (req.format === 'jpeg') {
-      console.error('[JPEG_EXPORT_DEBUG] ❌ DEFENSIVE GUARD: JPEG export reached reconstruction composite path — this should not happen.');
+      console.log('[JPEG] Using reconstruction fallback for JPEG export');
+      const jpegBuffer = await sharp(backgroundCanvas)
+        .composite(compositeLayers)
+        .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
+        .toBuffer();
+      console.log('[JPEG] Reconstruction JPEG size:', jpegBuffer.length, 'bytes');
+      const cloudUrl = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { resource_type: 'image', folder: 'order-prints', public_id: 'print-' + (req.orderId || 'unknown') + '-' + Date.now(), format: 'jpg' },
+          (err, result) => err ? reject(err) : resolve(result.secure_url)
+        );
+        stream.end(jpegBuffer);
+      });
+      console.log('[JPEG] Uploaded:', cloudUrl);
       return {
-        statusCode: 500,
+        statusCode: 200,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          error: 'JPEG export requires final_render data. Reconstruction from individual elements is not permitted for print files.',
-          source: 'reconstruction_fallback_blocked',
-        }),
+        body: JSON.stringify({ downloadUrl: cloudUrl, rawUrl: cloudUrl, format: 'jpeg', dpi: targetDpi, source: 'reconstruction' }),
       };
     }
 
