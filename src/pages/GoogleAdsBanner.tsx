@@ -12,6 +12,7 @@ import CartModal from '@/components/CartModal';
 
 import { getQuantityDiscountRate } from '@/lib/quantity-discount';
 import DeliveryCarousel from '@/components/home/DeliveryCarousel';
+import { generateFinalRenderFromHTML } from '@/utils/generateFinalRenderFromHTML';
 
 const PRESET_SIZES = [
   { label: "2' × 4'", w: 48, h: 24 },
@@ -294,7 +295,7 @@ const GoogleAdsBanner: React.FC = () => {
   }, [handleFileUpload]);
 
   // Actually perform checkout after upsell decision
-  const performCheckout = useCallback((selectedOptions: UpsellOption[], directData?: { pos: { x: number; y: number }, scale: number }) => {
+  const performCheckout = useCallback(async (selectedOptions: UpsellOption[], directData?: { pos: { x: number; y: number }, scale: number }) => {
     const checkoutData = directData || pendingCheckoutData;
     if (!uploadedFile || !checkoutData) return;
     
@@ -317,6 +318,30 @@ const GoogleAdsBanner: React.FC = () => {
         }
       }
     });
+
+    // FINAL_RENDER: Generate a pixel-perfect snapshot of the banner as designed.
+    // This is the source of truth for admin JPEG export — must match exactly what
+    // the user sees on screen (position, scale, whitespace).
+    let finalRenderResult: { url: string; fileKey: string; widthPx: number; heightPx: number; dpi: number } | null = null;
+    try {
+      console.log('[FINAL_RENDER_HTML] Generating snapshot for GoogleAdsBanner checkout...');
+      const imgSrc = uploadedFile.thumbnailUrl || uploadedFile.url;
+      finalRenderResult = await generateFinalRenderFromHTML(
+        imgSrc,
+        widthIn,
+        heightIn,
+        imgPos,
+        imgScale,
+        previewContainerRef.current,
+      );
+      if (finalRenderResult) {
+        console.log('[FINAL_RENDER_HTML] ✅ Success:', finalRenderResult.url.substring(0, 80) + '...');
+      } else {
+        console.warn('[FINAL_RENDER_HTML] ⚠️ Returned null — export will fail if no fallback');
+      }
+    } catch (err) {
+      console.error('[FINAL_RENDER_HTML] Error:', err);
+    }
     
     const updatedTotals = calcTotals({ 
       widthIn, heightIn, qty: quantity, material, 
@@ -334,6 +359,14 @@ const GoogleAdsBanner: React.FC = () => {
       fitMode: 'fill',
       thumbnailUrl: uploadedFile.thumbnailUrl,
       file: { name: uploadedFile.name, url: uploadedFile.url, fileKey: uploadedFile.fileKey, size: uploadedFile.size, isPdf: uploadedFile.isPdf, thumbnailUrl: uploadedFile.thumbnailUrl, type: uploadedFile.isPdf ? 'application/pdf' : 'image/*' } as any,
+      // FINAL_RENDER: Attach high-res snapshot for admin JPEG export
+      ...(finalRenderResult ? {
+        finalRenderUrl: finalRenderResult.url,
+        finalRenderFileKey: finalRenderResult.fileKey,
+        finalRenderWidthPx: finalRenderResult.widthPx,
+        finalRenderHeightPx: finalRenderResult.heightPx,
+        finalRenderDpi: finalRenderResult.dpi,
+      } : {}),
     });
     const pricing = {
       unit_price_cents: Math.round(updatedTotals.unit * 100),
@@ -345,7 +378,7 @@ const GoogleAdsBanner: React.FC = () => {
     setIsCartOpen(true);
     setPendingCheckoutData(null);
     navigate('/checkout');
-  }, [uploadedFile, pendingCheckoutData, grommets, addRope, polePockets, widthIn, heightIn, quantity, material, quoteStore, cartStore, setIsCartOpen, navigate]);
+  }, [uploadedFile, pendingCheckoutData, grommets, addRope, polePockets, widthIn, heightIn, quantity, material, quoteStore, cartStore, setIsCartOpen, navigate, imgPos, imgScale]);
 
   // Proceed directly to checkout using current inline preview position
   const handleCheckout = useCallback(() => {

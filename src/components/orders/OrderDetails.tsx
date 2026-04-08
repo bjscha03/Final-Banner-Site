@@ -374,6 +374,17 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
         format: 'jpeg'  // Return JPEG directly instead of PDF
       };
 
+      // DEBUG: Log what source will be used for export
+      console.log('[JPEG_EXPORT_DEBUG] ======= ADMIN DOWNLOAD REQUEST =======');
+      console.log('[JPEG_EXPORT_DEBUG] Order ID:', order.id);
+      console.log('[JPEG_EXPORT_DEBUG] Banner size:', item.width_in, '×', item.height_in, 'inches');
+      console.log('[JPEG_EXPORT_DEBUG] finalRenderUrl:', item.final_render_url ? item.final_render_url.substring(0, 80) + '...' : 'NONE');
+      console.log('[JPEG_EXPORT_DEBUG] finalRenderFileKey:', item.final_render_file_key || 'NONE');
+      console.log('[JPEG_EXPORT_DEBUG] finalRenderWidthPx:', item.final_render_width_px || 'NONE');
+      console.log('[JPEG_EXPORT_DEBUG] finalRenderHeightPx:', item.final_render_height_px || 'NONE');
+      console.log('[JPEG_EXPORT_DEBUG] thumbnailUrl:', item.thumbnail_url ? item.thumbnail_url.substring(0, 80) + '...' : 'NONE');
+      console.log('[JPEG_EXPORT_DEBUG] Using final_render:', !!(item.final_render_url || item.final_render_file_key));
+      console.log('[JPEG_EXPORT_DEBUG] ====================================');
       console.log('[PDF Download] Sending request:', requestBody);
 
       const response = await fetch('/.netlify/functions/render-order-pdf', {
