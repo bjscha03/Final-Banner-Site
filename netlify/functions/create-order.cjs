@@ -325,18 +325,40 @@ exports.handler = async (event, context) => {
     } catch (migrationError) {
       console.warn('⚠️ Database migration warning:', migrationError.message);
     }
+
+    // AUTO-MIGRATE: Ensure final_render columns exist (added for print-pipeline fix)
+    try {
+      await sql`
+        ALTER TABLE order_items
+        ADD COLUMN IF NOT EXISTS final_render_url TEXT,
+        ADD COLUMN IF NOT EXISTS final_render_file_key TEXT,
+        ADD COLUMN IF NOT EXISTS final_render_width_px INTEGER,
+        ADD COLUMN IF NOT EXISTS final_render_height_px INTEGER,
+        ADD COLUMN IF NOT EXISTS final_render_dpi INTEGER,
+        ADD COLUMN IF NOT EXISTS canvas_state_json TEXT
+      `;
+      console.log('✅ Database migration: final_render + canvas_state_json columns verified/created');
+    } catch (migrationError) {
+      console.warn('⚠️ final_render/canvas_state migration warning:', migrationError.message);
+    }
     
     console.log('Creating order with data:', orderData);
     console.log('Database URL available:', !!databaseUrl);
     console.log('📦 Items received:', orderData.items?.length || 0);
     if (orderData.items && orderData.items.length > 0) {
       orderData.items.forEach((item, index) => {
-        console.log(`Item ${index + 1}:`, {
+        console.log(`[CREATE_ORDER_DEBUG] Item ${index + 1}:`, {
           width_in: item.width_in,
           height_in: item.height_in,
           file_key: item.file_key,
           text_elements: item.text_elements,
-          pole_pockets: item.pole_pockets
+          pole_pockets: item.pole_pockets,
+          final_render_url: item.final_render_url ? item.final_render_url.substring(0, 80) : 'NONE',
+          final_render_file_key: item.final_render_file_key || 'NONE',
+          final_render_width_px: item.final_render_width_px || 'NONE',
+          final_render_height_px: item.final_render_height_px || 'NONE',
+          final_render_dpi: item.final_render_dpi || 'NONE',
+          canvas_state_json: item.canvas_state_json ? 'YES (' + item.canvas_state_json.length + ' chars)' : 'NONE',
         });
       });
     }
@@ -501,9 +523,17 @@ exports.handler = async (event, context) => {
       for (const rawItem of orderData.items) {
         const item = cleanItemForDb(rawItem);
         console.log("[Create Order] Cleaned item file_key:", item.file_key, "file_url:", item.file_url ? item.file_url.substring(0, 80) : null);
-        console.log('Inserting order item:', JSON.stringify(item, null, 2));
-        console.log('Item details - width_in:', item.width_in, 'height_in:', item.height_in, 'file_key:', item.file_key, 'text_elements:', item.text_elements);
-        console.log('Item image positioning - image_scale:', item.image_scale, 'image_position:', JSON.stringify(item.image_position));
+        console.log('[CREATE_ORDER_DEBUG] === PERSISTING ORDER ITEM ===');
+        console.log('[CREATE_ORDER_DEBUG] order_id:', orderId);
+        console.log('[CREATE_ORDER_DEBUG] dimensions:', item.width_in, '×', item.height_in, 'inches');
+        console.log('[CREATE_ORDER_DEBUG] final_render_url:', item.final_render_url ? item.final_render_url.substring(0, 80) : 'NULL');
+        console.log('[CREATE_ORDER_DEBUG] final_render_file_key:', item.final_render_file_key || 'NULL');
+        console.log('[CREATE_ORDER_DEBUG] final_render_width_px:', item.final_render_width_px || 'NULL');
+        console.log('[CREATE_ORDER_DEBUG] final_render_height_px:', item.final_render_height_px || 'NULL');
+        console.log('[CREATE_ORDER_DEBUG] final_render_dpi:', item.final_render_dpi || 'NULL');
+        console.log('[CREATE_ORDER_DEBUG] canvas_state_json:', item.canvas_state_json ? 'YES (' + item.canvas_state_json.length + ' chars)' : 'NULL');
+        console.log('[CREATE_ORDER_DEBUG] thumbnail_url:', item.thumbnail_url ? item.thumbnail_url.substring(0, 80) : 'NULL');
+        console.log('[CREATE_ORDER_DEBUG] ===========================');
         try {
           // Convert pole_pockets to boolean for database (boolean column)
           const polePocketsValue = item.pole_pockets &&
@@ -511,13 +541,13 @@ exports.handler = async (event, context) => {
             item.pole_pockets !== 'false' &&
             item.pole_pockets !== false;
 
-          // Try to insert with text_elements and overlay_image columns
+          // Try to insert with all columns including final_render and canvas_state_json
           try {
             await sql`
               INSERT INTO order_items (
                 id, order_id, width_in, height_in, quantity, material,
                 grommets, rope_feet, pole_pockets, pole_pocket_position, pole_pocket_size, pole_pocket_cost_cents,
-                line_total_cents, file_key, file_url, print_ready_url, web_preview_url, text_elements, overlay_image, overlay_images, canvas_background_color, image_scale, image_position, thumbnail_url, final_render_url, final_render_file_key, final_render_width_px, final_render_height_px, final_render_dpi,
+                line_total_cents, file_key, file_url, print_ready_url, web_preview_url, text_elements, overlay_image, overlay_images, canvas_background_color, image_scale, image_position, thumbnail_url, final_render_url, final_render_file_key, final_render_width_px, final_render_height_px, final_render_dpi, canvas_state_json,
                 design_service_enabled, design_request_text, design_draft_preference, design_draft_contact, design_uploaded_assets
               )
               VALUES (
@@ -550,6 +580,7 @@ exports.handler = async (event, context) => {
                 ${item.final_render_width_px || null},
                 ${item.final_render_height_px || null},
                 ${item.final_render_dpi || null},
+                ${item.canvas_state_json || null},
                 ${item.design_service_enabled || false},
                 ${item.design_request_text || null},
                 ${item.design_draft_preference || null},
@@ -557,6 +588,7 @@ exports.handler = async (event, context) => {
                 ${item.design_uploaded_assets ? JSON.stringify(item.design_uploaded_assets) : '[]'}
               )
             `;
+            console.log('[CREATE_ORDER_DEBUG] ✅ Order item saved with final_render fields');
           } catch (textElementsError) {
             // If text_elements column doesn't exist, try without it
             if (textElementsError.message && textElementsError.message.includes('column "text_elements" does not exist')) {

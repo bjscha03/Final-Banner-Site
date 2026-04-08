@@ -1373,16 +1373,48 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
     console.log('📝 [TEXT SYNC] Extracted text elements from editor:', textElementsFromEditor);
     console.log('📝 [TEXT SYNC] Old quote.textElements:', freshQuoteForCart.textElements);
 
-    // FINAL_RENDER: Generate high-res snapshot for admin PDF (NON-BLOCKING)
+    // FINAL_RENDER: Generate high-res snapshot for admin PDF (MANDATORY)
+    // If this fails, we must NOT proceed — the order will have no accurate print file source.
     let finalRenderResult: { url: string; fileKey: string; widthPx: number; heightPx: number; dpi: number } | null = null;
+    let canvasStateJson: string | undefined;
     try {
       const stage = canvasRef.current?.getStage?.();
       if (stage) {
-        console.log("[FINAL_RENDER] Generating snapshot...");
+        console.log("[FINAL_RENDER] order_source: design-editor");
+        console.log("[FINAL_RENDER] dimensions:", widthIn, "×", heightIn, "inches");
+        console.log("[FINAL_RENDER] stage_json_exists: true");
+        console.log("[FINAL_RENDER] final_render_generation_started: true");
+
+        // Capture stage JSON for re-rendering if needed
+        try {
+          canvasStateJson = stage.toJSON();
+          console.log("[FINAL_RENDER] canvas_state_json captured:", canvasStateJson.length, "chars");
+        } catch (jsonErr) {
+          console.warn("[FINAL_RENDER] canvas_state_json capture failed:", jsonErr);
+        }
+
         finalRenderResult = await generateFinalRender(stage, widthIn, heightIn);
-        if (finalRenderResult) { console.log("[FINAL_RENDER] Success"); }
+        if (finalRenderResult) {
+          console.log("[FINAL_RENDER] ✅ final_render_generation_succeeded: true");
+          console.log("[FINAL_RENDER] final_render_url:", finalRenderResult.url.substring(0, 80) + "...");
+          console.log("[FINAL_RENDER] final_render_width_px:", finalRenderResult.widthPx);
+          console.log("[FINAL_RENDER] final_render_height_px:", finalRenderResult.heightPx);
+          console.log("[FINAL_RENDER] final_render_dpi:", finalRenderResult.dpi);
+        } else {
+          console.error("[FINAL_RENDER] ❌ final_render_generation_succeeded: false (returned null)");
+          toast({ title: "Print file capture failed", description: "Could not capture your design for printing. Please try again.", variant: "destructive" });
+          return; // MANDATORY: Do not proceed without final render
+        }
+      } else {
+        console.error("[FINAL_RENDER] ❌ No Konva stage found — cannot capture design");
+        toast({ title: "Design capture failed", description: "Could not access the design canvas. Please try again.", variant: "destructive" });
+        return; // MANDATORY: Do not proceed without final render
       }
-    } catch (err) { console.error("[FINAL_RENDER] Error:", err); }
+    } catch (err) {
+      console.error("[FINAL_RENDER] ❌ final_render_generation_succeeded: false (exception)", err);
+      toast({ title: "Print file capture failed", description: "An error occurred while capturing your design. Please try again.", variant: "destructive" });
+      return; // MANDATORY: Do not proceed without final render
+    }
     const quoteData = {
       widthIn: freshQuoteForCart.widthIn,
       heightIn: freshQuoteForCart.heightIn,
@@ -1409,12 +1441,14 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
             url: thumbnailUrl,
             name: `banner-${Date.now()}.png`
           } : freshQuoteForCart.file),
-      // FINAL_RENDER: High-res snapshot for admin PDF
-      finalRenderUrl: finalRenderResult?.url,
-      finalRenderFileKey: finalRenderResult?.fileKey,
-      finalRenderWidthPx: finalRenderResult?.widthPx,
-      finalRenderHeightPx: finalRenderResult?.heightPx,
-      finalRenderDpi: finalRenderResult?.dpi,
+      // FINAL_RENDER: Guaranteed to exist (mandatory generation above)
+      finalRenderUrl: finalRenderResult.url,
+      finalRenderFileKey: finalRenderResult.fileKey,
+      finalRenderWidthPx: finalRenderResult.widthPx,
+      finalRenderHeightPx: finalRenderResult.heightPx,
+      finalRenderDpi: finalRenderResult.dpi,
+      // CANVAS STATE: Stage JSON for re-rendering if needed
+      canvasStateJson: canvasStateJson,
     };
     
     // DIAGNOSTIC: Show what we're about to save
