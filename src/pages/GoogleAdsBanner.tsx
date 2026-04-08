@@ -322,9 +322,15 @@ const GoogleAdsBanner: React.FC = () => {
     // FINAL_RENDER: Generate a pixel-perfect snapshot of the banner as designed.
     // This is the source of truth for admin JPEG export — must match exactly what
     // the user sees on screen (position, scale, whitespace).
+    // MANDATORY: If this fails, order creation must fail loudly.
     let finalRenderResult: { url: string; fileKey: string; widthPx: number; heightPx: number; dpi: number } | null = null;
     try {
       console.log('[FINAL_RENDER_HTML] Generating snapshot for GoogleAdsBanner checkout...');
+      console.log('[FINAL_RENDER_HTML] order_source: google-ads-banner');
+      console.log('[FINAL_RENDER_HTML] dimensions:', widthIn, '×', heightIn, 'inches');
+      console.log('[FINAL_RENDER_HTML] imgPos:', JSON.stringify(imgPos), 'imgScale:', imgScale);
+      console.log('[FINAL_RENDER_HTML] stage_json_exists: true (imgPos/imgScale are the state)');
+      console.log('[FINAL_RENDER_HTML] final_render_generation_started: true');
       const imgSrc = uploadedFile.thumbnailUrl || uploadedFile.url;
       finalRenderResult = await generateFinalRenderFromHTML(
         imgSrc,
@@ -335,12 +341,20 @@ const GoogleAdsBanner: React.FC = () => {
         previewContainerRef.current,
       );
       if (finalRenderResult) {
-        console.log('[FINAL_RENDER_HTML] ✅ Success:', finalRenderResult.url.substring(0, 80) + '...');
+        console.log('[FINAL_RENDER_HTML] ✅ final_render_generation_succeeded: true');
+        console.log('[FINAL_RENDER_HTML] final_render_url:', finalRenderResult.url.substring(0, 80) + '...');
+        console.log('[FINAL_RENDER_HTML] final_render_width_px:', finalRenderResult.widthPx);
+        console.log('[FINAL_RENDER_HTML] final_render_height_px:', finalRenderResult.heightPx);
+        console.log('[FINAL_RENDER_HTML] final_render_dpi:', finalRenderResult.dpi);
       } else {
-        console.warn('[FINAL_RENDER_HTML] ⚠️ Returned null — export will fail if no fallback');
+        console.error('[FINAL_RENDER_HTML] ❌ final_render_generation_succeeded: false (returned null)');
+        alert('Failed to capture your banner design for printing. Please try again. If the problem persists, try a different browser.');
+        return; // MANDATORY: Do not proceed without final render
       }
     } catch (err) {
-      console.error('[FINAL_RENDER_HTML] Error:', err);
+      console.error('[FINAL_RENDER_HTML] ❌ final_render_generation_succeeded: false (exception)', err);
+      alert('Failed to capture your banner design for printing. Please try again.');
+      return; // MANDATORY: Do not proceed without final render
     }
     
     const updatedTotals = calcTotals({ 
@@ -359,14 +373,12 @@ const GoogleAdsBanner: React.FC = () => {
       fitMode: 'fill',
       thumbnailUrl: uploadedFile.thumbnailUrl,
       file: { name: uploadedFile.name, url: uploadedFile.url, fileKey: uploadedFile.fileKey, size: uploadedFile.size, isPdf: uploadedFile.isPdf, thumbnailUrl: uploadedFile.thumbnailUrl, type: uploadedFile.isPdf ? 'application/pdf' : 'image/*' } as any,
-      // FINAL_RENDER: Attach high-res snapshot for admin JPEG export
-      ...(finalRenderResult ? {
-        finalRenderUrl: finalRenderResult.url,
-        finalRenderFileKey: finalRenderResult.fileKey,
-        finalRenderWidthPx: finalRenderResult.widthPx,
-        finalRenderHeightPx: finalRenderResult.heightPx,
-        finalRenderDpi: finalRenderResult.dpi,
-      } : {}),
+      // FINAL_RENDER: Guaranteed to exist (mandatory generation above)
+      finalRenderUrl: finalRenderResult.url,
+      finalRenderFileKey: finalRenderResult.fileKey,
+      finalRenderWidthPx: finalRenderResult.widthPx,
+      finalRenderHeightPx: finalRenderResult.heightPx,
+      finalRenderDpi: finalRenderResult.dpi,
     });
     const pricing = {
       unit_price_cents: Math.round(updatedTotals.unit * 100),
@@ -375,6 +387,8 @@ const GoogleAdsBanner: React.FC = () => {
       line_total_cents: Math.round(updatedTotals.materialTotal * 100),
     };
     cartStore.addFromQuote(useQuoteStore.getState(), undefined, pricing);
+    console.log('[FINAL_RENDER_HTML] ✅ order_save_happened: after final_render was ready');
+    console.log('[FINAL_RENDER_HTML] ✅ Cart item created with final_render data');
     setIsCartOpen(true);
     setPendingCheckoutData(null);
     navigate('/checkout');
