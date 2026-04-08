@@ -314,7 +314,7 @@ const AdminOrders: React.FC = () => {
         imageSource: item.print_ready_url ? 'print_ready' : (item.web_preview_url ? 'web_preview' : 'uploaded'),
         includeBleed: false,
         bleedIn: 0,
-        targetDpi: 150,
+        targetDpi: 300,
         transform: isOverlayOnlyDesign ? null : (item.transform || null),
         previewCanvasPx: isOverlayOnlyDesign ? null : (item.preview_canvas_px || null),
         textElements: item.text_elements || [],

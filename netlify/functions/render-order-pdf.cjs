@@ -658,13 +658,13 @@ exports.handler = async (event) => {
         console.log('[JPEG_EXPORT_DEBUG] Aspect ratio check: source=', (frMeta.width / frMeta.height).toFixed(4), 'target=', (targetPxW / targetPxH).toFixed(4), 'ordered=', (req.bannerWidthIn / req.bannerHeightIn).toFixed(4));
 
         if (req.format === 'jpeg') {
-          // Resize to exact target print dimensions — NO padding.
-          // The final render is a pixel-perfect Konva snapshot that already has the
-          // correct aspect ratio, so fit:'fill' produces no visible distortion and
-          // guarantees zero white-space borders.
+          // Resize to exact target print dimensions using fit:'contain' to prevent
+          // any aspect-ratio distortion.  The background color fills any sub-pixel
+          // padding so it is invisible.  fit:'fill' would stretch the image if the
+          // source and target ratios differ even slightly.
           console.log('[JPEG] Final render path: resizing to', targetPxW, '×', targetPxH, 'at', targetDpi, 'DPI');
           const jpegBuffer = await sharp(finalRenderBuffer)
-            .resize(targetPxW, targetPxH, { fit: 'fill' })
+            .resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground })
             .withMetadata({ density: targetDpi })
             .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
             .toBuffer();
@@ -725,13 +725,12 @@ exports.handler = async (event) => {
       sourceBuffer = await fetchImage(printThumbUrl, false);
 
       // JPEG FORMAT: Return JPEG directly without PDF wrapping
-      // Use fit:'fill' to produce exact target dimensions with NO padding.
-      // The thumbnail is the customer-approved design — any tiny aspect-ratio
-      // difference is imperceptible when scaled, and padding is explicitly wrong.
+      // Use fit:'contain' with background padding to prevent aspect-ratio distortion.
+      // The canvas background color fills any sub-pixel padding so it is invisible.
       if (req.format === 'jpeg') {
         console.log('[JPEG] Thumbnail path: resizing to', targetPxW, 'x', targetPxH, 'at', targetDpi, 'DPI');
         const jpegBuffer = await sharp(sourceBuffer)
-          .resize(targetPxW, targetPxH, { fit: 'fill' })
+          .resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground })
           .withMetadata({ density: targetDpi })
           .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
           .toBuffer();
