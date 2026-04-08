@@ -46,6 +46,20 @@ export interface OrderItem {
   final_print_pdf_url?: string;
   final_print_pdf_file_key?: string;
   final_print_pdf_uploaded_at?: string;
+
+  // FINAL_RENDER: High-res canvas snapshot for admin JPEG export
+  final_render_url?: string;
+  final_render_file_key?: string;
+  final_render_width_px?: number;
+  final_render_height_px?: number;
+  final_render_dpi?: number;
+
+  // Additional fields for cart/checkout
+  thumbnail_url?: string;
+  canvas_background_color?: string;
+  image_scale?: number;
+  image_position?: { x: number; y: number };
+  fit_mode?: 'fill' | 'fit' | 'stretch';
 }
 
 export interface Order {
