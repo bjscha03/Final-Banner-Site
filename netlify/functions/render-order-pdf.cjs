@@ -786,7 +786,7 @@ exports.handler = async (event) => {
           statusCode: 200,
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            url: cloudUrl,
+            downloadUrl: cloudUrl, rawUrl: cloudUrl,
             format: 'jpeg',
             dpi: targetDpi,
             source: 'thumbnail_fallback',
