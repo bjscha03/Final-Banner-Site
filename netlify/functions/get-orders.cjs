@@ -62,6 +62,72 @@ exports.handler = async (event, context) => {
       console.log(`[get-orders] schema=${countRow.schema}  orders COUNT(*)=${countRow.cnt}`);
     }
 
+    // AUTO-MIGRATE: Ensure all columns referenced by the query exist.
+    // These columns may be missing if certain migration scripts were never run.
+    try {
+      await sql`
+        ALTER TABLE order_items
+        ADD COLUMN IF NOT EXISTS image_scale NUMERIC DEFAULT 1,
+        ADD COLUMN IF NOT EXISTS image_position JSONB DEFAULT '{"x": 0, "y": 0}'::jsonb,
+        ADD COLUMN IF NOT EXISTS thumbnail_url TEXT,
+        ADD COLUMN IF NOT EXISTS overlay_image JSONB,
+        ADD COLUMN IF NOT EXISTS overlay_images JSONB,
+        ADD COLUMN IF NOT EXISTS canvas_background_color VARCHAR(20) DEFAULT '#FFFFFF',
+        ADD COLUMN IF NOT EXISTS file_key VARCHAR(255),
+        ADD COLUMN IF NOT EXISTS file_url TEXT,
+        ADD COLUMN IF NOT EXISTS print_ready_url TEXT,
+        ADD COLUMN IF NOT EXISTS web_preview_url TEXT,
+        ADD COLUMN IF NOT EXISTS text_elements JSONB DEFAULT '[]'::jsonb,
+        ADD COLUMN IF NOT EXISTS pole_pocket_position TEXT,
+        ADD COLUMN IF NOT EXISTS pole_pocket_size TEXT,
+        ADD COLUMN IF NOT EXISTS pole_pocket_cost_cents INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS final_render_url TEXT,
+        ADD COLUMN IF NOT EXISTS final_render_file_key TEXT,
+        ADD COLUMN IF NOT EXISTS final_render_width_px INTEGER,
+        ADD COLUMN IF NOT EXISTS final_render_height_px INTEGER,
+        ADD COLUMN IF NOT EXISTS final_render_dpi INTEGER,
+        ADD COLUMN IF NOT EXISTS canvas_state_json TEXT,
+        ADD COLUMN IF NOT EXISTS design_service_enabled BOOLEAN DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS design_request_text TEXT,
+        ADD COLUMN IF NOT EXISTS design_draft_preference VARCHAR(10),
+        ADD COLUMN IF NOT EXISTS design_draft_contact VARCHAR(255),
+        ADD COLUMN IF NOT EXISTS design_uploaded_assets JSONB DEFAULT '[]'::jsonb,
+        ADD COLUMN IF NOT EXISTS final_print_pdf_url TEXT,
+        ADD COLUMN IF NOT EXISTS final_print_pdf_file_key TEXT,
+        ADD COLUMN IF NOT EXISTS final_print_pdf_uploaded_at TIMESTAMP WITH TIME ZONE
+      `;
+      console.log('[get-orders] Auto-migration: order_items columns verified');
+    } catch (migErr) {
+      console.warn('[get-orders] Auto-migration warning (non-fatal):', migErr.message);
+    }
+
+    // AUTO-MIGRATE: Ensure orders table columns exist
+    try {
+      await sql`
+        ALTER TABLE orders
+        ADD COLUMN IF NOT EXISTS email VARCHAR(255),
+        ADD COLUMN IF NOT EXISTS customer_name TEXT,
+        ADD COLUMN IF NOT EXISTS tracking_number VARCHAR(255),
+        ADD COLUMN IF NOT EXISTS shipping_name TEXT,
+        ADD COLUMN IF NOT EXISTS shipping_street TEXT,
+        ADD COLUMN IF NOT EXISTS shipping_street2 TEXT,
+        ADD COLUMN IF NOT EXISTS shipping_city TEXT,
+        ADD COLUMN IF NOT EXISTS shipping_state TEXT,
+        ADD COLUMN IF NOT EXISTS shipping_zip TEXT,
+        ADD COLUMN IF NOT EXISTS shipping_country TEXT DEFAULT 'US',
+        ADD COLUMN IF NOT EXISTS applied_discount_cents INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS applied_discount_label TEXT DEFAULT '',
+        ADD COLUMN IF NOT EXISTS applied_discount_type TEXT DEFAULT 'none',
+        ADD COLUMN IF NOT EXISTS production_email_sent BOOLEAN DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS production_email_sent_at TIMESTAMP WITH TIME ZONE,
+        ADD COLUMN IF NOT EXISTS shipping_notification_sent BOOLEAN DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS shipping_notification_sent_at TIMESTAMP WITH TIME ZONE
+      `;
+      console.log('[get-orders] Auto-migration: orders columns verified');
+    } catch (migErr) {
+      console.warn('[get-orders] Auto-migration orders table warning (non-fatal):', migErr.message);
+    }
+
     const { user_id, page = 1 } = event.queryStringParameters || {};
     const limit = 20;
     const offset = (page - 1) * limit;
@@ -87,7 +153,7 @@ exports.handler = async (event, context) => {
                    'pole_pocket_size', oi.pole_pocket_size,
                    'pole_pocket_cost_cents', oi.pole_pocket_cost_cents,
                    'area_sqft', (oi.width_in * oi.height_in / 144.0),
-                   'unit_price_cents', (oi.line_total_cents / oi.quantity),
+                   'unit_price_cents', CASE WHEN oi.quantity > 0 THEN (oi.line_total_cents / oi.quantity) ELSE 0 END,
                    'line_total_cents', oi.line_total_cents,
                    'file_key', oi.file_key,
                    'file_url', oi.file_url,
@@ -142,7 +208,7 @@ exports.handler = async (event, context) => {
                    'pole_pocket_size', oi.pole_pocket_size,
                    'pole_pocket_cost_cents', oi.pole_pocket_cost_cents,
                    'area_sqft', (oi.width_in * oi.height_in / 144.0),
-                   'unit_price_cents', (oi.line_total_cents / oi.quantity),
+                   'unit_price_cents', CASE WHEN oi.quantity > 0 THEN (oi.line_total_cents / oi.quantity) ELSE 0 END,
                    'line_total_cents', oi.line_total_cents,
                    'file_key', oi.file_key,
                    'file_url', oi.file_url,
@@ -184,7 +250,8 @@ exports.handler = async (event, context) => {
     // Format the response
     const formattedOrders = orders.map(order => {
       // Recalculate totals from line items (DB values may be incorrect)
-      const _items = order.items || [];
+      // Filter out phantom null items from LEFT JOIN when order has no items
+      const _items = (order.items || []).filter(item => item && item.id !== null);
       const _recalcSubtotal = _items.reduce((sum, item) => sum + (Number(item.line_total_cents) || 0), 0);
       // Subtract discount before computing tax/total (same pattern as notify-order.cjs)
       const _discountCents = Number(order.applied_discount_cents) || 0;

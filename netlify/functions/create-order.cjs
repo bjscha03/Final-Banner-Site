@@ -341,6 +341,19 @@ exports.handler = async (event, context) => {
     } catch (migrationError) {
       console.warn('⚠️ final_render/canvas_state migration warning:', migrationError.message);
     }
+
+    // AUTO-MIGRATE: Ensure image_scale, image_position, thumbnail_url columns exist
+    try {
+      await sql`
+        ALTER TABLE order_items
+        ADD COLUMN IF NOT EXISTS image_scale NUMERIC DEFAULT 1,
+        ADD COLUMN IF NOT EXISTS image_position JSONB DEFAULT '{"x": 0, "y": 0}'::jsonb,
+        ADD COLUMN IF NOT EXISTS thumbnail_url TEXT
+      `;
+      console.log('✅ Database migration: image_scale, image_position, thumbnail_url columns verified/created');
+    } catch (migrationError) {
+      console.warn('⚠️ image_scale/image_position/thumbnail_url migration warning:', migrationError.message);
+    }
     
     console.log('Creating order with data:', orderData);
     console.log('Database URL available:', !!databaseUrl);
