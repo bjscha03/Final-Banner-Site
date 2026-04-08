@@ -251,7 +251,7 @@ exports.handler = async (event, context) => {
     const formattedOrders = orders.map(order => {
       // Recalculate totals from line items (DB values may be incorrect)
       // Filter out phantom null items from LEFT JOIN when order has no items
-      const _items = (order.items || []).filter(item => item && item.id != null);
+      const _items = (order.items || []).filter(item => item && item.id !== null);
       const _recalcSubtotal = _items.reduce((sum, item) => sum + (Number(item.line_total_cents) || 0), 0);
       // Subtract discount before computing tax/total (same pattern as notify-order.cjs)
       const _discountCents = Number(order.applied_discount_cents) || 0;
