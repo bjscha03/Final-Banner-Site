@@ -35,7 +35,7 @@ exports.handler = async (event, context) => {
   try {
     const dbUrl = getDbUrl();
     if (!dbUrl) {
-      console.error('Database URL not found in environment variables');
+      console.error('[get-orders] Database URL not found in environment variables');
       return {
         statusCode: 500,
         headers,
@@ -46,7 +46,19 @@ exports.handler = async (event, context) => {
       };
     }
 
+    // --- Diagnostic: log which DB env var is in use and the host (never log secrets) ---
+    const whichVar = process.env.NETLIFY_DATABASE_URL ? 'NETLIFY_DATABASE_URL'
+      : process.env.VITE_DATABASE_URL ? 'VITE_DATABASE_URL'
+      : 'DATABASE_URL';
+    let dbHost = '(unknown)';
+    try { dbHost = new URL(dbUrl).hostname; } catch (_) { /* non-URL format */ }
+    console.log(`[get-orders] Using ${whichVar} → host=${dbHost}`);
+
     const sql = neon(dbUrl);
+
+    // --- Diagnostic: verify connectivity + row count ---
+    const [countRow] = await sql`SELECT current_schema() AS schema, COUNT(*) AS cnt FROM orders`;
+    console.log(`[get-orders] schema=${countRow.schema}  orders COUNT(*)=${countRow.cnt}`);
 
     const { user_id, page = 1 } = event.queryStringParameters || {};
     const limit = 20;
@@ -56,7 +68,7 @@ exports.handler = async (event, context) => {
 
     if (user_id) {
       // Get orders for specific user
-      console.log('Fetching orders for user:', user_id);
+      console.log('[get-orders] Fetching orders for user:', user_id);
       orders = await sql`
         SELECT o.*,
                json_agg(
@@ -105,13 +117,13 @@ exports.handler = async (event, context) => {
         FROM orders o
         LEFT JOIN order_items oi ON o.id = oi.order_id
         WHERE o.user_id = ${user_id}
-        GROUP BY o.id, o.user_id, o.email, o.subtotal_cents, o.tax_cents, o.total_cents, o.status, o.tracking_number, o.created_at, o.updated_at
+        GROUP BY o.id
         ORDER BY o.created_at DESC
         LIMIT ${limit} OFFSET ${offset}
       `;
     } else {
       // Get all orders (admin view)
-      console.log('Fetching all orders');
+      console.log('[get-orders] Fetching all orders (admin)');
       orders = await sql`
         SELECT o.*,
                json_agg(
@@ -159,13 +171,13 @@ exports.handler = async (event, context) => {
                ) as items
         FROM orders o
         LEFT JOIN order_items oi ON o.id = oi.order_id
-        GROUP BY o.id, o.user_id, o.email, o.subtotal_cents, o.tax_cents, o.total_cents, o.status, o.tracking_number, o.created_at, o.updated_at
+        GROUP BY o.id
         ORDER BY o.created_at DESC
         LIMIT ${limit} OFFSET ${offset}
       `;
     }
 
-    console.log(`Found ${orders.length} orders`);
+    console.log(`[get-orders] Found ${orders.length} orders`);
 
     // Format the response
     const formattedOrders = orders.map(order => {
@@ -213,13 +225,14 @@ exports.handler = async (event, context) => {
       body: JSON.stringify(formattedOrders),
     };
   } catch (error) {
-    console.error('Error fetching orders:', error);
+    console.error('[get-orders] Error fetching orders:', error.message, error.stack);
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({ 
         error: 'Failed to fetch orders', 
-        details: error.message 
+        details: error.message,
+        code: error.code || null
       }),
     };
   }
