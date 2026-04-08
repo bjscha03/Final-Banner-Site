@@ -102,7 +102,7 @@ export interface CartItem {
   final_render_file_key?: string;      // Cloudinary file key for direct access
   final_render_width_px?: number;      // Width in pixels
   final_render_height_px?: number;     // Height in pixels
-  final_render_dpi?: number;           // DPI used (typically 300)
+  final_render_dpi?: number;           // DPI used for capture (typically 300, may be clamped for large banners)
   canvas_state_json?: string;          // Exact stage/canvas JSON at submission for re-rendering
 
   // Design Service fields - "Let Our Team Design It" flow

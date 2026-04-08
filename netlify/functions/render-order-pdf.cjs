@@ -679,10 +679,10 @@ exports.handler = async (event) => {
         if (req.format === 'jpeg') {
           // The final_render is a pixel-perfect snapshot of the approved canvas.
           // It already contains the exact layout (image placement, whitespace, margins).
-          // We resize to target print dimensions. The source aspect ratio matches the
-          // ordered banner ratio (both are widthIn × heightIn), so fit:'fill' won't
-          // distort. Using fit:'contain' with background as safety net for sub-pixel
-          // rounding differences.
+          // We resize to target print dimensions. Using fit:'contain' with background
+          // padding to safely handle sub-pixel rounding differences between the captured
+          // final_render dimensions and the computed target dimensions — both should have
+          // the same aspect ratio (widthIn × heightIn) but rounding may cause 1-2px diff.
           console.log('[JPEG] Final render path: resizing to', targetPxW, '×', targetPxH, 'at', targetDpi, 'DPI');
           console.log('[JPEG_EXPORT_DEBUG] EXPORT SOURCE CONFIRMED = final_render (NO fallback, NO reconstruction)');
           const jpegBuffer = await sharp(finalRenderBuffer)
