@@ -585,15 +585,24 @@ exports.handler = async (event) => {
     }
     
     console.log('[PDF] Design type:', hasBackgroundImage ? 'with background image' : (hasFinalRender ? 'final_render available' : 'text/overlay only'));
-    console.log('[JPEG_EXPORT_DEBUG] ======= EXPORT PIPELINE =======');
+    console.log('[JPEG_EXPORT_DEBUG] ======================================');
+    console.log('[JPEG_EXPORT_DEBUG] ======= EXPORT SOURCE AUDIT =========');
+    console.log('[JPEG_EXPORT_DEBUG] ======================================');
     console.log('[JPEG_EXPORT_DEBUG] Ordered dimensions:', req.bannerWidthIn, '×', req.bannerHeightIn, 'inches');
-    console.log('[JPEG_EXPORT_DEBUG] Has final_render:', !!hasFinalRender);
-    console.log('[JPEG_EXPORT_DEBUG] finalRenderUrl:', req.finalRenderUrl ? req.finalRenderUrl.substring(0, 80) + '...' : 'NONE');
+    console.log('[JPEG_EXPORT_DEBUG] Format requested:', req.format || 'pdf');
+    console.log('[JPEG_EXPORT_DEBUG] --- Source candidates ---');
+    console.log('[JPEG_EXPORT_DEBUG] finalRenderUrl:', req.finalRenderUrl ? req.finalRenderUrl.substring(0, 100) : 'NONE');
     console.log('[JPEG_EXPORT_DEBUG] finalRenderFileKey:', req.finalRenderFileKey || 'NONE');
+    console.log('[JPEG_EXPORT_DEBUG] finalRenderWidthPx:', req.finalRenderWidthPx || 'NONE');
+    console.log('[JPEG_EXPORT_DEBUG] finalRenderHeightPx:', req.finalRenderHeightPx || 'NONE');
+    console.log('[JPEG_EXPORT_DEBUG] finalRenderDpi:', req.finalRenderDpi || 'NONE');
+    console.log('[JPEG_EXPORT_DEBUG] thumbnailUrl:', req.thumbnailUrl ? req.thumbnailUrl.substring(0, 100) : 'NONE');
+    console.log('[JPEG_EXPORT_DEBUG] uploaded imageUrl:', req.imageUrl ? req.imageUrl.substring(0, 100) : 'NONE');
+    console.log('[JPEG_EXPORT_DEBUG] fileKey:', req.fileKey || 'NONE');
+    console.log('[JPEG_EXPORT_DEBUG] Has final_render:', !!hasFinalRender);
     console.log('[JPEG_EXPORT_DEBUG] Has background image:', !!hasBackgroundImage);
     console.log('[JPEG_EXPORT_DEBUG] Has text/overlay:', !!hasTextOrOverlay);
-    console.log('[JPEG_EXPORT_DEBUG] thumbnailUrl:', req.thumbnailUrl ? req.thumbnailUrl.substring(0, 80) + '...' : 'NONE');
-    console.log('[JPEG_EXPORT_DEBUG] ================================');
+    console.log('[JPEG_EXPORT_DEBUG] ======================================');
 
     // includeBleed: if false, generate PDF at exact banner dimensions (no bleed margins)
     const includeBleed = req.includeBleed !== false; // Default to true for backward compatibility
@@ -634,12 +643,14 @@ exports.handler = async (event) => {
     // PRIORITY 1: Use final_render if available - this is a pixel-perfect snapshot
     // of the customer's design captured at high DPI directly from the Konva canvas.
     // The final_render already has the correct aspect ratio (widthIn × heightIn).
+    // NON-NEGOTIABLE: For JPEG export, ONLY the final_render is accepted.
     if (req.finalRenderUrl || req.finalRenderFileKey) {
-      console.log('[PDF] Using FINAL_RENDER path (pixel-perfect canvas snapshot)');
+      console.log('[PDF] ✅ Using FINAL_RENDER path (pixel-perfect canvas snapshot)');
       console.log('[PDF] finalRenderFileKey:', req.finalRenderFileKey || 'none');
-      console.log('[PDF] finalRenderUrl:', req.finalRenderUrl ? req.finalRenderUrl.substring(0, 80) + '...' : 'none');
+      console.log('[PDF] finalRenderUrl:', req.finalRenderUrl ? req.finalRenderUrl.substring(0, 100) : 'none');
       console.log('[PDF] finalRenderDpi:', req.finalRenderDpi || 'unknown');
       console.log('[PDF] finalRenderSize:', req.finalRenderWidthPx, '×', req.finalRenderHeightPx, 'px');
+      console.log('[JPEG_EXPORT_DEBUG] EXPORT SOURCE = final_render (exact canvas snapshot)');
 
       try {
         let finalRenderBuffer;
@@ -653,9 +664,15 @@ exports.handler = async (event) => {
         // Verify the fetched image dimensions
         const frMeta = await sharp(finalRenderBuffer).metadata();
         console.log('[PDF] Final render actual dimensions:', frMeta.width, '×', frMeta.height, 'px');
-        console.log('[JPEG_EXPORT_DEBUG] Final render source: w=', frMeta.width, 'h=', frMeta.height, 'format=', frMeta.format);
-        console.log('[JPEG_EXPORT_DEBUG] Target output: w=', targetPxW, 'h=', targetPxH, 'dpi=', targetDpi);
-        console.log('[JPEG_EXPORT_DEBUG] Aspect ratio check: source=', (frMeta.width / frMeta.height).toFixed(4), 'target=', (targetPxW / targetPxH).toFixed(4), 'ordered=', (req.bannerWidthIn / req.bannerHeightIn).toFixed(4));
+        const frAspect = frMeta.width && frMeta.height ? (frMeta.width / frMeta.height).toFixed(4) : 'N/A';
+        const targetAspect = (targetPxW / targetPxH).toFixed(4);
+        const orderedAspect = (req.bannerWidthIn / req.bannerHeightIn).toFixed(4);
+        console.log('[JPEG_EXPORT_DEBUG] --- Aspect ratio audit ---');
+        console.log('[JPEG_EXPORT_DEBUG] Final render aspect ratio:', frAspect);
+        console.log('[JPEG_EXPORT_DEBUG] Export target aspect ratio:', targetAspect);
+        console.log('[JPEG_EXPORT_DEBUG] Ordered size aspect ratio:', orderedAspect);
+        console.log('[JPEG_EXPORT_DEBUG] Canvas dimensions (submitted):', req.bannerWidthIn, '×', req.bannerHeightIn, 'in');
+        console.log('[JPEG_EXPORT_DEBUG] Export target dimensions:', targetPxW, '×', targetPxH, 'px @', targetDpi, 'DPI');
 
         if (req.format === 'jpeg') {
           // Resize to exact target print dimensions using fit:'contain' to prevent
@@ -663,6 +680,7 @@ exports.handler = async (event) => {
           // padding so it is invisible.  fit:'fill' would stretch the image if the
           // source and target ratios differ even slightly.
           console.log('[JPEG] Final render path: resizing to', targetPxW, '×', targetPxH, 'at', targetDpi, 'DPI');
+          console.log('[JPEG_EXPORT_DEBUG] EXPORT SOURCE CONFIRMED = final_render (NO fallback, NO reconstruction)');
           const jpegBuffer = await sharp(finalRenderBuffer)
             .resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground })
             .withMetadata({ density: targetDpi })
@@ -677,11 +695,11 @@ exports.handler = async (event) => {
             );
             stream.end(jpegBuffer);
           });
-          console.log('[JPEG] Uploaded to Cloudinary:', cloudUrl);
+          console.log('[JPEG] ✅ Uploaded to Cloudinary:', cloudUrl);
           return {
             statusCode: 200,
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ downloadUrl: cloudUrl, rawUrl: cloudUrl, dpi: targetDpi, bleed: bleedIn, format: 'jpeg' }),
+            body: JSON.stringify({ downloadUrl: cloudUrl, rawUrl: cloudUrl, dpi: targetDpi, bleed: bleedIn, format: 'jpeg', source: 'final_render' }),
           };
         }
 
@@ -708,46 +726,71 @@ exports.handler = async (event) => {
           body: JSON.stringify({ pdfBase64, dpi: targetDpi, bleed: bleedIn }),
         };
       } catch (frError) {
-        console.error('[PDF] Final render path failed, falling back to reconstruction:', frError.message);
-        // Fall through to thumbnail/reconstruction paths below
+        console.error('[PDF] ❌ Final render path failed:', frError.message);
+        // FAIL-SAFE: For JPEG export, do NOT fall back to thumbnail/reconstruction.
+        // A bad export is worse than a failed export.
+        if (req.format === 'jpeg') {
+          console.error('[JPEG_EXPORT_DEBUG] ❌ JPEG EXPORT FAILED — final_render data was present but fetch/processing failed.');
+          console.error('[JPEG_EXPORT_DEBUG] ❌ NOT falling back to thumbnail or reconstruction. Returning error.');
+          return {
+            statusCode: 500,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              error: 'Final render processing failed. The saved canvas snapshot could not be loaded. Please re-submit the design.',
+              source: 'final_render_failed',
+              details: frError.message,
+            }),
+          };
+        }
+        console.warn('[PDF] Falling back to reconstruction for PDF format');
+        // Fall through to thumbnail/reconstruction paths below for PDF only
       }
     } else {
-      console.log('[PDF] No final_render data available, using reconstruction path');
+      console.log('[PDF] ⚠️ No final_render data available');
+      console.log('[JPEG_EXPORT_DEBUG] EXPORT SOURCE = NONE (final_render missing)');
+
+      // FAIL-SAFE: For JPEG format, final_render is REQUIRED.
+      // Do NOT silently fall back to thumbnail or reconstruction.
+      if (req.format === 'jpeg') {
+        console.error('[JPEG_EXPORT_DEBUG] ❌ JPEG EXPORT BLOCKED — no final_render data. Cannot produce accurate print file.');
+        console.error('[JPEG_EXPORT_DEBUG] ❌ thumbnailUrl present:', !!req.thumbnailUrl);
+        console.error('[JPEG_EXPORT_DEBUG] ❌ fileKey present:', !!req.fileKey);
+        console.error('[JPEG_EXPORT_DEBUG] ❌ imageUrl present:', !!req.imageUrl);
+        return {
+          statusCode: 400,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            error: 'No final render snapshot available for this order. The canvas state was not captured at submission time. JPEG export requires the exact canvas snapshot to ensure the print file matches the submitted design. This order may have been placed before the final render feature was enabled.',
+            source: 'final_render_missing',
+            hasThumbnail: !!req.thumbnailUrl,
+            hasFileKey: !!req.fileKey,
+            hasImageUrl: !!req.imageUrl,
+          }),
+        };
+      }
+      console.log('[PDF] Using reconstruction path for PDF format');
     }
 
-    // PRIORITY 2: Use thumbnail if available - this IS exactly what the user designed
-    // The thumbnail is the rendered preview that the customer approved
+    // PRIORITY 2 (PDF ONLY): Use thumbnail if available.
+    // NOTE: For JPEG format, this path is now UNREACHABLE — we return an error above
+    // if final_render is missing. This section only executes for PDF format fallback.
     let sourceBuffer;
     if (req.thumbnailUrl && !req.thumbnailUrl.startsWith('blob:')) {
       const printThumbUrl = stripCloudinaryTransforms(req.thumbnailUrl);
-      console.log('[PDF] Using THUMBNAIL for print (original res):', printThumbUrl);
+      console.log('[PDF] Using THUMBNAIL for PDF print (original res):', printThumbUrl);
       console.log('[PDF] Original thumbnail URL was:', req.thumbnailUrl);
       sourceBuffer = await fetchImage(printThumbUrl, false);
 
-      // JPEG FORMAT: Return JPEG directly without PDF wrapping
-      // Use fit:'contain' with background padding to prevent aspect-ratio distortion.
-      // The canvas background color fills any sub-pixel padding so it is invisible.
+      // DEFENSIVE: Block any JPEG path that reaches here without final_render
       if (req.format === 'jpeg') {
-        console.log('[JPEG] Thumbnail path: resizing to', targetPxW, 'x', targetPxH, 'at', targetDpi, 'DPI');
-        const jpegBuffer = await sharp(sourceBuffer)
-          .resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground })
-          .withMetadata({ density: targetDpi })
-          .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
-          .toBuffer();
-        console.log('[JPEG] Thumbnail JPEG size:', jpegBuffer.length, 'bytes');
-        // Upload to Cloudinary (bypasses 6MB response limit)
-        const cloudUrl = await new Promise((resolve, reject) => {
-          const stream = cloudinary.uploader.upload_stream(
-            { resource_type: 'image', folder: 'order-prints', public_id: 'print-' + (req.orderId || 'unknown') + '-' + Date.now(), format: 'jpg' },
-            (err, result) => err ? reject(err) : resolve(result.secure_url)
-          );
-          stream.end(jpegBuffer);
-        });
-        console.log('[JPEG] Uploaded to Cloudinary:', cloudUrl);
+        console.error('[JPEG_EXPORT_DEBUG] ❌ DEFENSIVE GUARD: JPEG export reached thumbnail fallback path — this should not happen.');
         return {
-          statusCode: 200,
+          statusCode: 500,
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ downloadUrl: cloudUrl, rawUrl: cloudUrl, dpi: targetDpi, bleed: bleedIn, format: 'jpeg' }),
+          body: JSON.stringify({
+            error: 'JPEG export requires final_render data. Thumbnail fallback is not permitted for print files.',
+            source: 'thumbnail_fallback_blocked',
+          }),
         };
       }
       const pdfBuffer = await sharp(sourceBuffer)
@@ -1205,26 +1248,18 @@ exports.handler = async (event) => {
       }
     }
 
-    // JPEG FORMAT: composite directly at print quality to avoid double-encode
+    // JPEG FORMAT: Block reconstruction path for JPEG export — final_render is required.
+    // This path should be unreachable for JPEG (we return errors above), but add
+    // a defensive guard in case code flow changes in the future.
     if (req.format === 'jpeg') {
-      const jpegBuffer = await sharp(backgroundCanvas)
-        .composite(compositeLayers)
-        .withMetadata({ density: targetDpi })
-        .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
-        .toBuffer();
-      console.log('[JPEG] Composited JPEG size:', jpegBuffer.length, 'bytes at', targetDpi, 'DPI');
-      const cloudUrl = await new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-          { resource_type: 'image', folder: 'order-prints', public_id: 'print-' + (req.orderId || 'unknown') + '-' + Date.now(), format: 'jpg' },
-          (err, result) => err ? reject(err) : resolve(result.secure_url)
-        );
-        stream.end(jpegBuffer);
-      });
-      console.log('[JPEG] Uploaded to Cloudinary:', cloudUrl);
+      console.error('[JPEG_EXPORT_DEBUG] ❌ DEFENSIVE GUARD: JPEG export reached reconstruction composite path — this should not happen.');
       return {
-        statusCode: 200,
+        statusCode: 500,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ downloadUrl: cloudUrl, rawUrl: cloudUrl, dpi: targetDpi, bleed: bleedIn, format: 'jpeg' }),
+        body: JSON.stringify({
+          error: 'JPEG export requires final_render data. Reconstruction from individual elements is not permitted for print files.',
+          source: 'reconstruction_fallback_blocked',
+        }),
       };
     }
 
