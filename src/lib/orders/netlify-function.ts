@@ -53,38 +53,35 @@ export const netlifyFunctionOrdersAdapter: OrdersAdapter = {
   },
 
   listByUser: async (userId: string, page = 1): Promise<Order[]> => {
-    try {
-      console.log('Fetching orders for user:', userId);
-      const response = await fetch(getNetlifyFunctionUrl(`get-orders?user_id=${userId}&page=${page}`));
+    console.log('Fetching orders for user:', userId);
+    const response = await fetch(getNetlifyFunctionUrl(`get-orders?user_id=${userId}&page=${page}`));
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
-        console.error('Failed to fetch orders:', response.status, errorData);
-        throw new Error(`Failed to fetch orders: ${response.status} ${errorData.error || 'Unknown error'}`);
-      }
-
-      const orders = await response.json();
-      console.log('Orders fetched successfully:', orders.length, 'orders');
-      return orders;
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-      return [];
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      console.error('Failed to fetch orders:', response.status, errorData);
+      throw new Error(`Failed to fetch orders: ${response.status} – ${errorData.error || errorData.details || 'Unknown error'}`);
     }
+
+    const orders = await response.json();
+    console.log('Orders fetched successfully:', orders.length, 'orders');
+    return orders;
   },
 
   listAll: async (page = 1): Promise<Order[]> => {
-    try {
-      const response = await fetch(getNetlifyFunctionUrl(`get-orders?page=${page}`));
-      
-      if (!response.ok) {
-        throw new Error(`Failed to fetch orders: ${response.status}`);
-      }
+    const response = await fetch(getNetlifyFunctionUrl(`get-orders?page=${page}`));
 
-      return await response.json();
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-      return [];
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+      console.error('Failed to fetch all orders:', response.status, errorData);
+      throw new Error(`Failed to fetch orders: ${response.status} – ${errorData.error || errorData.details || 'Unknown error'}`);
     }
+
+    const data = await response.json();
+    if (!Array.isArray(data)) {
+      console.error('get-orders returned non-array:', typeof data, data);
+      throw new Error('get-orders did not return an array');
+    }
+    return data;
   },
 
   appendTracking: async (id: string, carrier: TrackingCarrier, number: string): Promise<void> => {
