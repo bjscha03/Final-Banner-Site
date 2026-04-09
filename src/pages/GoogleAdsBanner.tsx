@@ -353,10 +353,11 @@ const GoogleAdsBanner: React.FC = () => {
       let imgSrc = uploadedFile.thumbnailUrl || uploadedFile.url;
       if (uploadedFile.isPdf && uploadedFile.url.includes('cloudinary.com')) {
         // Request much higher res from Cloudinary for print quality
-        imgSrc = uploadedFile.url.replace('/upload/', '/upload/pg_1,f_jpg,w_4000,q_100/');
+        imgSrc = uploadedFile.url.replace('/upload/', '/upload/pg_1,f_jpg,w_1600,q_90/');
         console.log('[FINAL_RENDER_HTML] Using high-res PDF render:', imgSrc.substring(0, 100));
       }
-      finalRenderResult = await generateFinalRenderFromHTML(
+      // Wrap in timeout - do not block checkout for more than 4 seconds
+      const renderPromise = generateFinalRenderFromHTML(
         imgSrc,
         widthIn,
         heightIn,
@@ -364,6 +365,11 @@ const GoogleAdsBanner: React.FC = () => {
         renderImgScale,
         container,
       );
+      const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => {
+        console.warn('[FINAL_RENDER_HTML] Timeout after 4s - proceeding without final render');
+        resolve(null);
+      }, 4000));
+      finalRenderResult = await Promise.race([renderPromise, timeoutPromise]);
       if (finalRenderResult) {
         console.log('[FINAL_RENDER_HTML] ✅ final_render_generation_succeeded: true');
         console.log('[FINAL_RENDER_HTML] final_render_url:', finalRenderResult?.url || uploadedFile.url.substring(0, 80) + '...');
