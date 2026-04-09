@@ -14,10 +14,10 @@
 
 import { uploadCanvasImageToCloudinary } from './uploadCanvasImage';
 
-const TARGET_DPI = 300;
+const TARGET_DPI = 150;
 const SCREEN_DPI = 96;
 const JPEG_QUALITY = 0.92;
-const MAX_MEGAPIXELS = 200_000_000;
+const MAX_MEGAPIXELS = 25_000_000;
 
 export interface HTMLFinalRenderResult {
   url: string;
