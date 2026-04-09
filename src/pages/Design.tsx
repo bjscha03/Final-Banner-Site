@@ -942,9 +942,9 @@ const Design: React.FC = () => {
                 Checkout
                 <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
               </button>
-              {/* Friday shipping badge */}
+              {/* Shipping info badge */}
               <div className="flex items-center justify-center gap-2 mt-3 py-2 px-3 bg-blue-50 border border-blue-200 rounded-lg">
-                <span className="text-sm font-medium text-blue-700">📦 Orders made on Friday will be delivered on Tuesday.</span>
+                <span className="text-sm font-medium text-blue-700">📦 Free Next Day Air (Mon-Fri delivery only. Orders placed Thurs-Fri may arrive Monday or Tuesday due to carrier schedules.)</span>
               </div>
               <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400 mt-1">
                 <Lock className="h-3 w-3" />
