@@ -948,7 +948,7 @@ exports.handler = async (event) => {
             // the same aspect ratio (derived from the same banner dimensions),
             // fit:'fill' is a simple proportional resize with no distortion.
             const jpegBuffer = await sharp(finalRenderBuffer)
-              .resize(targetPxW, targetPxH, { fit: 'contain', background: { r: 250, g: 250, b: 250 } })
+              .resize(targetPxW, targetPxH, { fit: 'cover', position: 'center' })
               .withMetadata({ density: targetDpi })
               .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
               .toBuffer();
@@ -1042,7 +1042,7 @@ exports.handler = async (event) => {
             console.log('[JPEG] Thumbnail size:', thumbMeta.width, 'x', thumbMeta.height);
             
             const jpegBuffer = await sharp(thumbBuffer)
-              .resize(targetPxW, targetPxH, { fit: 'contain', background: { r: 250, g: 250, b: 250 } })
+              .resize(targetPxW, targetPxH, { fit: 'cover', position: 'center' })
               .withMetadata({ density: targetDpi })
               .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
               .toBuffer();
