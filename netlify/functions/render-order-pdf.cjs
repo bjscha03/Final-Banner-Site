@@ -1013,59 +1013,91 @@ exports.handler = async (event) => {
       console.warn('[PDF] Using fallback path (thumbnail/reconstruction) for all formats');
     }
 
-    // PRIORITY 2: Use thumbnail if available (PDF only - JPEG must use design state or final_render).
+    // PRIORITY 2: Use thumbnail if available (PDF only - JPEG prefers fileKey/imageUrl or reconstruction).
     let sourceBuffer;
+    let jpegSkippedThumbnail = false;
     if (req.thumbnailUrl && !req.thumbnailUrl.startsWith('blob:')) {
       const printThumbUrl = stripCloudinaryTransforms(req.thumbnailUrl);
       console.log('[PDF] Using THUMBNAIL for print (original res):', printThumbUrl);
       console.log('[PDF] Original thumbnail URL was:', req.thumbnailUrl);
 
       if (req.format === 'jpeg') {
-        // BLOCKED: Do not use thumbnails/previews as print source for JPEG.
-        // Thumbnails are low-resolution web previews and must not be upscaled for print.
-        console.error('[JPEG] ❌ BLOCKED: Thumbnail cannot be used as print source for JPEG export.');
-        console.error('[JPEG] Print-ready JPEG requires design_state re-render or final_render snapshot.');
-        console.error('[JPEG] This order may be from before the print pipeline was implemented.');
+        // For JPEG: prefer fileKey/imageUrl (original high-res upload) over thumbnail.
+        // Only use thumbnail as absolute last resort if no other source exists.
+        if (req.fileKey || req.imageUrl) {
+          console.log('[JPEG] Skipping thumbnail – will use fileKey/imageUrl (original high-res upload) instead');
+          jpegSkippedThumbnail = true;
+          // Fall through to fileKey/imageUrl path below
+        } else {
+          // No original image available – use thumbnail as best-effort fallback
+          console.warn('[JPEG] ⚠️ Using thumbnail as fallback (no fileKey/imageUrl/design_state/final_render)');
+          const thumbBuffer = await fetchImage(printThumbUrl, false);
+          if (thumbBuffer) {
+            const jpegBuffer = await sharp(thumbBuffer)
+              .resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground })
+              .withMetadata({ density: targetDpi })
+              .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
+              .toBuffer();
+
+            const cloudUrl = await new Promise((resolve, reject) => {
+              const stream = cloudinary.uploader.upload_stream(
+                { resource_type: 'image', folder: 'order-prints', public_id: 'print-thumb-' + (req.orderId || 'unknown') + '-' + Date.now(), format: 'jpg' },
+                (err, result) => err ? reject(err) : resolve(result.secure_url)
+              );
+              stream.end(jpegBuffer);
+            });
+
+            console.log('[JPEG] ✅ Uploaded print JPEG from thumbnail:', cloudUrl);
+            return {
+              statusCode: 200,
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                downloadUrl: cloudUrl,
+                rawUrl: cloudUrl,
+                dpi: targetDpi,
+                bleed: bleedIn,
+                format: 'jpeg',
+                source: 'thumbnail_fallback',
+              }),
+            };
+          }
+          // If thumbnail fetch failed, fall through to reconstruction path
+          console.warn('[JPEG] Thumbnail fetch failed, continuing to reconstruction path');
+          jpegSkippedThumbnail = true;
+        }
+      }
+
+      if (!jpegSkippedThumbnail) {
+        sourceBuffer = await fetchImage(printThumbUrl, false);
+
+        // PDF OUTPUT: Use thumbnail for PDF
+        console.log('[PDF] Using thumbnail for PDF export');
+        const pdfBuffer = await sharp(sourceBuffer)
+          .resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground })
+          .jpeg({ quality: 65, chromaSubsampling: "4:2:0" })
+          .toBuffer()
+          .then(imgBuf => rasterToPdfBuffer(imgBuf, finalWidthIn, finalHeightIn, [], req.bannerWidthIn, req.bannerHeightIn, null, bleedIn));
+
+        console.log(`[PDF] PDF generated from thumbnail: ${pdfBuffer.length} bytes`);
+        let pdfBase64 = pdfBuffer.toString('base64');
+        console.log('[PDF] Base64 length:', pdfBase64.length);
+        // Safety: if base64 > 5MB, re-encode at lower quality
+        if (pdfBase64.length > 5 * 1024 * 1024) {
+          console.warn('[PDF] Base64 too large (' + pdfBase64.length + ' chars), re-encoding at quality 40');
+          const smallerImg = await sharp(sourceBuffer).resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground }).jpeg({ quality: 40, chromaSubsampling: "4:2:0" }).toBuffer();
+          const smallerPdf = await rasterToPdfBuffer(smallerImg, finalWidthIn, finalHeightIn, [], req.bannerWidthIn, req.bannerHeightIn, null, bleedIn);
+          pdfBase64 = smallerPdf.toString("base64");
+          console.log('[PDF] Re-encoded base64 length:', pdfBase64.length);
+        }
         return {
           statusCode: 200,
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            error: 'no_print_source',
-            message: 'This order does not have a print-ready design snapshot. ' +
-              'The only available source is a web preview/thumbnail which is not suitable for print. ' +
-              'The customer may need to resubmit their order to generate a print-ready file.',
-            source: 'thumbnail_blocked',
-          }),
+          body: JSON.stringify({ pdfBase64, dpi: targetDpi, bleed: bleedIn }),
         };
       }
-
-      sourceBuffer = await fetchImage(printThumbUrl, false);
-
-      // PDF OUTPUT: Use thumbnail for PDF
-      console.log('[PDF] Using thumbnail for PDF export');
-      const pdfBuffer = await sharp(sourceBuffer)
-        .resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground })
-        .jpeg({ quality: 65, chromaSubsampling: "4:2:0" })
-        .toBuffer()
-        .then(imgBuf => rasterToPdfBuffer(imgBuf, finalWidthIn, finalHeightIn, [], req.bannerWidthIn, req.bannerHeightIn, null, bleedIn));
-
-      console.log(`[PDF] PDF generated from thumbnail: ${pdfBuffer.length} bytes`);
-      let pdfBase64 = pdfBuffer.toString('base64');
-      console.log('[PDF] Base64 length:', pdfBase64.length);
-      // Safety: if base64 > 5MB, re-encode at lower quality
-      if (pdfBase64.length > 5 * 1024 * 1024) {
-        console.warn('[PDF] Base64 too large (' + pdfBase64.length + ' chars), re-encoding at quality 40');
-        const smallerImg = await sharp(sourceBuffer).resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground }).jpeg({ quality: 40, chromaSubsampling: "4:2:0" }).toBuffer();
-        const smallerPdf = await rasterToPdfBuffer(smallerImg, finalWidthIn, finalHeightIn, [], req.bannerWidthIn, req.bannerHeightIn, null, bleedIn);
-        pdfBase64 = smallerPdf.toString("base64");
-        console.log('[PDF] Re-encoded base64 length:', pdfBase64.length);
-      }
-      return {
-        statusCode: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pdfBase64, dpi: targetDpi, bleed: bleedIn }),
-      };
-    } else if (req.fileKey) {
+    }
+    
+    if (req.fileKey) {
       console.log('[PDF] Using fileKey:', req.fileKey);
       sourceBuffer = await fetchImage(req.fileKey, true);
     } else if (req.imageUrl) {
@@ -1500,22 +1532,37 @@ exports.handler = async (event) => {
       }
     }
 
-    // JPEG FORMAT: Block reconstruction fallback for JPEG export.
-    // Reconstruction from raw uploaded images + stored transforms is not a reliable print source -
-    // it uses web preview positioning data that may not faithfully reproduce the approved design.
-    // Only design_state re-render or final_render snapshot should be used for print JPEG.
+    // JPEG FORMAT: Use reconstruction path as fallback for older orders
+    // that lack design_state and final_render data.
     if (req.format === 'jpeg') {
-      console.error('[JPEG] ❌ BLOCKED: Reconstruction path cannot be used for print JPEG export.');
-      console.error('[JPEG] This order lacks both design_state and final_render data.');
+      console.warn('[JPEG] ⚠️ Using reconstruction fallback for JPEG export (no design_state/final_render)');
+      const jpegBuffer = await sharp(backgroundCanvas)
+        .composite(compositeLayers)
+        .withMetadata({ density: targetDpi })
+        .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
+        .toBuffer();
+
+      console.log('[JPEG] Reconstructed JPEG size:', jpegBuffer.length, 'bytes');
+
+      const cloudUrl = await new Promise((resolve, reject) => {
+        const stream = cloudinary.uploader.upload_stream(
+          { resource_type: 'image', folder: 'order-prints', public_id: 'print-recon-' + (req.orderId || 'unknown') + '-' + Date.now(), format: 'jpg' },
+          (err, result) => err ? reject(err) : resolve(result.secure_url)
+        );
+        stream.end(jpegBuffer);
+      });
+
+      console.log('[JPEG] ✅ Uploaded reconstructed print JPEG:', cloudUrl);
       return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          error: 'no_print_source',
-          message: 'This order does not have the data needed to generate a print-ready JPEG. ' +
-            'Neither a design state snapshot nor a final render was saved at submission time. ' +
-            'The customer may need to resubmit their order to generate a print-ready file.',
-          source: 'reconstruction_blocked',
+          downloadUrl: cloudUrl,
+          rawUrl: cloudUrl,
+          dpi: targetDpi,
+          bleed: bleedIn,
+          format: 'jpeg',
+          source: 'reconstruction_fallback',
         }),
       };
     }
