@@ -662,9 +662,12 @@ exports.handler = async (event) => {
       if (req.format === 'jpeg') {
         let directUrl;
         if (req.finalRenderFileKey) {
+          // Use raw_transformation to prevent Cloudinary from applying any
+          // automatic quality or format optimizations to the original upload.
           directUrl = cloudinary.url(req.finalRenderFileKey, {
             resource_type: 'image',
             secure: true,
+            raw_transformation: '',
           });
         } else {
           directUrl = stripCloudinaryTransforms(req.finalRenderUrl);
