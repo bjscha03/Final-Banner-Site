@@ -704,8 +704,8 @@ exports.handler = async (event) => {
               containedW = Math.round(targetPxH * imgAspect);
             }
 
-            // At full scale (imgScale=1), the image covers containedW×containedH print pixels.
-            // At imgScale > 1, it covers more. The required source pixels are:
+            // At imgScale > 1, the image is zoomed in, requiring proportionally more
+            // source pixels to maintain print quality at the target DPI.
             const imgScale = designState.imgScale || 1;
             const requiredW = Math.round(containedW * imgScale);
             const requiredH = Math.round(containedH * imgScale);
@@ -1033,7 +1033,7 @@ exports.handler = async (event) => {
             error: 'no_print_source',
             message: 'This order does not have a print-ready design snapshot. ' +
               'The only available source is a web preview/thumbnail which is not suitable for print. ' +
-              'The customer may need to re-submit their order to generate a print-ready file.',
+              'The customer may need to resubmit their order to generate a print-ready file.',
             source: 'thumbnail_blocked',
           }),
         };
@@ -1514,7 +1514,7 @@ exports.handler = async (event) => {
           error: 'no_print_source',
           message: 'This order does not have the data needed to generate a print-ready JPEG. ' +
             'Neither a design state snapshot nor a final render was saved at submission time. ' +
-            'The customer may need to re-submit their order to generate a print-ready file.',
+            'The customer may need to resubmit their order to generate a print-ready file.',
           source: 'reconstruction_blocked',
         }),
       };
