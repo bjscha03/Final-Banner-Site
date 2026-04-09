@@ -1157,6 +1157,9 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
         item.file_key || 
         item.print_ready_url || 
         item.web_preview_url ||
+        item.final_render_url ||
+        item.final_render_file_key ||
+        item.thumbnail_url ||
         (item.text_elements && item.text_elements.length > 0) ||
         item.overlay_image
       );
@@ -1482,6 +1485,9 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
         item.file_key || 
         item.print_ready_url || 
         item.web_preview_url ||
+        item.final_render_url ||
+        item.final_render_file_key ||
+        item.thumbnail_url ||
         (item.text_elements && item.text_elements.length > 0) ||
         item.overlay_image
       );
