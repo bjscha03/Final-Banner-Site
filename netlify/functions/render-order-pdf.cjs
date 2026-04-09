@@ -940,11 +940,25 @@ exports.handler = async (event) => {
             const tgtAspect = targetPxW / targetPxH;
             const aspectDiff = Math.abs(srcAspect - tgtAspect) / tgtAspect;
 
-            if (aspectDiff > 0.02) {
-              console.warn('[JPEG] ⚠️ Aspect ratio mismatch: source=' + srcAspect.toFixed(4) +
+            if (aspectDiff > 0.05) {
+              // >5% mismatch indicates a real problem with the source data
+              console.error('[JPEG] ❌ Aspect ratio mismatch too large: source=' + srcAspect.toFixed(4) +
                 ' target=' + tgtAspect.toFixed(4) + ' diff=' + (aspectDiff * 100).toFixed(1) + '%');
-              // Still proceed — the final_render IS the approved design,
-              // slight rounding differences from DPI capping are acceptable
+              return {
+                statusCode: 200,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  error: 'aspect_ratio_mismatch',
+                  message: 'The saved render has a different aspect ratio than the ordered banner size. ' +
+                    'Source: ' + srcW + '×' + srcH + ' (' + srcAspect.toFixed(3) + '), ' +
+                    'Target: ' + targetPxW + '×' + targetPxH + ' (' + tgtAspect.toFixed(3) + '). ' +
+                    'Please ask the customer to re-place the order.',
+                }),
+              };
+            } else if (aspectDiff > 0.02) {
+              console.warn('[JPEG] ⚠️ Minor aspect ratio mismatch: source=' + srcAspect.toFixed(4) +
+                ' target=' + tgtAspect.toFixed(4) + ' diff=' + (aspectDiff * 100).toFixed(1) + '%');
+              // Proceed — minor rounding differences from DPI capping are acceptable
             }
 
             // Resize to exact target dimensions. Since both source and target share
@@ -1116,9 +1130,13 @@ exports.handler = async (event) => {
 
       sourceBuffer = await fetchImage(printThumbUrl, false);
 
-      // PDF OUTPUT: Use thumbnail for PDF
-      console.log('[PDF] Using thumbnail for PDF export');
-      const pdfBuffer = await sharp(sourceBuffer)
+      if (!sourceBuffer) {
+        console.error('[PDF] Failed to fetch thumbnail image');
+        // Fall through to fileKey/imageUrl reconstruction path
+      } else {
+        // PDF OUTPUT: Use thumbnail for PDF
+        console.log('[PDF] Using thumbnail for PDF export');
+        const pdfBuffer = await sharp(sourceBuffer)
         .resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground })
         .jpeg({ quality: 65, chromaSubsampling: "4:2:0" })
         .toBuffer()
@@ -1140,6 +1158,7 @@ exports.handler = async (event) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ pdfBase64, dpi: targetDpi, bleed: bleedIn }),
       };
+      }
     }
     
     if (req.fileKey) {
