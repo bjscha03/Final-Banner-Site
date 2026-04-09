@@ -360,7 +360,8 @@ const Design: React.FC = () => {
         y: (checkoutData.pos.y / 100) * containerHeight,
       };
 
-      finalRenderResult = await generateFinalRenderFromHTML(imgSrc, widthIn, heightIn, imgPosPixels, checkoutData.scale, container);
+      // DISABLED for speed - server uses canvasStateJson
+      // finalRenderResult = await generateFinalRenderFromHTML(imgSrc, widthIn, heightIn, imgPosPixels, checkoutData.scale, container);
 
       if (finalRenderResult) {
         console.log('[DESIGN_CHECKOUT] hasFinalRender: true');
