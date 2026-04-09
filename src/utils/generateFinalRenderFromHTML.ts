@@ -128,23 +128,21 @@ export async function generateFinalRenderFromHTML(
     const offsetX = (cssW - containedW) / 2;
     const offsetY = (cssH - containedH) / 2;
 
-    // The CSS transform `translate(px) scale(s)` scales around the wrapper's centre
-    // (transform-origin defaults to 50% 50% of the element, which is 50% of the
-    // container since the wrapper has inset-0).  We replicate that with canvas transforms.
-
-    // Translate to print space
     ctx.save();
 
-    // Move to the centre of the print canvas (the wrapper's transform-origin)
+    // Replicate CSS `transform: translate(x, y) scale(s)` with transform-origin center.
+    // CSS applies transforms right-to-left: scale first, then translate. This means
+    // the translate offset is NOT multiplied by the scale factor. In Canvas2D, each
+    // call pre-multiplies the CTM, so we need: T(origin) · T(pos) · S(s) · T(-origin).
     const centreXPrint = targetW / 2;
     const centreYPrint = targetH / 2;
     ctx.translate(centreXPrint, centreYPrint);
 
-    // Apply user scale
-    ctx.scale(imgScale, imgScale);
-
-    // Apply user translate (convert from CSS px to print px)
+    // Apply user translate FIRST (convert from CSS px to print px)
     ctx.translate(imgPos.x * scaleX, imgPos.y * scaleY);
+
+    // Apply user scale SECOND (matches CSS right-to-left evaluation order)
+    ctx.scale(imgScale, imgScale);
 
     // Move back so that (0,0) is the top-left of the wrapper in its own coordinate space
     ctx.translate(-centreXPrint, -centreYPrint);
