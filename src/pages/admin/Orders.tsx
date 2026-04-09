@@ -302,6 +302,8 @@ const AdminOrders: React.FC = () => {
         orderId: orderId,
         bannerWidthIn: item.width_in,
         bannerHeightIn: item.height_in,
+        // PRIORITY 0: Design state for true server-side re-render from original assets
+        canvasStateJson: item.canvas_state_json || null,
         // PRIORITY 1: Use final_render if available (pixel-perfect snapshot of customer design)
         finalRenderUrl: item.final_render_url || null,
         finalRenderFileKey: item.final_render_file_key || null,
@@ -387,6 +389,13 @@ const AdminOrders: React.FC = () => {
       // Response is JSON with Cloudinary download URL
       const result = await response.json();
       if (result.error) {
+        // Handle specific print pipeline errors with descriptive messages
+        if (result.error === 'low_resolution') {
+          throw new Error(`⚠️ Low Resolution: ${result.message}`);
+        }
+        if (result.error === 'no_print_source') {
+          throw new Error(`⚠️ No Print Source: ${result.message}`);
+        }
         throw new Error(result.error || 'Print file generation failed');
       }
 

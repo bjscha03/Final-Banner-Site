@@ -562,14 +562,15 @@ exports.handler = async (event) => {
     console.log('[PDF] CRITICAL - overlayImage received:', req.overlayImage);
     console.log('[PDF] CRITICAL - overlayImage exists:', !!req.overlayImage);
 
-    // Accept fileKey, imageUrl, text-only designs, final_render data, OR thumbnail
+    // Accept fileKey, imageUrl, text-only designs, final_render data, canvas state, OR thumbnail
     // For text-only designs, we create a white/colored canvas as background
     const hasBackgroundImage = req.fileKey || req.imageUrl;
     const hasTextOrOverlay = (req.textElements && req.textElements.length > 0) || req.overlayImage;
     const hasFinalRender = req.finalRenderUrl || req.finalRenderFileKey;
     const hasThumbnail = req.thumbnailUrl && !req.thumbnailUrl.startsWith('blob:');
+    const hasDesignState = !!req.canvasStateJson;
     
-    if (!req.orderId || !req.bannerWidthIn || !req.bannerHeightIn || (!hasBackgroundImage && !hasTextOrOverlay && !hasFinalRender && !hasThumbnail)) {
+    if (!req.orderId || !req.bannerWidthIn || !req.bannerHeightIn || (!hasBackgroundImage && !hasTextOrOverlay && !hasFinalRender && !hasThumbnail && !hasDesignState)) {
       console.error('[PDF] Missing required fields:', {
         orderId: !!req.orderId,
         bannerWidthIn: !!req.bannerWidthIn,
@@ -578,7 +579,8 @@ exports.handler = async (event) => {
         imageUrl: !!req.imageUrl,
         hasTextOrOverlay: hasTextOrOverlay,
         hasFinalRender: hasFinalRender,
-        hasThumbnail: hasThumbnail
+        hasThumbnail: hasThumbnail,
+        hasDesignState: hasDesignState
       });
       return {
         statusCode: 400,
@@ -604,6 +606,7 @@ exports.handler = async (event) => {
     console.log('[JPEG_EXPORT_DEBUG] Has final_render:', !!hasFinalRender);
     console.log('[JPEG_EXPORT_DEBUG] Has background image:', !!hasBackgroundImage);
     console.log('[JPEG_EXPORT_DEBUG] Has text/overlay:', !!hasTextOrOverlay);
+    console.log('[JPEG_EXPORT_DEBUG] canvasStateJson:', req.canvasStateJson ? 'YES (' + (typeof req.canvasStateJson === 'string' ? req.canvasStateJson.length : JSON.stringify(req.canvasStateJson).length) + ' chars)' : 'NONE');
     console.log('[JPEG_EXPORT_DEBUG] ======================================');
 
     // includeBleed: if false, generate PDF at exact banner dimensions (no bleed margins)
@@ -641,6 +644,240 @@ exports.handler = async (event) => {
       } : { r: 255, g: 255, b: 255 };
     };
     const padBackground = parseHexColor(bgColorForPad);
+
+    // =========================================================================
+    // PRIORITY 0 (JPEG only): TRUE PRINT-RENDER FROM SAVED DESIGN STATE
+    // Re-renders the banner from the ORIGINAL uploaded image at full resolution,
+    // using the exact saved transforms. This avoids upscaling a browser-captured
+    // JPEG snapshot and produces a true print-ready file.
+    // =========================================================================
+    if (req.format === 'jpeg' && req.canvasStateJson) {
+      let designState;
+      try {
+        designState = typeof req.canvasStateJson === 'string'
+          ? JSON.parse(req.canvasStateJson)
+          : req.canvasStateJson;
+      } catch (parseErr) {
+        console.warn('[PRINT_RENDER] Failed to parse canvasStateJson:', parseErr.message);
+        designState = null;
+      }
+
+      if (designState && designState.source === 'google-ads-banner' && designState.version >= 2) {
+        console.log('[PRINT_RENDER] ✅ Using TRUE PRINT-RENDER pipeline (design state v' + designState.version + ')');
+        console.log('[PRINT_RENDER] Original image key:', designState.originalImageFileKey);
+        console.log('[PRINT_RENDER] Original image URL:', designState.originalImageUrl ? designState.originalImageUrl.substring(0, 100) : 'none');
+        console.log('[PRINT_RENDER] Banner: ' + designState.widthIn + '×' + designState.heightIn + ' inches');
+        console.log('[PRINT_RENDER] Target print: ' + targetPxW + '×' + targetPxH + ' px @ ' + targetDpi + ' DPI');
+
+        try {
+          // Step 1: Fetch the ORIGINAL uploaded image at full resolution
+          let originalBuffer;
+          if (designState.originalImageFileKey) {
+            // Strip transforms to get original resolution
+            originalBuffer = await fetchImage(designState.originalImageFileKey, true);
+          } else if (designState.originalImageUrl) {
+            const rawUrl = stripCloudinaryTransforms(designState.originalImageUrl);
+            originalBuffer = await fetchImage(rawUrl, false);
+          }
+
+          if (!originalBuffer) {
+            console.error('[PRINT_RENDER] Failed to fetch original image');
+            // Fall through to final_render path below
+          } else {
+            const origMeta = await sharp(originalBuffer).metadata();
+            const origW = origMeta.width || 1;
+            const origH = origMeta.height || 1;
+            console.log('[PRINT_RENDER] Original image dimensions: ' + origW + '×' + origH + ' px');
+
+            // Step 2: Resolution check - detect if original is too low-res for print
+            // We compute what area the image needs to cover at print resolution
+            const imgAspect = origW / origH;
+            const bannerAspect = targetPxW / targetPxH;
+
+            // object-contain sizing: image scaled to fit inside banner preserving aspect ratio
+            let containedW, containedH;
+            if (imgAspect > bannerAspect) {
+              containedW = targetPxW;
+              containedH = Math.round(targetPxW / imgAspect);
+            } else {
+              containedH = targetPxH;
+              containedW = Math.round(targetPxH * imgAspect);
+            }
+
+            // At full scale (imgScale=1), the image covers containedW×containedH print pixels.
+            // At imgScale > 1, it covers more. The required source pixels are:
+            const imgScale = designState.imgScale || 1;
+            const requiredW = Math.round(containedW * imgScale);
+            const requiredH = Math.round(containedH * imgScale);
+
+            // Resolution quality ratio: how many source pixels per print pixel
+            const qualityRatioW = origW / requiredW;
+            const qualityRatioH = origH / requiredH;
+            const qualityRatio = Math.min(qualityRatioW, qualityRatioH);
+
+            console.log('[PRINT_RENDER] Required coverage: ' + requiredW + '×' + requiredH + ' px');
+            console.log('[PRINT_RENDER] Quality ratio: ' + qualityRatio.toFixed(3) + ' (source/required)');
+
+            // If quality ratio < 0.33, the image would need >3× upscale - flag it
+            const MIN_QUALITY_RATIO = 0.33;
+            if (qualityRatio < MIN_QUALITY_RATIO) {
+              const effectivePrintDpi = Math.round(targetDpi * qualityRatio);
+              console.warn('[PRINT_RENDER] ⚠️ LOW RESOLUTION DETECTED');
+              console.warn('[PRINT_RENDER] Original: ' + origW + '×' + origH + ' px');
+              console.warn('[PRINT_RENDER] Required for print: ' + requiredW + '×' + requiredH + ' px');
+              console.warn('[PRINT_RENDER] Effective print DPI: ~' + effectivePrintDpi);
+              console.warn('[PRINT_RENDER] Quality ratio: ' + qualityRatio.toFixed(3) + ' (minimum: ' + MIN_QUALITY_RATIO + ')');
+
+              return {
+                statusCode: 200,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  error: 'low_resolution',
+                  message: 'The uploaded image is too low resolution for the ordered print size. ' +
+                    'Original image is ' + origW + '×' + origH + ' px but the print requires approximately ' +
+                    requiredW + '×' + requiredH + ' px (effective DPI: ~' + effectivePrintDpi +
+                    ', target: ' + targetDpi + '). Please request a higher resolution file from the customer.',
+                  originalWidth: origW,
+                  originalHeight: origH,
+                  requiredWidth: requiredW,
+                  requiredHeight: requiredH,
+                  effectiveDpi: effectivePrintDpi,
+                  targetDpi: targetDpi,
+                  qualityRatio: qualityRatio,
+                }),
+              };
+            }
+
+            // Step 3: Create render surface at exact print pixel dimensions
+            // and re-render from the original image using saved transforms
+            console.log('[PRINT_RENDER] Rendering at ' + targetPxW + '×' + targetPxH + ' from original ' + origW + '×' + origH);
+
+            // Replicate the GoogleAdsBanner CSS transform logic at print resolution:
+            // The preview uses object-contain inside a container, then CSS translate+scale
+            // from transform-origin center.
+
+            // Calculate the object-contain layout at print resolution
+            const offsetX = Math.round((targetPxW - containedW) / 2);
+            const offsetY = Math.round((targetPxH - containedH) / 2);
+
+            // Apply user transforms: imgPos is percentage-based in the design state
+            const imgPos = designState.imgPos || { x: 0, y: 0 };
+
+            // Convert percentage position to print pixels
+            // imgPos.x/y are percentage offsets relative to the container
+            const posXPx = Math.round((imgPos.x / 100) * targetPxW);
+            const posYPx = Math.round((imgPos.y / 100) * targetPxH);
+
+            // The CSS transform is: translate(posX, posY) scale(imgScale)
+            // with transform-origin: center center
+            // This means: move origin to center, apply translate, apply scale, restore origin
+
+            // Compute the final draw rectangle for the image
+            // At scale=1, image is drawn at (offsetX, offsetY) with size containedW×containedH
+            // The scale is applied around the center of the container
+            const centerX = targetPxW / 2;
+            const centerY = targetPxH / 2;
+
+            // After transform: new position = center + posOffset + scale * (originalPos - center)
+            const drawX = Math.round(centerX + posXPx + imgScale * (offsetX - centerX));
+            const drawY = Math.round(centerY + posYPx + imgScale * (offsetY - centerY));
+            const drawW = Math.round(containedW * imgScale);
+            const drawH = Math.round(containedH * imgScale);
+
+            console.log('[PRINT_RENDER] Draw rect: (' + drawX + ', ' + drawY + ') ' + drawW + '×' + drawH);
+
+            // Resize the original image to the draw dimensions
+            const resizedOriginal = await sharp(originalBuffer)
+              .resize(drawW, drawH, { fit: 'fill' })
+              .toBuffer();
+
+            // Create the background canvas
+            const bgRgb = parseHexColor(designState.bgColor || '#fafafa');
+            const backgroundCanvas = await sharp({
+              create: {
+                width: targetPxW,
+                height: targetPxH,
+                channels: 3,
+                background: bgRgb,
+              },
+            }).jpeg({ quality: 95 }).toBuffer();
+
+            // Clip the image to the canvas bounds
+            let compositeInput = resizedOriginal;
+            let compLeft = drawX;
+            let compTop = drawY;
+
+            if (drawX < 0 || drawY < 0 || drawX + drawW > targetPxW || drawY + drawH > targetPxH) {
+              const cropLeft = Math.max(0, -drawX);
+              const cropTop = Math.max(0, -drawY);
+              const cropWidth = Math.min(drawW - cropLeft, targetPxW - Math.max(0, drawX));
+              const cropHeight = Math.min(drawH - cropTop, targetPxH - Math.max(0, drawY));
+
+              if (cropWidth > 0 && cropHeight > 0) {
+                compositeInput = await sharp(resizedOriginal)
+                  .extract({
+                    left: cropLeft,
+                    top: cropTop,
+                    width: Math.max(1, Math.floor(cropWidth)),
+                    height: Math.max(1, Math.floor(cropHeight)),
+                  })
+                  .toBuffer();
+                compLeft = Math.max(0, drawX);
+                compTop = Math.max(0, drawY);
+              }
+            }
+
+            // Composite onto background
+            const printJpeg = await sharp(backgroundCanvas)
+              .composite([{ input: compositeInput, top: compTop, left: compLeft }])
+              .withMetadata({ density: targetDpi })
+              .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
+              .toBuffer();
+
+            console.log('[PRINT_RENDER] Print JPEG generated: ' + printJpeg.length + ' bytes');
+
+            // Verify output dimensions
+            const outputMeta = await sharp(printJpeg).metadata();
+            console.log('[PRINT_RENDER] Output dimensions: ' + outputMeta.width + '×' + outputMeta.height + ' px');
+
+            // Upload to Cloudinary
+            const cloudUrl = await new Promise((resolve, reject) => {
+              const stream = cloudinary.uploader.upload_stream(
+                {
+                  resource_type: 'image',
+                  folder: 'order-prints',
+                  public_id: 'print-rerender-' + (req.orderId || 'unknown') + '-' + Date.now(),
+                  format: 'jpg',
+                },
+                (err, result) => (err ? reject(err) : resolve(result.secure_url))
+              );
+              stream.end(printJpeg);
+            });
+
+            console.log('[PRINT_RENDER] ✅ Uploaded true print-render JPEG:', cloudUrl);
+            return {
+              statusCode: 200,
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                downloadUrl: cloudUrl,
+                rawUrl: cloudUrl,
+                dpi: targetDpi,
+                bleed: bleedIn,
+                format: 'jpeg',
+                source: 'design_state_rerender',
+                printWidth: targetPxW,
+                printHeight: targetPxH,
+                qualityRatio: qualityRatio,
+              }),
+            };
+          }
+        } catch (reRenderErr) {
+          console.error('[PRINT_RENDER] ❌ Design state re-render failed:', reRenderErr.message);
+          console.warn('[PRINT_RENDER] Falling through to final_render path');
+          // Fall through to final_render path below
+        }
+      }
+    }
 
     // PRIORITY 1: Use final_render if available - this is a pixel-perfect snapshot
     // of the customer's design captured at high DPI directly from the browser canvas.
@@ -776,7 +1013,7 @@ exports.handler = async (event) => {
       console.warn('[PDF] Using fallback path (thumbnail/reconstruction) for all formats');
     }
 
-    // PRIORITY 2: Use thumbnail if available (works for both JPEG and PDF).
+    // PRIORITY 2: Use thumbnail if available (PDF only - JPEG must use design state or final_render).
     let sourceBuffer;
     if (req.thumbnailUrl && !req.thumbnailUrl.startsWith('blob:')) {
       const printThumbUrl = stripCloudinaryTransforms(req.thumbnailUrl);
@@ -784,41 +1021,22 @@ exports.handler = async (event) => {
       console.log('[PDF] Original thumbnail URL was:', req.thumbnailUrl);
 
       if (req.format === 'jpeg') {
-        // JPEG OUTPUT: Download thumbnail server-side, resize to print dimensions, set DPI, upload.
-        console.log('[JPEG] Processing thumbnail server-side for correct sizing + DPI');
-        try {
-          const thumbBuffer = await fetchImage(printThumbUrl, false);
-          const thumbMeta = await sharp(thumbBuffer).metadata();
-          console.log('[JPEG] Thumbnail source:', thumbMeta.width, '×', thumbMeta.height, 'px');
-          console.log('[JPEG] Target print size:', targetPxW, '×', targetPxH, 'px @', targetDpi, 'DPI');
-
-          const jpegBuffer = await sharp(thumbBuffer)
-            .resize(targetPxW, targetPxH, { fit: 'fill' })
-            .withMetadata({ density: targetDpi })
-            .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
-            .toBuffer();
-
-          console.log('[JPEG] Processed JPEG from thumbnail:', jpegBuffer.length, 'bytes');
-
-          const cloudUrl = await new Promise((resolve, reject) => {
-            const stream = cloudinary.uploader.upload_stream(
-              { resource_type: 'image', folder: 'order-prints', public_id: 'print-thumb-' + (req.orderId || 'unknown') + '-' + Date.now(), format: 'jpg' },
-              (err, result) => err ? reject(err) : resolve(result.secure_url)
-            );
-            stream.end(jpegBuffer);
-          });
-
-          console.log('[JPEG] ✅ Uploaded print-ready JPEG from thumbnail:', cloudUrl);
-          return {
-            statusCode: 200,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ downloadUrl: cloudUrl, rawUrl: cloudUrl, dpi: targetDpi, bleed: bleedIn, format: 'jpeg', source: 'thumbnail_processed' }),
-          };
-        } catch (thumbErr) {
-          console.error('[JPEG] Thumbnail processing failed:', thumbErr.message);
-          console.warn('[JPEG] Falling through to reconstruction path');
-          // Fall through to reconstruction below
-        }
+        // BLOCKED: Do not use thumbnails/previews as print source for JPEG.
+        // Thumbnails are low-resolution web previews and must not be upscaled for print.
+        console.error('[JPEG] ❌ BLOCKED: Thumbnail cannot be used as print source for JPEG export.');
+        console.error('[JPEG] Print-ready JPEG requires design_state re-render or final_render snapshot.');
+        console.error('[JPEG] This order may be from before the print pipeline was implemented.');
+        return {
+          statusCode: 200,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            error: 'no_print_source',
+            message: 'This order does not have a print-ready design snapshot. ' +
+              'The only available source is a web preview/thumbnail which is not suitable for print. ' +
+              'The customer may need to re-submit their order to generate a print-ready file.',
+            source: 'thumbnail_blocked',
+          }),
+        };
       }
 
       sourceBuffer = await fetchImage(printThumbUrl, false);
@@ -1282,27 +1500,23 @@ exports.handler = async (event) => {
       }
     }
 
-    // JPEG FORMAT: Output JPEG from reconstructed image when final_render is not available
+    // JPEG FORMAT: Block reconstruction fallback for JPEG export.
+    // Reconstruction from raw uploaded images + stored transforms is not a reliable print source -
+    // it uses web preview positioning data that may not faithfully reproduce the approved design.
+    // Only design_state re-render or final_render snapshot should be used for print JPEG.
     if (req.format === 'jpeg') {
-      console.log('[JPEG] Using reconstruction fallback for JPEG export');
-      const jpegBuffer = await sharp(backgroundCanvas)
-        .composite(compositeLayers)
-        .withMetadata({ density: targetDpi })
-        .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
-        .toBuffer();
-      console.log('[JPEG] Reconstruction JPEG size:', jpegBuffer.length, 'bytes');
-      const cloudUrl = await new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-          { resource_type: 'image', folder: 'order-prints', public_id: 'print-' + (req.orderId || 'unknown') + '-' + Date.now(), format: 'jpg' },
-          (err, result) => err ? reject(err) : resolve(result.secure_url)
-        );
-        stream.end(jpegBuffer);
-      });
-      console.log('[JPEG] Uploaded:', cloudUrl);
+      console.error('[JPEG] ❌ BLOCKED: Reconstruction path cannot be used for print JPEG export.');
+      console.error('[JPEG] This order lacks both design_state and final_render data.');
       return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ downloadUrl: cloudUrl, rawUrl: cloudUrl, format: 'jpeg', dpi: targetDpi, source: 'reconstruction' }),
+        body: JSON.stringify({
+          error: 'no_print_source',
+          message: 'This order does not have the data needed to generate a print-ready JPEG. ' +
+            'Neither a design state snapshot nor a final render was saved at submission time. ' +
+            'The customer may need to re-submit their order to generate a print-ready file.',
+          source: 'reconstruction_blocked',
+        }),
       };
     }
 
