@@ -350,14 +350,14 @@ const GoogleAdsBanner: React.FC = () => {
       console.log('[FINAL_RENDER_HTML] renderImgPos (px):', JSON.stringify(renderImgPos), 'renderImgScale:', renderImgScale);
       console.log('[FINAL_RENDER_HTML] final_render_generation_started: true');
       const imgSrc = uploadedFile.thumbnailUrl || uploadedFile.url;
-      //       // DISABLED: finalRenderResult = await generateFinalRenderFromHTML(
-      //         imgSrc,
-      //         widthIn,
-      //         heightIn,
-      //         renderImgPos,
-      //         renderImgScale,
-      //         container,
-      // );
+      finalRenderResult = await generateFinalRenderFromHTML(
+        imgSrc,
+        widthIn,
+        heightIn,
+        renderImgPos,
+        renderImgScale,
+        container,
+      );
       if (finalRenderResult) {
         console.log('[FINAL_RENDER_HTML] ✅ final_render_generation_succeeded: true');
         console.log('[FINAL_RENDER_HTML] final_render_url:', finalRenderResult?.url || uploadedFile.url.substring(0, 80) + '...');
