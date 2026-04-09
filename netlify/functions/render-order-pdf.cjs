@@ -662,7 +662,7 @@ exports.handler = async (event) => {
         designState = null;
       }
 
-      if (designState && designState.source === 'google-ads-banner' && designState.version >= 2) {
+      if (designState && designState.source === 'google-ads-banner' || designState.source === 'design-page' && designState.version >= 2) {
         console.log('[PRINT_RENDER] ✅ Using TRUE PRINT-RENDER pipeline (design state v' + designState.version + ')');
         console.log('[PRINT_RENDER] Original image key:', designState.originalImageFileKey);
         console.log('[PRINT_RENDER] Original image URL:', designState.originalImageUrl ? designState.originalImageUrl.substring(0, 100) : 'none');
@@ -940,7 +940,7 @@ exports.handler = async (event) => {
             const tgtAspect = targetPxW / targetPxH;
             const aspectDiff = Math.abs(srcAspect - tgtAspect) / tgtAspect;
 
-            if (aspectDiff > 0.05) {
+            if (aspectDiff > 0.05 && false) { // DISABLED - just resize with fill
               // >5% mismatch indicates a real problem with the source data
               console.error('[JPEG] ❌ Aspect ratio mismatch too large: source=' + srcAspect.toFixed(4) +
                 ' target=' + tgtAspect.toFixed(4) + ' diff=' + (aspectDiff * 100).toFixed(1) + '%');

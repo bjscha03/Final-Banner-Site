@@ -376,6 +376,23 @@ const Design: React.FC = () => {
       // Was return - now continuing
     }
 
+    // DESIGN STATE: Save for server-side print re-rendering
+    const container = previewContainerRef.current;
+    const canvasStateJson = JSON.stringify({
+      source: 'design-page',
+      version: 2,
+      originalImageUrl: uploadedFile.url,
+      originalImageFileKey: uploadedFile.fileKey,
+      isPdf: uploadedFile.isPdf,
+      widthIn,
+      heightIn,
+      imgPos: checkoutData.pos,
+      imgScale: checkoutData.scale,
+      containerCssWidth: container?.offsetWidth || null,
+      containerCssHeight: container?.offsetHeight || null,
+      bgColor: '#fafafa',
+    });
+
     const updatedTotals = calcTotals({
       widthIn, heightIn, qty: quantity, material,
       addRope: finalRope, polePockets: finalPolePockets
@@ -397,6 +414,7 @@ const Design: React.FC = () => {
       finalRenderWidthPx: finalRenderResult?.widthPx || null,
       finalRenderHeightPx: finalRenderResult?.heightPx || null,
       finalRenderDpi: finalRenderResult?.dpi || null,
+      canvasStateJson: canvasStateJson,
     } as any);
 
     const pricing = {
