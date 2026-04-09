@@ -718,34 +718,17 @@ exports.handler = async (event) => {
             console.log('[PRINT_RENDER] Required coverage: ' + requiredW + '×' + requiredH + ' px');
             console.log('[PRINT_RENDER] Quality ratio: ' + qualityRatio.toFixed(3) + ' (source/required)');
 
-            // If quality ratio < 0.33, the image would need >3× upscale - flag it
+            // If quality ratio < 0.33, the image would need >3× upscale - log warning but still proceed
+            // Customer already ordered, we need to fulfill regardless of resolution quality
             const MIN_QUALITY_RATIO = 0.33;
             if (qualityRatio < MIN_QUALITY_RATIO) {
               const effectivePrintDpi = Math.round(targetDpi * qualityRatio);
-              console.warn('[PRINT_RENDER] ⚠️ LOW RESOLUTION DETECTED');
+              console.warn('[PRINT_RENDER] ⚠️ LOW RESOLUTION WARNING - proceeding anyway');
               console.warn('[PRINT_RENDER] Original: ' + origW + '×' + origH + ' px');
               console.warn('[PRINT_RENDER] Required for print: ' + requiredW + '×' + requiredH + ' px');
               console.warn('[PRINT_RENDER] Effective print DPI: ~' + effectivePrintDpi);
               console.warn('[PRINT_RENDER] Quality ratio: ' + qualityRatio.toFixed(3) + ' (minimum: ' + MIN_QUALITY_RATIO + ')');
-
-              return {
-                statusCode: 200,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  error: 'low_resolution',
-                  message: 'The uploaded image is too low resolution for the ordered print size. ' +
-                    'Original image is ' + origW + '×' + origH + ' px but the print requires approximately ' +
-                    requiredW + '×' + requiredH + ' px (effective DPI: ~' + effectivePrintDpi +
-                    ', target: ' + targetDpi + '). Please request a higher resolution file from the customer.',
-                  originalWidth: origW,
-                  originalHeight: origH,
-                  requiredWidth: requiredW,
-                  requiredHeight: requiredH,
-                  effectiveDpi: effectivePrintDpi,
-                  targetDpi: targetDpi,
-                  qualityRatio: qualityRatio,
-                }),
-              };
+              // Continue generating the print file - order must be fulfilled
             }
 
             // Step 3: Create render surface at exact print pixel dimensions
@@ -965,7 +948,7 @@ exports.handler = async (event) => {
             // the same aspect ratio (derived from the same banner dimensions),
             // fit:'fill' is a simple proportional resize with no distortion.
             const jpegBuffer = await sharp(finalRenderBuffer)
-              .resize(targetPxW, targetPxH, { fit: 'fill' })
+              .resize(targetPxW, targetPxH, { fit: 'contain', background: { r: 250, g: 250, b: 250 } })
               .withMetadata({ density: targetDpi })
               .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
               .toBuffer();
@@ -1059,7 +1042,7 @@ exports.handler = async (event) => {
             console.log('[JPEG] Thumbnail size:', thumbMeta.width, 'x', thumbMeta.height);
             
             const jpegBuffer = await sharp(thumbBuffer)
-              .resize(targetPxW, targetPxH, { fit: 'fill' })
+              .resize(targetPxW, targetPxH, { fit: 'contain', background: { r: 250, g: 250, b: 250 } })
               .withMetadata({ density: targetDpi })
               .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
               .toBuffer();
