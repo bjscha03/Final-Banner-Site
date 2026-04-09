@@ -326,6 +326,7 @@ const GoogleAdsBanner: React.FC = () => {
     // Get container reference (used for both render and state saving)
     const container = previewContainerRef.current;
     
+    // SKIP client-side final render - server uses design state for better quality render
     let finalRenderResult: { url: string; fileKey: string; widthPx: number; heightPx: number; dpi: number } | null = null;
     try {
       console.log('[FINAL_RENDER_HTML] Generating snapshot for GoogleAdsBanner checkout...');
@@ -349,14 +350,14 @@ const GoogleAdsBanner: React.FC = () => {
       console.log('[FINAL_RENDER_HTML] renderImgPos (px):', JSON.stringify(renderImgPos), 'renderImgScale:', renderImgScale);
       console.log('[FINAL_RENDER_HTML] final_render_generation_started: true');
       const imgSrc = uploadedFile.thumbnailUrl || uploadedFile.url;
-      finalRenderResult = await generateFinalRenderFromHTML(
-        imgSrc,
-        widthIn,
-        heightIn,
-        renderImgPos,
-        renderImgScale,
-        container,
-      );
+      //       // DISABLED: finalRenderResult = await generateFinalRenderFromHTML(
+      //         imgSrc,
+      //         widthIn,
+      //         heightIn,
+      //         renderImgPos,
+      //         renderImgScale,
+      //         container,
+      // );
       if (finalRenderResult) {
         console.log('[FINAL_RENDER_HTML] ✅ final_render_generation_succeeded: true');
         console.log('[FINAL_RENDER_HTML] final_render_url:', finalRenderResult?.url || uploadedFile.url.substring(0, 80) + '...');
@@ -416,8 +417,8 @@ const GoogleAdsBanner: React.FC = () => {
       thumbnailUrl: uploadedFile.thumbnailUrl,
       file: { name: uploadedFile.name, url: uploadedFile.url, fileKey: uploadedFile.fileKey, size: uploadedFile.size, isPdf: uploadedFile.isPdf, thumbnailUrl: uploadedFile.thumbnailUrl, type: uploadedFile.isPdf ? 'application/pdf' : 'image/*' } as any,
       // FINAL_RENDER: Guaranteed to exist (mandatory generation above)
-      finalRenderUrl: finalRenderResult?.url || uploadedFile.url,
-      finalRenderFileKey: finalRenderResult?.fileKey || uploadedFile.fileKey,
+      finalRenderUrl: finalRenderResult?.url || null,
+      finalRenderFileKey: finalRenderResult?.fileKey || null,
       finalRenderWidthPx: finalRenderResult?.widthPx || null,
       finalRenderHeightPx: finalRenderResult?.heightPx || null,
       finalRenderDpi: finalRenderResult?.dpi || null,
