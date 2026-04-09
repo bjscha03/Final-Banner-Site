@@ -662,7 +662,7 @@ exports.handler = async (event) => {
         designState = null;
       }
 
-      if (designState && designState.source === 'google-ads-banner' || designState.source === 'design-page' && designState.version >= 2) {
+      if (designState && (designState.source === 'google-ads-banner' || (designState.source === 'design-page' && designState.version >= 2))) {
         console.log('[PRINT_RENDER] ✅ Using TRUE PRINT-RENDER pipeline (design state v' + designState.version + ')');
         console.log('[PRINT_RENDER] Original image key:', designState.originalImageFileKey);
         console.log('[PRINT_RENDER] Original image URL:', designState.originalImageUrl ? designState.originalImageUrl.substring(0, 100) : 'none');
