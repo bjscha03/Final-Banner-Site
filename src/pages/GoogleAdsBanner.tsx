@@ -349,7 +349,13 @@ const GoogleAdsBanner: React.FC = () => {
       console.log('[FINAL_RENDER_HTML] checkoutData.pos (%):', JSON.stringify(checkoutData.pos), 'checkoutData.scale:', checkoutData.scale);
       console.log('[FINAL_RENDER_HTML] renderImgPos (px):', JSON.stringify(renderImgPos), 'renderImgScale:', renderImgScale);
       console.log('[FINAL_RENDER_HTML] final_render_generation_started: true');
-      const imgSrc = uploadedFile.thumbnailUrl || uploadedFile.url;
+      // Use HIGH-RES source for final render - not the 800px thumbnail
+      let imgSrc = uploadedFile.thumbnailUrl || uploadedFile.url;
+      if (uploadedFile.isPdf && uploadedFile.url.includes('cloudinary.com')) {
+        // Request much higher res from Cloudinary for print quality
+        imgSrc = uploadedFile.url.replace('/upload/', '/upload/pg_1,f_jpg,w_4000,q_100/');
+        console.log('[FINAL_RENDER_HTML] Using high-res PDF render:', imgSrc.substring(0, 100));
+      }
       finalRenderResult = await generateFinalRenderFromHTML(
         imgSrc,
         widthIn,
