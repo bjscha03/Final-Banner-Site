@@ -767,6 +767,17 @@ exports.handler = async (event) => {
             const drawW = Math.round(containedW * imgScale);
             const drawH = Math.round(containedH * imgScale);
 
+
+            console.log("[PRINT_RENDER] === DETAILED DEBUG ===");
+            console.log("[PRINT_RENDER] designState.imgScale:", designState.imgScale);
+            console.log("[PRINT_RENDER] designState.imgPos:", JSON.stringify(designState.imgPos));
+            console.log("[PRINT_RENDER] imgAspect:", imgAspect.toFixed(4));
+            console.log("[PRINT_RENDER] bannerAspect:", bannerAspect.toFixed(4));
+            console.log("[PRINT_RENDER] containedW:", containedW, "containedH:", containedH);
+            console.log("[PRINT_RENDER] offsetX:", offsetX, "offsetY:", offsetY);
+            console.log("[PRINT_RENDER] posXPx:", posXPx, "posYPx:", posYPx);
+            console.log("[PRINT_RENDER] drawX:", drawX, "drawY:", drawY, "drawW:", drawW, "drawH:", drawH);
+            console.log("[PRINT_RENDER] === END DEBUG ===");
             console.log('[PRINT_RENDER] Draw rect: (' + drawX + ', ' + drawY + ') ' + drawW + '×' + drawH);
 
             // Resize the original image to the draw dimensions
