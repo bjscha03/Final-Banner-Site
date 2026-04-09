@@ -232,13 +232,34 @@ exports.handler = async (event) => {
       console.log("[PayPal Capture] First item overlay_image:", cartItems[0]?.overlay_image ? "EXISTS" : "NULL");
       console.log("[PayPal Capture] First item text_elements:", cartItems[0]?.text_elements ? "EXISTS" : "NULL");
 
-      // DEBUG: Log design service fields for each item
+      // ==========================================================================
+      // CRITICAL LOGGING: Track print source data for admin PDF generation
+      // If final_render is missing, admin will see "No Print Source" error
+      // ==========================================================================
       cartItems.forEach((item, idx) => {
-        console.log(`[PayPal Capture] Item ${idx} design_service_enabled:`, item.design_service_enabled);
-        console.log(`[PayPal Capture] Item ${idx} design_request_text:`, item.design_request_text ? item.design_request_text.substring(0, 50) : null);
-        console.log(`[PayPal Capture] Item ${idx} design_draft_preference:`, item.design_draft_preference);
-        console.log(`[PayPal Capture] Item ${idx} design_draft_contact:`, item.design_draft_contact);
-        console.log(`[PayPal Capture] Item ${idx} design_uploaded_assets:`, item.design_uploaded_assets?.length || 0);
+        console.log('[ORDER_CREATE] ========== Item ' + idx + ' Print Source Check ==========');
+        console.log('[ORDER_CREATE] orderId:', orderId);
+        console.log('[ORDER_CREATE] sourceFlow:', item.source || 'unknown');
+        console.log('[ORDER_CREATE] bannerWidthIn:', item.width_in);
+        console.log('[ORDER_CREATE] bannerHeightIn:', item.height_in);
+        console.log('[ORDER_CREATE] hasFinalRender:', !!(item.final_render_url || item.final_render_file_key));
+        console.log('[ORDER_CREATE] finalRenderUrl:', item.final_render_url ? item.final_render_url.substring(0, 80) + '...' : 'MISSING');
+        console.log('[ORDER_CREATE] finalRenderFileKey:', item.final_render_file_key || 'MISSING');
+        console.log('[ORDER_CREATE] finalRenderWidthPx:', item.final_render_width_px || 'MISSING');
+        console.log('[ORDER_CREATE] finalRenderHeightPx:', item.final_render_height_px || 'MISSING');
+        console.log('[ORDER_CREATE] finalRenderDpi:', item.final_render_dpi || 'MISSING');
+        console.log('[ORDER_CREATE] hasDesignJson: false (not used - using final_render instead)');
+        console.log('[ORDER_CREATE] hasThumbnailFallback:', !!(item.thumbnail_url));
+        console.log('[ORDER_CREATE] thumbnailUrl:', item.thumbnail_url ? item.thumbnail_url.substring(0, 80) + '...' : 'MISSING');
+        console.log('[ORDER_CREATE] hasFileUrl:', !!(item.file_url));
+        console.log('[ORDER_CREATE] fileKey:', item.file_key || 'MISSING');
+        console.log('[ORDER_CREATE] design_service_enabled:', item.design_service_enabled || false);
+        console.log('[ORDER_CREATE] ====================================================');
+        
+        // WARNING: Log if no print source available (will cause admin "No Print Source" error)
+        if (!item.final_render_url && !item.final_render_file_key && !item.thumbnail_url) {
+          console.warn('[ORDER_CREATE] WARNING: Item ' + idx + ' has NO PRINT SOURCE - admin will see No Print Source error!');
+        }
       });
 
       for (const rawItem of cartItems) {

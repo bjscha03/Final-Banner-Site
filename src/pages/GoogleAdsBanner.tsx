@@ -323,22 +323,33 @@ const GoogleAdsBanner: React.FC = () => {
     // This is the source of truth for admin JPEG export — must match exactly what
     // the user sees on screen (position, scale, whitespace).
     // MANDATORY: If this fails, order creation must fail loudly.
+    // Get container reference (used for both render and state saving)
+    const container = previewContainerRef.current;
+    
     let finalRenderResult: { url: string; fileKey: string; widthPx: number; heightPx: number; dpi: number } | null = null;
     try {
       console.log('[FINAL_RENDER_HTML] Generating snapshot for GoogleAdsBanner checkout...');
       console.log('[FINAL_RENDER_HTML] order_source: google-ads-banner');
       console.log('[FINAL_RENDER_HTML] dimensions:', widthIn, '×', heightIn, 'inches');
-      console.log('[FINAL_RENDER_HTML] imgPos:', JSON.stringify(imgPos), 'imgScale:', imgScale);
-      console.log('[FINAL_RENDER_HTML] stage_json_exists: true (imgPos/imgScale are the state)');
+      // Convert checkoutData percentage positions to pixel positions for the render
+      const containerW = container?.offsetWidth || 1;
+      const containerH = container?.offsetHeight || 1;
+      const renderImgPos = {
+        x: (checkoutData.pos.x / 100) * containerW,
+        y: (checkoutData.pos.y / 100) * containerH,
+      };
+      const renderImgScale = checkoutData.scale;
+      console.log('[FINAL_RENDER_HTML] checkoutData.pos (%):', JSON.stringify(checkoutData.pos), 'checkoutData.scale:', checkoutData.scale);
+      console.log('[FINAL_RENDER_HTML] renderImgPos (px):', JSON.stringify(renderImgPos), 'renderImgScale:', renderImgScale);
       console.log('[FINAL_RENDER_HTML] final_render_generation_started: true');
       const imgSrc = uploadedFile.thumbnailUrl || uploadedFile.url;
       finalRenderResult = await generateFinalRenderFromHTML(
         imgSrc,
         widthIn,
         heightIn,
-        imgPos,
-        imgScale,
-        previewContainerRef.current,
+        renderImgPos,
+        renderImgScale,
+        container,
       );
       if (finalRenderResult) {
         console.log('[FINAL_RENDER_HTML] ✅ final_render_generation_succeeded: true');
@@ -360,7 +371,7 @@ const GoogleAdsBanner: React.FC = () => {
     // DESIGN STATE: Save the exact approved design state for server-side re-rendering.
     // This enables the print pipeline to re-render from the ORIGINAL uploaded image
     // at full resolution, rather than upscaling the client-captured JPEG snapshot.
-    const container = previewContainerRef.current;
+    // (container already declared above)
     const canvasStateJson = JSON.stringify({
       source: 'google-ads-banner',
       version: 2,
