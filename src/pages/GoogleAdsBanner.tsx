@@ -356,6 +356,31 @@ const GoogleAdsBanner: React.FC = () => {
       alert('Failed to capture your banner design for printing. Please try again.');
       return; // MANDATORY: Do not proceed without final render
     }
+
+    // DESIGN STATE: Save the exact approved design state for server-side re-rendering.
+    // This enables the print pipeline to re-render from the ORIGINAL uploaded image
+    // at full resolution, rather than upscaling the client-captured JPEG snapshot.
+    const container = previewContainerRef.current;
+    const canvasStateJson = JSON.stringify({
+      source: 'google-ads-banner',
+      version: 2,
+      // Original uploaded image (full-res, NOT thumbnail)
+      originalImageUrl: uploadedFile.url,
+      originalImageFileKey: uploadedFile.fileKey,
+      isPdf: uploadedFile.isPdf,
+      // Banner ordered dimensions in inches
+      widthIn,
+      heightIn,
+      // All object transforms as shown on screen
+      imgPos: checkoutData.pos,       // {x, y} percentage-based position offsets
+      imgScale: checkoutData.scale,   // scale factor (1 = 100%)
+      // Container CSS size at capture time (for transform scaling)
+      containerCssWidth: container?.offsetWidth || null,
+      containerCssHeight: container?.offsetHeight || null,
+      // Background color
+      bgColor: '#fafafa',
+    });
+    console.log('[DESIGN_STATE] Saved design state:', canvasStateJson.length, 'chars');
     
     const updatedTotals = calcTotals({ 
       widthIn, heightIn, qty: quantity, material, 
@@ -379,6 +404,8 @@ const GoogleAdsBanner: React.FC = () => {
       finalRenderWidthPx: finalRenderResult.widthPx,
       finalRenderHeightPx: finalRenderResult.heightPx,
       finalRenderDpi: finalRenderResult.dpi,
+      // DESIGN STATE: Exact approved design state for server-side print re-rendering
+      canvasStateJson: canvasStateJson,
     });
     const pricing = {
       unit_price_cents: Math.round(updatedTotals.unit * 100),
