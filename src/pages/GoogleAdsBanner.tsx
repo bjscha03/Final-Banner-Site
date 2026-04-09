@@ -328,64 +328,8 @@ const GoogleAdsBanner: React.FC = () => {
     
     // SKIP client-side final render - server uses design state for better quality render
     let finalRenderResult: { url: string; fileKey: string; widthPx: number; heightPx: number; dpi: number } | null = null;
-    try {
-      console.log('[FINAL_RENDER_HTML] Generating snapshot for GoogleAdsBanner checkout...');
-      console.log('[FINAL_RENDER_HTML] order_source: google-ads-banner');
-      console.log('[FINAL_RENDER_HTML] dimensions:', widthIn, '×', heightIn, 'inches');
-      // Convert checkoutData percentage positions to pixel positions for the render
-      // CRITICAL: If container is hidden (e.g., upsell modal flow), use fallback dimensions
-      // based on banner aspect ratio. The 96 DPI standard gives us ~reasonable CSS pixels.
-      const SCREEN_DPI = 96;
-      const fallbackW = widthIn * SCREEN_DPI;  // e.g., 48in * 96 = 4608px CSS width
-      const fallbackH = heightIn * SCREEN_DPI; // e.g., 24in * 96 = 2304px CSS height
-      const containerW = (container?.offsetWidth && container.offsetWidth > 10) ? container.offsetWidth : fallbackW;
-      const containerH = (container?.offsetHeight && container.offsetHeight > 10) ? container.offsetHeight : fallbackH;
-      console.log('[FINAL_RENDER_HTML] containerW:', containerW, 'containerH:', containerH, '(fallback used:', !container?.offsetWidth || container.offsetWidth <= 10, ')');
-      const renderImgPos = {
-        x: (checkoutData.pos.x / 100) * containerW,
-        y: (checkoutData.pos.y / 100) * containerH,
-      };
-      const renderImgScale = checkoutData.scale;
-      console.log('[FINAL_RENDER_HTML] checkoutData.pos (%):', JSON.stringify(checkoutData.pos), 'checkoutData.scale:', checkoutData.scale);
-      console.log('[FINAL_RENDER_HTML] renderImgPos (px):', JSON.stringify(renderImgPos), 'renderImgScale:', renderImgScale);
-      console.log('[FINAL_RENDER_HTML] final_render_generation_started: true');
-      // Use HIGH-RES source for final render - not the 800px thumbnail
-      let imgSrc = uploadedFile.thumbnailUrl || uploadedFile.url;
-      if (uploadedFile.isPdf && uploadedFile.url.includes('cloudinary.com')) {
-        // Request much higher res from Cloudinary for print quality
-        imgSrc = uploadedFile.url.replace('/upload/', '/upload/pg_1,f_jpg,w_1600,q_90/');
-        console.log('[FINAL_RENDER_HTML] Using high-res PDF render:', imgSrc.substring(0, 100));
-      }
-      // Wrap in timeout - do not block checkout for more than 4 seconds
-      const renderPromise = generateFinalRenderFromHTML(
-        imgSrc,
-        widthIn,
-        heightIn,
-        renderImgPos,
-        renderImgScale,
-        container,
-      );
-      const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => {
-        console.warn('[FINAL_RENDER_HTML] Timeout after 4s - proceeding without final render');
-        resolve(null);
-      }, 4000));
-      finalRenderResult = await Promise.race([renderPromise, timeoutPromise]);
-      if (finalRenderResult) {
-        console.log('[FINAL_RENDER_HTML] ✅ final_render_generation_succeeded: true');
-        console.log('[FINAL_RENDER_HTML] final_render_url:', finalRenderResult?.url || uploadedFile.url.substring(0, 80) + '...');
-        console.log('[FINAL_RENDER_HTML] final_render_width_px:', finalRenderResult?.widthPx || null);
-        console.log('[FINAL_RENDER_HTML] final_render_height_px:', finalRenderResult?.heightPx || null);
-        console.log('[FINAL_RENDER_HTML] final_render_dpi:', finalRenderResult?.dpi || null);
-      } else {
-        console.warn("[FINAL_RENDER_HTML] final_render failed - proceeding with original image");
-        
-        // Continue without final render - admin can regenerate
-      }
-    } catch (err) {
-      console.error('[FINAL_RENDER_HTML] ❌ final_render_generation_succeeded: false (exception)', err);
-      
-      // Continue without final render - admin can regenerate
-    }
+    // DISABLED: Client-side final render - server uses design state instead (faster checkout)
+    console.log('[FINAL_RENDER_HTML] Skipped - using server-side design state rendering');
 
     // DESIGN STATE: Save the exact approved design state for server-side re-rendering.
     // This enables the print pipeline to re-render from the ORIGINAL uploaded image
