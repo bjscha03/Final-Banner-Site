@@ -879,25 +879,28 @@ exports.handler = async (event) => {
       }
     }
 
-    // PRIORITY 1: Use final_render if available - this is a pixel-perfect snapshot
-    // of the customer's design captured at high DPI directly from the browser canvas.
-    // The final_render IS the exact image the user saw and approved.
-    // JPEG: Download server-side, resize to exact print dimensions, embed DPI metadata,
-    //       upload processed image to Cloudinary and return fresh public URL.
-    // PDF:  Resize into the PDF as before (PDF needs specific dimensions).
-    if (req.finalRenderUrl || req.finalRenderFileKey) {
-      console.log('[PDF] ✅ Using FINAL_RENDER path (pixel-perfect canvas snapshot)');
-      console.log('[PDF] finalRenderFileKey:', req.finalRenderFileKey || 'none');
-      console.log('[PDF] finalRenderUrl:', req.finalRenderUrl ? req.finalRenderUrl.substring(0, 100) : 'none');
-      console.log('[PDF] finalRenderDpi:', req.finalRenderDpi || 'unknown');
-      console.log('[PDF] finalRenderSize:', req.finalRenderWidthPx, '×', req.finalRenderHeightPx, 'px');
+    // =========================================================================
+    // JPEG FORMAT: CLEAN EXPORT PIPELINE
+    //
+    // For JPEG, there are exactly TWO valid sources:
+    //   1. Design state re-render (handled by PRIORITY 0 above)
+    //   2. Final render (pre-captured high-res client snapshot, handled below)
+    //
+    // If NEITHER source produces a valid print file, return a clear error.
+    // DO NOT fall through to thumbnail, reconstruction, or fileKey/imageUrl paths.
+    // Those paths cannot produce a correct print file — they would use the wrong
+    // source (thumbnail with grommets, raw upload without transforms, etc.).
+    // =========================================================================
+    if (req.format === 'jpeg') {
+      // SOURCE 2: Final render — pixel-perfect snapshot captured from the browser
+      // canvas/stage at checkout time. Already contains the exact approved design
+      // (correct scaling, positioning, whitespace, text placement). We just need
+      // to resize to the exact target print dimensions and embed DPI metadata.
+      if (req.finalRenderUrl || req.finalRenderFileKey) {
+        console.log('[JPEG] Using final_render path (pixel-perfect canvas snapshot)');
+        console.log('[JPEG] finalRenderFileKey:', req.finalRenderFileKey || 'none');
+        console.log('[JPEG] finalRenderUrl:', req.finalRenderUrl ? req.finalRenderUrl.substring(0, 100) : 'none');
 
-      // JPEG format: download server-side, resize to exact print dimensions, set DPI, upload.
-      // Previous approach returned Cloudinary URLs directly to the browser which caused
-      // 401 errors (cloudinary.url() generates SDK analytics params the browser can't access)
-      // and wrong sizing (no resize or DPI metadata).
-      if (req.format === 'jpeg') {
-        console.log('[JPEG] Processing final_render server-side for correct sizing + DPI');
         let finalRenderBuffer;
         try {
           if (req.finalRenderFileKey) {
@@ -924,48 +927,143 @@ exports.handler = async (event) => {
         }
 
         if (finalRenderBuffer) {
-          const frMeta = await sharp(finalRenderBuffer).metadata();
-          console.log('[JPEG] Final render source:', frMeta.width, '×', frMeta.height, 'px');
-          console.log('[JPEG] Target print size:', targetPxW, '×', targetPxH, 'px @', targetDpi, 'DPI');
+          try {
+            const frMeta = await sharp(finalRenderBuffer).metadata();
+            const srcW = frMeta.width || 1;
+            const srcH = frMeta.height || 1;
+            console.log('[JPEG] Final render source:', srcW, '×', srcH, 'px');
+            console.log('[JPEG] Target print size:', targetPxW, '×', targetPxH, 'px @', targetDpi, 'DPI');
 
-          const jpegBuffer = await sharp(finalRenderBuffer)
-            .resize(targetPxW, targetPxH, { fit: 'fill' })
-            .withMetadata({ density: targetDpi })
-            .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
-            .toBuffer();
+            // Validate aspect ratio match (tolerance for rounding differences
+            // between client MAX_MEGAPIXELS cap and server MAX_SAFE_PX cap)
+            const srcAspect = srcW / srcH;
+            const tgtAspect = targetPxW / targetPxH;
+            const aspectDiff = Math.abs(srcAspect - tgtAspect) / tgtAspect;
 
-          console.log('[JPEG] Processed JPEG size:', jpegBuffer.length, 'bytes');
+            if (aspectDiff > 0.02) {
+              console.warn('[JPEG] ⚠️ Aspect ratio mismatch: source=' + srcAspect.toFixed(4) +
+                ' target=' + tgtAspect.toFixed(4) + ' diff=' + (aspectDiff * 100).toFixed(1) + '%');
+              // Still proceed — the final_render IS the approved design,
+              // slight rounding differences from DPI capping are acceptable
+            }
 
-          const cloudUrl = await new Promise((resolve, reject) => {
-            const stream = cloudinary.uploader.upload_stream(
-              { resource_type: 'image', folder: 'order-prints', public_id: 'print-' + (req.orderId || 'unknown') + '-' + Date.now(), format: 'jpg' },
-              (err, result) => err ? reject(err) : resolve(result.secure_url)
-            );
-            stream.end(jpegBuffer);
-          });
+            // Resize to exact target dimensions. Since both source and target share
+            // the same aspect ratio (derived from the same banner dimensions),
+            // fit:'fill' is a simple proportional resize with no distortion.
+            const jpegBuffer = await sharp(finalRenderBuffer)
+              .resize(targetPxW, targetPxH, { fit: 'fill' })
+              .withMetadata({ density: targetDpi })
+              .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
+              .toBuffer();
 
-          console.log('[JPEG] ✅ Uploaded print-ready JPEG:', cloudUrl);
-          console.log('[JPEG_EXPORT_DEBUG] EXPORT SOURCE = final_render_processed');
-          return {
-            statusCode: 200,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              downloadUrl: cloudUrl,
-              rawUrl: cloudUrl,
-              dpi: targetDpi,
-              bleed: bleedIn,
-              format: 'jpeg',
-              source: 'final_render_processed',
-            }),
-          };
+            // Verify output dimensions match target exactly
+            const outputMeta = await sharp(jpegBuffer).metadata();
+            const outW = outputMeta.width || 0;
+            const outH = outputMeta.height || 0;
+            console.log('[JPEG] Output dimensions:', outW, '×', outH, 'px (target:', targetPxW, '×', targetPxH, ')');
+
+            if (outW !== targetPxW || outH !== targetPxH) {
+              console.error('[JPEG] ❌ DIMENSION MISMATCH: output ' + outW + '×' + outH +
+                ' != target ' + targetPxW + '×' + targetPxH);
+              return {
+                statusCode: 200,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  error: 'dimension_mismatch',
+                  message: 'Print file generation produced incorrect dimensions. ' +
+                    'Expected ' + targetPxW + '×' + targetPxH + ' but got ' + outW + '×' + outH + '. ' +
+                    'Please contact support.',
+                }),
+              };
+            }
+
+            // Upload to Cloudinary
+            const cloudUrl = await new Promise((resolve, reject) => {
+              const stream = cloudinary.uploader.upload_stream(
+                { resource_type: 'image', folder: 'order-prints', public_id: 'print-' + (req.orderId || 'unknown') + '-' + Date.now(), format: 'jpg' },
+                (err, result) => err ? reject(err) : resolve(result.secure_url)
+              );
+              stream.end(jpegBuffer);
+            });
+
+            console.log('[JPEG] ✅ Uploaded print-ready JPEG:', cloudUrl);
+            return {
+              statusCode: 200,
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                downloadUrl: cloudUrl,
+                rawUrl: cloudUrl,
+                dpi: targetDpi,
+                bleed: bleedIn,
+                format: 'jpeg',
+                source: 'final_render_processed',
+                printWidth: outW,
+                printHeight: outH,
+              }),
+            };
+          } catch (processErr) {
+            console.error('[JPEG] ❌ Failed to process final_render:', processErr.message);
+            return {
+              statusCode: 200,
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                error: 'processing_failed',
+                message: 'Print file generation failed during image processing: ' + processErr.message,
+              }),
+            };
+          }
         }
-        // If fetch failed, fall through to thumbnail/reconstruction below
-        console.warn('[JPEG] final_render fetch failed, falling through to fallback paths');
+
+        // Final render data exists in DB but could not be fetched
+        console.error('[JPEG] ❌ final_render data exists but could not be fetched');
+        return {
+          statusCode: 200,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            error: 'fetch_failed',
+            message: 'The saved print render could not be downloaded from storage. ' +
+              'The file may have been removed or the URL may have expired. ' +
+              'Please ask the customer to re-place the order.',
+          }),
+        };
       }
 
-      // PDF format: need to resize and embed in PDF document
-      // Skip for JPEG — JPEG already handled above; if it fell through, go to thumbnail.
-      if (req.format !== 'jpeg') {
+      // =====================================================================
+      // JPEG FAIL-SAFE: No valid source available.
+      // DO NOT fall through to thumbnail/reconstruction/fileKey paths — those
+      // cannot produce a correct print file matching the approved design.
+      // =====================================================================
+      console.error('[JPEG] ❌ No valid print source for JPEG export');
+      console.error('[JPEG] canvasStateJson:', req.canvasStateJson ? 'present (but re-render failed or not applicable)' : 'missing');
+      console.error('[JPEG] finalRenderUrl:', req.finalRenderUrl ? 'present' : 'missing');
+      console.error('[JPEG] finalRenderFileKey:', req.finalRenderFileKey ? 'present' : 'missing');
+
+      return {
+        statusCode: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          error: 'no_print_source',
+          message: 'Cannot generate a correct print file for this order. ' +
+            'No design state or final render data is available. ' +
+            'This order may have been created before the print pipeline was updated. ' +
+            'Please ask the customer to re-place the order using the latest designer.',
+        }),
+      };
+    }
+
+    // =========================================================================
+    // PDF FORMAT: Below this line, only PDF format is handled.
+    // PDF retains fallback paths for backward compatibility with older orders.
+    // =========================================================================
+
+    // PRIORITY 1 (PDF): Use final_render if available
+    if (req.finalRenderUrl || req.finalRenderFileKey) {
+      console.log('[PDF] ✅ Using FINAL_RENDER path (pixel-perfect canvas snapshot)');
+      console.log('[PDF] finalRenderFileKey:', req.finalRenderFileKey || 'none');
+      console.log('[PDF] finalRenderUrl:', req.finalRenderUrl ? req.finalRenderUrl.substring(0, 100) : 'none');
+      console.log('[PDF] finalRenderDpi:', req.finalRenderDpi || 'unknown');
+      console.log('[PDF] finalRenderSize:', req.finalRenderWidthPx, '×', req.finalRenderHeightPx, 'px');
+
       try {
         let finalRenderBuffer;
         if (req.finalRenderFileKey) {
@@ -1003,98 +1101,45 @@ exports.handler = async (event) => {
         };
       } catch (frError) {
         console.error('[PDF] ❌ Final render path failed:', frError.message);
-        console.warn('[PDF] Falling back to thumbnail/reconstruction path');
-        // Fall through to thumbnail/reconstruction paths below for ALL formats
+        console.warn('[PDF] Falling back to thumbnail/reconstruction path for PDF');
       }
-      } // end if (req.format !== 'jpeg')
     } else {
       console.log('[PDF] ⚠️ No final_render data available');
-      console.log('[JPEG_EXPORT_DEBUG] EXPORT SOURCE = NONE (final_render missing)');
-      console.warn('[PDF] Using fallback path (thumbnail/reconstruction) for all formats');
+      console.warn('[PDF] Using fallback path (thumbnail/reconstruction) for PDF');
     }
 
-    // PRIORITY 2: Use thumbnail if available (PDF only - JPEG prefers fileKey/imageUrl or reconstruction).
+    // PRIORITY 2 (PDF only): Use thumbnail if available
     let sourceBuffer;
-    let jpegSkippedThumbnail = false;
     if (req.thumbnailUrl && !req.thumbnailUrl.startsWith('blob:')) {
       const printThumbUrl = stripCloudinaryTransforms(req.thumbnailUrl);
       console.log('[PDF] Using THUMBNAIL for print (original res):', printThumbUrl);
-      console.log('[PDF] Original thumbnail URL was:', req.thumbnailUrl);
 
-      if (req.format === 'jpeg') {
-        // For JPEG: prefer fileKey/imageUrl (original high-res upload) over thumbnail.
-        // Only use thumbnail as absolute last resort if no other source exists.
-        if (req.fileKey || req.imageUrl) {
-          console.log('[JPEG] Skipping thumbnail – will use fileKey/imageUrl (original high-res upload) instead');
-          jpegSkippedThumbnail = true;
-          // Fall through to fileKey/imageUrl path below
-        } else {
-          // No original image available – use thumbnail as best-effort fallback
-          console.warn('[JPEG] ⚠️ Using thumbnail as fallback (no fileKey/imageUrl/design_state/final_render)');
-          const thumbBuffer = await fetchImage(printThumbUrl, false);
-          if (thumbBuffer) {
-            const jpegBuffer = await sharp(thumbBuffer)
-              .resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground })
-              .withMetadata({ density: targetDpi })
-              .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
-              .toBuffer();
+      sourceBuffer = await fetchImage(printThumbUrl, false);
 
-            const cloudUrl = await new Promise((resolve, reject) => {
-              const stream = cloudinary.uploader.upload_stream(
-                { resource_type: 'image', folder: 'order-prints', public_id: 'print-thumb-' + (req.orderId || 'unknown') + '-' + Date.now(), format: 'jpg' },
-                (err, result) => err ? reject(err) : resolve(result.secure_url)
-              );
-              stream.end(jpegBuffer);
-            });
+      // PDF OUTPUT: Use thumbnail for PDF
+      console.log('[PDF] Using thumbnail for PDF export');
+      const pdfBuffer = await sharp(sourceBuffer)
+        .resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground })
+        .jpeg({ quality: 65, chromaSubsampling: "4:2:0" })
+        .toBuffer()
+        .then(imgBuf => rasterToPdfBuffer(imgBuf, finalWidthIn, finalHeightIn, [], req.bannerWidthIn, req.bannerHeightIn, null, bleedIn));
 
-            console.log('[JPEG] ✅ Uploaded print JPEG from thumbnail:', cloudUrl);
-            return {
-              statusCode: 200,
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                downloadUrl: cloudUrl,
-                rawUrl: cloudUrl,
-                dpi: targetDpi,
-                bleed: bleedIn,
-                format: 'jpeg',
-                source: 'thumbnail_fallback',
-              }),
-            };
-          }
-          // If thumbnail fetch failed, fall through to reconstruction path
-          console.warn('[JPEG] Thumbnail fetch failed, continuing to reconstruction path');
-          jpegSkippedThumbnail = true;
-        }
+      console.log(`[PDF] PDF generated from thumbnail: ${pdfBuffer.length} bytes`);
+      let pdfBase64 = pdfBuffer.toString('base64');
+      console.log('[PDF] Base64 length:', pdfBase64.length);
+      // Safety: if base64 > 5MB, re-encode at lower quality
+      if (pdfBase64.length > 5 * 1024 * 1024) {
+        console.warn('[PDF] Base64 too large (' + pdfBase64.length + ' chars), re-encoding at quality 40');
+        const smallerImg = await sharp(sourceBuffer).resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground }).jpeg({ quality: 40, chromaSubsampling: "4:2:0" }).toBuffer();
+        const smallerPdf = await rasterToPdfBuffer(smallerImg, finalWidthIn, finalHeightIn, [], req.bannerWidthIn, req.bannerHeightIn, null, bleedIn);
+        pdfBase64 = smallerPdf.toString("base64");
+        console.log('[PDF] Re-encoded base64 length:', pdfBase64.length);
       }
-
-      if (!jpegSkippedThumbnail) {
-        sourceBuffer = await fetchImage(printThumbUrl, false);
-
-        // PDF OUTPUT: Use thumbnail for PDF
-        console.log('[PDF] Using thumbnail for PDF export');
-        const pdfBuffer = await sharp(sourceBuffer)
-          .resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground })
-          .jpeg({ quality: 65, chromaSubsampling: "4:2:0" })
-          .toBuffer()
-          .then(imgBuf => rasterToPdfBuffer(imgBuf, finalWidthIn, finalHeightIn, [], req.bannerWidthIn, req.bannerHeightIn, null, bleedIn));
-
-        console.log(`[PDF] PDF generated from thumbnail: ${pdfBuffer.length} bytes`);
-        let pdfBase64 = pdfBuffer.toString('base64');
-        console.log('[PDF] Base64 length:', pdfBase64.length);
-        // Safety: if base64 > 5MB, re-encode at lower quality
-        if (pdfBase64.length > 5 * 1024 * 1024) {
-          console.warn('[PDF] Base64 too large (' + pdfBase64.length + ' chars), re-encoding at quality 40');
-          const smallerImg = await sharp(sourceBuffer).resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground }).jpeg({ quality: 40, chromaSubsampling: "4:2:0" }).toBuffer();
-          const smallerPdf = await rasterToPdfBuffer(smallerImg, finalWidthIn, finalHeightIn, [], req.bannerWidthIn, req.bannerHeightIn, null, bleedIn);
-          pdfBase64 = smallerPdf.toString("base64");
-          console.log('[PDF] Re-encoded base64 length:', pdfBase64.length);
-        }
-        return {
-          statusCode: 200,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pdfBase64, dpi: targetDpi, bleed: bleedIn }),
-        };
-      }
+      return {
+        statusCode: 200,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pdfBase64, dpi: targetDpi, bleed: bleedIn }),
+      };
     }
     
     if (req.fileKey) {
@@ -1532,40 +1577,8 @@ exports.handler = async (event) => {
       }
     }
 
-    // JPEG FORMAT: Use reconstruction path as fallback for older orders
-    // that lack design_state and final_render data.
-    if (req.format === 'jpeg') {
-      console.warn('[JPEG] ⚠️ Using reconstruction fallback for JPEG export (no design_state/final_render)');
-      const jpegBuffer = await sharp(backgroundCanvas)
-        .composite(compositeLayers)
-        .withMetadata({ density: targetDpi })
-        .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
-        .toBuffer();
-
-      console.log('[JPEG] Reconstructed JPEG size:', jpegBuffer.length, 'bytes');
-
-      const cloudUrl = await new Promise((resolve, reject) => {
-        const stream = cloudinary.uploader.upload_stream(
-          { resource_type: 'image', folder: 'order-prints', public_id: 'print-recon-' + (req.orderId || 'unknown') + '-' + Date.now(), format: 'jpg' },
-          (err, result) => err ? reject(err) : resolve(result.secure_url)
-        );
-        stream.end(jpegBuffer);
-      });
-
-      console.log('[JPEG] ✅ Uploaded reconstructed print JPEG:', cloudUrl);
-      return {
-        statusCode: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          downloadUrl: cloudUrl,
-          rawUrl: cloudUrl,
-          dpi: targetDpi,
-          bleed: bleedIn,
-          format: 'jpeg',
-          source: 'reconstruction_fallback',
-        }),
-      };
-    }
+    // NOTE: JPEG format is FULLY handled above (design_state_rerender or final_render_processed).
+    // JPEG requests never reach this point — only PDF format continues below.
 
     const merged = await sharp(backgroundCanvas)
       .composite(compositeLayers)
