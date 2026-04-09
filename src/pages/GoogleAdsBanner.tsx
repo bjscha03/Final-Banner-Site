@@ -332,8 +332,14 @@ const GoogleAdsBanner: React.FC = () => {
       console.log('[FINAL_RENDER_HTML] order_source: google-ads-banner');
       console.log('[FINAL_RENDER_HTML] dimensions:', widthIn, '×', heightIn, 'inches');
       // Convert checkoutData percentage positions to pixel positions for the render
-      const containerW = container?.offsetWidth || 1;
-      const containerH = container?.offsetHeight || 1;
+      // CRITICAL: If container is hidden (e.g., upsell modal flow), use fallback dimensions
+      // based on banner aspect ratio. The 96 DPI standard gives us ~reasonable CSS pixels.
+      const SCREEN_DPI = 96;
+      const fallbackW = widthIn * SCREEN_DPI;  // e.g., 48in * 96 = 4608px CSS width
+      const fallbackH = heightIn * SCREEN_DPI; // e.g., 24in * 96 = 2304px CSS height
+      const containerW = (container?.offsetWidth && container.offsetWidth > 10) ? container.offsetWidth : fallbackW;
+      const containerH = (container?.offsetHeight && container.offsetHeight > 10) ? container.offsetHeight : fallbackH;
+      console.log('[FINAL_RENDER_HTML] containerW:', containerW, 'containerH:', containerH, '(fallback used:', !container?.offsetWidth || container.offsetWidth <= 10, ')');
       const renderImgPos = {
         x: (checkoutData.pos.x / 100) * containerW,
         y: (checkoutData.pos.y / 100) * containerH,
