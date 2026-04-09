@@ -365,14 +365,14 @@ const Design: React.FC = () => {
       if (finalRenderResult) {
         console.log('[DESIGN_CHECKOUT] hasFinalRender: true');
       } else {
-        console.error('[DESIGN_CHECKOUT] hasFinalRender: false');
-        toast({ title: 'Error Capturing Design', description: 'Failed to capture design.', variant: 'destructive' });
-        return;
+        console.warn('[DESIGN_CHECKOUT] hasFinalRender: false - proceeding with original');
+        // Non-blocking - continue without final render
+        // Was return - now continuing
       }
     } catch (err) {
-      console.error('[DESIGN_CHECKOUT] final_render error:', err);
-      toast({ title: 'Error Capturing Design', description: 'Failed to capture design.', variant: 'destructive' });
-      return;
+      console.warn('[DESIGN_CHECKOUT] final_render error (non-blocking):', err);
+      // Non-blocking - continue without final render
+      // Was return - now continuing
     }
 
     const updatedTotals = calcTotals({
@@ -391,11 +391,11 @@ const Design: React.FC = () => {
       fitMode: 'fill',
       thumbnailUrl: uploadedFile.thumbnailUrl,
       file: { name: uploadedFile.name, url: uploadedFile.url, fileKey: uploadedFile.fileKey, size: uploadedFile.size, isPdf: uploadedFile.isPdf, thumbnailUrl: uploadedFile.thumbnailUrl, type: uploadedFile.isPdf ? 'application/pdf' : 'image/*' } as any,
-      finalRenderUrl: finalRenderResult.url,
-      finalRenderFileKey: finalRenderResult.fileKey,
-      finalRenderWidthPx: finalRenderResult.widthPx,
-      finalRenderHeightPx: finalRenderResult.heightPx,
-      finalRenderDpi: finalRenderResult.dpi,
+      finalRenderUrl: finalRenderResult?.url || uploadedFile.url,
+      finalRenderFileKey: finalRenderResult?.fileKey || uploadedFile.fileKey,
+      finalRenderWidthPx: finalRenderResult?.widthPx || null,
+      finalRenderHeightPx: finalRenderResult?.heightPx || null,
+      finalRenderDpi: finalRenderResult?.dpi || null,
     } as any);
 
     const pricing = {
