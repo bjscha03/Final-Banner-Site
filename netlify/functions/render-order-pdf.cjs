@@ -1043,25 +1043,52 @@ exports.handler = async (event) => {
       }
 
       // =====================================================================
-      // JPEG FAIL-SAFE: No valid source available.
-      // DO NOT fall through to thumbnail/reconstruction/fileKey paths — those
-      // cannot produce a correct print file matching the approved design.
+      // JPEG FALLBACK: Use thumbnail for old orders without final_render
+      // The thumbnail IS a snapshot of the canvas - exactly what the user saw.
       // =====================================================================
-      console.error('[JPEG] ❌ No valid print source for JPEG export');
-      console.error('[JPEG] canvasStateJson:', req.canvasStateJson ? 'present (but re-render failed or not applicable)' : 'missing');
-      console.error('[JPEG] finalRenderUrl:', req.finalRenderUrl ? 'present' : 'missing');
-      console.error('[JPEG] finalRenderFileKey:', req.finalRenderFileKey ? 'present' : 'missing');
-
+      console.warn('[JPEG] Using THUMBNAIL FALLBACK for old order');
+      
+      if (req.thumbnailUrl && !req.thumbnailUrl.startsWith('blob:')) {
+        const thumbUrl = stripCloudinaryTransforms(req.thumbnailUrl);
+        console.log('[JPEG] Fetching thumbnail:', thumbUrl.substring(0, 80));
+        
+        try {
+          const thumbBuffer = await fetchImage(thumbUrl, false);
+          if (thumbBuffer) {
+            const thumbMeta = await sharp(thumbBuffer).metadata();
+            console.log('[JPEG] Thumbnail size:', thumbMeta.width, 'x', thumbMeta.height);
+            
+            const jpegBuffer = await sharp(thumbBuffer)
+              .resize(targetPxW, targetPxH, { fit: 'fill' })
+              .withMetadata({ density: targetDpi })
+              .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
+              .toBuffer();
+            
+            const cloudUrl = await new Promise((resolve, reject) => {
+              const stream = cloudinary.uploader.upload_stream(
+                { resource_type: 'image', folder: 'order-prints', public_id: 'print-' + (req.orderId || 'x') + '-' + Date.now(), format: 'jpg' },
+                (err, result) => err ? reject(err) : resolve(result.secure_url)
+              );
+              stream.end(jpegBuffer);
+            });
+            
+            console.log('[JPEG] Thumbnail fallback uploaded:', cloudUrl);
+            return {
+              statusCode: 200,
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ downloadUrl: cloudUrl, rawUrl: cloudUrl, dpi: targetDpi, format: 'jpeg', source: 'thumbnail_fallback' }),
+            };
+          }
+        } catch (thumbErr) {
+          console.error('[JPEG] Thumbnail fallback failed:', thumbErr.message);
+        }
+      }
+      
+      console.error('[JPEG] No valid print source AND no thumbnail');
       return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          error: 'no_print_source',
-          message: 'Cannot generate a correct print file for this order. ' +
-            'No design state or final render data is available. ' +
-            'This order may have been created before the print pipeline was updated. ' +
-            'Please ask the customer to re-place the order using the latest designer.',
-        }),
+        body: JSON.stringify({ error: 'no_print_source', message: 'Cannot generate print file - no final_render or thumbnail.' }),
       };
     }
 

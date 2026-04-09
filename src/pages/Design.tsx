@@ -11,6 +11,7 @@ import { DESIGN_GROMMET_OPTIONS } from '@/lib/grommets';
 import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
 import { getQuantityDiscountRate } from '@/lib/quantity-discount';
 import { useToast } from '@/components/ui/use-toast';
+import { generateFinalRenderFromHTML } from '@/utils/generateFinalRenderFromHTML';
 
 const PRESET_SIZES = [
   { label: "2' × 4'", w: 48, h: 24 },
@@ -320,7 +321,10 @@ const Design: React.FC = () => {
   }, [handleFileUpload]);
 
   // Actually perform checkout after upsell decision
-  const performCheckout = useCallback((selectedOptions: UpsellOption[], directData?: { pos: { x: number; y: number }, scale: number }) => {
+  // Actually perform checkout after upsell decision
+  // CRITICAL: This function MUST generate final_render before adding to cart
+  // Orders without final_render cannot be printed - admin will see "No Print Source"
+  const performCheckout = useCallback(async (selectedOptions: UpsellOption[], directData?: { pos: { x: number; y: number }, scale: number }) => {
     const checkoutData = directData || pendingCheckoutData;
     if (!uploadedFile || !checkoutData) return;
 
@@ -331,9 +335,7 @@ const Design: React.FC = () => {
 
     selectedOptions.forEach(opt => {
       if (opt.selected) {
-        if (opt.id === 'grommets' && opt.grommetSelection) {
-          finalGrommets = opt.grommetSelection;
-        }
+        if (opt.id === 'grommets' && opt.grommetS        if (opt.id === 'grommets' && opt.grommetS        if (o      }
         if (opt.id === 'rope') {
           finalRope = true;
         }
@@ -344,11 +346,65 @@ const Design: React.FC = () => {
       }
     });
 
+    // FINAL_RENDER: Generate pixel-perfect snapshot BEFORE adding to cart
+    // This is MANDATORY for admin print file generation
+    console.log('[DESIGN_CHECKOUT] Generating final_render before checkout...');
+    console.log('[DESIGN_CHECKOUT] order_source: design-page');
+    console.log('[DESIGN_CHECKOUT] dimensions:', widthIn, 'x', heightIn, 'inches');
+    console.log('[DESIGN_CHECKOUT] imgPos:', JSON.stringify(checkoutData.pos), 'imgScale:', checko    console.log('[DESIGN_CH finalRenderResult: { url: string; fileKey: string; widthPx: number; heightPx: number; dpi: number } | null = null;    console.log('[DESIGNmgSrc = uploadedFile.thumbnailUrl || uploadedFile.url;
+      const container = previewContainerRef.current;
+      
+      // Convert percentage-based pos back to pixel offset for the render function
+      const containerWidth = container?.offsetWidth || 1;
+      const containerHeight = container?.offsetHeight || 1;
+      const imgPosPixels = {
+        x: (checkoutData.pos.x / 100) * containerWidth,
+        y: (checkoutData.pos.y / 100) * containerHeight,
+      };
+      
+      console.log('[DESIGN_CHECKOUT] imgPosPixels:', JSON.stringify(imgPosPixels));
+      console.log('[DESIGN_CHECKOUT] final_render_generation_started: true');
+      
+      finalRenderResult = await generateFinalRenderFromHTML(
+        imgSrc,
+        widthIn,
+        heightIn,
+        imgPosPixels,
+        checkoutData.scale,
+        container,
+      );
+      
+      if (finalRenderResult) {
+        console.log('[DESIGN_CHECKOUT] final_render_generation_succeeded: true');
+        console.log('[DESIGN_CHECKOUT] final_render_url:', finalRenderResult.url.substring(0, 80) + '...');
+        console.log('[DESIGN_CHECKOUT] final_render_width_px:', finalRenderResult.widthPx);
+        console.log('[DESIGN_CHECKOUT] final_render_height_px:', finalRenderResult.heightPx);
+        console.log('[DESIGN_CHECKOUT] final_render_dpi:', finalRenderResult.dpi);
+      } else {
+        console.error('[DESIGN_CHECKOUT] final_render_generation_succeeded: false (returned null)');
+        toast({
+          title: "Error Capturing Design",
+          description: "Failed to capture your banner design for printing. Please try again.",
+          variant: "destructive",
+        });
+        return     MANDATORY: Do not proceed without final render
+      }
+    } catch (err) {
+      console.error('[DESIGN_CHECKOUT] final_render_generation_succeeded: false (exception)', err);
+      toast({
+        title: "Error Capturing Design",
+        description: "Failed to capture your banner design. Please try again or use a different browser.",
+        variant: "destructive",
+      });
+      return; // MANDATORY: Do not proceed without final render
+    }
+
     const updatedTotals = calcTotals({
       widthIn, heightIn, qty: quantity, material,
       addRope: finalRope, polePockets: finalPolePockets
     });
 
+    // Build quote with final_render data included
     quoteStore.set({
       widthIn, heightIn, quantity, material,
       grommets: finalGrommets as any,
@@ -360,18 +416,36 @@ const Design: React.FC = () => {
       fitMode: 'fill',
       thumbnailUrl: uploadedFile.thumbnailUrl,
       file: { name: uploadedFile.name, url: uploadedFile.url, fileKey: uploadedFile.fileKey, size: uploadedFile.size, isPdf: uploadedFile.isPdf, thumbnailUrl: uploadedFile.thumbnailUrl, type: uploadedFile.isPdf ? 'application/pdf' : 'image/*' } as any,
-    });
+      // CRITICAL: Include final_render data in quote
+      finalRenderUrl: finalRenderResult.url,
+      finalRenderFileKey: finalRenderResult.fileKey,
+      finalRenderWidthPx: finalRenderResult.widthPx,
+      finalRenderHeightPx: finalRenderResult.heightPx,
+      finalRenderDpi: finalRenderResult.dpi,
+    } as any);
+    
     const pricing = {
       unit_price_cents: Math.round(updatedTotals.unit * 100),
       rope_cost_cents: Math.round(updatedTotals.rope * 100),
       pole_pocket_cost_cents: Math.round(updatedTotals.polePocket * 100),
       line_total_cents: Math.round(updatedTotals.materialTotal * 100),
     };
+    
+    // Log checkout payload for debugging
+    console.log('[DESIGN_CHECKOUT] Adding to cart with final_render data:');
+    console.log('[DESIGN_CHECKOUT] hasDesignJson: false (using final_render instead)');
+    console.log('[DESIGN_CHECKOUT] hasFinalRender: true');
+    console.log('[DESIGN_CHECKOUT] finalRenderUrl:', finalRenderResult.url.substring(0, 60) + '...');
+    console.log('[DESIGN_CHECKOUT] bannerWidthIn:', widthIn);
+    console.log('[DESIGN_CHECKOUT] bannerHeightIn:', heightIn);
+    console.log('[DESIGN_CHECKOUT] sourceFlow: design-page');
+    
     cartStore.addFromQuote(useQuoteStore.getState(), undefined, pricing);
     setIsCartOpen(true);
     setPendingCheckoutData(null);
     navigate('/checkout');
-  }, [uploadedFile, pendingCheckoutData, grommets, addRope, polePockets, widthIn, heightIn, quantity, material, quoteStore, cartStore, setIsCartOpen, navigate]);
+  }, [uploadedFile, pendingCheckoutData, grommets, addRope, polePockets, widthIn, heightIn, quantity, material, quoteStore, cartStore, setIsCartOpen, navigate, toast]);
+
 
   // Proceed directly to checkout using current inline preview position
   const handleCheckout = useCallback(() => {
