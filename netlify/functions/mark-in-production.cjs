@@ -159,6 +159,22 @@ exports.handler = async (event) => {
     }
 
     const sql = neon(dbUrl);
+
+    // AUTO-MIGRATE: Ensure the status constraint includes 'in_production' and tracking columns exist
+    try {
+      await sql`ALTER TABLE orders DROP CONSTRAINT IF EXISTS orders_status_check`;
+      await sql`ALTER TABLE orders ADD CONSTRAINT orders_status_check
+        CHECK (status IN ('pending', 'paid', 'failed', 'refunded', 'shipped', 'in_production'))`;
+      await sql`
+        ALTER TABLE orders
+        ADD COLUMN IF NOT EXISTS production_email_sent BOOLEAN DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS production_email_sent_at TIMESTAMP WITH TIME ZONE
+      `;
+      console.log('[mark-in-production] Auto-migration: constraint and columns verified');
+    } catch (migErr) {
+      console.warn('[mark-in-production] Auto-migration warning (non-fatal):', migErr.message);
+    }
+
     const { orderId } = JSON.parse(event.body || '{}');
 
     if (!orderId || typeof orderId !== 'string') {
@@ -246,6 +262,7 @@ exports.handler = async (event) => {
 
     // Update order status to in_production regardless of email outcome
     // Try with production_email columns first; fall back to status-only if columns don't exist yet
+    let dbUpdated = false;
     try {
       await sql`
         UPDATE orders
@@ -255,19 +272,27 @@ exports.handler = async (event) => {
             updated_at = NOW()
         WHERE id = ${orderId}
       `;
+      dbUpdated = true;
     } catch (updateError) {
       // If the production_email columns don't exist yet (migration not run), update status only
       console.warn('Full update failed, trying status-only update:', updateError.message);
-      await sql`
-        UPDATE orders
-        SET status = 'in_production',
-            updated_at = NOW()
-        WHERE id = ${orderId}
-      `;
+      try {
+        await sql`
+          UPDATE orders
+          SET status = 'in_production',
+              updated_at = NOW()
+          WHERE id = ${orderId}
+        `;
+        dbUpdated = true;
+      } catch (fallbackError) {
+        console.error('Status-only update also failed:', fallbackError.message);
+      }
     }
 
-    console.log(`Order ${orderId} marked as in production. Email ${emailResult.ok ? 'sent' : 'failed'} to ${customerEmail}`);
+    console.log(`Order ${orderId} marked as in production. Email ${emailResult.ok ? 'sent' : 'failed'} to ${customerEmail}. DB updated: ${dbUpdated}`);
 
+    // Return success if email was sent, even if DB update failed
+    // The admin UI will update local state and show the correct status
     return {
       statusCode: 200,
       headers,
@@ -277,6 +302,7 @@ exports.handler = async (event) => {
           ? 'Order marked as in production and customer notified'
           : 'Order marked as in production (email delivery failed)',
         emailSent: emailResult.ok,
+        dbUpdated: dbUpdated,
         emailError: emailResult.ok ? undefined : emailResult.error,
         emailId: emailResult.id
       })

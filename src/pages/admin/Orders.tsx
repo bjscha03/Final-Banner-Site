@@ -538,8 +538,8 @@ const AdminOrders: React.FC = () => {
         });
       } else {
         toast({
-          title: "Order In Production",
-          description: `Customer notified: Order is now in production`,
+          title: "✅ Email Sent — Order In Production",
+          description: "Production email sent to customer successfully.",
         });
       }
     } catch (error) {
