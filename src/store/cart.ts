@@ -248,8 +248,8 @@ export const useCartStore = create<CartState>()(
 
         // Compute fallbacks if not provided
         const area = (quote.widthIn * quote.heightIn) / 144;
-        const _addCfg = getProductConfig('banner');
-        const pricePerSqFt = (_addCfg.materialPriceMap as Record<MaterialKey, number>)[quote.material];
+        const bannerConfig = getProductConfig('banner');
+        const pricePerSqFt = (bannerConfig.materialPriceMap as Record<MaterialKey, number>)[quote.material];
         const computedUnit = Math.max(MINIMUM_UNIT_PRICE_CENTS, Math.round(area * (pricePerSqFt ?? 4.5) * 100));
         const ropeFeet = quote.addRope ? quote.widthIn / 12 : 0;
         const computedRope = Math.round(ropeFeet * 2 * quote.quantity * 100);
@@ -540,8 +540,8 @@ export const useCartStore = create<CartState>()(
 
         // Compute fallbacks if not provided
         const area = (quote.widthIn * quote.heightIn) / 144;
-        const _updCfg = getProductConfig(existingItem.product_type);
-        const pricePerSqFt = (_updCfg.materialPriceMap as Record<MaterialKey, number>)[quote.material];
+        const productConfig = getProductConfig(existingItem.product_type);
+        const pricePerSqFt = (productConfig.materialPriceMap as Record<MaterialKey, number>)[quote.material];
         const computedUnit = Math.max(MINIMUM_UNIT_PRICE_CENTS, Math.round(area * (pricePerSqFt ?? 4.5) * 100));
         const ropeFeet = quote.addRope ? quote.widthIn / 12 : 0;
         const computedRope = Math.round(ropeFeet * 2 * quote.quantity * 100);

@@ -13,12 +13,12 @@ import { getProductConfig, DEFAULT_PRODUCT_TYPE } from './products';
 // CONSTANTS — derived from the product registry
 // ============================================================================
 
-const _bannerConfig = getProductConfig(DEFAULT_PRODUCT_TYPE);
+const bannerConfig = getProductConfig(DEFAULT_PRODUCT_TYPE);
 
-export const TAX_RATE = _bannerConfig.taxRate; // 6%
-export const POLE_POCKET_SETUP_FEE_CENTS = _bannerConfig.polePockets.setupFeeCents; // $15.00
-export const POLE_POCKET_PRICE_PER_LINEAR_FOOT_CENTS = _bannerConfig.polePockets.pricePerLinearFootCents; // $2.00/ft
-export const ROPE_PRICE_PER_FOOT_CENTS = _bannerConfig.rope.pricePerFootCents; // $2.00/ft
+export const TAX_RATE = bannerConfig.taxRate; // 6%
+export const POLE_POCKET_SETUP_FEE_CENTS = bannerConfig.polePockets.setupFeeCents; // $15.00
+export const POLE_POCKET_PRICE_PER_LINEAR_FOOT_CENTS = bannerConfig.polePockets.pricePerLinearFootCents; // $2.00/ft
+export const ROPE_PRICE_PER_FOOT_CENTS = bannerConfig.rope.pricePerFootCents; // $2.00/ft
 
 // ============================================================================
 // TYPES

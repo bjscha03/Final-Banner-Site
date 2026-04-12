@@ -3,16 +3,16 @@ import { calculateQuantityDiscount } from './quantity-discount';
 import { getProductConfig, DEFAULT_PRODUCT_TYPE } from './products';
 
 // Read material pricing from the product registry (banner is the default)
-const _bannerConfig = getProductConfig(DEFAULT_PRODUCT_TYPE);
+const bannerConfig = getProductConfig(DEFAULT_PRODUCT_TYPE);
 
-export const PRICE_PER_SQFT = _bannerConfig.materialPriceMap as Record<MaterialKey, number>;
+export const PRICE_PER_SQFT = bannerConfig.materialPriceMap as Record<MaterialKey, number>;
 
-export const TAX_RATE = _bannerConfig.taxRate; // 6% tax rate
+export const TAX_RATE = bannerConfig.taxRate; // 6% tax rate
 
 // Minimum unit price per banner (in dollars)
 // No banner should ever be priced below this amount regardless of size
-export const MINIMUM_UNIT_PRICE = _bannerConfig.minimumUnitPriceDollars; // $20.00
-export const MINIMUM_UNIT_PRICE_CENTS = _bannerConfig.minimumUnitPriceCents; // $20.00 in cents
+export const MINIMUM_UNIT_PRICE = bannerConfig.minimumUnitPriceDollars; // $20.00
+export const MINIMUM_UNIT_PRICE_CENTS = bannerConfig.minimumUnitPriceCents; // $20.00 in cents
 export const inchesToSqFt = (widthIn: number, heightIn: number): number => {
   return (widthIn * heightIn) / 144;
 };
