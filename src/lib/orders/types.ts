@@ -11,6 +11,7 @@ export interface DesignServiceAsset {
 }
 
 export interface OrderItem {
+  product_type?: string;       // Product type slug (default: 'banner')
   width_in: number;
   height_in: number;
   quantity: number;
