@@ -3,22 +3,12 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
-/** Vite plugin: convert injected CSS <link> tags to non-blocking loads */
-function deferCssPlugin() {
-  return {
-    name: 'defer-css',
-    enforce: 'post' as const,
-    transformIndexHtml(html: string) {
-      // Match Vite-injected CSS link tags (e.g. <link rel="stylesheet" crossorigin href="/assets/index-xxx.css">)
-      return html.replace(
-        /<link rel="stylesheet"([^>]*?) href="(\/assets\/[^"]+\.css)"([^>]*)>/g,
-        (_match, before, href, after) =>
-          `<link rel="stylesheet"${before} href="${href}"${after} media="print" onload="this.media='all'">\n` +
-          `<noscript><link rel="stylesheet"${before} href="${href}"${after}></noscript>`
-      );
-    },
-  };
-}
+// NOTE: A deferCssPlugin (media="print" + onload="this.media='all'") was
+// previously used here but has been removed. The deferred-CSS pattern caused
+// Flash of Unstyled Content (FOUC) that made the site appear broken / "not
+// loading" when the onload handler fired late or the CSS CDN was slow.
+// Standard blocking CSS from Netlify's CDN loads in <100 ms, so the perf
+// trade-off wasn't worth the reliability risk.
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -28,7 +18,6 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
-    deferCssPlugin(),
     nodePolyfills({
       // Enable polyfills for specific globals and modules
       globals: {
