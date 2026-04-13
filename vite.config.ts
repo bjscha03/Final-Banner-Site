@@ -3,25 +3,12 @@ import react from "@vitejs/plugin-react-swc";
 import path from "path";
 import { nodePolyfills } from 'vite-plugin-node-polyfills';
 
-/**
- * Vite plugin: previously converted CSS <link> tags to non-blocking loads
- * via media="print" + onload="this.media='all'". DISABLED because the
- * deferred-CSS pattern can cause a Flash of Unstyled Content (FOUC) that
- * makes the site appear broken / "not loading" when the onload handler
- * fires late or the CSS CDN is slow. Standard blocking CSS from Netlify's
- * CDN loads in <100 ms, so the perf trade-off isn't worth the reliability
- * risk.  Keeping the function stub so the plugins array still references it.
- */
-function deferCssPlugin() {
-  return {
-    name: 'defer-css',
-    enforce: 'post' as const,
-    // No-op: CSS link tags are left as standard blocking stylesheets
-    transformIndexHtml(html: string) {
-      return html;
-    },
-  };
-}
+// NOTE: A deferCssPlugin (media="print" + onload="this.media='all'") was
+// previously used here but has been removed. The deferred-CSS pattern caused
+// Flash of Unstyled Content (FOUC) that made the site appear broken / "not
+// loading" when the onload handler fired late or the CSS CDN was slow.
+// Standard blocking CSS from Netlify's CDN loads in <100 ms, so the perf
+// trade-off wasn't worth the reliability risk.
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => ({
@@ -31,7 +18,6 @@ export default defineConfig(({ mode }) => ({
   },
   plugins: [
     react(),
-    deferCssPlugin(),
     nodePolyfills({
       // Enable polyfills for specific globals and modules
       globals: {
