@@ -50,10 +50,6 @@ const botUserAgents = [
   'ia_archiver',
   'AppleBot',
   'Applebot',
-  'iPhone',
-  'iPad',
-  'iPod',
-  'Macintosh'
 ];
 
 function isBot(userAgent: string): boolean {

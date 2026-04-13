@@ -272,8 +272,11 @@ export function computeTotals(
  */
 export function getFeatureFlags() {
   const getEnvVar = (key: string) => {
+    // NOTE: Do NOT reference `process.env` here — it pulls in the Node.js
+    // process polyfill which lives in the heavy pdf-libs chunk (~514 KB).
+    // In the browser, VITE_ env vars are inlined at build time via
+    // import.meta.env, and window.ENV is an optional runtime override.
     return import.meta.env?.[`VITE_${key}`] ||
-           (typeof process !== 'undefined' && process.env?.[key]) ||
            (typeof window !== 'undefined' && (window as any).ENV?.[key]);
   };
 

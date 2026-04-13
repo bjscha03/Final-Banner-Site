@@ -111,6 +111,20 @@
     /></noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Fallback: if #root is still empty after 12 seconds, show a message
+      // instead of an infinite spinner.
+      setTimeout(function() {
+        var root = document.getElementById('root');
+        if (root && root.childElementCount === 0) {
+          root.innerHTML = '<div style="display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:60vh;font-family:system-ui,sans-serif;text-align:center;padding:2rem">' +
+            '<h1 style="font-size:1.5rem;margin-bottom:1rem">Having trouble loading the page</h1>' +
+            '<p style="color:#6b7280;margin-bottom:1.5rem">This may be a temporary issue. Please try refreshing.</p>' +
+            '<button onclick="location.reload(true)" style="padding:0.75rem 2rem;background:#3b82f6;color:#fff;border:none;border-radius:0.5rem;font-size:1rem;cursor:pointer">Refresh Page</button>' +
+            '</div>';
+        }
+      }, 12000);
+    </script>
 
     <!-- Defer Google Tag Manager to after page load -->
     <script>
