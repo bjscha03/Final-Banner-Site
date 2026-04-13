@@ -6,6 +6,7 @@ import { calculateQuantityDiscount } from '@/lib/quantity-discount';
 import { resolveBestDiscount, ResolvedDiscount, PromoDiscountInput } from '@/lib/discount-resolver';
 import { cartSync } from '@/lib/cartSync';
 import { trackAddToCart, trackFBAddToCart } from '@/lib/analytics';
+import { getProductConfig } from '@/lib/products';
 
 
 // PERFORMANCE: Disable verbose logging in production for faster cart operations
@@ -16,6 +17,7 @@ export type PricingMode = 'per_item' | 'per_order';
 
 export interface CartItem {
   id: string;
+  product_type?: string;               // Product type slug (default: 'banner')
   width_in: number;
   height_in: number;
   quantity: number;
@@ -186,7 +188,7 @@ const migrateCartItem = (item: CartItem): CartItem => {
 
   // Recompute pricing from scratch
   const area = item.area_sqft || (item.width_in * item.height_in) / 144;
-  const pricePerSqFt = ({ '13oz': 4.5, '15oz': 6.0, '18oz': 7.5, 'mesh': 6.0 } as Record<MaterialKey, number>)[item.material];
+  const pricePerSqFt = (getProductConfig(item.product_type).materialPriceMap as Record<MaterialKey, number>)[item.material];
   const unit_price_cents = Math.max(MINIMUM_UNIT_PRICE_CENTS, Math.round(area * (pricePerSqFt ?? 4.5) * 100));
 
   // Compute rope cost
@@ -246,7 +248,8 @@ export const useCartStore = create<CartState>()(
 
         // Compute fallbacks if not provided
         const area = (quote.widthIn * quote.heightIn) / 144;
-        const pricePerSqFt = ({ '13oz': 4.5, '15oz': 6.0, '18oz': 7.5, 'mesh': 6.0 } as Record<MaterialKey, number>)[quote.material];
+        const bannerConfig = getProductConfig('banner');
+        const pricePerSqFt = (bannerConfig.materialPriceMap as Record<MaterialKey, number>)[quote.material];
         const computedUnit = Math.max(MINIMUM_UNIT_PRICE_CENTS, Math.round(area * (pricePerSqFt ?? 4.5) * 100));
         const ropeFeet = quote.addRope ? quote.widthIn / 12 : 0;
         const computedRope = Math.round(ropeFeet * 2 * quote.quantity * 100);
@@ -313,6 +316,7 @@ export const useCartStore = create<CartState>()(
 
         const newItem: CartItem = {
           id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          product_type: 'banner',
           width_in: quote.widthIn,
           height_in: quote.heightIn,
           quantity: quote.quantity,
@@ -536,7 +540,8 @@ export const useCartStore = create<CartState>()(
 
         // Compute fallbacks if not provided
         const area = (quote.widthIn * quote.heightIn) / 144;
-        const pricePerSqFt = ({ '13oz': 4.5, '15oz': 6.0, '18oz': 7.5, 'mesh': 6.0 } as Record<MaterialKey, number>)[quote.material];
+        const productConfig = getProductConfig(existingItem.product_type);
+        const pricePerSqFt = (productConfig.materialPriceMap as Record<MaterialKey, number>)[quote.material];
         const computedUnit = Math.max(MINIMUM_UNIT_PRICE_CENTS, Math.round(area * (pricePerSqFt ?? 4.5) * 100));
         const ropeFeet = quote.addRope ? quote.widthIn / 12 : 0;
         const computedRope = Math.round(ropeFeet * 2 * quote.quantity * 100);

@@ -94,7 +94,8 @@ exports.handler = async (event, context) => {
         ADD COLUMN IF NOT EXISTS design_uploaded_assets JSONB DEFAULT '[]'::jsonb,
         ADD COLUMN IF NOT EXISTS final_print_pdf_url TEXT,
         ADD COLUMN IF NOT EXISTS final_print_pdf_file_key TEXT,
-        ADD COLUMN IF NOT EXISTS final_print_pdf_uploaded_at TIMESTAMP WITH TIME ZONE
+        ADD COLUMN IF NOT EXISTS final_print_pdf_uploaded_at TIMESTAMP WITH TIME ZONE,
+        ADD COLUMN IF NOT EXISTS product_type TEXT DEFAULT 'banner'
       `;
       console.log('[get-orders] Auto-migration: order_items columns verified');
     } catch (migErr) {
@@ -179,7 +180,8 @@ exports.handler = async (event, context) => {
                    'design_uploaded_assets', COALESCE(oi.design_uploaded_assets, '[]'::jsonb),
                    'final_print_pdf_url', oi.final_print_pdf_url,
                    'final_print_pdf_file_key', oi.final_print_pdf_file_key,
-                   'final_print_pdf_uploaded_at', oi.final_print_pdf_uploaded_at
+                   'final_print_pdf_uploaded_at', oi.final_print_pdf_uploaded_at,
+                   'product_type', COALESCE(oi.product_type, 'banner')
                  )
                ) as items
         FROM orders o
@@ -234,7 +236,8 @@ exports.handler = async (event, context) => {
                    'design_uploaded_assets', COALESCE(oi.design_uploaded_assets, '[]'::jsonb),
                    'final_print_pdf_url', oi.final_print_pdf_url,
                    'final_print_pdf_file_key', oi.final_print_pdf_file_key,
-                   'final_print_pdf_uploaded_at', oi.final_print_pdf_uploaded_at
+                   'final_print_pdf_uploaded_at', oi.final_print_pdf_uploaded_at,
+                   'product_type', COALESCE(oi.product_type, 'banner')
                  )
                ) as items
         FROM orders o

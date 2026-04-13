@@ -7,15 +7,18 @@
 
 import { calculateQuantityDiscount } from './quantity-discount';
 import { resolveBestDiscount, ResolvedDiscount, PromoDiscountInput } from './discount-resolver';
+import { getProductConfig, DEFAULT_PRODUCT_TYPE } from './products';
 
 // ============================================================================
-// CONSTANTS
+// CONSTANTS — derived from the product registry
 // ============================================================================
 
-export const TAX_RATE = 0.06; // 6%
-export const POLE_POCKET_SETUP_FEE_CENTS = 1500; // $15.00
-export const POLE_POCKET_PRICE_PER_LINEAR_FOOT_CENTS = 200; // $2.00/ft
-export const ROPE_PRICE_PER_FOOT_CENTS = 200; // $2.00/ft
+const bannerConfig = getProductConfig(DEFAULT_PRODUCT_TYPE);
+
+export const TAX_RATE = bannerConfig.taxRate; // 6%
+export const POLE_POCKET_SETUP_FEE_CENTS = bannerConfig.polePockets.setupFeeCents; // $15.00
+export const POLE_POCKET_PRICE_PER_LINEAR_FOOT_CENTS = bannerConfig.polePockets.pricePerLinearFootCents; // $2.00/ft
+export const ROPE_PRICE_PER_FOOT_CENTS = bannerConfig.rope.pricePerFootCents; // $2.00/ft
 
 // ============================================================================
 // TYPES

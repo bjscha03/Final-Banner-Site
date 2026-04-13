@@ -354,6 +354,17 @@ exports.handler = async (event, context) => {
     } catch (migrationError) {
       console.warn('⚠️ image_scale/image_position/thumbnail_url migration warning:', migrationError.message);
     }
+
+    // AUTO-MIGRATE: Ensure product_type column exists (Phase 1 product-type registry)
+    try {
+      await sql`
+        ALTER TABLE order_items
+        ADD COLUMN IF NOT EXISTS product_type TEXT DEFAULT 'banner'
+      `;
+      console.log('✅ Database migration: product_type column verified/created');
+    } catch (migrationError) {
+      console.warn('⚠️ product_type migration warning:', migrationError.message);
+    }
     
     console.log('Creating order with data:', orderData);
     console.log('Database URL available:', !!databaseUrl);
@@ -558,7 +569,7 @@ exports.handler = async (event, context) => {
           try {
             await sql`
               INSERT INTO order_items (
-                id, order_id, width_in, height_in, quantity, material,
+                id, order_id, product_type, width_in, height_in, quantity, material,
                 grommets, rope_feet, pole_pockets, pole_pocket_position, pole_pocket_size, pole_pocket_cost_cents,
                 line_total_cents, file_key, file_url, print_ready_url, web_preview_url, text_elements, overlay_image, overlay_images, canvas_background_color, image_scale, image_position, thumbnail_url, final_render_url, final_render_file_key, final_render_width_px, final_render_height_px, final_render_dpi, canvas_state_json,
                 design_service_enabled, design_request_text, design_draft_preference, design_draft_contact, design_uploaded_assets
@@ -566,6 +577,7 @@ exports.handler = async (event, context) => {
               VALUES (
                 ${randomUUID()},
                 ${orderId},
+                ${item.product_type || 'banner'},
                 ${item.width_in || 0},
                 ${item.height_in || 0},
                 ${item.quantity || 1},
