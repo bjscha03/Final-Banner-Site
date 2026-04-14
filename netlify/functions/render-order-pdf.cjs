@@ -251,6 +251,57 @@ async function maybeUpscaleToFit(imgBuffer, needW, needH) {
 }
 
 /**
+ * Process an overlay image and return a composite layer entry for Sharp.
+ * Shared by both the JPEG reconstruction fallback and the text/overlay-only fallback.
+ */
+async function buildOverlayCompositeLayer(overlay, bannerWidthIn, bannerHeightIn, targetPxW, targetPxH, targetDpi, bleedIn) {
+  if (!overlay || (!overlay.url && !overlay.fileKey)) return null;
+
+  const overlayBuffer = overlay.fileKey
+    ? await fetchImage(overlay.fileKey, true)
+    : await fetchImage(overlay.url, false);
+  const overlayMeta = await sharp(overlayBuffer).rotate().metadata();
+  const overlaySourceW = overlayMeta.width || 1;
+  const overlaySourceH = overlayMeta.height || 1;
+  const overlayAspectRatio = overlay.aspectRatio || (overlaySourceW / overlaySourceH);
+  const defaultWidthInches = 4;
+  const overlayWidthIn = defaultWidthInches * (overlay.scale || 1);
+  const overlayHeightIn = overlayWidthIn / overlayAspectRatio;
+  let overlayWidthPx = Math.round(overlayWidthIn * targetDpi);
+  let overlayHeightPx = Math.round(overlayHeightIn * targetDpi);
+  const maxWPx = bannerWidthIn * targetDpi * 1.5;
+  const maxHPx = bannerHeightIn * targetDpi * 1.5;
+  if (overlayWidthPx > maxWPx || overlayHeightPx > maxHPx) {
+    const sf = Math.min(maxWPx / overlayWidthPx, maxHPx / overlayHeightPx);
+    overlayWidthPx = Math.round(overlayWidthPx * sf);
+    overlayHeightPx = Math.round(overlayHeightPx * sf);
+  }
+  const bannerAreaWidthPx = bannerWidthIn * targetDpi;
+  const bannerAreaHeightPx = bannerHeightIn * targetDpi;
+  const bleedPx = bleedIn * targetDpi;
+  const posX = (overlay.position && typeof overlay.position.x === 'number') ? overlay.position.x : 0;
+  const posY = (overlay.position && typeof overlay.position.y === 'number') ? overlay.position.y : 0;
+  const overlayLeft = Math.round(bleedPx + (posX / 100) * bannerAreaWidthPx);
+  const overlayTop = Math.round(bleedPx + (posY / 100) * bannerAreaHeightPx);
+  let overlayResized = await sharp(overlayBuffer).rotate()
+    .resize(overlayWidthPx, overlayHeightPx, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .toBuffer();
+  let finalLeft = overlayLeft, finalTop = overlayTop;
+  let cropLeft = 0, cropTop = 0, cropW = overlayWidthPx, cropH = overlayHeightPx;
+  if (finalLeft < 0) { cropLeft = -finalLeft; cropW -= cropLeft; finalLeft = 0; }
+  if (finalTop < 0) { cropTop = -finalTop; cropH -= cropTop; finalTop = 0; }
+  if (finalLeft + cropW > targetPxW) cropW = targetPxW - finalLeft;
+  if (finalTop + cropH > targetPxH) cropH = targetPxH - finalTop;
+  if (cropW > 0 && cropH > 0) {
+    if (cropLeft || cropTop || cropW !== overlayWidthPx || cropH !== overlayHeightPx) {
+      overlayResized = await sharp(overlayResized).extract({ left: cropLeft, top: cropTop, width: cropW, height: cropH }).toBuffer();
+    }
+    return { input: overlayResized, top: finalTop, left: finalLeft };
+  }
+  return null;
+}
+
+/**
  * Convert raster image to PDF with optional text layers
  */
 async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textElements = [], bannerWidthIn, bannerHeightIn, previewCanvasPx, bleedIn = 0.125) {
@@ -874,16 +925,16 @@ exports.handler = async (event) => {
     }
 
     // =========================================================================
-    // JPEG FORMAT: CLEAN EXPORT PIPELINE
+    // JPEG FORMAT: EXPORT PIPELINE WITH FULL FALLBACK CHAIN
     //
-    // For JPEG, there are exactly TWO valid sources:
+    // Priority order:
     //   1. Design state re-render (handled by PRIORITY 0 above)
-    //   2. Final render (pre-captured high-res client snapshot, handled below)
+    //   2. Final render (pre-captured high-res client snapshot)
+    //   3. Thumbnail (canvas snapshot from older orders)
+    //   4. Reconstruction from fileKey/imageUrl (original upload + transforms)
+    //   5. Text/overlay-only (blank canvas with overlays)
     //
-    // If NEITHER source produces a valid print file, return a clear error.
-    // DO NOT fall through to thumbnail, reconstruction, or fileKey/imageUrl paths.
-    // Those paths cannot produce a correct print file — they would use the wrong
-    // source (thumbnail with grommets, raw upload without transforms, etc.).
+    // Every order must produce a print file — never fail if any image data exists.
     // =========================================================================
     if (req.format === 'jpeg') {
       // SOURCE 2: Final render — pixel-perfect snapshot captured from the browser
@@ -1078,11 +1129,219 @@ exports.handler = async (event) => {
         }
       }
       
-      console.error('[JPEG] No valid print source AND no thumbnail');
+      // =====================================================================
+      // JPEG FALLBACK: Reconstruct from fileKey/imageUrl (original upload)
+      // This handles orders that have the original uploaded image but lack
+      // design state, final render, and thumbnail data.
+      // =====================================================================
+      if (req.fileKey || req.imageUrl) {
+        console.log('[JPEG] Using RECONSTRUCTION FALLBACK from fileKey/imageUrl');
+        console.log('[JPEG] fileKey:', req.fileKey || 'none');
+        console.log('[JPEG] imageUrl:', req.imageUrl ? req.imageUrl.substring(0, 100) : 'none');
+
+        try {
+          let sourceBuffer;
+          if (req.fileKey) {
+            sourceBuffer = await fetchImage(req.fileKey, true);
+          } else {
+            sourceBuffer = await fetchImage(req.imageUrl, false);
+          }
+
+          if (sourceBuffer) {
+            // Apply rotation if present
+            let workingBuffer = sourceBuffer;
+            if (req.transform?.rotationDeg && req.transform.rotationDeg !== 0) {
+              console.log('[JPEG] Rotating image', req.transform.rotationDeg, '°');
+              workingBuffer = await sharp(sourceBuffer).rotate(req.transform.rotationDeg).toBuffer();
+            }
+
+            const srcMeta = await sharp(workingBuffer).metadata();
+            const srcW = srcMeta.width || 1;
+            const srcH = srcMeta.height || 1;
+            console.log('[JPEG] Source image:', srcW, '×', srcH, 'px');
+
+            // Apply imageScale and imagePosition transforms (mirrors PDF reconstruction logic)
+            const imageScale = req.imageScale ?? 1;
+            const imagePosition = req.imagePosition || { x: 0, y: 0 };
+            console.log('[JPEG] imageScale:', imageScale, 'imagePosition:', JSON.stringify(imagePosition));
+
+            const containerW = Math.round(targetPxW * imageScale);
+            const containerH = Math.round(targetPxH * imageScale);
+
+            const imgAspect = srcW / srcH;
+            const containerAspect = containerW / containerH;
+
+            let scaledImageW, scaledImageH;
+            if (imgAspect > containerAspect) {
+              scaledImageH = containerH;
+              scaledImageW = Math.round(containerH * imgAspect);
+            } else {
+              scaledImageW = containerW;
+              scaledImageH = Math.round(containerW / imgAspect);
+            }
+
+            const containerOffsetX = (targetPxW - containerW) / 2;
+            const containerOffsetY = (targetPxH - containerH) / 2;
+            const imageInContainerOffsetX = (containerW - scaledImageW) / 2;
+            const imageInContainerOffsetY = (containerH - scaledImageH) / 2;
+
+            const positionOffsetX = imagePosition.x * 0.01 * targetDpi;
+            const positionOffsetY = imagePosition.y * 0.01 * targetDpi;
+
+            const translateX = Math.round(containerOffsetX + imageInContainerOffsetX + positionOffsetX);
+            const translateY = Math.round(containerOffsetY + imageInContainerOffsetY + positionOffsetY);
+
+            console.log('[JPEG] Scaled image:', scaledImageW, '×', scaledImageH, 'at (', translateX, ',', translateY, ')');
+
+            // Upscale source if needed then resize
+            const upscaledBuffer = await maybeUpscaleToFit(workingBuffer, scaledImageW, scaledImageH);
+            const resizedBuffer = await sharp(upscaledBuffer)
+              .resize(scaledImageW, scaledImageH, { kernel: 'cubic', fit: 'cover' })
+              .toBuffer();
+
+            // Create background canvas
+            const canvasBgRgb = parseHexColor(req.canvasBackgroundColor || '#FFFFFF');
+            const backgroundCanvas = await sharp({
+              create: { width: targetPxW, height: targetPxH, channels: 3, background: canvasBgRgb },
+            }).jpeg({ quality: 95 }).toBuffer();
+
+            // Clip image to canvas bounds
+            const resizedMeta = await sharp(resizedBuffer).metadata();
+            const resizedW = resizedMeta.width || scaledImageW;
+            const resizedH = resizedMeta.height || scaledImageH;
+            let compositeInput = resizedBuffer;
+            let compLeft = translateX;
+            let compTop = translateY;
+
+            if (translateX < 0 || translateY < 0 || translateX + resizedW > targetPxW || translateY + resizedH > targetPxH) {
+              const cropLeft = Math.max(0, -translateX);
+              const cropTop = Math.max(0, -translateY);
+              const cropWidth = Math.min(resizedW - cropLeft, targetPxW - Math.max(0, translateX));
+              const cropHeight = Math.min(resizedH - cropTop, targetPxH - Math.max(0, translateY));
+              if (cropWidth > 0 && cropHeight > 0) {
+                compositeInput = await sharp(resizedBuffer).extract({
+                  left: cropLeft, top: cropTop,
+                  width: Math.max(1, Math.floor(cropWidth)),
+                  height: Math.max(1, Math.floor(cropHeight)),
+                }).toBuffer();
+                compLeft = Math.max(0, translateX);
+                compTop = Math.max(0, translateY);
+              }
+            }
+
+            // Build composite layers
+            const compositeLayers = [{ input: compositeInput, top: compTop, left: compLeft }];
+
+            // Add overlay image if present
+            if (req.overlayImage && (req.overlayImage.url || req.overlayImage.fileKey)) {
+              try {
+                const overlayLayer = await buildOverlayCompositeLayer(req.overlayImage, req.bannerWidthIn, req.bannerHeightIn, targetPxW, targetPxH, targetDpi, bleedIn);
+                if (overlayLayer) compositeLayers.push(overlayLayer);
+                console.log('[JPEG] Overlay added to reconstruction');
+              } catch (overlayErr) {
+                console.error('[JPEG] Overlay processing failed in reconstruction:', overlayErr.message);
+              }
+            }
+
+            // Composite and generate JPEG
+            const jpegBuffer = await sharp(backgroundCanvas)
+              .composite(compositeLayers)
+              .withMetadata({ density: targetDpi })
+              .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
+              .toBuffer();
+
+            console.log('[JPEG] Reconstruction JPEG generated:', jpegBuffer.length, 'bytes');
+
+            // Upload to Cloudinary
+            const cloudUrl = await new Promise((resolve, reject) => {
+              const stream = cloudinary.uploader.upload_stream(
+                { resource_type: 'image', folder: 'order-prints', public_id: 'print-recon-' + (req.orderId || 'unknown') + '-' + Date.now(), format: 'jpg' },
+                (err, result) => err ? reject(err) : resolve(result.secure_url)
+              );
+              stream.end(jpegBuffer);
+            });
+
+            console.log('[JPEG] ✅ Reconstruction JPEG uploaded:', cloudUrl);
+            return {
+              statusCode: 200,
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                downloadUrl: cloudUrl,
+                rawUrl: cloudUrl,
+                dpi: targetDpi,
+                bleed: bleedIn,
+                format: 'jpeg',
+                source: 'reconstruction_fallback',
+                printWidth: targetPxW,
+                printHeight: targetPxH,
+              }),
+            };
+          }
+        } catch (reconErr) {
+          console.error('[JPEG] Reconstruction fallback failed:', reconErr.message);
+        }
+      }
+
+      // Text-only / overlay-only designs: generate from blank canvas
+      if (hasTextOrOverlay && !req.fileKey && !req.imageUrl) {
+        console.log('[JPEG] Using TEXT/OVERLAY-ONLY fallback (no background image)');
+        try {
+          const canvasBgRgb = parseHexColor(req.canvasBackgroundColor || '#FFFFFF');
+          const backgroundCanvas = await sharp({
+            create: { width: targetPxW, height: targetPxH, channels: 3, background: canvasBgRgb },
+          }).jpeg({ quality: 95 }).toBuffer();
+
+          const compositeLayers = [];
+
+          // Add overlay image(s) onto blank canvas
+          if (req.overlayImage && (req.overlayImage.url || req.overlayImage.fileKey)) {
+            try {
+              const overlayLayer = await buildOverlayCompositeLayer(req.overlayImage, req.bannerWidthIn, req.bannerHeightIn, targetPxW, targetPxH, targetDpi, bleedIn);
+              if (overlayLayer) compositeLayers.push(overlayLayer);
+              console.log('[JPEG] Overlay added to text/overlay-only canvas');
+            } catch (overlayErr) {
+              console.error('[JPEG] Overlay processing failed:', overlayErr.message);
+            }
+          }
+
+          // Generate JPEG (even with no composite layers, we produce the background canvas)
+          const jpegBuffer = compositeLayers.length > 0
+            ? await sharp(backgroundCanvas).composite(compositeLayers).withMetadata({ density: targetDpi }).jpeg({ quality: 92, chromaSubsampling: '4:4:4' }).toBuffer()
+            : await sharp(backgroundCanvas).withMetadata({ density: targetDpi }).jpeg({ quality: 92, chromaSubsampling: '4:4:4' }).toBuffer();
+
+          const cloudUrl = await new Promise((resolve, reject) => {
+            const stream = cloudinary.uploader.upload_stream(
+              { resource_type: 'image', folder: 'order-prints', public_id: 'print-textonly-' + (req.orderId || 'unknown') + '-' + Date.now(), format: 'jpg' },
+              (err, result) => err ? reject(err) : resolve(result.secure_url)
+            );
+            stream.end(jpegBuffer);
+          });
+
+          console.log('[JPEG] ✅ Text/overlay-only JPEG uploaded:', cloudUrl);
+          return {
+            statusCode: 200,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              downloadUrl: cloudUrl,
+              rawUrl: cloudUrl,
+              dpi: targetDpi,
+              bleed: bleedIn,
+              format: 'jpeg',
+              source: 'text_overlay_only',
+              printWidth: targetPxW,
+              printHeight: targetPxH,
+            }),
+          };
+        } catch (textOnlyErr) {
+          console.error('[JPEG] Text/overlay-only fallback failed:', textOnlyErr.message);
+        }
+      }
+
+      console.error('[JPEG] All fallback paths exhausted - no valid print source');
       return {
         statusCode: 200,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ error: 'no_print_source', message: 'Cannot generate print file - no final_render or thumbnail.' }),
+        body: JSON.stringify({ error: 'no_print_source', message: 'Cannot generate print file - no design state, final render, thumbnail, or original image available for this order.' }),
       };
     }
 
