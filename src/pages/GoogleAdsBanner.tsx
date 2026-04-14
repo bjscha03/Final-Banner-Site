@@ -18,7 +18,7 @@ import type { ProductTypeSlug } from '@/lib/products';
 import { getProductConfig } from '@/lib/products';
 import ProductTypeSwitcher from '@/components/design/ProductTypeSwitcher';
 import YardSignConfigPanel from '@/components/design/YardSignConfigPanel';
-import { calcYardSignPricing, getYardSignSizes, getYardSignQuantityDiscountRate } from '@/lib/yard-sign-pricing';
+import { calcYardSignPricing, getYardSignSizes, getYardSignMaterials, getYardSignQuantityDiscountRate } from '@/lib/yard-sign-pricing';
 
 const PRESET_SIZES = [
   { label: "2' × 4'", w: 48, h: 24 },
