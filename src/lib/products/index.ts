@@ -15,6 +15,8 @@ export {
   type PolePocketConfig,
   type PrintConfig,
   type EditorConfig,
+  type PredefinedSize,
+  type MaterialMultiplier,
   getProductConfig,
   isValidProductType,
   getAllProductTypes,

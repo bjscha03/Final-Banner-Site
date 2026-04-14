@@ -13,7 +13,7 @@
 // TYPES
 // ============================================================================
 
-export type ProductTypeSlug = 'banner';
+export type ProductTypeSlug = 'banner' | 'yard_sign';
 
 export interface MaterialConfig {
   key: string;
@@ -77,6 +77,27 @@ export interface EditorConfig {
   supportsDesignService: boolean;
 }
 
+/**
+ * Predefined size option with flat-rate pricing.
+ * Used by products like yard signs that have fixed size/price combos.
+ */
+export interface PredefinedSize {
+  label: string;         // e.g. '18" × 24"'
+  widthIn: number;
+  heightIn: number;
+  basePriceCents: number; // base price in cents for the default material
+}
+
+/**
+ * Material multiplier for flat-rate pricing.
+ * Applied on top of the base price defined in PredefinedSize.
+ */
+export interface MaterialMultiplier {
+  key: string;
+  label: string;
+  multiplier: number; // e.g. 1.0 for base, 1.4 for +40%
+}
+
 export interface ProductTypeConfig {
   slug: ProductTypeSlug;
   name: string;
@@ -97,6 +118,18 @@ export interface ProductTypeConfig {
   taxRate: number;
   print: PrintConfig;
   editor: EditorConfig;
+
+  // --- Flat-rate pricing (optional, used by yard signs etc.) ---
+  /** When 'flat_rate', pricing uses predefinedSizes + materialMultipliers instead of sqft */
+  pricingModel?: 'per_sqft' | 'flat_rate';
+  /** Fixed size/price options (only for flat_rate products) */
+  predefinedSizes?: PredefinedSize[];
+  /** Material multipliers applied to base price (only for flat_rate products) */
+  materialMultipliers?: MaterialMultiplier[];
+  /** Whether custom dimensions are allowed (false for yard signs) */
+  allowCustomDimensions?: boolean;
+  /** Free shipping message to display */
+  freeShippingMessage?: string;
 }
 
 // ============================================================================
@@ -198,6 +231,121 @@ const bannerProduct: ProductTypeConfig = {
     supportsOverlayImages: true,
     supportsDesignService: true,
   },
+
+  // Banner uses per-sqft pricing (default)
+  pricingModel: 'per_sqft',
+  allowCustomDimensions: true,
+};
+
+// ============================================================================
+// YARD SIGN PRODUCT CONFIGURATION
+// Flat-rate pricing with predefined sizes and material multipliers
+// ============================================================================
+
+const yardSignProduct: ProductTypeConfig = {
+  slug: 'yard_sign',
+  name: 'Custom Yard Sign',
+  description: 'Custom yard signs on corrugated plastic or aluminum',
+
+  dimensions: {
+    defaultWidthIn: 24,
+    defaultHeightIn: 18,
+    resetWidthIn: 24,
+    resetHeightIn: 18,
+    minIn: 5,
+    maxIn: 96,   // 8 feet
+    maxSqFt: 32,  // 4' x 8' = 32 sq ft
+    sizeLimitMessage: 'Yard signs are available in predefined sizes only.',
+  },
+
+  // Materials for yard signs — pricePerSqFt is unused for flat-rate, set to 0
+  materials: [
+    { key: 'corrugated', label: 'Corrugated Plastic', pricePerSqFt: 0 },
+    { key: 'aluminum_040', label: 'Aluminum (.040)', pricePerSqFt: 0 },
+    { key: 'aluminum_063', label: 'Aluminum (.063)', pricePerSqFt: 0 },
+  ],
+
+  materialPriceMap: {
+    'corrugated': 0,
+    'aluminum_040': 0,
+    'aluminum_063': 0,
+  },
+
+  minimumUnitPriceDollars: 12,
+  minimumUnitPriceCents: 1200,
+
+  // Yard signs don't have grommets
+  grommets: [],
+
+  // No rope for yard signs
+  rope: {
+    available: false,
+    pricePerFootCents: 0,
+    pricingMode: 'per_item',
+  },
+
+  // No pole pockets for yard signs
+  polePockets: {
+    available: false,
+    setupFeeCents: 0,
+    pricePerLinearFootCents: 0,
+    pricingMode: 'per_item',
+    positions: [],
+    sizes: [],
+    defaultSize: '',
+  },
+
+  // Yard sign quantity discount tiers (different from banners)
+  quantityDiscountTiers: [
+    { minQuantity: 1, discountRate: 0.00, label: '0% OFF' },
+    { minQuantity: 2, discountRate: 0.05, label: '5% OFF' },
+    { minQuantity: 6, discountRate: 0.10, label: '10% OFF' },
+    { minQuantity: 11, discountRate: 0.15, label: '15% OFF' },
+  ],
+
+  taxRate: 0.06,
+
+  print: {
+    idealDpi: 300,
+    minDpi: 150,
+    maxTotalPixels: 50_000_000,
+    format: 'jpeg',
+    jpegQuality: 92,
+  },
+
+  editor: {
+    defaultFitMode: 'fill',
+    defaultImageScale: 1,
+    defaultImagePosition: { x: 0, y: 0 },
+    defaultCanvasBackgroundColor: '#FFFFFF',
+    supportsTextElements: false,
+    supportsOverlayImages: false,
+    supportsDesignService: true,
+  },
+
+  // --- Flat-rate pricing ---
+  pricingModel: 'flat_rate',
+  allowCustomDimensions: false,
+  freeShippingMessage: 'FREE Next-Day Air Included',
+
+  predefinedSizes: [
+    { label: '5" × 18"',   widthIn: 18,  heightIn: 5,   basePriceCents: 1200 },
+    { label: '6" × 24"',   widthIn: 24,  heightIn: 6,   basePriceCents: 1400 },
+    { label: '9" × 12"',   widthIn: 12,  heightIn: 9,   basePriceCents: 1500 },
+    { label: '12" × 18"',  widthIn: 18,  heightIn: 12,  basePriceCents: 1800 },
+    { label: '18" × 24"',  widthIn: 24,  heightIn: 18,  basePriceCents: 2400 },
+    { label: '24" × 18"',  widthIn: 18,  heightIn: 24,  basePriceCents: 2400 },
+    { label: '24" × 24"',  widthIn: 24,  heightIn: 24,  basePriceCents: 2800 },
+    { label: '24" × 36"',  widthIn: 36,  heightIn: 24,  basePriceCents: 3600 },
+    { label: '36" × 24"',  widthIn: 24,  heightIn: 36,  basePriceCents: 3600 },
+    { label: "4' × 8'",    widthIn: 96,  heightIn: 48,  basePriceCents: 9500 },
+  ],
+
+  materialMultipliers: [
+    { key: 'corrugated',    label: 'Corrugated Plastic', multiplier: 1.0 },
+    { key: 'aluminum_040',  label: 'Aluminum (.040)',     multiplier: 1.4 },
+    { key: 'aluminum_063',  label: 'Aluminum (.063)',     multiplier: 1.65 },
+  ],
 };
 
 // ============================================================================
@@ -206,6 +354,7 @@ const bannerProduct: ProductTypeConfig = {
 
 const PRODUCT_REGISTRY: Record<ProductTypeSlug, ProductTypeConfig> = {
   banner: bannerProduct,
+  yard_sign: yardSignProduct,
 };
 
 /**

@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { useEditorStore } from './editor';
 
-export type MaterialKey = '13oz' | '15oz' | '18oz' | 'mesh';
+export type MaterialKey = '13oz' | '15oz' | '18oz' | 'mesh' | 'corrugated' | 'aluminum_040' | 'aluminum_063';
 export type Grommets =
   | 'none'
   | 'every-2-3ft'

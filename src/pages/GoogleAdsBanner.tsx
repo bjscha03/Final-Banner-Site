@@ -13,6 +13,12 @@ import CartModal from '@/components/CartModal';
 import { getQuantityDiscountRate } from '@/lib/quantity-discount';
 import DeliveryCarousel from '@/components/home/DeliveryCarousel';
 import { generateFinalRenderFromHTML } from '@/utils/generateFinalRenderFromHTML';
+import { useAuth, isAdmin } from '@/lib/auth';
+import type { ProductTypeSlug } from '@/lib/products';
+import { getProductConfig } from '@/lib/products';
+import ProductTypeSwitcher from '@/components/design/ProductTypeSwitcher';
+import YardSignConfigPanel from '@/components/design/YardSignConfigPanel';
+import { calcYardSignPricing, getYardSignSizes, getYardSignQuantityDiscountRate } from '@/lib/yard-sign-pricing';
 
 const PRESET_SIZES = [
   { label: "2' × 4'", w: 48, h: 24 },
@@ -84,6 +90,19 @@ const GoogleAdsBanner: React.FC = () => {
   const orderRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Admin detection for yard signs visibility
+  const { user } = useAuth();
+  const userIsAdmin = isAdmin(user);
+
+  // Product type state (admin-only: yard_sign)
+  const [productType, setProductType] = useState<ProductTypeSlug>('banner');
+  const isYardSign = productType === 'yard_sign';
+
+  // Yard sign specific state
+  const yardSignSizes = getYardSignSizes();
+  const [yardSignSizeIndex, setYardSignSizeIndex] = useState(4); // Default: 18" × 24"
+  const [yardSignMaterial, setYardSignMaterial] = useState('corrugated');
+
   // Use string state for dimension inputs so users can clear and retype freely
   const [widthFtStr, setWidthFtStr] = useState('4');
   const [widthInRStr, setWidthInRStr] = useState('0');
@@ -137,9 +156,20 @@ const GoogleAdsBanner: React.FC = () => {
   const { isCartOpen, setIsCartOpen } = useUIStore();
   const cartItemCount = useCartStore(s => s.getItemCount());
 
-  const widthIn = widthFt * 12 + widthInR;
-  const heightIn = heightFt * 12 + heightInR;
+  // Dimensions: for banners, use ft+in inputs; for yard signs, use predefined size
+  const selectedYardSignSize = yardSignSizes[yardSignSizeIndex] || yardSignSizes[0];
+  const widthIn = isYardSign ? selectedYardSignSize.widthIn : (widthFt * 12 + widthInR);
+  const heightIn = isYardSign ? selectedYardSignSize.heightIn : (heightFt * 12 + heightInR);
   const sqft = (widthIn * heightIn) / 144;
+
+  // Yard sign pricing (computed reactively)
+  const yardSignPricing = useMemo(() => {
+    if (!isYardSign) return null;
+    return calcYardSignPricing(widthIn, heightIn, yardSignMaterial, quantity);
+  }, [isYardSign, widthIn, heightIn, yardSignMaterial, quantity]);
+
+  // Yard sign quantity discount rate
+  const yardSignDiscountRate = isYardSign ? getYardSignQuantityDiscountRate(quantity) : 0;
 
   // Reset image position/scale when dimensions change to prevent clipping
   useEffect(() => {
@@ -217,8 +247,8 @@ const GoogleAdsBanner: React.FC = () => {
   const selectedMaterial = MATERIALS.find(m => m.mapped === material) || MATERIALS[0];
   const materialLabel = selectedMaterial.label;
   const grommetsLabel = DESIGN_GROMMET_OPTIONS.find(o => o.value === grommets)?.label || 'None';
-  const widthDisplay = widthInR > 0 ? `${widthFt}'${widthInR}"` : `${widthFt}'`;
-  const heightDisplay = heightInR > 0 ? `${heightFt}'${heightInR}"` : `${heightFt}'`;
+  const widthDisplay = isYardSign ? `${widthIn}"` : (widthInR > 0 ? `${widthFt}'${widthInR}"` : `${widthFt}'`);
+  const heightDisplay = isYardSign ? `${heightIn}"` : (heightInR > 0 ? `${heightFt}'${heightInR}"` : `${heightFt}'`);
 
   // Quantity discount info
   const quantityDiscountRate = getQuantityDiscountRate(quantity);
@@ -236,6 +266,18 @@ const GoogleAdsBanner: React.FC = () => {
   }, [searchParams]);
 
   const scrollToOrder = () => orderRef.current?.scrollIntoView({ behavior: 'smooth' });
+
+  // Handle product type switch — reset image position but keep uploaded file
+  const handleProductTypeChange = useCallback((newType: ProductTypeSlug) => {
+    // Guard: only admins can switch to yard_sign
+    if (newType === 'yard_sign' && !userIsAdmin) return;
+    setProductType(newType);
+    setImgPos({ x: 0, y: 0 });
+    setImgScale(1);
+    setQuantity(1);
+    setPromoCode('');
+    setPromoApplied(false);
+  }, [userIsAdmin]);
 
   const applyPreset = (idx: number) => {
     const p = PRESET_SIZES[idx];
@@ -330,21 +372,28 @@ const GoogleAdsBanner: React.FC = () => {
     let finalRope = addRope;
     let finalPolePockets = polePockets;
     let finalPolePocketSize = '2';
-    
-    selectedOptions.forEach(opt => {
-      if (opt.selected) {
-        if (opt.id === 'grommets' && opt.grommetSelection) {
-          finalGrommets = opt.grommetSelection;
+
+    // Yard signs don't have finishing options
+    if (isYardSign) {
+      finalGrommets = 'none';
+      finalRope = false;
+      finalPolePockets = 'none';
+    } else {
+      selectedOptions.forEach(opt => {
+        if (opt.selected) {
+          if (opt.id === 'grommets' && opt.grommetSelection) {
+            finalGrommets = opt.grommetSelection;
+          }
+          if (opt.id === 'rope') {
+            finalRope = true;
+          }
+          if (opt.id === 'polePockets' && opt.polePocketSelection) {
+            finalPolePockets = opt.polePocketSelection;
+            finalPolePocketSize = opt.polePocketSize || '2';
+          }
         }
-        if (opt.id === 'rope') {
-          finalRope = true;
-        }
-        if (opt.id === 'polePockets' && opt.polePocketSelection) {
-          finalPolePockets = opt.polePocketSelection;
-          finalPolePocketSize = opt.polePocketSize || '2';
-        }
-      }
-    });
+      });
+    }
 
     // FINAL_RENDER: Generate a pixel-perfect snapshot of the banner as designed.
     // This is the source of truth for admin JPEG export — must match exactly what
@@ -363,13 +412,13 @@ const GoogleAdsBanner: React.FC = () => {
     // at full resolution, rather than upscaling the client-captured JPEG snapshot.
     // (container already declared above)
     const canvasStateJson = JSON.stringify({
-      source: 'google-ads-banner',
+      source: isYardSign ? 'yard-sign' : 'google-ads-banner',
       version: 2,
       // Original uploaded image (full-res, NOT thumbnail)
       originalImageUrl: uploadedFile.url,
       originalImageFileKey: uploadedFile.fileKey,
       isPdf: uploadedFile.isPdf,
-      // Banner ordered dimensions in inches
+      // Ordered dimensions in inches
       widthIn,
       heightIn,
       // All object transforms as shown on screen
@@ -380,47 +429,85 @@ const GoogleAdsBanner: React.FC = () => {
       containerCssHeight: container?.offsetHeight || null,
       // Background color
       bgColor: '#fafafa',
+      // Product type info
+      productType,
     });
     console.log('[DESIGN_STATE] Saved design state:', canvasStateJson.length, 'chars');
-    
-    const updatedTotals = calcTotals({ 
-      widthIn, heightIn, qty: quantity, material, 
-      addRope: finalRope, polePockets: finalPolePockets 
-    });
-    
-    quoteStore.set({
-      widthIn, heightIn, quantity, material,
-      grommets: finalGrommets as any, 
-      polePockets: finalPolePockets, 
-      polePocketSize: finalPolePocketSize as any,
-      addRope: finalRope,
-      imagePosition: checkoutData.pos,
-      imageScale: checkoutData.scale,
-      fitMode: 'fill',
-      thumbnailUrl: uploadedFile.thumbnailUrl,
-      file: { name: uploadedFile.name, url: uploadedFile.url, fileKey: uploadedFile.fileKey, size: uploadedFile.size, isPdf: uploadedFile.isPdf, thumbnailUrl: uploadedFile.thumbnailUrl, type: uploadedFile.isPdf ? 'application/pdf' : 'image/*' } as any,
-      // FINAL_RENDER: Guaranteed to exist (mandatory generation above)
-      finalRenderUrl: finalRenderResult?.url || null,
-      finalRenderFileKey: finalRenderResult?.fileKey || null,
-      finalRenderWidthPx: finalRenderResult?.widthPx || null,
-      finalRenderHeightPx: finalRenderResult?.heightPx || null,
-      finalRenderDpi: finalRenderResult?.dpi || null,
-      // DESIGN STATE: Exact approved design state for server-side print re-rendering
-      canvasStateJson: canvasStateJson,
-    });
-    const pricing = {
-      unit_price_cents: Math.round(updatedTotals.unit * 100),
-      rope_cost_cents: Math.round(updatedTotals.rope * 100),
-      pole_pocket_cost_cents: Math.round(updatedTotals.polePocket * 100),
-      line_total_cents: Math.round(updatedTotals.materialTotal * 100),
-    };
-    cartStore.addFromQuote(useQuoteStore.getState(), undefined, pricing);
+
+    // Determine material and pricing based on product type
+    const checkoutMaterial: MaterialKey = isYardSign ? (yardSignMaterial as MaterialKey) : material;
+
+    if (isYardSign && yardSignPricing) {
+      // Yard sign pricing — flat rate
+      quoteStore.set({
+        widthIn, heightIn, quantity, material: checkoutMaterial,
+        grommets: 'none' as any,
+        polePockets: 'none',
+        polePocketSize: '2' as any,
+        addRope: false,
+        imagePosition: checkoutData.pos,
+        imageScale: checkoutData.scale,
+        fitMode: 'fill',
+        thumbnailUrl: uploadedFile.thumbnailUrl,
+        file: { name: uploadedFile.name, url: uploadedFile.url, fileKey: uploadedFile.fileKey, size: uploadedFile.size, isPdf: uploadedFile.isPdf, thumbnailUrl: uploadedFile.thumbnailUrl, type: uploadedFile.isPdf ? 'application/pdf' : 'image/*' } as any,
+        finalRenderUrl: finalRenderResult?.url || null,
+        finalRenderFileKey: finalRenderResult?.fileKey || null,
+        finalRenderWidthPx: finalRenderResult?.widthPx || null,
+        finalRenderHeightPx: finalRenderResult?.heightPx || null,
+        finalRenderDpi: finalRenderResult?.dpi || null,
+        canvasStateJson: canvasStateJson,
+      });
+      const pricing = {
+        unit_price_cents: yardSignPricing.unitPriceCents,
+        rope_cost_cents: 0,
+        pole_pocket_cost_cents: 0,
+        line_total_cents: yardSignPricing.totalCents,
+      };
+      // Pass product_type through quote state for cart store
+      const quoteState = useQuoteStore.getState();
+      (quoteState as any).product_type = 'yard_sign';
+      cartStore.addFromQuote(quoteState, undefined, pricing);
+    } else {
+      // Banner pricing — per sqft (existing logic)
+      const updatedTotals = calcTotals({ 
+        widthIn, heightIn, qty: quantity, material, 
+        addRope: finalRope, polePockets: finalPolePockets 
+      });
+      
+      quoteStore.set({
+        widthIn, heightIn, quantity, material,
+        grommets: finalGrommets as any, 
+        polePockets: finalPolePockets, 
+        polePocketSize: finalPolePocketSize as any,
+        addRope: finalRope,
+        imagePosition: checkoutData.pos,
+        imageScale: checkoutData.scale,
+        fitMode: 'fill',
+        thumbnailUrl: uploadedFile.thumbnailUrl,
+        file: { name: uploadedFile.name, url: uploadedFile.url, fileKey: uploadedFile.fileKey, size: uploadedFile.size, isPdf: uploadedFile.isPdf, thumbnailUrl: uploadedFile.thumbnailUrl, type: uploadedFile.isPdf ? 'application/pdf' : 'image/*' } as any,
+        // FINAL_RENDER: Guaranteed to exist (mandatory generation above)
+        finalRenderUrl: finalRenderResult?.url || null,
+        finalRenderFileKey: finalRenderResult?.fileKey || null,
+        finalRenderWidthPx: finalRenderResult?.widthPx || null,
+        finalRenderHeightPx: finalRenderResult?.heightPx || null,
+        finalRenderDpi: finalRenderResult?.dpi || null,
+        // DESIGN STATE: Exact approved design state for server-side print re-rendering
+        canvasStateJson: canvasStateJson,
+      });
+      const pricing = {
+        unit_price_cents: Math.round(updatedTotals.unit * 100),
+        rope_cost_cents: Math.round(updatedTotals.rope * 100),
+        pole_pocket_cost_cents: Math.round(updatedTotals.polePocket * 100),
+        line_total_cents: Math.round(updatedTotals.materialTotal * 100),
+      };
+      cartStore.addFromQuote(useQuoteStore.getState(), undefined, pricing);
+    }
     console.log('[FINAL_RENDER_HTML] ✅ order_save_happened: after final_render was ready');
     console.log('[FINAL_RENDER_HTML] ✅ Cart item created with final_render data');
     setIsCartOpen(true);
     setPendingCheckoutData(null);
     navigate('/checkout');
-  }, [uploadedFile, pendingCheckoutData, grommets, addRope, polePockets, widthIn, heightIn, quantity, material, quoteStore, cartStore, setIsCartOpen, navigate, imgPos, imgScale]);
+  }, [uploadedFile, pendingCheckoutData, grommets, addRope, polePockets, widthIn, heightIn, quantity, material, quoteStore, cartStore, setIsCartOpen, navigate, imgPos, imgScale, isYardSign, yardSignMaterial, yardSignPricing, productType]);
 
   // Proceed directly to checkout using current inline preview position
   const handleCheckout = useCallback(() => {
@@ -435,6 +522,12 @@ const GoogleAdsBanner: React.FC = () => {
     };
     setPendingCheckoutData({ pos: posPercent, scale: imgScale });
 
+    // Yard signs skip upsell (no finishing options)
+    if (isYardSign) {
+      performCheckout([], { pos: posPercent, scale: imgScale });
+      return;
+    }
+
     // Skip upsell if all options are already selected
     const hasFinishing = grommets !== 'none' || polePockets !== 'none';
     const hasRope = addRope;
@@ -443,7 +536,7 @@ const GoogleAdsBanner: React.FC = () => {
     } else {
       setShowUpsellModal(true);
     }
-  }, [uploadedFile, imgPos, imgScale, grommets, polePockets, addRope, performCheckout]);
+  }, [uploadedFile, imgPos, imgScale, grommets, polePockets, addRope, performCheckout, isYardSign]);
 
 
 // Trigger upsell modal after confirming position
@@ -460,6 +553,12 @@ const GoogleAdsBanner: React.FC = () => {
     setPendingCheckoutData({ pos: posPercent, scale });
     setShowPreview(false);
     
+    // Yard signs skip upsell
+    if (isYardSign) {
+      performCheckout([], { pos: posPercent, scale });
+      return;
+    }
+
     // Skip upsell if all options are already selected
     const hasFinishing = grommets !== 'none' || polePockets !== 'none';
     const hasRope = addRope;
@@ -469,7 +568,7 @@ const GoogleAdsBanner: React.FC = () => {
     } else {
       setShowUpsellModal(true);
     }
-  }, [uploadedFile, grommets, polePockets, addRope, performCheckout]);
+  }, [uploadedFile, grommets, polePockets, addRope, performCheckout, isYardSign]);
 
   // Handle upsell modal continue
   const handleUpsellContinue = useCallback((selectedOptions: UpsellOption[], dontAskAgain: boolean) => {
@@ -661,9 +760,29 @@ const GoogleAdsBanner: React.FC = () => {
 
         <section ref={orderRef} id="order-builder" className="py-12 px-4 bg-white">
           <div className="max-w-4xl lg:max-w-6xl mx-auto">
-            <h2 className="text-2xl md:text-3xl font-bold text-center mb-10">Build Your Banner</h2>
+            {/* Admin-only product type switcher */}
+            {userIsAdmin && (
+              <ProductTypeSwitcher productType={productType} onProductTypeChange={handleProductTypeChange} />
+            )}
+            <h2 className="text-2xl md:text-3xl font-bold text-center mb-10">
+              {isYardSign ? 'Build Your Yard Sign' : 'Build Your Banner'}
+            </h2>
             <div className="grid md:grid-cols-2 lg:grid-cols-[1.4fr_1fr] gap-10">
               <div className="space-y-8">
+                {isYardSign ? (
+                  /* ========== YARD SIGN CONFIG (size + material + qty) ========== */
+                  <YardSignConfigPanel
+                    selectedMaterial={yardSignMaterial}
+                    onMaterialChange={setYardSignMaterial}
+                    selectedSizeIndex={yardSignSizeIndex}
+                    onSizeChange={setYardSignSizeIndex}
+                    quantity={quantity}
+                    onQuantityChange={setQuantity}
+                    quantityDiscountRate={yardSignDiscountRate}
+                  />
+                ) : (
+                  /* ========== BANNER CONFIG (existing) ========== */
+                  <>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Popular Sizes</label>
                   <div className="grid grid-cols-3 gap-2">
@@ -765,6 +884,9 @@ const GoogleAdsBanner: React.FC = () => {
                     </div>
                   )}
                 </div>
+                  </>
+                )}
+                {/* ========== SHARED: Upload Section ========== */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Upload Your Artwork</label>
                   {!uploadedFile ? (
@@ -790,7 +912,7 @@ const GoogleAdsBanner: React.FC = () => {
                     <div>
                       {/* Preview labeling */}
                       <div className="mb-2">
-                        <h3 className="text-sm font-bold text-gray-800">Live Banner Preview</h3>
+                        <h3 className="text-sm font-bold text-gray-800">{isYardSign ? 'Live Yard Sign Preview' : 'Live Banner Preview'}</h3>
                         <p className="text-xs text-gray-400">Final print preview — what you see is what you get</p>
                       </div>
                       {/* Banner preview with depth background */}
@@ -879,6 +1001,9 @@ const GoogleAdsBanner: React.FC = () => {
                   {uploadError && <p className="text-xs text-red-600 mt-2">{uploadError}</p>}
                   <p className="text-xs text-gray-400 mt-2 text-center">Every file reviewed by a real designer before printing.</p>
                 </div>
+                {/* Banner-only: Quantity + Finishing Options (yard signs include these in their config panel) */}
+                {!isYardSign && (
+                  <>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Quantity</label>
                   <div className="flex items-center gap-3">
@@ -929,11 +1054,41 @@ const GoogleAdsBanner: React.FC = () => {
                     </div>
                   </div>
                 </div>
+                  </>
+                )}
               </div>
 
               <div className="space-y-6">
                 <div className="rounded-xl p-6 text-center" style={{ background: "#F7F8FA", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
                   <p className="text-sm text-gray-500 mb-1">Your Price</p>
+                  {isYardSign && yardSignPricing ? (
+                    /* ========== YARD SIGN PRICING ========== */
+                    <>
+                      {yardSignPricing.discountRate > 0 ? (
+                        <>
+                          <p className="text-2xl text-gray-400 line-through leading-tight">{usd(yardSignPricing.subtotalCents / 100)}</p>
+                          <p className="text-5xl font-extrabold text-green-600 leading-tight">{usd(yardSignPricing.totalCents / 100)}</p>
+                          <p className="text-sm text-green-600 font-semibold mt-1">You save {usd(yardSignPricing.discountCents / 100)}!</p>
+                        </>
+                      ) : (
+                        <p className="text-5xl font-extrabold text-gray-900 leading-tight">{usd(yardSignPricing.totalCents / 100)}</p>
+                      )}
+                      <p className="text-base text-green-600 font-semibold mt-2">FREE Next-Day Air Included</p>
+                      <p className="text-sm text-gray-500 mt-1">Printed within 24 hours.</p>
+                      <p className="text-sm text-gray-500 mt-1">{usd(yardSignPricing.unitPriceCents / 100)}/sign</p>
+
+                      <div className="text-left text-sm text-gray-600 space-y-1 mt-4 mb-2">
+                        <p><strong>Size:</strong> {selectedYardSignSize.label}</p>
+                        <p><strong>Material:</strong> {getYardSignMaterials().find(m => m.key === yardSignMaterial)?.label || yardSignMaterial}</p>
+                        <p><strong>Quantity:</strong> {quantity}</p>
+                        {yardSignPricing.discountRate > 0 && (
+                          <p className="text-green-600"><strong>Discount:</strong> {Math.round(yardSignPricing.discountRate * 100)}% off</p>
+                        )}
+                      </div>
+                    </>
+                  ) : (
+                    /* ========== BANNER PRICING (existing) ========== */
+                    <>
                   {promoApplied ? (
                     <>
                       <p className="text-2xl text-gray-400 line-through leading-tight">{usd(totals.materialTotal)}</p>
@@ -955,6 +1110,8 @@ const GoogleAdsBanner: React.FC = () => {
                     {polePockets !== 'none' && <p><strong>Pole Pockets:</strong> {polePockets}</p>}
                     {addRope && <p><strong>Rope:</strong> Included</p>}
                   </div>
+                    </>
+                  )}
 
                   {/* Promo Code */}
                   <div className="mt-3 mb-2">
@@ -1077,7 +1234,9 @@ const GoogleAdsBanner: React.FC = () => {
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-xs text-gray-500">Total</p>
-              {promoApplied ? (
+              {isYardSign && yardSignPricing ? (
+                <p className="text-xl font-bold text-gray-900">{usd(yardSignPricing.totalCents / 100)}</p>
+              ) : promoApplied ? (
                 <div className="flex items-center gap-2">
                   <p className="text-sm text-gray-400 line-through">{usd(totals.materialTotal)}</p>
                   <p className="text-xl font-bold text-green-600">{usd(discountedTotal)}</p>
@@ -1101,7 +1260,7 @@ const GoogleAdsBanner: React.FC = () => {
           <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-3xl w-full max-h-[95vh] sm:max-h-[90vh] flex flex-col modal-dvh-fix">
             <div className="flex items-center justify-between p-4 border-b">
               <div>
-                <h3 className="text-lg font-bold text-gray-900">Live Banner Preview</h3>
+                <h3 className="text-lg font-bold text-gray-900">{isYardSign ? 'Live Yard Sign Preview' : 'Live Banner Preview'}</h3>
                 <p className="text-xs text-gray-400">Final print preview — what you see is what you get</p>
               </div>
               <button onClick={() => setShowPreview(false)} className="p-2 hover:bg-gray-100 rounded-full">

@@ -316,7 +316,7 @@ export const useCartStore = create<CartState>()(
 
         const newItem: CartItem = {
           id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-          product_type: 'banner',
+          product_type: (quote as any).product_type || 'banner',
           width_in: quote.widthIn,
           height_in: quote.heightIn,
           quantity: quote.quantity,
@@ -443,10 +443,12 @@ export const useCartStore = create<CartState>()(
           debugLog('✅ CART: Set cart owner to:', userId);
         }
 
+        const productLabel = newItem.product_type === 'yard_sign' ? 'Yard Sign' : 'Banner';
+
         // Track add to cart event
         trackAddToCart({
           id: newItem.id,
-          name: `${quote.widthIn}x${quote.heightIn} ${quote.material} Banner`,
+          name: `${quote.widthIn}x${quote.heightIn} ${quote.material} ${productLabel}`,
           material: quote.material,
           size: `${quote.widthIn}x${quote.heightIn}`,
           price: newItem.line_total_cents,
@@ -455,7 +457,7 @@ export const useCartStore = create<CartState>()(
         
         // Track Facebook Pixel AddToCart
         trackFBAddToCart({
-          content_name: `${quote.widthIn}x${quote.heightIn} ${quote.material} Banner`,
+          content_name: `${quote.widthIn}x${quote.heightIn} ${quote.material} ${productLabel}`,
           value: newItem.line_total_cents,
         });
       // CRITICAL FIX: Sync to Neon database AFTER state update completes
