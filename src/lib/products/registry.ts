@@ -329,15 +329,15 @@ const yardSignProduct: ProductTypeConfig = {
   freeShippingMessage: 'FREE Next-Day Air Included',
 
   predefinedSizes: [
-    { label: '5" × 18"',   widthIn: 18,  heightIn: 5,   basePriceCents: 1200 },
-    { label: '6" × 24"',   widthIn: 24,  heightIn: 6,   basePriceCents: 1400 },
-    { label: '9" × 12"',   widthIn: 12,  heightIn: 9,   basePriceCents: 1500 },
-    { label: '12" × 18"',  widthIn: 18,  heightIn: 12,  basePriceCents: 1800 },
-    { label: '18" × 24"',  widthIn: 24,  heightIn: 18,  basePriceCents: 2400 },
-    { label: '24" × 18"',  widthIn: 18,  heightIn: 24,  basePriceCents: 2400 },
+    { label: '18" × 5"',   widthIn: 18,  heightIn: 5,   basePriceCents: 1200 },
+    { label: '24" × 6"',   widthIn: 24,  heightIn: 6,   basePriceCents: 1400 },
+    { label: '12" × 9"',   widthIn: 12,  heightIn: 9,   basePriceCents: 1500 },
+    { label: '18" × 12"',  widthIn: 18,  heightIn: 12,  basePriceCents: 1800 },
+    { label: '24" × 18"',  widthIn: 24,  heightIn: 18,  basePriceCents: 2400 },
+    { label: '18" × 24"',  widthIn: 18,  heightIn: 24,  basePriceCents: 2400 },
     { label: '24" × 24"',  widthIn: 24,  heightIn: 24,  basePriceCents: 2800 },
-    { label: '24" × 36"',  widthIn: 36,  heightIn: 24,  basePriceCents: 3600 },
-    { label: '36" × 24"',  widthIn: 24,  heightIn: 36,  basePriceCents: 3600 },
+    { label: '36" × 24"',  widthIn: 36,  heightIn: 24,  basePriceCents: 3600 },
+    { label: '24" × 36"',  widthIn: 24,  heightIn: 36,  basePriceCents: 3600 },
     { label: "4' × 8'",    widthIn: 96,  heightIn: 48,  basePriceCents: 9500 },
   ],
 
