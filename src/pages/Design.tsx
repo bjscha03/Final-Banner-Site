@@ -210,6 +210,17 @@ const Design: React.FC = () => {
     }
   }, [materialDropdownOpen]);
 
+  // Track desktop breakpoint (lg: 1024px) to enlarge preview area on desktop only
+  const [isLgScreen, setIsLgScreen] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(min-width: 1024px)').matches : false
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const handler = () => setIsLgScreen(mq.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
   // Compute responsive canvas style for a given max height, preserving banner aspect ratio
   // Uses width + maxWidth instead of min() for better Firefox/Safari mobile compatibility
   const getCanvasStyle = useCallback((maxH: number) => {
@@ -224,8 +235,8 @@ const Design: React.FC = () => {
     };
   }, [widthIn, heightIn]);
 
-  const previewCanvasStyle = useMemo(() => getCanvasStyle(260), [getCanvasStyle]);
-  const dimPreviewCanvasStyle = useMemo(() => getCanvasStyle(140), [getCanvasStyle]);
+  const previewCanvasStyle = useMemo(() => getCanvasStyle(isLgScreen ? 400 : 260), [getCanvasStyle, isLgScreen]);
+  const dimPreviewCanvasStyle = useMemo(() => getCanvasStyle(isLgScreen ? 200 : 140), [getCanvasStyle, isLgScreen]);
   const totals = calcTotals({ widthIn, heightIn, qty: quantity, material, addRope, polePockets });
 
   const pricePerSqFt = PRICE_PER_SQFT[material];
@@ -627,9 +638,9 @@ const Design: React.FC = () => {
       </section>
 
       <section ref={orderRef} id="order-builder" className="py-12 px-4 bg-white">
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-4xl lg:max-w-6xl mx-auto">
           <h2 className="text-2xl md:text-3xl font-bold text-center mb-10">Build Your Banner</h2>
-          <div className="grid md:grid-cols-2 gap-10">
+          <div className="grid md:grid-cols-2 lg:grid-cols-[1.4fr_1fr] gap-10">
             <div className="space-y-8">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Popular Sizes</label>

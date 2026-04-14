@@ -170,6 +170,17 @@ const GoogleAdsBanner: React.FC = () => {
     }
   }, [materialDropdownOpen]);
 
+  // Track desktop breakpoint (lg: 1024px) to enlarge preview area on desktop only
+  const [isLgScreen, setIsLgScreen] = useState(() =>
+    typeof window !== 'undefined' ? window.matchMedia('(min-width: 1024px)').matches : false
+  );
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const handler = () => setIsLgScreen(mq.matches);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
+
   // Compute responsive canvas style for a given max height, preserving banner aspect ratio
   // Uses width + maxWidth instead of min() for better Firefox/Safari mobile compatibility
   const getCanvasStyle = useCallback((maxH: number) => {
@@ -184,7 +195,7 @@ const GoogleAdsBanner: React.FC = () => {
     };
   }, [widthIn, heightIn]);
 
-  const previewCanvasStyle = useMemo(() => getCanvasStyle(260), [getCanvasStyle]);
+  const previewCanvasStyle = useMemo(() => getCanvasStyle(isLgScreen ? 400 : 260), [getCanvasStyle, isLgScreen]);
   const dimPreviewCanvasStyle = useMemo(() => getCanvasStyle(140), [getCanvasStyle]);
 
   // Cross-browser preview container styles using padding-bottom technique
@@ -198,8 +209,8 @@ const GoogleAdsBanner: React.FC = () => {
       paddingPct: `${(h / w) * 100}%`,
     };
   }, [widthIn, heightIn]);
-  const { wrapperStyle: previewWrapperStyle, paddingPct: previewPaddingPct } = useMemo(() => getPreviewContainerStyles(260), [getPreviewContainerStyles]);
-  const { wrapperStyle: dimPreviewWrapperStyle, paddingPct: dimPreviewPaddingPct } = useMemo(() => getPreviewContainerStyles(140), [getPreviewContainerStyles]);
+  const { wrapperStyle: previewWrapperStyle, paddingPct: previewPaddingPct } = useMemo(() => getPreviewContainerStyles(isLgScreen ? 400 : 260), [getPreviewContainerStyles, isLgScreen]);
+  const { wrapperStyle: dimPreviewWrapperStyle, paddingPct: dimPreviewPaddingPct } = useMemo(() => getPreviewContainerStyles(isLgScreen ? 200 : 140), [getPreviewContainerStyles, isLgScreen]);
   const totals = calcTotals({ widthIn, heightIn, qty: quantity, material, addRope, polePockets });
 
   const pricePerSqFt = PRICE_PER_SQFT[material];
@@ -649,9 +660,9 @@ const GoogleAdsBanner: React.FC = () => {
         <DeliveryCarousel />
 
         <section ref={orderRef} id="order-builder" className="py-12 px-4 bg-white">
-          <div className="max-w-4xl mx-auto">
+          <div className="max-w-4xl lg:max-w-6xl mx-auto">
             <h2 className="text-2xl md:text-3xl font-bold text-center mb-10">Build Your Banner</h2>
-            <div className="grid md:grid-cols-2 gap-10">
+            <div className="grid md:grid-cols-2 lg:grid-cols-[1.4fr_1fr] gap-10">
               <div className="space-y-8">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Popular Sizes</label>
