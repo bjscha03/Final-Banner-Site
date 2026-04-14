@@ -196,7 +196,7 @@ const GoogleAdsBanner: React.FC = () => {
   }, [widthIn, heightIn]);
 
   const previewCanvasStyle = useMemo(() => getCanvasStyle(isLgScreen ? 400 : 260), [getCanvasStyle, isLgScreen]);
-  const dimPreviewCanvasStyle = useMemo(() => getCanvasStyle(140), [getCanvasStyle]);
+  const dimPreviewCanvasStyle = useMemo(() => getCanvasStyle(isLgScreen ? 200 : 140), [getCanvasStyle, isLgScreen]);
 
   // Cross-browser preview container styles using padding-bottom technique
   // (aspect-ratio CSS fails on mobile Safari/Firefox with absolute children + overflow:hidden)
