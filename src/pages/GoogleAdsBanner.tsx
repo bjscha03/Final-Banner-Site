@@ -675,8 +675,8 @@ const GoogleAdsBanner: React.FC = () => {
   return (
     <>
       <Helmet>
-        <title>Custom Banner Printing - 24 Hour Production | Banners On The Fly</title>
-        <meta name="description" content="Upload your file, choose your size, get FREE Next-Day Air shipping. 24-hour production on custom vinyl banners." />
+        <title>{isYardSign ? 'Custom Yard Signs' : 'Custom Banner Printing'} - 24 Hour Production | Banners On The Fly</title>
+        <meta name="description" content={isYardSign ? "Upload your file, choose your size, get FREE Next-Day Air shipping. 24-hour production on custom yard signs." : "Upload your file, choose your size, get FREE Next-Day Air shipping. 24-hour production on custom vinyl banners."} />
         <meta name="robots" content="noindex, nofollow" />
       </Helmet>
       <div className="min-h-screen bg-white text-gray-900">
@@ -706,7 +706,7 @@ const GoogleAdsBanner: React.FC = () => {
         <section className="px-4 pt-10 pb-12 md:pt-14 md:pb-14" style={{ background: 'linear-gradient(180deg, #F9FAFB 0%, #EEF2F7 100%)' }}>
           <div className="max-w-2xl mx-auto text-center space-y-5">
             <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight leading-tight">
-              Custom Banner Printing
+              {isYardSign ? 'Custom Yard Signs' : 'Custom Banner Printing'}
               <br />
               <span className="text-orange-500">24-Hour Production</span>
             </h1>
@@ -984,7 +984,10 @@ const GoogleAdsBanner: React.FC = () => {
                       </div>
                       {/* Size dimensions below preview */}
                       <p className="text-xs text-gray-400 text-center mt-2">
-                        Size: {widthFt} ft{widthInR > 0 ? ` ${widthInR} in` : ''} × {heightFt} ft{heightInR > 0 ? ` ${heightInR} in` : ''} ({sqft.toFixed(1)} sq ft)
+                        {isYardSign
+                          ? `Size: ${selectedYardSignSize.label}`
+                          : `Size: ${widthFt} ft${widthInR > 0 ? ` ${widthInR} in` : ''} × ${heightFt} ft${heightInR > 0 ? ` ${heightInR} in` : ''} (${sqft.toFixed(1)} sq ft)`
+                        }
                       </p>
                       {/* Confidence text */}
                       <p className="text-xs text-gray-500 text-center mt-1 font-medium">Your design will be printed based on this preview</p>
@@ -1334,7 +1337,10 @@ const GoogleAdsBanner: React.FC = () => {
               </div>
               {/* Size below preview */}
               <p className="text-xs text-gray-400 text-center mt-2">
-                Size: {widthFt} ft{widthInR > 0 ? ` ${widthInR} in` : ''} × {heightFt} ft{heightInR > 0 ? ` ${heightInR} in` : ''} ({sqft.toFixed(1)} sq ft)
+                {isYardSign
+                  ? `Size: ${selectedYardSignSize.label}`
+                  : `Size: ${widthFt} ft${widthInR > 0 ? ` ${widthInR} in` : ''} × ${heightFt} ft${heightInR > 0 ? ` ${heightInR} in` : ''} (${sqft.toFixed(1)} sq ft)`
+                }
               </p>
               {/* Zoom controls */}
               <div className="flex items-center justify-center mt-3">
