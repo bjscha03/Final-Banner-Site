@@ -186,6 +186,33 @@ const GoogleAdsBanner: React.FC = () => {
 
   const previewCanvasStyle = useMemo(() => getCanvasStyle(260), [getCanvasStyle]);
   const dimPreviewCanvasStyle = useMemo(() => getCanvasStyle(140), [getCanvasStyle]);
+
+  // Cross-browser preview container styles using padding-bottom technique
+  // (aspect-ratio CSS fails on mobile Safari/Firefox with absolute children + overflow:hidden)
+  const previewWrapperStyle = useMemo(() => {
+    const w = widthIn || 96;
+    const h = heightIn || 48;
+    const ar = w / h;
+    const maxH = 260;
+    return { width: '100%', maxWidth: `${Math.round(maxH * ar)}px` } as React.CSSProperties;
+  }, [widthIn, heightIn]);
+  const previewPaddingPct = useMemo(() => {
+    const w = widthIn || 96;
+    const h = heightIn || 48;
+    return `${(h / w) * 100}%`;
+  }, [widthIn, heightIn]);
+  const dimPreviewWrapperStyle = useMemo(() => {
+    const w = widthIn || 96;
+    const h = heightIn || 48;
+    const ar = w / h;
+    const maxH = 140;
+    return { width: '100%', maxWidth: `${Math.round(maxH * ar)}px` } as React.CSSProperties;
+  }, [widthIn, heightIn]);
+  const dimPreviewPaddingPct = useMemo(() => {
+    const w = widthIn || 96;
+    const h = heightIn || 48;
+    return `${(h / w) * 100}%`;
+  }, [widthIn, heightIn]);
   const totals = calcTotals({ widthIn, heightIn, qty: quantity, material, addRope, polePockets });
 
   const pricePerSqFt = PRICE_PER_SQFT[material];
@@ -675,9 +702,10 @@ const GoogleAdsBanner: React.FC = () => {
                   {/* Dimension preview canvas — adjusts to banner aspect ratio */}
                   <label className="block text-sm font-semibold text-gray-700 mb-2 mt-4">Banner Size Preview</label>
                   <div className="flex justify-center mb-6">
+                    <div className="relative" style={dimPreviewWrapperStyle}>
                     <div
-                      className="bg-gray-100/70 border border-gray-200 rounded-lg relative transition-all duration-300 ease-out"
-                      style={dimPreviewCanvasStyle}
+                      className="bg-gray-100/70 border border-gray-200 rounded-lg relative w-full transition-all duration-300 ease-out"
+                      style={{ paddingBottom: dimPreviewPaddingPct }}
                     >
                       <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
                         <Ruler className="h-4 w-4 text-gray-300" />
@@ -686,6 +714,7 @@ const GoogleAdsBanner: React.FC = () => {
                         </span>
                         <span className="text-[10px] text-gray-400">Preview of selected size</span>
                       </div>
+                    </div>
                     </div>
                   </div>
                 </div>
@@ -768,12 +797,14 @@ const GoogleAdsBanner: React.FC = () => {
                       </div>
                       {/* Banner preview with depth background */}
                       <div className="rounded-xl p-4 md:p-6" style={{ background: 'linear-gradient(180deg, #f5f6f8 0%, #e9edf2 100%)' }}>
-                        {/* Banner surface */}
+                        {/* Width wrapper — constrains max-width so padding-bottom produces correct height */}
+                        <div className="mx-auto" style={previewWrapperStyle}>
+                        {/* Banner surface — uses padding-bottom for aspect ratio (cross-browser safe) */}
                         <div
                           ref={previewContainerRef}
-                          className="relative mx-auto rounded-sm select-none overflow-hidden transition-all duration-300 ease-out"
+                          className="relative w-full rounded-sm select-none overflow-hidden transition-all duration-300 ease-out"
                           style={{
-                            ...previewCanvasStyle,
+                            paddingBottom: previewPaddingPct,
                             cursor: isDraggingPreview ? "grabbing" : "grab",
                             touchAction: "none",
                             backgroundColor: '#fafafa',
@@ -819,6 +850,7 @@ const GoogleAdsBanner: React.FC = () => {
                             );
                           })}
                         </div>
+                        </div>{/* close width wrapper */}
                         {/* Zoom controls - grouped in rounded container */}
                         <div className="flex items-center justify-center mt-3">
                           <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm rounded-full px-3 py-1.5 shadow-sm border border-gray-200/60">
@@ -1085,7 +1117,7 @@ const GoogleAdsBanner: React.FC = () => {
                 <div
                   className="relative w-full rounded-sm select-none overflow-hidden transition-all duration-300 ease-out"
                   style={{
-                    aspectRatio: `${widthIn || 96} / ${heightIn || 48}`,
+                    paddingBottom: previewPaddingPct,
                     cursor: isDraggingPreview ? "grabbing" : "grab",
                     touchAction: "none",
                     backgroundColor: '#fafafa',
