@@ -1068,7 +1068,7 @@ const GoogleAdsBanner: React.FC = () => {
       {/* Preview Modal */}
       {showPreview && uploadedFile && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm sm:p-4">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-3xl w-full max-h-[95vh] sm:max-h-[90vh] flex flex-col" style={{ maxHeight: '95dvh' }}>
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-3xl w-full max-h-[95vh] sm:max-h-[90vh] flex flex-col modal-dvh-fix">
             <div className="flex items-center justify-between p-4 border-b">
               <div>
                 <h3 className="text-lg font-bold text-gray-900">Live Banner Preview</h3>
