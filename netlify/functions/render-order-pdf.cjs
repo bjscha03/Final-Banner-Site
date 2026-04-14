@@ -251,6 +251,57 @@ async function maybeUpscaleToFit(imgBuffer, needW, needH) {
 }
 
 /**
+ * Process an overlay image and return a composite layer entry for Sharp.
+ * Shared by both the JPEG reconstruction fallback and the text/overlay-only fallback.
+ */
+async function buildOverlayCompositeLayer(overlay, bannerWidthIn, bannerHeightIn, targetPxW, targetPxH, targetDpi, bleedIn) {
+  if (!overlay || (!overlay.url && !overlay.fileKey)) return null;
+
+  const overlayBuffer = overlay.fileKey
+    ? await fetchImage(overlay.fileKey, true)
+    : await fetchImage(overlay.url, false);
+  const overlayMeta = await sharp(overlayBuffer).rotate().metadata();
+  const overlaySourceW = overlayMeta.width || 1;
+  const overlaySourceH = overlayMeta.height || 1;
+  const overlayAspectRatio = overlay.aspectRatio || (overlaySourceW / overlaySourceH);
+  const defaultWidthInches = 4;
+  const overlayWidthIn = defaultWidthInches * (overlay.scale || 1);
+  const overlayHeightIn = overlayWidthIn / overlayAspectRatio;
+  let overlayWidthPx = Math.round(overlayWidthIn * targetDpi);
+  let overlayHeightPx = Math.round(overlayHeightIn * targetDpi);
+  const maxWPx = bannerWidthIn * targetDpi * 1.5;
+  const maxHPx = bannerHeightIn * targetDpi * 1.5;
+  if (overlayWidthPx > maxWPx || overlayHeightPx > maxHPx) {
+    const sf = Math.min(maxWPx / overlayWidthPx, maxHPx / overlayHeightPx);
+    overlayWidthPx = Math.round(overlayWidthPx * sf);
+    overlayHeightPx = Math.round(overlayHeightPx * sf);
+  }
+  const bannerAreaWidthPx = bannerWidthIn * targetDpi;
+  const bannerAreaHeightPx = bannerHeightIn * targetDpi;
+  const bleedPx = bleedIn * targetDpi;
+  const posX = (overlay.position && typeof overlay.position.x === 'number') ? overlay.position.x : 0;
+  const posY = (overlay.position && typeof overlay.position.y === 'number') ? overlay.position.y : 0;
+  const overlayLeft = Math.round(bleedPx + (posX / 100) * bannerAreaWidthPx);
+  const overlayTop = Math.round(bleedPx + (posY / 100) * bannerAreaHeightPx);
+  let overlayResized = await sharp(overlayBuffer).rotate()
+    .resize(overlayWidthPx, overlayHeightPx, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .toBuffer();
+  let finalLeft = overlayLeft, finalTop = overlayTop;
+  let cropLeft = 0, cropTop = 0, cropW = overlayWidthPx, cropH = overlayHeightPx;
+  if (finalLeft < 0) { cropLeft = -finalLeft; cropW -= cropLeft; finalLeft = 0; }
+  if (finalTop < 0) { cropTop = -finalTop; cropH -= cropTop; finalTop = 0; }
+  if (finalLeft + cropW > targetPxW) cropW = targetPxW - finalLeft;
+  if (finalTop + cropH > targetPxH) cropH = targetPxH - finalTop;
+  if (cropW > 0 && cropH > 0) {
+    if (cropLeft || cropTop || cropW !== overlayWidthPx || cropH !== overlayHeightPx) {
+      overlayResized = await sharp(overlayResized).extract({ left: cropLeft, top: cropTop, width: cropW, height: cropH }).toBuffer();
+    }
+    return { input: overlayResized, top: finalTop, left: finalLeft };
+  }
+  return null;
+}
+
+/**
  * Convert raster image to PDF with optional text layers
  */
 async function rasterToPdfBuffer(imgBuffer, pageWidthIn, pageHeightIn, textElements = [], bannerWidthIn, bannerHeightIn, previewCanvasPx, bleedIn = 0.125) {
@@ -1184,45 +1235,8 @@ exports.handler = async (event) => {
             // Add overlay image if present
             if (req.overlayImage && (req.overlayImage.url || req.overlayImage.fileKey)) {
               try {
-                const overlayBuffer = req.overlayImage.fileKey
-                  ? await fetchImage(req.overlayImage.fileKey, true)
-                  : await fetchImage(req.overlayImage.url, false);
-                const overlayMeta = await sharp(overlayBuffer).rotate().metadata();
-                const overlaySourceW = overlayMeta.width || 1;
-                const overlaySourceH = overlayMeta.height || 1;
-                const overlayAspectRatio = req.overlayImage.aspectRatio || (overlaySourceW / overlaySourceH);
-                const defaultWidthInches = 4;
-                const overlayWidthIn = defaultWidthInches * req.overlayImage.scale;
-                const overlayHeightIn = overlayWidthIn / overlayAspectRatio;
-                let overlayWidthPx = Math.round(overlayWidthIn * targetDpi);
-                let overlayHeightPx = Math.round(overlayHeightIn * targetDpi);
-                const maxWPx = req.bannerWidthIn * targetDpi * 1.5;
-                const maxHPx = req.bannerHeightIn * targetDpi * 1.5;
-                if (overlayWidthPx > maxWPx || overlayHeightPx > maxHPx) {
-                  const sf = Math.min(maxWPx / overlayWidthPx, maxHPx / overlayHeightPx);
-                  overlayWidthPx = Math.round(overlayWidthPx * sf);
-                  overlayHeightPx = Math.round(overlayHeightPx * sf);
-                }
-                const bannerAreaWidthPx = req.bannerWidthIn * targetDpi;
-                const bannerAreaHeightPx = req.bannerHeightIn * targetDpi;
-                const bleedPx = bleedIn * targetDpi;
-                const overlayLeft = Math.round(bleedPx + (req.overlayImage.position.x / 100) * bannerAreaWidthPx);
-                const overlayTop = Math.round(bleedPx + (req.overlayImage.position.y / 100) * bannerAreaHeightPx);
-                let overlayResized = await sharp(overlayBuffer).rotate()
-                  .resize(overlayWidthPx, overlayHeightPx, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-                  .toBuffer();
-                let finalLeft = overlayLeft, finalTop = overlayTop;
-                let olCropLeft = 0, olCropTop = 0, olCropW = overlayWidthPx, olCropH = overlayHeightPx;
-                if (finalLeft < 0) { olCropLeft = -finalLeft; olCropW -= olCropLeft; finalLeft = 0; }
-                if (finalTop < 0) { olCropTop = -finalTop; olCropH -= olCropTop; finalTop = 0; }
-                if (finalLeft + olCropW > targetPxW) olCropW = targetPxW - finalLeft;
-                if (finalTop + olCropH > targetPxH) olCropH = targetPxH - finalTop;
-                if (olCropW > 0 && olCropH > 0) {
-                  if (olCropLeft || olCropTop || olCropW !== overlayWidthPx || olCropH !== overlayHeightPx) {
-                    overlayResized = await sharp(overlayResized).extract({ left: olCropLeft, top: olCropTop, width: olCropW, height: olCropH }).toBuffer();
-                  }
-                  compositeLayers.push({ input: overlayResized, top: finalTop, left: finalLeft });
-                }
+                const overlayLayer = await buildOverlayCompositeLayer(req.overlayImage, req.bannerWidthIn, req.bannerHeightIn, targetPxW, targetPxH, targetDpi, bleedIn);
+                if (overlayLayer) compositeLayers.push(overlayLayer);
                 console.log('[JPEG] Overlay added to reconstruction');
               } catch (overlayErr) {
                 console.error('[JPEG] Overlay processing failed in reconstruction:', overlayErr.message);
@@ -1282,45 +1296,8 @@ exports.handler = async (event) => {
           // Add overlay image(s) onto blank canvas
           if (req.overlayImage && (req.overlayImage.url || req.overlayImage.fileKey)) {
             try {
-              const overlayBuffer = req.overlayImage.fileKey
-                ? await fetchImage(req.overlayImage.fileKey, true)
-                : await fetchImage(req.overlayImage.url, false);
-              const overlayMeta = await sharp(overlayBuffer).rotate().metadata();
-              const overlaySourceW = overlayMeta.width || 1;
-              const overlaySourceH = overlayMeta.height || 1;
-              const overlayAspectRatio = req.overlayImage.aspectRatio || (overlaySourceW / overlaySourceH);
-              const defaultWidthInches = 4;
-              const overlayWidthIn = defaultWidthInches * req.overlayImage.scale;
-              const overlayHeightIn = overlayWidthIn / overlayAspectRatio;
-              let overlayWidthPx = Math.round(overlayWidthIn * targetDpi);
-              let overlayHeightPx = Math.round(overlayHeightIn * targetDpi);
-              const maxWPx = req.bannerWidthIn * targetDpi * 1.5;
-              const maxHPx = req.bannerHeightIn * targetDpi * 1.5;
-              if (overlayWidthPx > maxWPx || overlayHeightPx > maxHPx) {
-                const sf = Math.min(maxWPx / overlayWidthPx, maxHPx / overlayHeightPx);
-                overlayWidthPx = Math.round(overlayWidthPx * sf);
-                overlayHeightPx = Math.round(overlayHeightPx * sf);
-              }
-              const bannerAreaWidthPx = req.bannerWidthIn * targetDpi;
-              const bannerAreaHeightPx = req.bannerHeightIn * targetDpi;
-              const bleedPx = bleedIn * targetDpi;
-              const overlayLeft = Math.round(bleedPx + (req.overlayImage.position.x / 100) * bannerAreaWidthPx);
-              const overlayTop = Math.round(bleedPx + (req.overlayImage.position.y / 100) * bannerAreaHeightPx);
-              let overlayResized = await sharp(overlayBuffer).rotate()
-                .resize(overlayWidthPx, overlayHeightPx, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-                .toBuffer();
-              let finalLeft = overlayLeft, finalTop = overlayTop;
-              let olCropLeft = 0, olCropTop = 0, olCropW = overlayWidthPx, olCropH = overlayHeightPx;
-              if (finalLeft < 0) { olCropLeft = -finalLeft; olCropW -= olCropLeft; finalLeft = 0; }
-              if (finalTop < 0) { olCropTop = -finalTop; olCropH -= olCropTop; finalTop = 0; }
-              if (finalLeft + olCropW > targetPxW) olCropW = targetPxW - finalLeft;
-              if (finalTop + olCropH > targetPxH) olCropH = targetPxH - finalTop;
-              if (olCropW > 0 && olCropH > 0) {
-                if (olCropLeft || olCropTop || olCropW !== overlayWidthPx || olCropH !== overlayHeightPx) {
-                  overlayResized = await sharp(overlayResized).extract({ left: olCropLeft, top: olCropTop, width: olCropW, height: olCropH }).toBuffer();
-                }
-                compositeLayers.push({ input: overlayResized, top: finalTop, left: finalLeft });
-              }
+              const overlayLayer = await buildOverlayCompositeLayer(req.overlayImage, req.bannerWidthIn, req.bannerHeightIn, targetPxW, targetPxH, targetDpi, bleedIn);
+              if (overlayLayer) compositeLayers.push(overlayLayer);
               console.log('[JPEG] Overlay added to text/overlay-only canvas');
             } catch (overlayErr) {
               console.error('[JPEG] Overlay processing failed:', overlayErr.message);
