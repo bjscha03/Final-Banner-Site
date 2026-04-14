@@ -189,30 +189,17 @@ const GoogleAdsBanner: React.FC = () => {
 
   // Cross-browser preview container styles using padding-bottom technique
   // (aspect-ratio CSS fails on mobile Safari/Firefox with absolute children + overflow:hidden)
-  const previewWrapperStyle = useMemo(() => {
+  const getPreviewContainerStyles = useCallback((maxH: number) => {
     const w = widthIn || 96;
     const h = heightIn || 48;
     const ar = w / h;
-    const maxH = 260;
-    return { width: '100%', maxWidth: `${Math.round(maxH * ar)}px` } as React.CSSProperties;
+    return {
+      wrapperStyle: { width: '100%', maxWidth: `${Math.round(maxH * ar)}px` } as React.CSSProperties,
+      paddingPct: `${(h / w) * 100}%`,
+    };
   }, [widthIn, heightIn]);
-  const previewPaddingPct = useMemo(() => {
-    const w = widthIn || 96;
-    const h = heightIn || 48;
-    return `${(h / w) * 100}%`;
-  }, [widthIn, heightIn]);
-  const dimPreviewWrapperStyle = useMemo(() => {
-    const w = widthIn || 96;
-    const h = heightIn || 48;
-    const ar = w / h;
-    const maxH = 140;
-    return { width: '100%', maxWidth: `${Math.round(maxH * ar)}px` } as React.CSSProperties;
-  }, [widthIn, heightIn]);
-  const dimPreviewPaddingPct = useMemo(() => {
-    const w = widthIn || 96;
-    const h = heightIn || 48;
-    return `${(h / w) * 100}%`;
-  }, [widthIn, heightIn]);
+  const { wrapperStyle: previewWrapperStyle, paddingPct: previewPaddingPct } = useMemo(() => getPreviewContainerStyles(260), [getPreviewContainerStyles]);
+  const { wrapperStyle: dimPreviewWrapperStyle, paddingPct: dimPreviewPaddingPct } = useMemo(() => getPreviewContainerStyles(140), [getPreviewContainerStyles]);
   const totals = calcTotals({ widthIn, heightIn, qty: quantity, material, addRope, polePockets });
 
   const pricePerSqFt = PRICE_PER_SQFT[material];
