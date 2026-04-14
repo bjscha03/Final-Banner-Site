@@ -179,7 +179,7 @@ const GoogleAdsBanner: React.FC = () => {
     return {
       aspectRatio: `${w} / ${h}`,
       width: '100%',
-      maxWidth: `${Math.round(maxH * ar)}px`,
+      maxWidth: `min(${Math.round(maxH * ar)}px, 100%)`,
       maxHeight: `${maxH}px`,
     };
   }, [widthIn, heightIn]);
@@ -555,7 +555,7 @@ const GoogleAdsBanner: React.FC = () => {
         <meta name="description" content="Upload your file, choose your size, get FREE Next-Day Air shipping. 24-hour production on custom vinyl banners." />
         <meta name="robots" content="noindex, nofollow" />
       </Helmet>
-      <div className="min-h-screen bg-white text-gray-900">
+      <div className="min-h-screen bg-white text-gray-900 overflow-x-hidden">
         <header className="w-full border-b border-gray-100 bg-white py-3 px-4 sticky top-0 z-50">
           <div className="max-w-5xl mx-auto flex items-center justify-between">
             <div className="w-10" />
@@ -638,7 +638,7 @@ const GoogleAdsBanner: React.FC = () => {
           <div className="max-w-4xl mx-auto">
             <h2 className="text-2xl md:text-3xl font-bold text-center mb-10">Build Your Banner</h2>
             <div className="grid md:grid-cols-2 gap-10">
-              <div className="space-y-8">
+              <div className="space-y-8 min-w-0">
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Popular Sizes</label>
                   <div className="grid grid-cols-3 gap-2">
@@ -767,7 +767,7 @@ const GoogleAdsBanner: React.FC = () => {
                         <p className="text-xs text-gray-400">Final print preview — what you see is what you get</p>
                       </div>
                       {/* Banner preview with depth background */}
-                      <div className="rounded-xl p-4 md:p-6" style={{ background: 'linear-gradient(180deg, #f5f6f8 0%, #e9edf2 100%)' }}>
+                      <div className="rounded-xl p-4 md:p-6 overflow-hidden" style={{ background: 'linear-gradient(180deg, #f5f6f8 0%, #e9edf2 100%)' }}>
                         {/* Banner surface */}
                         <div
                           ref={previewContainerRef}
@@ -1081,11 +1081,12 @@ const GoogleAdsBanner: React.FC = () => {
             <div className="p-4 flex-1 overflow-auto">
               <p className="text-sm text-gray-500 mb-3 flex items-center gap-1"><Move className="w-4 h-4" /> Drag to reposition · Pinch or use buttons to zoom</p>
               {/* Banner surface with gradient background */}
-              <div className="rounded-lg p-4" style={{ background: 'linear-gradient(180deg, #f5f6f8 0%, #e9edf2 100%)' }}>
+              <div className="rounded-lg p-4 overflow-hidden" style={{ background: 'linear-gradient(180deg, #f5f6f8 0%, #e9edf2 100%)' }}>
                 <div
                   className="relative w-full rounded-sm select-none overflow-hidden transition-all duration-300 ease-out"
                   style={{
                     aspectRatio: `${widthIn || 96} / ${heightIn || 48}`,
+                    maxWidth: '100%',
                     cursor: isDraggingPreview ? "grabbing" : "grab",
                     touchAction: "none",
                     backgroundColor: '#fafafa',
