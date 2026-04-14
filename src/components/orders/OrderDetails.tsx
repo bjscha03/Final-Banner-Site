@@ -389,27 +389,61 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
       console.log('[JPEG_EXPORT_DEBUG] ====================================');
       console.log('[PDF Download] Sending request:', requestBody);
 
-      const response = await fetch('/.netlify/functions/render-order-pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody)
-      });
-
-      if (!response.ok) {
-        let errorMessage = `HTTP ${response.status}`;
+      // Retry logic for transient 504 timeouts (matches Orders.tsx)
+      let response: Response | null = null;
+      const maxRetries = 2;
+      for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
-          const contentType = response.headers.get('Content-Type');
-          if (contentType?.includes('application/json')) {
-            const errorData = await response.json();
-            errorMessage = errorData.message || errorData.error || errorMessage;
-          } else {
-            const errorText = await response.text();
-            errorMessage = errorText || errorMessage;
+          if (attempt > 0) {
+            toast({
+              title: "Retrying Print File Generation",
+              description: `Attempt ${attempt + 1} of ${maxRetries + 1}...`,
+            });
+          }
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 150000); // 150s client timeout
+          response = await fetch('/.netlify/functions/render-order-pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(requestBody),
+            signal: controller.signal,
+          });
+          clearTimeout(timeoutId);
+          // If we get a 504, retry
+          if (response.status === 504 && attempt < maxRetries) {
+            console.warn(`PDF generation got 504 on attempt ${attempt + 1}, retrying...`);
+            continue;
+          }
+          break;
+        } catch (fetchError: any) {
+          if (fetchError.name === 'AbortError') {
+            if (attempt < maxRetries) {
+              console.warn(`PDF generation timed out on attempt ${attempt + 1}, retrying...`);
+              continue;
+            }
+            throw new Error('Print file generation timed out. Please try again.');
+          }
+          throw fetchError;
+        }
+      }
+
+      if (!response || !response.ok) {
+        let errorMessage = `HTTP ${response?.status || 'unknown'}`;
+        try {
+          if (response) {
+            const contentType = response.headers.get('Content-Type');
+            if (contentType?.includes('application/json')) {
+              const errorData = await response.json();
+              errorMessage = errorData.message || errorData.error || errorMessage;
+            } else {
+              const errorText = await response.text();
+              errorMessage = errorText || errorMessage;
+            }
           }
         } catch (parseError) {
           console.error('[PDF Download] Error parsing error response:', parseError);
         }
-        console.error('[PDF Download] HTTP Error:', response.status, errorMessage);
+        console.error('[PDF Download] HTTP Error:', response?.status, errorMessage);
         throw new Error(errorMessage);
       }
 

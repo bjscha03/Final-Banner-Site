@@ -140,6 +140,7 @@ function convertPdfUrlToImage(pdfUrl) {
  */
 async function fetchImage(urlOrKey, isFileKey = false) {
   const startTime = Date.now();
+  const FETCH_TIMEOUT_MS = 25000; // 25 second timeout — fail fast, leave budget for fallbacks
   
   if (isFileKey) {
     console.log('[PDF] Fetching from Cloudinary with key:', urlOrKey);
@@ -155,7 +156,7 @@ async function fetchImage(urlOrKey, isFileKey = false) {
     console.log('[PDF] Generated Cloudinary URL:', cloudinaryUrl);
     
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 45000); // 45 second timeout
+    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
     
     try {
       const response = await fetch(cloudinaryUrl, { signal: controller.signal });
@@ -173,7 +174,7 @@ async function fetchImage(urlOrKey, isFileKey = false) {
     } catch (error) {
       clearTimeout(timeout);
       if (error.name === 'AbortError') {
-        throw new Error('Image fetch timed out after 45 seconds');
+        throw new Error('Image fetch timed out after ' + (FETCH_TIMEOUT_MS / 1000) + ' seconds');
       }
       throw error;
     }
@@ -187,7 +188,7 @@ async function fetchImage(urlOrKey, isFileKey = false) {
     }
     
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 45000);
+    const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
     
     try {
       const response = await fetch(fetchUrl, { signal: controller.signal });
@@ -205,12 +206,111 @@ async function fetchImage(urlOrKey, isFileKey = false) {
     } catch (error) {
       clearTimeout(timeout);
       if (error.name === 'AbortError') {
-        throw new Error('Image fetch timed out after 45 seconds');
+        throw new Error('Image fetch timed out after ' + (FETCH_TIMEOUT_MS / 1000) + ' seconds');
       }
       console.error('[PDF] Error fetching image from URL:', error);
       throw error;
     }
   }
+}
+
+/**
+ * Fetch a Cloudinary image pre-resized to target dimensions.
+ * Offloads the resize to Cloudinary's CDN so we download fewer bytes
+ * and skip the expensive Sharp resize step.
+ */
+async function fetchImageResized(fileKey, targetW, targetH) {
+  const startTime = Date.now();
+  const FETCH_TIMEOUT_MS = 25000;
+
+  console.log('[PDF] Fetching pre-resized from Cloudinary:', fileKey, 'at', targetW, '×', targetH);
+
+  const cloudinaryUrl = cloudinary.url(fileKey, {
+    resource_type: 'image',
+    secure: true,
+    width: targetW,
+    height: targetH,
+    crop: 'fill',
+    quality: 'auto:best',
+    fetch_format: 'auto',
+  });
+  console.log('[PDF] Pre-resized Cloudinary URL:', cloudinaryUrl);
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(cloudinaryUrl, { signal: controller.signal });
+    clearTimeout(timeout);
+
+    console.log('[PDF] Pre-resized fetch completed in ' + (Date.now() - startTime) + 'ms, status: ' + response.status);
+
+    if (!response.ok) {
+      throw new Error('Failed to fetch pre-resized image: ' + response.status + ' ' + response.statusText);
+    }
+
+    const arrayBuffer = await response.arrayBuffer();
+    console.log('[PDF] Pre-resized image downloaded: ' + arrayBuffer.byteLength + ' bytes');
+    return Buffer.from(arrayBuffer);
+  } catch (error) {
+    clearTimeout(timeout);
+    if (error.name === 'AbortError') {
+      throw new Error('Pre-resized image fetch timed out after ' + (FETCH_TIMEOUT_MS / 1000) + ' seconds');
+    }
+    throw error;
+  }
+}
+
+/**
+ * Get image dimensions from Cloudinary without downloading the full image.
+ * Uses the Admin API to retrieve resource metadata.
+ */
+async function getCloudinaryImageDimensions(fileKey) {
+  const startTime = Date.now();
+  console.log('[PDF] Getting image dimensions from Cloudinary for:', fileKey);
+
+  try {
+    const resource = await cloudinary.api.resource(fileKey, { resource_type: 'image' });
+    console.log('[PDF] Cloudinary metadata retrieved in ' + (Date.now() - startTime) + 'ms: ' +
+      resource.width + '×' + resource.height);
+    return { width: resource.width, height: resource.height };
+  } catch (error) {
+    console.error('[PDF] Failed to get Cloudinary metadata:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Upload a buffer to Cloudinary with a timeout to prevent hanging uploads.
+ */
+async function uploadToCloudinary(buffer, options = {}) {
+  const UPLOAD_TIMEOUT_MS = 30000; // 30 second upload timeout
+  const startTime = Date.now();
+
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error('Cloudinary upload timed out after ' + (UPLOAD_TIMEOUT_MS / 1000) + ' seconds'));
+    }, UPLOAD_TIMEOUT_MS);
+
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        resource_type: 'image',
+        folder: 'order-prints',
+        format: 'jpg',
+        ...options,
+      },
+      (err, result) => {
+        clearTimeout(timeout);
+        if (err) {
+          reject(err);
+        } else {
+          console.log('[PDF] Cloudinary upload completed in ' + (Date.now() - startTime) + 'ms');
+          resolve(result.secure_url);
+        }
+      }
+    );
+    stream.end(buffer);
+  });
 }
 
 
@@ -721,31 +821,51 @@ exports.handler = async (event) => {
         console.log('[PRINT_RENDER] Target print: ' + targetPxW + '×' + targetPxH + ' px @ ' + targetDpi + ' DPI');
 
         try {
-          // Step 1: Fetch the ORIGINAL uploaded image at full resolution
-          let originalBuffer;
-          if (designState.originalImageFileKey) {
-            // Strip transforms to get original resolution
-            originalBuffer = await fetchImage(designState.originalImageFileKey, true);
-          } else if (designState.originalImageUrl) {
-            const rawUrl = stripCloudinaryTransforms(designState.originalImageUrl);
-            originalBuffer = await fetchImage(rawUrl, false);
+          // Step 1: Get original image dimensions — prefer Cloudinary API (no download)
+          // then fall back to full download + Sharp metadata.
+          let origW, origH;
+          let originalBuffer = null; // only populated when we can't use Cloudinary pre-resize
+          const hasCloudinaryKey = !!designState.originalImageFileKey;
+
+          if (hasCloudinaryKey) {
+            const dims = await getCloudinaryImageDimensions(designState.originalImageFileKey);
+            if (dims) {
+              origW = dims.width;
+              origH = dims.height;
+              console.log('[PRINT_RENDER] Got dimensions from Cloudinary API: ' + origW + '×' + origH);
+            }
           }
 
-          if (!originalBuffer) {
-            console.error('[PRINT_RENDER] Failed to fetch original image');
+          // Fallback: download full image for metadata (non-Cloudinary URLs or API failure)
+          if (!origW || !origH) {
+            if (hasCloudinaryKey) {
+              originalBuffer = await fetchImage(designState.originalImageFileKey, true);
+            } else if (designState.originalImageUrl) {
+              const rawUrl = stripCloudinaryTransforms(designState.originalImageUrl);
+              originalBuffer = await fetchImage(rawUrl, false);
+            }
+
+            if (!originalBuffer) {
+              console.error('[PRINT_RENDER] Failed to fetch original image');
+              // Fall through to final_render path below
+            } else {
+              const origMeta = await sharp(originalBuffer).metadata();
+              origW = origMeta.width || 1;
+              origH = origMeta.height || 1;
+              console.log('[PRINT_RENDER] Got dimensions from downloaded image: ' + origW + '×' + origH);
+            }
+          }
+
+          if (!origW || !origH) {
+            console.error('[PRINT_RENDER] No original image dimensions available');
             // Fall through to final_render path below
           } else {
-            const origMeta = await sharp(originalBuffer).metadata();
-            const origW = origMeta.width || 1;
-            const origH = origMeta.height || 1;
             console.log('[PRINT_RENDER] Original image dimensions: ' + origW + '×' + origH + ' px');
 
             // Step 2: Resolution check - detect if original is too low-res for print
-            // We compute what area the image needs to cover at print resolution
             const imgAspect = origW / origH;
             const bannerAspect = targetPxW / targetPxH;
 
-            // object-contain sizing: image scaled to fit inside banner preserving aspect ratio
             let containedW, containedH;
             if (imgAspect > bannerAspect) {
               containedW = targetPxW;
@@ -755,13 +875,10 @@ exports.handler = async (event) => {
               containedW = Math.round(targetPxH * imgAspect);
             }
 
-            // At imgScale > 1, the image is zoomed in, requiring proportionally more
-            // source pixels to maintain print quality at the target DPI.
             const imgScale = designState.imgScale || 1;
             const requiredW = Math.round(containedW * imgScale);
             const requiredH = Math.round(containedH * imgScale);
 
-            // Resolution quality ratio: how many source pixels per print pixel
             const qualityRatioW = origW / requiredW;
             const qualityRatioH = origH / requiredH;
             const qualityRatio = Math.min(qualityRatioW, qualityRatioH);
@@ -769,8 +886,6 @@ exports.handler = async (event) => {
             console.log('[PRINT_RENDER] Required coverage: ' + requiredW + '×' + requiredH + ' px');
             console.log('[PRINT_RENDER] Quality ratio: ' + qualityRatio.toFixed(3) + ' (source/required)');
 
-            // If quality ratio < 0.33, the image would need >3× upscale - log warning but still proceed
-            // Customer already ordered, we need to fulfill regardless of resolution quality
             const MIN_QUALITY_RATIO = 0.33;
             if (qualityRatio < MIN_QUALITY_RATIO) {
               const effectivePrintDpi = Math.round(targetDpi * qualityRatio);
@@ -779,45 +894,25 @@ exports.handler = async (event) => {
               console.warn('[PRINT_RENDER] Required for print: ' + requiredW + '×' + requiredH + ' px');
               console.warn('[PRINT_RENDER] Effective print DPI: ~' + effectivePrintDpi);
               console.warn('[PRINT_RENDER] Quality ratio: ' + qualityRatio.toFixed(3) + ' (minimum: ' + MIN_QUALITY_RATIO + ')');
-              // Continue generating the print file - order must be fulfilled
             }
 
             // Step 3: Create render surface at exact print pixel dimensions
-            // and re-render from the original image using saved transforms
             console.log('[PRINT_RENDER] Rendering at ' + targetPxW + '×' + targetPxH + ' from original ' + origW + '×' + origH);
 
-            // Replicate the GoogleAdsBanner CSS transform logic at print resolution:
-            // The preview uses object-contain inside a container, then CSS translate+scale
-            // from transform-origin center.
-
-            // Calculate the object-contain layout at print resolution
             const offsetX = Math.round((targetPxW - containedW) / 2);
             const offsetY = Math.round((targetPxH - containedH) / 2);
 
-            // Apply user transforms: imgPos is percentage-based in the design state
             const imgPos = designState.imgPos || { x: 0, y: 0 };
-
-            // Convert percentage position to print pixels
-            // imgPos.x/y are percentage offsets relative to the container
             const posXPx = Math.round((imgPos.x / 100) * targetPxW);
             const posYPx = Math.round((imgPos.y / 100) * targetPxH);
 
-            // The CSS transform is: translate(posX, posY) scale(imgScale)
-            // with transform-origin: center center
-            // This means: move origin to center, apply translate, apply scale, restore origin
-
-            // Compute the final draw rectangle for the image
-            // At scale=1, image is drawn at (offsetX, offsetY) with size containedW×containedH
-            // The scale is applied around the center of the container
             const centerX = targetPxW / 2;
             const centerY = targetPxH / 2;
 
-            // After transform: new position = center + posOffset + scale * (originalPos - center)
             const drawX = Math.round(centerX + posXPx + imgScale * (offsetX - centerX));
             const drawY = Math.round(centerY + posYPx + imgScale * (offsetY - centerY));
             const drawW = Math.round(containedW * imgScale);
             const drawH = Math.round(containedH * imgScale);
-
 
             console.log("[PRINT_RENDER] === DETAILED DEBUG ===");
             console.log("[PRINT_RENDER] designState.imgScale:", designState.imgScale);
@@ -831,23 +926,27 @@ exports.handler = async (event) => {
             console.log("[PRINT_RENDER] === END DEBUG ===");
             console.log('[PRINT_RENDER] Draw rect: (' + drawX + ', ' + drawY + ') ' + drawW + '×' + drawH);
 
-            // Resize the original image to the draw dimensions
-            const resizedOriginal = await sharp(originalBuffer)
-              .resize(drawW, drawH, { fit: 'fill' })
-              .toBuffer();
+            // OPTIMISATION: Use Cloudinary server-side resize when we have a file key.
+            // This avoids downloading the full-res original (which can be 10-50 MB)
+            // and eliminates the expensive Sharp resize step entirely.
+            let resizedOriginal;
+            if (hasCloudinaryKey && !originalBuffer) {
+              // Download image already resized to drawW×drawH from Cloudinary CDN
+              resizedOriginal = await fetchImageResized(designState.originalImageFileKey, drawW, drawH);
+            } else if (originalBuffer) {
+              // Fallback: resize locally (non-Cloudinary source or API unavailable)
+              resizedOriginal = await sharp(originalBuffer)
+                .resize(drawW, drawH, { fit: 'fill' })
+                .toBuffer();
+              originalBuffer = null; // free memory
+            } else {
+              throw new Error('No image source available for resize');
+            }
 
-            // Create the background canvas
+            // Create background canvas and composite in a single pipeline
             const bgRgb = parseHexColor(designState.bgColor || '#fafafa');
-            const backgroundCanvas = await sharp({
-              create: {
-                width: targetPxW,
-                height: targetPxH,
-                channels: 3,
-                background: bgRgb,
-              },
-            }).jpeg({ quality: 95 }).toBuffer();
 
-            // Clip the image to the canvas bounds
+            // Clip the image to canvas bounds
             let compositeInput = resizedOriginal;
             let compLeft = drawX;
             let compTop = drawY;
@@ -871,32 +970,32 @@ exports.handler = async (event) => {
                 compTop = Math.max(0, drawY);
               }
             }
+            resizedOriginal = null; // free memory
 
-            // Composite onto background
-            const printJpeg = await sharp(backgroundCanvas)
-              .composite([{ input: compositeInput, top: compTop, left: compLeft }])
-              .withMetadata({ density: targetDpi })
-              .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
-              .toBuffer();
+            // Create background + composite + encode in one pass
+            const printJpeg = await sharp({
+              create: {
+                width: targetPxW,
+                height: targetPxH,
+                channels: 3,
+                background: bgRgb,
+              },
+            })
+              .jpeg({ quality: 95 })
+              .toBuffer()
+              .then(bg => sharp(bg)
+                .composite([{ input: compositeInput, top: compTop, left: compLeft }])
+                .withMetadata({ density: targetDpi })
+                .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
+                .toBuffer()
+              );
+            compositeInput = null; // free memory
 
             console.log('[PRINT_RENDER] Print JPEG generated: ' + printJpeg.length + ' bytes');
 
-            // Verify output dimensions
-            const outputMeta = await sharp(printJpeg).metadata();
-            console.log('[PRINT_RENDER] Output dimensions: ' + outputMeta.width + '×' + outputMeta.height + ' px');
-
-            // Upload to Cloudinary
-            const cloudUrl = await new Promise((resolve, reject) => {
-              const stream = cloudinary.uploader.upload_stream(
-                {
-                  resource_type: 'image',
-                  folder: 'order-prints',
-                  public_id: 'print-rerender-' + (req.orderId || 'unknown') + '-' + Date.now(),
-                  format: 'jpg',
-                },
-                (err, result) => (err ? reject(err) : resolve(result.secure_url))
-              );
-              stream.end(printJpeg);
+            // Upload to Cloudinary (with timeout)
+            const cloudUrl = await uploadToCloudinary(printJpeg, {
+              public_id: 'print-rerender-' + (req.orderId || 'unknown') + '-' + Date.now(),
             });
 
             console.log('[PRINT_RENDER] ✅ Uploaded true print-render JPEG:', cloudUrl);
@@ -948,8 +1047,16 @@ exports.handler = async (event) => {
 
         let finalRenderBuffer;
         try {
+          // OPTIMISATION: When we have a Cloudinary fileKey, use server-side resize
+          // to download a pre-resized version. This avoids downloading the full-res
+          // snapshot (which could be many MB) and eliminates the Sharp resize step.
           if (req.finalRenderFileKey) {
-            finalRenderBuffer = await fetchImage(req.finalRenderFileKey, true);
+            try {
+              finalRenderBuffer = await fetchImageResized(req.finalRenderFileKey, targetPxW, targetPxH);
+            } catch (resizeErr) {
+              console.warn('[JPEG] Pre-resized fetch failed, trying full-res:', resizeErr.message);
+              finalRenderBuffer = await fetchImage(req.finalRenderFileKey, true);
+            }
           } else if (req.finalRenderUrl) {
             const rawUrl = stripCloudinaryTransforms(req.finalRenderUrl);
             finalRenderBuffer = await fetchImage(rawUrl, false);
@@ -985,64 +1092,34 @@ exports.handler = async (event) => {
             const tgtAspect = targetPxW / targetPxH;
             const aspectDiff = Math.abs(srcAspect - tgtAspect) / tgtAspect;
 
-            if (aspectDiff > 0.05 && false) { // DISABLED - just resize with fill
-              // >5% mismatch indicates a real problem with the source data
-              console.error('[JPEG] ❌ Aspect ratio mismatch too large: source=' + srcAspect.toFixed(4) +
-                ' target=' + tgtAspect.toFixed(4) + ' diff=' + (aspectDiff * 100).toFixed(1) + '%');
-              return {
-                statusCode: 200,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  error: 'aspect_ratio_mismatch',
-                  message: 'The saved render has a different aspect ratio than the ordered banner size. ' +
-                    'Source: ' + srcW + '×' + srcH + ' (' + srcAspect.toFixed(3) + '), ' +
-                    'Target: ' + targetPxW + '×' + targetPxH + ' (' + tgtAspect.toFixed(3) + '). ' +
-                    'Please ask the customer to re-place the order.',
-                }),
-              };
-            } else if (aspectDiff > 0.02) {
+            if (aspectDiff > 0.02) {
               console.warn('[JPEG] ⚠️ Minor aspect ratio mismatch: source=' + srcAspect.toFixed(4) +
                 ' target=' + tgtAspect.toFixed(4) + ' diff=' + (aspectDiff * 100).toFixed(1) + '%');
-              // Proceed — minor rounding differences from DPI capping are acceptable
             }
 
-            // Resize to exact target dimensions. Since both source and target share
-            // the same aspect ratio (derived from the same banner dimensions),
-            // fit:'fill' is a simple proportional resize with no distortion.
-            const jpegBuffer = await sharp(finalRenderBuffer)
-              .resize(targetPxW, targetPxH, { fit: 'cover', position: 'center' })
-              .withMetadata({ density: targetDpi })
-              .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
-              .toBuffer();
-
-            // Verify output dimensions match target exactly
-            const outputMeta = await sharp(jpegBuffer).metadata();
-            const outW = outputMeta.width || 0;
-            const outH = outputMeta.height || 0;
-            console.log('[JPEG] Output dimensions:', outW, '×', outH, 'px (target:', targetPxW, '×', targetPxH, ')');
-
-            if (outW !== targetPxW || outH !== targetPxH) {
-              console.error('[JPEG] ❌ DIMENSION MISMATCH: output ' + outW + '×' + outH +
-                ' != target ' + targetPxW + '×' + targetPxH);
-              return {
-                statusCode: 200,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  error: 'dimension_mismatch',
-                  message: 'Print file generation produced incorrect dimensions. ' +
-                    'Expected ' + targetPxW + '×' + targetPxH + ' but got ' + outW + '×' + outH + '. ' +
-                    'Please contact support.',
-                }),
-              };
+            // If pre-resized from Cloudinary, dimensions may already match target.
+            // Only resize if needed, saving a full Sharp decode+encode cycle.
+            let jpegBuffer;
+            if (srcW === targetPxW && srcH === targetPxH) {
+              console.log('[JPEG] Dimensions already match target — skipping resize');
+              jpegBuffer = await sharp(finalRenderBuffer)
+                .withMetadata({ density: targetDpi })
+                .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
+                .toBuffer();
+            } else {
+              jpegBuffer = await sharp(finalRenderBuffer)
+                .resize(targetPxW, targetPxH, { fit: 'cover', position: 'center' })
+                .withMetadata({ density: targetDpi })
+                .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
+                .toBuffer();
             }
+            finalRenderBuffer = null; // free memory
 
-            // Upload to Cloudinary
-            const cloudUrl = await new Promise((resolve, reject) => {
-              const stream = cloudinary.uploader.upload_stream(
-                { resource_type: 'image', folder: 'order-prints', public_id: 'print-' + (req.orderId || 'unknown') + '-' + Date.now(), format: 'jpg' },
-                (err, result) => err ? reject(err) : resolve(result.secure_url)
-              );
-              stream.end(jpegBuffer);
+            console.log('[JPEG] Output JPEG generated:', jpegBuffer.length, 'bytes');
+
+            // Upload to Cloudinary (with timeout)
+            const cloudUrl = await uploadToCloudinary(jpegBuffer, {
+              public_id: 'print-' + (req.orderId || 'unknown') + '-' + Date.now(),
             });
 
             console.log('[JPEG] ✅ Uploaded print-ready JPEG:', cloudUrl);
@@ -1056,8 +1133,8 @@ exports.handler = async (event) => {
                 bleed: bleedIn,
                 format: 'jpeg',
                 source: 'final_render_processed',
-                printWidth: outW,
-                printHeight: outH,
+                printWidth: targetPxW,
+                printHeight: targetPxH,
               }),
             };
           } catch (processErr) {
@@ -1109,12 +1186,8 @@ exports.handler = async (event) => {
               .jpeg({ quality: 92, chromaSubsampling: '4:4:4' })
               .toBuffer();
             
-            const cloudUrl = await new Promise((resolve, reject) => {
-              const stream = cloudinary.uploader.upload_stream(
-                { resource_type: 'image', folder: 'order-prints', public_id: 'print-' + (req.orderId || 'x') + '-' + Date.now(), format: 'jpg' },
-                (err, result) => err ? reject(err) : resolve(result.secure_url)
-              );
-              stream.end(jpegBuffer);
+            const cloudUrl = await uploadToCloudinary(jpegBuffer, {
+              public_id: 'print-' + (req.orderId || 'x') + '-' + Date.now(),
             });
             
             console.log('[JPEG] Thumbnail fallback uploaded:', cloudUrl);
@@ -1252,13 +1325,9 @@ exports.handler = async (event) => {
 
             console.log('[JPEG] Reconstruction JPEG generated:', jpegBuffer.length, 'bytes');
 
-            // Upload to Cloudinary
-            const cloudUrl = await new Promise((resolve, reject) => {
-              const stream = cloudinary.uploader.upload_stream(
-                { resource_type: 'image', folder: 'order-prints', public_id: 'print-recon-' + (req.orderId || 'unknown') + '-' + Date.now(), format: 'jpg' },
-                (err, result) => err ? reject(err) : resolve(result.secure_url)
-              );
-              stream.end(jpegBuffer);
+            // Upload to Cloudinary (with timeout)
+            const cloudUrl = await uploadToCloudinary(jpegBuffer, {
+              public_id: 'print-recon-' + (req.orderId || 'unknown') + '-' + Date.now(),
             });
 
             console.log('[JPEG] ✅ Reconstruction JPEG uploaded:', cloudUrl);
@@ -1309,12 +1378,8 @@ exports.handler = async (event) => {
             ? await sharp(backgroundCanvas).composite(compositeLayers).withMetadata({ density: targetDpi }).jpeg({ quality: 92, chromaSubsampling: '4:4:4' }).toBuffer()
             : await sharp(backgroundCanvas).withMetadata({ density: targetDpi }).jpeg({ quality: 92, chromaSubsampling: '4:4:4' }).toBuffer();
 
-          const cloudUrl = await new Promise((resolve, reject) => {
-            const stream = cloudinary.uploader.upload_stream(
-              { resource_type: 'image', folder: 'order-prints', public_id: 'print-textonly-' + (req.orderId || 'unknown') + '-' + Date.now(), format: 'jpg' },
-              (err, result) => err ? reject(err) : resolve(result.secure_url)
-            );
-            stream.end(jpegBuffer);
+          const cloudUrl = await uploadToCloudinary(jpegBuffer, {
+            public_id: 'print-textonly-' + (req.orderId || 'unknown') + '-' + Date.now(),
           });
 
           console.log('[JPEG] ✅ Text/overlay-only JPEG uploaded:', cloudUrl);
