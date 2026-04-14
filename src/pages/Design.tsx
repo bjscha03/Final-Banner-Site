@@ -211,13 +211,15 @@ const Design: React.FC = () => {
   }, [materialDropdownOpen]);
 
   // Compute responsive canvas style for a given max height, preserving banner aspect ratio
+  // Uses width + maxWidth instead of min() for better Firefox/Safari mobile compatibility
   const getCanvasStyle = useCallback((maxH: number) => {
     const w = widthIn || 96;
     const h = heightIn || 48;
     const ar = w / h;
     return {
       aspectRatio: `${w} / ${h}`,
-      width: `min(100%, ${Math.round(maxH * ar)}px)`,
+      width: '100%',
+      maxWidth: `${Math.round(maxH * ar)}px`,
       maxHeight: `${maxH}px`,
     };
   }, [widthIn, heightIn]);
@@ -1009,7 +1011,7 @@ const Design: React.FC = () => {
       </section>
 
       {/* Mobile sticky CTA */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg z-40">
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg z-40" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 1rem))' }}>
         <div className="flex items-center justify-between gap-3">
           <div>
             <p className="text-xs text-gray-500">Total</p>
@@ -1034,7 +1036,7 @@ const Design: React.FC = () => {
       {/* Preview Modal */}
       {showPreview && uploadedFile && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-sm sm:p-4">
-          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-3xl w-full max-h-[95vh] sm:max-h-[90vh] flex flex-col">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-3xl w-full max-h-[95vh] sm:max-h-[90vh] flex flex-col modal-dvh-fix">
             <div className="flex items-center justify-between p-4 border-b">
               <div>
                 <h3 className="text-lg font-bold text-gray-900">Live Banner Preview</h3>

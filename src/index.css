@@ -98,6 +98,40 @@
   .safe-area-inset-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
+
+  /* Ensure backdrop-filter works in Safari (needs -webkit- prefix) */
+  .backdrop-blur-sm {
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+  }
+  .backdrop-blur-md {
+    -webkit-backdrop-filter: blur(12px);
+    backdrop-filter: blur(12px);
+  }
+  .backdrop-blur-lg {
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+  }
+  .backdrop-blur-xl {
+    -webkit-backdrop-filter: blur(24px);
+    backdrop-filter: blur(24px);
+  }
+  .backdrop-blur-2xl {
+    -webkit-backdrop-filter: blur(40px);
+    backdrop-filter: blur(40px);
+  }
+
+  /* Use dynamic viewport height where supported for accurate mobile sizing */
+  @supports (max-height: 1dvh) {
+    .modal-dvh-fix {
+      max-height: 95dvh;
+    }
+    @media (min-width: 640px) {
+      .modal-dvh-fix {
+        max-height: 90dvh;
+      }
+    }
+  }
 }
 
 @layer components {
