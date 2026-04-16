@@ -20,10 +20,10 @@ const DELIVERY_IMAGES = [
   { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460953/download-6_xtzq7z.jpg', alt: 'Customer delivery photo 17 – banner display setup' },
   { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460953/download-2_pzrd1q.jpg', alt: 'Customer delivery photo 18 – indoor banner installation' },
   { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1774460953/download-5_wolqqp.jpg', alt: 'Customer delivery photo 19 – completed banner order' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1776363042/download_qidyrl.jpg', alt: 'Customer delivery photo 20 – banner delivery' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1776363042/download-3_qfh54f.jpg', alt: 'Customer delivery photo 21 – banner delivery' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1776363042/download-1_yffld3.jpg', alt: 'Customer delivery photo 22 – banner delivery' },
-  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1776363042/download-2_scks5q.jpg', alt: 'Customer delivery photo 23 – banner delivery' },
+  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1776363042/download_qidyrl.jpg', alt: 'Customer delivery photo 20 – recently shipped banner' },
+  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1776363042/download-3_qfh54f.jpg', alt: 'Customer delivery photo 21 – banner package arrival' },
+  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1776363042/download-1_yffld3.jpg', alt: 'Customer delivery photo 22 – custom banner received' },
+  { src: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_400,q_auto,f_auto/v1776363042/download-2_scks5q.jpg', alt: 'Customer delivery photo 23 – banner order fulfilled' },
 ];
 
 const DeliveryCarousel: React.FC = () => {
