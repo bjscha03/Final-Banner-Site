@@ -29,12 +29,12 @@ function generateEmailHTML(sequenceNumber, data) {
   if (sequenceNumber === 1) {
     subject = '👋 You left something behind at Banners On The Fly';
     heading = 'You left something behind!';
-    message = 'We noticed you were designing custom banners but didn\'t complete your order. Your cart is waiting for you!';
+    message = 'We noticed you were shopping but didn\'t complete your order. Your cart is waiting for you!';
     ctaText = 'Complete Your Order';
   } else if (sequenceNumber === 2) {
-    subject = '🎁 Here\'s 10% off to complete your banner order';
+    subject = '🎁 Here\'s 10% off to complete your order';
     heading = 'Here\'s 10% off to complete your order! 🎁';
-    message = 'We really want to help you get your custom banners! As a thank you for considering us, here\'s a special <strong>10% discount</strong> just for you.';
+    message = 'We really want to help you complete your order! As a thank you for considering us, here\'s a special <strong>10% discount</strong> just for you.';
     ctaText = 'Claim Your 10% Discount';
     const discountedTotal = totalValue * 0.9;
     const savings = totalValue - discountedTotal;
@@ -48,9 +48,9 @@ function generateEmailHTML(sequenceNumber, data) {
       <p style="font-size: 24px; font-weight: bold; color: ${brandBlue}; margin: 8px 0;">New Total: $${discountedTotal.toFixed(2)}</p>
     `;
   } else {
-    subject = '🔥 LAST CHANCE: 15% off your custom banners (expires soon!)';
+    subject = '🔥 LAST CHANCE: 15% off your order (expires soon!)';
     heading = 'Final offer: 15% OFF your order! 🔥';
-    message = 'This is our <strong>final reminder</strong> about your cart - and we\'re making it count! We\'ve increased your discount to <strong>15% OFF</strong> as a last chance to help you complete your custom banner order.';
+    message = 'This is our <strong>final reminder</strong> about your cart - and we\'re making it count! We\'ve increased your discount to <strong>15% OFF</strong> as a last chance to help you complete your order.';
     ctaText = 'Claim Your 15% Discount Now';
     const discountedTotal = totalValue * 0.85;
     const savings = totalValue - discountedTotal;

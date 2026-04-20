@@ -227,7 +227,7 @@ export async function sendEmail(
         react: React.createElement(OrderShipped, payload),
       },
       'order.in_production': {
-        subject: 'Your Banner is Now in Production 🎯',
+        subject: 'Your Order is Now in Production 🎯',
         react: React.createElement(OrderInProduction, payload),
       },
       'order.canceled': {

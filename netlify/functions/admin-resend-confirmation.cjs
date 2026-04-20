@@ -80,7 +80,7 @@ async function sendEmail(type, payload) {
         <div style="padding: 20px;">
           <h2 style="color: #2563eb; text-align: center; margin: 0 0 20px 0;">Order Confirmation</h2>
           <p>Hello ${payload.order.customerName},</p>
-          <p>Thank you for your order! We've received your custom banner order and will begin processing it shortly.</p>
+          <p>Thank you for your order! We've received your order and will begin processing it shortly.</p>
           
           <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <h3 style="margin-top: 0; color: #374151;">Order Details</h3>
