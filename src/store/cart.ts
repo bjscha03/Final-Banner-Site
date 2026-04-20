@@ -122,6 +122,7 @@ export interface CartItem {
     quantity: number;
     imgScale?: number;                             // Preview state: zoom level
     imgPos?: { x: number; y: number };             // Preview state: position offset
+    previewThumbnailUrl?: string;                   // Rendered preview thumbnail (single source of truth)
   }>;
   yard_sign_signs_subtotal_cents?: number;        // Sign subtotal before stakes
   yard_sign_stakes_subtotal_cents?: number;       // Stakes subtotal

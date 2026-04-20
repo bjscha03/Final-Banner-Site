@@ -37,6 +37,17 @@ function getPdfThumbnailUrl(pdfUrl: string): string {
   }
 }
 
+// Higher-quality PDF preview URL for the editor modal (larger than thumbnail)
+function getPdfPreviewUrl(pdfUrl: string): string {
+  try {
+    const url = new URL(pdfUrl);
+    if (!url.hostname.endsWith('.cloudinary.com') || !pdfUrl.toLowerCase().endsWith('.pdf')) return pdfUrl;
+    return pdfUrl.replace('/upload/', '/upload/pg_1,f_jpg,w_1200,q_90/');
+  } catch {
+    return pdfUrl;
+  }
+}
+
 interface YardSignConfiguratorProps {
   designs: YardSignDesign[];
   onDesignsChange: (designs: YardSignDesign[]) => void;
@@ -118,6 +129,8 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
   const savePreviewAndClose = useCallback(() => {
     if (!previewDesignId) { setPreviewDesignId(null); return; }
     
+    const currentDesign = designs.find(d => d.id === previewDesignId);
+    
     // Generate a thumbnail from the preview canvas
     const container = previewCanvasRef.current;
     if (container) {
@@ -166,27 +179,33 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
           }
           
           const dataUrl = canvas.toDataURL('image/jpeg', PREVIEW_THUMBNAIL_QUALITY);
-          // Update design with preview state and rendered thumbnail
-          onDesignsChange(designs.map(d => d.id === previewDesignId ? {
-            ...d,
-            imgScale: previewImgScale,
-            imgPos: { ...previewImgPos },
-            previewThumbnailUrl: dataUrl,
-          } : d));
-          setPreviewDesignId(null);
-          setIsDraggingPreview(false);
-          return;
+          // Verify thumbnail isn't blank (a blank JPEG data URL is very short)
+          if (dataUrl && dataUrl.length > 1000) {
+            onDesignsChange(designs.map(d => d.id === previewDesignId ? {
+              ...d,
+              imgScale: previewImgScale,
+              imgPos: { ...previewImgPos },
+              previewThumbnailUrl: dataUrl,
+            } : d));
+            setPreviewDesignId(null);
+            setIsDraggingPreview(false);
+            return;
+          }
         }
       } catch (err) {
         console.warn('[YardSign] Failed to generate preview thumbnail:', err);
       }
     }
     
-    // Fallback: just save the state without thumbnail snapshot
+    // Fallback: save state; for PDFs use Cloudinary thumbnail as preview reference
+    const fallbackThumbnail = currentDesign?.isPdf
+      ? getPdfThumbnailUrl(currentDesign.fileUrl)
+      : undefined;
     onDesignsChange(designs.map(d => d.id === previewDesignId ? {
       ...d,
       imgScale: previewImgScale,
       imgPos: { ...previewImgPos },
+      ...(fallbackThumbnail ? { previewThumbnailUrl: fallbackThumbnail } : {}),
     } : d));
     setPreviewDesignId(null);
     setIsDraggingPreview(false);
@@ -706,9 +725,12 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
                     style={{ transform: `translate(${previewImgPos.x}px, ${previewImgPos.y}px) scale(${previewImgScale})` }}
                   >
                     <img
-                      src={previewDesign.fileUrl || previewDesign.thumbnailUrl}
+                      src={previewDesign.isPdf
+                        ? (previewDesign.previewThumbnailUrl || getPdfPreviewUrl(previewDesign.fileUrl))
+                        : (previewDesign.fileUrl || previewDesign.thumbnailUrl)}
                       alt="Yard Sign preview"
                       className="absolute inset-0 w-full h-full pointer-events-none object-contain"
+                      crossOrigin="anonymous"
                       draggable={false}
                     />
                   </div>
