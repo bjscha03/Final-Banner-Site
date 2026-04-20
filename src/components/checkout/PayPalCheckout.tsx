@@ -481,7 +481,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
           shipping_city: shippingDetails?.city || null,
           shipping_state: shippingDetails?.state || null,
           shipping_zip: shippingDetails?.zip || null,
-          shipping_country: shippingDetails?.country || null,
+          shipping_country: shippingDetails ? (shippingDetails.country || 'US') : null,
           items: items.map(item => {
             // DEBUG: Log design service fields for each item
             console.log('🎨 [PayPal Capture] Item design service data:', {
