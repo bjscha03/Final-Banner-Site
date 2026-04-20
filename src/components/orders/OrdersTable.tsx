@@ -49,9 +49,17 @@ const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading = false }) =>
 
     if (uniqueItems === 1) {
       const item = order.items[0];
-      return `${itemCount} × ${formatDimensions(item.width_in, item.height_in)} ${item.material}`;
+      const label = (item as any).product_type === 'yard_sign'
+        ? `Yard Sign 24"×18" Corrugated`
+        : `${formatDimensions(item.width_in, item.height_in)} ${item.material}`;
+      return `${itemCount} × ${label}`;
     }
 
+    // Check for mixed product types
+    const hasYardSigns = order.items.some(i => (i as any).product_type === 'yard_sign');
+    const hasBanners = order.items.some(i => (i as any).product_type !== 'yard_sign');
+    if (hasYardSigns && hasBanners) return `${itemCount} items (${uniqueItems} designs) — mixed`;
+    if (hasYardSigns) return `${itemCount} yard signs (${uniqueItems} designs)`;
     return `${itemCount} banners (${uniqueItems} designs)`;
   };
 

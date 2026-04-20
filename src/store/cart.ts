@@ -952,10 +952,12 @@ export const useCartStore = create<CartState>()(
       },
 
       // Get quantity discount info for "Buy More, Save More" display
+      // IMPORTANT: Only banner items participate in quantity discounts
       getQuantityDiscountInfo: () => {
         const items = get().items.map(migrateCartItem);
-        const totalQuantity = items.reduce((total, item) => total + item.quantity, 0);
-        const rawSubtotal = items.reduce((total, item) => total + item.line_total_cents, 0);
+        const bannerItems = items.filter(item => (item.product_type || 'banner') !== 'yard_sign');
+        const totalQuantity = bannerItems.reduce((total, item) => total + item.quantity, 0);
+        const rawSubtotal = bannerItems.reduce((total, item) => total + item.line_total_cents, 0);
 
         const discountResult = calculateQuantityDiscount(rawSubtotal, totalQuantity);
 
@@ -967,10 +969,16 @@ export const useCartStore = create<CartState>()(
       },
 
       // Best Discount Resolver - "Best Discount Wins" (no stacking)
+      // IMPORTANT: Yard signs do NOT participate in quantity discounts.
+      // Only banner items contribute to the quantity discount tier.
       getResolvedDiscount: () => {
         const items = get().items.map(migrateCartItem);
         const subtotalCents = items.reduce((total, item) => total + item.line_total_cents, 0);
-        const quantity = items.reduce((total, item) => total + item.quantity, 0);
+        
+        // Only banner items count toward quantity discount tiers
+        const bannerQuantity = items
+          .filter(item => (item.product_type || 'banner') !== 'yard_sign')
+          .reduce((total, item) => total + item.quantity, 0);
 
         const discountCode = get().discountCode;
         const promoDiscount: PromoDiscountInput | null = discountCode ? {
@@ -979,7 +987,7 @@ export const useCartStore = create<CartState>()(
           discountAmountCents: discountCode.discountAmountCents || undefined,
         } : null;
 
-        return resolveBestDiscount({ subtotalCents, quantity, promoDiscount });
+        return resolveBestDiscount({ subtotalCents, quantity: bannerQuantity, promoDiscount });
       }
     }),
     {

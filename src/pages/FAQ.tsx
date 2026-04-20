@@ -45,7 +45,7 @@ const FAQ: React.FC = () => {
     },
     {
       question: "Do you offer bulk discounts?",
-      answer: "Yes — we offer automatic volume discounts based on quantity:\n\n• 2 banners: 5% off\n• 3 banners: 7% off\n• 4 banners: 10% off\n• 5+ banners: 13% off\n\nDiscounts are applied automatically when you increase quantity. No codes needed — savings are built directly into the pricing.",
+      answer: "For banners — yes, we offer automatic volume discounts based on quantity:\n\n• 2 banners: 5% off\n• 3 banners: 7% off\n• 4 banners: 10% off\n• 5+ banners: 13% off\n\nDiscounts are applied automatically when you increase quantity. No codes needed — savings are built directly into the pricing.\n\nYard signs use flat per-sign pricing with no quantity discounts.",
       category: "Pricing"
     },
     {
