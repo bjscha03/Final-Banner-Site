@@ -1136,6 +1136,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
     .filter(({ item }) => item.final_print_pdf_url);
   const MAX_VISIBLE_FILES = 2;
   const DEFAULT_TRACKING_CARRIER: TrackingCarrier = 'fedex';
+  const ORDER_ACCENT_TEXT_CLASS = 'text-[#18448D]';
   const hiddenFileCount =
     Math.max(finalPrintFiles.length - MAX_VISIBLE_FILES, 0) +
     Math.max(filesWithDownload.length - MAX_VISIBLE_FILES, 0);
@@ -1160,7 +1161,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
             </div>
           )}
           <div className="min-w-0 space-y-1">
-            <div className="font-mono text-sm font-semibold text-[#18448D]">
+            <div className={`font-mono text-sm font-semibold ${ORDER_ACCENT_TEXT_CLASS}`}>
               #{order.id ? order.id.slice(-8).toUpperCase() : 'UNKNOWN'}
             </div>
             <div className="text-xs text-gray-500">
@@ -1181,7 +1182,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
             <div className="text-xs text-gray-500">Order Details</div>
             <div className="text-sm text-gray-900">{getItemsSummary(order)}</div>
           </div>
-          <div className="text-lg font-bold text-[#18448D]">{usd(order.total_cents / 100)}</div>
+          <div className={`text-lg font-bold ${ORDER_ACCENT_TEXT_CLASS}`}>{usd(order.total_cents / 100)}</div>
           <div className="flex flex-wrap gap-1.5">
             <Badge className={`${getStatusColor(order.status)} capitalize`}>
               {getStatusLabel(order.status)}
@@ -1329,7 +1330,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                 order={order}
                 onUploadFinalPdf={onUploadFinalPdf}
                 trigger={
-                  <Button variant="default" size="sm" className="h-8 text-xs">
+                  <Button size="sm" className="h-8 text-xs">
                     <Eye className="h-3 w-3 mr-1" />
                     View
                   </Button>
