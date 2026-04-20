@@ -22,6 +22,7 @@ import { useCheckoutContext } from '@/store/checkoutContext';
 import { cartSyncService } from '@/lib/cartSync';
 import { trackBeginCheckout, trackViewCart, trackFBInitiateCheckout } from '@/lib/analytics';
 import { trackPromoEvent } from '@/lib/posthog';
+import { getItemDisplayName, isYardSignItem, getProductCategory } from '@/lib/product-display';
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
@@ -259,8 +260,8 @@ const Checkout: React.FC = () => {
     if (items.length > 0) {
       const analyticsItems = items.map(item => ({
         item_id: item.id,
-        item_name: `${item.width_in}x${item.height_in} ${item.material} Banner`,
-        item_category: 'Banner',
+        item_name: `${item.width_in}x${item.height_in} ${item.material} ${isYardSignItem(item) ? 'Yard Sign' : 'Banner'}`,
+        item_category: getProductCategory(item.product_type),
         item_variant: item.material,
         price: item.line_total_cents,
         quantity: item.quantity,
@@ -456,7 +457,7 @@ const Checkout: React.FC = () => {
                       {/* Title and Price on same line */}
                       <div className="flex justify-between items-start mb-4">
                         <h3 className="font-bold text-[#18448D] text-xl">
-                          Custom Banner {formatDimensions(item.width_in, item.height_in)}
+                          {getItemDisplayName(item)}
                         </h3>
                         <div className="text-right ml-4 flex-shrink-0">
                           <p className="font-bold text-gray-900 text-xl">
@@ -470,16 +471,32 @@ const Checkout: React.FC = () => {
 
                       {/* Item specifications */}
                       <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-gray-600 mb-4">
-                        <span><span className="font-medium text-gray-700">Material:</span> {item.material}</span>
-                        <span><span className="font-medium text-gray-700">Grommets:</span> {getGrommetLabel(item.grommets)}</span>
-                        {item.rope_feet > 0 && (
-                          <span><span className="font-medium text-gray-700">Rope:</span> {item.rope_feet.toFixed(1)} ft</span>
-                        )}
-                        {item.pole_pocket_position && item.pole_pocket_position !== "none" && (
-                          <span>
-                            <span className="font-medium text-gray-700">Pole Pockets:</span> {item.pole_pocket_position}
-                            {item.pole_pocket_size && ` (${item.pole_pocket_size}")`}
-                          </span>
+                        {isYardSignItem(item) ? (
+                          <>
+                            <span><span className="font-medium text-gray-700">Material:</span> Corrugated Plastic</span>
+                            <span><span className="font-medium text-gray-700">Print:</span> {item.yard_sign_sidedness === 'double' ? 'Double-Sided' : 'Single-Sided'}</span>
+                            {item.yard_sign_design_count && item.yard_sign_design_count > 0 && (
+                              <span><span className="font-medium text-gray-700">Uploaded Designs:</span> {item.yard_sign_design_count}</span>
+                            )}
+                            <span><span className="font-medium text-gray-700">Total Signs:</span> {item.quantity}</span>
+                            {item.yard_sign_step_stakes_enabled && item.yard_sign_step_stakes_qty && item.yard_sign_step_stakes_qty > 0 && (
+                              <span><span className="font-medium text-gray-700">Step Stakes:</span> {item.yard_sign_step_stakes_qty}</span>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <span><span className="font-medium text-gray-700">Material:</span> {item.material}</span>
+                            <span><span className="font-medium text-gray-700">Grommets:</span> {getGrommetLabel(item.grommets)}</span>
+                            {item.rope_feet > 0 && (
+                              <span><span className="font-medium text-gray-700">Rope:</span> {item.rope_feet.toFixed(1)} ft</span>
+                            )}
+                            {item.pole_pocket_position && item.pole_pocket_position !== "none" && (
+                              <span>
+                                <span className="font-medium text-gray-700">Pole Pockets:</span> {item.pole_pocket_position}
+                                {item.pole_pocket_size && ` (${item.pole_pocket_size}")`}
+                              </span>
+                            )}
+                          </>
                         )}
                       </div>
 

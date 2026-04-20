@@ -107,6 +107,23 @@ export interface CartItem {
   final_render_dpi?: number;           // DPI used for capture (typically 300, may be clamped for large banners)
   canvas_state_json?: string;          // Exact stage/canvas JSON at submission for re-rendering
 
+  // Yard Sign metadata (only for product_type === 'yard_sign')
+  yard_sign_sidedness?: 'single' | 'double';     // Print sidedness
+  yard_sign_step_stakes_enabled?: boolean;        // Step stakes add-on
+  yard_sign_step_stakes_qty?: number;             // Number of step stakes
+  yard_sign_design_count?: number;                // Number of uploaded designs
+  yard_sign_designs?: Array<{                     // Per-design details
+    id: string;
+    fileName: string;
+    fileUrl: string;
+    fileKey: string;
+    thumbnailUrl: string;
+    isPdf: boolean;
+    quantity: number;
+  }>;
+  yard_sign_signs_subtotal_cents?: number;        // Sign subtotal before stakes
+  yard_sign_stakes_subtotal_cents?: number;       // Stakes subtotal
+
   // Design Service fields - "Let Our Team Design It" flow
   design_service_enabled?: boolean;              // True if customer chose design service
   design_request_text?: string;                  // Customer's description of what they want
@@ -409,6 +426,16 @@ export const useCartStore = create<CartState>()(
           final_render_height_px: (quote as any).finalRenderHeightPx || undefined,
           final_render_dpi: (quote as any).finalRenderDpi || undefined,
           canvas_state_json: (quote as any).canvasStateJson || undefined,
+          // Yard Sign metadata (populated when product_type is 'yard_sign')
+          ...((quote as any).product_type === 'yard_sign' && (quote as any).yard_sign_metadata ? {
+            yard_sign_sidedness: (quote as any).yard_sign_metadata.sidedness,
+            yard_sign_step_stakes_enabled: (quote as any).yard_sign_metadata.addStepStakes,
+            yard_sign_step_stakes_qty: (quote as any).yard_sign_metadata.stepStakeQty,
+            yard_sign_design_count: (quote as any).yard_sign_metadata.designCount,
+            yard_sign_designs: (quote as any).yard_sign_metadata.designs,
+            yard_sign_signs_subtotal_cents: (quote as any).yard_sign_metadata.signSubtotalCents,
+            yard_sign_stakes_subtotal_cents: (quote as any).yard_sign_metadata.stakeSubtotalCents,
+          } : {}),
           // Design Service fields
           design_service_enabled: (quote as any).design_service_enabled || undefined,
           design_request_text: (quote as any).design_request_text || undefined,
