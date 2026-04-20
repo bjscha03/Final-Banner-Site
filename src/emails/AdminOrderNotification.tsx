@@ -299,6 +299,7 @@ const logoStyle = {
 };
 
 const header = {
+  backgroundColor: '#059669',
   background: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
   padding: '32px 24px',
   textAlign: 'center' as const,
@@ -312,7 +313,7 @@ const headerTitle = {
 };
 
 const headerSubtitle = {
-  color: 'rgba(255, 255, 255, 0.9)',
+  color: '#ecfdf5',
   fontSize: '15px',
   margin: '0',
 };
