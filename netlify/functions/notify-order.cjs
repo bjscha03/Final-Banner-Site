@@ -291,9 +291,9 @@ function createAdminOrderEmailHtml(payload) {
 
               <!-- Header with Gradient -->
               <tr>
-                <td style="background: linear-gradient(135deg, #059669 0%, #10b981 100%); padding: 32px 24px; text-align: center;">
+                <td bgcolor="#059669" style="background-color: #059669; background: linear-gradient(135deg, #059669 0%, #10b981 100%); padding: 32px 24px; text-align: center;">
                   <h1 style="color: #ffffff; font-size: 26px; font-weight: 700; margin: 0 0 8px;">🎉 New Order Received!</h1>
-                  <p style="color: rgba(255, 255, 255, 0.9); font-size: 15px; margin: 0;">A customer has placed a new order on Banners On The Fly</p>
+                  <p style="color: #ecfdf5; font-size: 15px; margin: 0;">A customer has placed a new order on Banners On The Fly</p>
                 </td>
               </tr>
 
