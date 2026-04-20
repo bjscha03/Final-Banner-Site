@@ -320,7 +320,7 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
               <div className="space-y-1.5">
                 <p className="text-xs text-gray-500 font-medium">Quick select total:</p>
                 <div className="flex flex-wrap gap-2">
-                  {[10, 20, 30, 50, 70, 90].map(qty => (
+                  {[10, 20, 30, 40, 50, 60, 70, 80, 90].map(qty => (
                     <button
                       key={qty}
                       onClick={() => {
