@@ -906,63 +906,25 @@ const AdminOrders: React.FC = () => {
                   ))}
                 </div>
                 
-                {/* Desktop Table View */}
-                <div className="hidden md:block overflow-x-auto">
-                  <table className="w-full table-fixed divide-y divide-gray-200">
-                    <thead className="bg-gray-50 sticky top-0 z-10">
-                      <tr>
-                        <th className="w-[8%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Order
-                        </th>
-                        <th className="w-[7%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Preview
-                        </th>
-                        <th className="w-[10%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Customer
-                        </th>
-                        <th className="w-[8%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Date
-                        </th>
-                        <th className="w-[17%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Items
-                        </th>
-                        <th className="w-[8%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Total
-                        </th>
-                        <th className="w-[11%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Status
-                        </th>
-                        <th className="w-[11%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Print File
-                        </th>
-                        <th className="w-[12%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Tracking
-                        </th>
-                        <th className="w-[8%] px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          Actions
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredOrders.map((order) => (
-                        <AdminOrderRow
-                          key={order.id}
-                          order={order}
-                          onAddTracking={handleAddTracking}
-                          onUpdateTracking={handleUpdateTracking}
-                          onFileDownload={handleFileDownload}
-                          onPdfDownload={handlePdfDownload}
-                          onSendShippingNotification={handleSendShippingNotification}
-                          onMarkInProduction={handleMarkInProduction}
-                          onUploadFinalPdf={handleUploadFinalPdf}
-                          getStatusColor={getStatusColor}
-                          getStatusLabel={getStatusLabel}
-                          pdfLoadingStates={pdfLoadingStates}
-                          getItemsSummary={getItemsSummary}
-                        />
-                      ))}
-                    </tbody>
-                  </table>
+                {/* Desktop Card-Row View */}
+                <div className="hidden md:block bg-gray-50 p-4 lg:p-5 space-y-3">
+                  {filteredOrders.map((order) => (
+                    <AdminOrderRow
+                      key={order.id}
+                      order={order}
+                      onAddTracking={handleAddTracking}
+                      onUpdateTracking={handleUpdateTracking}
+                      onFileDownload={handleFileDownload}
+                      onPdfDownload={handlePdfDownload}
+                      onSendShippingNotification={handleSendShippingNotification}
+                      onMarkInProduction={handleMarkInProduction}
+                      onUploadFinalPdf={handleUploadFinalPdf}
+                      getStatusColor={getStatusColor}
+                      getStatusLabel={getStatusLabel}
+                      pdfLoadingStates={pdfLoadingStates}
+                      getItemsSummary={getItemsSummary}
+                    />
+                  ))}
                 </div>
               </>
             )}
@@ -1168,145 +1130,81 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
     return filesWithDownload;
   };
 
+  const filesWithDownload = getFilesWithDownload();
+  const finalPrintFiles = order.items
+    .map((item, index) => ({ item, index }))
+    .filter(({ item }) => item.final_print_pdf_url);
+  const MAX_VISIBLE_FILES = 2;
+  const DEFAULT_TRACKING_CARRIER: TrackingCarrier = 'fedex';
+  const ORDER_ACCENT_TEXT_CLASS = 'text-[#18448D]';
+  const hiddenFileCount =
+    Math.max(finalPrintFiles.length - MAX_VISIBLE_FILES, 0) +
+    Math.max(filesWithDownload.length - MAX_VISIBLE_FILES, 0);
+
   return (
-    <tr className="hover:bg-gray-50">
-      <td className="px-2 py-3 align-top">
-        <div className="text-sm font-medium text-gray-900">
-          #{order.id ? order.id.slice(-8).toUpperCase() : 'UNKNOWN'}
-        </div>
-      </td>
-      {/* Thumbnail Preview */}
-      <td className="px-3 py-3">
-        {getFirstItemThumbnail() ? (
-          <img 
-            src={getFirstItemThumbnail()} 
-            alt="Banner preview"
-            className="w-16 h-12 object-cover rounded border border-gray-200"
-            onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
-            }}
-          />
-        ) : (
-          <div className="w-16 h-12 bg-gray-100 rounded border border-gray-200 flex items-center justify-center">
-            <span className="text-xs text-gray-400">No image</span>
-          </div>
-        )}
-      </td>
-      <td className="px-2 py-3 align-top">
-        <div className="text-sm text-gray-900">
-          {order.user_id ? (order.user_id.slice(0, 8) + '...') : 'Guest'}
-        </div>
-      </td>
-      <td className="px-2 py-3 align-top">
-        <div className="text-sm text-gray-900">
-          {new Date(order.created_at).toLocaleDateString()}
-        </div>
-      </td>
-      <td className="px-3 py-3">
-        <div className="text-sm text-gray-900">
-          {getItemsSummary(order)}
-        </div>
-      </td>
-      <td className="px-2 py-3 align-top">
-        <div className="text-sm font-semibold text-gray-900">
-          {usd(order.total_cents / 100)}
-        </div>
-      </td>
-      <td className="px-2 py-3 align-top">
-        <div className="flex flex-col gap-1">
-          <Badge className={`${getStatusColor(order.status)} capitalize`}>
-            {getStatusLabel(order.status)}
-          </Badge>
-          {order.items.some(item => item.design_service_enabled) && (
-            <Badge className="bg-purple-100 text-purple-800 text-xs">
-              <Palette className="h-3 w-3 mr-1" />
-              Design Service
-            </Badge>
-          )}
-        </div>
-      </td>
-      {/* Print File Column */}
-      <td className="px-3 py-3">
-        <div className="flex flex-col space-y-1">
-          {/* Show uploaded Final Print Files for design service orders */}
-          {order.items
-            .map((item, index) => ({ item, index }))
-            .filter(({ item }) => item.final_print_pdf_url)
-            .map(({ item, index }) => (
-              <a
-                key={`final-pdf-${index}`}
-                href={item.final_print_pdf_url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center text-xs text-purple-600 hover:text-purple-800 font-medium"
-              >
-                <Download className="h-3 w-3 mr-1" />
-                Final Print File {order.items.length > 1 ? `#${index + 1}` : ''}
-              </a>
-            ))}
-          {/* Show Generate Print File buttons for regular orders */}
-          {getFilesWithDownload().length > 0 ? (
-            getFilesWithDownload().map(({ item, index }) => (
-              <Button
-                key={index}
-                size="sm"
-                variant="outline"
-                onClick={() => onPdfDownload(item, index, order.id)}
-                disabled={pdfLoadingStates[`${order.id}-${index}`]}
-                className="text-xs h-6 px-2"
-              >
-                {pdfLoadingStates[`${order.id}-${index}`] ? (
-                  <>
-                    <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <FileText className="h-3 w-3 mr-1" />
-                    JPEG
-                  </>
-                )}
-              </Button>
-            ))
+    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
+        {/* LEFT SECTION */}
+        <div className="flex min-w-0 flex-1 gap-3">
+          {getFirstItemThumbnail() ? (
+            <img 
+              src={getFirstItemThumbnail()} 
+              alt="Banner preview"
+              className="h-[72px] w-[72px] flex-shrink-0 rounded-lg border border-gray-200 object-cover"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
+            />
           ) : (
-            // Only show "No files" if there are no final print files either
-            !order.items.some(item => item.final_print_pdf_url) && (
-              <div className="text-xs text-gray-500 flex items-center">
-                <FileText className="h-3 w-3 mr-1" />
-                No files
-              </div>
-            )
+            <div className="h-[72px] w-[72px] flex-shrink-0 rounded-lg border border-gray-200 bg-gray-100 flex items-center justify-center">
+              <span className="text-xs text-gray-400">No image</span>
+            </div>
           )}
+          <div className="min-w-0 space-y-1">
+            <div className={`font-mono text-sm font-semibold ${ORDER_ACCENT_TEXT_CLASS}`}>
+              #{order.id ? order.id.slice(-8).toUpperCase() : 'UNKNOWN'}
+            </div>
+            <div className="text-xs text-gray-500">
+              {new Date(order.created_at).toLocaleDateString()}
+            </div>
+            <div className="text-sm font-medium text-gray-900 truncate">
+              {order.customer_name || order.shipping_name || 'Guest Customer'}
+            </div>
+            <div className="text-xs text-gray-600 truncate">
+              {order.email || (order.user_id ? `${order.user_id.slice(0, 8)}...` : 'No email')}
+            </div>
+          </div>
         </div>
-      </td>
-      <td className="px-2 py-3 align-top">
-        {order.tracking_number ? (
-          <div className="flex flex-col space-y-2">
-            {isEditingTracking ? (
-              <div className="flex items-center space-x-1">
-                <Input
-                  type="text"
-                  value={editTrackingNumber}
-                  onChange={(e) => setEditTrackingNumber(e.target.value)}
-                  className="w-32 h-7 text-xs"
-                />
-                <Button size="sm" onClick={handleSaveTracking} className="h-7 px-2">
-                  <Save className="h-3 w-3" />
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleCancelEdit}
-                  className="h-7 px-2"
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              </div>
-            ) : (
+
+        {/* MIDDLE SECTION */}
+        <div className="w-full space-y-2 xl:max-w-[260px]">
+          <div>
+            <div className="text-xs text-gray-500">Order Details</div>
+            <div className="text-sm text-gray-900">{getItemsSummary(order)}</div>
+          </div>
+          <div className={`text-lg font-bold ${ORDER_ACCENT_TEXT_CLASS}`}>{usd(order.total_cents / 100)}</div>
+          <div className="flex flex-wrap gap-1.5">
+            <Badge className={`${getStatusColor(order.status)} capitalize`}>
+              {getStatusLabel(order.status)}
+            </Badge>
+            {order.items.some(item => item.design_service_enabled) && (
+              <Badge className="bg-purple-100 text-purple-800 text-xs">
+                <Palette className="h-3 w-3 mr-1" />
+                Design Service
+              </Badge>
+            )}
+          </div>
+        </div>
+
+        {/* RIGHT SECTION */}
+        <div className="w-full space-y-3 xl:max-w-[420px]">
+          <div className="space-y-2">
+            <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Tracking</div>
+            {order.tracking_number ? (
               <div className="flex flex-wrap items-center gap-2">
                 <Badge className="bg-green-100 text-green-800">
                   <Truck className="h-3 w-3 mr-1" />
-                  {order.tracking_carrier?.toUpperCase()}
+                  {(order.tracking_carrier || DEFAULT_TRACKING_CARRIER).toUpperCase()}
                 </Badge>
                 <a
                   href={fedexUrl(order.tracking_number)}
@@ -1316,129 +1214,190 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                 >
                   {order.tracking_number}
                 </a>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={handleEditTracking}
-                  className="h-6 px-1"
-                >
-                  <Edit3 className="h-3 w-3" />
-                </Button>
+                {!isEditingTracking && (
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={handleEditTracking}
+                    className="h-7 px-2 text-xs"
+                  >
+                    <Edit3 className="h-3 w-3 mr-1" />
+                    Edit
+                  </Button>
+                )}
               </div>
-            )}
-          </div>
-        ) : (
-          <div className="flex items-center space-x-2">
-            {isAddingTracking ? (
-              <>
-                <Input
-                  type="text"
-                  placeholder="Tracking number"
-                  value={trackingNumber}
-                  onChange={(e) => setTrackingNumber(e.target.value)}
-                  className="w-32 h-8 text-xs"
-                />
-                <Button size="sm" onClick={handleAddTracking}>
-                  Add
-                </Button>
-                <Button 
-                  size="sm" 
-                  variant="ghost" 
-                  onClick={() => setIsAddingTracking(false)}
-                >
-                  Cancel
-                </Button>
-              </>
             ) : (
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => setIsAddingTracking(true)}
+                className="h-8 text-xs"
               >
                 <Plus className="h-3 w-3 mr-1" />
                 Add Tracking
               </Button>
             )}
+            {(isEditingTracking || isAddingTracking) && (
+              <div className="flex flex-wrap items-center gap-2">
+                <Input
+                  type="text"
+                  placeholder="Tracking number"
+                  value={isEditingTracking ? editTrackingNumber : trackingNumber}
+                  onChange={(e) =>
+                    isEditingTracking
+                      ? setEditTrackingNumber(e.target.value)
+                      : setTrackingNumber(e.target.value)
+                  }
+                  className="h-8 w-44 text-xs"
+                />
+                <Button
+                  size="sm"
+                  onClick={isEditingTracking ? handleSaveTracking : handleAddTracking}
+                  className="h-8 px-3 text-xs"
+                >
+                  <Save className="h-3 w-3 mr-1" />
+                  Save
+                </Button>
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={isEditingTracking ? handleCancelEdit : () => setIsAddingTracking(false)}
+                  className="h-8 px-3 text-xs"
+                >
+                  <X className="h-3 w-3 mr-1" />
+                  Cancel
+                </Button>
+              </div>
+            )}
           </div>
-        )}
-      </td>
-      <td className="px-2 py-3 align-top text-sm font-medium">
-        <div className="flex flex-wrap items-center gap-2 sm:gap-3 xl:justify-end">
-          <OrderDetails
-            order={order}
-            onUploadFinalPdf={onUploadFinalPdf}
-            trigger={
-              <Button variant="ghost" size="sm">
-                <Eye className="h-4 w-4 mr-1" />
-                View
-              </Button>
-            }
-          />
 
-          {/* Mark as In Production Button - show for paid orders not yet in production */}
-          {order.status === 'paid' && !order.production_email_sent && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleMarkInProduction}
-              disabled={isMarkingProduction}
-              className="text-xs border-yellow-400 text-yellow-700 hover:bg-yellow-50"
-            >
-              {isMarkingProduction ? (
-                <>
-                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                  Updating...
-                </>
-              ) : (
-                <>
-                  <Package className="h-3 w-3 mr-1" />
-                  Mark In Production
-                </>
+          <div className="space-y-2">
+            <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Print Files</div>
+            {(filesWithDownload.length > 0 || finalPrintFiles.length > 0) ? (
+              <div className="flex flex-wrap gap-2">
+                {finalPrintFiles.slice(0, MAX_VISIBLE_FILES).map(({ item, index }) => (
+                  <a
+                    key={`final-pdf-${index}`}
+                    href={item.final_print_pdf_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex h-8 items-center rounded-md border border-purple-200 bg-purple-50 px-2.5 text-xs text-purple-700 hover:bg-purple-100"
+                  >
+                    <Download className="h-3 w-3 mr-1" />
+                    Final {index + 1}
+                  </a>
+                ))}
+                {filesWithDownload.slice(0, MAX_VISIBLE_FILES).map(({ item, index }) => (
+                  <Button
+                    key={`jpeg-${index}`}
+                    size="sm"
+                    variant="outline"
+                    onClick={() => onPdfDownload(item, index, order.id)}
+                    disabled={pdfLoadingStates[`${order.id}-${index}`]}
+                    className="h-8 px-2.5 text-xs"
+                  >
+                    {pdfLoadingStates[`${order.id}-${index}`] ? (
+                      <>
+                        <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <FileText className="h-3 w-3 mr-1" />
+                        JPEG {index + 1}
+                      </>
+                    )}
+                  </Button>
+                ))}
+                {hiddenFileCount > 0 && (
+                  <div className="h-8 inline-flex items-center px-2 text-xs text-gray-500">
+                    +{hiddenFileCount} more
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-xs text-gray-500 flex items-center">
+                <FileText className="h-3 w-3 mr-1" />
+                No files
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2">
+            <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Actions</div>
+            <div className="flex flex-wrap items-center gap-2">
+              <OrderDetails
+                order={order}
+                onUploadFinalPdf={onUploadFinalPdf}
+                trigger={
+                  <Button size="sm" className="h-8 text-xs">
+                    <Eye className="h-3 w-3 mr-1" />
+                    View
+                  </Button>
+                }
+              />
+
+              {order.status === 'paid' && !order.production_email_sent && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleMarkInProduction}
+                  disabled={isMarkingProduction}
+                  className="h-8 text-xs border-yellow-400 text-yellow-700 hover:bg-yellow-50"
+                >
+                  {isMarkingProduction ? (
+                    <>
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      Updating...
+                    </>
+                  ) : (
+                    <>
+                      <Package className="h-3 w-3 mr-1" />
+                      Mark In Production
+                    </>
+                  )}
+                </Button>
               )}
-            </Button>
-          )}
 
-          {/* Show in-production timestamp */}
-          {order.status === 'in_production' && order.production_email_sent_at && (
-            <div className="text-xs text-yellow-700 flex items-center">
-              <Package className="h-3 w-3 mr-1" />
-              In Production {new Date(order.production_email_sent_at).toLocaleDateString()}
-            </div>
-          )}
-
-          {/* Send Shipping Notification Button */}
-          {order.tracking_number && !order.shipping_notification_sent && (
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleSendNotification}
-              disabled={isSendingNotification}
-              className="text-xs"
-            >
-              {isSendingNotification ? (
-                <>
-                  <Loader2 className="h-3 w-3 mr-1 animate-spin" />
-                  Sending...
-                </>
-              ) : (
-                <>
-                  <Mail className="h-3 w-3 mr-1" />
-                  Send Email
-                </>
+              {order.tracking_number && !order.shipping_notification_sent && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={handleSendNotification}
+                  disabled={isSendingNotification}
+                  className="h-8 text-xs"
+                >
+                  {isSendingNotification ? (
+                    <>
+                      <Loader2 className="h-3 w-3 mr-1 animate-spin" />
+                      Sending...
+                    </>
+                  ) : (
+                    <>
+                      <Mail className="h-3 w-3 mr-1" />
+                      Send Email
+                    </>
+                  )}
+                </Button>
               )}
-            </Button>
-          )}
-
-          {/* Show notification sent status */}
-          {order.shipping_notification_sent && (
-            <div className="text-xs text-green-600 flex items-center">
-              <Mail className="h-3 w-3 mr-1" />
-              Email Sent
             </div>
-          )}
+
+            {order.status === 'in_production' && order.production_email_sent_at && (
+              <div className="text-xs text-yellow-700 flex items-center">
+                <Package className="h-3 w-3 mr-1" />
+                In Production {new Date(order.production_email_sent_at).toLocaleDateString()}
+              </div>
+            )}
+            {order.shipping_notification_sent && (
+              <div className="text-xs text-green-600 flex items-center">
+                <Mail className="h-3 w-3 mr-1" />
+                Email Sent
+              </div>
+            )}
+          </div>
         </div>
-      </td>
-    </tr>
+      </div>
+    </div>
   );
 };
 
