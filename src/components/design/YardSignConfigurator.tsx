@@ -480,7 +480,7 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
                 >
                   <img
                     src={getRowThumbnailSrc(design)}
-                    alt=""
+                    alt={`${design.fileName} thumbnail`}
                     className="w-full h-full object-cover"
                     onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                   />
