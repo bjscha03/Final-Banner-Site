@@ -504,7 +504,7 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
                 {/* Thumbnail — fixed size, click to preview */}
                 <button
                   onClick={() => openPreview(design.id)}
-                  className="w-14 aspect-[24/18] min-w-[3.5rem] max-w-[3.5rem] rounded-lg overflow-hidden bg-[#fafafa] flex-shrink-0 border border-gray-200 relative group cursor-pointer"
+                  className="w-14 aspect-[24/18] min-w-[3.5rem] max-w-[3.5rem] rounded-lg overflow-hidden bg-gray-50 flex-shrink-0 border border-gray-200 relative group cursor-pointer"
                   aria-label={`Preview ${design.fileName}`}
                 >
                   <img
