@@ -107,22 +107,17 @@ const GoogleAdsBanner: React.FC = () => {
   const { user } = useAuth();
   const userIsAdmin = isAdmin(user);
 
-  // Product type state (admin-only: yard_sign)
-  // Read ?product= query param so "Add Another Yard Sign" links open the correct tab
+  // Product type state — public for both banners and yard signs
+  // Read ?tab= (preferred) or ?product= (legacy) query param so "Add Another Yard Sign" links open the correct tab
   const initialProductType = (() => {
-    const param = searchParams.get('product');
-    if (param === 'yard-sign' || param === 'yard_sign') return 'yard_sign' as ProductTypeSlug;
+    const tab = searchParams.get('tab');
+    const product = searchParams.get('product');
+    const param = tab || product;
+    if (param === 'yard-sign' || param === 'yard_sign' || param === 'yard-signs') return 'yard_sign' as ProductTypeSlug;
     return 'banner' as ProductTypeSlug;
   })();
   const [productType, setProductType] = useState<ProductTypeSlug>(initialProductType);
   const isYardSign = productType === 'yard_sign';
-
-  // Guard: if non-admin somehow lands on ?product=yard-sign, fall back to banner
-  useEffect(() => {
-    if (productType === 'yard_sign' && !userIsAdmin) {
-      setProductType('banner');
-    }
-  }, [productType, userIsAdmin]);
 
   // Yard sign specific state (v2: simplified single-size, multi-design)
   const [yardSignDesigns, setYardSignDesigns] = useState<YardSignDesign[]>([]);
@@ -307,8 +302,6 @@ const GoogleAdsBanner: React.FC = () => {
 
   // Handle product type switch — reset state
   const handleProductTypeChange = useCallback((newType: ProductTypeSlug) => {
-    // Guard: only admins can switch to yard_sign
-    if (newType === 'yard_sign' && !userIsAdmin) return;
     setProductType(newType);
     setImgPos({ x: 0, y: 0 });
     setImgScale(1);
@@ -322,7 +315,7 @@ const GoogleAdsBanner: React.FC = () => {
       setYardSignAddStepStakes(false);
       setYardSignStepStakeQty(1);
     }
-  }, [userIsAdmin]);
+  }, []);
 
   const applyPreset = (idx: number) => {
     const p = PRESET_SIZES[idx];
@@ -867,10 +860,8 @@ const GoogleAdsBanner: React.FC = () => {
 
         <section ref={orderRef} id="order-builder" className="py-12 px-4 bg-white">
           <div className="max-w-4xl lg:max-w-6xl mx-auto">
-            {/* Admin-only product type switcher */}
-            {userIsAdmin && (
-              <ProductTypeSwitcher productType={productType} onProductTypeChange={handleProductTypeChange} />
-            )}
+            {/* Product type switcher — public for all users */}
+            <ProductTypeSwitcher productType={productType} onProductTypeChange={handleProductTypeChange} />
             <h2 className="text-2xl md:text-3xl font-bold text-center mb-10">
               {isYardSign ? 'Build Your Yard Sign Order' : 'Build Your Banner'}
             </h2>

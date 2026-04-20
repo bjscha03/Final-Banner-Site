@@ -93,11 +93,15 @@ const computeTotals = (items, taxRate, opts, promoDiscount = null) => {
   const adjusted = Math.max(raw, opts.minFloorCents || 0);
   const minAdj = Math.max(0, adjusted - raw);
 
-  // Calculate total quantity across all items
+  // IMPORTANT: Only BANNER items count toward quantity discount tiers.
+  // Yard signs use flat per-sign pricing with NO quantity discounts.
+  const bannerQuantity = items
+    .filter(i => (i.product_type || 'banner') !== 'yard_sign')
+    .reduce((sum, i) => sum + (i.quantity || 1), 0);
   const totalQuantity = items.reduce((sum, i) => sum + (i.quantity || 1), 0);
 
-  // "Best Discount Wins" - only ONE discount applied
-  const bestDiscount = resolveBestDiscount(adjusted, totalQuantity, promoDiscount);
+  // "Best Discount Wins" - only ONE discount applied (using banner qty for tier lookup)
+  const bestDiscount = resolveBestDiscount(adjusted, bannerQuantity, promoDiscount);
   const subtotalAfterDiscount = adjusted - bestDiscount.appliedDiscountAmountCents;
 
   const shipping_cents = opts.freeShipping ? 0 : 0; // Always free for US
@@ -112,7 +116,7 @@ const computeTotals = (items, taxRate, opts, promoDiscount = null) => {
     applied_discount_type: bestDiscount.appliedDiscountType,
     applied_discount_cents: bestDiscount.appliedDiscountAmountCents,
     applied_discount_rate: bestDiscount.appliedDiscountRate,
-    quantity_discount_rate: getQuantityDiscountRate(totalQuantity),
+    quantity_discount_rate: getQuantityDiscountRate(bannerQuantity),
     quantity_discount_cents: bestDiscount.quantityDiscountCents,
     promo_discount_cents: bestDiscount.promoDiscountCents,
     subtotal_after_discount_cents: subtotalAfterDiscount,

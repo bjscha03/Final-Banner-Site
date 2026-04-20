@@ -327,9 +327,10 @@ const Checkout: React.FC = () => {
 
   // Build product-aware navigation URL for "Add Another" actions
   const getAddAnotherUrl = (productType?: string): string => {
-    if (!isFromGoogleAds) return '/design';
-    if (productType === 'yard_sign') return '/google-ads-banner?product=yard-sign';
-    return '/google-ads-banner?product=banner';
+    // Determine the base page: Google Ads landing or regular design page
+    const basePage = isFromGoogleAds ? '/google-ads-banner' : '/design';
+    if (productType === 'yard_sign') return `${basePage}?tab=yard-sign`;
+    return `${basePage}?tab=banner`;
   };
 
   // Redirect if cart is empty
@@ -584,11 +585,33 @@ const Checkout: React.FC = () => {
                     const isMixed = hasYardSigns && hasBanners;
 
                     if (!isFromGoogleAds) {
-                      // Non-Google-Ads flow
+                      // Non-Google-Ads flow — use /design page with product-aware routing
+                      if (isMixed) {
+                        return (
+                          <div className="flex gap-3">
+                            <Button
+                              variant="outline"
+                              onClick={() => navigate(getAddAnotherUrl('banner'))}
+                              className="flex-1 border-dashed border-2 border-gray-300 text-gray-600 hover:border-[#18448D] hover:text-[#18448D] hover:bg-blue-50 transition-all py-3"
+                            >
+                              <Plus className="h-4 w-4 mr-2" />
+                              Add Another Banner
+                            </Button>
+                            <Button
+                              variant="outline"
+                              onClick={() => navigate(getAddAnotherUrl('yard_sign'))}
+                              className="flex-1 border-dashed border-2 border-gray-300 text-gray-600 hover:border-[#18448D] hover:text-[#18448D] hover:bg-blue-50 transition-all py-3"
+                            >
+                              <Plus className="h-4 w-4 mr-2" />
+                              Add Another Yard Sign
+                            </Button>
+                          </div>
+                        );
+                      }
                       return (
                         <Button
                           variant="outline"
-                          onClick={() => navigate('/design')}
+                          onClick={() => navigate(getAddAnotherUrl(dominantProductType))}
                           className="w-full border-dashed border-2 border-gray-300 text-gray-600 hover:border-[#18448D] hover:text-[#18448D] hover:bg-blue-50 transition-all py-3"
                         >
                           <Plus className="h-4 w-4 mr-2" />
