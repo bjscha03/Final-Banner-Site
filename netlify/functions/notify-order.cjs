@@ -245,7 +245,15 @@ function createAdminOrderEmailHtml(payload) {
 
   // Generate shipping address HTML
   let shippingHtml = '';
-  if (order.shipping_name || order.shipping_street) {
+  if (
+    order.shipping_name ||
+    order.shipping_street ||
+    order.shipping_street2 ||
+    order.shipping_city ||
+    order.shipping_state ||
+    order.shipping_zip ||
+    order.shipping_country
+  ) {
     shippingHtml = `
       <!-- Shipping Address -->
       <tr>
@@ -569,10 +577,10 @@ async function sendEmail(type, payload) {
             </div>
           </div>
           
-          ${payload.order.shipping_name ? `
+          ${(payload.order.shipping_name || payload.order.shipping_street || payload.order.shipping_street2 || payload.order.shipping_city || payload.order.shipping_state || payload.order.shipping_zip || payload.order.shipping_country) ? `
             <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
               <h3 style="margin-top: 0; color: #374151;">Shipping Address</h3>
-              <p style="margin: 5px 0; font-weight: 600;">${payload.order.shipping_name}</p>
+              ${payload.order.shipping_name ? `<p style="margin: 5px 0; font-weight: 600;">${payload.order.shipping_name}</p>` : ''}
               ${payload.order.shipping_street ? `<p style="margin: 5px 0;">${payload.order.shipping_street}</p>` : ''}
               ${payload.order.shipping_street2 ? `<p style="margin: 5px 0;">${payload.order.shipping_street2}</p>` : ''}
               ${(payload.order.shipping_city || payload.order.shipping_state || payload.order.shipping_zip) ? `<p style="margin: 5px 0;">${payload.order.shipping_city || ''}${payload.order.shipping_city && payload.order.shipping_state ? ', ' : ''}${payload.order.shipping_state || ''} ${payload.order.shipping_zip || ''}</p>` : ''}

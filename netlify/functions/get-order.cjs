@@ -69,6 +69,22 @@ exports.handler = async (event, context) => {
       console.warn('[get-order] Auto-migration warning (non-fatal):', migErr.message);
     }
 
+    // AUTO-MIGRATE: Ensure shipping columns exist on orders table
+    try {
+      await sql`
+        ALTER TABLE orders
+        ADD COLUMN IF NOT EXISTS shipping_name TEXT,
+        ADD COLUMN IF NOT EXISTS shipping_street TEXT,
+        ADD COLUMN IF NOT EXISTS shipping_street2 TEXT,
+        ADD COLUMN IF NOT EXISTS shipping_city TEXT,
+        ADD COLUMN IF NOT EXISTS shipping_state TEXT,
+        ADD COLUMN IF NOT EXISTS shipping_zip TEXT,
+        ADD COLUMN IF NOT EXISTS shipping_country TEXT DEFAULT 'US'
+      `;
+    } catch (migErr) {
+      console.warn('[get-order] Orders auto-migration warning (non-fatal):', migErr.message);
+    }
+
     // Parse query parameters
     const orderId = event.queryStringParameters?.id;
 
@@ -92,6 +108,13 @@ exports.handler = async (event, context) => {
         total_cents,
         status,
         tracking_number,
+        shipping_name,
+        shipping_street,
+        shipping_street2,
+        shipping_city,
+        shipping_state,
+        shipping_zip,
+        shipping_country,
         applied_discount_cents,
         applied_discount_label,
         applied_discount_type,
