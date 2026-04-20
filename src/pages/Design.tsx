@@ -156,6 +156,7 @@ const Design: React.FC = () => {
         quantity: d.quantity,
         imgScale: d.imgScale,
         imgPos: d.imgPos,
+        previewThumbnailUrl: d.previewThumbnailUrl,
       }));
       setYardSignDesigns(restoredDesigns);
       setYardSignSidedness(item.yard_sign_sidedness || 'single');
@@ -488,6 +489,7 @@ const Design: React.FC = () => {
           quantity: d.quantity,
           imgScale: d.imgScale,
           imgPos: d.imgPos,
+          previewThumbnailUrl: d.previewThumbnailUrl,
         })),
       };
 
