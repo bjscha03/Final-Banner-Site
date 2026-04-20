@@ -124,12 +124,15 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
 
   /** Quality for JPEG preview thumbnails */
   const PREVIEW_THUMBNAIL_QUALITY = 0.85;
+  /** Minimum data URL length to consider a thumbnail valid (not blank) */
+  const MIN_VALID_THUMBNAIL_LENGTH = 1000;
 
   // Save preview state and generate thumbnail, then close
   const savePreviewAndClose = useCallback(() => {
     if (!previewDesignId) { setPreviewDesignId(null); return; }
     
     const currentDesign = designs.find(d => d.id === previewDesignId);
+    if (!currentDesign) { setPreviewDesignId(null); return; }
     
     // Generate a thumbnail from the preview canvas
     const container = previewCanvasRef.current;
@@ -180,7 +183,7 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
           
           const dataUrl = canvas.toDataURL('image/jpeg', PREVIEW_THUMBNAIL_QUALITY);
           // Verify thumbnail isn't blank (a blank JPEG data URL is very short)
-          if (dataUrl && dataUrl.length > 1000) {
+          if (dataUrl && dataUrl.length > MIN_VALID_THUMBNAIL_LENGTH) {
             onDesignsChange(designs.map(d => d.id === previewDesignId ? {
               ...d,
               imgScale: previewImgScale,
