@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Package, Calendar, Mail, CreditCard, Truck, CheckCircle, Clock, AlertCircle, Palette, MessageSquare, Phone, Upload } from 'lucide-react';
+import { Package, Calendar, Mail, CreditCard, Truck, CheckCircle, Clock, AlertCircle, Palette, MessageSquare, Phone, Upload, MapPin } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { useScrollToTop } from '@/components/ScrollToTop';
 import { calculatePolePocketCostFromOrder, calculateUnitPriceFromOrder } from '@/lib/pricing';
@@ -52,6 +52,13 @@ interface Order {
   applied_discount_cents?: number;
   applied_discount_label?: string;
   applied_discount_type?: string;
+  shipping_name?: string | null;
+  shipping_street?: string | null;
+  shipping_street2?: string | null;
+  shipping_city?: string | null;
+  shipping_state?: string | null;
+  shipping_zip?: string | null;
+  shipping_country?: string | null;
 }
 
 const OrderDetail: React.FC = () => {
@@ -104,6 +111,18 @@ const OrderDetail: React.FC = () => {
     });
   };
 
+  const formatCityStateZip = (
+    city?: string | null,
+    state?: string | null,
+    zip?: string | null
+  ) => {
+    const cleanCity = city?.trim() || '';
+    const cleanState = state?.trim() || '';
+    const cleanZip = zip?.trim() || '';
+    const cityState = cleanCity && cleanState ? `${cleanCity}, ${cleanState}` : cleanCity || cleanState;
+    return [cityState, cleanZip].filter(Boolean).join(' ');
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'paid':
@@ -133,6 +152,17 @@ const OrderDetail: React.FC = () => {
         return 'bg-gray-100 text-gray-800';
     }
   };
+
+  const hasShippingAddress = Boolean(
+    order?.shipping_name ||
+    order?.shipping_street ||
+    order?.shipping_street2 ||
+    order?.shipping_city ||
+    order?.shipping_state ||
+    order?.shipping_zip ||
+    order?.shipping_country
+  );
+  const cityStateZipLine = formatCityStateZip(order?.shipping_city, order?.shipping_state, order?.shipping_zip);
 
   if (loading) {
     return (
@@ -210,6 +240,23 @@ const OrderDetail: React.FC = () => {
               )}
             </div>
           </div>
+
+          {/* Shipping Address */}
+          {hasShippingAddress && (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Shipping Address</h2>
+              <div className="flex items-start gap-3 text-gray-700">
+                <MapPin className="h-5 w-5 text-gray-400 mt-0.5 flex-shrink-0" />
+                <div className="space-y-1">
+                  {order.shipping_name && <p className="font-medium text-gray-900">{order.shipping_name}</p>}
+                  {order.shipping_street && <p>{order.shipping_street}</p>}
+                  {order.shipping_street2 && <p>{order.shipping_street2}</p>}
+                  {cityStateZipLine && <p>{cityStateZipLine}</p>}
+                  {order.shipping_country && order.shipping_country !== 'US' && <p>{order.shipping_country}</p>}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Order Items */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
