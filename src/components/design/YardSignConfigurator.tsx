@@ -195,9 +195,15 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
             ctx.rect(0, 0, rect.width, rect.height);
             ctx.clip();
             
-            // Apply the same transforms as the CSS: translate + scale
+            // Apply the same transforms as the CSS on the preview layer:
+            // transform: translate(...) scale(...) with default transform-origin center center.
+            // CSS matrix equivalent: T(pos) * T(center) * S(scale) * T(-center)
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
             ctx.translate(previewImgPos.x, previewImgPos.y);
+            ctx.translate(centerX, centerY);
             ctx.scale(previewImgScale, previewImgScale);
+            ctx.translate(-centerX, -centerY);
             
             // Match object-contain: compute dimensions preserving aspect ratio
             const imgAr = imgEl.naturalWidth / imgEl.naturalHeight;
