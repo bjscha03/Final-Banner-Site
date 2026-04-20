@@ -125,6 +125,8 @@ const GoogleAdsBanner: React.FC = () => {
   const [yardSignAddStepStakes, setYardSignAddStepStakes] = useState(false);
   const [yardSignStepStakeQty, setYardSignStepStakeQty] = useState(1);
   const [yardSignMaterial] = useState('corrugated');
+  // Auto-open first design preview when editing yard sign from cart
+  const [autoOpenDesignId, setAutoOpenDesignId] = useState<string | null>(null);
 
   // Use string state for dimension inputs so users can clear and retype freely
   const [widthFtStr, setWidthFtStr] = useState('4');
@@ -325,6 +327,10 @@ const GoogleAdsBanner: React.FC = () => {
       setYardSignSidedness(item.yard_sign_sidedness || 'single');
       setYardSignAddStepStakes(item.yard_sign_step_stakes_enabled || false);
       setYardSignStepStakeQty(item.yard_sign_step_stakes_qty || 1);
+      // Auto-open the first design's preview so user can adjust immediately
+      if (restoredDesigns.length > 0) {
+        setAutoOpenDesignId(restoredDesigns[0].id);
+      }
     } else {
       // Restore banner state
       if (item.file_url) {
@@ -947,6 +953,7 @@ const GoogleAdsBanner: React.FC = () => {
                     promoApplied={promoApplied}
                     onPromoApply={handlePromoApply}
                     onPromoRemove={() => { setPromoApplied(false); setPromoCode(''); sessionStorage.removeItem('pendingPromoCode'); }}
+                    autoOpenDesignId={autoOpenDesignId}
                   />
                 </div>
 

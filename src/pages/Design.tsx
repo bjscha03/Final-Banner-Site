@@ -114,6 +114,8 @@ const Design: React.FC = () => {
   const [yardSignSidedness, setYardSignSidedness] = useState<YardSignSidedness>('single');
   const [yardSignAddStepStakes, setYardSignAddStepStakes] = useState(false);
   const [yardSignStepStakeQty, setYardSignStepStakeQty] = useState(1);
+  // Auto-open first design preview when editing yard sign from cart
+  const [autoOpenDesignId, setAutoOpenDesignId] = useState<string | null>(null);
 
   // Handle product type switch — reset state
   const handleProductTypeChange = useCallback((newType: ProductTypeSlug) => {
@@ -159,6 +161,10 @@ const Design: React.FC = () => {
       setYardSignSidedness(item.yard_sign_sidedness || 'single');
       setYardSignAddStepStakes(item.yard_sign_step_stakes_enabled || false);
       setYardSignStepStakeQty(item.yard_sign_step_stakes_qty || 1);
+      // Auto-open the first design's preview so user can adjust immediately
+      if (restoredDesigns.length > 0) {
+        setAutoOpenDesignId(restoredDesigns[0].id);
+      }
     } else {
       // Switch to banner tab and restore banner state
       setProductType('banner');
@@ -894,6 +900,7 @@ const Design: React.FC = () => {
                   onPromoCodeChange={setPromoCode}
                   onPromoApply={handlePromoApply}
                   onPromoRemove={() => { setPromoApplied(false); setPromoCode(''); sessionStorage.removeItem('pendingPromoCode'); }}
+                  autoOpenDesignId={autoOpenDesignId}
                 />
               </div>
               <div className="space-y-6">
