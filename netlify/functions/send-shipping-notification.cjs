@@ -74,7 +74,7 @@ async function sendEmail(type, payload) {
           </div>
           
           <div style="margin-bottom: 30px;">
-            <p>Hi ${order.customerName},</p>
+            <p>Hi ${order.customerName ? order.customerName.split(' ')[0] : 'there'},</p>
             <p>Great news! Your custom banner order has been completed and shipped. Your package is now on its way to you.</p>
           </div>
           
@@ -253,7 +253,7 @@ exports.handler = async (event, context) => {
     }
 
     // Get customer name - title-case it
-    const customerName = order.full_name || 'Valued Customer';
+    const customerName = order.full_name || '';
 
     // Get order items
     const itemsResult = await sql`

@@ -36,6 +36,7 @@ interface OrderConfirmationProps {
       polePocketPosition?: string;
       polePocketSize?: string;
       baseCostCents?: number;
+      product_type?: string;
       // Design Service fields
       design_service_enabled?: boolean;
       design_request_text?: string;
@@ -159,7 +160,7 @@ export default function OrderConfirmation({ order, invoiceUrl }: OrderConfirmati
                           <div style={costBreakdown}>
                             <Text style={breakdownTitle}>Price Breakdown</Text>
                             <div style={breakdownRow}>
-                              <Text style={breakdownLabel}>Base banner:</Text>
+                              <Text style={breakdownLabel}>{item.product_type === 'yard_sign' ? 'Signs:' : 'Base banner:'}</Text>
                               <Text style={breakdownValue}>${(item.unitPriceCents / 100).toFixed(2)} × {itemQty}</Text>
                             </div>
                             {item.ropeFeet > 0 && (
