@@ -16,6 +16,8 @@ import {
   type YardSignDesign,
   YARD_SIGN_MAX_QUANTITY,
   YARD_SIGN_MAX_DESIGNS,
+  YARD_SIGN_MIN_QUANTITY,
+  YARD_SIGN_INCREMENT,
   YARD_SIGN_SINGLE_SIDED_CENTS,
   YARD_SIGN_DOUBLE_SIDED_CENTS,
   YARD_SIGN_STEP_STAKE_CENTS,
@@ -227,8 +229,11 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
             Up to {YARD_SIGN_MAX_DESIGNS} designs per order
           </span>
         </label>
-        <p className="text-xs text-gray-500 mb-3">
+        <p className="text-xs text-gray-500 mb-2">
           Each uploaded design will be printed at 24&quot; × 18&quot;. Assign a quantity to each design.
+        </p>
+        <p className="text-xs text-orange-600 font-medium mb-3">
+          Total order must be in increments of 10 signs (10, 20, 30, etc.).
         </p>
 
         {/* Design rows */}
@@ -288,21 +293,58 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
 
             {/* Running total */}
             <div className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm ${
-              !quantityValidation.valid ? 'bg-red-50 border border-red-200' : 'bg-gray-50'
+              !quantityValidation.valid && totalQuantity > 0 ? 'bg-red-50 border border-red-200' : 'bg-gray-50'
             }`}>
-              <span className={!quantityValidation.valid ? 'text-red-700 font-semibold' : 'text-gray-600 font-medium'}>
+              <span className={!quantityValidation.valid && totalQuantity > 0 ? 'text-red-700 font-semibold' : 'text-gray-600 font-medium'}>
                 Total Signs: {totalQuantity}
               </span>
-              {!quantityValidation.valid && (
-                <span className="text-red-600 text-xs flex items-center gap-1">
-                  <AlertTriangle className="h-3.5 w-3.5" />
-                  Max {YARD_SIGN_MAX_QUANTITY}
+              {quantityValidation.valid && totalQuantity > 0 && (
+                <span className="text-green-600 text-xs flex items-center gap-1">
+                  <CheckCircle className="h-3.5 w-3.5" />
+                  Valid order
                 </span>
               )}
-              {quantityValidation.valid && totalQuantity > 0 && (
-                <span className="text-gray-400 text-xs">Max {YARD_SIGN_MAX_QUANTITY} per order</span>
+              {!quantityValidation.valid && totalQuantity > 0 && (
+                <span className="text-red-600 text-xs flex items-center gap-1">
+                  <AlertTriangle className="h-3.5 w-3.5" />
+                  {totalQuantity > YARD_SIGN_MAX_QUANTITY ? `Max ${YARD_SIGN_MAX_QUANTITY}` : `Must be multiple of ${YARD_SIGN_INCREMENT}`}
+                </span>
+              )}
+              {totalQuantity === 0 && (
+                <span className="text-gray-400 text-xs">Min {YARD_SIGN_MIN_QUANTITY} signs</span>
               )}
             </div>
+
+            {/* Quick-select total quantity buttons */}
+            {designs.length > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-xs text-gray-500 font-medium">Quick select total:</p>
+                <div className="flex flex-wrap gap-2">
+                  {[10, 20, 30, 50, 70, 90].map(qty => (
+                    <button
+                      key={qty}
+                      onClick={() => {
+                        // Distribute quantity evenly across designs, remainder goes to first
+                        const perDesign = Math.floor(qty / designs.length);
+                        const remainder = qty % designs.length;
+                        const updated = designs.map((d, i) => ({
+                          ...d,
+                          quantity: perDesign + (i < remainder ? 1 : 0),
+                        }));
+                        onDesignsChange(updated);
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${
+                        totalQuantity === qty
+                          ? 'bg-orange-500 text-white border-orange-500'
+                          : 'bg-white text-gray-700 border-gray-200 hover:border-orange-400 hover:bg-orange-50'
+                      }`}
+                    >
+                      {qty}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -432,6 +474,7 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
           <li>Standard yard sign size: 24&quot; × 18&quot;</li>
           <li>Upload up to {YARD_SIGN_MAX_DESIGNS} different designs per order</li>
           <li>Assign a quantity to each uploaded design</li>
+          <li className="font-semibold">Yard signs must be ordered in increments of 10 (10, 20, 30, etc.)</li>
           <li>Maximum {YARD_SIGN_MAX_QUANTITY} signs per order for 24-hour production</li>
           <li>Need more than {YARD_SIGN_MAX_QUANTITY}? Place a second order.</li>
         </ul>

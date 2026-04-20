@@ -77,9 +77,12 @@ const Checkout: React.FC = () => {
   const yardSignItems = items.filter(item => isYardSignItem(item));
   const yardSignOverLimit = yardSignItems.some(item => item.quantity > 90);
   const yardSignNoArtwork = yardSignItems.some(item => !item.yard_sign_design_count || item.yard_sign_design_count === 0);
-  const yardSignInvalid = yardSignOverLimit || yardSignNoArtwork;
+  const yardSignNotMultipleOf10 = yardSignItems.some(item => item.quantity < 10 || item.quantity % 10 !== 0);
+  const yardSignInvalid = yardSignOverLimit || yardSignNoArtwork || yardSignNotMultipleOf10;
   const yardSignValidationMessage = yardSignOverLimit
-    ? 'Maximum 90 signs per order for 24-hour production. Please place a second order for additional signs.'
+    ? 'Maximum 90 signs per order for 24-hour production. Please place multiple orders.'
+    : yardSignNotMultipleOf10
+    ? 'Yard signs must be ordered in increments of 10 (10, 20, 30, etc.).'
     : yardSignNoArtwork
     ? 'Please upload at least one design for your yard sign order.'
     : '';

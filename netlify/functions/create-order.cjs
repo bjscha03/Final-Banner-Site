@@ -404,6 +404,26 @@ exports.handler = async (event, context) => {
       });
     }
 
+    // SERVER-SIDE: Validate yard sign quantities (must be multiples of 10, min 10, max 90)
+    if (orderData.items && Array.isArray(orderData.items)) {
+      for (const item of orderData.items) {
+        if (item.product_type === 'yard_sign') {
+          const qty = item.quantity || 0;
+          if (qty < 10 || qty > 90 || qty % 10 !== 0) {
+            console.error(`❌ Yard sign quantity validation failed: quantity=${qty}`);
+            return {
+              statusCode: 400,
+              headers: { 'Content-Type': 'application/json', ...corsHeaders },
+              body: JSON.stringify({
+                error: 'Yard signs must be ordered in increments of 10 (10, 20, 30, etc.), with a minimum of 10 and maximum of 90.',
+                code: 'YARD_SIGN_QUANTITY_INVALID',
+              }),
+            };
+          }
+        }
+      }
+    }
+
     // ALWAYS recalculate totals server-side from line_total_cents
     const flags = getFeatureFlags();
     {
