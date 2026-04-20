@@ -119,7 +119,7 @@ const OrderDetail: React.FC = () => {
     const cleanCity = city?.trim() || '';
     const cleanState = state?.trim() || '';
     const cleanZip = zip?.trim() || '';
-    const cityState = cleanCity && cleanState ? `${cleanCity}, ${cleanState}` : (cleanCity || cleanState);
+    const cityState = cleanCity && cleanState ? `${cleanCity}, ${cleanState}` : cleanCity || cleanState;
     return [cityState, cleanZip].filter(Boolean).join(' ');
   };
 
