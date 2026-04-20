@@ -47,6 +47,7 @@ export interface OrderItemInput {
   poles_quantity?: number;
   poles_unit_price_cents?: number;
   poles_total_cents?: number;
+  product_type?: string;
 }
 
 export interface PricingBreakdown {
@@ -285,20 +286,17 @@ export function generateItemBreakdown(item: OrderItemInput): BreakdownLine[] {
   const lines: BreakdownLine[] = [];
   const breakdown = getItemPricingBreakdown(item);
   
-  // Base banner cost
+  // Base product cost (product-aware labels)
   if (breakdown.base_banner_cents > 0) {
-    const area = item.area_sqft || (item.width_in * item.height_in) / 144;
-    const unitPrice = item.unit_price_cents || 0;
-    const pricePerSqFt = area > 0 ? unitPrice / (area * 100) : 0;
+    const isYardSign = item.product_type === 'yard_sign';
     
     lines.push({
-      label: 'Banner cost',
+      label: isYardSign ? 'Yard Sign total' : 'Banner cost',
       value_cents: breakdown.base_banner_cents,
-      // description removed - no math equations
     });
     
     lines.push({
-      label: 'Subtotal per banner',
+      label: isYardSign ? 'Price per sign' : 'Subtotal per banner',
       value_cents: item.unit_price_cents || 0,
     });
   }
