@@ -908,37 +908,37 @@ const AdminOrders: React.FC = () => {
                 
                 {/* Desktop Table View */}
                 <div className="hidden md:block overflow-x-auto">
-                  <table className="min-w-full divide-y divide-gray-200">
+                  <table className="w-full table-fixed divide-y divide-gray-200">
                     <thead className="bg-gray-50 sticky top-0 z-10">
                       <tr>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                        <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Order
                         </th>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                        <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Preview
                         </th>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                        <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Customer
                         </th>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                        <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Date
                         </th>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                        <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Items
                         </th>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                        <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Total
                         </th>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                        <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Status
                         </th>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                        <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Print File
                         </th>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                        <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Tracking
                         </th>
-                        <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap">
+                        <th className="px-2 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                           Actions
                         </th>
                       </tr>
@@ -1170,7 +1170,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
 
   return (
     <tr className="hover:bg-gray-50">
-      <td className="px-3 py-3 whitespace-nowrap">
+      <td className="px-2 py-3 align-top">
         <div className="text-sm font-medium text-gray-900">
           #{order.id ? order.id.slice(-8).toUpperCase() : 'UNKNOWN'}
         </div>
@@ -1192,12 +1192,12 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
           </div>
         )}
       </td>
-      <td className="px-3 py-3 whitespace-nowrap">
+      <td className="px-2 py-3 align-top">
         <div className="text-sm text-gray-900">
           {order.user_id ? (order.user_id.slice(0, 8) + '...') : 'Guest'}
         </div>
       </td>
-      <td className="px-3 py-3 whitespace-nowrap">
+      <td className="px-2 py-3 align-top">
         <div className="text-sm text-gray-900">
           {new Date(order.created_at).toLocaleDateString()}
         </div>
@@ -1207,12 +1207,12 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
           {getItemsSummary(order)}
         </div>
       </td>
-      <td className="px-3 py-3 whitespace-nowrap">
+      <td className="px-2 py-3 align-top">
         <div className="text-sm font-semibold text-gray-900">
           {usd(order.total_cents / 100)}
         </div>
       </td>
-      <td className="px-3 py-3 whitespace-nowrap">
+      <td className="px-2 py-3 align-top">
         <div className="flex flex-col gap-1">
           <Badge className={`${getStatusColor(order.status)} capitalize`}>
             {getStatusLabel(order.status)}
@@ -1279,7 +1279,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
           )}
         </div>
       </td>
-      <td className="px-3 py-3 whitespace-nowrap">
+      <td className="px-2 py-3 align-top">
         {order.tracking_number ? (
           <div className="flex flex-col space-y-2">
             {isEditingTracking ? (
@@ -1303,7 +1303,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                 </Button>
               </div>
             ) : (
-              <div className="flex items-center space-x-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Badge className="bg-green-100 text-green-800">
                   <Truck className="h-3 w-3 mr-1" />
                   {order.tracking_carrier?.toUpperCase()}
@@ -1312,7 +1312,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                   href={fedexUrl(order.tracking_number)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs text-blue-600 hover:text-blue-800 font-mono underline"
+                  className="text-xs text-blue-600 hover:text-blue-800 font-mono underline break-all"
                 >
                   {order.tracking_number}
                 </a>
@@ -1362,8 +1362,8 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
           </div>
         )}
       </td>
-      <td className="px-3 py-3 whitespace-nowrap text-sm font-medium">
-        <div className="flex items-center justify-end gap-2 sm:gap-3">
+      <td className="px-2 py-3 align-top text-sm font-medium">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3 xl:justify-end">
           <OrderDetails
             order={order}
             onUploadFinalPdf={onUploadFinalPdf}
