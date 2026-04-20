@@ -1134,12 +1134,8 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   const finalPrintFiles = order.items
     .map((item, index) => ({ item, index }))
     .filter(({ item }) => item.final_print_pdf_url);
-  const MAX_VISIBLE_FILES = 2;
   const DEFAULT_TRACKING_CARRIER: TrackingCarrier = 'fedex';
   const ORDER_ACCENT_TEXT_CLASS = 'text-[#18448D]';
-  const hiddenFileCount =
-    Math.max(finalPrintFiles.length - MAX_VISIBLE_FILES, 0) +
-    Math.max(filesWithDownload.length - MAX_VISIBLE_FILES, 0);
 
   return (
     <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
@@ -1275,7 +1271,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
             <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Print Files</div>
             {(filesWithDownload.length > 0 || finalPrintFiles.length > 0) ? (
               <div className="flex flex-wrap gap-2">
-                {finalPrintFiles.slice(0, MAX_VISIBLE_FILES).map(({ item, index }) => (
+                {finalPrintFiles.map(({ item, index }) => (
                   <a
                     key={`final-pdf-${index}`}
                     href={item.final_print_pdf_url}
@@ -1287,7 +1283,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                     Final {index + 1}
                   </a>
                 ))}
-                {filesWithDownload.slice(0, MAX_VISIBLE_FILES).map(({ item, index }) => (
+                {filesWithDownload.map(({ item, index }) => (
                   <Button
                     key={`jpeg-${index}`}
                     size="sm"
@@ -1309,11 +1305,6 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                     )}
                   </Button>
                 ))}
-                {hiddenFileCount > 0 && (
-                  <div className="h-8 inline-flex items-center px-2 text-xs text-gray-500">
-                    +{hiddenFileCount} more
-                  </div>
-                )}
               </div>
             ) : (
               <div className="text-xs text-gray-500 flex items-center">
