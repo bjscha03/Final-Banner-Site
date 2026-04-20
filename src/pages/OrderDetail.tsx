@@ -7,6 +7,26 @@ import { calculatePolePocketCostFromOrder, calculateUnitPriceFromOrder } from '@
 import { getGrommetLabel } from '@/lib/grommets';
 import { getItemDisplayName, isYardSignItem } from '@/lib/product-display';
 
+const YARD_SIGN_DEFAULT_SIZE = '24" × 18"';
+
+const isCloudinaryUploadUrl = (url: string) => {
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname === 'res.cloudinary.com' && parsed.pathname.includes('/upload/');
+  } catch {
+    return false;
+  }
+};
+
+const isHttpUrl = (url: string) => {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
+
 interface OrderItem {
   width_in: number;
   height_in: number;
@@ -115,10 +135,10 @@ const OrderDetail: React.FC = () => {
   };
   const getThumbnailUrl = (item: OrderItem, maxWidth = 180) => {
     if (!item.thumbnail_url) return null;
-    if (item.thumbnail_url.includes('res.cloudinary.com') && item.thumbnail_url.includes('/upload/')) {
+    if (isCloudinaryUploadUrl(item.thumbnail_url)) {
       return item.thumbnail_url.replace('/upload/', `/upload/w_${maxWidth},c_limit,f_auto,q_auto/`);
     }
-    if (item.thumbnail_url.startsWith('http') && !item.thumbnail_url.includes('res.cloudinary.com')) {
+    if (isHttpUrl(item.thumbnail_url) && !isCloudinaryUploadUrl(item.thumbnail_url)) {
       return `https://res.cloudinary.com/dtrxl120u/image/fetch/w_${maxWidth},c_limit,f_auto,q_auto/${item.thumbnail_url}`;
     }
     return item.thumbnail_url;
@@ -299,7 +319,7 @@ const OrderDetail: React.FC = () => {
                       <div className="space-y-1 text-sm text-gray-600">
                         {isYardSignItem(item) ? (
                           <>
-                            <p><span className="font-medium">Size:</span> 24" × 18"</p>
+                            <p><span className="font-medium">Size:</span> {YARD_SIGN_DEFAULT_SIZE}</p>
                             <p><span className="font-medium">Material:</span> Corrugated Plastic</p>
                             <p><span className="font-medium">Print:</span> {item.yard_sign_sidedness === 'double' ? 'Double-Sided' : 'Single-Sided'}</p>
                             <p><span className="font-medium">Total Signs:</span> {item.quantity}</p>

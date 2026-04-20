@@ -180,7 +180,7 @@ exports.handler = async (event, context) => {
     }
 
     // Get customer name - title-case it
-    const customerName = order.customer_name || order.full_name || order.shipping_name || '';
+    const resolvedCustomerName = order.customer_name || order.full_name || order.shipping_name || '';
 
     // Get order items
     const itemsResult = await sql`
@@ -191,7 +191,7 @@ exports.handler = async (event, context) => {
     const emailOrder = {
       id: order.id,
       orderNumber: order.id.slice(-8).toUpperCase(),
-      customerName: customerName,
+      customerName: resolvedCustomerName,
       email: customerEmail,
       items: itemsResult.map(item => ({
         name: getItemDisplayName(item),

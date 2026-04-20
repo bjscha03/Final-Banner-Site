@@ -175,7 +175,7 @@ exports.handler = async (event) => {
     }
 
     // Get customer name
-    const customerName = order.customer_name || order.full_name || order.shipping_name || '';
+    const resolvedCustomerName = order.customer_name || order.full_name || order.shipping_name || '';
 
     // Get order items
     const itemsResult = await sql`
@@ -186,7 +186,7 @@ exports.handler = async (event) => {
     const emailOrder = {
       id: order.id,
       orderNumber: order.id.slice(-8).toUpperCase(),
-      customerName: customerName,
+      customerName: resolvedCustomerName,
       items: itemsResult.map(item => ({
         name: getItemDisplayName(item),
         quantity: item.quantity,

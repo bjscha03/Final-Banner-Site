@@ -18,13 +18,31 @@ function normalizeName(fullName) {
   };
 }
 
+function isCloudinaryUploadUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname === 'res.cloudinary.com' && parsed.pathname.includes('/upload/');
+  } catch {
+    return false;
+  }
+}
+
+function isHttpUrl(url) {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+}
+
 function getFinalizedThumbnailUrl(item, maxWidth = 240) {
   if (!item || !item.thumbnail_url) return null;
   const url = String(item.thumbnail_url);
-  if (url.includes('res.cloudinary.com') && url.includes('/upload/')) {
+  if (isCloudinaryUploadUrl(url)) {
     return url.replace('/upload/', `/upload/w_${maxWidth},c_limit,f_auto,q_auto/`);
   }
-  if (url.startsWith('http')) {
+  if (isHttpUrl(url) && !isCloudinaryUploadUrl(url)) {
     return `https://res.cloudinary.com/dtrxl120u/image/fetch/w_${maxWidth},c_limit,f_auto,q_auto/${url}`;
   }
   return null;

@@ -48,6 +48,23 @@ import {
 } from '@/components/ui/select';
 
 const PAGE_SIZE = 20;
+const isCloudinaryUploadUrl = (url: string) => {
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname === 'res.cloudinary.com' && parsed.pathname.includes('/upload/');
+  } catch {
+    return false;
+  }
+};
+
+const isHttpUrl = (url: string) => {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
 
 const AdminOrders: React.FC = () => {
   const navigate = useNavigate();
@@ -1068,10 +1085,10 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   const getThumbnailUrl = (item: any, maxWidth: number = 80) => {
     if (!item.thumbnail_url) return null;
     const thumbUrl = item.thumbnail_url;
-    if (thumbUrl.includes('res.cloudinary.com') && thumbUrl.includes('/upload/')) {
+    if (isCloudinaryUploadUrl(thumbUrl)) {
       return thumbUrl.replace('/upload/', `/upload/w_${maxWidth},c_limit,f_auto,q_auto/`);
     }
-    if (thumbUrl.startsWith('http') && !thumbUrl.includes('res.cloudinary.com')) {
+    if (isHttpUrl(thumbUrl) && !isCloudinaryUploadUrl(thumbUrl)) {
       return `https://res.cloudinary.com/dtrxl120u/image/fetch/w_${maxWidth},c_limit,f_auto,q_auto/${thumbUrl}`;
     }
     return thumbUrl;
@@ -1482,10 +1499,10 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
   const getThumbnailUrl = (item: any, maxWidth: number = 80) => {
     if (!item.thumbnail_url) return null;
     const thumbUrl = item.thumbnail_url;
-    if (thumbUrl.includes('res.cloudinary.com') && thumbUrl.includes('/upload/')) {
+    if (isCloudinaryUploadUrl(thumbUrl)) {
       return thumbUrl.replace('/upload/', `/upload/w_${maxWidth},c_limit,f_auto,q_auto/`);
     }
-    if (thumbUrl.startsWith('http') && !thumbUrl.includes('res.cloudinary.com')) {
+    if (isHttpUrl(thumbUrl) && !isCloudinaryUploadUrl(thumbUrl)) {
       return `https://res.cloudinary.com/dtrxl120u/image/fetch/w_${maxWidth},c_limit,f_auto,q_auto/${thumbUrl}`;
     }
     return thumbUrl;

@@ -18,6 +18,26 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 
+const YARD_SIGN_DEFAULT_SIZE = '24" × 18"';
+
+const isCloudinaryUploadUrl = (url: string) => {
+  try {
+    const parsed = new URL(url);
+    return parsed.hostname === 'res.cloudinary.com' && parsed.pathname.includes('/upload/');
+  } catch {
+    return false;
+  }
+};
+
+const isHttpUrl = (url: string) => {
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
+  } catch {
+    return false;
+  }
+};
+
 
 interface OrderDetailsProps {
   order: Order;
@@ -70,10 +90,10 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
   const getThumbnailUrl = (item: any, maxWidth: number = 200) => {
     if (!item.thumbnail_url) return null;
     const thumbUrl = item.thumbnail_url;
-    if (thumbUrl.includes("res.cloudinary.com") && thumbUrl.includes("/upload/")) {
+    if (isCloudinaryUploadUrl(thumbUrl)) {
       return thumbUrl.replace("/upload/", `/upload/w_${maxWidth},c_limit,f_auto,q_auto/`);
     }
-    if (thumbUrl.startsWith("http") && !thumbUrl.includes("res.cloudinary.com")) {
+    if (isHttpUrl(thumbUrl) && !isCloudinaryUploadUrl(thumbUrl)) {
       return `https://res.cloudinary.com/dtrxl120u/image/fetch/w_${maxWidth},c_limit,f_auto,q_auto/${thumbUrl}`;
     }
     return thumbUrl;
@@ -820,7 +840,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                       <div className="text-sm text-gray-600 mt-2 grid grid-cols-2 gap-2">
                         {isYardSignItem(item) ? (
                           <>
-                            <p className="break-words">Size: 24" × 18"</p>
+                            <p className="break-words">Size: {YARD_SIGN_DEFAULT_SIZE}</p>
                             <p className="break-words">Material: Corrugated Plastic</p>
                             <p className="break-words">Print: {(item as any).yard_sign_sidedness === 'double' ? 'Double-Sided' : 'Single-Sided'}</p>
                             <p className="break-words">Total Signs: {item.quantity}</p>
