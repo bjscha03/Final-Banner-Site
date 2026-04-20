@@ -186,14 +186,16 @@ const OrderDetail: React.FC = () => {
     }
   };
 
+  const shippingName = order?.shipping_name || order?.customer_name || null;
+  const showShippingCountry = Boolean(order?.shipping_country && order.shipping_country !== 'US');
   const hasShippingAddress = Boolean(
-    order?.shipping_name ||
+    shippingName ||
     order?.shipping_street ||
     order?.shipping_street2 ||
     order?.shipping_city ||
     order?.shipping_state ||
     order?.shipping_zip ||
-    order?.shipping_country
+    showShippingCountry
   );
   const cityStateZipLine = formatCityStateZip(order?.shipping_city, order?.shipping_state, order?.shipping_zip);
   const customerName = order?.customer_name || order?.shipping_name || 'Not provided';
@@ -287,11 +289,11 @@ const OrderDetail: React.FC = () => {
               <div className="flex items-start gap-3 text-gray-700">
                 <MapPin className="h-5 w-5 text-gray-400 mt-0.5 flex-shrink-0" />
                 <div className="space-y-1">
-                  {order.shipping_name && <p className="font-medium text-gray-900">{order.shipping_name}</p>}
+                  {shippingName && <p className="font-medium text-gray-900">{shippingName}</p>}
                   {order.shipping_street && <p>{order.shipping_street}</p>}
                   {order.shipping_street2 && <p>{order.shipping_street2}</p>}
                   {cityStateZipLine && <p>{cityStateZipLine}</p>}
-                  {order.shipping_country && order.shipping_country !== 'US' && <p>{order.shipping_country}</p>}
+                  {showShippingCountry && <p>{order.shipping_country}</p>}
                 </div>
               </div>
             </div>

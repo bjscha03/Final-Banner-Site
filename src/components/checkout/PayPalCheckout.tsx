@@ -19,6 +19,47 @@ interface PayPalConfig {
   environment: 'sandbox' | 'live' | null;
 }
 
+const getFirstNonEmpty = (...values: unknown[]): string | null => {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+  return null;
+};
+
+const extractShippingFromCapture = (captureResult: any) => {
+  const directShipping = captureResult?.shippingAddress || null;
+  const paypalShipping = captureResult?.paypalData?.purchase_units?.[0]?.shipping || null;
+  const payer = captureResult?.paypalData?.payer || null;
+  const shippingAddress = directShipping || paypalShipping?.address || payer?.address || {};
+
+  const name = getFirstNonEmpty(
+    directShipping?.name,
+    paypalShipping?.name?.full_name,
+    `${payer?.name?.given_name || ''} ${payer?.name?.surname || ''}`
+  );
+  const street = getFirstNonEmpty(directShipping?.street, shippingAddress?.address_line_1, shippingAddress?.line1, shippingAddress?.street);
+  const street2 = getFirstNonEmpty(directShipping?.street2, shippingAddress?.address_line_2, shippingAddress?.line2, shippingAddress?.street2);
+  const city = getFirstNonEmpty(directShipping?.city, shippingAddress?.admin_area_2, shippingAddress?.city);
+  const state = getFirstNonEmpty(directShipping?.state, shippingAddress?.admin_area_1, shippingAddress?.state, shippingAddress?.region);
+  const zip = getFirstNonEmpty(directShipping?.zip, shippingAddress?.postal_code, shippingAddress?.zip);
+  const country = getFirstNonEmpty(directShipping?.country, shippingAddress?.country_code, shippingAddress?.country);
+
+  const hasData = Boolean(name || street || street2 || city || state || zip || country);
+  if (!hasData) return null;
+
+  return {
+    name: name || null,
+    street: street || null,
+    street2: street2 || null,
+    city: city || null,
+    state: state || null,
+    zip: zip || null,
+    country: country || 'US',
+  };
+};
+
 const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onError, disabled = false }) => {
   const { toast } = useToast();
   const { user } = useAuth();
@@ -407,6 +448,14 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
         return;
       }
 
+      const shippingDetails = extractShippingFromCapture(captureResult);
+      const customerName = getFirstNonEmpty(
+        shippingDetails?.name,
+        `${captureResult?.paypalData?.payer?.name?.given_name || ''} ${captureResult?.paypalData?.payer?.name?.surname || ''}`,
+        user?.user_metadata?.full_name,
+        user?.email
+      );
+
       // Now create the database order
       const orderResponse = await fetch('/.netlify/functions/create-order', {
         method: 'POST',
@@ -422,17 +471,17 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
           currency: 'usd',
           paypal_order_id: data.orderID,
           paypal_capture_id: captureResult.paypalData?.id,
-          shipping_name: captureResult.shippingAddress?.name || null,
-          customer_name: captureResult.shippingAddress?.name || null,
-          customer_first_name: captureResult.shippingAddress?.name
-            ? String(captureResult.shippingAddress.name).trim().split(/\s+/)[0]
+          shipping_name: shippingDetails?.name || null,
+          customer_name: customerName || null,
+          customer_first_name: customerName
+            ? String(customerName).trim().split(/\s+/)[0]
             : null,
-          shipping_street: captureResult.shippingAddress?.street || null,
-          shipping_street2: captureResult.shippingAddress?.street2 || null,
-          shipping_city: captureResult.shippingAddress?.city || null,
-          shipping_state: captureResult.shippingAddress?.state || null,
-          shipping_zip: captureResult.shippingAddress?.zip || null,
-          shipping_country: captureResult.shippingAddress?.country || 'US',
+          shipping_street: shippingDetails?.street || null,
+          shipping_street2: shippingDetails?.street2 || null,
+          shipping_city: shippingDetails?.city || null,
+          shipping_state: shippingDetails?.state || null,
+          shipping_zip: shippingDetails?.zip || null,
+          shipping_country: shippingDetails?.country || null,
           items: items.map(item => {
             // DEBUG: Log design service fields for each item
             console.log('🎨 [PayPal Capture] Item design service data:', {
