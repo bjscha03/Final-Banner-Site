@@ -39,7 +39,7 @@ const FAQSection: React.FC = () => {
     },
     {
       question: "Do you offer bulk discounts?",
-      answer: "Yes, we offer volume discounts for orders of 10+ banners. Contact our sales team for custom pricing on large orders or recurring business partnerships."
+      answer: "For banners: Yes, we offer volume discounts for orders of 2+ banners — up to 13% off at checkout. Yard signs use flat per-sign pricing with no quantity discounts."
     }
   ];
 
