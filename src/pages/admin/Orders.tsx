@@ -635,12 +635,19 @@ const AdminOrders: React.FC = () => {
     const itemCount = order.items.reduce((sum, item) => sum + item.quantity, 0);
     const uniqueItems = order.items.length;
     
+    // Check if any items are yard signs
+    const hasYardSigns = order.items.some(item => (item as any).product_type === 'yard_sign');
+    
     if (uniqueItems === 1) {
       const item = order.items[0];
+      if ((item as any).product_type === 'yard_sign') {
+        return `${itemCount} × Yard Sign 24"×18"`;
+      }
       return `${itemCount} × ${formatDimensions(item.width_in, item.height_in)} ${item.material}`;
     }
     
-    return `${itemCount} banners (${uniqueItems} designs)`;
+    const productLabel = hasYardSigns ? 'items' : 'banners';
+    return `${itemCount} ${productLabel} (${uniqueItems} designs)`;
   };
 
   // Show loading state while checking authentication

@@ -227,6 +227,9 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
             Up to {YARD_SIGN_MAX_DESIGNS} designs per order
           </span>
         </label>
+        <p className="text-xs text-gray-500 mb-3">
+          Each uploaded design will be printed at 24&quot; × 18&quot;. Assign a quantity to each design.
+        </p>
 
         {/* Design rows */}
         {designs.length > 0 && (
@@ -392,28 +395,31 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
             </div>
           </div>
           {addStepStakes && (
-            <div className="mt-3 ml-7 flex items-center gap-2" onClick={e => e.stopPropagation()}>
-              <span className="text-xs text-gray-600">Qty:</span>
-              <button
-                onClick={() => onStepStakeQuantityChange(Math.max(1, stepStakeQuantity - 1))}
-                className="w-7 h-7 flex items-center justify-center border border-gray-200 rounded-lg hover:border-gray-400 transition-colors"
-              >
-                <Minus className="h-3 w-3 text-gray-600" />
-              </button>
-              <input
-                type="number"
-                min={1}
-                max={YARD_SIGN_MAX_QUANTITY}
-                value={stepStakeQuantity}
-                onChange={e => onStepStakeQuantityChange(Math.max(1, Math.min(YARD_SIGN_MAX_QUANTITY, +e.target.value || 1)))}
-                className="w-14 border rounded-lg px-2 py-1 text-sm text-center"
-              />
-              <button
-                onClick={() => onStepStakeQuantityChange(Math.min(YARD_SIGN_MAX_QUANTITY, stepStakeQuantity + 1))}
-                className="w-7 h-7 flex items-center justify-center border border-gray-200 rounded-lg hover:border-gray-400 transition-colors"
-              >
-                <Plus className="h-3 w-3 text-gray-600" />
-              </button>
+            <div className="mt-3 ml-7" onClick={e => e.stopPropagation()}>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-gray-600">Qty:</span>
+                <button
+                  onClick={() => onStepStakeQuantityChange(Math.max(1, stepStakeQuantity - 1))}
+                  className="w-7 h-7 flex items-center justify-center border border-gray-200 rounded-lg hover:border-gray-400 transition-colors"
+                >
+                  <Minus className="h-3 w-3 text-gray-600" />
+                </button>
+                <input
+                  type="number"
+                  min={1}
+                  max={YARD_SIGN_MAX_QUANTITY}
+                  value={stepStakeQuantity}
+                  onChange={e => onStepStakeQuantityChange(Math.max(1, Math.min(YARD_SIGN_MAX_QUANTITY, +e.target.value || 1)))}
+                  className="w-14 border rounded-lg px-2 py-1 text-sm text-center"
+                />
+                <button
+                  onClick={() => onStepStakeQuantityChange(Math.min(YARD_SIGN_MAX_QUANTITY, stepStakeQuantity + 1))}
+                  className="w-7 h-7 flex items-center justify-center border border-gray-200 rounded-lg hover:border-gray-400 transition-colors"
+                >
+                  <Plus className="h-3 w-3 text-gray-600" />
+                </button>
+              </div>
+              <p className="text-xs text-gray-400 mt-1.5">Typically 1 stake per sign</p>
             </div>
           )}
         </div>

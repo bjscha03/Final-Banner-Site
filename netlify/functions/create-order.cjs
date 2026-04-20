@@ -365,6 +365,23 @@ exports.handler = async (event, context) => {
     } catch (migrationError) {
       console.warn('⚠️ product_type migration warning:', migrationError.message);
     }
+
+    // AUTO-MIGRATE: Ensure yard sign metadata columns exist
+    try {
+      await sql`
+        ALTER TABLE order_items
+        ADD COLUMN IF NOT EXISTS yard_sign_sidedness TEXT,
+        ADD COLUMN IF NOT EXISTS yard_sign_step_stakes_enabled BOOLEAN DEFAULT false,
+        ADD COLUMN IF NOT EXISTS yard_sign_step_stakes_qty INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS yard_sign_design_count INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS yard_sign_designs JSONB,
+        ADD COLUMN IF NOT EXISTS yard_sign_signs_subtotal_cents INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS yard_sign_stakes_subtotal_cents INTEGER DEFAULT 0
+      `;
+      console.log('✅ Database migration: yard sign columns verified/created');
+    } catch (migrationError) {
+      console.warn('⚠️ yard sign columns migration warning:', migrationError.message);
+    }
     
     console.log('Creating order with data:', orderData);
     console.log('Database URL available:', !!databaseUrl);
@@ -565,14 +582,14 @@ exports.handler = async (event, context) => {
             item.pole_pockets !== 'false' &&
             item.pole_pockets !== false;
 
-          // Try to insert with all columns including final_render and canvas_state_json
           try {
             await sql`
               INSERT INTO order_items (
                 id, order_id, product_type, width_in, height_in, quantity, material,
                 grommets, rope_feet, pole_pockets, pole_pocket_position, pole_pocket_size, pole_pocket_cost_cents,
                 line_total_cents, file_key, file_url, print_ready_url, web_preview_url, text_elements, overlay_image, overlay_images, canvas_background_color, image_scale, image_position, thumbnail_url, final_render_url, final_render_file_key, final_render_width_px, final_render_height_px, final_render_dpi, canvas_state_json,
-                design_service_enabled, design_request_text, design_draft_preference, design_draft_contact, design_uploaded_assets
+                design_service_enabled, design_request_text, design_draft_preference, design_draft_contact, design_uploaded_assets,
+                yard_sign_sidedness, yard_sign_step_stakes_enabled, yard_sign_step_stakes_qty, yard_sign_design_count, yard_sign_designs, yard_sign_signs_subtotal_cents, yard_sign_stakes_subtotal_cents
               )
               VALUES (
                 ${randomUUID()},
@@ -610,7 +627,14 @@ exports.handler = async (event, context) => {
                 ${item.design_request_text || null},
                 ${item.design_draft_preference || null},
                 ${item.design_draft_contact || null},
-                ${item.design_uploaded_assets ? JSON.stringify(item.design_uploaded_assets) : '[]'}
+                ${item.design_uploaded_assets ? JSON.stringify(item.design_uploaded_assets) : '[]'},
+                ${item.yard_sign_sidedness || null},
+                ${item.yard_sign_step_stakes_enabled || false},
+                ${item.yard_sign_step_stakes_qty || 0},
+                ${item.yard_sign_design_count || 0},
+                ${item.yard_sign_designs ? JSON.stringify(item.yard_sign_designs) : null},
+                ${item.yard_sign_signs_subtotal_cents || 0},
+                ${item.yard_sign_stakes_subtotal_cents || 0}
               )
             `;
             console.log('[CREATE_ORDER_DEBUG] ✅ Order item saved with final_render fields');
