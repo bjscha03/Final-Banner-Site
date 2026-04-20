@@ -88,7 +88,7 @@ export default function OrderShipped({ order, trackingNumber, trackingUrl, carri
           <Section style={header}>
             <Heading style={headerTitle}>Your Order is On The Way!</Heading>
             <Text style={headerSubtitle}>
-              Your custom banners have shipped and are heading your way
+              Your order has shipped and is heading your way
             </Text>
           </Section>
 
@@ -114,7 +114,7 @@ export default function OrderShipped({ order, trackingNumber, trackingUrl, carri
             </Text>
             
             <Text style={paragraph}>
-              Great news! Your custom banner order has been completed and shipped. 
+              Great news! Your order has been completed and shipped. 
               Your package is now on its way to you.
             </Text>
 

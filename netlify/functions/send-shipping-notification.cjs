@@ -56,7 +56,7 @@ async function sendEmail(type, payload) {
           
           <div style="background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%); color: white; padding: 30px; border-radius: 10px; text-align: center; margin-bottom: 30px;">
             <h1 style="margin: 0; font-size: 28px;">Your Order is On The Way!</h1>
-            <p style="margin: 10px 0 0 0; font-size: 16px;">Your custom banners have shipped and are heading your way</p>
+            <p style="margin: 10px 0 0 0; font-size: 16px;">Your order has shipped and is heading your way</p>
           </div>
           
           <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
@@ -75,7 +75,7 @@ async function sendEmail(type, payload) {
           
           <div style="margin-bottom: 30px;">
             <p>Hi ${order.customerName ? order.customerName.split(' ')[0] : 'there'},</p>
-            <p>Great news! Your custom banner order has been completed and shipped. Your package is now on its way to you.</p>
+            <p>Great news! Your order has been completed and shipped. Your package is now on its way to you.</p>
           </div>
           
           <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px;">

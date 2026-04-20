@@ -145,9 +145,9 @@ export default function OrderCanceled({ order }: OrderCanceledProps) {
 
             {/* Still Need Banners */}
             <Section style={helpSection}>
-              <Heading style={sectionTitle}>Still Need Custom Banners?</Heading>
+              <Heading style={sectionTitle}>Still Need a Custom Order?</Heading>
               <Text style={helpText}>
-                We'd love to help you with your banner needs. If you canceled due to a specific 
+                We'd love to help you with your next order. If you canceled due to a specific 
                 concern or if you'd like to place a new order with different specifications, 
                 please don't hesitate to reach out to us.
               </Text>

@@ -231,7 +231,7 @@ export default function OrderConfirmation({ order, invoiceUrl }: OrderConfirmati
               <Section style={designServiceSection}>
                 <Heading style={designServiceHeading}>✨ Design Service Confirmed</Heading>
                 <Text style={designServiceIntro}>
-                  Great news! Our design team will create your custom banner for you.
+                  Great news! Our design team will create your custom design for you.
                 </Text>
                 {order.items.filter(item => item.design_service_enabled).map((item, index) => (
                   <div key={index} style={designServiceBox}>
@@ -286,7 +286,7 @@ export default function OrderConfirmation({ order, invoiceUrl }: OrderConfirmati
                 <ul style={nextStepsList}>
                   <li style={nextStepsItem}>Watch for your first design draft (coming soon!)</li>
                   <li style={nextStepsItem}>Reply with any changes you'd like</li>
-                  <li style={nextStepsItem}>Once approved, we'll print and ship your banner</li>
+                  <li style={nextStepsItem}>Once approved, we'll print and ship your order</li>
                   <li style={nextStepsItem}>Questions? Contact us at support@bannersonthefly.com</li>
                 </ul>
               ) : (

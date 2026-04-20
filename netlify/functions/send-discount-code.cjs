@@ -66,7 +66,7 @@ async function sendEmailResend(to, code, expiresAt) {
                 <tr>
                   <td align="center" style="padding: 50px 20px; background-color: #ff6b35;">
                     <h1 style="margin: 0; padding: 0; color: #ffffff; font-size: 48px; font-weight: bold; font-family: Arial, sans-serif;">20% OFF</h1>
-                    <p style="margin: 10px 0 0 0; padding: 0; color: #ffffff; font-size: 20px; font-family: Arial, sans-serif;">Your First Banner Order</p>
+                    <p style="margin: 10px 0 0 0; padding: 0; color: #ffffff; font-size: 20px; font-family: Arial, sans-serif;">Your First Order</p>
                   </td>
                 </tr>
                 

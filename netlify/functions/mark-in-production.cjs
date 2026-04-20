@@ -44,7 +44,7 @@ async function sendProductionEmail(order, customerEmail) {
       <head>
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Your Banner is Now in Production</title>
+        <title>Your Order is Now in Production</title>
       </head>
       <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
         <div style="text-align: center; margin-bottom: 30px;">
@@ -52,8 +52,8 @@ async function sendProductionEmail(order, customerEmail) {
         </div>
         
         <div style="background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%); color: white; padding: 30px; border-radius: 10px; text-align: center; margin-bottom: 30px;">
-          <h1 style="margin: 0; font-size: 28px;">Your Banner is Now in Production 🎯</h1>
-          <p style="margin: 10px 0 0 0; font-size: 16px;">We're printing your custom banner right now</p>
+          <h1 style="margin: 0; font-size: 28px;">Your Order is Now in Production 🎯</h1>
+          <p style="margin: 10px 0 0 0; font-size: 16px;">We're preparing your order for production</p>
         </div>
         
         <div style="background: #fefce8; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
@@ -71,8 +71,8 @@ async function sendProductionEmail(order, customerEmail) {
         
         <div style="margin-bottom: 30px;">
           <p>Hi ${order.customerName ? order.customerName.split(' ')[0] : 'there'},</p>
-          <p>Good news — your banner order is now in production.</p>
-          <p>Our team is currently printing and preparing your banner. Once it's complete, it will ship out with tracking information sent to you immediately.</p>
+          <p>Good news — your order is now in production.</p>
+          <p>Our team is currently preparing your order for production. Once it's complete, it will ship out with tracking information sent to you immediately.</p>
         </div>
         
         <div style="background: #fefce8; padding: 20px; border-radius: 8px; border: 1px solid #fde68a; margin-bottom: 30px;">
@@ -107,7 +107,7 @@ async function sendProductionEmail(order, customerEmail) {
     const emailData = {
       from: emailFrom,
       to: customerEmail,
-      subject: 'Your Banner is Now in Production 🎯',
+      subject: 'Your Order is Now in Production 🎯',
       html: html,
       reply_to: emailReplyTo,
       tags: [

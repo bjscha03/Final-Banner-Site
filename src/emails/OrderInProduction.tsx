@@ -52,9 +52,9 @@ export default function OrderInProduction({ order }: OrderInProductionProps) {
 
           {/* Header */}
           <Section style={header}>
-            <Heading style={headerTitle}>Your Banner is Now in Production 🎯</Heading>
+            <Heading style={headerTitle}>Your Order is Now in Production 🎯</Heading>
             <Text style={headerSubtitle}>
-              We&apos;re printing your custom banner right now
+              We&apos;re preparing your order for production
             </Text>
           </Section>
 
@@ -79,11 +79,11 @@ export default function OrderInProduction({ order }: OrderInProductionProps) {
             </Text>
 
             <Text style={paragraph}>
-              Good news — your banner order is now in production.
+              Good news — your order is now in production.
             </Text>
 
             <Text style={paragraph}>
-              Our team is currently printing and preparing your banner. Once it&apos;s
+              Our team is currently preparing your order for production. Once it&apos;s
               complete, it will ship out with tracking information sent to you
               immediately.
             </Text>
