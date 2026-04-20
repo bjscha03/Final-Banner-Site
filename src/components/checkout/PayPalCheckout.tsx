@@ -200,6 +200,16 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
             design_draft_preference: item.design_draft_preference,
             design_draft_contact: item.design_draft_contact,
             design_uploaded_assets: item.design_uploaded_assets,
+            // Product type (yard_sign or banner)
+            product_type: item.product_type || 'banner',
+            // Yard sign metadata
+            yard_sign_sidedness: item.yard_sign_sidedness,
+            yard_sign_step_stakes_enabled: item.yard_sign_step_stakes_enabled,
+            yard_sign_step_stakes_qty: item.yard_sign_step_stakes_qty,
+            yard_sign_design_count: item.yard_sign_design_count,
+            yard_sign_designs: item.yard_sign_designs,
+            yard_sign_signs_subtotal_cents: item.yard_sign_signs_subtotal_cents,
+            yard_sign_stakes_subtotal_cents: item.yard_sign_stakes_subtotal_cents,
           })),
           discountCode: discountCode ? { code: discountCode.code, discountPercentage: discountCode.discountPercentage, discountAmountCents: discountCode.discountAmountCents } : null,
         }),
@@ -464,6 +474,16 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
               design_draft_preference: item.design_draft_preference,
               design_draft_contact: item.design_draft_contact,
               design_uploaded_assets: item.design_uploaded_assets,
+              // Product type (yard_sign or banner)
+              product_type: item.product_type || 'banner',
+              // Yard sign metadata
+              yard_sign_sidedness: item.yard_sign_sidedness,
+              yard_sign_step_stakes_enabled: item.yard_sign_step_stakes_enabled,
+              yard_sign_step_stakes_qty: item.yard_sign_step_stakes_qty,
+              yard_sign_design_count: item.yard_sign_design_count,
+              yard_sign_designs: item.yard_sign_designs,
+              yard_sign_signs_subtotal_cents: item.yard_sign_signs_subtotal_cents,
+              yard_sign_stakes_subtotal_cents: item.yard_sign_stakes_subtotal_cents,
             };
           }),
           discountCode: discountCode ? { code: discountCode.code, discountPercentage: discountCode.discountPercentage, discountAmountCents: discountCode.discountAmountCents } : null,
