@@ -1,4 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
+const { getItemDisplayName, getEmailItemOptions } = require('./product-display-helpers.cjs');
 
 // Email-compatible logo header HTML
 function createEmailLogoHeader() {
@@ -124,7 +125,7 @@ async function sendEmail(type, payload) {
           <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
           <p style="color: #6b7280; font-size: 12px;">
             Banners On The Fly<br>
-            Custom Banner Printing Services<br>
+            Custom Printing Services<br>
             Questions? Reply to this email or contact support.
           </p>
         </div>
@@ -248,15 +249,10 @@ exports.handler = async (event) => {
         number: order.id ? order.id.slice(-8).toUpperCase() : 'UNKNOWN',
         customerName: order.customer_name || 'Customer',
         items: itemRows.map((item) => ({
-          name: `Custom Banner ${item.width_in}"×${item.height_in}"`,
+          name: getItemDisplayName(item),
           quantity: item.quantity,
           price: item.line_total_cents / 100,
-          options: [
-            `Material: ${item.material}`,
-            item.grommets && item.grommets !== 'none' ? `Grommets: ${item.grommets}` : null,
-            item.rope_feet && item.rope_feet > 0 ? `Rope: ${item.rope_feet.toFixed(1)} ft` : null,
-            item.file_key ? `File: ${item.file_key}` : null
-          ].filter(Boolean).join(' • ')
+          options: getEmailItemOptions(item)
         })),
         // FIX: Calculate correct subtotal, tax, and total from line_total_cents
         // Database values may be incorrect, so recalculate from item totals

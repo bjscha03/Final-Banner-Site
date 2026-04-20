@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { CheckCircle, Printer, Package, ArrowRight, Home, Palette, Mail, Phone, MessageSquare, Upload } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useScrollToTop } from '@/components/ScrollToTop';
+import { getItemDisplayName, isYardSignItem, getInvoiceSubtitle } from '@/lib/product-display';
 
 // Helper function to calculate unit price from order data
 const calculateUnitPrice = (item: any) => {
@@ -149,7 +150,7 @@ const OrderConfirmation: React.FC = () => {
               Order Confirmed! 🎉
             </h1>
             <p className="text-gray-600">
-              Thank you for your order. We'll get started on your custom banners right away.
+              Thank you for your order. We'll get started right away.
             </p>
           </div>
 
@@ -160,7 +161,7 @@ const OrderConfirmation: React.FC = () => {
               <div className="flex justify-between items-start">
                 <div>
                   <h2 className="text-2xl font-bold text-[#18448D]">Banners On The Fly</h2>
-                  <p className="text-gray-600 mt-1">Custom Banner Invoice</p>
+                  <p className="text-gray-600 mt-1">{getInvoiceSubtitle(order.items)}</p>
                 </div>
                 <div className="text-right">
                   <p className="text-sm text-gray-600">Order #</p>
@@ -179,43 +180,72 @@ const OrderConfirmation: React.FC = () => {
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
                         <h4 className="font-medium text-gray-900">
-                          Custom Banner {formatDimensions(item.width_in, item.height_in)}
+                          {getItemDisplayName(item)}
                         </h4>
                         <div className="text-sm text-gray-600 mt-2 space-y-1">
-                          <p>Material: {item.material}</p>
-                          <p>Area: {item.area_sqft.toFixed(2)} sq ft</p>
-                          {item.grommets && <p>Grommets: {getGrommetLabel(item.grommets)}</p>}
-                          {item.rope_feet && item.rope_feet > 0 && (
-                            <p>Rope: {item.rope_feet.toFixed(1)} ft</p>
+                          {isYardSignItem(item) ? (
+                            <>
+                              <p>Material: Corrugated Plastic</p>
+                              <p>Print: {(item as any).yard_sign_sidedness === 'double' ? 'Double-Sided' : 'Single-Sided'}</p>
+                              <p>Total Signs: {item.quantity}</p>
+                              {(item as any).yard_sign_design_count > 0 && <p>Uploaded Designs: {(item as any).yard_sign_design_count}</p>}
+                              {(item as any).yard_sign_step_stakes_qty > 0 && <p>Step Stakes: {(item as any).yard_sign_step_stakes_qty}</p>}
+                            </>
+                          ) : (
+                            <>
+                              <p>Material: {item.material}</p>
+                              <p>Area: {item.area_sqft.toFixed(2)} sq ft</p>
+                              {item.grommets && <p>Grommets: {getGrommetLabel(item.grommets)}</p>}
+                              {item.rope_feet && item.rope_feet > 0 && (
+                                <p>Rope: {item.rope_feet.toFixed(1)} ft</p>
+                              )}
+                              {item.file_key && <p>File: {item.file_key}</p>}
+                            </>
                           )}
-                          {item.file_key && <p>File: {item.file_key}</p>}
                         </div>
 
                         {/* Cost Breakdown */}
                         <div className="mt-3 p-3 bg-gray-50 rounded-lg">
                           <h5 className="text-sm font-medium text-gray-900 mb-2">Price Breakdown</h5>
                           <div className="space-y-1 text-sm">
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Base banner:</span>
-                              <span className="text-gray-900">{usd((calculateUnitPrice(item) * item.quantity) / 100)}</span>
-                            </div>
-                            {item.rope_feet && item.rope_feet > 0 && (
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Rope ({item.rope_feet.toFixed(1)}ft):</span>
-                                <span className="text-gray-900">{usd(item.rope_feet * 2 * item.quantity)}</span>
-                              </div>
-                            )}
-                            {(() => {
-                              const baseCost = calculateUnitPrice(item) * item.quantity;
-                              const ropeCost = (item.rope_feet || 0) * 2 * item.quantity * 100;
-                              const polePocketCost = item.line_total_cents - baseCost - ropeCost;
-                              return polePocketCost > 0 ? (
+                            {isYardSignItem(item) ? (
+                              <>
                                 <div className="flex justify-between">
-                                  <span className="text-gray-600">Pole pockets:</span>
-                                  <span className="text-gray-900">{usd(polePocketCost / 100)}</span>
+                                  <span className="text-gray-600">Signs ({item.quantity} × {usd(calculateUnitPrice(item) / 100)}):</span>
+                                  <span className="text-gray-900">{usd((calculateUnitPrice(item) * item.quantity) / 100)}</span>
                                 </div>
-                              ) : null;
-                            })()}
+                                {(item as any).yard_sign_stakes_subtotal_cents > 0 && (
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-600">Step Stakes ({(item as any).yard_sign_step_stakes_qty}):</span>
+                                    <span className="text-gray-900">{usd((item as any).yard_sign_stakes_subtotal_cents / 100)}</span>
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Base banner:</span>
+                                  <span className="text-gray-900">{usd((calculateUnitPrice(item) * item.quantity) / 100)}</span>
+                                </div>
+                                {item.rope_feet && item.rope_feet > 0 && (
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-600">Rope ({item.rope_feet.toFixed(1)}ft):</span>
+                                    <span className="text-gray-900">{usd(item.rope_feet * 2 * item.quantity)}</span>
+                                  </div>
+                                )}
+                                {(() => {
+                                  const baseCost = calculateUnitPrice(item) * item.quantity;
+                                  const ropeCost = (item.rope_feet || 0) * 2 * item.quantity * 100;
+                                  const polePocketCost = item.line_total_cents - baseCost - ropeCost;
+                                  return polePocketCost > 0 ? (
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-600">Pole pockets:</span>
+                                      <span className="text-gray-900">{usd(polePocketCost / 100)}</span>
+                                    </div>
+                                  ) : null;
+                                })()}
+                              </>
+                            )}
                             <div className="flex justify-between font-medium border-t border-gray-200 pt-1 mt-2">
                               <span className="text-gray-900">Line total:</span>
                               <span className="text-gray-900">{usd(item.line_total_cents / 100)}</span>

@@ -1,4 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
+const { getItemDisplayName, isYardSignItem, getEmailItemOptions } = require('./product-display-helpers.cjs');
 
 // Generate a thumbnail URL from various image sources
 // Uses Cloudinary's URL transformation to resize images for email display
@@ -518,7 +519,7 @@ async function sendEmail(type, payload) {
             <td>
               <h2 style="color: #2563eb; margin: 0 0 20px 0; font-size: 28px; text-align: center;">Order Confirmation</h2>
           <p>Hello ${(payload.order.customerName || 'Valued Customer')},</p>
-          <p>Thank you for your order! We've received your custom banner order and will begin processing it shortly.</p>
+          <p>Thank you for your order! We've received your order and will begin processing it shortly.</p>
           
           <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
             <h3 style="margin-top: 0; color: #374151;">Order Details</h3>
@@ -579,7 +580,7 @@ async function sendEmail(type, payload) {
           <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
           <p style="color: #6b7280; font-size: 12px;">
             Banners On The Fly<br>
-            Custom Banner Printing Services<br>
+            Custom Printing Services<br>
             Questions? Reply to this email or contact support.
           </p>
             </td>
@@ -756,21 +757,10 @@ exports.handler = async (event) => {
           const unitPrice = baseCost / item.quantity;
           
           return {
-          name: `Custom Banner ${item.width_in}"×${item.height_in}"`,
+          name: getItemDisplayName(item),
           quantity: item.quantity,
           price: item.line_total_cents / 100,
-          options: [
-            `Material: ${item.material}`,
-            item.grommets && item.grommets !== 'none' ? `Grommets: ${item.grommets}` : null,
-            item.rope_feet && item.rope_feet > 0 ? `Rope: ${item.rope_feet.toFixed(1)} ft` : null,
-            (item.pole_pocket_position && item.pole_pocket_position !== 'none')
-              ? `Pole Pockets: ${item.pole_pocket_position}${item.pole_pocket_size ? ` (${item.pole_pocket_size} inch)` : ''}`
-              : (item.pole_pockets && item.pole_pockets !== 'none' && item.pole_pockets !== false && item.pole_pockets !== 'false')
-                ? 'Pole Pockets: Yes'
-                : null,
-            item.file_key ? `File: ${item.file_key}` : null,
-            item.design_service_enabled ? '⚡ Design Service Order' : null
-          ].filter(Boolean).join(' • '),
+          options: getEmailItemOptions(item),
           // Cost breakdown data
           material: item.material,
           unitPriceCents: Math.round(unitPrice),

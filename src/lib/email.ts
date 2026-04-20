@@ -324,17 +324,31 @@ export async function sendOrderConfirmation(order: any, customerEmail: string): 
         id: order.id,
         number: order.id.slice(-8).toUpperCase(),
         customerName: order.customer_name || 'Customer',
-        items: order.items.map((item: any) => ({
-          name: `Custom Banner ${item.width_in}"×${item.height_in}"`,
-          quantity: item.quantity,
-          price: item.line_total_cents / 100,
-          options: [
-            `Material: ${item.material}`,
-            item.grommets ? `Grommets: ${item.grommets}` : null,
-            item.rope_feet && item.rope_feet > 0 ? `Rope: ${item.rope_feet.toFixed(1)} ft` : null,
-            item.file_key ? `File: ${item.file_key}` : null
-          ].filter(Boolean).join(' • ')
-        })),
+        items: order.items.map((item: any) => {
+          const isYardSign = item.product_type === 'yard_sign';
+          const itemName = isYardSign
+            ? 'Custom Yard Sign 24"×18"'
+            : `Custom Banner ${item.width_in}"×${item.height_in}"`;
+          const options = isYardSign
+            ? [
+                'Material: Corrugated Plastic',
+                `Print: ${item.yard_sign_sidedness === 'double' ? 'Double-Sided' : 'Single-Sided'}`,
+                item.yard_sign_design_count ? `Designs: ${item.yard_sign_design_count} files uploaded` : null,
+                item.yard_sign_step_stakes_qty > 0 ? `Step Stakes: ${item.yard_sign_step_stakes_qty}` : null,
+              ].filter(Boolean).join(' • ')
+            : [
+                `Material: ${item.material}`,
+                item.grommets ? `Grommets: ${item.grommets}` : null,
+                item.rope_feet && item.rope_feet > 0 ? `Rope: ${item.rope_feet.toFixed(1)} ft` : null,
+                item.file_key ? `File: ${item.file_key}` : null
+              ].filter(Boolean).join(' • ');
+          return {
+            name: itemName,
+            quantity: item.quantity,
+            price: item.line_total_cents / 100,
+            options,
+          };
+        }),
         subtotal: order.total_cents / 100,
         tax: 0,
         total: order.total_cents / 100,

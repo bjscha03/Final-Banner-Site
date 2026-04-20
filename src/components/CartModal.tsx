@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useQuoteStore } from '@/store/quote';
 import { useAuth } from '@/lib/auth';
 import { getGrommetLabel } from '@/lib/grommets';
+import { getItemDisplayName, isYardSignItem } from '@/lib/product-display';
 
 interface CartModalProps {
   isOpen: boolean;
@@ -204,7 +205,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                       {/* Title and Price on same line */}
                       <div className="flex justify-between items-start mb-3">
                         <h3 className="font-semibold text-gray-900 text-base">
-                          Custom Banner {item.width_in}" × {item.height_in}"
+                          {getItemDisplayName(item)}
                         </h3>
                         <div className="text-right ml-4 flex-shrink-0">
                           <p className="font-bold text-[#18448D] text-lg">
@@ -220,20 +221,36 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
                         {/* Left column: Meta information */}
                         <div className="space-y-1 text-xs text-gray-600">
-                          <p><span className="font-medium text-gray-700">Material:</span> {item.material}</p>
-                          {item.grommets && item.grommets !== 'none' && (
-                            <p><span className="font-medium text-gray-700">Grommets:</span> {getGrommetLabel(item.grommets)}</p>
-                          )}
-                          {ropeCost > 0 && item.rope_feet && (
-                            <p><span className="font-medium text-gray-700">Rope:</span> {item.rope_feet.toFixed(1)}ft</p>
-                          )}
-                          {item.pole_pockets && item.pole_pockets !== 'none' && (
-                            <p><span className="font-medium text-gray-700">Pole pockets:</span> {item.pole_pockets}</p>
-                          )}
-                          {item.file_name && (
-                            <p className="truncate" title={item.file_name}>
-                              <span className="font-medium text-gray-700">File:</span> {item.file_name}
-                            </p>
+                          {isYardSignItem(item) ? (
+                            <>
+                              <p><span className="font-medium text-gray-700">Material:</span> Corrugated Plastic</p>
+                              <p><span className="font-medium text-gray-700">Print:</span> {item.yard_sign_sidedness === 'double' ? 'Double-Sided' : 'Single-Sided'}</p>
+                              {item.yard_sign_design_count && item.yard_sign_design_count > 0 && (
+                                <p><span className="font-medium text-gray-700">Uploaded Designs:</span> {item.yard_sign_design_count}</p>
+                              )}
+                              <p><span className="font-medium text-gray-700">Total Signs:</span> {item.quantity}</p>
+                              {item.yard_sign_step_stakes_enabled && item.yard_sign_step_stakes_qty && item.yard_sign_step_stakes_qty > 0 && (
+                                <p><span className="font-medium text-gray-700">Step Stakes:</span> {item.yard_sign_step_stakes_qty}</p>
+                              )}
+                            </>
+                          ) : (
+                            <>
+                              <p><span className="font-medium text-gray-700">Material:</span> {item.material}</p>
+                              {item.grommets && item.grommets !== 'none' && (
+                                <p><span className="font-medium text-gray-700">Grommets:</span> {getGrommetLabel(item.grommets)}</p>
+                              )}
+                              {ropeCost > 0 && item.rope_feet && (
+                                <p><span className="font-medium text-gray-700">Rope:</span> {item.rope_feet.toFixed(1)}ft</p>
+                              )}
+                              {item.pole_pockets && item.pole_pockets !== 'none' && (
+                                <p><span className="font-medium text-gray-700">Pole pockets:</span> {item.pole_pockets}</p>
+                              )}
+                              {item.file_name && (
+                                <p className="truncate" title={item.file_name}>
+                                  <span className="font-medium text-gray-700">File:</span> {item.file_name}
+                                </p>
+                              )}
+                            </>
                           )}
                         </div>
 
@@ -241,22 +258,39 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                         <div className="p-2.5 bg-gray-50 rounded-lg border border-gray-200">
                           <h4 className="text-xs font-semibold text-gray-900 mb-1.5">Price Breakdown</h4>
                           <div className="space-y-1 text-xs">
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Base banner:</span>
-                              <span className="text-gray-900 font-medium">{usd((item.unit_price_cents * item.quantity)/100)}</span>
-                            </div>
-                            {console.log('🔍 [PRICE BREAKDOWN] Checking rope cost:', { ropeCost, rope_cost_cents: item.rope_cost_cents, rope_feet: item.rope_feet, willShow: ropeCost > 0 })}
-                            {ropeCost > 0 && (
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Rope{item.rope_feet ? ` (${item.rope_feet.toFixed(1)}ft)` : ''}:</span>
-                                <span className="text-gray-900 font-medium">{usd(ropeCost/100)}</span>
-                              </div>
-                            )}
-                            {pocketCost > 0 && (
-                              <div className="flex justify-between">
-                                <span className="text-gray-600">Pole pockets:</span>
-                                <span className="text-gray-900 font-medium">{usd(pocketCost/100)}</span>
-                              </div>
+                            {isYardSignItem(item) ? (
+                              <>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Signs ({item.quantity} × {usd(item.unit_price_cents/100)}):</span>
+                                  <span className="text-gray-900 font-medium">{usd((item.unit_price_cents * item.quantity)/100)}</span>
+                                </div>
+                                {item.yard_sign_step_stakes_enabled && item.yard_sign_stakes_subtotal_cents && item.yard_sign_stakes_subtotal_cents > 0 && (
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-600">Step Stakes ({item.yard_sign_step_stakes_qty}):</span>
+                                    <span className="text-gray-900 font-medium">{usd(item.yard_sign_stakes_subtotal_cents/100)}</span>
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <>
+                                <div className="flex justify-between">
+                                  <span className="text-gray-600">Base banner:</span>
+                                  <span className="text-gray-900 font-medium">{usd((item.unit_price_cents * item.quantity)/100)}</span>
+                                </div>
+                                {console.log('🔍 [PRICE BREAKDOWN] Checking rope cost:', { ropeCost, rope_cost_cents: item.rope_cost_cents, rope_feet: item.rope_feet, willShow: ropeCost > 0 })}
+                                {ropeCost > 0 && (
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-600">Rope{item.rope_feet ? ` (${item.rope_feet.toFixed(1)}ft)` : ''}:</span>
+                                    <span className="text-gray-900 font-medium">{usd(ropeCost/100)}</span>
+                                  </div>
+                                )}
+                                {pocketCost > 0 && (
+                                  <div className="flex justify-between">
+                                    <span className="text-gray-600">Pole pockets:</span>
+                                    <span className="text-gray-900 font-medium">{usd(pocketCost/100)}</span>
+                                  </div>
+                                )}
+                              </>
                             )}
                             <div className="flex justify-between font-semibold border-t border-gray-300 pt-1.5 mt-1.5">
                               <span className="text-gray-900">Line total:</span>
@@ -305,10 +339,10 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                             <button 
                               onClick={() => { onClose(); navigate('/google-ads-banner'); }} 
                               className="flex items-center gap-1 px-2.5 py-1.5 bg-[#18448D] hover:bg-[#0f2d5c] text-white rounded-lg text-xs font-medium transition-colors shadow-sm hover:shadow-md"
-                              aria-label="Order another banner"
+                              aria-label={isYardSignItem(item) ? "Order another yard sign" : "Order another banner"}
                             >
                               <Plus className="h-3.5 w-3.5" />
-                              <span>New Banner</span>
+                              <span>{isYardSignItem(item) ? 'New Sign' : 'New Banner'}</span>
                             </button>
                           )}
                           <button 

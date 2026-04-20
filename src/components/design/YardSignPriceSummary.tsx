@@ -70,7 +70,7 @@ const YardSignPriceSummary: React.FC<YardSignPriceSummaryProps> = ({
           <p><strong>Material:</strong> Corrugated Plastic</p>
           <p><strong>Print:</strong> {pricing.sidedness === 'double' ? 'Double-Sided' : 'Single-Sided'}</p>
           {designs.length > 0 && (
-            <p><strong>Designs:</strong> {designs.length} uploaded</p>
+            <p><strong>Designs:</strong> {designs.length} files uploaded</p>
           )}
           <p><strong>Total Signs:</strong> {pricing.totalSignQuantity}</p>
           <p className="text-gray-500 text-xs pl-4">

@@ -1,4 +1,5 @@
 const { randomUUID } = require('crypto');
+const { getPayPalDescription } = require('./product-display-helpers.cjs');
 
 // Feature flag support for pricing logic (copied from create-order.js)
 const getFeatureFlags = () => {
@@ -291,7 +292,7 @@ exports.handler = async (event, context) => {
           currency_code: 'USD',
           value: totalAmount
         },
-        description: 'Custom Banner Order - Banners On The Fly'
+        description: getPayPalDescription(items)
       }],
       application_context: {
         brand_name: 'Banners On The Fly',

@@ -5,6 +5,7 @@ import Layout from '@/components/Layout';
 import { useScrollToTop } from '@/components/ScrollToTop';
 import { calculatePolePocketCostFromOrder, calculateUnitPriceFromOrder } from '@/lib/pricing';
 import { getGrommetLabel } from '@/lib/grommets';
+import { getItemDisplayName, isYardSignItem } from '@/lib/product-display';
 
 interface OrderItem {
   width_in: number;
@@ -18,6 +19,12 @@ interface OrderItem {
   pole_pocket_size?: string;
   pole_pocket_cost_cents?: number;
   line_total_cents: number;
+  product_type?: string;
+  // Yard sign fields
+  yard_sign_sidedness?: string;
+  yard_sign_step_stakes_qty?: number;
+  yard_sign_design_count?: number;
+  yard_sign_stakes_subtotal_cents?: number;
   // Design Service fields
   design_service_enabled?: boolean;
   design_request_text?: string;
@@ -213,23 +220,39 @@ const OrderDetail: React.FC = () => {
                   <div className="grid md:grid-cols-2 gap-4">
                     <div>
                       <h3 className="font-medium text-gray-900 mb-2">
-                        Custom Banner - {item.width_in}" × {item.height_in}"
+                        {getItemDisplayName(item)}
                       </h3>
                       <div className="space-y-1 text-sm text-gray-600">
-                        <p><span className="font-medium">Material:</span> {item.material}</p>
-                        <p><span className="font-medium">Quantity:</span> {item.quantity}</p>
-                        <p><span className="font-medium">Grommets:</span> {getGrommetLabel(item.grommets)}</p>
-                        {item.rope_feet > 0 && (
-                          <p><span className="font-medium">Rope:</span> {item.rope_feet} feet</p>
-                        )}
-                        {(item.pole_pockets || item.pole_pocket_position) && (
-                          <p><span className="font-medium">Pole Pockets:</span> {
-                            item.pole_pocket_position && item.pole_pocket_position !== 'none' 
-                              ? `${item.pole_pocket_position}${item.pole_pocket_size ? ` (${item.pole_pocket_size} inch)` : ''}`
-                              : item.pole_pockets && item.pole_pockets !== 'none' && item.pole_pockets !== 'false'
-                                ? 'Yes'
-                                : 'None'
-                          }</p>
+                        {isYardSignItem(item) ? (
+                          <>
+                            <p><span className="font-medium">Material:</span> Corrugated Plastic</p>
+                            <p><span className="font-medium">Print:</span> {item.yard_sign_sidedness === 'double' ? 'Double-Sided' : 'Single-Sided'}</p>
+                            <p><span className="font-medium">Total Signs:</span> {item.quantity}</p>
+                            {item.yard_sign_design_count && item.yard_sign_design_count > 0 && (
+                              <p><span className="font-medium">Uploaded Designs:</span> {item.yard_sign_design_count}</p>
+                            )}
+                            {item.yard_sign_step_stakes_qty && item.yard_sign_step_stakes_qty > 0 && (
+                              <p><span className="font-medium">Step Stakes:</span> {item.yard_sign_step_stakes_qty}</p>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <p><span className="font-medium">Material:</span> {item.material}</p>
+                            <p><span className="font-medium">Quantity:</span> {item.quantity}</p>
+                            <p><span className="font-medium">Grommets:</span> {getGrommetLabel(item.grommets)}</p>
+                            {item.rope_feet > 0 && (
+                              <p><span className="font-medium">Rope:</span> {item.rope_feet} feet</p>
+                            )}
+                            {(item.pole_pockets || item.pole_pocket_position) && (
+                              <p><span className="font-medium">Pole Pockets:</span> {
+                                item.pole_pocket_position && item.pole_pocket_position !== 'none' 
+                                  ? `${item.pole_pocket_position}${item.pole_pocket_size ? ` (${item.pole_pocket_size} inch)` : ''}`
+                                  : item.pole_pockets && item.pole_pockets !== 'none' && item.pole_pockets !== 'false'
+                                    ? 'Yes'
+                                    : 'None'
+                              }</p>
+                            )}
+                          </>
                         )}
                       </div>
 
@@ -237,37 +260,55 @@ const OrderDetail: React.FC = () => {
                       <div className="mt-3 p-3 bg-gray-50 rounded-lg">
                         <h5 className="text-sm font-medium text-gray-900 mb-2">Price Breakdown</h5>
                         <div className="space-y-1 text-sm">
-                          {(() => {
-                            // Use exact same logic as PaymentSuccess.tsx
-                            // Use robust pole pocket calculation with proper field handling
-                            // Use utility functions for consistent calculation
-                            const polePocketCost = calculatePolePocketCostFromOrder(item);
-                            const unitPrice = calculateUnitPriceFromOrder(item);
-                            const ropeCost = (item.rope_feet || 0) * 2 * item.quantity * 100;
-                            return (                              <>
+                          {isYardSignItem(item) ? (
+                            <>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Signs ({item.quantity}):</span>
+                                <span className="text-gray-900">{formatCurrency(calculateUnitPriceFromOrder(item))} × {item.quantity}</span>
+                              </div>
+                              {item.yard_sign_stakes_subtotal_cents && item.yard_sign_stakes_subtotal_cents > 0 && (
                                 <div className="flex justify-between">
-                                  <span className="text-gray-600">Base banner:</span>
-                                  <span className="text-gray-900">{formatCurrency(unitPrice)} × {item.quantity}</span>
+                                  <span className="text-gray-600">Step Stakes ({item.yard_sign_step_stakes_qty}):</span>
+                                  <span className="text-gray-900">{formatCurrency(item.yard_sign_stakes_subtotal_cents)}</span>
                                 </div>
-                                {Number(item.rope_feet) > 0 && (
-                                  <div className="flex justify-between">
-                                    <span className="text-gray-600">Rope ({item.rope_feet.toFixed(1)}ft):</span>
-                                    <span className="text-gray-900">{formatCurrency(ropeCost)}</span>
-                                  </div>
-                                )}
-                                {polePocketCost > 0 && (
-                                  <div className="flex justify-between">
-                                    <span className="text-gray-600">Pole pockets:</span>
-                                    <span className="text-gray-900">{formatCurrency(polePocketCost)}</span>
-                                  </div>
-                                )}
-                                <div className="flex justify-between font-medium border-t border-gray-200 pt-1 mt-2">
-                                  <span className="text-gray-900">Line total:</span>
-                                  <span className="text-gray-900">{formatCurrency(item.line_total_cents)}</span>
-                                </div>
-                              </>
-                            );
-                          })()}
+                              )}
+                              <div className="flex justify-between font-medium border-t border-gray-200 pt-1 mt-2">
+                                <span className="text-gray-900">Line total:</span>
+                                <span className="text-gray-900">{formatCurrency(item.line_total_cents)}</span>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              {(() => {
+                                const polePocketCost = calculatePolePocketCostFromOrder(item);
+                                const unitPrice = calculateUnitPriceFromOrder(item);
+                                const ropeCost = (item.rope_feet || 0) * 2 * item.quantity * 100;
+                                return (                              <>
+                                    <div className="flex justify-between">
+                                      <span className="text-gray-600">Base banner:</span>
+                                      <span className="text-gray-900">{formatCurrency(unitPrice)} × {item.quantity}</span>
+                                    </div>
+                                    {Number(item.rope_feet) > 0 && (
+                                      <div className="flex justify-between">
+                                        <span className="text-gray-600">Rope ({item.rope_feet.toFixed(1)}ft):</span>
+                                        <span className="text-gray-900">{formatCurrency(ropeCost)}</span>
+                                      </div>
+                                    )}
+                                    {polePocketCost > 0 && (
+                                      <div className="flex justify-between">
+                                        <span className="text-gray-600">Pole pockets:</span>
+                                        <span className="text-gray-900">{formatCurrency(polePocketCost)}</span>
+                                      </div>
+                                    )}
+                                    <div className="flex justify-between font-medium border-t border-gray-200 pt-1 mt-2">
+                                      <span className="text-gray-900">Line total:</span>
+                                      <span className="text-gray-900">{formatCurrency(item.line_total_cents)}</span>
+                                    </div>
+                                  </>
+                                );
+                              })()}
+                            </>
+                          )}
                         </div>
                       </div>
                     </div>

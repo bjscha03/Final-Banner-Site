@@ -9,6 +9,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAuth, isAdmin } from '@/lib/auth';
 import { ShoppingCart, Package, Calendar, CreditCard, Mail, User, Download, FileText, Sparkles, MapPin, Loader2, Palette, Phone, Upload, MessageSquare } from 'lucide-react';
 import TrackingBadge from './TrackingBadge';
+import { getItemDisplayName, isYardSignItem, getProductLabel } from '@/lib/product-display';
 import {
   Dialog,
   DialogContent,
@@ -812,7 +813,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                       <div className="flex-shrink-0">
                         <img 
                           src={getThumbnailUrl(item, 150)} 
-                          alt={`Banner ${index + 1} preview`}
+                          alt={`${getProductLabel(item.product_type)} ${index + 1} preview`}
                           className="w-32 h-24 object-cover rounded-lg border border-slate-200 shadow-sm"
                           onError={(e) => {
                             // Hide image on error
@@ -824,26 +825,45 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                     <div className="flex-1 flex justify-between items-start">
                     <div className="flex-1">
                       <h4 className="text-lg font-bold text-slate-900 mb-3">
-                        Custom Banner {formatDimensions(item.width_in, item.height_in)}
+                        {getItemDisplayName(item)}
+                        {isYardSignItem(item) && (
+                          <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-800">Yard Sign</span>
+                        )}
                       </h4>
                       <div className="text-sm text-gray-600 mt-2 grid grid-cols-2 gap-2">
-                        <p className="break-words">Material: {item.material}</p>
-                        <p className="break-words">Quantity: {item.quantity}</p>
-                        <p className="break-words">Area: {(item.area_sqft || 0).toFixed(2)} sq ft</p>
-                        {item.grommets && <p className="break-words">Grommets: {item.grommets}</p>}
-                        {item.rope_feet && item.rope_feet > 0 && (
-                          <p className="break-words">Rope: {(item.rope_feet || 0).toFixed(1)} ft</p>
-                        )}
-                        {(item.pole_pockets || item.pole_pocket_position) && (
-                          <p className="break-words">
-                            Pole Pockets: {
-                              item.pole_pocket_position && item.pole_pocket_position !== 'none'
-                                ? `${item.pole_pocket_position}${item.pole_pocket_size ? ` (${item.pole_pocket_size} inch)` : ''}`
-                                : item.pole_pockets && item.pole_pockets !== 'none' && item.pole_pockets !== 'false'
-                                  ? 'Yes'
-                                  : 'None'
-                            }
-                          </p>
+                        {isYardSignItem(item) ? (
+                          <>
+                            <p className="break-words">Material: Corrugated Plastic</p>
+                            <p className="break-words">Print: {(item as any).yard_sign_sidedness === 'double' ? 'Double-Sided' : 'Single-Sided'}</p>
+                            <p className="break-words">Total Signs: {item.quantity}</p>
+                            {(item as any).yard_sign_design_count > 0 && (
+                              <p className="break-words">Uploaded Designs: {(item as any).yard_sign_design_count}</p>
+                            )}
+                            {(item as any).yard_sign_step_stakes_qty > 0 && (
+                              <p className="break-words">Step Stakes: {(item as any).yard_sign_step_stakes_qty}</p>
+                            )}
+                          </>
+                        ) : (
+                          <>
+                            <p className="break-words">Material: {item.material}</p>
+                            <p className="break-words">Quantity: {item.quantity}</p>
+                            <p className="break-words">Area: {(item.area_sqft || 0).toFixed(2)} sq ft</p>
+                            {item.grommets && <p className="break-words">Grommets: {item.grommets}</p>}
+                            {item.rope_feet && item.rope_feet > 0 && (
+                              <p className="break-words">Rope: {(item.rope_feet || 0).toFixed(1)} ft</p>
+                            )}
+                            {(item.pole_pockets || item.pole_pocket_position) && (
+                              <p className="break-words">
+                                Pole Pockets: {
+                                  item.pole_pocket_position && item.pole_pocket_position !== 'none'
+                                    ? `${item.pole_pocket_position}${item.pole_pocket_size ? ` (${item.pole_pocket_size} inch)` : ''}`
+                                    : item.pole_pockets && item.pole_pockets !== 'none' && item.pole_pockets !== 'false'
+                                      ? 'Yes'
+                                      : 'None'
+                                }
+                              </p>
+                            )}
+                          </>
                         )}
                         {item.file_key && (
                           <p className="break-words overflow-hidden">

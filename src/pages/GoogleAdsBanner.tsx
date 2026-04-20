@@ -411,8 +411,12 @@ const GoogleAdsBanner: React.FC = () => {
       const yardSignMetadata = {
         sidedness: yardSignSidedness,
         addStepStakes: yardSignAddStepStakes,
+        stepStakeQty: yardSignAddStepStakes ? yardSignStepStakeQty : 0,
         stepStakeQuantity: yardSignAddStepStakes ? yardSignStepStakeQty : 0,
         totalSignQuantity: yardSignTotalQty,
+        designCount: yardSignDesigns.length,
+        signSubtotalCents: yardSignPricing.signSubtotalCents,
+        stakeSubtotalCents: yardSignPricing.stepStakeTotalCents,
         designs: yardSignDesigns.map(d => ({
           id: d.id,
           fileName: d.fileName,

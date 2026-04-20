@@ -104,7 +104,7 @@ export default function OrderConfirmation({ order, invoiceUrl }: OrderConfirmati
           <Section style={header}>
             <Heading style={headerTitle}>Order Confirmed!</Heading>
             <Text style={headerSubtitle}>
-              Thank you for your order. We'll get started on your custom banners right away.
+              Thank you for your order. We'll get started right away.
             </Text>
           </Section>
 
@@ -113,7 +113,7 @@ export default function OrderConfirmation({ order, invoiceUrl }: OrderConfirmati
             <Row>
               <Column>
                 <Heading style={companyName}>Banners On The Fly</Heading>
-                <Text style={orderType}>Custom Banner Order</Text>
+                <Text style={orderType}>Order Confirmation</Text>
               </Column>
               <Column style={orderDetails}>
                 <Text style={orderLabel}>Order #</Text>
@@ -130,7 +130,7 @@ export default function OrderConfirmation({ order, invoiceUrl }: OrderConfirmati
             </Text>
             
             <Text style={paragraph}>
-              Your order has been confirmed and we're preparing your custom banners. 
+              Your order has been confirmed and we're preparing it now. 
               You'll receive another email with tracking information once your order ships.
             </Text>
 
