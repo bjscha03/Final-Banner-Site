@@ -79,7 +79,7 @@ exports.handler = async (event, context) => {
         ADD COLUMN IF NOT EXISTS shipping_city TEXT,
         ADD COLUMN IF NOT EXISTS shipping_state TEXT,
         ADD COLUMN IF NOT EXISTS shipping_zip TEXT,
-        ADD COLUMN IF NOT EXISTS shipping_country TEXT DEFAULT 'US'
+        ADD COLUMN IF NOT EXISTS shipping_country TEXT
       `;
     } catch (migErr) {
       console.warn('[get-order] Orders auto-migration warning (non-fatal):', migErr.message);
