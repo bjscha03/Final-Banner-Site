@@ -1,5 +1,47 @@
 const { randomUUID } = require('crypto');
 
+function firstNonEmpty(...values) {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+  return null;
+}
+
+function extractShippingAddress(paypalData) {
+  if (!paypalData) return null;
+
+  const shipping = paypalData.purchase_units?.[0]?.shipping || null;
+  const payer = paypalData.payer || null;
+  const address = shipping?.address || payer?.address || {};
+
+  const name = firstNonEmpty(
+    shipping?.name?.full_name,
+    `${payer?.name?.given_name || ''} ${payer?.name?.surname || ''}`
+  );
+
+  const street = firstNonEmpty(address.address_line_1, address.line1, address.street);
+  const street2 = firstNonEmpty(address.address_line_2, address.line2, address.street2);
+  const city = firstNonEmpty(address.admin_area_2, address.city);
+  const state = firstNonEmpty(address.admin_area_1, address.state, address.region);
+  const zip = firstNonEmpty(address.postal_code, address.zip);
+  const country = firstNonEmpty(address.country_code, address.country);
+
+  const hasAnyAddressData = Boolean(name || street || street2 || city || state || zip || country);
+  if (!hasAnyAddressData) return null;
+
+  return {
+    name: name || null,
+    street: street || null,
+    street2: street2 || null,
+    city: city || null,
+    state: state || null,
+    zip: zip || null,
+    country: country || 'US'
+  };
+}
+
 exports.handler = async (event, context) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -60,6 +102,21 @@ exports.handler = async (event, context) => {
     const tokenData = await tokenResponse.json();
     const accessToken = tokenData.access_token;
 
+    // Read order details before capture as fallback for shipping/name fields
+    let orderData = null;
+    const orderResponse = await fetch(`${baseUrl}/v2/checkout/orders/${orderID}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`
+      }
+    });
+    if (orderResponse.ok) {
+      orderData = await orderResponse.json();
+    } else {
+      console.warn(`Unable to fetch PayPal order ${orderID} before capture for shipping fallback`);
+    }
+
     // Capture the payment
     const captureResponse = await fetch(`${baseUrl}/v2/checkout/orders/${orderID}/capture`, {
       method: 'POST',
@@ -81,17 +138,8 @@ exports.handler = async (event, context) => {
 
     const captureData = await captureResponse.json();
     
-    // Extract shipping address from PayPal response
-    const shipping = captureData.purchase_units?.[0]?.shipping;
-    const shippingAddress = shipping ? {
-      name: shipping.name?.full_name || '',
-      street: shipping.address?.address_line_1 || '',
-      street2: shipping.address?.address_line_2 || '',
-      city: shipping.address?.admin_area_2 || '',
-      state: shipping.address?.admin_area_1 || '',
-      zip: shipping.address?.postal_code || '',
-      country: shipping.address?.country_code || 'US'
-    } : null;
+    // Extract shipping address from capture response, then fallback to pre-capture order payload
+    const shippingAddress = extractShippingAddress(captureData) || extractShippingAddress(orderData);
     
     // Return success response
     return {
