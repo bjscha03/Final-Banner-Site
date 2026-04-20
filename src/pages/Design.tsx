@@ -4,7 +4,7 @@ import { Helmet } from 'react-helmet-async';
 import { Upload, Clock, Star, CheckCircle, Truck, X, Loader2, ArrowRight, Brush, Minus, Plus, Lock, Mail, Droplets, Sun, Wind, Palette, Tag, Move, ZoomIn, ZoomOut, Ruler } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { useQuoteStore, type MaterialKey } from '@/store/quote';
-import { useCartStore } from '@/store/cart';
+import { useCartStore, type CartItem } from '@/store/cart';
 import { useUIStore } from '@/store/ui';
 import { calcTotals, usd, PRICE_PER_SQFT } from '@/lib/pricing';
 import { DESIGN_GROMMET_OPTIONS } from '@/lib/grommets';
@@ -114,6 +114,8 @@ const Design: React.FC = () => {
   const [yardSignSidedness, setYardSignSidedness] = useState<YardSignSidedness>('single');
   const [yardSignAddStepStakes, setYardSignAddStepStakes] = useState(false);
   const [yardSignStepStakeQty, setYardSignStepStakeQty] = useState(1);
+  // Auto-open first design preview when editing yard sign from cart
+  const [autoOpenDesignId, setAutoOpenDesignId] = useState<string | null>(null);
 
   // Handle product type switch — reset state
   const handleProductTypeChange = useCallback((newType: ProductTypeSlug) => {
@@ -130,6 +132,66 @@ const Design: React.FC = () => {
       setYardSignStepStakeQty(1);
     }
   }, []);
+
+  // Restore cart item state when editing from cart (editItem query param)
+  const editItemId = searchParams.get('editItem');
+  const [editItemRestored, setEditItemRestored] = useState(false);
+  useEffect(() => {
+    if (!editItemId || editItemRestored) return;
+    const cartItems = useCartStore.getState().getMigratedItems();
+    const item = cartItems.find((i: CartItem) => i.id === editItemId);
+    if (!item) return;
+    setEditItemRestored(true);
+
+    if (item.product_type === 'yard_sign' && item.yard_sign_designs) {
+      // Switch to yard sign tab and restore designs with saved preview state
+      setProductType('yard_sign');
+      const restoredDesigns: YardSignDesign[] = item.yard_sign_designs.map((d) => ({
+        id: d.id,
+        fileName: d.fileName,
+        fileUrl: d.fileUrl,
+        fileKey: d.fileKey,
+        thumbnailUrl: d.thumbnailUrl,
+        isPdf: d.isPdf,
+        quantity: d.quantity,
+        imgScale: d.imgScale,
+        imgPos: d.imgPos,
+      }));
+      setYardSignDesigns(restoredDesigns);
+      setYardSignSidedness(item.yard_sign_sidedness || 'single');
+      setYardSignAddStepStakes(item.yard_sign_step_stakes_enabled || false);
+      setYardSignStepStakeQty(item.yard_sign_step_stakes_qty || 1);
+      // Auto-open the first design's preview so user can adjust immediately
+      if (restoredDesigns.length > 0) {
+        setAutoOpenDesignId(restoredDesigns[0].id);
+      }
+    } else {
+      // Switch to banner tab and restore banner state
+      setProductType('banner');
+      if (item.file_url) {
+        setUploadedFile({
+          name: item.file_name || 'artwork',
+          url: item.file_url,
+          fileKey: item.file_key || '',
+          size: 0,
+          isPdf: item.is_pdf || false,
+          thumbnailUrl: item.thumbnail_url || item.file_url,
+        });
+      }
+      setImgPos(item.image_position || { x: 0, y: 0 });
+      setImgScale(item.image_scale || 1);
+      if (item.grommets) setGrommets(item.grommets);
+      if (item.pole_pockets) setPolePockets(item.pole_pockets);
+      setAddRope(!!item.rope_feet);
+      setQuantity(item.quantity || 1);
+
+      // Auto-open preview modal so user can adjust
+      setShowPreview(true);
+    }
+
+    // Remove the cart item since user is re-editing it
+    useCartStore.getState().removeItem(editItemId);
+  }, [editItemId, editItemRestored]);
 
   // Use string state for dimension inputs so users can clear and retype freely
   const [widthFtStr, setWidthFtStr] = useState('4');
@@ -490,6 +552,8 @@ const Design: React.FC = () => {
       console.log('[YARD_SIGN] ✅ Cart item created with yard sign metadata (design page)');
       setIsCartOpen(true);
       setPendingCheckoutData(null);
+      // Preserve tab in history so browser Back returns to Yard Sign tab
+      window.history.replaceState(null, '', '/design?tab=yard-sign');
       navigate('/checkout');
       return;
     }
@@ -604,6 +668,8 @@ const Design: React.FC = () => {
     cartStore.addFromQuote(bannerQuoteState, undefined, pricing);
     setIsCartOpen(true);
     setPendingCheckoutData(null);
+    // Preserve tab in history so browser Back returns to Banner tab
+    window.history.replaceState(null, '', '/design?tab=banner');
     navigate('/checkout');
   }, [uploadedFile, pendingCheckoutData, grommets, addRope, polePockets, widthIn, heightIn, quantity, material, quoteStore, cartStore, setIsCartOpen, navigate, toast, isYardSign, yardSignPricing, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, yardSignSidedness, yardSignAddStepStakes, yardSignStepStakeQty]);
 
@@ -834,6 +900,7 @@ const Design: React.FC = () => {
                   onPromoCodeChange={setPromoCode}
                   onPromoApply={handlePromoApply}
                   onPromoRemove={() => { setPromoApplied(false); setPromoCode(''); sessionStorage.removeItem('pendingPromoCode'); }}
+                  autoOpenDesignId={autoOpenDesignId}
                 />
               </div>
               <div className="space-y-6">

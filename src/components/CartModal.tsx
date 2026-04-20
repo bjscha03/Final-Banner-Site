@@ -5,7 +5,6 @@ import { useNavigate } from 'react-router-dom';
 import { usd } from '@/lib/pricing';
 import { useCartStore } from '@/store/cart';
 import { useToast } from '@/hooks/use-toast';
-import { useQuoteStore } from '@/store/quote';
 import { useAuth } from '@/lib/auth';
 import { getGrommetLabel } from '@/lib/grommets';
 import { getItemDisplayName, isYardSignItem } from '@/lib/product-display';
@@ -18,12 +17,11 @@ interface CartModalProps {
 
 const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
-  const { items: rawItems, getMigratedItems, updateQuantity, removeItem, loadItemIntoQuote, getSubtotalCents, getTaxCents, getTotalCents, getResolvedDiscount } = useCartStore();
+  const { items: rawItems, getMigratedItems, updateQuantity, removeItem, getSubtotalCents, getTaxCents, getTotalCents, getResolvedDiscount } = useCartStore();
 
   // CRITICAL: Use migrated items to ensure rope/pole pocket costs are calculated
   const items = getMigratedItems();
   const { toast } = useToast();
-  const { loadFromCartItem } = useQuoteStore();
   const { user } = useAuth();
 
   // Product-aware copy based on cart contents
@@ -44,7 +42,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
 
   const handleEdit = async (itemId: string) => {
     try {
-      const item = loadItemIntoQuote(itemId);
+      const item = items.find(i => i.id === itemId);
       
       if (!item) {
         toast({
@@ -75,7 +73,6 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
           const data = await response.json();
           
           if (data.success && data.editUrl) {
-            // Store the item ID so we can update it when user returns
             sessionStorage.setItem('canva-editing-cart-item-id', itemId);
             sessionStorage.setItem('canva-editing-width', String(item.width_in));
             sessionStorage.setItem('canva-editing-height', String(item.height_in));
@@ -87,28 +84,18 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
               title: "Canva session expired",
               description: "Opening a new Canva session with your banner dimensions",
             });
-            // Fall through to open new Canva session
           }
-          // else: fall through to regular editor
         } catch (error) {
           console.error('Error getting Canva edit URL:', error);
-          // Fall through to regular editor
         }
       }
 
-      // Reset design state completely before loading cart item
-      // This prevents image duplication from previous state
-      const { resetDesign } = useQuoteStore.getState();
-      resetDesign();
-      
-      // Small delay to ensure reset completes before loading new item
-      setTimeout(() => {
-        loadFromCartItem(item, itemId);
-      }, 50);
-      
-      // Close modal and navigate to advanced design editor page
+      // Product-aware edit routing: route back to the correct product page/tab
+      // NEVER route to the old /design-editor page
       onClose();
-      navigate('/design-editor');
+      const productTab = isYardSignItem(item) ? 'yard-sign' : 'banner';
+      const basePage = item.source === 'google-ads' ? '/google-ads-banner' : '/design';
+      navigate(`${basePage}?tab=${productTab}&editItem=${itemId}`);
       setTimeout(() => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }, 100);
@@ -330,34 +317,14 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                         </div>
                         
                         <div className="flex items-center gap-1.5">
-                          {item.source === 'google-ads' ? (
-                            <>
-                              <button 
-                                onClick={() => { 
-                                  onClose(); 
-                                  navigate(
-                                    isYardSignItem(item) 
-                                      ? `/google-ads-banner?product=yard-sign&editItem=${item.id}` 
-                                      : `/google-ads-banner?product=banner&editItem=${item.id}`
-                                  ); 
-                                }} 
-                                className="flex items-center gap-1 px-2.5 py-1.5 bg-[#18448D] hover:bg-[#0f2d5c] text-white rounded-lg text-xs font-medium transition-colors shadow-sm hover:shadow-md"
-                                aria-label={isYardSignItem(item) ? "Edit yard sign" : "Edit banner"}
-                              >
-                                <Edit className="h-3.5 w-3.5" />
-                                <span>Edit</span>
-                              </button>
-                            </>
-                          ) : (
-                            <button 
-                              onClick={() => handleEdit(item.id)} 
-                              className="flex items-center gap-1 px-2.5 py-1.5 bg-[#18448D] hover:bg-[#0f2d5c] text-white rounded-lg text-xs font-medium transition-colors shadow-sm hover:shadow-md"
-                              aria-label="Edit banner"
-                            >
-                              <Edit className="h-3.5 w-3.5" />
-                              <span>Edit</span>
-                            </button>
-                          )}
+                          <button 
+                            onClick={() => handleEdit(item.id)} 
+                            className="flex items-center gap-1 px-2.5 py-1.5 bg-[#18448D] hover:bg-[#0f2d5c] text-white rounded-lg text-xs font-medium transition-colors shadow-sm hover:shadow-md"
+                            aria-label={isYardSignItem(item) ? "Edit yard sign" : "Edit banner"}
+                          >
+                            <Edit className="h-3.5 w-3.5" />
+                            <span>Edit</span>
+                          </button>
                           <button 
                             onClick={() => removeItem(item.id)} 
                             className="flex items-center gap-1 px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-lg text-xs font-medium transition-colors"

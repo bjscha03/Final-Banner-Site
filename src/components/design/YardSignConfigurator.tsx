@@ -9,7 +9,7 @@
  * - Max 90 signs per order
  * - Live price summary
  */
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Upload, X, Plus, Minus, Loader2, AlertTriangle, CheckCircle, Image as ImageIcon, ZoomIn, ZoomOut, Move, Eye } from 'lucide-react';
 import {
   type YardSignSidedness,
@@ -51,6 +51,8 @@ interface YardSignConfiguratorProps {
   promoApplied: boolean;
   onPromoApply: () => void;
   onPromoRemove: () => void;
+  /** When set, auto-opens the preview modal for this design ID on mount */
+  autoOpenDesignId?: string | null;
 }
 
 const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
@@ -67,6 +69,7 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
   promoApplied,
   onPromoApply,
   onPromoRemove,
+  autoOpenDesignId,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -94,6 +97,17 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
     setPreviewImgScale(design?.imgScale || 1);
     setIsDraggingPreview(false);
   }, [designs]);
+
+  // Auto-open preview when editing from cart (autoOpenDesignId prop)
+  const autoOpenHandledRef = useRef(false);
+  useEffect(() => {
+    if (!autoOpenDesignId || autoOpenHandledRef.current || designs.length === 0) return;
+    const design = designs.find(d => d.id === autoOpenDesignId);
+    if (design) {
+      autoOpenHandledRef.current = true;
+      openPreview(design.id);
+    }
+  }, [autoOpenDesignId, designs, openPreview]);
 
   const previewCanvasRef = useRef<HTMLDivElement>(null);
 
