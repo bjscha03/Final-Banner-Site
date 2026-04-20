@@ -233,7 +233,7 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
           Each uploaded design will be printed at 24&quot; × 18&quot;. Assign a quantity to each design.
         </p>
         <p className="text-xs text-orange-600 font-medium mb-3">
-          Total order must be in increments of 10 signs (10, 20, 30, etc.).
+          Total order must be in increments of {YARD_SIGN_INCREMENT} signs (10, 20, 30, etc.).
         </p>
 
         {/* Design rows */}
@@ -474,7 +474,7 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
           <li>Standard yard sign size: 24&quot; × 18&quot;</li>
           <li>Upload up to {YARD_SIGN_MAX_DESIGNS} different designs per order</li>
           <li>Assign a quantity to each uploaded design</li>
-          <li className="font-semibold">Yard signs must be ordered in increments of 10 (10, 20, 30, etc.)</li>
+          <li className="font-semibold">Yard signs must be ordered in increments of {YARD_SIGN_INCREMENT} (10, 20, 30, etc.)</li>
           <li>Maximum {YARD_SIGN_MAX_QUANTITY} signs per order for 24-hour production</li>
           <li>Need more than {YARD_SIGN_MAX_QUANTITY}? Place a second order.</li>
         </ul>
