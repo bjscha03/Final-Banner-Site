@@ -330,7 +330,25 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                         </div>
                         
                         <div className="flex items-center gap-1.5">
-                          {item.source !== 'google-ads' && (
+                          {item.source === 'google-ads' ? (
+                            <>
+                              <button 
+                                onClick={() => { 
+                                  onClose(); 
+                                  navigate(
+                                    isYardSignItem(item) 
+                                      ? `/google-ads-banner?product=yard-sign&editItem=${item.id}` 
+                                      : `/google-ads-banner?product=banner&editItem=${item.id}`
+                                  ); 
+                                }} 
+                                className="flex items-center gap-1 px-2.5 py-1.5 bg-[#18448D] hover:bg-[#0f2d5c] text-white rounded-lg text-xs font-medium transition-colors shadow-sm hover:shadow-md"
+                                aria-label={isYardSignItem(item) ? "Edit yard sign" : "Edit banner"}
+                              >
+                                <Edit className="h-3.5 w-3.5" />
+                                <span>Edit</span>
+                              </button>
+                            </>
+                          ) : (
                             <button 
                               onClick={() => handleEdit(item.id)} 
                               className="flex items-center gap-1 px-2.5 py-1.5 bg-[#18448D] hover:bg-[#0f2d5c] text-white rounded-lg text-xs font-medium transition-colors shadow-sm hover:shadow-md"
@@ -338,16 +356,6 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                             >
                               <Edit className="h-3.5 w-3.5" />
                               <span>Edit</span>
-                            </button>
-                          )}
-                          {item.source === 'google-ads' && (
-                            <button 
-                              onClick={() => { onClose(); navigate(isYardSignItem(item) ? '/google-ads-banner?product=yard-sign' : '/google-ads-banner?product=banner'); }} 
-                              className="flex items-center gap-1 px-2.5 py-1.5 bg-[#18448D] hover:bg-[#0f2d5c] text-white rounded-lg text-xs font-medium transition-colors shadow-sm hover:shadow-md"
-                              aria-label={isYardSignItem(item) ? "Order another yard sign" : "Order another banner"}
-                            >
-                              <Plus className="h-3.5 w-3.5" />
-                              <span>{isYardSignItem(item) ? 'New Sign' : 'New Banner'}</span>
                             </button>
                           )}
                           <button 

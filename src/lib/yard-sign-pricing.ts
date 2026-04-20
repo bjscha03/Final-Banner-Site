@@ -36,6 +36,11 @@ export interface YardSignDesign {
   thumbnailUrl: string;
   isPdf: boolean;
   quantity: number;
+  // Preview state: saved when user adjusts in the preview modal
+  imgScale?: number;
+  imgPos?: { x: number; y: number };
+  // Thumbnail rendered from the preview state (matches exactly what user saw)
+  previewThumbnailUrl?: string;
 }
 
 // ----- Pricing result -----
