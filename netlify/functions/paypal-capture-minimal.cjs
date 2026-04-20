@@ -32,12 +32,12 @@ function extractShippingAddress(paypalData) {
   if (!hasAnyAddressData) return null;
 
   return {
-    name: name || '',
-    street: street || '',
-    street2: street2 || '',
-    city: city || '',
-    state: state || '',
-    zip: zip || '',
+    name: name || null,
+    street: street || null,
+    street2: street2 || null,
+    city: city || null,
+    state: state || null,
+    zip: zip || null,
     country: country || 'US'
   };
 }
