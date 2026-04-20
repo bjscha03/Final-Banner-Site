@@ -342,7 +342,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                           )}
                           {item.source === 'google-ads' && (
                             <button 
-                              onClick={() => { onClose(); navigate('/google-ads-banner'); }} 
+                              onClick={() => { onClose(); navigate(isYardSignItem(item) ? '/google-ads-banner?product=yard-sign' : '/google-ads-banner?product=banner'); }} 
                               className="flex items-center gap-1 px-2.5 py-1.5 bg-[#18448D] hover:bg-[#0f2d5c] text-white rounded-lg text-xs font-medium transition-colors shadow-sm hover:shadow-md"
                               aria-label={isYardSignItem(item) ? "Order another yard sign" : "Order another banner"}
                             >

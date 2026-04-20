@@ -325,6 +325,13 @@ const Checkout: React.FC = () => {
   // Detect if user came from Google Ads landing page
   const isFromGoogleAds = sessionStorage.getItem('isGoogleAdsLanding') === 'true' || items.some(item => item.source === 'google-ads');
 
+  // Build product-aware navigation URL for "Add Another" actions
+  const getAddAnotherUrl = (productType?: string): string => {
+    if (!isFromGoogleAds) return '/design';
+    if (productType === 'yard_sign') return '/google-ads-banner?product=yard-sign';
+    return '/google-ads-banner?product=banner';
+  };
+
   // Redirect if cart is empty
   if (items.length === 0) {
     return (
@@ -569,16 +576,63 @@ const Checkout: React.FC = () => {
                   );})}
                 </div>
 
-                {/* Add Another Item button */}
+                {/* Add Another Item button — product-aware for correct tab routing */}
                 <div className="mt-4">
-                  <Button
-                    variant="outline"
-                    onClick={() => navigate(isFromGoogleAds ? '/google-ads-banner' : '/design')}
-                    className="w-full border-dashed border-2 border-gray-300 text-gray-600 hover:border-[#18448D] hover:text-[#18448D] hover:bg-blue-50 transition-all py-3"
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    {productCopy.addAnotherCta}
-                  </Button>
+                  {(() => {
+                    const hasYardSigns = items.some(i => isYardSignItem(i));
+                    const hasBanners = items.some(i => !isYardSignItem(i));
+                    const isMixed = hasYardSigns && hasBanners;
+
+                    if (!isFromGoogleAds) {
+                      // Non-Google-Ads flow
+                      return (
+                        <Button
+                          variant="outline"
+                          onClick={() => navigate('/design')}
+                          className="w-full border-dashed border-2 border-gray-300 text-gray-600 hover:border-[#18448D] hover:text-[#18448D] hover:bg-blue-50 transition-all py-3"
+                        >
+                          <Plus className="h-4 w-4 mr-2" />
+                          {productCopy.addAnotherCta}
+                        </Button>
+                      );
+                    }
+
+                    if (isMixed) {
+                      // Mixed cart: show two separate buttons
+                      return (
+                        <div className="flex gap-3">
+                          <Button
+                            variant="outline"
+                            onClick={() => navigate(getAddAnotherUrl('banner'))}
+                            className="flex-1 border-dashed border-2 border-gray-300 text-gray-600 hover:border-[#18448D] hover:text-[#18448D] hover:bg-blue-50 transition-all py-3"
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Another Banner
+                          </Button>
+                          <Button
+                            variant="outline"
+                            onClick={() => navigate(getAddAnotherUrl('yard_sign'))}
+                            className="flex-1 border-dashed border-2 border-gray-300 text-gray-600 hover:border-[#18448D] hover:text-[#18448D] hover:bg-blue-50 transition-all py-3"
+                          >
+                            <Plus className="h-4 w-4 mr-2" />
+                            Add Another Yard Sign
+                          </Button>
+                        </div>
+                      );
+                    }
+
+                    // Homogeneous cart: show single product-specific CTA
+                    return (
+                      <Button
+                        variant="outline"
+                        onClick={() => navigate(getAddAnotherUrl(dominantProductType))}
+                        className="w-full border-dashed border-2 border-gray-300 text-gray-600 hover:border-[#18448D] hover:text-[#18448D] hover:bg-blue-50 transition-all py-3"
+                      >
+                        <Plus className="h-4 w-4 mr-2" />
+                        {productCopy.addAnotherCta}
+                      </Button>
+                    );
+                  })()}
                 </div>
 
                 {/* Discount Code Section */}

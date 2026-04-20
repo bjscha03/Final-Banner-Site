@@ -108,8 +108,21 @@ const GoogleAdsBanner: React.FC = () => {
   const userIsAdmin = isAdmin(user);
 
   // Product type state (admin-only: yard_sign)
-  const [productType, setProductType] = useState<ProductTypeSlug>('banner');
+  // Read ?product= query param so "Add Another Yard Sign" links open the correct tab
+  const initialProductType = (() => {
+    const param = searchParams.get('product');
+    if (param === 'yard-sign' || param === 'yard_sign') return 'yard_sign' as ProductTypeSlug;
+    return 'banner' as ProductTypeSlug;
+  })();
+  const [productType, setProductType] = useState<ProductTypeSlug>(initialProductType);
   const isYardSign = productType === 'yard_sign';
+
+  // Guard: if non-admin somehow lands on ?product=yard-sign, fall back to banner
+  useEffect(() => {
+    if (productType === 'yard_sign' && !userIsAdmin) {
+      setProductType('banner');
+    }
+  }, [productType, userIsAdmin]);
 
   // Yard sign specific state (v2: simplified single-size, multi-design)
   const [yardSignDesigns, setYardSignDesigns] = useState<YardSignDesign[]>([]);
@@ -571,7 +584,11 @@ const GoogleAdsBanner: React.FC = () => {
       pole_pocket_cost_cents: Math.round(updatedTotals.polePocket * 100),
       line_total_cents: Math.round(updatedTotals.materialTotal * 100),
     };
-    cartStore.addFromQuote(useQuoteStore.getState(), undefined, pricing);
+    // CRITICAL: Explicitly set product_type on quote state so cart item is correctly tagged.
+    // Without this, a stale product_type from a prior yard-sign add leaks into the banner item.
+    const bannerQuoteState = useQuoteStore.getState();
+    (bannerQuoteState as any).product_type = 'banner';
+    cartStore.addFromQuote(bannerQuoteState, undefined, pricing);
 
     console.log('[FINAL_RENDER_HTML] ✅ order_save_happened: after final_render was ready');
     console.log('[FINAL_RENDER_HTML] ✅ Cart item created with final_render data');
