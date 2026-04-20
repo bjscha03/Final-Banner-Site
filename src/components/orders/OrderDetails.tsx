@@ -68,50 +68,15 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
 
   // Generate thumbnail URL from order item image sources
   const getThumbnailUrl = (item: any, maxWidth: number = 200) => {
-    // CRITICAL: Use thumbnail_url first - it contains the accurate rendered design
-    // with correct image positioning, overlays, text elements, and grommets
-    if (item.thumbnail_url) {
-      const thumbUrl = item.thumbnail_url;
-      if (thumbUrl.includes("res.cloudinary.com") && thumbUrl.includes("/upload/")) {
-        return thumbUrl.replace("/upload/", `/upload/w_${maxWidth},c_limit,f_auto,q_auto/`);
-      }
-      if (thumbUrl.startsWith("http") && !thumbUrl.includes("res.cloudinary.com")) {
-        return `https://res.cloudinary.com/dtrxl120u/image/fetch/w_${maxWidth},c_limit,f_auto,q_auto/${thumbUrl}`;
-      }
-      return thumbUrl;
+    if (!item.thumbnail_url) return null;
+    const thumbUrl = item.thumbnail_url;
+    if (thumbUrl.includes("res.cloudinary.com") && thumbUrl.includes("/upload/")) {
+      return thumbUrl.replace("/upload/", `/upload/w_${maxWidth},c_limit,f_auto,q_auto/`);
     }
-
-    // Fallback to raw image sources (legacy orders without thumbnail_url)
-    let imageUrl: string | null = null;
-    
-    if (item.web_preview_url) {
-      imageUrl = item.web_preview_url;
-    } else if (item.print_ready_url) {
-      imageUrl = item.print_ready_url;
-    } else if (item.overlay_image?.fileKey) {
-      const fileKey = item.overlay_image.fileKey;
-      imageUrl = fileKey.startsWith('http') 
-        ? fileKey 
-        : `https://res.cloudinary.com/dtrxl120u/image/upload/${fileKey}`;
-    } else if (item.file_key) {
-      const fileKey = item.file_key;
-      imageUrl = fileKey.startsWith('http') 
-        ? fileKey 
-        : `https://res.cloudinary.com/dtrxl120u/image/upload/${fileKey}`;
+    if (thumbUrl.startsWith("http") && !thumbUrl.includes("res.cloudinary.com")) {
+      return `https://res.cloudinary.com/dtrxl120u/image/fetch/w_${maxWidth},c_limit,f_auto,q_auto/${thumbUrl}`;
     }
-    
-    if (!imageUrl) return null;
-    
-    // Apply Cloudinary transformation for thumbnail sizing
-    if (imageUrl.includes('res.cloudinary.com') && imageUrl.includes('/upload/')) {
-      return imageUrl.replace('/upload/', `/upload/w_${maxWidth},c_limit,f_auto,q_auto/`);
-    }
-    
-    if (imageUrl.startsWith('http') && !imageUrl.includes('res.cloudinary.com')) {
-      return `https://res.cloudinary.com/dtrxl120u/image/fetch/w_${maxWidth},c_limit,f_auto,q_auto/${imageUrl}`;
-    }
-    
-    return imageUrl;
+    return thumbUrl;
   };
 
   const orderDate = new Date(order.created_at).toLocaleDateString('en-US', {
@@ -121,6 +86,9 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
     hour: '2-digit',
     minute: '2-digit',
   });
+  const customerName = order.customer_name || order.shipping_name || 'Not provided';
+  const customerEmail = order.email || 'Not provided';
+  const hasAddress = !!(order.shipping_name || order.shipping_street || order.shipping_street2 || order.shipping_city || order.shipping_state || order.shipping_zip || order.shipping_country);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -570,35 +538,51 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
             </div>
           </div>
 
-          {/* Customer Information - Admin Only */}
-          {isAdminUser && (
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+          {/* Customer Information */}
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
               <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
                 <User className="h-5 w-5 text-blue-600 mr-2" />
                 Customer Information
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex items-center space-x-2">
+                  <User className="h-4 w-4 text-gray-500" />
+                  <div>
+                    <p className="text-sm text-gray-600">Customer Name</p>
+                    <p className="font-semibold text-gray-900">{customerName}</p>
+                  </div>
+                </div>
                 <div className="flex items-center space-x-2">
                   <Mail className="h-4 w-4 text-gray-500" />
                   <div>
                     <p className="text-sm text-gray-600">Email</p>
                     <p className="font-medium text-gray-900">
-                      {order.email || 'Not provided'}
+                      {customerEmail}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <User className="h-4 w-4 text-gray-500" />
+                <div className="flex items-start space-x-2">
+                  <MapPin className="h-4 w-4 text-gray-500 mt-0.5" />
                   <div>
-                    <p className="text-sm text-gray-600">Customer ID</p>
-                    <p className="font-medium text-gray-900 font-mono text-sm">
-                      {order.user_id ? order.user_id.slice(0, 8) + '...' : 'Guest Order'}
-                    </p>
+                    <p className="text-sm text-gray-600">Address</p>
+                    {hasAddress ? (
+                      <>
+                        {order.shipping_name && <p className="font-medium text-gray-900">{order.shipping_name}</p>}
+                        {order.shipping_street && <p className="text-sm text-gray-900">{order.shipping_street}</p>}
+                        {order.shipping_street2 && <p className="text-sm text-gray-900">{order.shipping_street2}</p>}
+                        {(order.shipping_city || order.shipping_state || order.shipping_zip) && (
+                          <p className="text-sm text-gray-900">
+                            {order.shipping_city}{order.shipping_city && order.shipping_state ? ', ' : ''}{order.shipping_state} {order.shipping_zip}
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <p className="font-medium text-gray-900">Not provided</p>
+                    )}
                   </div>
                 </div>
               </div>
             </div>
-          )}
 
           {/* Shipping Address - Admin Only */}
           {isAdminUser && (order.shipping_name || order.shipping_street) && (
@@ -836,6 +820,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                       <div className="text-sm text-gray-600 mt-2 grid grid-cols-2 gap-2">
                         {isYardSignItem(item) ? (
                           <>
+                            <p className="break-words">Size: 24" × 18"</p>
                             <p className="break-words">Material: Corrugated Plastic</p>
                             <p className="break-words">Print: {(item as any).yard_sign_sidedness === 'double' ? 'Double-Sided' : 'Single-Sided'}</p>
                             <p className="break-words">Total Signs: {item.quantity}</p>
@@ -848,7 +833,9 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                           </>
                         ) : (
                           <>
+                            <p className="break-words">Size: {item.width_in}" × {item.height_in}"</p>
                             <p className="break-words">Material: {item.material}</p>
+                            <p className="break-words">Print: Single-Sided</p>
                             <p className="break-words">Quantity: {item.quantity}</p>
                             <p className="break-words">Area: {(item.area_sqft || 0).toFixed(2)} sq ft</p>
                             {item.grommets && <p className="break-words">Grommets: {item.grommets}</p>}

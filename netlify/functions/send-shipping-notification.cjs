@@ -1,5 +1,14 @@
 const { neon } = require('@neondatabase/serverless');
 const { getItemDisplayName } = require('./product-display-helpers.cjs');
+const {
+  normalizeName,
+  getFinalizedThumbnailUrl,
+  renderItems,
+  renderTotals,
+  renderAddress,
+  renderEmailLayout,
+  escapeHtml,
+} = require('./email-template.cjs');
 
 // Neon database connection
 function getDbUrl() {
@@ -39,108 +48,26 @@ async function sendEmail(type, payload) {
     // For now, we'll use a simple HTML template since importing React components in Netlify functions is complex
     // In production, you'd want to use the actual OrderShipped React component
     const createShippingEmailHtml = (order, trackingNumber, trackingUrl) => {
-      const logoUrl = 'https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto,q_auto,w_300/https://bannersonthefly.com/cld-assets/images/logo-compact.svg';
-      
-      return `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>Your Order Has Shipped</title>
-        </head>
-        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="text-align: center; margin-bottom: 30px;">
-            <img src="${logoUrl}" alt="Banners On The Fly" style="height: 60px;">
-          </div>
-          
-          <div style="background: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%); color: white; padding: 30px; border-radius: 10px; text-align: center; margin-bottom: 30px;">
-            <h1 style="margin: 0; font-size: 28px;">Your Order is On The Way!</h1>
-            <p style="margin: 10px 0 0 0; font-size: 16px;">Your order has shipped and is heading your way</p>
-          </div>
-          
-          <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-              <div>
-                <h2 style="margin: 0; color: #ff6b35;">Banners On The Fly</h2>
-                <p style="margin: 5px 0; color: #666;">Order Shipped</p>
-              </div>
-              <div style="text-align: right;">
-                <p style="margin: 0; color: #666; font-size: 14px;">Order #</p>
-                <p style="margin: 0; font-weight: bold; font-size: 18px;">${order.orderNumber}</p>
-                <p style="margin: 5px 0 0 0; color: #666; font-size: 14px;">Shipped ${new Date().toLocaleDateString()}</p>
-              </div>
-            </div>
-          </div>
-          
-          <div style="margin-bottom: 30px;">
-            <p>Hi ${order.customerName ? order.customerName.split(' ')[0] : 'there'},</p>
-            <p>Great news! Your order has been completed and shipped. Your package is now on its way to you.</p>
-          </div>
-          
-          <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
-            <h3 style="margin: 0 0 15px 0; color: #333;">Tracking Information</h3>
-            <div style="display: flex; gap: 30px; margin-bottom: 20px;">
-              <div>
-                <p style="margin: 0; color: #666; font-size: 14px;">Carrier</p>
-                <p style="margin: 5px 0 0 0; font-weight: bold;">FedEx</p>
-              </div>
-              <div>
-                <p style="margin: 0; color: #666; font-size: 14px;">Tracking Number</p>
-                <p style="margin: 5px 0 0 0; font-weight: bold; font-family: monospace;">${trackingNumber}</p>
-              </div>
-            </div>
-            ${trackingUrl ? `
-              <div style="text-align: center;">
-                <a href="${trackingUrl}" style="background: #ff6b35; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">Track Your Package</a>
-              </div>
-            ` : ''}
-          </div>
-          
-          ${order.shippingAddress ? `
-            <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
-              <h3 style="margin: 0 0 15px 0; color: #333;">Shipping To</h3>
-              <div>
-                <p style="margin: 0;">${order.shippingAddress.name}</p>
-                <p style="margin: 0;">${order.shippingAddress.address1}</p>
-                ${order.shippingAddress.address2 ? `<p style="margin: 0;">${order.shippingAddress.address2}</p>` : ''}
-                <p style="margin: 0;">${order.shippingAddress.city}, ${order.shippingAddress.state} ${order.shippingAddress.zip}</p>
-              </div>
-            </div>
-          ` : ''}
-          
-          <div style="margin-bottom: 30px;">
-            <h3 style="color: #333;">Order Summary</h3>
-            ${order.items.map(item => `
-              <div style="border-bottom: 1px solid #eee; padding: 10px 0;">
-                <p style="margin: 0; font-weight: bold;">${item.name}</p>
-                <p style="margin: 5px 0; color: #666; font-size: 14px;">Quantity: ${item.quantity} | Price: $${item.price.toFixed(2)}</p>
-                ${item.options ? `<p style="margin: 5px 0; color: #666; font-size: 14px;">${item.options}</p>` : ''}
-              </div>
-            `).join('')}
-            <div style="margin-top: 15px; padding-top: 15px; border-top: 2px solid #ddd;">
-              <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                <span style="color: #666;">Subtotal:</span>
-                <span style="font-weight: 500;">$${order.subtotal.toFixed(2)}</span>
-              </div>
-              <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                <span style="color: #666;">Tax (6%):</span>
-                <span style="font-weight: 500;">$${order.tax.toFixed(2)}</span>
-              </div>
-              <div style="display: flex; justify-content: space-between; padding-top: 8px; border-top: 2px solid #ff6b35;">
-                <span style="font-size: 18px; font-weight: bold;">Total:</span>
-                <span style="font-size: 18px; font-weight: bold; color: #ff6b35;">$${order.total.toFixed(2)}</span>
-              </div>
-            </div>
-          </div>
-          
-          <div style="text-align: center; color: #666; font-size: 14px; border-top: 1px solid #eee; padding-top: 20px;">
-            <p>Thank you for choosing Banners On The Fly!</p>
-            <p>If you have any questions, please contact us at <a href="mailto:support@bannersonthefly.com">support@bannersonthefly.com</a></p>
-          </div>
-        </body>
-        </html>
-      `;
+      const names = normalizeName(order.customerName || '');
+      return renderEmailLayout({
+        title: 'Your Order Has Shipped',
+        subtitle: 'Your order has shipped.',
+        orderNumber: order.orderNumber,
+        bodyHtml: `
+          <p style="margin:0 0 12px;font-size:15px;color:#334155;">Hi ${escapeHtml(names.firstName)},</p>
+          <p style="margin:0 0 14px;font-size:14px;color:#334155;">Your order has shipped.</p>
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:0 0 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;">
+            <tr><td style="padding:14px;">
+              <p style="margin:0 0 6px;color:#334155;font-size:13px;">Carrier: FedEx</p>
+              <p style="margin:0 0 10px;color:#0f172a;font-size:14px;font-weight:700;font-family:monospace;">Tracking #: ${escapeHtml(trackingNumber || '')}</p>
+              ${trackingUrl ? `<a href="${escapeHtml(trackingUrl)}" style="display:inline-block;background:#059669;color:#ffffff;text-decoration:none;padding:10px 14px;border-radius:8px;font-weight:600;font-size:13px;">Track Your Package</a>` : ''}
+            </td></tr>
+          </table>
+          ${renderItems(order.items || [])}
+          ${renderTotals({ subtotal: order.subtotal, tax: order.tax, total: order.total })}
+          ${renderAddress(order)}
+        `,
+      });
     };
 
     if (type === 'order.shipped') {
@@ -253,7 +180,7 @@ exports.handler = async (event, context) => {
     }
 
     // Get customer name - title-case it
-    const customerName = order.full_name || '';
+    const customerName = order.customer_name || order.full_name || order.shipping_name || '';
 
     // Get order items
     const itemsResult = await sql`
@@ -273,7 +200,9 @@ exports.handler = async (event, context) => {
         options: `${item.material} material${item.grommets && item.grommets !== 'none' ? `, ${item.grommets} grommets` : ''}${item.rope_feet > 0 ? `, ${item.rope_feet}ft rope` : ''}${(item.pole_pocket_position && item.pole_pocket_position !== 'none') ? `, Pole Pockets: ${item.pole_pocket_position}${item.pole_pocket_size ? ` (${item.pole_pocket_size} inch)` : ''}` : (item.pole_pockets && item.pole_pockets !== 'none' && item.pole_pockets !== false && item.pole_pockets !== 'false') ? ', Pole Pockets: Yes' : ''}`,
         material: item.material,
         polePocketPosition: item.pole_pocket_position || item.pole_pockets,
-        polePocketSize: item.pole_pocket_size
+        polePocketSize: item.pole_pocket_size,
+        product_type: item.product_type || 'banner',
+        thumbnailUrl: getFinalizedThumbnailUrl(item, 220),
       })),
       // FIX: Calculate correct subtotal, tax, and total from line_total_cents
       // Database values may be incorrect, so recalculate from item totals
@@ -304,7 +233,13 @@ exports.handler = async (event, context) => {
         const calculatedTax = Math.round(calculatedSubtotal * 0.06);
         return calculatedSubtotal + calculatedTax;
       },
-      shippingAddress: undefined // No shipping address table in current schema
+      shipping_name: order.shipping_name,
+      shipping_street: order.shipping_street,
+      shipping_street2: order.shipping_street2,
+      shipping_city: order.shipping_city,
+      shipping_state: order.shipping_state,
+      shipping_zip: order.shipping_zip,
+      shipping_country: order.shipping_country,
     };
 
     // Create tracking URL (FedEx)

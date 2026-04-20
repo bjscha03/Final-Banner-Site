@@ -423,6 +423,10 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
           paypal_order_id: data.orderID,
           paypal_capture_id: captureResult.paypalData?.id,
           shipping_name: captureResult.shippingAddress?.name || null,
+          customer_name: captureResult.shippingAddress?.name || null,
+          customer_first_name: captureResult.shippingAddress?.name
+            ? String(captureResult.shippingAddress.name).trim().split(/\s+/)[0]
+            : null,
           shipping_street: captureResult.shippingAddress?.street || null,
           shipping_street2: captureResult.shippingAddress?.street2 || null,
           shipping_city: captureResult.shippingAddress?.city || null,

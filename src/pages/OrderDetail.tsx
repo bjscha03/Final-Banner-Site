@@ -20,6 +20,7 @@ interface OrderItem {
   pole_pocket_cost_cents?: number;
   line_total_cents: number;
   product_type?: string;
+  thumbnail_url?: string;
   // Yard sign fields
   yard_sign_sidedness?: string;
   yard_sign_step_stakes_qty?: number;
@@ -41,6 +42,8 @@ interface Order {
   id: string;
   order_number: string;
   email: string;
+  customer_name?: string | null;
+  customer_first_name?: string | null;
   subtotal_cents: number;
   tax_cents: number;
   total_cents: number;
@@ -110,6 +113,16 @@ const OrderDetail: React.FC = () => {
       minute: '2-digit'
     });
   };
+  const getThumbnailUrl = (item: OrderItem, maxWidth = 180) => {
+    if (!item.thumbnail_url) return null;
+    if (item.thumbnail_url.includes('res.cloudinary.com') && item.thumbnail_url.includes('/upload/')) {
+      return item.thumbnail_url.replace('/upload/', `/upload/w_${maxWidth},c_limit,f_auto,q_auto/`);
+    }
+    if (item.thumbnail_url.startsWith('http') && !item.thumbnail_url.includes('res.cloudinary.com')) {
+      return `https://res.cloudinary.com/dtrxl120u/image/fetch/w_${maxWidth},c_limit,f_auto,q_auto/${item.thumbnail_url}`;
+    }
+    return item.thumbnail_url;
+  };
 
   const formatCityStateZip = (
     city?: string | null,
@@ -163,6 +176,7 @@ const OrderDetail: React.FC = () => {
     order?.shipping_country
   );
   const cityStateZipLine = formatCityStateZip(order?.shipping_city, order?.shipping_state, order?.shipping_zip);
+  const customerName = order?.customer_name || order?.shipping_name || 'Not provided';
 
   if (loading) {
     return (
@@ -220,7 +234,12 @@ const OrderDetail: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid md:grid-cols-3 gap-4 text-sm">
+            <div className="grid md:grid-cols-4 gap-4 text-sm">
+              <div className="flex items-center space-x-2">
+                <Package className="h-4 w-4 text-gray-400" />
+                <span className="text-gray-600">Customer:</span>
+                <span className="font-medium">{customerName}</span>
+              </div>
               <div className="flex items-center space-x-2">
                 <Mail className="h-4 w-4 text-gray-400" />
                 <span className="text-gray-600">Email:</span>
@@ -265,13 +284,22 @@ const OrderDetail: React.FC = () => {
               {order.items.map((item, index) => (
                 <div key={index} className="border border-gray-200 rounded-lg p-4">
                   <div className="grid md:grid-cols-2 gap-4">
-                    <div>
+                    <div className="flex gap-3">
+                      {getThumbnailUrl(item) && (
+                        <img
+                          src={getThumbnailUrl(item, 180) || undefined}
+                          alt={`${isYardSignItem(item) ? 'Yard Sign' : 'Banner'} Preview`}
+                          className="w-28 h-20 object-cover rounded-md border border-gray-200 flex-shrink-0"
+                        />
+                      )}
+                      <div className="flex-1">
                       <h3 className="font-medium text-gray-900 mb-2">
                         {getItemDisplayName(item)}
                       </h3>
                       <div className="space-y-1 text-sm text-gray-600">
                         {isYardSignItem(item) ? (
                           <>
+                            <p><span className="font-medium">Size:</span> 24" × 18"</p>
                             <p><span className="font-medium">Material:</span> Corrugated Plastic</p>
                             <p><span className="font-medium">Print:</span> {item.yard_sign_sidedness === 'double' ? 'Double-Sided' : 'Single-Sided'}</p>
                             <p><span className="font-medium">Total Signs:</span> {item.quantity}</p>
@@ -284,7 +312,9 @@ const OrderDetail: React.FC = () => {
                           </>
                         ) : (
                           <>
+                            <p><span className="font-medium">Size:</span> {item.width_in}" × {item.height_in}"</p>
                             <p><span className="font-medium">Material:</span> {item.material}</p>
+                            <p><span className="font-medium">Print:</span> Single-Sided</p>
                             <p><span className="font-medium">Quantity:</span> {item.quantity}</p>
                             <p><span className="font-medium">Grommets:</span> {getGrommetLabel(item.grommets)}</p>
                             {item.rope_feet > 0 && (
@@ -357,6 +387,7 @@ const OrderDetail: React.FC = () => {
                             </>
                           )}
                         </div>
+                      </div>
                       </div>
                     </div>
                     <div className="text-right">

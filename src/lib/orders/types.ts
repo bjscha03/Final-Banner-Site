@@ -78,6 +78,8 @@ export interface Order {
   tracking_carrier?: TrackingCarrier | null;
   shipping_notification_sent?: boolean;
   shipping_notification_sent_at?: string | null;
+  customer_name?: string | null;
+  customer_first_name?: string | null;
   shipping_name?: string | null;
   shipping_street?: string | null;
   shipping_street2?: string | null;
@@ -97,8 +99,11 @@ export interface CreateOrderData {
   total_cents: number;
   currency: 'usd';
   items: OrderItem[];
+  customer_name?: string | null;
+  customer_first_name?: string | null;
   shipping_name?: string | null;
   shipping_street?: string | null;
+  shipping_street2?: string | null;
   shipping_city?: string | null;
   shipping_state?: string | null;
   shipping_zip?: string | null;

@@ -1066,47 +1066,15 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
   // Generate thumbnail URL from order item image sources
   // PRIORITY: Use stored thumbnail_url first (has correct design composition)
   const getThumbnailUrl = (item: any, maxWidth: number = 80) => {
-    // CRITICAL: Use thumbnail_url first - it contains the accurate rendered design
-    // with correct image positioning, overlays, text elements, and grommets
-    if (item.thumbnail_url) {
-      const thumbUrl = item.thumbnail_url;
-      // Apply Cloudinary transformation for sizing
-      if (thumbUrl.includes('res.cloudinary.com') && thumbUrl.includes('/upload/')) {
-        return thumbUrl.replace('/upload/', `/upload/w_${maxWidth},c_limit,f_auto,q_auto/`);
-      }
-      return thumbUrl;
+    if (!item.thumbnail_url) return null;
+    const thumbUrl = item.thumbnail_url;
+    if (thumbUrl.includes('res.cloudinary.com') && thumbUrl.includes('/upload/')) {
+      return thumbUrl.replace('/upload/', `/upload/w_${maxWidth},c_limit,f_auto,q_auto/`);
     }
-    
-    // Fallback to raw image sources (legacy orders without thumbnail_url)
-    let imageUrl: string | null = null;
-    
-    if (item.web_preview_url) {
-      imageUrl = item.web_preview_url;
-    } else if (item.print_ready_url) {
-      imageUrl = item.print_ready_url;
-    } else if (item.overlay_image?.fileKey) {
-      const fileKey = item.overlay_image.fileKey;
-      imageUrl = fileKey.startsWith('http') 
-        ? fileKey 
-        : `https://res.cloudinary.com/dtrxl120u/image/upload/${fileKey}`;
-    } else if (item.file_key) {
-      const fileKey = item.file_key;
-      imageUrl = fileKey.startsWith('http') 
-        ? fileKey 
-        : `https://res.cloudinary.com/dtrxl120u/image/upload/${fileKey}`;
+    if (thumbUrl.startsWith('http') && !thumbUrl.includes('res.cloudinary.com')) {
+      return `https://res.cloudinary.com/dtrxl120u/image/fetch/w_${maxWidth},c_limit,f_auto,q_auto/${thumbUrl}`;
     }
-    
-    if (!imageUrl) return null;
-    
-    if (imageUrl.includes('res.cloudinary.com') && imageUrl.includes('/upload/')) {
-      return imageUrl.replace('/upload/', `/upload/w_${maxWidth},c_limit,f_auto,q_auto/`);
-    }
-    
-    if (imageUrl.startsWith('http') && !imageUrl.includes('res.cloudinary.com')) {
-      return `https://res.cloudinary.com/dtrxl120u/image/fetch/w_${maxWidth},c_limit,f_auto,q_auto/${imageUrl}`;
-    }
-    
-    return imageUrl;
+    return thumbUrl;
   };
 
   // Get first item thumbnail for order list display
@@ -1512,47 +1480,15 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
   // Generate thumbnail URL from order item image sources
   // PRIORITY: Use stored thumbnail_url first (has correct design composition)
   const getThumbnailUrl = (item: any, maxWidth: number = 80) => {
-    // CRITICAL: Use thumbnail_url first - it contains the accurate rendered design
-    // with correct image positioning, overlays, text elements, and grommets
-    if (item.thumbnail_url) {
-      const thumbUrl = item.thumbnail_url;
-      // Apply Cloudinary transformation for sizing
-      if (thumbUrl.includes('res.cloudinary.com') && thumbUrl.includes('/upload/')) {
-        return thumbUrl.replace('/upload/', `/upload/w_${maxWidth},c_limit,f_auto,q_auto/`);
-      }
-      return thumbUrl;
+    if (!item.thumbnail_url) return null;
+    const thumbUrl = item.thumbnail_url;
+    if (thumbUrl.includes('res.cloudinary.com') && thumbUrl.includes('/upload/')) {
+      return thumbUrl.replace('/upload/', `/upload/w_${maxWidth},c_limit,f_auto,q_auto/`);
     }
-    
-    // Fallback to raw image sources (legacy orders without thumbnail_url)
-    let imageUrl: string | null = null;
-    
-    if (item.web_preview_url) {
-      imageUrl = item.web_preview_url;
-    } else if (item.print_ready_url) {
-      imageUrl = item.print_ready_url;
-    } else if (item.overlay_image?.fileKey) {
-      const fileKey = item.overlay_image.fileKey;
-      imageUrl = fileKey.startsWith('http') 
-        ? fileKey 
-        : `https://res.cloudinary.com/dtrxl120u/image/upload/${fileKey}`;
-    } else if (item.file_key) {
-      const fileKey = item.file_key;
-      imageUrl = fileKey.startsWith('http') 
-        ? fileKey 
-        : `https://res.cloudinary.com/dtrxl120u/image/upload/${fileKey}`;
+    if (thumbUrl.startsWith('http') && !thumbUrl.includes('res.cloudinary.com')) {
+      return `https://res.cloudinary.com/dtrxl120u/image/fetch/w_${maxWidth},c_limit,f_auto,q_auto/${thumbUrl}`;
     }
-    
-    if (!imageUrl) return null;
-    
-    if (imageUrl.includes('res.cloudinary.com') && imageUrl.includes('/upload/')) {
-      return imageUrl.replace('/upload/', `/upload/w_${maxWidth},c_limit,f_auto,q_auto/`);
-    }
-    
-    if (imageUrl.startsWith('http') && !imageUrl.includes('res.cloudinary.com')) {
-      return `https://res.cloudinary.com/dtrxl120u/image/fetch/w_${maxWidth},c_limit,f_auto,q_auto/${imageUrl}`;
-    }
-    
-    return imageUrl;
+    return thumbUrl;
   };
 
   // Get first item thumbnail for order list display
@@ -1610,9 +1546,8 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
       {/* Customer Info */}
       <div className="mb-3">
         <div className="text-xs text-gray-500">Customer</div>
-        <div className="text-sm font-medium truncate">
-          {order.user_id?.slice(0, 20) || 'Guest'}...
-        </div>
+        <div className="text-sm font-medium truncate">{order.customer_name || order.shipping_name || 'Not provided'}</div>
+        <div className="text-xs text-gray-600 truncate">{order.email || 'No email'}</div>
       </div>
 
       {/* Items Summary */}
