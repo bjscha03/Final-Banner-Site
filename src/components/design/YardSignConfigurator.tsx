@@ -8,6 +8,15 @@
  * - Optional step stakes ($1.50 each)
  * - Max 90 signs per order
  * - Live price summary
+ *
+ * Rendering pipeline:
+ * - Preview modal always uses the HIGH-RES source (fileUrl / Cloudinary PDF preview).
+ * - On save, a canvas-based thumbnail (previewThumbnailUrl) is generated at small size
+ *   and stored alongside imgScale / imgPos.
+ * - The row thumbnail, cart thumbnail, checkout preview, admin preview, email preview,
+ *   and print file ALL read from the same saved { previewThumbnailUrl, imgScale, imgPos }.
+ * - Re-opening the preview restores imgScale / imgPos but always renders from the
+ *   original high-res source, never from the generated thumbnail.
  */
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Upload, X, Plus, Minus, Loader2, AlertTriangle, CheckCircle, Image as ImageIcon, ZoomIn, ZoomOut, Move, Eye } from 'lucide-react';
@@ -46,6 +55,30 @@ function getPdfPreviewUrl(pdfUrl: string): string {
   } catch {
     return pdfUrl;
   }
+}
+
+/**
+ * Get the HIGH-RES image source for the preview modal.
+ * IMPORTANT: This must ALWAYS return the original source file, never the generated
+ * thumbnail data URL. The preview modal needs the full-res image so that:
+ * 1. The user sees a sharp preview
+ * 2. The canvas thumbnail generated on save is high quality
+ * 3. Repeated edits don't degrade quality
+ */
+function getPreviewModalSrc(design: YardSignDesign): string {
+  if (design.isPdf) {
+    return getPdfPreviewUrl(design.fileUrl);
+  }
+  return design.fileUrl || design.thumbnailUrl;
+}
+
+/**
+ * Get the thumbnail source for displaying in the design row.
+ * Uses the canvas-generated preview thumbnail if available (matches what user saved),
+ * otherwise falls back to the upload thumbnail.
+ */
+function getRowThumbnailSrc(design: YardSignDesign): string {
+  return design.previewThumbnailUrl || design.thumbnailUrl;
 }
 
 interface YardSignConfiguratorProps {
@@ -370,7 +403,7 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
   }, [designs, onDesignsChange]);
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 max-w-full overflow-hidden">
       {/* Fixed Size Display */}
       <div>
         <label className="block text-sm font-semibold text-gray-700 mb-2">Sign Size</label>
@@ -436,18 +469,18 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
 
         {/* Design rows */}
         {designs.length > 0 && (
-          <div className="space-y-3 mb-4">
+          <div className="space-y-3 mb-4 max-w-full overflow-hidden">
             {designs.map((design, idx) => (
-              <div key={design.id} className="flex items-center gap-3 bg-white border border-gray-200 rounded-xl p-3">
-                {/* Thumbnail — click to preview */}
+              <div key={design.id} className="flex items-center gap-3 bg-white border border-gray-200 rounded-xl p-3 max-w-full overflow-hidden">
+                {/* Thumbnail — fixed size, click to preview */}
                 <button
                   onClick={() => openPreview(design.id)}
-                  className="w-14 h-10 rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 border border-gray-200 relative group cursor-pointer"
+                  className="w-14 h-10 min-w-[3.5rem] max-w-[3.5rem] rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 border border-gray-200 relative group cursor-pointer"
                   aria-label={`Preview ${design.fileName}`}
                 >
                   <img
-                    src={design.previewThumbnailUrl || design.thumbnailUrl}
-                    alt={design.fileName}
+                    src={getRowThumbnailSrc(design)}
+                    alt=""
                     className="w-full h-full object-cover"
                     onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                   />
@@ -455,9 +488,9 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
                     <Eye className="w-4 h-4 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                 </button>
-                {/* File info */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-800 truncate">{design.fileName}</p>
+                {/* File info — constrained width, truncated text */}
+                <div className="flex-1 min-w-0 overflow-hidden">
+                  <p className="text-sm font-medium text-gray-800 truncate max-w-full">{design.fileName}</p>
                   <p className="text-xs text-gray-400">Design {idx + 1}</p>
                 </div>
                 {/* Quantity control */}
@@ -727,10 +760,13 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
                     className="absolute inset-0 w-full h-full"
                     style={{ transform: `translate(${previewImgPos.x}px, ${previewImgPos.y}px) scale(${previewImgScale})` }}
                   >
+                    {/* CRITICAL: Always use the high-res original source in the preview modal,
+                        never the generated thumbnail data URL. This ensures:
+                        1. Sharp preview on every edit
+                        2. High-quality canvas thumbnails on save
+                        3. No quality degradation on repeated edits */}
                     <img
-                      src={previewDesign.isPdf
-                        ? (previewDesign.previewThumbnailUrl || getPdfPreviewUrl(previewDesign.fileUrl))
-                        : (previewDesign.fileUrl || previewDesign.thumbnailUrl)}
+                      src={getPreviewModalSrc(previewDesign)}
                       alt="Yard Sign preview"
                       className="absolute inset-0 w-full h-full pointer-events-none object-contain"
                       crossOrigin="anonymous"
@@ -741,7 +777,7 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
                   <div className="absolute inset-1 border border-dashed border-gray-300/50 rounded-sm pointer-events-none" />
                 </div>
               </div>
-              <p className="text-xs text-gray-400 text-center mt-2">
+              <p className="text-xs text-gray-400 text-center mt-2 truncate max-w-full px-4">
                 Size: 24&quot; × 18&quot; · Corrugated Plastic · {previewDesign.fileName}
               </p>
               {/* Zoom controls */}
