@@ -75,7 +75,6 @@ const AdminSetup = lazy(() => import("./pages/AdminSetup"));
 
 // Utility/debug pages - lazy load
 const LogoShowcase = lazy(() => import("./pages/LogoShowcase"));
-const BannerDesignerTest = lazy(() => import("./pages/BannerDesignerTest"));
 const PdfDiagnostic = lazy(() => import("./pages/PdfDiagnostic"));
 
 // 404 page
@@ -177,7 +176,6 @@ const App = () => (
             
             {/* Utility pages */}
             <Route path="/logo-showcase" element={<LogoShowcase />} />
-            <Route path="/banner-designer-test" element={<BannerDesignerTest />} />
             <Route path="/pdf-diagnostic" element={<PdfDiagnostic />} />
             
             {/* SEO Category Pages */}

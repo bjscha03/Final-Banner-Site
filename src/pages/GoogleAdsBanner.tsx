@@ -298,6 +298,60 @@ const GoogleAdsBanner: React.FC = () => {
     });
   }, [searchParams]);
 
+  // Restore cart item state when editing from cart (editItem query param)
+  const editItemId = searchParams.get('editItem');
+  const [editItemRestored, setEditItemRestored] = useState(false);
+  useEffect(() => {
+    if (!editItemId || editItemRestored) return;
+    const cartItems = useCartStore.getState().getMigratedItems();
+    const item = cartItems.find((i: any) => i.id === editItemId);
+    if (!item) return;
+    setEditItemRestored(true);
+
+    if (item.product_type === 'yard_sign' && item.yard_sign_designs) {
+      // Restore yard sign designs with saved preview state
+      const restoredDesigns: YardSignDesign[] = item.yard_sign_designs.map((d: any) => ({
+        id: d.id,
+        fileName: d.fileName,
+        fileUrl: d.fileUrl,
+        fileKey: d.fileKey,
+        thumbnailUrl: d.thumbnailUrl,
+        isPdf: d.isPdf,
+        quantity: d.quantity,
+        imgScale: d.imgScale,
+        imgPos: d.imgPos,
+      }));
+      setYardSignDesigns(restoredDesigns);
+      setYardSignSidedness(item.yard_sign_sidedness || 'single');
+      setYardSignAddStepStakes(item.yard_sign_step_stakes_enabled || false);
+      setYardSignStepStakeQty(item.yard_sign_step_stakes_qty || 1);
+    } else {
+      // Restore banner state
+      if (item.file_url) {
+        setUploadedFile({
+          name: item.file_name || 'artwork',
+          url: item.file_url,
+          fileKey: item.file_key || '',
+          size: 0,
+          isPdf: item.is_pdf || false,
+          thumbnailUrl: item.thumbnail_url || item.file_url,
+        });
+      }
+      setImgPos(item.image_position || { x: 0, y: 0 });
+      setImgScale(item.image_scale || 1);
+      if (item.grommets) setGrommets(item.grommets);
+      if (item.pole_pockets) setPolePockets(item.pole_pockets);
+      setAddRope(!!item.rope_feet);
+      setQuantity(item.quantity || 1);
+
+      // Auto-open preview modal so user can adjust
+      setShowPreview(true);
+    }
+
+    // Remove the cart item since user is re-editing it
+    useCartStore.getState().removeItem(editItemId);
+  }, [editItemId, editItemRestored]);
+
   const scrollToOrder = () => orderRef.current?.scrollIntoView({ behavior: 'smooth' });
 
   // Handle product type switch — reset state
@@ -387,6 +441,10 @@ const GoogleAdsBanner: React.FC = () => {
       if (!res.ok) throw new Error('Upload failed');
       const data = await res.json();
       setUploadedFile({ name: file.name, url: data.secureUrl, fileKey: data.fileKey || data.publicId, size: file.size, isPdf: file.type === 'application/pdf', thumbnailUrl: file.type === 'application/pdf' ? getPdfThumbnailUrl(data.secureUrl) : data.secureUrl });
+      // Auto-open the large preview modal immediately after upload
+      setShowPreview(true);
+      setImgPos({ x: 0, y: 0 });
+      setImgScale(1);
     } catch {
       setUploadError('Upload failed. Please try again.');
     } finally {
@@ -428,9 +486,11 @@ const GoogleAdsBanner: React.FC = () => {
           fileName: d.fileName,
           fileUrl: d.fileUrl,
           fileKey: d.fileKey,
-          thumbnailUrl: d.thumbnailUrl,
+          thumbnailUrl: d.previewThumbnailUrl || d.thumbnailUrl,
           isPdf: d.isPdf,
           quantity: d.quantity,
+          imgScale: d.imgScale,
+          imgPos: d.imgPos,
         })),
       };
 
@@ -442,8 +502,8 @@ const GoogleAdsBanner: React.FC = () => {
         isPdf: primaryDesign.isPdf,
         widthIn: YARD_SIGN_WIDTH_IN,
         heightIn: YARD_SIGN_HEIGHT_IN,
-        imgPos: { x: 0, y: 0 },
-        imgScale: 1,
+        imgPos: primaryDesign.imgPos || { x: 0, y: 0 },
+        imgScale: primaryDesign.imgScale || 1,
         containerCssWidth: null,
         containerCssHeight: null,
         bgColor: '#fafafa',
@@ -460,17 +520,17 @@ const GoogleAdsBanner: React.FC = () => {
         polePockets: 'none',
         polePocketSize: '2' as any,
         addRope: false,
-        imagePosition: { x: 0, y: 0 },
-        imageScale: 1,
+        imagePosition: primaryDesign.imgPos || { x: 0, y: 0 },
+        imageScale: primaryDesign.imgScale || 1,
         fitMode: 'fill',
-        thumbnailUrl: primaryDesign.thumbnailUrl,
+        thumbnailUrl: primaryDesign.previewThumbnailUrl || primaryDesign.thumbnailUrl,
         file: {
           name: primaryDesign.fileName,
           url: primaryDesign.fileUrl,
           fileKey: primaryDesign.fileKey,
           size: 0,
           isPdf: primaryDesign.isPdf,
-          thumbnailUrl: primaryDesign.thumbnailUrl,
+          thumbnailUrl: primaryDesign.previewThumbnailUrl || primaryDesign.thumbnailUrl,
           type: primaryDesign.isPdf ? 'application/pdf' : 'image/*',
         } as any,
         finalRenderUrl: null,

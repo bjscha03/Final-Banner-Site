@@ -9,7 +9,7 @@
  * - Max 90 signs per order
  * - Live price summary
  */
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { Upload, X, Plus, Minus, Loader2, AlertTriangle, CheckCircle, Image as ImageIcon, ZoomIn, ZoomOut, Move, Eye } from 'lucide-react';
 import {
   type YardSignSidedness,
@@ -87,11 +87,77 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
   const previewDesign = designs.find(d => d.id === previewDesignId);
 
   const openPreview = useCallback((designId: string) => {
+    const design = designs.find(d => d.id === designId);
     setPreviewDesignId(designId);
-    setPreviewImgPos({ x: 0, y: 0 });
-    setPreviewImgScale(1);
+    // Restore saved state if available, otherwise default
+    setPreviewImgPos(design?.imgPos || { x: 0, y: 0 });
+    setPreviewImgScale(design?.imgScale || 1);
     setIsDraggingPreview(false);
-  }, []);
+  }, [designs]);
+
+  const previewCanvasRef = useRef<HTMLDivElement>(null);
+
+  // Save preview state and generate thumbnail, then close
+  const savePreviewAndClose = useCallback(() => {
+    if (!previewDesignId) { setPreviewDesignId(null); return; }
+    
+    // Generate a thumbnail from the preview canvas
+    const container = previewCanvasRef.current;
+    if (container) {
+      try {
+        // Use html2canvas-like approach: draw the preview onto a canvas
+        const rect = container.getBoundingClientRect();
+        const canvas = document.createElement('canvas');
+        const scale = 2; // 2x for retina quality
+        canvas.width = rect.width * scale;
+        canvas.height = rect.height * scale;
+        const ctx = canvas.getContext('2d');
+        if (ctx) {
+          ctx.scale(scale, scale);
+          // Draw background
+          ctx.fillStyle = '#fafafa';
+          ctx.fillRect(0, 0, rect.width, rect.height);
+          
+          // Find the image element inside the preview
+          const imgEl = container.querySelector('img') as HTMLImageElement;
+          if (imgEl && imgEl.complete && imgEl.naturalWidth > 0) {
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(0, 0, rect.width, rect.height);
+            ctx.clip();
+            ctx.translate(previewImgPos.x, previewImgPos.y);
+            ctx.scale(previewImgScale, previewImgScale);
+            // Draw image to fill the container
+            ctx.drawImage(imgEl, 0, 0, rect.width, rect.height);
+            ctx.restore();
+          }
+          
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          // Update design with preview state and rendered thumbnail
+          onDesignsChange(designs.map(d => d.id === previewDesignId ? {
+            ...d,
+            imgScale: previewImgScale,
+            imgPos: { ...previewImgPos },
+            previewThumbnailUrl: dataUrl,
+          } : d));
+          setPreviewDesignId(null);
+          setIsDraggingPreview(false);
+          return;
+        }
+      } catch (err) {
+        console.warn('[YardSign] Failed to generate preview thumbnail:', err);
+      }
+    }
+    
+    // Fallback: just save the state without thumbnail snapshot
+    onDesignsChange(designs.map(d => d.id === previewDesignId ? {
+      ...d,
+      imgScale: previewImgScale,
+      imgPos: { ...previewImgPos },
+    } : d));
+    setPreviewDesignId(null);
+    setIsDraggingPreview(false);
+  }, [previewDesignId, previewImgPos, previewImgScale, designs, onDesignsChange]);
 
   const closePreview = useCallback(() => {
     setPreviewDesignId(null);
@@ -210,8 +276,15 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
         thumbnailUrl,
         isPdf,
         quantity: 1,
+        imgScale: 1,
+        imgPos: { x: 0, y: 0 },
       };
       onDesignsChange([...designs, newDesign]);
+      // Auto-open preview modal immediately after upload
+      setPreviewDesignId(newDesign.id);
+      setPreviewImgPos({ x: 0, y: 0 });
+      setPreviewImgScale(1);
+      setIsDraggingPreview(false);
     } catch {
       setUploadError('Upload failed. Please try again.');
     } finally {
@@ -318,7 +391,7 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
                   aria-label={`Preview ${design.fileName}`}
                 >
                   <img
-                    src={design.thumbnailUrl}
+                    src={design.previewThumbnailUrl || design.thumbnailUrl}
                     alt={design.fileName}
                     className="w-full h-full object-cover"
                     onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
@@ -576,6 +649,7 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
               </p>
               <div className="rounded-lg p-4" style={{ background: 'linear-gradient(180deg, #f5f6f8 0%, #e9edf2 100%)' }}>
                 <div
+                  ref={previewCanvasRef}
                   className="relative w-full rounded-sm select-none overflow-hidden transition-all duration-300 ease-out"
                   style={{
                     aspectRatio: '24 / 18',
@@ -629,7 +703,8 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
               <p className="text-xs text-gray-500 text-center mt-2 font-medium">Your design will be printed based on this preview</p>
             </div>
             <div className="flex gap-3 p-4 border-t">
-              <button onClick={closePreview} className="flex-1 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold shadow-lg">Done</button>
+              <button onClick={closePreview} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50">Cancel</button>
+              <button onClick={savePreviewAndClose} className="flex-1 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold shadow-lg">Done</button>
             </div>
           </div>
         </div>

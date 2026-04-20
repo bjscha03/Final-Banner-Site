@@ -120,6 +120,8 @@ export interface CartItem {
     thumbnailUrl: string;
     isPdf: boolean;
     quantity: number;
+    imgScale?: number;                             // Preview state: zoom level
+    imgPos?: { x: number; y: number };             // Preview state: position offset
   }>;
   yard_sign_signs_subtotal_cents?: number;        // Sign subtotal before stakes
   yard_sign_stakes_subtotal_cents?: number;       // Stakes subtotal
