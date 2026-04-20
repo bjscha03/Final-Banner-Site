@@ -13,8 +13,8 @@ export interface ProductCopyConfig {
   pluralLabel: string;
   /** CTA for adding another item */
   addAnotherCta: string;
-  /** Artwork review notice shown in checkout/cart */
-  reviewNotice: string;
+  /** Artwork review notice body (shown after "Preview only." prefix) */
+  reviewNoticeBody: string;
   /** Upsell modal header */
   upsellHeader: string;
   /** Suggestions when order is under minimum (small shortfall ≤$5) */
@@ -35,8 +35,8 @@ const bannerCopy: ProductCopyConfig = {
   singularLabel: 'Banner',
   pluralLabel: 'Banners',
   addAnotherCta: 'Add Another Banner',
-  reviewNotice:
-    'Preview only. Our team personally reviews every banner before production and will reach out if anything needs attention.',
+  reviewNoticeBody:
+    'Our team personally reviews every banner before production and will reach out if anything needs attention.',
   upsellHeader: 'Complete Your Banner',
   minimumOrderSuggestionsSmall: [
     'Consider increasing your banner quantity by 1',
@@ -62,8 +62,8 @@ const yardSignCopy: ProductCopyConfig = {
   singularLabel: 'Yard Sign',
   pluralLabel: 'Yard Signs',
   addAnotherCta: 'Add Another Yard Sign',
-  reviewNotice:
-    'Preview only. Our team reviews your yard sign artwork before production and will reach out if anything needs attention.',
+  reviewNoticeBody:
+    'Our team reviews your yard sign artwork before production and will reach out if anything needs attention.',
   upsellHeader: 'Complete Your Yard Sign',
   minimumOrderSuggestionsSmall: [
     'Increase your yard sign quantity',
@@ -122,6 +122,10 @@ export function getYardSignMinimumSuggestions(
   const isDoubleSided = config?.sidedness === 'double';
   const hasStepStakes = config?.stepStakesEnabled === true;
 
+  const MAX_SUGGESTIONS_SMALL = 2;
+  const MAX_SUGGESTIONS_MEDIUM = 3;
+  const MAX_SUGGESTIONS_LARGE = 4;
+
   const pool: string[] = ['Increase your yard sign quantity'];
 
   if (!hasStepStakes) {
@@ -133,7 +137,7 @@ export function getYardSignMinimumSuggestions(
   pool.push('Add another design to your order');
 
   // Return up to 3 suggestions
-  if (shortfall <= 5) return pool.slice(0, 2);
-  if (shortfall <= 10) return pool.slice(0, 3);
-  return pool.slice(0, 4);
+  if (shortfall <= 5) return pool.slice(0, MAX_SUGGESTIONS_SMALL);
+  if (shortfall <= 10) return pool.slice(0, MAX_SUGGESTIONS_MEDIUM);
+  return pool.slice(0, MAX_SUGGESTIONS_LARGE);
 }

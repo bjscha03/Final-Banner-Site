@@ -177,7 +177,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                 <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-xs text-blue-700">
                   <Eye className="h-4 w-4 flex-shrink-0 mt-0.5 text-blue-500" />
                   <p>
-                    <span className="font-medium">Preview only.</span> {productCopy.reviewNotice.replace('Preview only. ', '')}
+                    <span className="font-medium">Preview only.</span> {productCopy.reviewNoticeBody}
                   </p>
                 </div>
                 {items.map((item) => {
