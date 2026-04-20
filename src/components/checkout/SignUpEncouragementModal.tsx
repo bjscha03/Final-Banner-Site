@@ -4,20 +4,24 @@ import { X, Package, Zap, Bell } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCheckoutContext } from '@/store/checkoutContext';
 import { cartSyncService } from '@/lib/cartSync';
+import { getProductCopy } from '@/lib/product-copy';
 
 interface SignUpEncouragementModalProps {
   isOpen: boolean;
   onClose: () => void;
   onContinueAsGuest: () => void;
+  productType?: string;
 }
 
 const SignUpEncouragementModal: React.FC<SignUpEncouragementModalProps> = ({
   isOpen,
   onClose,
-  onContinueAsGuest
+  onContinueAsGuest,
+  productType,
 }) => {
   const navigate = useNavigate();
   const { setCheckoutContext } = useCheckoutContext();
+  const copy = getProductCopy(productType);
 
   if (!isOpen) return null;
 
@@ -113,7 +117,7 @@ const SignUpEncouragementModal: React.FC<SignUpEncouragementModalProps> = ({
               </div>
               <div>
                 <p className="text-sm text-gray-700">
-                  <span className="font-semibold">Stay Updated</span> — Get notified when your banner ships
+                  <span className="font-semibold">Stay Updated</span> — {copy.shippingNotification}
                 </p>
               </div>
             </div>
