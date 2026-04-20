@@ -70,7 +70,7 @@ async function sendProductionEmail(order, customerEmail) {
         </div>
         
         <div style="margin-bottom: 30px;">
-          <p>Hi ${order.customerName},</p>
+          <p>Hi ${order.customerName ? order.customerName.split(' ')[0] : 'there'},</p>
           <p>Good news — your banner order is now in production.</p>
           <p>Our team is currently printing and preparing your banner. Once it's complete, it will ship out with tracking information sent to you immediately.</p>
         </div>
@@ -224,7 +224,7 @@ exports.handler = async (event) => {
     }
 
     // Get customer name
-    const customerName = order.full_name || 'Valued Customer';
+    const customerName = order.full_name || '';
 
     // Get order items
     const itemsResult = await sql`

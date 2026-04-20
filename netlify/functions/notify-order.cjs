@@ -208,7 +208,7 @@ function createAdminOrderEmailHtml(payload) {
           <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #faf5ff; border: 2px solid #c4b5fd; border-radius: 8px; margin-bottom: 16px;">
             <tr>
               <td style="padding: 16px; color: #6b21a8; font-size: 14px; line-height: 1.5; text-align: center;">
-                This customer has requested our design team to create their banner. Please review the details below and begin working on their design.
+                This customer has requested our design team to create their ${order.items.some(i => i.product_type === 'yard_sign') ? 'yard sign' : 'banner'}. Please review the details below and begin working on their design.
               </td>
             </tr>
           </table>
@@ -256,6 +256,7 @@ function createAdminOrderEmailHtml(payload) {
               <td style="padding: 16px;">
                 ${order.shipping_name ? `<p style="color: #1f2937; font-size: 15px; font-weight: 600; margin: 0 0 4px;">${order.shipping_name}</p>` : ''}
                 ${order.shipping_street ? `<p style="color: #4b5563; font-size: 14px; line-height: 1.6; margin: 0;">${order.shipping_street}</p>` : ''}
+                ${order.shipping_street2 ? `<p style="color: #4b5563; font-size: 14px; line-height: 1.6; margin: 0;">${order.shipping_street2}</p>` : ''}
                 ${(order.shipping_city || order.shipping_state || order.shipping_zip) ? `<p style="color: #4b5563; font-size: 14px; line-height: 1.6; margin: 0;">${order.shipping_city || ''}${order.shipping_city && order.shipping_state ? ', ' : ''}${order.shipping_state || ''} ${order.shipping_zip || ''}</p>` : ''}
                 ${order.shipping_country && order.shipping_country !== 'US' ? `<p style="color: #4b5563; font-size: 14px; line-height: 1.6; margin: 0;">${order.shipping_country}</p>` : ''}
               </td>
@@ -324,7 +325,7 @@ function createAdminOrderEmailHtml(payload) {
                         <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                           <tr>
                             <td style="color: #6b7280; font-size: 13px; font-weight: 600;">Customer Name</td>
-                            <td style="color: #1f2937; font-size: 14px; font-weight: 500; text-align: right;">${order.customerName || 'Valued Customer'}</td>
+                            <td style="color: #1f2937; font-size: 14px; font-weight: 500; text-align: right;">${order.customerName || 'Not provided'}</td>
                           </tr>
                         </table>
                       </td>
@@ -527,7 +528,7 @@ async function sendEmail(type, payload) {
           <tr>
             <td>
               <h2 style="color: #2563eb; margin: 0 0 20px 0; font-size: 28px; text-align: center;">Order Confirmation</h2>
-          <p>Hello ${(payload.order.customerName || 'Valued Customer')},</p>
+          <p>Hi ${(payload.order.customerName ? payload.order.customerName.split(' ')[0] : 'there')},</p>
           <p>Thank you for your order! We've received your order and will begin processing it shortly.</p>
           
           <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
@@ -573,6 +574,7 @@ async function sendEmail(type, payload) {
               <h3 style="margin-top: 0; color: #374151;">Shipping Address</h3>
               <p style="margin: 5px 0; font-weight: 600;">${payload.order.shipping_name}</p>
               ${payload.order.shipping_street ? `<p style="margin: 5px 0;">${payload.order.shipping_street}</p>` : ''}
+              ${payload.order.shipping_street2 ? `<p style="margin: 5px 0;">${payload.order.shipping_street2}</p>` : ''}
               ${(payload.order.shipping_city || payload.order.shipping_state || payload.order.shipping_zip) ? `<p style="margin: 5px 0;">${payload.order.shipping_city || ''}${payload.order.shipping_city && payload.order.shipping_state ? ', ' : ''}${payload.order.shipping_state || ''} ${payload.order.shipping_zip || ''}</p>` : ''}
               ${payload.order.shipping_country && payload.order.shipping_country !== 'US' ? `<p style="margin: 5px 0;">${payload.order.shipping_country}</p>` : ''}
             </div>
@@ -728,7 +730,7 @@ exports.handler = async (event) => {
 
     // Convert database order to email format
     // Use customer_name first, then shipping_name as fallback (shipping_name often has the actual name)
-    const customerName = order.customer_name || order.shipping_name || 'Valued Customer';
+    const customerName = order.customer_name || order.shipping_name || '';
 
     const emailPayload = {
       to: order.email,
@@ -832,6 +834,7 @@ exports.handler = async (event) => {
         },
         shipping_name: order.shipping_name,
         shipping_street: order.shipping_street,
+        shipping_street2: order.shipping_street2,
         shipping_city: order.shipping_city,
         shipping_state: order.shipping_state,
         shipping_zip: order.shipping_zip,
