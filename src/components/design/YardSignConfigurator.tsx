@@ -9,7 +9,7 @@
  * - Max 90 signs per order
  * - Live price summary
  */
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { Upload, X, Plus, Minus, Loader2, AlertTriangle, CheckCircle, Image as ImageIcon, ZoomIn, ZoomOut, Move, Eye } from 'lucide-react';
 import {
   type YardSignSidedness,
@@ -97,6 +97,9 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
 
   const previewCanvasRef = useRef<HTMLDivElement>(null);
 
+  /** Quality for JPEG preview thumbnails */
+  const PREVIEW_THUMBNAIL_QUALITY = 0.85;
+
   // Save preview state and generate thumbnail, then close
   const savePreviewAndClose = useCallback(() => {
     if (!previewDesignId) { setPreviewDesignId(null); return; }
@@ -105,15 +108,14 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
     const container = previewCanvasRef.current;
     if (container) {
       try {
-        // Use html2canvas-like approach: draw the preview onto a canvas
         const rect = container.getBoundingClientRect();
         const canvas = document.createElement('canvas');
-        const scale = 2; // 2x for retina quality
-        canvas.width = rect.width * scale;
-        canvas.height = rect.height * scale;
+        const pixelScale = 2; // 2x for retina quality
+        canvas.width = rect.width * pixelScale;
+        canvas.height = rect.height * pixelScale;
         const ctx = canvas.getContext('2d');
         if (ctx) {
-          ctx.scale(scale, scale);
+          ctx.scale(pixelScale, pixelScale);
           // Draw background
           ctx.fillStyle = '#fafafa';
           ctx.fillRect(0, 0, rect.width, rect.height);
@@ -125,14 +127,31 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
             ctx.beginPath();
             ctx.rect(0, 0, rect.width, rect.height);
             ctx.clip();
+            
+            // Apply the same transforms as the CSS: translate + scale
             ctx.translate(previewImgPos.x, previewImgPos.y);
             ctx.scale(previewImgScale, previewImgScale);
-            // Draw image to fill the container
-            ctx.drawImage(imgEl, 0, 0, rect.width, rect.height);
+            
+            // Match object-contain: compute dimensions preserving aspect ratio
+            const imgAr = imgEl.naturalWidth / imgEl.naturalHeight;
+            const containerAr = rect.width / rect.height;
+            let drawW: number, drawH: number;
+            if (imgAr > containerAr) {
+              // Image wider than container — fit to width
+              drawW = rect.width;
+              drawH = rect.width / imgAr;
+            } else {
+              // Image taller — fit to height
+              drawH = rect.height;
+              drawW = rect.height * imgAr;
+            }
+            const drawX = (rect.width - drawW) / 2;
+            const drawY = (rect.height - drawH) / 2;
+            ctx.drawImage(imgEl, drawX, drawY, drawW, drawH);
             ctx.restore();
           }
           
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+          const dataUrl = canvas.toDataURL('image/jpeg', PREVIEW_THUMBNAIL_QUALITY);
           // Update design with preview state and rendered thumbnail
           onDesignsChange(designs.map(d => d.id === previewDesignId ? {
             ...d,

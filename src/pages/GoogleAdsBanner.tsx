@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import { Upload, Shield, Clock, Star, CheckCircle, Truck, Users, FileCheck, X, Loader2, ArrowRight, Brush, Minus, Plus, Lock, Mail, Droplets, Sun, Wind, Palette, Tag, Move, ZoomIn, ZoomOut, ShoppingCart, Ruler, Layers } from 'lucide-react';
 import { useQuoteStore, type MaterialKey } from '@/store/quote';
-import { useCartStore } from '@/store/cart';
+import { useCartStore, type CartItem } from '@/store/cart';
 import { useUIStore } from '@/store/ui';
 import { calcTotals, usd, PRICE_PER_SQFT } from '@/lib/pricing';
 import { DESIGN_GROMMET_OPTIONS } from '@/lib/grommets';
@@ -304,13 +304,13 @@ const GoogleAdsBanner: React.FC = () => {
   useEffect(() => {
     if (!editItemId || editItemRestored) return;
     const cartItems = useCartStore.getState().getMigratedItems();
-    const item = cartItems.find((i: any) => i.id === editItemId);
+    const item = cartItems.find((i: CartItem) => i.id === editItemId);
     if (!item) return;
     setEditItemRestored(true);
 
     if (item.product_type === 'yard_sign' && item.yard_sign_designs) {
       // Restore yard sign designs with saved preview state
-      const restoredDesigns: YardSignDesign[] = item.yard_sign_designs.map((d: any) => ({
+      const restoredDesigns: YardSignDesign[] = item.yard_sign_designs.map((d) => ({
         id: d.id,
         fileName: d.fileName,
         fileUrl: d.fileUrl,
