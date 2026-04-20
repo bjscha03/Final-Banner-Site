@@ -34,6 +34,7 @@ import {
   validateYardSignQuantity,
 } from '@/lib/yard-sign-pricing';
 import { usd } from '@/lib/pricing';
+import { uploadCanvasImageToCloudinary } from '@/utils/uploadCanvasImage';
 
 // Helper to generate PDF thumbnail URL from Cloudinary
 function getPdfThumbnailUrl(pdfUrl: string): string {
@@ -117,6 +118,7 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isSavingPreview, setIsSavingPreview] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [dragActive, setDragActive] = useState(false);
 
@@ -161,11 +163,13 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
   const MIN_VALID_THUMBNAIL_LENGTH = 1000;
 
   // Save preview state and generate thumbnail, then close
-  const savePreviewAndClose = useCallback(() => {
+  const savePreviewAndClose = useCallback(async () => {
     if (!previewDesignId) { setPreviewDesignId(null); return; }
     
     const currentDesign = designs.find(d => d.id === previewDesignId);
     if (!currentDesign) { setPreviewDesignId(null); return; }
+    
+    setIsSavingPreview(true);
     
     // Generate a thumbnail from the preview canvas
     const container = previewCanvasRef.current;
@@ -217,15 +221,39 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
           const dataUrl = canvas.toDataURL('image/jpeg', PREVIEW_THUMBNAIL_QUALITY);
           // Verify thumbnail isn't blank (a blank JPEG data URL is very short)
           if (dataUrl && dataUrl.length > MIN_VALID_THUMBNAIL_LENGTH) {
-            onDesignsChange(designs.map(d => d.id === previewDesignId ? {
-              ...d,
-              imgScale: previewImgScale,
-              imgPos: { ...previewImgPos },
-              previewThumbnailUrl: dataUrl,
-            } : d));
-            setPreviewDesignId(null);
-            setIsDraggingPreview(false);
-            return;
+            // OPTION A: Upload the finalized snapshot to Cloudinary for persistence
+            // This is the CANONICAL FINALIZED ASSET — used everywhere:
+            // thumbnail, cart, checkout, admin, email, print file source.
+            try {
+              const uploadResult = await uploadCanvasImageToCloudinary(
+                dataUrl,
+                `yard-sign-preview-${currentDesign.id}-${Date.now()}.jpg`
+              );
+              console.log('[YardSign] ✅ Finalized preview uploaded to Cloudinary:', uploadResult.secureUrl);
+              onDesignsChange(designs.map(d => d.id === previewDesignId ? {
+                ...d,
+                imgScale: previewImgScale,
+                imgPos: { ...previewImgPos },
+                previewThumbnailUrl: uploadResult.secureUrl,
+              } : d));
+              setIsSavingPreview(false);
+              setPreviewDesignId(null);
+              setIsDraggingPreview(false);
+              return;
+            } catch (uploadErr) {
+              console.warn('[YardSign] Failed to upload preview to Cloudinary, using data URL fallback:', uploadErr);
+              // Fallback: use data URL (will work locally but may not persist through server sync)
+              onDesignsChange(designs.map(d => d.id === previewDesignId ? {
+                ...d,
+                imgScale: previewImgScale,
+                imgPos: { ...previewImgPos },
+                previewThumbnailUrl: dataUrl,
+              } : d));
+              setIsSavingPreview(false);
+              setPreviewDesignId(null);
+              setIsDraggingPreview(false);
+              return;
+            }
           }
         }
       } catch (err) {
@@ -243,6 +271,7 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
       imgPos: { ...previewImgPos },
       ...(fallbackThumbnail ? { previewThumbnailUrl: fallbackThumbnail } : {}),
     } : d));
+    setIsSavingPreview(false);
     setPreviewDesignId(null);
     setIsDraggingPreview(false);
   }, [previewDesignId, previewImgPos, previewImgScale, designs, onDesignsChange]);
@@ -797,8 +826,10 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
               <p className="text-xs text-gray-500 text-center mt-2 font-medium">Your design will be printed based on this preview</p>
             </div>
             <div className="flex gap-3 p-4 border-t">
-              <button onClick={closePreview} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50">Cancel</button>
-              <button onClick={savePreviewAndClose} className="flex-1 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold shadow-lg">Done</button>
+              <button onClick={closePreview} disabled={isSavingPreview} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 disabled:opacity-50">Cancel</button>
+              <button onClick={savePreviewAndClose} disabled={isSavingPreview} className="flex-1 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold shadow-lg disabled:opacity-70 flex items-center justify-center gap-2">
+                {isSavingPreview ? (<><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>) : 'Done'}
+              </button>
             </div>
           </div>
         </div>

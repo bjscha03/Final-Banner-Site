@@ -43,6 +43,9 @@ interface BannerPreviewProps {
   fitMode?: 'fill' | 'fit' | 'stretch';
   designServiceEnabled?: boolean;
   source?: string;
+  /** When true, the imageUrl is a canonical finalized snapshot (e.g., uploaded to Cloudinary
+   * from the preview canvas). Render it full-bleed without applying scale/position transforms. */
+  isFinalizedSnapshot?: boolean;
 }
 
 interface Point {
@@ -133,6 +136,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   fitMode = 'fill',
   designServiceEnabled = false,
   source,
+  isFinalizedSnapshot = false,
 }) => {
   // Detect if imageUrl is a canvas thumbnail with the full design baked in.
   // Canvas thumbnails should be rendered full-bleed without position/scale transforms
@@ -141,8 +145,9 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   // Only data URLs (from stage.toDataURL()) are direct canvas captures with positioning
   // already baked in. Cloudinary URLs from both the design page and Google Ads page use
   // raw artwork that needs imagePosition/imageScale transforms applied.
+  // EXCEPTION: isFinalizedSnapshot means it's a Cloudinary URL of a canvas capture — treat same as data URL.
   const isDataUrl = imageUrl?.startsWith('data:image/');
-  const isCanvasThumbnail = isDataUrl;
+  const isCanvasThumbnail = isDataUrl || isFinalizedSnapshot;
   
   // DEBUG: Log what we received
 
