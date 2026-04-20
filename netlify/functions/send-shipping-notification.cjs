@@ -1,4 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
+const { getItemDisplayName } = require('./product-display-helpers.cjs');
 
 // Neon database connection
 function getDbUrl() {
@@ -266,7 +267,7 @@ exports.handler = async (event, context) => {
       customerName: customerName,
       email: customerEmail,
       items: itemsResult.map(item => ({
-        name: `Custom Banner (${item.width_in}" x ${item.height_in}")`,
+        name: getItemDisplayName(item),
         quantity: item.quantity,
         price: item.line_total_cents / 100 / item.quantity, // Calculate unit price from line total
         options: `${item.material} material${item.grommets && item.grommets !== 'none' ? `, ${item.grommets} grommets` : ''}${item.rope_feet > 0 ? `, ${item.rope_feet}ft rope` : ''}${(item.pole_pocket_position && item.pole_pocket_position !== 'none') ? `, Pole Pockets: ${item.pole_pocket_position}${item.pole_pocket_size ? ` (${item.pole_pocket_size} inch)` : ''}` : (item.pole_pockets && item.pole_pockets !== 'none' && item.pole_pockets !== false && item.pole_pockets !== 'false') ? ', Pole Pockets: Yes' : ''}`,

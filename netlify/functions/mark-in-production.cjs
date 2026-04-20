@@ -1,4 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
+const { getItemDisplayName } = require('./product-display-helpers.cjs');
 
 // Neon database connection
 function getDbUrl() {
@@ -236,7 +237,7 @@ exports.handler = async (event) => {
       orderNumber: order.id.slice(-8).toUpperCase(),
       customerName: customerName,
       items: itemsResult.map(item => ({
-        name: `Custom Banner (${item.width_in}" x ${item.height_in}")`,
+        name: getItemDisplayName(item),
         quantity: item.quantity,
         dimensions: `${item.width_in}" × ${item.height_in}"`,
         material: item.material
