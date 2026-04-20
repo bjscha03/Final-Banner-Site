@@ -111,6 +111,18 @@ const OrderDetail: React.FC = () => {
     });
   };
 
+  const formatCityStateZip = (
+    city?: string | null,
+    state?: string | null,
+    zip?: string | null
+  ) => {
+    const cleanCity = city?.trim() || '';
+    const cleanState = state?.trim() || '';
+    const cleanZip = zip?.trim() || '';
+    const cityState = cleanCity && cleanState ? `${cleanCity}, ${cleanState}` : (cleanCity || cleanState);
+    return [cityState, cleanZip].filter(Boolean).join(' ');
+  };
+
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'paid':
@@ -150,6 +162,7 @@ const OrderDetail: React.FC = () => {
     order?.shipping_zip ||
     order?.shipping_country
   );
+  const cityStateZipLine = formatCityStateZip(order?.shipping_city, order?.shipping_state, order?.shipping_zip);
 
   if (loading) {
     return (
@@ -238,15 +251,7 @@ const OrderDetail: React.FC = () => {
                   {order.shipping_name && <p className="font-medium text-gray-900">{order.shipping_name}</p>}
                   {order.shipping_street && <p>{order.shipping_street}</p>}
                   {order.shipping_street2 && <p>{order.shipping_street2}</p>}
-                  {(order.shipping_city || order.shipping_state || order.shipping_zip) && (
-                    <p>
-                      {order.shipping_city || ''}
-                      {order.shipping_city && order.shipping_state ? ', ' : ''}
-                      {order.shipping_state || ''}
-                      {(order.shipping_state || order.shipping_city) && order.shipping_zip ? ' ' : ''}
-                      {order.shipping_zip || ''}
-                    </p>
-                  )}
+                  {cityStateZipLine && <p>{cityStateZipLine}</p>}
                   {order.shipping_country && order.shipping_country !== 'US' && <p>{order.shipping_country}</p>}
                 </div>
               </div>
