@@ -41,6 +41,12 @@ function cleanItemForDb(item) {
   return cleaned;
 }
 
+function normalizeCustomerName(name) {
+  const fullName = String(name || '').trim().replace(/\s+/g, ' ');
+  const firstName = fullName ? fullName.split(' ')[0] : null;
+  return { fullName: fullName || null, firstName };
+}
+
 
 
 
@@ -261,6 +267,8 @@ exports.handler = async (event, context) => {
     try {
       await sql`
         ALTER TABLE orders
+        ADD COLUMN IF NOT EXISTS customer_name TEXT,
+        ADD COLUMN IF NOT EXISTS customer_first_name TEXT,
         ADD COLUMN IF NOT EXISTS shipping_name TEXT,
         ADD COLUMN IF NOT EXISTS shipping_street TEXT,
         ADD COLUMN IF NOT EXISTS shipping_street2 TEXT,
@@ -505,7 +513,7 @@ exports.handler = async (event, context) => {
       try {
         console.log('🔍 Looking for user with ID:', orderData.user_id);
         const userCheck = await sql`
-          SELECT id, email, username FROM profiles WHERE id = ${orderData.user_id}
+          SELECT id, email, username, full_name FROM profiles WHERE id = ${orderData.user_id}
         `;
 
         if (userCheck.length > 0) {
@@ -573,9 +581,14 @@ exports.handler = async (event, context) => {
     console.log('Final user_id for order:', finalUserId);
     console.log('Final email for order:', userEmail);
 
+    const resolvedCustomerName = orderData.customer_name || orderData.shipping_name || null;
+    const normalizedCustomerName = normalizeCustomerName(resolvedCustomerName);
+    orderData.customer_name = normalizedCustomerName.fullName;
+    orderData.customer_first_name = normalizedCustomerName.firstName;
+
     const orderResult = await sql`
-      INSERT INTO orders (id, user_id, email, subtotal_cents, tax_cents, total_cents, status, paypal_order_id, paypal_capture_id, shipping_name, shipping_street, shipping_street2, shipping_city, shipping_state, shipping_zip, shipping_country, applied_discount_cents, applied_discount_label, applied_discount_type)
-      VALUES (${orderId}, ${finalUserId}, ${userEmail}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, 'paid', ${orderData.paypal_order_id || null}, ${orderData.paypal_capture_id || null}, ${orderData.shipping_name || null}, ${orderData.shipping_street || null}, ${orderData.shipping_street2 || null}, ${orderData.shipping_city || null}, ${orderData.shipping_state || null}, ${orderData.shipping_zip || null}, ${orderData.shipping_country || 'US'}, ${orderData.applied_discount_cents || 0}, ${orderData.applied_discount_label || ''}, ${orderData.applied_discount_type || 'none'})
+      INSERT INTO orders (id, user_id, email, customer_name, customer_first_name, subtotal_cents, tax_cents, total_cents, status, paypal_order_id, paypal_capture_id, shipping_name, shipping_street, shipping_street2, shipping_city, shipping_state, shipping_zip, shipping_country, applied_discount_cents, applied_discount_label, applied_discount_type)
+      VALUES (${orderId}, ${finalUserId}, ${userEmail}, ${orderData.customer_name || null}, ${orderData.customer_first_name || null}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, 'paid', ${orderData.paypal_order_id || null}, ${orderData.paypal_capture_id || null}, ${orderData.shipping_name || null}, ${orderData.shipping_street || null}, ${orderData.shipping_street2 || null}, ${orderData.shipping_city || null}, ${orderData.shipping_state || null}, ${orderData.shipping_zip || null}, ${orderData.shipping_country || 'US'}, ${orderData.applied_discount_cents || 0}, ${orderData.applied_discount_label || ''}, ${orderData.applied_discount_type || 'none'})
       RETURNING *
     `;
 
@@ -585,6 +598,18 @@ exports.handler = async (event, context) => {
 
     const order = orderResult[0];
     console.log('Order created successfully:', order);
+
+    if (finalUserId && normalizedCustomerName.fullName) {
+      try {
+        await sql`
+          UPDATE profiles
+          SET full_name = COALESCE(NULLIF(full_name, ''), ${normalizedCustomerName.fullName})
+          WHERE id = ${finalUserId}
+        `;
+      } catch (profileUpdateError) {
+        console.warn('⚠️ Could not update profile full_name:', profileUpdateError.message);
+      }
+    }
 
     // Insert order items with better error handling - only use columns that exist in database
     if (orderData.items && Array.isArray(orderData.items)) {

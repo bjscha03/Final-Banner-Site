@@ -1,66 +1,19 @@
 const { neon } = require('@neondatabase/serverless');
 const { getItemDisplayName, isYardSignItem, getEmailItemOptions } = require('./product-display-helpers.cjs');
+const {
+  normalizeName,
+  getFinalizedThumbnailUrl,
+  renderItems,
+  renderTotals,
+  renderAddress,
+  renderEmailLayout,
+  escapeHtml,
+} = require('./email-template.cjs');
 
 // Generate a thumbnail URL from various image sources
 // Uses Cloudinary's URL transformation to resize images for email display
 function getThumbnailUrl(item, maxWidth = 300) {
-  // PRIORITY: Use thumbnail_url first - it contains the accurately rendered design
-  // with correct image positioning, overlays, text elements, and grommets baked in
-  if (item.thumbnail_url) {
-    const thumbUrl = item.thumbnail_url;
-    // Apply Cloudinary transformation for sizing if it is a Cloudinary URL
-    if (thumbUrl.includes("res.cloudinary.com") && thumbUrl.includes("/upload/")) {
-      return thumbUrl.replace("/upload/", "/upload/w_" + maxWidth + ",c_limit,f_auto,q_auto/");
-    }
-    // For other URLs, use Cloudinary fetch to resize
-    if (thumbUrl.startsWith("http") && !thumbUrl.includes("res.cloudinary.com")) {
-      return "https://res.cloudinary.com/dtrxl120u/image/fetch/w_" + maxWidth + ",c_limit,f_auto,q_auto/" + thumbUrl;
-    }
-    return thumbUrl;
-  }
-
-  // Fallback: Priority order for legacy orders without thumbnail_url:
-  
-  let imageUrl = null;
-  
-  if (item.web_preview_url) {
-    imageUrl = item.web_preview_url;
-  } else if (item.print_ready_url) {
-    imageUrl = item.print_ready_url;
-  } else if (item.overlay_image?.fileKey) {
-    // Convert Cloudinary public ID to URL
-    const fileKey = item.overlay_image.fileKey;
-    if (fileKey.startsWith('http')) {
-      imageUrl = fileKey;
-    } else {
-      // Assume it's a Cloudinary public ID
-      imageUrl = `https://res.cloudinary.com/dtrxl120u/image/upload/${fileKey}`;
-    }
-  } else if (item.file_key) {
-    const fileKey = item.file_key;
-    if (fileKey.startsWith('http')) {
-      imageUrl = fileKey;
-    } else {
-      // Assume it's a Cloudinary public ID
-      imageUrl = `https://res.cloudinary.com/dtrxl120u/image/upload/${fileKey}`;
-    }
-  }
-  
-  if (!imageUrl) return null;
-  
-  // Apply Cloudinary transformation for thumbnail sizing
-  // Insert width transformation into Cloudinary URL
-  if (imageUrl.includes('res.cloudinary.com') && imageUrl.includes('/upload/')) {
-    // Insert transformation after /upload/
-    return imageUrl.replace('/upload/', `/upload/w_${maxWidth},c_limit,f_auto,q_auto/`);
-  }
-  
-  // For fetch URLs, wrap in Cloudinary fetch
-  if (imageUrl.startsWith('http') && !imageUrl.includes('res.cloudinary.com')) {
-    return `https://res.cloudinary.com/dtrxl120u/image/fetch/w_${maxWidth},c_limit,f_auto,q_auto/${imageUrl}`;
-  }
-  
-  return imageUrl;
+  return getFinalizedThumbnailUrl(item, maxWidth);
 }
 
 // Email-compatible logo header HTML
@@ -529,90 +482,63 @@ async function sendEmail(type, payload) {
 
     let subject, html;
     
-    if (type === 'order.confirmation') {
-      subject = `Order Confirmation #${payload.order.number} - Banners On The Fly`;
-      html = createEmailContainer(`
-        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0; padding: 20px;">
-          <tr>
-            <td>
-              <h2 style="color: #2563eb; margin: 0 0 20px 0; font-size: 28px; text-align: center;">Order Confirmation</h2>
-          <p>Hi ${(payload.order.customerName ? payload.order.customerName.split(' ')[0] : 'there')},</p>
-          <p>Thank you for your order! We've received your order and will begin processing it shortly.</p>
-          
-          <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h3 style="margin-top: 0; color: #374151;">Order Details</h3>
-            <p><strong>Order Number:</strong> #${payload.order.number}</p>
-            <p><strong>Order ID:</strong> ${payload.order.id}</p>
-            
-            <h4 style="color: #374151;">Items:</h4>
-            ${payload.order.items.map(item => {
-              const isYS = item.product_type === 'yard_sign';
-              const altText = isYS ? 'Yard Sign Preview' : 'Banner Preview';
-              return `
-              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-bottom: 1px solid #e5e7eb; margin-bottom: 10px;">
-                <tr>
-                  ${item.thumbnailUrl ? `
-                  <td style="width: 130px; padding: 10px 15px 10px 0; vertical-align: top;">
-                    <img src="${item.thumbnailUrl}" 
-                         alt="${altText}" 
-                         width="120" 
-                         style="border-radius: 6px; border: 1px solid #e5e7eb; display: block; max-width: 120px;" />
-                  </td>
-                  ` : ''}
-                  <td style="padding: 10px 0; vertical-align: top;">
-                    <p style="margin: 5px 0;"><strong>${item.name}</strong></p>
-                    <p style="margin: 5px 0; color: #6b7280;">Quantity: ${item.quantity}</p>
-                    <p style="margin: 5px 0; color: #6b7280;">${item.options}</p>
-                    <p style="margin: 5px 0;"><strong>$${(item.price || 0).toFixed(2)}</strong></p>
-                  </td>
-                </tr>
-              </table>
-            `;}).join('')}
-            
-            <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #e5e7eb;">
-              <p style="margin: 5px 0;">Subtotal: ${payload.order.subtotal ? '$' + payload.order.subtotal.toFixed(2) : '$' + ((payload.order.subtotalCents || 0) / 100).toFixed(2)}</p>
-              ${payload.order.discountCents > 0 ? `<p style="margin: 5px 0; color: #059669;">${payload.order.discountLabel || 'Discount'}: -$${(payload.order.discountCents / 100).toFixed(2)}</p>` : ''}
-              ${(payload.order.tax || payload.order.taxCents) > 0 ? `<p style="margin: 5px 0;">Tax: ${payload.order.tax ? '$' + payload.order.tax.toFixed(2) : '$' + ((payload.order.taxCents || 0) / 100).toFixed(2)}</p>` : ''}
-              <p style="margin: 5px 0; font-size: 18px;"><strong>Total: ${payload.order.total ? '$' + payload.order.total.toFixed(2) : '$' + ((payload.order.totalCents || 0) / 100).toFixed(2)}</strong></p>
+    if (type === 'order.confirmation' || type === 'order.admin_notification') {
+      const order = payload.order || {};
+      const names = normalizeName(order.customerName || order.shipping_name || '');
+      const subtotal = order.subtotal ?? ((order.subtotalCents || 0) / 100);
+      const tax = order.tax ?? ((order.taxCents || 0) / 100);
+      const total = order.total ?? ((order.totalCents || 0) / 100);
+      const itemHtml = renderItems(order.items || []);
+      const totalsHtml = renderTotals({
+        subtotal,
+        tax,
+        total,
+        discountCents: order.discountCents || 0,
+        discountLabel: order.discountLabel || '',
+      });
+      const shippingHtml = renderAddress(order);
+
+      if (type === 'order.confirmation') {
+        subject = `Order Confirmation #${order.number} - Banners On The Fly`;
+        html = renderEmailLayout({
+          title: 'Order Confirmation',
+          subtitle: 'Thank you for your order!',
+          orderNumber: order.number,
+          bodyHtml: `
+            <p style="margin:0 0 12px;font-size:15px;color:#334155;">Hi ${escapeHtml(names.firstName)},</p>
+            <p style="margin:0 0 16px;font-size:14px;color:#334155;">Thank you for your order!</p>
+            ${itemHtml}
+            ${totalsHtml}
+            ${shippingHtml}
+            <p style="margin:16px 0 0;font-size:13px;color:#64748b;">You’ll receive another email when your order ships.</p>
+            <div style="margin-top:16px;">
+              <a href="${escapeHtml(payload.invoiceUrl)}" style="display:inline-block;background:#059669;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:600;font-size:14px;">View Order Details</a>
             </div>
-          </div>
-          
-          ${(payload.order.shipping_name || payload.order.shipping_street || payload.order.shipping_street2 || payload.order.shipping_city || payload.order.shipping_state || payload.order.shipping_zip || payload.order.shipping_country) ? `
-            <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <h3 style="margin-top: 0; color: #374151;">Shipping Address</h3>
-              ${payload.order.shipping_name ? `<p style="margin: 5px 0; font-weight: 600;">${payload.order.shipping_name}</p>` : ''}
-              ${payload.order.shipping_street ? `<p style="margin: 5px 0;">${payload.order.shipping_street}</p>` : ''}
-              ${payload.order.shipping_street2 ? `<p style="margin: 5px 0;">${payload.order.shipping_street2}</p>` : ''}
-              ${(payload.order.shipping_city || payload.order.shipping_state || payload.order.shipping_zip) ? `<p style="margin: 5px 0;">${payload.order.shipping_city || ''}${payload.order.shipping_city && payload.order.shipping_state ? ', ' : ''}${payload.order.shipping_state || ''} ${payload.order.shipping_zip || ''}</p>` : ''}
-              ${payload.order.shipping_country && payload.order.shipping_country !== 'US' ? `<p style="margin: 5px 0;">${payload.order.shipping_country}</p>` : ''}
+          `,
+        });
+      } else {
+        subject = `🎉 New Order #${order.number} - $${Number(total).toFixed(2)}`;
+        html = renderEmailLayout({
+          title: 'New Order Received',
+          subtitle: 'A new customer order was placed.',
+          orderNumber: order.number,
+          bodyHtml: `
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:0 0 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;">
+              <tr><td style="padding:14px;">
+                <p style="margin:0 0 6px;color:#0f172a;font-size:14px;font-weight:700;">Customer Name: ${escapeHtml(names.fullName || 'Not provided')}</p>
+                <p style="margin:0 0 6px;color:#334155;font-size:13px;">Email: <a href="mailto:${escapeHtml(order.email || '')}" style="color:#2563eb;text-decoration:none;">${escapeHtml(order.email || 'Not provided')}</a></p>
+                <p style="margin:0;color:#334155;font-size:13px;">Order ID: ${escapeHtml(order.id || '')}</p>
+              </td></tr>
+            </table>
+            ${itemHtml}
+            ${totalsHtml}
+            ${shippingHtml}
+            <div style="margin-top:16px;">
+              <a href="${escapeHtml(payload.invoiceUrl)}" style="display:inline-block;background:#059669;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:600;font-size:14px;">View Full Order</a>
             </div>
-          ` : ''}
-          
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${payload.invoiceUrl}" 
-               style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
-              View Order Details
-            </a>
-          </div>
-          
-          <p style="color: #6b7280;">
-            We'll send you another email with tracking information once your order ships.
-          </p>
-          
-          <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
-          <p style="color: #6b7280; font-size: 12px;">
-            Banners On The Fly<br>
-            Custom Printing Services<br>
-            Questions? Reply to this email or contact support.
-          </p>
-            </td>
-          </tr>
-        </table>
-      `);
-    } else if (type === 'order.admin_notification') {
-      // Use improved admin email template matching AdminOrderNotification.tsx
-      subject = `🎉 New Order #${payload.order.number} - ${payload.order.total ? '$' + payload.order.total.toFixed(2) : '$' + ((payload.order.totalCents || 0) / 100).toFixed(2)}`;
-      html = createAdminOrderEmailHtml(payload);
+          `,
+        });
+      }
     } else {
       return { ok: false, error: `Unknown email type: ${type}` };
     }

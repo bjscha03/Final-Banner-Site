@@ -108,6 +108,7 @@ exports.handler = async (event, context) => {
         ALTER TABLE orders
         ADD COLUMN IF NOT EXISTS email VARCHAR(255),
         ADD COLUMN IF NOT EXISTS customer_name TEXT,
+        ADD COLUMN IF NOT EXISTS customer_first_name TEXT,
         ADD COLUMN IF NOT EXISTS tracking_number VARCHAR(255),
         ADD COLUMN IF NOT EXISTS shipping_name TEXT,
         ADD COLUMN IF NOT EXISTS shipping_street TEXT,
@@ -280,6 +281,7 @@ exports.handler = async (event, context) => {
       user_id: order.user_id,
       email: order.email,
       customer_name: order.customer_name,
+      customer_first_name: order.customer_first_name,
       subtotal_cents: _recalcSubtotal,
       tax_cents: _recalcTax,
       total_cents: _recalcTotal,

@@ -1,5 +1,12 @@
 const { neon } = require('@neondatabase/serverless');
 const { getItemDisplayName } = require('./product-display-helpers.cjs');
+const {
+  normalizeName,
+  getFinalizedThumbnailUrl,
+  renderItems,
+  renderEmailLayout,
+  escapeHtml,
+} = require('./email-template.cjs');
 
 // Neon database connection
 function getDbUrl() {
@@ -36,73 +43,17 @@ async function sendProductionEmail(order, customerEmail) {
     const emailFrom = process.env.EMAIL_FROM || 'orders@bannersonthefly.com';
     const emailReplyTo = process.env.EMAIL_REPLY_TO || 'support@bannersonthefly.com';
 
-    const logoUrl = 'https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto,q_auto,w_300/https://bannersonthefly.com/cld-assets/images/logo-compact.svg';
-
-    const html = `
-      <!DOCTYPE html>
-      <html>
-      <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        <title>Your Order is Now in Production</title>
-      </head>
-      <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-        <div style="text-align: center; margin-bottom: 30px;">
-          <img src="${logoUrl}" alt="Banners On The Fly" style="height: 60px;">
-        </div>
-        
-        <div style="background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%); color: white; padding: 30px; border-radius: 10px; text-align: center; margin-bottom: 30px;">
-          <h1 style="margin: 0; font-size: 28px;">Your Order is Now in Production 🎯</h1>
-          <p style="margin: 10px 0 0 0; font-size: 16px;">We're working on your order now</p>
-        </div>
-        
-        <div style="background: #fefce8; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
-          <div style="display: flex; justify-content: space-between; align-items: center;">
-            <div>
-              <h2 style="margin: 0; color: #d97706;">Banners On The Fly</h2>
-              <p style="margin: 5px 0; color: #666;">Order In Production</p>
-            </div>
-            <div style="text-align: right;">
-              <p style="margin: 0; color: #666; font-size: 14px;">Order #</p>
-              <p style="margin: 0; font-weight: bold; font-size: 18px;">${order.orderNumber}</p>
-            </div>
-          </div>
-        </div>
-        
-        <div style="margin-bottom: 30px;">
-          <p>Hi ${order.customerName ? order.customerName.split(' ')[0] : 'there'},</p>
-          <p>Good news — your order is now in production.</p>
-          <p>Our team is currently working on your order. Once it's complete, it will ship out with tracking information sent to you immediately.</p>
-        </div>
-        
-        <div style="background: #fefce8; padding: 20px; border-radius: 8px; border: 1px solid #fde68a; margin-bottom: 30px;">
-          <h3 style="margin: 0 0 15px 0; color: #333;">Order Details</h3>
-          ${order.items.map(item => `
-            <div style="margin-bottom: 8px;">
-              <p style="margin: 0; color: #666; font-size: 14px;"><strong>Order #:</strong> ${order.orderNumber}</p>
-              <p style="margin: 0; color: #666; font-size: 14px;"><strong>Size:</strong> ${item.dimensions}</p>
-              <p style="margin: 0; color: #666; font-size: 14px;"><strong>Material:</strong> ${item.material}</p>
-            </div>
-          `).join('<hr style="border-color: #fde68a; margin: 10px 0;">')}
-        </div>
-        
-        <div style="margin-bottom: 30px;">
-          <p>If you have any questions, feel free to reply to this email.</p>
-          <p><strong>Thanks for choosing Banners On The Fly!</strong></p>
-          <p style="color: #666; font-style: italic;">– Banners On The Fly Team</p>
-        </div>
-        
-        <div style="text-align: center; color: #666; font-size: 14px; border-top: 1px solid #eee; padding-top: 20px;">
-          <p>Thank you for choosing Banners On The Fly!</p>
-          <p>
-            <a href="https://bannersonthefly.com" style="color: #1e40af; text-decoration: underline;">Visit our website</a>
-            &bull;
-            <a href="mailto:support@bannersonthefly.com" style="color: #1e40af; text-decoration: underline;">Contact Support</a>
-          </p>
-        </div>
-      </body>
-      </html>
-    `;
+    const names = normalizeName(order.customerName || '');
+    const html = renderEmailLayout({
+      title: 'Your Order is Now in Production',
+      subtitle: 'Good news — your order is now in production.',
+      orderNumber: order.orderNumber,
+      bodyHtml: `
+        <p style="margin:0 0 12px;font-size:15px;color:#334155;">Hi ${escapeHtml(names.firstName)},</p>
+        <p style="margin:0 0 12px;font-size:14px;color:#334155;">Our team is currently working on your order. Once it is complete, we will send your tracking details right away.</p>
+        ${renderItems(order.items || [])}
+      `,
+    });
 
     const emailData = {
       from: emailFrom,
@@ -224,7 +175,7 @@ exports.handler = async (event) => {
     }
 
     // Get customer name
-    const customerName = order.full_name || '';
+    const resolvedCustomerName = order.customer_name || order.full_name || order.shipping_name || '';
 
     // Get order items
     const itemsResult = await sql`
@@ -235,12 +186,13 @@ exports.handler = async (event) => {
     const emailOrder = {
       id: order.id,
       orderNumber: order.id.slice(-8).toUpperCase(),
-      customerName: customerName,
+      customerName: resolvedCustomerName,
       items: itemsResult.map(item => ({
         name: getItemDisplayName(item),
         quantity: item.quantity,
-        dimensions: `${item.width_in}" × ${item.height_in}"`,
-        material: item.material
+        options: `Size: ${item.width_in}" × ${item.height_in}" • Material: ${item.material}`,
+        product_type: item.product_type || 'banner',
+        thumbnailUrl: getFinalizedThumbnailUrl(item, 220),
       }))
     };
 
