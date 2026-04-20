@@ -99,15 +99,15 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
   }, [designs]);
 
   // Auto-open preview when editing from cart (autoOpenDesignId prop)
-  const [autoOpenHandled, setAutoOpenHandled] = useState(false);
+  const autoOpenHandledRef = useRef(false);
   useEffect(() => {
-    if (!autoOpenDesignId || autoOpenHandled || designs.length === 0) return;
+    if (!autoOpenDesignId || autoOpenHandledRef.current || designs.length === 0) return;
     const design = designs.find(d => d.id === autoOpenDesignId);
     if (design) {
-      setAutoOpenHandled(true);
+      autoOpenHandledRef.current = true;
       openPreview(design.id);
     }
-  }, [autoOpenDesignId, autoOpenHandled, designs, openPreview]);
+  }, [autoOpenDesignId, designs, openPreview]);
 
   const previewCanvasRef = useRef<HTMLDivElement>(null);
 
