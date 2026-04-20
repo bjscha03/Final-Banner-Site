@@ -245,30 +245,26 @@ const bannerProduct: ProductTypeConfig = {
 const yardSignProduct: ProductTypeConfig = {
   slug: 'yard_sign',
   name: 'Custom Yard Sign',
-  description: 'Custom yard signs on corrugated plastic or aluminum',
+  description: 'Standard 24" × 18" corrugated plastic yard signs, printed fast and shipped next business day.',
 
   dimensions: {
     defaultWidthIn: 24,
     defaultHeightIn: 18,
     resetWidthIn: 24,
     resetHeightIn: 18,
-    minIn: 5,
-    maxIn: 96,   // 8 feet
-    maxSqFt: 32,  // 4' x 8' = 32 sq ft
-    sizeLimitMessage: 'Yard signs are available in predefined sizes only.',
+    minIn: 18,
+    maxIn: 24,
+    maxSqFt: 3,   // 24" x 18" = 3 sq ft
+    sizeLimitMessage: 'Standard yard sign size: 24" × 18"',
   },
 
-  // Materials for yard signs — pricePerSqFt is unused for flat-rate, set to 0
+  // Single material: Corrugated Plastic
   materials: [
     { key: 'corrugated', label: 'Corrugated Plastic', pricePerSqFt: 0 },
-    { key: 'aluminum_040', label: 'Aluminum (.040)', pricePerSqFt: 0 },
-    { key: 'aluminum_063', label: 'Aluminum (.063)', pricePerSqFt: 0 },
   ],
 
   materialPriceMap: {
     'corrugated': 0,
-    'aluminum_040': 0,
-    'aluminum_063': 0,
   },
 
   minimumUnitPriceDollars: 12,
@@ -295,12 +291,9 @@ const yardSignProduct: ProductTypeConfig = {
     defaultSize: '',
   },
 
-  // Yard sign quantity discount tiers (different from banners)
+  // No quantity discount tiers for yard signs — flat per-sign pricing
   quantityDiscountTiers: [
-    { minQuantity: 1, discountRate: 0.00, label: '0% OFF' },
-    { minQuantity: 2, discountRate: 0.05, label: '5% OFF' },
-    { minQuantity: 6, discountRate: 0.10, label: '10% OFF' },
-    { minQuantity: 11, discountRate: 0.15, label: '15% OFF' },
+    { minQuantity: 1, discountRate: 0.00, label: '' },
   ],
 
   taxRate: 0.06,
@@ -328,24 +321,19 @@ const yardSignProduct: ProductTypeConfig = {
   allowCustomDimensions: false,
   freeShippingMessage: 'FREE Next-Day Air Included',
 
+  // Single standard size
   predefinedSizes: [
-    { label: '18" × 5"',   widthIn: 18,  heightIn: 5,   basePriceCents: 1200 },
-    { label: '24" × 6"',   widthIn: 24,  heightIn: 6,   basePriceCents: 1400 },
-    { label: '12" × 9"',   widthIn: 12,  heightIn: 9,   basePriceCents: 1500 },
-    { label: '18" × 12"',  widthIn: 18,  heightIn: 12,  basePriceCents: 1800 },
-    { label: '24" × 18"',  widthIn: 24,  heightIn: 18,  basePriceCents: 2400 },
-    { label: '18" × 24"',  widthIn: 18,  heightIn: 24,  basePriceCents: 2400 },
-    { label: '24" × 24"',  widthIn: 24,  heightIn: 24,  basePriceCents: 2800 },
-    { label: '36" × 24"',  widthIn: 36,  heightIn: 24,  basePriceCents: 3600 },
-    { label: '24" × 36"',  widthIn: 24,  heightIn: 36,  basePriceCents: 3600 },
-    { label: "4' × 8'",    widthIn: 96,  heightIn: 48,  basePriceCents: 9500 },
+    { label: '24" × 18"', widthIn: 24, heightIn: 18, basePriceCents: 1200 },
   ],
 
   materialMultipliers: [
-    { key: 'corrugated',    label: 'Corrugated Plastic', multiplier: 1.0 },
-    { key: 'aluminum_040',  label: 'Aluminum (.040)',     multiplier: 1.4 },
-    { key: 'aluminum_063',  label: 'Aluminum (.063)',     multiplier: 1.65 },
+    { key: 'corrugated', label: 'Corrugated Plastic', multiplier: 1.0 },
   ],
+
+  // --- Yard sign specific config ---
+  // Single-Sided: $12/sign, Double-Sided: $14/sign
+  // Step Stakes: $1.50 each
+  // Max 90 signs per order for 24-hour production
 };
 
 // ============================================================================

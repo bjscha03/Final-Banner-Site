@@ -1,102 +1,158 @@
 /**
- * Yard Sign Pricing Module
+ * Yard Sign Pricing Module (v2)
  * 
- * Flat-rate pricing for yard signs with material multipliers
- * and quantity discounts. Prices include FREE Next-Day Air shipping.
+ * Simplified flat-rate pricing for 24" × 18" corrugated plastic yard signs.
+ * 
+ * Business rules:
+ * - Single size: 24" × 18"
+ * - Single-Sided: $12/sign, Double-Sided: $14/sign
+ * - Step Stakes: $1.50 each (optional add-on)
+ * - Max 90 signs per order for 24-hour production
+ * - FREE Next-Day Air shipping
  */
 
 import { getProductConfig, type PredefinedSize, type MaterialMultiplier } from './products';
 
 const YARD_SIGN_SLUG = 'yard_sign';
 
-/**
- * Get the base price in cents for a given yard sign size.
- * Returns the basePriceCents from the predefined size that matches.
- */
-export function getYardSignBasePrice(widthIn: number, heightIn: number): number {
-  const config = getProductConfig(YARD_SIGN_SLUG);
-  const sizes = config.predefinedSizes || [];
-  const match = sizes.find(s => s.widthIn === widthIn && s.heightIn === heightIn);
-  return match?.basePriceCents ?? 0;
-}
+// ----- Constants -----
+export const YARD_SIGN_WIDTH_IN = 24;
+export const YARD_SIGN_HEIGHT_IN = 18;
+export const YARD_SIGN_MAX_QUANTITY = 90;
+export const YARD_SIGN_MAX_DESIGNS = 10;
 
-/**
- * Get the material multiplier for a yard sign material key.
- */
-export function getYardSignMaterialMultiplier(materialKey: string): number {
-  const config = getProductConfig(YARD_SIGN_SLUG);
-  const multipliers = config.materialMultipliers || [];
-  const match = multipliers.find(m => m.key === materialKey);
-  return match?.multiplier ?? 1.0;
-}
+export const YARD_SIGN_SINGLE_SIDED_CENTS = 1200;  // $12.00
+export const YARD_SIGN_DOUBLE_SIDED_CENTS = 1400;   // $14.00
+export const YARD_SIGN_STEP_STAKE_CENTS = 150;      // $1.50
 
-/**
- * Get the quantity discount rate for yard signs.
- * Uses the yard sign-specific tiers from the product registry.
- */
-export function getYardSignQuantityDiscountRate(quantity: number): number {
-  const config = getProductConfig(YARD_SIGN_SLUG);
-  const tiers = config.quantityDiscountTiers;
-  let rate = 0;
-  for (const tier of tiers) {
-    if (quantity >= tier.minQuantity) {
-      rate = tier.discountRate;
-    } else {
-      break;
-    }
-  }
-  return rate;
-}
+export type YardSignSidedness = 'single' | 'double';
 
-export interface YardSignPricing {
-  basePriceCents: number;       // Base price for selected size
-  materialMultiplier: number;   // Material multiplier applied
-  unitPriceCents: number;       // Price per unit after material multiplier
+// ----- Design row for multi-design support -----
+export interface YardSignDesign {
+  id: string;
+  fileName: string;
+  fileUrl: string;
+  fileKey: string;
+  thumbnailUrl: string;
+  isPdf: boolean;
   quantity: number;
-  subtotalCents: number;        // unitPrice × quantity
-  discountRate: number;         // Quantity discount rate
-  discountCents: number;        // Discount amount
-  totalCents: number;           // After discount, before tax
+}
+
+// ----- Pricing result -----
+export interface YardSignPricing {
+  sidedness: YardSignSidedness;
+  unitPriceCents: number;       // Price per sign based on sidedness
+  totalSignQuantity: number;
+  signSubtotalCents: number;    // unitPrice × totalSignQuantity
+  addStepStakes: boolean;
+  stepStakeQuantity: number;
+  stepStakeTotalCents: number;  // $1.50 × stepStakeQuantity
+  subtotalCents: number;        // signs + step stakes
+  promoDiscountRate: number;    // 0-1 (e.g., 0.2 for 20%)
+  promoDiscountCents: number;
+  totalCents: number;           // subtotalCents - promoDiscountCents
+  taxRate: number;
   taxCents: number;
   totalWithTaxCents: number;
 }
 
 /**
- * Calculate complete yard sign pricing.
+ * Get unit price in cents based on sidedness.
+ */
+export function getYardSignUnitPrice(sidedness: YardSignSidedness): number {
+  return sidedness === 'double' ? YARD_SIGN_DOUBLE_SIDED_CENTS : YARD_SIGN_SINGLE_SIDED_CENTS;
+}
+
+/**
+ * Calculate complete yard sign order pricing.
  */
 export function calcYardSignPricing(
-  widthIn: number,
-  heightIn: number,
-  materialKey: string,
-  quantity: number
+  sidedness: YardSignSidedness,
+  totalSignQuantity: number,
+  addStepStakes: boolean,
+  stepStakeQuantity: number,
+  promoDiscountRate: number = 0,
 ): YardSignPricing {
   const config = getProductConfig(YARD_SIGN_SLUG);
-  const basePriceCents = getYardSignBasePrice(widthIn, heightIn);
-  const materialMultiplier = getYardSignMaterialMultiplier(materialKey);
-  const unitPriceCents = Math.round(basePriceCents * materialMultiplier);
-  const subtotalCents = unitPriceCents * quantity;
-  const discountRate = getYardSignQuantityDiscountRate(quantity);
-  const discountCents = Math.round(subtotalCents * discountRate);
-  const totalCents = subtotalCents - discountCents;
-  const taxCents = Math.round(totalCents * config.taxRate);
+
+  const unitPriceCents = getYardSignUnitPrice(sidedness);
+  const signSubtotalCents = unitPriceCents * totalSignQuantity;
+
+  const stepStakeTotalCents = addStepStakes
+    ? YARD_SIGN_STEP_STAKE_CENTS * stepStakeQuantity
+    : 0;
+
+  const subtotalCents = signSubtotalCents + stepStakeTotalCents;
+  const promoDiscountCents = Math.round(subtotalCents * promoDiscountRate);
+  const totalCents = subtotalCents - promoDiscountCents;
+  const taxRate = config.taxRate;
+  const taxCents = Math.round(totalCents * taxRate);
   const totalWithTaxCents = totalCents + taxCents;
 
   return {
-    basePriceCents,
-    materialMultiplier,
+    sidedness,
     unitPriceCents,
-    quantity,
+    totalSignQuantity,
+    signSubtotalCents,
+    addStepStakes,
+    stepStakeQuantity,
+    stepStakeTotalCents,
     subtotalCents,
-    discountRate,
-    discountCents,
+    promoDiscountRate,
+    promoDiscountCents,
     totalCents,
+    taxRate,
     taxCents,
     totalWithTaxCents,
   };
 }
 
 /**
- * Get all predefined yard sign sizes.
+ * Get total sign quantity across all designs.
+ */
+export function getTotalDesignQuantity(designs: YardSignDesign[]): number {
+  return designs.reduce((sum, d) => sum + d.quantity, 0);
+}
+
+/**
+ * Validate that total quantity doesn't exceed max.
+ */
+export function validateYardSignQuantity(totalQuantity: number): { valid: boolean; message?: string } {
+  if (totalQuantity < 1) {
+    return { valid: false, message: 'Please add at least 1 sign.' };
+  }
+  if (totalQuantity > YARD_SIGN_MAX_QUANTITY) {
+    return { valid: false, message: `Maximum ${YARD_SIGN_MAX_QUANTITY} signs per order for 24-hour production. Need more? Place a second order.` };
+  }
+  return { valid: true };
+}
+
+// ----- Legacy exports for backward compatibility -----
+// These are used by existing code that hasn't been updated yet
+
+/**
+ * @deprecated Use calcYardSignPricing v2 instead
+ */
+export function getYardSignBasePrice(widthIn: number, heightIn: number): number {
+  return YARD_SIGN_SINGLE_SIDED_CENTS;
+}
+
+/**
+ * @deprecated Material is now fixed to corrugated
+ */
+export function getYardSignMaterialMultiplier(materialKey: string): number {
+  return 1.0;
+}
+
+/**
+ * @deprecated No quantity discount tiers — flat per-sign pricing
+ */
+export function getYardSignQuantityDiscountRate(quantity: number): number {
+  return 0;
+}
+
+/**
+ * Get predefined yard sign sizes.
  */
 export function getYardSignSizes(): PredefinedSize[] {
   const config = getProductConfig(YARD_SIGN_SLUG);
@@ -104,7 +160,7 @@ export function getYardSignSizes(): PredefinedSize[] {
 }
 
 /**
- * Get all yard sign material multipliers.
+ * Get yard sign material multipliers.
  */
 export function getYardSignMaterials(): MaterialMultiplier[] {
   const config = getProductConfig(YARD_SIGN_SLUG);
