@@ -628,13 +628,13 @@ exports.handler = async (event, context) => {
                 ${item.design_draft_preference || null},
                 ${item.design_draft_contact || null},
                 ${item.design_uploaded_assets ? JSON.stringify(item.design_uploaded_assets) : '[]'},
-                ${item.yard_sign_sidedness || null},
-                ${item.yard_sign_step_stakes_enabled || false},
-                ${item.yard_sign_step_stakes_qty || 0},
-                ${item.yard_sign_design_count || 0},
+                ${item.yard_sign_sidedness ?? null},
+                ${item.yard_sign_step_stakes_enabled ?? false},
+                ${item.yard_sign_step_stakes_qty ?? 0},
+                ${item.yard_sign_design_count ?? 0},
                 ${item.yard_sign_designs ? JSON.stringify(item.yard_sign_designs) : null},
-                ${item.yard_sign_signs_subtotal_cents || 0},
-                ${item.yard_sign_stakes_subtotal_cents || 0}
+                ${item.yard_sign_signs_subtotal_cents ?? 0},
+                ${item.yard_sign_stakes_subtotal_cents ?? 0}
               )
             `;
             console.log('[CREATE_ORDER_DEBUG] ✅ Order item saved with final_render fields');

@@ -69,7 +69,7 @@ export const POST: APIRoute = async ({ request }) => {
                 'Material: Corrugated Plastic',
                 `Print: ${item.yard_sign_sidedness === 'double' ? 'Double-Sided' : 'Single-Sided'}`,
                 item.yard_sign_design_count ? `Designs: ${item.yard_sign_design_count} files uploaded` : null,
-                item.yard_sign_step_stakes_qty > 0 ? `Step Stakes: ${item.yard_sign_step_stakes_qty}` : null,
+                item.yard_sign_step_stakes_qty && item.yard_sign_step_stakes_qty > 0 ? `Step Stakes: ${item.yard_sign_step_stakes_qty}` : null,
               ].filter(Boolean).join(' • ')
             : [
                 `Material: ${item.material}`,

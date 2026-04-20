@@ -44,7 +44,7 @@ function getEmailItemOptions(item) {
     if (item.yard_sign_design_count) {
       parts.push(`Designs: ${item.yard_sign_design_count} files uploaded`);
     }
-    if (item.quantity) {
+    if (item.quantity != null) {
       parts.push(`Total Signs: ${item.quantity}`);
     }
     if (item.yard_sign_step_stakes_qty && item.yard_sign_step_stakes_qty > 0) {
