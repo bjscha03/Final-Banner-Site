@@ -174,7 +174,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
       else if (contentType.includes('tiff')) extension = 'tiff';
 
       // Build a proper filename with extension
-      const baseName = fileKey?.split('/').pop()?.split('.')[0] || `banner-${order.id.slice(-8)}-item-${itemIndex + 1}`;
+      const baseName = fileKey?.split('/').pop()?.split('.')[0] || `order-${order.id.slice(-8)}-item-${itemIndex + 1}`;
       const fileName = `${baseName}.${extension}`;
 
       // Handle file download
@@ -288,7 +288,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
     
     toast({
       title: "Added to Cart",
-      description: `${item.quantity} banner${item.quantity > 1 ? 's' : ''} added to your cart.`,
+      description: `${item.quantity} ${getProductLabel((item as any).product_type)}${item.quantity > 1 ? 's' : ''} added to your cart.`,
     });
   };
   const handlePdfDownload = async (item: any, index: number) => {
@@ -346,6 +346,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
       // NOT for full-banner scaling. We must reset these so the PDF renders correctly.
       const requestBody = {
         orderId: order.id,
+        productType: (item as any).product_type || 'banner',
         bannerWidthIn: item.width_in,
         bannerHeightIn: item.height_in,
         // PRIORITY 0: Design state for true server-side re-render from original assets
@@ -472,18 +473,20 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
           imgResponse = await fetch(result.rawUrl);
         }
         if (!imgResponse.ok) throw new Error('Failed to download image: ' + imgResponse.status);
+        const productSlug = isYardSignItem(item) ? 'yard-sign' : 'banner';
         const blob = await imgResponse.blob();
         if (blob.size === 0) throw new Error('Downloaded file is empty');
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `order-${order.id.slice(-8)}-banner-${index + 1}-print-ready.jpg`;
+        link.download = `order-${order.id.slice(-8)}-${productSlug}-${index + 1}-print-ready.jpg`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
       } else if (result.pdfBase64) {
         // Legacy base64 fallback
+        const productSlug = isYardSignItem(item) ? 'yard-sign' : 'banner';
         const binaryString = atob(result.pdfBase64);
         const bytes = new Uint8Array(binaryString.length);
         for (let i = 0; i < binaryString.length; i++) {
@@ -493,7 +496,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `order-${order.id.slice(-8)}-banner-${index + 1}-print-ready.jpg`;
+        link.download = `order-${order.id.slice(-8)}-${productSlug}-${index + 1}-print-ready.jpg`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);

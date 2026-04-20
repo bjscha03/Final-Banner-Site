@@ -158,17 +158,25 @@ function createAdminOrderEmailHtml(payload) {
   const hasDesignService = order.items.some(item => item.design_service_enabled);
 
   // Generate items HTML
-  const itemsHtml = order.items.map(item => `
+  const itemsHtml = order.items.map(item => {
+    const isYardSign = item.product_type === 'yard_sign';
+    const productBadge = isYardSign
+      ? `<span style="display: inline-block; background-color: #ecfdf5; color: #065f46; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px; margin-bottom: 4px;">🪧 Yard Sign</span>`
+      : `<span style="display: inline-block; background-color: #eff6ff; color: #1e40af; font-size: 11px; font-weight: 600; padding: 3px 8px; border-radius: 4px; margin-bottom: 4px;">🏷️ Banner</span>`;
+    const imgAlt = isYardSign ? 'Yard Sign' : 'Banner';
+
+    return `
     <tr>
       <td style="padding: 16px; border-bottom: 1px solid #f3f4f6;">
         <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
           <tr>
             ${item.thumbnailUrl ? `
             <td style="width: 80px; vertical-align: top; padding-right: 16px;">
-              <img src="${item.thumbnailUrl}" alt="Banner" width="80" style="border-radius: 6px; border: 1px solid #e5e7eb; display: block;" />
+              <img src="${item.thumbnailUrl}" alt="${imgAlt}" width="80" style="border-radius: 6px; border: 1px solid #e5e7eb; display: block;" />
             </td>
             ` : ''}
             <td style="vertical-align: top;">
+              ${productBadge}
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                 <tr>
                   <td style="font-size: 15px; font-weight: 600; color: #1f2937; padding-bottom: 4px;">${item.name}</td>
@@ -185,7 +193,8 @@ function createAdminOrderEmailHtml(payload) {
         </table>
       </td>
     </tr>
-  `).join('');
+  `;
+  }).join('');
 
   // Generate design service section HTML
   let designServiceHtml = '';
@@ -527,13 +536,16 @@ async function sendEmail(type, payload) {
             <p><strong>Order ID:</strong> ${payload.order.id}</p>
             
             <h4 style="color: #374151;">Items:</h4>
-            ${payload.order.items.map(item => `
+            ${payload.order.items.map(item => {
+              const isYS = item.product_type === 'yard_sign';
+              const altText = isYS ? 'Yard Sign Preview' : 'Banner Preview';
+              return `
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="border-bottom: 1px solid #e5e7eb; margin-bottom: 10px;">
                 <tr>
                   ${item.thumbnailUrl ? `
                   <td style="width: 130px; padding: 10px 15px 10px 0; vertical-align: top;">
                     <img src="${item.thumbnailUrl}" 
-                         alt="Banner Preview" 
+                         alt="${altText}" 
                          width="120" 
                          style="border-radius: 6px; border: 1px solid #e5e7eb; display: block; max-width: 120px;" />
                   </td>
@@ -546,7 +558,7 @@ async function sendEmail(type, payload) {
                   </td>
                 </tr>
               </table>
-            `).join('')}
+            `;}).join('')}
             
             <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #e5e7eb;">
               <p style="margin: 5px 0;">Subtotal: ${payload.order.subtotal ? '$' + payload.order.subtotal.toFixed(2) : '$' + ((payload.order.subtotalCents || 0) / 100).toFixed(2)}</p>
@@ -757,6 +769,7 @@ exports.handler = async (event) => {
           const unitPrice = baseCost / item.quantity;
           
           return {
+          product_type: item.product_type || 'banner',
           name: getItemDisplayName(item),
           quantity: item.quantity,
           price: item.line_total_cents / 100,
