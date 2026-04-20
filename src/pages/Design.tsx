@@ -887,7 +887,7 @@ const Design: React.FC = () => {
           {isYardSign ? (
             /* ========== YARD SIGN ORDER BUILDER ========== */
             <div className="grid md:grid-cols-2 lg:grid-cols-[1.4fr_1fr] gap-10">
-              <div className="space-y-8">
+              <div className="space-y-8 min-w-0">
                 <YardSignConfigurator
                   designs={yardSignDesigns}
                   onDesignsChange={setYardSignDesigns}
