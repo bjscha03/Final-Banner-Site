@@ -114,15 +114,30 @@ export function getTotalDesignQuantity(designs: YardSignDesign[]): number {
   return designs.reduce((sum, d) => sum + d.quantity, 0);
 }
 
+/** Yard signs must be ordered in increments of this value */
+export const YARD_SIGN_INCREMENT = 10;
+
+/** Minimum yard sign order quantity */
+export const YARD_SIGN_MIN_QUANTITY = 10;
+
 /**
- * Validate that total quantity doesn't exceed max.
+ * Validate that total yard sign quantity meets business rules:
+ * - Must be >= 10
+ * - Must be <= 90
+ * - Must be a multiple of 10
  */
 export function validateYardSignQuantity(totalQuantity: number): { valid: boolean; message?: string } {
-  if (totalQuantity < 1) {
-    return { valid: false, message: 'Please add at least 1 sign.' };
+  if (totalQuantity === 0) {
+    return { valid: false };
+  }
+  if (totalQuantity < YARD_SIGN_MIN_QUANTITY) {
+    return { valid: false, message: 'Minimum order is 10 yard signs.' };
   }
   if (totalQuantity > YARD_SIGN_MAX_QUANTITY) {
-    return { valid: false, message: `Maximum ${YARD_SIGN_MAX_QUANTITY} signs per order for 24-hour production. Need more? Place a second order.` };
+    return { valid: false, message: `Maximum ${YARD_SIGN_MAX_QUANTITY} signs per order for 24-hour production. Please place multiple orders.` };
+  }
+  if (totalQuantity % YARD_SIGN_INCREMENT !== 0) {
+    return { valid: false, message: 'Yard signs must be ordered in increments of 10 (10, 20, 30, etc.).' };
   }
   return { valid: true };
 }

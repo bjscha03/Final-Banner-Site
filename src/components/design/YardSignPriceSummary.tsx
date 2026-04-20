@@ -5,7 +5,7 @@
  */
 import React from 'react';
 import { Tag, AlertTriangle } from 'lucide-react';
-import { type YardSignPricing, type YardSignDesign, YARD_SIGN_MAX_QUANTITY } from '@/lib/yard-sign-pricing';
+import { type YardSignPricing, type YardSignDesign, YARD_SIGN_MAX_QUANTITY, YARD_SIGN_INCREMENT, validateYardSignQuantity } from '@/lib/yard-sign-pricing';
 import { usd } from '@/lib/pricing';
 
 interface YardSignPriceSummaryProps {
@@ -27,7 +27,8 @@ const YardSignPriceSummary: React.FC<YardSignPriceSummaryProps> = ({
   onPromoApply,
   onPromoRemove,
 }) => {
-  const isOverLimit = pricing.totalSignQuantity > YARD_SIGN_MAX_QUANTITY;
+  const quantityValidation = validateYardSignQuantity(pricing.totalSignQuantity);
+  const isInvalid = !quantityValidation.valid && pricing.totalSignQuantity > 0;
 
   return (
     <div className="rounded-xl p-6 text-center" style={{ background: "#F7F8FA", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
@@ -35,12 +36,12 @@ const YardSignPriceSummary: React.FC<YardSignPriceSummaryProps> = ({
 
       {pricing.totalSignQuantity === 0 ? (
         <p className="text-3xl font-extrabold text-gray-300 leading-tight">—</p>
-      ) : isOverLimit ? (
+      ) : isInvalid ? (
         <>
-          <p className="text-2xl font-bold text-red-500 leading-tight">Over Limit</p>
+          <p className="text-2xl font-bold text-red-500 leading-tight">Invalid Quantity</p>
           <p className="text-sm text-red-600 mt-1 flex items-center justify-center gap-1">
             <AlertTriangle className="h-4 w-4" />
-            Reduce to {YARD_SIGN_MAX_QUANTITY} signs or fewer
+            {quantityValidation.message}
           </p>
         </>
       ) : (
@@ -63,7 +64,7 @@ const YardSignPriceSummary: React.FC<YardSignPriceSummaryProps> = ({
       )}
 
       {/* Order details */}
-      {pricing.totalSignQuantity > 0 && !isOverLimit && (
+      {pricing.totalSignQuantity > 0 && !isInvalid && (
         <div className="text-left text-sm text-gray-600 space-y-1 mt-4 mb-2">
           <p><strong>Product:</strong> Yard Signs</p>
           <p><strong>Size:</strong> 24&quot; × 18&quot;</p>
