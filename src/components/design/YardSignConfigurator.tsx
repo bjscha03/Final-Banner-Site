@@ -504,13 +504,13 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
                 {/* Thumbnail — fixed size, click to preview */}
                 <button
                   onClick={() => openPreview(design.id)}
-                  className="w-14 h-10 min-w-[3.5rem] max-w-[3.5rem] rounded-lg overflow-hidden bg-gray-100 flex-shrink-0 border border-gray-200 relative group cursor-pointer"
+                  className="w-14 aspect-[24/18] min-w-[3.5rem] max-w-[3.5rem] rounded-lg overflow-hidden bg-[#fafafa] flex-shrink-0 border border-gray-200 relative group cursor-pointer"
                   aria-label={`Preview ${design.fileName}`}
                 >
                   <img
                     src={getRowThumbnailSrc(design)}
                     alt={`${design.fileName} thumbnail`}
-                    className="w-full h-full object-cover"
+                    className="w-full h-full object-contain"
                     onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
                   />
                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
