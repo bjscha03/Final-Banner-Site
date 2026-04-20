@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { QuoteState, Grommets, PolePocketSize } from '@/store/quote';
 import { formatDimensions, usd, ropeCost, polePocketCost } from '@/lib/pricing';
 import BannerPreview from './BannerPreview';
+import { getProductCopy } from '@/lib/product-copy';
 
 export interface UpsellOption {
   id: 'grommets' | 'rope' | 'polePockets';
@@ -53,6 +54,7 @@ export interface UpsellModalProps {
   actionType: 'cart' | 'checkout' | 'update';
   designServiceEnabled?: boolean; // For design service orders to show placeholder thumbnail
   isProcessing?: boolean; // Show loading state on buttons during async operations
+  productType?: string; // Product type for product-aware copy
 }
 
 const UpsellModal: React.FC<UpsellModalProps> = ({
@@ -64,7 +66,9 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
   actionType,
   designServiceEnabled = false,
   isProcessing = false,
+  productType,
 }) => {
+  const copy = getProductCopy(productType);
   const [selectedOptions, setSelectedOptions] = useState<UpsellOption[]>([]);
   const [dontAskAgain, setDontAskAgain] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -296,7 +300,7 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
         {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-xl font-bold text-gray-900">
-            Complete Your Banner
+            {copy.upsellHeader}
           </h2>
           <button
             onClick={onClose}
@@ -313,7 +317,7 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
           <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-xs text-blue-700">
             <Eye className="h-4 w-4 flex-shrink-0 mt-0.5 text-blue-500" />
             <p>
-              <span className="font-medium">Preview only.</span> Our team personally reviews every banner before production and will reach out if anything needs attention.
+              <span className="font-medium">Preview only.</span> {copy.reviewNoticeBody}
             </p>
           </div>
 
@@ -337,10 +341,10 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
               />
               <div className="flex-1 min-w-0">
                 <h3 className="font-semibold text-gray-900 text-lg">
-                  {formatDimensions(quote.widthIn, quote.heightIn)} Banner
+                  {formatDimensions(quote.widthIn, quote.heightIn)} {copy.singularLabel}
                 </h3>
                 <p className="text-gray-600 text-sm">
-                  {quote.quantity} {quote.quantity === 1 ? 'banner' : 'banners'} • {quote.material} vinyl
+                  {quote.quantity} {quote.quantity === 1 ? copy.singularLabel.toLowerCase() : copy.pluralLabel.toLowerCase()} • {quote.material} vinyl
                 </p>
               </div>
             </div>

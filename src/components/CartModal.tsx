@@ -9,6 +9,7 @@ import { useQuoteStore } from '@/store/quote';
 import { useAuth } from '@/lib/auth';
 import { getGrommetLabel } from '@/lib/grommets';
 import { getItemDisplayName, isYardSignItem } from '@/lib/product-display';
+import { getProductCopy, getDominantProductType } from '@/lib/product-copy';
 
 interface CartModalProps {
   isOpen: boolean;
@@ -24,6 +25,10 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
   const { toast } = useToast();
   const { loadFromCartItem } = useQuoteStore();
   const { user } = useAuth();
+
+  // Product-aware copy based on cart contents
+  const dominantProductType = getDominantProductType(items);
+  const productCopy = getProductCopy(dominantProductType);
 
   // Per-item source detection replaces session-wide isGoogleAdsLanding flag
   // Each cart item now has a 'source' field set at add-to-cart time
@@ -158,7 +163,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
               <div className="text-center py-12">
                 <ShoppingBag className="h-16 w-16 text-gray-300 mx-auto mb-4" />
                 <p className="text-gray-600 text-lg mb-2">Your cart is empty</p>
-                <p className="text-gray-500 text-sm mb-6">Add some banners to get started!</p>
+                <p className="text-gray-500 text-sm mb-6">{productCopy.emptyCartPrompt}</p>
                 <button 
                   onClick={onClose} 
                   className="bg-[#ff6b35] hover:bg-[#e16629] text-white px-6 py-3 rounded-lg font-semibold transition-colors shadow-md hover:shadow-lg"
@@ -172,7 +177,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                 <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-xs text-blue-700">
                   <Eye className="h-4 w-4 flex-shrink-0 mt-0.5 text-blue-500" />
                   <p>
-                    <span className="font-medium">Preview only.</span> Our team personally reviews every banner before production and will reach out if anything needs attention.
+                    <span className="font-medium">Preview only.</span> {productCopy.reviewNoticeBody}
                   </p>
                 </div>
                 {items.map((item) => {

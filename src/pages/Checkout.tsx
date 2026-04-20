@@ -23,6 +23,7 @@ import { cartSyncService } from '@/lib/cartSync';
 import { trackBeginCheckout, trackViewCart, trackFBInitiateCheckout } from '@/lib/analytics';
 import { trackPromoEvent } from '@/lib/posthog';
 import { getItemDisplayName, isYardSignItem, getProductCategory } from '@/lib/product-display';
+import { getProductCopy, getDominantProductType } from '@/lib/product-copy';
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
@@ -56,8 +57,20 @@ const Checkout: React.FC = () => {
   let showMinOrderAdjustment = false;
 
 
+  // Determine dominant product type for product-aware copy
+  const dominantProductType = getDominantProductType(items);
+  const productCopy = getProductCopy(dominantProductType);
+
   // Minimum order validation (moved outside conditional block)
-  const adminContext = { isAdmin: isAdminUser, bypassValidation: isAdminUser };
+  // Pass product type and yard sign config for contextual suggestions
+  const firstYardSign = items.find(item => isYardSignItem(item));
+  const adminContext = {
+    isAdmin: isAdminUser,
+    bypassValidation: isAdminUser,
+    productType: dominantProductType,
+    yardSignSidedness: firstYardSign?.yard_sign_sidedness,
+    yardSignStepStakesEnabled: firstYardSign?.yard_sign_step_stakes_enabled,
+  };
   const minimumOrderValidation = validateMinimumOrder(totalCents, adminContext);
 
   // Yard sign quantity validation at checkout
@@ -323,7 +336,7 @@ const Checkout: React.FC = () => {
                 onClick={() => navigate(isFromGoogleAds ? '/google-ads-banner' : '/design')}
                 className="mt-6"
               >
-                {isFromGoogleAds ? 'Order a Banner' : 'Start Designing'}
+                {isFromGoogleAds ? (dominantProductType === 'yard_sign' ? 'Order a Yard Sign' : 'Order a Banner') : 'Start Designing'}
               </Button>
             </div>
           </div>
@@ -419,7 +432,7 @@ const Checkout: React.FC = () => {
                 <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-xs text-blue-700 mb-4">
                   <Eye className="h-4 w-4 flex-shrink-0 mt-0.5 text-blue-500" />
                   <p>
-                    <span className="font-medium">Preview only.</span> Our team personally reviews every banner before production and will reach out if anything needs attention.
+                    <span className="font-medium">Preview only.</span> {productCopy.reviewNoticeBody}
                   </p>
                 </div>
 
@@ -553,7 +566,7 @@ const Checkout: React.FC = () => {
                   );})}
                 </div>
 
-                {/* Add Another Banner button */}
+                {/* Add Another Item button */}
                 <div className="mt-4">
                   <Button
                     variant="outline"
@@ -561,7 +574,7 @@ const Checkout: React.FC = () => {
                     className="w-full border-dashed border-2 border-gray-300 text-gray-600 hover:border-[#18448D] hover:text-[#18448D] hover:bg-blue-50 transition-all py-3"
                   >
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Another Banner
+                    {productCopy.addAnotherCta}
                   </Button>
                 </div>
 
@@ -848,6 +861,7 @@ const Checkout: React.FC = () => {
           // User chose to continue as guest, don't show modal again
           setHasShownModal(true);
         }}
+        productType={dominantProductType}
       />
     </Layout>
   );

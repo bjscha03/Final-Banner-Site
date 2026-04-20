@@ -3,6 +3,8 @@
  * Centralized validation for $20.00 minimum order requirement
  */
 
+import { getProductCopy, getYardSignMinimumSuggestions } from '@/lib/product-copy';
+
 export const MINIMUM_ORDER_AMOUNT = 20.00; // $20.00 minimum
 export const MINIMUM_ORDER_CENTS = 2000; // 2000 cents = $20.00
 
@@ -19,6 +21,12 @@ export interface OrderValidationContext {
   isAdmin?: boolean;
   isTest?: boolean;
   bypassValidation?: boolean;
+  /** Product type for product-aware suggestion text */
+  productType?: string;
+  /** Yard sign sidedness (for contextual suggestions) */
+  yardSignSidedness?: string;
+  /** Whether step stakes are already enabled */
+  yardSignStepStakesEnabled?: boolean;
 }
 
 /**
@@ -71,7 +79,7 @@ export function validateMinimumOrder(
   }
 
   // Generate helpful suggestions for increasing order value
-  const suggestions = generateOrderSuggestions(shortfall);
+  const suggestions = generateOrderSuggestions(shortfall, context);
 
   return {
     isValid: false,
@@ -84,26 +92,28 @@ export function validateMinimumOrder(
 }
 
 /**
- * Generate helpful suggestions for meeting minimum order requirement
+ * Generate helpful suggestions for meeting minimum order requirement.
+ * Suggestions are product-aware: yard signs get yard-sign-specific ideas,
+ * banners get banner-specific ideas.
  */
-function generateOrderSuggestions(shortfall: number): string[] {
-  const suggestions: string[] = [];
-
-  if (shortfall <= 5) {
-    suggestions.push('Consider increasing your banner quantity by 1');
-    suggestions.push('Add rope reinforcement for durability');
-  } else if (shortfall <= 10) {
-    suggestions.push('Increase your banner size slightly');
-    suggestions.push('Add pole pockets for easy hanging');
-    suggestions.push('Consider upgrading to premium 18oz material');
-  } else {
-    suggestions.push('Increase your banner quantity');
-    suggestions.push('Consider a larger banner size');
-    suggestions.push('Add multiple banners to your order');
-    suggestions.push('Upgrade to premium materials and add-ons');
+function generateOrderSuggestions(shortfall: number, context: OrderValidationContext = {}): string[] {
+  // Yard sign specific suggestions (contextually aware)
+  if (context.productType === 'yard_sign') {
+    return getYardSignMinimumSuggestions(shortfall, {
+      sidedness: context.yardSignSidedness,
+      stepStakesEnabled: context.yardSignStepStakesEnabled,
+    });
   }
 
-  return suggestions;
+  // Banner suggestions (unchanged from original)
+  const copy = getProductCopy('banner');
+  if (shortfall <= 5) {
+    return copy.minimumOrderSuggestionsSmall;
+  } else if (shortfall <= 10) {
+    return copy.minimumOrderSuggestionsMedium;
+  } else {
+    return copy.minimumOrderSuggestionsLarge;
+  }
 }
 
 /**

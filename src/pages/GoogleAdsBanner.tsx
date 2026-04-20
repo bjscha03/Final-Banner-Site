@@ -1525,6 +1525,7 @@ const GoogleAdsBanner: React.FC = () => {
         thumbnailUrl={uploadedFile?.thumbnailUrl || uploadedFile?.url}
         actionType="checkout"
         isProcessing={isProcessingUpsell}
+        productType={productType}
       />
       {/* Cart Modal */}
       <CartModal
