@@ -26,8 +26,13 @@ import { usd } from '@/lib/pricing';
 
 // Helper to generate PDF thumbnail URL from Cloudinary
 function getPdfThumbnailUrl(pdfUrl: string): string {
-  if (!pdfUrl || !pdfUrl.includes('cloudinary.com') || !pdfUrl.toLowerCase().endsWith('.pdf')) return pdfUrl;
-  return pdfUrl.replace('/upload/', '/upload/pg_1,f_jpg,w_400/');
+  try {
+    const url = new URL(pdfUrl);
+    if (!url.hostname.endsWith('.cloudinary.com') || !pdfUrl.toLowerCase().endsWith('.pdf')) return pdfUrl;
+    return pdfUrl.replace('/upload/', '/upload/pg_1,f_jpg,w_400/');
+  } catch {
+    return pdfUrl;
+  }
 }
 
 interface YardSignConfiguratorProps {
@@ -126,7 +131,7 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
       const isPdf = file.type === 'application/pdf';
       const thumbnailUrl = isPdf ? getPdfThumbnailUrl(data.secureUrl) : data.secureUrl;
       const newDesign: YardSignDesign = {
-        id: `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+        id: `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
         fileName: file.name,
         fileUrl: data.secureUrl,
         fileKey: data.fileKey || data.publicId,
