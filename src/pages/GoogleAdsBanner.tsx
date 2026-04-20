@@ -555,6 +555,8 @@ const GoogleAdsBanner: React.FC = () => {
       console.log('[YARD_SIGN] ✅ Cart item created with yard sign metadata');
       setIsCartOpen(true);
       setPendingCheckoutData(null);
+      // Preserve tab in history so browser Back returns to Yard Sign tab
+      window.history.replaceState(null, '', '/google-ads-banner?tab=yard-sign');
       navigate('/checkout');
       return;
     }
@@ -647,6 +649,8 @@ const GoogleAdsBanner: React.FC = () => {
     console.log('[FINAL_RENDER_HTML] ✅ Cart item created with final_render data');
     setIsCartOpen(true);
     setPendingCheckoutData(null);
+    // Preserve tab in history so browser Back returns to Banner tab
+    window.history.replaceState(null, '', '/google-ads-banner?tab=banner');
     navigate('/checkout');
   }, [uploadedFile, pendingCheckoutData, grommets, addRope, polePockets, widthIn, heightIn, quantity, material, quoteStore, cartStore, setIsCartOpen, navigate, imgPos, imgScale, isYardSign, yardSignMaterial, yardSignPricing, productType, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, yardSignSidedness, yardSignAddStepStakes, yardSignStepStakeQty]);
 

@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { HelmetProvider } from "react-helmet-async";
 import { ThemeProvider } from "@/components/theme-provider";
 import { useCartSync } from "@/hooks/useCartSync";
@@ -25,7 +25,7 @@ const PageLoader = () => (
 
 // Lazy load non-critical routes
 const Design = lazy(() => import("./pages/Design"));
-const DesignEditor = lazy(() => import("./pages/DesignEditor"));
+// DesignEditor route removed — redirects to /design
 const DesignComplete = lazy(() => import("./pages/DesignComplete"));
 const CanvaEditor = lazy(() => import("./pages/CanvaEditor"));
 const CanvaTest = lazy(() => import("./pages/CanvaTest"));
@@ -127,7 +127,8 @@ const App = () => (
             
             {/* Design routes */}
             <Route path="/design" element={<Design />} />
-            <Route path="/design-editor" element={<DesignEditor />} />
+            {/* Legacy design-editor route — redirect to /design to prevent old designer page from loading */}
+            <Route path="/design-editor" element={<Navigate to="/design" replace />} />
             <Route path="/halloween-banner" element={<Design />} />
             <Route path="/design/complete" element={<DesignComplete />} />
             <Route path="/design/canva-editor" element={<CanvaEditor />} />
