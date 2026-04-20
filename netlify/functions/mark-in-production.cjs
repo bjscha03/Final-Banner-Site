@@ -53,7 +53,7 @@ async function sendProductionEmail(order, customerEmail) {
         
         <div style="background: linear-gradient(135deg, #d97706 0%, #f59e0b 100%); color: white; padding: 30px; border-radius: 10px; text-align: center; margin-bottom: 30px;">
           <h1 style="margin: 0; font-size: 28px;">Your Order is Now in Production 🎯</h1>
-          <p style="margin: 10px 0 0 0; font-size: 16px;">We're preparing your order for production</p>
+          <p style="margin: 10px 0 0 0; font-size: 16px;">We're working on your order now</p>
         </div>
         
         <div style="background: #fefce8; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
@@ -72,7 +72,7 @@ async function sendProductionEmail(order, customerEmail) {
         <div style="margin-bottom: 30px;">
           <p>Hi ${order.customerName ? order.customerName.split(' ')[0] : 'there'},</p>
           <p>Good news — your order is now in production.</p>
-          <p>Our team is currently preparing your order for production. Once it's complete, it will ship out with tracking information sent to you immediately.</p>
+          <p>Our team is currently working on your order. Once it's complete, it will ship out with tracking information sent to you immediately.</p>
         </div>
         
         <div style="background: #fefce8; padding: 20px; border-radius: 8px; border: 1px solid #fde68a; margin-bottom: 30px;">

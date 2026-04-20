@@ -54,7 +54,7 @@ export default function OrderInProduction({ order }: OrderInProductionProps) {
           <Section style={header}>
             <Heading style={headerTitle}>Your Order is Now in Production 🎯</Heading>
             <Text style={headerSubtitle}>
-              We&apos;re preparing your order for production
+              We&apos;re working on your order right now
             </Text>
           </Section>
 
@@ -83,7 +83,7 @@ export default function OrderInProduction({ order }: OrderInProductionProps) {
             </Text>
 
             <Text style={paragraph}>
-              Our team is currently preparing your order for production. Once it&apos;s
+              Our team is currently working on your order. Once it&apos;s
               complete, it will ship out with tracking information sent to you
               immediately.
             </Text>
