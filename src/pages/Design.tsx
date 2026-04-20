@@ -12,6 +12,19 @@ import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
 import { getQuantityDiscountRate } from '@/lib/quantity-discount';
 import { useToast } from '@/components/ui/use-toast';
 import { generateFinalRenderFromHTML } from '@/utils/generateFinalRenderFromHTML';
+import type { ProductTypeSlug } from '@/lib/products';
+import ProductTypeSwitcher from '@/components/design/ProductTypeSwitcher';
+import YardSignConfigurator from '@/components/design/YardSignConfigurator';
+import YardSignPriceSummary from '@/components/design/YardSignPriceSummary';
+import {
+  calcYardSignPricing,
+  getTotalDesignQuantity,
+  validateYardSignQuantity,
+  type YardSignSidedness,
+  type YardSignDesign,
+  YARD_SIGN_WIDTH_IN,
+  YARD_SIGN_HEIGHT_IN,
+} from '@/lib/yard-sign-pricing';
 
 const PRESET_SIZES = [
   { label: "2' × 4'", w: 48, h: 24 },
@@ -85,6 +98,39 @@ const Design: React.FC = () => {
   const orderRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Product type state — read ?tab= or ?product= query param for routing
+  const initialProductType = (() => {
+    const tab = searchParams.get('tab');
+    const product = searchParams.get('product');
+    const param = tab || product;
+    if (param === 'yard-sign' || param === 'yard_sign' || param === 'yard-signs') return 'yard_sign' as ProductTypeSlug;
+    return 'banner' as ProductTypeSlug;
+  })();
+  const [productType, setProductType] = useState<ProductTypeSlug>(initialProductType);
+  const isYardSign = productType === 'yard_sign';
+
+  // Yard sign specific state (multi-design)
+  const [yardSignDesigns, setYardSignDesigns] = useState<YardSignDesign[]>([]);
+  const [yardSignSidedness, setYardSignSidedness] = useState<YardSignSidedness>('single');
+  const [yardSignAddStepStakes, setYardSignAddStepStakes] = useState(false);
+  const [yardSignStepStakeQty, setYardSignStepStakeQty] = useState(1);
+
+  // Handle product type switch — reset state
+  const handleProductTypeChange = useCallback((newType: ProductTypeSlug) => {
+    setProductType(newType);
+    setImgPos({ x: 0, y: 0 });
+    setImgScale(1);
+    setQuantity(1);
+    setPromoCode('');
+    setPromoApplied(false);
+    if (newType === 'yard_sign') {
+      setYardSignDesigns([]);
+      setYardSignSidedness('single');
+      setYardSignAddStepStakes(false);
+      setYardSignStepStakeQty(1);
+    }
+  }, []);
+
   // Use string state for dimension inputs so users can clear and retype freely
   const [widthFtStr, setWidthFtStr] = useState('4');
   const [widthInRStr, setWidthInRStr] = useState('0');
@@ -137,9 +183,27 @@ const Design: React.FC = () => {
   const cartStore = useCartStore();
   const { setIsCartOpen } = useUIStore();
 
-  const widthIn = widthFt * 12 + widthInR;
-  const heightIn = heightFt * 12 + heightInR;
+  // Dimensions: for banners, use ft+in inputs; for yard signs, fixed 24" × 18"
+  const widthIn = isYardSign ? YARD_SIGN_WIDTH_IN : (widthFt * 12 + widthInR);
+  const heightIn = isYardSign ? YARD_SIGN_HEIGHT_IN : (heightFt * 12 + heightInR);
   const sqft = (widthIn * heightIn) / 144;
+
+  // Yard sign pricing (computed reactively)
+  const yardSignTotalQty = getTotalDesignQuantity(yardSignDesigns);
+  const yardSignPromoRate = promoApplied ? PROMO_NEW20_DISCOUNT_RATE : 0;
+  const yardSignPricing = useMemo(() => {
+    if (!isYardSign) return null;
+    return calcYardSignPricing(
+      yardSignSidedness,
+      yardSignTotalQty,
+      yardSignAddStepStakes,
+      yardSignStepStakeQty,
+      yardSignPromoRate,
+    );
+  }, [isYardSign, yardSignSidedness, yardSignTotalQty, yardSignAddStepStakes, yardSignStepStakeQty, yardSignPromoRate]);
+
+  // Yard sign quantity validation
+  const yardSignQuantityValid = validateYardSignQuantity(yardSignTotalQty);
 
   // Handle quick quote URL parameters (width, height, qty, material)
   useEffect(() => {
@@ -336,6 +400,99 @@ const Design: React.FC = () => {
   // CRITICAL: Generate final_render before adding to cart - orders without it cannot be printed
   const performCheckout = useCallback(async (selectedOptions: UpsellOption[], directData?: { pos: { x: number; y: number }, scale: number }) => {
     const checkoutData = directData || pendingCheckoutData;
+
+    // Yard signs: multi-design flow
+    if (isYardSign && yardSignPricing) {
+      if (yardSignDesigns.length === 0 || yardSignTotalQty === 0) return;
+      if (!yardSignQuantityValid.valid) return;
+
+      const primaryDesign = yardSignDesigns[0];
+      const yardSignMetadata = {
+        sidedness: yardSignSidedness,
+        addStepStakes: yardSignAddStepStakes,
+        stepStakeQty: yardSignAddStepStakes ? yardSignStepStakeQty : 0,
+        stepStakeQuantity: yardSignAddStepStakes ? yardSignStepStakeQty : 0,
+        totalSignQuantity: yardSignTotalQty,
+        designCount: yardSignDesigns.length,
+        signSubtotalCents: yardSignPricing.signSubtotalCents,
+        stakeSubtotalCents: yardSignPricing.stepStakeTotalCents,
+        designs: yardSignDesigns.map(d => ({
+          id: d.id,
+          fileName: d.fileName,
+          fileUrl: d.fileUrl,
+          fileKey: d.fileKey,
+          thumbnailUrl: d.thumbnailUrl,
+          isPdf: d.isPdf,
+          quantity: d.quantity,
+        })),
+      };
+
+      const canvasStateJson = JSON.stringify({
+        source: 'design-page',
+        version: 3,
+        originalImageUrl: primaryDesign.fileUrl,
+        originalImageFileKey: primaryDesign.fileKey,
+        isPdf: primaryDesign.isPdf,
+        widthIn: YARD_SIGN_WIDTH_IN,
+        heightIn: YARD_SIGN_HEIGHT_IN,
+        imgPos: { x: 0, y: 0 },
+        imgScale: 1,
+        containerCssWidth: null,
+        containerCssHeight: null,
+        bgColor: '#fafafa',
+        productType: 'yard_sign',
+        yardSignMetadata,
+      });
+
+      quoteStore.set({
+        widthIn: YARD_SIGN_WIDTH_IN,
+        heightIn: YARD_SIGN_HEIGHT_IN,
+        quantity: yardSignTotalQty,
+        material: 'corrugated' as MaterialKey,
+        grommets: 'none' as any,
+        polePockets: 'none',
+        polePocketSize: '2' as any,
+        addRope: false,
+        imagePosition: { x: 0, y: 0 },
+        imageScale: 1,
+        fitMode: 'fill',
+        thumbnailUrl: primaryDesign.thumbnailUrl,
+        file: {
+          name: primaryDesign.fileName,
+          url: primaryDesign.fileUrl,
+          fileKey: primaryDesign.fileKey,
+          size: 0,
+          isPdf: primaryDesign.isPdf,
+          thumbnailUrl: primaryDesign.thumbnailUrl,
+          type: primaryDesign.isPdf ? 'application/pdf' : 'image/*',
+        } as any,
+        finalRenderUrl: null,
+        finalRenderFileKey: null,
+        finalRenderWidthPx: null,
+        finalRenderHeightPx: null,
+        finalRenderDpi: null,
+        canvasStateJson,
+      });
+
+      const pricing = {
+        unit_price_cents: yardSignPricing.unitPriceCents,
+        rope_cost_cents: 0,
+        pole_pocket_cost_cents: 0,
+        line_total_cents: yardSignPricing.totalCents,
+      };
+      const quoteState = useQuoteStore.getState();
+      (quoteState as any).product_type = 'yard_sign';
+      (quoteState as any).yard_sign_metadata = yardSignMetadata;
+      cartStore.addFromQuote(quoteState, undefined, pricing);
+
+      console.log('[YARD_SIGN] ✅ Cart item created with yard sign metadata (design page)');
+      setIsCartOpen(true);
+      setPendingCheckoutData(null);
+      navigate('/checkout');
+      return;
+    }
+
+    // Banner flow
     if (!uploadedFile || !checkoutData) return;
 
     let finalGrommets = grommets;
@@ -404,6 +561,7 @@ const Design: React.FC = () => {
       containerCssWidth: container?.offsetWidth || null,
       containerCssHeight: container?.offsetHeight || null,
       bgColor: '#fafafa',
+      productType: 'banner',
     });
 
     const updatedTotals = calcTotals({
@@ -438,15 +596,27 @@ const Design: React.FC = () => {
     };
 
     console.log('[DESIGN_CHECKOUT] Adding to cart with final_render');
-    cartStore.addFromQuote(useQuoteStore.getState(), undefined, pricing);
+    // Explicitly set product_type on quote state so cart item is correctly tagged as banner
+    const bannerQuoteState = useQuoteStore.getState();
+    (bannerQuoteState as any).product_type = 'banner';
+    cartStore.addFromQuote(bannerQuoteState, undefined, pricing);
     setIsCartOpen(true);
     setPendingCheckoutData(null);
     navigate('/checkout');
-  }, [uploadedFile, pendingCheckoutData, grommets, addRope, polePockets, widthIn, heightIn, quantity, material, quoteStore, cartStore, setIsCartOpen, navigate, toast]);
+  }, [uploadedFile, pendingCheckoutData, grommets, addRope, polePockets, widthIn, heightIn, quantity, material, quoteStore, cartStore, setIsCartOpen, navigate, toast, isYardSign, yardSignPricing, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, yardSignSidedness, yardSignAddStepStakes, yardSignStepStakeQty]);
 
 
   // Proceed directly to checkout using current inline preview position
   const handleCheckout = useCallback(() => {
+    // Yard signs: multi-design flow (no single uploadedFile needed)
+    if (isYardSign) {
+      if (yardSignDesigns.length === 0 || yardSignTotalQty === 0) return;
+      if (!yardSignQuantityValid.valid) return;
+      performCheckout([], { pos: { x: 0, y: 0 }, scale: 1 });
+      return;
+    }
+
+    // Banner flow
     if (!uploadedFile) return;
     const container = previewContainerRef.current;
     const containerWidth = container?.offsetWidth || 1;
@@ -464,7 +634,7 @@ const Design: React.FC = () => {
     } else {
       setShowUpsellModal(true);
     }
-  }, [uploadedFile, imgPos, imgScale, grommets, polePockets, addRope, performCheckout]);
+  }, [uploadedFile, imgPos, imgScale, grommets, polePockets, addRope, performCheckout, isYardSign, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid]);
 
   // Trigger upsell modal after confirming position from preview modal
   const handleConfirmPosition = useCallback((pos: { x: number; y: number }, scale: number) => {
@@ -639,7 +809,72 @@ const Design: React.FC = () => {
 
       <section ref={orderRef} id="order-builder" className="py-12 px-4 bg-white">
         <div className="max-w-4xl lg:max-w-6xl mx-auto">
-          <h2 className="text-2xl md:text-3xl font-bold text-center mb-10">Build Your Banner</h2>
+          {/* Product type switcher — public for all users */}
+          <ProductTypeSwitcher productType={productType} onProductTypeChange={handleProductTypeChange} />
+          <h2 className="text-2xl md:text-3xl font-bold text-center mb-10">
+            {isYardSign ? 'Build Your Yard Sign Order' : 'Build Your Banner'}
+          </h2>
+          {isYardSign ? (
+            /* ========== YARD SIGN ORDER BUILDER ========== */
+            <div className="grid md:grid-cols-2 lg:grid-cols-[1.4fr_1fr] gap-10">
+              <div className="space-y-8">
+                <YardSignConfigurator
+                  designs={yardSignDesigns}
+                  onDesignsChange={setYardSignDesigns}
+                  sidedness={yardSignSidedness}
+                  onSidednessChange={setYardSignSidedness}
+                  addStepStakes={yardSignAddStepStakes}
+                  onStepStakesChange={setYardSignAddStepStakes}
+                  stepStakeQuantity={yardSignStepStakeQty}
+                  onStepStakeQuantityChange={setYardSignStepStakeQty}
+                  promoCode={promoCode}
+                  promoApplied={promoApplied}
+                  onPromoCodeChange={setPromoCode}
+                  onPromoApply={handlePromoApply}
+                  onPromoRemove={() => { setPromoApplied(false); setPromoCode(''); sessionStorage.removeItem('pendingPromoCode'); }}
+                />
+              </div>
+              <div className="space-y-6">
+                {yardSignPricing && (
+                  <YardSignPriceSummary
+                    pricing={yardSignPricing}
+                    designs={yardSignDesigns}
+                    promoCode={promoCode}
+                    promoApplied={promoApplied}
+                    onPromoCodeChange={setPromoCode}
+                    onPromoApply={handlePromoApply}
+                    onPromoRemove={() => { setPromoApplied(false); setPromoCode(''); sessionStorage.removeItem('pendingPromoCode'); }}
+                  />
+                )}
+
+                <button
+                  onClick={handleCheckout}
+                  disabled={yardSignDesigns.length === 0 || yardSignTotalQty === 0 || !yardSignQuantityValid.valid}
+                  className={`group w-full font-bold text-lg py-5 rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${
+                    yardSignDesigns.length > 0 && yardSignTotalQty > 0 && yardSignQuantityValid.valid
+                      ? 'bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white cursor-pointer shadow-orange-500/30'
+                      : 'bg-orange-300 text-white/80 cursor-not-allowed'
+                  }`}
+                >
+                  Checkout
+                  <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
+                </button>
+                <div className="flex items-center justify-center gap-2 mt-3 py-2 px-3 bg-blue-50 border border-blue-200 rounded-lg">
+                  <span className="text-sm font-medium text-blue-700">📦 Orders made on Friday will be delivered on Tuesday.</span>
+                </div>
+                <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400 mt-1">
+                  <Lock className="h-3 w-3" />
+                  <span>Secure checkout.</span>
+                </div>
+                <div className="flex items-center justify-center gap-1.5 text-xs text-gray-400 mt-2">
+                  <Mail className="h-3 w-3" />
+                  <span>Questions? support@bannersonthefly.com</span>
+                </div>
+                {yardSignDesigns.length === 0 && <p className="text-xs text-center text-gray-400">Upload your artwork to continue</p>}
+              </div>
+            </div>
+          ) : (
+          /* ========== BANNER ORDER BUILDER (existing) ========== */
           <div className="grid md:grid-cols-2 lg:grid-cols-[1.4fr_1fr] gap-10">
             <div className="space-y-8">
               <div>
@@ -970,6 +1205,7 @@ const Design: React.FC = () => {
               {!uploadedFile && <p className="text-xs text-center text-gray-400">Upload your artwork to continue</p>}
             </div>
           </div>
+          )}
         </div>
       </section>
 
