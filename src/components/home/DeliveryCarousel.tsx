@@ -121,10 +121,16 @@ const DeliveryCarousel: React.FC = () => {
     <section className="py-10 sm:py-14 bg-gray-50 overflow-hidden">
       {/* Section header */}
       <div className="text-center mb-8 px-4">
+        <p className="inline-flex items-center rounded-full bg-orange-100 px-3 py-1 text-xs font-semibold text-orange-700 mb-3">
+          Real Deliveries. Real Speed.
+        </p>
         <h2 className="text-2xl sm:text-3xl font-bold text-gray-900">
           Real Orders. Delivered Fast.
         </h2>
         <p className="mt-2 text-sm sm:text-base text-gray-500">
+          From print to your door in as little as 24 hours.
+        </p>
+        <p className="mt-1 text-sm sm:text-base text-gray-500">
           Photos from actual Banners on the Fly deliveries
         </p>
         <p className="mt-1 text-xs text-gray-400 italic">

@@ -145,13 +145,13 @@ const HeroSection: React.FC = () => {
               {/* Main Heading */}
               <div className="space-y-3">
                 <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight uppercase drop-shadow-lg">
-                  Custom Banners
+                  Custom Banners &amp; Yard Signs
                 </h1>
                 <p className="text-lg md:text-xl lg:text-2xl font-normal text-slate-200 drop-shadow-md">
                   Printed in 24 Hours • Free <span className="text-orange-400 italic font-semibold">Next-Day Air</span> Shipping
                 </p>
                 <p className="text-sm md:text-base text-slate-400 drop-shadow-sm">
-                  Order today to start 24-hour production.
+                  Order today. Delivered tomorrow.
                 </p>
               </div>
 

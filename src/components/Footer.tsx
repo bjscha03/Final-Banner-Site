@@ -95,7 +95,7 @@ const Footer: React.FC = () => {
               Banners On The Fly
             </h3>
             <p className="text-gray-300 mb-6">
-              Professional vinyl banner printing with 24-hour production and next-day delivery. 
+              Professional vinyl signage printing with 24-hour production and next-day delivery. 
               Quality banners for businesses nationwide.
             </p>
             <div className="space-y-2">
@@ -148,7 +148,7 @@ const Footer: React.FC = () => {
           <div>
             <h4 className="text-lg font-semibold text-white mb-4">Stay Updated</h4>
             <p className="text-gray-300 text-sm mb-4">
-              Get exclusive offers and banner printing tips delivered to your inbox.
+              Get exclusive offers and signage printing tips delivered to your inbox.
             </p>
             <form onSubmit={handleNewsletterSubmit} className="space-y-3">
               <div className="flex">
