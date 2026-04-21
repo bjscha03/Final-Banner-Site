@@ -9,7 +9,7 @@ const WhyChooseUs: React.FC = () => {
     {
       icon: Clock,
       title: '24-Hour Production',
-      description: 'Your banners printed and shipped within 24 hours of order approval.',
+      description: 'Your order printed and shipped within 24 hours of order approval.',
       gradient: 'from-orange-500 to-amber-500',
     },
     {
@@ -52,7 +52,7 @@ const WhyChooseUs: React.FC = () => {
             Why Choose Banners on the Fly?
           </h2>
           <p className="text-lg text-slate-600">
-            Fast, professional, and reliable banner printing
+            Fast, professional, and reliable signage printing
           </p>
         </div>
 

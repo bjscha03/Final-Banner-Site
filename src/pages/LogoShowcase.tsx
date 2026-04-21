@@ -102,7 +102,7 @@ const LogoShowcase: React.FC = () => {
 
             {/* Contact Information */}
             <div className="bg-white rounded-2xl shadow-lg p-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Need Custom Banners?</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-6">Need Custom Banners &amp; Yard Signs?</h2>
               <div className="text-center">
                 <p className="text-lg text-gray-600 mb-6">
                   Contact us for custom banner designs and printing services
