@@ -98,6 +98,8 @@ interface YardSignConfiguratorProps {
   onPromoRemove: () => void;
   /** When set, auto-opens the preview modal for this design ID on mount */
   autoOpenDesignId?: string | null;
+  /** Optional quantity preset from quick quote to apply to first uploaded design */
+  initialDesignQuantity?: number;
 }
 
 const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
@@ -115,6 +117,7 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
   onPromoApply,
   onPromoRemove,
   autoOpenDesignId,
+  initialDesignQuantity,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -391,6 +394,10 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
       const data = await res.json();
       const isPdf = file.type === 'application/pdf';
       const thumbnailUrl = isPdf ? getPdfThumbnailUrl(data.secureUrl) : data.secureUrl;
+      const presetFirstDesignQuantity = Math.max(
+        1,
+        Math.min(YARD_SIGN_MAX_QUANTITY, initialDesignQuantity || 1),
+      );
       const newDesign: YardSignDesign = {
         id: `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
         fileName: file.name,
@@ -398,7 +405,7 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
         fileKey: data.fileKey || data.publicId,
         thumbnailUrl,
         isPdf,
-        quantity: 1,
+        quantity: designs.length === 0 ? presetFirstDesignQuantity : 1,
         imgScale: 1,
         imgPos: { x: 0, y: 0 },
       };
@@ -413,7 +420,7 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
     } finally {
       setIsUploading(false);
     }
-  }, [canAddMoreDesigns, compressImage, designs, onDesignsChange]);
+  }, [canAddMoreDesigns, compressImage, designs, onDesignsChange, initialDesignQuantity]);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

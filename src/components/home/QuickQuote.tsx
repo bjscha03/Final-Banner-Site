@@ -4,6 +4,14 @@ import { Minus, Plus, ArrowRight, Truck, Zap, Package, Palette, DollarSign, Chec
 import { MaterialKey } from '@/store/quote';
 import { calcTotals, usd, formatArea, formatDimensionsInFeet, PRICE_PER_SQFT, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
 import { calculateQuantityDiscount, getAllDiscountTiers } from '@/lib/quantity-discount';
+import {
+  calcYardSignPricing,
+  validateYardSignQuantity,
+  YARD_SIGN_MAX_QUANTITY,
+  YARD_SIGN_SINGLE_SIDED_CENTS,
+  YARD_SIGN_DOUBLE_SIDED_CENTS,
+  type YardSignSidedness,
+} from '@/lib/yard-sign-pricing';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -69,6 +77,7 @@ const sizePresets: SizePreset[] = [
 
 const QuickQuote: React.FC = () => {
   const navigate = useNavigate();
+  const [productType, setProductType] = useState<'banner' | 'yard_sign'>('banner');
   const [widthIn, setWidthIn] = useState(48);
   const [heightIn, setHeightIn] = useState(24);
   const [quantity, setQuantity] = useState(1);
@@ -87,6 +96,10 @@ const QuickQuote: React.FC = () => {
   const [widthError, setWidthError] = useState('');
   const [heightError, setHeightError] = useState('');
   const [quantityError, setQuantityError] = useState('');
+  const [yardSignSidedness, setYardSignSidedness] = useState<YardSignSidedness>('single');
+  const [yardSignQuantity, setYardSignQuantity] = useState(10);
+  const [yardSignAddStepStakes, setYardSignAddStepStakes] = useState(false);
+  const [yardSignStepStakeQuantity, setYardSignStepStakeQuantity] = useState(10);
 
   // Debounced update for calculations
   useEffect(() => {
@@ -333,6 +346,23 @@ const QuickQuote: React.FC = () => {
   }, [widthIn, heightIn, quantity, material]);
 
   const isValid = widthIn >= 1 && widthIn <= 1000 && heightIn >= 1 && heightIn <= 1000 && quantity >= 1 && quantity <= 999;
+  const yardSignQuote = useMemo(() => calcYardSignPricing(
+    yardSignSidedness,
+    yardSignQuantity,
+    yardSignAddStepStakes,
+    yardSignAddStepStakes ? yardSignStepStakeQuantity : 0,
+    0,
+  ), [yardSignSidedness, yardSignQuantity, yardSignAddStepStakes, yardSignStepStakeQuantity]);
+  const yardSignQtyValidation = validateYardSignQuantity(yardSignQuantity);
+
+  const adjustYardSignQuantity = (delta: number) => {
+    const next = Math.max(10, Math.min(YARD_SIGN_MAX_QUANTITY, yardSignQuantity + delta));
+    // Yard signs must stay in increments of 10.
+    setYardSignQuantity(next - (next % 10));
+    if (yardSignAddStepStakes) {
+      setYardSignStepStakeQuantity(next - (next % 10));
+    }
+  };
 
   const handleStartDesign = () => {
     if (!isValid) return;
@@ -363,6 +393,39 @@ const QuickQuote: React.FC = () => {
     }, 100);
   };
 
+  const handleStartYardSignDesign = () => {
+    if (!yardSignQtyValidation.valid) return;
+
+    const quickQuoteData = {
+      productType: 'yard_sign',
+      size: '24x18',
+      printSide: yardSignSidedness,
+      quantity: yardSignQuantity,
+      material: 'corrugated-plastic',
+      stepStakes: yardSignAddStepStakes,
+      stepStakeQty: yardSignAddStepStakes ? yardSignStepStakeQuantity : 0,
+    };
+
+    sessionStorage.setItem('quickQuote', JSON.stringify(quickQuoteData));
+
+    const params = new URLSearchParams({
+      tab: 'yard-sign',
+      productType: 'yard-sign',
+      size: '24x18',
+      printSide: yardSignSidedness,
+      qty: yardSignQuantity.toString(),
+      material: 'corrugated-plastic',
+      stepStakes: yardSignAddStepStakes ? '1' : '0',
+      stepStakeQty: yardSignAddStepStakes ? yardSignStepStakeQuantity.toString() : '0',
+    });
+
+    navigate(`/design?${params.toString()}`);
+
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 100);
+  };
+
   const handleReset = () => {
     setWidthIn(60);
     setHeightIn(36);
@@ -386,10 +449,40 @@ const QuickQuote: React.FC = () => {
             Get Your Quote in Seconds
           </h2>
           <p className="text-lg text-slate-600 max-w-2xl mx-auto">
-            Professional vinyl banners with free next day air delivery. No hidden fees, no surprises.
+            {productType === 'banner'
+              ? 'Professional vinyl banners with free next day air delivery. No hidden fees, no surprises.'
+              : 'Premium yard signs with instant pricing and fast next-business-day shipping.'}
           </p>
         </div>
 
+        <div className="flex justify-center mb-6">
+          <div className="inline-flex rounded-xl border border-slate-300 bg-white p-1 shadow-sm">
+            <button
+              type="button"
+              onClick={() => setProductType('banner')}
+              className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
+                productType === 'banner'
+                  ? 'bg-orange-500 text-white shadow-sm'
+                  : 'text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              Banner
+            </button>
+            <button
+              type="button"
+              onClick={() => setProductType('yard_sign')}
+              className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
+                productType === 'yard_sign'
+                  ? 'bg-orange-500 text-white shadow-sm'
+                  : 'text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              Yard Signs
+            </button>
+          </div>
+        </div>
+
+        {productType === 'banner' ? (
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-8">
           {/* Left Column - Configuration */}
           <div className="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-lg order-1 lg:order-1" style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.06)' }}>
@@ -947,6 +1040,224 @@ const QuickQuote: React.FC = () => {
 
 
         </div>
+        ) : (
+        <div className="grid lg:grid-cols-2 gap-8 lg:gap-8">
+          <div className="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-lg order-1 lg:order-1" style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.06)' }}>
+            <div className="px-6 py-5 border-b border-slate-200" style={{ background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)', boxShadow: '0 2px 4px rgba(0,0,0,0.04)' }}>
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <div className="w-11 h-11 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-md" style={{ boxShadow: '0 4px 12px rgba(249,115,22,0.4)' }}>
+                    <Ruler className="h-6 w-6 text-white" />
+                  </div>
+                  <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-green-500 rounded-full shadow-sm animate-pulse border-2 border-white"></div>
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-slate-900">Yard Sign Options</h3>
+                  <p className="text-sm text-slate-500 font-medium">24&quot; × 18&quot; Corrugated Plastic</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="relative p-8 space-y-8">
+              <div>
+                <label className="block text-sm font-semibold text-gray-800 tracking-wide mb-3">Print Side</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setYardSignSidedness('single')}
+                    className={`border rounded-xl py-3 px-4 text-left transition-all ${
+                      yardSignSidedness === 'single'
+                        ? 'border-orange-500 bg-orange-50 shadow-sm'
+                        : 'border-gray-200 hover:border-gray-400'
+                    }`}
+                  >
+                    <p className={`text-sm font-semibold ${yardSignSidedness === 'single' ? 'text-orange-700' : 'text-gray-800'}`}>
+                      Single-Sided
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5">{usd(YARD_SIGN_SINGLE_SIDED_CENTS / 100)}/sign</p>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setYardSignSidedness('double')}
+                    className={`border rounded-xl py-3 px-4 text-left transition-all ${
+                      yardSignSidedness === 'double'
+                        ? 'border-orange-500 bg-orange-50 shadow-sm'
+                        : 'border-gray-200 hover:border-gray-400'
+                    }`}
+                  >
+                    <p className={`text-sm font-semibold ${yardSignSidedness === 'double' ? 'text-orange-700' : 'text-gray-800'}`}>
+                      Double-Sided
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5">{usd(YARD_SIGN_DOUBLE_SIDED_CENTS / 100)}/sign</p>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-800 tracking-wide mb-3">Quantity</label>
+                <div className="flex items-center justify-center gap-3 mb-4">
+                  <button
+                    type="button"
+                    onClick={() => adjustYardSignQuantity(-10)}
+                    disabled={yardSignQuantity <= 10}
+                    className="h-10 w-10 bg-white border border-slate-300 rounded-md hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
+                  >
+                    <Minus className="h-5 w-5 text-green-600" />
+                  </button>
+                  <div className="text-2xl font-bold text-slate-900 min-w-[4ch] text-center">{yardSignQuantity}</div>
+                  <button
+                    type="button"
+                    onClick={() => adjustYardSignQuantity(10)}
+                    disabled={yardSignQuantity >= YARD_SIGN_MAX_QUANTITY}
+                    className="h-10 w-10 bg-white border border-slate-300 rounded-md hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
+                  >
+                    <Plus className="h-5 w-5 text-green-600" />
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {[10, 20, 30, 40, 50, 60, 70, 80, 90].map((qty) => (
+                    <button
+                      key={qty}
+                      type="button"
+                      onClick={() => {
+                        setYardSignQuantity(qty);
+                        if (yardSignAddStepStakes) {
+                          setYardSignStepStakeQuantity(qty);
+                        }
+                      }}
+                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                        yardSignQuantity === qty
+                          ? 'bg-orange-500 text-white border-2 border-orange-600'
+                          : 'bg-white text-slate-700 border-2 border-slate-300 hover:border-orange-400 hover:bg-orange-50'
+                      }`}
+                    >
+                      {qty}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-800 tracking-wide mb-3">Material</label>
+                <div className="border border-gray-200 rounded-xl p-4 bg-gray-50">
+                  <p className="font-semibold text-gray-800">Corrugated Plastic</p>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-800 tracking-wide mb-3">Optional Add-on</label>
+                <div className={`border rounded-xl p-4 transition-all ${yardSignAddStepStakes ? 'border-orange-500 bg-orange-50' : 'border-gray-200 hover:border-gray-400'}`}>
+                  <label className="flex items-start gap-3 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={yardSignAddStepStakes}
+                      onChange={(e) => {
+                        const enabled = e.target.checked;
+                        setYardSignAddStepStakes(enabled);
+                        if (enabled) {
+                          setYardSignStepStakeQuantity(yardSignQuantity);
+                        }
+                      }}
+                      className="mt-1 accent-orange-500 w-4 h-4"
+                    />
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold text-gray-800">Step Stakes</p>
+                      <p className="text-xs text-gray-500">$1.50 each</p>
+                    </div>
+                  </label>
+                  {yardSignAddStepStakes && (
+                    <div className="mt-3 ml-7">
+                      <label className="block text-xs font-semibold text-gray-600 mb-2">Step Stake Quantity</label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={YARD_SIGN_MAX_QUANTITY}
+                        value={yardSignStepStakeQuantity}
+                        onChange={(e) => setYardSignStepStakeQuantity(Math.max(1, Math.min(YARD_SIGN_MAX_QUANTITY, Number(e.target.value) || 1)))}
+                        className="w-24 border rounded-lg px-2 py-1 text-sm text-center bg-white"
+                      />
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white border border-slate-300 rounded-xl overflow-hidden order-3 lg:order-2" style={{ boxShadow: '0 8px 30px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.08)' }}>
+            <div className="px-6 py-5 border-b border-slate-200" style={{ background: 'linear-gradient(180deg, #fefce8 0%, #fef9c3 50%, #fef08a 100%)', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
+              <div className="text-center">
+                <div className="inline-flex items-center gap-3 mb-3">
+                  <div className="relative">
+                    <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg" style={{ boxShadow: '0 6px 16px rgba(249,115,22,0.5)' }}>
+                      <DollarSign className="h-6 w-6 text-white" />
+                    </div>
+                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full shadow-sm animate-pulse border-2 border-white"></div>
+                  </div>
+                  <h3 className="text-2xl font-bold text-slate-900">Your Instant Quote</h3>
+                </div>
+                <p className="text-sm text-slate-600 font-medium">Professional quality, instant pricing</p>
+              </div>
+            </div>
+            <div className="relative p-8" style={{ background: 'linear-gradient(180deg, #ffffff 0%, #fafafa 100%)' }}>
+              <div className="text-center mb-8">
+                <div className="text-5xl md:text-6xl font-bold text-slate-900" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
+                  {usd(yardSignQuote.totalCents / 100)}
+                </div>
+                <div className="rounded-xl p-5 space-y-2 mt-4 text-left" style={{ background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)', border: '1px solid rgba(148,163,184,0.3)' }}>
+                  <p><strong>Product:</strong> Yard Signs</p>
+                  <p><strong>Size:</strong> 24&quot; x 18&quot;</p>
+                  <p><strong>Print:</strong> {yardSignSidedness === 'double' ? 'Double-Sided' : 'Single-Sided'}</p>
+                  <p><strong>Material:</strong> Corrugated Plastic</p>
+                  <p><strong>Quantity:</strong> {yardSignQuantity}</p>
+                  {yardSignAddStepStakes && <p><strong>Step Stakes:</strong> {yardSignStepStakeQuantity}</p>}
+                  <div className="pt-2 mt-2 border-t border-slate-300/60 space-y-1.5 text-sm">
+                    <div className="flex justify-between">
+                      <span>Subtotal:</span>
+                      <span className="font-semibold">{usd(yardSignQuote.subtotalCents / 100)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Tax ({Math.round(yardSignQuote.taxRate * 100)}%):</span>
+                      <span className="font-semibold">{usd(yardSignQuote.taxCents / 100)}</span>
+                    </div>
+                    <div className="flex justify-between font-bold pt-1 border-t border-slate-300/60">
+                      <span>Total:</span>
+                      <span className="text-[#ff6b35]">{usd(yardSignQuote.totalWithTaxCents / 100)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="bg-slate-50 border border-slate-200 rounded-md p-5 mb-6">
+                <div className="space-y-4">
+                  <div className="flex items-center gap-4">
+                    <Zap className="h-8 w-8 text-slate-600" />
+                    <span className="font-bold text-blue-800 text-lg">24 Hour Production</span>
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <Package className="h-8 w-8 text-slate-600" />
+                    <span className="font-bold text-purple-800 text-lg">Free Next Day Air Shipping</span>
+                  </div>
+                </div>
+              </div>
+              <div className="space-y-4">
+                {!yardSignQtyValidation.valid && (
+                  <p className="text-center text-sm text-red-600 font-medium">{yardSignQtyValidation.message}</p>
+                )}
+                <Button
+                  onClick={handleStartYardSignDesign}
+                  disabled={!yardSignQtyValidation.valid}
+                  className="w-full bg-orange-500 hover:bg-orange-600 text-white py-5 text-lg font-semibold shadow-sm transition-colors disabled:opacity-50 disabled:cursor-not-allowed rounded-md"
+                  size="lg"
+                >
+                  <div className="relative flex items-center justify-center gap-3">
+                    <span>Continue with Yard Signs</span>
+                    <ArrowRight className="h-6 w-6" />
+                  </div>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+        )}
       </div>
 
       {/* Lightbox */}
