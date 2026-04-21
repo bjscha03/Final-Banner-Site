@@ -299,8 +299,7 @@ const OrderDetail: React.FC = () => {
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Order Items</h2>
             <div className="space-y-4">
-              {order.items.map((item, index) => (
-                (() => {
+              {order.items.map((item, index) => {
                   const normalized = normalizeOrderItemDisplay(item as any);
                   return (
                 <div key={index} className="border border-gray-200 rounded-lg p-4">
@@ -366,8 +365,7 @@ const OrderDetail: React.FC = () => {
                   </div>
                 </div>
                   );
-                })()
-              ))}
+              })}
             </div>
           </div>
 

@@ -163,10 +163,9 @@ const OrderConfirmation: React.FC = () => {
             <div className="mb-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Order Items</h3>
               <div className="space-y-4">
-                {order.items.map((item, index) => (
-                  (() => {
-                    const normalized = normalizeOrderItemDisplay(item as any);
-                    return (
+                {order.items.map((item, index) => {
+                  const normalized = normalizeOrderItemDisplay(item as any);
+                  return (
                   <div key={index} className="border border-gray-200 rounded-lg p-4">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
@@ -214,8 +213,7 @@ const OrderConfirmation: React.FC = () => {
                     </div>
                   </div>
                   );
-                  })()
-                ))}
+                })}
               </div>
             </div>
 

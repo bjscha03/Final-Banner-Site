@@ -807,8 +807,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
               Items
             </h3>
             <div className="space-y-4">
-              {order.items.map((item, index) => (
-                (() => {
+              {order.items.map((item, index) => {
                   const normalized = normalizeOrderItemDisplay(item as any);
                   return (
                 <div key={index} className="border-2 border-slate-200 rounded-xl p-5 bg-white shadow-sm hover:shadow-md transition-shadow">
@@ -927,8 +926,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                   </div>
                 </div>
                   );
-                })()
-              ))}
+              })}
             </div>
           </div>
 
