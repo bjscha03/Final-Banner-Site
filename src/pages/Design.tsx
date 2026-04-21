@@ -65,6 +65,54 @@ const TESTIMONIALS = [
   },
 ];
 
+const PRODUCT_MODE_CONTENT = {
+  banner: {
+    heroTitle: 'Custom Banner',
+    heroDescription: (
+      <>
+        <p className="text-base md:text-lg text-gray-500 max-w-lg mx-auto leading-relaxed">
+          Printed in 24 hours + <strong className="text-gray-700">Free Next-Day Air Shipping</strong>.
+        </p>
+        <p className="text-sm text-gray-400">Most orders arrive in 2 business days.</p>
+      </>
+    ),
+    topFeatures: [
+      { icon: Clock, iconClass: 'text-orange-500', label: '24-Hr Print' },
+      { icon: Truck, iconClass: 'text-orange-500', label: 'Free Next-Day Air' },
+      { icon: Tag, iconClass: 'text-orange-500', label: '20% Off · NEW20' },
+      { icon: Brush, iconClass: 'text-orange-500', label: 'Designer Reviewed' },
+    ],
+    builtTitle: 'Built to Last',
+    builtItems: [
+      { icon: Droplets, iconClass: 'text-blue-500', label: 'Weather Resistant' },
+      { icon: Palette, iconClass: 'text-purple-500', label: 'Vibrant CMYK Colors' },
+      { icon: Sun, iconClass: 'text-yellow-500', label: 'UV Fade Resistant' },
+      { icon: Wind, iconClass: 'text-teal-500', label: 'Indoor & Outdoor Use' },
+    ],
+  },
+  yard_sign: {
+    heroTitle: 'Custom Yard Signs',
+    heroDescription: (
+      <p className="text-base md:text-lg text-gray-500 max-w-lg mx-auto leading-relaxed">
+        Standard 24&quot; × 18&quot; corrugated plastic yard signs, printed fast and shipped next business day.
+      </p>
+    ),
+    topFeatures: [
+      { icon: Clock, iconClass: 'text-orange-500', label: '24-Hr Print' },
+      { icon: Truck, iconClass: 'text-orange-500', label: 'Free Next-Day Air' },
+      { icon: Layers, iconClass: 'text-orange-500', label: 'Up to 10 Designs' },
+      { icon: Brush, iconClass: 'text-orange-500', label: 'Designer Reviewed' },
+    ],
+    builtTitle: 'Built for the Outdoors',
+    builtItems: [
+      { icon: Clock, iconClass: 'text-orange-500', label: '24-Hour Turnaround' },
+      { icon: Sun, iconClass: 'text-yellow-500', label: 'Outdoor Durable' },
+      { icon: Palette, iconClass: 'text-purple-500', label: 'Vibrant Print' },
+      { icon: Droplets, iconClass: 'text-blue-500', label: 'Corrugated Plastic' },
+    ],
+  },
+} as const;
+
 // Calculate grommet positions for preview overlay
 function calcGrommetPts(w: number, h: number, mode: string): { x: number; y: number }[] {
   const m = 1;
@@ -863,6 +911,7 @@ const Design: React.FC = () => {
   const mobileCtaAction = showEntryCta
     ? scrollToOrder
     : (mobileCheckoutReady ? handleCheckout : scrollToOrder);
+  const modeContent = PRODUCT_MODE_CONTENT[productType];
 
   return (
     <Layout>
@@ -875,49 +924,18 @@ const Design: React.FC = () => {
       <section className="px-4 pt-8 pb-10 md:pt-10 md:pb-12" style={{ background: 'linear-gradient(180deg, #F9FAFB 0%, #EEF2F7 100%)' }}>
         <div className="max-w-2xl mx-auto text-center space-y-4">
           <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight leading-tight">
-            {isYardSign ? (
-              <>
-                Design Your
-                <br />
-                <span className="text-orange-500">Custom Yard Signs</span>
-              </>
-            ) : (
-              <>
-                Design Your
-                <br />
-                <span className="text-orange-500">Custom Banner</span>
-              </>
-            )}
+            Design Your
+            <br />
+            <span className="text-orange-500">{modeContent.heroTitle}</span>
           </h1>
 
-          {isYardSign ? (
-            <p className="text-base md:text-lg text-gray-500 max-w-lg mx-auto leading-relaxed">
-              Standard 24&quot; × 18&quot; corrugated plastic yard signs, printed fast and shipped next business day.
-            </p>
-          ) : (
-            <>
-              <p className="text-base md:text-lg text-gray-500 max-w-lg mx-auto leading-relaxed">
-                Printed in 24 hours + <strong className="text-gray-700">Free Next-Day Air Shipping</strong>.
-              </p>
-              <p className="text-sm text-gray-400">Most orders arrive in 2 business days.</p>
-            </>
-          )}
+          {modeContent.heroDescription}
 
           {/* Inline benefit pills */}
           <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[13px] text-gray-500">
-            {(isYardSign ? [
-              { icon: <Clock className="h-3.5 w-3.5 text-orange-500" />, label: '24-Hr Print' },
-              { icon: <Truck className="h-3.5 w-3.5 text-orange-500" />, label: 'Free Next-Day Air' },
-              { icon: <Layers className="h-3.5 w-3.5 text-orange-500" />, label: 'Up to 10 Designs' },
-              { icon: <Brush className="h-3.5 w-3.5 text-orange-500" />, label: 'Designer Reviewed' },
-            ] : [
-              { icon: <Clock className="h-3.5 w-3.5 text-orange-500" />, label: '24-Hr Print' },
-              { icon: <Truck className="h-3.5 w-3.5 text-orange-500" />, label: 'Free Next-Day Air' },
-              { icon: <Tag className="h-3.5 w-3.5 text-orange-500" />, label: '20% Off · NEW20' },
-              { icon: <Brush className="h-3.5 w-3.5 text-orange-500" />, label: 'Designer Reviewed' },
-            ]).map((b, i) => (
+            {modeContent.topFeatures.map((b, i) => (
               <span key={i} className="inline-flex items-center gap-1.5 font-medium">
-                {b.icon} {b.label}
+                <b.icon className={`h-3.5 w-3.5 ${b.iconClass}`} /> {b.label}
               </span>
             ))}
           </div>
@@ -1363,48 +1381,15 @@ const Design: React.FC = () => {
       <section className="py-10 px-4 bg-gray-50">
         <div className="max-w-4xl mx-auto">
           <h2 className="text-lg font-bold text-center mb-5">
-            {isYardSign ? 'Built for the Outdoors' : 'Built to Last'}
+            {modeContent.builtTitle}
           </h2>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
-            {isYardSign ? (
-              <>
-                <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                  <Clock className="h-7 w-7 text-orange-500 mx-auto mb-1" />
-                  <p className="text-xs md:text-sm font-medium text-gray-700">24-Hour Turnaround</p>
-                </div>
-                <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                  <Sun className="h-7 w-7 text-yellow-500 mx-auto mb-1" />
-                  <p className="text-xs md:text-sm font-medium text-gray-700">Outdoor Durable</p>
-                </div>
-                <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                  <Palette className="h-7 w-7 text-purple-500 mx-auto mb-1" />
-                  <p className="text-xs md:text-sm font-medium text-gray-700">Vibrant Print</p>
-                </div>
-                <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                  <Droplets className="h-7 w-7 text-blue-500 mx-auto mb-1" />
-                  <p className="text-xs md:text-sm font-medium text-gray-700">Corrugated Plastic</p>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                  <Droplets className="h-7 w-7 text-blue-500 mx-auto mb-1" />
-                  <p className="text-xs md:text-sm font-medium text-gray-700">Weather Resistant</p>
-                </div>
-                <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                  <Palette className="h-7 w-7 text-purple-500 mx-auto mb-1" />
-                  <p className="text-xs md:text-sm font-medium text-gray-700">Vibrant CMYK Colors</p>
-                </div>
-                <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                  <Sun className="h-7 w-7 text-yellow-500 mx-auto mb-1" />
-                  <p className="text-xs md:text-sm font-medium text-gray-700">UV Fade Resistant</p>
-                </div>
-                <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-                  <Wind className="h-7 w-7 text-teal-500 mx-auto mb-1" />
-                  <p className="text-xs md:text-sm font-medium text-gray-700">Indoor &amp; Outdoor Use</p>
-                </div>
-              </>
-            )}
+            {modeContent.builtItems.map((item, index) => (
+              <div key={index} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+                <item.icon className={`h-7 w-7 mx-auto mb-1 ${item.iconClass}`} />
+                <p className="text-xs md:text-sm font-medium text-gray-700">{item.label}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
