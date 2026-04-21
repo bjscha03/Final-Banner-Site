@@ -451,74 +451,99 @@ const Checkout: React.FC = () => {
                   {items.map((item) => {
                     const eachCents = computeEach(item);
                     const normalized = normalizeOrderItemDisplay(item as NormalizableOrderItem);
+                    const isYardSign = isYardSignItem(item);
+                    const details = [
+                      { label: 'Size', value: normalized.sizeDisplay },
+                      { label: 'Material', value: normalized.materialDisplay },
+                      { label: 'Print', value: normalized.printDisplay },
+                      { label: 'Qty', value: normalized.qtyDisplay },
+                      ...(normalized.uploadedDesignsCount ? [{ label: 'Uploaded Designs', value: String(normalized.uploadedDesignsCount) }] : []),
+                      ...(normalized.stepStakesQty ? [{ label: 'Step Stakes', value: String(normalized.stepStakesQty) }] : []),
+                      ...(normalized.grommetsDisplay ? [{ label: 'Grommets', value: normalized.grommetsDisplay }] : []),
+                      ...(normalized.polePocketsDisplay ? [{ label: 'Pole Pockets', value: normalized.polePocketsDisplay }] : []),
+                      ...(normalized.ropeDisplay ? [{ label: 'Rope', value: normalized.ropeDisplay }] : []),
+                    ];
 
                     return (
-                    <div key={item.id} className="border border-gray-200 rounded-xl p-6 mb-4 last:mb-0 bg-gradient-to-br from-white to-gray-50 hover:shadow-md transition-all">
-                      {/* Thumbnail on top - centered */}
-                      <div className="flex justify-center mb-4">
-                        <BannerPreview
-                          widthIn={item.width_in}
-                          heightIn={item.height_in}
-                          grommets={item.grommets}
-                          imageUrl={(() => {
-                            const url = item.thumbnail_url || item.web_preview_url || item.file_url || item.print_ready_url || item.aiDesign?.assets?.proofUrl;
-                            if (!url) {
-                              console.warn('⚠️  CHECKOUT: No image URL found for item:', item.id, {
-                                thumbnail_url: item.thumbnail_url,
-                                web_preview_url: item.web_preview_url,
-                                file_url: item.file_url,
-                                print_ready_url: item.print_ready_url,
-                                aiDesign_proofUrl: item.aiDesign?.assets?.proofUrl
-                              });
-                            }
-                            return url || undefined;
-                          })()}
-                          material={item.material}
-                          textElements={item.text_elements}
-                          overlayImage={item.overlay_image}
-                          imageScale={item.image_scale}
-                          imagePosition={item.image_position}
-                          fitMode={item.fit_mode || "fill"}
-                          className="flex-shrink-0"
-                          designServiceEnabled={item.design_service_enabled}
-                          source={item.source}
-                          isFinalizedSnapshot={isYardSignItem(item) && !!item.thumbnail_url}
-                        />
-                      </div>
+                    <div key={item.id} className="border border-gray-200 rounded-xl p-4 sm:p-5 mb-4 last:mb-0 bg-gradient-to-br from-white to-gray-50 hover:shadow-md transition-all">
+                      <div className="grid gap-4 md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-start">
+                        <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-lg border border-gray-200 bg-white overflow-hidden flex items-center justify-center shadow-sm shrink-0">
+                          <BannerPreview
+                            widthIn={item.width_in}
+                            heightIn={item.height_in}
+                            grommets={item.grommets}
+                            imageUrl={(() => {
+                              const url = item.thumbnail_url || item.web_preview_url || item.file_url || item.print_ready_url || item.aiDesign?.assets?.proofUrl;
+                              if (!url) {
+                                console.warn('⚠️  CHECKOUT: No image URL found for item:', item.id, {
+                                  thumbnail_url: item.thumbnail_url,
+                                  web_preview_url: item.web_preview_url,
+                                  file_url: item.file_url,
+                                  print_ready_url: item.print_ready_url,
+                                  aiDesign_proofUrl: item.aiDesign?.assets?.proofUrl
+                                });
+                              }
+                              return url || undefined;
+                            })()}
+                            material={item.material}
+                            textElements={item.text_elements}
+                            overlayImage={item.overlay_image}
+                            imageScale={item.image_scale}
+                            imagePosition={item.image_position}
+                            fitMode={item.fit_mode || "fill"}
+                            className="max-w-full max-h-full"
+                            designServiceEnabled={item.design_service_enabled}
+                            source={item.source}
+                            isFinalizedSnapshot={isYardSign && !!item.thumbnail_url}
+                          />
+                        </div>
 
-                      {/* Title and Price on same line */}
-                      <div className="flex justify-between items-start mb-4">
-                        <h3 className="font-bold text-[#18448D] text-xl">
-                          {getItemDisplayName(item)}
-                        </h3>
-                        <div className="text-right ml-4 flex-shrink-0">
-                          <p className="font-bold text-gray-900 text-xl">
+                        <div className="min-w-0 space-y-3">
+                          <div className="flex items-start justify-between gap-3 md:block">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                <h3 className="font-bold text-[#18448D] text-lg sm:text-xl leading-snug break-words">
+                                  {getItemDisplayName(item)}
+                                </h3>
+                                <span className="inline-flex items-center rounded-full bg-blue-50 text-[#18448D] border border-blue-100 px-2 py-0.5 text-xs font-semibold">
+                                  {isYardSign ? 'Yard Sign' : 'Banner'}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="text-right flex-shrink-0 md:hidden">
+                              <p className="font-bold text-gray-900 text-lg leading-tight">
+                                {usd(item.line_total_cents / 100)}
+                              </p>
+                              <p className="text-xs text-gray-500 font-medium">
+                                {usd(eachCents / 100)} each
+                              </p>
+                            </div>
+                          </div>
+
+                          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+                            {details.map((detail) => (
+                              <div key={`${item.id}-${detail.label}`} className="flex items-baseline gap-1.5 min-w-0">
+                                <dt className="font-medium text-gray-700 shrink-0">{detail.label}:</dt>
+                                <dd className="text-gray-600 min-w-0 break-words">{detail.value}</dd>
+                              </div>
+                            ))}
+                          </dl>
+                        </div>
+
+                        <div className="hidden md:flex flex-col items-end text-right pl-3">
+                          <p className="font-bold text-gray-900 text-xl leading-tight">
                             {usd(item.line_total_cents / 100)}
                           </p>
-                          <p className="text-sm text-gray-500 font-medium">
+                          <p className="text-sm text-gray-500 font-medium mt-1">
                             {usd(eachCents / 100)} each
                           </p>
                         </div>
                       </div>
 
-                      {/* Item specifications */}
-                      <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-gray-600 mb-4">
-                        <span><span className="font-medium text-gray-700">Size:</span> {normalized.sizeDisplay}</span>
-                        <span><span className="font-medium text-gray-700">Material:</span> {normalized.materialDisplay}</span>
-                        <span><span className="font-medium text-gray-700">Print:</span> {normalized.printDisplay}</span>
-                        <span><span className="font-medium text-gray-700">Qty:</span> {normalized.qtyDisplay}</span>
-                        {normalized.uploadedDesignsCount ? <span><span className="font-medium text-gray-700">Uploaded Designs:</span> {normalized.uploadedDesignsCount}</span> : null}
-                        {normalized.stepStakesQty ? <span><span className="font-medium text-gray-700">Step Stakes:</span> {normalized.stepStakesQty}</span> : null}
-                        {normalized.grommetsDisplay ? <span><span className="font-medium text-gray-700">Grommets:</span> {normalized.grommetsDisplay}</span> : null}
-                        {normalized.polePocketsDisplay ? <span><span className="font-medium text-gray-700">Pole Pockets:</span> {normalized.polePocketsDisplay}</span> : null}
-                        {normalized.ropeDisplay ? <span><span className="font-medium text-gray-700">Rope:</span> {normalized.ropeDisplay}</span> : null}
-                      </div>
-
-                      {/* Quantity Controls and Remove Button */}
-                      <div className="flex items-center justify-between pt-3 border-t border-gray-100">
-                        <div className="flex items-center space-x-3">
-                          <span className="text-sm text-gray-800 font-semibold">Qty:</span>
-                          <div className="flex items-center gap-3">
+                      <div className="flex flex-wrap items-center justify-between gap-3 pt-3 mt-4 border-t border-gray-100">
+                        <div className="flex items-center gap-2.5">
+                          <span className="text-sm text-gray-800 font-semibold">Qty</span>
+                          <div className="flex items-center gap-2">
                             <Button
                               variant="outline"
                               size="sm"
@@ -526,9 +551,9 @@ const Checkout: React.FC = () => {
                               disabled={item.quantity <= 1}
                               className="h-9 w-9 p-0 border-2 hover:bg-[#18448D] hover:text-white hover:border-[#18448D] transition-all"
                             >
-                              <Minus className="h-5 w-5" />
+                              <Minus className="h-4 w-4" />
                             </Button>
-                            <span className="w-10 text-center font-bold text-lg">{item.quantity}</span>
+                            <span className="w-8 text-center font-bold text-base">{item.quantity}</span>
                             <Button
                               variant="outline"
                               size="sm"
@@ -536,7 +561,7 @@ const Checkout: React.FC = () => {
                               disabled={item.quantity >= 999}
                               className="h-9 w-9 p-0 border-2 hover:bg-[#18448D] hover:text-white hover:border-[#18448D] transition-all"
                             >
-                              <Plus className="h-5 w-5" />
+                              <Plus className="h-4 w-4" />
                             </Button>
                           </div>
                         </div>
