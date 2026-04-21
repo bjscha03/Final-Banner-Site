@@ -19,6 +19,7 @@ import { getProductConfig } from '@/lib/products';
 import ProductTypeSwitcher from '@/components/design/ProductTypeSwitcher';
 import YardSignConfigurator from '@/components/design/YardSignConfigurator';
 import YardSignPriceSummary from '@/components/design/YardSignPriceSummary';
+import BannerInlinePreviewSurface from '@/components/design/BannerInlinePreviewSurface';
 import {
   calcYardSignPricing,
   getYardSignSizes,
@@ -276,7 +277,7 @@ const GoogleAdsBanner: React.FC = () => {
       paddingPct: `${(h / w) * 100}%`,
     };
   }, [widthIn, heightIn]);
-  const { wrapperStyle: previewWrapperStyle, paddingPct: previewPaddingPct } = useMemo(() => getPreviewContainerStyles(isLgScreen ? 400 : 260), [getPreviewContainerStyles, isLgScreen]);
+  const { paddingPct: previewPaddingPct } = useMemo(() => getPreviewContainerStyles(isLgScreen ? 400 : 260), [getPreviewContainerStyles, isLgScreen]);
   const { wrapperStyle: dimPreviewWrapperStyle, paddingPct: dimPreviewPaddingPct } = useMemo(() => getPreviewContainerStyles(isLgScreen ? 200 : 140), [getPreviewContainerStyles, isLgScreen]);
   const totals = calcTotals({ widthIn, heightIn, qty: quantity, material, addRope, polePockets });
 
@@ -1033,7 +1034,7 @@ const GoogleAdsBanner: React.FC = () => {
             ) : (
             /* ========== BANNER ORDER BUILDER (existing) ========== */
             <div className="grid md:grid-cols-2 lg:grid-cols-[1.4fr_1fr] gap-10">
-              <div className="space-y-8">
+              <div className="space-y-8 min-w-0">
                 {false ? (
                   null /* placeholder — yard sign path handled above */
                 ) : (
@@ -1171,72 +1172,28 @@ const GoogleAdsBanner: React.FC = () => {
                         <p className="text-xs text-gray-400">Final print preview — what you see is what you get</p>
                       </div>
                       {/* Banner preview with depth background */}
-                      <div className="rounded-xl p-4 md:p-6" style={{ background: 'linear-gradient(180deg, #f5f6f8 0%, #e9edf2 100%)' }}>
-                        {/* Width wrapper — constrains max-width so padding-bottom produces correct height */}
-                        <div className="mx-auto" style={previewWrapperStyle}>
-                        {/* Banner surface — uses padding-bottom for aspect ratio (cross-browser safe) */}
-                        <div
-                          ref={previewContainerRef}
-                          className="relative w-full rounded-sm select-none overflow-hidden transition-all duration-300 ease-out"
-                          style={{
-                            paddingBottom: previewPaddingPct,
-                            cursor: isDraggingPreview ? "grabbing" : "grab",
-                            touchAction: "none",
-                            backgroundColor: '#fafafa',
-                            border: '1px solid #e2e5ea',
-                            boxShadow: '0 4px 16px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06), inset 0 0 0 1px rgba(255,255,255,0.6)',
-                          }}
-                          onMouseDown={onPreviewMouseDown}
-                          onMouseMove={onPreviewMouseMove}
-                          onMouseUp={onPreviewMouseUp}
-                          onMouseLeave={onPreviewMouseUp}
-                          onTouchStart={onPreviewTouchStart}
-                          onTouchMove={onPreviewTouchMove}
-                          onTouchEnd={onPreviewTouchEnd}
-                        >
-                          <div
-                            className="absolute inset-0 w-full h-full"
-                            style={{ transform: `translate(${imgPos.x}px, ${imgPos.y}px) scale(${imgScale})` }}
-                          >
-                            <img
-                              src={uploadedFile.thumbnailUrl || uploadedFile.url}
-                              alt="Uploaded artwork preview"
-                              className="absolute inset-0 w-full h-full pointer-events-none object-contain"
-                              draggable={false}
-                            />
-                          </div>
-                          {/* Drag indicator overlay */}
-                          {showDragHint && (
-                            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20" style={{ animation: 'fadeOut 0.5s ease-out 1.5s forwards' }}>
-                              <span className="bg-black/60 text-white text-xs px-3 py-1.5 rounded-full backdrop-blur-sm">
-                                Drag to reposition • Use buttons to zoom
-                              </span>
-                            </div>
-                          )}
-                          {/* Grommet overlay on inline preview */}
-                          {grommets !== "none" && calcGrommetPts(widthIn, heightIn, grommets).map((pos, idx) => {
-                            const leftPct = (pos.x / widthIn) * 100;
-                            const topPct = (pos.y / heightIn) * 100;
-                            const dotSize = Math.max(6, Math.min(12, 180 / Math.max(widthIn, heightIn)));
-                            return (
-                              <div key={`inline-grommet-${idx}`} className="absolute rounded-full pointer-events-none" style={{ left: `${leftPct}%`, top: `${topPct}%`, width: `${dotSize}px`, height: `${dotSize}px`, transform: "translate(-50%, -50%)", background: 'radial-gradient(circle at 40% 35%, #d1d5db, #6b7280)', border: '1px solid #9ca3af', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.25), 0 0.5px 1px rgba(0,0,0,0.15)', zIndex: 10 }}>
-                                <div className="absolute rounded-full" style={{ left: "50%", top: "50%", width: "45%", height: "45%", transform: "translate(-50%, -50%)", background: '#374151', border: '0.5px solid #4b5563' }} />
-                              </div>
-                            );
-                          })}
-                        </div>
-                        </div>{/* close width wrapper */}
-                        {/* Zoom controls - grouped in rounded container */}
-                        <div className="flex items-center justify-center mt-3">
-                          <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm rounded-full px-3 py-1.5 shadow-sm border border-gray-200/60">
-                            <button onClick={() => setImgScale(s => Math.max(0.5, s - 0.1))} className="p-1.5 rounded-full hover:bg-gray-100 transition-colors" aria-label="Zoom out"><ZoomOut className="w-4 h-4 text-gray-600" /></button>
-                            <span className="text-xs font-medium text-gray-500 min-w-[3ch] text-center">{Math.round(imgScale * 100)}%</span>
-                            <button onClick={() => setImgScale(s => Math.min(3, s + 0.1))} className="p-1.5 rounded-full hover:bg-gray-100 transition-colors" aria-label="Zoom in"><ZoomIn className="w-4 h-4 text-gray-600" /></button>
-                            <div className="w-px h-4 bg-gray-200" />
-                            <button onClick={() => { setImgPos({ x: 0, y: 0 }); setImgScale(1); }} className="text-xs text-orange-600 hover:text-orange-700 font-medium px-1.5">Reset</button>
-                          </div>
-                        </div>
-                      </div>
+                      <BannerInlinePreviewSurface
+                        widthIn={widthIn}
+                        heightIn={heightIn}
+                        imageUrl={uploadedFile.thumbnailUrl || uploadedFile.url}
+                        imgPos={imgPos}
+                        imgScale={imgScale}
+                        isDraggingPreview={isDraggingPreview}
+                        isLgScreen={isLgScreen}
+                        showDragHint={showDragHint}
+                        grommetPoints={grommets !== 'none' ? calcGrommetPts(widthIn, heightIn, grommets) : []}
+                        previewContainerRef={previewContainerRef}
+                        onMouseDown={onPreviewMouseDown}
+                        onMouseMove={onPreviewMouseMove}
+                        onMouseUp={onPreviewMouseUp}
+                        onMouseLeave={onPreviewMouseUp}
+                        onTouchStart={onPreviewTouchStart}
+                        onTouchMove={onPreviewTouchMove}
+                        onTouchEnd={onPreviewTouchEnd}
+                        onZoomOut={() => setImgScale(s => Math.max(0.5, s - 0.1))}
+                        onZoomIn={() => setImgScale(s => Math.min(3, s + 0.1))}
+                        onReset={() => { setImgPos({ x: 0, y: 0 }); setImgScale(1); }}
+                      />
                       {/* Size dimensions below preview */}
                       <p className="text-xs text-gray-400 text-center mt-2">
                         Size: {widthFt} ft{widthInR > 0 ? ` ${widthInR} in` : ''} × {heightFt} ft{heightInR > 0 ? ` ${heightInR} in` : ''} ({sqft.toFixed(1)} sq ft)
@@ -1313,7 +1270,7 @@ const GoogleAdsBanner: React.FC = () => {
                 )}
               </div>
 
-              <div className="space-y-6">
+              <div className="space-y-6 min-w-0">
                 <div className="rounded-xl p-6 text-center" style={{ background: "#F7F8FA", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
                   <p className="text-sm text-gray-500 mb-1">Your Price</p>
                   {promoApplied ? (
