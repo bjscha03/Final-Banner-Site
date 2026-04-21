@@ -8,7 +8,8 @@
 
 const YARD_SIGN_SIZE = '24" × 18"';
 
-type NormalizableOrderItem = {
+export type NormalizableOrderItem = {
+  id?: string;
   product_type?: string;
   width_in?: number;
   height_in?: number;

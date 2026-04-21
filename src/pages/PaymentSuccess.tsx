@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { CheckCircle, Home, ArrowRight } from 'lucide-react';
 import { usd } from '@/lib/pricing';
 import { trackPurchase, trackFBPurchase } from '@/lib/analytics';
-import { getItemDisplayName, normalizeOrderItemDisplay } from '@/lib/product-display';
+import { getItemDisplayName, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
 
 const PaymentSuccess: React.FC = () => {
   const navigate = useNavigate();
@@ -13,7 +13,19 @@ const PaymentSuccess: React.FC = () => {
   const location = useLocation();
   
   const orderId = searchParams.get('orderId');
-  const state = location.state as any;
+  const state = location.state as {
+    items?: NormalizableOrderItem[];
+    total?: number;
+    discountCode?: { code?: string } | null;
+    serverPricing?: {
+      applied_discount_type?: string;
+      applied_discount_label?: string;
+      subtotal_cents?: number;
+      tax_cents?: number;
+      total_cents?: number;
+      applied_discount_cents?: number;
+    } | null;
+  } | null;
   
   // Get data from navigation state or defaults
   const items = state?.items || [];
@@ -26,7 +38,7 @@ const PaymentSuccess: React.FC = () => {
   // Track purchase event for analytics
   useEffect(() => {
     if (orderId && items.length > 0) {
-      const analyticsItems = items.map((item: any) => ({
+      const analyticsItems = items.map((item) => ({
         item_id: item.id,
         item_name: `${item.width_in}x${item.height_in} ${item.material} Banner`,
         item_category: 'Banner',
@@ -76,7 +88,7 @@ const PaymentSuccess: React.FC = () => {
     }
 
     // Fallback: client-side calculation (no discount support - only for old orders without serverPricing)
-    const subtotalCents = items.reduce((sum: number, item: any) => sum + item.line_total_cents, 0);
+    const subtotalCents = items.reduce((sum: number, item) => sum + (item.line_total_cents || 0), 0);
     const taxCents = Math.round(subtotalCents * 0.06);
     const totalCents = subtotalCents + taxCents;
 
@@ -129,7 +141,7 @@ const PaymentSuccess: React.FC = () => {
               <div className="mb-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">Order Summary</h3>
                 <div className="space-y-3">
-                  {items.map((item: any, index: number) => {
+                  {items.map((item, index: number) => {
                     const normalized = normalizeOrderItemDisplay(item);
                     return (
                     <div key={index} className="border border-gray-200 rounded-lg p-4 mb-4">

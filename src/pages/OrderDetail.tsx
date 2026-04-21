@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Package, Calendar, Mail, CreditCard, Truck, CheckCircle, Clock, AlertCircle, Palette, MessageSquare, Phone, Upload, MapPin } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { useScrollToTop } from '@/components/ScrollToTop';
-import { getItemDisplayName, isYardSignItem, normalizeOrderItemDisplay } from '@/lib/product-display';
+import { getItemDisplayName, isYardSignItem, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
 
 const isCloudinaryUploadUrl = (url: string) => {
   try {
@@ -300,7 +300,7 @@ const OrderDetail: React.FC = () => {
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Order Items</h2>
             <div className="space-y-4">
               {order.items.map((item, index) => {
-                  const normalized = normalizeOrderItemDisplay(item as any);
+                  const normalized = normalizeOrderItemDisplay(item as NormalizableOrderItem);
                   return (
                 <div key={index} className="border border-gray-200 rounded-lg p-4">
                   <div className="grid md:grid-cols-2 gap-4">

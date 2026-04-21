@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { CheckCircle, Printer, Package, ArrowRight, Home, Palette, Mail, Phone, MessageSquare, Upload } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useScrollToTop } from '@/components/ScrollToTop';
-import { getItemDisplayName, getInvoiceSubtitle, normalizeOrderItemDisplay } from '@/lib/product-display';
+import { getItemDisplayName, getInvoiceSubtitle, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
 const OrderConfirmation: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -164,7 +164,7 @@ const OrderConfirmation: React.FC = () => {
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Order Items</h3>
               <div className="space-y-4">
                 {order.items.map((item, index) => {
-                  const normalized = normalizeOrderItemDisplay(item as any);
+                  const normalized = normalizeOrderItemDisplay(item as NormalizableOrderItem);
                   return (
                   <div key={index} className="border border-gray-200 rounded-lg p-4">
                     <div className="flex justify-between items-start">

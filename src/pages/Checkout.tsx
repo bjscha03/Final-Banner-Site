@@ -21,7 +21,7 @@ import { useCheckoutContext } from '@/store/checkoutContext';
 import { cartSyncService } from '@/lib/cartSync';
 import { trackBeginCheckout, trackViewCart, trackFBInitiateCheckout } from '@/lib/analytics';
 import { trackPromoEvent } from '@/lib/posthog';
-import { getItemDisplayName, isYardSignItem, getProductCategory, normalizeOrderItemDisplay } from '@/lib/product-display';
+import { getItemDisplayName, isYardSignItem, getProductCategory, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
 import { getProductCopy, getDominantProductType } from '@/lib/product-copy';
 
 const Checkout: React.FC = () => {
@@ -449,7 +449,7 @@ const Checkout: React.FC = () => {
                 <div className="space-y-4">
                   {items.map((item) => {
                     const eachCents = computeEach(item);
-                    const normalized = normalizeOrderItemDisplay(item as any);
+                    const normalized = normalizeOrderItemDisplay(item as NormalizableOrderItem);
 
                     return (
                     <div key={item.id} className="border border-gray-200 rounded-xl p-6 mb-4 last:mb-0 bg-gradient-to-br from-white to-gray-50 hover:shadow-md transition-all">

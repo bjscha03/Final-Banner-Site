@@ -6,7 +6,7 @@ import { usd } from '@/lib/pricing';
 import { useCartStore } from '@/store/cart';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth';
-import { getItemDisplayName, isYardSignItem, normalizeOrderItemDisplay } from '@/lib/product-display';
+import { getItemDisplayName, isYardSignItem, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
 import { getProductCopy, getDominantProductType } from '@/lib/product-copy';
 
 interface CartModalProps {
@@ -168,7 +168,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                 </div>
                 {items.map((item) => {
                   const eachCents = computeEach(item);
-                  const normalized = normalizeOrderItemDisplay(item as any);
+                  const normalized = normalizeOrderItemDisplay(item as NormalizableOrderItem);
 
                   return (
                     <div key={item.id} className="bg-white rounded-xl p-4 shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">

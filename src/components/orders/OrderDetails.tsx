@@ -7,7 +7,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAuth, isAdmin } from '@/lib/auth';
 import { ShoppingCart, Package, Calendar, CreditCard, Mail, User, Download, FileText, Sparkles, MapPin, Loader2, Palette, Phone, Upload, MessageSquare } from 'lucide-react';
 import TrackingBadge from './TrackingBadge';
-import { getItemDisplayName, getProductLabel, normalizeOrderItemDisplay } from '@/lib/product-display';
+import { getItemDisplayName, getProductLabel, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
 import {
   Dialog,
   DialogContent,
@@ -808,7 +808,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
             </h3>
             <div className="space-y-4">
               {order.items.map((item, index) => {
-                  const normalized = normalizeOrderItemDisplay(item as any);
+                  const normalized = normalizeOrderItemDisplay(item as NormalizableOrderItem);
                   return (
                 <div key={index} className="border-2 border-slate-200 rounded-xl p-5 bg-white shadow-sm hover:shadow-md transition-shadow">
                   <div className="flex gap-4">
