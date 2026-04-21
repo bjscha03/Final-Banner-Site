@@ -1145,7 +1145,7 @@ const GoogleAdsBanner: React.FC = () => {
               >
                 Upload &amp; Start Your Order →
               </button>
-              <span className="text-xs text-gray-200">Takes less than 60 seconds &middot; <a href="/design" className="underline hover:text-white">or use our free design tool</a></span>
+              <span className="text-xs text-gray-200">Takes less than 60 seconds</span>
 
               {/* Trust bar */}
               <div className="mt-4 flex flex-col items-center gap-2">
