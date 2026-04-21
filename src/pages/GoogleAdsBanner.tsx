@@ -468,8 +468,14 @@ const GoogleAdsBanner: React.FC = () => {
   const handlePromoApply = () => {
     if (promoCode.trim().toUpperCase() === 'NEW20') {
       setPromoApplied(true);
-      sessionStorage.setItem('pendingPromoCode', 'NEW20');
+      // Promo codes are NOT persisted to sessionStorage. The user must
+      // re-enter the code in Checkout where it is validated server-side.
     }
+  };
+
+  const handlePromoRemove = () => {
+    setPromoApplied(false);
+    setPromoCode('');
   };
 
   // Compress images client-side to stay under Netlify's 6 MB function limit
@@ -695,7 +701,9 @@ const GoogleAdsBanner: React.FC = () => {
         unit_price_cents: carMagnetPricing.unitPriceCents,
         rope_cost_cents: 0,
         pole_pocket_cost_cents: 0,
-        line_total_cents: carMagnetPricing.subtotalCents,
+        // Store RAW (pre-discount) line total so the cart's resolver can
+        // apply the quantity-discount tier uniformly across all magnet/banner items.
+        line_total_cents: carMagnetPricing.baseSubtotalCents,
       });
 
       setIsCartOpen(true);
@@ -1138,7 +1146,7 @@ const GoogleAdsBanner: React.FC = () => {
                     onPromoCodeChange={setPromoCode}
                     promoApplied={promoApplied}
                     onPromoApply={handlePromoApply}
-                    onPromoRemove={() => { setPromoApplied(false); setPromoCode(''); sessionStorage.removeItem('pendingPromoCode'); }}
+                    onPromoRemove={handlePromoRemove}
                     autoOpenDesignId={autoOpenDesignId}
                   />
                 </div>
@@ -1152,7 +1160,7 @@ const GoogleAdsBanner: React.FC = () => {
                       promoApplied={promoApplied}
                       onPromoCodeChange={setPromoCode}
                       onPromoApply={handlePromoApply}
-                      onPromoRemove={() => { setPromoApplied(false); setPromoCode(''); sessionStorage.removeItem('pendingPromoCode'); }}
+                      onPromoRemove={handlePromoRemove}
                     />
                   )}
 
@@ -1544,7 +1552,7 @@ const GoogleAdsBanner: React.FC = () => {
                             {promoCode} — 20% off
                           </span>
                           <button
-                            onClick={() => { setPromoApplied(false); setPromoCode(''); sessionStorage.removeItem('pendingPromoCode'); }}
+                            onClick={handlePromoRemove}
                             className="text-xs text-red-500 hover:text-red-700 font-medium"
                           >
                             Remove

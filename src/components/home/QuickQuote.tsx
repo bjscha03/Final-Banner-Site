@@ -1371,6 +1371,16 @@ const QuickQuote: React.FC = () => {
                   <p><strong>Quantity:</strong> {carMagnetQuantity}</p>
                   <div className="pt-2 mt-2 border-t border-slate-300/60 space-y-1.5 text-sm">
                     <div className="flex justify-between">
+                      <span>Base Price:</span>
+                      <span className="font-semibold">{usd(carMagnetQuote.baseSubtotalCents / 100)}</span>
+                    </div>
+                    {carMagnetQuote.quantityDiscountCents > 0 && (
+                      <div className="flex justify-between text-green-700">
+                        <span>Quantity Discount ({Math.round(carMagnetQuote.quantityDiscountRate * 100)}% off):</span>
+                        <span className="font-semibold">-{usd(carMagnetQuote.quantityDiscountCents / 100)}</span>
+                      </div>
+                    )}
+                    <div className="flex justify-between">
                       <span>Subtotal:</span>
                       <span className="font-semibold">{usd(carMagnetQuote.subtotalCents / 100)}</span>
                     </div>
