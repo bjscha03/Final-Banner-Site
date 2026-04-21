@@ -31,6 +31,17 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
   // Per-item source detection replaces session-wide isGoogleAdsLanding flag
   // Each cart item now has a 'source' field set at add-to-cart time
 
+  // Cart raw subtotal (sum of line totals before any cart-level discount).
+  // Used by per-item breakdowns to allocate the resolved discount
+  // proportionally so item shares reconcile with the cart total.
+  // NOTE: This `useMemo` MUST stay above any conditional early-return below
+  // (e.g. `if (!isOpen) return null`) so the hook order remains stable across
+  // open/close toggles. Moving it below the early return causes React error
+  // #300 / #310 ("Rendered more/fewer hooks than during the previous render").
+  const cartRawSubtotalCents = useMemo(
+    () => items.reduce((sum, it) => sum + (it.line_total_cents || 0), 0),
+    [items],
+  );
 
   if (!isOpen) return null;
 
@@ -132,14 +143,6 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
   const taxCents = getTaxCents();
   const totalCents = getTotalCents();
   const resolvedDiscount = getResolvedDiscount();
-
-  // Cart raw subtotal (sum of line totals before any cart-level discount).
-  // Used by per-item breakdowns to allocate the resolved discount
-  // proportionally so item shares reconcile with the cart total.
-  const cartRawSubtotalCents = useMemo(
-    () => items.reduce((sum, it) => sum + (it.line_total_cents || 0), 0),
-    [items],
-  );
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
