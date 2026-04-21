@@ -6,6 +6,8 @@ import { useQuoteStore, type MaterialKey } from '@/store/quote';
 import { useCartStore, type CartItem } from '@/store/cart';
 import { useUIStore } from '@/store/ui';
 import { calcTotals, usd, PRICE_PER_SQFT } from '@/lib/pricing';
+import { calculateBannerPricing } from '@/lib/bannerPricingEngine';
+import { resolvePromo } from '@/lib/promoEngine';
 import { DESIGN_GROMMET_OPTIONS } from '@/lib/grommets';
 import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
 import CartModal from '@/components/CartModal';
@@ -310,6 +312,15 @@ const GoogleAdsBanner: React.FC = () => {
   const { wrapperStyle: previewWrapperStyle, paddingPct: previewPaddingPct } = useMemo(() => getPreviewContainerStyles(isLgScreen ? 400 : 260), [getPreviewContainerStyles, isLgScreen]);
   const { wrapperStyle: dimPreviewWrapperStyle, paddingPct: dimPreviewPaddingPct } = useMemo(() => getPreviewContainerStyles(isLgScreen ? 200 : 140), [getPreviewContainerStyles, isLgScreen]);
   const totals = calcTotals({ widthIn, heightIn, qty: quantity, material, addRope, polePockets });
+  const bannerPricing = calculateBannerPricing({
+    widthIn,
+    heightIn,
+    quantity,
+    material,
+    grommets,
+    addRope,
+    polePockets,
+  });
 
   const pricePerSqFt = PRICE_PER_SQFT[material];
   const selectedMaterial = MATERIALS.find(m => m.mapped === material) || MATERIALS[0];
@@ -320,7 +331,26 @@ const GoogleAdsBanner: React.FC = () => {
 
   // Quantity discount info
   const quantityDiscountRate = getQuantityDiscountRate(quantity);
-  const discountedTotal = promoApplied ? totals.materialTotal * (1 - PROMO_NEW20_DISCOUNT_RATE) : totals.materialTotal;
+
+  // Banner promo math: route through promoEngine so /google-ads-banner uses the SAME
+  // best-discount-wins logic as /design, cart and checkout.
+  const effectivePromoCode = promoApplied ? promoCode : null;
+  const bannerPromoResolution = useMemo(() => resolvePromo({
+    subtotalCents: bannerPricing.subtotalBeforeDiscountCents,
+    quantity,
+    code: effectivePromoCode,
+  }), [bannerPricing.subtotalBeforeDiscountCents, quantity, effectivePromoCode]);
+
+  const bannerSubtotalAfterAllDiscountsCents = Math.max(
+    0,
+    bannerPricing.subtotalBeforeDiscountCents - bannerPromoResolution.appliedDiscountAmountCents,
+  );
+  const bannerTaxAfterAllDiscountsCents = Math.round(bannerSubtotalAfterAllDiscountsCents * 0.06);
+  const bannerTotalAfterAllDiscountsCents = bannerSubtotalAfterAllDiscountsCents + bannerTaxAfterAllDiscountsCents;
+  const discountedTotal = bannerSubtotalAfterAllDiscountsCents / 100;
+  const bannerPromoActuallyApplied =
+    bannerPromoResolution.appliedDiscountType === 'promo' &&
+    bannerPromoResolution.appliedDiscountAmountCents > 0;
 
   useEffect(() => {
     // Flag this session as coming from Google Ads landing page
@@ -817,6 +847,14 @@ const GoogleAdsBanner: React.FC = () => {
       return;
     }
     if (isCarMagnet) {
+      if (!uploadedFile) return;
+      const container = previewContainerRef.current;
+      const containerWidth = container?.offsetWidth || 1;
+      const containerHeight = container?.offsetHeight || 1;
+      const posPercent = {
+        x: (imgPos.x / containerWidth) * 100,
+        y: (imgPos.y / containerHeight) * 100,
+      };
       performCheckout([], { pos: posPercent, scale: imgScale });
       return;
     }
@@ -1520,46 +1558,69 @@ const GoogleAdsBanner: React.FC = () => {
                     footerNote="FREE Next-Day Air Included • Tax calculated at checkout"
                   />
                 ) : (
-                  (() => {
-                    const baseCents = Math.round(totals.materialTotal * 100);
-                    const promoCents = promoApplied
-                      ? Math.round(baseCents * PROMO_NEW20_DISCOUNT_RATE)
-                      : 0;
-                    const adjustedSubtotalCents = baseCents - promoCents;
-                    const taxCents = Math.round(adjustedSubtotalCents * 0.06);
-                    const totalCents = adjustedSubtotalCents + taxCents;
-                    return (
-                      <PriceBreakdown
-                        topLine={`${sqft.toFixed(2)} sq ft • ${usd(pricePerSqFt)} per sq ft`}
-                        secondaryLine={`for ${quantity} ${quantity === 1 ? 'banner' : 'banners'} • ${widthDisplay} × ${heightDisplay} • ${materialLabel}`}
-                        detailRows={[
-                          { label: 'Grommets', value: grommetsLabel },
-                          ...(polePockets !== 'none'
-                            ? [{ label: 'Pole Pockets', value: polePockets }]
-                            : []),
-                          ...(addRope ? [{ label: 'Rope', value: 'Included' }] : []),
-                        ]}
-                        baseSubtotalCents={baseCents}
-                        baseSubtotalLabel="Banner subtotal"
-                        promoDiscountCents={promoCents}
-                        promoDiscountRate={promoApplied ? PROMO_NEW20_DISCOUNT_RATE : undefined}
-                        promoDiscountCode={promoApplied ? promoCode : undefined}
-                        taxCents={taxCents}
-                        taxRate={0.06}
-                        adjustedSubtotalCents={adjustedSubtotalCents}
-                        totalCents={totalCents}
-                        promo={{
-                          code: promoCode,
-                          applied: promoApplied,
-                          onCodeChange: setPromoCode,
-                          onApply: handlePromoApply,
-                          onRemove: handlePromoRemove,
-                          appliedLabel: `${promoCode} — 20% off`,
-                        }}
-                        footerNote="FREE Next-Day Air Included • Tax calculated at checkout"
-                      />
-                    );
-                  })()
+                  <PriceBreakdown
+                    topLine={`${sqft.toFixed(2)} sq ft • ${usd(pricePerSqFt)} per sq ft`}
+                    secondaryLine={`for ${quantity} ${quantity === 1 ? 'banner' : 'banners'} • ${widthDisplay} × ${heightDisplay} • ${materialLabel}`}
+                    detailRows={[
+                      { label: 'Grommets', value: grommetsLabel },
+                      ...(polePockets !== 'none'
+                        ? [{ label: `Pole Pockets (${polePockets})`, value: usd(bannerPricing.polePocketCostCents / 100) }]
+                        : []),
+                      ...(addRope
+                        ? [{ label: 'Rope', value: usd(bannerPricing.ropeCostCents / 100) }]
+                        : []),
+                    ]}
+                    baseSubtotalCents={bannerPricing.baseBannerPriceCents}
+                    baseSubtotalLabel="Base banner"
+                    addOns={[
+                      ...(bannerPricing.polePocketCostCents > 0
+                        ? [{ label: 'Pole pockets', amountCents: bannerPricing.polePocketCostCents }]
+                        : []),
+                      ...(bannerPricing.ropeCostCents > 0
+                        ? [{ label: 'Rope', amountCents: bannerPricing.ropeCostCents }]
+                        : []),
+                    ]}
+                    quantityDiscountCents={
+                      bannerPromoResolution.appliedDiscountType === 'quantity'
+                        ? bannerPromoResolution.appliedDiscountAmountCents
+                        : 0
+                    }
+                    quantityDiscountRate={
+                      bannerPromoResolution.appliedDiscountType === 'quantity'
+                        ? bannerPromoResolution.quantityDiscountRate
+                        : undefined
+                    }
+                    promoDiscountCents={
+                      bannerPromoActuallyApplied
+                        ? bannerPromoResolution.appliedDiscountAmountCents
+                        : 0
+                    }
+                    promoDiscountRate={
+                      bannerPromoActuallyApplied
+                        ? bannerPromoResolution.promoDiscountRate
+                        : undefined
+                    }
+                    promoDiscountCode={
+                      bannerPromoActuallyApplied
+                        ? bannerPromoResolution.promoDiscountCode
+                        : undefined
+                    }
+                    taxCents={bannerTaxAfterAllDiscountsCents}
+                    taxRate={0.06}
+                    adjustedSubtotalCents={bannerSubtotalAfterAllDiscountsCents}
+                    totalCents={bannerTotalAfterAllDiscountsCents}
+                    promo={{
+                      code: promoCode,
+                      applied: promoApplied,
+                      onCodeChange: setPromoCode,
+                      onApply: handlePromoApply,
+                      onRemove: handlePromoRemove,
+                      appliedLabel: bannerPromoActuallyApplied
+                        ? `${promoCode} — ${Math.round(bannerPromoResolution.promoDiscountRate * 100)}% off applied`
+                        : `${promoCode} entered — quantity discount is larger, so we kept that`,
+                    }}
+                    footerNote="FREE Next-Day Air Included • Tax calculated at checkout"
+                  />
                 )}
 
                 <button onClick={handleCheckout} disabled={!uploadedFile} className={`group w-full font-bold text-lg py-5 rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${uploadedFile ? 'bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white cursor-pointer shadow-orange-500/30' : 'bg-orange-300 text-white/80 cursor-not-allowed'}`}>
