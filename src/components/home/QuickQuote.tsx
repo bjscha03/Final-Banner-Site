@@ -4,7 +4,14 @@ import { Minus, Plus, ArrowRight, Truck, Zap, Package, Palette, DollarSign, Chec
 import { MaterialKey } from '@/store/quote';
 import { calcTotals, usd, formatArea, formatDimensionsInFeet, PRICE_PER_SQFT, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
 import { calculateQuantityDiscount, getAllDiscountTiers } from '@/lib/quantity-discount';
-import { calcYardSignPricing, validateYardSignQuantity, YARD_SIGN_MAX_QUANTITY, type YardSignSidedness } from '@/lib/yard-sign-pricing';
+import {
+  calcYardSignPricing,
+  validateYardSignQuantity,
+  YARD_SIGN_MAX_QUANTITY,
+  YARD_SIGN_SINGLE_SIDED_CENTS,
+  YARD_SIGN_DOUBLE_SIDED_CENTS,
+  type YardSignSidedness,
+} from '@/lib/yard-sign-pricing';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -350,6 +357,7 @@ const QuickQuote: React.FC = () => {
 
   const adjustYardSignQuantity = (delta: number) => {
     const next = Math.max(10, Math.min(YARD_SIGN_MAX_QUANTITY, yardSignQuantity + delta));
+    // Yard signs must stay in increments of 10.
     setYardSignQuantity(next - (next % 10));
     if (yardSignAddStepStakes) {
       setYardSignStepStakeQuantity(next - (next % 10));
@@ -1066,7 +1074,7 @@ const QuickQuote: React.FC = () => {
                     <p className={`text-sm font-semibold ${yardSignSidedness === 'single' ? 'text-orange-700' : 'text-gray-800'}`}>
                       Single-Sided
                     </p>
-                    <p className="text-xs text-gray-500 mt-0.5">$12.00/sign</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{usd(YARD_SIGN_SINGLE_SIDED_CENTS / 100)}/sign</p>
                   </button>
                   <button
                     type="button"
@@ -1080,7 +1088,7 @@ const QuickQuote: React.FC = () => {
                     <p className={`text-sm font-semibold ${yardSignSidedness === 'double' ? 'text-orange-700' : 'text-gray-800'}`}>
                       Double-Sided
                     </p>
-                    <p className="text-xs text-gray-500 mt-0.5">$14.00/sign</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{usd(YARD_SIGN_DOUBLE_SIDED_CENTS / 100)}/sign</p>
                   </button>
                 </div>
               </div>

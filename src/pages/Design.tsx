@@ -359,7 +359,7 @@ const Design: React.FC = () => {
       if (qtyValidation.valid) {
         toast({
           title: 'Quick Quote Applied',
-          description: `24" x 18" ${sidedness === 'double' ? 'Double-Sided' : 'Single-Sided'} yard signs (Qty: ${parsedQty})`,
+          description: `${YARD_SIGN_WIDTH_IN}" x ${YARD_SIGN_HEIGHT_IN}" ${sidedness === 'double' ? 'Double-Sided' : 'Single-Sided'} yard signs (Qty: ${parsedQty})`,
         });
       }
 
