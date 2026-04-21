@@ -456,7 +456,6 @@ const Checkout: React.FC = () => {
                       { label: 'Size', value: normalized.sizeDisplay },
                       { label: 'Material', value: normalized.materialDisplay },
                       { label: 'Print', value: normalized.printDisplay },
-                      { label: 'Qty', value: normalized.qtyDisplay },
                       ...(normalized.uploadedDesignsCount ? [{ label: 'Uploaded Designs', value: String(normalized.uploadedDesignsCount) }] : []),
                       ...(normalized.stepStakesQty ? [{ label: 'Step Stakes', value: String(normalized.stepStakesQty) }] : []),
                       ...(normalized.grommetsDisplay ? [{ label: 'Grommets', value: normalized.grommetsDisplay }] : []),
@@ -553,7 +552,7 @@ const Checkout: React.FC = () => {
                             >
                               <Minus className="h-4 w-4" />
                             </Button>
-                            <span className="w-8 text-center font-bold text-base">{item.quantity}</span>
+                            <span className="w-12 text-center font-bold text-base">{item.quantity}</span>
                             <Button
                               variant="outline"
                               size="sm"
