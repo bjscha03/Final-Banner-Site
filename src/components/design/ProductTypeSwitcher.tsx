@@ -7,9 +7,19 @@ import { cn } from '@/lib/utils';
 interface ProductTypeSwitcherProps {
   productType: ProductTypeSlug;
   onProductTypeChange: (type: ProductTypeSlug) => void;
+  /**
+   * Top offset (in pixels) used when the compact mobile switcher is sticky,
+   * so it sits below the page's fixed/sticky header without overlap.
+   * Defaults to 64 (Tailwind h-16 header).
+   */
+  mobileStickyTopPx?: number;
 }
 
-const ProductTypeSwitcher: React.FC<ProductTypeSwitcherProps> = ({ productType, onProductTypeChange }) => {
+const ProductTypeSwitcher: React.FC<ProductTypeSwitcherProps> = ({
+  productType,
+  onProductTypeChange,
+  mobileStickyTopPx = 64,
+}) => {
   const options: Array<{
     type: ProductTypeSlug;
     label: string;
@@ -45,8 +55,61 @@ const ProductTypeSwitcher: React.FC<ProductTypeSwitcherProps> = ({ productType, 
   ];
 
   return (
-    <div className="mb-8 rounded-2xl bg-slate-50/70 p-3 sm:p-4 border border-slate-200">
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+    <>
+      {/* Mobile compact sticky pill switcher */}
+      <div
+        className="md:hidden sticky z-30 -mx-4 mb-6 px-4 py-2 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/80 border-b border-slate-200"
+        style={{ top: mobileStickyTopPx }}
+        role="tablist"
+        aria-label="Select product type"
+      >
+        <div className="flex items-stretch gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {options.map((option) => {
+            const isActive = productType === option.type;
+            return (
+              <button
+                key={option.type}
+                type="button"
+                role="tab"
+                aria-selected={isActive}
+                onClick={() => onProductTypeChange(option.type)}
+                className={cn(
+                  'flex-1 min-w-0 inline-flex items-center justify-center gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold transition-all',
+                  'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500/80 focus-visible:ring-offset-1',
+                  isActive
+                    ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-[0_2px_8px_rgba(249,115,22,0.25)]'
+                    : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300',
+                )}
+              >
+                <span
+                  className={cn(
+                    'relative inline-flex h-7 w-7 flex-none items-center justify-center overflow-hidden rounded-full bg-slate-100 ring-1',
+                    isActive ? 'ring-orange-400' : 'ring-slate-200',
+                  )}
+                >
+                  <img
+                    src={option.imageUrl}
+                    alt=""
+                    aria-hidden="true"
+                    className="h-full w-full object-cover"
+                  />
+                </span>
+                <span className="truncate">{option.label}</span>
+                {isActive && (
+                  <CheckCircle2
+                    className="h-4 w-4 flex-none text-orange-500"
+                    aria-label="Selected"
+                  />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Desktop / tablet large card switcher (unchanged) */}
+      <div className="hidden md:block mb-8 rounded-2xl bg-slate-50/70 p-3 sm:p-4 border border-slate-200">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {options.map((option) => {
           const isActive = productType === option.type;
           const cardClassName = cn(
@@ -97,8 +160,9 @@ const ProductTypeSwitcher: React.FC<ProductTypeSwitcherProps> = ({ productType, 
             </button>
           );
         })}
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 
