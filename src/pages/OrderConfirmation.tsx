@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { CheckCircle, Printer, Package, ArrowRight, Home, Palette, Mail, Phone, MessageSquare, Upload } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useScrollToTop } from '@/components/ScrollToTop';
-import { getItemDisplayName, isYardSignItem, getInvoiceSubtitle } from '@/lib/product-display';
+import { getItemDisplayName, isYardSignItem, getInvoiceSubtitle, getDisplayMaterial, getDisplaySize } from '@/lib/product-display';
 
 // Helper function to calculate unit price from order data
 const calculateUnitPrice = (item: any) => {
@@ -193,13 +193,14 @@ const OrderConfirmation: React.FC = () => {
                             </>
                           ) : (
                             <>
-                              <p>Material: {item.material}</p>
-                              <p>Area: {item.area_sqft.toFixed(2)} sq ft</p>
+                              <p>Size: {getDisplaySize(item)}</p>
+                              <p>Material: {getDisplayMaterial(item)}</p>
+                              <p>Print: Single-Sided</p>
+                              <p>Quantity: {item.quantity}</p>
                               {item.grommets && <p>Grommets: {getGrommetLabel(item.grommets)}</p>}
                               {item.rope_feet && item.rope_feet > 0 && (
                                 <p>Rope: {item.rope_feet.toFixed(1)} ft</p>
                               )}
-                              {item.file_key && <p>File: {item.file_key}</p>}
                             </>
                           )}
                         </div>
@@ -224,8 +225,8 @@ const OrderConfirmation: React.FC = () => {
                             ) : (
                               <>
                                 <div className="flex justify-between">
-                                  <span className="text-gray-600">Base banner:</span>
-                                  <span className="text-gray-900">{usd((calculateUnitPrice(item) * item.quantity) / 100)}</span>
+                                  <span className="text-gray-600">Unit Price:</span>
+                                  <span className="text-gray-900">{usd(calculateUnitPrice(item) / 100)}</span>
                                 </div>
                                 {item.rope_feet && item.rope_feet > 0 && (
                                   <div className="flex justify-between">
@@ -395,7 +396,7 @@ const OrderConfirmation: React.FC = () => {
 
             <Button onClick={() => navigate('/design')} className="flex-1">
               <ArrowRight className="h-4 w-4 mr-2" />
-              Order More Banners
+              Order Again
             </Button>
           </div>
         </div>

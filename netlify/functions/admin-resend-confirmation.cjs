@@ -1,55 +1,14 @@
 const { neon } = require('@neondatabase/serverless');
 const { getItemDisplayName, getEmailItemOptions } = require('./product-display-helpers.cjs');
-
-// Email-compatible logo header HTML
-function createEmailLogoHeader() {
-  const logoUrl = 'https://bannersonthefly.com/images/logo-full.svg';
-  
-  return `
-    <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0; padding: 0;">
-      <tr>
-        <td style="padding: 20px 0 30px 0; text-align: center; background-color: #ffffff;">
-          <img src="${logoUrl}" 
-               alt="Banners on the Fly - Custom Banner Printing" 
-               width="200" 
-               height="auto" 
-               style="display: block; margin: 0 auto; max-width: 100%; height: auto; border: 0;" />
-        </td>
-      </tr>
-    </table>
-  `;
-}
-
-function createEmailContainer(content) {
-  return `
-    <!DOCTYPE html>
-    <html lang="en">
-    <head>
-      <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
-      <title>Banners on the Fly</title>
-    </head>
-    <body style="margin: 0; padding: 0; font-family: Arial, sans-serif; line-height: 1.6; color: #333333; background-color: #f4f4f4;">
-      <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin: 0; padding: 0; background-color: #f4f4f4;">
-        <tr>
-          <td style="padding: 20px 0;">
-            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="600" style="margin: 0 auto; background-color: #ffffff; border-radius: 8px;" align="center">
-              <tr>
-                <td>
-                  ${createEmailLogoHeader()}
-                  ${content}
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
-      </table>
-    </body>
-    </html>
-  `;
-}
-
+const {
+  normalizeName,
+  getFinalizedThumbnailUrl,
+  renderItems,
+  renderTotals,
+  renderAddress,
+  renderEmailLayout,
+  escapeHtml,
+} = require('./email-template.cjs');
 
 const headers = {
   'Content-Type': 'application/json',
@@ -76,60 +35,22 @@ async function sendEmail(type, payload) {
     
     if (type === 'order.confirmation') {
       subject = `Order Confirmation #${payload.order.number} - Banners On The Fly`;
-      html = createEmailContainer(`
-        <div style="padding: 20px;">
-          <h2 style="color: #2563eb; text-align: center; margin: 0 0 20px 0;">Order Confirmation</h2>
-          <p>Hello ${payload.order.customerName},</p>
-          <p>Thank you for your order! We've received your order and will begin processing it shortly.</p>
-          
-          <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
-            <h3 style="margin-top: 0; color: #374151;">Order Details</h3>
-            <p><strong>Order Number:</strong> #${payload.order.number}</p>
-            <p><strong>Order ID:</strong> ${payload.order.id}</p>
-            
-            <h4 style="color: #374151;">Items:</h4>
-            ${payload.order.items.map(item => `
-              <div style="border-bottom: 1px solid #e5e7eb; padding: 10px 0;">
-                <p style="margin: 5px 0;"><strong>${item.name}</strong></p>
-                <p style="margin: 5px 0; color: #6b7280;">Quantity: ${item.quantity}</p>
-                <p style="margin: 5px 0; color: #6b7280;">${item.options}</p>
-                <p style="margin: 5px 0;"><strong>$${item.price.toFixed(2)}</strong></p>
-              </div>
-            `).join('')}
-            
-            <div style="margin-top: 20px; padding-top: 20px; border-top: 2px solid #e5e7eb;">
-              <p style="margin: 5px 0;">Subtotal: $${payload.order.subtotal.toFixed(2)}</p>
-              ${payload.order.tax > 0 ? `<p style="margin: 5px 0;">Tax: $${payload.order.tax.toFixed(2)}</p>` : ''}
-              <p style="margin: 5px 0; font-size: 18px;"><strong>Total: $${payload.order.total.toFixed(2)}</strong></p>
-            </div>
+      const names = normalizeName(payload.order.customerName || '');
+      html = renderEmailLayout({
+        title: 'Order Confirmation',
+        subtitle: 'Thanks for your order — we’re getting started now.',
+        orderNumber: payload.order.number,
+        bodyHtml: `
+          <p style="margin:0 0 12px;font-size:15px;color:#334155;">Hi ${escapeHtml(names.firstName)},</p>
+          <p style="margin:0 0 14px;font-size:14px;color:#334155;">Thank you for your order. We’ll send tracking details as soon as your order ships.</p>
+          ${renderItems(payload.order.items || [])}
+          ${renderTotals({ subtotal: payload.order.subtotal, tax: payload.order.tax, total: payload.order.total, discountCents: payload.order.discountCents, discountLabel: payload.order.discountLabel })}
+          ${renderAddress(payload.order)}
+          <div style="margin-top:16px;">
+            <a href="${escapeHtml(payload.invoiceUrl)}" style="display:inline-block;background:#ff6b35;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:600;font-size:14px;">View Order Details</a>
           </div>
-          
-          ${payload.order.shippingAddress ? `
-            <div style="background-color: #f9fafb; padding: 20px; border-radius: 8px; margin: 20px 0;">
-              <h3 style="margin-top: 0; color: #374151;">Shipping Address</h3>
-              <p style="margin: 5px 0;">${payload.order.shippingAddress}</p>
-            </div>
-          ` : ''}
-          
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${payload.invoiceUrl}" 
-               style="background-color: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 6px; display: inline-block;">
-              View Order Details
-            </a>
-          </div>
-          
-          <p style="color: #6b7280;">
-            We'll send you another email with tracking information once your order ships.
-          </p>
-          
-          <hr style="margin: 30px 0; border: none; border-top: 1px solid #e5e7eb;">
-          <p style="color: #6b7280; font-size: 12px;">
-            Banners On The Fly<br>
-            Custom Printing Services<br>
-            Questions? Reply to this email or contact support.
-          </p>
-        </div>
-      `);
+        `,
+      });
     } else {
       return { ok: false, error: `Unknown email type: ${type}` };
     }
@@ -252,7 +173,10 @@ exports.handler = async (event) => {
           name: getItemDisplayName(item),
           quantity: item.quantity,
           price: item.line_total_cents / 100,
-          options: getEmailItemOptions(item)
+          lineTotal: item.line_total_cents / 100,
+          unitPrice: item.quantity > 0 ? (item.line_total_cents / 100) / item.quantity : 0,
+          options: getEmailItemOptions(item),
+          thumbnailUrl: getFinalizedThumbnailUrl(item, 220),
         })),
         // FIX: Calculate correct subtotal, tax, and total from line_total_cents
         // Database values may be incorrect, so recalculate from item totals
@@ -262,16 +186,27 @@ exports.handler = async (event) => {
         },
         get tax() {
           const calculatedSubtotal = itemRows.reduce((sum, item) => sum + item.line_total_cents, 0);
-          const calculatedTax = Math.round(calculatedSubtotal * 0.06);
+          const discount = order.applied_discount_cents || 0;
+          const calculatedTax = Math.round((calculatedSubtotal - discount) * 0.06);
           return calculatedTax / 100;
         },
         get total() {
           const calculatedSubtotal = itemRows.reduce((sum, item) => sum + item.line_total_cents, 0);
-          const calculatedTax = Math.round(calculatedSubtotal * 0.06);
-          const calculatedTotal = calculatedSubtotal + calculatedTax;
+          const discount = order.applied_discount_cents || 0;
+          const afterDiscount = calculatedSubtotal - discount;
+          const calculatedTax = Math.round(afterDiscount * 0.06);
+          const calculatedTotal = afterDiscount + calculatedTax;
           return calculatedTotal / 100;
         },
-        shippingAddress: order.shipping_address
+        discountCents: order.applied_discount_cents || 0,
+        discountLabel: order.applied_discount_label || '',
+        shipping_name: order.shipping_name || order.customer_name || '',
+        shipping_street: order.shipping_street || '',
+        shipping_street2: order.shipping_street2 || '',
+        shipping_city: order.shipping_city || '',
+        shipping_state: order.shipping_state || '',
+        shipping_zip: order.shipping_zip || '',
+        shipping_country: order.shipping_country || 'US'
       },
       invoiceUrl
     };

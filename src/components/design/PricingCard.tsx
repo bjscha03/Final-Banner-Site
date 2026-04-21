@@ -267,21 +267,7 @@ const PricingCard: React.FC = () => {
     // Base64 thumbnails get stripped during syncToServer causing "No Image" in checkout
     let thumbnailUrl: string | null = null;
     
-    // DEBUG: Log all relevant values
-    // CRITICAL FIX: For PDFs, after conversion to bitmap, file.url becomes a blob URL
-    // but the original Cloudinary URL is preserved in file.originalUrl
     const pdfCloudinaryUrl = (file as any)?.originalUrl || file?.url;
-      canvasThumbnail: canvasThumbnail ? (canvasThumbnail.startsWith('data:') ? 'BASE64 (will skip)' : canvasThumbnail.substring(0, 50)) : 'NULL',
-      isPdf: file?.isPdf,
-      fileUrl: file?.url ? file.url.substring(0, 80) : 'NULL',
-      fileUrlIsBlob: file?.url?.startsWith('blob:'),
-      fileUrlIsCloudinary: file?.url?.includes('cloudinary.com'),
-      originalUrl: (file as any)?.originalUrl ? (file as any).originalUrl.substring(0, 80) : 'NULL',
-      pdfCloudinaryUrl: pdfCloudinaryUrl ? pdfCloudinaryUrl.substring(0, 80) : 'NULL',
-      hasCloudinary: pdfCloudinaryUrl?.includes('cloudinary.com'),
-      artworkWidth: file?.artworkWidth,
-      editorObjectsCount: editorObjects.length
-    });
     
     // Priority 1: For PDFs with a Cloudinary URL
     // CRITICAL FIX: PDFs are converted to JPEGs before upload, so Cloudinary URL is for JPEG not PDF.
@@ -837,17 +823,17 @@ const PricingCard: React.FC = () => {
         <div className="space-y-3 mb-8">
           <div className="flex justify-between items-center py-2">
             <div className="flex-1">
-              <span className="text-sm text-gray-700">
-                <span className="hidden sm:inline">Banner cost ({formatArea(baseTotals.area)} × {usd(PRICE_PER_SQFT[material])}/sq ft)</span>
-                <span className="sm:hidden">Banner cost</span>
-              </span>
+                <span className="text-sm text-gray-700">
+                  <span className="hidden sm:inline">Unit Price ({formatArea(baseTotals.area)} × {usd(PRICE_PER_SQFT[material])}/sq ft)</span>
+                  <span className="sm:hidden">Unit Price</span>
+                </span>
+              </div>
+              <span className="text-sm font-semibold text-gray-900 ml-4">{usd(baseTotals.unit)}</span>
             </div>
-            <span className="text-sm font-semibold text-gray-900 ml-4">{usd(baseTotals.unit)}</span>
-          </div>
 
           <div className="flex justify-between items-center py-2">
-            <span className="text-sm text-gray-700">Subtotal per banner</span>
-            <span className="text-sm font-semibold text-gray-900">{usd(baseTotals.unit)}</span>
+            <span className="text-sm text-gray-700">Quantity</span>
+            <span className="text-sm font-semibold text-gray-900">{quantity}</span>
           </div>
 
           {addRope && (

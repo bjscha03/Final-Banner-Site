@@ -1,5 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
-const { getItemDisplayName } = require('./product-display-helpers.cjs');
+const { getItemDisplayName, getEmailItemOptions } = require('./product-display-helpers.cjs');
 const {
   normalizeName,
   getFinalizedThumbnailUrl,
@@ -190,8 +190,11 @@ exports.handler = async (event) => {
       items: itemsResult.map(item => ({
         name: getItemDisplayName(item),
         quantity: item.quantity,
-        options: `Size: ${item.width_in}" × ${item.height_in}" • Material: ${item.material}`,
+        options: getEmailItemOptions(item),
         product_type: item.product_type || 'banner',
+        price: item.line_total_cents / 100,
+        lineTotal: item.line_total_cents / 100,
+        unitPrice: item.quantity > 0 ? (item.line_total_cents / 100) / item.quantity : 0,
         thumbnailUrl: getFinalizedThumbnailUrl(item, 220),
       }))
     };

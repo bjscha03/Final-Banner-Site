@@ -1,5 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
-const { getItemDisplayName } = require('./product-display-helpers.cjs');
+const { getItemDisplayName, getEmailItemOptions } = require('./product-display-helpers.cjs');
 const {
   normalizeName,
   getFinalizedThumbnailUrl,
@@ -60,11 +60,11 @@ async function sendEmail(type, payload) {
             <tr><td style="padding:14px;">
               <p style="margin:0 0 6px;color:#334155;font-size:13px;">Carrier: FedEx</p>
               <p style="margin:0 0 10px;color:#0f172a;font-size:14px;font-weight:700;font-family:monospace;">Tracking #: ${escapeHtml(trackingNumber || '')}</p>
-              ${trackingUrl ? `<a href="${escapeHtml(trackingUrl)}" style="display:inline-block;background:#059669;color:#ffffff;text-decoration:none;padding:10px 14px;border-radius:8px;font-weight:600;font-size:13px;">Track Your Package</a>` : ''}
+              ${trackingUrl ? `<a href="${escapeHtml(trackingUrl)}" style="display:inline-block;background:#ff6b35;color:#ffffff;text-decoration:none;padding:10px 14px;border-radius:8px;font-weight:600;font-size:13px;">Track Your Package</a>` : ''}
             </td></tr>
           </table>
           ${renderItems(order.items || [])}
-          ${renderTotals({ subtotal: order.subtotal, tax: order.tax, total: order.total })}
+          ${renderTotals({ subtotal: order.subtotal, tax: order.tax, total: order.total, discountCents: order.discountCents, discountLabel: order.discountLabel })}
           ${renderAddress(order)}
         `,
       });
@@ -196,8 +196,10 @@ exports.handler = async (event, context) => {
       items: itemsResult.map(item => ({
         name: getItemDisplayName(item),
         quantity: item.quantity,
-        price: item.line_total_cents / 100 / item.quantity, // Calculate unit price from line total
-        options: `${item.material} material${item.grommets && item.grommets !== 'none' ? `, ${item.grommets} grommets` : ''}${item.rope_feet > 0 ? `, ${item.rope_feet}ft rope` : ''}${(item.pole_pocket_position && item.pole_pocket_position !== 'none') ? `, Pole Pockets: ${item.pole_pocket_position}${item.pole_pocket_size ? ` (${item.pole_pocket_size} inch)` : ''}` : (item.pole_pockets && item.pole_pockets !== 'none' && item.pole_pockets !== false && item.pole_pockets !== 'false') ? ', Pole Pockets: Yes' : ''}`,
+        price: item.line_total_cents / 100,
+        lineTotal: item.line_total_cents / 100,
+        unitPrice: item.quantity > 0 ? (item.line_total_cents / 100) / item.quantity : 0,
+        options: getEmailItemOptions(item),
         material: item.material,
         polePocketPosition: item.pole_pocket_position || item.pole_pockets,
         polePocketSize: item.pole_pocket_size,
@@ -212,13 +214,16 @@ exports.handler = async (event, context) => {
       },
       get tax() {
         const calculatedSubtotal = itemsResult.reduce((sum, item) => sum + item.line_total_cents, 0);
-        const calculatedTax = Math.round(calculatedSubtotal * 0.06);
+        const discount = order.applied_discount_cents || 0;
+        const calculatedTax = Math.round((calculatedSubtotal - discount) * 0.06);
         return calculatedTax / 100;
       },
       get total() {
         const calculatedSubtotal = itemsResult.reduce((sum, item) => sum + item.line_total_cents, 0);
-        const calculatedTax = Math.round(calculatedSubtotal * 0.06);
-        const calculatedTotal = calculatedSubtotal + calculatedTax;
+        const discount = order.applied_discount_cents || 0;
+        const afterDiscount = calculatedSubtotal - discount;
+        const calculatedTax = Math.round(afterDiscount * 0.06);
+        const calculatedTotal = afterDiscount + calculatedTax;
         return calculatedTotal / 100;
       },
       get subtotalCents() {
@@ -226,13 +231,18 @@ exports.handler = async (event, context) => {
       },
       get taxCents() {
         const calculatedSubtotal = itemsResult.reduce((sum, item) => sum + item.line_total_cents, 0);
-        return Math.round(calculatedSubtotal * 0.06);
+        const discount = order.applied_discount_cents || 0;
+        return Math.round((calculatedSubtotal - discount) * 0.06);
       },
       get totalCents() {
         const calculatedSubtotal = itemsResult.reduce((sum, item) => sum + item.line_total_cents, 0);
-        const calculatedTax = Math.round(calculatedSubtotal * 0.06);
-        return calculatedSubtotal + calculatedTax;
+        const discount = order.applied_discount_cents || 0;
+        const afterDiscount = calculatedSubtotal - discount;
+        const calculatedTax = Math.round(afterDiscount * 0.06);
+        return afterDiscount + calculatedTax;
       },
+      discountCents: order.applied_discount_cents || 0,
+      discountLabel: order.applied_discount_label || '',
       shipping_name: order.shipping_name,
       shipping_street: order.shipping_street,
       shipping_street2: order.shipping_street2,

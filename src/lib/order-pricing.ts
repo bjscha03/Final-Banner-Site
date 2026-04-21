@@ -288,16 +288,15 @@ export function generateItemBreakdown(item: OrderItemInput): BreakdownLine[] {
   
   // Base product cost (product-aware labels)
   if (breakdown.base_banner_cents > 0) {
-    const isYardSign = item.product_type === 'yard_sign';
-    
     lines.push({
-      label: isYardSign ? 'Yard Sign total' : 'Banner cost',
+      label: 'Base Total',
       value_cents: breakdown.base_banner_cents,
     });
     
     lines.push({
-      label: isYardSign ? 'Price per sign' : 'Subtotal per banner',
+      label: 'Unit Price',
       value_cents: item.unit_price_cents || 0,
+      description: `${item.quantity} ${item.quantity === 1 ? 'unit' : 'units'}`,
     });
   }
   

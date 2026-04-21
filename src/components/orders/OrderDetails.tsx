@@ -9,7 +9,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAuth, isAdmin } from '@/lib/auth';
 import { ShoppingCart, Package, Calendar, CreditCard, Mail, User, Download, FileText, Sparkles, MapPin, Loader2, Palette, Phone, Upload, MessageSquare } from 'lucide-react';
 import TrackingBadge from './TrackingBadge';
-import { getItemDisplayName, isYardSignItem, getProductLabel } from '@/lib/product-display';
+import { getItemDisplayName, isYardSignItem, getProductLabel, getDisplayMaterial, getDisplaySize, getDisplayGrommets } from '@/lib/product-display';
 import {
   Dialog,
   DialogContent,
@@ -834,7 +834,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                       <h4 className="text-lg font-bold text-slate-900 mb-3">
                         {getItemDisplayName(item)}
                         {isYardSignItem(item) && (
-                          <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-800">Yard Sign</span>
+                          <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-orange-200 text-orange-900">Yard Sign</span>
                         )}
                       </h4>
                       <div className="text-sm text-gray-600 mt-2 grid grid-cols-2 gap-2">
@@ -853,12 +853,11 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                           </>
                         ) : (
                           <>
-                            <p className="break-words">Size: {item.width_in}" × {item.height_in}"</p>
-                            <p className="break-words">Material: {item.material}</p>
+                            <p className="break-words">Size: {getDisplaySize(item)}</p>
+                            <p className="break-words">Material: {getDisplayMaterial(item)}</p>
                             <p className="break-words">Print: Single-Sided</p>
                             <p className="break-words">Quantity: {item.quantity}</p>
-                            <p className="break-words">Area: {(item.area_sqft || 0).toFixed(2)} sq ft</p>
-                            {item.grommets && <p className="break-words">Grommets: {item.grommets}</p>}
+                            {getDisplayGrommets(item.grommets) && <p className="break-words">Grommets: {getDisplayGrommets(item.grommets)}</p>}
                             {item.rope_feet && item.rope_feet > 0 && (
                               <p className="break-words">Rope: {(item.rope_feet || 0).toFixed(1)} ft</p>
                             )}
@@ -881,9 +880,9 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                               href="#" 
                               onClick={(e) => { e.preventDefault(); handleFileDownload(item.file_key!, index); }}
                               className="text-blue-600 hover:underline break-all"
-                              title={item.file_name || item.file_key.split('/').pop() || 'Download File'}
+                              title={item.file_name || 'Original Upload'}
                             >
-                              {item.file_name || item.file_key.split('/').pop() || 'Download File'}
+                              {item.file_name || 'Original Upload'}
                             </a>
                           </p>
                         )}
@@ -927,7 +926,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                             className="min-w-[60px]"
                           >
                             <Download className="h-3 w-3 mr-1" />
-                            Image
+                            Print File
                           </Button>
                         )}
                         
