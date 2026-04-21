@@ -5,13 +5,14 @@ import { useNavigate } from 'react-router-dom';
 import { useQuoteStore, ORDER_SIZE_LIMIT_SQFT } from '@/store/quote';
 import { useAuth } from '@/lib/auth';
 import { useCartStore } from '@/store/cart';
-import { calcTotals, usd, formatArea, formatDimensions, PRICE_PER_SQFT, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
+import { usd, formatArea, formatDimensions, PRICE_PER_SQFT, getFeatureFlags, getPricingOptions } from '@/lib/pricing';
 import { validateMinimumOrder, canProceedToCheckout } from '@/lib/validation/minimumOrder';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useScrollToTop } from '@/components/ScrollToTop';
 import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
 import { useEditorStore } from '@/store/editor';
+import { calculateBannerPricing } from '@/lib/bannerPricingEngine';
 
 
 
@@ -102,7 +103,7 @@ const PricingCard: React.FC = () => {
   const flags = useMemo(() => getFeatureFlags(), []);
 
   // Safe calculation with error handling and memoization
-  const { baseTotals, finalTotals, showMinOrderAdjustment, minOrderAdjustmentCents } = useMemo(() => {
+  const { baseTotals, finalTotals, showMinOrderAdjustment, minOrderAdjustmentCents, quantityDiscountCents } = useMemo(() => {
     try {
       // Ensure all values are valid before calculating
       if (widthIn <= 0 || heightIn <= 0 || quantity <= 0) {
@@ -119,47 +120,56 @@ const PricingCard: React.FC = () => {
           baseTotals: fallbackTotals,
           finalTotals: fallbackTotals,
           showMinOrderAdjustment: false,
-          minOrderAdjustmentCents: 0
+          minOrderAdjustmentCents: 0,
+          quantityDiscountCents: 0,
         };
       }
 
-      // Calculate base totals
-      const baseTotals = calcTotals({
+      const pricing = calculateBannerPricing({
         widthIn,
         heightIn,
-        qty: quantity,
+        quantity,
         material,
+        grommets,
         addRope,
-        polePockets
+        polePockets,
       });
+      const baseTotals = {
+        area: pricing.areaSqFt,
+        unit: pricing.unitBasePriceCents / 100,
+        rope: pricing.ropeCostCents / 100,
+        polePocket: pricing.polePocketCostCents / 100,
+        materialTotal: pricing.subtotalBeforeDiscountCents / 100,
+        tax: pricing.taxCents / 100,
+        totalWithTax: pricing.totalCents / 100,
+      };
 
       // Apply feature flag pricing if enabled
       const pricingOptions = getPricingOptions();
 
-      let finalTotals = baseTotals;
+      let subtotalCents = pricing.subtotalCents;
       let showMinOrderAdjustment = false;
       let minOrderAdjustmentCents = 0;
 
       if (flags.freeShipping || flags.minOrderFloor) {
-        const items: PricingItem[] = [{ line_total_cents: Math.round(baseTotals.materialTotal * 100) }];
-        const featureFlagTotals = computeTotals(items, 0.06, pricingOptions);
-
-        finalTotals = {
-          ...baseTotals,
-          materialTotal: featureFlagTotals.adjusted_subtotal_cents / 100,
-          tax: featureFlagTotals.tax_cents / 100,
-          totalWithTax: featureFlagTotals.total_cents / 100
-        };
-
-        showMinOrderAdjustment = featureFlagTotals.min_order_adjustment_cents > 0;
-        minOrderAdjustmentCents = featureFlagTotals.min_order_adjustment_cents;
+        subtotalCents = Math.max(subtotalCents, pricingOptions.minFloorCents || 0);
+        minOrderAdjustmentCents = Math.max(0, subtotalCents - pricing.subtotalCents);
+        showMinOrderAdjustment = minOrderAdjustmentCents > 0;
       }
+      const taxCents = Math.round(subtotalCents * 0.06);
+      const finalTotals = {
+        ...baseTotals,
+        materialTotal: subtotalCents / 100,
+        tax: taxCents / 100,
+        totalWithTax: (subtotalCents + taxCents) / 100,
+      };
 
       return {
         baseTotals,
         finalTotals,
         showMinOrderAdjustment,
-        minOrderAdjustmentCents
+        minOrderAdjustmentCents,
+        quantityDiscountCents: pricing.quantityDiscountCents,
       };
     } catch (error) {
       console.error('Error calculating totals in PricingCard:', error);
@@ -176,10 +186,11 @@ const PricingCard: React.FC = () => {
         baseTotals: fallbackTotals,
         finalTotals: fallbackTotals,
         showMinOrderAdjustment: false,
-        minOrderAdjustmentCents: 0
+        minOrderAdjustmentCents: 0,
+        quantityDiscountCents: 0,
       };
     }
-  }, [widthIn, heightIn, quantity, material, addRope, polePockets, flags]);
+  }, [widthIn, heightIn, quantity, material, grommets, addRope, polePockets, flags]);
 
 
   // Minimum order validation
@@ -672,22 +683,23 @@ const PricingCard: React.FC = () => {
       }
     });
     // Recompute pricing with updated quote
-    const updatedTotals = calcTotals({
+    const updatedTotals = calculateBannerPricing({
       widthIn: updatedQuote.widthIn,
       heightIn: updatedQuote.heightIn,
-      qty: updatedQuote.quantity,
+      quantity: updatedQuote.quantity,
       material: updatedQuote.material,
+      grommets: updatedQuote.grommets,
       addRope: updatedQuote.addRope,
-      polePockets: updatedQuote.polePockets
+      polePockets: updatedQuote.polePockets,
     });
 
     const pricing = {
-      unit_price_cents: Math.round(updatedTotals.unit * 100),
-      rope_cost_cents: Math.round(updatedTotals.rope * 100),
+      unit_price_cents: updatedTotals.unitBasePriceCents,
+      rope_cost_cents: updatedTotals.ropeCostCents,
       rope_pricing_mode: 'per_item' as const,
-      pole_pocket_cost_cents: Math.round(updatedTotals.polePocket * 100),
+      pole_pocket_cost_cents: updatedTotals.polePocketCostCents,
       pole_pocket_pricing_mode: 'per_item' as const,
-      line_total_cents: Math.round(updatedTotals.materialTotal * 100),
+      line_total_cents: updatedTotals.subtotalBeforeDiscountCents,
     };
 
     // Execute the pending action with updated quote and pricing
@@ -769,9 +781,9 @@ const PricingCard: React.FC = () => {
           </p>
 
           {/* Quick Tax Info */}
-          <div className="text-sm text-gray-600">
-            Subtotal {usd(finalTotals.materialTotal)} • Tax (6%) {usd(finalTotals.tax)}
-          </div>
+           <div className="text-sm text-gray-600">
+             Subtotal {usd(finalTotals.materialTotal)} • Tax (6%) {usd(finalTotals.tax)}
+           </div>
         </div>
       </div>
 
@@ -824,17 +836,12 @@ const PricingCard: React.FC = () => {
           <div className="flex justify-between items-center py-2">
             <div className="flex-1">
                 <span className="text-sm text-gray-700">
-                  <span className="hidden sm:inline">Unit Price ({formatArea(baseTotals.area)} × {usd(PRICE_PER_SQFT[material])}/sq ft)</span>
-                  <span className="sm:hidden">Unit Price</span>
+                  <span className="hidden sm:inline">Base Banner ({formatArea(baseTotals.area)} × {usd(PRICE_PER_SQFT[material])}/sq ft × {quantity})</span>
+                  <span className="sm:hidden">Base Banner</span>
                 </span>
               </div>
-              <span className="text-sm font-semibold text-gray-900 ml-4">{usd(baseTotals.unit)}</span>
+              <span className="text-sm font-semibold text-gray-900 ml-4">{usd(baseTotals.unit * quantity)}</span>
             </div>
-
-          <div className="flex justify-between items-center py-2">
-            <span className="text-sm text-gray-700">Quantity</span>
-            <span className="text-sm font-semibold text-gray-900">{quantity}</span>
-          </div>
 
           {addRope && (
             <div className="flex justify-between items-center py-2">
@@ -857,6 +864,13 @@ const PricingCard: React.FC = () => {
                 </span>
               </div>
               <span className="text-sm font-semibold text-gray-900 ml-4">{usd(baseTotals.polePocket)}</span>
+            </div>
+          )}
+
+          {quantityDiscountCents > 0 && (
+            <div className="flex justify-between items-center py-2">
+              <span className="text-sm text-gray-700">Quantity Discount</span>
+              <span className="text-sm font-semibold text-green-700">-{usd(quantityDiscountCents / 100)}</span>
             </div>
           )}
 
@@ -885,8 +899,18 @@ const PricingCard: React.FC = () => {
 
           {/* Tax Row */}
           <div className="flex justify-between items-center py-2">
+            <span className="text-sm text-gray-700">Subtotal</span>
+            <span className="text-sm font-semibold text-gray-900">{usd(finalTotals.materialTotal)}</span>
+          </div>
+
+          {/* Tax Row */}
+          <div className="flex justify-between items-center py-2">
             <span className="text-sm text-gray-700">Tax (6%)</span>
             <span className="text-sm font-semibold text-gray-900">{usd(finalTotals.tax)}</span>
+          </div>
+          <div className="flex justify-between items-center py-2 border-t border-gray-200 mt-1 pt-3">
+            <span className="text-sm font-bold text-gray-900">Total</span>
+            <span className="text-sm font-bold text-gray-900">{usd(finalTotals.totalWithTax)}</span>
           </div>
         </div>
 

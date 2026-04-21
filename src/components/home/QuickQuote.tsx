@@ -2,8 +2,9 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Minus, Plus, ArrowRight, Truck, Zap, Package, Palette, DollarSign, Check, Hash, Ruler, Tag } from 'lucide-react';
 import { MaterialKey } from '@/store/quote';
-import { calcTotals, usd, formatArea, formatDimensionsInFeet, PRICE_PER_SQFT, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
-import { calculateQuantityDiscount, getAllDiscountTiers } from '@/lib/quantity-discount';
+import { usd, formatArea, formatDimensionsInFeet, PRICE_PER_SQFT, getFeatureFlags, getPricingOptions } from '@/lib/pricing';
+import { getAllDiscountTiers } from '@/lib/quantity-discount';
+import { calculateBannerPricing } from '@/lib/bannerPricingEngine';
 import {
   calcYardSignPricing,
   validateYardSignQuantity,
@@ -271,63 +272,45 @@ const QuickQuote: React.FC = () => {
         };
       }
 
-      // Calculate base totals
-      const baseTotals = calcTotals({
+      const pricing = calculateBannerPricing({
         widthIn,
         heightIn,
-        qty: quantity,
+        quantity,
         material,
         addRope: false,
-        polePockets: 'none'
+        polePockets: 'none',
+        grommets: 'none',
       });
 
       // Apply feature flag pricing if enabled
       const flags = getFeatureFlags();
       const pricingOptions = getPricingOptions();
 
-      let finalTotals = baseTotals;
+      let adjustedSubtotalCents = pricing.subtotalCents;
       let showMinOrderAdjustment = false;
       let minOrderAdjustmentCents = 0;
-
-      // Calculate quantity discount ("Buy More, Save More")
-      const subtotalCents = Math.round(baseTotals.materialTotal * 100);
-      const qtyDiscountResult = calculateQuantityDiscount(subtotalCents, quantity);
-      const quantityDiscountCents = qtyDiscountResult.discountCents;
-      const quantityDiscountRate = qtyDiscountResult.discountRate;
+      const quantityDiscountCents = pricing.quantityDiscountCents;
+      const quantityDiscountRate = pricing.quantityDiscountRate;
 
       if (flags.freeShipping || flags.minOrderFloor) {
-        const items: PricingItem[] = [{ line_total_cents: subtotalCents, quantity }];
-        const featureFlagTotals = computeTotals(items, 0.06, pricingOptions);
-
-        // After feature flag adjustments and quantity discount
-        const adjustedSubtotalCents = featureFlagTotals.adjusted_subtotal_cents - featureFlagTotals.quantity_discount_cents;
-        const taxCents = featureFlagTotals.tax_cents;
-        const totalCents = adjustedSubtotalCents + taxCents;
-
-        finalTotals = {
-          ...baseTotals,
-          materialTotal: adjustedSubtotalCents / 100,
-          tax: taxCents / 100,
-          totalWithTax: totalCents / 100
-        };
-
-        showMinOrderAdjustment = featureFlagTotals.min_order_adjustment_cents > 0;
-        minOrderAdjustmentCents = featureFlagTotals.min_order_adjustment_cents;
-      } else {
-        // Apply quantity discount without feature flags
-        const subtotalAfterDiscount = subtotalCents - quantityDiscountCents;
-        const taxCents = Math.round(subtotalAfterDiscount * 0.06);
-
-        finalTotals = {
-          ...baseTotals,
-          materialTotal: subtotalAfterDiscount / 100,
-          tax: taxCents / 100,
-          totalWithTax: (subtotalAfterDiscount + taxCents) / 100
-        };
+        adjustedSubtotalCents = Math.max(adjustedSubtotalCents, pricingOptions.minFloorCents || 0);
+        minOrderAdjustmentCents = Math.max(0, adjustedSubtotalCents - pricing.subtotalCents);
+        showMinOrderAdjustment = minOrderAdjustmentCents > 0;
       }
 
+      const taxCents = Math.round(adjustedSubtotalCents * 0.06);
+      const totalCents = adjustedSubtotalCents + taxCents;
+
       return {
-        totals: finalTotals,
+        totals: {
+          area: pricing.areaSqFt,
+          unit: pricing.unitBasePriceCents / 100,
+          rope: 0,
+          polePocket: 0,
+          materialTotal: adjustedSubtotalCents / 100,
+          tax: taxCents / 100,
+          totalWithTax: totalCents / 100,
+        },
         showMinOrderAdjustment,
         minOrderAdjustmentCents,
         quantityDiscountCents,
@@ -395,7 +378,10 @@ const QuickQuote: React.FC = () => {
       width: widthIn.toString(),
       height: heightIn.toString(),
       qty: quantity.toString(),
-      material: material
+      material: material,
+      grommets: 'none',
+      polePockets: 'none',
+      addRope: '0',
     });
 
     navigate(`/design?${params.toString()}`);
