@@ -755,58 +755,83 @@ const Checkout: React.FC = () => {
                   )}
                 </div>
 
-                <div className="border-t-2 border-gray-200 pt-6 mt-6 space-y-3">
-                  <div className="flex justify-between items-center text-base">
-                    <span className="text-gray-700 font-medium">Subtotal</span>
-                    <span className="text-gray-900 font-semibold">
-                      {usd((subtotalCents - minOrderAdjustmentCents) / 100)}
-                    </span>
-                  </div>
-                  {showMinOrderAdjustment && (
-                    <div className="flex justify-between items-center text-base">
-                      <span className="text-gray-700 font-medium">Minimum order adjustment</span>
-                      <span className="text-gray-900 font-semibold">
-                        {usd(minOrderAdjustmentCents / 100)}
+                <div className="mt-6">
+                  <div
+                    className="rounded-xl p-4 sm:p-5 space-y-1.5 text-sm"
+                    style={{
+                      background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)',
+                      boxShadow:
+                        'inset 0 2px 4px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)',
+                      border: '1px solid rgba(148,163,184,0.3)',
+                    }}
+                  >
+                    <div className="flex justify-between gap-3">
+                      <span className="text-gray-600">Subtotal</span>
+                      <span className="font-semibold text-gray-800">
+                        {usd((subtotalCents - minOrderAdjustmentCents) / 100)}
                       </span>
                     </div>
-                  )}
-                  {/* Single "Best Discount Wins" line - no stacking */}
-                  {resolvedDiscount.appliedDiscountAmountCents > 0 && (
-                    <div className="bg-green-50 -mx-6 px-6 py-2 rounded-lg space-y-1">
-                      <div className="flex justify-between items-center text-base">
-                        <span className="text-green-700 font-medium flex items-center gap-1.5">
-                          <Tag className="h-4 w-4" />
-                          {resolvedDiscount.appliedDiscountLabel}
-                        </span>
-                        <span className="text-green-700 font-bold">
-                          -{usd(resolvedDiscount.appliedDiscountAmountCents / 100)}
+
+                    {showMinOrderAdjustment && (
+                      <div className="flex justify-between gap-3">
+                        <span className="text-gray-600">Minimum order adjustment</span>
+                        <span className="font-semibold text-gray-800">
+                          {usd(minOrderAdjustmentCents / 100)}
                         </span>
                       </div>
-                      {resolvedDiscount.helperMessage && (
-                        <p className="text-xs text-gray-500 italic">{resolvedDiscount.helperMessage}</p>
-                      )}
+                    )}
+
+                    {/* Single "Best Discount Wins" line - no stacking */}
+                    {resolvedDiscount.appliedDiscountAmountCents > 0 && (
+                      <>
+                        <div className="flex justify-between gap-3 text-green-700">
+                          <span className="flex items-center gap-1">
+                            <Tag className="h-3.5 w-3.5" />
+                            {resolvedDiscount.appliedDiscountLabel}
+                          </span>
+                          <span className="font-semibold">
+                            -{usd(resolvedDiscount.appliedDiscountAmountCents / 100)}
+                          </span>
+                        </div>
+                        {resolvedDiscount.helperMessage && (
+                          <p className="text-xs text-gray-500 italic -mt-0.5">
+                            {resolvedDiscount.helperMessage}
+                          </p>
+                        )}
+                      </>
+                    )}
+
+                    <div className="flex justify-between gap-3">
+                      <span className="text-gray-600">
+                        {flags.freeShipping ? flags.shippingMethodLabel : 'Shipping'}
+                      </span>
+                      <span className="text-green-700 font-semibold flex items-center gap-1">
+                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                        </svg>
+                        FREE
+                      </span>
                     </div>
-                  )}
-                  <div className="flex justify-between items-center text-base">
-                    <span className="text-gray-700 font-medium">{flags.freeShipping ? flags.shippingMethodLabel : 'Shipping'}</span>
-                    <span className="text-green-600 font-bold flex items-center gap-1">
-                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                      </svg>
-                      FREE
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center text-base">
-                    <span className="text-gray-700 font-medium">Tax (6%)</span>
-                    <span className="text-gray-900 font-semibold">
-                      {usd(taxCents / 100)}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center border-t border-gray-300 pt-3 mt-3">
-                    <span className="text-lg font-bold text-gray-900">Total</span>
-                    <span className="text-xl font-bold text-gray-900">
-                      {usd(totalCents / 100)}
-                    </span>
+
+                    <div className="flex justify-between gap-3">
+                      <span className="text-gray-600">Tax (6%)</span>
+                      <span className="font-semibold text-gray-800">
+                        {usd(taxCents / 100)}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-between gap-3 pt-2 mt-1 border-t border-slate-300/60">
+                      <span className="font-bold text-gray-800">Adjusted subtotal</span>
+                      <span className="font-bold text-gray-800">
+                        {usd((totalCents - taxCents) / 100)}
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-3">
+                      <span className="font-bold text-gray-800">Total with tax</span>
+                      <span className="font-bold text-[#ff6b35]">
+                        {usd(totalCents / 100)}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
