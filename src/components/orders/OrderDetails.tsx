@@ -8,7 +8,7 @@ import { useAuth, isAdmin } from '@/lib/auth';
 import { ShoppingCart, Package, Calendar, CreditCard, Mail, User, Download, FileText, Sparkles, MapPin, Loader2, Palette, Phone, Upload, MessageSquare } from 'lucide-react';
 import TrackingBadge from './TrackingBadge';
 import { getItemDisplayName, getProductLabel, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
-import { formatShippingCityStatePostal, hasShippingAddress, normalizeShippingAddress } from '@/lib/shipping-address';
+import { formatShippingAddress, hasShippingAddress, normalizeShippingAddress } from '@/lib/shipping-address';
 import {
   Dialog,
   DialogContent,
@@ -116,7 +116,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
   const customerName = order.customer_name || shippingAddress.name || 'Not provided';
   const customerEmail = order.email || 'Not provided';
   const hasAddress = hasShippingAddress(shippingAddress);
-  const cityStateZipLine = formatShippingCityStatePostal(shippingAddress);
+  const shippingAddressLines = formatShippingAddress(shippingAddress);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -595,10 +595,11 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                     <p className="text-sm text-gray-600">Address</p>
                     {hasAddress ? (
                       <>
-                        {shippingAddress.name && <p className="font-medium text-gray-900">{shippingAddress.name}</p>}
-                        {shippingAddress.line1 && <p className="text-sm text-gray-900">{shippingAddress.line1}</p>}
-                        {shippingAddress.line2 && <p className="text-sm text-gray-900">{shippingAddress.line2}</p>}
-                        {cityStateZipLine && <p className="text-sm text-gray-900">{cityStateZipLine}</p>}
+                        {shippingAddressLines.map((line, index) => (
+                          <p key={index} className={index === 0 ? 'font-medium text-gray-900' : 'text-sm text-gray-900'}>
+                            {line}
+                          </p>
+                        ))}
                       </>
                     ) : (
                       <p className="font-medium text-gray-900">Not provided</p>
@@ -616,21 +617,11 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                 Shipping Address
               </h3>
               <div className="space-y-1">
-                {shippingAddress.name && (
-                  <p className="font-medium text-gray-900">{shippingAddress.name}</p>
-                )}
-                {shippingAddress.line1 && (
-                  <p className="text-gray-700">{shippingAddress.line1}</p>
-                )}
-                {shippingAddress.line2 && (
-                  <p className="text-gray-700">{shippingAddress.line2}</p>
-                )}
-                {cityStateZipLine && (
-                  <p className="text-gray-700">{cityStateZipLine}</p>
-                )}
-                {shippingAddress.country && shippingAddress.country !== 'US' && (
-                  <p className="text-gray-700">{shippingAddress.country}</p>
-                )}
+                {shippingAddressLines.map((line, index) => (
+                  <p key={index} className={index === 0 ? 'font-medium text-gray-900' : 'text-gray-700'}>
+                    {line}
+                  </p>
+                ))}
               </div>
             </div>
           )}

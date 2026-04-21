@@ -6,7 +6,7 @@ import { CheckCircle, Home, ArrowRight } from 'lucide-react';
 import { usd } from '@/lib/pricing';
 import { trackPurchase, trackFBPurchase } from '@/lib/analytics';
 import { getItemDisplayName, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
-import { formatShippingCityStatePostal, hasShippingAddress, normalizeShippingAddress } from '@/lib/shipping-address';
+import { formatShippingAddress, hasShippingAddress, normalizeShippingAddress } from '@/lib/shipping-address';
 
 const PaymentSuccess: React.FC = () => {
   const navigate = useNavigate();
@@ -60,7 +60,7 @@ const PaymentSuccess: React.FC = () => {
     ? loadedShippingAddress
     : stateShippingAddress;
   const showShippingAddress = hasShippingAddress(normalizedShippingAddress);
-  const shippingCityStatePostal = formatShippingCityStatePostal(normalizedShippingAddress);
+  const shippingAddressLines = formatShippingAddress(normalizedShippingAddress);
 
   useEffect(() => {
     if (!orderId) return;
@@ -239,10 +239,11 @@ const PaymentSuccess: React.FC = () => {
             {showShippingAddress && (
               <div className="mb-6 border border-gray-200 rounded-lg p-4 bg-gray-50">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Shipping Address</h3>
-                {normalizedShippingAddress.name ? <p className="font-medium text-gray-900">{normalizedShippingAddress.name}</p> : null}
-                {normalizedShippingAddress.line1 ? <p className="text-gray-700">{normalizedShippingAddress.line1}</p> : null}
-                {normalizedShippingAddress.line2 ? <p className="text-gray-700">{normalizedShippingAddress.line2}</p> : null}
-                {shippingCityStatePostal ? <p className="text-gray-700">{shippingCityStatePostal}</p> : null}
+                {shippingAddressLines.map((line, index) => (
+                  <p key={index} className={index === 0 ? 'font-medium text-gray-900' : 'text-gray-700'}>
+                    {line}
+                  </p>
+                ))}
               </div>
             )}
 

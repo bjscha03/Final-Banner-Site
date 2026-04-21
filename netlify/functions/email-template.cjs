@@ -5,7 +5,7 @@ const BRAND_NAVY = '#18448D';
 const {
   normalizeShippingAddress,
   hasShippingAddress,
-  formatShippingCityStatePostal,
+  formatShippingAddress,
 } = require('./shipping-address-helpers.cjs');
 
 function escapeHtml(value) {
@@ -123,18 +123,13 @@ function renderAddress(order) {
     ...(order?.shippingAddress || {}),
     customer_name: order?.customer_name || order?.customerName || '',
   });
-  const showCountry = shippingAddress.country && shippingAddress.country !== 'US';
   if (!hasShippingAddress(shippingAddress)) return '';
-  const cityStateZipLine = formatShippingCityStatePostal(shippingAddress);
+  const addressLines = formatShippingAddress(shippingAddress);
   return `
     <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-top:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;">
       <tr><td style="padding:14px;">
         <p style="margin:0 0 8px;color:#0f172a;font-size:14px;font-weight:700;">Shipping Address</p>
-        ${shippingAddress.name ? `<p style="margin:0;color:#1f2937;font-size:13px;font-weight:600;">${escapeHtml(shippingAddress.name)}</p>` : ''}
-        ${shippingAddress.line1 ? `<p style="margin:2px 0 0;color:#334155;font-size:13px;">${escapeHtml(shippingAddress.line1)}</p>` : ''}
-        ${shippingAddress.line2 ? `<p style="margin:2px 0 0;color:#334155;font-size:13px;">${escapeHtml(shippingAddress.line2)}</p>` : ''}
-        ${cityStateZipLine ? `<p style="margin:2px 0 0;color:#334155;font-size:13px;">${escapeHtml(cityStateZipLine)}</p>` : ''}
-        ${showCountry ? `<p style="margin:2px 0 0;color:#334155;font-size:13px;">${escapeHtml(shippingAddress.country)}</p>` : ''}
+        ${addressLines.map((line, index) => `<p style="margin:${index === 0 ? '0' : '2px 0 0'};color:#334155;font-size:13px;${index === 0 ? 'font-weight:600;' : ''}">${escapeHtml(line)}</p>`).join('')}
       </td></tr>
     </table>
   `;

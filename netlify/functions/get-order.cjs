@@ -82,7 +82,8 @@ exports.handler = async (event, context) => {
         ADD COLUMN IF NOT EXISTS shipping_city TEXT,
         ADD COLUMN IF NOT EXISTS shipping_state TEXT,
         ADD COLUMN IF NOT EXISTS shipping_zip TEXT,
-        ADD COLUMN IF NOT EXISTS shipping_country TEXT
+        ADD COLUMN IF NOT EXISTS shipping_country TEXT,
+        ADD COLUMN IF NOT EXISTS shipping_address JSONB
       `;
     } catch (migErr) {
       console.warn('[get-order] Orders auto-migration warning (non-fatal):', migErr.message);
@@ -120,6 +121,7 @@ exports.handler = async (event, context) => {
         shipping_state,
         shipping_zip,
         shipping_country,
+        shipping_address,
         applied_discount_cents,
         applied_discount_label,
         applied_discount_type,
