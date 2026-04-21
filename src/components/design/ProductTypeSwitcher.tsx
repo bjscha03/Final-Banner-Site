@@ -74,7 +74,7 @@ const ProductTypeSwitcher: React.FC<ProductTypeSwitcherProps> = ({
                 aria-selected={isActive}
                 onClick={() => onProductTypeChange(option.type)}
                 className={cn(
-                  'flex-1 min-w-0 inline-flex items-center justify-center gap-2 rounded-full border px-3 py-1.5 text-sm font-semibold transition-all',
+                  'flex-1 min-w-0 inline-flex items-center justify-center gap-1.5 rounded-full border px-2 py-1.5 text-xs font-semibold transition-all',
                   'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500/80 focus-visible:ring-offset-1',
                   isActive
                     ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-[0_2px_8px_rgba(249,115,22,0.25)]'
@@ -83,7 +83,7 @@ const ProductTypeSwitcher: React.FC<ProductTypeSwitcherProps> = ({
               >
                 <span
                   className={cn(
-                    'relative inline-flex h-7 w-7 flex-none items-center justify-center overflow-hidden rounded-full bg-slate-100 ring-1',
+                    'relative inline-flex h-6 w-6 flex-none items-center justify-center overflow-hidden rounded-full bg-slate-100 ring-1',
                     isActive ? 'ring-orange-400' : 'ring-slate-200',
                   )}
                 >
@@ -94,10 +94,10 @@ const ProductTypeSwitcher: React.FC<ProductTypeSwitcherProps> = ({
                     className="h-full w-full object-cover"
                   />
                 </span>
-                <span className="truncate">{option.label}</span>
+                <span className="whitespace-nowrap">{option.label}</span>
                 {isActive && (
                   <CheckCircle2
-                    className="h-4 w-4 flex-none text-orange-500"
+                    className="h-3.5 w-3.5 flex-none text-orange-500"
                     aria-label="Selected"
                   />
                 )}
