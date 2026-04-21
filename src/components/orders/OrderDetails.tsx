@@ -515,26 +515,26 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
       <DialogTrigger asChild>
         {trigger || defaultTrigger}
       </DialogTrigger>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="w-[calc(100vw-1rem)] max-w-4xl max-h-[85vh] overflow-y-auto overflow-x-hidden p-4 sm:p-6">
         <DialogHeader className="border-b-2 border-[#18448D] pb-4">
-          <DialogTitle className="flex items-center space-x-3 text-2xl font-bold text-[#18448D]">
+          <DialogTitle className="flex items-center gap-3 text-xl sm:text-2xl font-bold text-[#18448D] min-w-0">
             <Package className="h-6 w-6" />
-            <span>Order #{order.id.slice(-8).toUpperCase()}</span>
+            <span className="break-all">Order #{order.id.slice(-8).toUpperCase()}</span>
           </DialogTitle>
         </DialogHeader>
 
         <div className="space-y-6">
           {/* Order Info - Redesigned */}
-          <div className="bg-gradient-to-r from-blue-50 to-slate-50 border border-slate-200 rounded-xl p-5 grid grid-cols-1 md:grid-cols-3 gap-4 shadow-sm">
-            <div className="flex items-center space-x-2">
+          <div className="bg-gradient-to-r from-blue-50 to-slate-50 border border-slate-200 rounded-xl p-4 sm:p-5 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 shadow-sm">
+            <div className="flex items-start gap-2 min-w-0">
               <Calendar className="h-4 w-4 text-gray-500" />
-              <div>
+              <div className="min-w-0">
                 <p className="text-sm text-gray-600">Order Date</p>
-                <p className="font-medium">{orderDate}</p>
+                <p className="font-medium break-words">{orderDate}</p>
               </div>
             </div>
             
-            <div className="flex items-center space-x-2">
+            <div className="flex items-start gap-2 min-w-0">
               <CreditCard className="h-4 w-4 text-gray-500" />
               <div>
                 <p className="text-sm text-gray-600">Status</p>
@@ -544,7 +544,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
               </div>
             </div>
             
-            <div>
+            <div className="min-w-0">
               <p className="text-sm text-gray-600">Tracking</p>
               <TrackingBadge 
                 carrier={order.tracking_carrier} 
@@ -559,15 +559,15 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                 <User className="h-5 w-5 text-blue-600 mr-2" />
                 Customer Information
               </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="min-w-0 rounded-md border border-blue-100 bg-white/70 p-3 flex items-center space-x-2">
+              <div className="grid grid-cols-1 gap-3">
+                <div className="min-w-0 rounded-md border border-blue-100 bg-white/70 p-3 flex items-start gap-2">
                   <User className="h-4 w-4 text-gray-500" />
                   <div>
                     <p className="text-sm text-gray-600">Customer Name</p>
                     <p className="font-semibold text-gray-900 break-words">{customerName}</p>
                   </div>
                 </div>
-                <div className="min-w-0 rounded-md border border-blue-100 bg-white/70 p-3 flex items-center space-x-2">
+                <div className="min-w-0 rounded-md border border-blue-100 bg-white/70 p-3 flex items-start gap-2">
                   <Mail className="h-4 w-4 text-gray-500" />
                   <div>
                     <p className="text-sm text-gray-600">Email</p>
@@ -576,7 +576,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                     </p>
                   </div>
                 </div>
-                <div className="min-w-0 rounded-md border border-blue-100 bg-white/70 p-3 flex items-start space-x-2">
+                <div className="min-w-0 rounded-md border border-blue-100 bg-white/70 p-3 flex items-start gap-2">
                   <MapPin className="h-4 w-4 text-gray-500 mt-0.5" />
                   <div>
                     <p className="text-sm text-gray-600">Address</p>
@@ -650,8 +650,8 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                 .map(({ item, itemIndex }) => (
                 <div key={itemIndex} className="space-y-5">
                   {/* Contact Info Card */}
-                  <div className="bg-white/80 backdrop-blur rounded-xl p-4 border border-purple-200 shadow-sm">
-                    <div className="flex items-center gap-3">
+                   <div className="bg-white/80 backdrop-blur rounded-xl p-4 border border-purple-200 shadow-sm">
+                    <div className="flex flex-wrap items-start gap-3">
                       <div className={`p-2 rounded-lg ${item.design_draft_preference === 'email' ? 'bg-blue-100' : 'bg-green-100'}`}>
                         {item.design_draft_preference === 'email' ? (
                           <Mail className="h-5 w-5 text-blue-600" />
@@ -665,8 +665,8 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                           {item.design_draft_preference === 'email' ? '📧 Email' : '📱 Text Message'}
                         </p>
                       </div>
-                      <div className="ml-auto px-4 py-2 bg-purple-100 rounded-lg">
-                        <p className="text-sm font-bold text-purple-800">{item.design_draft_contact}</p>
+                      <div className="w-full sm:w-auto sm:ml-auto px-4 py-2 bg-purple-100 rounded-lg">
+                        <p className="text-sm font-bold text-purple-800 break-all">{item.design_draft_contact}</p>
                       </div>
                     </div>
                   </div>
@@ -698,7 +698,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                         </div>
                       </div>
                       <div className="p-4">
-                        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
                           {item.design_uploaded_assets.map((asset, assetIdx) => (
                             <button
                               key={assetIdx}
@@ -738,7 +738,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                     </div>
                     <div className="p-4">
                       {item.final_print_pdf_url ? (
-                        <div className="flex items-center gap-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl p-4">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-4 bg-gradient-to-r from-green-50 to-emerald-50 border-2 border-green-300 rounded-xl p-4">
                           <div className="p-3 bg-green-500 rounded-xl shadow-md">
                             <FileText className="h-6 w-6 text-white" />
                           </div>
@@ -754,7 +754,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                             href={item.final_print_pdf_url}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="px-5 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm font-bold rounded-xl hover:from-green-700 hover:to-emerald-700 flex items-center gap-2 shadow-md transition-all duration-200"
+                            className="w-full sm:w-auto justify-center px-5 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white text-sm font-bold rounded-xl hover:from-green-700 hover:to-emerald-700 flex items-center gap-2 shadow-md transition-all duration-200"
                           >
                             <Download className="h-4 w-4" />
                             Download JPEG
@@ -774,7 +774,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                             </div>
                           </div>
                           {onUploadFinalPdf && (
-                            <label className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-600 to-violet-600 text-white text-sm font-bold rounded-xl hover:from-purple-700 hover:to-violet-700 cursor-pointer transition-all duration-200 shadow-md">
+                            <label className="mt-4 inline-flex w-full sm:w-auto justify-center items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-purple-600 to-violet-600 text-white text-sm font-bold rounded-xl hover:from-purple-700 hover:to-violet-700 cursor-pointer transition-all duration-200 shadow-md">
                               <Upload className="h-4 w-4" />
                               Upload Final JPEG
                               <input
@@ -810,119 +810,108 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
               {order.items.map((item, index) => {
                   const normalized = normalizeOrderItemDisplay(item as NormalizableOrderItem);
                   return (
-                <div key={index} className="border-2 border-slate-200 rounded-xl p-5 bg-white shadow-sm hover:shadow-md transition-shadow">
-                  <div className="flex gap-4">
-                    {/* Banner Thumbnail */}
-                    {getThumbnailUrl(item) && (
-                      <div className="flex-shrink-0">
-                        <img 
-                          src={getThumbnailUrl(item, 150)} 
-                          alt={`${getProductLabel(item.product_type)} ${index + 1} preview`}
-                          className="w-32 h-24 object-cover rounded-lg border border-slate-200 shadow-sm"
-                          onError={(e) => {
-                            // Hide image on error
-                            (e.target as HTMLImageElement).style.display = 'none';
-                          }}
-                        />
-                      </div>
-                    )}
-                    <div className="flex-1 flex justify-between items-start">
-                    <div className="flex-1">
-                      <h4 className="text-lg font-bold text-slate-900 mb-3">
-                        {getItemDisplayName(item)}
-                        {normalized.productType === 'yard-sign' && (
-                          <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-orange-200 text-orange-900">Yard Sign</span>
-                        )}
-                      </h4>
-                      <div className="text-sm text-gray-600 mt-2 grid grid-cols-2 gap-2">
-                        <p className="break-words">Size: {normalized.sizeDisplay}</p>
-                        <p className="break-words">Material: {normalized.materialDisplay}</p>
-                        <p className="break-words">Print: {normalized.printDisplay}</p>
-                        <p className="break-words">Qty: {normalized.qtyDisplay}</p>
-                        {normalized.uploadedDesignsCount ? <p className="break-words">Uploaded Designs: {normalized.uploadedDesignsCount}</p> : null}
-                        {normalized.stepStakesQty ? <p className="break-words">Step Stakes: {normalized.stepStakesQty}</p> : null}
-                        {normalized.grommetsDisplay ? <p className="break-words">Grommets: {normalized.grommetsDisplay}</p> : null}
-                        {normalized.polePocketsDisplay ? <p className="break-words">Pole Pockets: {normalized.polePocketsDisplay}</p> : null}
-                        {normalized.ropeDisplay ? <p className="break-words">Rope: {normalized.ropeDisplay}</p> : null}
-                      </div>
-
-                      <div className="mt-3 p-3 bg-gray-50 rounded-lg space-y-1 text-sm">
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Unit Price:</span>
-                          <span className="text-gray-900">{usd(normalized.unitPriceCents / 100)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Qty:</span>
-                          <span className="text-gray-900">{normalized.qtyDisplay}</span>
-                        </div>
-                        <div className="flex justify-between font-medium border-t border-gray-200 pt-1 mt-2">
-                          <span className="text-gray-900">Line Total:</span>
-                          <span className="text-gray-900">{usd(normalized.lineTotalCents / 100)}</span>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right ml-4 min-w-[120px]">
-                      <div className="bg-[#18448D] text-white px-4 py-2 rounded-lg mb-2">
-                        <p className="text-xs font-medium opacity-90">Total</p>
-                          <p className="text-xl font-bold">
-                          {usd(normalized.lineTotalCents / 100)}
-                          </p>
-                      </div>
-
-                      <div className="mt-2 space-y-2">
-
-                        {/* Admin File Download Button - for self-designed orders */}
-                        {isAdminUser && !item.design_service_enabled && (item.file_key || item.print_ready_url || item.web_preview_url) && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              const downloadInfo = getBestDownloadUrl(item);
-                              if (downloadInfo) {
-                                if (downloadInfo.isAI) {
-                                  // For AI items, download directly from the URL
-                                  const link = document.createElement('a');
-                                  link.href = downloadInfo.url;
-                                  link.download = `banner-${order.id}-item-${index + 1}-${downloadInfo.type}.${downloadInfo.type === 'print_ready' ? 'tiff' : 'jpg'}`;
-                                  document.body.appendChild(link);
-                                  link.click();
-                                  document.body.removeChild(link);
-                                } else {
-                                  // For regular items, use the file download function
-                                  handleFileDownload(downloadInfo.url, index);
-                                }
-                              }
+                <div key={index} className="border-2 border-slate-200 rounded-xl p-4 sm:p-5 bg-white shadow-sm hover:shadow-md transition-shadow overflow-x-clip">
+                  <div className="flex flex-col gap-4 min-w-0">
+                    <div className="flex items-start gap-3 min-w-0">
+                      {getThumbnailUrl(item) && (
+                        <div className="flex-shrink-0">
+                          <img
+                            src={getThumbnailUrl(item, 150)}
+                            alt={`${getProductLabel(item.product_type)} ${index + 1} preview`}
+                            className="w-28 h-20 object-cover rounded-lg border border-slate-200 shadow-sm"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
                             }}
-                            className="min-w-[60px]"
-                          >
-                            <Download className="h-3 w-3 mr-1" />
-                            Print File
-                          </Button>
-                        )}
-                        
-
-
-                        {isAdminUser && !item.file_key && !item.print_ready_url && !item.web_preview_url && (
-                          <div className="text-xs text-gray-500 text-center py-1">
-                            <FileText className="h-3 w-3 inline mr-1" />
-                            No file uploaded
-                          </div>
-                        )}
-                        {/* Reorder Button - Show for non-admin users only */}
-                        {!isAdminUser && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleReorder(index)}
-                            className="min-w-[60px]"
-                          >
-                            <ShoppingCart className="h-3 w-3 mr-1" />
-                            Reorder
-                          </Button>
-                        )}
+                          />
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <h4 className="text-base sm:text-lg font-bold text-slate-900 break-words">
+                          {getItemDisplayName(item)}
+                          {normalized.productType === 'yard-sign' && (
+                            <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-orange-200 text-orange-900">Yard Sign</span>
+                          )}
+                        </h4>
+                      </div>
+                      <div className="shrink-0 rounded-lg bg-[#18448D] px-3 py-2 text-right text-white">
+                        <p className="text-[11px] font-medium opacity-90">Line Total</p>
+                        <p className="text-lg font-bold">{usd(normalized.lineTotalCents / 100)}</p>
                       </div>
                     </div>
-                  </div>
+
+                    <div className="text-sm text-gray-700 space-y-1">
+                      <p className="break-words">Size: {normalized.sizeDisplay}</p>
+                      <p className="break-words">Material: {normalized.materialDisplay}</p>
+                      <p className="break-words">Print: {normalized.printDisplay}</p>
+                      <p className="break-words">Qty: {normalized.qtyDisplay}</p>
+                      {normalized.uploadedDesignsCount ? <p className="break-words">Uploaded Designs: {normalized.uploadedDesignsCount}</p> : null}
+                      {normalized.stepStakesQty ? <p className="break-words">Step Stakes: {normalized.stepStakesQty}</p> : null}
+                      {normalized.grommetsDisplay ? <p className="break-words">Grommets: {normalized.grommetsDisplay}</p> : null}
+                      {normalized.polePocketsDisplay ? <p className="break-words">Pole Pockets: {normalized.polePocketsDisplay}</p> : null}
+                      {normalized.ropeDisplay ? <p className="break-words">Rope: {normalized.ropeDisplay}</p> : null}
+                    </div>
+
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-1.5 text-sm">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Unit Price</span>
+                        <span className="text-gray-900">{usd(normalized.unitPriceCents / 100)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Qty</span>
+                        <span className="text-gray-900">{normalized.qtyDisplay}</span>
+                      </div>
+                      <div className="flex justify-between font-semibold border-t border-gray-200 pt-2">
+                        <span className="text-gray-900">Line Total</span>
+                        <span className="text-gray-900">{usd(normalized.lineTotalCents / 100)}</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      {isAdminUser && !item.design_service_enabled && (item.file_key || item.print_ready_url || item.web_preview_url) && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            const downloadInfo = getBestDownloadUrl(item);
+                            if (downloadInfo) {
+                              if (downloadInfo.isAI) {
+                                const link = document.createElement('a');
+                                link.href = downloadInfo.url;
+                                link.download = `banner-${order.id}-item-${index + 1}-${downloadInfo.type}.${downloadInfo.type === 'print_ready' ? 'tiff' : 'jpg'}`;
+                                document.body.appendChild(link);
+                                link.click();
+                                document.body.removeChild(link);
+                              } else {
+                                handleFileDownload(downloadInfo.url, index);
+                              }
+                            }
+                          }}
+                          className="w-full justify-center"
+                        >
+                          <Download className="h-3 w-3 mr-1" />
+                          Print File
+                        </Button>
+                      )}
+
+                      {isAdminUser && !item.file_key && !item.print_ready_url && !item.web_preview_url && (
+                        <div className="text-xs text-gray-500 text-center py-1">
+                          <FileText className="h-3 w-3 inline mr-1" />
+                          No file uploaded
+                        </div>
+                      )}
+
+                      {!isAdminUser && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleReorder(index)}
+                          className="w-full justify-center"
+                        >
+                          <ShoppingCart className="h-3 w-3 mr-1" />
+                          Reorder
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
                   );
