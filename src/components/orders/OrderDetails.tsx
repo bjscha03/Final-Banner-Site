@@ -834,7 +834,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                       <h4 className="text-lg font-bold text-slate-900 mb-3">
                         {getItemDisplayName(item)}
                         {isYardSignItem(item) && (
-                          <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-orange-100 text-orange-800">Yard Sign</span>
+                          <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-orange-200 text-orange-900">Yard Sign</span>
                         )}
                       </h4>
                       <div className="text-sm text-gray-600 mt-2 grid grid-cols-2 gap-2">
