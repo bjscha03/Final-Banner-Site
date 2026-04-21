@@ -224,7 +224,9 @@ export function getEmailItemOptions(item: {
       `Size: ${getDisplaySize(item)}`,
       'Material: Premium Magnetic Material',
       'Print: Single-Sided',
-      item.rounded_corners ? `Rounded Corners: ${getCarMagnetRoundedCornersLabel(item.rounded_corners)}` : 'Rounded Corners: None',
+      item.rounded_corners
+        ? `Rounded Corners: ${getCarMagnetRoundedCornersLabel(item.rounded_corners)} (Included Free)`
+        : 'Rounded Corners: None (Included Free)',
       item.design_service_enabled ? '⚡ Design Service Order' : null,
     ];
     return parts.filter(Boolean).join(' • ');
@@ -294,7 +296,7 @@ export function normalizeOrderItemDisplay(item: NormalizableOrderItem): Normaliz
         }
       : isCarMagnet
         ? {
-            roundedCornersDisplay: getCarMagnetRoundedCornersLabel(item.rounded_corners),
+            roundedCornersDisplay: `${getCarMagnetRoundedCornersLabel(item.rounded_corners)} (Included Free)`,
           }
       : {
           ...(getDisplayGrommets(item.grommets) ? { grommetsDisplay: getDisplayGrommets(item.grommets) } : {}),

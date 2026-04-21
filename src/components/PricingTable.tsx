@@ -70,59 +70,8 @@ const PricingTable: React.FC = () => {
     }
   ];
 
-  const handleMaterialSelect = (materialKey: MaterialKey) => {
-    console.log('🔵 HOMEPAGE: handleMaterialSelect called with:', materialKey);
-    console.log('🔵 HOMEPAGE: Material key type:', typeof materialKey);
-    console.log('🔵 HOMEPAGE: Material key value:', JSON.stringify(materialKey));
-    
-    // Special logging for 15oz to debug the issue
-    if (materialKey === '15oz') {
-      console.log('✅ 15OZ BUTTON CLICKED - Function is being called correctly!');
-      console.log('✅ This proves the button click handler is working');
-    }
-    // Get current Quick Quote selections or use defaults
-    const quickQuoteData = sessionStorage.getItem('quickQuote');
-    let widthIn = 48;
-    let heightIn = 24;
-    let quantity = 1;
-
-    if (quickQuoteData) {
-      try {
-        const parsed = JSON.parse(quickQuoteData);
-        widthIn = parsed.widthIn || 48;
-        heightIn = parsed.heightIn || 24;
-        quantity = parsed.quantity || 1;
-      } catch (e) {
-        // Use defaults if parsing fails
-      }
-    }
-
-    // Create payload with selected material
-    const payload = {
-      widthIn,
-      heightIn,
-      quantity,
-      material: materialKey
-    };
-
-    // Store in sessionStorage as backup
-    sessionStorage.setItem('quickQuote', JSON.stringify(payload));
-
-    // Navigate with URL parameters
-    const params = new URLSearchParams({
-      width: widthIn.toString(),
-      height: heightIn.toString(),
-      qty: quantity.toString(),
-      material: materialKey
-    });
-
-    console.log('🔵 HOMEPAGE: Navigating to:', `/design?${params.toString()}`);
-    console.log('🔵 HOMEPAGE: Navigating to:', `/design?${params.toString()}`);
-    navigate(`/design?${params.toString()}`);
-    console.log('🔵 HOMEPAGE: Navigate called');
-    console.log('🔵 HOMEPAGE: Navigate called');
-
-    // Scroll to top after navigation
+  const handleMaterialSelect = (_materialKey: MaterialKey) => {
+    navigate('/design');
     setTimeout(() => {
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }, 100);

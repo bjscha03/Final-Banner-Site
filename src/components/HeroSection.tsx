@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
-import { FileText, Star, Lock, CheckCircle } from 'lucide-react';
+import React from 'react';
+import { Star, Lock, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import QuickQuoteModal from '@/components/QuickQuoteModal';
 
 // Realistic metal grommet component
 const Grommet: React.FC<{ position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' }> = ({ position }) => {
@@ -47,7 +46,6 @@ const Grommet: React.FC<{ position: 'top-left' | 'top-right' | 'bottom-left' | '
 
 const HeroSection: React.FC = () => {
   const navigate = useNavigate();
-  const [showQuickQuote, setShowQuickQuote] = useState(false);
 
   const handleUploadOrCreate = () => {
     navigate('/design');
@@ -171,13 +169,12 @@ const HeroSection: React.FC = () => {
                   <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent opacity-0 group-hover:opacity-100 group-hover:animate-[btn-shine_0.8s_ease-in-out]" />
                 </button>
 
-                {/* Quick Quote Button - Dark outline */}
+                {/* Secondary CTA Button */}
                 <button
-                  onClick={() => setShowQuickQuote(true)}
+                  onClick={handleUploadOrCreate}
                   className="px-8 py-3.5 bg-slate-700/50 hover:bg-slate-600/70 border border-slate-400/50 hover:border-slate-300 text-white text-base font-semibold rounded-lg transition-all duration-300 min-w-[200px] flex items-center justify-center gap-2 shadow-lg hover:shadow-xl backdrop-blur-sm hover:-translate-y-0.5"
                 >
-                  <FileText className="w-4 h-4" />
-                  Get a Quick Quote
+                  Start Your Design
                 </button>
               </div>
 
@@ -201,11 +198,6 @@ const HeroSection: React.FC = () => {
         </div>
       </div>
 
-      {/* Quick Quote Modal */}
-      <QuickQuoteModal
-        isOpen={showQuickQuote}
-        onClose={() => setShowQuickQuote(false)}
-      />
     </section>
   );
 };

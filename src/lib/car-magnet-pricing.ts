@@ -1,5 +1,4 @@
 import { getProductConfig } from '@/lib/products';
-import { calculateQuantityDiscount } from './quantity-discount';
 
 export const CAR_MAGNET_IMAGE_URL = 'https://res.cloudinary.com/dtrxl120u/image/upload/v1776755781/car_magnet_yinavh.png';
 
@@ -13,10 +12,11 @@ export interface CarMagnetSizeOption {
 }
 
 export const CAR_MAGNET_SIZES: CarMagnetSizeOption[] = [
-  { label: '18" × 12"', widthIn: 18, heightIn: 12, basePriceCents: 2200 },
-  { label: '24" × 12"', widthIn: 24, heightIn: 12, basePriceCents: 2800 },
-  { label: '24" × 18"', widthIn: 24, heightIn: 18, basePriceCents: 3600 },
-  { label: '42" × 12"', widthIn: 42, heightIn: 12, basePriceCents: 4400 },
+  { label: '12" × 18"', widthIn: 12, heightIn: 18, basePriceCents: 2900 },
+  { label: '24" × 12"', widthIn: 24, heightIn: 12, basePriceCents: 4000 },
+  { label: '24" × 18"', widthIn: 24, heightIn: 18, basePriceCents: 4700 },
+  { label: '42" × 12"', widthIn: 42, heightIn: 12, basePriceCents: 6000 },
+  { label: '72" × 24"', widthIn: 72, heightIn: 24, basePriceCents: 16000 },
 ];
 
 export const CAR_MAGNET_ROUNDED_CORNERS: Array<{ value: CarMagnetRoundedCorner; label: string }> = [
@@ -59,8 +59,9 @@ export function calcCarMagnetPricing(widthIn: number, heightIn: number, quantity
   const safeQuantity = Math.max(1, Number(quantity || 1));
   const unitPriceCents = size.basePriceCents;
   const baseSubtotalCents = unitPriceCents * safeQuantity;
-  const quantityDiscount = calculateQuantityDiscount(baseSubtotalCents, safeQuantity);
-  const subtotalCents = quantityDiscount.subtotalAfterDiscountCents;
+  const quantityDiscountRate = 0;
+  const quantityDiscountCents = 0;
+  const subtotalCents = baseSubtotalCents;
   const taxRate = config.taxRate;
   const taxCents = Math.round(subtotalCents * taxRate);
   const totalCents = subtotalCents + taxCents;
@@ -69,8 +70,8 @@ export function calcCarMagnetPricing(widthIn: number, heightIn: number, quantity
     unitPriceCents,
     quantity: safeQuantity,
     baseSubtotalCents,
-    quantityDiscountRate: quantityDiscount.discountRate,
-    quantityDiscountCents: quantityDiscount.discountCents,
+    quantityDiscountRate,
+    quantityDiscountCents,
     subtotalCents,
     taxRate,
     taxCents,

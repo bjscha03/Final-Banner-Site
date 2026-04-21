@@ -11,7 +11,7 @@ const SizeCard: React.FC = () => {
   const [widthError, setWidthError] = useState('');
   const [heightError, setHeightError] = useState('');
 
-  // Update local state when store values change (e.g., from Quick Quote)
+  // Update local state when store values change
   useEffect(() => {
     setWidthInput(widthIn.toString());
     setHeightInput(heightIn.toString());

@@ -98,7 +98,7 @@ interface YardSignConfiguratorProps {
   onPromoRemove: () => void;
   /** When set, auto-opens the preview modal for this design ID on mount */
   autoOpenDesignId?: string | null;
-  /** Optional quantity preset from quick quote to apply to first uploaded design */
+  /** Optional quantity preset to apply to first uploaded design */
   initialDesignQuantity?: number;
 }
 

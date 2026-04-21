@@ -1492,12 +1492,12 @@ const GoogleAdsBanner: React.FC = () => {
                       <Plus className="h-4 w-4 text-gray-600" />
                     </button>
                   </div>
-                  {quantityDiscountRate > 0 && (
+                  {!isCarMagnet && quantityDiscountRate > 0 && (
                     <p className="text-xs text-green-600 font-medium mt-1.5">
                       🎉 {Math.round(quantityDiscountRate * 100)}% bulk discount applied at checkout
                     </p>
                   )}
-                  {quantity === 1 && (
+                  {!isCarMagnet && quantity === 1 && (
                     <p className="text-xs text-gray-400 mt-1.5">Order 2+ for up to 13% off</p>
                   )}
                 </div>
@@ -1553,7 +1553,7 @@ const GoogleAdsBanner: React.FC = () => {
                     detailRows={[
                       { label: 'Material', value: materialLabel },
                       { label: 'Print', value: 'Single-Sided' },
-                      { label: 'Rounded Corners', value: getCarMagnetRoundedCornersLabel(carMagnetRoundedCorners) },
+                      { label: 'Rounded Corners', value: `${getCarMagnetRoundedCornersLabel(carMagnetRoundedCorners)} • Included Free` },
                     ]}
                     baseSubtotalCents={carMagnetPricing.baseSubtotalCents}
                     baseSubtotalLabel="Base price"
