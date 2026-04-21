@@ -440,6 +440,7 @@ const QuickQuote: React.FC = () => {
       size: `${selectedCarMagnetSize.widthIn}x${selectedCarMagnetSize.heightIn}`,
       material: 'magnetic',
       qty: String(carMagnetQuantity),
+      // Send both keys during transition so current and legacy readers both receive corners.
       corners: carMagnetRoundedCorners,
       roundedCorners: carMagnetRoundedCorners,
     });
