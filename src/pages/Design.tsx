@@ -450,10 +450,16 @@ const Design: React.FC = () => {
     }
 
     const isCarMagnetParam = ['car-magnet', 'car-magnets', 'car_magnet', 'car_magnets'].includes((tab || productParam || '').toLowerCase());
-    if (isCarMagnetParam) {
+    const hasCarMagnetQuickQuoteParams =
+      searchParams.has('size') ||
+      searchParams.has('qty') ||
+      searchParams.has('corners') ||
+      searchParams.has('roundedCorners') ||
+      searchParams.has('material');
+    if (isCarMagnetParam && hasCarMagnetQuickQuoteParams) {
       const size = searchParams.get('size');
       const qty = searchParams.get('qty');
-      const corners = searchParams.get('corners');
+      const corners = searchParams.get('corners') || searchParams.get('roundedCorners');
       const parsedQty = Math.max(1, Number.parseInt(qty || '1', 10) || 1);
       const parsedSize = CAR_MAGNET_SIZES.find((option) => `${option.widthIn}x${option.heightIn}` === size) || CAR_MAGNET_SIZES[0];
       const validCornerValues = new Set(CAR_MAGNET_ROUNDED_CORNERS.map((option) => option.value));
@@ -800,7 +806,22 @@ const Design: React.FC = () => {
     }
 
     if (isCarMagnet && carMagnetPricing) {
-      if (!uploadedFile || !checkoutData) return;
+      if (!uploadedFile) {
+        toast({
+          title: 'Artwork required',
+          description: 'Please upload your Car Magnet artwork before checkout.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      if (!checkoutData) {
+        toast({
+          title: 'Unable to continue',
+          description: 'Please confirm your artwork position, then try checkout again.',
+          variant: 'destructive',
+        });
+        return;
+      }
 
       const container = previewContainerRef.current;
       const canvasStateJson = JSON.stringify({
@@ -985,6 +1006,21 @@ const Design: React.FC = () => {
       return;
     }
     if (isCarMagnet) {
+      if (!uploadedFile) {
+        toast({
+          title: 'Artwork required',
+          description: 'Please upload your Car Magnet artwork before checkout.',
+          variant: 'destructive',
+        });
+        return;
+      }
+      const container = previewContainerRef.current;
+      const containerWidth = container?.offsetWidth || 1;
+      const containerHeight = container?.offsetHeight || 1;
+      const posPercent = {
+        x: (imgPos.x / containerWidth) * 100,
+        y: (imgPos.y / containerHeight) * 100,
+      };
       performCheckout([], { pos: posPercent, scale: imgScale });
       return;
     }
@@ -1007,7 +1043,7 @@ const Design: React.FC = () => {
     } else {
       setShowUpsellModal(true);
     }
-  }, [uploadedFile, imgPos, imgScale, grommets, polePockets, addRope, performCheckout, isYardSign, isCarMagnet, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid]);
+  }, [uploadedFile, imgPos, imgScale, grommets, polePockets, addRope, performCheckout, isYardSign, isCarMagnet, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, toast]);
 
   // Trigger upsell modal after confirming position from preview modal
   const handleConfirmPosition = useCallback((pos: { x: number; y: number }, scale: number) => {

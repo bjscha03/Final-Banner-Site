@@ -429,6 +429,7 @@ const QuickQuote: React.FC = () => {
     const quickQuoteData = {
       productType: 'car_magnet',
       size: `${selectedCarMagnetSize.widthIn}x${selectedCarMagnetSize.heightIn}`,
+      material: 'magnetic',
       quantity: carMagnetQuantity,
       roundedCorners: carMagnetRoundedCorners,
     };
@@ -437,8 +438,10 @@ const QuickQuote: React.FC = () => {
     const params = new URLSearchParams({
       product: 'car-magnets',
       size: `${selectedCarMagnetSize.widthIn}x${selectedCarMagnetSize.heightIn}`,
+      material: 'magnetic',
       qty: String(carMagnetQuantity),
       corners: carMagnetRoundedCorners,
+      roundedCorners: carMagnetRoundedCorners,
     });
     navigate(`/design?${params.toString()}`);
   };
