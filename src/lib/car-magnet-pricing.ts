@@ -1,4 +1,5 @@
 import { getProductConfig } from '@/lib/products';
+import { calculateQuantityDiscount } from './quantity-discount';
 
 export const CAR_MAGNET_IMAGE_URL = 'https://res.cloudinary.com/dtrxl120u/image/upload/v1776755781/car_magnet_yinavh.png';
 
@@ -39,6 +40,13 @@ export function getCarMagnetRoundedCornersLabel(value?: string | null): string {
 export interface CarMagnetPricing {
   unitPriceCents: number;
   quantity: number;
+  /** Total of unit * quantity, BEFORE quantity discount and tax. */
+  baseSubtotalCents: number;
+  /** Discount rate applied (decimal, e.g. 0.07 for 7%). */
+  quantityDiscountRate: number;
+  /** Discount amount in cents (>=0). */
+  quantityDiscountCents: number;
+  /** baseSubtotalCents - quantityDiscountCents */
   subtotalCents: number;
   taxRate: number;
   taxCents: number;
@@ -50,7 +58,9 @@ export function calcCarMagnetPricing(widthIn: number, heightIn: number, quantity
   const size = CAR_MAGNET_SIZES.find((option) => option.widthIn === widthIn && option.heightIn === heightIn) || CAR_MAGNET_SIZES[0];
   const safeQuantity = Math.max(1, Number(quantity || 1));
   const unitPriceCents = size.basePriceCents;
-  const subtotalCents = unitPriceCents * safeQuantity;
+  const baseSubtotalCents = unitPriceCents * safeQuantity;
+  const quantityDiscount = calculateQuantityDiscount(baseSubtotalCents, safeQuantity);
+  const subtotalCents = quantityDiscount.subtotalAfterDiscountCents;
   const taxRate = config.taxRate;
   const taxCents = Math.round(subtotalCents * taxRate);
   const totalCents = subtotalCents + taxCents;
@@ -58,6 +68,9 @@ export function calcCarMagnetPricing(widthIn: number, heightIn: number, quantity
   return {
     unitPriceCents,
     quantity: safeQuantity,
+    baseSubtotalCents,
+    quantityDiscountRate: quantityDiscount.discountRate,
+    quantityDiscountCents: quantityDiscount.discountCents,
     subtotalCents,
     taxRate,
     taxCents,

@@ -15,6 +15,7 @@ import {
   POLE_POCKET_PRICE_PER_LINEAR_FOOT_CENTS,
   ROPE_PRICE_PER_LINEAR_FOOT_CENTS,
 } from '@/lib/bannerPricingEngine';
+import { resolvePromo, getKnownPromo } from '@/lib/promoEngine';
 import { useToast } from '@/components/ui/use-toast';
 import { generateFinalRenderFromHTML } from '@/utils/generateFinalRenderFromHTML';
 import type { ProductTypeSlug } from '@/lib/products';
@@ -600,7 +601,31 @@ const Design: React.FC = () => {
 
   // Quantity discount info
   const quantityDiscountRate = bannerPricing.quantityDiscountRate;
-  const discountedTotal = promoApplied ? (bannerPricing.subtotalCents / 100) * (1 - PROMO_NEW20_DISCOUNT_RATE) : (bannerPricing.subtotalCents / 100);
+
+  // Banner promo math: route through promoEngine so /design uses the SAME
+  // best-discount-wins logic as cart and checkout. We feed it the RAW
+  // pre-discount subtotal (subtotalBeforeDiscountCents) so the resolver
+  // chooses correctly between the quantity tier and the promo rate without
+  // double-discounting.
+  const effectivePromoCode = promoApplied ? promoCode : null;
+  const bannerPromoResolution = useMemo(() => resolvePromo({
+    subtotalCents: bannerPricing.subtotalBeforeDiscountCents,
+    quantity,
+    code: effectivePromoCode,
+  }), [bannerPricing.subtotalBeforeDiscountCents, quantity, effectivePromoCode]);
+
+  const bannerSubtotalAfterAllDiscountsCents = Math.max(
+    0,
+    bannerPricing.subtotalBeforeDiscountCents - bannerPromoResolution.appliedDiscountAmountCents,
+  );
+  const bannerTaxAfterAllDiscountsCents = Math.round(bannerSubtotalAfterAllDiscountsCents * 0.06);
+  const bannerTotalAfterAllDiscountsCents = bannerSubtotalAfterAllDiscountsCents + bannerTaxAfterAllDiscountsCents;
+  const discountedTotal = bannerSubtotalAfterAllDiscountsCents / 100;
+  // Show "promo applied" badge only when the resolver actually selected it
+  // AND the amount is non-zero (never show messaging without a real reduction).
+  const bannerPromoActuallyApplied =
+    bannerPromoResolution.appliedDiscountType === 'promo' &&
+    bannerPromoResolution.appliedDiscountAmountCents > 0;
 
   const scrollToOrder = useCallback(() => {
     setHasEnteredBuilder(true);
@@ -636,8 +661,15 @@ const Design: React.FC = () => {
   const handlePromoApply = () => {
     if (promoCode.trim().toUpperCase() === 'NEW20') {
       setPromoApplied(true);
-      sessionStorage.setItem('pendingPromoCode', 'NEW20');
+      // Promo codes are NOT persisted to sessionStorage. The user must re-enter
+      // the code in Checkout where it is validated server-side. This prevents
+      // unvalidated codes from auto-applying to other users' carts.
     }
+  };
+
+  const handlePromoRemove = () => {
+    setPromoApplied(false);
+    setPromoCode('');
   };
 
   // Compress images client-side to stay under Netlify's 6 MB function limit
@@ -870,7 +902,9 @@ const Design: React.FC = () => {
         unit_price_cents: carMagnetPricing.unitPriceCents,
         rope_cost_cents: 0,
         pole_pocket_cost_cents: 0,
-        line_total_cents: carMagnetPricing.subtotalCents,
+        // Store RAW (pre-discount) line total so the cart's resolver can
+        // apply the quantity-discount tier uniformly across all magnet/banner items.
+        line_total_cents: carMagnetPricing.baseSubtotalCents,
       });
 
       setIsCartOpen(true);
@@ -1267,7 +1301,7 @@ const Design: React.FC = () => {
                   promoApplied={promoApplied}
                   onPromoCodeChange={setPromoCode}
                   onPromoApply={handlePromoApply}
-                  onPromoRemove={() => { setPromoApplied(false); setPromoCode(''); sessionStorage.removeItem('pendingPromoCode'); }}
+                  onPromoRemove={handlePromoRemove}
                   autoOpenDesignId={autoOpenDesignId}
                   initialDesignQuantity={yardSignQuickQuoteQtyPreset ?? undefined}
                 />
@@ -1286,7 +1320,7 @@ const Design: React.FC = () => {
                     promoApplied={promoApplied}
                     onPromoCodeChange={setPromoCode}
                     onPromoApply={handlePromoApply}
-                    onPromoRemove={() => { setPromoApplied(false); setPromoCode(''); sessionStorage.removeItem('pendingPromoCode'); }}
+                    onPromoRemove={handlePromoRemove}
                   />
                 )}
 
@@ -1603,14 +1637,24 @@ const Design: React.FC = () => {
             <div className="space-y-6">
               <div className="rounded-xl p-6 text-center" style={{ background: "#F7F8FA", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
                 <p className="text-sm text-gray-500 mb-1">Your Price</p>
-                {promoApplied ? (
+                {isCarMagnet && carMagnetPricing ? (
+                  carMagnetPricing.quantityDiscountCents > 0 ? (
+                    <>
+                      <p className="text-2xl text-gray-400 line-through leading-tight">{usd(carMagnetPricing.baseSubtotalCents / 100)}</p>
+                      <p className="text-5xl font-extrabold text-green-600 leading-tight">{usd(carMagnetPricing.subtotalCents / 100)}</p>
+                      <p className="text-sm text-green-600 font-semibold mt-1">You save {usd(carMagnetPricing.quantityDiscountCents / 100)}!</p>
+                    </>
+                  ) : (
+                    <p className="text-5xl font-extrabold text-gray-900 leading-tight">{usd(carMagnetPricing.subtotalCents / 100)}</p>
+                  )
+                ) : bannerPromoActuallyApplied ? (
                   <>
-                    <p className="text-2xl text-gray-400 line-through leading-tight">{usd(totals.materialTotal)}</p>
+                    <p className="text-2xl text-gray-400 line-through leading-tight">{usd(bannerPricing.subtotalBeforeDiscountCents / 100)}</p>
                     <p className="text-5xl font-extrabold text-green-600 leading-tight">{usd(discountedTotal)}</p>
-                    <p className="text-sm text-green-600 font-semibold mt-1">You save {usd(totals.materialTotal - discountedTotal)}!</p>
+                    <p className="text-sm text-green-600 font-semibold mt-1">You save {usd((bannerPricing.subtotalBeforeDiscountCents - bannerSubtotalAfterAllDiscountsCents) / 100)}!</p>
                   </>
                 ) : (
-                  <p className="text-5xl font-extrabold text-gray-900 leading-tight">{usd(isCarMagnet && carMagnetPricing ? carMagnetPricing.subtotalCents / 100 : bannerPricing.subtotalCents / 100)}</p>
+                  <p className="text-5xl font-extrabold text-gray-900 leading-tight">{usd(bannerPricing.subtotalCents / 100)}</p>
                 )}
                 <p className="text-base text-green-600 font-semibold mt-2">FREE Next-Day Air Included</p>
                 <p className="text-sm text-gray-500 mt-1">Printed within 24 hours.</p>
@@ -1621,18 +1665,32 @@ const Design: React.FC = () => {
                   <p><strong>Material:</strong> {materialLabel}</p>
                   <p><strong>Print:</strong> Single-Sided</p>
                   <p><strong>Quantity:</strong> {quantity}</p>
-                  {isCarMagnet ? (
-                    <p><strong>Rounded Corners:</strong> {getCarMagnetRoundedCornersLabel(carMagnetRoundedCorners)}</p>
+                  {isCarMagnet && carMagnetPricing ? (
+                    <>
+                      <p><strong>Rounded Corners:</strong> {getCarMagnetRoundedCornersLabel(carMagnetRoundedCorners)}</p>
+                      <p><strong>Base Price:</strong> {usd(carMagnetPricing.baseSubtotalCents / 100)}</p>
+                      {carMagnetPricing.quantityDiscountCents > 0 && (
+                        <p><strong>Quantity Discount ({Math.round(carMagnetPricing.quantityDiscountRate * 100)}% off):</strong> -{usd(carMagnetPricing.quantityDiscountCents / 100)}</p>
+                      )}
+                      <p><strong>Subtotal:</strong> {usd(carMagnetPricing.subtotalCents / 100)}</p>
+                      <p><strong>Tax:</strong> {usd(carMagnetPricing.taxCents / 100)}</p>
+                      <p><strong>Total:</strong> {usd(carMagnetPricing.totalCents / 100)}</p>
+                    </>
                   ) : (
                     <>
                       <p><strong>Grommets:</strong> {grommetsLabel}</p>
                       {polePockets !== 'none' && <p><strong>Pole Pockets:</strong> {polePockets} ({usd(bannerPricing.polePocketCostCents / 100)})</p>}
                       {addRope && <p><strong>Rope:</strong> {usd(bannerPricing.ropeCostCents / 100)}</p>}
                       <p><strong>Base Banner:</strong> {usd(bannerPricing.baseBannerPriceCents / 100)}</p>
-                      {bannerPricing.quantityDiscountCents > 0 && <p><strong>Quantity Discount:</strong> -{usd(bannerPricing.quantityDiscountCents / 100)}</p>}
-                      <p><strong>Subtotal:</strong> {usd(bannerPricing.subtotalCents / 100)}</p>
-                      <p><strong>Tax:</strong> {usd(bannerPricing.taxCents / 100)}</p>
-                      <p><strong>Total:</strong> {usd(bannerPricing.totalCents / 100)}</p>
+                      {bannerPromoResolution.appliedDiscountType === 'quantity' && bannerPromoResolution.appliedDiscountAmountCents > 0 && (
+                        <p><strong>Quantity Discount ({Math.round(bannerPromoResolution.quantityDiscountRate * 100)}% off):</strong> -{usd(bannerPromoResolution.appliedDiscountAmountCents / 100)}</p>
+                      )}
+                      {bannerPromoActuallyApplied && (
+                        <p><strong>Promo {bannerPromoResolution.promoDiscountCode} ({Math.round(bannerPromoResolution.promoDiscountRate * 100)}% off):</strong> -{usd(bannerPromoResolution.appliedDiscountAmountCents / 100)}</p>
+                      )}
+                      <p><strong>Subtotal:</strong> {usd(bannerSubtotalAfterAllDiscountsCents / 100)}</p>
+                      <p><strong>Tax:</strong> {usd(bannerTaxAfterAllDiscountsCents / 100)}</p>
+                      <p><strong>Total:</strong> {usd(bannerTotalAfterAllDiscountsCents / 100)}</p>
                     </>
                   )}
                 </div>
@@ -1656,10 +1714,12 @@ const Design: React.FC = () => {
                       <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-3 py-2">
                         <span className="text-sm font-semibold text-green-800 flex items-center gap-1.5">
                           <Tag className="h-3.5 w-3.5" />
-                          {promoCode} — 20% off
+                          {bannerPromoActuallyApplied
+                            ? `${promoCode} — 20% off applied`
+                            : `${promoCode} entered — quantity discount is larger, so we kept that`}
                         </span>
                         <button
-                          onClick={() => { setPromoApplied(false); setPromoCode(''); sessionStorage.removeItem('pendingPromoCode'); }}
+                          onClick={handlePromoRemove}
                           className="text-xs text-red-500 hover:text-red-700 font-medium"
                         >
                           Remove

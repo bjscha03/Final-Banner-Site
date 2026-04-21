@@ -139,14 +139,10 @@ const Checkout: React.FC = () => {
     checkAdminStatus();
   }, [user?.email]);
 
-  // Pre-fill promo code from landing page if available
-  useEffect(() => {
-    const pendingPromo = sessionStorage.getItem('pendingPromoCode');
-    if (pendingPromo && !discountCode) {
-      setDiscountCodeInput(pendingPromo);
-      sessionStorage.removeItem('pendingPromoCode');
-    }
-  }, [discountCode]);
+  // NOTE: We intentionally do NOT auto-prefill the discount code from
+  // sessionStorage. Promo codes must be entered explicitly by the user
+  // in checkout to prevent silent/auto-application of stale codes
+  // (e.g. NEW20 leaking from a previous design-page session).
   // Cart management functions
   const handleIncreaseQuantity = (itemId: string) => {
     const item = items.find(i => i.id === itemId);

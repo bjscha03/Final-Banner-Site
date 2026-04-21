@@ -1006,7 +1006,9 @@ export const useCartStore = create<CartState>()(
           cartOwnerId = localStorage.getItem('cart_owner_user_id');
         }
         return {
-          discountCode: state.discountCode,
+          // NOTE: discountCode is intentionally NOT persisted. Promo codes must
+          // be entered/applied per session to prevent cross-session and
+          // cross-account auto-application (e.g. NEW20 leaking into new carts).
           // CRITICAL FIX: Persist items to localStorage as a cache
           // This prevents items from being lost during page navigation (e.g., Canva flow)
           // Server is still the source of truth - loadFromServer() will update/merge
