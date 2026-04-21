@@ -43,6 +43,7 @@ const MATERIALS: { key: string; label: string; mapped: MaterialKey; desc: string
 ];
 
 const PROMO_NEW20_DISCOUNT_RATE = 0.2;
+const HERO_BG_VIDEO_URL = 'https://res.cloudinary.com/dtrxl120u/video/upload/v1776752374/Multi-Shot_Video_-_Create_a_premium__high-end_commercial_background_video_for_a_fast_custom_printing_plodlm.mp4';
 
 const TESTIMONIALS = [
   {
@@ -70,10 +71,10 @@ const PRODUCT_MODE_CONTENT = {
     heroTitle: 'Custom Banner',
     heroDescription: (
       <>
-        <p className="text-base md:text-lg text-gray-500 max-w-lg mx-auto leading-relaxed">
-          Printed in 24 hours + <strong className="text-gray-700">Free Next-Day Air Shipping</strong>.
+        <p className="text-base md:text-lg text-gray-100 max-w-lg mx-auto leading-relaxed">
+          Printed in 24 hours + <strong className="text-white">Free Next-Day Air Shipping</strong>.
         </p>
-        <p className="text-sm text-gray-400">Most orders arrive in 2 business days.</p>
+        <p className="text-sm text-gray-200">Most orders arrive in 2 business days.</p>
       </>
     ),
     topFeatures: [
@@ -93,7 +94,7 @@ const PRODUCT_MODE_CONTENT = {
   yard_sign: {
     heroTitle: 'Custom Yard Signs',
     heroDescription: (
-      <p className="text-base md:text-lg text-gray-500 max-w-lg mx-auto leading-relaxed">
+      <p className="text-base md:text-lg text-gray-100 max-w-lg mx-auto leading-relaxed">
         Standard 24&quot; × 18&quot; corrugated plastic yard signs, printed fast and shipped next business day.
       </p>
     ),
@@ -921,9 +922,27 @@ const Design: React.FC = () => {
       </Helmet>
 
       {/* Hero */}
-      <section className="px-4 pt-8 pb-10 md:pt-10 md:pb-12" style={{ background: 'linear-gradient(180deg, #F9FAFB 0%, #EEF2F7 100%)' }}>
-        <div className="max-w-2xl mx-auto text-center space-y-4">
-          <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight leading-tight">
+      <section className="relative overflow-hidden px-4 pt-8 pb-10 md:pt-10 md:pb-12 bg-slate-900">
+        <video
+          className="pointer-events-none absolute left-1/2 top-1/2 h-full w-full -translate-x-1/2 -translate-y-1/2 object-cover z-0"
+          autoPlay
+          muted
+          loop
+          playsInline
+          preload="auto"
+          aria-hidden="true"
+        >
+          <source src={HERO_BG_VIDEO_URL} type="video/mp4" />
+        </video>
+        <div
+          className="absolute inset-0 z-[1]"
+          style={{
+            background: 'linear-gradient(to bottom, rgba(0,0,0,0.55), rgba(0,0,0,0.35))',
+          }}
+          aria-hidden="true"
+        />
+        <div className="relative z-[2] max-w-2xl mx-auto text-center space-y-4">
+          <h1 className="text-white text-3xl sm:text-4xl md:text-5xl font-black tracking-tight leading-tight">
             Design Your
             <br />
             <span className="text-orange-500">{modeContent.heroTitle}</span>
@@ -932,7 +951,7 @@ const Design: React.FC = () => {
           {modeContent.heroDescription}
 
           {/* Inline benefit pills */}
-          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[13px] text-gray-500">
+          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[13px] text-gray-100">
             {modeContent.topFeatures.map((b, i) => (
               <span key={i} className="inline-flex items-center gap-1.5 font-medium">
                 <b.icon className={`h-3.5 w-3.5 ${b.iconClass}`} /> {b.label}

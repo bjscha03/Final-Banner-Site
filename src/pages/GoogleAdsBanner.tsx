@@ -50,6 +50,7 @@ const MATERIALS: { key: string; label: string; mapped: MaterialKey; desc: string
 ];
 
 const PROMO_NEW20_DISCOUNT_RATE = 0.2;
+const HERO_BG_VIDEO_URL = 'https://res.cloudinary.com/dtrxl120u/video/upload/v1776752374/Multi-Shot_Video_-_Create_a_premium__high-end_commercial_background_video_for_a_fast_custom_printing_plodlm.mp4';
 
 const TESTIMONIALS = [
   {
@@ -890,9 +891,27 @@ const GoogleAdsBanner: React.FC = () => {
         </header>
 
         {/* HERO */}
-        <section className="px-4 pt-10 pb-12 md:pt-14 md:pb-14" style={{ background: 'linear-gradient(180deg, #F9FAFB 0%, #EEF2F7 100%)' }}>
-          <div className="max-w-2xl mx-auto text-center space-y-5">
-            <h1 className="text-3xl sm:text-4xl md:text-5xl font-black tracking-tight leading-tight">
+        <section className="relative overflow-hidden px-4 pt-10 pb-12 md:pt-14 md:pb-14 bg-slate-900">
+          <video
+            className="pointer-events-none absolute left-1/2 top-1/2 h-full w-full -translate-x-1/2 -translate-y-1/2 object-cover z-0"
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="auto"
+            aria-hidden="true"
+          >
+            <source src={HERO_BG_VIDEO_URL} type="video/mp4" />
+          </video>
+          <div
+            className="absolute inset-0 z-[1]"
+            style={{
+              background: 'linear-gradient(to bottom, rgba(0,0,0,0.55), rgba(0,0,0,0.35))',
+            }}
+            aria-hidden="true"
+          />
+          <div className="relative z-[2] max-w-2xl mx-auto text-center space-y-5">
+            <h1 className="text-white text-3xl sm:text-4xl md:text-5xl font-black tracking-tight leading-tight">
               {isYardSign ? 'Custom Yard Signs' : 'Custom Banner Printing'}
               <br />
               <span className="text-orange-500">24-Hour Production</span>
@@ -900,22 +919,22 @@ const GoogleAdsBanner: React.FC = () => {
 
             {isYardSign ? (
               <>
-                <p className="text-base md:text-lg text-gray-500 max-w-lg mx-auto leading-relaxed">
+                <p className="text-base md:text-lg text-gray-100 max-w-lg mx-auto leading-relaxed">
                   Standard 24&quot; × 18&quot; corrugated plastic yard signs, printed fast and shipped next business day.
                 </p>
-                <p className="text-sm text-gray-400">Printed in 24 hours + <strong className="text-gray-700">Free Next-Day Air Shipping</strong>.</p>
+                <p className="text-sm text-gray-200">Printed in 24 hours + <strong className="text-white">Free Next-Day Air Shipping</strong>.</p>
               </>
             ) : (
               <>
-                <p className="text-base md:text-lg text-gray-500 max-w-lg mx-auto leading-relaxed">
-                  Printed in 24 hours + <strong className="text-gray-700">Free Next-Day Air Shipping</strong>.
+                <p className="text-base md:text-lg text-gray-100 max-w-lg mx-auto leading-relaxed">
+                  Printed in 24 hours + <strong className="text-white">Free Next-Day Air Shipping</strong>.
                 </p>
-                <p className="text-sm text-gray-400">Most orders arrive in 2 business days.</p>
+                <p className="text-sm text-gray-200">Most orders arrive in 2 business days.</p>
               </>
             )}
 
             {/* Inline benefit pills */}
-            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[13px] text-gray-500">
+            <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-2 text-[13px] text-gray-100">
               {(isYardSign ? [
                 { icon: <Clock className="h-3.5 w-3.5 text-orange-500" />, label: '24-Hr Print' },
                 { icon: <Truck className="h-3.5 w-3.5 text-orange-500" />, label: 'Free Next-Day Air' },
@@ -934,14 +953,14 @@ const GoogleAdsBanner: React.FC = () => {
             </div>
 
             <div className="pt-2 flex flex-col items-center gap-2">
-              <p className="text-sm text-gray-500 font-medium">Order today to start 24-hour production.</p>
+              <p className="text-sm text-gray-100 font-medium">Order today to start 24-hour production.</p>
               <button
                 onClick={scrollToOrder}
                 className="group inline-flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white font-bold text-lg px-10 py-4 rounded-xl shadow-[0_4px_14px_rgba(251,146,60,0.4)] hover:shadow-[0_6px_20px_rgba(251,146,60,0.5)] transition-all w-full sm:w-auto"
               >
                 Upload &amp; Start Your Order →
               </button>
-              <span className="text-xs text-gray-400">Takes less than 60 seconds &middot; <a href="/design" className="underline hover:text-gray-600">or use our free design tool</a></span>
+              <span className="text-xs text-gray-200">Takes less than 60 seconds &middot; <a href="/design" className="underline hover:text-white">or use our free design tool</a></span>
 
               {/* Trust bar */}
               <div className="mt-4 flex flex-col items-center gap-2">
@@ -953,7 +972,7 @@ const GoogleAdsBanner: React.FC = () => {
                   />
                   <span className="text-orange-400 text-base tracking-wide" role="img" aria-label="Rated 5 out of 5 stars">★★★★★</span>
                 </div>
-                <p className="text-xs text-gray-500 font-medium">Trusted by Dan-O&rsquo;s Seasoning + 1,000+ customers</p>
+                <p className="text-xs text-gray-100 font-medium">Trusted by Dan-O&rsquo;s Seasoning + 1,000+ customers</p>
               </div>
             </div>
           </div>
