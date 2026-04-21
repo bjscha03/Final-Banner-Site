@@ -189,7 +189,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                             className="flex-shrink-0"
                             designServiceEnabled={item.design_service_enabled}
                             source={item.source}
-                            isFinalizedSnapshot={isYardSignItem(item) && !!item.thumbnail_url}
+                            isFinalizedSnapshot={!!item.thumbnail_url}
                           />
                       </div>
 
