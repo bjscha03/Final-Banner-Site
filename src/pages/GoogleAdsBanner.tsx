@@ -117,6 +117,7 @@ const GoogleAdsBanner: React.FC = () => {
     return 'banner';
   }, []);
   const orderRef = useRef<HTMLDivElement>(null);
+  const builderStartRef = useRef<HTMLHeadingElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [hasEnteredBuilder, setHasEnteredBuilder] = useState(false);
   const [isBuilderInView, setIsBuilderInView] = useState(false);
@@ -443,7 +444,10 @@ const GoogleAdsBanner: React.FC = () => {
 
   const scrollToOrder = useCallback(() => {
     setHasEnteredBuilder(true);
-    orderRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Prefer the per-product builder start anchor (the "Build Your ..." heading)
+    // so the user lands directly on the active builder.
+    const target = builderStartRef.current ?? orderRef.current;
+    target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
 
   useEffect(() => {
@@ -1164,8 +1168,12 @@ const GoogleAdsBanner: React.FC = () => {
         <section ref={orderRef} id="order-builder" className="py-12 px-4 bg-white">
           <div className="max-w-4xl lg:max-w-6xl mx-auto">
             {/* Product type switcher — public for all users */}
-            <ProductTypeSwitcher productType={productType} onProductTypeChange={handleProductTypeChange} />
-            <h2 className="text-2xl md:text-3xl font-bold text-center mb-10">
+            <ProductTypeSwitcher productType={productType} onProductTypeChange={handleProductTypeChange} mobileStickyTopPx={56} />
+            <h2
+              ref={builderStartRef}
+              id="builder-start"
+              className="text-2xl md:text-3xl font-bold text-center mb-10 scroll-mt-[140px] md:scroll-mt-24"
+            >
               {isYardSign ? 'Build Your Yard Sign Order' : isCarMagnet ? 'Design Your Custom Car Magnets' : 'Build Your Banner'}
             </h2>
             {isYardSign ? (
