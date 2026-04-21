@@ -453,6 +453,7 @@ const Checkout: React.FC = () => {
                     const normalized = normalizeOrderItemDisplay(item as NormalizableOrderItem);
                     const isYardSign = isYardSignItem(item);
                     const previewUrl = item.thumbnail_url || item.web_preview_url || item.file_url || item.print_ready_url || item.aiDesign?.assets?.proofUrl;
+                    const bannerPreviewUrl = item.thumbnail_url || item.file_url || item.web_preview_url || item.print_ready_url || item.aiDesign?.assets?.proofUrl;
                     if (isYardSign && !previewUrl) {
                       console.warn('⚠️  CHECKOUT: No image URL found for item:', item.id, {
                         thumbnail_url: item.thumbnail_url,
@@ -476,25 +477,8 @@ const Checkout: React.FC = () => {
                     return (
                     <div key={item.id} className="border border-gray-200 rounded-xl p-4 sm:p-5 mb-4 last:mb-0 bg-gradient-to-br from-white to-gray-50 hover:shadow-md transition-all">
                       <div className="grid gap-4 md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-start">
-                        <div className="w-20 h-20 rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm shrink-0">
-                          {!isYardSign ? (
-                            previewUrl ? (
-                              <img
-                                src={previewUrl}
-                                alt={`${getItemDisplayName(item)} preview`}
-                                className="w-full h-full object-cover object-center block"
-                                draggable={false}
-                              />
-                            ) : (
-                              <div
-                                className="w-full h-full flex items-center justify-center text-[10px] font-medium text-gray-500"
-                                role="img"
-                                aria-label={`${getItemDisplayName(item)} preview unavailable`}
-                              >
-                                No preview
-                              </div>
-                            )
-                          ) : (
+                        {isYardSign ? (
+                          <div className="w-20 h-20 rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm shrink-0">
                             <BannerPreview
                               widthIn={item.width_in}
                               heightIn={item.height_in}
@@ -511,8 +495,27 @@ const Checkout: React.FC = () => {
                               source={item.source}
                               isFinalizedSnapshot={!!item.thumbnail_url}
                             />
-                          )}
-                        </div>
+                          </div>
+                        ) : (
+                          <div className="flex justify-center shrink-0">
+                            <BannerPreview
+                              widthIn={item.width_in}
+                              heightIn={item.height_in}
+                              grommets={item.grommets}
+                              imageUrl={bannerPreviewUrl}
+                              material={item.material}
+                              textElements={item.text_elements}
+                              overlayImage={item.overlay_image}
+                              imageScale={item.image_scale}
+                              imagePosition={item.image_position}
+                              fitMode={item.fit_mode || "fill"}
+                              className="flex-shrink-0"
+                              designServiceEnabled={item.design_service_enabled}
+                              source={item.source}
+                              isFinalizedSnapshot={!!item.thumbnail_url}
+                            />
+                          </div>
+                        )}
 
                         <div className="min-w-0 space-y-3">
                           <div className="flex items-start justify-between gap-3 md:block">
