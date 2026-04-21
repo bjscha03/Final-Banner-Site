@@ -4,6 +4,7 @@ import { Package, Calendar, Mail, CreditCard, Truck, CheckCircle, Clock, AlertCi
 import Layout from '@/components/Layout';
 import { useScrollToTop } from '@/components/ScrollToTop';
 import { getItemDisplayName, isYardSignItem, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
+import { formatShippingCityStatePostal, hasShippingAddress, normalizeShippingAddress } from '@/lib/shipping-address';
 
 const isCloudinaryUploadUrl = (url: string) => {
   try {
@@ -78,6 +79,15 @@ interface Order {
   shipping_state?: string | null;
   shipping_zip?: string | null;
   shipping_country?: string | null;
+  shippingAddress?: {
+    name?: string | null;
+    line1?: string | null;
+    line2?: string | null;
+    city?: string | null;
+    state?: string | null;
+    postalCode?: string | null;
+    country?: string | null;
+  };
 }
 
 const OrderDetail: React.FC = () => {
@@ -140,18 +150,6 @@ const OrderDetail: React.FC = () => {
     return item.thumbnail_url;
   };
 
-  const formatCityStateZip = (
-    city?: string | null,
-    state?: string | null,
-    zip?: string | null
-  ) => {
-    const cleanCity = city?.trim() || '';
-    const cleanState = state?.trim() || '';
-    const cleanZip = zip?.trim() || '';
-    const cityState = cleanCity && cleanState ? `${cleanCity}, ${cleanState}` : cleanCity || cleanState;
-    return [cityState, cleanZip].filter(Boolean).join(' ');
-  };
-
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'paid':
@@ -182,18 +180,20 @@ const OrderDetail: React.FC = () => {
     }
   };
 
-  const shippingName = order?.shipping_name || order?.customer_name || null;
-  const showShippingCountry = Boolean(order?.shipping_country && order.shipping_country !== 'US');
-  const hasShippingAddress = Boolean(
-    shippingName ||
-    order?.shipping_street ||
-    order?.shipping_street2 ||
-    order?.shipping_city ||
-    order?.shipping_state ||
-    order?.shipping_zip ||
-    showShippingCountry
-  );
-  const cityStateZipLine = formatCityStateZip(order?.shipping_city, order?.shipping_state, order?.shipping_zip);
+  const shippingAddress = normalizeShippingAddress({
+    ...(order?.shippingAddress || {}),
+    shipping_name: order?.shipping_name,
+    shipping_street: order?.shipping_street,
+    shipping_street2: order?.shipping_street2,
+    shipping_city: order?.shipping_city,
+    shipping_state: order?.shipping_state,
+    shipping_zip: order?.shipping_zip,
+    shipping_country: order?.shipping_country,
+    customer_name: order?.customer_name,
+  });
+  const showShippingCountry = Boolean(shippingAddress.country && shippingAddress.country !== 'US');
+  const hasAddressBlock = hasShippingAddress(shippingAddress);
+  const cityStateZipLine = formatShippingCityStatePostal(shippingAddress);
   const customerName = order?.customer_name || order?.shipping_name || 'Not provided';
 
   if (loading) {
@@ -279,17 +279,17 @@ const OrderDetail: React.FC = () => {
           </div>
 
           {/* Shipping Address */}
-          {hasShippingAddress && (
+          {hasAddressBlock && (
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Shipping Address</h2>
               <div className="flex items-start gap-3 text-gray-700">
                 <MapPin className="h-5 w-5 text-gray-400 mt-0.5 flex-shrink-0" />
                 <div className="space-y-1">
-                  {shippingName && <p className="font-medium text-gray-900">{shippingName}</p>}
-                  {order.shipping_street && <p>{order.shipping_street}</p>}
-                  {order.shipping_street2 && <p>{order.shipping_street2}</p>}
+                  {shippingAddress.name && <p className="font-medium text-gray-900">{shippingAddress.name}</p>}
+                  {shippingAddress.line1 && <p>{shippingAddress.line1}</p>}
+                  {shippingAddress.line2 && <p>{shippingAddress.line2}</p>}
                   {cityStateZipLine && <p>{cityStateZipLine}</p>}
-                  {showShippingCountry && <p>{order.shipping_country}</p>}
+                  {showShippingCountry && <p>{shippingAddress.country}</p>}
                 </div>
               </div>
             </div>

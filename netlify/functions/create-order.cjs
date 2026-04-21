@@ -1,5 +1,6 @@
 const { neon } = require('@neondatabase/serverless');
 const { randomUUID } = require('crypto');
+const { normalizeShippingAddress } = require('./shipping-address-helpers.cjs');
 
 // Helper to detect bad URLs (blob:, data:, or huge strings)
 function isBadUrl(url) {
@@ -581,6 +582,18 @@ exports.handler = async (event, context) => {
     console.log('Final user_id for order:', finalUserId);
     console.log('Final email for order:', userEmail);
 
+    const normalizedShippingAddress = normalizeShippingAddress({
+      ...orderData,
+      ...(orderData.shippingAddress || {}),
+    });
+    orderData.shipping_name = normalizedShippingAddress.name || null;
+    orderData.shipping_street = normalizedShippingAddress.line1 || null;
+    orderData.shipping_street2 = normalizedShippingAddress.line2 || null;
+    orderData.shipping_city = normalizedShippingAddress.city || null;
+    orderData.shipping_state = normalizedShippingAddress.state || null;
+    orderData.shipping_zip = normalizedShippingAddress.postalCode || null;
+    orderData.shipping_country = normalizedShippingAddress.country || 'US';
+
     const resolvedCustomerName = orderData.customer_name || orderData.shipping_name || null;
     const normalizedCustomerName = normalizeCustomerName(resolvedCustomerName);
     orderData.customer_name = normalizedCustomerName.fullName;
@@ -865,6 +878,22 @@ exports.handler = async (event, context) => {
         tracking_number: null,
         tracking_carrier: null,
         created_at: orderResult[0]?.created_at || new Date().toISOString(),
+        shipping_name: orderData.shipping_name || null,
+        shipping_street: orderData.shipping_street || null,
+        shipping_street2: orderData.shipping_street2 || null,
+        shipping_city: orderData.shipping_city || null,
+        shipping_state: orderData.shipping_state || null,
+        shipping_zip: orderData.shipping_zip || null,
+        shipping_country: orderData.shipping_country || 'US',
+        shippingAddress: {
+          name: orderData.shipping_name || '',
+          line1: orderData.shipping_street || '',
+          line2: orderData.shipping_street2 || '',
+          city: orderData.shipping_city || '',
+          state: orderData.shipping_state || '',
+          postalCode: orderData.shipping_zip || '',
+          country: orderData.shipping_country || 'US',
+        },
         items: orderData.items || []
       }
     };

@@ -1,4 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
+const { normalizeShippingAddress } = require('./shipping-address-helpers.cjs');
 
 exports.handler = async (event, context) => {
   const headers = {
@@ -191,8 +192,10 @@ exports.handler = async (event, context) => {
     `;
 
     // Combine order with items
+    const shippingAddress = normalizeShippingAddress(order);
     const orderWithItems = {
       ...order,
+      shippingAddress,
       items: itemsResult
     };
 

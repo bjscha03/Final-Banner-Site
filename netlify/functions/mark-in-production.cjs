@@ -4,6 +4,8 @@ const {
   normalizeName,
   getFinalizedThumbnailUrl,
   renderItems,
+  renderTotals,
+  renderAddress,
   renderEmailLayout,
   escapeHtml,
 } = require('./email-template.cjs');
@@ -52,6 +54,8 @@ async function sendProductionEmail(order, customerEmail) {
         <p style="margin:0 0 12px;font-size:15px;color:#334155;">Hi ${escapeHtml(names.firstName)},</p>
         <p style="margin:0 0 12px;font-size:14px;color:#334155;">Our team is currently working on your order. Once it is complete, we will send your tracking details right away.</p>
         ${renderItems(order.items || [])}
+        ${renderTotals({ subtotal: order.subtotal, tax: order.tax, total: order.total, discountCents: order.discountCents, discountLabel: order.discountLabel })}
+        ${renderAddress(order)}
       `,
     });
 
@@ -197,7 +201,39 @@ exports.handler = async (event) => {
         lineTotal: item.line_total_cents / 100,
         unitPrice: item.quantity > 0 ? (item.line_total_cents / 100) / item.quantity : 0,
         thumbnailUrl: getFinalizedThumbnailUrl(item, 220),
-      }))
+      })),
+      get subtotal() {
+        return itemsResult.reduce((sum, item) => sum + item.line_total_cents, 0) / 100;
+      },
+      get tax() {
+        const subtotalCents = itemsResult.reduce((sum, item) => sum + item.line_total_cents, 0);
+        const discount = order.applied_discount_cents || 0;
+        return Math.round((subtotalCents - discount) * 0.06) / 100;
+      },
+      get total() {
+        const subtotalCents = itemsResult.reduce((sum, item) => sum + item.line_total_cents, 0);
+        const discount = order.applied_discount_cents || 0;
+        const afterDiscount = subtotalCents - discount;
+        return (afterDiscount + Math.round(afterDiscount * 0.06)) / 100;
+      },
+      discountCents: order.applied_discount_cents || 0,
+      discountLabel: order.applied_discount_label || '',
+      shipping_name: order.shipping_name,
+      shipping_street: order.shipping_street,
+      shipping_street2: order.shipping_street2,
+      shipping_city: order.shipping_city,
+      shipping_state: order.shipping_state,
+      shipping_zip: order.shipping_zip,
+      shipping_country: order.shipping_country,
+      shippingAddress: {
+        name: order.shipping_name || resolvedCustomerName || '',
+        line1: order.shipping_street || '',
+        line2: order.shipping_street2 || '',
+        city: order.shipping_city || '',
+        state: order.shipping_state || '',
+        postalCode: order.shipping_zip || '',
+        country: order.shipping_country || 'US',
+      },
     };
 
     // Send production notification email

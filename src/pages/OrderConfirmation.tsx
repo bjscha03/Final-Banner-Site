@@ -9,6 +9,7 @@ import { CheckCircle, Printer, Package, ArrowRight, Home, Palette, Mail, Phone, 
 import { useToast } from '@/components/ui/use-toast';
 import { useScrollToTop } from '@/components/ScrollToTop';
 import { getItemDisplayName, getInvoiceSubtitle, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
+import { formatShippingCityStatePostal, hasShippingAddress, normalizeShippingAddress } from '@/lib/shipping-address';
 const OrderConfirmation: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -120,6 +121,19 @@ const OrderConfirmation: React.FC = () => {
     hour: '2-digit',
     minute: '2-digit',
   });
+  const shippingAddress = normalizeShippingAddress({
+    ...(order.shippingAddress || {}),
+    shipping_name: order.shipping_name,
+    shipping_street: order.shipping_street,
+    shipping_street2: order.shipping_street2,
+    shipping_city: order.shipping_city,
+    shipping_state: order.shipping_state,
+    shipping_zip: order.shipping_zip,
+    shipping_country: order.shipping_country,
+    customer_name: order.customer_name,
+  });
+  const hasAddressBlock = hasShippingAddress(shippingAddress);
+  const cityStateZipLine = formatShippingCityStatePostal(shippingAddress);
 
   return (
     <Layout>
@@ -241,6 +255,16 @@ const OrderConfirmation: React.FC = () => {
                 Status: <span className="font-medium text-orange-600 capitalize">{order.status}</span>
               </p>
             </div>
+
+            {hasAddressBlock && (
+              <div className="border border-gray-200 rounded-lg p-4 mt-6 bg-gray-50">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Shipping Address</h3>
+                {shippingAddress.name ? <p className="font-medium text-gray-900">{shippingAddress.name}</p> : null}
+                {shippingAddress.line1 ? <p className="text-gray-700">{shippingAddress.line1}</p> : null}
+                {shippingAddress.line2 ? <p className="text-gray-700">{shippingAddress.line2}</p> : null}
+                {cityStateZipLine ? <p className="text-gray-700">{cityStateZipLine}</p> : null}
+              </div>
+            )}
 
             {/* Design Service Section - Customer Confirmation */}
             {order.items.some(item => item.design_service_enabled) && (

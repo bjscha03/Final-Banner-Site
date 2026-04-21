@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
@@ -6,6 +6,7 @@ import { CheckCircle, Home, ArrowRight } from 'lucide-react';
 import { usd } from '@/lib/pricing';
 import { trackPurchase, trackFBPurchase } from '@/lib/analytics';
 import { getItemDisplayName, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
+import { formatShippingCityStatePostal, hasShippingAddress, normalizeShippingAddress } from '@/lib/shipping-address';
 
 const PaymentSuccess: React.FC = () => {
   const navigate = useNavigate();
@@ -15,6 +16,15 @@ const PaymentSuccess: React.FC = () => {
   const orderId = searchParams.get('orderId');
   const state = location.state as {
     items?: NormalizableOrderItem[];
+    shippingAddress?: {
+      name?: string;
+      line1?: string;
+      line2?: string;
+      city?: string;
+      state?: string;
+      postalCode?: string;
+      country?: string;
+    } | null;
     total?: number;
     discountCode?: { code?: string } | null;
     serverPricing?: {
@@ -26,12 +36,46 @@ const PaymentSuccess: React.FC = () => {
       applied_discount_cents?: number;
     } | null;
   } | null;
+  const [loadedOrder, setLoadedOrder] = useState<{
+    items?: NormalizableOrderItem[];
+    shippingAddress?: {
+      name?: string;
+      line1?: string;
+      line2?: string;
+      city?: string;
+      state?: string;
+      postalCode?: string;
+      country?: string;
+    } | null;
+  } | null>(null);
   
   // Get data from navigation state or defaults
-  const items = state?.items || [];
+  const items = loadedOrder?.items || state?.items || [];
   const total = state?.total || 0;
   const discountCode = state?.discountCode || null;
   const serverPricing = state?.serverPricing || null; // Server-computed pricing from create-order
+  const normalizedShippingAddress = normalizeShippingAddress({
+    ...(state?.shippingAddress || {}),
+    ...(loadedOrder?.shippingAddress || {}),
+  });
+  const showShippingAddress = hasShippingAddress(normalizedShippingAddress);
+  const shippingCityStatePostal = formatShippingCityStatePostal(normalizedShippingAddress);
+
+  useEffect(() => {
+    if (!orderId) return;
+    const loadOrder = async () => {
+      try {
+        const response = await fetch(`/.netlify/functions/get-order?id=${orderId}`);
+        const data = await response.json();
+        if (data?.ok && data?.order) {
+          setLoadedOrder(data.order);
+        }
+      } catch (error) {
+        console.warn('Unable to load order for payment success address block', error);
+      }
+    };
+    loadOrder();
+  }, [orderId]);
 
   // Calculate pricing breakdown using the same logic as cart store
 
@@ -145,9 +189,16 @@ const PaymentSuccess: React.FC = () => {
                     const normalized = normalizeOrderItemDisplay(item);
                     return (
                     <div key={index} className="border border-gray-200 rounded-lg p-4 mb-4">
-                      <div className="flex justify-between items-start">
+                      <div className="flex justify-between items-start gap-4">
+                        {normalized.thumbnailUrl ? (
+                          <img
+                            src={normalized.thumbnailUrl}
+                            alt={`${normalized.productLabel} preview`}
+                            className="h-20 w-28 rounded-md border border-gray-200 object-cover flex-shrink-0"
+                          />
+                        ) : null}
                         <div className="flex-1">
-                          <p className="font-medium">{getItemDisplayName(item)}</p>
+                          <p className="font-medium">{getItemDisplayName(item)} <span className="ml-1 inline-flex items-center rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-800">{normalized.productLabel}</span></p>
                           <p className="text-sm text-gray-600 mt-1">
                             {`Size: ${normalized.sizeDisplay} • Material: ${normalized.materialDisplay} • Print: ${normalized.printDisplay}`}
                           </p>
@@ -180,6 +231,16 @@ const PaymentSuccess: React.FC = () => {
                   );
                   })}
                 </div>
+              </div>
+            )}
+
+            {showShippingAddress && (
+              <div className="mb-6 border border-gray-200 rounded-lg p-4 bg-gray-50">
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Shipping Address</h3>
+                {normalizedShippingAddress.name ? <p className="font-medium text-gray-900">{normalizedShippingAddress.name}</p> : null}
+                {normalizedShippingAddress.line1 ? <p className="text-gray-700">{normalizedShippingAddress.line1}</p> : null}
+                {normalizedShippingAddress.line2 ? <p className="text-gray-700">{normalizedShippingAddress.line2}</p> : null}
+                {shippingCityStatePostal ? <p className="text-gray-700">{shippingCityStatePostal}</p> : null}
               </div>
             )}
 

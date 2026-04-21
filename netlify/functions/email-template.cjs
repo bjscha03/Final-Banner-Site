@@ -2,6 +2,11 @@ const BRAND_LOGO_URL = 'https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto,
 const BRAND_ORANGE = '#ff6b35';
 const BRAND_ORANGE_DARK = '#f45a24';
 const BRAND_NAVY = '#18448D';
+const {
+  normalizeShippingAddress,
+  hasShippingAddress,
+  formatShippingCityStatePostal,
+} = require('./shipping-address-helpers.cjs');
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -113,19 +118,23 @@ function renderTotals({ subtotal = 0, tax = 0, total = 0, discountCents = 0, dis
 }
 
 function renderAddress(order) {
-  const displayName = order.shipping_name || order.customerName || order.customer_name || '';
-  const showCountry = order.shipping_country && order.shipping_country !== 'US';
-  const hasAddress = displayName || order.shipping_street || order.shipping_street2 || order.shipping_city || order.shipping_state || order.shipping_zip || showCountry;
-  if (!hasAddress) return '';
+  const shippingAddress = normalizeShippingAddress({
+    ...(order || {}),
+    ...(order?.shippingAddress || {}),
+    customer_name: order?.customer_name || order?.customerName || '',
+  });
+  const showCountry = shippingAddress.country && shippingAddress.country !== 'US';
+  if (!hasShippingAddress(shippingAddress)) return '';
+  const cityStateZipLine = formatShippingCityStatePostal(shippingAddress);
   return `
     <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-top:16px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;">
       <tr><td style="padding:14px;">
         <p style="margin:0 0 8px;color:#0f172a;font-size:14px;font-weight:700;">Shipping Address</p>
-        ${displayName ? `<p style="margin:0;color:#1f2937;font-size:13px;font-weight:600;">${escapeHtml(displayName)}</p>` : ''}
-        ${order.shipping_street ? `<p style="margin:2px 0 0;color:#334155;font-size:13px;">${escapeHtml(order.shipping_street)}</p>` : ''}
-        ${order.shipping_street2 ? `<p style="margin:2px 0 0;color:#334155;font-size:13px;">${escapeHtml(order.shipping_street2)}</p>` : ''}
-        ${(order.shipping_city || order.shipping_state || order.shipping_zip) ? `<p style="margin:2px 0 0;color:#334155;font-size:13px;">${escapeHtml(order.shipping_city || '')}${order.shipping_city && order.shipping_state ? ', ' : ''}${escapeHtml(order.shipping_state || '')} ${escapeHtml(order.shipping_zip || '')}</p>` : ''}
-        ${showCountry ? `<p style="margin:2px 0 0;color:#334155;font-size:13px;">${escapeHtml(order.shipping_country)}</p>` : ''}
+        ${shippingAddress.name ? `<p style="margin:0;color:#1f2937;font-size:13px;font-weight:600;">${escapeHtml(shippingAddress.name)}</p>` : ''}
+        ${shippingAddress.line1 ? `<p style="margin:2px 0 0;color:#334155;font-size:13px;">${escapeHtml(shippingAddress.line1)}</p>` : ''}
+        ${shippingAddress.line2 ? `<p style="margin:2px 0 0;color:#334155;font-size:13px;">${escapeHtml(shippingAddress.line2)}</p>` : ''}
+        ${cityStateZipLine ? `<p style="margin:2px 0 0;color:#334155;font-size:13px;">${escapeHtml(cityStateZipLine)}</p>` : ''}
+        ${showCountry ? `<p style="margin:2px 0 0;color:#334155;font-size:13px;">${escapeHtml(shippingAddress.country)}</p>` : ''}
       </td></tr>
     </table>
   `;

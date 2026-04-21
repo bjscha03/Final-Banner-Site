@@ -377,8 +377,9 @@ const Checkout: React.FC = () => {
         state: {
           fromCheckout: true,
           orderId: orderId,
-          items: items,
-          total: getTotalCents(),
+           items: items,
+           shippingAddress: orderData?.shippingAddress || null,
+           total: getTotalCents(),
           discountCode: discountCode ? { code: discountCode.code, discountPercentage: discountCode.discountPercentage, discountAmountCents: discountCode.discountAmountCents } : null,
           serverPricing: orderData ? { subtotal_cents: orderData.subtotal_cents, tax_cents: orderData.tax_cents, total_cents: orderData.total_cents, applied_discount_cents: orderData.applied_discount_cents, applied_discount_label: orderData.applied_discount_label, applied_discount_type: orderData.applied_discount_type } : null
         }

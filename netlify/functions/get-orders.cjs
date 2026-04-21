@@ -1,4 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
+const { normalizeShippingAddress } = require('./shipping-address-helpers.cjs');
 
 // Neon database connection
 // Lazily initialize Neon with whichever DB URL is available
@@ -296,6 +297,7 @@ exports.handler = async (event, context) => {
       shipping_state: order.shipping_state,
       shipping_zip: order.shipping_zip,
       shipping_country: order.shipping_country,
+      shippingAddress: normalizeShippingAddress(order),
       applied_discount_cents: Number(order.applied_discount_cents) || 0,
       applied_discount_label: order.applied_discount_label || '',
       applied_discount_type: order.applied_discount_type || 'none',
