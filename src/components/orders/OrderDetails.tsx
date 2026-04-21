@@ -1,15 +1,13 @@
 import React, { useState } from 'react';
 import { Order } from '../../lib/orders/types';
 import { usd } from "@/lib/pricing";
-import { formatDimensions } from "@/lib/order-pricing";
-import OrderItemBreakdown from "./OrderItemBreakdown";
 import { Button } from '@/components/ui/button';
 import { useCartStore } from '@/store/cart';
 import { useToast } from '@/components/ui/use-toast';
 import { useAuth, isAdmin } from '@/lib/auth';
 import { ShoppingCart, Package, Calendar, CreditCard, Mail, User, Download, FileText, Sparkles, MapPin, Loader2, Palette, Phone, Upload, MessageSquare } from 'lucide-react';
 import TrackingBadge from './TrackingBadge';
-import { getItemDisplayName, isYardSignItem, getProductLabel, getDisplayMaterial, getDisplaySize, getDisplayGrommets } from '@/lib/product-display';
+import { getItemDisplayName, getProductLabel, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
 import {
   Dialog,
   DialogContent,
@@ -17,9 +15,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
-
-const YARD_SIGN_DEFAULT_SIZE = '24" × 18"';
-
 const isCloudinaryUploadUrl = (url: string) => {
   try {
     const parsed = new URL(url);
@@ -565,23 +560,23 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                 Customer Information
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="flex items-center space-x-2">
+                <div className="min-w-0 rounded-md border border-blue-100 bg-white/70 p-3 flex items-center space-x-2">
                   <User className="h-4 w-4 text-gray-500" />
                   <div>
                     <p className="text-sm text-gray-600">Customer Name</p>
-                    <p className="font-semibold text-gray-900">{customerName}</p>
+                    <p className="font-semibold text-gray-900 break-words">{customerName}</p>
                   </div>
                 </div>
-                <div className="flex items-center space-x-2">
+                <div className="min-w-0 rounded-md border border-blue-100 bg-white/70 p-3 flex items-center space-x-2">
                   <Mail className="h-4 w-4 text-gray-500" />
                   <div>
                     <p className="text-sm text-gray-600">Email</p>
-                    <p className="font-medium text-gray-900">
+                    <p className="font-medium text-gray-900 break-all">
                       {customerEmail}
                     </p>
                   </div>
                 </div>
-                <div className="flex items-start space-x-2">
+                <div className="min-w-0 rounded-md border border-blue-100 bg-white/70 p-3 flex items-start space-x-2">
                   <MapPin className="h-4 w-4 text-gray-500 mt-0.5" />
                   <div>
                     <p className="text-sm text-gray-600">Address</p>
@@ -812,7 +807,9 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
               Items
             </h3>
             <div className="space-y-4">
-              {order.items.map((item, index) => (
+              {order.items.map((item, index) => {
+                  const normalized = normalizeOrderItemDisplay(item as NormalizableOrderItem);
+                  return (
                 <div key={index} className="border-2 border-slate-200 rounded-xl p-5 bg-white shadow-sm hover:shadow-md transition-shadow">
                   <div className="flex gap-4">
                     {/* Banner Thumbnail */}
@@ -833,70 +830,43 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                     <div className="flex-1">
                       <h4 className="text-lg font-bold text-slate-900 mb-3">
                         {getItemDisplayName(item)}
-                        {isYardSignItem(item) && (
+                        {normalized.productType === 'yard-sign' && (
                           <span className="ml-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold bg-orange-200 text-orange-900">Yard Sign</span>
                         )}
                       </h4>
                       <div className="text-sm text-gray-600 mt-2 grid grid-cols-2 gap-2">
-                        {isYardSignItem(item) ? (
-                          <>
-                            <p className="break-words">Size: {YARD_SIGN_DEFAULT_SIZE}</p>
-                            <p className="break-words">Material: Corrugated Plastic</p>
-                            <p className="break-words">Print: {(item as any).yard_sign_sidedness === 'double' ? 'Double-Sided' : 'Single-Sided'}</p>
-                            <p className="break-words">Total Signs: {item.quantity}</p>
-                            {(item as any).yard_sign_design_count > 0 && (
-                              <p className="break-words">Uploaded Designs: {(item as any).yard_sign_design_count}</p>
-                            )}
-                            {(item as any).yard_sign_step_stakes_qty > 0 && (
-                              <p className="break-words">Step Stakes: {(item as any).yard_sign_step_stakes_qty}</p>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            <p className="break-words">Size: {getDisplaySize(item)}</p>
-                            <p className="break-words">Material: {getDisplayMaterial(item)}</p>
-                            <p className="break-words">Print: Single-Sided</p>
-                            <p className="break-words">Quantity: {item.quantity}</p>
-                            {getDisplayGrommets(item.grommets) && <p className="break-words">Grommets: {getDisplayGrommets(item.grommets)}</p>}
-                            {item.rope_feet && item.rope_feet > 0 && (
-                              <p className="break-words">Rope: {(item.rope_feet || 0).toFixed(1)} ft</p>
-                            )}
-                            {(item.pole_pockets || item.pole_pocket_position) && (
-                              <p className="break-words">
-                                Pole Pockets: {
-                                  item.pole_pocket_position && item.pole_pocket_position !== 'none'
-                                    ? `${item.pole_pocket_position}${item.pole_pocket_size ? ` (${item.pole_pocket_size} inch)` : ''}`
-                                    : item.pole_pockets && item.pole_pockets !== 'none' && item.pole_pockets !== 'false'
-                                      ? 'Yes'
-                                      : 'None'
-                                }
-                              </p>
-                            )}
-                          </>
-                        )}
-                        {item.file_key && (
-                          <p className="break-words overflow-hidden">
-                            File: <a 
-                              href="#" 
-                              onClick={(e) => { e.preventDefault(); handleFileDownload(item.file_key!, index); }}
-                              className="text-blue-600 hover:underline break-all"
-                              title={item.file_name || 'Original Upload'}
-                            >
-                              {item.file_name || 'Original Upload'}
-                            </a>
-                          </p>
-                        )}
+                        <p className="break-words">Size: {normalized.sizeDisplay}</p>
+                        <p className="break-words">Material: {normalized.materialDisplay}</p>
+                        <p className="break-words">Print: {normalized.printDisplay}</p>
+                        <p className="break-words">Qty: {normalized.qtyDisplay}</p>
+                        {normalized.uploadedDesignsCount ? <p className="break-words">Uploaded Designs: {normalized.uploadedDesignsCount}</p> : null}
+                        {normalized.stepStakesQty ? <p className="break-words">Step Stakes: {normalized.stepStakesQty}</p> : null}
+                        {normalized.grommetsDisplay ? <p className="break-words">Grommets: {normalized.grommetsDisplay}</p> : null}
+                        {normalized.polePocketsDisplay ? <p className="break-words">Pole Pockets: {normalized.polePocketsDisplay}</p> : null}
+                        {normalized.ropeDisplay ? <p className="break-words">Rope: {normalized.ropeDisplay}</p> : null}
                       </div>
 
-                      {/* Cost Breakdown - Using Unified Pricing Module */}
-                      <OrderItemBreakdown item={item} />
+                      <div className="mt-3 p-3 bg-gray-50 rounded-lg space-y-1 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Unit Price:</span>
+                          <span className="text-gray-900">{usd(normalized.unitPriceCents / 100)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-gray-600">Qty:</span>
+                          <span className="text-gray-900">{normalized.qtyDisplay}</span>
+                        </div>
+                        <div className="flex justify-between font-medium border-t border-gray-200 pt-1 mt-2">
+                          <span className="text-gray-900">Line Total:</span>
+                          <span className="text-gray-900">{usd(normalized.lineTotalCents / 100)}</span>
+                        </div>
+                      </div>
                     </div>
                     <div className="text-right ml-4 min-w-[120px]">
                       <div className="bg-[#18448D] text-white px-4 py-2 rounded-lg mb-2">
                         <p className="text-xs font-medium opacity-90">Total</p>
-                        <p className="text-xl font-bold">
-                          {usd((item.line_total_cents || 0) / 100)}
-                        </p>
+                          <p className="text-xl font-bold">
+                          {usd(normalized.lineTotalCents / 100)}
+                          </p>
                       </div>
 
                       <div className="mt-2 space-y-2">
@@ -955,7 +925,8 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                   </div>
                   </div>
                 </div>
-              ))}
+                  );
+              })}
             </div>
           </div>
 

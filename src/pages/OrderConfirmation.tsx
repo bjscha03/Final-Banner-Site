@@ -2,25 +2,13 @@ import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { getOrdersAdapter } from '../lib/orders/adapter';
 import { Order } from '../lib/orders/types';
-import { usd, formatDimensions } from '@/lib/pricing';
-import { getGrommetLabel } from '@/lib/grommets';
+import { usd } from '@/lib/pricing';
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Printer, Package, ArrowRight, Home, Palette, Mail, Phone, MessageSquare, Upload } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { useScrollToTop } from '@/components/ScrollToTop';
-import { getItemDisplayName, isYardSignItem, getInvoiceSubtitle, getDisplayMaterial, getDisplaySize } from '@/lib/product-display';
-
-// Helper function to calculate unit price from order data
-const calculateUnitPrice = (item: any) => {
-  if (item.unit_price_cents) {
-    return item.unit_price_cents; // Cart data has unit_price_cents
-  }
-  // Order data needs calculation
-  const ropeCost = (item.rope_feet || 0) * 2 * item.quantity * 100;
-  const polePocketCost = 0; // Will be calculated separately
-  return (item.line_total_cents - ropeCost - polePocketCost) / item.quantity;
-};
+import { getItemDisplayName, getInvoiceSubtitle, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
 const OrderConfirmation: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -140,7 +128,7 @@ const OrderConfirmation: React.FC = () => {
           {/* Success Header */}
           <div className="text-center mb-8 print:mb-6">
             <div className="flex justify-center mb-4">
-              <CheckCircle className="h-16 w-16 text-green-500" />
+              <CheckCircle className="h-16 w-16 text-orange-500" />
             </div>
             <h1
               ref={titleRef}
@@ -175,7 +163,9 @@ const OrderConfirmation: React.FC = () => {
             <div className="mb-6">
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Order Items</h3>
               <div className="space-y-4">
-                {order.items.map((item, index) => (
+                {order.items.map((item, index) => {
+                  const normalized = normalizeOrderItemDisplay(item as NormalizableOrderItem);
+                  return (
                   <div key={index} className="border border-gray-200 rounded-lg p-4">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
@@ -183,88 +173,47 @@ const OrderConfirmation: React.FC = () => {
                           {getItemDisplayName(item)}
                         </h4>
                         <div className="text-sm text-gray-600 mt-2 space-y-1">
-                          {isYardSignItem(item) ? (
-                            <>
-                              <p>Material: Corrugated Plastic</p>
-                              <p>Print: {(item as any).yard_sign_sidedness === 'double' ? 'Double-Sided' : 'Single-Sided'}</p>
-                              <p>Total Signs: {item.quantity}</p>
-                              {(item as any).yard_sign_design_count > 0 && <p>Uploaded Designs: {(item as any).yard_sign_design_count}</p>}
-                              {(item as any).yard_sign_step_stakes_qty > 0 && <p>Step Stakes: {(item as any).yard_sign_step_stakes_qty}</p>}
-                            </>
-                          ) : (
-                            <>
-                              <p>Size: {getDisplaySize(item)}</p>
-                              <p>Material: {getDisplayMaterial(item)}</p>
-                              <p>Print: Single-Sided</p>
-                              <p>Quantity: {item.quantity}</p>
-                              {item.grommets && <p>Grommets: {getGrommetLabel(item.grommets)}</p>}
-                              {item.rope_feet && item.rope_feet > 0 && (
-                                <p>Rope: {item.rope_feet.toFixed(1)} ft</p>
-                              )}
-                            </>
-                          )}
+                          <p>Size: {normalized.sizeDisplay}</p>
+                          <p>Material: {normalized.materialDisplay}</p>
+                          <p>Print: {normalized.printDisplay}</p>
+                          <p>Qty: {normalized.qtyDisplay}</p>
+                          {normalized.uploadedDesignsCount && <p>Uploaded Designs: {normalized.uploadedDesignsCount}</p>}
+                          {normalized.stepStakesQty && <p>Step Stakes: {normalized.stepStakesQty}</p>}
+                          {normalized.grommetsDisplay && <p>Grommets: {normalized.grommetsDisplay}</p>}
+                          {normalized.polePocketsDisplay && <p>Pole Pockets: {normalized.polePocketsDisplay}</p>}
+                          {normalized.ropeDisplay && <p>Rope: {normalized.ropeDisplay}</p>}
                         </div>
 
                         {/* Cost Breakdown */}
                         <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                          <h5 className="text-sm font-medium text-gray-900 mb-2">Price Breakdown</h5>
                           <div className="space-y-1 text-sm">
-                            {isYardSignItem(item) ? (
-                              <>
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">Signs ({item.quantity} × {usd(calculateUnitPrice(item) / 100)}):</span>
-                                  <span className="text-gray-900">{usd((calculateUnitPrice(item) * item.quantity) / 100)}</span>
-                                </div>
-                                {(item as any).yard_sign_stakes_subtotal_cents > 0 && (
-                                  <div className="flex justify-between">
-                                    <span className="text-gray-600">Step Stakes ({(item as any).yard_sign_step_stakes_qty}):</span>
-                                    <span className="text-gray-900">{usd((item as any).yard_sign_stakes_subtotal_cents / 100)}</span>
-                                  </div>
-                                )}
-                              </>
-                            ) : (
-                              <>
-                                <div className="flex justify-between">
-                                  <span className="text-gray-600">Unit Price:</span>
-                                  <span className="text-gray-900">{usd(calculateUnitPrice(item) / 100)}</span>
-                                </div>
-                                {item.rope_feet && item.rope_feet > 0 && (
-                                  <div className="flex justify-between">
-                                    <span className="text-gray-600">Rope ({item.rope_feet.toFixed(1)}ft):</span>
-                                    <span className="text-gray-900">{usd(item.rope_feet * 2 * item.quantity)}</span>
-                                  </div>
-                                )}
-                                {(() => {
-                                  const baseCost = calculateUnitPrice(item) * item.quantity;
-                                  const ropeCost = (item.rope_feet || 0) * 2 * item.quantity * 100;
-                                  const polePocketCost = item.line_total_cents - baseCost - ropeCost;
-                                  return polePocketCost > 0 ? (
-                                    <div className="flex justify-between">
-                                      <span className="text-gray-600">Pole pockets:</span>
-                                      <span className="text-gray-900">{usd(polePocketCost / 100)}</span>
-                                    </div>
-                                  ) : null;
-                                })()}
-                              </>
-                            )}
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Unit Price:</span>
+                              <span className="text-gray-900">{usd(normalized.unitPriceCents / 100)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-gray-600">Qty:</span>
+                              <span className="text-gray-900">{normalized.qtyDisplay}</span>
+                            </div>
                             <div className="flex justify-between font-medium border-t border-gray-200 pt-1 mt-2">
-                              <span className="text-gray-900">Line total:</span>
-                              <span className="text-gray-900">{usd(item.line_total_cents / 100)}</span>
+                              <span className="text-gray-900">Line Total:</span>
+                              <span className="text-gray-900">{usd(normalized.lineTotalCents / 100)}</span>
                             </div>
                           </div>
                         </div>
                       </div>
                       <div className="text-right ml-4">
                         <p className="font-semibold text-gray-900">
-                          {usd(item.line_total_cents / 100)}
+                          {usd(normalized.lineTotalCents / 100)}
                         </p>
                         <p className="text-sm text-gray-600">
-                          Qty: {item.quantity} × {usd(calculateUnitPrice(item) / 100)}
+                          Qty: {normalized.qtyDisplay}
                         </p>
                       </div>
                     </div>
                   </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
 
@@ -289,7 +238,7 @@ const OrderConfirmation: React.FC = () => {
                 </span>
               </div>
               <p className="text-sm text-gray-600 mt-2">
-                Status: <span className="font-medium text-green-600 capitalize">{order.status}</span>
+                Status: <span className="font-medium text-orange-600 capitalize">{order.status}</span>
               </p>
             </div>
 

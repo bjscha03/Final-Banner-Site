@@ -8,6 +8,51 @@
 
 const YARD_SIGN_SIZE = '24" × 18"';
 
+export type NormalizableOrderItem = {
+  id?: string;
+  product_type?: string;
+  width_in?: number;
+  height_in?: number;
+  quantity?: number;
+  material?: string;
+  grommets?: string | null;
+  rope_feet?: number | null;
+  pole_pockets?: string | null | boolean;
+  pole_pocket_position?: string | null;
+  pole_pocket_size?: string | null;
+  line_total_cents?: number;
+  unit_price_cents?: number;
+  thumbnail_url?: string | null;
+  final_render_url?: string | null;
+  print_ready_url?: string | null;
+  final_print_pdf_url?: string | null;
+  yard_sign_sidedness?: string | null;
+  yard_sign_design_count?: number | null;
+  yard_sign_step_stakes_qty?: number | null;
+};
+
+export type NormalizedOrderItemDisplay = {
+  productType: 'banner' | 'yard-sign';
+  productLabel: 'Banner' | 'Yard Sign';
+  displayName: string;
+  sizeDisplay: string;
+  materialDisplay: string;
+  printDisplay: string;
+  qtyDisplay: string;
+  unitPriceCents: number;
+  lineTotalCents: number;
+  thumbnailUrl: string;
+  finalizedPreviewUrl: string;
+  printFileUrl: string;
+  grommetsDisplay?: string;
+  polePocketsDisplay?: string;
+  ropeDisplay?: string;
+  uploadedDesignsCount?: number;
+  stepStakesQty?: number;
+  stepStakesLine?: string;
+  printSide?: string;
+};
+
 function toTitleCase(value: string): string {
   return value
     .trim()
@@ -170,4 +215,61 @@ export function getEmailItemOptions(item: {
     item.design_service_enabled ? '⚡ Design Service Order' : null,
   ];
   return parts.filter(Boolean).join(' • ');
+}
+
+export function normalizeOrderItemDisplay(item: NormalizableOrderItem): NormalizedOrderItemDisplay {
+  const isYardSign = item.product_type === 'yard_sign';
+  const productType: NormalizedOrderItemDisplay['productType'] = isYardSign ? 'yard-sign' : 'banner';
+  const productLabel: NormalizedOrderItemDisplay['productLabel'] = isYardSign ? 'Yard Sign' : 'Banner';
+  const qty = Number(item.quantity || 0);
+  const lineTotalCents = Number(item.line_total_cents || 0);
+  const unitPriceCents = Number(
+    item.unit_price_cents != null
+      ? item.unit_price_cents
+      : qty > 0
+        ? Math.round(lineTotalCents / qty)
+        : 0
+  );
+  const ropeFeet = Number(item.rope_feet || 0);
+  const polePocketPosition = String(item.pole_pocket_position || item.pole_pockets || '').trim();
+  const hasPolePocket = polePocketPosition && polePocketPosition !== 'none' && polePocketPosition !== 'false';
+  const stepStakesQty = Number(item.yard_sign_step_stakes_qty || 0);
+  const uploadedDesignsCount = Number(item.yard_sign_design_count || 0);
+
+  return {
+    productType,
+    productLabel,
+    displayName: getItemDisplayName(item),
+    sizeDisplay: getDisplaySize(item),
+    materialDisplay: getDisplayMaterial(item) || (isYardSign ? 'Corrugated Plastic' : '13oz Vinyl'),
+    printDisplay: isYardSign
+      ? (item.yard_sign_sidedness === 'double' ? 'Double-Sided' : 'Single-Sided')
+      : 'Single-Sided',
+    qtyDisplay: String(Math.max(qty, 0)),
+    unitPriceCents,
+    lineTotalCents,
+    thumbnailUrl: String(item.thumbnail_url || ''),
+    finalizedPreviewUrl: String(item.final_render_url || item.thumbnail_url || ''),
+    printFileUrl: String(item.final_print_pdf_url || item.print_ready_url || ''),
+    ...(isYardSign
+      ? {
+          printSide: item.yard_sign_sidedness === 'double' ? 'Double-Sided' : 'Single-Sided',
+          ...(uploadedDesignsCount > 0 ? { uploadedDesignsCount } : {}),
+          ...(stepStakesQty > 0
+            ? {
+                stepStakesQty,
+                stepStakesLine: `Step Stakes: ${stepStakesQty}`,
+              }
+            : {}),
+        }
+      : {
+          ...(getDisplayGrommets(item.grommets) ? { grommetsDisplay: getDisplayGrommets(item.grommets) } : {}),
+          ...(hasPolePocket
+            ? {
+                polePocketsDisplay: `${polePocketPosition}${item.pole_pocket_size ? ` (${item.pole_pocket_size} inch)` : ''}`,
+              }
+            : {}),
+          ...(ropeFeet > 0 ? { ropeDisplay: `${ropeFeet.toFixed(1)} ft` } : {}),
+        }),
+  };
 }

@@ -73,20 +73,21 @@ function isYardSignItem(item) {
  * Banners: material, grommets, rope, pole pockets.
  */
 function getEmailItemOptions(item) {
+  const normalized = normalizeOrderItemDisplay(item);
   if (item.product_type === 'yard_sign') {
     const parts = [
-      `Size: ${getDisplaySize(item)}`,
-      'Material: Corrugated Plastic',
-      `Print: ${item.yard_sign_sidedness === 'double' ? 'Double-Sided' : 'Single-Sided'}`,
+      `Size: ${normalized.sizeDisplay}`,
+      `Material: ${normalized.materialDisplay}`,
+      `Print: ${normalized.printDisplay}`,
     ];
-    if (item.quantity != null) {
-      parts.push(`Total Signs: ${item.quantity}`);
+    if (normalized.qtyDisplay) {
+      parts.push(`Qty: ${normalized.qtyDisplay}`);
     }
-    if (item.yard_sign_design_count != null && item.yard_sign_design_count > 0) {
-      parts.push(`Uploaded Designs: ${item.yard_sign_design_count}`);
+    if (normalized.uploadedDesignsCount) {
+      parts.push(`Uploaded Designs: ${normalized.uploadedDesignsCount}`);
     }
-    if (item.yard_sign_step_stakes_qty && item.yard_sign_step_stakes_qty > 0) {
-      parts.push(`Step Stakes: ${item.yard_sign_step_stakes_qty}`);
+    if (normalized.stepStakesQty) {
+      parts.push(`Step Stakes: ${normalized.stepStakesQty}`);
     }
     if (item.design_service_enabled) parts.push('⚡ Design Service Order');
     return parts.filter(Boolean).join(' • ');
@@ -94,20 +95,63 @@ function getEmailItemOptions(item) {
 
   // Banner options (default)
   const parts = [
-    `Size: ${getDisplaySize(item)}`,
-    `Material: ${getDisplayMaterial(item) || '13oz Vinyl'}`,
-    `Print: ${item.sidedness === 'double' ? 'Double-Sided' : 'Single-Sided'}`,
-    item.quantity != null ? `Quantity: ${item.quantity}` : null,
-    getDisplayGrommets(item.grommets) ? `Grommets: ${getDisplayGrommets(item.grommets)}` : null,
-    item.rope_feet && item.rope_feet > 0 ? `Rope: ${Number(item.rope_feet).toFixed(1)} ft` : null,
-    (item.pole_pocket_position && item.pole_pocket_position !== 'none')
-      ? `Pole Pockets: ${item.pole_pocket_position}${item.pole_pocket_size ? ` (${item.pole_pocket_size} inch)` : ''}`
-      : (item.pole_pockets && item.pole_pockets !== 'none' && item.pole_pockets !== false && item.pole_pockets !== 'false')
-        ? 'Pole Pockets: Yes'
-        : null,
+    `Size: ${normalized.sizeDisplay}`,
+    `Material: ${normalized.materialDisplay}`,
+    `Print: ${normalized.printDisplay}`,
+    normalized.qtyDisplay ? `Qty: ${normalized.qtyDisplay}` : null,
+    normalized.grommetsDisplay ? `Grommets: ${normalized.grommetsDisplay}` : null,
+    normalized.ropeDisplay ? `Rope: ${normalized.ropeDisplay}` : null,
+    normalized.polePocketsDisplay ? `Pole Pockets: ${normalized.polePocketsDisplay}` : null,
     item.design_service_enabled ? '⚡ Design Service Order' : null,
   ];
   return parts.filter(Boolean).join(' • ');
+}
+
+function normalizeOrderItemDisplay(item) {
+  const isYardSign = item.product_type === 'yard_sign';
+  const qty = Number(item.quantity || 0);
+  const lineTotalCents = Number(item.line_total_cents || 0);
+  const unitPriceCents = Number(
+    item.unit_price_cents != null
+      ? item.unit_price_cents
+      : qty > 0
+        ? Math.round(lineTotalCents / qty)
+        : 0
+  );
+  const ropeFeet = Number(item.rope_feet || 0);
+  const polePocketPosition = String(item.pole_pocket_position || item.pole_pockets || '').trim();
+  const hasPolePocket = polePocketPosition && polePocketPosition !== 'none' && polePocketPosition !== 'false';
+  const stepStakesQty = Number(item.yard_sign_step_stakes_qty || 0);
+  const uploadedDesignsCount = Number(item.yard_sign_design_count || 0);
+  const grommetsDisplay = getDisplayGrommets(item.grommets);
+
+  return {
+    productType: isYardSign ? 'yard-sign' : 'banner',
+    productLabel: isYardSign ? 'Yard Sign' : 'Banner',
+    displayName: getItemDisplayName(item),
+    sizeDisplay: getDisplaySize(item),
+    materialDisplay: getDisplayMaterial(item) || (isYardSign ? 'Corrugated Plastic' : '13oz Vinyl'),
+    printDisplay: isYardSign
+      ? (item.yard_sign_sidedness === 'double' ? 'Double-Sided' : 'Single-Sided')
+      : 'Single-Sided',
+    qtyDisplay: String(Math.max(qty, 0)),
+    unitPriceCents,
+    lineTotalCents,
+    thumbnailUrl: item.thumbnail_url || '',
+    finalizedPreviewUrl: item.final_render_url || item.thumbnail_url || '',
+    printFileUrl: item.final_print_pdf_url || item.print_ready_url || '',
+    ...(isYardSign
+      ? {
+          ...(uploadedDesignsCount > 0 ? { uploadedDesignsCount } : {}),
+          ...(stepStakesQty > 0 ? { stepStakesQty, stepStakesLine: `Step Stakes: ${stepStakesQty}` } : {}),
+          printSide: item.yard_sign_sidedness === 'double' ? 'Double-Sided' : 'Single-Sided',
+        }
+      : {
+          ...(grommetsDisplay ? { grommetsDisplay } : {}),
+          ...(ropeFeet > 0 ? { ropeDisplay: `${ropeFeet.toFixed(1)} ft` } : {}),
+          ...(hasPolePocket ? { polePocketsDisplay: `${polePocketPosition}${item.pole_pocket_size ? ` (${item.pole_pocket_size} inch)` : ''}` } : {}),
+        }),
+  };
 }
 
 /**
@@ -126,5 +170,6 @@ module.exports = {
   getProductLabel,
   isYardSignItem,
   getEmailItemOptions,
+  normalizeOrderItemDisplay,
   getPayPalDescription,
 };
