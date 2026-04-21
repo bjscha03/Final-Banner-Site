@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { X, Trash2, Plus, Minus, ShoppingBag, Edit, Eye, Tag } from 'lucide-react';
 import BannerPreview from './cart/BannerPreview';
 import { useNavigate } from 'react-router-dom';
@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/lib/auth';
 import { getItemDisplayName, isYardSignItem, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
 import { getProductCopy, getDominantProductType } from '@/lib/product-copy';
+import CartItemBreakdown from './cart/CartItemBreakdown';
 
 interface CartModalProps {
   isOpen: boolean;
@@ -132,6 +133,14 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
   const totalCents = getTotalCents();
   const resolvedDiscount = getResolvedDiscount();
 
+  // Cart raw subtotal (sum of line totals before any cart-level discount).
+  // Used by per-item breakdowns to allocate the resolved discount
+  // proportionally so item shares reconcile with the cart total.
+  const cartRawSubtotalCents = useMemo(
+    () => items.reduce((sum, it) => sum + (it.line_total_cents || 0), 0),
+    [items],
+  );
+
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
       <div className="absolute inset-0 bg-black bg-opacity-50" onClick={onClose}></div>
@@ -212,40 +221,27 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                         </div>
                       </div>
 
-                      {/* Two column layout on desktop, stacked on mobile */}
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
-                        {/* Left column: Meta information */}
-                        <div className="space-y-1 text-xs text-gray-600">
-                          <p><span className="font-medium text-gray-700">Size:</span> {normalized.sizeDisplay}</p>
-                          <p><span className="font-medium text-gray-700">Material:</span> {normalized.materialDisplay}</p>
-                          <p><span className="font-medium text-gray-700">Print:</span> {normalized.printDisplay}</p>
-                          <p><span className="font-medium text-gray-700">Qty:</span> {normalized.qtyDisplay}</p>
-                          {normalized.uploadedDesignsCount ? <p><span className="font-medium text-gray-700">Uploaded Designs:</span> {normalized.uploadedDesignsCount}</p> : null}
-                          {normalized.stepStakesQty ? <p><span className="font-medium text-gray-700">Step Stakes:</span> {normalized.stepStakesQty}</p> : null}
-                          {normalized.grommetsDisplay ? <p><span className="font-medium text-gray-700">Grommets:</span> {normalized.grommetsDisplay}</p> : null}
-                          {normalized.polePocketsDisplay ? <p><span className="font-medium text-gray-700">Pole Pockets:</span> {normalized.polePocketsDisplay}</p> : null}
-                          {normalized.ropeDisplay ? <p><span className="font-medium text-gray-700">Rope:</span> {normalized.ropeDisplay}</p> : null}
-                          {normalized.roundedCornersDisplay ? <p><span className="font-medium text-gray-700">Rounded Corners:</span> {normalized.roundedCornersDisplay}</p> : null}
-                        </div>
+                      {/* Item meta (Size, Material, Print, etc.) */}
+                      <div className="space-y-1 text-xs text-gray-600 mb-3">
+                        <p><span className="font-medium text-gray-700">Size:</span> {normalized.sizeDisplay}</p>
+                        <p><span className="font-medium text-gray-700">Material:</span> {normalized.materialDisplay}</p>
+                        <p><span className="font-medium text-gray-700">Print:</span> {normalized.printDisplay}</p>
+                        <p><span className="font-medium text-gray-700">Qty:</span> {normalized.qtyDisplay}</p>
+                        {normalized.uploadedDesignsCount ? <p><span className="font-medium text-gray-700">Uploaded Designs:</span> {normalized.uploadedDesignsCount}</p> : null}
+                        {normalized.stepStakesQty ? <p><span className="font-medium text-gray-700">Step Stakes:</span> {normalized.stepStakesQty}</p> : null}
+                        {normalized.grommetsDisplay ? <p><span className="font-medium text-gray-700">Grommets:</span> {normalized.grommetsDisplay}</p> : null}
+                        {normalized.polePocketsDisplay ? <p><span className="font-medium text-gray-700">Pole Pockets:</span> {normalized.polePocketsDisplay}</p> : null}
+                        {normalized.ropeDisplay ? <p><span className="font-medium text-gray-700">Rope:</span> {normalized.ropeDisplay}</p> : null}
+                        {normalized.roundedCornersDisplay ? <p><span className="font-medium text-gray-700">Rounded Corners:</span> {normalized.roundedCornersDisplay}</p> : null}
+                      </div>
 
-                        {/* Right column: Price Breakdown */}
-                        <div className="p-2.5 bg-gray-50 rounded-lg border border-gray-200">
-                          <h4 className="text-xs font-semibold text-gray-900 mb-1.5">Price Breakdown</h4>
-                          <div className="space-y-1 text-xs">
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Unit Price:</span>
-                              <span className="text-gray-900 font-medium">{usd(normalized.unitPriceCents / 100)}</span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-gray-600">Qty:</span>
-                              <span className="text-gray-900 font-medium">{normalized.qtyDisplay}</span>
-                            </div>
-                            <div className="flex justify-between font-semibold border-t border-gray-300 pt-1.5 mt-1.5">
-                              <span className="text-gray-900">Line Total:</span>
-                              <span className="text-[#18448D]">{usd(normalized.lineTotalCents / 100)}</span>
-                            </div>
-                          </div>
-                        </div>
+                      {/* Per-item price breakdown — same shared shape as /design and /google-ads-banner */}
+                      <div className="mb-3">
+                        <CartItemBreakdown
+                          item={item}
+                          resolvedDiscount={resolvedDiscount}
+                          cartRawSubtotalCents={cartRawSubtotalCents}
+                        />
                       </div>
 
                       {/* Quantity Controls and Action Buttons */}
