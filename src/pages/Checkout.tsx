@@ -453,6 +453,15 @@ const Checkout: React.FC = () => {
                     const normalized = normalizeOrderItemDisplay(item as NormalizableOrderItem);
                     const isYardSign = isYardSignItem(item);
                     const previewUrl = item.thumbnail_url || item.web_preview_url || item.file_url || item.print_ready_url || item.aiDesign?.assets?.proofUrl;
+                    if (isYardSign && !previewUrl) {
+                      console.warn('⚠️  CHECKOUT: No image URL found for item:', item.id, {
+                        thumbnail_url: item.thumbnail_url,
+                        web_preview_url: item.web_preview_url,
+                        file_url: item.file_url,
+                        print_ready_url: item.print_ready_url,
+                        aiDesign_proofUrl: item.aiDesign?.assets?.proofUrl
+                      });
+                    }
                     const details = [
                       { label: 'Size', value: normalized.sizeDisplay },
                       { label: 'Material', value: normalized.materialDisplay },
