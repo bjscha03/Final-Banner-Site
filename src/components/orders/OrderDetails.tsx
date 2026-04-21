@@ -596,7 +596,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                     {hasAddress ? (
                       <>
                         {shippingAddressLines.map((line, index) => (
-                          <p key={`${line}-${index}`} className={index === 0 ? 'font-medium text-gray-900' : 'text-sm text-gray-900'}>
+                          <p key={index} className={index === 0 ? 'font-medium text-gray-900' : 'text-sm text-gray-900'}>
                             {line}
                           </p>
                         ))}
@@ -618,7 +618,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
               </h3>
               <div className="space-y-1">
                 {shippingAddressLines.map((line, index) => (
-                  <p key={`${line}-${index}`} className={index === 0 ? 'font-medium text-gray-900' : 'text-gray-700'}>
+                  <p key={index} className={index === 0 ? 'font-medium text-gray-900' : 'text-gray-700'}>
                     {line}
                   </p>
                 ))}

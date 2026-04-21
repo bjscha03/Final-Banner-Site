@@ -285,7 +285,7 @@ const OrderDetail: React.FC = () => {
                 <MapPin className="h-5 w-5 text-gray-400 mt-0.5 flex-shrink-0" />
                 <div className="space-y-1">
                   {shippingAddressLines.map((line, index) => (
-                    <p key={`${line}-${index}`} className={index === 0 ? 'font-medium text-gray-900' : undefined}>
+                    <p key={index} className={index === 0 ? 'font-medium text-gray-900' : undefined}>
                       {line}
                     </p>
                   ))}

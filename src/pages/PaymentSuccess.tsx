@@ -240,7 +240,7 @@ const PaymentSuccess: React.FC = () => {
               <div className="mb-6 border border-gray-200 rounded-lg p-4 bg-gray-50">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Shipping Address</h3>
                 {shippingAddressLines.map((line, index) => (
-                  <p key={`${line}-${index}`} className={index === 0 ? 'font-medium text-gray-900' : 'text-gray-700'}>
+                  <p key={index} className={index === 0 ? 'font-medium text-gray-900' : 'text-gray-700'}>
                     {line}
                   </p>
                 ))}
