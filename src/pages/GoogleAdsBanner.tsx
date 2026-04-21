@@ -19,6 +19,7 @@ import { getProductConfig } from '@/lib/products';
 import ProductTypeSwitcher from '@/components/design/ProductTypeSwitcher';
 import YardSignConfigurator from '@/components/design/YardSignConfigurator';
 import YardSignPriceSummary from '@/components/design/YardSignPriceSummary';
+import PriceBreakdown from '@/components/pricing/PriceBreakdown';
 import {
   calcYardSignPricing,
   getYardSignSizes,
@@ -1499,70 +1500,67 @@ const GoogleAdsBanner: React.FC = () => {
               </div>
 
               <div className="space-y-6">
-                <div className="rounded-xl p-6 text-center" style={{ background: "#F7F8FA", boxShadow: "0 2px 12px rgba(0,0,0,0.06)" }}>
-                  <p className="text-sm text-gray-500 mb-1">Your Price</p>
-                  {promoApplied ? (
-                    <>
-                      <p className="text-2xl text-gray-400 line-through leading-tight">{usd(totals.materialTotal)}</p>
-                      <p className="text-5xl font-extrabold text-green-600 leading-tight">{usd(discountedTotal)}</p>
-                      <p className="text-sm text-green-600 font-semibold mt-1">You save {usd(totals.materialTotal - discountedTotal)}!</p>
-                    </>
-                  ) : (
-                    <p className="text-5xl font-extrabold text-gray-900 leading-tight">{usd(isCarMagnet && carMagnetPricing ? carMagnetPricing.subtotalCents / 100 : totals.materialTotal)}</p>
-                  )}
-                  <p className="text-base text-green-600 font-semibold mt-2">FREE Next-Day Air Included</p>
-                  <p className="text-sm text-gray-500 mt-1">Printed within 24 hours.</p>
-                  {!isCarMagnet && <p className="text-sm text-gray-500 mt-1">{usd(pricePerSqFt)}/sq ft</p>}
-
-                  <div className="text-left text-sm text-gray-600 space-y-1 mt-4 mb-2">
-                    <p><strong>Size:</strong> {widthDisplay} × {heightDisplay} ({sqft.toFixed(1)} sq ft)</p>
-                    <p><strong>Material:</strong> {materialLabel}</p>
-                    <p><strong>Print:</strong> Single-Sided</p>
-                    <p><strong>Quantity:</strong> {quantity}</p>
-                    {isCarMagnet ? (
-                      <p><strong>Rounded Corners:</strong> {getCarMagnetRoundedCornersLabel(carMagnetRoundedCorners)}</p>
-                    ) : (
-                      <>
-                        <p><strong>Grommets:</strong> {grommetsLabel}</p>
-                        {polePockets !== 'none' && <p><strong>Pole Pockets:</strong> {polePockets}</p>}
-                        {addRope && <p><strong>Rope:</strong> Included</p>}
-                      </>
-                    )}
-                  </div>
-
-                  {!isCarMagnet && (
-                    <div className="mt-3 mb-2">
-                      {!promoApplied ? (
-                        <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={promoCode}
-                            onChange={e => setPromoCode(e.target.value.toUpperCase())}
-                            placeholder="Promo Code"
-                            className="flex-1 border rounded-xl px-3 py-2 text-base"
-                          />
-                          <button onClick={handlePromoApply} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium">
-                            Apply
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-3 py-2">
-                          <span className="text-sm font-semibold text-green-800 flex items-center gap-1.5">
-                            <Tag className="h-3.5 w-3.5" />
-                            {promoCode} — 20% off
-                          </span>
-                          <button
-                            onClick={handlePromoRemove}
-                            className="text-xs text-red-500 hover:text-red-700 font-medium"
-                          >
-                            Remove
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                  <p className="text-xs text-gray-400 mt-3">Tax calculated at checkout</p>
-                </div>
+                {isCarMagnet && carMagnetPricing ? (
+                  <PriceBreakdown
+                    topLine={`${widthDisplay} × ${heightDisplay} Car Magnets • ${usd(carMagnetPricing.unitPriceCents / 100)}/magnet`}
+                    secondaryLine={`for ${quantity} ${quantity === 1 ? 'magnet' : 'magnets'}`}
+                    detailRows={[
+                      { label: 'Material', value: materialLabel },
+                      { label: 'Print', value: 'Single-Sided' },
+                      { label: 'Rounded Corners', value: getCarMagnetRoundedCornersLabel(carMagnetRoundedCorners) },
+                    ]}
+                    baseSubtotalCents={carMagnetPricing.baseSubtotalCents}
+                    baseSubtotalLabel="Base price"
+                    quantityDiscountCents={carMagnetPricing.quantityDiscountCents}
+                    quantityDiscountRate={carMagnetPricing.quantityDiscountRate}
+                    taxCents={carMagnetPricing.taxCents}
+                    taxRate={0.06}
+                    adjustedSubtotalCents={carMagnetPricing.subtotalCents}
+                    totalCents={carMagnetPricing.totalCents}
+                    footerNote="FREE Next-Day Air Included • Tax calculated at checkout"
+                  />
+                ) : (
+                  (() => {
+                    const baseCents = Math.round(totals.materialTotal * 100);
+                    const promoCents = promoApplied
+                      ? Math.round(baseCents * PROMO_NEW20_DISCOUNT_RATE)
+                      : 0;
+                    const adjustedSubtotalCents = baseCents - promoCents;
+                    const taxCents = Math.round(adjustedSubtotalCents * 0.06);
+                    const totalCents = adjustedSubtotalCents + taxCents;
+                    return (
+                      <PriceBreakdown
+                        topLine={`${sqft.toFixed(2)} sq ft • ${usd(pricePerSqFt)} per sq ft`}
+                        secondaryLine={`for ${quantity} ${quantity === 1 ? 'banner' : 'banners'} • ${widthDisplay} × ${heightDisplay} • ${materialLabel}`}
+                        detailRows={[
+                          { label: 'Grommets', value: grommetsLabel },
+                          ...(polePockets !== 'none'
+                            ? [{ label: 'Pole Pockets', value: polePockets }]
+                            : []),
+                          ...(addRope ? [{ label: 'Rope', value: 'Included' }] : []),
+                        ]}
+                        baseSubtotalCents={baseCents}
+                        baseSubtotalLabel="Banner subtotal"
+                        promoDiscountCents={promoCents}
+                        promoDiscountRate={promoApplied ? PROMO_NEW20_DISCOUNT_RATE : undefined}
+                        promoDiscountCode={promoApplied ? promoCode : undefined}
+                        taxCents={taxCents}
+                        taxRate={0.06}
+                        adjustedSubtotalCents={adjustedSubtotalCents}
+                        totalCents={totalCents}
+                        promo={{
+                          code: promoCode,
+                          applied: promoApplied,
+                          onCodeChange: setPromoCode,
+                          onApply: handlePromoApply,
+                          onRemove: handlePromoRemove,
+                          appliedLabel: `${promoCode} — 20% off`,
+                        }}
+                        footerNote="FREE Next-Day Air Included • Tax calculated at checkout"
+                      />
+                    );
+                  })()
+                )}
 
                 <button onClick={handleCheckout} disabled={!uploadedFile} className={`group w-full font-bold text-lg py-5 rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${uploadedFile ? 'bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white cursor-pointer shadow-orange-500/30' : 'bg-orange-300 text-white/80 cursor-not-allowed'}`}>
                   Checkout

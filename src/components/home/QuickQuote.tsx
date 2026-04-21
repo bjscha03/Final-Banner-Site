@@ -26,6 +26,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import Lightbox from '@/components/design/Lightbox';
+import PriceBreakdown from '@/components/pricing/PriceBreakdown';
 
 interface MaterialOption {
   key: MaterialKey;
@@ -836,74 +837,31 @@ const QuickQuote: React.FC = () => {
 
 
           {/* Right Column - Price Summary */}
-          <div className="bg-white border border-slate-300 rounded-xl overflow-hidden order-3 lg:order-2" style={{ boxShadow: '0 8px 30px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.08)' }}>
-{/* Header */}
-            <div className="px-6 py-5 border-b border-slate-200" style={{ background: 'linear-gradient(180deg, #fefce8 0%, #fef9c3 50%, #fef08a 100%)', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-              <div className="text-center">
-                <div className="inline-flex items-center gap-3 mb-3">
-                  <div className="relative">
-                    <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg" style={{ boxShadow: '0 6px 16px rgba(249,115,22,0.5)' }}>
-                      <DollarSign className="h-6 w-6 text-white" />
-                    </div>
-                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full shadow-sm animate-pulse border-2 border-white"></div>
-                  </div>
-                  <h3 className="text-2xl font-bold text-slate-900">Your Instant Quote</h3>
-                </div>
-                <p className="text-sm text-slate-600 font-medium">Professional quality, instant pricing</p>
-              </div>
-            </div>
+          <div className="order-3 lg:order-2">
+            <PriceBreakdown
+              showHeader
+              heading="Your Instant Quote"
+              subheading="Professional quality, instant pricing"
+              topLine={`${formatArea(totals.area)} • ${usd(PRICE_PER_SQFT[material])} per sq ft`}
+              secondaryLine={`for ${quantity} ${quantity === 1 ? 'banner' : 'banners'}`}
+              baseSubtotalCents={Math.round(
+                (totals.materialTotal + quantityDiscountCents / 100) * 100,
+              ) - (showMinOrderAdjustment ? minOrderAdjustmentCents : 0)}
+              baseSubtotalLabel="Banner subtotal"
+              quantityDiscountCents={quantityDiscountCents}
+              quantityDiscountRate={quantityDiscountRate}
+              minOrderAdjustmentCents={showMinOrderAdjustment ? minOrderAdjustmentCents : 0}
+              taxCents={Math.round(totals.tax * 100)}
+              taxRate={0.06}
+              adjustedSubtotalCents={Math.round(totals.materialTotal * 100)}
+              totalCents={Math.round(totals.totalWithTax * 100)}
+            />
 
-            <div className="relative p-8" style={{ background: 'linear-gradient(180deg, #ffffff 0%, #fafafa 100%)' }}>
-              {/* Price Display */}
-              <div className="text-center mb-8">
-                <div className="relative inline-block mb-4">
-                  <div className="text-5xl md:text-6xl font-bold text-slate-900" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                    {usd(totals.materialTotal)}
-                  </div>
-                  </div>
-
-                <div className="rounded-xl p-5 space-y-2" style={{ background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)', border: '1px solid rgba(148,163,184,0.3)' }}>
-                  <p className="font-bold text-gray-800">{formatArea(totals.area)} • {usd(PRICE_PER_SQFT[material])} per sq ft</p>
-                  <p className="text-sm text-gray-600 font-medium">for {quantity} {quantity === 1 ? 'banner' : 'banners'}</p>
-
-                  {/* Price Breakdown */}
-                  <div className="mt-3 pt-3 border-t border-slate-300/60 space-y-1.5 text-sm">
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Banner subtotal:</span>
-                      <span className="font-semibold text-gray-800">{usd((totals.materialTotal + quantityDiscountCents / 100) - (showMinOrderAdjustment ? minOrderAdjustmentCents / 100 : 0))}</span>
-                    </div>
-                    {showMinOrderAdjustment && (
-                      <div className="flex justify-between">
-                        <span className="text-gray-600">Minimum order adjustment:</span>
-                        <span className="font-semibold text-gray-800">{usd(minOrderAdjustmentCents / 100)}</span>
-                      </div>
-                    )}
-                    {quantityDiscountCents > 0 && (
-                      <div className="flex justify-between text-green-600">
-                        <span className="flex items-center gap-1">
-                          <Tag className="h-3.5 w-3.5" />
-                          Quantity discount ({Math.round(quantityDiscountRate * 100)}% off):
-                        </span>
-                        <span className="font-semibold">-{usd(quantityDiscountCents / 100)}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between">
-                      <span className="text-gray-600">Tax (6%):</span>
-                      <span className="font-semibold text-gray-800">{usd(totals.tax)}</span>
-                    </div>
-                    <div className="flex justify-between pt-2 mt-1 border-t border-slate-300/60">
-                      <span className="font-bold text-gray-800">Adjusted subtotal:</span>
-                      <span className="font-bold text-gray-800">{usd(totals.materialTotal)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="font-bold text-gray-800">Total with tax:</span>
-                      <span className="font-bold text-[#ff6b35]">{usd(totals.totalWithTax)}</span>
-                    </div>
-                  </div>
-                </div>
-
+            {/* Buy More, Save More! Tier Table + extras kept under the breakdown */}
+            <div className="bg-white border border-slate-300 rounded-xl overflow-hidden mt-6" style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.06)' }}>
+              <div className="relative p-8" style={{ background: 'linear-gradient(180deg, #ffffff 0%, #fafafa 100%)' }}>
                 {/* Buy More, Save More! Tier Table */}
-                <div className="mt-5 rounded-xl p-4" style={{ background: 'linear-gradient(180deg, #f0fdf4 0%, #dcfce7 100%)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.04)', border: '1px solid rgba(34,197,94,0.3)' }}>
+                <div className="rounded-xl p-4" style={{ background: 'linear-gradient(180deg, #f0fdf4 0%, #dcfce7 100%)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.04)', border: '1px solid rgba(34,197,94,0.3)' }}>
                   <div className="flex items-center gap-2 mb-2">
                     <Tag className="h-4 w-4 text-green-600" />
                     <span className="font-bold text-green-800 text-sm">Buy More, Save More!</span>
@@ -929,10 +887,9 @@ const QuickQuote: React.FC = () => {
                     ))}
                   </div>
                 </div>
-              </div>
 
               {/* Shipping & Production Features */}
-              <div className="bg-slate-50 border border-slate-200 rounded-md p-5 mb-6">
+              <div className="bg-slate-50 border border-slate-200 rounded-md p-5 mb-6 mt-6">
                 <div className="space-y-4">
                   <div className="flex items-center gap-4 group">
                     <Zap className="h-8 w-8 text-slate-600" />
@@ -1070,6 +1027,7 @@ const QuickQuote: React.FC = () => {
                 )}
               </div>
             </div>
+          </div>
           </div>
 
 
@@ -1217,49 +1175,33 @@ const QuickQuote: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-white border border-slate-300 rounded-xl overflow-hidden order-3 lg:order-2" style={{ boxShadow: '0 8px 30px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.08)' }}>
-            <div className="px-6 py-5 border-b border-slate-200" style={{ background: 'linear-gradient(180deg, #fefce8 0%, #fef9c3 50%, #fef08a 100%)', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}>
-              <div className="text-center">
-                <div className="inline-flex items-center gap-3 mb-3">
-                  <div className="relative">
-                    <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl flex items-center justify-center shadow-lg" style={{ boxShadow: '0 6px 16px rgba(249,115,22,0.5)' }}>
-                      <DollarSign className="h-6 w-6 text-white" />
-                    </div>
-                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full shadow-sm animate-pulse border-2 border-white"></div>
-                  </div>
-                  <h3 className="text-2xl font-bold text-slate-900">Your Instant Quote</h3>
-                </div>
-                <p className="text-sm text-slate-600 font-medium">Professional quality, instant pricing</p>
-              </div>
-            </div>
-            <div className="relative p-8" style={{ background: 'linear-gradient(180deg, #ffffff 0%, #fafafa 100%)' }}>
-              <div className="text-center mb-8">
-                <div className="text-5xl md:text-6xl font-bold text-slate-900" style={{ textShadow: '0 2px 4px rgba(0,0,0,0.1)' }}>
-                  {usd(yardSignQuote.totalCents / 100)}
-                </div>
-                <div className="rounded-xl p-5 space-y-2 mt-4 text-left" style={{ background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)', border: '1px solid rgba(148,163,184,0.3)' }}>
-                  <p><strong>Product:</strong> Yard Signs</p>
-                  <p><strong>Size:</strong> 24&quot; x 18&quot;</p>
-                  <p><strong>Print:</strong> {yardSignSidedness === 'double' ? 'Double-Sided' : 'Single-Sided'}</p>
-                  <p><strong>Material:</strong> Corrugated Plastic</p>
-                  <p><strong>Quantity:</strong> {yardSignQuantity}</p>
-                  {yardSignAddStepStakes && <p><strong>Step Stakes:</strong> {yardSignStepStakeQuantity}</p>}
-                  <div className="pt-2 mt-2 border-t border-slate-300/60 space-y-1.5 text-sm">
-                    <div className="flex justify-between">
-                      <span>Subtotal:</span>
-                      <span className="font-semibold">{usd(yardSignQuote.subtotalCents / 100)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Tax ({Math.round(yardSignQuote.taxRate * 100)}%):</span>
-                      <span className="font-semibold">{usd(yardSignQuote.taxCents / 100)}</span>
-                    </div>
-                    <div className="flex justify-between font-bold pt-1 border-t border-slate-300/60">
-                      <span>Total:</span>
-                      <span className="text-[#ff6b35]">{usd(yardSignQuote.totalWithTaxCents / 100)}</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
+          <div className="order-3 lg:order-2">
+            <PriceBreakdown
+              showHeader
+              heading="Your Instant Quote"
+              subheading="Professional quality, instant pricing"
+              topLine={`24" × 18" Yard Signs • ${usd(yardSignQuote.unitPriceCents / 100)}/sign`}
+              secondaryLine={`for ${yardSignQuantity} ${yardSignQuantity === 1 ? 'sign' : 'signs'}${yardSignAddStepStakes ? ` + ${yardSignStepStakeQuantity} step ${yardSignStepStakeQuantity === 1 ? 'stake' : 'stakes'}` : ''}`}
+              detailRows={[
+                { label: 'Print', value: yardSignSidedness === 'double' ? 'Double-Sided' : 'Single-Sided' },
+                { label: 'Material', value: 'Corrugated Plastic' },
+              ]}
+              baseSubtotalCents={yardSignQuote.signSubtotalCents}
+              baseSubtotalLabel="Signs subtotal"
+              addOns={
+                yardSignAddStepStakes
+                  ? [{ label: `Step stakes (×${yardSignStepStakeQuantity})`, amountCents: yardSignQuote.stepStakeTotalCents }]
+                  : []
+              }
+              taxCents={yardSignQuote.taxCents}
+              taxRate={yardSignQuote.taxRate}
+              adjustedSubtotalCents={yardSignQuote.totalCents}
+              totalCents={yardSignQuote.totalWithTaxCents}
+              footerNote="Tax calculated at checkout"
+            />
+
+            <div className="bg-white border border-slate-300 rounded-xl overflow-hidden mt-6" style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.06)' }}>
+              <div className="relative p-8" style={{ background: 'linear-gradient(180deg, #ffffff 0%, #fafafa 100%)' }}>
               <div className="bg-slate-50 border border-slate-200 rounded-md p-5 mb-6">
                 <div className="space-y-4">
                   <div className="flex items-center gap-4">
@@ -1289,6 +1231,7 @@ const QuickQuote: React.FC = () => {
                 </Button>
               </div>
             </div>
+          </div>
           </div>
         </div>
         ) : (
@@ -1354,46 +1297,29 @@ const QuickQuote: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-white border border-slate-300 rounded-xl overflow-hidden order-3 lg:order-2" style={{ boxShadow: '0 8px 30px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.08)' }}>
-              <div className="px-6 py-5 border-b border-slate-200" style={{ background: 'linear-gradient(180deg, #fefce8 0%, #fef9c3 50%, #fef08a 100%)' }}>
-                <h3 className="text-2xl font-bold text-slate-900 text-center">Your Instant Quote</h3>
-              </div>
-              <div className="p-8 space-y-6">
-                <div className="text-center">
-                  <div className="text-5xl md:text-6xl font-bold text-slate-900">{usd(carMagnetQuote.subtotalCents / 100)}</div>
-                </div>
-                <div className="rounded-xl p-5 space-y-2 text-left bg-slate-50 border border-slate-200">
-                  <p><strong>Product:</strong> Car Magnets</p>
-                  <p><strong>Size:</strong> {selectedCarMagnetSize.label}</p>
-                  <p><strong>Material:</strong> Premium Magnetic Material</p>
-                  <p><strong>Print:</strong> Single-Sided</p>
-                  <p><strong>Rounded Corners:</strong> {CAR_MAGNET_ROUNDED_CORNERS.find((x) => x.value === carMagnetRoundedCorners)?.label || 'None'}</p>
-                  <p><strong>Quantity:</strong> {carMagnetQuantity}</p>
-                  <div className="pt-2 mt-2 border-t border-slate-300/60 space-y-1.5 text-sm">
-                    <div className="flex justify-between">
-                      <span>Base Price:</span>
-                      <span className="font-semibold">{usd(carMagnetQuote.baseSubtotalCents / 100)}</span>
-                    </div>
-                    {carMagnetQuote.quantityDiscountCents > 0 && (
-                      <div className="flex justify-between text-green-700">
-                        <span>Quantity Discount ({Math.round(carMagnetQuote.quantityDiscountRate * 100)}% off):</span>
-                        <span className="font-semibold">-{usd(carMagnetQuote.quantityDiscountCents / 100)}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between">
-                      <span>Subtotal:</span>
-                      <span className="font-semibold">{usd(carMagnetQuote.subtotalCents / 100)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Tax ({Math.round(carMagnetQuote.taxRate * 100)}%):</span>
-                      <span className="font-semibold">{usd(carMagnetQuote.taxCents / 100)}</span>
-                    </div>
-                    <div className="flex justify-between font-bold pt-1 border-t border-slate-300/60">
-                      <span>Total:</span>
-                      <span className="text-[#ff6b35]">{usd(carMagnetQuote.totalCents / 100)}</span>
-                    </div>
-                  </div>
-                </div>
+            <div className="order-3 lg:order-2">
+              <PriceBreakdown
+                showHeader
+                heading="Your Instant Quote"
+                subheading="Professional quality, instant pricing"
+                topLine={`${selectedCarMagnetSize.label} Car Magnets • ${usd(carMagnetQuote.unitPriceCents / 100)}/magnet`}
+                secondaryLine={`for ${carMagnetQuantity} ${carMagnetQuantity === 1 ? 'magnet' : 'magnets'}`}
+                detailRows={[
+                  { label: 'Material', value: 'Premium Magnetic Material' },
+                  { label: 'Print', value: 'Single-Sided' },
+                  { label: 'Rounded Corners', value: CAR_MAGNET_ROUNDED_CORNERS.find((x) => x.value === carMagnetRoundedCorners)?.label || 'None' },
+                ]}
+                baseSubtotalCents={carMagnetQuote.baseSubtotalCents}
+                baseSubtotalLabel="Base price"
+                quantityDiscountCents={carMagnetQuote.quantityDiscountCents}
+                quantityDiscountRate={carMagnetQuote.quantityDiscountRate}
+                taxCents={carMagnetQuote.taxCents}
+                taxRate={0.06}
+                adjustedSubtotalCents={carMagnetQuote.subtotalCents}
+                totalCents={carMagnetQuote.totalCents}
+                footerNote="Tax calculated at checkout"
+              />
+              <div className="mt-6">
                 <Button
                   onClick={handleStartCarMagnetDesign}
                   className="w-full bg-orange-500 hover:bg-orange-600 text-white py-5 text-lg font-semibold rounded-md"
