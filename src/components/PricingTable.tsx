@@ -12,7 +12,6 @@ const PricingTable: React.FC = () => {
     {
       name: "13oz Vinyl",
       key: "13oz" as MaterialKey,
-      price: "$4.50",
       popular: false,
       description: "Perfect for indoor displays and short-term outdoor use",
       features: [
@@ -26,7 +25,6 @@ const PricingTable: React.FC = () => {
     {
       name: "15oz Vinyl",
       key: "15oz" as MaterialKey,
-      price: "$6.00",
       popular: true,
       description: "Most popular choice for outdoor banners and events",
       features: [
@@ -41,7 +39,6 @@ const PricingTable: React.FC = () => {
     {
       name: "18oz Vinyl",
       key: "18oz" as MaterialKey,
-      price: "$7.50",
       popular: false,
       description: "Heavy-duty material for long-term outdoor displays",
       features: [
@@ -56,7 +53,6 @@ const PricingTable: React.FC = () => {
     {
       name: "Mesh Fence",
       key: "mesh" as MaterialKey,
-      price: "$6.00",
       popular: false,
       description: "Wind-resistant mesh perfect for fencing and construction",
       features: [
@@ -89,10 +85,10 @@ const PricingTable: React.FC = () => {
         {/* Header Section */}
         <div className={`text-center mb-16 scroll-reveal ${isVisible ? 'visible' : ''}`}>
           <h2 className="text-4xl font-bold text-slate-900 mb-6">
-            Material Pricing
+            Material Options
           </h2>
           <p className="text-xl text-gray-700 max-w-2xl mx-auto leading-relaxed">
-            Choose the perfect material for your banner needs. All prices per square foot.
+            Choose the perfect material for your banner needs.
           </p>
         </div>
 
@@ -125,12 +121,6 @@ const PricingTable: React.FC = () => {
                 <h3 className="text-2xl font-bold text-orange-500 mb-4 leading-tight min-h-[2rem] flex items-center justify-center">
                   {material.name}
                 </h3>
-                <div className="mb-6">
-                  <span className="text-5xl font-bold text-[#18448D] leading-none">
-                    {material.price}
-                  </span>
-                  <span className="text-lg text-gray-500 font-medium ml-1 align-top">/sq ft</span>
-                </div>
                 <p className="text-gray-700 font-medium leading-relaxed min-h-[4.5rem] flex items-center justify-center text-center">
                   {material.description}
                 </p>
