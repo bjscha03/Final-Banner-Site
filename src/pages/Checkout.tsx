@@ -490,7 +490,7 @@ const Checkout: React.FC = () => {
                               widthIn={item.width_in}
                               heightIn={item.height_in}
                               grommets={item.grommets}
-                              imageUrl={previewUrl || undefined}
+                              imageUrl={previewUrl}
                               material={item.material}
                               textElements={item.text_elements}
                               overlayImage={item.overlay_image}
