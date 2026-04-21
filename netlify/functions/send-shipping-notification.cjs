@@ -1,5 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
-const { getItemDisplayName, getEmailItemOptions } = require('./product-display-helpers.cjs');
+const { getItemDisplayName, getEmailItemOptions, normalizeOrderItemDisplay } = require('./product-display-helpers.cjs');
 const {
   normalizeName,
   getFinalizedThumbnailUrl,
@@ -194,6 +194,7 @@ exports.handler = async (event, context) => {
       customerName: resolvedCustomerName,
       email: customerEmail,
       items: itemsResult.map(item => ({
+        ...normalizeOrderItemDisplay(item),
         name: getItemDisplayName(item),
         quantity: item.quantity,
         price: item.line_total_cents / 100,

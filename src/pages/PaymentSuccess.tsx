@@ -3,24 +3,14 @@ import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Home, ArrowRight } from 'lucide-react';
-import { usd, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
+import { usd } from '@/lib/pricing';
 import { trackPurchase, trackFBPurchase } from '@/lib/analytics';
-import { getItemDisplayName, isYardSignItem, getDisplayMaterial, getDisplaySize } from '@/lib/product-display';
+import { getItemDisplayName, normalizeOrderItemDisplay } from '@/lib/product-display';
 
 const PaymentSuccess: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-
-// Helper function to calculate unit price from order data
-const calculateUnitPrice = (item: any) => {
-  if (item.unit_price_cents) {
-    return item.unit_price_cents; // Cart data has unit_price_cents
-  }
-  // Order data needs calculation
-  const ropeCost = (item.rope_feet || 0) * 2 * item.quantity * 100;
-  const polePocketCost = 0; // Will be calculated separately
-  return (item.line_total_cents - ropeCost - polePocketCost) / item.quantity;
-};  const location = useLocation();
+  const location = useLocation();
   
   const orderId = searchParams.get('orderId');
   const state = location.state as any;
@@ -74,7 +64,7 @@ const calculateUnitPrice = (item: any) => {
       const discountLabel = serverPricing.applied_discount_type === 'quantity'
         ? 'Qty Discount'
         : serverPricing.applied_discount_type === 'promo'
-          ? 'Promo: ' + (serverPricing.applied_discount_label || discountCode?.code || 'Applied')
+          ? (serverPricing.applied_discount_label || discountCode?.code || 'Promo Applied')
           : '';
       return {
         subtotal: serverPricing.subtotal_cents || 0,
@@ -108,7 +98,7 @@ const calculateUnitPrice = (item: any) => {
           {/* Success Header */}
           <div className="text-center mb-8">
             <div className="flex justify-center mb-4">
-              <CheckCircle className="h-16 w-16 text-green-500" />
+              <CheckCircle className="h-16 w-16 text-orange-500" />
             </div>
             <h1 className="text-3xl font-bold text-gray-900 mb-2">
               Payment Successful! 🎉
@@ -143,62 +133,40 @@ const calculateUnitPrice = (item: any) => {
                     <div key={index} className="border border-gray-200 rounded-lg p-4 mb-4">
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
+                          {(() => {
+                            const normalized = normalizeOrderItemDisplay(item);
+                            return (
+                              <>
                           <p className="font-medium">{getItemDisplayName(item)}</p>
                           <p className="text-sm text-gray-600 mt-1">
-                            {isYardSignItem(item)
-                              ? `Corrugated Plastic • ${item.yard_sign_sidedness === 'double' ? 'Double-Sided' : 'Single-Sided'} • Qty: ${item.quantity}${item.yard_sign_step_stakes_qty > 0 ? ` • Stakes: ${item.yard_sign_step_stakes_qty}` : ''}`
-                              : `${getDisplaySize(item)} • ${getDisplayMaterial(item)} • Single-Sided • Qty: ${item.quantity}${item.grommets && item.grommets !== "none" ? ` • ${item.grommets} grommets` : ''}${item.rope_feet && item.rope_feet > 0 ? ` • Rope: ${item.rope_feet.toFixed(1)}ft` : ''}`
-                            }
+                            {`Size: ${normalized.sizeDisplay} • Material: ${normalized.materialDisplay} • Print: ${normalized.printDisplay}`}
                           </p>
+                          {normalized.uploadedDesignsCount ? <p className="text-sm text-gray-600">Uploaded Designs: {normalized.uploadedDesignsCount}</p> : null}
+                          {normalized.stepStakesQty ? <p className="text-sm text-gray-600">Step Stakes: {normalized.stepStakesQty}</p> : null}
+                          {normalized.grommetsDisplay ? <p className="text-sm text-gray-600">Grommets: {normalized.grommetsDisplay}</p> : null}
+                          {normalized.polePocketsDisplay ? <p className="text-sm text-gray-600">Pole Pockets: {normalized.polePocketsDisplay}</p> : null}
+                          {normalized.ropeDisplay ? <p className="text-sm text-gray-600">Rope: {normalized.ropeDisplay}</p> : null}
 
                           {/* Cost Breakdown */}
                           <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                            <h5 className="text-sm font-medium text-gray-900 mb-2">Price Breakdown</h5>
                             <div className="space-y-1 text-sm">
-                              {isYardSignItem(item) ? (
-                                <>
-                                  <div className="flex justify-between">
-                                    <span className="text-gray-600">Signs ({item.quantity} × {usd(calculateUnitPrice(item) / 100)}):</span>
-                                    <span className="text-gray-900">{usd((calculateUnitPrice(item) * item.quantity) / 100)}</span>
-                                  </div>
-                                  {item.yard_sign_stakes_subtotal_cents > 0 && (
-                                    <div className="flex justify-between">
-                                      <span className="text-gray-600">Step Stakes ({item.yard_sign_step_stakes_qty}):</span>
-                                      <span className="text-gray-900">{usd(item.yard_sign_stakes_subtotal_cents / 100)}</span>
-                                    </div>
-                                  )}
-                                </>
-                              ) : (
-                                <>
-                                  <div className="flex justify-between">
-                                    <span className="text-gray-600">Unit Price:</span>
-                                    <span className="text-gray-900">{usd(calculateUnitPrice(item) / 100)}</span>
-                                  </div>
-                                  {item.rope_feet && item.rope_feet > 0 && (
-                                    <div className="flex justify-between">
-                                      <span className="text-gray-600">Rope ({item.rope_feet.toFixed(1)}ft):</span>
-                                      <span className="text-gray-900">{usd(item.rope_feet * 2 * item.quantity)}</span>
-                                    </div>
-                                  )}
-                                  {(() => {
-                                    const baseCost = calculateUnitPrice(item) * item.quantity;
-                                    const ropeCost = (item.rope_feet || 0) * 2 * item.quantity * 100;
-                                    const polePocketCost = item.line_total_cents - baseCost - ropeCost;
-                                    return polePocketCost > 0 ? (
-                                      <div className="flex justify-between">
-                                        <span className="text-gray-600">Pole pockets:</span>
-                                        <span className="text-gray-900">{usd(polePocketCost / 100)}</span>
-                                      </div>
-                                    ) : null;
-                                  })()}
-                                </>
-                              )}
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Unit Price:</span>
+                                <span className="text-gray-900">{usd(normalized.unitPriceCents / 100)}</span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-gray-600">Qty:</span>
+                                <span className="text-gray-900">{normalized.qtyDisplay}</span>
+                              </div>
                               <div className="flex justify-between font-medium border-t border-gray-200 pt-1 mt-2">
-                                <span className="text-gray-900">Line total:</span>
-                                <span className="text-gray-900">{usd(item.line_total_cents / 100)}</span>
+                                <span className="text-gray-900">Line Total:</span>
+                                <span className="text-gray-900">{usd(normalized.lineTotalCents / 100)}</span>
                               </div>
                             </div>
                           </div>
+                              </>
+                            );
+                          })()}
                         </div>
                       </div>
                     </div>

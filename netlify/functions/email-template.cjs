@@ -56,11 +56,12 @@ function renderItems(items = []) {
   return `
     <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
       ${items.map((item) => {
-        const isYardSign = item.product_type === 'yard_sign';
+        const isYardSign = item.product_type === 'yard_sign' || item.productType === 'yard-sign';
         const thumbnail = item.thumbnailUrl || null;
         const quantity = Number(item.quantity || 0);
         const lineTotal = Number(item.lineTotal ?? item.price ?? 0);
         const unitPrice = Number(item.unitPrice ?? (quantity > 0 ? lineTotal / quantity : 0));
+        const badgeLabel = item.productLabel || (isYardSign ? 'Yard Sign' : 'Banner');
         return `
           <tr>
             <td style="padding:14px;border-bottom:1px solid #e5e7eb;">
@@ -71,9 +72,17 @@ function renderItems(items = []) {
                     <img src="${escapeHtml(thumbnail)}" alt="${isYardSign ? 'Yard Sign Preview' : 'Banner Preview'}" width="88" style="display:block;border-radius:8px;border:1px solid #d1d5db;" />
                   </td>` : ''}
                   <td style="vertical-align:top;">
-                    <p style="margin:0 0 4px;color:#0f172a;font-size:15px;font-weight:700;">${escapeHtml(item.name || 'Item')}</p>
+                    <p style="margin:0 0 4px;color:#0f172a;font-size:15px;font-weight:700;">${escapeHtml(item.name || item.displayName || 'Item')}</p>
+                    <p style="margin:0 0 6px;"><span style="display:inline-block;background:#fff7ed;border:1px solid #fed7aa;border-radius:999px;color:#9a3412;font-size:11px;font-weight:700;padding:2px 8px;">${escapeHtml(badgeLabel)}</span></p>
+                    ${item.sizeDisplay ? `<p style="margin:0 0 2px;color:#64748b;font-size:12px;">Size: ${escapeHtml(item.sizeDisplay)}</p>` : ''}
+                    ${item.materialDisplay ? `<p style="margin:0 0 2px;color:#64748b;font-size:12px;">Material: ${escapeHtml(item.materialDisplay)}</p>` : ''}
+                    ${item.printDisplay ? `<p style="margin:0 0 2px;color:#64748b;font-size:12px;">Print: ${escapeHtml(item.printDisplay)}</p>` : ''}
                     <p style="margin:0 0 4px;color:#475569;font-size:13px;">Qty: ${quantity}</p>
-                    ${item.options ? `<p style="margin:0 0 4px;color:#64748b;font-size:12px;">${escapeHtml(item.options)}</p>` : ''}
+                    ${item.uploadedDesignsCount ? `<p style="margin:0 0 2px;color:#64748b;font-size:12px;">Uploaded Designs: ${Number(item.uploadedDesignsCount)}</p>` : ''}
+                    ${item.stepStakesQty ? `<p style="margin:0 0 2px;color:#64748b;font-size:12px;">Step Stakes: ${Number(item.stepStakesQty)}</p>` : ''}
+                    ${item.grommetsDisplay ? `<p style="margin:0 0 2px;color:#64748b;font-size:12px;">Grommets: ${escapeHtml(item.grommetsDisplay)}</p>` : ''}
+                    ${item.polePocketsDisplay ? `<p style="margin:0 0 2px;color:#64748b;font-size:12px;">Pole Pockets: ${escapeHtml(item.polePocketsDisplay)}</p>` : ''}
+                    ${item.ropeDisplay ? `<p style="margin:0 0 2px;color:#64748b;font-size:12px;">Rope: ${escapeHtml(item.ropeDisplay)}</p>` : ''}
                     ${lineTotal > 0 ? `<p style="margin:0 0 2px;color:${BRAND_NAVY};font-size:13px;font-weight:600;">Unit Price: $${unitPrice.toFixed(2)}</p>` : ''}
                     ${lineTotal > 0 ? `<p style="margin:0;color:${BRAND_ORANGE};font-size:14px;font-weight:700;">Line Total: $${lineTotal.toFixed(2)}</p>` : ''}
                   </td>

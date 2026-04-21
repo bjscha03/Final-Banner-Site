@@ -1,5 +1,5 @@
 const { neon } = require('@neondatabase/serverless');
-const { getItemDisplayName, isYardSignItem, getEmailItemOptions } = require('./product-display-helpers.cjs');
+const { getItemDisplayName, isYardSignItem, getEmailItemOptions, normalizeOrderItemDisplay } = require('./product-display-helpers.cjs');
 const {
   normalizeName,
   getFinalizedThumbnailUrl,
@@ -704,6 +704,7 @@ exports.handler = async (event) => {
           const baseCost = item.line_total_cents - ropeCost - polePocketCost;
           const unitPrice = baseCost / item.quantity;
           
+          const normalized = normalizeOrderItemDisplay(item);
           return {
           product_type: item.product_type || 'banner',
           name: getItemDisplayName(item),
@@ -712,6 +713,7 @@ exports.handler = async (event) => {
           lineTotal: item.line_total_cents / 100,
           unitPrice: item.quantity > 0 ? (item.line_total_cents / 100) / item.quantity : 0,
           options: getEmailItemOptions(item),
+          ...normalized,
           // Cost breakdown data
           material: item.material,
           unitPriceCents: Math.round(unitPrice),

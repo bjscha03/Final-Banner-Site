@@ -6,7 +6,6 @@ import { getOrdersAdapter } from '../lib/orders/adapter';
 import { OrderItem } from '../lib/orders/types';
 
 import Layout from '@/components/Layout';
-import { getGrommetLabel } from '@/lib/grommets';
 import { usd, formatDimensions, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
 import { validateMinimumOrder, canProceedToCheckout } from '@/lib/validation/minimumOrder';
 import PayPalCheckout from '@/components/checkout/PayPalCheckout';
@@ -22,7 +21,7 @@ import { useCheckoutContext } from '@/store/checkoutContext';
 import { cartSyncService } from '@/lib/cartSync';
 import { trackBeginCheckout, trackViewCart, trackFBInitiateCheckout } from '@/lib/analytics';
 import { trackPromoEvent } from '@/lib/posthog';
-import { getItemDisplayName, isYardSignItem, getProductCategory } from '@/lib/product-display';
+import { getItemDisplayName, isYardSignItem, getProductCategory, normalizeOrderItemDisplay } from '@/lib/product-display';
 import { getProductCopy, getDominantProductType } from '@/lib/product-copy';
 
 const Checkout: React.FC = () => {
@@ -449,13 +448,8 @@ const Checkout: React.FC = () => {
 
                 <div className="space-y-4">
                   {items.map((item) => {
-                    const ropeMode = item.rope_pricing_mode || 'per_item';
-                    const pocketMode = item.pole_pocket_pricing_mode || 'per_item';
-                    const ropeCost = getRopeCost(item);
-                    const pocketCost = getPolePocketCost(item);
-                    const ropeEach = item.quantity > 0 ? Math.round(ropeCost / item.quantity) : 0;
-                    const pocketEach = item.quantity > 0 ? Math.round(pocketCost / item.quantity) : 0;
                     const eachCents = computeEach(item);
+                    const normalized = normalizeOrderItemDisplay(item as any);
 
                     return (
                     <div key={item.id} className="border border-gray-200 rounded-xl p-6 mb-4 last:mb-0 bg-gradient-to-br from-white to-gray-50 hover:shadow-md transition-all">
@@ -508,39 +502,21 @@ const Checkout: React.FC = () => {
 
                       {/* Item specifications */}
                       <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-gray-600 mb-4">
-                        {isYardSignItem(item) ? (
-                          <>
-                            <span><span className="font-medium text-gray-700">Material:</span> Corrugated Plastic</span>
-                            <span><span className="font-medium text-gray-700">Print:</span> {item.yard_sign_sidedness === 'double' ? 'Double-Sided' : 'Single-Sided'}</span>
-                            {item.yard_sign_design_count && item.yard_sign_design_count > 0 && (
-                              <span><span className="font-medium text-gray-700">Uploaded Designs:</span> {item.yard_sign_design_count}</span>
-                            )}
-                            <span><span className="font-medium text-gray-700">Total Signs:</span> {item.quantity}</span>
-                            {item.yard_sign_step_stakes_enabled && item.yard_sign_step_stakes_qty && item.yard_sign_step_stakes_qty > 0 && (
-                              <span><span className="font-medium text-gray-700">Step Stakes:</span> {item.yard_sign_step_stakes_qty}</span>
-                            )}
-                          </>
-                        ) : (
-                          <>
-                            <span><span className="font-medium text-gray-700">Material:</span> {item.material}</span>
-                            <span><span className="font-medium text-gray-700">Grommets:</span> {getGrommetLabel(item.grommets)}</span>
-                            {item.rope_feet > 0 && (
-                              <span><span className="font-medium text-gray-700">Rope:</span> {item.rope_feet.toFixed(1)} ft</span>
-                            )}
-                            {item.pole_pocket_position && item.pole_pocket_position !== "none" && (
-                              <span>
-                                <span className="font-medium text-gray-700">Pole Pockets:</span> {item.pole_pocket_position}
-                                {item.pole_pocket_size && ` (${item.pole_pocket_size}")`}
-                              </span>
-                            )}
-                          </>
-                        )}
+                        <span><span className="font-medium text-gray-700">Size:</span> {normalized.sizeDisplay}</span>
+                        <span><span className="font-medium text-gray-700">Material:</span> {normalized.materialDisplay}</span>
+                        <span><span className="font-medium text-gray-700">Print:</span> {normalized.printDisplay}</span>
+                        <span><span className="font-medium text-gray-700">Qty:</span> {normalized.qtyDisplay}</span>
+                        {normalized.uploadedDesignsCount ? <span><span className="font-medium text-gray-700">Uploaded Designs:</span> {normalized.uploadedDesignsCount}</span> : null}
+                        {normalized.stepStakesQty ? <span><span className="font-medium text-gray-700">Step Stakes:</span> {normalized.stepStakesQty}</span> : null}
+                        {normalized.grommetsDisplay ? <span><span className="font-medium text-gray-700">Grommets:</span> {normalized.grommetsDisplay}</span> : null}
+                        {normalized.polePocketsDisplay ? <span><span className="font-medium text-gray-700">Pole Pockets:</span> {normalized.polePocketsDisplay}</span> : null}
+                        {normalized.ropeDisplay ? <span><span className="font-medium text-gray-700">Rope:</span> {normalized.ropeDisplay}</span> : null}
                       </div>
 
                       {/* Quantity Controls and Remove Button */}
                       <div className="flex items-center justify-between pt-3 border-t border-gray-100">
                         <div className="flex items-center space-x-3">
-                          <span className="text-sm text-gray-800 font-semibold">Quantity:</span>
+                          <span className="text-sm text-gray-800 font-semibold">Qty:</span>
                           <div className="flex items-center gap-3">
                             <Button
                               variant="outline"
