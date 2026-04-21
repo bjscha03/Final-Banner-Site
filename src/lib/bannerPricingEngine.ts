@@ -66,10 +66,10 @@ export const getPolePocketLinearFeet = (
 
 /**
  * Rope pricing stays aligned with existing storefront behavior:
- * 2x width (top + bottom equivalent linear feet) at $2.00 / linear foot.
+ * width linear feet at $2.00 / linear foot.
  */
 export const getRopeLinearFeet = (widthIn: number): number => {
-  return (widthIn / 12) * 2;
+  return widthIn / 12;
 };
 
 export const calculateBannerPricing = ({

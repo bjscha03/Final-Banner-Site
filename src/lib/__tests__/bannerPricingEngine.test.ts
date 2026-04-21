@@ -66,8 +66,8 @@ describe('bannerPricingEngine', () => {
       addRope: true,
     });
 
-    expect(result.ropeLinearFeet).toBe(8);
-    expect(result.ropeCostCents).toBe(1600);
+    expect(result.ropeLinearFeet).toBe(4);
+    expect(result.ropeCostCents).toBe(800);
   });
 
   it('includes both pole pockets and rope charges', () => {
@@ -82,8 +82,8 @@ describe('bannerPricingEngine', () => {
     });
 
     expect(result.polePocketCostCents).toBe(3100);
-    expect(result.ropeCostCents).toBe(1600);
-    expect(result.subtotalBeforeDiscountCents).toBe(8300);
+    expect(result.ropeCostCents).toBe(800);
+    expect(result.subtotalBeforeDiscountCents).toBe(7500);
   });
 
   it('uses material pricing map correctly', () => {

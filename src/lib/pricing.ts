@@ -19,7 +19,7 @@ export const inchesToSqFt = (widthIn: number, heightIn: number): number => {
 };
 
 export const ropeCost = (widthIn: number, quantity: number): number => {
-  return getRopeLinearFeet(widthIn) * quantity;
+  return getRopeLinearFeet(widthIn) * 2 * quantity;
 };
 
 export const polePocketCost = (widthIn: number, heightIn: number, polePockets: string, quantity: number): number => {
@@ -68,8 +68,8 @@ export function calcTotals({
   const rope = pricing.ropeCostCents / 100;
   const polePocket = pricing.polePocketCostCents / 100;
   const materialTotal = pricing.subtotalBeforeDiscountCents / 100;
-  const tax = pricing.taxCents / 100;
-  const totalWithTax = pricing.totalCents / 100;
+  const tax = materialTotal * TAX_RATE;
+  const totalWithTax = materialTotal + tax;
 
   return {
     area,

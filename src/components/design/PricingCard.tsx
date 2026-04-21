@@ -336,7 +336,6 @@ const PricingCard: React.FC = () => {
     
     if (!thumbnailUrl) {
       console.warn('[PricingCard] NO VALID THUMBNAIL - item will show No Image in checkout');
-    } else {
     }
 
     
