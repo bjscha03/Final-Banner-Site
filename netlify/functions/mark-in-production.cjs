@@ -14,6 +14,7 @@ const {
 function getDbUrl() {
   return process.env.NETLIFY_DATABASE_URL || process.env.VITE_DATABASE_URL || process.env.DATABASE_URL;
 }
+const TAX_RATE = 0.06;
 
 // Email logging function
 async function logEmailAttempt({ type, to, orderId, status, providerMsgId, errorMessage }) {
@@ -208,13 +209,13 @@ exports.handler = async (event) => {
       get tax() {
         const subtotalCents = itemsResult.reduce((sum, item) => sum + item.line_total_cents, 0);
         const discount = order.applied_discount_cents || 0;
-        return Math.round((subtotalCents - discount) * 0.06) / 100;
+        return Math.round((subtotalCents - discount) * TAX_RATE) / 100;
       },
       get total() {
         const subtotalCents = itemsResult.reduce((sum, item) => sum + item.line_total_cents, 0);
         const discount = order.applied_discount_cents || 0;
         const afterDiscount = subtotalCents - discount;
-        return (afterDiscount + Math.round(afterDiscount * 0.06)) / 100;
+        return (afterDiscount + Math.round(afterDiscount * TAX_RATE)) / 100;
       },
       discountCents: order.applied_discount_cents || 0,
       discountLabel: order.applied_discount_label || '',

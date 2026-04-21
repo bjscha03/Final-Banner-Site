@@ -66,6 +66,7 @@ const PaymentSuccess: React.FC = () => {
     const loadOrder = async () => {
       try {
         const response = await fetch(`/.netlify/functions/get-order?id=${orderId}`);
+        if (!response.ok) return;
         const data = await response.json();
         if (data?.ok && data?.order) {
           setLoadedOrder(data.order);
