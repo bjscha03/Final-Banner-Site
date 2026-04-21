@@ -1,4 +1,7 @@
 const BRAND_LOGO_URL = 'https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto,q_auto,w_300/https://bannersonthefly.com/cld-assets/images/logo-compact.svg';
+const BRAND_ORANGE = '#ff6b35';
+const BRAND_ORANGE_DARK = '#f45a24';
+const BRAND_NAVY = '#18448D';
 
 function escapeHtml(value) {
   return String(value ?? '')
@@ -55,6 +58,9 @@ function renderItems(items = []) {
       ${items.map((item) => {
         const isYardSign = item.product_type === 'yard_sign';
         const thumbnail = item.thumbnailUrl || null;
+        const quantity = Number(item.quantity || 0);
+        const lineTotal = Number(item.lineTotal ?? item.price ?? 0);
+        const unitPrice = Number(item.unitPrice ?? (quantity > 0 ? lineTotal / quantity : 0));
         return `
           <tr>
             <td style="padding:14px;border-bottom:1px solid #e5e7eb;">
@@ -66,9 +72,10 @@ function renderItems(items = []) {
                   </td>` : ''}
                   <td style="vertical-align:top;">
                     <p style="margin:0 0 4px;color:#0f172a;font-size:15px;font-weight:700;">${escapeHtml(item.name || 'Item')}</p>
-                    <p style="margin:0 0 4px;color:#475569;font-size:13px;">Qty: ${Number(item.quantity || 0)}</p>
+                    <p style="margin:0 0 4px;color:#475569;font-size:13px;">Qty: ${quantity}</p>
                     ${item.options ? `<p style="margin:0 0 4px;color:#64748b;font-size:12px;">${escapeHtml(item.options)}</p>` : ''}
-                    ${item.price != null ? `<p style="margin:0;color:#0f766e;font-size:14px;font-weight:700;">$${Number(item.price || 0).toFixed(2)}</p>` : ''}
+                    ${lineTotal > 0 ? `<p style="margin:0 0 2px;color:${BRAND_NAVY};font-size:13px;font-weight:600;">Unit Price: $${unitPrice.toFixed(2)}</p>` : ''}
+                    ${lineTotal > 0 ? `<p style="margin:0;color:${BRAND_ORANGE};font-size:14px;font-weight:700;">Line Total: $${lineTotal.toFixed(2)}</p>` : ''}
                   </td>
                 </tr>
               </table>
@@ -87,9 +94,9 @@ function renderTotals({ subtotal = 0, tax = 0, total = 0, discountCents = 0, dis
       <tr><td style="padding:14px;">
         <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
           <tr><td style="color:#64748b;font-size:13px;padding:4px 0;">Subtotal</td><td style="text-align:right;color:#0f172a;font-size:13px;padding:4px 0;">$${Number(subtotal).toFixed(2)}</td></tr>
-          ${discountDollars > 0 ? `<tr><td style="color:#059669;font-size:13px;padding:4px 0;">${escapeHtml(discountLabel || 'Discount')}</td><td style="text-align:right;color:#059669;font-size:13px;padding:4px 0;">-$${discountDollars.toFixed(2)}</td></tr>` : ''}
+          ${discountDollars > 0 ? `<tr><td style="color:${BRAND_ORANGE_DARK};font-size:13px;padding:4px 0;">${escapeHtml(discountLabel || 'Discount')}</td><td style="text-align:right;color:${BRAND_ORANGE_DARK};font-size:13px;padding:4px 0;">-$${discountDollars.toFixed(2)}</td></tr>` : ''}
           ${Number(tax) > 0 ? `<tr><td style="color:#64748b;font-size:13px;padding:4px 0;">Tax</td><td style="text-align:right;color:#0f172a;font-size:13px;padding:4px 0;">$${Number(tax).toFixed(2)}</td></tr>` : ''}
-          <tr><td style="padding-top:8px;border-top:1px solid #cbd5e1;color:#0f172a;font-size:16px;font-weight:700;">Total</td><td style="text-align:right;padding-top:8px;border-top:1px solid #cbd5e1;color:#0f766e;font-size:18px;font-weight:700;">$${Number(total).toFixed(2)}</td></tr>
+          <tr><td style="padding-top:8px;border-top:1px solid #cbd5e1;color:#0f172a;font-size:16px;font-weight:700;">Total</td><td style="text-align:right;padding-top:8px;border-top:1px solid #cbd5e1;color:${BRAND_NAVY};font-size:18px;font-weight:700;">$${Number(total).toFixed(2)}</td></tr>
         </table>
       </td></tr>
     </table>
@@ -141,10 +148,10 @@ function renderEmailLayout({
                 </td>
               </tr>
               <tr>
-                <td bgcolor="#059669" style="background:#059669;background:linear-gradient(135deg,#059669 0%,#10b981 100%);padding:22px 24px;color:#ffffff;text-align:center;">
-                  <p style="margin:0 0 6px;color:#ecfdf5;font-size:12px;letter-spacing:0.6px;text-transform:uppercase;font-weight:700;">${escapeHtml(eyebrow)}</p>
+                <td bgcolor="${BRAND_ORANGE}" style="background:${BRAND_ORANGE};background:linear-gradient(135deg,${BRAND_ORANGE} 0%,${BRAND_NAVY} 100%);padding:22px 24px;color:#ffffff;text-align:center;">
+                  <p style="margin:0 0 6px;color:#fff7ed;font-size:12px;letter-spacing:0.6px;text-transform:uppercase;font-weight:700;">${escapeHtml(eyebrow)}</p>
                   <h1 style="margin:0;color:#ffffff;font-size:24px;line-height:1.3;">${escapeHtml(title)}</h1>
-                  ${subtitle ? `<p style="margin:8px 0 0;color:#ecfdf5;font-size:14px;">${escapeHtml(subtitle)}</p>` : ''}
+                  ${subtitle ? `<p style="margin:8px 0 0;color:#fff7ed;font-size:14px;">${escapeHtml(subtitle)}</p>` : ''}
                   ${orderNumber ? `<p style="margin:10px 0 0;color:#ffffff;font-size:13px;font-family:monospace;">Order #${escapeHtml(orderNumber)}</p>` : ''}
                 </td>
               </tr>

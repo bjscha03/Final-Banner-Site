@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { CheckCircle, Home, ArrowRight } from 'lucide-react';
 import { usd, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
 import { trackPurchase, trackFBPurchase } from '@/lib/analytics';
-import { getItemDisplayName, isYardSignItem } from '@/lib/product-display';
+import { getItemDisplayName, isYardSignItem, getDisplayMaterial, getDisplaySize } from '@/lib/product-display';
 
 const PaymentSuccess: React.FC = () => {
   const navigate = useNavigate();
@@ -147,7 +147,7 @@ const calculateUnitPrice = (item: any) => {
                           <p className="text-sm text-gray-600 mt-1">
                             {isYardSignItem(item)
                               ? `Corrugated Plastic • ${item.yard_sign_sidedness === 'double' ? 'Double-Sided' : 'Single-Sided'} • Qty: ${item.quantity}${item.yard_sign_step_stakes_qty > 0 ? ` • Stakes: ${item.yard_sign_step_stakes_qty}` : ''}`
-                              : `${item.material} • Qty: ${item.quantity}${item.grommets && item.grommets !== "none" ? ` • ${item.grommets} grommets` : ''}${item.rope_feet && item.rope_feet > 0 ? ` • Rope: ${item.rope_feet.toFixed(1)}ft` : ''}`
+                              : `${getDisplaySize(item)} • ${getDisplayMaterial(item)} • Single-Sided • Qty: ${item.quantity}${item.grommets && item.grommets !== "none" ? ` • ${item.grommets} grommets` : ''}${item.rope_feet && item.rope_feet > 0 ? ` • Rope: ${item.rope_feet.toFixed(1)}ft` : ''}`
                             }
                           </p>
 
@@ -171,8 +171,8 @@ const calculateUnitPrice = (item: any) => {
                               ) : (
                                 <>
                                   <div className="flex justify-between">
-                                    <span className="text-gray-600">Base banner:</span>
-                                    <span className="text-gray-900">{usd((calculateUnitPrice(item) * item.quantity) / 100)}</span>
+                                    <span className="text-gray-600">Unit Price:</span>
+                                    <span className="text-gray-900">{usd(calculateUnitPrice(item) / 100)}</span>
                                   </div>
                                   {item.rope_feet && item.rope_feet > 0 && (
                                     <div className="flex justify-between">
@@ -271,7 +271,7 @@ const calculateUnitPrice = (item: any) => {
 
             <Button onClick={() => navigate('/design')} className="flex-1">
               <ArrowRight className="h-4 w-4 mr-2" />
-              Order More Banners
+              Order Again
             </Button>
           </div>
         </div>

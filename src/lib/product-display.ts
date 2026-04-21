@@ -6,6 +6,47 @@
  * and invoice to ensure consistent product identification.
  */
 
+const YARD_SIGN_SIZE = '24" × 18"';
+
+function toTitleCase(value: string): string {
+  return value
+    .trim()
+    .replace(/\s+/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, (match) => match.toUpperCase());
+}
+
+export function getDisplayMaterial(item: { product_type?: string; material?: string }): string {
+  if (item.product_type === 'yard_sign') return 'Corrugated Plastic';
+  const raw = String(item.material || '').trim().toLowerCase();
+  if (!raw) return '';
+  if (raw === 'corrugated' || raw === 'corrugated plastic') return 'Corrugated Plastic';
+  if (raw === '13oz' || raw === '13 oz' || raw === '13oz vinyl') return '13oz Vinyl';
+  return toTitleCase(raw);
+}
+
+export function getDisplaySize(item: {
+  product_type?: string;
+  width_in?: number;
+  height_in?: number;
+}): string {
+  if (item.product_type === 'yard_sign') return YARD_SIGN_SIZE;
+  if (item.width_in == null || item.height_in == null) return '';
+  return `${item.width_in}" × ${item.height_in}"`;
+}
+
+export function getDisplayGrommets(value?: string | null): string {
+  const raw = String(value || '').trim().toLowerCase();
+  if (!raw || raw === 'none' || raw === 'false') return '';
+  const map: Record<string, string> = {
+    '4-corners': '4 Corners',
+    'every-2-3ft': 'Every 2 Feet',
+    'every-1-2ft': 'Every 1–2 Feet',
+    'top-corners': 'Top Corners',
+  };
+  return map[raw] || toTitleCase(raw.replace(/-/g, ' '));
+}
+
 /**
  * Get the display name for a line item based on product_type.
  * 
@@ -18,11 +59,9 @@ export function getItemDisplayName(item: {
   height_in?: number;
 }): string {
   if (item.product_type === 'yard_sign') {
-    return `Custom Yard Sign 24" × 18"`;
+    return `Custom Yard Sign ${YARD_SIGN_SIZE}`;
   }
-  const w = item.width_in ?? 0;
-  const h = item.height_in ?? 0;
-  return `Custom Banner ${w}" × ${h}"`;
+  return `Custom Banner ${getDisplaySize(item)}`;
 }
 
 /**
@@ -76,9 +115,9 @@ export function getEmailItemName(item: {
   height_in?: number;
 }): string {
   if (item.product_type === 'yard_sign') {
-    return 'Custom Yard Sign 24"×18"';
+    return `Custom Yard Sign ${YARD_SIGN_SIZE}`;
   }
-  return `Custom Banner ${item.width_in}"×${item.height_in}"`;
+  return `Custom Banner ${getDisplaySize(item)}`;
 }
 
 /**
@@ -103,31 +142,31 @@ export function getEmailItemOptions(item: {
 }): string {
   if (item.product_type === 'yard_sign') {
     const parts: string[] = [
+      `Size: ${getDisplaySize(item)}`,
       'Material: Corrugated Plastic',
       `Print: ${item.yard_sign_sidedness === 'double' ? 'Double-Sided' : 'Single-Sided'}`,
     ];
-    if (item.yard_sign_design_count) {
-      parts.push(`Designs: ${item.yard_sign_design_count} files uploaded`);
+    if (item.yard_sign_design_count != null && item.yard_sign_design_count > 0) {
+      parts.push(`Uploaded Designs: ${item.yard_sign_design_count}`);
     }
     if (item.yard_sign_step_stakes_qty && item.yard_sign_step_stakes_qty > 0) {
       parts.push(`Step Stakes: ${item.yard_sign_step_stakes_qty}`);
     }
-    if (item.file_key) parts.push(`File: ${item.file_key}`);
     if (item.design_service_enabled) parts.push('⚡ Design Service Order');
     return parts.filter(Boolean).join(' • ');
   }
 
   // Banner options
   const parts: (string | null)[] = [
-    `Material: ${item.material}`,
-    item.grommets && item.grommets !== 'none' ? `Grommets: ${item.grommets}` : null,
+    `Size: ${getDisplaySize(item)}`,
+    `Material: ${getDisplayMaterial(item) || '13oz Vinyl'}`,
+    getDisplayGrommets(item.grommets) ? `Grommets: ${getDisplayGrommets(item.grommets)}` : null,
     item.rope_feet && item.rope_feet > 0 ? `Rope: ${item.rope_feet.toFixed(1)} ft` : null,
     (item.pole_pocket_position && item.pole_pocket_position !== 'none')
       ? `Pole Pockets: ${item.pole_pocket_position}${item.pole_pocket_size ? ` (${item.pole_pocket_size} inch)` : ''}`
       : (item.pole_pockets && item.pole_pockets !== 'none' && item.pole_pockets !== 'false')
         ? 'Pole Pockets: Yes'
         : null,
-    item.file_key ? `File: ${item.file_key}` : null,
     item.design_service_enabled ? '⚡ Design Service Order' : null,
   ];
   return parts.filter(Boolean).join(' • ');

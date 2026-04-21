@@ -326,21 +326,25 @@ export async function sendOrderConfirmation(order: any, customerEmail: string): 
         customerName: order.customer_name || 'Customer',
         items: order.items.map((item: any) => {
           const isYardSign = item.product_type === 'yard_sign';
-          const itemName = isYardSign
-            ? 'Custom Yard Sign 24"×18"'
-            : `Custom Banner ${item.width_in}"×${item.height_in}"`;
-          const options = isYardSign
-            ? [
+            const itemName = isYardSign
+              ? 'Custom Yard Sign 24" × 18"'
+              : `Custom Banner ${item.width_in}" × ${item.height_in}"`;
+            const options = isYardSign
+              ? [
+                'Size: 24" × 18"',
                 'Material: Corrugated Plastic',
                 `Print: ${item.yard_sign_sidedness === 'double' ? 'Double-Sided' : 'Single-Sided'}`,
-                item.yard_sign_design_count ? `Designs: ${item.yard_sign_design_count} files uploaded` : null,
+                item.quantity ? `Total Signs: ${item.quantity}` : null,
+                item.yard_sign_design_count ? `Uploaded Designs: ${item.yard_sign_design_count}` : null,
                 item.yard_sign_step_stakes_qty > 0 ? `Step Stakes: ${item.yard_sign_step_stakes_qty}` : null,
               ].filter(Boolean).join(' • ')
             : [
-                `Material: ${item.material}`,
+                `Size: ${item.width_in}" × ${item.height_in}"`,
+                `Material: ${item.material || '13oz Vinyl'}`,
+                `Print: ${item.sidedness === 'double' ? 'Double-Sided' : 'Single-Sided'}`,
+                item.quantity ? `Quantity: ${item.quantity}` : null,
                 item.grommets ? `Grommets: ${item.grommets}` : null,
                 item.rope_feet && item.rope_feet > 0 ? `Rope: ${item.rope_feet.toFixed(1)} ft` : null,
-                item.file_key ? `File: ${item.file_key}` : null
               ].filter(Boolean).join(' • ');
           return {
             name: itemName,
@@ -365,5 +369,4 @@ export async function sendOrderConfirmation(order: any, customerEmail: string): 
     return true;
   }
 }
-
 

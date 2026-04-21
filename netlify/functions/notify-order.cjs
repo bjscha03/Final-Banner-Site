@@ -252,7 +252,7 @@ function createAdminOrderEmailHtml(payload) {
 
               <!-- Header with Gradient -->
               <tr>
-                <td bgcolor="#059669" style="background-color: #059669; background: linear-gradient(135deg, #059669 0%, #10b981 100%); padding: 32px 24px; text-align: center;">
+                <td bgcolor="#ff6b35" style="background-color: #ff6b35; background: linear-gradient(135deg, #ff6b35 0%, #18448D 100%); padding: 32px 24px; text-align: center;">
                   <h1 style="color: #ffffff; font-size: 26px; font-weight: 700; margin: 0 0 8px;">🎉 New Order Received!</h1>
                   <p style="color: #ecfdf5; font-size: 15px; margin: 0;">A customer has placed a new order on Banners On The Fly</p>
                 </td>
@@ -512,7 +512,7 @@ async function sendEmail(type, payload) {
             ${shippingHtml}
             <p style="margin:16px 0 0;font-size:13px;color:#64748b;">You’ll receive another email when your order ships.</p>
             <div style="margin-top:16px;">
-              <a href="${escapeHtml(payload.invoiceUrl)}" style="display:inline-block;background:#059669;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:600;font-size:14px;">View Order Details</a>
+              <a href="${escapeHtml(payload.invoiceUrl)}" style="display:inline-block;background:#ff6b35;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:600;font-size:14px;">View Order Details</a>
             </div>
           `,
         });
@@ -534,7 +534,7 @@ async function sendEmail(type, payload) {
             ${totalsHtml}
             ${shippingHtml}
             <div style="margin-top:16px;">
-              <a href="${escapeHtml(payload.invoiceUrl)}" style="display:inline-block;background:#059669;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:600;font-size:14px;">View Full Order</a>
+              <a href="${escapeHtml(payload.invoiceUrl)}" style="display:inline-block;background:#ff6b35;color:#ffffff;text-decoration:none;padding:10px 16px;border-radius:8px;font-weight:600;font-size:14px;">View Full Order</a>
             </div>
           `,
         });
@@ -709,6 +709,8 @@ exports.handler = async (event) => {
           name: getItemDisplayName(item),
           quantity: item.quantity,
           price: item.line_total_cents / 100,
+          lineTotal: item.line_total_cents / 100,
+          unitPrice: item.quantity > 0 ? (item.line_total_cents / 100) / item.quantity : 0,
           options: getEmailItemOptions(item),
           // Cost breakdown data
           material: item.material,

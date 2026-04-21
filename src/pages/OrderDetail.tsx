@@ -5,7 +5,7 @@ import Layout from '@/components/Layout';
 import { useScrollToTop } from '@/components/ScrollToTop';
 import { calculatePolePocketCostFromOrder, calculateUnitPriceFromOrder } from '@/lib/pricing';
 import { getGrommetLabel } from '@/lib/grommets';
-import { getItemDisplayName, isYardSignItem } from '@/lib/product-display';
+import { getItemDisplayName, isYardSignItem, getDisplayMaterial, getDisplaySize } from '@/lib/product-display';
 
 const YARD_SIGN_DEFAULT_SIZE = '24" × 18"';
 
@@ -334,8 +334,8 @@ const OrderDetail: React.FC = () => {
                           </>
                         ) : (
                           <>
-                            <p><span className="font-medium">Size:</span> {item.width_in}" × {item.height_in}"</p>
-                            <p><span className="font-medium">Material:</span> {item.material}</p>
+                            <p><span className="font-medium">Size:</span> {getDisplaySize(item)}</p>
+                            <p><span className="font-medium">Material:</span> {getDisplayMaterial(item)}</p>
                             <p><span className="font-medium">Print:</span> Single-Sided</p>
                             <p><span className="font-medium">Quantity:</span> {item.quantity}</p>
                             <p><span className="font-medium">Grommets:</span> {getGrommetLabel(item.grommets)}</p>
@@ -384,9 +384,9 @@ const OrderDetail: React.FC = () => {
                                 const ropeCost = (item.rope_feet || 0) * 2 * item.quantity * 100;
                                 return (                              <>
                                     <div className="flex justify-between">
-                                      <span className="text-gray-600">Base banner:</span>
-                                      <span className="text-gray-900">{formatCurrency(unitPrice)} × {item.quantity}</span>
-                                    </div>
+                                    <span className="text-gray-600">Unit Price:</span>
+                                    <span className="text-gray-900">{formatCurrency(unitPrice)}</span>
+                                  </div>
                                     {Number(item.rope_feet) > 0 && (
                                       <div className="flex justify-between">
                                         <span className="text-gray-600">Rope ({item.rope_feet.toFixed(1)}ft):</span>
@@ -543,7 +543,7 @@ const OrderDetail: React.FC = () => {
               onClick={() => navigate('/design')}
               className="bg-gray-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-gray-700 transition-colors"
             >
-              Order Another Banner
+              Order Again
             </button>
           </div>
         </div>

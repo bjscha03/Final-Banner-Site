@@ -837,17 +837,17 @@ const PricingCard: React.FC = () => {
         <div className="space-y-3 mb-8">
           <div className="flex justify-between items-center py-2">
             <div className="flex-1">
-              <span className="text-sm text-gray-700">
-                <span className="hidden sm:inline">Banner cost ({formatArea(baseTotals.area)} × {usd(PRICE_PER_SQFT[material])}/sq ft)</span>
-                <span className="sm:hidden">Banner cost</span>
-              </span>
+                <span className="text-sm text-gray-700">
+                  <span className="hidden sm:inline">Unit Price ({formatArea(baseTotals.area)} × {usd(PRICE_PER_SQFT[material])}/sq ft)</span>
+                  <span className="sm:hidden">Unit Price</span>
+                </span>
+              </div>
+              <span className="text-sm font-semibold text-gray-900 ml-4">{usd(baseTotals.unit)}</span>
             </div>
-            <span className="text-sm font-semibold text-gray-900 ml-4">{usd(baseTotals.unit)}</span>
-          </div>
 
           <div className="flex justify-between items-center py-2">
-            <span className="text-sm text-gray-700">Subtotal per banner</span>
-            <span className="text-sm font-semibold text-gray-900">{usd(baseTotals.unit)}</span>
+            <span className="text-sm text-gray-700">Quantity</span>
+            <span className="text-sm font-semibold text-gray-900">{quantity}</span>
           </div>
 
           {addRope && (
