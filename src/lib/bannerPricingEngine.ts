@@ -37,9 +37,9 @@ const bannerConfig = getProductConfig(DEFAULT_PRODUCT_TYPE);
 const TAX_RATE = bannerConfig.taxRate;
 const MINIMUM_UNIT_PRICE_CENTS = bannerConfig.minimumUnitPriceCents;
 const MATERIAL_PRICE_MAP = bannerConfig.materialPriceMap as Record<MaterialKey, number>;
-const ROPE_PRICE_PER_LINEAR_FOOT_CENTS = bannerConfig.rope.pricePerFootCents;
-const POLE_POCKET_SETUP_FEE_CENTS = bannerConfig.polePockets.setupFeeCents;
-const POLE_POCKET_PRICE_PER_LINEAR_FOOT_CENTS = bannerConfig.polePockets.pricePerLinearFootCents;
+export const ROPE_PRICE_PER_LINEAR_FOOT_CENTS = bannerConfig.rope.pricePerFootCents;
+export const POLE_POCKET_SETUP_FEE_CENTS = bannerConfig.polePockets.setupFeeCents;
+export const POLE_POCKET_PRICE_PER_LINEAR_FOOT_CENTS = bannerConfig.polePockets.pricePerLinearFootCents;
 
 export const calculateBannerAreaSqFt = (widthIn: number, heightIn: number): number => {
   return (widthIn * heightIn) / 144;

@@ -9,7 +9,12 @@ import { useUIStore } from '@/store/ui';
 import { calcTotals, usd, PRICE_PER_SQFT } from '@/lib/pricing';
 import { DESIGN_GROMMET_OPTIONS } from '@/lib/grommets';
 import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
-import { calculateBannerPricing } from '@/lib/bannerPricingEngine';
+import {
+  calculateBannerPricing,
+  POLE_POCKET_SETUP_FEE_CENTS,
+  POLE_POCKET_PRICE_PER_LINEAR_FOOT_CENTS,
+  ROPE_PRICE_PER_LINEAR_FOOT_CENTS,
+} from '@/lib/bannerPricingEngine';
 import { useToast } from '@/components/ui/use-toast';
 import { generateFinalRenderFromHTML } from '@/utils/generateFinalRenderFromHTML';
 import type { ProductTypeSlug } from '@/lib/products';
@@ -1527,14 +1532,14 @@ const Design: React.FC = () => {
                     <>
                       <div>
                         <span className="text-xs text-gray-600">Grommets</span>
-                        <p className="text-xs font-semibold text-emerald-700">Included Free</p>
+                        <p className="text-xs font-semibold text-emerald-700">{bannerPricing.grommetsCostCents === 0 ? 'Included Free' : usd(bannerPricing.grommetsCostCents / 100)}</p>
                         <select value={grommets} onChange={e => setGrommets(e.target.value)} className="w-full border rounded-xl px-3 py-1.5 text-base mt-1 bg-white">
                           {DESIGN_GROMMET_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                         </select>
                       </div>
                       <div>
                         <span className="text-xs text-gray-600">Pole Pockets</span>
-                        <p className="text-xs font-semibold text-slate-700">$15 setup fee + $2.00 / linear ft</p>
+                        <p className="text-xs font-semibold text-slate-700">${(POLE_POCKET_SETUP_FEE_CENTS / 100).toFixed(0)} setup fee + ${(POLE_POCKET_PRICE_PER_LINEAR_FOOT_CENTS / 100).toFixed(2)} / linear ft</p>
                         <select value={polePockets} onChange={e => setPolePockets(e.target.value)} className="w-full border rounded-xl px-3 py-1.5 text-base mt-1 bg-white">
                           <option value="none">None</option>
                           <option value="top">Top</option>
@@ -1548,7 +1553,7 @@ const Design: React.FC = () => {
                         <label className="flex items-center gap-2 text-sm cursor-pointer">
                           <input type="checkbox" checked={addRope} onChange={e => setAddRope(e.target.checked)} className="accent-orange-500" /> Rope
                         </label>
-                        <span className="text-xs font-semibold text-slate-700 self-center">$2.00 / linear ft</span>
+                        <span className="text-xs font-semibold text-slate-700 self-center">${(ROPE_PRICE_PER_LINEAR_FOOT_CENTS / 100).toFixed(2)} / linear ft</span>
                         <label className="flex items-center gap-2 text-sm cursor-pointer">
                           <input type="checkbox" checked={hemming} onChange={e => setHemming(e.target.checked)} className="accent-orange-500" /> Hemming (included)
                         </label>
