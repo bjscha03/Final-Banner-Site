@@ -59,11 +59,11 @@ const BannerInlinePreviewSurface: React.FC<BannerInlinePreviewSurfaceProps> = ({
   const paddingPct = `${(safeHeight / safeWidth) * 100}%`;
 
   return (
-    <div className="rounded-xl p-4 md:p-6 max-w-full overflow-hidden" style={{ background: 'linear-gradient(180deg, #f5f6f8 0%, #e9edf2 100%)' }}>
+    <div className="rounded-xl p-4 md:p-6 overflow-hidden" style={{ background: 'linear-gradient(180deg, #f5f6f8 0%, #e9edf2 100%)' }}>
       <div className="mx-auto" style={wrapperStyle}>
         <div
           ref={previewContainerRef}
-          className="relative w-full max-w-full rounded-sm select-none overflow-hidden transition-all duration-300 ease-out"
+          className="relative w-full rounded-sm select-none overflow-hidden transition-all duration-300 ease-out"
           style={{
             paddingBottom: paddingPct,
             cursor: isDraggingPreview ? 'grabbing' : 'grab',
