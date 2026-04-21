@@ -85,7 +85,7 @@ const PricingTable: React.FC = () => {
         {/* Header Section */}
         <div className={`text-center mb-16 scroll-reveal ${isVisible ? 'visible' : ''}`}>
           <h2 className="text-4xl font-bold text-slate-900 mb-6">
-            Material Pricing
+            Material Options
           </h2>
           <p className="text-xl text-gray-700 max-w-2xl mx-auto leading-relaxed">
             Choose the perfect material for your banner needs.
