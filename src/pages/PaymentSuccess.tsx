@@ -54,10 +54,11 @@ const PaymentSuccess: React.FC = () => {
   const total = state?.total || 0;
   const discountCode = state?.discountCode || null;
   const serverPricing = state?.serverPricing || null; // Server-computed pricing from create-order
-  const normalizedShippingAddress = normalizeShippingAddress({
-    ...(state?.shippingAddress || {}),
-    ...(loadedOrder?.shippingAddress || {}),
-  });
+  const stateShippingAddress = normalizeShippingAddress(state?.shippingAddress || {});
+  const loadedShippingAddress = normalizeShippingAddress(loadedOrder?.shippingAddress || {});
+  const normalizedShippingAddress = hasShippingAddress(loadedShippingAddress)
+    ? loadedShippingAddress
+    : stateShippingAddress;
   const showShippingAddress = hasShippingAddress(normalizedShippingAddress);
   const shippingCityStatePostal = formatShippingCityStatePostal(normalizedShippingAddress);
 

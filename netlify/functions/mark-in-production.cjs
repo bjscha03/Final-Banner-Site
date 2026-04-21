@@ -186,6 +186,11 @@ exports.handler = async (event) => {
     const itemsResult = await sql`
       SELECT * FROM order_items WHERE order_id = ${orderId}
     `;
+    const subtotalCents = itemsResult.reduce((sum, item) => sum + item.line_total_cents, 0);
+    const discountCents = order.applied_discount_cents || 0;
+    const afterDiscountCents = subtotalCents - discountCents;
+    const taxCents = Math.round(afterDiscountCents * TAX_RATE);
+    const totalCents = afterDiscountCents + taxCents;
 
     // Format order data for email
     const emailOrder = {
@@ -203,21 +208,10 @@ exports.handler = async (event) => {
         unitPrice: item.quantity > 0 ? (item.line_total_cents / 100) / item.quantity : 0,
         thumbnailUrl: getFinalizedThumbnailUrl(item, 220),
       })),
-      get subtotal() {
-        return itemsResult.reduce((sum, item) => sum + item.line_total_cents, 0) / 100;
-      },
-      get tax() {
-        const subtotalCents = itemsResult.reduce((sum, item) => sum + item.line_total_cents, 0);
-        const discount = order.applied_discount_cents || 0;
-        return Math.round((subtotalCents - discount) * TAX_RATE) / 100;
-      },
-      get total() {
-        const subtotalCents = itemsResult.reduce((sum, item) => sum + item.line_total_cents, 0);
-        const discount = order.applied_discount_cents || 0;
-        const afterDiscount = subtotalCents - discount;
-        return (afterDiscount + Math.round(afterDiscount * TAX_RATE)) / 100;
-      },
-      discountCents: order.applied_discount_cents || 0,
+      subtotal: subtotalCents / 100,
+      tax: taxCents / 100,
+      total: totalCents / 100,
+      discountCents: discountCents,
       discountLabel: order.applied_discount_label || '',
       shipping_name: order.shipping_name,
       shipping_street: order.shipping_street,
