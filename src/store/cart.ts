@@ -219,6 +219,7 @@ const migrateCartItem = (item: CartItem): CartItem => {
     quantity: item.quantity,
     material: item.material,
     grommets: item.grommets,
+    // Backward compatibility: older records may use pole_pocket_position.
     polePockets: item.pole_pockets || item.pole_pocket_position || 'none',
     addRope: (item.rope_feet || 0) > 0,
   });

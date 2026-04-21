@@ -487,6 +487,7 @@ const Design: React.FC = () => {
         setMaterial(materialParam as MaterialKey);
         setQuantity(q);
         const normalizedPolePockets = polePocketsParam || 'none';
+        // Grommets and pole pockets are mutually exclusive finishing options.
         const normalizedGrommets = normalizedPolePockets !== 'none'
           ? 'none'
           : (grommetsParam || 'none');
@@ -1533,7 +1534,6 @@ const Design: React.FC = () => {
                       </div>
                       <div>
                         <span className="text-xs text-gray-600">Pole Pockets</span>
-                        <p className="text-xs font-semibold text-slate-700">Pole Pockets</p>
                         <p className="text-xs font-semibold text-slate-700">$15 setup fee + $2.00 / linear ft</p>
                         <select value={polePockets} onChange={e => setPolePockets(e.target.value)} className="w-full border rounded-xl px-3 py-1.5 text-base mt-1 bg-white">
                           <option value="none">None</option>
@@ -1546,8 +1546,7 @@ const Design: React.FC = () => {
                       </div>
                       <div className="flex gap-4">
                         <label className="flex items-center gap-2 text-sm cursor-pointer">
-                          <input type="checkbox" checked={addRope} onChange={e => setAddRope(e.target.checked)} className="accent-orange-500" />
-                          <span>Rope</span>
+                          <input type="checkbox" checked={addRope} onChange={e => setAddRope(e.target.checked)} className="accent-orange-500" /> Rope
                         </label>
                         <span className="text-xs font-semibold text-slate-700 self-center">$2.00 / linear ft</span>
                         <label className="flex items-center gap-2 text-sm cursor-pointer">

@@ -334,11 +334,6 @@ const PricingCard: React.FC = () => {
       thumbnailUrl = file.url;
     }
     
-    if (!thumbnailUrl) {
-      console.warn('[PricingCard] NO VALID THUMBNAIL - item will show No Image in checkout');
-    }
-
-    
     // Extract only data fields from quote store, not methods
     const quoteData = {
       widthIn: quote.widthIn,
@@ -780,9 +775,9 @@ const PricingCard: React.FC = () => {
           </p>
 
           {/* Quick Tax Info */}
-           <div className="text-sm text-gray-600">
-             Subtotal {usd(finalTotals.materialTotal)} • Tax (6%) {usd(finalTotals.tax)}
-           </div>
+          <div className="text-sm text-gray-600">
+            Subtotal {usd(finalTotals.materialTotal)} • Tax (6%) {usd(finalTotals.tax)}
+          </div>
         </div>
       </div>
 
@@ -896,7 +891,7 @@ const PricingCard: React.FC = () => {
             <span className="text-sm font-bold text-green-700">$0</span>
           </div>
 
-          {/* Tax Row */}
+          {/* Subtotal Row */}
           <div className="flex justify-between items-center py-2">
             <span className="text-sm text-gray-700">Subtotal</span>
             <span className="text-sm font-semibold text-gray-900">{usd(finalTotals.materialTotal)}</span>
