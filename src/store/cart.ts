@@ -973,16 +973,25 @@ export const useCartStore = create<CartState>()(
       },
 
       // Best Discount Resolver - "Best Discount Wins" (no stacking)
-      // IMPORTANT: Yard signs do NOT participate in quantity discounts.
-      // Only banner items contribute to the quantity discount tier.
+      // IMPORTANT: ONLY banner items participate in quantity discounts.
+      // Yard signs and car magnets do NOT contribute to the quantity discount
+      // tier and the quantity discount rate is NOT applied to their subtotal.
+      // Promo codes still apply to the full cart subtotal.
       getResolvedDiscount: () => {
         const items = get().items.map(migrateCartItem);
         const subtotalCents = items.reduce((total, item) => total + item.line_total_cents, 0);
-        
-        // Only banner items count toward quantity discount tiers
-        const bannerQuantity = items
-          .filter(item => (item.product_type || 'banner') !== 'yard_sign')
-          .reduce((total, item) => total + item.quantity, 0);
+
+        // Banner-only subset for quantity-discount tier + base
+        const isBanner = (item: any) => {
+          const t = item.product_type || 'banner';
+          return t !== 'yard_sign' && t !== 'car_magnet';
+        };
+        const bannerItems = items.filter(isBanner);
+        const bannerQuantity = bannerItems.reduce((total, item) => total + item.quantity, 0);
+        const bannerSubtotalCents = bannerItems.reduce(
+          (total, item) => total + item.line_total_cents,
+          0,
+        );
 
         const discountCode = get().discountCode;
         const promoDiscount: PromoDiscountInput | null = discountCode ? {
@@ -991,7 +1000,12 @@ export const useCartStore = create<CartState>()(
           discountAmountCents: discountCode.discountAmountCents || undefined,
         } : null;
 
-        return resolveBestDiscount({ subtotalCents, quantity: bannerQuantity, promoDiscount });
+        return resolveBestDiscount({
+          subtotalCents,
+          quantity: bannerQuantity,
+          quantitySubtotalCents: bannerSubtotalCents,
+          promoDiscount,
+        });
       }
     }),
     {

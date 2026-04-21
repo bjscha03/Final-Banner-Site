@@ -26,8 +26,14 @@ import { isYardSignItem } from '@/lib/product-display';
 export interface CartItemBreakdownProps {
   item: CartItem;
   resolvedDiscount: ResolvedDiscount;
-  /** Raw cart subtotal (sum of all item line_total_cents) used for discount allocation. */
+  /** Raw cart subtotal (sum of all item line_total_cents) used for promo discount allocation. */
   cartRawSubtotalCents: number;
+  /**
+   * Banner-only subtotal (sum of line_total_cents for banner items) used for
+   * allocating the quantity discount. Quantity discounts apply ONLY to banner
+   * items. When omitted, falls back to `cartRawSubtotalCents`.
+   */
+  bannerRawSubtotalCents?: number;
   className?: string;
 }
 
@@ -68,6 +74,7 @@ const buildRows = (
   item: CartItem,
   resolved: ResolvedDiscount,
   cartRawSubtotalCents: number,
+  bannerRawSubtotalCents: number,
 ): { rows: BreakdownRow[]; baseSubtotalCents: number; lineTotalCents: number } => {
   const productType = productTypeOf(item);
   const lineTotalRaw = item.line_total_cents || 0;
@@ -85,7 +92,7 @@ const buildRows = (
       rows.push({ label: `Step stakes${qtyLabel}`, amountCents: stakesSubtotal });
     }
   } else if (productType === 'car_magnet') {
-    // Car magnets: base only at the item level; quantity discount is cart-level.
+    // Car magnets: flat-priced. No quantity discount applied at the item level.
     rows.push({ label: 'Base price', amountCents: lineTotalRaw });
   } else {
     // Banner: base banner + add-ons (rope / pole pockets) from stored fields.
@@ -98,25 +105,35 @@ const buildRows = (
   }
 
   // Per-item attribution of the cart-level resolved discount.
-  // The cart resolver (resolveBestDiscount) applies a single discount rate
-  // to the FULL cart subtotal (all product types). To stay consistent with
-  // the cart summary total, we allocate that discount across ALL items
-  // proportionally to their raw line totals.
+  // - Quantity discounts apply ONLY to banner items: allocated proportionally
+  //   across banner items by their raw line total. Yard signs and car magnets
+  //   receive ZERO quantity-discount allocation and therefore show no
+  //   "Quantity discount" row.
+  // - Promo discounts apply to the full cart: allocated proportionally across
+  //   all items by their raw line total.
   const discountType = resolved.appliedDiscountType;
   const totalDiscountCents = resolved.appliedDiscountAmountCents;
 
   let allocatedDiscountCents = 0;
   let discountLabel = '';
   if (totalDiscountCents > 0 && discountType !== 'none') {
-    allocatedDiscountCents = allocateDiscount(
-      lineTotalRaw,
-      cartRawSubtotalCents,
-      totalDiscountCents,
-    );
-    const ratePct = Math.round(resolved.appliedDiscountRate * 100);
     if (discountType === 'quantity') {
+      if (productType === 'banner') {
+        allocatedDiscountCents = allocateDiscount(
+          lineTotalRaw,
+          bannerRawSubtotalCents,
+          totalDiscountCents,
+        );
+      } // else: yard_sign / car_magnet → 0 (no quantity discount on non-banners)
+      const ratePct = Math.round(resolved.appliedDiscountRate * 100);
       discountLabel = `Quantity discount${ratePct ? ` (${ratePct}% off)` : ''}`;
     } else {
+      allocatedDiscountCents = allocateDiscount(
+        lineTotalRaw,
+        cartRawSubtotalCents,
+        totalDiscountCents,
+      );
+      const ratePct = Math.round(resolved.appliedDiscountRate * 100);
       const code = resolved.promoDiscountCode || 'Promo';
       discountLabel = `Promo ${code}${ratePct ? ` (${ratePct}% off)` : ''}`;
     }
@@ -139,12 +156,14 @@ const CartItemBreakdown: React.FC<CartItemBreakdownProps> = ({
   item,
   resolvedDiscount,
   cartRawSubtotalCents,
+  bannerRawSubtotalCents,
   className = '',
 }) => {
   const { rows, baseSubtotalCents, lineTotalCents } = buildRows(
     item,
     resolvedDiscount,
     cartRawSubtotalCents,
+    bannerRawSubtotalCents ?? cartRawSubtotalCents,
   );
 
   const hasAdjustment = lineTotalCents !== baseSubtotalCents;

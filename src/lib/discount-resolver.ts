@@ -25,6 +25,15 @@ export interface DiscountResolverInput {
   subtotalCents: number;
   quantity: number;
   promoDiscount?: PromoDiscountInput | null;
+  /**
+   * Optional banner-only subtotal used as the base for the quantity discount
+   * calculation. Per business rule, ONLY banner items participate in the
+   * quantity discount tiers; yard signs and car magnets do not. When provided,
+   * the quantity discount is computed against this value while the promo
+   * discount continues to apply to the full `subtotalCents`. Defaults to
+   * `subtotalCents` for backward compatibility.
+   */
+  quantitySubtotalCents?: number;
 }
 
 export interface ResolvedDiscount {
@@ -58,11 +67,16 @@ export interface ResolvedDiscount {
  * @returns The single best discount to apply
  */
 export function resolveBestDiscount(input: DiscountResolverInput): ResolvedDiscount {
-  const { subtotalCents, quantity, promoDiscount } = input;
-  
+  const { subtotalCents, quantity, promoDiscount, quantitySubtotalCents } = input;
+
+  // Quantity discount applies ONLY to banner items. The caller supplies a
+  // banner-only subtotal via `quantitySubtotalCents`; if not provided we fall
+  // back to the full subtotal for backward compatibility.
+  const quantityBaseCents = quantitySubtotalCents ?? subtotalCents;
+
   // Calculate quantity discount
   const quantityDiscountRate = getQuantityDiscountRate(quantity);
-  const quantityDiscountAmountCents = Math.round(subtotalCents * quantityDiscountRate);
+  const quantityDiscountAmountCents = Math.round(quantityBaseCents * quantityDiscountRate);
   const quantityDiscountAvailable = quantityDiscountAmountCents > 0;
   
   // Calculate promo discount
