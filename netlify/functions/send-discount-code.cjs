@@ -31,7 +31,8 @@ async function sendEmailResend(to, code, expiresAt) {
     
     const resend = new Resend(process.env.RESEND_API_KEY);
     
-    const emailFrom = process.env.EMAIL_FROM || 'orders@bannersonthefly.com';
+    const emailFromRaw = process.env.EMAIL_FROM || 'orders@bannersonthefly.com';
+    const emailFrom = emailFromRaw.includes('<') ? emailFromRaw : `Banners on the Fly <${emailFromRaw}>`;
     
     console.log('[send-discount-code] Sending email from:', emailFrom, 'to:', to);
     

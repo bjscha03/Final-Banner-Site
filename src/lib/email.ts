@@ -85,7 +85,7 @@ function getDb() {
   return db;
 }
 
-const FROM = `Banners On The Fly <${process.env.EMAIL_FROM || 'info@bannersonthefly.com'}>`;
+const FROM = `Banners on the Fly <${process.env.EMAIL_FROM || 'info@bannersonthefly.com'}>`;
 const REPLY_TO = process.env.EMAIL_REPLY_TO || 'support@bannersonthefly.com';
 
 type Result = { ok: true; id: string } | { ok: false; error: string; details?: any };

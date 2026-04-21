@@ -42,7 +42,8 @@ async function sendVerificationEmail(email, verifyUrl, userName) {
     }
 
     const resend = new Resend(process.env.RESEND_API_KEY);
-    const emailFrom = process.env.EMAIL_FROM || 'info@bannersonthefly.com';
+    const emailFromRaw = process.env.EMAIL_FROM || 'info@bannersonthefly.com';
+    const emailFrom = emailFromRaw.includes('<') ? emailFromRaw : `Banners on the Fly <${emailFromRaw}>`;
 
     const { data, error } = await resend.emails.send({
       from: emailFrom,

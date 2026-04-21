@@ -180,7 +180,7 @@ exports.handler = async (event) => {
     `;
 
     const result = await resend.emails.send({
-      from: process.env.EMAIL_FROM || 'Banners On The Fly <info@bannersonthefly.com>',
+      from: process.env.EMAIL_FROM || 'Banners on the Fly <info@bannersonthefly.com>',
       to: email,
       subject: `✅ Your AI Credits Purchase - ${purchase.credits_purchased} Credits`,
       html: emailHtml,
