@@ -24,6 +24,7 @@ import {
   type YardSignDesign,
   YARD_SIGN_WIDTH_IN,
   YARD_SIGN_HEIGHT_IN,
+  YARD_SIGN_MAX_QUANTITY,
 } from '@/lib/yard-sign-pricing';
 
 const PRESET_SIZES = [
@@ -165,6 +166,7 @@ const Design: React.FC = () => {
   const [yardSignSidedness, setYardSignSidedness] = useState<YardSignSidedness>('single');
   const [yardSignAddStepStakes, setYardSignAddStepStakes] = useState(false);
   const [yardSignStepStakeQty, setYardSignStepStakeQty] = useState(1);
+  const [yardSignQuickQuoteQtyPreset, setYardSignQuickQuoteQtyPreset] = useState<number | null>(null);
   // Auto-open first design preview when editing yard sign from cart
   const [autoOpenDesignId, setAutoOpenDesignId] = useState<string | null>(null);
 
@@ -181,6 +183,7 @@ const Design: React.FC = () => {
       setYardSignSidedness('single');
       setYardSignAddStepStakes(false);
       setYardSignStepStakeQty(1);
+      setYardSignQuickQuoteQtyPreset(null);
     }
   }, []);
 
@@ -213,6 +216,7 @@ const Design: React.FC = () => {
       setYardSignSidedness(item.yard_sign_sidedness || 'single');
       setYardSignAddStepStakes(item.yard_sign_step_stakes_enabled || false);
       setYardSignStepStakeQty(item.yard_sign_step_stakes_qty || 1);
+      setYardSignQuickQuoteQtyPreset(null);
       // Auto-open the first design's preview so user can adjust immediately
       if (restoredDesigns.length > 0) {
         setAutoOpenDesignId(restoredDesigns[0].id);
@@ -236,6 +240,7 @@ const Design: React.FC = () => {
       if (item.pole_pockets) setPolePockets(item.pole_pockets);
       setAddRope(!!item.rope_feet);
       setQuantity(item.quantity || 1);
+      setYardSignQuickQuoteQtyPreset(null);
 
       // Auto-open preview modal so user can adjust
       setShowPreview(true);
@@ -319,8 +324,47 @@ const Design: React.FC = () => {
   // Yard sign quantity validation
   const yardSignQuantityValid = validateYardSignQuantity(yardSignTotalQty);
 
-  // Handle quick quote URL parameters (width, height, qty, material)
+  // Handle quick quote URL parameters (banner + yard sign)
   useEffect(() => {
+    const tab = searchParams.get('tab');
+    const productParam = searchParams.get('productType') || searchParams.get('product');
+    const isYardSignParam = ['yard-sign', 'yard_sign', 'yard-signs'].includes((tab || productParam || '').toLowerCase());
+    const hasYardSignQuickQuoteParams =
+      searchParams.has('printSide') ||
+      searchParams.has('qty') ||
+      searchParams.has('stepStakes') ||
+      searchParams.has('stepStakeQty') ||
+      searchParams.has('size');
+
+    if (isYardSignParam && hasYardSignQuickQuoteParams) {
+      const printSide = searchParams.get('printSide');
+      const qty = searchParams.get('qty');
+      const stepStakes = searchParams.get('stepStakes');
+      const stepStakeQty = searchParams.get('stepStakeQty');
+      const parsedQty = qty ? parseInt(qty, 10) : NaN;
+      const qtyValidation = Number.isFinite(parsedQty) ? validateYardSignQuantity(parsedQty) : { valid: false };
+      const sidedness: YardSignSidedness = printSide === 'double' ? 'double' : 'single';
+      const addStepStakes = stepStakes === '1' || stepStakes === 'true';
+      const parsedStakeQty = stepStakeQty ? parseInt(stepStakeQty, 10) : parsedQty;
+      const safeStakeQty = Math.max(1, Math.min(YARD_SIGN_MAX_QUANTITY, Number.isFinite(parsedStakeQty) ? parsedStakeQty : 1));
+
+      setProductType('yard_sign');
+      setYardSignSidedness(sidedness);
+      setYardSignAddStepStakes(addStepStakes);
+      setYardSignStepStakeQty(addStepStakes ? safeStakeQty : 1);
+      setYardSignQuickQuoteQtyPreset(qtyValidation.valid ? parsedQty : null);
+
+      if (qtyValidation.valid) {
+        toast({
+          title: 'Quick Quote Applied',
+          description: `24" × 18" ${sidedness === 'double' ? 'Double-Sided' : 'Single-Sided'} yard signs (Qty: ${parsedQty})`,
+        });
+      }
+
+      navigate(`${location.pathname}?tab=yard-sign`, { replace: true });
+      return;
+    }
+
     const width = searchParams.get('width');
     const height = searchParams.get('height');
     const qty = searchParams.get('qty');
@@ -996,7 +1040,13 @@ const Design: React.FC = () => {
                   onPromoApply={handlePromoApply}
                   onPromoRemove={() => { setPromoApplied(false); setPromoCode(''); sessionStorage.removeItem('pendingPromoCode'); }}
                   autoOpenDesignId={autoOpenDesignId}
+                  initialDesignQuantity={yardSignQuickQuoteQtyPreset ?? undefined}
                 />
+                {yardSignQuickQuoteQtyPreset && yardSignDesigns.length === 0 && (
+                  <p className="text-xs text-orange-600 font-medium -mt-4">
+                    Quick Quote preset applied: your first uploaded design will default to {yardSignQuickQuoteQtyPreset} signs.
+                  </p>
+                )}
               </div>
               <div className="space-y-6">
                 {yardSignPricing && (
