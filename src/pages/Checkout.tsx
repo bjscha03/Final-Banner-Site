@@ -17,6 +17,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { emailApi } from '@/lib/api';
 import { CartItem } from '@/store/cart';
 import BannerPreview from '@/components/cart/BannerPreview';
+import CartItemBreakdown from '@/components/cart/CartItemBreakdown';
 import { useCheckoutContext } from '@/store/checkoutContext';
 import { cartSyncService } from '@/lib/cartSync';
 import { trackBeginCheckout, trackViewCart, trackFBInitiateCheckout } from '@/lib/analytics';
@@ -47,7 +48,22 @@ const Checkout: React.FC = () => {
   const taxCents = getTaxCents();
   const totalCents = getTotalCents();
   const resolvedDiscount = getResolvedDiscount();
-  
+
+  // Raw subtotals used by per-item breakdowns to allocate cart-level discounts.
+  // - cartRawSubtotalCents: full cart subtotal (used for promo allocation)
+  // - bannerRawSubtotalCents: banner-only subtotal (used for quantity-discount
+  //   allocation; yard signs and car magnets do NOT receive any quantity-
+  //   discount attribution).
+  const cartRawSubtotalCents = items.reduce(
+    (sum, it) => sum + (it.line_total_cents || 0),
+    0,
+  );
+  const bannerRawSubtotalCents = items.reduce((sum, it) => {
+    const t = (it as any).product_type || 'banner';
+    if (t === 'yard_sign' || t === 'car_magnet') return sum;
+    return sum + (it.line_total_cents || 0);
+  }, 0);
+
 
   // Calculate feature flag pricing details
   const flags = getFeatureFlags();
@@ -530,6 +546,14 @@ const Checkout: React.FC = () => {
                               </div>
                             ))}
                           </dl>
+
+                          {/* Per-item price breakdown — same shared component used in cart */}
+                          <CartItemBreakdown
+                            item={item}
+                            resolvedDiscount={resolvedDiscount}
+                            cartRawSubtotalCents={cartRawSubtotalCents}
+                            bannerRawSubtotalCents={bannerRawSubtotalCents}
+                          />
                         </div>
 
                         <div className="hidden md:flex flex-col items-end text-right pl-3">

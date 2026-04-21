@@ -41,11 +41,19 @@ const calculateQuantityDiscount = (subtotalCents, quantity) => {
 /**
  * "Best Discount Wins" - server-side discount resolver
  * Only one discount is applied: whichever is higher (quantity or promo)
+ *
+ * IMPORTANT: Quantity discounts apply ONLY to banner items. Callers should
+ * pass `quantitySubtotalCents` as the banner-only subtotal so the quantity
+ * discount tier is calculated against banners only. Promo discounts continue
+ * to apply to the full `subtotalCents`. If `quantitySubtotalCents` is not
+ * provided it falls back to `subtotalCents` for backward compatibility.
  */
-const resolveBestDiscount = (subtotalCents, quantity, promoDiscount = null) => {
-  // Calculate quantity discount
+const resolveBestDiscount = (subtotalCents, quantity, promoDiscount = null, quantitySubtotalCents = null) => {
+  const quantityBaseCents = quantitySubtotalCents == null ? subtotalCents : quantitySubtotalCents;
+
+  // Calculate quantity discount (banner-only base)
   const quantityDiscountRate = getQuantityDiscountRate(quantity);
-  const quantityDiscountAmountCents = Math.round(subtotalCents * quantityDiscountRate);
+  const quantityDiscountAmountCents = Math.round(quantityBaseCents * quantityDiscountRate);
 
   // Calculate promo discount
   let promoDiscountAmountCents = 0;
@@ -94,14 +102,19 @@ const computeTotals = (items, taxRate, opts, promoDiscount = null) => {
   const minAdj = Math.max(0, adjusted - raw);
 
   // IMPORTANT: Only BANNER items count toward quantity discount tiers.
-  // Yard signs use flat per-sign pricing with NO quantity discounts.
-  const bannerQuantity = items
-    .filter(i => (i.product_type || 'banner') !== 'yard_sign')
-    .reduce((sum, i) => sum + (i.quantity || 1), 0);
+  // Yard signs and car magnets use flat pricing with NO quantity discounts.
+  const isBanner = (i) => {
+    const t = i.product_type || 'banner';
+    return t !== 'yard_sign' && t !== 'car_magnet';
+  };
+  const bannerItems = items.filter(isBanner);
+  const bannerQuantity = bannerItems.reduce((sum, i) => sum + (i.quantity || 1), 0);
+  const bannerSubtotalCents = bannerItems.reduce((sum, i) => sum + (i.line_total_cents || 0), 0);
   const totalQuantity = items.reduce((sum, i) => sum + (i.quantity || 1), 0);
 
-  // "Best Discount Wins" - only ONE discount applied (using banner qty for tier lookup)
-  const bestDiscount = resolveBestDiscount(adjusted, bannerQuantity, promoDiscount);
+  // "Best Discount Wins" - only ONE discount applied. Quantity tier is
+  // calculated against banner subtotal only; promo against full subtotal.
+  const bestDiscount = resolveBestDiscount(adjusted, bannerQuantity, promoDiscount, bannerSubtotalCents);
   const subtotalAfterDiscount = adjusted - bestDiscount.appliedDiscountAmountCents;
 
   const shipping_cents = opts.freeShipping ? 0 : 0; // Always free for US

@@ -43,6 +43,19 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
     [items],
   );
 
+  // Banner-only raw subtotal: used by per-item breakdowns to allocate the
+  // quantity discount only across banner items (yard signs / car magnets do
+  // not participate in quantity discounts).
+  const bannerRawSubtotalCents = useMemo(
+    () =>
+      items.reduce((sum, it) => {
+        const t = (it as any).product_type || 'banner';
+        if (t === 'yard_sign' || t === 'car_magnet') return sum;
+        return sum + (it.line_total_cents || 0);
+      }, 0),
+    [items],
+  );
+
   if (!isOpen) return null;
 
   const handleCheckout = () => {
@@ -244,6 +257,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                           item={item}
                           resolvedDiscount={resolvedDiscount}
                           cartRawSubtotalCents={cartRawSubtotalCents}
+                          bannerRawSubtotalCents={bannerRawSubtotalCents}
                         />
                       </div>
 
