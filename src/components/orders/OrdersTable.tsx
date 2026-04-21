@@ -90,7 +90,6 @@ const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading = false }) =>
         previewScalePct: 150,
         file: item.file_key ? { name: item.file_key, type: '', size: 0 } : undefined,
         set: () => {},
-        setFromQuickQuote: () => {},
       };
 
       addFromQuote(quoteData);

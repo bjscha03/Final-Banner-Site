@@ -11,13 +11,6 @@ export type Grommets =
   | 'right-corners'
   | 'left-corners';
 
-export interface QuickQuoteParams {
-  widthIn: number;
-  heightIn: number;
-  quantity: number;
-  material: MaterialKey;
-}
-
 export type PolePocketSize = '1' | '2' | '3' | '4';
 
 export interface TextElement {
@@ -89,7 +82,6 @@ export interface QuoteState {
   imagePosition?: { x: number; y: number }; // Background image position (for uploaded images)
   fitMode?: 'fill' | 'fit' | 'stretch';  // Image fit mode for uploaded images
   set: (partial: Partial<QuoteState>) => void;
-  setFromQuickQuote: (params: QuickQuoteParams) => void;
   loadFromCartItem: (item: any, editingItemId?: string) => void;
   addTextElement: (element: Omit<TextElement, 'id'>) => void;
   updateTextElement: (id: string, updates: Partial<TextElement>) => void;
@@ -153,19 +145,6 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
     
     return { ...state, ...updates };
   }),
-  setFromQuickQuote: (params) => set((state) => ({
-    ...state,
-    widthIn: params.widthIn,
-    heightIn: params.heightIn,
-    quantity: params.quantity,
-    material: params.material,
-    // Reset other options to defaults when coming from quick quote
-    grommets: 'none' as Grommets,
-    polePockets: 'none',
-    polePocketSize: '2',
-    addRope: state.addRope, // Preserve rope selection
-    file: undefined,
-  })),
   loadFromCartItem: (item: any, editingItemId?: string) => {
     if (item.overlay_image) {
     }

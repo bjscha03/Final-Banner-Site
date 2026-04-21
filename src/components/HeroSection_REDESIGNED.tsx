@@ -12,17 +12,11 @@ const HeroSection: React.FC = () => {
     }, 100);
   };
 
-  const handleQuickQuote = () => {
-    const quickQuoteElement = document.getElementById('quick-quote');
-    if (quickQuoteElement) {
-      quickQuoteElement.scrollIntoView({ behavior: 'smooth' });
-      setTimeout(() => {
-        const widthInput = document.getElementById('qq-width') as HTMLInputElement;
-        if (widthInput) {
-          widthInput.focus();
-        }
-      }, 550);
-    }
+  const handleSecondaryCta = () => {
+    navigate('/design');
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }, 100);
   };
 
   return (
@@ -70,11 +64,11 @@ const HeroSection: React.FC = () => {
             </button>
 
             <button
-              onClick={handleQuickQuote}
+              onClick={handleSecondaryCta}
               className="group inline-flex items-center justify-center px-10 py-5 text-lg font-bold border-2 border-white/30 text-white hover:bg-white/10 hover:border-white/50 rounded-2xl backdrop-blur-sm transition-all duration-300 transform hover:scale-105 hover:-translate-y-1 active:scale-95"
-              aria-label="Scroll to quick quote section"
+              aria-label="Navigate to design tool"
             >
-              <span>Get Quick Quote</span>
+              <span>Start Your Design</span>
               <ArrowRight className="h-5 w-5 ml-3 transition-transform duration-300 group-hover:translate-x-1" />
             </button>
           </div>

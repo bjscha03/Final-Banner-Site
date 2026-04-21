@@ -6,7 +6,7 @@ import { usd } from '@/lib/pricing';
  * Shared, site-wide pricing summary UI.
  *
  * This is the single approved style for displaying price breakdowns across
- * the homepage Quick Quote, /design, /google-ads-banner, and any other
+ * /design, /google-ads-banner, and any other
  * pricing surface. All input data must come pre-computed from the shared
  * pricing engines (banner / yard-sign / car-magnet) so that the same
  * configuration always renders the same numbers everywhere.
@@ -36,7 +36,7 @@ export interface PriceBreakdownProps {
   heading?: string;
   /** Header subheading (small caption under heading). */
   subheading?: string;
-  /** When true, render a soft yellow header with icon (Quick Quote style). */
+  /** When true, render a soft yellow header with icon. */
   showHeader?: boolean;
 
   /** Centered top-summary primary line, e.g. "8.00 sq ft • $4.50 per sq ft" */

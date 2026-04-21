@@ -4,7 +4,6 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import Header from './Header';
 import HeroSection from './HeroSection';
 import CompanySpotlight from './CompanySpotlight';
-import QuickQuote from './home/QuickQuote';
 import TestimonialsSection from './TestimonialsSection';
 import WhyChooseUs from './WhyChooseUs';
 import PricingTable from './PricingTable';
@@ -91,7 +90,6 @@ const AppLayout: React.FC = () => {
           <>
             <HeroSection />
             <CompanySpotlight />
-            <QuickQuote />
             <TestimonialsSection />
             <WhyChooseUs />
             <PricingTable />

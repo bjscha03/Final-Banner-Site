@@ -47,28 +47,19 @@ describe('pricingEngine', () => {
     });
   });
 
-  describe('car magnet quantity discount tier matrix', () => {
-    const tiers: Array<[number, number]> = [
-      [1, 0],
-      [2, 0.05],
-      [3, 0.07],
-      [4, 0.10],
-      [5, 0.13],
-      [6, 0.13],
-    ];
-    for (const [qty, rate] of tiers) {
-      it(`qty ${qty} → ${(rate * 100).toFixed(0)}% discount applied to subtotal`, () => {
+  describe('car magnet pricing uses flat per-unit totals (no quantity discount)', () => {
+    const quantities = [1, 2, 3, 5];
+    for (const qty of quantities) {
+      it(`qty ${qty} keeps quantity discount at 0`, () => {
         const result = calculatePricing({
           productType: 'car_magnet',
-          widthIn: 18,
-          heightIn: 12,
+          widthIn: 12,
+          heightIn: 18,
           quantity: qty,
         });
-        expect(result.quantityDiscountRate).toBeCloseTo(rate, 4);
-        const expectedDiscount = Math.round(result.basePriceCents * rate);
-        expect(result.quantityDiscountCents).toBe(expectedDiscount);
-        // Discount MUST be reflected in subtotal — not just displayed.
-        expect(result.subtotalCents).toBe(result.basePriceCents - expectedDiscount);
+        expect(result.quantityDiscountRate).toBe(0);
+        expect(result.quantityDiscountCents).toBe(0);
+        expect(result.subtotalCents).toBe(result.basePriceCents);
         // Total = subtotal + tax computed on subtotal.
         const expectedTax = Math.round(result.subtotalCents * 0.06);
         expect(result.taxCents).toBe(expectedTax);
@@ -78,15 +69,12 @@ describe('pricingEngine', () => {
   });
 
   describe('car magnet calcCarMagnetPricing direct (legacy)', () => {
-    it('exposes baseSubtotalCents AND post-discount subtotalCents', () => {
-      const r = calcCarMagnetPricing(18, 12, 3);
-      // 18×12 magnet base price comes from CAR_MAGNET_SIZES in
-      // car-magnet-pricing.ts (currently $22.00 each → 6600¢ for qty 3).
-      // If that constant changes this assertion will need to be updated.
-      expect(r.baseSubtotalCents).toBe(6600);
-      // 7% discount = $4.62
-      expect(r.quantityDiscountCents).toBe(462);
-      expect(r.subtotalCents).toBe(6138);
+    it('keeps subtotal equal to base subtotal with no discount', () => {
+      const r = calcCarMagnetPricing(12, 18, 3);
+      expect(r.baseSubtotalCents).toBe(8700);
+      expect(r.quantityDiscountRate).toBe(0);
+      expect(r.quantityDiscountCents).toBe(0);
+      expect(r.subtotalCents).toBe(8700);
     });
   });
 
@@ -106,17 +94,15 @@ describe('pricingEngine', () => {
       expect(result.breakdown.find((l) => l.label.startsWith('Quantity Discount'))).toBeUndefined();
     });
 
-    it('DOES include a Quantity Discount line with non-zero amount when applicable', () => {
+    it('does NOT include a Quantity Discount line for car magnets', () => {
       const result = calculatePricing({
         productType: 'car_magnet',
-        widthIn: 18,
-        heightIn: 12,
+        widthIn: 12,
+        heightIn: 18,
         quantity: 3,
       });
       const line = result.breakdown.find((l) => l.label.startsWith('Quantity Discount'));
-      expect(line).toBeDefined();
-      expect(line!.amountCents).toBeGreaterThan(0);
-      expect(line!.isDiscount).toBe(true);
+      expect(line).toBeUndefined();
     });
   });
 });

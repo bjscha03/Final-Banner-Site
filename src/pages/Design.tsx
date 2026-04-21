@@ -209,7 +209,6 @@ const Design: React.FC = () => {
   const [yardSignSidedness, setYardSignSidedness] = useState<YardSignSidedness>('single');
   const [yardSignAddStepStakes, setYardSignAddStepStakes] = useState(false);
   const [yardSignStepStakeQty, setYardSignStepStakeQty] = useState(1);
-  const [yardSignQuickQuoteQtyPreset, setYardSignQuickQuoteQtyPreset] = useState<number | null>(null);
   const [carMagnetSizeLabel, setCarMagnetSizeLabel] = useState(CAR_MAGNET_SIZES[0].label);
   const [carMagnetRoundedCorners, setCarMagnetRoundedCorners] = useState<CarMagnetRoundedCorner>('none');
   // Auto-open first design preview when editing yard sign from cart
@@ -229,7 +228,6 @@ const Design: React.FC = () => {
       setYardSignSidedness('single');
       setYardSignAddStepStakes(false);
       setYardSignStepStakeQty(1);
-      setYardSignQuickQuoteQtyPreset(null);
     } else if (newType === 'car_magnet') {
       setCarMagnetSizeLabel(CAR_MAGNET_SIZES[0].label);
       setCarMagnetRoundedCorners('none');
@@ -268,7 +266,6 @@ const Design: React.FC = () => {
       setYardSignSidedness(item.yard_sign_sidedness || 'single');
       setYardSignAddStepStakes(item.yard_sign_step_stakes_enabled || false);
       setYardSignStepStakeQty(item.yard_sign_step_stakes_qty || 1);
-      setYardSignQuickQuoteQtyPreset(null);
       // Auto-open the first design's preview so user can adjust immediately
       if (restoredDesigns.length > 0) {
         setAutoOpenDesignId(restoredDesigns[0].id);
@@ -291,7 +288,6 @@ const Design: React.FC = () => {
       setImgPos(item.image_position || { x: 0, y: 0 });
       setImgScale(item.image_scale || 1);
       setQuantity(item.quantity || 1);
-      setYardSignQuickQuoteQtyPreset(null);
       setShowPreview(true);
     } else {
       // Switch to banner tab and restore banner state
@@ -312,7 +308,6 @@ const Design: React.FC = () => {
       if (item.pole_pockets) setPolePockets(item.pole_pockets);
       setAddRope(!!item.rope_feet);
       setQuantity(item.quantity || 1);
-      setYardSignQuickQuoteQtyPreset(null);
 
       // Auto-open preview modal so user can adjust
       setShowPreview(true);
@@ -408,124 +403,6 @@ const Design: React.FC = () => {
     if (!isCarMagnet) return null;
     return calcCarMagnetPricing(widthIn, heightIn, quantity);
   }, [isCarMagnet, widthIn, heightIn, quantity]);
-
-  // Handle quick quote URL parameters (banner + yard sign)
-  useEffect(() => {
-    const tab = searchParams.get('tab');
-    const productParam = searchParams.get('productType') || searchParams.get('product');
-    const isYardSignParam = ['yard-sign', 'yard_sign', 'yard-signs'].includes((tab || productParam || '').toLowerCase());
-    const hasYardSignQuickQuoteParams =
-      searchParams.has('printSide') ||
-      searchParams.has('qty') ||
-      searchParams.has('stepStakes') ||
-      searchParams.has('stepStakeQty') ||
-      searchParams.has('size');
-
-    if (isYardSignParam && hasYardSignQuickQuoteParams) {
-      const printSide = searchParams.get('printSide');
-      const qty = searchParams.get('qty');
-      const stepStakes = searchParams.get('stepStakes');
-      const stepStakeQty = searchParams.get('stepStakeQty');
-      const parsedQty = qty ? parseInt(qty, 10) : NaN;
-      const qtyValidation = Number.isFinite(parsedQty)
-        ? validateYardSignQuantity(parsedQty)
-        : { valid: false, message: 'Invalid yard sign quantity from quick quote.' };
-      const sidedness: YardSignSidedness = printSide === 'double' ? 'double' : 'single';
-      const addStepStakes = stepStakes === '1' || stepStakes === 'true';
-      const parsedStakeQty = stepStakeQty ? parseInt(stepStakeQty, 10) : parsedQty;
-      const safeStakeQty = Math.max(1, Math.min(YARD_SIGN_MAX_QUANTITY, Number.isFinite(parsedStakeQty) ? parsedStakeQty : 1));
-
-      setProductType('yard_sign');
-      setYardSignSidedness(sidedness);
-      setYardSignAddStepStakes(addStepStakes);
-      setYardSignStepStakeQty(addStepStakes ? safeStakeQty : 1);
-      setYardSignQuickQuoteQtyPreset(qtyValidation.valid ? parsedQty : null);
-
-      if (qtyValidation.valid) {
-        toast({
-          title: 'Quick Quote Applied',
-          description: `${YARD_SIGN_WIDTH_IN}" x ${YARD_SIGN_HEIGHT_IN}" ${sidedness === 'double' ? 'Double-Sided' : 'Single-Sided'} yard signs (Qty: ${parsedQty})`,
-        });
-      }
-
-      navigate(`${location.pathname}?product=yard-signs`, { replace: true });
-      return;
-    }
-
-    const isCarMagnetParam = ['car-magnet', 'car-magnets', 'car_magnet', 'car_magnets'].includes((tab || productParam || '').toLowerCase());
-    const hasCarMagnetQuickQuoteParams =
-      searchParams.has('size') ||
-      searchParams.has('qty') ||
-      searchParams.has('corners') ||
-      searchParams.has('roundedCorners') ||
-      searchParams.has('material');
-    if (isCarMagnetParam && hasCarMagnetQuickQuoteParams) {
-      const size = searchParams.get('size');
-      const qty = searchParams.get('qty');
-      const corners = searchParams.get('corners') || searchParams.get('roundedCorners');
-      const parsedQty = Math.max(1, Number.parseInt(qty || '1', 10) || 1);
-      const parsedSize = CAR_MAGNET_SIZES.find((option) => `${option.widthIn}x${option.heightIn}` === size) || CAR_MAGNET_SIZES[0];
-      const validCornerValues = new Set(CAR_MAGNET_ROUNDED_CORNERS.map((option) => option.value));
-      const normalizedCorners = validCornerValues.has((corners || 'none') as CarMagnetRoundedCorner)
-        ? (corners as CarMagnetRoundedCorner)
-        : 'none';
-
-      setProductType('car_magnet');
-      setCarMagnetSizeLabel(parsedSize.label);
-      setCarMagnetRoundedCorners(normalizedCorners as CarMagnetRoundedCorner);
-      setQuantity(parsedQty);
-      navigate(`${location.pathname}?product=car-magnets`, { replace: true });
-      return;
-    }
-
-    const width = searchParams.get('width');
-    const height = searchParams.get('height');
-    const qty = searchParams.get('qty');
-    const materialParam = searchParams.get('material');
-    const grommetsParam = searchParams.get('grommets');
-    const polePocketsParam = searchParams.get('polePockets');
-    const addRopeParam = searchParams.get('addRope');
-
-    if (width && height && qty && materialParam) {
-      const wIn = parseFloat(width);
-      const hIn = parseFloat(height);
-      const q = parseInt(qty, 10);
-
-      if (wIn >= 1 && wIn <= 1000 && hIn >= 1 && hIn <= 1000 && q >= 1 &&
-          ['13oz', '15oz', '18oz', 'mesh'].includes(materialParam)) {
-        // Convert inches to feet + remaining inches for the input fields
-        setWidthFtStr(String(Math.floor(wIn / 12)));
-        setWidthInRStr(String(Math.round(wIn % 12)));
-        setHeightFtStr(String(Math.floor(hIn / 12)));
-        setHeightInRStr(String(Math.round(hIn % 12)));
-        setMaterial(materialParam as MaterialKey);
-        setQuantity(q);
-        const normalizedPolePockets = polePocketsParam || 'none';
-        // Grommets and pole pockets are mutually exclusive finishing options.
-        const normalizedGrommets = normalizedPolePockets !== 'none'
-          ? 'none'
-          : (grommetsParam || 'none');
-        setPolePockets(normalizedPolePockets);
-        setGrommets(normalizedGrommets);
-        setAddRope(addRopeParam === '1' || addRopeParam === 'true');
-        setActivePreset(null);
-
-        const materialName = {
-          '13oz': '13oz Vinyl',
-          '15oz': '15oz Vinyl',
-          '18oz': '18oz Vinyl',
-          'mesh': 'Mesh Vinyl'
-        }[materialParam];
-
-        toast({
-          title: "Quick Quote Applied",
-          description: `${wIn}" × ${hIn}" ${materialName} banner (Qty: ${q})`,
-        });
-
-        navigate(location.pathname, { replace: true });
-      }
-    }
-  }, [searchParams, location.pathname, navigate, toast]);
 
   // Reset image position/scale when dimensions change to prevent clipping
   useEffect(() => {
@@ -1314,13 +1191,7 @@ const Design: React.FC = () => {
                   onPromoApply={handlePromoApply}
                   onPromoRemove={handlePromoRemove}
                   autoOpenDesignId={autoOpenDesignId}
-                  initialDesignQuantity={yardSignQuickQuoteQtyPreset ?? undefined}
                 />
-                {yardSignQuickQuoteQtyPreset && yardSignDesigns.length === 0 && (
-                  <p className="text-xs text-orange-600 font-medium -mt-4">
-                    Quick Quote preset applied: your first uploaded design will default to {yardSignQuickQuoteQtyPreset} signs.
-                  </p>
-                )}
               </div>
               <div className="space-y-6">
                 {yardSignPricing && (
@@ -1591,12 +1462,12 @@ const Design: React.FC = () => {
                     <Plus className="h-4 w-4 text-gray-600" />
                   </button>
                 </div>
-                {quantityDiscountRate > 0 && (
+                {!isCarMagnet && quantityDiscountRate > 0 && (
                   <p className="text-xs text-green-600 font-medium mt-1.5">
                     🎉 {Math.round(quantityDiscountRate * 100)}% bulk discount applied at checkout
                   </p>
                 )}
-                {quantity === 1 && (
+                {!isCarMagnet && quantity === 1 && (
                   <p className="text-xs text-gray-400 mt-1.5">Order 2+ for up to 13% off</p>
                 )}
               </div>
@@ -1650,11 +1521,11 @@ const Design: React.FC = () => {
                 <PriceBreakdown
                   topLine={`${widthDisplay} × ${heightDisplay} Car Magnets • ${usd(carMagnetPricing.unitPriceCents / 100)}/magnet`}
                   secondaryLine={`for ${quantity} ${quantity === 1 ? 'magnet' : 'magnets'}`}
-                  detailRows={[
-                    { label: 'Material', value: materialLabel },
-                    { label: 'Print', value: 'Single-Sided' },
-                    { label: 'Rounded Corners', value: getCarMagnetRoundedCornersLabel(carMagnetRoundedCorners) },
-                  ]}
+                    detailRows={[
+                      { label: 'Material', value: materialLabel },
+                      { label: 'Print', value: 'Single-Sided' },
+                      { label: 'Rounded Corners', value: `${getCarMagnetRoundedCornersLabel(carMagnetRoundedCorners)} • Included Free` },
+                    ]}
                   baseSubtotalCents={carMagnetPricing.baseSubtotalCents}
                   baseSubtotalLabel="Base price"
                   quantityDiscountCents={carMagnetPricing.quantityDiscountCents}
