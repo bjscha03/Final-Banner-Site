@@ -493,7 +493,7 @@ const Checkout: React.FC = () => {
                             className="max-w-full max-h-full"
                             designServiceEnabled={item.design_service_enabled}
                             source={item.source}
-                            isFinalizedSnapshot={isYardSign && !!item.thumbnail_url}
+                            isFinalizedSnapshot={!!item.thumbnail_url}
                           />
                         </div>
 
