@@ -1605,16 +1605,15 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
           </div>
         )}
 
-        <OrderDetails
-          order={order}
-          onUploadFinalPdf={onUploadFinalPdf}
-          trigger={
-            <Button size="sm" variant="outline" className="w-full">
-              <Eye className="h-3 w-3 mr-1" />
-              View
-            </Button>
-          }
-        />
+        <Button
+          size="sm"
+          variant="outline"
+          className="w-full"
+          onClick={() => navigate(`/orders/${order.id}`)}
+        >
+          <Eye className="h-3 w-3 mr-1" />
+          View
+        </Button>
       </div>
     </div>
   );

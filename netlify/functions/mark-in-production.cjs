@@ -4,6 +4,8 @@ const {
   normalizeName,
   getFinalizedThumbnailUrl,
   renderItems,
+  renderTotals,
+  renderAddress,
   renderEmailLayout,
   escapeHtml,
 } = require('./email-template.cjs');
@@ -12,6 +14,7 @@ const {
 function getDbUrl() {
   return process.env.NETLIFY_DATABASE_URL || process.env.VITE_DATABASE_URL || process.env.DATABASE_URL;
 }
+const TAX_RATE = 0.06;
 
 // Email logging function
 async function logEmailAttempt({ type, to, orderId, status, providerMsgId, errorMessage }) {
@@ -52,6 +55,8 @@ async function sendProductionEmail(order, customerEmail) {
         <p style="margin:0 0 12px;font-size:15px;color:#334155;">Hi ${escapeHtml(names.firstName)},</p>
         <p style="margin:0 0 12px;font-size:14px;color:#334155;">Our team is currently working on your order. Once it is complete, we will send your tracking details right away.</p>
         ${renderItems(order.items || [])}
+        ${renderTotals({ subtotal: order.subtotal, tax: order.tax, total: order.total, discountCents: order.discountCents, discountLabel: order.discountLabel })}
+        ${renderAddress(order)}
       `,
     });
 
@@ -181,6 +186,11 @@ exports.handler = async (event) => {
     const itemsResult = await sql`
       SELECT * FROM order_items WHERE order_id = ${orderId}
     `;
+    const subtotalCents = itemsResult.reduce((sum, item) => sum + item.line_total_cents, 0);
+    const discountCents = order.applied_discount_cents || 0;
+    const afterDiscountCents = subtotalCents - discountCents;
+    const taxCents = Math.round(afterDiscountCents * TAX_RATE);
+    const totalCents = afterDiscountCents + taxCents;
 
     // Format order data for email
     const emailOrder = {
@@ -197,7 +207,28 @@ exports.handler = async (event) => {
         lineTotal: item.line_total_cents / 100,
         unitPrice: item.quantity > 0 ? (item.line_total_cents / 100) / item.quantity : 0,
         thumbnailUrl: getFinalizedThumbnailUrl(item, 220),
-      }))
+      })),
+      subtotal: subtotalCents / 100,
+      tax: taxCents / 100,
+      total: totalCents / 100,
+      discountCents: discountCents,
+      discountLabel: order.applied_discount_label || '',
+      shipping_name: order.shipping_name,
+      shipping_street: order.shipping_street,
+      shipping_street2: order.shipping_street2,
+      shipping_city: order.shipping_city,
+      shipping_state: order.shipping_state,
+      shipping_zip: order.shipping_zip,
+      shipping_country: order.shipping_country,
+      shippingAddress: {
+        name: order.shipping_name || resolvedCustomerName || '',
+        line1: order.shipping_street || '',
+        line2: order.shipping_street2 || '',
+        city: order.shipping_city || '',
+        state: order.shipping_state || '',
+        postalCode: order.shipping_zip || '',
+        country: order.shipping_country || 'US',
+      },
     };
 
     // Send production notification email

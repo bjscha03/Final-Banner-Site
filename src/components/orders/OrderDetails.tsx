@@ -8,6 +8,7 @@ import { useAuth, isAdmin } from '@/lib/auth';
 import { ShoppingCart, Package, Calendar, CreditCard, Mail, User, Download, FileText, Sparkles, MapPin, Loader2, Palette, Phone, Upload, MessageSquare } from 'lucide-react';
 import TrackingBadge from './TrackingBadge';
 import { getItemDisplayName, getProductLabel, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
+import { formatShippingCityStatePostal, hasShippingAddress, normalizeShippingAddress } from '@/lib/shipping-address';
 import {
   Dialog,
   DialogContent,
@@ -101,9 +102,21 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
     hour: '2-digit',
     minute: '2-digit',
   });
-  const customerName = order.customer_name || order.shipping_name || 'Not provided';
+  const shippingAddress = normalizeShippingAddress({
+    ...(order.shippingAddress || {}),
+    shipping_name: order.shipping_name,
+    shipping_street: order.shipping_street,
+    shipping_street2: order.shipping_street2,
+    shipping_city: order.shipping_city,
+    shipping_state: order.shipping_state,
+    shipping_zip: order.shipping_zip,
+    shipping_country: order.shipping_country,
+    customer_name: order.customer_name,
+  });
+  const customerName = order.customer_name || shippingAddress.name || 'Not provided';
   const customerEmail = order.email || 'Not provided';
-  const hasAddress = !!(order.shipping_name || order.shipping_street || order.shipping_street2 || order.shipping_city || order.shipping_state || order.shipping_zip || order.shipping_country);
+  const hasAddress = hasShippingAddress(shippingAddress);
+  const cityStateZipLine = formatShippingCityStatePostal(shippingAddress);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -582,14 +595,10 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                     <p className="text-sm text-gray-600">Address</p>
                     {hasAddress ? (
                       <>
-                        {order.shipping_name && <p className="font-medium text-gray-900">{order.shipping_name}</p>}
-                        {order.shipping_street && <p className="text-sm text-gray-900">{order.shipping_street}</p>}
-                        {order.shipping_street2 && <p className="text-sm text-gray-900">{order.shipping_street2}</p>}
-                        {(order.shipping_city || order.shipping_state || order.shipping_zip) && (
-                          <p className="text-sm text-gray-900">
-                            {order.shipping_city}{order.shipping_city && order.shipping_state ? ', ' : ''}{order.shipping_state} {order.shipping_zip}
-                          </p>
-                        )}
+                        {shippingAddress.name && <p className="font-medium text-gray-900">{shippingAddress.name}</p>}
+                        {shippingAddress.line1 && <p className="text-sm text-gray-900">{shippingAddress.line1}</p>}
+                        {shippingAddress.line2 && <p className="text-sm text-gray-900">{shippingAddress.line2}</p>}
+                        {cityStateZipLine && <p className="text-sm text-gray-900">{cityStateZipLine}</p>}
                       </>
                     ) : (
                       <p className="font-medium text-gray-900">Not provided</p>
@@ -600,29 +609,27 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
             </div>
 
           {/* Shipping Address - Admin Only */}
-          {isAdminUser && (order.shipping_name || order.shipping_street) && (
+          {isAdminUser && hasAddress && (
             <div className="bg-green-50 border border-green-200 rounded-lg p-4">
               <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
                 <MapPin className="h-5 w-5 text-green-600 mr-2" />
                 Shipping Address
               </h3>
               <div className="space-y-1">
-                {order.shipping_name && (
-                  <p className="font-medium text-gray-900">{order.shipping_name}</p>
+                {shippingAddress.name && (
+                  <p className="font-medium text-gray-900">{shippingAddress.name}</p>
                 )}
-                {order.shipping_street && (
-                  <p className="text-gray-700">{order.shipping_street}</p>
+                {shippingAddress.line1 && (
+                  <p className="text-gray-700">{shippingAddress.line1}</p>
                 )}
-                {order.shipping_street2 && (
-                  <p className="text-gray-700">{order.shipping_street2}</p>
+                {shippingAddress.line2 && (
+                  <p className="text-gray-700">{shippingAddress.line2}</p>
                 )}
-                {(order.shipping_city || order.shipping_state || order.shipping_zip) && (
-                  <p className="text-gray-700">
-                    {order.shipping_city}{order.shipping_city && order.shipping_state ? ', ' : ''}{order.shipping_state} {order.shipping_zip}
-                  </p>
+                {cityStateZipLine && (
+                  <p className="text-gray-700">{cityStateZipLine}</p>
                 )}
-                {order.shipping_country && order.shipping_country !== 'US' && (
-                  <p className="text-gray-700">{order.shipping_country}</p>
+                {shippingAddress.country && shippingAddress.country !== 'US' && (
+                  <p className="text-gray-700">{shippingAddress.country}</p>
                 )}
               </div>
             </div>

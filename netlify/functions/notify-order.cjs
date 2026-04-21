@@ -776,7 +776,16 @@ exports.handler = async (event) => {
         shipping_city: order.shipping_city,
         shipping_state: order.shipping_state,
         shipping_zip: order.shipping_zip,
-        shipping_country: order.shipping_country
+        shipping_country: order.shipping_country,
+        shippingAddress: {
+          name: order.shipping_name || customerName || '',
+          line1: order.shipping_street || '',
+          line2: order.shipping_street2 || '',
+          city: order.shipping_city || '',
+          state: order.shipping_state || '',
+          postalCode: order.shipping_zip || '',
+          country: order.shipping_country || 'US',
+        }
       },
       invoiceUrl
     };
