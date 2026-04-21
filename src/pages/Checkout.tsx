@@ -472,12 +472,16 @@ const Checkout: React.FC = () => {
                             previewUrl ? (
                               <img
                                 src={previewUrl}
-                                alt="Banner preview"
+                                alt={`${getItemDisplayName(item)} preview`}
                                 className="w-full h-full object-cover object-center block"
                                 draggable={false}
                               />
                             ) : (
-                              <div className="w-full h-full flex items-center justify-center text-[10px] font-medium text-gray-500">
+                              <div
+                                className="w-full h-full flex items-center justify-center text-[10px] font-medium text-gray-500"
+                                role="img"
+                                aria-label={`${getItemDisplayName(item)} preview unavailable`}
+                              >
                                 No preview
                               </div>
                             )
