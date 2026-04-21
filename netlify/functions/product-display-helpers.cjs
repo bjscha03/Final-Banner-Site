@@ -10,6 +10,13 @@
  */
 const YARD_SIGN_SIZE = '24" × 18"';
 
+function getCarMagnetRoundedCornersLabel(value) {
+  if (!value || value === 'none') return 'None';
+  if (value === '0.5') return '1/2"';
+  if (value === '1') return '1"';
+  return String(value);
+}
+
 function toTitleCase(value) {
   return String(value || '')
     .trim()
@@ -20,9 +27,11 @@ function toTitleCase(value) {
 
 function getDisplayMaterial(item) {
   if (item.product_type === 'yard_sign') return 'Corrugated Plastic';
+  if (item.product_type === 'car_magnet') return 'Premium Magnetic Material';
   const raw = String(item.material || '').trim().toLowerCase();
   if (!raw) return '';
   if (raw === 'corrugated' || raw === 'corrugated plastic') return 'Corrugated Plastic';
+  if (raw === 'magnetic' || raw === 'premium magnetic material') return 'Premium Magnetic Material';
   if (raw === '13oz' || raw === '13 oz' || raw === '13oz vinyl') return '13oz Vinyl';
   return toTitleCase(raw);
 }
@@ -49,6 +58,9 @@ function getItemDisplayName(item) {
   if (item.product_type === 'yard_sign') {
     return `Custom Yard Sign ${YARD_SIGN_SIZE}`;
   }
+  if (item.product_type === 'car_magnet') {
+    return `Car Magnets ${getDisplaySize(item)}`;
+  }
   return `Custom Banner ${getDisplaySize(item)}`;
 }
 
@@ -57,6 +69,7 @@ function getItemDisplayName(item) {
  */
 function getProductLabel(productType) {
   if (productType === 'yard_sign') return 'Yard Sign';
+  if (productType === 'car_magnet') return 'Car Magnets';
   return 'Banner';
 }
 
@@ -93,6 +106,18 @@ function getEmailItemOptions(item) {
     return parts.filter(Boolean).join(' • ');
   }
 
+  if (item.product_type === 'car_magnet') {
+    const parts = [
+      `Size: ${normalized.sizeDisplay}`,
+      `Material: ${normalized.materialDisplay}`,
+      `Print: ${normalized.printDisplay}`,
+      normalized.qtyDisplay ? `Qty: ${normalized.qtyDisplay}` : null,
+      `Rounded Corners: ${normalized.roundedCornersDisplay || 'None'}`,
+      item.design_service_enabled ? '⚡ Design Service Order' : null,
+    ];
+    return parts.filter(Boolean).join(' • ');
+  }
+
   // Banner options (default)
   const parts = [
     `Size: ${normalized.sizeDisplay}`,
@@ -109,6 +134,7 @@ function getEmailItemOptions(item) {
 
 function normalizeOrderItemDisplay(item) {
   const isYardSign = item.product_type === 'yard_sign';
+  const isCarMagnet = item.product_type === 'car_magnet';
   const qty = Number(item.quantity || 0);
   const lineTotalCents = Number(item.line_total_cents || 0);
   const unitPriceCents = Number(
@@ -126,11 +152,11 @@ function normalizeOrderItemDisplay(item) {
   const grommetsDisplay = getDisplayGrommets(item.grommets);
 
   return {
-    productType: isYardSign ? 'yard-sign' : 'banner',
-    productLabel: isYardSign ? 'Yard Sign' : 'Banner',
+    productType: isYardSign ? 'yard-sign' : (isCarMagnet ? 'car-magnet' : 'banner'),
+    productLabel: isYardSign ? 'Yard Sign' : (isCarMagnet ? 'Car Magnets' : 'Banner'),
     displayName: getItemDisplayName(item),
     sizeDisplay: getDisplaySize(item),
-    materialDisplay: getDisplayMaterial(item) || (isYardSign ? 'Corrugated Plastic' : '13oz Vinyl'),
+    materialDisplay: getDisplayMaterial(item) || (isYardSign ? 'Corrugated Plastic' : (isCarMagnet ? 'Premium Magnetic Material' : '13oz Vinyl')),
     printDisplay: isYardSign
       ? (item.yard_sign_sidedness === 'double' ? 'Double-Sided' : 'Single-Sided')
       : 'Single-Sided',
@@ -146,6 +172,10 @@ function normalizeOrderItemDisplay(item) {
           ...(stepStakesQty > 0 ? { stepStakesQty, stepStakesLine: `Step Stakes: ${stepStakesQty}` } : {}),
           printSide: item.yard_sign_sidedness === 'double' ? 'Double-Sided' : 'Single-Sided',
         }
+      : isCarMagnet
+        ? {
+            roundedCornersDisplay: getCarMagnetRoundedCornersLabel(item.rounded_corners),
+          }
       : {
           ...(grommetsDisplay ? { grommetsDisplay } : {}),
           ...(ropeFeet > 0 ? { ropeDisplay: `${ropeFeet.toFixed(1)} ft` } : {}),
@@ -159,9 +189,11 @@ function normalizeOrderItemDisplay(item) {
  */
 function getPayPalDescription(items) {
   const hasYardSigns = items && items.some(i => i.product_type === 'yard_sign');
-  const hasBanners = items && items.some(i => i.product_type !== 'yard_sign');
-  if (hasYardSigns && hasBanners) return 'Custom Order - Banners On The Fly';
+  const hasCarMagnets = items && items.some(i => i.product_type === 'car_magnet');
+  const hasBanners = items && items.some(i => !['yard_sign', 'car_magnet'].includes(String(i.product_type || 'banner')));
+  if ((hasYardSigns && hasBanners) || (hasCarMagnets && hasBanners) || (hasCarMagnets && hasYardSigns)) return 'Custom Order - Banners On The Fly';
   if (hasYardSigns) return 'Custom Yard Sign Order - Banners On The Fly';
+  if (hasCarMagnets) return 'Car Magnets Order - Banners On The Fly';
   return 'Custom Banner Order - Banners On The Fly';
 }
 

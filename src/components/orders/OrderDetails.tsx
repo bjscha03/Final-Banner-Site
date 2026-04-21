@@ -343,6 +343,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
       const requestBody = {
         orderId: order.id,
         productType: (item as any).product_type || 'banner',
+        roundedCorners: (item as any).rounded_corners || null,
         bannerWidthIn: item.width_in,
         bannerHeightIn: item.height_in,
         // PRIORITY 0: Design state for true server-side re-render from original assets
@@ -847,6 +848,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                       {normalized.grommetsDisplay ? <p className="break-words">Grommets: {normalized.grommetsDisplay}</p> : null}
                       {normalized.polePocketsDisplay ? <p className="break-words">Pole Pockets: {normalized.polePocketsDisplay}</p> : null}
                       {normalized.ropeDisplay ? <p className="break-words">Rope: {normalized.ropeDisplay}</p> : null}
+                      {normalized.roundedCornersDisplay ? <p className="break-words">Rounded Corners: {normalized.roundedCornersDisplay}</p> : null}
                     </div>
 
                     <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 space-y-1.5 text-sm">

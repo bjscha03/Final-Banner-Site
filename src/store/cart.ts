@@ -26,6 +26,7 @@ export interface CartItem {
   pole_pockets: string;
   pole_pocket_size?: string;          // pole pocket size (e.g., "2", "3", "4")
   pole_pocket_position?: string;      // pole pocket position (e.g., "top", "bottom", "top-bottom")
+  rounded_corners?: string | null;    // Car magnet rounded corner selection
   rope_feet: number;
   area_sqft: number;
 
@@ -268,8 +269,9 @@ export const useCartStore = create<CartState>()(
 
         // Compute fallbacks if not provided
         const area = (quote.widthIn * quote.heightIn) / 144;
-        const bannerConfig = getProductConfig('banner');
-        const pricePerSqFt = (bannerConfig.materialPriceMap as Record<MaterialKey, number>)[quote.material];
+        const activeProductType = ((quote as any).product_type || 'banner');
+        const productConfig = getProductConfig(activeProductType);
+        const pricePerSqFt = (productConfig.materialPriceMap as Record<MaterialKey, number>)[quote.material];
         const computedUnit = Math.max(MINIMUM_UNIT_PRICE_CENTS, Math.round(area * (pricePerSqFt ?? 4.5) * 100));
         const ropeFeet = quote.addRope ? quote.widthIn / 12 : 0;
         const computedRope = Math.round(ropeFeet * 2 * quote.quantity * 100);
@@ -345,6 +347,7 @@ export const useCartStore = create<CartState>()(
           pole_pockets: quote.polePockets,
           pole_pocket_size: quote.polePocketSize,
           pole_pocket_position: quote.polePockets,
+          rounded_corners: (quote as any).rounded_corners || null,
           rope_feet: ropeFeet,
           area_sqft: area,
           unit_price_cents,
@@ -473,7 +476,11 @@ export const useCartStore = create<CartState>()(
           debugLog('✅ CART: Set cart owner to:', userId);
         }
 
-        const productLabel = newItem.product_type === 'yard_sign' ? 'Yard Sign' : 'Banner';
+        const productLabel = newItem.product_type === 'yard_sign'
+          ? 'Yard Sign'
+          : newItem.product_type === 'car_magnet'
+            ? 'Car Magnets'
+            : 'Banner';
 
         // Track add to cart event
         trackAddToCart({
@@ -643,6 +650,7 @@ export const useCartStore = create<CartState>()(
           pole_pockets: quote.polePockets,
           pole_pocket_size: quote.polePocketSize,
           pole_pocket_position: quote.polePockets,
+          rounded_corners: (quote as any).rounded_corners || existingItem.rounded_corners || null,
           rope_feet: ropeFeet,
           area_sqft: area,
           unit_price_cents,

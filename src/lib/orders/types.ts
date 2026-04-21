@@ -1,4 +1,4 @@
-export type MaterialKey = '13oz' | '15oz' | '18oz' | 'mesh' | 'corrugated' | 'aluminum_040' | 'aluminum_063';
+export type MaterialKey = '13oz' | '15oz' | '18oz' | 'mesh' | 'corrugated' | 'magnetic' | 'aluminum_040' | 'aluminum_063';
 export type OrderStatus = 'paid' | 'pending' | 'failed' | 'refunded' | 'shipped';
 export type TrackingCarrier = 'fedex';
 
@@ -21,6 +21,7 @@ export interface OrderItem {
   pole_pockets?: string;
   pole_pocket_size?: string;
   pole_pocket_position?: string;
+  rounded_corners?: string;
   pole_pocket_cost_cents?: number;
   pole_pocket_pricing_mode?: 'per_item' | 'per_order';
   rope_cost_cents?: number;

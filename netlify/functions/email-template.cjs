@@ -62,11 +62,12 @@ function renderItems(items = []) {
     <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;overflow:hidden;">
       ${items.map((item) => {
         const isYardSign = item.product_type === 'yard_sign' || item.productType === 'yard-sign';
+        const isCarMagnet = item.product_type === 'car_magnet' || item.productType === 'car-magnet';
         const thumbnail = item.thumbnailUrl || null;
         const quantity = Number(item.quantity || 0);
         const lineTotal = Number(item.lineTotal ?? item.price ?? 0);
         const unitPrice = Number(item.unitPrice ?? (quantity > 0 ? lineTotal / quantity : 0));
-        const badgeLabel = item.productLabel || (isYardSign ? 'Yard Sign' : 'Banner');
+        const badgeLabel = item.productLabel || (isYardSign ? 'Yard Sign' : isCarMagnet ? 'Car Magnets' : 'Banner');
         return `
           <tr>
             <td style="padding:14px;border-bottom:1px solid #e5e7eb;">
@@ -88,6 +89,7 @@ function renderItems(items = []) {
                     ${item.grommetsDisplay ? `<p style="margin:0 0 2px;color:#64748b;font-size:12px;">Grommets: ${escapeHtml(item.grommetsDisplay)}</p>` : ''}
                     ${item.polePocketsDisplay ? `<p style="margin:0 0 2px;color:#64748b;font-size:12px;">Pole Pockets: ${escapeHtml(item.polePocketsDisplay)}</p>` : ''}
                     ${item.ropeDisplay ? `<p style="margin:0 0 2px;color:#64748b;font-size:12px;">Rope: ${escapeHtml(item.ropeDisplay)}</p>` : ''}
+                    ${item.roundedCornersDisplay ? `<p style="margin:0 0 2px;color:#64748b;font-size:12px;">Rounded Corners: ${escapeHtml(item.roundedCornersDisplay)}</p>` : ''}
                     ${lineTotal > 0 ? `<p style="margin:0 0 2px;color:${BRAND_NAVY};font-size:13px;font-weight:600;">Unit Price: $${unitPrice.toFixed(2)}</p>` : ''}
                     ${lineTotal > 0 ? `<p style="margin:0;color:${BRAND_ORANGE};font-size:14px;font-weight:700;">Line Total: $${lineTotal.toFixed(2)}</p>` : ''}
                   </td>

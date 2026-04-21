@@ -310,6 +310,8 @@ const AdminOrders: React.FC = () => {
       
       const requestBody = {
         orderId: orderId,
+        productType: (item as any).product_type || 'banner',
+        roundedCorners: (item as any).rounded_corners || null,
         bannerWidthIn: item.width_in,
         bannerHeightIn: item.height_in,
         // PRIORITY 0: Design state for true server-side re-render from original assets

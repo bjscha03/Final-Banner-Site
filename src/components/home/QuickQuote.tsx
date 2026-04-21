@@ -12,6 +12,12 @@ import {
   YARD_SIGN_DOUBLE_SIDED_CENTS,
   type YardSignSidedness,
 } from '@/lib/yard-sign-pricing';
+import {
+  CAR_MAGNET_SIZES,
+  CAR_MAGNET_ROUNDED_CORNERS,
+  calcCarMagnetPricing,
+  type CarMagnetRoundedCorner,
+} from '@/lib/car-magnet-pricing';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
@@ -77,7 +83,7 @@ const sizePresets: SizePreset[] = [
 
 const QuickQuote: React.FC = () => {
   const navigate = useNavigate();
-  const [productType, setProductType] = useState<'banner' | 'yard_sign'>('banner');
+  const [productType, setProductType] = useState<'banner' | 'yard_sign' | 'car_magnet'>('banner');
   const [widthIn, setWidthIn] = useState(48);
   const [heightIn, setHeightIn] = useState(24);
   const [quantity, setQuantity] = useState(1);
@@ -100,6 +106,9 @@ const QuickQuote: React.FC = () => {
   const [yardSignQuantity, setYardSignQuantity] = useState(10);
   const [yardSignAddStepStakes, setYardSignAddStepStakes] = useState(false);
   const [yardSignStepStakeQuantity, setYardSignStepStakeQuantity] = useState(10);
+  const [carMagnetSizeLabel, setCarMagnetSizeLabel] = useState(CAR_MAGNET_SIZES[0].label);
+  const [carMagnetQuantity, setCarMagnetQuantity] = useState(1);
+  const [carMagnetRoundedCorners, setCarMagnetRoundedCorners] = useState<CarMagnetRoundedCorner>('none');
 
   // Debounced update for calculations
   useEffect(() => {
@@ -354,6 +363,10 @@ const QuickQuote: React.FC = () => {
     0,
   ), [yardSignSidedness, yardSignQuantity, yardSignAddStepStakes, yardSignStepStakeQuantity]);
   const yardSignQtyValidation = validateYardSignQuantity(yardSignQuantity);
+  const selectedCarMagnetSize = CAR_MAGNET_SIZES.find((size) => size.label === carMagnetSizeLabel) || CAR_MAGNET_SIZES[0];
+  const carMagnetQuote = useMemo(() => (
+    calcCarMagnetPricing(selectedCarMagnetSize.widthIn, selectedCarMagnetSize.heightIn, carMagnetQuantity)
+  ), [selectedCarMagnetSize, carMagnetQuantity]);
 
   const adjustYardSignQuantity = (delta: number) => {
     const next = Math.max(10, Math.min(YARD_SIGN_MAX_QUANTITY, yardSignQuantity + delta));
@@ -426,6 +439,24 @@ const QuickQuote: React.FC = () => {
     }, 100);
   };
 
+  const handleStartCarMagnetDesign = () => {
+    const quickQuoteData = {
+      productType: 'car_magnet',
+      size: `${selectedCarMagnetSize.widthIn}x${selectedCarMagnetSize.heightIn}`,
+      quantity: carMagnetQuantity,
+      roundedCorners: carMagnetRoundedCorners,
+    };
+    sessionStorage.setItem('quickQuote', JSON.stringify(quickQuoteData));
+
+    const params = new URLSearchParams({
+      product: 'car-magnets',
+      size: `${selectedCarMagnetSize.widthIn}x${selectedCarMagnetSize.heightIn}`,
+      qty: String(carMagnetQuantity),
+      corners: carMagnetRoundedCorners,
+    });
+    navigate(`/design?${params.toString()}`);
+  };
+
   const handleReset = () => {
     setWidthIn(60);
     setHeightIn(36);
@@ -451,7 +482,9 @@ const QuickQuote: React.FC = () => {
           <p className="text-lg text-slate-600 max-w-2xl mx-auto">
             {productType === 'banner'
               ? 'Professional vinyl banners with free next day air delivery. No hidden fees, no surprises.'
-              : 'Premium yard signs with instant pricing and fast next-business-day shipping.'}
+              : productType === 'yard_sign'
+                ? 'Premium yard signs with instant pricing and fast next-business-day shipping.'
+                : 'Durable vehicle magnets with fixed sizes and rounded corner options.'}
           </p>
         </div>
 
@@ -478,6 +511,17 @@ const QuickQuote: React.FC = () => {
               }`}
             >
               Yard Signs
+            </button>
+            <button
+              type="button"
+              onClick={() => setProductType('car_magnet')}
+              className={`px-5 py-2 rounded-lg text-sm font-semibold transition-all ${
+                productType === 'car_magnet'
+                  ? 'bg-orange-500 text-white shadow-sm'
+                  : 'text-slate-700 hover:bg-slate-100'
+              }`}
+            >
+              Car Magnets
             </button>
           </div>
         </div>
@@ -1040,7 +1084,7 @@ const QuickQuote: React.FC = () => {
 
 
         </div>
-        ) : (
+        ) : productType === 'yard_sign' ? (
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-8">
           <div className="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-lg order-1 lg:order-1" style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.06)' }}>
             <div className="px-6 py-5 border-b border-slate-200" style={{ background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)', boxShadow: '0 2px 4px rgba(0,0,0,0.04)' }}>
@@ -1257,6 +1301,112 @@ const QuickQuote: React.FC = () => {
             </div>
           </div>
         </div>
+        ) : (
+          <div className="grid lg:grid-cols-2 gap-8 lg:gap-8">
+            <div className="bg-white border border-slate-300 rounded-xl overflow-hidden shadow-lg order-1 lg:order-1" style={{ boxShadow: '0 4px 20px rgba(0,0,0,0.08), 0 2px 8px rgba(0,0,0,0.06)' }}>
+              <div className="px-6 py-5 border-b border-slate-200" style={{ background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)' }}>
+                <h3 className="text-lg font-bold text-slate-900">Car Magnet Options</h3>
+                <p className="text-sm text-slate-500 font-medium">Fixed sizes only</p>
+              </div>
+              <div className="p-8 space-y-6">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-800 tracking-wide mb-3">Size</label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {CAR_MAGNET_SIZES.map((size) => (
+                      <button
+                        key={size.label}
+                        type="button"
+                        onClick={() => setCarMagnetSizeLabel(size.label)}
+                        className={`border rounded-xl py-3 px-4 text-sm text-left transition-all ${
+                          carMagnetSizeLabel === size.label
+                            ? 'border-orange-500 bg-orange-50 shadow-sm text-orange-700'
+                            : 'border-gray-200 hover:border-gray-400 text-gray-800'
+                        }`}
+                      >
+                        {size.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-800 tracking-wide mb-3">Quantity</label>
+                  <div className="flex items-center justify-center gap-3">
+                    <button type="button" onClick={() => setCarMagnetQuantity((q) => Math.max(1, q - 1))} className="h-10 w-10 bg-white border border-slate-300 rounded-md flex items-center justify-center">
+                      <Minus className="h-5 w-5 text-green-600" />
+                    </button>
+                    <div className="text-2xl font-bold text-slate-900 min-w-[4ch] text-center">{carMagnetQuantity}</div>
+                    <button type="button" onClick={() => setCarMagnetQuantity((q) => Math.min(999, q + 1))} className="h-10 w-10 bg-white border border-slate-300 rounded-md flex items-center justify-center">
+                      <Plus className="h-5 w-5 text-green-600" />
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-semibold text-gray-800 tracking-wide mb-3">Rounded Corners</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {CAR_MAGNET_ROUNDED_CORNERS.map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setCarMagnetRoundedCorners(option.value)}
+                        className={`border rounded-xl py-2 px-2 text-sm transition-all ${
+                          carMagnetRoundedCorners === option.value
+                            ? 'border-orange-500 bg-orange-50 text-orange-700'
+                            : 'border-gray-200 hover:border-gray-400 text-gray-800'
+                        }`}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white border border-slate-300 rounded-xl overflow-hidden order-3 lg:order-2" style={{ boxShadow: '0 8px 30px rgba(0,0,0,0.12), 0 4px 12px rgba(0,0,0,0.08)' }}>
+              <div className="px-6 py-5 border-b border-slate-200" style={{ background: 'linear-gradient(180deg, #fefce8 0%, #fef9c3 50%, #fef08a 100%)' }}>
+                <h3 className="text-2xl font-bold text-slate-900 text-center">Your Instant Quote</h3>
+              </div>
+              <div className="p-8 space-y-6">
+                <div className="text-center">
+                  <div className="text-5xl md:text-6xl font-bold text-slate-900">{usd(carMagnetQuote.subtotalCents / 100)}</div>
+                </div>
+                <div className="rounded-xl p-5 space-y-2 text-left bg-slate-50 border border-slate-200">
+                  <p><strong>Product:</strong> Car Magnets</p>
+                  <p><strong>Size:</strong> {selectedCarMagnetSize.label}</p>
+                  <p><strong>Material:</strong> Premium Magnetic Material</p>
+                  <p><strong>Print:</strong> Single-Sided</p>
+                  <p><strong>Rounded Corners:</strong> {CAR_MAGNET_ROUNDED_CORNERS.find((x) => x.value === carMagnetRoundedCorners)?.label || 'None'}</p>
+                  <p><strong>Quantity:</strong> {carMagnetQuantity}</p>
+                  <div className="pt-2 mt-2 border-t border-slate-300/60 space-y-1.5 text-sm">
+                    <div className="flex justify-between">
+                      <span>Subtotal:</span>
+                      <span className="font-semibold">{usd(carMagnetQuote.subtotalCents / 100)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Tax ({Math.round(carMagnetQuote.taxRate * 100)}%):</span>
+                      <span className="font-semibold">{usd(carMagnetQuote.taxCents / 100)}</span>
+                    </div>
+                    <div className="flex justify-between font-bold pt-1 border-t border-slate-300/60">
+                      <span>Total:</span>
+                      <span className="text-[#ff6b35]">{usd(carMagnetQuote.totalCents / 100)}</span>
+                    </div>
+                  </div>
+                </div>
+                <Button
+                  onClick={handleStartCarMagnetDesign}
+                  className="w-full bg-orange-500 hover:bg-orange-600 text-white py-5 text-lg font-semibold rounded-md"
+                  size="lg"
+                >
+                  <div className="relative flex items-center justify-center gap-3">
+                    <span>Continue with Car Magnets</span>
+                    <ArrowRight className="h-6 w-6" />
+                  </div>
+                </Button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
 

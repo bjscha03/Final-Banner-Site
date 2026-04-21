@@ -13,7 +13,7 @@
 // TYPES
 // ============================================================================
 
-export type ProductTypeSlug = 'banner' | 'yard_sign';
+export type ProductTypeSlug = 'banner' | 'yard_sign' | 'car_magnet';
 
 export interface MaterialConfig {
   key: string;
@@ -336,6 +336,89 @@ const yardSignProduct: ProductTypeConfig = {
   // Max 90 signs per order for 24-hour production
 };
 
+const carMagnetProduct: ProductTypeConfig = {
+  slug: 'car_magnet',
+  name: 'Car Magnets',
+  description: 'Premium magnetic vehicle signs with rounded corner options.',
+
+  dimensions: {
+    defaultWidthIn: 24,
+    defaultHeightIn: 12,
+    resetWidthIn: 24,
+    resetHeightIn: 12,
+    minIn: 12,
+    maxIn: 42,
+    maxSqFt: 3.5,
+    sizeLimitMessage: 'Car magnets are available in fixed sizes only.',
+  },
+
+  materials: [
+    { key: 'magnetic', label: 'Premium Magnetic Material', pricePerSqFt: 0 },
+  ],
+
+  materialPriceMap: {
+    magnetic: 0,
+  },
+
+  minimumUnitPriceDollars: 22,
+  minimumUnitPriceCents: 2200,
+
+  grommets: [],
+
+  rope: {
+    available: false,
+    pricePerFootCents: 0,
+    pricingMode: 'per_item',
+  },
+
+  polePockets: {
+    available: false,
+    setupFeeCents: 0,
+    pricePerLinearFootCents: 0,
+    pricingMode: 'per_item',
+    positions: [],
+    sizes: [],
+    defaultSize: '',
+  },
+
+  quantityDiscountTiers: [
+    { minQuantity: 1, discountRate: 0.00, label: '' },
+  ],
+
+  taxRate: 0.06,
+
+  print: {
+    idealDpi: 300,
+    minDpi: 150,
+    maxTotalPixels: 50_000_000,
+    format: 'jpeg',
+    jpegQuality: 92,
+  },
+
+  editor: {
+    defaultFitMode: 'fill',
+    defaultImageScale: 1,
+    defaultImagePosition: { x: 0, y: 0 },
+    defaultCanvasBackgroundColor: '#FFFFFF',
+    supportsTextElements: true,
+    supportsOverlayImages: true,
+    supportsDesignService: true,
+  },
+
+  pricingModel: 'flat_rate',
+  allowCustomDimensions: false,
+  freeShippingMessage: 'FREE Next-Day Air Included',
+  predefinedSizes: [
+    { label: '18" × 12"', widthIn: 18, heightIn: 12, basePriceCents: 2200 },
+    { label: '24" × 12"', widthIn: 24, heightIn: 12, basePriceCents: 2800 },
+    { label: '24" × 18"', widthIn: 24, heightIn: 18, basePriceCents: 3600 },
+    { label: '42" × 12"', widthIn: 42, heightIn: 12, basePriceCents: 4400 },
+  ],
+  materialMultipliers: [
+    { key: 'magnetic', label: 'Premium Magnetic Material', multiplier: 1.0 },
+  ],
+};
+
 // ============================================================================
 // REGISTRY
 // ============================================================================
@@ -343,6 +426,7 @@ const yardSignProduct: ProductTypeConfig = {
 const PRODUCT_REGISTRY: Record<ProductTypeSlug, ProductTypeConfig> = {
   banner: bannerProduct,
   yard_sign: yardSignProduct,
+  car_magnet: carMagnetProduct,
 };
 
 /**

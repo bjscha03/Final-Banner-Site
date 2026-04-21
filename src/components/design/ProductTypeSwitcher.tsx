@@ -33,11 +33,19 @@ const ProductTypeSwitcher: React.FC<ProductTypeSwitcherProps> = ({ productType, 
       overlayClass: 'from-slate-900/20 via-slate-900/5 to-emerald-900/65',
       imageAlt: 'Yard Signs product option showing a yard sign display example',
     },
+    {
+      type: 'car_magnet',
+      label: 'Car Magnets',
+      supportingText: 'Durable removable magnets for vehicle signage',
+      imageUrl: CAR_MAGNET_IMAGE_URL,
+      overlayClass: 'from-slate-900/20 via-slate-900/5 to-indigo-900/65',
+      imageAlt: 'Car Magnet product option showing a vehicle magnet example',
+    },
   ];
 
   return (
     <div className="mb-8 rounded-2xl bg-slate-50/70 p-3 sm:p-4 border border-slate-200">
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
         {options.map((option) => {
           const isActive = productType === option.type;
           const cardClassName = cn(
@@ -94,3 +102,4 @@ const ProductTypeSwitcher: React.FC<ProductTypeSwitcherProps> = ({ productType, 
 };
 
 export default ProductTypeSwitcher;
+import { CAR_MAGNET_IMAGE_URL } from '@/lib/car-magnet-pricing';

@@ -105,6 +105,13 @@ function generateOrderSuggestions(shortfall: number, context: OrderValidationCon
     });
   }
 
+  if (context.productType === 'car_magnet') {
+    const copy = getProductCopy('car_magnet');
+    if (shortfall <= 5) return copy.minimumOrderSuggestionsSmall;
+    if (shortfall <= 10) return copy.minimumOrderSuggestionsMedium;
+    return copy.minimumOrderSuggestionsLarge;
+  }
+
   // Banner suggestions (unchanged from original)
   const copy = getProductCopy('banner');
   if (shortfall <= 5) {

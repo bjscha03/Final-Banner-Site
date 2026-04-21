@@ -6,6 +6,8 @@
  * and invoice to ensure consistent product identification.
  */
 
+import { getCarMagnetRoundedCornersLabel } from './car-magnet-pricing';
+
 const YARD_SIGN_SIZE = '24" × 18"';
 
 export type NormalizableOrderItem = {
@@ -29,11 +31,12 @@ export type NormalizableOrderItem = {
   yard_sign_sidedness?: string | null;
   yard_sign_design_count?: number | null;
   yard_sign_step_stakes_qty?: number | null;
+  rounded_corners?: string | null;
 };
 
 export type NormalizedOrderItemDisplay = {
-  productType: 'banner' | 'yard-sign';
-  productLabel: 'Banner' | 'Yard Sign';
+  productType: 'banner' | 'yard-sign' | 'car-magnet';
+  productLabel: 'Banner' | 'Yard Sign' | 'Car Magnets';
   displayName: string;
   sizeDisplay: string;
   materialDisplay: string;
@@ -51,6 +54,7 @@ export type NormalizedOrderItemDisplay = {
   stepStakesQty?: number;
   stepStakesLine?: string;
   printSide?: string;
+  roundedCornersDisplay?: string;
 };
 
 function toTitleCase(value: string): string {
@@ -63,9 +67,11 @@ function toTitleCase(value: string): string {
 
 export function getDisplayMaterial(item: { product_type?: string; material?: string }): string {
   if (item.product_type === 'yard_sign') return 'Corrugated Plastic';
+  if (item.product_type === 'car_magnet') return 'Premium Magnetic Material';
   const raw = String(item.material || '').trim().toLowerCase();
   if (!raw) return '';
   if (raw === 'corrugated' || raw === 'corrugated plastic') return 'Corrugated Plastic';
+  if (raw === 'magnetic' || raw === 'premium magnetic material') return 'Premium Magnetic Material';
   if (raw === '13oz' || raw === '13 oz' || raw === '13oz vinyl') return '13oz Vinyl';
   return toTitleCase(raw);
 }
@@ -106,6 +112,9 @@ export function getItemDisplayName(item: {
   if (item.product_type === 'yard_sign') {
     return `Custom Yard Sign ${YARD_SIGN_SIZE}`;
   }
+  if (item.product_type === 'car_magnet') {
+    return `Car Magnets ${getDisplaySize(item)}`;
+  }
   return `Custom Banner ${getDisplaySize(item)}`;
 }
 
@@ -114,6 +123,7 @@ export function getItemDisplayName(item: {
  */
 export function getProductLabel(productType?: string): string {
   if (productType === 'yard_sign') return 'Yard Sign';
+  if (productType === 'car_magnet') return 'Car Magnets';
   return 'Banner';
 }
 
@@ -122,6 +132,7 @@ export function getProductLabel(productType?: string): string {
  */
 export function getProductCategory(productType?: string): string {
   if (productType === 'yard_sign') return 'Yard Signs';
+  if (productType === 'car_magnet') return 'Car Magnets';
   return 'Banner';
 }
 
@@ -130,6 +141,7 @@ export function getProductCategory(productType?: string): string {
  */
 export function getProductTypeName(productType?: string): string {
   if (productType === 'yard_sign') return 'Custom Yard Signs';
+  if (productType === 'car_magnet') return 'Car Magnets';
   return 'Custom Banner';
 }
 
@@ -138,9 +150,12 @@ export function getProductTypeName(productType?: string): string {
  */
 export function getInvoiceSubtitle(items: Array<{ product_type?: string }>): string {
   const hasYardSigns = items.some(i => i.product_type === 'yard_sign');
-  const hasBanners = items.some(i => i.product_type !== 'yard_sign');
-  if (hasYardSigns && hasBanners) return 'Custom Order Invoice';
+  const hasCarMagnets = items.some(i => i.product_type === 'car_magnet');
+  const hasBanners = items.some(i => !['yard_sign', 'car_magnet'].includes(String(i.product_type || 'banner')));
+  const categoryCount = [hasYardSigns, hasCarMagnets, hasBanners].filter(Boolean).length;
+  if (categoryCount > 1) return 'Custom Order Invoice';
   if (hasYardSigns) return 'Custom Yard Sign Invoice';
+  if (hasCarMagnets) return 'Car Magnets Invoice';
   return 'Custom Banner Invoice';
 }
 
@@ -161,6 +176,9 @@ export function getEmailItemName(item: {
 }): string {
   if (item.product_type === 'yard_sign') {
     return `Custom Yard Sign ${YARD_SIGN_SIZE}`;
+  }
+  if (item.product_type === 'car_magnet') {
+    return `Car Magnets ${getDisplaySize(item)}`;
   }
   return `Custom Banner ${getDisplaySize(item)}`;
 }
@@ -201,6 +219,17 @@ export function getEmailItemOptions(item: {
     return parts.filter(Boolean).join(' • ');
   }
 
+  if (item.product_type === 'car_magnet') {
+    const parts: (string | null)[] = [
+      `Size: ${getDisplaySize(item)}`,
+      'Material: Premium Magnetic Material',
+      'Print: Single-Sided',
+      item.rounded_corners ? `Rounded Corners: ${getCarMagnetRoundedCornersLabel(item.rounded_corners)}` : 'Rounded Corners: None',
+      item.design_service_enabled ? '⚡ Design Service Order' : null,
+    ];
+    return parts.filter(Boolean).join(' • ');
+  }
+
   // Banner options
   const parts: (string | null)[] = [
     `Size: ${getDisplaySize(item)}`,
@@ -219,8 +248,9 @@ export function getEmailItemOptions(item: {
 
 export function normalizeOrderItemDisplay(item: NormalizableOrderItem): NormalizedOrderItemDisplay {
   const isYardSign = item.product_type === 'yard_sign';
-  const productType: NormalizedOrderItemDisplay['productType'] = isYardSign ? 'yard-sign' : 'banner';
-  const productLabel: NormalizedOrderItemDisplay['productLabel'] = isYardSign ? 'Yard Sign' : 'Banner';
+  const isCarMagnet = item.product_type === 'car_magnet';
+  const productType: NormalizedOrderItemDisplay['productType'] = isYardSign ? 'yard-sign' : (isCarMagnet ? 'car-magnet' : 'banner');
+  const productLabel: NormalizedOrderItemDisplay['productLabel'] = isYardSign ? 'Yard Sign' : (isCarMagnet ? 'Car Magnets' : 'Banner');
   const qty = Number(item.quantity || 0);
   const lineTotalCents = Number(item.line_total_cents || 0);
   const unitPriceCents = Number(
@@ -262,6 +292,10 @@ export function normalizeOrderItemDisplay(item: NormalizableOrderItem): Normaliz
               }
             : {}),
         }
+      : isCarMagnet
+        ? {
+            roundedCornersDisplay: getCarMagnetRoundedCornersLabel(item.rounded_corners),
+          }
       : {
           ...(getDisplayGrommets(item.grommets) ? { grommetsDisplay: getDisplayGrommets(item.grommets) } : {}),
           ...(hasPolePocket
