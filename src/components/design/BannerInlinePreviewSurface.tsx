@@ -60,7 +60,7 @@ const BannerInlinePreviewSurface: React.FC<BannerInlinePreviewSurfaceProps> = ({
 
   return (
     <div className="rounded-xl p-4 md:p-6 max-w-full overflow-hidden" style={{ background: 'linear-gradient(180deg, #f5f6f8 0%, #e9edf2 100%)' }}>
-      <div className="mx-auto max-w-full" style={wrapperStyle}>
+      <div className="mx-auto" style={wrapperStyle}>
         <div
           ref={previewContainerRef}
           className="relative w-full max-w-full rounded-sm select-none overflow-hidden transition-all duration-300 ease-out"
@@ -82,7 +82,7 @@ const BannerInlinePreviewSurface: React.FC<BannerInlinePreviewSurfaceProps> = ({
         >
           <div
             className="absolute inset-0 w-full h-full"
-            style={{ transform: `translate(${imgPos.x}px, ${imgPos.y}px) scale(${imgScale})`, transformOrigin: 'center center' }}
+            style={{ transform: `translate(${imgPos.x}px, ${imgPos.y}px) scale(${imgScale})` }}
           >
             <img
               src={imageUrl}
