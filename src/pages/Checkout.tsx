@@ -453,7 +453,7 @@ const Checkout: React.FC = () => {
                     const normalized = normalizeOrderItemDisplay(item as NormalizableOrderItem);
                     const isYardSign = isYardSignItem(item);
                     const previewUrl = item.thumbnail_url || item.web_preview_url || item.file_url || item.print_ready_url || item.aiDesign?.assets?.proofUrl;
-                    const nonYardSignPreviewUrl = item.thumbnail_url || item.file_url || item.web_preview_url || item.print_ready_url || item.aiDesign?.assets?.proofUrl;
+                    const bannerPreviewUrl = item.thumbnail_url || item.file_url || item.web_preview_url || item.print_ready_url || item.aiDesign?.assets?.proofUrl;
                     if (isYardSign && !previewUrl) {
                       console.warn('⚠️  CHECKOUT: No image URL found for item:', item.id, {
                         thumbnail_url: item.thumbnail_url,
@@ -502,7 +502,7 @@ const Checkout: React.FC = () => {
                               widthIn={item.width_in}
                               heightIn={item.height_in}
                               grommets={item.grommets}
-                              imageUrl={nonYardSignPreviewUrl}
+                              imageUrl={bannerPreviewUrl}
                               material={item.material}
                               textElements={item.text_elements}
                               overlayImage={item.overlay_image}
