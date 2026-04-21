@@ -470,8 +470,6 @@ const GoogleAdsBanner: React.FC = () => {
       if (!res.ok) throw new Error('Upload failed');
       const data = await res.json();
       setUploadedFile({ name: file.name, url: data.secureUrl, fileKey: data.fileKey || data.publicId, size: file.size, isPdf: file.type === 'application/pdf', thumbnailUrl: file.type === 'application/pdf' ? getPdfThumbnailUrl(data.secureUrl) : data.secureUrl });
-      // Auto-open the large preview modal immediately after upload
-      setShowPreview(true);
       setImgPos({ x: 0, y: 0 });
       setImgScale(1);
     } catch {
