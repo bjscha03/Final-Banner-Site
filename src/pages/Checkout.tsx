@@ -453,6 +453,7 @@ const Checkout: React.FC = () => {
                     const normalized = normalizeOrderItemDisplay(item as NormalizableOrderItem);
                     const isYardSign = isYardSignItem(item);
                     const previewUrl = item.thumbnail_url || item.web_preview_url || item.file_url || item.print_ready_url || item.aiDesign?.assets?.proofUrl;
+                    const yardSignPreviewUrl = item.thumbnail_url || item.file_url || item.web_preview_url || item.print_ready_url || item.aiDesign?.assets?.proofUrl;
                     const bannerPreviewUrl = item.thumbnail_url || item.file_url || item.web_preview_url || item.print_ready_url || item.aiDesign?.assets?.proofUrl;
                     if (isYardSign && !previewUrl) {
                       console.warn('⚠️  CHECKOUT: No image URL found for item:', item.id, {
@@ -478,19 +479,19 @@ const Checkout: React.FC = () => {
                     <div key={item.id} className="border border-gray-200 rounded-xl p-4 sm:p-5 mb-4 last:mb-0 bg-gradient-to-br from-white to-gray-50 hover:shadow-md transition-all">
                       <div className="grid gap-4 md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-start">
                         {isYardSign ? (
-                          <div className="w-20 h-20 rounded-lg border border-gray-200 bg-white overflow-hidden shadow-sm shrink-0">
+                          <div className="flex justify-center shrink-0">
                             <BannerPreview
                               widthIn={item.width_in}
                               heightIn={item.height_in}
                               grommets={item.grommets}
-                              imageUrl={previewUrl}
+                              imageUrl={yardSignPreviewUrl}
                               material={item.material}
                               textElements={item.text_elements}
                               overlayImage={item.overlay_image}
                               imageScale={item.image_scale}
                               imagePosition={item.image_position}
                               fitMode={item.fit_mode || "fill"}
-                              className="max-w-full max-h-full"
+                              className="flex-shrink-0"
                               designServiceEnabled={item.design_service_enabled}
                               source={item.source}
                               isFinalizedSnapshot={!!item.thumbnail_url}
