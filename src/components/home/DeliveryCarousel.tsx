@@ -128,7 +128,7 @@ const DeliveryCarousel: React.FC = () => {
           Real Orders. Delivered Fast.
         </h2>
         <p className="mt-2 text-sm sm:text-base text-gray-500">
-          From print to your door in as little as 24 hours.
+          Printed within 24 hours and shipped free via next-day air.
         </p>
         <p className="mt-1 text-sm sm:text-base text-gray-500">
           Photos from actual Banners on the Fly deliveries
