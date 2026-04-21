@@ -1513,7 +1513,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge className="bg-green-100 text-green-800">
                     <Truck className="h-3 w-3 mr-1" />
-                    {(order.tracking_carrier || 'fedex').toUpperCase()}
+                    {(order.tracking_carrier || 'carrier tbd').toUpperCase()}
                   </Badge>
                   <a
                     href={fedexUrl(order.tracking_number)}

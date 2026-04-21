@@ -851,13 +851,15 @@ const GoogleAdsBanner: React.FC = () => {
   }, []);
 
   const mobileCheckoutReady = isYardSign
-    ? yardSignDesigns.length > 0 && yardSignTotalQty > 0 && yardSignQuantityValid.valid
+    ? yardSignTotalQty > 0 && yardSignQuantityValid.valid
     : !!uploadedFile;
   const showEntryCta = !hasEnteredBuilder;
   const mobileCtaLabel = showEntryCta
     ? 'Start Order'
-    : (mobileCheckoutReady ? 'Checkout' : 'Continue');
-  const mobileCtaAction = mobileCheckoutReady ? handleCheckout : scrollToOrder;
+    : (mobileCheckoutReady ? 'Checkout' : 'Continue Building');
+  const mobileCtaAction = showEntryCta
+    ? scrollToOrder
+    : (mobileCheckoutReady ? handleCheckout : scrollToOrder);
 
   return (
     <>
@@ -1500,7 +1502,7 @@ const GoogleAdsBanner: React.FC = () => {
             </div>
             <button
               onClick={mobileCtaAction}
-              disabled={showEntryCta ? false : (isBuilderInView && !mobileCheckoutReady)}
+              disabled={!showEntryCta && isBuilderInView && !mobileCheckoutReady}
               className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-xl disabled:bg-orange-300 disabled:cursor-not-allowed"
             >
               {mobileCtaLabel}
