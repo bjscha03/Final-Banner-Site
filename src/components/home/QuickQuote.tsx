@@ -1100,7 +1100,7 @@ const QuickQuote: React.FC = () => {
                   <button
                     type="button"
                     onClick={() => adjustYardSignQuantity(10)}
-                    disabled={yardSignQuantity >= 90}
+                    disabled={yardSignQuantity >= YARD_SIGN_MAX_QUANTITY}
                     className="h-10 w-10 bg-white border border-slate-300 rounded-md hover:bg-slate-50 hover:border-slate-400 disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center transition-colors"
                   >
                     <Plus className="h-5 w-5 text-green-600" />
@@ -1163,9 +1163,9 @@ const QuickQuote: React.FC = () => {
                       <input
                         type="number"
                         min={1}
-                        max={90}
+                        max={YARD_SIGN_MAX_QUANTITY}
                         value={yardSignStepStakeQuantity}
-                        onChange={(e) => setYardSignStepStakeQuantity(Math.max(1, Math.min(90, Number(e.target.value) || 1)))}
+                        onChange={(e) => setYardSignStepStakeQuantity(Math.max(1, Math.min(YARD_SIGN_MAX_QUANTITY, Number(e.target.value) || 1)))}
                         className="w-24 border rounded-lg px-2 py-1 text-sm text-center bg-white"
                       />
                     </div>
@@ -1197,7 +1197,7 @@ const QuickQuote: React.FC = () => {
                 </div>
                 <div className="rounded-xl p-5 space-y-2 mt-4 text-left" style={{ background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04)', border: '1px solid rgba(148,163,184,0.3)' }}>
                   <p><strong>Product:</strong> Yard Signs</p>
-                  <p><strong>Size:</strong> 24&quot; × 18&quot;</p>
+                  <p><strong>Size:</strong> 24&quot; x 18&quot;</p>
                   <p><strong>Print:</strong> {yardSignSidedness === 'double' ? 'Double-Sided' : 'Single-Sided'}</p>
                   <p><strong>Material:</strong> Corrugated Plastic</p>
                   <p><strong>Quantity:</strong> {yardSignQuantity}</p>

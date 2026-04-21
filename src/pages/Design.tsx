@@ -342,7 +342,9 @@ const Design: React.FC = () => {
       const stepStakes = searchParams.get('stepStakes');
       const stepStakeQty = searchParams.get('stepStakeQty');
       const parsedQty = qty ? parseInt(qty, 10) : NaN;
-      const qtyValidation = Number.isFinite(parsedQty) ? validateYardSignQuantity(parsedQty) : { valid: false };
+      const qtyValidation = Number.isFinite(parsedQty)
+        ? validateYardSignQuantity(parsedQty)
+        : { valid: false, message: 'Invalid yard sign quantity from quick quote.' };
       const sidedness: YardSignSidedness = printSide === 'double' ? 'double' : 'single';
       const addStepStakes = stepStakes === '1' || stepStakes === 'true';
       const parsedStakeQty = stepStakeQty ? parseInt(stepStakeQty, 10) : parsedQty;
@@ -357,7 +359,7 @@ const Design: React.FC = () => {
       if (qtyValidation.valid) {
         toast({
           title: 'Quick Quote Applied',
-          description: `24" × 18" ${sidedness === 'double' ? 'Double-Sided' : 'Single-Sided'} yard signs (Qty: ${parsedQty})`,
+          description: `24" x 18" ${sidedness === 'double' ? 'Double-Sided' : 'Single-Sided'} yard signs (Qty: ${parsedQty})`,
         });
       }
 
