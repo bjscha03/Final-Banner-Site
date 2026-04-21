@@ -147,7 +147,7 @@ exports.handler = async (event, context) => {
           + '</div></div></body></html>';
 
         const adminResult = await resend.emails.send({
-          from: 'Banners On The Fly <' + emailFrom + '>',
+          from: 'Banners on the Fly <' + emailFrom + '>',
           to: adminEmail,
           subject: 'New Contact Form: ' + subject,
           html: adminHtml,
@@ -172,7 +172,7 @@ exports.handler = async (event, context) => {
           + '</div></div></body></html>';
 
         const ackResult = await resend.emails.send({
-          from: 'Banners On The Fly <' + emailFrom + '>',
+          from: 'Banners on the Fly <' + emailFrom + '>',
           to: email,
           subject: 'Thank you for contacting Banners On The Fly',
           html: ackHtml,

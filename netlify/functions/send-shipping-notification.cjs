@@ -42,7 +42,8 @@ async function sendEmail(type, payload) {
 
     const resend = new Resend(process.env.RESEND_API_KEY);
     
-    const emailFrom = process.env.EMAIL_FROM || 'orders@bannersonthefly.com';
+    const emailFromRaw = process.env.EMAIL_FROM || 'orders@bannersonthefly.com';
+    const emailFrom = emailFromRaw.includes('<') ? emailFromRaw : `Banners on the Fly <${emailFromRaw}>`;
     const emailReplyTo = process.env.EMAIL_REPLY_TO || 'support@bannersonthefly.com';
 
     // For now, we'll use a simple HTML template since importing React components in Netlify functions is complex
