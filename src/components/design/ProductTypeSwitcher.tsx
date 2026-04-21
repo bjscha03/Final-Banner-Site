@@ -1,6 +1,7 @@
 import React from 'react';
 import { CheckCircle2 } from 'lucide-react';
 import type { ProductTypeSlug } from '@/lib/products';
+import { cn } from '@/lib/utils';
 
 interface ProductTypeSwitcherProps {
   productType: ProductTypeSlug;
@@ -14,6 +15,7 @@ const ProductTypeSwitcher: React.FC<ProductTypeSwitcherProps> = ({ productType, 
     supportingText: string;
     imageUrl: string;
     overlayClass: string;
+    imageAlt: string;
   }> = [
     {
       type: 'banner',
@@ -21,6 +23,7 @@ const ProductTypeSwitcher: React.FC<ProductTypeSwitcherProps> = ({ productType, 
       supportingText: 'Great for businesses, events, and large displays',
       imageUrl: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1776748080/gemini-watermark-removed_1_t2dpdb.png',
       overlayClass: 'from-slate-900/20 via-slate-900/5 to-amber-900/65',
+      imageAlt: 'Banner product option showing a banner display example',
     },
     {
       type: 'yard_sign',
@@ -28,6 +31,7 @@ const ProductTypeSwitcher: React.FC<ProductTypeSwitcherProps> = ({ productType, 
       supportingText: 'Perfect for lawns, events, and outdoor advertising',
       imageUrl: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1776748102/gemini-watermark-removed_2_n85erj.png',
       overlayClass: 'from-slate-900/20 via-slate-900/5 to-emerald-900/65',
+      imageAlt: 'Yard Signs product option showing a yard sign display example',
     },
   ];
 
@@ -36,25 +40,38 @@ const ProductTypeSwitcher: React.FC<ProductTypeSwitcherProps> = ({ productType, 
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         {options.map((option) => {
           const isActive = productType === option.type;
+          const cardClassName = cn(
+            'group relative min-h-[220px] w-full overflow-hidden rounded-2xl text-left transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500/80 focus-visible:ring-offset-2',
+            isActive
+              ? 'scale-[1.01] shadow-[0_14px_30px_rgba(249,115,22,0.30)] ring-2 ring-orange-500'
+              : 'shadow-[0_10px_24px_rgba(15,23,42,0.12)] hover:-translate-y-0.5 hover:shadow-[0_16px_28px_rgba(15,23,42,0.18)]',
+          );
+
+          const imageClassName = cn(
+            'absolute inset-0 h-full w-full object-cover transition duration-500',
+            isActive ? 'scale-105 brightness-[1.02]' : 'scale-100 brightness-90 group-hover:scale-105',
+          );
+
+          const overlayClassName = cn(
+            'absolute inset-0 bg-gradient-to-b',
+            option.overlayClass,
+            isActive ? 'opacity-95' : 'opacity-90 group-hover:opacity-95',
+          );
 
           return (
             <button
               key={option.type}
               type="button"
               onClick={() => onProductTypeChange(option.type)}
-              className={`group relative min-h-[220px] w-full overflow-hidden rounded-2xl text-left transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-500/80 focus-visible:ring-offset-2 ${
-                isActive
-                  ? 'scale-[1.01] shadow-[0_14px_30px_rgba(249,115,22,0.30)] ring-2 ring-orange-500'
-                  : 'shadow-[0_10px_24px_rgba(15,23,42,0.12)] hover:-translate-y-0.5 hover:shadow-[0_16px_28px_rgba(15,23,42,0.18)]'
-              }`}
+              className={cardClassName}
               aria-pressed={isActive}
             >
               <img
                 src={option.imageUrl}
-                alt={option.label}
-                className={`absolute inset-0 h-full w-full object-cover transition duration-500 ${isActive ? 'scale-105' : 'scale-100 group-hover:scale-105'} ${isActive ? 'brightness-[1.02]' : 'brightness-90'}`}
+                alt={option.imageAlt}
+                className={imageClassName}
               />
-              <div className={`absolute inset-0 bg-gradient-to-b ${option.overlayClass} ${isActive ? 'opacity-95' : 'opacity-90 group-hover:opacity-95'}`} />
+              <div className={overlayClassName} />
               <div className="absolute inset-0 bg-black/5" />
 
               {isActive && (
