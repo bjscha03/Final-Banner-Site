@@ -339,6 +339,16 @@ exports.handler = async (event, context) => {
       console.warn('⚠️ Database migration warning:', migrationError.message);
     }
 
+    try {
+      await sql`
+        ALTER TABLE order_items
+        ADD COLUMN IF NOT EXISTS rounded_corners TEXT DEFAULT NULL
+      `;
+      console.log('✅ Database migration: rounded_corners column verified/created');
+    } catch (migrationError) {
+      console.warn('⚠️ Database migration warning:', migrationError.message);
+    }
+
     // AUTO-MIGRATE: Ensure final_render columns exist (added for print-pipeline fix)
     try {
       await sql`
@@ -651,7 +661,7 @@ exports.handler = async (event, context) => {
             await sql`
               INSERT INTO order_items (
                 id, order_id, product_type, width_in, height_in, quantity, material,
-                grommets, rope_feet, pole_pockets, pole_pocket_position, pole_pocket_size, pole_pocket_cost_cents,
+                grommets, rounded_corners, rope_feet, pole_pockets, pole_pocket_position, pole_pocket_size, pole_pocket_cost_cents,
                 line_total_cents, file_key, file_url, print_ready_url, web_preview_url, text_elements, overlay_image, overlay_images, canvas_background_color, image_scale, image_position, thumbnail_url, final_render_url, final_render_file_key, final_render_width_px, final_render_height_px, final_render_dpi, canvas_state_json,
                 design_service_enabled, design_request_text, design_draft_preference, design_draft_contact, design_uploaded_assets,
                 yard_sign_sidedness, yard_sign_step_stakes_enabled, yard_sign_step_stakes_qty, yard_sign_design_count, yard_sign_designs, yard_sign_signs_subtotal_cents, yard_sign_stakes_subtotal_cents
@@ -665,6 +675,7 @@ exports.handler = async (event, context) => {
                 ${item.quantity || 1},
                 ${item.material || '13oz'},
                 ${item.grommets || 'none'},
+                ${item.rounded_corners || null},
                 ${item.rope_feet || 0},
                 ${polePocketsValue},
                 ${item.pole_pocket_position || null},

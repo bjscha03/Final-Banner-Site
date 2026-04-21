@@ -307,7 +307,7 @@ const OrderDetail: React.FC = () => {
                       {getThumbnailUrl(item) && (
                         <img
                           src={getThumbnailUrl(item, 180) || undefined}
-                          alt={`${isYardSignItem(item) ? 'Yard Sign' : 'Banner'} Preview`}
+                          alt={`${normalizeOrderItemDisplay(item as NormalizableOrderItem).productLabel} Preview`}
                           className="w-28 h-20 object-cover rounded-md border border-gray-200 flex-shrink-0"
                         />
                       )}
@@ -334,6 +334,9 @@ const OrderDetail: React.FC = () => {
                         )}
                         {normalized.ropeDisplay && (
                           <p><span className="font-medium">Rope:</span> {normalized.ropeDisplay}</p>
+                        )}
+                        {normalized.roundedCornersDisplay && (
+                          <p><span className="font-medium">Rounded Corners:</span> {normalized.roundedCornersDisplay}</p>
                         )}
                       </div>
 

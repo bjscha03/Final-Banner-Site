@@ -26,6 +26,13 @@ import {
   YARD_SIGN_HEIGHT_IN,
   YARD_SIGN_MAX_QUANTITY,
 } from '@/lib/yard-sign-pricing';
+import {
+  CAR_MAGNET_SIZES,
+  CAR_MAGNET_ROUNDED_CORNERS,
+  calcCarMagnetPricing,
+  getCarMagnetRoundedCornersLabel,
+  type CarMagnetRoundedCorner,
+} from '@/lib/car-magnet-pricing';
 
 const PRESET_SIZES = [
   { label: "2' × 4'", w: 48, h: 24 },
@@ -113,6 +120,27 @@ const PRODUCT_MODE_CONTENT = {
       { icon: Droplets, iconClass: 'text-blue-500', label: 'Corrugated Plastic' },
     ],
   },
+  car_magnet: {
+    heroTitle: 'Car Magnets',
+    heroDescription: (
+      <p className="text-base md:text-lg text-gray-100 max-w-lg mx-auto leading-relaxed">
+        Durable vehicle magnets printed fast with free next-day air shipping
+      </p>
+    ),
+    topFeatures: [
+      { icon: Clock, iconClass: 'text-orange-500', label: '24-Hour Production' },
+      { icon: Truck, iconClass: 'text-orange-500', label: 'Free Next-Day Air' },
+      { icon: Move, iconClass: 'text-orange-500', label: 'Removable Magnetic Signage' },
+      { icon: Brush, iconClass: 'text-orange-500', label: 'Rounded Corner Options' },
+    ],
+    builtTitle: 'Built for Vehicles',
+    builtItems: [
+      { icon: Clock, iconClass: 'text-orange-500', label: '24-Hour Turnaround' },
+      { icon: Sun, iconClass: 'text-yellow-500', label: 'Outdoor Durable' },
+      { icon: Palette, iconClass: 'text-purple-500', label: 'Full-Color Print' },
+      { icon: Move, iconClass: 'text-blue-500', label: 'Removable Material' },
+    ],
+  },
 } as const;
 
 // Calculate grommet positions for preview overlay
@@ -149,6 +177,11 @@ const Design: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [hasEnteredBuilder, setHasEnteredBuilder] = useState(false);
   const [isBuilderInView, setIsBuilderInView] = useState(false);
+  const getProductQuerySlug = useCallback((type: ProductTypeSlug) => {
+    if (type === 'yard_sign') return 'yard-signs';
+    if (type === 'car_magnet') return 'car-magnets';
+    return 'banner';
+  }, []);
 
   // Product type state — read ?tab= or ?product= query param for routing
   const initialProductType = (() => {
@@ -156,10 +189,12 @@ const Design: React.FC = () => {
     const product = searchParams.get('product');
     const param = tab || product;
     if (param === 'yard-sign' || param === 'yard_sign' || param === 'yard-signs') return 'yard_sign' as ProductTypeSlug;
+    if (param === 'car-magnet' || param === 'car-magnets' || param === 'car_magnet' || param === 'car_magnets') return 'car_magnet' as ProductTypeSlug;
     return 'banner' as ProductTypeSlug;
   })();
   const [productType, setProductType] = useState<ProductTypeSlug>(initialProductType);
   const isYardSign = productType === 'yard_sign';
+  const isCarMagnet = productType === 'car_magnet';
 
   // Yard sign specific state (multi-design)
   const [yardSignDesigns, setYardSignDesigns] = useState<YardSignDesign[]>([]);
@@ -167,12 +202,15 @@ const Design: React.FC = () => {
   const [yardSignAddStepStakes, setYardSignAddStepStakes] = useState(false);
   const [yardSignStepStakeQty, setYardSignStepStakeQty] = useState(1);
   const [yardSignQuickQuoteQtyPreset, setYardSignQuickQuoteQtyPreset] = useState<number | null>(null);
+  const [carMagnetSizeLabel, setCarMagnetSizeLabel] = useState(CAR_MAGNET_SIZES[0].label);
+  const [carMagnetRoundedCorners, setCarMagnetRoundedCorners] = useState<CarMagnetRoundedCorner>('none');
   // Auto-open first design preview when editing yard sign from cart
   const [autoOpenDesignId, setAutoOpenDesignId] = useState<string | null>(null);
 
   // Handle product type switch — reset state
   const handleProductTypeChange = useCallback((newType: ProductTypeSlug) => {
     setProductType(newType);
+    navigate(`${location.pathname}?product=${getProductQuerySlug(newType)}`, { replace: true });
     setImgPos({ x: 0, y: 0 });
     setImgScale(1);
     setQuantity(1);
@@ -184,8 +222,14 @@ const Design: React.FC = () => {
       setYardSignAddStepStakes(false);
       setYardSignStepStakeQty(1);
       setYardSignQuickQuoteQtyPreset(null);
+    } else if (newType === 'car_magnet') {
+      setCarMagnetSizeLabel(CAR_MAGNET_SIZES[0].label);
+      setCarMagnetRoundedCorners('none');
+      setGrommets('none');
+      setPolePockets('none');
+      setAddRope(false);
     }
-  }, []);
+  }, [getProductQuerySlug, location.pathname, navigate]);
 
   // Restore cart item state when editing from cart (editItem query param)
   const editItemId = searchParams.get('editItem');
@@ -221,6 +265,26 @@ const Design: React.FC = () => {
       if (restoredDesigns.length > 0) {
         setAutoOpenDesignId(restoredDesigns[0].id);
       }
+    } else if (item.product_type === 'car_magnet') {
+      setProductType('car_magnet');
+      if (item.file_url) {
+        setUploadedFile({
+          name: item.file_name || 'artwork',
+          url: item.file_url,
+          fileKey: item.file_key || '',
+          size: 0,
+          isPdf: item.is_pdf || false,
+          thumbnailUrl: item.thumbnail_url || item.file_url,
+        });
+      }
+      const matchedSize = CAR_MAGNET_SIZES.find((size) => size.widthIn === item.width_in && size.heightIn === item.height_in);
+      setCarMagnetSizeLabel((matchedSize || CAR_MAGNET_SIZES[0]).label);
+      setCarMagnetRoundedCorners(((item as any).rounded_corners || 'none') as CarMagnetRoundedCorner);
+      setImgPos(item.image_position || { x: 0, y: 0 });
+      setImgScale(item.image_scale || 1);
+      setQuantity(item.quantity || 1);
+      setYardSignQuickQuoteQtyPreset(null);
+      setShowPreview(true);
     } else {
       // Switch to banner tab and restore banner state
       setProductType('banner');
@@ -303,8 +367,17 @@ const Design: React.FC = () => {
   const { setIsCartOpen } = useUIStore();
 
   // Dimensions: for banners, use ft+in inputs; for yard signs, fixed 24" × 18"
-  const widthIn = isYardSign ? YARD_SIGN_WIDTH_IN : (widthFt * 12 + widthInR);
-  const heightIn = isYardSign ? YARD_SIGN_HEIGHT_IN : (heightFt * 12 + heightInR);
+  const selectedCarMagnetSize = CAR_MAGNET_SIZES.find((size) => size.label === carMagnetSizeLabel) || CAR_MAGNET_SIZES[0];
+  const widthIn = isYardSign
+    ? YARD_SIGN_WIDTH_IN
+    : isCarMagnet
+      ? selectedCarMagnetSize.widthIn
+      : (widthFt * 12 + widthInR);
+  const heightIn = isYardSign
+    ? YARD_SIGN_HEIGHT_IN
+    : isCarMagnet
+      ? selectedCarMagnetSize.heightIn
+      : (heightFt * 12 + heightInR);
   const sqft = (widthIn * heightIn) / 144;
 
   // Yard sign pricing (computed reactively)
@@ -323,6 +396,10 @@ const Design: React.FC = () => {
 
   // Yard sign quantity validation
   const yardSignQuantityValid = validateYardSignQuantity(yardSignTotalQty);
+  const carMagnetPricing = useMemo(() => {
+    if (!isCarMagnet) return null;
+    return calcCarMagnetPricing(widthIn, heightIn, quantity);
+  }, [isCarMagnet, widthIn, heightIn, quantity]);
 
   // Handle quick quote URL parameters (banner + yard sign)
   useEffect(() => {
@@ -363,7 +440,27 @@ const Design: React.FC = () => {
         });
       }
 
-      navigate(`${location.pathname}?tab=yard-sign`, { replace: true });
+      navigate(`${location.pathname}?product=yard-signs`, { replace: true });
+      return;
+    }
+
+    const isCarMagnetParam = ['car-magnet', 'car-magnets', 'car_magnet', 'car_magnets'].includes((tab || productParam || '').toLowerCase());
+    if (isCarMagnetParam) {
+      const size = searchParams.get('size');
+      const qty = searchParams.get('qty');
+      const corners = searchParams.get('corners');
+      const parsedQty = Math.max(1, Number.parseInt(qty || '1', 10) || 1);
+      const parsedSize = CAR_MAGNET_SIZES.find((option) => `${option.widthIn}x${option.heightIn}` === size) || CAR_MAGNET_SIZES[0];
+      const validCornerValues = new Set(CAR_MAGNET_ROUNDED_CORNERS.map((option) => option.value));
+      const normalizedCorners = validCornerValues.has((corners || 'none') as CarMagnetRoundedCorner)
+        ? (corners as CarMagnetRoundedCorner)
+        : 'none';
+
+      setProductType('car_magnet');
+      setCarMagnetSizeLabel(parsedSize.label);
+      setCarMagnetRoundedCorners(normalizedCorners as CarMagnetRoundedCorner);
+      setQuantity(parsedQty);
+      navigate(`${location.pathname}?product=car-magnets`, { replace: true });
       return;
     }
 
@@ -465,10 +562,10 @@ const Design: React.FC = () => {
 
   const pricePerSqFt = PRICE_PER_SQFT[material];
   const selectedMaterial = MATERIALS.find(m => m.mapped === material) || MATERIALS[0];
-  const materialLabel = selectedMaterial.label;
+  const materialLabel = isCarMagnet ? 'Premium Magnetic Material' : selectedMaterial.label;
   const grommetsLabel = DESIGN_GROMMET_OPTIONS.find(o => o.value === grommets)?.label || 'None';
-  const widthDisplay = widthInR > 0 ? `${widthFt}'${widthInR}"` : `${widthFt}'`;
-  const heightDisplay = heightInR > 0 ? `${heightFt}'${heightInR}"` : `${heightFt}'`;
+  const widthDisplay = isCarMagnet ? `${widthIn}"` : (widthInR > 0 ? `${widthFt}'${widthInR}"` : `${widthFt}'`);
+  const heightDisplay = isCarMagnet ? `${heightIn}"` : (heightInR > 0 ? `${heightFt}'${heightInR}"` : `${heightFt}'`);
 
   // Quantity discount info
   const quantityDiscountRate = getQuantityDiscountRate(quantity);
@@ -672,7 +769,67 @@ const Design: React.FC = () => {
       setIsCartOpen(true);
       setPendingCheckoutData(null);
       // Preserve tab in history so browser Back returns to Yard Sign tab
-      window.history.replaceState(null, '', '/design?tab=yard-sign');
+      window.history.replaceState(null, '', '/design?product=yard-signs');
+      navigate('/checkout');
+      return;
+    }
+
+    if (isCarMagnet && carMagnetPricing) {
+      if (!uploadedFile || !checkoutData) return;
+
+      const container = previewContainerRef.current;
+      const canvasStateJson = JSON.stringify({
+        source: 'design-page',
+        version: 2,
+        originalImageUrl: uploadedFile.url,
+        originalImageFileKey: uploadedFile.fileKey,
+        isPdf: uploadedFile.isPdf,
+        widthIn,
+        heightIn,
+        imgPos: checkoutData.pos,
+        imgScale: checkoutData.scale,
+        containerCssWidth: container?.offsetWidth || null,
+        containerCssHeight: container?.offsetHeight || null,
+        bgColor: '#fafafa',
+        productType: 'car_magnet',
+        roundedCorners: carMagnetRoundedCorners,
+      });
+
+      quoteStore.set({
+        widthIn,
+        heightIn,
+        quantity,
+        material: 'magnetic' as MaterialKey,
+        grommets: 'none' as any,
+        polePockets: 'none',
+        polePocketSize: '2' as any,
+        addRope: false,
+        imagePosition: checkoutData.pos,
+        imageScale: checkoutData.scale,
+        fitMode: 'fill',
+        thumbnailUrl: uploadedFile.thumbnailUrl,
+        file: { name: uploadedFile.name, url: uploadedFile.url, fileKey: uploadedFile.fileKey, size: uploadedFile.size, isPdf: uploadedFile.isPdf, thumbnailUrl: uploadedFile.thumbnailUrl, type: uploadedFile.isPdf ? 'application/pdf' : 'image/*' } as any,
+        finalRenderUrl: null,
+        finalRenderFileKey: null,
+        finalRenderWidthPx: null,
+        finalRenderHeightPx: null,
+        finalRenderDpi: null,
+        canvasStateJson,
+      } as any);
+
+      const magnetQuoteState = useQuoteStore.getState();
+      (magnetQuoteState as any).product_type = 'car_magnet';
+      (magnetQuoteState as any).rounded_corners = carMagnetRoundedCorners;
+      cartStore.addFromQuote(magnetQuoteState, undefined, {
+        unit_price_cents: carMagnetPricing.unitPriceCents,
+        rope_cost_cents: 0,
+        pole_pocket_cost_cents: 0,
+        line_total_cents: carMagnetPricing.subtotalCents,
+      });
+
+      setIsCartOpen(true);
+      setPendingCheckoutData(null);
+      window.history.replaceState(null, '', '/design?product=car-magnets');
       navigate('/checkout');
       return;
     }
@@ -788,9 +945,9 @@ const Design: React.FC = () => {
     setIsCartOpen(true);
     setPendingCheckoutData(null);
     // Preserve tab in history so browser Back returns to Banner tab
-    window.history.replaceState(null, '', '/design?tab=banner');
+    window.history.replaceState(null, '', '/design?product=banner');
     navigate('/checkout');
-  }, [uploadedFile, pendingCheckoutData, grommets, addRope, polePockets, widthIn, heightIn, quantity, material, quoteStore, cartStore, setIsCartOpen, navigate, toast, isYardSign, yardSignPricing, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, yardSignSidedness, yardSignAddStepStakes, yardSignStepStakeQty]);
+  }, [uploadedFile, pendingCheckoutData, grommets, addRope, polePockets, widthIn, heightIn, quantity, material, quoteStore, cartStore, setIsCartOpen, navigate, toast, isYardSign, isCarMagnet, carMagnetPricing, carMagnetRoundedCorners, yardSignPricing, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, yardSignSidedness, yardSignAddStepStakes, yardSignStepStakeQty]);
 
 
   // Proceed directly to checkout using current inline preview position
@@ -800,6 +957,10 @@ const Design: React.FC = () => {
       if (yardSignDesigns.length === 0 || yardSignTotalQty === 0) return;
       if (!yardSignQuantityValid.valid) return;
       performCheckout([], { pos: { x: 0, y: 0 }, scale: 1 });
+      return;
+    }
+    if (isCarMagnet) {
+      performCheckout([], { pos: posPercent, scale: imgScale });
       return;
     }
 
@@ -821,7 +982,7 @@ const Design: React.FC = () => {
     } else {
       setShowUpsellModal(true);
     }
-  }, [uploadedFile, imgPos, imgScale, grommets, polePockets, addRope, performCheckout, isYardSign, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid]);
+  }, [uploadedFile, imgPos, imgScale, grommets, polePockets, addRope, performCheckout, isYardSign, isCarMagnet, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid]);
 
   // Trigger upsell modal after confirming position from preview modal
   const handleConfirmPosition = useCallback((pos: { x: number; y: number }, scale: number) => {
@@ -836,6 +997,11 @@ const Design: React.FC = () => {
     setPendingCheckoutData({ pos: posPercent, scale });
     setShowPreview(false);
 
+    if (isCarMagnet) {
+      performCheckout([], { pos: posPercent, scale });
+      return;
+    }
+
     const hasFinishing = grommets !== 'none' || polePockets !== 'none';
     const hasRope = addRope;
     if (hasFinishing && hasRope) {
@@ -843,7 +1009,7 @@ const Design: React.FC = () => {
     } else {
       setShowUpsellModal(true);
     }
-  }, [uploadedFile, grommets, polePockets, addRope, performCheckout]);
+  }, [uploadedFile, grommets, polePockets, addRope, performCheckout, isCarMagnet]);
 
   // Handle upsell modal continue
   const handleUpsellContinue = useCallback((selectedOptions: UpsellOption[], dontAskAgain: boolean) => {
@@ -1021,7 +1187,7 @@ const Design: React.FC = () => {
           {/* Product type switcher — public for all users */}
           <ProductTypeSwitcher productType={productType} onProductTypeChange={handleProductTypeChange} />
           <h2 className="text-2xl md:text-3xl font-bold text-center mb-10">
-            {isYardSign ? 'Build Your Yard Sign Order' : 'Build Your Banner'}
+            {isYardSign ? 'Build Your Yard Sign Order' : isCarMagnet ? 'Design Your Custom Car Magnets' : 'Build Your Banner'}
           </h2>
           {isYardSign ? (
             /* ========== YARD SIGN ORDER BUILDER ========== */
@@ -1096,13 +1262,20 @@ const Design: React.FC = () => {
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Popular Sizes</label>
                 <div className="grid grid-cols-3 gap-2">
-                  {PRESET_SIZES.map((p, i) => (
-                    <button key={i} onClick={() => applyPreset(i)} className={`border rounded-xl py-2.5 px-3 text-sm font-medium transition-all ${activePreset === i ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-gray-200 hover:border-gray-400 text-gray-700'}`}>
-                      {p.label}
-                    </button>
-                  ))}
+                  {isCarMagnet
+                    ? CAR_MAGNET_SIZES.map((p) => (
+                        <button key={p.label} onClick={() => setCarMagnetSizeLabel(p.label)} className={`border rounded-xl py-2.5 px-3 text-sm font-medium transition-all ${carMagnetSizeLabel === p.label ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-gray-200 hover:border-gray-400 text-gray-700'}`}>
+                          {p.label}
+                        </button>
+                      ))
+                    : PRESET_SIZES.map((p, i) => (
+                        <button key={i} onClick={() => applyPreset(i)} className={`border rounded-xl py-2.5 px-3 text-sm font-medium transition-all ${activePreset === i ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-gray-200 hover:border-gray-400 text-gray-700'}`}>
+                          {p.label}
+                        </button>
+                      ))}
                 </div>
               </div>
+              {!isCarMagnet && (
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Custom Size</label>
                 <div className="grid grid-cols-2 gap-4">
@@ -1143,51 +1316,60 @@ const Design: React.FC = () => {
                   </div>
                 </div>
               </div>
+              )}
               <div ref={materialDropdownRef} className="relative">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Material</label>
-                <button
-                  type="button"
-                  onClick={() => setMaterialDropdownOpen(prev => !prev)}
-                  className="w-full border rounded-xl px-3 py-2.5 text-base bg-white flex items-center gap-3 cursor-pointer hover:border-gray-400 transition-colors"
-                >
-                  <img
-                    src={selectedMaterial.image}
-                    alt={selectedMaterial.label}
-                    className="w-9 h-9 rounded object-cover flex-shrink-0 bg-gray-100"
-                    onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                  />
-                  <span className="font-medium text-gray-800">{selectedMaterial.label}</span>
-                  <svg className={`ml-auto w-4 h-4 text-gray-400 transition-transform ${materialDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                </button>
-                {materialDropdownOpen && (
-                  <div className="absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden max-h-72 overflow-y-auto">
-                    {MATERIALS.map(m => (
-                      <button
-                        key={m.key}
-                        type="button"
-                        onClick={() => { setMaterial(m.mapped); setMaterialDropdownOpen(false); }}
-                        className={`w-full flex items-center gap-3 px-3 py-3 text-left transition-colors cursor-pointer ${
-                          m.mapped === material
-                            ? 'bg-orange-50 border-l-2 border-orange-500'
-                            : 'hover:bg-gray-50 border-l-2 border-transparent'
-                        }`}
-                      >
-                        <img
-                          src={m.image}
-                          alt={m.label}
-                          className="w-10 h-10 rounded object-cover flex-shrink-0 bg-gray-100"
-                          onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                        />
-                        <div className="min-w-0">
-                          <div className={`text-sm font-medium ${m.mapped === material ? 'text-orange-700' : 'text-gray-800'}`}>{m.label}</div>
-                          <div className="text-xs text-gray-400 truncate">{m.desc}</div>
-                        </div>
-                        {m.mapped === material && (
-                          <CheckCircle className="ml-auto w-4 h-4 text-orange-500 flex-shrink-0" />
-                        )}
-                      </button>
-                    ))}
+                {isCarMagnet ? (
+                  <div className="w-full border rounded-xl px-3 py-2.5 text-base bg-gray-50 text-gray-800 font-medium">
+                    Premium Magnetic Material
                   </div>
+                ) : (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setMaterialDropdownOpen(prev => !prev)}
+                      className="w-full border rounded-xl px-3 py-2.5 text-base bg-white flex items-center gap-3 cursor-pointer hover:border-gray-400 transition-colors"
+                    >
+                      <img
+                        src={selectedMaterial.image}
+                        alt={selectedMaterial.label}
+                        className="w-9 h-9 rounded object-cover flex-shrink-0 bg-gray-100"
+                        onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                      <span className="font-medium text-gray-800">{selectedMaterial.label}</span>
+                      <svg className={`ml-auto w-4 h-4 text-gray-400 transition-transform ${materialDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                    </button>
+                    {materialDropdownOpen && (
+                      <div className="absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden max-h-72 overflow-y-auto">
+                        {MATERIALS.map(m => (
+                          <button
+                            key={m.key}
+                            type="button"
+                            onClick={() => { setMaterial(m.mapped); setMaterialDropdownOpen(false); }}
+                            className={`w-full flex items-center gap-3 px-3 py-3 text-left transition-colors cursor-pointer ${
+                              m.mapped === material
+                                ? 'bg-orange-50 border-l-2 border-orange-500'
+                                : 'hover:bg-gray-50 border-l-2 border-transparent'
+                            }`}
+                          >
+                            <img
+                              src={m.image}
+                              alt={m.label}
+                              className="w-10 h-10 rounded object-cover flex-shrink-0 bg-gray-100"
+                              onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                            />
+                            <div className="min-w-0">
+                              <div className={`text-sm font-medium ${m.mapped === material ? 'text-orange-700' : 'text-gray-800'}`}>{m.label}</div>
+                              <div className="text-xs text-gray-400 truncate">{m.desc}</div>
+                            </div>
+                            {m.mapped === material && (
+                              <CheckCircle className="ml-auto w-4 h-4 text-orange-500 flex-shrink-0" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
               <div>
@@ -1313,33 +1495,43 @@ const Design: React.FC = () => {
                 )}
               </div>
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Finishing Options</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">{isCarMagnet ? 'Rounded Corners' : 'Finishing Options'}</label>
                 <div className="space-y-3">
-                  <div>
-                    <span className="text-xs text-gray-600">Grommets</span>
-                    <select value={grommets} onChange={e => setGrommets(e.target.value)} className="w-full border rounded-xl px-3 py-1.5 text-base mt-1 bg-white">
-                      {DESIGN_GROMMET_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <span className="text-xs text-gray-600">Pole Pockets</span>
-                    <select value={polePockets} onChange={e => setPolePockets(e.target.value)} className="w-full border rounded-xl px-3 py-1.5 text-base mt-1 bg-white">
-                      <option value="none">None</option>
-                      <option value="top">Top</option>
-                      <option value="bottom">Bottom</option>
-                      <option value="top-bottom">Top &amp; Bottom</option>
-                      <option value="left">Left</option>
-                      <option value="right">Right</option>
-                    </select>
-                  </div>
-                  <div className="flex gap-4">
-                    <label className="flex items-center gap-2 text-sm cursor-pointer">
-                      <input type="checkbox" checked={addRope} onChange={e => setAddRope(e.target.checked)} className="accent-orange-500" /> Rope
-                    </label>
-                    <label className="flex items-center gap-2 text-sm cursor-pointer">
-                      <input type="checkbox" checked={hemming} onChange={e => setHemming(e.target.checked)} className="accent-orange-500" /> Hemming (included)
-                    </label>
-                  </div>
+                  {isCarMagnet ? (
+                    <div>
+                      <select value={carMagnetRoundedCorners} onChange={e => setCarMagnetRoundedCorners(e.target.value as CarMagnetRoundedCorner)} className="w-full border rounded-xl px-3 py-1.5 text-base mt-1 bg-white">
+                        {CAR_MAGNET_ROUNDED_CORNERS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                      </select>
+                    </div>
+                  ) : (
+                    <>
+                      <div>
+                        <span className="text-xs text-gray-600">Grommets</span>
+                        <select value={grommets} onChange={e => setGrommets(e.target.value)} className="w-full border rounded-xl px-3 py-1.5 text-base mt-1 bg-white">
+                          {DESIGN_GROMMET_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                      </div>
+                      <div>
+                        <span className="text-xs text-gray-600">Pole Pockets</span>
+                        <select value={polePockets} onChange={e => setPolePockets(e.target.value)} className="w-full border rounded-xl px-3 py-1.5 text-base mt-1 bg-white">
+                          <option value="none">None</option>
+                          <option value="top">Top</option>
+                          <option value="bottom">Bottom</option>
+                          <option value="top-bottom">Top &amp; Bottom</option>
+                          <option value="left">Left</option>
+                          <option value="right">Right</option>
+                        </select>
+                      </div>
+                      <div className="flex gap-4">
+                        <label className="flex items-center gap-2 text-sm cursor-pointer">
+                          <input type="checkbox" checked={addRope} onChange={e => setAddRope(e.target.checked)} className="accent-orange-500" /> Rope
+                        </label>
+                        <label className="flex items-center gap-2 text-sm cursor-pointer">
+                          <input type="checkbox" checked={hemming} onChange={e => setHemming(e.target.checked)} className="accent-orange-500" /> Hemming (included)
+                        </label>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
@@ -1354,51 +1546,59 @@ const Design: React.FC = () => {
                     <p className="text-sm text-green-600 font-semibold mt-1">You save {usd(totals.materialTotal - discountedTotal)}!</p>
                   </>
                 ) : (
-                  <p className="text-5xl font-extrabold text-gray-900 leading-tight">{usd(totals.materialTotal)}</p>
+                  <p className="text-5xl font-extrabold text-gray-900 leading-tight">{usd(isCarMagnet && carMagnetPricing ? carMagnetPricing.subtotalCents / 100 : totals.materialTotal)}</p>
                 )}
                 <p className="text-base text-green-600 font-semibold mt-2">FREE Next-Day Air Included</p>
                 <p className="text-sm text-gray-500 mt-1">Printed within 24 hours.</p>
-                <p className="text-sm text-gray-500 mt-1">{usd(pricePerSqFt)}/sq ft</p>
+                {!isCarMagnet && <p className="text-sm text-gray-500 mt-1">{usd(pricePerSqFt)}/sq ft</p>}
 
                 <div className="text-left text-sm text-gray-600 space-y-1 mt-4 mb-2">
                   <p><strong>Size:</strong> {widthDisplay} × {heightDisplay} ({sqft.toFixed(1)} sq ft)</p>
                   <p><strong>Material:</strong> {materialLabel}</p>
+                  <p><strong>Print:</strong> Single-Sided</p>
                   <p><strong>Quantity:</strong> {quantity}</p>
-                  <p><strong>Grommets:</strong> {grommetsLabel}</p>
-                  {polePockets !== 'none' && <p><strong>Pole Pockets:</strong> {polePockets}</p>}
-                  {addRope && <p><strong>Rope:</strong> Included</p>}
-                </div>
-
-                {/* Promo Code */}
-                <div className="mt-3 mb-2">
-                  {!promoApplied ? (
-                    <div className="flex gap-2">
-                      <input
-                        type="text"
-                        value={promoCode}
-                        onChange={e => setPromoCode(e.target.value.toUpperCase())}
-                        placeholder="Promo Code"
-                        className="flex-1 border rounded-xl px-3 py-2 text-base"
-                      />
-                      <button onClick={handlePromoApply} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium">
-                        Apply
-                      </button>
-                    </div>
+                  {isCarMagnet ? (
+                    <p><strong>Rounded Corners:</strong> {getCarMagnetRoundedCornersLabel(carMagnetRoundedCorners)}</p>
                   ) : (
-                    <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-3 py-2">
-                      <span className="text-sm font-semibold text-green-800 flex items-center gap-1.5">
-                        <Tag className="h-3.5 w-3.5" />
-                        {promoCode} — 20% off
-                      </span>
-                      <button
-                        onClick={() => { setPromoApplied(false); setPromoCode(''); sessionStorage.removeItem('pendingPromoCode'); }}
-                        className="text-xs text-red-500 hover:text-red-700 font-medium"
-                      >
-                        Remove
-                      </button>
-                    </div>
+                    <>
+                      <p><strong>Grommets:</strong> {grommetsLabel}</p>
+                      {polePockets !== 'none' && <p><strong>Pole Pockets:</strong> {polePockets}</p>}
+                      {addRope && <p><strong>Rope:</strong> Included</p>}
+                    </>
                   )}
                 </div>
+
+                {!isCarMagnet && (
+                  <div className="mt-3 mb-2">
+                    {!promoApplied ? (
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={promoCode}
+                          onChange={e => setPromoCode(e.target.value.toUpperCase())}
+                          placeholder="Promo Code"
+                          className="flex-1 border rounded-xl px-3 py-2 text-base"
+                        />
+                        <button onClick={handlePromoApply} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-sm font-medium">
+                          Apply
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-xl px-3 py-2">
+                        <span className="text-sm font-semibold text-green-800 flex items-center gap-1.5">
+                          <Tag className="h-3.5 w-3.5" />
+                          {promoCode} — 20% off
+                        </span>
+                        <button
+                          onClick={() => { setPromoApplied(false); setPromoCode(''); sessionStorage.removeItem('pendingPromoCode'); }}
+                          className="text-xs text-red-500 hover:text-red-700 font-medium"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
                 <p className="text-xs text-gray-400 mt-3">Tax calculated at checkout</p>
               </div>
 

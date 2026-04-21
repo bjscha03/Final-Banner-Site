@@ -14,9 +14,17 @@ const products = [
     title: 'Yard Signs',
     description: 'Perfect for real estate, political, and local marketing',
     cta: 'Start Yard Sign →',
-    href: '/design?tab=yard-sign',
+    href: '/design?product=yard-signs',
     imageUrl: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1776748102/gemini-watermark-removed_2_n85erj.png',
     imageAlt: 'Yard sign display example',
+  },
+  {
+    title: 'Car Magnets',
+    description: 'Removable vehicle magnets with rounded corner options',
+    cta: 'Start Car Magnets →',
+    href: '/design?product=car-magnets',
+    imageUrl: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1776755781/car_magnet_yinavh.png',
+    imageAlt: 'Car magnet display example',
   },
 ];
 
@@ -24,7 +32,7 @@ const ProductSelectionStrip: React.FC = () => {
   return (
     <section className="bg-white py-8 sm:py-10">
       <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-6">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5 sm:gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6">
           {products.map((product) => (
             <article
               key={product.title}

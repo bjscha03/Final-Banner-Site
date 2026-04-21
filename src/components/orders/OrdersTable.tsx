@@ -51,15 +51,19 @@ const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading = false }) =>
       const item = order.items[0];
       const label = (item as any).product_type === 'yard_sign'
         ? `Yard Sign 24"×18" Corrugated`
+        : (item as any).product_type === 'car_magnet'
+          ? `Car Magnets ${formatDimensions(item.width_in, item.height_in)}`
         : `${formatDimensions(item.width_in, item.height_in)} ${item.material}`;
       return `${itemCount} × ${label}`;
     }
 
     // Check for mixed product types
     const hasYardSigns = order.items.some(i => (i as any).product_type === 'yard_sign');
-    const hasBanners = order.items.some(i => (i as any).product_type !== 'yard_sign');
-    if (hasYardSigns && hasBanners) return `${itemCount} items (${uniqueItems} designs) — mixed`;
+    const hasCarMagnets = order.items.some(i => (i as any).product_type === 'car_magnet');
+    const hasBanners = order.items.some(i => !['yard_sign', 'car_magnet'].includes(String((i as any).product_type || 'banner')));
+    if ([hasYardSigns, hasCarMagnets, hasBanners].filter(Boolean).length > 1) return `${itemCount} items (${uniqueItems} designs) — mixed`;
     if (hasYardSigns) return `${itemCount} yard signs (${uniqueItems} designs)`;
+    if (hasCarMagnets) return `${itemCount} car magnets (${uniqueItems} designs)`;
     return `${itemCount} banners (${uniqueItems} designs)`;
   };
 

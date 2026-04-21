@@ -86,11 +86,38 @@ const yardSignCopy: ProductCopyConfig = {
   shippingNotification: 'Get notified when your order ships',
 };
 
+const carMagnetCopy: ProductCopyConfig = {
+  singularLabel: 'Car Magnet',
+  pluralLabel: 'Car Magnets',
+  addAnotherCta: 'Add Another Car Magnet',
+  reviewNoticeBody:
+    'Our team reviews your car magnet artwork before production and will reach out if anything needs attention.',
+  upsellHeader: 'Complete Your Car Magnets',
+  minimumOrderSuggestionsSmall: [
+    'Increase your car magnet quantity',
+    'Choose a larger car magnet size',
+  ],
+  minimumOrderSuggestionsMedium: [
+    'Increase your car magnet quantity',
+    'Choose a larger car magnet size',
+    'Select rounded corners',
+  ],
+  minimumOrderSuggestionsLarge: [
+    'Increase your car magnet quantity',
+    'Choose larger car magnet sizes',
+    'Add additional car magnet designs',
+  ],
+  priceBreakdownBaseLabel: 'Car magnets',
+  emptyCartPrompt: 'Add some car magnets to get started!',
+  shippingNotification: 'Get notified when your car magnets ship',
+};
+
 /**
  * Get the product copy config for a given product type.
  */
 export function getProductCopy(productType?: string): ProductCopyConfig {
   if (productType === 'yard_sign') return yardSignCopy;
+  if (productType === 'car_magnet') return carMagnetCopy;
   return bannerCopy;
 }
 
@@ -104,7 +131,9 @@ export function getDominantProductType(
 ): string {
   if (items.length === 0) return 'banner';
   const allYardSigns = items.every((i) => i.product_type === 'yard_sign');
+  const allCarMagnets = items.every((i) => i.product_type === 'car_magnet');
   if (allYardSigns) return 'yard_sign';
+  if (allCarMagnets) return 'car_magnet';
   return 'banner';
 }
 

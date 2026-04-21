@@ -165,6 +165,15 @@ exports.handler = async (event) => {
     const dbUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
     if (!dbUrl) return send(500, { error: 'DATABASE_NOT_CONFIGURED' });
     const sql = neon(dbUrl);
+    try {
+      await sql`
+        ALTER TABLE order_items
+        ADD COLUMN IF NOT EXISTS product_type TEXT DEFAULT 'banner',
+        ADD COLUMN IF NOT EXISTS rounded_corners TEXT
+      `;
+    } catch (migrationError) {
+      console.warn('[paypal-capture-order] order_items migration warning:', migrationError.message);
+    }
 
     // OAuth
     const tRes = await fetch(`${base}/v1/oauth2/token`, {
@@ -273,8 +282,8 @@ exports.handler = async (event) => {
 
         await tx`
           INSERT INTO order_items (
-            id, order_id, width_in, height_in, quantity, material,
-            grommets, rope_feet, pole_pockets, pole_pocket_position, pole_pocket_size, pole_pocket_cost_cents,
+            id, order_id, product_type, width_in, height_in, quantity, material,
+            grommets, rounded_corners, rope_feet, pole_pockets, pole_pocket_position, pole_pocket_size, pole_pocket_cost_cents,
             line_total_cents, file_key, file_url, print_ready_url, web_preview_url,
             text_elements, overlay_image, thumbnail_url,
             final_render_url, final_render_file_key, final_render_width_px, final_render_height_px, final_render_dpi,
@@ -282,11 +291,13 @@ exports.handler = async (event) => {
           ) VALUES (
             ${randomUUID()},
             ${orderId},
+            ${item.product_type || 'banner'},
             ${item.width_in || 0},
             ${item.height_in || 0},
             ${item.quantity || 1},
             ${item.material || '13oz'},
             ${item.grommets || 'none'},
+            ${item.rounded_corners || null},
             ${item.rope_feet || 0},
             ${polePocketsValue},
             ${item.pole_pocket_position || null},

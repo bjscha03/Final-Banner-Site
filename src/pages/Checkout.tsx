@@ -287,7 +287,7 @@ const Checkout: React.FC = () => {
     if (items.length > 0) {
       const analyticsItems = items.map(item => ({
         item_id: item.id,
-        item_name: `${item.width_in}x${item.height_in} ${item.material} ${isYardSignItem(item) ? 'Yard Sign' : 'Banner'}`,
+        item_name: `${item.width_in}x${item.height_in} ${item.material} ${getItemDisplayName(item)}`,
         item_category: getProductCategory(item.product_type),
         item_variant: item.material,
         price: item.line_total_cents,
@@ -328,8 +328,9 @@ const Checkout: React.FC = () => {
   const getAddAnotherUrl = (productType?: string): string => {
     // Determine the base page: Google Ads landing or regular design page
     const basePage = isFromGoogleAds ? '/google-ads-banner' : '/design';
-    if (productType === 'yard_sign') return `${basePage}?tab=yard-sign`;
-    return `${basePage}?tab=banner`;
+    if (productType === 'yard_sign') return `${basePage}?product=yard-signs`;
+    if (productType === 'car_magnet') return `${basePage}?product=car-magnets`;
+    return `${basePage}?product=banner`;
   };
 
   // Redirect if cart is empty
@@ -472,6 +473,7 @@ const Checkout: React.FC = () => {
                       ...(normalized.grommetsDisplay ? [{ label: 'Grommets', value: normalized.grommetsDisplay }] : []),
                       ...(normalized.polePocketsDisplay ? [{ label: 'Pole Pockets', value: normalized.polePocketsDisplay }] : []),
                       ...(normalized.ropeDisplay ? [{ label: 'Rope', value: normalized.ropeDisplay }] : []),
+                      ...(normalized.roundedCornersDisplay ? [{ label: 'Rounded Corners', value: normalized.roundedCornersDisplay }] : []),
                     ];
 
                     return (
@@ -525,7 +527,7 @@ const Checkout: React.FC = () => {
                                   {getItemDisplayName(item)}
                                 </h3>
                                 <span className="inline-flex items-center rounded-full bg-blue-50 text-[#18448D] border border-blue-100 px-2 py-0.5 text-xs font-semibold">
-                                  {isYardSign ? 'Yard Sign' : 'Banner'}
+                                  {normalized.productLabel}
                                 </span>
                               </div>
                             </div>

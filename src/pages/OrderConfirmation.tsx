@@ -196,6 +196,7 @@ const OrderConfirmation: React.FC = () => {
                           {normalized.grommetsDisplay && <p>Grommets: {normalized.grommetsDisplay}</p>}
                           {normalized.polePocketsDisplay && <p>Pole Pockets: {normalized.polePocketsDisplay}</p>}
                           {normalized.ropeDisplay && <p>Rope: {normalized.ropeDisplay}</p>}
+                          {normalized.roundedCornersDisplay && <p>Rounded Corners: {normalized.roundedCornersDisplay}</p>}
                         </div>
 
                         {/* Cost Breakdown */}

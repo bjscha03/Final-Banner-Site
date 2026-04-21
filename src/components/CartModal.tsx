@@ -92,9 +92,13 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
       // Product-aware edit routing: route back to the correct product page/tab
       // NEVER route to the old /design-editor page
       onClose();
-      const productTab = isYardSignItem(item) ? 'yard-sign' : 'banner';
+      const productTab = item.product_type === 'yard_sign'
+        ? 'yard-signs'
+        : item.product_type === 'car_magnet'
+          ? 'car-magnets'
+          : 'banner';
       const basePage = item.source === 'google-ads' ? '/google-ads-banner' : '/design';
-      navigate(`${basePage}?tab=${productTab}&editItem=${itemId}`);
+      navigate(`${basePage}?product=${productTab}&editItem=${itemId}`);
       setTimeout(() => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }, 100);
@@ -221,6 +225,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                           {normalized.grommetsDisplay ? <p><span className="font-medium text-gray-700">Grommets:</span> {normalized.grommetsDisplay}</p> : null}
                           {normalized.polePocketsDisplay ? <p><span className="font-medium text-gray-700">Pole Pockets:</span> {normalized.polePocketsDisplay}</p> : null}
                           {normalized.ropeDisplay ? <p><span className="font-medium text-gray-700">Rope:</span> {normalized.ropeDisplay}</p> : null}
+                          {normalized.roundedCornersDisplay ? <p><span className="font-medium text-gray-700">Rounded Corners:</span> {normalized.roundedCornersDisplay}</p> : null}
                         </div>
 
                         {/* Right column: Price Breakdown */}
