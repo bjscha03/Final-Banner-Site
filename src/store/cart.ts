@@ -7,6 +7,7 @@ import { resolveBestDiscount, ResolvedDiscount, PromoDiscountInput } from '@/lib
 import { cartSync } from '@/lib/cartSync';
 import { trackAddToCart, trackFBAddToCart } from '@/lib/analytics';
 import { getProductConfig } from '@/lib/products';
+import type { ProductTypeSlug } from '@/lib/products';
 
 
 // PERFORMANCE: Disable verbose logging in production for faster cart operations
@@ -269,7 +270,7 @@ export const useCartStore = create<CartState>()(
 
         // Compute fallbacks if not provided
         const area = (quote.widthIn * quote.heightIn) / 144;
-        const activeProductType = ((quote as any).product_type || 'banner');
+        const activeProductType = ((quote as { product_type?: ProductTypeSlug }).product_type || 'banner');
         const productConfig = getProductConfig(activeProductType);
         const pricePerSqFt = (productConfig.materialPriceMap as Record<MaterialKey, number>)[quote.material];
         const computedUnit = Math.max(MINIMUM_UNIT_PRICE_CENTS, Math.round(area * (pricePerSqFt ?? 4.5) * 100));

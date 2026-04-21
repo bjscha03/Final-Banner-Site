@@ -451,7 +451,10 @@ const Design: React.FC = () => {
       const corners = searchParams.get('corners');
       const parsedQty = Math.max(1, Number.parseInt(qty || '1', 10) || 1);
       const parsedSize = CAR_MAGNET_SIZES.find((option) => `${option.widthIn}x${option.heightIn}` === size) || CAR_MAGNET_SIZES[0];
-      const normalizedCorners = corners === '0.5' || corners === '1' ? corners : 'none';
+      const validCornerValues = new Set(CAR_MAGNET_ROUNDED_CORNERS.map((option) => option.value));
+      const normalizedCorners = validCornerValues.has((corners || 'none') as CarMagnetRoundedCorner)
+        ? (corners as CarMagnetRoundedCorner)
+        : 'none';
 
       setProductType('car_magnet');
       setCarMagnetSizeLabel(parsedSize.label);

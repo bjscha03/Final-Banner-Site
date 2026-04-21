@@ -1,6 +1,7 @@
 import React from 'react';
 import { CheckCircle2 } from 'lucide-react';
 import type { ProductTypeSlug } from '@/lib/products';
+import { CAR_MAGNET_IMAGE_URL } from '@/lib/car-magnet-pricing';
 import { cn } from '@/lib/utils';
 
 interface ProductTypeSwitcherProps {
@@ -102,4 +103,3 @@ const ProductTypeSwitcher: React.FC<ProductTypeSwitcherProps> = ({ productType, 
 };
 
 export default ProductTypeSwitcher;
-import { CAR_MAGNET_IMAGE_URL } from '@/lib/car-magnet-pricing';
