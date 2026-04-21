@@ -9,7 +9,7 @@ import { CheckCircle, Printer, Package, ArrowRight, Home, Palette, Mail, Phone, 
 import { useToast } from '@/components/ui/use-toast';
 import { useScrollToTop } from '@/components/ScrollToTop';
 import { getItemDisplayName, getInvoiceSubtitle, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
-import { formatShippingCityStatePostal, hasShippingAddress, normalizeShippingAddress } from '@/lib/shipping-address';
+import { formatShippingAddress, hasShippingAddress, normalizeShippingAddress } from '@/lib/shipping-address';
 const OrderConfirmation: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -133,7 +133,7 @@ const OrderConfirmation: React.FC = () => {
     customer_name: order.customer_name,
   });
   const hasAddressBlock = hasShippingAddress(shippingAddress);
-  const cityStateZipLine = formatShippingCityStatePostal(shippingAddress);
+  const shippingAddressLines = formatShippingAddress(shippingAddress);
 
   return (
     <Layout>
@@ -259,10 +259,11 @@ const OrderConfirmation: React.FC = () => {
             {hasAddressBlock && (
               <div className="border border-gray-200 rounded-lg p-4 mt-6 bg-gray-50">
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Shipping Address</h3>
-                {shippingAddress.name ? <p className="font-medium text-gray-900">{shippingAddress.name}</p> : null}
-                {shippingAddress.line1 ? <p className="text-gray-700">{shippingAddress.line1}</p> : null}
-                {shippingAddress.line2 ? <p className="text-gray-700">{shippingAddress.line2}</p> : null}
-                {cityStateZipLine ? <p className="text-gray-700">{cityStateZipLine}</p> : null}
+                {shippingAddressLines.map((line, index) => (
+                  <p key={`${line}-${index}`} className={index === 0 ? 'font-medium text-gray-900' : 'text-gray-700'}>
+                    {line}
+                  </p>
+                ))}
               </div>
             )}
 

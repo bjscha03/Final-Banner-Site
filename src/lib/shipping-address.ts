@@ -9,6 +9,14 @@ export type ShippingAddress = {
 };
 
 type ShippingAddressInput = Partial<ShippingAddress> & {
+  line1?: string | null;
+  line2?: string | null;
+  address1?: string | null;
+  address2?: string | null;
+  street?: string | null;
+  street2?: string | null;
+  zip?: string | null;
+  postal_code?: string | null;
   shipping_name?: string | null;
   shipping_street?: string | null;
   shipping_street2?: string | null;
@@ -16,21 +24,40 @@ type ShippingAddressInput = Partial<ShippingAddress> & {
   shipping_state?: string | null;
   shipping_zip?: string | null;
   shipping_country?: string | null;
+  shipping_address?: unknown;
   customer_name?: string | null;
 };
 
 const clean = (value: unknown): string => (typeof value === 'string' ? value.trim() : '');
 
+const readLegacyShippingAddress = (value: unknown): Record<string, unknown> => {
+  if (!value) return {};
+  if (typeof value === 'string') {
+    try {
+      const parsed = JSON.parse(value);
+      return parsed && typeof parsed === 'object' ? (parsed as Record<string, unknown>) : {};
+    } catch {
+      return {};
+    }
+  }
+  return value && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+};
+
 export function normalizeShippingAddress(input: ShippingAddressInput | null | undefined): ShippingAddress {
   const source = input || {};
+  const legacyShippingAddress = readLegacyShippingAddress(source.shipping_address);
+  const nestedShippingAddress = (source as { shippingAddress?: unknown }).shippingAddress;
+  const nested = nestedShippingAddress && typeof nestedShippingAddress === 'object'
+    ? (nestedShippingAddress as Record<string, unknown>)
+    : {};
   return {
-    name: clean(source.name) || clean(source.shipping_name) || clean(source.customer_name),
-    line1: clean(source.line1) || clean(source.shipping_street),
-    line2: clean(source.line2) || clean(source.shipping_street2),
-    city: clean(source.city) || clean(source.shipping_city),
-    state: clean(source.state) || clean(source.shipping_state),
-    postalCode: clean(source.postalCode) || clean(source.shipping_zip),
-    country: clean(source.country) || clean(source.shipping_country) || 'US',
+    name: clean(source.name) || clean(nested.name) || clean(legacyShippingAddress.name) || clean(source.shipping_name) || clean(source.customer_name),
+    line1: clean(source.line1) || clean(source.street) || clean(source.address1) || clean(nested.line1) || clean(nested.street) || clean(nested.address1) || clean(legacyShippingAddress.line1) || clean(legacyShippingAddress.street) || clean(legacyShippingAddress.address1) || clean(source.shipping_street),
+    line2: clean(source.line2) || clean(source.street2) || clean(source.address2) || clean(nested.line2) || clean(nested.street2) || clean(nested.address2) || clean(legacyShippingAddress.line2) || clean(legacyShippingAddress.street2) || clean(legacyShippingAddress.address2) || clean(source.shipping_street2),
+    city: clean(source.city) || clean(nested.city) || clean(legacyShippingAddress.city) || clean(source.shipping_city),
+    state: clean(source.state) || clean(nested.state) || clean(legacyShippingAddress.state) || clean(source.shipping_state),
+    postalCode: clean(source.postalCode) || clean(source.zip) || clean(source.postal_code) || clean(nested.postalCode) || clean(nested.zip) || clean(nested.postal_code) || clean(legacyShippingAddress.postalCode) || clean(legacyShippingAddress.zip) || clean(legacyShippingAddress.postal_code) || clean(source.shipping_zip),
+    country: clean(source.country) || clean(nested.country) || clean(legacyShippingAddress.country) || clean(source.shipping_country) || 'US',
   };
 }
 
@@ -49,4 +76,15 @@ export function hasShippingAddress(address: ShippingAddress): boolean {
 export function formatShippingCityStatePostal(address: ShippingAddress): string {
   const cityState = [address.city, address.state].filter(Boolean).join(', ');
   return [cityState, address.postalCode].filter(Boolean).join(' ');
+}
+
+export function formatShippingAddress(address: ShippingAddress): string[] {
+  const cityStatePostal = formatShippingCityStatePostal(address);
+  return [
+    address.name,
+    address.line1,
+    address.line2,
+    cityStatePostal,
+    address.country && address.country !== 'US' ? address.country : '',
+  ].filter(Boolean);
 }

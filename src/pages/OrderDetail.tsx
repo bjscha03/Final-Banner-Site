@@ -4,7 +4,7 @@ import { Package, Calendar, Mail, CreditCard, Truck, CheckCircle, Clock, AlertCi
 import Layout from '@/components/Layout';
 import { useScrollToTop } from '@/components/ScrollToTop';
 import { getItemDisplayName, isYardSignItem, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
-import { formatShippingCityStatePostal, hasShippingAddress, normalizeShippingAddress } from '@/lib/shipping-address';
+import { formatShippingAddress, hasShippingAddress, normalizeShippingAddress } from '@/lib/shipping-address';
 
 const isCloudinaryUploadUrl = (url: string) => {
   try {
@@ -191,9 +191,8 @@ const OrderDetail: React.FC = () => {
     shipping_country: order?.shipping_country,
     customer_name: order?.customer_name,
   });
-  const showShippingCountry = Boolean(shippingAddress.country && shippingAddress.country !== 'US');
   const hasAddressBlock = hasShippingAddress(shippingAddress);
-  const cityStateZipLine = formatShippingCityStatePostal(shippingAddress);
+  const shippingAddressLines = formatShippingAddress(shippingAddress);
   const customerName = order?.customer_name || order?.shipping_name || 'Not provided';
 
   if (loading) {
@@ -285,11 +284,11 @@ const OrderDetail: React.FC = () => {
               <div className="flex items-start gap-3 text-gray-700">
                 <MapPin className="h-5 w-5 text-gray-400 mt-0.5 flex-shrink-0" />
                 <div className="space-y-1">
-                  {shippingAddress.name && <p className="font-medium text-gray-900">{shippingAddress.name}</p>}
-                  {shippingAddress.line1 && <p>{shippingAddress.line1}</p>}
-                  {shippingAddress.line2 && <p>{shippingAddress.line2}</p>}
-                  {cityStateZipLine && <p>{cityStateZipLine}</p>}
-                  {showShippingCountry && <p>{shippingAddress.country}</p>}
+                  {shippingAddressLines.map((line, index) => (
+                    <p key={`${line}-${index}`} className={index === 0 ? 'font-medium text-gray-900' : undefined}>
+                      {line}
+                    </p>
+                  ))}
                 </div>
               </div>
             </div>
