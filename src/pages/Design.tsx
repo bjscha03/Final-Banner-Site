@@ -9,7 +9,12 @@ import { useUIStore } from '@/store/ui';
 import { calcTotals, usd, PRICE_PER_SQFT } from '@/lib/pricing';
 import { DESIGN_GROMMET_OPTIONS } from '@/lib/grommets';
 import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
-import { getQuantityDiscountRate } from '@/lib/quantity-discount';
+import {
+  calculateBannerPricing,
+  POLE_POCKET_SETUP_FEE_CENTS,
+  POLE_POCKET_PRICE_PER_LINEAR_FOOT_CENTS,
+  ROPE_PRICE_PER_LINEAR_FOOT_CENTS,
+} from '@/lib/bannerPricingEngine';
 import { useToast } from '@/components/ui/use-toast';
 import { generateFinalRenderFromHTML } from '@/utils/generateFinalRenderFromHTML';
 import type { ProductTypeSlug } from '@/lib/products';
@@ -468,6 +473,9 @@ const Design: React.FC = () => {
     const height = searchParams.get('height');
     const qty = searchParams.get('qty');
     const materialParam = searchParams.get('material');
+    const grommetsParam = searchParams.get('grommets');
+    const polePocketsParam = searchParams.get('polePockets');
+    const addRopeParam = searchParams.get('addRope');
 
     if (width && height && qty && materialParam) {
       const wIn = parseFloat(width);
@@ -483,6 +491,14 @@ const Design: React.FC = () => {
         setHeightInRStr(String(Math.round(hIn % 12)));
         setMaterial(materialParam as MaterialKey);
         setQuantity(q);
+        const normalizedPolePockets = polePocketsParam || 'none';
+        // Grommets and pole pockets are mutually exclusive finishing options.
+        const normalizedGrommets = normalizedPolePockets !== 'none'
+          ? 'none'
+          : (grommetsParam || 'none');
+        setPolePockets(normalizedPolePockets);
+        setGrommets(normalizedGrommets);
+        setAddRope(addRopeParam === '1' || addRopeParam === 'true');
         setActivePreset(null);
 
         const materialName = {
@@ -558,6 +574,15 @@ const Design: React.FC = () => {
 
   const previewCanvasStyle = useMemo(() => getCanvasStyle(isLgScreen ? 400 : 260), [getCanvasStyle, isLgScreen]);
   const dimPreviewCanvasStyle = useMemo(() => getCanvasStyle(isLgScreen ? 200 : 140), [getCanvasStyle, isLgScreen]);
+  const bannerPricing = calculateBannerPricing({
+    widthIn,
+    heightIn,
+    quantity,
+    material,
+    grommets,
+    addRope,
+    polePockets,
+  });
   const totals = calcTotals({ widthIn, heightIn, qty: quantity, material, addRope, polePockets });
 
   const pricePerSqFt = PRICE_PER_SQFT[material];
@@ -568,8 +593,8 @@ const Design: React.FC = () => {
   const heightDisplay = isCarMagnet ? `${heightIn}"` : (heightInR > 0 ? `${heightFt}'${heightInR}"` : `${heightFt}'`);
 
   // Quantity discount info
-  const quantityDiscountRate = getQuantityDiscountRate(quantity);
-  const discountedTotal = promoApplied ? totals.materialTotal * (1 - PROMO_NEW20_DISCOUNT_RATE) : totals.materialTotal;
+  const quantityDiscountRate = bannerPricing.quantityDiscountRate;
+  const discountedTotal = promoApplied ? (bannerPricing.subtotalCents / 100) * (1 - PROMO_NEW20_DISCOUNT_RATE) : (bannerPricing.subtotalCents / 100);
 
   const scrollToOrder = useCallback(() => {
     setHasEnteredBuilder(true);
@@ -1507,12 +1532,14 @@ const Design: React.FC = () => {
                     <>
                       <div>
                         <span className="text-xs text-gray-600">Grommets</span>
+                        <p className="text-xs font-semibold text-emerald-700">{bannerPricing.grommetsCostCents === 0 ? 'Included Free' : usd(bannerPricing.grommetsCostCents / 100)}</p>
                         <select value={grommets} onChange={e => setGrommets(e.target.value)} className="w-full border rounded-xl px-3 py-1.5 text-base mt-1 bg-white">
                           {DESIGN_GROMMET_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                         </select>
                       </div>
                       <div>
                         <span className="text-xs text-gray-600">Pole Pockets</span>
+                        <p className="text-xs font-semibold text-slate-700">${(POLE_POCKET_SETUP_FEE_CENTS / 100).toFixed(0)} setup fee + ${(POLE_POCKET_PRICE_PER_LINEAR_FOOT_CENTS / 100).toFixed(2)} / linear ft</p>
                         <select value={polePockets} onChange={e => setPolePockets(e.target.value)} className="w-full border rounded-xl px-3 py-1.5 text-base mt-1 bg-white">
                           <option value="none">None</option>
                           <option value="top">Top</option>
@@ -1526,6 +1553,7 @@ const Design: React.FC = () => {
                         <label className="flex items-center gap-2 text-sm cursor-pointer">
                           <input type="checkbox" checked={addRope} onChange={e => setAddRope(e.target.checked)} className="accent-orange-500" /> Rope
                         </label>
+                        <span className="text-xs font-semibold text-slate-700 self-center">${(ROPE_PRICE_PER_LINEAR_FOOT_CENTS / 100).toFixed(2)} / linear ft</span>
                         <label className="flex items-center gap-2 text-sm cursor-pointer">
                           <input type="checkbox" checked={hemming} onChange={e => setHemming(e.target.checked)} className="accent-orange-500" /> Hemming (included)
                         </label>
@@ -1546,7 +1574,7 @@ const Design: React.FC = () => {
                     <p className="text-sm text-green-600 font-semibold mt-1">You save {usd(totals.materialTotal - discountedTotal)}!</p>
                   </>
                 ) : (
-                  <p className="text-5xl font-extrabold text-gray-900 leading-tight">{usd(isCarMagnet && carMagnetPricing ? carMagnetPricing.subtotalCents / 100 : totals.materialTotal)}</p>
+                  <p className="text-5xl font-extrabold text-gray-900 leading-tight">{usd(isCarMagnet && carMagnetPricing ? carMagnetPricing.subtotalCents / 100 : bannerPricing.subtotalCents / 100)}</p>
                 )}
                 <p className="text-base text-green-600 font-semibold mt-2">FREE Next-Day Air Included</p>
                 <p className="text-sm text-gray-500 mt-1">Printed within 24 hours.</p>
@@ -1562,8 +1590,13 @@ const Design: React.FC = () => {
                   ) : (
                     <>
                       <p><strong>Grommets:</strong> {grommetsLabel}</p>
-                      {polePockets !== 'none' && <p><strong>Pole Pockets:</strong> {polePockets}</p>}
-                      {addRope && <p><strong>Rope:</strong> Included</p>}
+                      {polePockets !== 'none' && <p><strong>Pole Pockets:</strong> {polePockets} ({usd(bannerPricing.polePocketCostCents / 100)})</p>}
+                      {addRope && <p><strong>Rope:</strong> {usd(bannerPricing.ropeCostCents / 100)}</p>}
+                      <p><strong>Base Banner:</strong> {usd(bannerPricing.baseBannerPriceCents / 100)}</p>
+                      {bannerPricing.quantityDiscountCents > 0 && <p><strong>Quantity Discount:</strong> -{usd(bannerPricing.quantityDiscountCents / 100)}</p>}
+                      <p><strong>Subtotal:</strong> {usd(bannerPricing.subtotalCents / 100)}</p>
+                      <p><strong>Tax:</strong> {usd(bannerPricing.taxCents / 100)}</p>
+                      <p><strong>Total:</strong> {usd(bannerPricing.totalCents / 100)}</p>
                     </>
                   )}
                 </div>

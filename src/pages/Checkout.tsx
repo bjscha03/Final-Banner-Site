@@ -97,27 +97,12 @@ const Checkout: React.FC = () => {
 
   // Helper to compute rope cost with backward compatibility
   const getRopeCost = (item: CartItem): number => {
-    if (item.rope_cost_cents !== undefined && item.rope_cost_cents !== null) {
-      return item.rope_cost_cents;
-    }
-    if (item.rope_feet && item.rope_feet > 0) {
-      return Math.round(item.rope_feet * 2 * item.quantity * 100);
-    }
-    return 0;
+    return item.rope_cost_cents ?? 0;
   };
 
   // Helper to compute pole pocket cost with backward compatibility
   const getPolePocketCost = (item: CartItem): number => {
-    if (item.pole_pocket_cost_cents !== undefined && item.pole_pocket_cost_cents !== null) {
-      return item.pole_pocket_cost_cents;
-    }
-    if (item.pole_pockets && item.pole_pockets !== 'none') {
-      const baseTotal = item.unit_price_cents * item.quantity;
-      const ropeTotal = getRopeCost(item);
-      const pocketTotal = Math.max(0, item.line_total_cents - baseTotal - ropeTotal);
-      return pocketTotal;
-    }
-    return 0;
+    return item.pole_pocket_cost_cents ?? 0;
   };
 
   // Compute "each" price

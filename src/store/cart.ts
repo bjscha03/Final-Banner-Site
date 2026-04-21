@@ -8,6 +8,7 @@ import { cartSync } from '@/lib/cartSync';
 import { trackAddToCart, trackFBAddToCart } from '@/lib/analytics';
 import { getProductConfig } from '@/lib/products';
 import type { ProductTypeSlug } from '@/lib/products';
+import { calculateBannerPricing } from '@/lib/bannerPricingEngine';
 
 
 // PERFORMANCE: Disable verbose logging in production for faster cart operations
@@ -208,38 +209,26 @@ const migrateCartItem = (item: CartItem): CartItem => {
   }
 
 
-  // Recompute pricing from scratch
-  const area = item.area_sqft || (item.width_in * item.height_in) / 144;
-  const pricePerSqFt = (getProductConfig(item.product_type).materialPriceMap as Record<MaterialKey, number>)[item.material];
-  const unit_price_cents = Math.max(MINIMUM_UNIT_PRICE_CENTS, Math.round(area * (pricePerSqFt ?? 4.5) * 100));
+  if ((item.product_type || 'banner') !== 'banner') {
+    return item;
+  }
 
-  // Compute rope cost
-  const ropeFeet = item.rope_feet || 0;
-  const rope_cost_cents = ropeFeet > 0 ? Math.round(ropeFeet * 2 * item.quantity * 100) : 0;
+  const bannerPricing = calculateBannerPricing({
+    widthIn: item.width_in,
+    heightIn: item.height_in,
+    quantity: item.quantity,
+    material: item.material,
+    grommets: item.grommets,
+    // Backward compatibility: older records may use pole_pocket_position.
+    polePockets: item.pole_pockets || item.pole_pocket_position || 'none',
+    addRope: (item.rope_feet || 0) > 0,
+  });
 
-  // Compute pole pocket cost
-  const pole_pocket_cost_cents = (() => {
-    if (!item.pole_pockets || item.pole_pockets === 'none') return 0;
-    const setupFee = 1500; // cents
-    const pricePerLinearFoot = 200; // cents
-    let linearFeet = 0;
-    switch (item.pole_pockets) {
-      case 'top':
-      case 'bottom':
-        linearFeet = item.width_in / 12; break;
-      case 'left':
-      case 'right':
-        linearFeet = item.height_in / 12; break;
-      case 'top-bottom':
-        linearFeet = (item.width_in / 12) * 2; break;
-      default:
-        linearFeet = 0;
-    }
-    return Math.round((setupFee + (linearFeet * pricePerLinearFoot)) * item.quantity);
-  })();
-
-  // Compute line total
-  const line_total_cents = unit_price_cents * item.quantity + rope_cost_cents + pole_pocket_cost_cents;
+  const unit_price_cents = bannerPricing.unitBasePriceCents;
+  const rope_cost_cents = bannerPricing.ropeCostCents;
+  const pole_pocket_cost_cents = bannerPricing.polePocketCostCents;
+  const line_total_cents = bannerPricing.subtotalBeforeDiscountCents;
+  const ropeFeet = bannerPricing.ropeLinearFeet;
 
   const migratedItem = {
     ...item,
@@ -272,30 +261,31 @@ export const useCartStore = create<CartState>()(
         const area = (quote.widthIn * quote.heightIn) / 144;
         const activeProductType = ((quote as { product_type?: ProductTypeSlug }).product_type || 'banner');
         const productConfig = getProductConfig(activeProductType);
+        const fallbackBannerPricing = activeProductType === 'banner'
+          ? calculateBannerPricing({
+              widthIn: quote.widthIn,
+              heightIn: quote.heightIn,
+              quantity: quote.quantity,
+              material: quote.material,
+              grommets: quote.grommets,
+              polePockets: quote.polePockets,
+              addRope: quote.addRope,
+            })
+          : null;
         const pricePerSqFt = (productConfig.materialPriceMap as Record<MaterialKey, number>)[quote.material];
-        const computedUnit = Math.max(MINIMUM_UNIT_PRICE_CENTS, Math.round(area * (pricePerSqFt ?? 4.5) * 100));
-        const ropeFeet = quote.addRope ? quote.widthIn / 12 : 0;
-        const computedRope = Math.round(ropeFeet * 2 * quote.quantity * 100);
-        const computedPole = (() => {
-          if (quote.polePockets === 'none') return 0;
-          const setupFee = 1500; // cents
-          const pricePerLinearFoot = 200; // cents
-          let linearFeet = 0;
-          switch (quote.polePockets) {
-            case 'top':
-            case 'bottom':
-              linearFeet = quote.widthIn / 12; break;
-            case 'left':
-            case 'right':
-              linearFeet = quote.heightIn / 12; break;
-            case 'top-bottom':
-              linearFeet = (quote.widthIn / 12) * 2; break;
-            default:
-              linearFeet = 0;
-          }
-          return Math.round((setupFee + (linearFeet * pricePerLinearFoot)) * quote.quantity);
-        })();
-        const computedLine = computedUnit * quote.quantity + computedRope + computedPole;
+        const computedUnit = fallbackBannerPricing
+          ? fallbackBannerPricing.unitBasePriceCents
+          : Math.max(MINIMUM_UNIT_PRICE_CENTS, Math.round(area * (pricePerSqFt ?? 4.5) * 100));
+        const ropeFeet = fallbackBannerPricing ? fallbackBannerPricing.ropeLinearFeet : (quote.addRope ? quote.widthIn / 12 : 0);
+        const computedRope = fallbackBannerPricing
+          ? fallbackBannerPricing.ropeCostCents
+          : Math.round(ropeFeet * 2 * quote.quantity * 100);
+        const computedPole = fallbackBannerPricing
+          ? fallbackBannerPricing.polePocketCostCents
+          : 0;
+        const computedLine = fallbackBannerPricing
+          ? fallbackBannerPricing.subtotalBeforeDiscountCents
+          : computedUnit * quote.quantity + computedRope + computedPole;
 
         // CRITICAL: Always use authoritative pricing when provided
         // Fallback to computed values only if pricing is not provided
@@ -531,7 +521,7 @@ export const useCartStore = create<CartState>()(
                 const perOrderRope = migratedItem.rope_pricing_mode === 'per_order' ? migratedItem.rope_cost_cents : 0;
                 const perOrderPockets = migratedItem.pole_pocket_pricing_mode === 'per_order' ? migratedItem.pole_pocket_cost_cents : 0;
                 const perItemRope = migratedItem.rope_pricing_mode === 'per_item' ? Math.round((migratedItem.rope_cost_cents / Math.max(1, migratedItem.quantity)) * quantity) : 0;
-                const perItemPockets = migratedItem.rope_pricing_mode === 'per_item' ? Math.round((migratedItem.pole_pocket_cost_cents / Math.max(1, migratedItem.quantity)) * quantity) : 0;
+                const perItemPockets = migratedItem.pole_pocket_pricing_mode === 'per_item' ? Math.round((migratedItem.pole_pocket_cost_cents / Math.max(1, migratedItem.quantity)) * quantity) : 0;
                 const baseCost = migratedItem.unit_price_cents * quantity;
                 return Math.round(baseCost + perOrderRope + perOrderPockets + perItemRope + perItemPockets);
               })()
@@ -580,31 +570,33 @@ export const useCartStore = create<CartState>()(
 
         // Compute fallbacks if not provided
         const area = (quote.widthIn * quote.heightIn) / 144;
-        const productConfig = getProductConfig(existingItem.product_type);
+        const productType = existingItem.product_type || 'banner';
+        const productConfig = getProductConfig(productType);
+        const fallbackBannerPricing = productType === 'banner'
+          ? calculateBannerPricing({
+              widthIn: quote.widthIn,
+              heightIn: quote.heightIn,
+              quantity: quote.quantity,
+              material: quote.material,
+              grommets: quote.grommets,
+              polePockets: quote.polePockets,
+              addRope: quote.addRope,
+            })
+          : null;
         const pricePerSqFt = (productConfig.materialPriceMap as Record<MaterialKey, number>)[quote.material];
-        const computedUnit = Math.max(MINIMUM_UNIT_PRICE_CENTS, Math.round(area * (pricePerSqFt ?? 4.5) * 100));
-        const ropeFeet = quote.addRope ? quote.widthIn / 12 : 0;
-        const computedRope = Math.round(ropeFeet * 2 * quote.quantity * 100);
-        const computedPole = (() => {
-          if (quote.polePockets === 'none') return 0;
-          const setupFee = 1500; // cents
-          const pricePerLinearFoot = 200; // cents
-          let linearFeet = 0;
-          switch (quote.polePockets) {
-            case 'top':
-            case 'bottom':
-              linearFeet = quote.widthIn / 12; break;
-            case 'left':
-            case 'right':
-              linearFeet = quote.heightIn / 12; break;
-            case 'top-bottom':
-              linearFeet = (quote.widthIn / 12) * 2; break;
-            default:
-              linearFeet = 0;
-          }
-          return Math.round((setupFee + (linearFeet * pricePerLinearFoot)) * quote.quantity);
-        })();
-        const computedLine = computedUnit * quote.quantity + computedRope + computedPole;
+        const computedUnit = fallbackBannerPricing
+          ? fallbackBannerPricing.unitBasePriceCents
+          : Math.max(MINIMUM_UNIT_PRICE_CENTS, Math.round(area * (pricePerSqFt ?? 4.5) * 100));
+        const ropeFeet = fallbackBannerPricing ? fallbackBannerPricing.ropeLinearFeet : (quote.addRope ? quote.widthIn / 12 : 0);
+        const computedRope = fallbackBannerPricing
+          ? fallbackBannerPricing.ropeCostCents
+          : Math.round(ropeFeet * 2 * quote.quantity * 100);
+        const computedPole = fallbackBannerPricing
+          ? fallbackBannerPricing.polePocketCostCents
+          : 0;
+        const computedLine = fallbackBannerPricing
+          ? fallbackBannerPricing.subtotalBeforeDiscountCents
+          : computedUnit * quote.quantity + computedRope + computedPole;
 
         // CRITICAL: Always use authoritative pricing when provided
         // Fallback to computed values only if pricing is not provided

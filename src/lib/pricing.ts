@@ -1,6 +1,7 @@
 import { MaterialKey } from '@/store/quote';
 import { calculateQuantityDiscount } from './quantity-discount';
 import { getProductConfig, DEFAULT_PRODUCT_TYPE } from './products';
+import { calculateBannerPricing, getPolePocketLinearFeet, getRopeLinearFeet } from './bannerPricingEngine';
 
 // Read material pricing from the product registry (banner is the default)
 const bannerConfig = getProductConfig(DEFAULT_PRODUCT_TYPE);
@@ -18,34 +19,13 @@ export const inchesToSqFt = (widthIn: number, heightIn: number): number => {
 };
 
 export const ropeCost = (widthIn: number, quantity: number): number => {
-  return (widthIn / 12) * 2 * quantity;
+  return getRopeLinearFeet(widthIn) * 2 * quantity;
 };
 
 export const polePocketCost = (widthIn: number, heightIn: number, polePockets: string, quantity: number): number => {
   if (polePockets === 'none') return 0;
-
-  const setupFee = 15.00;
-  const pricePerLinearFoot = 2.00;
-
-  let linearFeet = 0;
-
-  switch (polePockets) {
-    case 'top':
-    case 'bottom':
-      linearFeet = widthIn / 12;
-      break;
-    case 'left':
-    case 'right':
-      linearFeet = heightIn / 12;
-      break;
-    case 'top-bottom':
-      linearFeet = (widthIn / 12) * 2;
-      break;
-    default:
-      linearFeet = 0;
-  }
-
-  return setupFee + (linearFeet * pricePerLinearFoot * quantity);
+  const linearFeet = getPolePocketLinearFeet(widthIn, heightIn, polePockets);
+  return 15 + (linearFeet * 2 * quantity);
 };
 
 export interface CalcTotalsParams {
@@ -75,11 +55,19 @@ export function calcTotals({
   addRope,
   polePockets = 'none'
 }: CalcTotalsParams): CalcTotalsResult {
-  const area = inchesToSqFt(widthIn, heightIn);
-  const unit = Math.max(MINIMUM_UNIT_PRICE, area * PRICE_PER_SQFT[material]);
-  const rope = addRope ? ropeCost(widthIn, qty) : 0;
-  const polePocket = polePocketCost(widthIn, heightIn, polePockets, qty);
-  const materialTotal = unit * qty + rope + polePocket;
+  const pricing = calculateBannerPricing({
+    widthIn,
+    heightIn,
+    quantity: qty,
+    material,
+    addRope,
+    polePockets,
+  });
+  const area = pricing.areaSqFt;
+  const unit = pricing.unitBasePriceCents / 100;
+  const rope = pricing.ropeCostCents / 100;
+  const polePocket = pricing.polePocketCostCents / 100;
+  const materialTotal = pricing.subtotalBeforeDiscountCents / 100;
   const tax = materialTotal * TAX_RATE;
   const totalWithTax = materialTotal + tax;
 
