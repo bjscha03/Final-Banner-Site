@@ -97,6 +97,8 @@ const Design: React.FC = () => {
   const { toast } = useToast();
   const orderRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [hasEnteredBuilder, setHasEnteredBuilder] = useState(false);
+  const [isBuilderInView, setIsBuilderInView] = useState(false);
 
   // Product type state — read ?tab= or ?product= query param for routing
   const initialProductType = (() => {
@@ -377,7 +379,27 @@ const Design: React.FC = () => {
   const quantityDiscountRate = getQuantityDiscountRate(quantity);
   const discountedTotal = promoApplied ? totals.materialTotal * (1 - PROMO_NEW20_DISCOUNT_RATE) : totals.materialTotal;
 
-  const scrollToOrder = () => orderRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToOrder = useCallback(() => {
+    setHasEnteredBuilder(true);
+    orderRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
+
+  useEffect(() => {
+    const section = orderRef.current;
+    if (!section || typeof IntersectionObserver === 'undefined') return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        const inView = entry.isIntersecting;
+        setIsBuilderInView(inView);
+        if (inView) setHasEnteredBuilder(true);
+      },
+      { threshold: 0.25 },
+    );
+
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, []);
 
   const applyPreset = (idx: number) => {
     const p = PRESET_SIZES[idx];
@@ -830,6 +852,17 @@ const Design: React.FC = () => {
     setIsDraggingPreview(false);
     setLastPinchDist(null);
   }, []);
+
+  const mobileCheckoutReady = isYardSign
+    ? yardSignTotalQty > 0 && yardSignQuantityValid.valid
+    : !!uploadedFile;
+  const showEntryCta = !hasEnteredBuilder;
+  const mobileCtaLabel = showEntryCta
+    ? 'Start Order'
+    : (mobileCheckoutReady ? 'Checkout' : 'Continue Building');
+  const mobileCtaAction = showEntryCta
+    ? scrollToOrder
+    : (mobileCheckoutReady ? handleCheckout : scrollToOrder);
 
   return (
     <Layout>
@@ -1329,11 +1362,15 @@ const Design: React.FC = () => {
       </section>
 
       {/* Mobile sticky CTA */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg z-40" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 1rem))' }}>
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg z-40 overflow-x-clip" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 1rem))' }}>
         <div className="flex items-center justify-between gap-3">
-          <div>
+          <div className="min-w-0">
             <p className="text-xs text-gray-500">Total</p>
-            {promoApplied ? (
+            {isYardSign && yardSignPricing ? (
+              <p className="text-xl font-bold text-gray-900">
+                {yardSignTotalQty > 0 ? usd(yardSignPricing.totalCents / 100) : '—'}
+              </p>
+            ) : promoApplied ? (
               <div className="flex items-center gap-2">
                 <p className="text-sm text-gray-400 line-through">{usd(totals.materialTotal)}</p>
                 <p className="text-xl font-bold text-green-600">{usd(discountedTotal)}</p>
@@ -1343,10 +1380,11 @@ const Design: React.FC = () => {
             )}
           </div>
           <button
-            onClick={uploadedFile ? handleCheckout : scrollToOrder}
-            className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-xl"
+            onClick={mobileCtaAction}
+            disabled={!showEntryCta && isBuilderInView && !mobileCheckoutReady}
+            className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-xl disabled:bg-orange-300 disabled:cursor-not-allowed"
           >
-            {uploadedFile ? 'Checkout' : 'Start Order'}
+            {mobileCtaLabel}
           </button>
         </div>
       </div>

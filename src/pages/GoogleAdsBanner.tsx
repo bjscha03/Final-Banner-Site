@@ -102,6 +102,8 @@ const GoogleAdsBanner: React.FC = () => {
   const [searchParams] = useSearchParams();
   const orderRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [hasEnteredBuilder, setHasEnteredBuilder] = useState(false);
+  const [isBuilderInView, setIsBuilderInView] = useState(false);
 
   // Admin detection for yard signs visibility
   const { user } = useAuth();
@@ -359,7 +361,27 @@ const GoogleAdsBanner: React.FC = () => {
     useCartStore.getState().removeItem(editItemId);
   }, [editItemId, editItemRestored]);
 
-  const scrollToOrder = () => orderRef.current?.scrollIntoView({ behavior: 'smooth' });
+  const scrollToOrder = useCallback(() => {
+    setHasEnteredBuilder(true);
+    orderRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, []);
+
+  useEffect(() => {
+    const section = orderRef.current;
+    if (!section || typeof IntersectionObserver === 'undefined') return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        const inView = entry.isIntersecting;
+        setIsBuilderInView(inView);
+        if (inView) setHasEnteredBuilder(true);
+      },
+      { threshold: 0.25 },
+    );
+
+    observer.observe(section);
+    return () => observer.disconnect();
+  }, []);
 
   // Handle product type switch — reset state
   const handleProductTypeChange = useCallback((newType: ProductTypeSlug) => {
@@ -827,6 +849,17 @@ const GoogleAdsBanner: React.FC = () => {
     setIsDraggingPreview(false);
     setLastPinchDist(null);
   }, []);
+
+  const mobileCheckoutReady = isYardSign
+    ? yardSignTotalQty > 0 && yardSignQuantityValid.valid
+    : !!uploadedFile;
+  const showEntryCta = !hasEnteredBuilder;
+  const mobileCtaLabel = showEntryCta
+    ? 'Start Order'
+    : (mobileCheckoutReady ? 'Checkout' : 'Continue Building');
+  const mobileCtaAction = showEntryCta
+    ? scrollToOrder
+    : (mobileCheckoutReady ? handleCheckout : scrollToOrder);
 
   return (
     <>
@@ -1450,9 +1483,9 @@ const GoogleAdsBanner: React.FC = () => {
       </div>
 
         {/* Mobile sticky CTA */}
-        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg z-40" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 1rem))' }}>
+        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg z-40 overflow-x-clip" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 1rem))' }}>
           <div className="flex items-center justify-between gap-3">
-            <div>
+            <div className="min-w-0">
               <p className="text-xs text-gray-500">Total</p>
               {isYardSign && yardSignPricing ? (
                 <p className="text-xl font-bold text-gray-900">
@@ -1468,17 +1501,11 @@ const GoogleAdsBanner: React.FC = () => {
               )}
             </div>
             <button
-              onClick={isYardSign
-                ? (yardSignDesigns.length > 0 ? handleCheckout : scrollToOrder)
-                : (uploadedFile ? handleCheckout : scrollToOrder)
-              }
-              disabled={isYardSign && yardSignDesigns.length > 0 && !yardSignQuantityValid.valid}
+              onClick={mobileCtaAction}
+              disabled={!showEntryCta && isBuilderInView && !mobileCheckoutReady}
               className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-xl disabled:bg-orange-300 disabled:cursor-not-allowed"
             >
-              {isYardSign
-                ? (yardSignDesigns.length > 0 ? 'Checkout' : 'Start Order')
-                : (uploadedFile ? 'Checkout' : 'Start Order')
-              }
+              {mobileCtaLabel}
             </button>
           </div>
         </div>

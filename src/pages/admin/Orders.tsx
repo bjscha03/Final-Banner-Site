@@ -33,13 +33,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar as CalendarIcon, Star, ShoppingCart } from 'lucide-react';
 import OrderDetails from '@/components/orders/OrderDetails';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from '@/components/ui/dialog';
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -736,8 +729,8 @@ const AdminOrders: React.FC = () => {
 
   return (
     <Layout>
-      <div className="min-h-screen bg-gray-50 py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-gray-50 py-12 overflow-x-clip">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 overflow-x-clip">
           {/* Header */}
           <div className="mb-8">
             <div className="flex items-center justify-between">
@@ -764,18 +757,18 @@ const AdminOrders: React.FC = () => {
           {/* Admin Navigation */}
           <div className="mb-6">
             <Tabs value="orders" className="w-full">
-              <TabsList>
-                <TabsTrigger value="orders" className="flex items-center gap-2">
+              <TabsList className="w-full h-auto flex flex-wrap gap-2 justify-start">
+                <TabsTrigger value="orders" className="flex items-center gap-2 min-w-0">
                   <Package className="h-4 w-4" />
                   Orders
                 </TabsTrigger>
-                <TabsTrigger value="events" className="flex items-center gap-2" asChild>
+                <TabsTrigger value="events" className="flex items-center gap-2 min-w-0" asChild>
                   <a href="/admin/events">
                     <Star className="h-4 w-4" />
                     Events
                   </a>
                 </TabsTrigger>
-                <TabsTrigger value="abandoned-carts" className="flex items-center gap-2" asChild>
+                <TabsTrigger value="abandoned-carts" className="flex items-center gap-2 min-w-0" asChild>
                   <a href="/admin/abandoned-carts">
                     <ShoppingCart className="h-4 w-4" />
                     Abandoned Carts
@@ -886,7 +879,7 @@ const AdminOrders: React.FC = () => {
             ) : (
               <>
                 {/* Mobile Card View */}
-                <div className="block md:hidden">
+                  <div className="block md:hidden overflow-x-clip">
                   {filteredOrders.map((order) => (
                     <AdminOrderCard
                       key={order.id}
@@ -1468,13 +1461,11 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
   };
 
   return (
-    <div className="border-b border-gray-200 p-4 hover:bg-gray-50">
-      {/* Thumbnail and Order Header */}
-      <div className="flex gap-3 mb-3">
-        {/* Thumbnail */}
+    <div className="border-b border-gray-200 p-4 hover:bg-gray-50 overflow-x-clip">
+      <div className="flex gap-3 items-start min-w-0">
         {getFirstItemThumbnail() ? (
-          <img 
-            src={getFirstItemThumbnail()} 
+          <img
+            src={getFirstItemThumbnail()}
             alt="Banner preview"
             className="w-16 h-12 object-cover rounded border border-gray-200 flex-shrink-0"
             onError={(e) => {
@@ -1486,55 +1477,63 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
             <span className="text-xs text-gray-400">No img</span>
           </div>
         )}
-        {/* Order Header */}
-        <div className="flex-1 flex justify-between items-start">
-          <div>
-            <div className="font-mono text-sm font-semibold text-[#18448D]">
-              #{order.id.slice(-8).toUpperCase()}
+        <div className="min-w-0 flex-1 space-y-2">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="font-mono text-sm font-semibold text-[#18448D] break-all">#{order.id.slice(-8).toUpperCase()}</div>
+              <div className="text-xs text-gray-500">{new Date(order.created_at).toLocaleDateString()}</div>
+              <div className="text-sm font-medium text-gray-900 break-words">{order.customer_name || order.shipping_name || 'Not provided'}</div>
+              <div className="text-xs text-gray-600 break-all">{order.email || 'No email'}</div>
             </div>
-            <div className="text-xs text-gray-500 mt-1">
-              {new Date(order.created_at).toLocaleDateString()}
+            <div className="flex flex-col gap-1 items-end shrink-0">
+              <Badge className={`${getStatusColor(order.status)} capitalize`}>
+                {getStatusLabel(order.status)}
+              </Badge>
+              {order.items.some(item => item.design_service_enabled) && (
+                <Badge className="bg-purple-100 text-purple-800 text-xs">
+                  <Palette className="h-3 w-3 mr-1" />
+                  Design
+                </Badge>
+              )}
             </div>
           </div>
-          <div className="flex flex-col gap-1 items-end">
-            <Badge className={`${getStatusColor(order.status)} capitalize`}>
-              {getStatusLabel(order.status)}
-            </Badge>
-            {order.items.some(item => item.design_service_enabled) && (
-              <Badge className="bg-purple-100 text-purple-800 text-xs">
-                <Palette className="h-3 w-3 mr-1" />
-                Design
-              </Badge>
+
+          <div className="grid grid-cols-1 gap-2 rounded-lg border border-gray-200 bg-gray-50 p-3">
+            <div>
+              <div className="text-xs text-gray-500">Items</div>
+              <div className="text-sm text-gray-800 break-words">{getItemsSummary(order)}</div>
+            </div>
+            <div>
+              <div className="text-xs text-gray-500">Total</div>
+              <div className="text-lg font-bold text-[#18448D]">{usd(order.total_cents / 100)}</div>
+            </div>
+            {order.tracking_number && (
+              <div className="min-w-0">
+                <div className="text-xs text-gray-500 mb-1">Tracking</div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Badge className="bg-green-100 text-green-800">
+                    <Truck className="h-3 w-3 mr-1" />
+                    {(order.tracking_carrier || 'carrier tbd').toUpperCase()}
+                  </Badge>
+                  <a
+                    href={fedexUrl(order.tracking_number)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-blue-600 hover:underline break-all"
+                  >
+                    {order.tracking_number}
+                  </a>
+                </div>
+              </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* Customer Info */}
-      <div className="mb-3">
-        <div className="text-xs text-gray-500">Customer</div>
-        <div className="text-sm font-medium truncate">{order.customer_name || order.shipping_name || 'Not provided'}</div>
-        <div className="text-xs text-gray-600 truncate">{order.email || 'No email'}</div>
-      </div>
-
-      {/* Items Summary */}
-      <div className="mb-3">
-        <div className="text-xs text-gray-500">Items</div>
-        <div className="text-sm">{getItemsSummary(order)}</div>
-      </div>
-
-      {/* Total */}
-      <div className="mb-3">
-        <div className="text-xs text-gray-500">Total</div>
-        <div className="text-lg font-bold text-[#18448D]">{usd(order.total_cents / 100)}</div>
-      </div>
-
-      {/* Print File Downloads */}
       {(getFilesWithDownload().length > 0 || order.items.some(item => item.final_print_pdf_url)) && (
-        <div className="mb-3">
+        <div className="mt-3">
           <div className="text-xs text-gray-500 mb-2">Print Files</div>
-          <div className="flex flex-wrap gap-2">
-            {/* Show uploaded Final Print Files for design service orders */}
+          <div className="grid grid-cols-1 gap-2">
             {order.items
               .map((item, index) => ({ item, index }))
               .filter(({ item }) => item.final_print_pdf_url)
@@ -1544,13 +1543,12 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
                   href={item.final_print_pdf_url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center text-xs text-purple-600 hover:text-purple-800 font-medium bg-purple-50 px-3 py-1.5 rounded"
+                  className="inline-flex items-center justify-center text-xs text-purple-700 hover:text-purple-900 font-medium bg-purple-50 border border-purple-200 px-3 py-2 rounded"
                 >
                   <Download className="h-3 w-3 mr-1" />
                   Final Print File {order.items.length > 1 ? `#${index + 1}` : ''}
                 </a>
               ))}
-            {/* Show Generate Print File buttons for regular orders */}
             {getFilesWithDownload().map(({ item, index }) => (
               <Button
                 key={index}
@@ -1558,7 +1556,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
                 variant="outline"
                 onClick={() => onPdfDownload(item, index, order.id)}
                 disabled={pdfLoadingStates[`${order.id}-${index}`]}
-                className="text-xs h-8 px-3"
+                className="text-xs h-9 px-3 w-full justify-center"
               >
                 {pdfLoadingStates[`${order.id}-${index}`] ? (
                   <>
@@ -1577,30 +1575,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
         </div>
       )}
 
-      {/* Tracking Info */}
-      {order.tracking_number && (
-        <div className="mb-3">
-          <div className="text-xs text-gray-500 mb-1">Tracking</div>
-          <div className="flex items-center gap-2">
-            <Badge className="bg-green-100 text-green-800">
-              <Truck className="h-3 w-3 mr-1" />
-              {order.tracking_carrier?.toUpperCase()}
-            </Badge>
-            <a
-              href={fedexUrl(order.tracking_number)}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs text-blue-600 hover:underline truncate"
-            >
-              {order.tracking_number}
-            </a>
-          </div>
-        </div>
-      )}
-
-      {/* View Details Button */}
       <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
-        {/* Mark as In Production Button - show for paid orders not yet in production */}
         {order.status === 'paid' && !order.production_email_sent && (
           <Button
             size="sm"
@@ -1623,28 +1598,23 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
           </Button>
         )}
 
-        {/* Show in-production timestamp */}
         {order.status === 'in_production' && order.production_email_sent_at && (
-          <div className="text-xs text-yellow-700 flex items-center justify-center">
+          <div className="text-xs text-yellow-700 flex items-center justify-center text-center">
             <Package className="h-3 w-3 mr-1" />
             In Production since {new Date(order.production_email_sent_at).toLocaleDateString()}
           </div>
         )}
 
-        <Dialog>
-          <DialogTrigger asChild>
+        <OrderDetails
+          order={order}
+          onUploadFinalPdf={onUploadFinalPdf}
+          trigger={
             <Button size="sm" variant="outline" className="w-full">
               <Eye className="h-3 w-3 mr-1" />
-              View Full Details
+              View
             </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>Order #{order.id.slice(-8).toUpperCase()}</DialogTitle>
-            </DialogHeader>
-            <OrderDetails order={order} onUploadFinalPdf={onUploadFinalPdf} />
-          </DialogContent>
-        </Dialog>
+          }
+        />
       </div>
     </div>
   );
