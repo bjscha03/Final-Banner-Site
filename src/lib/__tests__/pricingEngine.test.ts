@@ -80,7 +80,9 @@ describe('pricingEngine', () => {
   describe('car magnet calcCarMagnetPricing direct (legacy)', () => {
     it('exposes baseSubtotalCents AND post-discount subtotalCents', () => {
       const r = calcCarMagnetPricing(18, 12, 3);
-      // Base price for 18x12 magnet is $22.00 each → $66.00 base for qty 3.
+      // 18×12 magnet base price comes from CAR_MAGNET_SIZES in
+      // car-magnet-pricing.ts (currently $22.00 each → 6600¢ for qty 3).
+      // If that constant changes this assertion will need to be updated.
       expect(r.baseSubtotalCents).toBe(6600);
       // 7% discount = $4.62
       expect(r.quantityDiscountCents).toBe(462);

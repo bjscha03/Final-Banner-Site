@@ -607,11 +607,12 @@ const Design: React.FC = () => {
   // pre-discount subtotal (subtotalBeforeDiscountCents) so the resolver
   // chooses correctly between the quantity tier and the promo rate without
   // double-discounting.
+  const effectivePromoCode = promoApplied ? promoCode : null;
   const bannerPromoResolution = useMemo(() => resolvePromo({
     subtotalCents: bannerPricing.subtotalBeforeDiscountCents,
     quantity,
-    code: promoApplied ? promoCode : null,
-  }), [bannerPricing.subtotalBeforeDiscountCents, quantity, promoApplied, promoCode]);
+    code: effectivePromoCode,
+  }), [bannerPricing.subtotalBeforeDiscountCents, quantity, effectivePromoCode]);
 
   const bannerSubtotalAfterAllDiscountsCents = Math.max(
     0,

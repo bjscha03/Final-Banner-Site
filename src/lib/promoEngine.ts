@@ -28,7 +28,11 @@ export const BEST_DISCOUNT_WINS = true as const;
 
 export interface KnownPromoCode {
   code: string;
-  /** Decimal rate, e.g. 0.20 for 20% off. */
+  /**
+   * Discount percentage as a 1-100 number (e.g. 20 means 20% off). This
+   * matches the wire shape used by `PromoDiscountInput.discountPercentage`
+   * in `discount-resolver.ts`.
+   */
   discountPercentage: number;
   /** Free-text description (UI only). */
   description: string;
