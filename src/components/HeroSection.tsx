@@ -58,20 +58,13 @@ const HeroSection: React.FC = () => {
               <span className="font-extrabold">High-quality vinyl</span> • <span className="font-extrabold">Designer reviewed</span> • <span className="font-extrabold">20% off your first order</span>
             </p>
 
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-1">
+            <div className="flex items-center justify-center pt-2 pb-1">
               <button
                 onClick={handleUploadOrCreate}
-                className="group relative px-8 py-3.5 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-red-500 text-white text-base font-semibold rounded-lg transition-all duration-300 min-w-[220px] shadow-lg hover:shadow-orange-500/40 hover:shadow-xl hover:-translate-y-0.5 overflow-hidden"
+                className="group relative px-10 py-4 sm:px-11 sm:py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-red-500 text-white text-lg font-bold rounded-lg transition-all duration-300 min-w-[240px] shadow-xl shadow-orange-900/30 hover:shadow-orange-500/45 hover:shadow-2xl hover:-translate-y-0.5 overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
               >
                 <span className="relative z-10">Upload Your Design →</span>
                 <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent opacity-0 group-hover:opacity-100 group-hover:animate-[btn-shine_0.8s_ease-in-out]" />
-              </button>
-
-              <button
-                onClick={handleUploadOrCreate}
-                className="px-8 py-3.5 bg-slate-700/55 hover:bg-slate-600/75 border border-slate-300/55 hover:border-slate-200 text-white text-base font-semibold rounded-lg transition-all duration-300 min-w-[220px] flex items-center justify-center gap-2 shadow-lg hover:shadow-xl hover:-translate-y-0.5"
-              >
-                Start Your Design
               </button>
             </div>
 
