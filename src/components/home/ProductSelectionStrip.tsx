@@ -30,28 +30,28 @@ const products = [
 
 const ProductSelectionStrip: React.FC = () => {
   return (
-    <section className="bg-white py-8 sm:py-10">
-      <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-6">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6">
+    <section className="bg-white py-10 sm:py-12 md:py-14">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5">
           {products.map((product) => (
             <article
               key={product.title}
-              className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_8px_20px_rgba(15,23,42,0.08)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_16px_28px_rgba(15,23,42,0.14)]"
+              className="group overflow-hidden rounded-3xl border border-slate-200/80 bg-white shadow-[0_14px_30px_rgba(15,23,42,0.09)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_44px_rgba(15,23,42,0.16)]"
             >
-              <div className="aspect-[16/9] overflow-hidden bg-slate-100">
+              <div className="aspect-[16/11] overflow-hidden bg-slate-100">
                 <img
                   src={product.imageUrl}
                   alt={product.imageAlt}
                   loading="lazy"
-                  className="h-full w-full object-cover"
+                  className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                 />
               </div>
-              <div className="p-5 sm:p-6">
-                <h2 className="text-2xl font-bold text-slate-900">{product.title}</h2>
-                <p className="mt-2 text-sm sm:text-base text-slate-600">{product.description}</p>
+              <div className="p-6 sm:p-7 md:p-8">
+                <h2 className="text-3xl md:text-[2rem] font-black tracking-tight text-slate-900">{product.title}</h2>
+                <p className="mt-3 text-base md:text-lg text-slate-600 leading-relaxed">{product.description}</p>
                 <Link
                   to={product.href}
-                  className="mt-4 inline-flex items-center justify-center rounded-lg bg-gradient-to-r from-orange-500 to-orange-600 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition-all duration-300 hover:from-orange-600 hover:to-red-500 hover:shadow-lg"
+                  className="mt-6 inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-3 text-sm font-semibold text-white shadow-md transition-all duration-300 hover:from-orange-600 hover:to-red-500 hover:shadow-lg"
                 >
                   {product.cta}
                 </Link>
