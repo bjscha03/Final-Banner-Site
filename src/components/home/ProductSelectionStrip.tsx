@@ -30,7 +30,7 @@ const products = [
 
 const ProductSelectionStrip: React.FC = () => {
   return (
-    <section className="relative z-20 bg-transparent pb-10 sm:pb-12 md:pb-14">
+    <section className="relative z-20 mt-8 bg-transparent pb-10 sm:pb-12 md:mt-14 md:pb-14">
       <div className="w-full px-4 sm:px-6 md:px-5 lg:px-6">
         <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-4 lg:gap-5">
           {products.map((product) => (
