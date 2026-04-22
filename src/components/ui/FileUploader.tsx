@@ -51,6 +51,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({
     <div
       className={[
         'w-full rounded-xl border-2 border-dashed text-center transition-all duration-200 ease-in-out',
+        'flex items-center justify-center',
         'border-[#E5E7EB] bg-[#FAFAFA] p-6 md:p-8',
         isDragActive ? 'border-[#F97316] bg-[#FFF3E0]' : 'hover:border-[#F97316] hover:bg-[#FFF7ED]',
         (disabled || isUploading) ? 'cursor-not-allowed opacity-80' : 'cursor-pointer',
