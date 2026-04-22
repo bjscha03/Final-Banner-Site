@@ -48,7 +48,7 @@ const ProductSelectionStrip: React.FC = () => {
               </div>
               <div className="p-6 sm:p-7 md:p-8">
                 <h2 className="text-3xl md:text-[2rem] font-black tracking-tight text-slate-900">{product.title}</h2>
-                <p className="mt-3 text-base md:text-lg text-slate-600 leading-relaxed min-h-[3.25rem]">{product.description}</p>
+                <p className="mt-3 text-base md:text-lg text-slate-600 leading-relaxed">{product.description}</p>
                 <Link
                   to={product.href}
                   className="mt-6 inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-3 text-sm font-semibold text-white shadow-md transition-all duration-300 hover:from-orange-600 hover:to-red-500 hover:shadow-lg"
