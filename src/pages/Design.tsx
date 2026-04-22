@@ -1524,6 +1524,7 @@ const Design: React.FC = () => {
                 <PriceBreakdown
                   topLine={`${sqft.toFixed(2)} sq ft • ${usd(pricePerSqFt)} per sq ft`}
                   secondaryLine={`for ${quantity} ${quantity === 1 ? 'banner' : 'banners'} • ${widthDisplay} × ${heightDisplay} • ${materialLabel}`}
+                  showTopSummary={false}
                   detailRows={[
                     { label: 'Grommets', value: grommetsLabel },
                     ...(polePockets !== 'none'
