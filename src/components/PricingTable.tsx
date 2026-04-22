@@ -74,7 +74,7 @@ const PricingTable: React.FC = () => {
   };
 
   return (
-    <section className="py-20 bg-gradient-to-b from-slate-50 to-white relative overflow-hidden">
+    <section className="py-16 sm:py-20 bg-gradient-to-b from-slate-50 to-white relative overflow-hidden">
       {/* Background Pattern */}
       <div className="absolute inset-0 opacity-30">
         <div className="absolute top-0 right-1/4 w-80 h-80 bg-white rounded-full blur-3xl"></div>
@@ -83,7 +83,7 @@ const PricingTable: React.FC = () => {
 
       <div ref={ref} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Header Section */}
-        <div className={`text-center mb-16 scroll-reveal ${isVisible ? 'visible' : ''}`}>
+        <div className={`text-center mb-12 sm:mb-16 scroll-reveal ${isVisible ? 'visible' : ''}`}>
           <h2 className="text-4xl font-bold text-slate-900 mb-6">
             Material Options
           </h2>
@@ -93,7 +93,7 @@ const PricingTable: React.FC = () => {
         </div>
 
         {/* Pricing Cards Grid */}
-        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6 sm:gap-7 lg:gap-8">
           {materials.map((material, index) => (
             <div
               key={index}
@@ -105,7 +105,7 @@ const PricingTable: React.FC = () => {
               style={{ transitionDelay: `${(index + 1) * 150}ms` }}
             >
               {/* Popular Badge - Fixed Height */}
-              <div className="h-12 flex items-center justify-center mb-2">
+              <div className="h-10 sm:h-11 flex items-center justify-center mb-1 sm:mb-2">
                 {material.popular && (
                   <div className="bg-orange-500 text-white px-4 py-2 rounded-full text-xs font-bold shadow-sm">
                     <span className="flex items-center gap-1.5">
@@ -117,32 +117,32 @@ const PricingTable: React.FC = () => {
               </div>
 
               {/* Header Section - Fixed Height */}
-              <div className="text-center mb-8 px-6">
-                <h3 className="text-2xl font-bold text-orange-500 mb-4 leading-tight min-h-[2rem] flex items-center justify-center">
+              <div className="text-center mb-5 sm:mb-6 px-5 sm:px-6">
+                <h3 className="text-3xl sm:text-4xl font-extrabold text-orange-500 mb-3 sm:mb-4 leading-tight min-h-[2.5rem] sm:min-h-[2.75rem] flex items-center justify-center">
                   {material.name}
                 </h3>
-                <p className="text-gray-700 font-medium leading-relaxed min-h-[4.5rem] flex items-center justify-center text-center">
+                <p className="text-base sm:text-lg text-gray-700 font-medium leading-relaxed min-h-[3.75rem] sm:min-h-[4rem] flex items-center justify-center text-center">
                   {material.description}
                 </p>
               </div>
 
               {/* Features List - Flexible Height */}
-              <div className="flex-1 px-6 mb-8">
-                <ul className="space-y-3">
+              <div className="flex-1 px-5 sm:px-6 mb-5 sm:mb-6">
+                <ul className="space-y-2 sm:space-y-2.5">
                   {material.features.map((feature, featureIndex) => (
-                    <li key={featureIndex} className="flex items-start text-sm">
-                      <Check className="h-4 w-4 text-green-500 mr-3 flex-shrink-0 mt-0.5" />
-                      <span className="text-gray-700 leading-relaxed">{feature}</span>
+                    <li key={featureIndex} className="flex items-start text-sm sm:text-base">
+                      <Check className="h-4 w-4 sm:h-5 sm:w-5 text-green-500 mr-2.5 flex-shrink-0 mt-0.5" />
+                      <span className="text-gray-700 leading-snug">{feature}</span>
                     </li>
                   ))}
                 </ul>
               </div>
 
               {/* Button - Fixed Position at Bottom */}
-              <div className="px-6 pb-6">
+              <div className="px-5 sm:px-6 pb-5 sm:pb-6">
                 <button
                   onClick={() => handleMaterialSelect(material.key)}
-                  className={`w-full py-4 px-6 rounded-xl font-bold text-base transition-all duration-200 shadow-lg hover:shadow-xl ${
+                  className={`w-full py-3.5 sm:py-4 px-6 rounded-xl font-bold text-sm sm:text-base transition-all duration-200 shadow-lg hover:shadow-xl ${
                     material.popular
                       ? 'bg-orange-500 hover:bg-orange-600 text-white'
                       : 'bg-[#18448D] hover:bg-[#0f2d5c] text-white'
