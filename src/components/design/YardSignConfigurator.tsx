@@ -19,7 +19,7 @@
  *   original high-res source, never from the generated thumbnail.
  */
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { Upload, X, Plus, Minus, Loader2, AlertTriangle, CheckCircle, Image as ImageIcon, ZoomIn, ZoomOut, Move, Eye } from 'lucide-react';
+import { X, Plus, Minus, Loader2, AlertTriangle, CheckCircle, ZoomIn, ZoomOut, Move, Eye } from 'lucide-react';
 import {
   type YardSignSidedness,
   type YardSignDesign,
@@ -35,6 +35,7 @@ import {
 } from '@/lib/yard-sign-pricing';
 import { usd } from '@/lib/pricing';
 import { uploadCanvasImageToCloudinary } from '@/utils/uploadCanvasImage';
+import FileUploader from '@/components/ui/FileUploader';
 
 // Helper to generate PDF thumbnail URL from Cloudinary
 function getPdfThumbnailUrl(pdfUrl: string): string {
@@ -119,11 +120,9 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
   autoOpenDesignId,
   initialDesignQuantity,
 }) => {
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isSavingPreview, setIsSavingPreview] = useState(false);
   const [uploadError, setUploadError] = useState('');
-  const [dragActive, setDragActive] = useState(false);
 
   const totalQuantity = getTotalDesignQuantity(designs);
   const quantityValidation = validateYardSignQuantity(totalQuantity);
@@ -422,19 +421,6 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
     }
   }, [canAddMoreDesigns, compressImage, designs, onDesignsChange, initialDesignQuantity]);
 
-  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) handleFileUpload(file);
-    if (e.target) e.target.value = '';
-  }, [handleFileUpload]);
-
-  const onDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragActive(false);
-    const file = e.dataTransfer.files?.[0];
-    if (file) handleFileUpload(file);
-  }, [handleFileUpload]);
-
   const removeDesign = useCallback((id: string) => {
     onDesignsChange(designs.filter(d => d.id !== id));
   }, [designs, onDesignsChange]);
@@ -630,39 +616,14 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
 
         {/* Upload dropzone */}
         {canAddMoreDesigns && (
-          <div
-            className={`relative border-2 border-dashed rounded-xl p-6 text-center transition-all cursor-pointer ${
-              dragActive ? 'border-orange-400 bg-orange-50' : 'border-gray-200 hover:border-gray-400 bg-white'
-            }`}
-            onDragOver={e => { e.preventDefault(); setDragActive(true); }}
-            onDragLeave={() => setDragActive(false)}
-            onDrop={onDrop}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/png,image/jpeg,.pdf"
-              className="hidden"
-              onChange={handleFileSelect}
-            />
-            {isUploading ? (
-              <div className="flex flex-col items-center gap-2">
-                <Loader2 className="h-8 w-8 text-orange-500 animate-spin" />
-                <p className="text-sm text-gray-600">Uploading...</p>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-2">
-                <div className="w-12 h-12 rounded-full bg-orange-50 flex items-center justify-center">
-                  <Upload className="h-5 w-5 text-orange-500" />
-                </div>
-                <p className="text-sm font-medium text-gray-700">
-                  {designs.length === 0 ? 'Upload your yard sign artwork' : 'Add another design'}
-                </p>
-                <p className="text-xs text-gray-400">PNG, JPG, or PDF · Max 50MB</p>
-              </div>
-            )}
-          </div>
+          <FileUploader
+            onUpload={handleFileUpload}
+            acceptedTypes="image/png,image/jpeg,.pdf"
+            maxSize={50 * 1024 * 1024}
+            label={designs.length === 0 ? 'Upload your artwork' : 'Add another design'}
+            subText="PNG, JPG, or PDF • Max 50MB"
+            isUploading={isUploading}
+          />
         )}
 
         {uploadError && (
