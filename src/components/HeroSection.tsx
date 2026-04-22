@@ -44,7 +44,7 @@ const HeroSection: React.FC = () => {
           <div className="text-center text-white space-y-5 md:space-y-6">
             <div className="space-y-3">
               <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight uppercase">
-                Custom Banners &amp; Yard Signs
+                Custom Banners & Yard Signs
               </h1>
               <p className="text-lg md:text-2xl text-slate-100">
                 Printed in 24 Hours • Free <span className="text-orange-400 italic font-semibold">Next-Day Air</span> Shipping
