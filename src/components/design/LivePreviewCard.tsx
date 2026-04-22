@@ -11,7 +11,10 @@ import { GrommetPicker } from '@/components/ui/GrommetPicker';
 import { useToast } from '@/components/ui/use-toast';
 import { loadPdfToBitmap } from '@/utils/pdf/loadPdfToBitmap';
 import PreviewCanvas from './PreviewCanvas';
+import RealBannerOverlay from './RealBannerOverlay';
 import { useAuth, isAdmin } from '@/lib/auth';
+
+type PreviewMode = 'printPreview' | 'materialPreview';
 const grommetOptions = [
   { id: 'none', label: 'None', description: 'No grommets' },
   { id: 'every-2-3ft', label: 'Every 2–3 feet', description: 'Standard spacing' },
@@ -53,11 +56,16 @@ const getTouchDistance = (touch1: React.Touch, touch2: React.Touch): number => {
 };
 
 const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGeneratingAI = false }) => {
-  const { widthIn, heightIn, previewScalePct, grommets, file, overlayImage, textElements, editingItemId, set, addTextElement, updateTextElement, deleteTextElement } = useQuoteStore();
+  const { widthIn, heightIn, previewScalePct, grommets, material, polePockets, file, overlayImage, textElements, editingItemId, set, addTextElement, updateTextElement, deleteTextElement } = useQuoteStore();
   const { user } = useAuth();
   const isAdminUser = user && isAdmin(user);
   console.log('🔍 LIVE PREVIEW: overlayImage from quote store:', overlayImage);
   const { toast } = useToast();
+
+  // Preview mode toggle. The print preview is the source of truth and is
+  // always rendered; switching modes only toggles the visibility of the
+  // material overlay so the underlying canvas never re-renders.
+  const [previewMode, setPreviewMode] = useState<PreviewMode>('printPreview');
 
   const [dragActive, setDragActive] = useState(false);
   const [uploadError, setUploadError] = useState('');
@@ -1671,6 +1679,42 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         </div>
       </div>
 
+      {/* Preview Mode Toggle — Print Preview (default) vs Real Banner Preview.
+          Switching modes does NOT re-render the canvas; it only toggles the
+          visibility of the visual overlay so artwork, scaling, and the export
+          pipeline remain pixel-identical to the existing print preview. */}
+      <div className="px-4 sm:px-6 pt-4 sm:pt-5">
+        <div
+          role="tablist"
+          aria-label="Preview mode"
+          className="inline-flex w-full sm:w-auto rounded-xl border border-gray-200 bg-gray-50 p-1 shadow-sm"
+        >
+          {([
+            { mode: 'printPreview', label: 'Print Preview' },
+            { mode: 'materialPreview', label: 'Real Banner Preview' },
+          ] as const).map(({ mode, label }) => {
+            const active = previewMode === mode;
+            return (
+              <button
+                key={mode}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setPreviewMode(mode)}
+                className={`flex-1 sm:flex-none min-h-[44px] px-4 sm:px-5 py-2 text-sm font-medium rounded-lg transition-colors duration-150 touch-manipulation ${
+                  active
+                    ? 'bg-white text-blue-700 shadow-sm ring-1 ring-blue-200'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+                data-preview-mode={mode}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       {/* Preview Area */}
       <div ref={previewContainerRef} className="relative flex-1 pb-8">
         {!file ? (
@@ -1831,6 +1875,24 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
                     showVerticalCenterGuide={showVerticalCenterGuide}
                     showHorizontalCenterGuide={showHorizontalCenterGuide}
                   />
+
+                  {/* Real Banner Preview overlay — visibility-only toggle.
+                      Stays mounted to avoid canvas re-renders; we hide via
+                      CSS so switching modes is instantaneous. */}
+                  <div
+                    style={{
+                      display: previewMode === 'materialPreview' ? 'block' : 'none',
+                    }}
+                    className="absolute inset-0"
+                  >
+                    <RealBannerOverlay
+                      widthIn={widthIn}
+                      heightIn={heightIn}
+                      material={material}
+                      grommets={grommets}
+                      polePockets={polePockets}
+                    />
+                  </div>
 
                   {/* Text Elements Overlay - Using DraggableText with percentage positioning */}
                   {textElements.map((element) => (
