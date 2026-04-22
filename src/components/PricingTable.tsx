@@ -118,7 +118,7 @@ const PricingTable: React.FC = () => {
 
               {/* Header Section - Fixed Height */}
               <div className="text-center mb-5 sm:mb-6 px-5 sm:px-6">
-                <h3 className="text-3xl sm:text-4xl font-extrabold text-orange-500 mb-3 sm:mb-4 leading-tight min-h-[2.25rem] flex items-center justify-center">
+                <h3 className="text-3xl sm:text-4xl font-extrabold text-orange-500 mb-3 sm:mb-4 leading-tight min-h-[2.5rem] sm:min-h-[2.75rem] flex items-center justify-center">
                   {material.name}
                 </h3>
                 <p className="text-base sm:text-lg text-gray-700 font-medium leading-relaxed min-h-[3.75rem] sm:min-h-[4rem] flex items-center justify-center text-center">
@@ -131,7 +131,7 @@ const PricingTable: React.FC = () => {
                 <ul className="space-y-2 sm:space-y-2.5">
                   {material.features.map((feature, featureIndex) => (
                     <li key={featureIndex} className="flex items-start text-sm sm:text-base">
-                      <Check className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 mr-2.5 flex-shrink-0 mt-0.5" />
+                      <Check className="h-4 w-4 sm:h-5 sm:w-5 text-green-500 mr-2.5 flex-shrink-0 mt-0.5" />
                       <span className="text-slate-700 leading-snug">{feature}</span>
                     </li>
                   ))}
