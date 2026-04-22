@@ -2,47 +2,7 @@ import React from 'react';
 import { Star, Lock, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
-// Realistic metal grommet component
-const Grommet: React.FC<{ position: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' }> = ({ position }) => {
-  const positionClasses = {
-    'top-left': 'top-3 left-3 sm:top-4 sm:left-4 md:top-5 md:left-5',
-    'top-right': 'top-3 right-3 sm:top-4 sm:right-4 md:top-5 md:right-5',
-    'bottom-left': 'bottom-3 left-3 sm:bottom-4 sm:left-4 md:bottom-5 md:left-5',
-    'bottom-right': 'bottom-3 right-3 sm:bottom-4 sm:right-4 md:bottom-5 md:right-5',
-  };
-
-  return (
-    <div className={`absolute ${positionClasses[position]} z-20`}>
-      {/* Outer metal ring */}
-      <div className="w-5 h-5 sm:w-6 sm:h-6 md:w-7 md:h-7 rounded-full relative"
-        style={{
-          background: 'linear-gradient(145deg, #e8e8e8 0%, #b8b8b8 25%, #d4d4d4 50%, #9a9a9a 75%, #c0c0c0 100%)',
-          boxShadow: `
-            0 2px 4px rgba(0,0,0,0.4),
-            inset 0 1px 2px rgba(255,255,255,0.6),
-            inset 0 -1px 2px rgba(0,0,0,0.3)
-          `,
-        }}
-      >
-        {/* Inner ring bevel */}
-        <div className="absolute inset-[2px] sm:inset-[3px] rounded-full"
-          style={{
-            background: 'linear-gradient(145deg, #a0a0a0 0%, #d0d0d0 40%, #888888 100%)',
-            boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.4)',
-          }}
-        >
-          {/* Center hole */}
-          <div className="absolute inset-[3px] sm:inset-[4px] rounded-full"
-            style={{
-              background: 'linear-gradient(145deg, #0d1520 0%, #1a2332 50%, #0a0f18 100%)',
-              boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.8)',
-            }}
-          />
-        </div>
-      </div>
-    </div>
-  );
-};
+const HERO_BG_VIDEO_URL = 'https://res.cloudinary.com/dtrxl120u/video/upload/v1776752374/Multi-Shot_Video_-_Create_a_premium__high-end_commercial_background_video_for_a_fast_custom_printing_plodlm.mp4';
 
 const HeroSection: React.FC = () => {
   const navigate = useNavigate();
@@ -55,149 +15,83 @@ const HeroSection: React.FC = () => {
   };
 
   return (
-    <section className="bg-white py-3 sm:py-4 md:py-6">
-      {/* Banner Container with vinyl effect */}
-      <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-6">
+    <section className="relative w-full overflow-hidden bg-slate-950 py-14 sm:py-16 md:py-20 lg:py-24">
+      <video
+        className="pointer-events-none absolute left-1/2 top-1/2 h-full w-full -translate-x-1/2 -translate-y-1/2 object-cover"
+        autoPlay
+        muted
+        loop
+        playsInline
+        preload="auto"
+        aria-hidden="true"
+      >
+        <source src={HERO_BG_VIDEO_URL} type="video/mp4" />
+      </video>
+      <div
+        className="absolute inset-0"
+        style={{
+          background: 'linear-gradient(to bottom, rgba(2,6,23,0.78), rgba(2,6,23,0.62) 45%, rgba(2,6,23,0.78))',
+        }}
+        aria-hidden="true"
+      />
+      <div className="relative z-10 mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
         <div
-          className="relative overflow-hidden rounded-sm"
+          className="rounded-2xl border border-white/10 bg-black/15 p-6 sm:p-10 md:p-12 lg:p-16 backdrop-blur-[1px]"
           style={{
-            // Vinyl banner material background with texture
-            background: `
-              linear-gradient(135deg, rgba(255,255,255,0.03) 0%, transparent 50%, rgba(0,0,0,0.05) 100%),
-              linear-gradient(45deg, transparent 40%, rgba(255,255,255,0.02) 50%, transparent 60%),
-              linear-gradient(180deg, #1e2d42 0%, #1a2738 15%, #182433 50%, #151f2c 85%, #121a24 100%)
-            `,
-            // Subtle inner shadow for thickness illusion
-            boxShadow: `
-              inset 0 0 30px rgba(0,0,0,0.4),
-              inset 0 0 60px rgba(0,0,0,0.2),
-              0 4px 20px rgba(0,0,0,0.5),
-              0 2px 8px rgba(0,0,0,0.3)
-            `,
+            boxShadow: '0 20px 48px rgba(2, 6, 23, 0.35)',
           }}
         >
-          {/* Vinyl texture overlay - fine grain effect */}
-          <div
-            className="absolute inset-0 opacity-[0.15] pointer-events-none"
-            style={{
-              backgroundImage: `
-                repeating-linear-gradient(
-                  0deg,
-                  transparent,
-                  transparent 1px,
-                  rgba(255,255,255,0.03) 1px,
-                  rgba(255,255,255,0.03) 2px
-                ),
-                repeating-linear-gradient(
-                  90deg,
-                  transparent,
-                  transparent 1px,
-                  rgba(255,255,255,0.02) 1px,
-                  rgba(255,255,255,0.02) 2px
-                )
-              `,
-              backgroundSize: '3px 3px',
-            }}
-          />
-
-          {/* Light reflection sweep - mimics how light hits vinyl */}
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background: `
-                linear-gradient(
-                  115deg,
-                  transparent 0%,
-                  transparent 30%,
-                  rgba(255,255,255,0.04) 45%,
-                  rgba(255,255,255,0.06) 50%,
-                  rgba(255,255,255,0.04) 55%,
-                  transparent 70%,
-                  transparent 100%
-                )
-              `,
-            }}
-          />
-
-          {/* Subtle edge tension effect - very faint wrinkle near edges */}
-          <div
-            className="absolute inset-0 pointer-events-none"
-            style={{
-              background: `
-                linear-gradient(90deg, rgba(0,0,0,0.08) 0%, transparent 3%, transparent 97%, rgba(0,0,0,0.08) 100%),
-                linear-gradient(180deg, rgba(0,0,0,0.06) 0%, transparent 4%, transparent 96%, rgba(0,0,0,0.06) 100%)
-              `,
-            }}
-          />
-
-          {/* Corner grommets */}
-          <Grommet position="top-left" />
-          <Grommet position="top-right" />
-          <Grommet position="bottom-left" />
-          <Grommet position="bottom-right" />
-
-          {/* Content */}
-          <div className="relative z-10 px-8 sm:px-12 md:px-16 lg:px-20 py-12 sm:py-14 md:py-16 lg:py-20">
-            {/* Centered Content */}
-            <div className="text-center text-white space-y-4">
-              {/* Main Heading */}
-              <div className="space-y-3">
-                <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight uppercase drop-shadow-lg">
-                  Custom Banners &amp; Yard Signs
-                </h1>
-                <p className="text-lg md:text-xl lg:text-2xl font-normal text-slate-200 drop-shadow-md">
-                  Printed in 24 Hours • Free <span className="text-orange-400 italic font-semibold">Next-Day Air</span> Shipping
-                </p>
-                <p className="text-sm md:text-base text-slate-400 drop-shadow-sm">
-                  Order today. Delivered tomorrow.
-                </p>
-              </div>
-
-              {/* Subheading - Bold feature points */}
-              <p className="text-lg md:text-xl text-slate-300 pt-3 font-bold drop-shadow-sm tracking-wide">
-                <span className="font-extrabold">High-quality vinyl</span> • <span className="font-extrabold">Designer reviewed</span> • <span className="font-extrabold">20% off your first order</span>
+          <div className="text-center text-white space-y-5 md:space-y-6">
+            <div className="space-y-3">
+              <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight uppercase">
+                Custom Banners &amp; Yard Signs
+              </h1>
+              <p className="text-lg md:text-2xl text-slate-100">
+                Printed in 24 Hours • Free <span className="text-orange-400 italic font-semibold">Next-Day Air</span> Shipping
               </p>
+              <p className="text-sm md:text-base text-slate-200">
+                Order today. Delivered tomorrow.
+              </p>
+            </div>
 
-              {/* Action Buttons */}
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
-                {/* Upload or Create Button - Orange with shine */}
-                <button
-                  onClick={handleUploadOrCreate}
-                  className="group relative px-8 py-3.5 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-red-500 text-white text-base font-semibold rounded-lg transition-all duration-300 min-w-[200px] shadow-lg hover:shadow-orange-500/40 hover:shadow-xl hover:-translate-y-0.5 overflow-hidden"
-                >
-                  <span className="relative z-10">Upload Your Design →</span>
-                  <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent opacity-0 group-hover:opacity-100 group-hover:animate-[btn-shine_0.8s_ease-in-out]" />
-                </button>
+            <p className="text-base md:text-xl text-slate-100 font-semibold tracking-wide">
+              <span className="font-extrabold">High-quality vinyl</span> • <span className="font-extrabold">Designer reviewed</span> • <span className="font-extrabold">20% off your first order</span>
+            </p>
 
-                {/* Secondary CTA Button */}
-                <button
-                  onClick={handleUploadOrCreate}
-                  className="px-8 py-3.5 bg-slate-700/50 hover:bg-slate-600/70 border border-slate-400/50 hover:border-slate-300 text-white text-base font-semibold rounded-lg transition-all duration-300 min-w-[200px] flex items-center justify-center gap-2 shadow-lg hover:shadow-xl backdrop-blur-sm hover:-translate-y-0.5"
-                >
-                  Start Your Design
-                </button>
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-1">
+              <button
+                onClick={handleUploadOrCreate}
+                className="group relative px-8 py-3.5 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-red-500 text-white text-base font-semibold rounded-lg transition-all duration-300 min-w-[220px] shadow-lg hover:shadow-orange-500/40 hover:shadow-xl hover:-translate-y-0.5 overflow-hidden"
+              >
+                <span className="relative z-10">Upload Your Design →</span>
+                <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent opacity-0 group-hover:opacity-100 group-hover:animate-[btn-shine_0.8s_ease-in-out]" />
+              </button>
+
+              <button
+                onClick={handleUploadOrCreate}
+                className="px-8 py-3.5 bg-slate-700/55 hover:bg-slate-600/75 border border-slate-300/55 hover:border-slate-200 text-white text-base font-semibold rounded-lg transition-all duration-300 min-w-[220px] flex items-center justify-center gap-2 shadow-lg hover:shadow-xl hover:-translate-y-0.5"
+              >
+                Start Your Design
+              </button>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-center gap-5 pt-2 text-sm text-slate-100">
+              <div className="flex items-center gap-2">
+                <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />
+                <span>Trusted by 10,000+ customers nationwide</span>
               </div>
-
-              {/* Trust Indicators */}
-              <div className="flex flex-wrap items-center justify-center gap-6 pt-6 text-sm text-slate-300">
-                <div className="flex items-center gap-2">
-                  <Star className="w-4 h-4 text-yellow-400 fill-yellow-400 drop-shadow-sm" />
-                  <span>Trusted by 10,000+ customers nationwide</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Lock className="w-4 h-4 text-slate-400" />
-                  <span>Secure checkout</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-400 drop-shadow-sm" />
-                  <span>Satisfaction guaranteed</span>
-                </div>
+              <div className="flex items-center gap-2">
+                <Lock className="w-4 h-4 text-slate-200" />
+                <span>Secure checkout</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-4 h-4 text-green-400" />
+                <span>Satisfaction guaranteed</span>
               </div>
             </div>
           </div>
         </div>
       </div>
-
     </section>
   );
 };
