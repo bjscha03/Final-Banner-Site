@@ -31,12 +31,12 @@ const products = [
 const ProductSelectionStrip: React.FC = () => {
   return (
     <section className="relative z-20 bg-transparent pb-10 sm:pb-12 md:pb-14">
-      <div className="w-full px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-0">
+      <div className="w-full px-4 sm:px-6 md:px-5 lg:px-6">
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-3 md:gap-4 lg:gap-5">
           {products.map((product) => (
             <article
               key={product.title}
-              className="group relative min-h-[360px] overflow-hidden rounded-3xl border border-white/20 bg-slate-900 shadow-[0_18px_40px_rgba(2,6,23,0.28)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_52px_rgba(2,6,23,0.38)] md:min-h-[420px] md:rounded-none md:border-y md:border-r-0 md:first:rounded-l-3xl md:first:border-l md:last:rounded-r-3xl md:last:border-r"
+              className="group relative min-h-[360px] overflow-hidden rounded-3xl border border-white/30 bg-slate-900 shadow-[0_18px_40px_rgba(2,6,23,0.28)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_52px_rgba(2,6,23,0.38)] md:min-h-[440px]"
             >
               <div className="absolute inset-0 overflow-hidden bg-slate-900">
                 <img
@@ -46,16 +46,22 @@ const ProductSelectionStrip: React.FC = () => {
                   className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
                 />
               </div>
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/72 via-slate-900/28 to-slate-900/8" />
-              <div className="relative z-10 flex h-full flex-col justify-end p-6 sm:p-7 md:p-8">
-                <h2 className="text-3xl font-black tracking-tight text-white md:text-[2rem]">{product.title}</h2>
-                <p className="mt-3 text-base leading-relaxed text-slate-100 md:text-lg">{product.description}</p>
-                <Link
-                  to={product.href}
-                  className="mt-6 inline-flex w-fit items-center justify-center rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-3 text-sm font-semibold text-white shadow-md transition-all duration-300 hover:from-orange-600 hover:to-red-500 hover:shadow-lg"
-                >
-                  {product.cta}
-                </Link>
+              <div className="absolute bottom-0 left-0 h-3/5 w-11/12 bg-gradient-to-tr from-slate-950/58 via-slate-900/24 to-transparent md:h-1/2 md:w-4/5" />
+              <div className="relative z-10 flex h-full flex-col justify-end p-5 sm:p-7 md:p-8">
+                <div className="max-w-lg rounded-2xl border border-white/30 bg-slate-950/34 px-4 py-4 text-white shadow-[0_14px_34px_rgba(15,23,42,0.3)] backdrop-blur-md md:px-5 md:py-5">
+                  <h2 className="text-[1.95rem] font-black leading-[1.05] tracking-tight text-white [text-shadow:0_2px_14px_rgba(15,23,42,0.65)] md:text-[2.15rem]">
+                    {product.title}
+                  </h2>
+                  <p className="mt-2.5 text-base font-medium leading-snug text-white/95 [text-shadow:0_1px_10px_rgba(15,23,42,0.55)] md:text-[1.05rem]">
+                    {product.description}
+                  </p>
+                  <Link
+                    to={product.href}
+                    className="mt-5 inline-flex w-fit items-center justify-center rounded-xl bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-3 text-sm font-semibold text-white shadow-md transition-all duration-300 hover:from-orange-600 hover:to-red-500 hover:shadow-lg"
+                  >
+                    {product.cta}
+                  </Link>
+                </div>
               </div>
             </article>
           ))}
