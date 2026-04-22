@@ -38,7 +38,7 @@ const ProductSelectionStrip: React.FC = () => {
               key={product.title}
               className="group relative min-h-[360px] overflow-hidden rounded-3xl border border-white/15 bg-slate-950 shadow-[0_18px_40px_rgba(2,6,23,0.38)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_24px_52px_rgba(2,6,23,0.48)] md:min-h-[420px] md:rounded-none md:border-y md:border-r-0 md:first:rounded-l-3xl md:first:border-l md:last:rounded-r-3xl md:last:border-r"
             >
-              <div className="absolute inset-0 overflow-hidden bg-slate-100">
+              <div className="absolute inset-0 overflow-hidden bg-slate-950">
                 <img
                   src={product.imageUrl}
                   alt={product.imageAlt}
@@ -46,7 +46,7 @@ const ProductSelectionStrip: React.FC = () => {
                   className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.05]"
                 />
               </div>
-              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/45 to-slate-950/20" aria-hidden="true" />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/45 to-slate-950/20" />
               <div className="relative z-10 flex h-full flex-col justify-end p-6 sm:p-7 md:p-8">
                 <h2 className="text-3xl font-black tracking-tight text-white md:text-[2rem]">{product.title}</h2>
                 <p className="mt-3 text-base leading-relaxed text-slate-100 md:text-lg">{product.description}</p>
