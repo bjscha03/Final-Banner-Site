@@ -48,11 +48,11 @@ const ProductSelectionStrip: React.FC = () => {
               </div>
               <div className="absolute bottom-0 left-0 h-[58%] w-[88%] bg-gradient-to-tr from-slate-950/58 via-slate-900/24 to-transparent md:h-[52%] md:w-[78%]" />
               <div className="relative z-10 flex h-full flex-col justify-end p-5 sm:p-7 md:p-8">
-                <div className="max-w-[26rem] rounded-2xl border border-white/25 bg-white/12 px-4 py-4 text-white/95 shadow-[0_14px_34px_rgba(15,23,42,0.28)] backdrop-blur-[7px] md:px-5 md:py-5">
+                <div className="max-w-[26rem] rounded-2xl border border-white/30 bg-slate-950/34 px-4 py-4 text-white shadow-[0_14px_34px_rgba(15,23,42,0.3)] backdrop-blur-[8px] md:px-5 md:py-5">
                   <h2 className="text-[1.95rem] font-black leading-[1.05] tracking-tight text-white [text-shadow:0_2px_14px_rgba(15,23,42,0.65)] md:text-[2.15rem]">
                     {product.title}
                   </h2>
-                  <p className="mt-2.5 text-base font-medium leading-snug text-white/90 [text-shadow:0_1px_10px_rgba(15,23,42,0.55)] md:text-[1.05rem]">
+                  <p className="mt-2.5 text-base font-medium leading-snug text-white/95 [text-shadow:0_1px_10px_rgba(15,23,42,0.55)] md:text-[1.05rem]">
                     {product.description}
                   </p>
                   <Link
