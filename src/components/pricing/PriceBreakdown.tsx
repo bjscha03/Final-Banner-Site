@@ -134,6 +134,18 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
   const hasPromoDiscount = promoDiscountCents > 0;
   const hasMinOrderAdjustment = minOrderAdjustmentCents > 0;
   const hasDetailRows = Boolean(detailRows && detailRows.length > 0);
+  const detailRowsContainerClass = [
+    showTopSummary ? 'pt-3 mt-2 border-t border-slate-300/60' : '',
+    'space-y-1 text-sm text-gray-700',
+  ]
+    .filter(Boolean)
+    .join(' ');
+  const breakdownRowsClass = [
+    showTopSummary || hasDetailRows ? 'pt-3 mt-2 border-t border-slate-300/60' : '',
+    'space-y-1.5 text-sm',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <div
@@ -210,7 +222,7 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
 
           {/* Optional configuration detail rows */}
           {hasDetailRows && (
-            <div className={`${showTopSummary ? 'pt-3 mt-2 border-t border-slate-300/60' : ''} space-y-1 text-sm text-gray-700`}>
+            <div className={detailRowsContainerClass}>
               {detailRows.map((row, idx) => (
                 <div
                   key={`${row.label}-${idx}`}
@@ -226,7 +238,7 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
           )}
 
           {/* Breakdown rows */}
-          <div className={`${showTopSummary || hasDetailRows ? 'pt-3 mt-2 border-t border-slate-300/60' : ''} space-y-1.5 text-sm`}>
+          <div className={breakdownRowsClass}>
             <div className="flex justify-between gap-3">
               <span className="text-gray-600">{baseSubtotalLabel}</span>
               <span className="font-semibold text-gray-800">
