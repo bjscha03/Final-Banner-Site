@@ -12,7 +12,7 @@ export interface CarMagnetSizeOption {
 }
 
 export const CAR_MAGNET_SIZES: CarMagnetSizeOption[] = [
-  { label: '12" × 18"', widthIn: 12, heightIn: 18, basePriceCents: 2900 },
+  { label: '18" × 12"', widthIn: 18, heightIn: 12, basePriceCents: 2900 },
   { label: '24" × 12"', widthIn: 24, heightIn: 12, basePriceCents: 4000 },
   { label: '24" × 18"', widthIn: 24, heightIn: 18, basePriceCents: 4700 },
   { label: '42" × 12"', widthIn: 42, heightIn: 12, basePriceCents: 6000 },

@@ -53,8 +53,8 @@ describe('pricingEngine', () => {
       it(`qty ${qty} keeps quantity discount at 0`, () => {
         const result = calculatePricing({
           productType: 'car_magnet',
-          widthIn: 12,
-          heightIn: 18,
+          widthIn: 18,
+          heightIn: 12,
           quantity: qty,
         });
         expect(result.quantityDiscountRate).toBe(0);
@@ -70,7 +70,7 @@ describe('pricingEngine', () => {
 
   describe('car magnet calcCarMagnetPricing direct (legacy)', () => {
     it('keeps subtotal equal to base subtotal with no discount', () => {
-      const r = calcCarMagnetPricing(12, 18, 3);
+      const r = calcCarMagnetPricing(18, 12, 3);
       expect(r.baseSubtotalCents).toBe(8700);
       expect(r.quantityDiscountRate).toBe(0);
       expect(r.quantityDiscountCents).toBe(0);
@@ -97,8 +97,8 @@ describe('pricingEngine', () => {
     it('does NOT include a Quantity Discount line for car magnets', () => {
       const result = calculatePricing({
         productType: 'car_magnet',
-        widthIn: 12,
-        heightIn: 18,
+        widthIn: 18,
+        heightIn: 12,
         quantity: 3,
       });
       const line = result.breakdown.find((l) => l.label.startsWith('Quantity Discount'));
