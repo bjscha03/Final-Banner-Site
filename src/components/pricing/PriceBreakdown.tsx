@@ -43,6 +43,8 @@ export interface PriceBreakdownProps {
   topLine: string;
   /** Centered top-summary secondary line, e.g. "for 2 banners" */
   secondaryLine?: string;
+  /** When false, hides the top summary text block above the divider. */
+  showTopSummary?: boolean;
 
   /** Optional small detail rows shown above the breakdown, e.g. Material/Print/Quantity. */
   detailRows?: PriceBreakdownDetailRow[];
@@ -100,6 +102,7 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
   showHeader = false,
   topLine,
   secondaryLine,
+  showTopSummary = true,
   detailRows,
   baseSubtotalCents,
   baseSubtotalLabel = 'Base subtotal',
@@ -130,6 +133,19 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
   const hasQuantityDiscount = quantityDiscountCents > 0;
   const hasPromoDiscount = promoDiscountCents > 0;
   const hasMinOrderAdjustment = minOrderAdjustmentCents > 0;
+  const hasDetailRows = Boolean(detailRows && detailRows.length > 0);
+  const detailRowsContainerClass = [
+    showTopSummary ? 'pt-3 mt-2 border-t border-slate-300/60' : '',
+    'space-y-1 text-sm text-gray-700',
+  ]
+    .filter(Boolean)
+    .join(' ');
+  const breakdownRowsClass = [
+    showTopSummary || hasDetailRows ? 'pt-3 mt-2 border-t border-slate-300/60' : '',
+    'space-y-1.5 text-sm',
+  ]
+    .filter(Boolean)
+    .join(' ');
 
   return (
     <div
@@ -193,16 +209,20 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
           }}
         >
           {/* Centered top summary line(s) */}
-          <p className="font-bold text-gray-800 text-center break-words">{topLine}</p>
-          {secondaryLine && (
-            <p className="text-sm text-gray-600 font-medium text-center break-words">
-              {secondaryLine}
-            </p>
+          {showTopSummary && (
+            <>
+              <p className="font-bold text-gray-800 text-center break-words">{topLine}</p>
+              {secondaryLine && (
+                <p className="text-sm text-gray-600 font-medium text-center break-words">
+                  {secondaryLine}
+                </p>
+              )}
+            </>
           )}
 
           {/* Optional configuration detail rows */}
-          {detailRows && detailRows.length > 0 && (
-            <div className="pt-3 mt-2 border-t border-slate-300/60 space-y-1 text-sm text-gray-700">
+          {hasDetailRows && (
+            <div className={detailRowsContainerClass}>
               {detailRows.map((row, idx) => (
                 <div
                   key={`${row.label}-${idx}`}
@@ -218,7 +238,7 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
           )}
 
           {/* Breakdown rows */}
-          <div className="pt-3 mt-2 border-t border-slate-300/60 space-y-1.5 text-sm">
+          <div className={breakdownRowsClass}>
             <div className="flex justify-between gap-3">
               <span className="text-gray-600">{baseSubtotalLabel}</span>
               <span className="font-semibold text-gray-800">
