@@ -267,13 +267,27 @@
 
   .material-card {
     @apply bg-gradient-to-br from-white via-gray-50 to-white rounded-2xl shadow-lg border border-gray-200 hover:shadow-2xl hover:border-blue-300 transition-all duration-300 transform hover:-translate-y-2 backdrop-blur-sm;
-    min-height: 600px;
+    min-height: 520px;
   }
 
   .material-card-popular {
     @apply bg-gradient-to-br from-blue-50 via-white to-indigo-50 rounded-2xl shadow-2xl border-2 border-blue-400 hover:border-blue-500 transition-all duration-300 transform hover:-translate-y-3 relative overflow-hidden backdrop-blur-sm;
-    min-height: 600px;
+    min-height: 520px;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(59, 130, 246, 0.1);
+  }
+
+  @media (max-width: 1023px) {
+    .material-card,
+    .material-card-popular {
+      min-height: 500px;
+    }
+  }
+
+  @media (max-width: 767px) {
+    .material-card,
+    .material-card-popular {
+      min-height: auto;
+    }
   }
 
   .material-card-popular:hover {
