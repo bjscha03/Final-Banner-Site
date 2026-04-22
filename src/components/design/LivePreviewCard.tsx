@@ -1689,34 +1689,29 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
           aria-label="Preview mode"
           className="inline-flex w-full sm:w-auto rounded-xl border border-gray-200 bg-gray-50 p-1 shadow-sm"
         >
-          <button
-            type="button"
-            role="tab"
-            aria-selected={previewMode === 'printPreview'}
-            onClick={() => setPreviewMode('printPreview')}
-            className={`flex-1 sm:flex-none min-h-[44px] px-4 sm:px-5 py-2 text-sm font-medium rounded-lg transition-colors duration-150 touch-manipulation ${
-              previewMode === 'printPreview'
-                ? 'bg-white text-blue-700 shadow-sm ring-1 ring-blue-200'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-            data-preview-mode="printPreview"
-          >
-            Print Preview
-          </button>
-          <button
-            type="button"
-            role="tab"
-            aria-selected={previewMode === 'materialPreview'}
-            onClick={() => setPreviewMode('materialPreview')}
-            className={`flex-1 sm:flex-none min-h-[44px] px-4 sm:px-5 py-2 text-sm font-medium rounded-lg transition-colors duration-150 touch-manipulation ${
-              previewMode === 'materialPreview'
-                ? 'bg-white text-blue-700 shadow-sm ring-1 ring-blue-200'
-                : 'text-gray-600 hover:text-gray-900'
-            }`}
-            data-preview-mode="materialPreview"
-          >
-            Real Banner Preview
-          </button>
+          {([
+            { mode: 'printPreview', label: 'Print Preview' },
+            { mode: 'materialPreview', label: 'Real Banner Preview' },
+          ] as const).map(({ mode, label }) => {
+            const active = previewMode === mode;
+            return (
+              <button
+                key={mode}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setPreviewMode(mode)}
+                className={`flex-1 sm:flex-none min-h-[44px] px-4 sm:px-5 py-2 text-sm font-medium rounded-lg transition-colors duration-150 touch-manipulation ${
+                  active
+                    ? 'bg-white text-blue-700 shadow-sm ring-1 ring-blue-200'
+                    : 'text-gray-600 hover:text-gray-900'
+                }`}
+                data-preview-mode={mode}
+              >
+                {label}
+              </button>
+            );
+          })}
         </div>
       </div>
 

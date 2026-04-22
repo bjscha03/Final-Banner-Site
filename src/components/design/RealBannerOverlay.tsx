@@ -40,7 +40,7 @@ const RealBannerOverlay: React.FC<RealBannerOverlayProps> = ({
 
   const isMesh = material === 'mesh';
 
-  const grommets$ = useMemo(
+  const grommetPositions = useMemo(
     () => grommetPoints(widthIn, heightIn, grommets),
     [widthIn, heightIn, grommets]
   );
@@ -276,7 +276,7 @@ const RealBannerOverlay: React.FC<RealBannerOverlayProps> = ({
         />
 
         {/* Grommets — purely visual, share the print preview's spacing logic */}
-        {grommets$.map((p, idx) => (
+        {grommetPositions.map((p, idx) => (
           <g key={`rb-g-${idx}`}>
             <circle
               cx={bannerOffsetX + p.x}
