@@ -197,6 +197,7 @@ const GoogleAdsBanner: React.FC = () => {
   const [showUpsellModal, setShowUpsellModal] = useState(false);
   const [isProcessingUpsell, setIsProcessingUpsell] = useState(false);
   const [pendingCheckoutData, setPendingCheckoutData] = useState<{pos: {x: number; y: number}; scale: number} | null>(null);
+  const [pendingActionType, setPendingActionType] = useState<'checkout' | 'cart'>('checkout');
 
   const quoteStore = useQuoteStore();
   const cartStore = useCartStore();
@@ -576,8 +577,13 @@ const GoogleAdsBanner: React.FC = () => {
   }, [compressImage]);
 
   // Actually perform checkout after upsell decision
-  const performCheckout = useCallback(async (selectedOptions: UpsellOption[], directData?: { pos: { x: number; y: number }, scale: number }) => {
+  const performCheckout = useCallback(async (
+    selectedOptions: UpsellOption[],
+    directData?: { pos: { x: number; y: number }, scale: number },
+    actionType: 'checkout' | 'cart' = 'checkout',
+  ) => {
     const checkoutData = directData || pendingCheckoutData;
+    const shouldNavigateToCheckout = actionType === 'checkout';
     
     // For yard signs, we use the multi-design flow
     if (isYardSign && yardSignPricing) {
@@ -672,9 +678,11 @@ const GoogleAdsBanner: React.FC = () => {
       console.log('[YARD_SIGN] ✅ Cart item created with yard sign metadata');
       setIsCartOpen(true);
       setPendingCheckoutData(null);
-      // Preserve tab in history so browser Back returns to Yard Sign tab
-      window.history.replaceState(null, '', '/google-ads-banner?product=yard-signs');
-      navigate('/checkout');
+      if (shouldNavigateToCheckout) {
+        // Preserve tab in history so browser Back returns to Yard Sign tab
+        window.history.replaceState(null, '', '/google-ads-banner?product=yard-signs');
+        navigate('/checkout');
+      }
       return;
     }
 
@@ -735,8 +743,10 @@ const GoogleAdsBanner: React.FC = () => {
 
       setIsCartOpen(true);
       setPendingCheckoutData(null);
-      window.history.replaceState(null, '', '/google-ads-banner?product=car-magnets');
-      navigate('/checkout');
+      if (shouldNavigateToCheckout) {
+        window.history.replaceState(null, '', '/google-ads-banner?product=car-magnets');
+        navigate('/checkout');
+      }
       return;
     }
 
@@ -828,9 +838,11 @@ const GoogleAdsBanner: React.FC = () => {
     console.log('[FINAL_RENDER_HTML] ✅ Cart item created with final_render data');
     setIsCartOpen(true);
     setPendingCheckoutData(null);
-    // Preserve tab in history so browser Back returns to Banner tab
-    window.history.replaceState(null, '', '/google-ads-banner?product=banner');
-    navigate('/checkout');
+    if (shouldNavigateToCheckout) {
+      // Preserve tab in history so browser Back returns to Banner tab
+      window.history.replaceState(null, '', '/google-ads-banner?product=banner');
+      navigate('/checkout');
+    }
   }, [uploadedFile, pendingCheckoutData, grommets, addRope, polePockets, widthIn, heightIn, quantity, material, quoteStore, cartStore, setIsCartOpen, navigate, imgPos, imgScale, isYardSign, isCarMagnet, carMagnetPricing, carMagnetRoundedCorners, yardSignMaterial, yardSignPricing, productType, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, yardSignSidedness, yardSignAddStepStakes, yardSignStepStakeQty]);
 
   // Proceed directly to checkout
@@ -873,9 +885,44 @@ const GoogleAdsBanner: React.FC = () => {
     if (hasFinishing && hasRope) {
       performCheckout([], { pos: posPercent, scale: imgScale });
     } else {
+      setPendingActionType('checkout');
       setShowUpsellModal(true);
     }
   }, [uploadedFile, imgPos, imgScale, grommets, polePockets, addRope, performCheckout, isYardSign, isCarMagnet, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid]);
+
+  const handleAddToCart = useCallback(() => {
+    if (isYardSign) {
+      if (yardSignDesigns.length === 0 || yardSignTotalQty === 0) return;
+      if (!yardSignQuantityValid.valid) return;
+      performCheckout([], { pos: { x: 0, y: 0 }, scale: 1 }, 'cart');
+      return;
+    }
+
+    if (isCarMagnet) {
+      if (!uploadedFile) return;
+      const container = previewContainerRef.current;
+      const containerWidth = container?.offsetWidth || 1;
+      const containerHeight = container?.offsetHeight || 1;
+      const posPercent = {
+        x: (imgPos.x / containerWidth) * 100,
+        y: (imgPos.y / containerHeight) * 100,
+      };
+      performCheckout([], { pos: posPercent, scale: imgScale }, 'cart');
+      return;
+    }
+
+    if (!uploadedFile) return;
+    const container = previewContainerRef.current;
+    const containerWidth = container?.offsetWidth || 1;
+    const containerHeight = container?.offsetHeight || 1;
+    const posPercent = {
+      x: (imgPos.x / containerWidth) * 100,
+      y: (imgPos.y / containerHeight) * 100,
+    };
+    setPendingCheckoutData({ pos: posPercent, scale: imgScale });
+    setPendingActionType('cart');
+    setShowUpsellModal(true);
+  }, [uploadedFile, imgPos, imgScale, performCheckout, isYardSign, isCarMagnet, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid]);
 
 
 // Trigger upsell modal after confirming position
@@ -909,6 +956,7 @@ const GoogleAdsBanner: React.FC = () => {
       // Go directly to checkout with current options, passing data directly
       performCheckout([], { pos: posPercent, scale });
     } else {
+      setPendingActionType('checkout');
       setShowUpsellModal(true);
     }
   }, [uploadedFile, grommets, polePockets, addRope, performCheckout, isYardSign, isCarMagnet]);
@@ -920,9 +968,9 @@ const GoogleAdsBanner: React.FC = () => {
     if (dontAskAgain) {
       sessionStorage.setItem('upsell-dont-show-again', 'true');
     }
-    performCheckout(selectedOptions);
+    performCheckout(selectedOptions, undefined, pendingActionType);
     setIsProcessingUpsell(false);
-  }, [performCheckout]);
+  }, [pendingActionType, performCheckout]);
   // Preview drag handlers
   const onPreviewMouseDown = useCallback((e: React.MouseEvent) => {
     e.preventDefault();
@@ -1214,6 +1262,17 @@ const GoogleAdsBanner: React.FC = () => {
                   >
                     Checkout
                     <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
+                  </button>
+                  <button
+                    onClick={handleAddToCart}
+                    disabled={yardSignDesigns.length === 0 || yardSignTotalQty === 0 || !yardSignQuantityValid.valid}
+                    className={`w-full font-semibold text-base py-4 rounded-xl border-2 transition-all duration-200 ${
+                      yardSignDesigns.length > 0 && yardSignTotalQty > 0 && yardSignQuantityValid.valid
+                        ? 'border-slate-300 text-slate-800 hover:bg-slate-50'
+                        : 'border-slate-200 text-slate-400 cursor-not-allowed'
+                    }`}
+                  >
+                    Add to Cart
                   </button>
                   {/* Friday shipping badge */}
                   <div className="flex items-center justify-center gap-2 mt-3 py-2 px-3 bg-blue-50 border border-blue-200 rounded-lg">
@@ -1620,6 +1679,17 @@ const GoogleAdsBanner: React.FC = () => {
                   Checkout
                   <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
                 </button>
+                <button
+                  onClick={handleAddToCart}
+                  disabled={!uploadedFile}
+                  className={`w-full font-semibold text-base py-4 rounded-xl border-2 transition-all duration-200 ${
+                    uploadedFile
+                      ? 'border-slate-300 text-slate-800 hover:bg-slate-50'
+                      : 'border-slate-200 text-slate-400 cursor-not-allowed'
+                  }`}
+                >
+                  Add to Cart
+                </button>
                 {/* Friday shipping badge */}
                 <div className="flex items-center justify-center gap-2 mt-3 py-2 px-3 bg-blue-50 border border-blue-200 rounded-lg">
                   <span className="text-sm font-medium text-blue-700">📦 Orders made on Friday will be delivered on Tuesday.</span>
@@ -1743,13 +1813,30 @@ const GoogleAdsBanner: React.FC = () => {
                 <p className="text-xl font-bold text-gray-900">{usd(totals.materialTotal)}</p>
               )}
             </div>
-            <button
-              onClick={mobileCtaAction}
-              disabled={!showEntryCta && isBuilderInView && !mobileCheckoutReady}
-              className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-xl disabled:bg-orange-300 disabled:cursor-not-allowed"
-            >
-              {mobileCtaLabel}
-            </button>
+            {showEntryCta || !mobileCheckoutReady ? (
+              <button
+                onClick={mobileCtaAction}
+                disabled={!showEntryCta && isBuilderInView && !mobileCheckoutReady}
+                className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-xl disabled:bg-orange-300 disabled:cursor-not-allowed"
+              >
+                {mobileCtaLabel}
+              </button>
+            ) : (
+              <div className="flex-1 flex flex-col gap-2">
+                <button
+                  onClick={handleCheckout}
+                  className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-xl"
+                >
+                  Checkout
+                </button>
+                <button
+                  onClick={handleAddToCart}
+                  className="w-full border-2 border-slate-300 text-slate-800 font-semibold py-3 px-6 rounded-xl bg-white"
+                >
+                  Add to Cart
+                </button>
+              </div>
+            )}
           </div>
         </div>
 
@@ -1874,7 +1961,7 @@ const GoogleAdsBanner: React.FC = () => {
           imageScale: pendingCheckoutData?.scale,
         } as any}
         thumbnailUrl={uploadedFile?.thumbnailUrl || uploadedFile?.url}
-        actionType="checkout"
+        actionType={pendingActionType === 'checkout' ? 'checkout' : 'cart'}
         isProcessing={isProcessingUpsell}
         productType={productType}
       />
