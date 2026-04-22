@@ -132,7 +132,7 @@ const PricingTable: React.FC = () => {
                   {material.features.map((feature, featureIndex) => (
                     <li key={featureIndex} className="flex items-start text-sm sm:text-base">
                       <Check className="h-4 w-4 sm:h-5 sm:w-5 text-green-500 mr-2.5 flex-shrink-0 mt-0.5" />
-                      <span className="text-slate-700 leading-snug">{feature}</span>
+                      <span className="text-gray-700 leading-snug">{feature}</span>
                     </li>
                   ))}
                 </ul>
