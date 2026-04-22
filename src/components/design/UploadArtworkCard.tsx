@@ -1,12 +1,11 @@
-import React, { useRef, useState } from 'react';
-import { Upload, FileText, Image, X, Loader2, AlertTriangle } from 'lucide-react';
+import React, { useState } from 'react';
+import { FileText, Image, X, AlertTriangle } from 'lucide-react';
 import { useQuoteStore } from '@/store/quote';
 import { Button } from '@/components/ui/button';
+import FileUploader from '@/components/ui/FileUploader';
 
 const UploadArtworkCard: React.FC = () => {
   const { file, set } = useQuoteStore();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [dragActive, setDragActive] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [isUploading, setIsUploading] = useState(false);
 
@@ -170,47 +169,9 @@ const UploadArtworkCard: React.FC = () => {
     }
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-
-    const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile) {
-      handleFileUpload(droppedFile);
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-  };
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      handleFileUpload(selectedFile);
-    }
-  };
-
   const removeFile = () => {
     set({ file: null });
     setUploadError('');
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  const openFileDialog = () => {
-    console.log('[UploadArtworkCard] Opening file dialog');
-    fileInputRef.current?.click();
   };
 
   const getFileIcon = (fileName: string) => {
@@ -232,45 +193,14 @@ const UploadArtworkCard: React.FC = () => {
       </div>
 
       {!file ? (
-        <div
-          className={`border-2 border-dashed rounded-lg p-8 text-center transition-colors ${
-            dragActive
-              ? 'border-blue-400 bg-blue-50'
-              : 'border-gray-300 hover:border-gray-400'
-          }`}
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".pdf,.jpg,.jpeg,.png"
-            onChange={handleFileSelect}
-            className="hidden"
-            disabled={isUploading}
-          />
-          
-          {isUploading ? (
-            <div className="flex flex-col items-center">
-              <Loader2 className="h-12 w-12 text-blue-500 animate-spin mb-4" />
-              <p className="text-gray-600">Uploading your file...</p>
-            </div>
-          ) : (
-            <div className="flex flex-col items-center">
-              <Upload className="h-12 w-12 text-gray-400 mb-4" />
-              <p className="text-lg font-medium text-gray-900 mb-2">
-                Drop your file here or click to browse
-              </p>
-              <p className="text-sm text-gray-500 mb-4">
-                Supports PDF, JPG, JPEG, PNG files up to 50MB
-              </p>
-              <Button type="button" onClick={openFileDialog} disabled={isUploading}>
-                Choose File
-              </Button>
-            </div>
-          )}
-        </div>
+        <FileUploader
+          onUpload={handleFileUpload}
+          acceptedTypes=".pdf,.jpg,.jpeg,.png"
+          maxSize={cloudinaryLimit}
+          label="Upload your artwork"
+          subText="PNG, JPG, or PDF • Max 50MB"
+          isUploading={isUploading}
+        />
       ) : (
         <div className="border border-gray-200 rounded-lg p-4">
           <div className="flex items-center justify-between">

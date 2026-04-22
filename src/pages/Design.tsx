@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams, useLocation, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { Upload, Clock, Star, CheckCircle, Truck, X, Loader2, ArrowRight, Brush, Minus, Plus, Lock, Mail, Droplets, Sun, Wind, Palette, Tag, Move, ZoomIn, ZoomOut, Ruler, Layers } from 'lucide-react';
+import { Clock, Star, CheckCircle, Truck, X, Loader2, ArrowRight, Brush, Minus, Plus, Lock, Mail, Droplets, Sun, Wind, Palette, Tag, Move, ZoomIn, ZoomOut, Ruler, Layers } from 'lucide-react';
 import Layout from '@/components/Layout';
 import { useQuoteStore, type MaterialKey } from '@/store/quote';
 import { useCartStore, type CartItem } from '@/store/cart';
@@ -23,6 +23,7 @@ import ProductTypeSwitcher from '@/components/design/ProductTypeSwitcher';
 import YardSignConfigurator from '@/components/design/YardSignConfigurator';
 import YardSignPriceSummary from '@/components/design/YardSignPriceSummary';
 import PriceBreakdown from '@/components/pricing/PriceBreakdown';
+import FileUploader from '@/components/ui/FileUploader';
 import {
   calcYardSignPricing,
   getTotalDesignQuantity,
@@ -182,7 +183,6 @@ const Design: React.FC = () => {
   const { toast } = useToast();
   const orderRef = useRef<HTMLDivElement>(null);
   const builderStartRef = useRef<HTMLHeadingElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const [hasEnteredBuilder, setHasEnteredBuilder] = useState(false);
   const [isBuilderInView, setIsBuilderInView] = useState(false);
   const getProductQuerySlug = useCallback((type: ProductTypeSlug) => {
@@ -338,7 +338,6 @@ const Design: React.FC = () => {
   const [uploadedFile, setUploadedFile] = useState<{name: string; url: string; fileKey: string; size: number; isPdf: boolean; thumbnailUrl?: string} | null>(null);
   const [uploadError, setUploadError] = useState('');
   const [activePreset, setActivePreset] = useState<number | null>(0);
-  const [dragActive, setDragActive] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const [promoCode, setPromoCode] = useState('');
   const [promoApplied, setPromoApplied] = useState(false);
@@ -613,13 +612,6 @@ const Design: React.FC = () => {
       setIsUploading(false);
     }
   }, [compressImage]);
-
-  const onDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setDragActive(false);
-    const f = e.dataTransfer.files?.[0];
-    if (f) handleFileUpload(f);
-  }, [handleFileUpload]);
 
   // CRITICAL: Generate final_render before adding to cart - orders without it cannot be printed
   const performCheckout = useCallback(async (selectedOptions: UpsellOption[], directData?: { pos: { x: number; y: number }, scale: number }) => {
@@ -1352,24 +1344,16 @@ const Design: React.FC = () => {
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Upload Your Artwork</label>
                 {!uploadedFile ? (
-                  <div onDrop={onDrop} onDragOver={e => { e.preventDefault(); setDragActive(true); }} onDragLeave={() => setDragActive(false)} onClick={() => fileInputRef.current?.click()} className={`relative border-2 border-dashed rounded-xl text-center cursor-pointer transition-all duration-300 ease-out overflow-hidden mx-auto ${dragActive ? 'border-orange-400 bg-orange-50 scale-[1.01] shadow-md' : 'border-gray-300 bg-gray-50/50 hover:border-orange-300 hover:bg-orange-50/30'}`} style={previewCanvasStyle}>
-                    <div className="absolute inset-0 flex flex-col items-center justify-center p-4 md:p-10">
-                      <input ref={fileInputRef} type="file" accept="image/png,image/jpeg,application/pdf,.png,.jpg,.jpeg,.pdf" onChange={e => { const f = e.target.files?.[0]; if (f) handleFileUpload(f); }} className="hidden" />
-                      {isUploading ? (
-                        <div className="flex flex-col items-center">
-                          <Loader2 className="h-10 w-10 text-orange-500 animate-spin mb-2" />
-                          <p className="text-sm text-gray-600">Uploading...</p>
-                        </div>
-                      ) : (
-                        <>
-                          <Upload className="h-8 w-8 md:h-10 md:w-10 text-gray-400 mx-auto mb-1 md:mb-2" />
-                          <p className="font-semibold text-gray-800 text-sm md:text-base">Drag &amp; Drop or Click to Upload</p>
-                          <p className="text-xs text-gray-500 mt-0.5 md:mt-1">PDF, PNG, JPG, JPEG — Max 50 MB</p>
-                          <p className="text-[10px] text-gray-400 mt-1">{widthDisplay} × {heightDisplay}</p>
-                        </>
-                      )}
-                    </div>
-                  </div>
+                  <FileUploader
+                    onUpload={handleFileUpload}
+                    acceptedTypes="image/png,image/jpeg,application/pdf,.png,.jpg,.jpeg,.pdf"
+                    maxSize={50 * 1024 * 1024}
+                    label="Upload your artwork"
+                    subText={`PNG, JPG, or PDF • Max 50MB • ${widthDisplay} × ${heightDisplay}`}
+                    isUploading={isUploading}
+                    style={previewCanvasStyle}
+                    className="mx-auto"
+                  />
                 ) : (
                   <div>
                     <div className="mb-2">
@@ -1444,7 +1428,7 @@ const Design: React.FC = () => {
                         <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
                         <span className="text-sm font-semibold text-green-800 truncate">{uploadedFile.name}</span>
                       </div>
-                      <button onClick={() => { setUploadedFile(null); setImgPos({ x: 0, y: 0 }); setImgScale(1); if (fileInputRef.current) fileInputRef.current.value = ''; }} className="ml-2 flex-shrink-0 p-1.5 rounded-full hover:bg-green-100 text-gray-500 hover:text-gray-700 transition-colors"><X className="h-4 w-4" /></button>
+                      <button onClick={() => { setUploadedFile(null); setImgPos({ x: 0, y: 0 }); setImgScale(1); }} className="ml-2 flex-shrink-0 p-1.5 rounded-full hover:bg-green-100 text-gray-500 hover:text-gray-700 transition-colors"><X className="h-4 w-4" /></button>
                     </div>
                   </div>
                 )}

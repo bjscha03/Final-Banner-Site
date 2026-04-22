@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { X, Upload, FileText, Image as ImageIcon, Loader2, AlertTriangle, Check, Package, Palette, Settings, ShoppingCart } from 'lucide-react';
 import { useQuoteStore } from '@/store/quote';
 import { useCartStore } from '@/store/cart';
@@ -9,6 +9,7 @@ import OptionsCard from './OptionsCard';
 import SizeCard from './SizeCard';
 import { calcTotals } from '@/lib/pricing';
 import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
+import FileUploader from '@/components/ui/FileUploader';
 
 interface PrintReadyUploadPanelProps {
   open: boolean;
@@ -19,8 +20,6 @@ const PrintReadyUploadPanel: React.FC<PrintReadyUploadPanelProps> = ({ open, onC
   const quote = useQuoteStore();
   const { addFromQuote } = useCartStore();
   const { toast } = useToast();
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const [dragActive, setDragActive] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [isAddingToCart, setIsAddingToCart] = useState(false);
@@ -138,46 +137,9 @@ const PrintReadyUploadPanel: React.FC<PrintReadyUploadPanelProps> = ({ open, onC
     }
   };
 
-  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-
-    const droppedFile = e.dataTransfer.files[0];
-    if (droppedFile) {
-      handleFileUpload(droppedFile);
-    }
-  };
-
-  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-  };
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const selectedFile = e.target.files?.[0];
-    if (selectedFile) {
-      handleFileUpload(selectedFile);
-    }
-  };
-
   const removeFile = () => {
     quote.set({ file: undefined });
     setUploadError('');
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  const openFileDialog = () => {
-    fileInputRef.current?.click();
   };
 
   const getFileIcon = (fileName: string) => {
@@ -371,41 +333,14 @@ const PrintReadyUploadPanel: React.FC<PrintReadyUploadPanelProps> = ({ open, onC
             </div>
             
             {!quote.file ? (
-              <div
-                className={'border-2 border-dashed rounded-lg p-8 text-center transition-colors ' + (dragActive ? 'border-blue-400 bg-blue-50' : 'border-gray-300 hover:border-gray-400')}
-                onDrop={handleDrop}
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-              >
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept=".pdf,.jpg,.jpeg,.png,.ai,.psd"
-                  onChange={handleFileSelect}
-                  className="hidden"
-                  disabled={isUploading}
-                />
-                
-                {isUploading ? (
-                  <div className="flex flex-col items-center">
-                    <Loader2 className="h-12 w-12 text-blue-500 animate-spin mb-4" />
-                    <p className="text-gray-600">Uploading your file...</p>
-                  </div>
-                ) : (
-                  <div className="flex flex-col items-center">
-                    <Upload className="h-12 w-12 text-gray-400 mb-4" />
-                    <p className="text-lg font-medium text-gray-900 mb-2">
-                      Upload your final banner design
-                    </p>
-                    <p className="text-sm text-gray-500 mb-4">
-                      PDF, JPG, PNG, AI, PSD accepted
-                    </p>
-                    <Button type="button" onClick={openFileDialog} disabled={isUploading}>
-                      Choose File
-                    </Button>
-                  </div>
-                )}
-              </div>
+              <FileUploader
+                onUpload={handleFileUpload}
+                acceptedTypes=".pdf,.jpg,.jpeg,.png,.ai,.psd"
+                maxSize={maxSizeBytes}
+                label="Upload your artwork"
+                subText="PDF, JPG, PNG, AI, or PSD • Max 50MB"
+                isUploading={isUploading}
+              />
             ) : (
               <div className="border border-gray-200 rounded-lg p-4 bg-green-50">
                 <div className="flex items-center justify-between">
