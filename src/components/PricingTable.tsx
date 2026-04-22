@@ -118,10 +118,10 @@ const PricingTable: React.FC = () => {
 
               {/* Header Section - Fixed Height */}
               <div className="text-center mb-5 sm:mb-6 px-5 sm:px-6">
-                <h3 className="text-[1.7rem] sm:text-[1.85rem] font-extrabold text-orange-500 mb-3 sm:mb-4 leading-tight min-h-[2.25rem] flex items-center justify-center">
+                <h3 className="text-3xl sm:text-4xl font-extrabold text-orange-500 mb-3 sm:mb-4 leading-tight min-h-[2.25rem] flex items-center justify-center">
                   {material.name}
                 </h3>
-                <p className="text-base sm:text-[1.05rem] text-gray-700/95 font-medium leading-relaxed min-h-[3.75rem] sm:min-h-[4rem] flex items-center justify-center text-center">
+                <p className="text-base sm:text-lg text-gray-700 font-medium leading-relaxed min-h-[3.75rem] sm:min-h-[4rem] flex items-center justify-center text-center">
                   {material.description}
                 </p>
               </div>
@@ -130,8 +130,8 @@ const PricingTable: React.FC = () => {
               <div className="flex-1 px-5 sm:px-6 mb-5 sm:mb-6">
                 <ul className="space-y-2 sm:space-y-2.5">
                   {material.features.map((feature, featureIndex) => (
-                    <li key={featureIndex} className="flex items-start text-[0.95rem] sm:text-base">
-                      <Check className="h-4 w-4 sm:h-[18px] sm:w-[18px] text-green-600 mr-2.5 flex-shrink-0 mt-0.5" />
+                    <li key={featureIndex} className="flex items-start text-sm sm:text-base">
+                      <Check className="h-4 w-4 sm:h-5 sm:w-5 text-green-600 mr-2.5 flex-shrink-0 mt-0.5" />
                       <span className="text-slate-700 leading-snug">{feature}</span>
                     </li>
                   ))}
@@ -142,7 +142,7 @@ const PricingTable: React.FC = () => {
               <div className="px-5 sm:px-6 pb-5 sm:pb-6">
                 <button
                   onClick={() => handleMaterialSelect(material.key)}
-                  className={`w-full py-3.5 sm:py-4 px-6 rounded-xl font-bold text-[0.95rem] sm:text-base transition-all duration-200 shadow-lg hover:shadow-xl ${
+                  className={`w-full py-3.5 sm:py-4 px-6 rounded-xl font-bold text-sm sm:text-base transition-all duration-200 shadow-lg hover:shadow-xl ${
                     material.popular
                       ? 'bg-orange-500 hover:bg-orange-600 text-white'
                       : 'bg-[#18448D] hover:bg-[#0f2d5c] text-white'
