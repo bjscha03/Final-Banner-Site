@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { X, Trash2, Plus, Minus, ShoppingBag, Eye, Tag } from 'lucide-react';
 import BannerPreview from './cart/BannerPreview';
+import { useNavigate } from 'react-router-dom';
 import { usd } from '@/lib/pricing';
 import { useCartStore } from '@/store/cart';
 import { getItemDisplayName, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
@@ -13,7 +14,8 @@ interface CartModalProps {
 }
 
 const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
-  const { items: rawItems, getMigratedItems, updateQuantity, removeItem, getSubtotalCents, getTaxCents, getTotalCents, getResolvedDiscount } = useCartStore();
+  const navigate = useNavigate();
+  const { getMigratedItems, updateQuantity, removeItem, getSubtotalCents, getTaxCents, getTotalCents, getResolvedDiscount } = useCartStore();
 
   // CRITICAL: Use migrated items to ensure rope/pole pocket costs are calculated
   const items = getMigratedItems();
