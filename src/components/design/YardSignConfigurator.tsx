@@ -620,7 +620,7 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
             onUpload={handleFileUpload}
             acceptedTypes="image/png,image/jpeg,.pdf"
             maxSize={50 * 1024 * 1024}
-            label={designs.length === 0 ? 'Upload your artwork' : 'Upload your artwork'}
+            label={designs.length === 0 ? 'Upload your artwork' : 'Add another design'}
             subText="PNG, JPG, or PDF • Max 50MB"
             isUploading={isUploading}
           />

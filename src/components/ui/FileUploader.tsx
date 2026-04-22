@@ -31,7 +31,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({
   const localInputRef = useRef<HTMLInputElement>(null);
   const [isDragActive, setIsDragActive] = useState(false);
 
-  const derivedSubText = subText || (maxSize ? `${DEFAULT_SUBTEXT}` : DEFAULT_SUBTEXT);
+  const derivedSubText = subText || (maxSize ? `PNG, JPG, or PDF • Max ${Math.round(maxSize / (1024 * 1024))}MB` : DEFAULT_SUBTEXT);
 
   const handleFiles = (files: FileList | null) => {
     if (!files || files.length === 0 || disabled || isUploading) return;
@@ -75,6 +75,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({
         setIsDragActive(false);
       }}
       onKeyDown={(e) => {
+        if (e.repeat) return;
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
           openFilePicker();
@@ -104,7 +105,7 @@ const FileUploader: React.FC<FileUploaderProps> = ({
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center">
-          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#F97316] md:h-14 md:w-14">
+          <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#F97316] md:h-14 md:w-14" aria-hidden="true">
             <Upload className="h-5 w-5 text-white md:h-6 md:w-6" />
           </div>
           <p className="text-sm font-semibold text-[#111827] md:text-base">{label}</p>

@@ -198,7 +198,6 @@ const UploadArtworkCard: React.FC = () => {
           acceptedTypes=".pdf,.jpg,.jpeg,.png"
           maxSize={cloudinaryLimit}
           label="Upload your artwork"
-          subText="PNG, JPG, or PDF • Max 50MB"
           isUploading={isUploading}
         />
       ) : (
