@@ -3,6 +3,7 @@ import { getConversation, resetConversation, updateConversation } from "./stateS
 const TAX_RATE = 0.06;
 const PRICE_PER_SQFT = 4.5;
 const POLE_POCKETS_PRICE_PER_ITEM = 20;
+const PAYPAL_STORE_PATH = process.env.SMS_PAYPAL_STORE ?? "yourstore";
 
 const PRODUCT_TYPES = [
   { value: "banner", aliases: ["banner", "banners"] },
@@ -20,12 +21,47 @@ const detectProductType = (message) => {
   return product?.value ?? null;
 };
 
-const parseSize = (message) => {
-  const match = message.match(/(\d+(?:\.\d+)?)\s*x\s*(\d+(?:\.\d+)?)/i);
-  if (!match) return null;
+const stripSpaces = (value) =>
+  value
+    .split("")
+    .filter((char) => char !== " ")
+    .join("");
 
-  const width = Number.parseFloat(match[1]);
-  const height = Number.parseFloat(match[2]);
+const isNumericToken = (value) => {
+  if (!value) return false;
+
+  let dotCount = 0;
+  for (const char of value) {
+    if (char === ".") {
+      dotCount += 1;
+      if (dotCount > 1) return false;
+      continue;
+    }
+
+    if (char < "0" || char > "9") return false;
+  }
+
+  return true;
+};
+
+const parseSize = (message) => {
+  const compact = stripSpaces(message).toLowerCase();
+  const separatorIndex = compact.indexOf("x");
+  const lastSeparatorIndex = compact.lastIndexOf("x");
+
+  if (separatorIndex <= 0 || separatorIndex !== lastSeparatorIndex || separatorIndex >= compact.length - 1) {
+    return null;
+  }
+
+  const widthToken = compact.slice(0, separatorIndex);
+  const heightToken = compact.slice(separatorIndex + 1);
+
+  if (!isNumericToken(widthToken) || !isNumericToken(heightToken)) {
+    return null;
+  }
+
+  const width = Number.parseFloat(widthToken);
+  const height = Number.parseFloat(heightToken);
 
   if (!Number.isFinite(width) || !Number.isFinite(height) || width <= 0 || height <= 0) {
     return null;
@@ -40,7 +76,7 @@ const parseSize = (message) => {
 
 const parseQuantity = (message) => {
   const value = Number.parseInt(message.trim(), 10);
-  if (!Number.isFinite(value) || value <= 0) return null;
+  if (Number.isNaN(value) || value <= 0) return null;
   return value;
 };
 
@@ -56,7 +92,8 @@ const calculateTotal = ({ size, quantity, addOns }) => {
 
 const formatCurrency = (value) => `$${value.toFixed(2)}`;
 
-const buildPaymentLink = (total) => `https://paypal.me/yourstore/${total.toFixed(2)}`;
+const buildPaymentLink = (total) =>
+  `https://paypal.me/${encodeURIComponent(PAYPAL_STORE_PATH)}/${total.toFixed(2)}`;
 
 const buildStartPrompt = () =>
   "What would you like to order? (banner, yard sign, or car magnet)";
