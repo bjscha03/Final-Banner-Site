@@ -1,9 +1,17 @@
-import { getConversation, resetConversation, updateConversation } from "./stateStore.js";
+import {
+  createOrUpdateSessionForUser,
+  getActiveSessionForUser,
+  getConversation,
+  resetConversation,
+  SESSION_STATUSES,
+  updateConversation,
+} from "./stateStore.js";
 
 const TAX_RATE = 0.06;
 const PRICE_PER_SQFT = 4.5;
 const POLE_POCKETS_PRICE_PER_ITEM = 20;
 const PAYPAL_STORE_PATH = process.env.SMS_PAYPAL_STORE ?? "yourstore";
+const SMS_BASE_URL = process.env.SMS_BASE_URL ?? "http://localhost:3001";
 
 const PRODUCT_TYPES = [
   { value: "banner", aliases: ["banner", "banners"] },
@@ -82,12 +90,18 @@ const parseQuantity = (message) => {
 
 const isPolePockets = (addOns) => normalizeMessage(addOns).includes("pole pockets");
 
-const calculateTotal = ({ size, quantity, addOns }) => {
+export const calculateTotals = ({ size, quantity, addOns }) => {
   const sqFt = size.width * size.height;
   const baseTotal = sqFt * PRICE_PER_SQFT * quantity;
   const addOnTotal = isPolePockets(addOns) ? POLE_POCKETS_PRICE_PER_ITEM * quantity : 0;
   const subtotal = baseTotal + addOnTotal;
-  return subtotal * (1 + TAX_RATE);
+  const tax = subtotal * TAX_RATE;
+  const total = subtotal + tax;
+  return {
+    subtotal,
+    tax,
+    total,
+  };
 };
 
 const formatCurrency = (value) => `$${value.toFixed(2)}`;
@@ -98,12 +112,69 @@ const buildPaymentLink = (total) =>
 const buildStartPrompt = () =>
   "What would you like to order? (banner, yard sign, or car magnet)";
 
+export const createPaymentSummary = (session) => {
+  if (!session?.config?.size || !session?.config?.quantity) {
+    return null;
+  }
+
+  const totals = calculateTotals({
+    size: session.config.size,
+    quantity: session.config.quantity,
+    addOns: session.config.addOns ?? "none",
+  });
+
+  return {
+    productType: session.config.productType ?? "banner",
+    size: session.config.size.raw,
+    quantity: session.config.quantity,
+    material: session.config.material ?? "13oz",
+    addOns: session.config.addOns ?? "none",
+    roundedCorners: Boolean(session.config.roundedCorners),
+    subtotal: Number(totals.subtotal.toFixed(2)),
+    tax: Number(totals.tax.toFixed(2)),
+    total: Number(totals.total.toFixed(2)),
+  };
+};
+
+export const buildPlaceholderPaymentUrl = (session) => {
+  const summary = createPaymentSummary(session);
+  if (!summary) return null;
+  return `https://paypal.me/${encodeURIComponent(PAYPAL_STORE_PATH)}/${summary.total.toFixed(2)}`;
+};
+
 const handlePayCommand = (conversation) => {
   if (!conversation.total) {
     return buildStartPrompt();
   }
 
   return buildPaymentLink(conversation.total);
+};
+
+const handleSessionPayCommand = (session) => {
+  if (!session) {
+    return null;
+  }
+
+  if (session.status !== SESSION_STATUSES.AWAITING_PAYMENT) {
+    return null;
+  }
+
+  const summary = createPaymentSummary(session);
+  if (!summary) {
+    return "We couldn't load your order summary yet. Please reply again in a moment.";
+  }
+
+  if (!session.paymentUrl) {
+    return "Your design is approved. We’re generating your payment link now.";
+  }
+
+  return [
+    "Your banner order is ready.",
+    `Size: ${summary.size}`,
+    `Qty: ${summary.quantity}`,
+    `Total: ${formatCurrency(summary.total)}`,
+    `Pay here: ${session.paymentUrl}`,
+  ].join("\n");
 };
 
 export const processSmsMessage = ({ userId, message }) => {
@@ -115,7 +186,12 @@ export const processSmsMessage = ({ userId, message }) => {
   const normalizedMessage = normalizeMessage(trimmedMessage);
   const currentConversation = getConversation(userId);
 
-  if (normalizedMessage === "pay") {
+  if (normalizedMessage === "pay" || normalizedMessage === "checkout" || normalizedMessage === "payment") {
+    const activeSession = getActiveSessionForUser(userId);
+    const sessionPayReply = handleSessionPayCommand(activeSession);
+    if (sessionPayReply) {
+      return sessionPayReply;
+    }
     return handlePayCommand(currentConversation);
   }
 
@@ -132,7 +208,7 @@ export const processSmsMessage = ({ userId, message }) => {
         return buildStartPrompt();
       }
 
-      updateConversation(userId, { productType, step: "SIZE" });
+      updateConversation(userId, { productType, step: "SIZE", status: SESSION_STATUSES.COLLECTING_DETAILS });
       return "What size do you need? (example: 4x2)";
     }
 
@@ -171,10 +247,23 @@ export const processSmsMessage = ({ userId, message }) => {
       const latestConversation = updateConversation(userId, {
         quantity,
       });
-      const total = calculateTotal({
+      const totals = calculateTotals({
         size: latestConversation.size,
         quantity,
         addOns: latestConversation.addOns,
+      });
+      const total = totals.total;
+
+      const session = createOrUpdateSessionForUser({
+        userId,
+        config: {
+          productType: latestConversation.productType,
+          size: latestConversation.size,
+          material: latestConversation.material,
+          addOns: latestConversation.addOns,
+          quantity,
+          roundedCorners: false,
+        },
       });
 
       updateConversation(userId, {
@@ -182,7 +271,11 @@ export const processSmsMessage = ({ userId, message }) => {
         step: "COMPLETE",
       });
 
-      return `Your total is ${formatCurrency(total)}. Reply PAY to get checkout link.`;
+      return [
+        `Your total is ${formatCurrency(total)}.`,
+        `Upload and approve your design here: ${SMS_BASE_URL}/text-order/${session.sessionId}`,
+        "After approval, reply PAY for your payment link.",
+      ].join("\n");
     }
 
     case "COMPLETE":
