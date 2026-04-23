@@ -866,6 +866,43 @@ exports.handler = async (event, context) => {
       // Don't fail the order creation if abandoned cart update fails
     }
 
+    // Mark database discount code as used after successful order creation.
+    // NEW20 is a virtual promo tracked by the orders table, not discount_codes.
+    // All other codes stored in discount_codes must be invalidated here so they
+    // cannot be reused by any subsequent checkout session.
+    if (orderData.discountCode && orderData.discountCode.code) {
+      const dcCode = String(orderData.discountCode.code).trim().toUpperCase();
+      if (dcCode !== 'NEW20') {
+        try {
+          const normalizedEmailForDiscount = userEmail ? userEmail.toLowerCase() : null;
+          await sql`
+            UPDATE discount_codes
+            SET
+              used           = TRUE,
+              used_at        = NOW(),
+              used_by_user_id = COALESCE(used_by_user_id, ${finalUserId}::UUID),
+              used_by_email  = CASE
+                WHEN ${normalizedEmailForDiscount}::TEXT IS NOT NULL THEN
+                  COALESCE(used_by_email, ARRAY[]::TEXT[]) || ARRAY[${normalizedEmailForDiscount}::TEXT]
+                ELSE used_by_email
+              END,
+              order_id       = ${orderId},
+              updated_at     = NOW()
+            WHERE code = ${dcCode}
+          `;
+          console.log('[create-order] Discount code marked as used:', {
+            code: dcCode,
+            orderId,
+            email: normalizedEmailForDiscount,
+            timestamp: new Date().toISOString(),
+          });
+        } catch (discountUpdateError) {
+          // Log but do not fail the order – the code was validated before checkout
+          console.error('[create-order] Failed to mark discount code as used:', discountUpdateError.message);
+        }
+      }
+    }
+
     // Return structured response
     // Send order confirmation email
     try {
