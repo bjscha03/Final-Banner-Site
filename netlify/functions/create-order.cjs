@@ -878,16 +878,16 @@ exports.handler = async (event, context) => {
           await sql`
             UPDATE discount_codes
             SET
-              used           = TRUE,
-              used_at        = NOW(),
-              used_by_user_id = COALESCE(used_by_user_id, ${finalUserId}::UUID),
-              used_by_email  = CASE
+              used            = TRUE,
+              used_at         = NOW(),
+              used_by_user_id = ${finalUserId}::UUID,
+              used_by_email   = CASE
                 WHEN ${normalizedEmailForDiscount}::TEXT IS NOT NULL THEN
                   COALESCE(used_by_email, ARRAY[]::TEXT[]) || ARRAY[${normalizedEmailForDiscount}::TEXT]
                 ELSE used_by_email
               END,
-              order_id       = ${orderId},
-              updated_at     = NOW()
+              order_id        = ${orderId},
+              updated_at      = NOW()
             WHERE code = ${dcCode}
           `;
           console.log('[create-order] Discount code marked as used:', {

@@ -249,7 +249,7 @@ exports.handler = async (event, context) => {
         };
       }
       if (normalizedEmail !== discount.email) {
-        console.log('[validate-discount-code] Email mismatch for restricted code:', normalizedEmail, '!==', discount.email);
+        console.log('[validate-discount-code] Email mismatch for restricted code');
         return {
           statusCode: 200,
           headers,
