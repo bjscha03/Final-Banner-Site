@@ -103,7 +103,11 @@ export const updateSession = (sessionId, updates) => {
   return updated;
 };
 
-export const setSessionStatus = (sessionId, status) => updateSession(sessionId, { status });
+export const setSessionStatus = (sessionId, status) =>
+  updateSession(sessionId, {
+    status,
+    readyForPayment: status === SESSION_STATUSES.AWAITING_PAYMENT,
+  });
 
 export const getActiveSessionForUser = (userId) => {
   const sessionId = userActiveSession.get(userId);
