@@ -1,6 +1,7 @@
 const conversations = new Map();
 const sessions = new Map();
 const userActiveSession = new Map();
+let fallbackUuidCounter = 0;
 
 export const SESSION_STATUSES = {
   COLLECTING_DETAILS: "collecting_details",
@@ -25,7 +26,8 @@ const generateUuid = () => {
   if (globalThis.crypto?.randomUUID) {
     return globalThis.crypto.randomUUID();
   }
-  return Math.random().toString(16).slice(2) + Math.random().toString(16).slice(2);
+  fallbackUuidCounter += 1;
+  return `${Date.now().toString(16)}${fallbackUuidCounter.toString(16).padStart(8, "0")}`;
 };
 
 const generateSessionId = () =>

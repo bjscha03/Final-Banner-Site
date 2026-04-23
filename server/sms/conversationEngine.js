@@ -101,10 +101,12 @@ export const createPaymentSummary = (session) => {
     return null;
   }
 
-  const normalizedProductType = (session.config.productType ?? "banner").toLowerCase();
+  const normalizedProductType = (session.config.productType ?? "banner")
+    .toLowerCase()
+    .replaceAll(" ", "_");
   const normalizedMaterial = (session.config.material ?? "13oz").toLowerCase();
   const normalizedAddOns = (session.config.addOns ?? "none").toLowerCase();
-  const quantity = Math.max(1, Number.parseInt(`${session.config.quantity}`, 10) || 1);
+  const quantity = Number.parseInt(`${session.config.quantity}`, 10) || 1;
   const widthIn = (Number(session.config.size.width) || 0) * 12;
   const heightIn = (Number(session.config.size.height) || 0) * 12;
 
@@ -112,7 +114,7 @@ export const createPaymentSummary = (session) => {
   let taxCents = 0;
   let totalCents = 0;
 
-  if (normalizedProductType === "car magnet" || normalizedProductType === "car_magnet") {
+  if (normalizedProductType === "car_magnet") {
     const pricing = calculatePricing({
       productType: "car_magnet",
       widthIn,
@@ -122,7 +124,7 @@ export const createPaymentSummary = (session) => {
     subtotalCents = pricing.subtotalCents;
     taxCents = pricing.taxCents;
     totalCents = pricing.totalCents;
-  } else if (normalizedProductType === "yard sign" || normalizedProductType === "yard_sign") {
+  } else if (normalizedProductType === "yard_sign") {
     const isDoubleSided = normalizedMaterial.includes("double");
     const addStepStakes = normalizedAddOns.includes("stake");
     const pricing = calcYardSignPricing(
