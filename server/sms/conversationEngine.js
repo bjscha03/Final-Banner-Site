@@ -201,7 +201,7 @@ const handleSessionPayCommand = (session) => {
     return "Your design is approved. We’re generating your payment link now.";
   }
 
-  const orderLabel = summary.productType ? `${summary.productType}` : "banner";
+  const orderLabel = summary.productType || "banner";
   return [
     `Your ${orderLabel} order is ready.`,
     `Size: ${summary.size}`,

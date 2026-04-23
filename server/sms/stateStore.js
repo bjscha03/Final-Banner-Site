@@ -26,8 +26,13 @@ const generateUuid = () => {
   if (globalThis.crypto?.randomUUID) {
     return globalThis.crypto.randomUUID();
   }
+  if (globalThis.crypto?.getRandomValues) {
+    const bytes = new Uint8Array(16);
+    globalThis.crypto.getRandomValues(bytes);
+    return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+  }
   fallbackUuidCounter += 1;
-  return `${Date.now().toString(16)}${fallbackUuidCounter.toString(16).padStart(8, "0")}`;
+  return `${Date.now().toString(16)}${process.pid.toString(16)}${fallbackUuidCounter.toString(16).padStart(8, "0")}`;
 };
 
 const generateSessionId = () =>
