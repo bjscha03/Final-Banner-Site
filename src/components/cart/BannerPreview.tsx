@@ -320,7 +320,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
           >
           <div
             className="rounded-lg overflow-hidden shadow-lg border-2 border-gray-200 absolute inset-0"
-            style={{ backgroundColor: '#f5f5f5' }}
+            style={{ backgroundColor: '#fafafa' }}
           >
               <img 
                 ref={imgRef}
@@ -379,7 +379,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
           style={{
             width: `${previewWidth}px`,
             height: `${previewHeight}px`,
-            backgroundColor: '#f5f5f5',
+            backgroundColor: '#fafafa',
           }}
         >
           <img 
