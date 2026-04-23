@@ -140,7 +140,8 @@ exports.handler = async (event, context) => {
         used_by_user_id,
         used_by_email,
         max_uses_per_customer,
-        max_total_uses
+        max_total_uses,
+        email
       FROM discount_codes
       WHERE code = ${normalizedCode}
       LIMIT 1
@@ -173,6 +174,20 @@ exports.handler = async (event, context) => {
       };
     }
 
+    // If the code is globally marked as used (applies to single-use codes after
+    // order completion), reject immediately regardless of email/user checks.
+    if (discount.used) {
+      console.log('[validate-discount-code] Code already used (used=TRUE):', normalizedCode);
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          valid: false,
+          error: 'This code has already been used',
+        })
+      };
+    }
+
     // Check if this specific user/email has already used it
     if (normalizedEmail && discount.used_by_email) {
       const usedByEmails = Array.isArray(discount.used_by_email) ? discount.used_by_email : [];
@@ -183,7 +198,7 @@ exports.handler = async (event, context) => {
           headers,
           body: JSON.stringify({ 
             valid: false, 
-            error: 'You have already used this code' 
+            error: 'This code has already been used' 
           })
         };
       }
@@ -197,7 +212,7 @@ exports.handler = async (event, context) => {
         headers,
         body: JSON.stringify({ 
           valid: false, 
-          error: 'You have already used this code' 
+          error: 'This code has already been used' 
         })
       };
     }
@@ -206,27 +221,44 @@ exports.handler = async (event, context) => {
     if (discount.max_total_uses !== null && discount.max_total_uses !== undefined) {
       const totalUses = discount.used_by_email ? discount.used_by_email.length : 0;
       if (totalUses >= discount.max_total_uses) {
+        // Use a clear single-use message when max_total_uses is 1
+        const errorMsg = discount.max_total_uses === 1
+          ? 'This code has already been used'
+          : 'This discount code has reached its maximum number of uses';
         return {
           statusCode: 200,
           headers,
           body: JSON.stringify({ 
             valid: false, 
-            error: 'This discount code has reached its maximum number of uses' 
+            error: errorMsg,
           })
         };
       }
     }
 
-    // Legacy check: if single_use and globally used (for backwards compatibility)
-    if (discount.used && discount.single_use && !discount.used_by_email && !discount.used_by_user_id) {
-      return {
-        statusCode: 200,
-        headers,
-        body: JSON.stringify({ 
-          valid: false, 
-          error: 'This discount code has already been used' 
-        })
-      };
+    // Check if the code is restricted to a specific email address
+    if (discount.email) {
+      if (!normalizedEmail) {
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            valid: false,
+            error: 'Please enter your email to use this code',
+          })
+        };
+      }
+      if (normalizedEmail !== discount.email) {
+        console.log('[validate-discount-code] Email mismatch for restricted code');
+        return {
+          statusCode: 200,
+          headers,
+          body: JSON.stringify({
+            valid: false,
+            error: 'This code is not valid for your account',
+          })
+        };
+      }
     }
 
     // Code is valid!

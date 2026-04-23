@@ -52,6 +52,12 @@ export const KNOWN_PROMO_CODES: Record<string, KnownPromoCode> = {
     description: '20% off your first order',
     firstOrderOnly: true,
   },
+  CUSTOM60: {
+    code: 'CUSTOM60',
+    discountPercentage: 60,
+    description: '60% off your order (one-time use)',
+    firstOrderOnly: false,
+  },
 };
 
 export function getKnownPromo(code: string | null | undefined): KnownPromoCode | null {
