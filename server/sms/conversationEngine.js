@@ -6,10 +6,9 @@ import {
   SESSION_STATUSES,
   updateConversation,
 } from "./stateStore.js";
+import { calculatePricing } from "../../src/lib/pricingEngine";
+import { calcYardSignPricing } from "../../src/lib/yard-sign-pricing";
 
-const TAX_RATE = 0.06;
-const PRICE_PER_SQFT = 4.5;
-const POLE_POCKETS_PRICE_PER_ITEM = 20;
 const PAYPAL_STORE_PATH = process.env.SMS_PAYPAL_STORE ?? "yourstore";
 const SMS_BASE_URL = process.env.SMS_BASE_URL ?? "http://localhost:3001";
 const PAYMENT_KEYWORDS = new Set(["pay", "checkout", "payment"]);
@@ -89,22 +88,6 @@ const parseQuantity = (message) => {
   return value;
 };
 
-const isPolePockets = (addOns) => normalizeMessage(addOns).includes("pole pockets");
-
-export const calculateTotals = ({ size, quantity, addOns }) => {
-  const sqFt = size.width * size.height;
-  const baseTotal = sqFt * PRICE_PER_SQFT * quantity;
-  const addOnTotal = isPolePockets(addOns) ? POLE_POCKETS_PRICE_PER_ITEM * quantity : 0;
-  const subtotal = baseTotal + addOnTotal;
-  const tax = subtotal * TAX_RATE;
-  const total = subtotal + tax;
-  return {
-    subtotal,
-    tax,
-    total,
-  };
-};
-
 const formatCurrency = (value) => `$${value.toFixed(2)}`;
 
 const buildPaymentLink = (total) =>
@@ -118,22 +101,71 @@ export const createPaymentSummary = (session) => {
     return null;
   }
 
-  const totals = calculateTotals({
-    size: session.config.size,
-    quantity: session.config.quantity,
-    addOns: session.config.addOns ?? "none",
-  });
+  const normalizedProductType = (session.config.productType ?? "banner")
+    .toLowerCase()
+    .replaceAll(" ", "_");
+  const normalizedMaterial = (session.config.material ?? "13oz").toLowerCase();
+  const normalizedAddOns = (session.config.addOns ?? "none").toLowerCase();
+  const quantity = Number.parseInt(`${session.config.quantity}`, 10) || 1;
+  const widthIn = (Number(session.config.size.width) || 0) * 12;
+  const heightIn = (Number(session.config.size.height) || 0) * 12;
+
+  let subtotalCents = 0;
+  let taxCents = 0;
+  let totalCents = 0;
+
+  if (normalizedProductType === "car_magnet") {
+    const pricing = calculatePricing({
+      productType: "car_magnet",
+      widthIn,
+      heightIn,
+      quantity,
+    });
+    subtotalCents = pricing.subtotalCents;
+    taxCents = pricing.taxCents;
+    totalCents = pricing.totalCents;
+  } else if (normalizedProductType === "yard_sign") {
+    const isDoubleSided = normalizedMaterial.includes("double");
+    const addStepStakes = normalizedAddOns.includes("stake");
+    const pricing = calcYardSignPricing(
+      isDoubleSided ? "double" : "single",
+      quantity,
+      addStepStakes,
+      addStepStakes ? quantity : 0,
+      0,
+    );
+    subtotalCents = pricing.totalCents;
+    taxCents = pricing.taxCents;
+    totalCents = pricing.totalWithTaxCents;
+  } else {
+    const polePockets = normalizedAddOns.includes("pole") ? "top-bottom" : "none";
+    const addRope = normalizedAddOns.includes("rope");
+    const grommets = normalizedAddOns.includes("grommet") ? "every-2-3ft" : "none";
+    const pricing = calculatePricing({
+      productType: "banner",
+      widthIn,
+      heightIn,
+      quantity,
+      material: normalizedMaterial,
+      addRope,
+      polePockets,
+      grommets,
+    });
+    subtotalCents = pricing.subtotalCents;
+    taxCents = pricing.taxCents;
+    totalCents = pricing.totalCents;
+  }
 
   return {
     productType: session.config.productType ?? "banner",
     size: session.config.size.raw,
-    quantity: session.config.quantity,
+    quantity,
     material: session.config.material ?? "13oz",
     addOns: session.config.addOns ?? "none",
     roundedCorners: Boolean(session.config.roundedCorners),
-    subtotal: Number(totals.subtotal.toFixed(2)),
-    tax: Number(totals.tax.toFixed(2)),
-    total: Number(totals.total.toFixed(2)),
+    subtotal: Number((subtotalCents / 100).toFixed(2)),
+    tax: Number((taxCents / 100).toFixed(2)),
+    total: Number((totalCents / 100).toFixed(2)),
   };
 };
 
@@ -169,8 +201,9 @@ const handleSessionPayCommand = (session) => {
     return "Your design is approved. We’re generating your payment link now.";
   }
 
+  const orderLabel = summary.productType || "banner";
   return [
-    "Your banner order is ready.",
+    `Your ${orderLabel} order is ready.`,
     `Size: ${summary.size}`,
     `Qty: ${summary.quantity}`,
     `Total: ${formatCurrency(summary.total)}`,
@@ -248,13 +281,6 @@ export const processSmsMessage = ({ userId, message }) => {
       const latestConversation = updateConversation(userId, {
         quantity,
       });
-      const totals = calculateTotals({
-        size: latestConversation.size,
-        quantity,
-        addOns: latestConversation.addOns,
-      });
-      const total = totals.total;
-
       const session = createOrUpdateSessionForUser({
         userId,
         config: {
@@ -266,6 +292,8 @@ export const processSmsMessage = ({ userId, message }) => {
           roundedCorners: false,
         },
       });
+      const paymentSummary = createPaymentSummary(session);
+      const total = paymentSummary?.total ?? 0;
 
       updateConversation(userId, {
         total,

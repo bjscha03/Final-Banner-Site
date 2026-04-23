@@ -1,8 +1,7 @@
-import { randomUUID } from "node:crypto";
-
 const conversations = new Map();
 const sessions = new Map();
 const userActiveSession = new Map();
+let fallbackUuidCounter = 0;
 
 export const SESSION_STATUSES = {
   COLLECTING_DETAILS: "collecting_details",
@@ -23,8 +22,22 @@ const createInitialState = () => ({
   total: null,
 });
 
+const generateUuid = () => {
+  if (globalThis.crypto?.randomUUID) {
+    return globalThis.crypto.randomUUID();
+  }
+  if (globalThis.crypto?.getRandomValues) {
+    const bytes = new Uint8Array(16);
+    globalThis.crypto.getRandomValues(bytes);
+    const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`;
+  }
+  fallbackUuidCounter += 1;
+  return `${Date.now().toString(16)}${process.pid.toString(16)}${fallbackUuidCounter.toString(16).padStart(8, "0")}`;
+};
+
 const generateSessionId = () =>
-  `sms_${Date.now().toString(36)}_${randomUUID().replaceAll("-", "")}`;
+  `sms_${Date.now().toString(36)}_${generateUuid().replaceAll("-", "")}`;
 
 export const getConversation = (userId) => {
   if (!conversations.has(userId)) {
@@ -103,7 +116,11 @@ export const updateSession = (sessionId, updates) => {
   return updated;
 };
 
-export const setSessionStatus = (sessionId, status) => updateSession(sessionId, { status });
+export const setSessionStatus = (sessionId, status) =>
+  updateSession(sessionId, {
+    status,
+    readyForPayment: status === SESSION_STATUSES.AWAITING_PAYMENT,
+  });
 
 export const getActiveSessionForUser = (userId) => {
   const sessionId = userActiveSession.get(userId);
