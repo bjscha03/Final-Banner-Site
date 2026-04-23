@@ -1,3 +1,5 @@
+import { randomUUID } from "node:crypto";
+
 const conversations = new Map();
 const sessions = new Map();
 const userActiveSession = new Map();
@@ -22,7 +24,7 @@ const createInitialState = () => ({
 });
 
 const generateSessionId = () =>
-  `sms_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  `sms_${Date.now().toString(36)}_${randomUUID().replaceAll("-", "")}`;
 
 export const getConversation = (userId) => {
   if (!conversations.has(userId)) {

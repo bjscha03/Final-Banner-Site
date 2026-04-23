@@ -208,7 +208,7 @@ export const processSmsMessage = ({ userId, message }) => {
         return buildStartPrompt();
       }
 
-      updateConversation(userId, { productType, step: "SIZE", status: SESSION_STATUSES.COLLECTING_DETAILS });
+      updateConversation(userId, { productType, step: "SIZE" });
       return "What size do you need? (example: 4x2)";
     }
 

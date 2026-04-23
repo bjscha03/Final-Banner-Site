@@ -11,15 +11,14 @@ import {
   updateSession,
 } from "./stateStore.js";
 
-const escapeHtml = (value) =>
-  String(value ?? "")
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
+const normalizeOptionalString = (value, fallback = null) => {
+  if (typeof value !== "string") return fallback;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : fallback;
+};
+const VALID_SESSION_STATUSES = new Set(Object.values(SESSION_STATUSES));
 
-const renderTextOrderPage = (sessionId) => `<!doctype html>
+const renderTextOrderPage = () => `<!doctype html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
@@ -40,7 +39,7 @@ const renderTextOrderPage = (sessionId) => `<!doctype html>
   </head>
   <body>
     <h1>SMS Text Order</h1>
-    <p class="muted">Session: <code>${escapeHtml(sessionId)}</code></p>
+    <p class="muted">Session: <code id="sessionIdValue">Loading…</code></p>
 
     <div class="card">
       <h2>Order Details</h2>
@@ -74,7 +73,8 @@ const renderTextOrderPage = (sessionId) => `<!doctype html>
     </div>
 
     <script>
-      const sessionId = ${JSON.stringify(sessionId)};
+      const sessionId = decodeURIComponent(window.location.pathname.split("/").pop() || "");
+      document.getElementById("sessionIdValue").textContent = sessionId;
       const summaryEl = document.getElementById("summary");
       const fileInput = document.getElementById("fileInput");
       const previewWrap = document.getElementById("previewWrap");
@@ -96,7 +96,7 @@ const renderTextOrderPage = (sessionId) => `<!doctype html>
         session = payload.session;
         summaryEl.textContent = JSON.stringify(session, null, 2);
 
-        if (session?.status === "awaiting_payment") {
+        if (session?.status === "${SESSION_STATUSES.AWAITING_PAYMENT}") {
           approvedState.classList.remove("hidden");
           if (session.paymentUrl) {
             paymentLinkWrap.classList.remove("hidden");
@@ -205,8 +205,7 @@ export const createSmsApp = () => {
   });
 
   app.get("/text-order/:sessionId", (req, res) => {
-    const { sessionId } = req.params;
-    return res.type("html").send(renderTextOrderPage(sessionId));
+    return res.type("html").send(renderTextOrderPage());
   });
 
   app.get("/api/text-order/:sessionId", (req, res) => {
@@ -222,7 +221,6 @@ export const createSmsApp = () => {
         ...session,
         readyForPayment: session.status === SESSION_STATUSES.AWAITING_PAYMENT,
       },
-      readyForPayment: session.status === SESSION_STATUSES.AWAITING_PAYMENT,
       paymentSummary,
     });
   });
@@ -233,8 +231,12 @@ export const createSmsApp = () => {
     if (typeof status !== "string" || !status.trim()) {
       return res.status(400).json({ error: "status is required" });
     }
+    const normalizedStatus = status.trim();
+    if (!VALID_SESSION_STATUSES.has(normalizedStatus)) {
+      return res.status(400).json({ error: "Invalid session status" });
+    }
 
-    const updated = setSessionStatus(sessionId, status.trim());
+    const updated = setSessionStatus(sessionId, normalizedStatus);
     if (!updated) {
       return res.status(404).json({ error: "Session not found" });
     }
@@ -251,8 +253,8 @@ export const createSmsApp = () => {
     }
 
     const updated = updateSession(sessionId, {
-      artworkRef: typeof artworkRef === "string" && artworkRef.trim() ? artworkRef.trim() : existing.artworkRef,
-      previewRef: typeof previewRef === "string" && previewRef.trim() ? previewRef.trim() : existing.previewRef,
+      artworkRef: normalizeOptionalString(artworkRef, existing.artworkRef),
+      previewRef: normalizeOptionalString(previewRef, existing.previewRef),
       status: SESSION_STATUSES.UPLOADED,
     });
     return res.json({ session: updated });
@@ -270,14 +272,8 @@ export const createSmsApp = () => {
 
     const designApprovedSession = updateSession(sessionId, {
       status: SESSION_STATUSES.DESIGN_APPROVED,
-      approvedArtworkRef:
-        typeof approvedArtworkRef === "string" && approvedArtworkRef.trim()
-          ? approvedArtworkRef.trim()
-          : existing.artworkRef,
-      approvedPreviewRef:
-        typeof approvedPreviewRef === "string" && approvedPreviewRef.trim()
-          ? approvedPreviewRef.trim()
-          : existing.previewRef,
+      approvedArtworkRef: normalizeOptionalString(approvedArtworkRef, existing.artworkRef),
+      approvedPreviewRef: normalizeOptionalString(approvedPreviewRef, existing.previewRef),
       approvedAt,
     });
 
@@ -285,7 +281,7 @@ export const createSmsApp = () => {
     const awaitingPaymentSession = updateSession(sessionId, {
       status: SESSION_STATUSES.AWAITING_PAYMENT,
       readyForPayment: true,
-      paymentStatus: designApprovedSession.paymentStatus || "pending",
+      paymentStatus: designApprovedSession.paymentStatus,
       paymentUrl,
     });
 
@@ -306,8 +302,8 @@ export const createSmsApp = () => {
     }
 
     const updated = updateSession(sessionId, {
-      paymentUrl: typeof paymentUrl === "string" && paymentUrl.trim() ? paymentUrl.trim() : null,
-      paymentStatus: typeof paymentStatus === "string" && paymentStatus.trim() ? paymentStatus.trim() : "pending",
+      paymentUrl: normalizeOptionalString(paymentUrl, null),
+      paymentStatus: normalizeOptionalString(paymentStatus, "pending"),
     });
     return res.json({ session: updated });
   });
