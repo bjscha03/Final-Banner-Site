@@ -89,6 +89,7 @@ const renderTextOrderPage = () => `<!doctype html>
       let session = null;
       let selectedFileName = "";
       let previewRef = "";
+      const AWAITING_PAYMENT_STATUS = ${JSON.stringify(SESSION_STATUSES.AWAITING_PAYMENT)};
 
       const loadSession = async () => {
         const response = await fetch("/api/text-order/" + sessionId);
@@ -96,7 +97,7 @@ const renderTextOrderPage = () => `<!doctype html>
         session = payload.session;
         summaryEl.textContent = JSON.stringify(session, null, 2);
 
-        if (session?.status === "${SESSION_STATUSES.AWAITING_PAYMENT}") {
+        if (session?.status === AWAITING_PAYMENT_STATUS) {
           approvedState.classList.remove("hidden");
           if (session.paymentUrl) {
             paymentLinkWrap.classList.remove("hidden");

@@ -12,6 +12,7 @@ const PRICE_PER_SQFT = 4.5;
 const POLE_POCKETS_PRICE_PER_ITEM = 20;
 const PAYPAL_STORE_PATH = process.env.SMS_PAYPAL_STORE ?? "yourstore";
 const SMS_BASE_URL = process.env.SMS_BASE_URL ?? "http://localhost:3001";
+const PAYMENT_KEYWORDS = new Set(["pay", "checkout", "payment"]);
 
 const PRODUCT_TYPES = [
   { value: "banner", aliases: ["banner", "banners"] },
@@ -186,7 +187,7 @@ export const processSmsMessage = ({ userId, message }) => {
   const normalizedMessage = normalizeMessage(trimmedMessage);
   const currentConversation = getConversation(userId);
 
-  if (normalizedMessage === "pay" || normalizedMessage === "checkout" || normalizedMessage === "payment") {
+  if (PAYMENT_KEYWORDS.has(normalizedMessage)) {
     const activeSession = getActiveSessionForUser(userId);
     const sessionPayReply = handleSessionPayCommand(activeSession);
     if (sessionPayReply) {
