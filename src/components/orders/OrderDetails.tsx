@@ -816,7 +816,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                           <img
                             src={getThumbnailUrl(item, 150)}
                             alt={`${getProductLabel(item.product_type)} ${index + 1} preview`}
-                            className="w-28 h-20 object-cover rounded-lg border border-slate-200 shadow-sm"
+                            className="w-28 h-20 object-contain bg-gray-50 rounded-lg border border-slate-200 shadow-sm"
                             onError={(e) => {
                               (e.target as HTMLImageElement).style.display = 'none';
                             }}
