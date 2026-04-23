@@ -1141,7 +1141,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
             <img 
               src={getFirstItemThumbnail()} 
               alt="Banner preview"
-              className="h-[72px] w-[72px] flex-shrink-0 rounded-lg border border-gray-200 object-cover"
+              className="h-[72px] w-[72px] flex-shrink-0 rounded-lg border border-gray-200 object-contain bg-gray-50"
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = 'none';
               }}
@@ -1469,7 +1469,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
           <img
             src={getFirstItemThumbnail()}
             alt="Banner preview"
-            className="w-16 h-12 object-cover rounded border border-gray-200 flex-shrink-0"
+            className="w-16 h-12 object-contain bg-gray-50 rounded border border-gray-200 flex-shrink-0"
             onError={(e) => {
               (e.target as HTMLImageElement).style.display = 'none';
             }}

@@ -308,7 +308,7 @@ const OrderDetail: React.FC = () => {
                         <img
                           src={getThumbnailUrl(item, 180) || undefined}
                           alt={`${normalizeOrderItemDisplay(item as NormalizableOrderItem).productLabel} Preview`}
-                          className="w-28 h-20 object-cover rounded-md border border-gray-200 flex-shrink-0"
+                          className="w-28 h-20 object-contain bg-gray-50 rounded-md border border-gray-200 flex-shrink-0"
                         />
                       )}
                       <div className="flex-1">

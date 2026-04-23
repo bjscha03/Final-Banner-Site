@@ -320,12 +320,13 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
           >
           <div
             className="rounded-lg overflow-hidden shadow-lg border-2 border-gray-200 absolute inset-0"
+            style={{ backgroundColor: '#f5f5f5' }}
           >
               <img 
                 ref={imgRef}
                 src={imageUrl}
                 alt="Banner preview"
-                className="absolute inset-0 w-full h-full object-cover"
+                className="absolute inset-0 w-full h-full object-contain"
                 draggable={false}
                 onLoad={(e) => { setImageLoaded(true); }}
                 onError={() => setImageError(true)}
@@ -378,13 +379,14 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
           style={{
             width: `${previewWidth}px`,
             height: `${previewHeight}px`,
+            backgroundColor: '#f5f5f5',
           }}
         >
           <img 
               ref={imgRef}
               src={imageUrl} 
               alt="Banner preview"
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain"
               draggable={false}
               onLoad={(e) => { setImageLoaded(true); }}
               onError={() => setImageError(true)}

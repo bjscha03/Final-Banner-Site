@@ -15,6 +15,7 @@ import CartModal from '@/components/CartModal';
 import { getQuantityDiscountRate } from '@/lib/quantity-discount';
 import DeliveryCarousel from '@/components/home/DeliveryCarousel';
 import { generateFinalRenderFromHTML } from '@/utils/generateFinalRenderFromHTML';
+import { generatePositionedThumbnail } from '@/utils/generatePositionedThumbnail';
 import { useAuth, isAdmin } from '@/lib/auth';
 import type { ProductTypeSlug } from '@/lib/products';
 import { getProductConfig } from '@/lib/products';
@@ -707,6 +708,19 @@ const GoogleAdsBanner: React.FC = () => {
         roundedCorners: carMagnetRoundedCorners,
       });
 
+      // Generate the approved thumbnail (single source of truth) so cart/
+      // checkout/admin all show what the user approved.
+      const baseImageUrl = uploadedFile.thumbnailUrl || uploadedFile.url;
+      const positioned = await generatePositionedThumbnail({
+        imageUrl: baseImageUrl,
+        widthIn,
+        heightIn,
+        imgPosPercent: checkoutData.pos,
+        imgScale: checkoutData.scale,
+        backgroundColor: '#fafafa',
+      });
+      const approvedThumbnailUrl = positioned?.url || baseImageUrl;
+
       quoteStore.set({
         widthIn,
         heightIn,
@@ -719,7 +733,7 @@ const GoogleAdsBanner: React.FC = () => {
         imagePosition: checkoutData.pos,
         imageScale: checkoutData.scale,
         fitMode: 'fill',
-        thumbnailUrl: uploadedFile.thumbnailUrl,
+        thumbnailUrl: approvedThumbnailUrl,
         file: { name: uploadedFile.name, url: uploadedFile.url, fileKey: uploadedFile.fileKey, size: uploadedFile.size, isPdf: uploadedFile.isPdf, thumbnailUrl: uploadedFile.thumbnailUrl, type: uploadedFile.isPdf ? 'application/pdf' : 'image/*' } as any,
         finalRenderUrl: null,
         finalRenderFileKey: null,
@@ -798,6 +812,19 @@ const GoogleAdsBanner: React.FC = () => {
     });
     console.log('[DESIGN_STATE] Saved design state:', canvasStateJson.length, 'chars');
 
+    // Generate the approved thumbnail (single source of truth) so cart/
+    // checkout/admin all show what the user approved.
+    const baseImageUrl = uploadedFile.thumbnailUrl || uploadedFile.url;
+    const positioned = await generatePositionedThumbnail({
+      imageUrl: baseImageUrl,
+      widthIn,
+      heightIn,
+      imgPosPercent: checkoutData.pos,
+      imgScale: checkoutData.scale,
+      backgroundColor: '#fafafa',
+    });
+    const approvedThumbnailUrl = positioned?.url || baseImageUrl;
+
     // Banner pricing — per sqft (existing logic)
     const updatedTotals = calcTotals({ 
       widthIn, heightIn, qty: quantity, material, 
@@ -813,7 +840,7 @@ const GoogleAdsBanner: React.FC = () => {
       imagePosition: checkoutData.pos,
       imageScale: checkoutData.scale,
       fitMode: 'fill',
-      thumbnailUrl: uploadedFile.thumbnailUrl,
+      thumbnailUrl: approvedThumbnailUrl,
       file: { name: uploadedFile.name, url: uploadedFile.url, fileKey: uploadedFile.fileKey, size: uploadedFile.size, isPdf: uploadedFile.isPdf, thumbnailUrl: uploadedFile.thumbnailUrl, type: uploadedFile.isPdf ? 'application/pdf' : 'image/*' } as any,
       finalRenderUrl: finalRenderResult?.url || null,
       finalRenderFileKey: finalRenderResult?.fileKey || null,

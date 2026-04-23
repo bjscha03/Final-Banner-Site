@@ -18,6 +18,7 @@ import {
 import { resolvePromo, getKnownPromo } from '@/lib/promoEngine';
 import { useToast } from '@/components/ui/use-toast';
 import { generateFinalRenderFromHTML } from '@/utils/generateFinalRenderFromHTML';
+import { generatePositionedThumbnail } from '@/utils/generatePositionedThumbnail';
 import type { ProductTypeSlug } from '@/lib/products';
 import ProductTypeSwitcher from '@/components/design/ProductTypeSwitcher';
 import YardSignConfigurator from '@/components/design/YardSignConfigurator';
@@ -757,6 +758,19 @@ const Design: React.FC = () => {
         roundedCorners: carMagnetRoundedCorners,
       });
 
+      // Generate the approved thumbnail (single source of truth) by baking the
+      // user's position/scale onto a canvas at the magnet's aspect ratio.
+      const baseImageUrl = uploadedFile.thumbnailUrl || uploadedFile.url;
+      const positioned = await generatePositionedThumbnail({
+        imageUrl: baseImageUrl,
+        widthIn,
+        heightIn,
+        imgPosPercent: checkoutData.pos,
+        imgScale: checkoutData.scale,
+        backgroundColor: '#fafafa',
+      });
+      const approvedThumbnailUrl = positioned?.url || baseImageUrl;
+
       quoteStore.set({
         widthIn,
         heightIn,
@@ -769,7 +783,7 @@ const Design: React.FC = () => {
         imagePosition: checkoutData.pos,
         imageScale: checkoutData.scale,
         fitMode: 'fill',
-        thumbnailUrl: uploadedFile.thumbnailUrl,
+        thumbnailUrl: approvedThumbnailUrl,
         file: { name: uploadedFile.name, url: uploadedFile.url, fileKey: uploadedFile.fileKey, size: uploadedFile.size, isPdf: uploadedFile.isPdf, thumbnailUrl: uploadedFile.thumbnailUrl, type: uploadedFile.isPdf ? 'application/pdf' : 'image/*' } as any,
         finalRenderUrl: null,
         finalRenderFileKey: null,
@@ -872,6 +886,20 @@ const Design: React.FC = () => {
       productType: 'banner',
     });
 
+    // Generate the approved thumbnail (single source of truth) by baking the
+    // user's position/scale onto a canvas at the banner's aspect ratio so the
+    // cart/checkout/admin all show exactly what the user approved.
+    const baseImageUrl = uploadedFile.thumbnailUrl || uploadedFile.url;
+    const positioned = await generatePositionedThumbnail({
+      imageUrl: baseImageUrl,
+      widthIn,
+      heightIn,
+      imgPosPercent: checkoutData.pos,
+      imgScale: checkoutData.scale,
+      backgroundColor: '#fafafa',
+    });
+    const approvedThumbnailUrl = positioned?.url || baseImageUrl;
+
     const updatedTotals = calcTotals({
       widthIn, heightIn, qty: quantity, material,
       addRope: finalRope, polePockets: finalPolePockets
@@ -886,7 +914,7 @@ const Design: React.FC = () => {
       imagePosition: checkoutData.pos,
       imageScale: checkoutData.scale,
       fitMode: 'fill',
-      thumbnailUrl: uploadedFile.thumbnailUrl,
+      thumbnailUrl: approvedThumbnailUrl,
       file: { name: uploadedFile.name, url: uploadedFile.url, fileKey: uploadedFile.fileKey, size: uploadedFile.size, isPdf: uploadedFile.isPdf, thumbnailUrl: uploadedFile.thumbnailUrl, type: uploadedFile.isPdf ? 'application/pdf' : 'image/*' } as any,
       finalRenderUrl: finalRenderResult?.url || null,
       finalRenderFileKey: finalRenderResult?.fileKey || null,
