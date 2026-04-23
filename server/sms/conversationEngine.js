@@ -279,13 +279,6 @@ export const processSmsMessage = ({ userId, message }) => {
       const latestConversation = updateConversation(userId, {
         quantity,
       });
-      const totals = calculateTotals({
-        size: latestConversation.size,
-        quantity,
-        addOns: latestConversation.addOns,
-      });
-      const total = totals.total;
-
       const session = createOrUpdateSessionForUser({
         userId,
         config: {
@@ -297,6 +290,8 @@ export const processSmsMessage = ({ userId, message }) => {
           roundedCorners: false,
         },
       });
+      const paymentSummary = createPaymentSummary(session);
+      const total = paymentSummary?.total ?? 0;
 
       updateConversation(userId, {
         total,
