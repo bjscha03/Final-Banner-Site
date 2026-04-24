@@ -347,7 +347,7 @@ const GraduationSigns: React.FC = () => {
           className="absolute inset-0"
           style={{
             background:
-              'linear-gradient(to right, rgba(11,31,58,0.85) 0%, rgba(11,31,58,0.75) 30%, rgba(11,31,58,0.5) 55%, rgba(11,31,58,0.2) 75%, rgba(11,31,58,0) 100%)',
+              'linear-gradient(to right, rgba(11,31,58,0.92) 0%, rgba(11,31,58,0.88) 35%, rgba(11,31,58,0.65) 55%, rgba(11,31,58,0.2) 75%, rgba(11,31,58,0) 100%)',
           }}
           aria-hidden="true"
         />
@@ -357,32 +357,54 @@ const GraduationSigns: React.FC = () => {
           style={{
             backdropFilter: 'blur(4px)',
             WebkitBackdropFilter: 'blur(4px)',
-            maskImage: 'linear-gradient(to right, black 0%, black 45%, transparent 75%)',
-            WebkitMaskImage: 'linear-gradient(to right, black 0%, black 45%, transparent 75%)',
+            maskImage: 'linear-gradient(to right, black 0%, black 50%, transparent 75%)',
+            WebkitMaskImage: 'linear-gradient(to right, black 0%, black 50%, transparent 75%)',
           }}
           aria-hidden="true"
         />
         <div className="relative z-[2] max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-24 lg:py-32">
-          <div className="max-w-2xl">
+          <div className="max-w-xl lg:max-w-lg">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur px-4 py-1.5 text-sm font-semibold mb-6 ring-1 ring-white/20">
               <GraduationCap className="h-4 w-4 text-[#FF6A00]" /> Class of {new Date().getFullYear()}
             </div>
             <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight leading-tight text-white">
-              Custom <span className="text-[#FF6A00]">Graduation Signs</span> —{' '}
-              <span className="text-[#FF6A00]">Designed</span> For You
+              Custom <span className="text-[#FF6A00]">Graduation Signs</span> Made Easy
             </h1>
-            <p className="mt-5 text-lg md:text-xl text-white/90 max-w-xl">
-              No design skills needed. We create it. You approve it. We print it.
+            <p className="mt-5 text-lg md:text-xl text-white/90">
+              Upload your own design or let our designers create one for you.
             </p>
-            <div className="mt-8">
-              <a
-                href="#choose"
-                className="inline-flex items-center gap-2 rounded-lg bg-[#FF6A00] hover:bg-[#E65F00] text-white font-bold px-8 py-3.5 text-lg shadow-lg transition"
+            <div className="mt-8 flex flex-wrap gap-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setFlow('upload');
+                  setTimeout(
+                    () => document.getElementById('flow-section')?.scrollIntoView({ behavior: 'smooth' }),
+                    50
+                  );
+                }}
+                className="inline-flex items-center gap-2 rounded-lg bg-[#FF6A00] hover:bg-[#E65F00] text-white font-bold px-6 py-3.5 text-base shadow-lg transition"
               >
-                Start My Design – $19 <ArrowRight className="h-5 w-5" />
-              </a>
+                <Upload className="h-5 w-5" /> Upload My Design
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setFlow('designer');
+                  setTimeout(
+                    () => document.getElementById('flow-section')?.scrollIntoView({ behavior: 'smooth' }),
+                    50
+                  );
+                }}
+                className="inline-flex items-center gap-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/30 text-white font-bold px-6 py-3.5 text-base shadow-lg transition backdrop-blur"
+              >
+                <Sparkles className="h-5 w-5" /> Have Us Design It
+              </button>
             </div>
-            <ul className="mt-8 grid sm:grid-cols-2 gap-2.5 text-sm font-medium">
+            <p className="mt-4 text-xs text-white/70 max-w-sm">
+              Need a design? Start with a $19 design deposit. We'll create a proof, email it for approval, then you pay the final product balance after you approve.
+            </p>
+            <ul className="mt-6 grid sm:grid-cols-2 gap-2.5 text-sm font-medium">
               {[
                 { icon: Clock, text: 'Printed in 24 hours after approval' },
                 { icon: Truck, text: 'FREE next-day air shipping' },

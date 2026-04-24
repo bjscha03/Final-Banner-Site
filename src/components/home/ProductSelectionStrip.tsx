@@ -1,7 +1,17 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 
-const products = [
+interface Product {
+  title: string;
+  subtext: string;
+  cta: string;
+  href: string;
+  imageUrl: string;
+  imageAlt: string;
+  imageFit: 'object-contain' | 'object-cover';
+}
+
+const products: Product[] = [
   {
     title: 'Banners',
     subtext: 'Events • Promotions • Business',
@@ -9,6 +19,7 @@ const products = [
     href: '/design',
     imageUrl: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1777020723/Vinyl_Banners_ycsdpm.png',
     imageAlt: 'Vinyl banners display example',
+    imageFit: 'object-contain',
   },
   {
     title: 'Yard Signs',
@@ -17,6 +28,7 @@ const products = [
     href: '/design?product=yard-signs',
     imageUrl: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1777020710/Yard_Signs_incb8x.png',
     imageAlt: 'Yard signs display example',
+    imageFit: 'object-cover',
   },
   {
     title: 'Car Magnets',
@@ -25,6 +37,7 @@ const products = [
     href: '/design?product=car-magnets',
     imageUrl: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1777020742/car_magnets_dwoq8q.png',
     imageAlt: 'Car magnets display example',
+    imageFit: 'object-cover',
   },
 ];
 
@@ -43,7 +56,7 @@ const ProductSelectionStrip: React.FC = () => {
                 src={product.imageUrl}
                 alt={product.imageAlt}
                 loading="lazy"
-                className="absolute inset-0 h-full w-full object-cover transition-transform duration-[250ms] ease-in-out group-hover:scale-[1.03]"
+                className={`absolute inset-0 h-full w-full ${product.imageFit} transition-transform duration-[250ms] ease-in-out group-hover:scale-[1.03]`}
               />
 
               {/* Orange pill label — top-left */}
