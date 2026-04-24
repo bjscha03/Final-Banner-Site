@@ -10,6 +10,7 @@
  */
 const { neon } = require('@neondatabase/serverless');
 const crypto = require('crypto');
+const { calculateEstimateForIntake } = require('./lib/graduation.cjs');
 
 const ALLOWED_PRODUCT_TYPES = new Set(['banner', 'yard_sign', 'car_magnet']);
 const MAX_INSPIRATION_FILES = 10;
@@ -46,6 +47,15 @@ async function ensureTable(sql) {
     ALTER TABLE designer_intake_orders
       ADD COLUMN IF NOT EXISTS paypal_order_id TEXT
   `;
+  // Estimated-pricing columns added in migration 016 (idempotent here too).
+  await sql`ALTER TABLE designer_intake_orders ADD COLUMN IF NOT EXISTS estimated_product_subtotal_cents INTEGER`;
+  await sql`ALTER TABLE designer_intake_orders ADD COLUMN IF NOT EXISTS estimated_tax_cents INTEGER`;
+  await sql`ALTER TABLE designer_intake_orders ADD COLUMN IF NOT EXISTS estimated_product_total_cents INTEGER`;
+  await sql`ALTER TABLE designer_intake_orders ADD COLUMN IF NOT EXISTS design_fee_paid_at TIMESTAMPTZ`;
+  await sql`ALTER TABLE designer_intake_orders ADD COLUMN IF NOT EXISTS final_payment_paid_at TIMESTAMPTZ`;
+  await sql`ALTER TABLE designer_intake_orders ADD COLUMN IF NOT EXISTS final_product_paypal_order_id TEXT`;
+  await sql`ALTER TABLE designer_intake_orders ADD COLUMN IF NOT EXISTS latest_proof_version INTEGER NOT NULL DEFAULT 0`;
+  await sql`ALTER TABLE designer_intake_orders ADD COLUMN IF NOT EXISTS last_status_change_at TIMESTAMPTZ`;
 }
 
 function sanitize(value) {
@@ -143,6 +153,15 @@ exports.handler = async (event) => {
   const designNotes = (payload.designNotes && typeof payload.designNotes === 'object') ? payload.designNotes : {};
   const inspirationFiles = normalizeInspirationFiles(payload.inspirationFiles);
 
+  // Server-side recomputation of estimated pricing — never trust client values.
+  // We accept client-supplied estimates ONLY as a hint; we always store the
+  // server-calculated values, which mirror the same pricing engines the
+  // customer-facing pricing card uses.
+  const estimate = calculateEstimateForIntake(productType, productSpecs);
+  const estimatedSubtotalCents = estimate ? estimate.subtotalCents : null;
+  const estimatedTaxCents = estimate ? estimate.taxCents : null;
+  const estimatedTotalCents = estimate ? estimate.totalCents : null;
+
   // Hard cap on serialized JSON size to avoid runaway payloads
   const totalJsonSize = JSON.stringify({ productSpecs, graduateInfo, designNotes, inspirationFiles }).length;
   if (totalJsonSize > 100_000) {
@@ -188,7 +207,10 @@ exports.handler = async (event) => {
         design_fee_amount_cents,
         design_fee_paid,
         status,
-        approval_token
+        approval_token,
+        estimated_product_subtotal_cents,
+        estimated_tax_cents,
+        estimated_product_total_cents
       ) VALUES (
         ${customerName},
         ${customerEmail},
@@ -203,7 +225,10 @@ exports.handler = async (event) => {
         ${1900},
         ${false},
         ${'pending_payment'},
-        ${approvalToken}
+        ${approvalToken},
+        ${estimatedSubtotalCents},
+        ${estimatedTaxCents},
+        ${estimatedTotalCents}
       )
       RETURNING id
     `;
@@ -214,11 +239,14 @@ exports.handler = async (event) => {
     return jsonResponse(headers, 500, { ok: false, error: 'Failed to save intake', details: dbErr.message });
   }
 
-  // Return intakeId to the frontend. The frontend will add a design_deposit cart
-  // item and navigate to /checkout. No PayPal redirect here.
+  // Return intakeId AND server-validated estimated total to the frontend so
+  // the cart can display it and the post-payment emails can include it.
   return jsonResponse(headers, 200, {
     ok: true,
     message: 'Designer intake saved',
     intakeId,
+    estimatedProductSubtotalCents: estimatedSubtotalCents,
+    estimatedTaxCents,
+    estimatedProductTotalCents: estimatedTotalCents,
   });
 };

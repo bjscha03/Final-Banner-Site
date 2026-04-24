@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import {
@@ -17,6 +17,10 @@ import {
 import Layout from '@/components/Layout';
 import { useToast } from '@/components/ui/use-toast';
 import { useCartStore } from '@/store/cart';
+import { calculateBannerPricing } from '@/lib/bannerPricingEngine';
+import { calcCarMagnetPricing, CAR_MAGNET_SIZES } from '@/lib/car-magnet-pricing';
+import { calcYardSignPricing } from '@/lib/yard-sign-pricing';
+import { usd } from '@/lib/pricing';
 
 type ProductType = 'banner' | 'yard_sign' | 'car_magnet';
 type Flow = null | 'upload' | 'designer';
@@ -235,6 +239,77 @@ const GraduationSigns: React.FC = () => {
     return { ...carMagnetSpecs };
   };
 
+  /**
+   * Live estimated product price for the designer-assisted intake form.
+   *
+   * Reuses the same pricing engines as the regular product builders so the
+   * preview the customer sees here matches what they'll be charged for the
+   * final product balance after proof approval. Returns null when the
+   * configuration cannot be priced (e.g. custom banner size with no W×H typed).
+   */
+  const estimate = useMemo(() => {
+    try {
+      if (designerProduct === 'banner') {
+        const sizeStr = bannerSpecs.sizePreset === 'Custom' ? bannerSpecs.customSize : bannerSpecs.sizePreset;
+        const m = (sizeStr || '')
+          .replace(/[\u201C\u201D\u2033]/g, '"')
+          .replace(/×/g, 'x')
+          .match(/(\d+(?:\.\d+)?)\s*('|")?\s*x\s*(\d+(?:\.\d+)?)\s*('|")?/i);
+        if (!m) return null;
+        const isFeetW = m[2] === "'";
+        const isFeetH = m[4] === "'" || (!m[4] && isFeetW);
+        const widthIn = Number(m[1]) * (isFeetW ? 12 : 1);
+        const heightIn = Number(m[3]) * (isFeetH ? 12 : 1);
+        const materialKey = ({
+          '13oz Vinyl': '13oz',
+          '15oz Vinyl': '15oz',
+          '18oz Vinyl': '18oz',
+          'Mesh Fence': 'Mesh',
+        } as Record<string, string>)[bannerSpecs.material] || '13oz';
+        const result = calculateBannerPricing({
+          widthIn,
+          heightIn,
+          quantity: Math.max(1, Number(bannerSpecs.quantity) || 1),
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          material: materialKey as any,
+          addRope: bannerSpecs.rope !== 'none',
+          polePockets: bannerSpecs.polePockets,
+          grommets: bannerSpecs.grommets,
+        });
+        return {
+          subtotalCents: result.subtotalCents,
+          taxCents: result.taxCents,
+          totalCents: result.totalCents,
+        };
+      }
+      if (designerProduct === 'yard_sign') {
+        const sidedness = yardSignSpecs.sidedness === 'double' ? 'double' : 'single';
+        const qty = Math.max(1, Number(yardSignSpecs.quantity) || 1);
+        const addStakes = yardSignSpecs.addStakes === 'yes';
+        const r = calcYardSignPricing(sidedness, qty, addStakes, qty, 0);
+        return { subtotalCents: r.subtotalCents, taxCents: r.taxCents, totalCents: r.totalWithTaxCents };
+      }
+      if (designerProduct === 'car_magnet') {
+        const sizeStr = carMagnetSpecs.size
+          .replace(/[\u201C\u201D\u2033]/g, '"')
+          .replace(/×/g, 'x')
+          .replace(/\s+/g, '');
+        const m = sizeStr.match(/(\d+(?:\.\d+)?)"?x(\d+(?:\.\d+)?)"?/i);
+        if (!m) return null;
+        const w = Number(m[1]);
+        const h = Number(m[2]);
+        const match = CAR_MAGNET_SIZES.find((o) => o.widthIn === w && o.heightIn === h);
+        if (!match) return null;
+        const r = calcCarMagnetPricing(match.widthIn, match.heightIn, Math.max(1, Number(carMagnetSpecs.quantity) || 1));
+        return { subtotalCents: r.subtotalCents, taxCents: r.taxCents, totalCents: r.totalCents };
+      }
+    } catch (_e) {
+      return null;
+    }
+    return null;
+  }, [designerProduct, bannerSpecs, yardSignSpecs, carMagnetSpecs]);
+
+
   const handleIntakeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (submitting) return;
@@ -280,6 +355,11 @@ const GraduationSigns: React.FC = () => {
           fileKey: f.fileKey,
           category: f.category,
         })),
+        // Client-computed estimate is a hint only — server recomputes
+        // authoritatively and stores its own value on the intake row.
+        estimatedProductSubtotalCents: estimate?.subtotalCents ?? null,
+        estimatedTaxCents: estimate?.taxCents ?? null,
+        estimatedProductTotalCents: estimate?.totalCents ?? null,
       };
       const res = await fetch('/.netlify/functions/designer-intake-submit', {
         method: 'POST',
@@ -291,7 +371,9 @@ const GraduationSigns: React.FC = () => {
         throw new Error(data.error || 'Submission failed');
       }
 
-      // Intake saved as pending_payment — add $19 deposit to cart and go to checkout
+      // Intake saved as pending_payment — add $19 deposit to cart and go to checkout.
+      // Pass the SERVER-validated estimate (falling back to local) so post-payment
+      // emails reliably include it even for older intake rows.
       addDesignDeposit({
         intakeId: data.intakeId,
         customerName: customer.name.trim(),
@@ -300,6 +382,9 @@ const GraduationSigns: React.FC = () => {
         schoolName: graduate.schoolName.trim(),
         graduationYear: graduate.graduationYear.trim(),
         productType: designerProduct,
+        estimatedProductSubtotalCents: data.estimatedProductSubtotalCents ?? estimate?.subtotalCents ?? null,
+        estimatedTaxCents: data.estimatedTaxCents ?? estimate?.taxCents ?? null,
+        estimatedProductTotalCents: data.estimatedProductTotalCents ?? estimate?.totalCents ?? null,
       });
 
       try { sessionStorage.removeItem(INTAKE_STORAGE_KEY); } catch (_e) {}
@@ -849,6 +934,43 @@ const GraduationSigns: React.FC = () => {
                   </ul>
                 )}
               </fieldset>
+
+              <div className="rounded-2xl border-2 border-[#FF6A00]/40 bg-white p-5 shadow-sm">
+                <div className="flex items-start justify-between gap-4 flex-wrap">
+                  <div>
+                    <p className="text-xs uppercase tracking-wide text-[#FF6A00] font-bold">Estimated Pricing</p>
+                    <h3 className="text-lg font-bold text-[#0B1F3A] mt-1">What you'll pay</h3>
+                  </div>
+                </div>
+                <div className="mt-4 grid sm:grid-cols-2 gap-3">
+                  <div className="rounded-xl bg-[#FF6A00]/10 p-4">
+                    <p className="text-xs text-[#0B1F3A]/80 font-semibold uppercase tracking-wide">Design fee due today</p>
+                    <p className="text-2xl font-extrabold text-[#0B1F3A] mt-1">$19.00</p>
+                    <p className="text-xs text-[#0B1F3A]/70 mt-1">Charged at checkout</p>
+                  </div>
+                  <div className="rounded-xl bg-[#0B1F3A]/5 p-4">
+                    <p className="text-xs text-[#0B1F3A]/80 font-semibold uppercase tracking-wide">Estimated product total</p>
+                    {estimate ? (
+                      <>
+                        <p className="text-2xl font-extrabold text-[#0B1F3A] mt-1">{usd(estimate.totalCents / 100)}</p>
+                        <p className="text-xs text-[#0B1F3A]/70 mt-1">
+                          {usd(estimate.subtotalCents / 100)} subtotal + {usd(estimate.taxCents / 100)} tax
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <p className="text-base font-semibold text-[#0B1F3A]/60 mt-1 italic">Select size & options</p>
+                        <p className="text-xs text-[#0B1F3A]/70 mt-1">Pricing updates as you choose options.</p>
+                      </>
+                    )}
+                    <p className="text-xs text-[#0B1F3A]/70 mt-2">Due after proof approval</p>
+                  </div>
+                </div>
+                <p className="text-xs text-gray-500 mt-3">
+                  Production begins after proof approval and final product payment. Final total may
+                  update if product options are changed before approval.
+                </p>
+              </div>
 
               <div className="rounded-2xl border border-[#E5E5E5] bg-[#F7F7F7] p-5">
                 <p className="font-semibold text-[#0B1F3A]">Approval &amp; payment</p>

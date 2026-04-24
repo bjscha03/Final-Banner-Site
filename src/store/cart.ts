@@ -180,6 +180,9 @@ export interface CartState {
     schoolName: string;
     graduationYear: string;
     productType: string;
+    estimatedProductSubtotalCents?: number | null;
+    estimatedTaxCents?: number | null;
+    estimatedProductTotalCents?: number | null;
   }) => string;
   loadItemIntoQuote: (itemId: string) => CartItem | null;
   updateCartItem: (itemId: string, quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => void;
@@ -513,7 +516,7 @@ export const useCartStore = create<CartState>()(
       return newItem.id;
       },
 
-      addDesignDeposit: ({ intakeId, customerName, customerEmail, graduateName, schoolName, graduationYear, productType }) => {
+      addDesignDeposit: ({ intakeId, customerName, customerEmail, graduateName, schoolName, graduationYear, productType, estimatedProductSubtotalCents, estimatedTaxCents, estimatedProductTotalCents }) => {
         const DEPOSIT_PRICE_CENTS = 1900;
         const itemId = `design-deposit-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         const newItem: CartItem = {
@@ -531,7 +534,9 @@ export const useCartStore = create<CartState>()(
           rope_cost_cents: 0,
           pole_pocket_cost_cents: 0,
           line_total_cents: DEPOSIT_PRICE_CENTS,
-          // Store intake metadata as JSON in design_request_text for post-payment processing
+          // Store intake metadata as JSON in design_request_text for post-payment processing.
+          // Includes estimated product pricing so that create-order.cjs can persist
+          // it onto the intake row even if the row was created before estimate columns existed.
           design_request_text: JSON.stringify({
             intakeId,
             customerName,
@@ -540,6 +545,9 @@ export const useCartStore = create<CartState>()(
             schoolName,
             graduationYear,
             productType,
+            estimatedProductSubtotalCents: estimatedProductSubtotalCents ?? null,
+            estimatedTaxCents: estimatedTaxCents ?? null,
+            estimatedProductTotalCents: estimatedProductTotalCents ?? null,
             designRequestType: 'graduation_design_deposit',
           }),
           design_service_enabled: false,

@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Calendar as CalendarIcon, Star, ShoppingCart } from 'lucide-react';
+import { Calendar as CalendarIcon, Star, ShoppingCart, GraduationCap } from 'lucide-react';
 import OrderDetails from '@/components/orders/OrderDetails';
 import {
   Select,
@@ -774,6 +774,12 @@ const AdminOrders: React.FC = () => {
                   <a href="/admin/abandoned-carts">
                     <ShoppingCart className="h-4 w-4" />
                     Abandoned Carts
+                  </a>
+                </TabsTrigger>
+                <TabsTrigger value="graduation-intakes" className="flex items-center gap-2 min-w-0" asChild>
+                  <a href="/admin/graduation-intakes">
+                    <GraduationCap className="h-4 w-4" />
+                    Graduation Intakes
                   </a>
                 </TabsTrigger>
               </TabsList>
