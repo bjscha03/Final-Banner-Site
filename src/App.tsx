@@ -74,6 +74,9 @@ const GraduationSignsThankYou = lazy(() => import("./pages/GraduationSignsThankY
 const AdminOrders = lazy(() => import("./pages/admin/Orders"));
 const AdminAbandonedCarts = lazy(() => import("./pages/admin/AbandonedCarts"));
 const AdminEvents = lazy(() => import("./pages/admin/Events"));
+const AdminGraduationIntakes = lazy(() => import("./pages/admin/GraduationIntakes"));
+const AdminGraduationIntake = lazy(() => import("./pages/admin/GraduationIntake"));
+const ProofApproval = lazy(() => import("./pages/ProofApproval"));
 const AdminSeed = lazy(() => import("./pages/AdminSeed"));
 const AdminSetup = lazy(() => import("./pages/AdminSetup"));
 
@@ -176,6 +179,8 @@ const App = () => (
             <Route path="/admin/orders" element={<AdminOrders />} />
             <Route path="/admin/abandoned-carts" element={<AdminAbandonedCarts />} />
             <Route path="/admin/events" element={<AdminEvents />} />
+            <Route path="/admin/graduation-intakes" element={<AdminGraduationIntakes />} />
+            <Route path="/admin/graduation/:intakeId" element={<AdminGraduationIntake />} />
             <Route path="/admin/seed" element={<AdminSeed />} />
             <Route path="/admin/setup" element={<AdminSetup />} />
             
@@ -200,6 +205,9 @@ const App = () => (
             {/* Graduation landing page */}
             <Route path="/graduation-signs" element={<GraduationSigns />} />
             <Route path="/graduation-signs/thank-you" element={<GraduationSignsThankYou />} />
+
+            {/* Customer-facing graduation proof approval (token-gated) */}
+            <Route path="/proof/:token" element={<ProofApproval />} />
 
             {/* 404 – catch-all must be last */}
             <Route path="*" element={<NotFound />} />
