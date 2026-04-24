@@ -599,7 +599,7 @@ export const useCartStore = create<CartState>()(
       }) => {
         // Replace any existing graduation_final_payment item for the same
         // intake to avoid duplicates if the customer revisits the proof page.
-        const itemId = `grad-final-${intakeId}-${Date.now()}`;
+        const itemId = `grad-final-${intakeId}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         const newItem: CartItem = {
           id: itemId,
           product_type: 'graduation_final_payment',
