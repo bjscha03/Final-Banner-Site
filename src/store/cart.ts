@@ -171,9 +171,10 @@ export interface CartState {
   isLoading: boolean;  // Loading state for cart operations (merge, load from server)
   isSyncing: boolean;  // Flag to prevent loadFromServer from overwriting during sync
   discountCode: DiscountCode | null;
-  addFromQuote: (quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => void;
+  addFromQuote: (quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => string;
   loadItemIntoQuote: (itemId: string) => CartItem | null;
   updateCartItem: (itemId: string, quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => void;
+  updateItemThumbnail: (itemId: string, thumbnailUrl: string) => void;
   removeItem: (id: string) => void;
   clearCart: () => void;
   clearCartLocal: () => void;  // Clear cart in memory only, without syncing to server
@@ -251,7 +252,7 @@ export const useCartStore = create<CartState>()(
       isSyncing: false,
       discountCode: null,
       
-      addFromQuote: (quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => {
+      addFromQuote: (quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing): string => {
         debugLog('🚨 addFromQuote CALLED - Current items in cart:', get().items.length);
         debugLog('🚨 addFromQuote CALLED - Current items in cart:', get().items.length);
         // Capture design-page authoritative pricing when provided
@@ -497,8 +498,9 @@ export const useCartStore = create<CartState>()(
         });
         get().syncToServer();
       }, 0);
+      return newItem.id;
       },
-      
+
       updateQuantity: (id: string, quantity: number) => {
         set((state) => ({
           items: state.items.map(item => {
@@ -725,6 +727,26 @@ export const useCartStore = create<CartState>()(
         });
         get().syncToServer();
       }, 0);
+      },
+
+      // Lightweight thumbnail patch used after a background positioned-thumbnail
+      // upload completes. Avoids re-running pricing/etc., simply swaps the
+      // display thumbnail and resyncs to the server.
+      updateItemThumbnail: (itemId: string, thumbnailUrl: string) => {
+        if (!itemId || !thumbnailUrl) return;
+        let didUpdate = false;
+        set((state) => {
+          const items = state.items.map(item => {
+            if (item.id !== itemId) return item;
+            didUpdate = true;
+            return { ...item, thumbnail_url: thumbnailUrl };
+          });
+          return { items };
+        });
+        if (!didUpdate) return;
+        setTimeout(() => {
+          get().syncToServer();
+        }, 0);
       },
       
       clearCart: () => {
