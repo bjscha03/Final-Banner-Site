@@ -44,6 +44,7 @@ import {
   getCarMagnetRoundedCornersLabel,
   type CarMagnetRoundedCorner,
 } from '@/lib/car-magnet-pricing';
+import { BANNER_MATERIALS as MATERIALS } from '@/lib/banner-materials';
 
 const PRESET_SIZES = [
   { label: "2' × 4'", w: 48, h: 24 },
@@ -52,13 +53,6 @@ const PRESET_SIZES = [
   { label: "3' × 8'", w: 96, h: 36 },
   { label: "4' × 8'", w: 96, h: 48 },
   { label: "4' × 10'", w: 120, h: 48 },
-];
-
-const MATERIALS: { key: string; label: string; mapped: MaterialKey; desc: string; image: string }[] = [
-  { key: '13oz', label: '13oz Vinyl', mapped: '13oz', desc: 'Standard outdoor — great for most uses', image: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_80,h_80,c_fill,f_auto,q_auto/v1769209469/White-Label_Banners_-2_from_4over_nedg8n.png' },
-  { key: '15oz', label: '15oz Vinyl', mapped: '15oz', desc: 'Heavy-duty — extra durability and rigidity', image: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_80,h_80,c_fill,f_auto,q_auto/v1769209584/White-label_Outdoor_Banner_1_Product_from_4over_aas332.png' },
-  { key: '18oz', label: '18oz Vinyl', mapped: '18oz', desc: 'Premium blockout — thick, wind-resistant', image: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_80,h_80,c_fill,f_auto,q_auto/v1769209691/White-label_Outdoor_Banner_3_Product_from_4over_vfdbxc.png' },
-  { key: 'mesh', label: 'Mesh Fence', mapped: 'mesh', desc: 'Wind pass-through — ideal for fences', image: 'https://res.cloudinary.com/dtrxl120u/image/upload/w_80,h_80,c_fill,f_auto,q_auto/v1769209380/White-label_Outdoor_Mesh_Banner_1_Product_from_4over_ivkbqu.png' },
 ];
 
 const PROMO_NEW20_DISCOUNT_RATE = 0.2;
