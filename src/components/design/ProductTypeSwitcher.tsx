@@ -1,7 +1,6 @@
 import React from 'react';
 import { CheckCircle2 } from 'lucide-react';
 import type { ProductTypeSlug } from '@/lib/products';
-import { CAR_MAGNET_IMAGE_URL } from '@/lib/car-magnet-pricing';
 import { cn } from '@/lib/utils';
 
 interface ProductTypeSwitcherProps {
@@ -23,33 +22,29 @@ const ProductTypeSwitcher: React.FC<ProductTypeSwitcherProps> = ({
   const options: Array<{
     type: ProductTypeSlug;
     label: string;
-    supportingText: string;
+    subtext: string;
     imageUrl: string;
-    overlayClass: string;
     imageAlt: string;
   }> = [
     {
       type: 'banner',
-      label: 'Banner',
-      supportingText: 'Great for businesses, events, and large displays',
-      imageUrl: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1776748080/gemini-watermark-removed_1_t2dpdb.png',
-      overlayClass: 'from-slate-900/20 via-slate-900/5 to-amber-900/65',
+      label: 'Banners',
+      subtext: 'Events • Promotions • Business',
+      imageUrl: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1777020723/Vinyl_Banners_ycsdpm.png',
       imageAlt: 'Banner product option showing a banner display example',
     },
     {
       type: 'yard_sign',
       label: 'Yard Signs',
-      supportingText: 'Perfect for lawns, events, and outdoor advertising',
-      imageUrl: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1776748102/gemini-watermark-removed_2_n85erj.png',
-      overlayClass: 'from-slate-900/20 via-slate-900/5 to-emerald-900/65',
+      subtext: 'Real Estate • Local • Political',
+      imageUrl: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1777020710/Yard_Signs_incb8x.png',
       imageAlt: 'Yard Signs product option showing a yard sign display example',
     },
     {
       type: 'car_magnet',
       label: 'Car Magnets',
-      supportingText: 'Durable removable magnets for vehicle signage',
-      imageUrl: CAR_MAGNET_IMAGE_URL,
-      overlayClass: 'from-slate-900/20 via-slate-900/5 to-indigo-900/65',
+      subtext: 'Mobile Advertising • Removable',
+      imageUrl: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1777020742/car_magnets_dwoq8q.png',
       imageAlt: 'Car Magnet product option showing a vehicle magnet example',
     },
   ];
@@ -119,17 +114,6 @@ const ProductTypeSwitcher: React.FC<ProductTypeSwitcherProps> = ({
               : 'shadow-[0_10px_24px_rgba(15,23,42,0.12)] hover:-translate-y-0.5 hover:shadow-[0_16px_28px_rgba(15,23,42,0.18)]',
           );
 
-          const imageClassName = cn(
-            'absolute inset-0 h-full w-full object-cover transition duration-500',
-            isActive ? 'scale-105 brightness-[1.02]' : 'scale-100 brightness-90 group-hover:scale-105',
-          );
-
-          const overlayClassName = cn(
-            'absolute inset-0 bg-gradient-to-b',
-            option.overlayClass,
-            isActive ? 'opacity-95' : 'opacity-90 group-hover:opacity-95',
-          );
-
           return (
             <button
               key={option.type}
@@ -138,25 +122,30 @@ const ProductTypeSwitcher: React.FC<ProductTypeSwitcherProps> = ({
               className={cardClassName}
               aria-pressed={isActive}
             >
+              {/* Product image — fills entire card */}
               <img
                 src={option.imageUrl}
                 alt={option.imageAlt}
-                className={imageClassName}
+                className="absolute inset-0 h-full w-full object-cover transition-transform duration-[250ms] ease-in-out group-hover:scale-[1.03]"
               />
-              <div className={overlayClassName} />
-              <div className="absolute inset-0 bg-black/5" />
 
+              {/* Orange pill label — top-left */}
+              <span className="absolute left-3 top-3 z-10 rounded-full bg-[#FF6A00] px-3 py-1 text-xs font-bold text-white shadow-sm">
+                {option.label}
+              </span>
+
+              {/* Selected badge — top-right */}
               {isActive && (
-                <span className="absolute right-4 top-4 inline-flex items-center gap-1 rounded-full bg-orange-500/95 px-2.5 py-1 text-xs font-semibold text-white shadow-sm">
+                <span className="absolute right-3 top-3 z-10 inline-flex items-center gap-1 rounded-full bg-white/90 px-2.5 py-1 text-xs font-semibold text-orange-600 shadow-sm">
                   <CheckCircle2 className="h-3.5 w-3.5" />
                   Selected
                 </span>
               )}
 
-              <div className="absolute inset-x-4 bottom-4 z-10 text-white sm:inset-x-5 sm:bottom-5">
-                <p className="text-2xl font-bold tracking-tight sm:text-[30px]">{option.label}</p>
-                <p className="mt-1 max-w-xs text-sm leading-snug text-white/90 sm:text-base">{option.supportingText}</p>
-              </div>
+              {/* Subtle subtext — bottom-left, no background box */}
+              <p className="absolute bottom-3 left-3 z-10 text-xs font-medium text-white/85 [text-shadow:0_1px_4px_rgba(0,0,0,0.55)]">
+                {option.subtext}
+              </p>
             </button>
           );
         })}
