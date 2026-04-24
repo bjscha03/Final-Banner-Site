@@ -44,9 +44,10 @@ interface BreakdownRow {
   icon?: React.ReactNode;
 }
 
-const productTypeOf = (item: CartItem): 'banner' | 'yard_sign' | 'car_magnet' => {
+const productTypeOf = (item: CartItem): 'banner' | 'yard_sign' | 'car_magnet' | 'design_deposit' => {
   if (isYardSignItem(item)) return 'yard_sign';
   if ((item.product_type || 'banner') === 'car_magnet') return 'car_magnet';
+  if ((item.product_type || 'banner') === 'design_deposit') return 'design_deposit';
   return 'banner';
 };
 
@@ -94,6 +95,9 @@ const buildRows = (
   } else if (productType === 'car_magnet') {
     // Car magnets: flat-priced. No quantity discount applied at the item level.
     rows.push({ label: 'Base price', amountCents: lineTotalRaw });
+  } else if (productType === 'design_deposit') {
+    // Design deposit: flat $19 fee. No discounts apply.
+    rows.push({ label: 'Design deposit fee', amountCents: lineTotalRaw });
   } else {
     // Banner: base banner + add-ons (rope / pole pockets) from stored fields.
     const rope = item.rope_cost_cents || 0;
@@ -116,7 +120,7 @@ const buildRows = (
 
   let allocatedDiscountCents = 0;
   let discountLabel = '';
-  if (totalDiscountCents > 0 && discountType !== 'none') {
+  if (totalDiscountCents > 0 && discountType !== 'none' && productType !== 'design_deposit') {
     if (discountType === 'quantity') {
       if (productType === 'banner') {
         allocatedDiscountCents = allocateDiscount(
