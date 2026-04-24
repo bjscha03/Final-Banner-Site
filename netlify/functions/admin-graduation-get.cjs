@@ -11,7 +11,7 @@
 const {
   getSql,
   ensureSchema,
-  isAdminUser,
+  checkAdminAccess,
   safeJson,
   getIntakeById,
   getProofsForIntake,
@@ -43,7 +43,7 @@ exports.handler = async (event) => {
     return { statusCode: 500, headers, body: JSON.stringify({ ok: false, error: err.message }) };
   }
 
-  if (!(await isAdminUser(sql, email))) {
+  if (!(await checkAdminAccess(event, sql, email))) {
     return { statusCode: 403, headers, body: JSON.stringify({ ok: false, error: 'Admin access required' }) };
   }
   if (!/^[0-9a-f-]{36}$/i.test(intakeId)) {

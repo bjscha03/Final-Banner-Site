@@ -29,7 +29,7 @@
 const {
   getSql,
   ensureSchema,
-  isAdminUser,
+  checkAdminAccess,
   getIntakeById,
   sendProofToCustomer,
 } = require('./lib/graduation.cjs');
@@ -74,7 +74,7 @@ exports.handler = async (event) => {
   try {
     const sql = getSql();
     await ensureSchema(sql);
-    if (!(await isAdminUser(sql, email))) {
+    if (!(await checkAdminAccess(event, sql, email))) {
       return { statusCode: 403, headers, body: JSON.stringify({ ok: false, error: 'Admin access required' }) };
     }
     const intake = await getIntakeById(sql, intakeId);
