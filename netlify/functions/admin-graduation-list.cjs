@@ -9,7 +9,7 @@
  * Method: POST  body { email: string }
  * Returns: { ok: true, intakes: [...minimal rows] }
  */
-const { getSql, ensureSchema, isAdminUser, safeJson } = require('./lib/graduation.cjs');
+const { getSql, ensureSchema, checkAdminAccess, safeJson } = require('./lib/graduation.cjs');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -35,7 +35,7 @@ exports.handler = async (event) => {
     return { statusCode: 500, headers, body: JSON.stringify({ ok: false, error: err.message }) };
   }
 
-  if (!(await isAdminUser(sql, email))) {
+  if (!(await checkAdminAccess(event, sql, email))) {
     return { statusCode: 403, headers, body: JSON.stringify({ ok: false, error: 'Admin access required' }) };
   }
 

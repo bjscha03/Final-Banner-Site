@@ -1240,6 +1240,25 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
 
         {/* RIGHT SECTION */}
         <div className="w-full space-y-3 xl:max-w-[420px]">
+          {isGraduation ? (
+            <div className="rounded-md border border-orange-200 bg-orange-50 p-3 text-xs text-orange-900 space-y-1">
+              <div className="font-semibold flex items-center gap-1">
+                <GraduationCap className="h-3.5 w-3.5" />
+                Designer-assisted deposit
+              </div>
+              <div>
+                Tracking, shipping, and print files unlock after the customer
+                approves the proof and pays the final product balance.
+              </div>
+              <a
+                href={graduationLink}
+                className="inline-flex items-center gap-1 font-semibold text-[#FF6A00] hover:underline mt-1"
+              >
+                Manage Design Request →
+              </a>
+            </div>
+          ) : (
+          <>
           <div className="space-y-2">
             <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Tracking</div>
             {order.tracking_number ? (
@@ -1359,6 +1378,8 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
               </div>
             )}
           </div>
+          </>
+          )}
 
           <div className="space-y-2">
             <div className="text-xs font-medium uppercase tracking-wide text-gray-500">Actions</div>
@@ -1374,7 +1395,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                 }
               />
 
-              {order.status === 'paid' && !order.production_email_sent && (
+              {!isGraduation && order.status === 'paid' && !order.production_email_sent && (
                 <Button
                   size="sm"
                   variant="outline"
@@ -1396,7 +1417,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                 </Button>
               )}
 
-              {order.tracking_number && !order.shipping_notification_sent && (
+              {!isGraduation && order.tracking_number && !order.shipping_notification_sent && (
                 <Button
                   size="sm"
                   variant="outline"
@@ -1579,7 +1600,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
               <div className="text-xs text-gray-500">Total</div>
               <div className="text-lg font-bold text-[#18448D]">{usd(order.total_cents / 100)}</div>
             </div>
-            {order.tracking_number && (
+            {!isGraduation && order.tracking_number && (
               <div className="min-w-0">
                 <div className="text-xs text-gray-500 mb-1">Tracking</div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -1602,7 +1623,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
         </div>
       </div>
 
-      {(getFilesWithDownload().length > 0 || order.items.some(item => item.final_print_pdf_url)) && (
+      {!isGraduation && (getFilesWithDownload().length > 0 || order.items.some(item => item.final_print_pdf_url)) && (
         <div className="mt-3">
           <div className="text-xs text-gray-500 mb-2">Print Files</div>
           <div className="grid grid-cols-1 gap-2">
@@ -1648,7 +1669,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
       )}
 
       <div className="mt-3 pt-3 border-t border-gray-200 space-y-2">
-        {order.status === 'paid' && !order.production_email_sent && (
+        {!isGraduation && order.status === 'paid' && !order.production_email_sent && (
           <Button
             size="sm"
             variant="outline"
