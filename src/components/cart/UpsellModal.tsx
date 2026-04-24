@@ -488,17 +488,19 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
               </div>
             </button>
             
-            <button
-              onClick={handleSkip}
-              disabled={isProcessing}
-              className={`w-full py-3 px-4 border-2 border-gray-300 rounded-xl font-semibold transition-colors ${
-                isProcessing
-                  ? 'text-gray-400 cursor-not-allowed'
-                  : 'text-gray-700 hover:bg-gray-50'
-              }`}
-            >
-              No thanks, continue without
-            </button>
+            {!hasSelectedOptions && (
+              <button
+                onClick={handleSkip}
+                disabled={isProcessing}
+                className={`w-full py-3 px-4 border-2 border-gray-300 rounded-xl font-semibold transition-colors ${
+                  isProcessing
+                    ? 'text-gray-400 cursor-not-allowed'
+                    : 'text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                No thanks, continue without
+              </button>
+            )}
           </div>
         </div>
       </div>
