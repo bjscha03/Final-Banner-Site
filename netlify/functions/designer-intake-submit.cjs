@@ -141,28 +141,28 @@ function buildAdminHtml({
   const adminOrderLink = 'https://bannersonthefly.com/admin/orders';
 
   const renderKv = (label, value) =>
-    '<p style="margin:6px 0;"><strong>' + sanitize(label) + ':</strong> ' + sanitize(value || '—') + '</p>';
+    '<p style="margin:6px 0;"><strong>' + sanitize(label) + ':</strong> ' + sanitize(value || '\u2014') + '</p>';
 
   const renderSection = (title, obj) => {
     const entries = Object.entries(obj || {}).filter(([, v]) => v !== '' && v !== null && v !== undefined);
     if (entries.length === 0) return '';
-    return '<h3 style="color:#1f2937;margin:20px 0 12px;">' + sanitize(title) + '</h3>'
+    return '<h3 style="color:#0B1F3A;margin:20px 0 12px;">' + sanitize(title) + '</h3>'
       + entries.map(([k, v]) => renderKv(k, typeof v === 'object' ? JSON.stringify(v) : v)).join('');
   };
 
   const filesHtml = inspirationFiles.length
-    ? '<h3 style="color:#1f2937;margin:20px 0 12px;">Uploaded Inspiration Files</h3><ul style="padding-left:20px;margin:0;">'
-      + inspirationFiles.map((f) => '<li style="margin:4px 0;"><a href="' + sanitize(f.url) + '" style="color:#dc2626;">' + sanitize(f.name || f.url) + '</a>' + (f.category ? ' <span style="color:#6b7280;">(' + sanitize(f.category) + ')</span>' : '') + '</li>').join('')
+    ? '<h3 style="color:#0B1F3A;margin:20px 0 12px;">Uploaded Inspiration Files</h3><ul style="padding-left:20px;margin:0;">'
+      + inspirationFiles.map((f) => '<li style="margin:4px 0;"><a href="' + sanitize(f.url) + '" style="color:#FF6A00;">' + sanitize(f.name || f.url) + '</a>' + (f.category ? ' <span style="color:#6b7280;">(' + sanitize(f.category) + ')</span>' : '') + '</li>').join('')
       + '</ul>'
     : '';
 
   return '<!DOCTYPE html><html><head><meta charset="utf-8"></head>'
     + '<body style="font-family:Arial,sans-serif;line-height:1.6;color:#333;max-width:640px;margin:0 auto;padding:20px;background:#f4f4f4;">'
     + '<div style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 4px rgba(0,0,0,0.1);">'
-    + '<div style="text-align:center;padding:20px;"><img src="' + logoUrl + '" alt="Banners On The Fly" style="height:50px;"></div>'
-    + '<div style="background:#7c3aed;color:#fff;padding:24px;text-align:center;"><h1 style="margin:0;font-size:22px;">New Designer-Assisted Graduation Order</h1><p style="margin:8px 0 0;color:#ddd6fe;">A customer has requested a custom graduation design</p></div>'
+    + '<div style="text-align:center;padding:20px;background:#ffffff;"><img src="' + logoUrl + '" alt="Banners On The Fly" style="height:50px;"></div>'
+    + '<div style="background:#0B1F3A;color:#fff;padding:24px;text-align:center;"><h1 style="margin:0;font-size:22px;">New Designer-Assisted Graduation Order</h1><p style="margin:8px 0 0;color:#d1d5db;">A customer has requested a custom graduation design</p></div>'
     + '<div style="padding:24px;">'
-    + '<h3 style="color:#1f2937;margin:0 0 12px;">Customer</h3>'
+    + '<h3 style="color:#0B1F3A;margin:0 0 12px;">Customer</h3>'
     + renderKv('Name', customer.name)
     + renderKv('Email', customer.email)
     + renderKv('Phone', customer.phone)
@@ -173,10 +173,10 @@ function buildAdminHtml({
     + renderSection('Graduate Info', graduateInfo)
     + renderSection('Design Direction', designNotes)
     + filesHtml
-    + '<h3 style="color:#1f2937;margin:20px 0 12px;">Payment</h3>'
-    + '<p style="margin:6px 0;"><strong>Design fee:</strong> $19.00 (pending)</p>'
-    + '<p style="margin:6px 0;color:#6b7280;font-size:13px;">Send the customer a $19 design-fee invoice/PayPal link, then upload a proof for approval.</p>'
-    + '<div style="text-align:center;margin:24px 0;"><a href="' + adminOrderLink + '" style="background:#7c3aed;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block;">Open Admin Orders</a></div>'
+    + '<hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;">'
+    + '<h3 style="color:#0B1F3A;margin:0 0 12px;">Payment</h3>'
+    + '<p style="margin:6px 0;"><strong>Design fee:</strong> $19.00 (pending PayPal capture)</p>'
+    + '<div style="text-align:center;margin:24px 0;"><a href="' + adminOrderLink + '" style="background:#FF6A00;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block;">View Admin Orders</a></div>'
     + '</div></div></body></html>';
 }
 
@@ -185,14 +185,16 @@ function buildCustomerHtml({ customerName }) {
   return '<!DOCTYPE html><html><head><meta charset="utf-8"></head>'
     + '<body style="font-family:Arial,sans-serif;line-height:1.6;color:#333;max-width:600px;margin:0 auto;padding:20px;background:#f4f4f4;">'
     + '<div style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 4px rgba(0,0,0,0.1);">'
-    + '<div style="text-align:center;padding:20px;"><img src="' + logoUrl + '" alt="Banners On The Fly" style="height:50px;"></div>'
-    + '<div style="background:#2563eb;color:#fff;padding:24px;text-align:center;"><h1 style="margin:0;font-size:22px;">We\u2019re Working on Your Graduation Design</h1></div>'
+    + '<div style="text-align:center;padding:20px;background:#ffffff;"><img src="' + logoUrl + '" alt="Banners On The Fly" style="height:50px;"></div>'
+    + '<div style="background:#0B1F3A;color:#fff;padding:24px;text-align:center;"><h1 style="margin:0;font-size:22px;">Your Graduation Design Request is In \ud83c\udf93</h1></div>'
     + '<div style="padding:24px;">'
-    + '<p style="font-weight:600;">Hi ' + sanitize(customerName) + ',</p>'
-    + '<p>Thanks for your order. We received your graduation design request and our team is reviewing your details.</p>'
-    + '<p>Your $19 design fee covers the custom design proof. We\u2019ll be in touch shortly with payment instructions for the design fee, and as soon as your proof is ready we\u2019ll email it to you for approval.</p>'
-    + '<p>After you approve the design, you\u2019ll be able to pay the remaining product balance so we can move your order into production.</p>'
-    + '<p style="margin-top:24px;">\u2014 Banners On The Fly</p>'
+    + '<p style="font-weight:600;color:#0B1F3A;">Hi ' + sanitize(customerName) + ',</p>'
+    + '<p>Thanks for your request!</p>'
+    + '<p>We\u2019re creating your custom graduation design now. You\u2019ll receive a proof shortly to review and approve.</p>'
+    + '<p>Once approved, we\u2019ll print and ship fast.</p>'
+    + '<p style="margin-top:8px;color:#6b7280;font-size:13px;">Questions? Reply to this email or contact us at <a href="mailto:info@bannersonthefly.com" style="color:#FF6A00;">info@bannersonthefly.com</a>.</p>'
+    + '<hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;">'
+    + '<p style="font-size:13px;color:#6b7280;">\u2014 Banners On The Fly</p>'
     + '</div></div></body></html>';
 }
 
@@ -426,7 +428,7 @@ exports.handler = async (event) => {
       const customerResult = await resend.emails.send({
         from: 'Banners on the Fly <' + emailFrom + '>',
         to: customerEmail,
-        subject: 'We\u2019re Working on Your Graduation Design',
+        subject: 'Your Graduation Design Request is In \ud83c\udf93',
         html: customerHtml,
         reply_to: emailReplyTo,
         tags: [{ name: 'source', value: 'designer_intake_ack' }],
