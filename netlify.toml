@@ -190,3 +190,7 @@
 [[edge_functions]]
   path = "/blog/*"
   function = "social-meta-injector"
+
+[[edge_functions]]
+  path = "/graduation-signs"
+  function = "social-meta-injector"

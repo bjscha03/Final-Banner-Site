@@ -1,5 +1,16 @@
 import type { Context } from "https://edge.netlify.com";
 
+// Static page metadata
+const staticPages: Record<string, { title: string; description: string; image: string; url: string; type: string }> = {
+  "graduation-signs": {
+    title: "Custom Graduation Signs – Designed For You",
+    description: "Upload your own design or let our designers create one. Printed in 24 hours with free next-day air shipping.",
+    image: "https://res.cloudinary.com/dtrxl120u/image/upload/v1777021980/Graduation_hero_xw9rnh.png",
+    url: "https://bannersonthefly.com/graduation-signs",
+    type: "website"
+  }
+};
+
 // Blog post metadata
 const blogPosts: Record<string, { title: string; description: string; image: string }> = {
   "danos-seasoning-banner-success-story": {
@@ -61,6 +72,43 @@ function isBot(userAgent: string): boolean {
   return botUserAgents.some(bot => ua.includes(bot.toLowerCase()));
 }
 
+function injectStaticPageMetaTags(html: string, key: string): string {
+  const page = staticPages[key];
+  if (!page) return html;
+
+  const headMatch = html.match(/<head[^>]*>([\s\S]*?)<\/head>/i);
+  if (!headMatch) return html;
+
+  let headContent = headMatch[1];
+
+  headContent = headContent
+    .replace(/<meta[^>]*property="og:[^"]*"[^>]*>/gi, '')
+    .replace(/<meta[^>]*name="twitter:[^"]*"[^>]*>/gi, '')
+    .replace(/<meta[^>]*name="description"[^>]*>/gi, '')
+    .replace(/<title>[^<]*<\/title>/gi, '');
+
+  const newMetaTags = `
+    <title>${page.title} | Banners On The Fly</title>
+    <meta name="description" content="${page.description}">
+    <meta property="og:type" content="${page.type}">
+    <meta property="og:url" content="${page.url}">
+    <meta property="og:title" content="${page.title}">
+    <meta property="og:description" content="${page.description}">
+    <meta property="og:image" content="${page.image}">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:site_name" content="Banners on the Fly">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:url" content="${page.url}">
+    <meta name="twitter:title" content="${page.title}">
+    <meta name="twitter:description" content="${page.description}">
+    <meta name="twitter:image" content="${page.image}">
+  `;
+
+  const newHead = `<head>${headContent}${newMetaTags}</head>`;
+  return html.replace(/<head[^>]*>[\s\S]*?<\/head>/i, newHead);
+}
+
 function injectMetaTags(html: string, slug: string): string {
   const post = blogPosts[slug];
   if (!post) return html;
@@ -115,6 +163,9 @@ export default async (request: Request, context: Context) => {
   // Check if this is a blog post URL
   const blogMatch = url.pathname.match(/^\/blog\/([^\/]+)$/);
   
+  // Check if this is a static page with custom meta
+  const staticPageMatch = url.pathname.match(/^\/graduation-signs$/);
+
   if (blogMatch && isBot(userAgent)) {
     const slug = blogMatch[1];
     
@@ -132,7 +183,23 @@ export default async (request: Request, context: Context) => {
       }
     });
   }
+
+  if (staticPageMatch && isBot(userAgent)) {
+    const key = url.pathname.replace(/^\//, '');
+    
+    const response = await context.next();
+    const html = await response.text();
+    
+    const modifiedHtml = injectStaticPageMetaTags(html, key);
+    
+    return new Response(modifiedHtml, {
+      headers: {
+        'content-type': 'text/html',
+        'cache-control': 'no-cache, no-store, must-revalidate'
+      }
+    });
+  }
   
-  // For non-bot traffic or non-blog pages, pass through
+  // For non-bot traffic or non-matching pages, pass through
   return context.next();
 };

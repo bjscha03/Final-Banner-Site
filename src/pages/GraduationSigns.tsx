@@ -319,21 +319,28 @@ const GraduationSigns: React.FC = () => {
   return (
     <Layout>
       <Helmet>
-        <title>Graduation Banners, Yard Signs &amp; Car Magnets | Banners On The Fly</title>
+        <title>Custom Graduation Signs – Designed For You | Banners On The Fly</title>
         <meta
           name="description"
-          content="Celebrate your graduate with custom graduation banners, senior yard signs, and car magnets. Upload your own design or let our designers create one. Printed in 24 hours with FREE next-day air shipping."
+          content="Upload your own design or let our designers create one. Printed in 24 hours with free next-day air shipping."
         />
-        <meta property="og:title" content="Graduation Banners, Yard Signs & Car Magnets" />
+        <meta property="og:title" content="Custom Graduation Signs – Designed For You" />
         <meta
           property="og:description"
-          content="Custom graduation banners, yard signs, and car magnets printed fast. Upload your own design or let our designers create one."
+          content="Upload your own design or let our designers create one. Printed in 24 hours with free next-day air shipping."
         />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://bannersonthefly.com/graduation-signs" />
         <meta
           property="og:image"
           content="https://res.cloudinary.com/dtrxl120u/image/upload/v1777021980/Graduation_hero_xw9rnh.png"
         />
         <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Custom Graduation Signs – Designed For You" />
+        <meta
+          name="twitter:description"
+          content="Upload your own design or let our designers create one. Printed in 24 hours with free next-day air shipping."
+        />
         <meta
           name="twitter:image"
           content="https://res.cloudinary.com/dtrxl120u/image/upload/v1777021980/Graduation_hero_xw9rnh.png"
