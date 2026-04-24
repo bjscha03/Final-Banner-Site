@@ -102,7 +102,8 @@ const Checkout: React.FC = () => {
     ? 'Please upload at least one design for your yard sign order.'
     : '';
 
-  const canProceed = minimumOrderValidation.isValid && !yardSignInvalid;
+  const canProceed = (items.some(i => i.product_type === 'design_deposit') && items.every(i => i.product_type === 'design_deposit'))
+    || (minimumOrderValidation.isValid && !yardSignInvalid);
   if (flags.freeShipping || flags.minOrderFloor) {
     const pricingItems: PricingItem[] = items.map(item => ({ line_total_cents: item.line_total_cents }));
     const totals = computeTotals(pricingItems, 0.06, pricingOptions);
@@ -357,13 +358,35 @@ const Checkout: React.FC = () => {
     try {
       console.log('Payment success handler called with order ID:', orderId);
 
-      // With the new PayPal integration, the order is already created in the database
-      // by the paypal-capture-order function. We just need to handle the UI flow.
+      // Check if cart had a design_deposit item before clearing
+      const depositItem = items.find(i => i.product_type === 'design_deposit');
+      let depositIntakeId: string | null = null;
+      if (depositItem?.design_request_text) {
+        try {
+          const meta = JSON.parse(depositItem.design_request_text);
+          depositIntakeId = meta.intakeId || null;
+        } catch (_e) {
+          // ignore parse errors
+        }
+      }
 
       // Clear the cart
       clearCart();
 
-      // Show success message
+      if (depositItem) {
+        // Design deposit payment — redirect to graduation thank-you page
+        toast({
+          title: "Payment Received!",
+          description: "Your $19 design deposit has been received.",
+        });
+        navigate(
+          `/graduation-signs/thank-you${depositIntakeId ? `?intakeId=${encodeURIComponent(depositIntakeId)}` : ''}`,
+          { replace: true }
+        );
+        return;
+      }
+
+      // Normal product checkout — show success message and navigate
       toast({
         title: "Order Placed Successfully!",
         description: `Your order has been created and payment processed. Order ID: ${orderId}`,
@@ -437,16 +460,56 @@ const Checkout: React.FC = () => {
                   </div>
                 </div>
                 
-                {/* Thumbnail preview notice - shown once above all items */}
+                {/* Thumbnail preview notice - shown once above all items (not for design deposit) */}
+                {!items.every(i => i.product_type === 'design_deposit') && (
                 <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-xs text-blue-700 mb-4">
                   <Eye className="h-4 w-4 flex-shrink-0 mt-0.5 text-blue-500" />
                   <p>
                     <span className="font-medium">Preview only.</span> {productCopy.reviewNoticeBody}
                   </p>
                 </div>
+                )}
 
                 <div className="space-y-4">
                   {items.map((item) => {
+                    // Design deposit items get a simplified flat-fee card
+                    if (item.product_type === 'design_deposit') {
+                      let depositMeta: Record<string, string> = {};
+                      try { depositMeta = JSON.parse(item.design_request_text || '{}'); } catch (_e) {}
+                      return (
+                        <div key={item.id} className="border border-[#FF6A00]/30 rounded-xl p-4 sm:p-5 bg-gradient-to-br from-white to-orange-50">
+                          <div className="flex items-center gap-4">
+                            <div className="flex-shrink-0 h-16 w-16 rounded-xl bg-[#0B1F3A] flex items-center justify-center">
+                              <span className="text-[#FF6A00] text-2xl">🎓</span>
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <h3 className="font-bold text-[#0B1F3A] text-lg">Graduation Design Deposit</h3>
+                              <p className="text-sm text-gray-600 mt-0.5">
+                                Custom design proof for graduation {depositMeta.productType === 'yard_sign' ? 'yard sign' : depositMeta.productType === 'car_magnet' ? 'car magnet' : 'banner'}
+                              </p>
+                              {depositMeta.graduateName && (
+                                <p className="text-xs text-gray-500 mt-1">For: {depositMeta.graduateName}{depositMeta.schoolName ? ` · ${depositMeta.schoolName}` : ''}{depositMeta.graduationYear ? ` ${depositMeta.graduationYear}` : ''}</p>
+                              )}
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <p className="font-bold text-gray-900 text-xl">{usd(item.line_total_cents / 100)}</p>
+                            </div>
+                          </div>
+                          <div className="mt-3 pt-3 border-t border-gray-100 flex justify-end">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemoveItem(item.id)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-100 font-semibold transition-all"
+                            >
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              Remove
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    }
+
                     const eachCents = computeEach(item);
                     const normalized = normalizeOrderItemDisplay(item as NormalizableOrderItem);
                     const isYardSign = isYardSignItem(item);
@@ -607,10 +670,11 @@ const Checkout: React.FC = () => {
                 </div>
 
                 {/* Add Another Item button — product-aware for correct tab routing */}
+                {!items.every(i => i.product_type === 'design_deposit') && (
                 <div className="mt-4">
                   {(() => {
                     const hasYardSigns = items.some(i => isYardSignItem(i));
-                    const hasBanners = items.some(i => !isYardSignItem(i));
+                    const hasBanners = items.some(i => !isYardSignItem(i) && i.product_type !== 'design_deposit');
                     const isMixed = hasYardSigns && hasBanners;
 
                     if (!isFromGoogleAds) {
@@ -686,8 +750,10 @@ const Checkout: React.FC = () => {
                     );
                   })()}
                 </div>
+                )}
 
                 {/* Discount Code Section */}
+                {!items.every(i => i.product_type === 'design_deposit') && (
                 <div className="border-t border-gray-200 pt-6 mt-6">
                   {!discountCode ? (
                     <div className="space-y-3">
@@ -754,6 +820,7 @@ const Checkout: React.FC = () => {
                     </div>
                   )}
                 </div>
+                )}
 
                 <div className="mt-6">
                   <div

@@ -152,10 +152,10 @@ const computeTotals = (items, taxRate, opts, promoDiscount = null) => {
   const minAdj = Math.max(0, adjusted - raw);
 
   // IMPORTANT: Only BANNER items count toward quantity discount tiers.
-  // Yard signs and car magnets use flat pricing with NO quantity discounts.
+  // Yard signs, car magnets, and design_deposit items use flat pricing with NO quantity discounts.
   const isBanner = (i) => {
     const t = i.product_type || 'banner';
-    return t !== 'yard_sign' && t !== 'car_magnet';
+    return t !== 'yard_sign' && t !== 'car_magnet' && t !== 'design_deposit';
   };
   const bannerItems = items.filter(isBanner);
   const bannerQuantity = bannerItems.reduce((sum, i) => sum + (i.quantity || 1), 0);
@@ -446,6 +446,8 @@ exports.handler = async (event, context) => {
     const YARD_SIGN_MAX_QTY = 90;
     if (orderData.items && Array.isArray(orderData.items)) {
       for (const item of orderData.items) {
+        // Skip quantity validation for design_deposit items
+        if (item.product_type === 'design_deposit') continue;
         if (item.product_type === 'yard_sign') {
           const qty = item.quantity || 0;
           if (qty < YARD_SIGN_MIN_QTY || qty > YARD_SIGN_MAX_QTY || qty % YARD_SIGN_INCREMENT !== 0) {
@@ -463,6 +465,11 @@ exports.handler = async (event, context) => {
       }
     }
 
+    // Check if this is a design_deposit-only order
+    const isDesignDepositOrder = orderData.items && Array.isArray(orderData.items)
+      && orderData.items.length > 0
+      && orderData.items.every(i => i.product_type === 'design_deposit');
+
     // ALWAYS recalculate totals server-side from line_total_cents
     const flags = getFeatureFlags();
     {
@@ -470,7 +477,8 @@ exports.handler = async (event, context) => {
       const taxRate = 0.06; // 6% tax rate
       const pricingOptions = {
         freeShipping: flags.freeShipping,
-        minFloorCents: flags.minOrderFloor ? flags.minOrderCents : 0,
+        // Design deposit orders bypass minimum order floor to avoid unwanted adjustment
+        minFloorCents: (isDesignDepositOrder || !flags.minOrderFloor) ? 0 : flags.minOrderCents,
         shippingMethodLabel: flags.shippingMethodLabel
       };
 
@@ -903,22 +911,120 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // Return structured response
-    // Send order confirmation email
-    try {
-      console.log('Sending order confirmation email for order:', orderId);
+    // Handle post-payment logic based on order type
+    if (isDesignDepositOrder) {
+      // --- Design deposit order: update intake and send graduation emails ---
+      try {
+        const depositItem = (orderData.items || []).find(i => i.product_type === 'design_deposit');
+        let intakeMeta = {};
+        try {
+          intakeMeta = JSON.parse(depositItem?.design_request_text || '{}');
+        } catch (_e) {}
 
-      const emailResult = await sendOrderConfirmationEmail(orderId);
+        const intakeId = intakeMeta.intakeId;
+        if (intakeId) {
+          // Update intake status to design_paid
+          await sql`
+            UPDATE designer_intake_orders
+            SET
+              design_fee_paid = true,
+              status = 'design_paid',
+              updated_at = NOW()
+            WHERE id = ${intakeId}::uuid
+          `;
+          console.log('[create-order] Intake updated to design_paid:', intakeId);
 
-      if (emailResult.ok) {
-        console.log('Order confirmation email sent successfully, email ID:', emailResult.id);
-      } else {
-        console.error('Failed to send order confirmation email:', emailResult.error);
-        // Don't fail the order creation if email fails - the notify-order function handles database updates
+          // Send graduation-specific emails via Resend (best effort)
+          try {
+            const { Resend } = require('resend');
+            const apiKey = process.env.RESEND_API_KEY;
+            if (apiKey) {
+              const resend = new Resend(apiKey);
+              const emailFrom = process.env.EMAIL_FROM || 'info@bannersonthefly.com';
+              const emailReplyTo = process.env.EMAIL_REPLY_TO || 'support@bannersonthefly.com';
+              const adminEmail = process.env.ADMIN_EMAIL || 'info@bannersonthefly.com';
+
+              const customerName = intakeMeta.customerName || userEmail;
+              const customerEmailAddr = intakeMeta.customerEmail || userEmail;
+
+              const logoUrl = 'https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto,q_auto,w_300/https://bannersonthefly.com/cld-assets/images/logo-compact.svg';
+
+              // Customer confirmation email
+              const customerHtml = '<!DOCTYPE html><html><head><meta charset="utf-8"></head>'
+                + '<body style="font-family:Arial,sans-serif;line-height:1.6;color:#333;max-width:600px;margin:0 auto;padding:20px;background:#f4f4f4;">'
+                + '<div style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 4px rgba(0,0,0,0.1);">'
+                + '<div style="text-align:center;padding:20px;background:#ffffff;"><img src="' + logoUrl + '" alt="Banners On The Fly" style="height:50px;"></div>'
+                + '<div style="background:#0B1F3A;color:#fff;padding:24px;text-align:center;"><h1 style="margin:0;font-size:22px;">Your Graduation Design Request is Confirmed \ud83c\udf93</h1></div>'
+                + '<div style="padding:24px;">'
+                + '<p style="font-weight:600;color:#0B1F3A;">Hi ' + (customerName || 'there') + ',</p>'
+                + '<p>Thanks \u2014 your $19 design deposit has been received.</p>'
+                + '<p>Our designers will create your custom graduation proof and email it to you for approval. Once approved, we\u2019ll print and ship fast \u2014 FREE next-day air.</p>'
+                + (intakeMeta.graduateName ? '<p style="background:#f4f8ff;border-left:4px solid #FF6A00;padding:10px 14px;border-radius:4px;"><strong>For:</strong> ' + intakeMeta.graduateName + (intakeMeta.schoolName ? ' \u00b7 ' + intakeMeta.schoolName : '') + (intakeMeta.graduationYear ? ' ' + intakeMeta.graduationYear : '') + '</p>' : '')
+                + '<p style="margin-top:16px;color:#6b7280;font-size:13px;">Questions? Email us at <a href="mailto:info@bannersonthefly.com" style="color:#FF6A00;">info@bannersonthefly.com</a>.</p>'
+                + '<hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;">'
+                + '<p style="font-size:13px;color:#6b7280;">\u2014 Banners On The Fly</p>'
+                + '</div></div></body></html>';
+
+              await resend.emails.send({
+                from: 'Banners on the Fly <' + emailFrom + '>',
+                to: customerEmailAddr,
+                subject: 'Your graduation design request is confirmed \ud83c\udf93',
+                html: customerHtml,
+                reply_to: emailReplyTo,
+                tags: [{ name: 'source', value: 'graduation_design_deposit_paid' }],
+              });
+
+              // Admin notification email
+              const adminHtml = '<!DOCTYPE html><html><head><meta charset="utf-8"></head>'
+                + '<body style="font-family:Arial,sans-serif;line-height:1.6;color:#333;max-width:640px;margin:0 auto;padding:20px;background:#f4f4f4;">'
+                + '<div style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 4px rgba(0,0,0,0.1);">'
+                + '<div style="text-align:center;padding:20px;background:#ffffff;"><img src="' + logoUrl + '" alt="Banners On The Fly" style="height:50px;"></div>'
+                + '<div style="background:#0B1F3A;color:#fff;padding:24px;text-align:center;"><h1 style="margin:0;font-size:22px;">New Paid Graduation Design Request</h1><p style="margin:8px 0 0;color:#d1d5db;">$19 deposit received \u2014 design work can begin</p></div>'
+                + '<div style="padding:24px;">'
+                + '<p><strong>Customer:</strong> ' + (customerName || '\u2014') + '</p>'
+                + '<p><strong>Email:</strong> ' + customerEmailAddr + '</p>'
+                + '<p><strong>Product:</strong> ' + (intakeMeta.productType || '\u2014') + '</p>'
+                + (intakeMeta.graduateName ? '<p><strong>Graduate:</strong> ' + intakeMeta.graduateName + (intakeMeta.schoolName ? ' \u00b7 ' + intakeMeta.schoolName : '') + (intakeMeta.graduationYear ? ' ' + intakeMeta.graduationYear : '') + '</p>' : '')
+                + '<p><strong>Intake ID:</strong> ' + intakeId + '</p>'
+                + '<p><strong>Order ID:</strong> ' + orderId + '</p>'
+                + '<div style="text-align:center;margin:24px 0;"><a href="https://bannersonthefly.com/admin/orders" style="background:#FF6A00;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block;">View Admin Orders</a></div>'
+                + '</div></div></body></html>';
+
+              await resend.emails.send({
+                from: 'Banners on the Fly <' + emailFrom + '>',
+                to: adminEmail,
+                subject: 'New paid graduation design request — ' + (intakeMeta.graduateName || customerName),
+                html: adminHtml,
+                reply_to: customerEmailAddr,
+                tags: [{ name: 'source', value: 'graduation_design_deposit_admin' }],
+              });
+
+              console.log('[create-order] Graduation deposit emails sent for intake:', intakeId);
+            }
+          } catch (emailErr) {
+            console.error('[create-order] Failed to send graduation deposit emails:', emailErr.message);
+            // Don't fail the order
+          }
+        } else {
+          console.warn('[create-order] design_deposit order but no intakeId found in design_request_text');
+        }
+      } catch (depositErr) {
+        console.error('[create-order] Failed to update design deposit intake:', depositErr.message);
+        // Don't fail the order creation
       }
-    } catch (emailError) {
-      console.error('Error sending order confirmation email:', emailError);
-      // Don't fail the order creation if email fails
+    } else {
+      // Normal product order — send standard order confirmation email
+      try {
+        console.log('Sending order confirmation email for order:', orderId);
+        const emailResult = await sendOrderConfirmationEmail(orderId);
+        if (emailResult.ok) {
+          console.log('Order confirmation email sent successfully, email ID:', emailResult.id);
+        } else {
+          console.error('Failed to send order confirmation email:', emailResult.error);
+        }
+      } catch (emailError) {
+        console.error('Error sending order confirmation email:', emailError);
+      }
     }
 
     const response = {

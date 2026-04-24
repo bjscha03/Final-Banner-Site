@@ -172,6 +172,15 @@ export interface CartState {
   isSyncing: boolean;  // Flag to prevent loadFromServer from overwriting during sync
   discountCode: DiscountCode | null;
   addFromQuote: (quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => string;
+  addDesignDeposit: (intakeData: {
+    intakeId: string;
+    customerName: string;
+    customerEmail: string;
+    graduateName: string;
+    schoolName: string;
+    graduationYear: string;
+    productType: string;
+  }) => string;
   loadItemIntoQuote: (itemId: string) => CartItem | null;
   updateCartItem: (itemId: string, quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => void;
   updateItemThumbnail: (itemId: string, thumbnailUrl: string) => void;
@@ -198,6 +207,11 @@ export interface CartState {
 
 // Migration function to fix old cart items with missing or zero pricing fields
 const migrateCartItem = (item: CartItem): CartItem => {
+  // design_deposit items have a fixed price and no dimensions — skip migration
+  if (item.product_type === 'design_deposit') {
+    return item;
+  }
+
   // Check if this is an old item that needs migration
   const needsMigration = 
     item.line_total_cents === 0 || 
@@ -208,7 +222,6 @@ const migrateCartItem = (item: CartItem): CartItem => {
   if (!needsMigration) {
     return item;
   }
-
 
   if ((item.product_type || 'banner') !== 'banner') {
     return item;
@@ -229,7 +242,6 @@ const migrateCartItem = (item: CartItem): CartItem => {
   const rope_cost_cents = bannerPricing.ropeCostCents;
   const pole_pocket_cost_cents = bannerPricing.polePocketCostCents;
   const line_total_cents = bannerPricing.subtotalBeforeDiscountCents;
-  const ropeFeet = bannerPricing.ropeLinearFeet;
 
   const migratedItem = {
     ...item,
@@ -501,7 +513,45 @@ export const useCartStore = create<CartState>()(
       return newItem.id;
       },
 
-      updateQuantity: (id: string, quantity: number) => {
+      addDesignDeposit: ({ intakeId, customerName, customerEmail, graduateName, schoolName, graduationYear, productType }) => {
+        const DEPOSIT_PRICE_CENTS = 1900;
+        const itemId = `design-deposit-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        const newItem: CartItem = {
+          id: itemId,
+          product_type: 'design_deposit',
+          width_in: 0,
+          height_in: 0,
+          quantity: 1,
+          material: '13oz' as MaterialKey,
+          grommets: 'none' as Grommets,
+          pole_pockets: 'none',
+          rope_feet: 0,
+          area_sqft: 0,
+          unit_price_cents: DEPOSIT_PRICE_CENTS,
+          rope_cost_cents: 0,
+          pole_pocket_cost_cents: 0,
+          line_total_cents: DEPOSIT_PRICE_CENTS,
+          // Store intake metadata as JSON in design_request_text for post-payment processing
+          design_request_text: JSON.stringify({
+            intakeId,
+            customerName,
+            customerEmail,
+            graduateName,
+            schoolName,
+            graduationYear,
+            productType,
+            designRequestType: 'graduation_design_deposit',
+          }),
+          design_service_enabled: false,
+          source: 'design',
+          created_at: new Date().toISOString(),
+        };
+        set((state) => ({ items: [...state.items, newItem] }));
+        setTimeout(() => { get().syncToServer(); }, 0);
+        return itemId;
+      },
+
+
         set((state) => ({
           items: state.items.map(item => {
             if (item.id !== id) return item;
@@ -981,7 +1031,10 @@ export const useCartStore = create<CartState>()(
       // IMPORTANT: Only banner items participate in quantity discounts
       getQuantityDiscountInfo: () => {
         const items = get().items.map(migrateCartItem);
-        const bannerItems = items.filter(item => (item.product_type || 'banner') !== 'yard_sign');
+        const bannerItems = items.filter(item => {
+          const t = item.product_type || 'banner';
+          return t !== 'yard_sign' && t !== 'car_magnet' && t !== 'design_deposit';
+        });
         const totalQuantity = bannerItems.reduce((total, item) => total + item.quantity, 0);
         const rawSubtotal = bannerItems.reduce((total, item) => total + item.line_total_cents, 0);
 
@@ -996,9 +1049,9 @@ export const useCartStore = create<CartState>()(
 
       // Best Discount Resolver - "Best Discount Wins" (no stacking)
       // IMPORTANT: ONLY banner items participate in quantity discounts.
-      // Yard signs and car magnets do NOT contribute to the quantity discount
-      // tier and the quantity discount rate is NOT applied to their subtotal.
-      // Promo codes still apply to the full cart subtotal.
+      // Yard signs, car magnets, and design_deposit items do NOT contribute
+      // to the quantity discount tier and the quantity discount rate is NOT
+      // applied to their subtotal. Promo codes still apply to the full cart subtotal.
       getResolvedDiscount: () => {
         const items = get().items.map(migrateCartItem);
         const subtotalCents = items.reduce((total, item) => total + item.line_total_cents, 0);
@@ -1006,7 +1059,7 @@ export const useCartStore = create<CartState>()(
         // Banner-only subset for quantity-discount tier + base
         const isBanner = (item: any) => {
           const t = item.product_type || 'banner';
-          return t !== 'yard_sign' && t !== 'car_magnet';
+          return t !== 'yard_sign' && t !== 'car_magnet' && t !== 'design_deposit';
         };
         const bannerItems = items.filter(isBanner);
         const bannerQuantity = bannerItems.reduce((total, item) => total + item.quantity, 0);

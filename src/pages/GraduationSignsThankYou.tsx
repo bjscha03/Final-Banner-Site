@@ -19,10 +19,10 @@ const GraduationSignsThankYou: React.FC = () => {
         <div className="max-w-3xl mx-auto px-4">
           <GraduationCap className="mx-auto h-14 w-14 text-[#FF6A00] mb-4" />
           <h1 className="text-4xl font-black tracking-tight">
-            Your Design Request is In! 🎓
+            Thanks — your $19 design deposit has been received! 🎓
           </h1>
           <p className="mt-4 text-lg text-white/85">
-            Your $19 design deposit has been received.
+            Our designers will create your proof and email it to you for approval.
           </p>
         </div>
       </section>
