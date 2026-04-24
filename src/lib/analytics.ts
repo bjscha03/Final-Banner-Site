@@ -79,6 +79,34 @@ export const trackBeginCheckout = (items: AnalyticsItem[], totalValue: number) =
 };
 
 /**
+ * Track Google Ads purchase conversion (separate from GA4 purchase event).
+ *
+ * Reads the conversion ID and purchase label from Vite env vars:
+ *   - VITE_GOOGLE_ADS_CONVERSION_ID  (e.g. "AW-1234567890")
+ *   - VITE_GOOGLE_ADS_PURCHASE_LABEL (e.g. "abcDEFghiJKL")
+ *
+ * If either is missing the function is a no-op so we never fire fake conversions.
+ * Caller is responsible for ensuring it only fires once per successful order.
+ */
+export const trackGoogleAdsPurchaseConversion = (params: {
+  transaction_id: string;
+  value: number; // cents
+  currency?: string;
+}) => {
+  const conversionId = (import.meta as any)?.env?.VITE_GOOGLE_ADS_CONVERSION_ID;
+  const purchaseLabel = (import.meta as any)?.env?.VITE_GOOGLE_ADS_PURCHASE_LABEL;
+  if (!conversionId || !purchaseLabel) {
+    return;
+  }
+  gtag('event', 'conversion', {
+    send_to: `${conversionId}/${purchaseLabel}`,
+    value: params.value / 100,
+    currency: params.currency || 'USD',
+    transaction_id: params.transaction_id,
+  });
+};
+
+/**
  * Track completed purchase (CRITICAL for revenue tracking)
  */
 export const trackPurchase = (params: {

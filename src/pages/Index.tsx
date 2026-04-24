@@ -10,6 +10,7 @@ import PromoBanner from '@/components/PromoBanner';
 import PricingTable from '@/components/PricingTable';
 import DeliveryCarousel from '@/components/home/DeliveryCarousel';
 import ProductSelectionStrip from '@/components/home/ProductSelectionStrip';
+import SEO from '@/components/SEO';
 
 const Index: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -63,6 +64,11 @@ const Index: React.FC = () => {
 
   return (
     <Layout>
+      <SEO
+        title="Custom Banners, Yard Signs & Car Magnets | Banners On The Fly"
+        description="Order custom banners, yard signs, and car magnets with 24-hour production and FREE next-day air shipping anywhere in the U.S."
+        canonical="https://bannersonthefly.com/"
+      />
       <PromoBanner />
       <HeroSection />
       <ProductSelectionStrip />

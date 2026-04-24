@@ -4,7 +4,7 @@ import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { CheckCircle, Home, ArrowRight } from 'lucide-react';
 import { usd } from '@/lib/pricing';
-import { trackPurchase, trackFBPurchase } from '@/lib/analytics';
+import { trackPurchase, trackFBPurchase, trackGoogleAdsPurchaseConversion } from '@/lib/analytics';
 import { getItemDisplayName, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
 import { formatShippingAddress, hasShippingAddress, normalizeShippingAddress } from '@/lib/shipping-address';
 
@@ -84,6 +84,16 @@ const PaymentSuccess: React.FC = () => {
   // Track purchase event for analytics
   useEffect(() => {
     if (orderId && items.length > 0) {
+      // Idempotency guard: never fire purchase events twice for the same order
+      const trackedKey = `purchase_tracked_${orderId}`;
+      try {
+        if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(trackedKey)) {
+          return;
+        }
+      } catch (_e) {
+        // sessionStorage unavailable — fall back to component lifecycle dedupe
+      }
+
       const analyticsItems = items.map((item) => ({
         item_id: item.id,
         item_name: `${item.width_in}x${item.height_in} ${item.material} Banner`,
@@ -108,6 +118,21 @@ const PaymentSuccess: React.FC = () => {
         value: pricing.total,
         transaction_id: orderId,
       });
+
+      // Track Google Ads purchase conversion (no-op if env vars not configured)
+      trackGoogleAdsPurchaseConversion({
+        transaction_id: orderId,
+        value: pricing.total,
+        currency: 'USD',
+      });
+
+      try {
+        if (typeof sessionStorage !== 'undefined') {
+          sessionStorage.setItem(trackedKey, '1');
+        }
+      } catch (_e) {
+        // ignore
+      }
     }
   }, [orderId]); // Track once when orderId is available
   const calculatePricingBreakdown = () => {

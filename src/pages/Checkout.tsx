@@ -974,6 +974,30 @@ const Checkout: React.FC = () => {
                   onSuccess={handlePaymentSuccess}
                   onError={handlePaymentError}
                 />
+
+                {/* Trust badges — reassurance near payment area */}
+                <ul className="mt-6 pt-5 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm text-gray-700">
+                  <li className="flex items-start gap-2">
+                    <span aria-hidden="true">🔒</span>
+                    <span><span className="font-semibold">Secure Checkout</span> — SSL Encrypted</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span aria-hidden="true">🚚</span>
+                    <span>FREE Next-Day Air Shipping</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span aria-hidden="true">✅</span>
+                    <span>Quality Guaranteed</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span aria-hidden="true">💲</span>
+                    <span>No Hidden Fees</span>
+                  </li>
+                  <li className="flex items-start gap-2 sm:col-span-2">
+                    <span aria-hidden="true">🛡️</span>
+                    <span>Custom orders replaced if damaged in transit</span>
+                  </li>
+                </ul>
               </div>
 
               {/* User Info */}
