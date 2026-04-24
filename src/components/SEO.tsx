@@ -23,7 +23,8 @@ const SEO: React.FC<SEOProps> = ({
   title,
   description,
   canonical,
-  ogImage = '/images/logo-social.svg',
+  // Default OG image: 1200x630 PNG. TODO: ship a real /images/og-default.png artwork.
+  ogImage = '/images/og-default.png',
   ogType = 'website',
   twitterCard = 'summary_large_image',
   keywords = [],

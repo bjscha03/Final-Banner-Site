@@ -547,6 +547,21 @@ export const useCartStore = create<CartState>()(
           created_at: new Date().toISOString(),
         };
         set((state) => ({ items: [...state.items, newItem] }));
+
+        // Track add-to-cart for graduation design deposit ($19 fixed)
+        trackAddToCart({
+          id: newItem.id,
+          name: 'Graduation Design Deposit',
+          material: 'design_service',
+          size: 'n/a',
+          price: DEPOSIT_PRICE_CENTS,
+          quantity: 1,
+        });
+        trackFBAddToCart({
+          content_name: 'Graduation Design Deposit',
+          value: DEPOSIT_PRICE_CENTS,
+        });
+
         setTimeout(() => { get().syncToServer(); }, 0);
         return itemId;
       },
