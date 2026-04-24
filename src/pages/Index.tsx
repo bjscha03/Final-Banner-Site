@@ -10,7 +10,6 @@ import PromoBanner from '@/components/PromoBanner';
 import PricingTable from '@/components/PricingTable';
 import DeliveryCarousel from '@/components/home/DeliveryCarousel';
 import ProductSelectionStrip from '@/components/home/ProductSelectionStrip';
-import UseCaseStrip from '@/components/home/UseCaseStrip';
 
 const Index: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -67,7 +66,6 @@ const Index: React.FC = () => {
       <PromoBanner />
       <HeroSection />
       <ProductSelectionStrip />
-      <UseCaseStrip />
       <DeliveryCarousel />
       <CompanySpotlight />
       <TestimonialsSection />
