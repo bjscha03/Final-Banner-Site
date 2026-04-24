@@ -470,6 +470,13 @@ exports.handler = async (event, context) => {
       && orderData.items.length > 0
       && orderData.items.every(i => i.product_type === 'design_deposit');
 
+    // Check if this is a graduation final-product payment (one-off charge for
+    // approved proof balance). Distinct from the deposit so totals/checks don't
+    // collide and so post-payment hooks send the right emails.
+    const isFinalProductPayment = orderData.items && Array.isArray(orderData.items)
+      && orderData.items.length > 0
+      && orderData.items.every(i => i.product_type === 'graduation_final_payment');
+
     // ALWAYS recalculate totals server-side from line_total_cents
     const flags = getFeatureFlags();
     {
@@ -478,7 +485,7 @@ exports.handler = async (event, context) => {
       const pricingOptions = {
         freeShipping: flags.freeShipping,
         // Design deposit orders bypass minimum order floor to avoid unwanted adjustment
-        minFloorCents: (isDesignDepositOrder || !flags.minOrderFloor) ? 0 : flags.minOrderCents,
+        minFloorCents: (isDesignDepositOrder || isFinalProductPayment || !flags.minOrderFloor) ? 0 : flags.minOrderCents,
         shippingMethodLabel: flags.shippingMethodLabel
       };
 
@@ -923,86 +930,42 @@ exports.handler = async (event, context) => {
 
         const intakeId = intakeMeta.intakeId;
         if (intakeId) {
-          // Update intake status to design_paid
+          // Mark intake as paid and stamp design_fee_paid_at. The cart item
+          // metadata may also include estimated price snapshot — apply it as
+          // a fallback if the intake row doesn't already have it (older
+          // submissions without server-side estimate).
+          const estTotalFromCart = Number(intakeMeta.estimatedProductTotalCents);
+          const estSubFromCart = Number(intakeMeta.estimatedProductSubtotalCents);
+          const estTaxFromCart = Number(intakeMeta.estimatedTaxCents);
+
           await sql`
             UPDATE designer_intake_orders
             SET
               design_fee_paid = true,
+              design_fee_paid_at = COALESCE(design_fee_paid_at, NOW()),
               status = 'design_paid',
+              last_status_change_at = NOW(),
+              estimated_product_subtotal_cents = COALESCE(estimated_product_subtotal_cents, ${Number.isFinite(estSubFromCart) ? estSubFromCart : null}),
+              estimated_tax_cents              = COALESCE(estimated_tax_cents,              ${Number.isFinite(estTaxFromCart) ? estTaxFromCart : null}),
+              estimated_product_total_cents    = COALESCE(estimated_product_total_cents,    ${Number.isFinite(estTotalFromCart) ? estTotalFromCart : null}),
+              paypal_order_id = COALESCE(paypal_order_id, ${orderData.paypal_order_id || null}),
               updated_at = NOW()
             WHERE id = ${intakeId}::uuid
           `;
           console.log('[create-order] Intake updated to design_paid:', intakeId);
 
-          // Send graduation-specific emails via Resend (best effort)
+          // Send graduation-specific emails via shared lib (best effort).
           try {
-            const { Resend } = require('resend');
-            const apiKey = process.env.RESEND_API_KEY;
-            if (apiKey) {
-              const resend = new Resend(apiKey);
-              const emailFrom = process.env.EMAIL_FROM || 'info@bannersonthefly.com';
-              const emailReplyTo = process.env.EMAIL_REPLY_TO || 'support@bannersonthefly.com';
-              const adminEmail = process.env.ADMIN_EMAIL || 'info@bannersonthefly.com';
-
-              const customerName = intakeMeta.customerName || userEmail;
-              const customerEmailAddr = intakeMeta.customerEmail || userEmail;
-
-              const logoUrl = 'https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto,q_auto,w_300/https://bannersonthefly.com/cld-assets/images/logo-compact.svg';
-
-              // Customer confirmation email
-              const customerHtml = '<!DOCTYPE html><html><head><meta charset="utf-8"></head>'
-                + '<body style="font-family:Arial,sans-serif;line-height:1.6;color:#333;max-width:600px;margin:0 auto;padding:20px;background:#f4f4f4;">'
-                + '<div style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 4px rgba(0,0,0,0.1);">'
-                + '<div style="text-align:center;padding:20px;background:#ffffff;"><img src="' + logoUrl + '" alt="Banners On The Fly" style="height:50px;"></div>'
-                + '<div style="background:#0B1F3A;color:#fff;padding:24px;text-align:center;"><h1 style="margin:0;font-size:22px;">Your Graduation Design Request is Confirmed \ud83c\udf93</h1></div>'
-                + '<div style="padding:24px;">'
-                + '<p style="font-weight:600;color:#0B1F3A;">Hi ' + (customerName || 'there') + ',</p>'
-                + '<p>Thanks \u2014 your $19 design deposit has been received.</p>'
-                + '<p>Our designers will create your custom graduation proof and email it to you for approval. Once approved, we\u2019ll print and ship fast \u2014 FREE next-day air.</p>'
-                + (intakeMeta.graduateName ? '<p style="background:#f4f8ff;border-left:4px solid #FF6A00;padding:10px 14px;border-radius:4px;"><strong>For:</strong> ' + intakeMeta.graduateName + (intakeMeta.schoolName ? ' \u00b7 ' + intakeMeta.schoolName : '') + (intakeMeta.graduationYear ? ' ' + intakeMeta.graduationYear : '') + '</p>' : '')
-                + '<p style="margin-top:16px;color:#6b7280;font-size:13px;">Questions? Email us at <a href="mailto:info@bannersonthefly.com" style="color:#FF6A00;">info@bannersonthefly.com</a>.</p>'
-                + '<hr style="border:none;border-top:1px solid #e5e7eb;margin:20px 0;">'
-                + '<p style="font-size:13px;color:#6b7280;">\u2014 Banners On The Fly</p>'
-                + '</div></div></body></html>';
-
-              await resend.emails.send({
-                from: 'Banners on the Fly <' + emailFrom + '>',
-                to: customerEmailAddr,
-                subject: 'Your graduation design request is confirmed \ud83c\udf93',
-                html: customerHtml,
-                reply_to: emailReplyTo,
-                tags: [{ name: 'source', value: 'graduation_design_deposit_paid' }],
-              });
-
-              // Admin notification email
-              const adminHtml = '<!DOCTYPE html><html><head><meta charset="utf-8"></head>'
-                + '<body style="font-family:Arial,sans-serif;line-height:1.6;color:#333;max-width:640px;margin:0 auto;padding:20px;background:#f4f4f4;">'
-                + '<div style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 4px rgba(0,0,0,0.1);">'
-                + '<div style="text-align:center;padding:20px;background:#ffffff;"><img src="' + logoUrl + '" alt="Banners On The Fly" style="height:50px;"></div>'
-                + '<div style="background:#0B1F3A;color:#fff;padding:24px;text-align:center;"><h1 style="margin:0;font-size:22px;">New Paid Graduation Design Request</h1><p style="margin:8px 0 0;color:#d1d5db;">$19 deposit received \u2014 design work can begin</p></div>'
-                + '<div style="padding:24px;">'
-                + '<p><strong>Customer:</strong> ' + (customerName || '\u2014') + '</p>'
-                + '<p><strong>Email:</strong> ' + customerEmailAddr + '</p>'
-                + '<p><strong>Product:</strong> ' + (intakeMeta.productType || '\u2014') + '</p>'
-                + (intakeMeta.graduateName ? '<p><strong>Graduate:</strong> ' + intakeMeta.graduateName + (intakeMeta.schoolName ? ' \u00b7 ' + intakeMeta.schoolName : '') + (intakeMeta.graduationYear ? ' ' + intakeMeta.graduationYear : '') + '</p>' : '')
-                + '<p><strong>Intake ID:</strong> ' + intakeId + '</p>'
-                + '<p><strong>Order ID:</strong> ' + orderId + '</p>'
-                + '<div style="text-align:center;margin:24px 0;"><a href="https://bannersonthefly.com/admin/orders" style="background:#FF6A00;color:#fff;padding:12px 24px;border-radius:6px;text-decoration:none;font-weight:bold;display:inline-block;">View Admin Orders</a></div>'
-                + '</div></div></body></html>';
-
-              await resend.emails.send({
-                from: 'Banners on the Fly <' + emailFrom + '>',
-                to: adminEmail,
-                subject: 'New paid graduation design request — ' + (intakeMeta.graduateName || customerName),
-                html: adminHtml,
-                reply_to: customerEmailAddr,
-                tags: [{ name: 'source', value: 'graduation_design_deposit_admin' }],
-              });
-
+            const graduation = require('./lib/graduation.cjs');
+            const intake = await graduation.getIntakeById(sql, intakeId);
+            if (intake) {
+              await graduation.sendDesignDepositEmails(intake, orderId);
               console.log('[create-order] Graduation deposit emails sent for intake:', intakeId);
+            } else {
+              console.warn('[create-order] Intake not found after update:', intakeId);
             }
           } catch (emailErr) {
-            console.error('[create-order] Failed to send graduation deposit emails:', emailErr.message);
+            console.error('[create-order] Failed to send graduation deposit emails:', emailErr.message, emailErr.stack);
             // Don't fail the order
           }
         } else {
@@ -1011,6 +974,45 @@ exports.handler = async (event, context) => {
       } catch (depositErr) {
         console.error('[create-order] Failed to update design deposit intake:', depositErr.message);
         // Don't fail the order creation
+      }
+    } else if (isFinalProductPayment) {
+      // --- Final product payment for an approved graduation proof ---
+      try {
+        const finalItem = (orderData.items || []).find(i => i.product_type === 'graduation_final_payment');
+        let finalMeta = {};
+        try {
+          finalMeta = JSON.parse(finalItem?.design_request_text || '{}');
+        } catch (_e) {}
+        const intakeId = finalMeta.intakeId;
+        const finalAmountCents = Number(finalItem?.line_total_cents || finalItem?.unit_price_cents || 0);
+        if (intakeId) {
+          await sql`
+            UPDATE designer_intake_orders
+            SET
+              final_payment_paid = true,
+              final_payment_paid_at = COALESCE(final_payment_paid_at, NOW()),
+              final_product_amount_cents = COALESCE(${finalAmountCents}, final_product_amount_cents),
+              status = 'paid_ready_for_production',
+              last_status_change_at = NOW(),
+              final_product_paypal_order_id = COALESCE(final_product_paypal_order_id, ${orderData.paypal_order_id || null}),
+              updated_at = NOW()
+            WHERE id = ${intakeId}::uuid
+          `;
+          console.log('[create-order] Intake marked paid_ready_for_production:', intakeId);
+          try {
+            const graduation = require('./lib/graduation.cjs');
+            const intake = await graduation.getIntakeById(sql, intakeId);
+            if (intake) {
+              const proofs = await graduation.getProofsForIntake(sql, intakeId);
+              const approvedProof = proofs.reverse().find(p => p.status === 'approved') || proofs[0];
+              await graduation.sendApprovedAndPaidEmails(intake, approvedProof, finalAmountCents);
+            }
+          } catch (emailErr) {
+            console.error('[create-order] Failed to send final payment emails:', emailErr.message);
+          }
+        }
+      } catch (finalErr) {
+        console.error('[create-order] Failed to process final product payment:', finalErr.message);
       }
     } else {
       // Normal product order — send standard order confirmation email
