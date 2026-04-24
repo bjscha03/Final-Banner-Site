@@ -339,6 +339,9 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
+          // Pass the authoritative client-side total so PayPal amount matches the
+          // displayed checkout total exactly (avoids 1-cent floating-point drift).
+          totalCents: total,
           items: items.map(item => ({
             width_in: item.width_in,
             height_in: item.height_in,
@@ -628,6 +631,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
       <PayPalScriptProvider options={initialOptions}>
         <div className="relative z-10">
           <PayPalButtons
+            key={total}
             style={{
               layout: "vertical",
               color: "blue",
