@@ -415,7 +415,6 @@ const GraduationSigns: React.FC = () => {
               type="button"
               onClick={() => {
                 setFlow('upload');
-                
                 setTimeout(
                   () => document.getElementById('flow-section')?.scrollIntoView({ behavior: 'smooth' }),
                   50
@@ -446,7 +445,6 @@ const GraduationSigns: React.FC = () => {
               type="button"
               onClick={() => {
                 setFlow('designer');
-                
                 setTimeout(
                   () => document.getElementById('flow-section')?.scrollIntoView({ behavior: 'smooth' }),
                   50

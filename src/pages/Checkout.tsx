@@ -102,7 +102,7 @@ const Checkout: React.FC = () => {
     ? 'Please upload at least one design for your yard sign order.'
     : '';
 
-  const canProceed = (items.some(i => i.product_type === 'design_deposit') && items.every(i => i.product_type === 'design_deposit'))
+  const canProceed = items.every(i => i.product_type === 'design_deposit')
     || (minimumOrderValidation.isValid && !yardSignInvalid);
   if (flags.freeShipping || flags.minOrderFloor) {
     const pricingItems: PricingItem[] = items.map(item => ({ line_total_cents: item.line_total_cents }));
@@ -485,7 +485,7 @@ const Checkout: React.FC = () => {
                             <div className="min-w-0 flex-1">
                               <h3 className="font-bold text-[#0B1F3A] text-lg">Graduation Design Deposit</h3>
                               <p className="text-sm text-gray-600 mt-0.5">
-                                Custom design proof for graduation {depositMeta.productType === 'yard_sign' ? 'yard sign' : depositMeta.productType === 'car_magnet' ? 'car magnet' : 'banner'}
+                                {`Custom design proof for graduation ${depositMeta.productType === 'yard_sign' ? 'yard sign' : depositMeta.productType === 'car_magnet' ? 'car magnet' : 'banner'}`}
                               </p>
                               {depositMeta.graduateName && (
                                 <p className="text-xs text-gray-500 mt-1">For: {depositMeta.graduateName}{depositMeta.schoolName ? ` · ${depositMeta.schoolName}` : ''}{depositMeta.graduationYear ? ` ${depositMeta.graduationYear}` : ''}</p>

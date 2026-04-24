@@ -12,7 +12,6 @@ const { neon } = require('@neondatabase/serverless');
 const crypto = require('crypto');
 
 const ALLOWED_PRODUCT_TYPES = new Set(['banner', 'yard_sign', 'car_magnet']);
-const DESIGN_FEE_CENTS = 1900;
 const MAX_INSPIRATION_FILES = 10;
 
 // Ensure the designer_intake_orders table exists (idempotent DDL).
@@ -201,7 +200,7 @@ exports.handler = async (event) => {
         ${JSON.stringify(graduateInfo)}::jsonb,
         ${JSON.stringify(designNotes)}::jsonb,
         ${JSON.stringify(inspirationFiles)}::jsonb,
-        ${DESIGN_FEE_CENTS},
+        ${1900},
         ${false},
         ${'pending_payment'},
         ${approvalToken}
