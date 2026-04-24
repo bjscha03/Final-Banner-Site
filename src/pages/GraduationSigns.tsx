@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import {
@@ -103,6 +103,8 @@ const GraduationSigns: React.FC = () => {
   // Designer-assisted intake form state
   const [submitting, setSubmitting] = useState(false);
   const [submittedId, setSubmittedId] = useState<string | null>(null);
+  // PayPal return states: 'capturing' | 'paid' | 'cancelled' | 'error' | null
+  const [depositState, setDepositState] = useState<'capturing' | 'paid' | 'cancelled' | 'error' | null>(null);
 
   const [customer, setCustomer] = useState({ name: '', email: '', phone: '' });
   const [graduate, setGraduate] = useState({
@@ -159,7 +161,51 @@ const GraduationSigns: React.FC = () => {
   const handleStartOver = () => {
     setFlow(null);
     setSubmittedId(null);
+    setDepositState(null);
   };
+
+  // Handle PayPal return after deposit approval / cancellation
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const depositParam = params.get('deposit');
+    const token = params.get('token'); // PayPal order ID
+    const intakeIdParam = params.get('intakeId');
+
+    if (!depositParam) return;
+
+    // Clean the URL so a refresh doesn't re-trigger capture (preserve hash for any client-side routing)
+    window.history.replaceState({}, '', window.location.pathname + window.location.hash);
+
+    if (depositParam === 'cancel') {
+      setDepositState('cancelled');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    if (depositParam === 'success' && token && intakeIdParam) {
+      setDepositState('capturing');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      fetch('/.netlify/functions/paypal-capture-design-deposit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paypalOrderId: token, intakeId: intakeIdParam }),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.ok) {
+            setDepositState('paid');
+            setSubmittedId(intakeIdParam);
+          } else {
+            console.error('Deposit capture failed:', data);
+            setDepositState('error');
+          }
+        })
+        .catch((err) => {
+          console.error('Deposit capture error:', err);
+          setDepositState('error');
+        });
+    }
+  }, []);
 
   const navigateToBuilder = (product: ProductType) => {
     navigate(`/design?product=${PRODUCT_QUERY_SLUG[product]}&theme=graduation`);
@@ -506,14 +552,75 @@ const GraduationSigns: React.FC = () => {
             </div>
           )}
 
-          {flow === 'designer' && submittedId && (
+          {/* PayPal deposit return — capturing payment */}
+          {depositState === 'capturing' && (
+            <div className="rounded-2xl border border-[#E5E5E5] bg-white p-8 text-center shadow-sm">
+              <Loader2 className="h-12 w-12 text-[#FF6A00] mx-auto mb-4 animate-spin" />
+              <h2 className="text-2xl font-bold text-[#0B1F3A]">Confirming your payment…</h2>
+              <p className="mt-3 text-gray-600">Please wait while we finalize your design deposit.</p>
+            </div>
+          )}
+
+          {/* PayPal deposit return — paid successfully */}
+          {depositState === 'paid' && submittedId && (
+            <div className="rounded-2xl border border-green-200 bg-green-50 p-8 text-center shadow-sm">
+              <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-[#0B1F3A]">Payment received — you’re all set!</h2>
+              <p className="mt-3 text-gray-700">
+                Your $19 design deposit has been paid. Our team will create your custom graduation design
+                and email you a proof for approval. After you approve, we’ll collect the final balance and
+                move your order into production.
+              </p>
+              <p className="mt-2 text-sm text-gray-500">Reference: {submittedId}</p>
+              <button
+                type="button"
+                onClick={handleStartOver}
+                className="mt-6 inline-flex items-center gap-2 rounded-lg bg-white border border-[#E5E5E5] px-6 py-2 font-semibold text-[#0B1F3A] hover:border-[#FF6A00] hover:text-[#FF6A00]"
+              >
+                Submit another request
+              </button>
+            </div>
+          )}
+
+          {/* PayPal deposit return — cancelled */}
+          {depositState === 'cancelled' && (
+            <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-8 text-center shadow-sm">
+              <h2 className="text-2xl font-bold text-[#0B1F3A]">Payment cancelled</h2>
+              <p className="mt-3 text-gray-700">
+                You cancelled the PayPal checkout. Your design request was saved — you can pay the
+                $19 deposit at any time to get started.
+              </p>
+              <button
+                type="button"
+                onClick={handleStartOver}
+                className="mt-6 inline-flex items-center gap-2 rounded-lg bg-[#FF6A00] hover:bg-[#E65F00] text-white font-bold px-8 py-3 shadow-md transition"
+              >
+                Try again
+              </button>
+            </div>
+          )}
+
+          {/* PayPal deposit return — capture error */}
+          {depositState === 'error' && (
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center shadow-sm">
+              <h2 className="text-2xl font-bold text-[#0B1F3A]">Payment confirmation failed</h2>
+              <p className="mt-3 text-gray-700">
+                We couldn’t confirm your payment automatically. Please contact us at{' '}
+                <a href="mailto:info@bannersonthefly.com" className="text-[#FF6A00] underline">
+                  info@bannersonthefly.com
+                </a>{' '}
+                and we’ll get you sorted right away.
+              </p>
+            </div>
+          )}
+
+          {flow === 'designer' && submittedId && !depositState && (
             <div className="rounded-2xl border border-[#E5E5E5] bg-white p-8 text-center shadow-sm">
               <CheckCircle className="h-12 w-12 text-[#FF6A00] mx-auto mb-4" />
               <h2 className="text-2xl font-bold text-[#0B1F3A]">Thanks — we received your request!</h2>
               <p className="mt-3 text-gray-700">
-                We’ve emailed you a confirmation. Our team will reach out shortly with payment
-                instructions for the $19 design fee, and we’ll send your custom proof for approval as
-                soon as it’s ready.
+                We’ve emailed you a confirmation. Our team will reach out shortly, and we’ll send your
+                custom proof for approval as soon as it’s ready.
               </p>
               <p className="mt-2 text-sm text-gray-500">Reference: {submittedId}</p>
               <button

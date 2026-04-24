@@ -3,18 +3,19 @@
  *
  * Receives the JSON payload from the /graduation-signs landing page intake form,
  * validates it, stores it in the designer_intake_orders table, creates a $19
- * Stripe design-deposit checkout session, and returns the checkout URL so the
- * frontend can redirect the customer. Also emails the customer + admin.
+ * PayPal design-deposit order, and returns the PayPal approval URL so the
+ * frontend can redirect the customer to pay. Also emails the customer + admin.
  */
 const { neon } = require('@neondatabase/serverless');
 const crypto = require('crypto');
 
 const ALLOWED_PRODUCT_TYPES = new Set(['banner', 'yard_sign', 'car_magnet']);
 const DESIGN_FEE_CENTS = 1900;
+const DESIGN_FEE_DOLLARS = (DESIGN_FEE_CENTS / 100).toFixed(2);
 const MAX_INSPIRATION_FILES = 10;
 
 // Ensure the designer_intake_orders table exists (idempotent DDL).
-// Also adds stripe_session_id column if the table was created before this change.
+// Also adds paypal_order_id column if the table was created before this change.
 async function ensureTable(sql) {
   await sql`
     CREATE TABLE IF NOT EXISTS designer_intake_orders (
@@ -34,18 +35,54 @@ async function ensureTable(sql) {
       final_product_amount_cents INTEGER,
       final_payment_paid         BOOLEAN      NOT NULL DEFAULT FALSE,
       status                     VARCHAR(40)  NOT NULL DEFAULT 'design_requested',
-      stripe_session_id          TEXT,
+      paypal_order_id            TEXT,
       approval_token             VARCHAR(64),
       approved_proof_url         TEXT,
       created_at                 TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
       updated_at                 TIMESTAMPTZ  NOT NULL DEFAULT NOW()
     )
   `;
-  // Add stripe_session_id if it was missing from an earlier table version
+  // Add paypal_order_id if it was missing from an earlier table version
   await sql`
     ALTER TABLE designer_intake_orders
-      ADD COLUMN IF NOT EXISTS stripe_session_id TEXT
+      ADD COLUMN IF NOT EXISTS paypal_order_id TEXT
   `;
+}
+
+// PayPal API helpers (same pattern as paypal-create-order.cjs)
+function getPayPalCredentials() {
+  const env = process.env.PAYPAL_ENV || 'sandbox';
+  const clientId = process.env[`PAYPAL_CLIENT_ID_${env.toUpperCase()}`];
+  const secret = process.env[`PAYPAL_SECRET_${env.toUpperCase()}`];
+  if (!clientId || !secret) {
+    throw new Error(`PayPal credentials not configured for environment: ${env}`);
+  }
+  return {
+    clientId,
+    secret,
+    baseUrl: env === 'live'
+      ? 'https://api-m.paypal.com'
+      : 'https://api-m.sandbox.paypal.com',
+  };
+}
+
+async function getPayPalAccessToken() {
+  const { clientId, secret, baseUrl } = getPayPalCredentials();
+  const auth = Buffer.from(`${clientId}:${secret}`).toString('base64');
+  const response = await fetch(`${baseUrl}/v1/oauth2/token`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Basic ${auth}`,
+      'Content-Type': 'application/x-www-form-urlencoded',
+    },
+    body: 'grant_type=client_credentials',
+  });
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`PayPal auth failed: ${response.status} ${errorText}`);
+  }
+  const data = await response.json();
+  return { accessToken: data.access_token, baseUrl };
 }
 
 function sanitize(value) {
@@ -225,9 +262,11 @@ exports.handler = async (event) => {
     return jsonResponse(headers, 500, { ok: false, error: 'Database not configured' });
   }
 
-  const stripeKey = process.env.STRIPE_SECRET_KEY;
-  if (!stripeKey) {
-    console.error('designer-intake-submit: STRIPE_SECRET_KEY not configured');
+  const paypalEnv = process.env.PAYPAL_ENV || 'sandbox';
+  const paypalClientId = process.env[`PAYPAL_CLIENT_ID_${paypalEnv.toUpperCase()}`];
+  const paypalSecret = process.env[`PAYPAL_SECRET_${paypalEnv.toUpperCase()}`];
+  if (!paypalClientId || !paypalSecret) {
+    console.error('designer-intake-submit: PayPal credentials not configured for env:', paypalEnv);
     return jsonResponse(headers, 500, { ok: false, error: 'Payment provider not configured' });
   }
 
@@ -291,52 +330,61 @@ exports.handler = async (event) => {
     return jsonResponse(headers, 500, { ok: false, error: 'Failed to save intake', details: dbErr.message });
   }
 
-  // --- Create Stripe $19 design deposit checkout ---
+  // --- Create PayPal $19 design deposit order ---
   let checkoutUrl;
   try {
-    const Stripe = require('stripe');
-    const stripe = Stripe(stripeKey);
+    const { accessToken, baseUrl } = await getPayPalAccessToken();
 
-    const session = await stripe.checkout.sessions.create({
-      mode: 'payment',
-      customer_email: customerEmail,
-      line_items: [
-        {
-          price_data: {
-            currency: 'usd',
-            unit_amount: DESIGN_FEE_CENTS,
-            product_data: {
-              name: 'Graduation Design Deposit',
-              description: 'Custom design proof for graduation banner, yard sign, or car magnet',
-            },
-          },
-          quantity: 1,
-        },
-      ],
-      metadata: {
-        type: 'graduation_design_deposit',
-        intakeId,
+    const orderPayload = {
+      intent: 'CAPTURE',
+      purchase_units: [{
+        amount: { currency_code: 'USD', value: DESIGN_FEE_DOLLARS },
+        description: 'Custom design proof for graduation banner, yard sign, or car magnet',
+        custom_id: intakeId,
+      }],
+      application_context: {
+        brand_name: 'Banners On The Fly',
+        user_action: 'PAY_NOW',
+        return_url: siteUrl.replace(/\/$/, '') + '/graduation-signs?deposit=success&intakeId=' + encodeURIComponent(intakeId),
+        cancel_url: siteUrl.replace(/\/$/, '') + '/graduation-signs?deposit=cancel&intakeId=' + encodeURIComponent(intakeId),
+        shipping_preference: 'NO_SHIPPING',
       },
-      success_url: siteUrl + '/graduation-signs?deposit=success&intakeId=' + intakeId,
-      cancel_url: siteUrl + '/graduation-signs?deposit=cancel&intakeId=' + intakeId,
+    };
+
+    const ppResponse = await fetch(`${baseUrl}/v2/checkout/orders`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify(orderPayload),
     });
 
-    checkoutUrl = session.url;
-    console.log('designer-intake-submit: Stripe session created:', session.id);
+    if (!ppResponse.ok) {
+      const errText = await ppResponse.text();
+      console.error('designer-intake-submit PayPal order creation failed:', ppResponse.status, errText);
+      return jsonResponse(headers, 500, { ok: false, error: 'Failed to create payment session', intakeId });
+    }
 
-    // Persist the Stripe session ID to the intake row
+    const ppOrder = await ppResponse.json();
+    const approveLink = (ppOrder.links || []).find((l) => l.rel === 'approve');
+    checkoutUrl = approveLink ? approveLink.href : null;
+    console.log('designer-intake-submit: PayPal order created:', ppOrder.id, 'approveUrl:', checkoutUrl);
+
+    // Persist the PayPal order ID to the intake row (best effort)
     try {
       await sql`
         UPDATE designer_intake_orders
-        SET stripe_session_id = ${session.id}, updated_at = NOW()
+        SET paypal_order_id = ${ppOrder.id}, updated_at = NOW()
         WHERE id = ${intakeId}
       `;
     } catch (updateErr) {
-      console.warn('designer-intake-submit: failed to save stripe_session_id:', updateErr.message);
+      console.warn('designer-intake-submit: failed to save paypal_order_id:', updateErr.message);
     }
-  } catch (stripeErr) {
-    console.error('designer-intake-submit Stripe error:', stripeErr.message, stripeErr);
-    // Intake is already saved — don't roll back, just return error so user can retry payment
+  } catch (paypalErr) {
+    console.error('designer-intake-submit PayPal error:', paypalErr.message, paypalErr);
+    // Intake is already saved — return error so user can retry payment
     return jsonResponse(headers, 500, { ok: false, error: 'Failed to create payment session', intakeId });
   }
 
