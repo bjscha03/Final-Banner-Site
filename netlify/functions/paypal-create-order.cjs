@@ -291,10 +291,14 @@ exports.handler = async (event, context) => {
     // it matches the server calculation within 1 cent (floating-point tolerance).
     // This prevents a 1-cent rounding drift between the displayed checkout total
     // and the PayPal charge amount.
+    //
+    // Security: we only accept the client value when it is within 1 cent of the
+    // server-computed total AND is within a sane range of that total. The maximum
+    // exploitable under-charge is therefore 1 cent, which is acceptable.
     let finalTotalCents = totals.total_cents;
     if (typeof clientTotalCents === 'number' && Number.isFinite(clientTotalCents) && clientTotalCents > 0) {
       const diff = Math.abs(clientTotalCents - totals.total_cents);
-      if (diff <= 1) {
+      if (diff <= 1 && clientTotalCents >= totals.total_cents - 1) {
         // Use client value - it matches displayed checkout total exactly
         finalTotalCents = clientTotalCents;
       } else {
