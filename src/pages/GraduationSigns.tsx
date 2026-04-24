@@ -91,6 +91,8 @@ const FAQS: { q: string; a: string }[] = [
   },
 ];
 
+const INTAKE_STORAGE_KEY = 'graduation_intake_draft';
+
 const GraduationSigns: React.FC = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -103,8 +105,11 @@ const GraduationSigns: React.FC = () => {
   // Designer-assisted intake form state
   const [submitting, setSubmitting] = useState(false);
   const [submittedId, setSubmittedId] = useState<string | null>(null);
-  // PayPal return states: 'capturing' | 'paid' | 'cancelled' | 'error' | null
-  const [depositState, setDepositState] = useState<'capturing' | 'paid' | 'cancelled' | 'error' | null>(null);
+  // PayPal return states: 'capturing' | 'cancelled' | 'error' | null
+  const [depositState, setDepositState] = useState<'capturing' | 'cancelled' | 'error' | null>(null);
+  // Saved intakeId for the "Complete Payment" resume flow
+  const [pendingIntakeId, setPendingIntakeId] = useState<string | null>(null);
+  const [resumingPayment, setResumingPayment] = useState(false);
 
   const [customer, setCustomer] = useState({ name: '', email: '', phone: '' });
   const [graduate, setGraduate] = useState({
@@ -162,6 +167,8 @@ const GraduationSigns: React.FC = () => {
     setFlow(null);
     setSubmittedId(null);
     setDepositState(null);
+    setPendingIntakeId(null);
+    try { sessionStorage.removeItem(INTAKE_STORAGE_KEY); } catch (_e) {}
   };
 
   // Handle PayPal return after deposit approval / cancellation
@@ -173,10 +180,31 @@ const GraduationSigns: React.FC = () => {
 
     if (!depositParam) return;
 
-    // Clean the URL so a refresh doesn't re-trigger capture (preserve hash for any client-side routing)
+    // Clean the URL so a refresh doesn't re-trigger capture
     window.history.replaceState({}, '', window.location.pathname + window.location.hash);
 
     if (depositParam === 'cancel') {
+      // Restore saved form data so the user doesn't lose their work
+      try {
+        const saved = sessionStorage.getItem(INTAKE_STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (parsed.customer) setCustomer(parsed.customer);
+          if (parsed.graduate) setGraduate(parsed.graduate);
+          if (parsed.designerProduct) setDesignerProduct(parsed.designerProduct);
+          if (parsed.bannerSpecs) setBannerSpecs(parsed.bannerSpecs);
+          if (parsed.yardSignSpecs) setYardSignSpecs(parsed.yardSignSpecs);
+          if (parsed.carMagnetSpecs) setCarMagnetSpecs(parsed.carMagnetSpecs);
+          if (parsed.designDirection) setDesignDirection(parsed.designDirection);
+          if (parsed.files) setFiles(parsed.files);
+          if (parsed.intakeId) setPendingIntakeId(parsed.intakeId);
+        } else if (intakeIdParam) {
+          setPendingIntakeId(intakeIdParam);
+        }
+      } catch (_e) {
+        if (intakeIdParam) setPendingIntakeId(intakeIdParam);
+      }
+      setFlow('designer');
       setDepositState('cancelled');
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
@@ -193,8 +221,8 @@ const GraduationSigns: React.FC = () => {
         .then((res) => res.json())
         .then((data) => {
           if (data.ok) {
-            setDepositState('paid');
-            setSubmittedId(intakeIdParam);
+            try { sessionStorage.removeItem(INTAKE_STORAGE_KEY); } catch (_e) {}
+            navigate(`/graduation-signs/thank-you?intakeId=${encodeURIComponent(intakeIdParam)}`, { replace: true });
           } else {
             console.error('Deposit capture failed:', data);
             setDepositState('error');
@@ -205,7 +233,7 @@ const GraduationSigns: React.FC = () => {
           setDepositState('error');
         });
     }
-  }, []);
+  }, [navigate]);
 
   const navigateToBuilder = (product: ProductType) => {
     navigate(`/design?product=${PRODUCT_QUERY_SLUG[product]}&theme=graduation`);
@@ -334,6 +362,23 @@ const GraduationSigns: React.FC = () => {
         throw new Error(data.error || 'Submission failed');
       }
       if (data.checkoutUrl) {
+        // Save form data so it can be restored if the user cancels PayPal
+        try {
+          sessionStorage.setItem(
+            INTAKE_STORAGE_KEY,
+            JSON.stringify({
+              customer,
+              graduate,
+              designerProduct,
+              bannerSpecs,
+              yardSignSpecs,
+              carMagnetSpecs,
+              designDirection,
+              files,
+              intakeId: data.intakeId,
+            })
+          );
+        } catch (_e) {}
         window.location.href = data.checkoutUrl;
         return;
       }
@@ -576,42 +621,46 @@ const GraduationSigns: React.FC = () => {
             </div>
           )}
 
-          {/* PayPal deposit return — paid successfully */}
-          {depositState === 'paid' && submittedId && (
-            <div className="rounded-2xl border border-green-200 bg-green-50 p-8 text-center shadow-sm">
-              <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-[#0B1F3A]">Payment received — you’re all set!</h2>
-              <p className="mt-3 text-gray-700">
-                Your $19 design deposit has been paid. Our team will create your custom graduation design
-                and email you a proof for approval. After you approve, we’ll collect the final balance and
-                move your order into production.
-              </p>
-              <p className="mt-2 text-sm text-gray-500">Reference: {submittedId}</p>
-              <button
-                type="button"
-                onClick={handleStartOver}
-                className="mt-6 inline-flex items-center gap-2 rounded-lg bg-white border border-[#E5E5E5] px-6 py-2 font-semibold text-[#0B1F3A] hover:border-[#FF6A00] hover:text-[#FF6A00]"
-              >
-                Submit another request
-              </button>
-            </div>
-          )}
-
-          {/* PayPal deposit return — cancelled */}
+          {/* PayPal deposit return — cancelled — banner above restored form */}
           {depositState === 'cancelled' && (
-            <div className="rounded-2xl border border-yellow-200 bg-yellow-50 p-8 text-center shadow-sm">
-              <h2 className="text-2xl font-bold text-[#0B1F3A]">Payment cancelled</h2>
-              <p className="mt-3 text-gray-700">
-                You cancelled the PayPal checkout. Your design request was saved — you can pay the
-                $19 deposit at any time to get started.
+            <div className="rounded-2xl border border-yellow-300 bg-yellow-50 p-6 mb-8 shadow-sm">
+              <h2 className="text-xl font-bold text-[#0B1F3A] mb-2">Payment wasn’t completed</h2>
+              <p className="text-gray-700 mb-4">
+                Your design request is saved — just complete the $19 deposit to continue.
               </p>
-              <button
-                type="button"
-                onClick={handleStartOver}
-                className="mt-6 inline-flex items-center gap-2 rounded-lg bg-[#FF6A00] hover:bg-[#E65F00] text-white font-bold px-8 py-3 shadow-md transition"
-              >
-                Try again
-              </button>
+              {pendingIntakeId ? (
+                <button
+                  type="button"
+                  disabled={resumingPayment}
+                  onClick={async () => {
+                    setResumingPayment(true);
+                    try {
+                      const res = await fetch('/.netlify/functions/paypal-create-deposit-for-intake', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ intakeId: pendingIntakeId }),
+                      });
+                      const data = await res.json();
+                      if (data.ok && data.checkoutUrl) {
+                        window.location.href = data.checkoutUrl;
+                      } else {
+                        toast({ title: 'Could not create payment', description: data.error || 'Please try again.', variant: 'destructive' });
+                      }
+                    } catch (_err) {
+                      toast({ title: 'Error', description: 'Could not reach the payment server. Please try again.', variant: 'destructive' });
+                    } finally {
+                      setResumingPayment(false);
+                    }
+                  }}
+                  className="inline-flex items-center gap-2 rounded-lg bg-[#FF6A00] hover:bg-[#E65F00] disabled:opacity-60 text-white font-bold px-8 py-3 shadow-md transition"
+                >
+                  {resumingPayment ? <><Loader2 className="h-4 w-4 animate-spin" /> Redirecting…</> : <>Complete Payment — $19 <ArrowRight className="h-4 w-4" /></>}
+                </button>
+              ) : (
+                <p className="text-sm text-gray-500">
+                  Update your info below and resubmit to get a new payment link.
+                </p>
+              )}
             </div>
           )}
 

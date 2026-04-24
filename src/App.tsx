@@ -68,6 +68,7 @@ const GoogleAdsBanner = lazy(() => import("./pages/GoogleAdsBanner"));
 
 // Graduation landing page - lazy load
 const GraduationSigns = lazy(() => import("./pages/GraduationSigns"));
+const GraduationSignsThankYou = lazy(() => import("./pages/GraduationSignsThankYou"));
 
 // Admin pages - lazy load (heavy, rarely accessed)
 const AdminOrders = lazy(() => import("./pages/admin/Orders"));
@@ -198,6 +199,7 @@ const App = () => (
 
             {/* Graduation landing page */}
             <Route path="/graduation-signs" element={<GraduationSigns />} />
+            <Route path="/graduation-signs/thank-you" element={<GraduationSignsThankYou />} />
 
             {/* 404 – catch-all must be last */}
             <Route path="*" element={<NotFound />} />
