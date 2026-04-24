@@ -551,7 +551,7 @@ export const useCartStore = create<CartState>()(
         return itemId;
       },
 
-
+      updateQuantity: (id: string, quantity: number) => {
         set((state) => ({
           items: state.items.map(item => {
             if (item.id !== id) return item;
