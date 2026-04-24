@@ -13,7 +13,6 @@ import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
 import CartModal from '@/components/CartModal';
 
 import { getQuantityDiscountRate } from '@/lib/quantity-discount';
-import DeliveryCarousel from '@/components/home/DeliveryCarousel';
 import { generateFinalRenderFromHTML } from '@/utils/generateFinalRenderFromHTML';
 import { generatePositionedThumbnail, renderPositionedThumbnailDataUrl } from '@/utils/generatePositionedThumbnail';
 import { useToast } from '@/components/ui/use-toast';
@@ -1307,9 +1306,7 @@ const GoogleAdsBanner: React.FC = () => {
           </div>
         </section>
 
-        <DeliveryCarousel />
-
-        <section ref={orderRef} id="order-builder" className="py-12 px-4 bg-white">
+        <section ref={orderRef} id="order-builder" className="mt-8 py-12 px-4 bg-white">
           <div className="max-w-4xl lg:max-w-6xl mx-auto">
             {/* Product type switcher — public for all users */}
             <ProductTypeSwitcher productType={productType} onProductTypeChange={handleProductTypeChange} mobileStickyTopPx={56} />
