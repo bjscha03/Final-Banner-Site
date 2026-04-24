@@ -317,53 +317,61 @@ const GraduationSigns: React.FC = () => {
       </Helmet>
 
       {/* Hero */}
-      <section className="relative bg-gradient-to-br from-indigo-700 via-purple-700 to-rose-600 text-white">
-        <div className="absolute inset-0 opacity-20" aria-hidden="true">
-          <div className="absolute -top-24 -right-24 h-96 w-96 rounded-full bg-yellow-400 blur-3xl" />
-          <div className="absolute -bottom-24 -left-24 h-96 w-96 rounded-full bg-pink-400 blur-3xl" />
-        </div>
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20 lg:py-24 text-center">
-          <div className="inline-flex items-center gap-2 rounded-full bg-white/15 backdrop-blur px-4 py-1.5 text-sm font-semibold mb-6">
-            <GraduationCap className="h-4 w-4" /> Class of {new Date().getFullYear()} · Built for Graduation Season
-          </div>
-          <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight">
-            Graduation Banners, Yard Signs &amp; Car Magnets
-          </h1>
-          <p className="mt-5 text-lg md:text-2xl text-indigo-100 max-w-3xl mx-auto">
-            Celebrate your graduate with custom banners, yard signs, and car magnets printed fast.
-          </p>
-          <ul className="mt-8 grid sm:grid-cols-2 lg:grid-cols-4 gap-3 max-w-4xl mx-auto text-left">
-            {[
-              { icon: Upload, text: 'Upload your own design or let our designers create one' },
-              { icon: Clock, text: 'Printed in 24 hours after approval' },
-              { icon: Truck, text: 'FREE next-day air shipping' },
-              { icon: Sparkles, text: 'Perfect for parties, senior nights & driveway displays' },
-            ].map(({ icon: Icon, text }, i) => (
-              <li
-                key={i}
-                className="flex items-start gap-3 rounded-xl bg-white/10 backdrop-blur px-4 py-3 text-sm font-medium"
+      <section className="relative text-white overflow-hidden bg-[#0B1F3A]">
+        {/* Background image */}
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{
+            backgroundImage:
+              "url('https://res.cloudinary.com/dtrxl120u/image/upload/v1777021980/Graduation_hero_xw9rnh.png')",
+          }}
+          aria-hidden="true"
+        />
+        {/* Subtle dark gradient overlay for left-side text readability */}
+        <div
+          className="absolute inset-0 bg-gradient-to-r from-[#0B1F3A]/85 via-[#0B1F3A]/55 to-transparent"
+          aria-hidden="true"
+        />
+        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-24 lg:py-32">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur px-4 py-1.5 text-sm font-semibold mb-6 ring-1 ring-white/20">
+              <GraduationCap className="h-4 w-4 text-[#FF6A00]" /> Class of {new Date().getFullYear()}
+            </div>
+            <h1 className="text-4xl sm:text-5xl md:text-6xl font-black tracking-tight leading-tight text-white">
+              Custom <span className="text-[#FF6A00]">Graduation Signs</span> —{' '}
+              <span className="text-[#FF6A00]">Designed</span> For You
+            </h1>
+            <p className="mt-5 text-lg md:text-xl text-white/90 max-w-xl">
+              No design skills needed. We create it. You approve it. We print it.
+            </p>
+            <div className="mt-8">
+              <a
+                href="#choose"
+                className="inline-flex items-center gap-2 rounded-lg bg-[#FF6A00] hover:bg-[#E65F00] text-white font-bold px-8 py-3.5 text-lg shadow-lg transition"
               >
-                <Icon className="h-5 w-5 flex-shrink-0 text-yellow-300 mt-0.5" />
-                <span>{text}</span>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-10">
-            <a
-              href="#choose"
-              className="inline-flex items-center gap-2 rounded-full bg-yellow-400 hover:bg-yellow-300 text-slate-900 font-bold px-8 py-3 text-lg shadow-lg transition"
-            >
-              Get Started <ArrowRight className="h-5 w-5" />
-            </a>
+                Start My Design – $19 <ArrowRight className="h-5 w-5" />
+              </a>
+            </div>
+            <ul className="mt-8 grid sm:grid-cols-2 gap-2.5 text-sm font-medium">
+              {[
+                { icon: Clock, text: 'Printed in 24 hours after approval' },
+                { icon: Truck, text: 'FREE next-day air shipping' },
+              ].map(({ icon: Icon, text }, i) => (
+                <li key={i} className="flex items-center gap-2 text-white/90">
+                  <Icon className="h-4 w-4 flex-shrink-0 text-[#FF6A00]" />
+                  <span>{text}</span>
+                </li>
+              ))}
+            </ul>
           </div>
         </div>
       </section>
 
       {/* Choose how to start */}
-      <section id="choose" className="bg-gray-50 py-14 sm:py-20">
+      <section id="choose" className="bg-[#F7F7F7] py-14 sm:py-20">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10">
-            <h2 className="text-3xl sm:text-4xl font-extrabold text-gray-900">
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-[#0B1F3A]">
               Choose how you want to start
             </h2>
             <p className="mt-3 text-gray-600 max-w-2xl mx-auto">
@@ -372,7 +380,7 @@ const GraduationSigns: React.FC = () => {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-6">
+          <div className="grid md:grid-cols-2 gap-6 items-stretch">
             <button
               type="button"
               onClick={() => {
@@ -383,21 +391,23 @@ const GraduationSigns: React.FC = () => {
                   50
                 );
               }}
-              className={`text-left rounded-2xl border-2 bg-white p-7 shadow-sm hover:shadow-xl transition group ${
-                flow === 'upload' ? 'border-indigo-600 ring-2 ring-indigo-200' : 'border-gray-200'
+              className={`text-left rounded-2xl border bg-white p-7 shadow-sm hover:shadow-md transition group ${
+                flow === 'upload'
+                  ? 'border-[#FF6A00] ring-2 ring-[#FF6A00]/30'
+                  : 'border-[#E5E5E5] hover:border-[#FF6A00]/50'
               }`}
             >
               <div className="flex items-center gap-3 mb-3">
-                <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-100 text-indigo-700">
+                <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-[#0B1F3A]/5 text-[#0B1F3A]">
                   <Upload className="h-6 w-6" />
                 </span>
-                <h3 className="text-2xl font-bold text-gray-900">Upload My Own Design</h3>
+                <h3 className="text-2xl font-bold text-[#0B1F3A]">Upload My Own Design</h3>
               </div>
               <p className="text-gray-600">
                 Already have a graduation design? Upload your artwork, choose your product, and check
                 out in minutes with our normal builder.
               </p>
-              <div className="mt-5 inline-flex items-center font-semibold text-indigo-700 group-hover:gap-2 gap-1 transition-all">
+              <div className="mt-5 inline-flex items-center font-semibold text-[#FF6A00] group-hover:gap-2 gap-1 transition-all">
                 Start uploading <ArrowRight className="h-4 w-4" />
               </div>
             </button>
@@ -412,22 +422,27 @@ const GraduationSigns: React.FC = () => {
                   50
                 );
               }}
-              className={`text-left rounded-2xl border-2 bg-white p-7 shadow-sm hover:shadow-xl transition group ${
-                flow === 'designer' ? 'border-purple-600 ring-2 ring-purple-200' : 'border-gray-200'
+              className={`relative text-left rounded-2xl border-2 bg-white p-7 shadow-md hover:shadow-xl transition group ${
+                flow === 'designer'
+                  ? 'border-[#FF6A00] ring-2 ring-[#FF6A00]/30'
+                  : 'border-[#FF6A00]'
               }`}
             >
+              <span className="absolute -top-3 left-7 inline-flex items-center rounded-full bg-[#FF6A00] px-3 py-0.5 text-xs font-bold uppercase tracking-wide text-white shadow">
+                Most Popular
+              </span>
               <div className="flex items-center gap-3 mb-3">
-                <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-purple-100 text-purple-700">
+                <span className="inline-flex h-12 w-12 items-center justify-center rounded-xl bg-[#FF6A00]/10 text-[#FF6A00]">
                   <Sparkles className="h-6 w-6" />
                 </span>
-                <h3 className="text-2xl font-bold text-gray-900">Let Our Designers Design It For You</h3>
+                <h3 className="text-2xl font-bold text-[#0B1F3A]">Let Our Designers Design It For You</h3>
               </div>
               <p className="text-gray-600">
                 Tell us about your graduate and we’ll create a custom proof for approval.
-                <span className="font-semibold text-purple-700"> $19 design fee due today.</span> Final
+                <span className="font-semibold text-[#0B1F3A]"> $19 design fee due today.</span> Final
                 product cost is paid after you approve your proof.
               </p>
-              <div className="mt-5 inline-flex items-center font-semibold text-purple-700 group-hover:gap-2 gap-1 transition-all">
+              <div className="mt-5 inline-flex items-center font-semibold text-[#FF6A00] group-hover:gap-2 gap-1 transition-all">
                 Start the intake form <ArrowRight className="h-4 w-4" />
               </div>
             </button>
@@ -447,7 +462,7 @@ const GraduationSigns: React.FC = () => {
           {flow === 'upload' && (
             <div>
               <div className="text-center mb-10">
-                <h2 className="text-3xl font-extrabold text-gray-900">
+                <h2 className="text-3xl font-extrabold text-[#0B1F3A]">
                   Choose your product
                 </h2>
                 <p className="mt-2 text-gray-600">
@@ -463,8 +478,8 @@ const GraduationSigns: React.FC = () => {
                     onClick={() => setUploadProduct(p)}
                     className={`rounded-xl border-2 p-5 text-center font-semibold transition ${
                       uploadProduct === p
-                        ? 'border-indigo-600 bg-indigo-50 text-indigo-800'
-                        : 'border-gray-200 bg-white text-gray-700 hover:border-indigo-400'
+                        ? 'border-[#FF6A00] bg-[#FF6A00]/5 text-[#0B1F3A]'
+                        : 'border-[#E5E5E5] bg-white text-[#0B1F3A] hover:border-[#FF6A00]/60'
                     }`}
                   >
                     {PRODUCT_LABELS[p]}
@@ -475,7 +490,7 @@ const GraduationSigns: React.FC = () => {
                 <button
                   type="button"
                   onClick={() => navigateToBuilder(uploadProduct)}
-                  className="inline-flex items-center gap-2 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-8 py-3 text-lg shadow-md transition"
+                  className="inline-flex items-center gap-2 rounded-lg bg-[#FF6A00] hover:bg-[#E65F00] text-white font-bold px-8 py-3 text-lg shadow-md transition"
                 >
                   Open the {PRODUCT_LABELS[uploadProduct]} Builder <ArrowRight className="h-5 w-5" />
                 </button>
@@ -488,9 +503,9 @@ const GraduationSigns: React.FC = () => {
           )}
 
           {flow === 'designer' && submittedId && (
-            <div className="rounded-2xl border border-green-200 bg-green-50 p-8 text-center">
-              <CheckCircle className="h-12 w-12 text-green-600 mx-auto mb-4" />
-              <h2 className="text-2xl font-bold text-gray-900">Thanks — we received your request!</h2>
+            <div className="rounded-2xl border border-[#E5E5E5] bg-white p-8 text-center shadow-sm">
+              <CheckCircle className="h-12 w-12 text-[#FF6A00] mx-auto mb-4" />
+              <h2 className="text-2xl font-bold text-[#0B1F3A]">Thanks — we received your request!</h2>
               <p className="mt-3 text-gray-700">
                 We’ve emailed you a confirmation. Our team will reach out shortly with payment
                 instructions for the $19 design fee, and we’ll send your custom proof for approval as
@@ -500,7 +515,7 @@ const GraduationSigns: React.FC = () => {
               <button
                 type="button"
                 onClick={handleStartOver}
-                className="mt-6 inline-flex items-center gap-2 rounded-full bg-white border border-gray-300 px-6 py-2 font-semibold text-gray-700 hover:bg-gray-50"
+                className="mt-6 inline-flex items-center gap-2 rounded-lg bg-white border border-[#E5E5E5] px-6 py-2 font-semibold text-[#0B1F3A] hover:border-[#FF6A00] hover:text-[#FF6A00]"
               >
                 Submit another request
               </button>
@@ -509,12 +524,12 @@ const GraduationSigns: React.FC = () => {
 
           {flow === 'designer' && !submittedId && (
             <form onSubmit={handleIntakeSubmit} className="space-y-10">
-              <div className="rounded-2xl border border-purple-200 bg-purple-50 p-5">
+              <div className="rounded-2xl border border-[#FF6A00]/30 bg-[#FF6A00]/5 p-5">
                 <div className="flex items-start gap-3">
-                  <Sparkles className="h-6 w-6 text-purple-700 flex-shrink-0 mt-1" />
+                  <Sparkles className="h-6 w-6 text-[#FF6A00] flex-shrink-0 mt-1" />
                   <div>
-                    <p className="font-bold text-purple-900">$19 design fee due today</p>
-                    <p className="text-sm text-purple-900/80">
+                    <p className="font-bold text-[#0B1F3A]">$19 design fee due today</p>
+                    <p className="text-sm text-[#0B1F3A]/80">
                       This covers the custom design proof. Final product cost is paid after you approve
                       your proof.
                     </p>
@@ -524,7 +539,7 @@ const GraduationSigns: React.FC = () => {
 
               {/* Customer */}
               <fieldset className="space-y-4">
-                <legend className="text-xl font-bold text-gray-900">Your contact info</legend>
+                <legend className="text-xl font-bold text-[#0B1F3A]">Your contact info</legend>
                 <div className="grid sm:grid-cols-3 gap-4">
                   <Field
                     label="Full name"
@@ -551,7 +566,7 @@ const GraduationSigns: React.FC = () => {
 
               {/* Graduate */}
               <fieldset className="space-y-4">
-                <legend className="text-xl font-bold text-gray-900">About the graduate</legend>
+                <legend className="text-xl font-bold text-[#0B1F3A]">About the graduate</legend>
                 <div className="grid sm:grid-cols-2 gap-4">
                   <Field
                     label="Graduate's name"
@@ -594,7 +609,7 @@ const GraduationSigns: React.FC = () => {
 
               {/* Product */}
               <fieldset className="space-y-4">
-                <legend className="text-xl font-bold text-gray-900">What product do you need?</legend>
+                <legend className="text-xl font-bold text-[#0B1F3A]">What product do you need?</legend>
                 <div className="grid sm:grid-cols-3 gap-3">
                   {(Object.keys(PRODUCT_LABELS) as ProductType[]).map((p) => (
                     <button
@@ -603,8 +618,8 @@ const GraduationSigns: React.FC = () => {
                       onClick={() => setDesignerProduct(p)}
                       className={`rounded-xl border-2 p-4 text-center font-semibold transition ${
                         designerProduct === p
-                          ? 'border-purple-600 bg-purple-50 text-purple-800'
-                          : 'border-gray-200 bg-white text-gray-700 hover:border-purple-400'
+                          ? 'border-[#FF6A00] bg-[#FF6A00]/5 text-[#0B1F3A]'
+                          : 'border-[#E5E5E5] bg-white text-[#0B1F3A] hover:border-[#FF6A00]/60'
                       }`}
                     >
                       {PRODUCT_LABELS[p]}
@@ -719,7 +734,7 @@ const GraduationSigns: React.FC = () => {
 
               {/* Design direction */}
               <fieldset className="space-y-4">
-                <legend className="text-xl font-bold text-gray-900">Design direction</legend>
+                <legend className="text-xl font-bold text-[#0B1F3A]">Design direction</legend>
                 <div className="grid sm:grid-cols-2 gap-4">
                   <Field
                     label="Main text to include"
@@ -800,9 +815,9 @@ const GraduationSigns: React.FC = () => {
                 )}
               </fieldset>
 
-              <div className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
-                <p className="font-semibold text-blue-900">Approval &amp; payment</p>
-                <p className="text-sm text-blue-900/80 mt-1">
+              <div className="rounded-2xl border border-[#E5E5E5] bg-[#F7F7F7] p-5">
+                <p className="font-semibold text-[#0B1F3A]">Approval &amp; payment</p>
+                <p className="text-sm text-[#0B1F3A]/80 mt-1">
                   Our designers will create your design and send a proof for approval. Production
                   begins only after you approve the proof and pay the final product balance.
                 </p>
@@ -815,7 +830,7 @@ const GraduationSigns: React.FC = () => {
                 <button
                   type="submit"
                   disabled={submitting}
-                  className="inline-flex items-center gap-2 rounded-full bg-purple-600 hover:bg-purple-700 disabled:opacity-60 text-white font-bold px-8 py-3 text-lg shadow-md transition"
+                  className="inline-flex items-center gap-2 rounded-lg bg-[#FF6A00] hover:bg-[#E65F00] disabled:opacity-60 text-white font-bold px-8 py-3 text-lg shadow-md transition"
                 >
                   {submitting ? (
                     <>
@@ -834,7 +849,7 @@ const GraduationSigns: React.FC = () => {
       </section>
 
       {/* Trust */}
-      <section className="bg-gray-50 py-14">
+      <section className="bg-[#F7F7F7] py-14">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-5">
             {[
@@ -843,11 +858,11 @@ const GraduationSigns: React.FC = () => {
               { icon: ShieldCheck, title: 'Designer Reviewed', text: 'Real humans review every print file for quality.' },
               { icon: CheckCircle, title: 'Easy Proof Approval', text: 'Approve, request edits, or pay \u2014 all in one click.' },
             ].map(({ icon: Icon, title, text }) => (
-              <div key={title} className="rounded-xl bg-white p-5 shadow-sm border border-gray-100">
-                <div className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-indigo-100 text-indigo-700 mb-3">
+              <div key={title} className="rounded-xl bg-white p-5 shadow-sm border border-[#E5E5E5]">
+                <div className="inline-flex h-10 w-10 items-center justify-center rounded-lg bg-[#FF6A00]/10 text-[#FF6A00] mb-3">
                   <Icon className="h-5 w-5" />
                 </div>
-                <h3 className="font-bold text-gray-900">{title}</h3>
+                <h3 className="font-bold text-[#0B1F3A]">{title}</h3>
                 <p className="text-sm text-gray-600 mt-1">{text}</p>
               </div>
             ))}
@@ -858,16 +873,16 @@ const GraduationSigns: React.FC = () => {
       {/* FAQ */}
       <section className="bg-white py-14 sm:py-20">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-extrabold text-gray-900 text-center">Graduation FAQ</h2>
+          <h2 className="text-3xl font-extrabold text-[#0B1F3A] text-center">Graduation FAQ</h2>
           <div className="mt-8 space-y-3">
             {FAQS.map((f) => (
               <details
                 key={f.q}
-                className="group rounded-xl border border-gray-200 bg-gray-50 open:bg-white open:shadow-sm"
+                className="group rounded-xl border border-[#E5E5E5] bg-[#F7F7F7] open:bg-white open:shadow-sm"
               >
-                <summary className="cursor-pointer list-none flex items-center justify-between gap-3 p-5 font-semibold text-gray-900">
+                <summary className="cursor-pointer list-none flex items-center justify-between gap-3 p-5 font-semibold text-[#0B1F3A]">
                   <span>{f.q}</span>
-                  <span className="text-gray-400 group-open:rotate-45 transition">+</span>
+                  <span className="text-[#FF6A00] group-open:rotate-45 transition">+</span>
                 </summary>
                 <div className="px-5 pb-5 text-gray-700">{f.a}</div>
               </details>
@@ -882,7 +897,7 @@ const GraduationSigns: React.FC = () => {
 // ----- Small form helpers -----
 
 const baseInput =
-  'w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none';
+  'w-full rounded-lg border border-[#E5E5E5] px-3 py-2 text-[#0B1F3A] focus:border-[#FF6A00] focus:ring-1 focus:ring-[#FF6A00] outline-none';
 
 const Field: React.FC<{
   label: string;
@@ -893,9 +908,9 @@ const Field: React.FC<{
   placeholder?: string;
 }> = ({ label, value, onChange, type = 'text', required, placeholder }) => (
   <label className="block">
-    <span className="block text-sm font-semibold text-gray-700 mb-1">
+    <span className="block text-sm font-semibold text-[#0B1F3A] mb-1">
       {label}
-      {required && <span className="text-red-500"> *</span>}
+      {required && <span className="text-[#FF6A00]"> *</span>}
     </span>
     <input
       type={type}
@@ -914,7 +929,7 @@ const NumberField: React.FC<{ label: string; value: number; onChange: (v: number
   onChange,
 }) => (
   <label className="block">
-    <span className="block text-sm font-semibold text-gray-700 mb-1">{label}</span>
+    <span className="block text-sm font-semibold text-[#0B1F3A] mb-1">{label}</span>
     <input
       type="number"
       min={1}
@@ -932,7 +947,7 @@ const SelectField: React.FC<{
   onChange: (v: string) => void;
 }> = ({ label, value, options, onChange }) => (
   <label className="block">
-    <span className="block text-sm font-semibold text-gray-700 mb-1">{label}</span>
+    <span className="block text-sm font-semibold text-[#0B1F3A] mb-1">{label}</span>
     <select value={value} onChange={(e) => onChange(e.target.value)} className={baseInput}>
       {options.map((opt) => (
         <option key={opt} value={opt}>
@@ -950,7 +965,7 @@ const TextAreaField: React.FC<{
   placeholder?: string;
 }> = ({ label, value, onChange, placeholder }) => (
   <label className="block">
-    <span className="block text-sm font-semibold text-gray-700 mb-1">{label}</span>
+    <span className="block text-sm font-semibold text-[#0B1F3A] mb-1">{label}</span>
     <textarea
       value={value}
       placeholder={placeholder}
@@ -972,7 +987,7 @@ const UploadButton: React.FC<{
       type="button"
       onClick={() => inputRef.current?.click()}
       disabled={busy}
-      className="rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 hover:border-indigo-400 hover:bg-indigo-50 p-4 text-center transition disabled:opacity-60"
+      className="rounded-xl border-2 border-dashed border-[#E5E5E5] bg-[#F7F7F7] hover:border-[#FF6A00] hover:bg-[#FF6A00]/5 p-4 text-center transition disabled:opacity-60"
     >
       <input
         ref={inputRef}
@@ -985,8 +1000,8 @@ const UploadButton: React.FC<{
           e.currentTarget.value = '';
         }}
       />
-      <div className="flex items-center justify-center gap-2 text-sm font-semibold text-gray-700">
-        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+      <div className="flex items-center justify-center gap-2 text-sm font-semibold text-[#0B1F3A]">
+        {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4 text-[#FF6A00]" />}
         Upload {label}
       </div>
       <p className="mt-1 text-xs text-gray-500">Optional · PNG, JPG, or PDF</p>
