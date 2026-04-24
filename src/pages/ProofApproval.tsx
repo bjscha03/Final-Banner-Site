@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
 import {
   CheckCircle,
@@ -14,6 +14,7 @@ import Layout from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { usd } from '@/lib/pricing';
+import { useCartStore } from '@/store/cart';
 
 interface PublicProof {
   id: string;
@@ -51,16 +52,17 @@ const PRODUCT_LABELS: Record<string, string> = {
  * so authentication is not required (the token itself is the credential).
  *
  * The page renders the latest proof, the order summary, and two actions:
- *   - Approve & Pay  → calls graduation-proof-approve to get a PayPal URL
+ *   - Approve & Pay  → marks proof approved server-side, loads the final
+ *     product balance into the standard site cart, and navigates to
+ *     /checkout?graduationFinalPayment=<intakeId> for normal checkout.
  *   - Request Edits  → calls graduation-proof-request-edits to log a revision
- *
- * After PayPal redirects back with ?final=success&token=<paypal_order_id>,
- * we capture via paypal-capture-final-product and show a success state.
  */
 const ProofApproval: React.FC = () => {
   const { token = '' } = useParams<{ token: string }>();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const { toast } = useToast();
+  const addGraduationFinalPayment = useCartStore((s) => s.addGraduationFinalPayment);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -73,7 +75,6 @@ const ProofApproval: React.FC = () => {
   const [editAttachment, setEditAttachment] = useState<{ url: string; name: string } | null>(null);
   const [uploadingAttachment, setUploadingAttachment] = useState(false);
   const [editSent, setEditSent] = useState(false);
-  const [paymentCaptured, setPaymentCaptured] = useState(false);
 
   const loadProof = useCallback(async () => {
     setLoading(true);
@@ -99,42 +100,20 @@ const ProofApproval: React.FC = () => {
     if (token) loadProof();
   }, [token, loadProof]);
 
-  // PayPal redirect-back handler: ?final=success&token=<paypal_order_id>
-  // We extract the param values once per render before the effect so the
-  // dependency array compares stable primitives instead of re-deriving on
-  // every render via searchParams.get().
+  // Surface a friendly notice if the customer was bounced back from a
+  // cancelled PayPal session or returned via a stale link from the legacy
+  // direct-PayPal flow. We no longer attempt to capture from this page —
+  // payment is completed via the standard /checkout page.
   const finalParam = searchParams.get('final');
-  const paypalOrderIdParam = searchParams.get('token');
   useEffect(() => {
-    if (finalParam === 'success' && paypalOrderIdParam && !paymentCaptured) {
-      (async () => {
-        try {
-          const res = await fetch('/.netlify/functions/paypal-capture-final-product', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token, paypalOrderId: paypalOrderIdParam }),
-          });
-          const data = await res.json();
-          if (!res.ok || !data.ok) throw new Error(data.error || 'Payment capture failed');
-          setPaymentCaptured(true);
-          // Clean URL params
-          searchParams.delete('final');
-          searchParams.delete('token');
-          searchParams.delete('PayerID');
-          setSearchParams(searchParams, { replace: true });
-          await loadProof();
-          toast({ title: 'Payment received', description: 'Production is starting now.' });
-        } catch (err) {
-          toast({
-            title: 'Payment capture failed',
-            description: err instanceof Error ? err.message : 'Please contact support.',
-            variant: 'destructive',
-          });
-        }
-      })();
+    if (finalParam === 'cancel') {
+      toast({
+        title: 'Payment cancelled',
+        description: 'You can approve and pay again whenever you’re ready.',
+      });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [finalParam, paypalOrderIdParam]);
+  }, [finalParam]);
 
   const handleApprove = async () => {
     if (!intake) return;
@@ -146,11 +125,26 @@ const ProofApproval: React.FC = () => {
         body: JSON.stringify({ token }),
       });
       const data = await res.json();
-      if (!res.ok || !data.ok) throw new Error(data.error || 'Failed to start payment');
-      window.location.href = data.checkoutUrl;
+      if (!res.ok || !data.ok) throw new Error(data.error || 'Failed to approve proof');
+
+      // Load the final product balance into the standard site cart.
+      addGraduationFinalPayment({
+        intakeId: data.intakeId,
+        proofVersionNumber: data.proofVersionNumber,
+        approvedProofUrl: data.approvedProofUrl,
+        approvedProofFileName: data.approvedProofFileName ?? null,
+        productType: data.productType,
+        productSpecs: data.productSpecs || {},
+        amountCents: data.amountCents,
+        customerName: data.customerName ?? null,
+        customerEmail: data.customerEmail ?? null,
+      });
+
+      // Redirect to standard site checkout with marker query param.
+      navigate(`/checkout?graduationFinalPayment=${encodeURIComponent(data.intakeId)}`);
     } catch (err) {
       toast({
-        title: 'Could not start payment',
+        title: 'Could not start checkout',
         description: err instanceof Error ? err.message : 'Please try again.',
         variant: 'destructive',
       });
@@ -261,7 +255,7 @@ const ProofApproval: React.FC = () => {
                 </h1>
               </div>
 
-              {intake.finalPaymentPaid || paymentCaptured ? (
+              {intake.finalPaymentPaid ? (
                 <div className="rounded-2xl bg-white p-8 shadow-sm border border-green-100 text-center">
                   <CheckCircle className="h-12 w-12 text-green-600 mx-auto" />
                   <h2 className="text-2xl font-bold text-[#0B1F3A] mt-3">Approved &amp; paid 🎓</h2>
@@ -406,7 +400,7 @@ const ProofApproval: React.FC = () => {
                             {approving ? (
                               <>
                                 <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-                                Starting payment…
+                                Continuing to checkout…
                               </>
                             ) : (
                               <>

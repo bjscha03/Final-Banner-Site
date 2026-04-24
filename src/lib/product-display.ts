@@ -119,6 +119,9 @@ export function getItemDisplayName(item: {
   if (item.product_type === 'design_deposit') {
     return 'Graduation Design Deposit';
   }
+  if (item.product_type === 'graduation_final_payment') {
+    return 'Graduation Final Product Balance';
+  }
   return `Custom Banner ${getDisplaySize(item)}`;
 }
 
@@ -129,6 +132,7 @@ export function getProductLabel(productType?: string): string {
   if (productType === 'yard_sign') return 'Yard Sign';
   if (productType === 'car_magnet') return 'Car Magnets';
   if (productType === 'design_deposit') return 'Design Deposit';
+  if (productType === 'graduation_final_payment') return 'Graduation Final Balance';
   return 'Banner';
 }
 
@@ -139,6 +143,7 @@ export function getProductCategory(productType?: string): string {
   if (productType === 'yard_sign') return 'Yard Signs';
   if (productType === 'car_magnet') return 'Car Magnets';
   if (productType === 'design_deposit') return 'Design Deposit';
+  if (productType === 'graduation_final_payment') return 'Graduation Final Balance';
   return 'Banner';
 }
 
@@ -149,6 +154,7 @@ export function getProductTypeName(productType?: string): string {
   if (productType === 'yard_sign') return 'Custom Yard Signs';
   if (productType === 'car_magnet') return 'Car Magnets';
   if (productType === 'design_deposit') return 'Graduation Design Deposit';
+  if (productType === 'graduation_final_payment') return 'Graduation Final Product Balance';
   return 'Custom Banner';
 }
 
