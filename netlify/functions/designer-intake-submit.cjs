@@ -186,7 +186,7 @@ function buildCustomerHtml({ customerName }) {
     + '<body style="font-family:Arial,sans-serif;line-height:1.6;color:#333;max-width:600px;margin:0 auto;padding:20px;background:#f4f4f4;">'
     + '<div style="background:#fff;border-radius:8px;overflow:hidden;box-shadow:0 2px 4px rgba(0,0,0,0.1);">'
     + '<div style="text-align:center;padding:20px;background:#ffffff;"><img src="' + logoUrl + '" alt="Banners On The Fly" style="height:50px;"></div>'
-    + '<div style="background:#0B1F3A;color:#fff;padding:24px;text-align:center;"><h1 style="margin:0;font-size:22px;">Your Graduation Design Request is In \u1f393</h1></div>'
+    + '<div style="background:#0B1F3A;color:#fff;padding:24px;text-align:center;"><h1 style="margin:0;font-size:22px;">Your Graduation Design Request is In \ud83c\udf93</h1></div>'
     + '<div style="padding:24px;">'
     + '<p style="font-weight:600;color:#0B1F3A;">Hi ' + sanitize(customerName) + ',</p>'
     + '<p>Thanks for your request!</p>'
