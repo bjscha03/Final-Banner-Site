@@ -370,19 +370,34 @@ const GraduationSigns: React.FC = () => {
       <section className="relative text-white overflow-hidden bg-[#0B1F3A]">
         {/* Background image */}
         <div
-          className="absolute inset-0 bg-cover bg-center"
+          className="absolute inset-0 bg-cover bg-center sm:bg-right"
           style={{
             backgroundImage:
-              "url('https://res.cloudinary.com/dtrxl120u/image/upload/v1777021980/Graduation_hero_xw9rnh.png')",
+              "url('https://res.cloudinary.com/dtrxl120u/image/upload/v1777023371/hero_tbmims.png')",
           }}
           aria-hidden="true"
         />
-        {/* Subtle dark gradient overlay for left-side text readability */}
+        {/* Dark left-side gradient overlay for text readability */}
         <div
-          className="absolute inset-0 bg-gradient-to-r from-[#0B1F3A]/85 via-[#0B1F3A]/55 to-transparent"
+          className="absolute inset-0"
+          style={{
+            background:
+              'linear-gradient(to right, rgba(11,31,58,0.85) 0%, rgba(11,31,58,0.75) 30%, rgba(11,31,58,0.5) 55%, rgba(11,31,58,0.2) 75%, rgba(11,31,58,0) 100%)',
+          }}
           aria-hidden="true"
         />
-        <div className="relative max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-24 lg:py-32">
+        {/* Soft blur on left portion for high-end look */}
+        <div
+          className="absolute inset-0"
+          style={{
+            backdropFilter: 'blur(4px)',
+            WebkitBackdropFilter: 'blur(4px)',
+            maskImage: 'linear-gradient(to right, black 0%, black 45%, transparent 75%)',
+            WebkitMaskImage: 'linear-gradient(to right, black 0%, black 45%, transparent 75%)',
+          }}
+          aria-hidden="true"
+        />
+        <div className="relative z-[2] max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-24 lg:py-32">
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full bg-white/10 backdrop-blur px-4 py-1.5 text-sm font-semibold mb-6 ring-1 ring-white/20">
               <GraduationCap className="h-4 w-4 text-[#FF6A00]" /> Class of {new Date().getFullYear()}
