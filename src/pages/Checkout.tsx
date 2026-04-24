@@ -102,7 +102,11 @@ const Checkout: React.FC = () => {
     ? 'Please upload at least one design for your yard sign order.'
     : '';
 
-  const canProceed = items.every(i => i.product_type === 'design_deposit')
+  const isFixedFeeOnlyCart = items.length > 0 && items.every(
+    i => i.product_type === 'design_deposit' || i.product_type === 'graduation_final_payment'
+  );
+
+  const canProceed = isFixedFeeOnlyCart
     || (minimumOrderValidation.isValid && !yardSignInvalid);
   if (flags.freeShipping || flags.minOrderFloor) {
     const pricingItems: PricingItem[] = items.map(item => ({ line_total_cents: item.line_total_cents }));
@@ -370,8 +374,40 @@ const Checkout: React.FC = () => {
         }
       }
 
+      // Check if cart had a graduation_final_payment item before clearing
+      const finalItem = items.find(i => i.product_type === 'graduation_final_payment');
+      let finalIntakeId: string | null = null;
+      if (finalItem?.design_request_text) {
+        try {
+          const meta = JSON.parse(finalItem.design_request_text);
+          finalIntakeId = meta.intakeId || null;
+        } catch (_e) {
+          // ignore parse errors
+        }
+      }
+
       // Clear the cart
       clearCart();
+
+      if (finalItem) {
+        // Graduation final product balance payment — show success and
+        // redirect to a confirmation. We use the standard payment-success
+        // page so the customer sees a unified order receipt; the intake
+        // is marked paid_ready_for_production in create-order.cjs.
+        toast({
+          title: 'Payment Received!',
+          description: 'Your graduation order is paid in full and production is starting.',
+        });
+        navigate(`/payment-success?orderId=${orderId}${finalIntakeId ? `&intakeId=${encodeURIComponent(finalIntakeId)}` : ''}`, {
+          replace: true,
+          state: {
+            fromCheckout: true,
+            orderId,
+            orderData,
+          },
+        });
+        return;
+      }
 
       if (depositItem) {
         // Design deposit payment — redirect to graduation thank-you page
@@ -460,8 +496,8 @@ const Checkout: React.FC = () => {
                   </div>
                 </div>
                 
-                {/* Thumbnail preview notice - shown once above all items (not for design deposit) */}
-                {!items.every(i => i.product_type === 'design_deposit') && (
+                {/* Thumbnail preview notice - shown once above all items (not for fixed-fee-only carts) */}
+                {!isFixedFeeOnlyCart && (
                 <div className="flex items-start gap-2 bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-xs text-blue-700 mb-4">
                   <Eye className="h-4 w-4 flex-shrink-0 mt-0.5 text-blue-500" />
                   <p>
@@ -489,6 +525,81 @@ const Checkout: React.FC = () => {
                               </p>
                               {depositMeta.graduateName && (
                                 <p className="text-xs text-gray-500 mt-1">For: {depositMeta.graduateName}{depositMeta.schoolName ? ` · ${depositMeta.schoolName}` : ''}{depositMeta.graduationYear ? ` ${depositMeta.graduationYear}` : ''}</p>
+                              )}
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <p className="font-bold text-gray-900 text-xl">{usd(item.line_total_cents / 100)}</p>
+                            </div>
+                          </div>
+                          <div className="mt-3 pt-3 border-t border-gray-100 flex justify-end">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleRemoveItem(item.id)}
+                              className="text-red-600 hover:text-red-700 hover:bg-red-100 font-semibold transition-all"
+                            >
+                              <Trash2 className="h-4 w-4 mr-1" />
+                              Remove
+                            </Button>
+                          </div>
+                        </div>
+                      );
+                    }
+
+                    // Graduation final product payment items get their own
+                    // simplified card (no preview/options — the price and
+                    // print artwork are server-authoritative from the
+                    // approved proof).
+                    if (item.product_type === 'graduation_final_payment') {
+                      let finalMeta: Record<string, any> = {};
+                      try { finalMeta = JSON.parse(item.design_request_text || '{}'); } catch (_e) {}
+                      const fSpecs = (finalMeta.productSpecs || {}) as Record<string, any>;
+                      const fProductLabel =
+                        finalMeta.productType === 'yard_sign' ? 'Yard Sign'
+                        : finalMeta.productType === 'car_magnet' ? 'Car Magnet'
+                        : 'Banner';
+                      const fSize = String(fSpecs.size || fSpecs.sizeType || '');
+                      const fQty = fSpecs.quantity != null ? String(fSpecs.quantity) : '';
+                      const fMaterial = String(fSpecs.material || '');
+                      return (
+                        <div key={item.id} className="border border-[#FF6A00]/30 rounded-xl p-4 sm:p-5 bg-gradient-to-br from-white to-orange-50">
+                          <div className="flex items-start gap-4">
+                            <div className="flex-shrink-0 h-16 w-16 rounded-xl bg-[#0B1F3A] flex items-center justify-center overflow-hidden">
+                              {item.thumbnail_url ? (
+                                <img
+                                  src={item.thumbnail_url}
+                                  alt="Approved proof"
+                                  className="h-full w-full object-cover"
+                                />
+                              ) : (
+                                <span className="text-[#FF6A00] text-2xl">🎓</span>
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <h3 className="font-bold text-[#0B1F3A] text-lg">Graduation Final Product Balance</h3>
+                              <p className="text-sm text-gray-600 mt-0.5">
+                                {`Approved ${fProductLabel.toLowerCase()} — production starts after payment`}
+                              </p>
+                              <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-600">
+                                <span>Product: <strong className="text-[#0B1F3A]">{fProductLabel}</strong></span>
+                                {fSize && <span>Size: <strong className="text-[#0B1F3A]">{fSize}</strong></span>}
+                                {fQty && <span>Qty: <strong className="text-[#0B1F3A]">{fQty}</strong></span>}
+                                {fMaterial && <span>Material: <strong className="text-[#0B1F3A]">{fMaterial}</strong></span>}
+                                {finalMeta.proofVersionNumber != null && (
+                                  <span>Proof: <strong className="text-[#0B1F3A]">v{String(finalMeta.proofVersionNumber)}</strong></span>
+                                )}
+                              </div>
+                              {finalMeta.approvedProofUrl && (
+                                <p className="mt-2 text-xs">
+                                  <a
+                                    href={finalMeta.approvedProofUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-[#FF6A00] underline"
+                                  >
+                                    View approved proof
+                                  </a>
+                                </p>
                               )}
                             </div>
                             <div className="text-right flex-shrink-0">
@@ -670,7 +781,7 @@ const Checkout: React.FC = () => {
                 </div>
 
                 {/* Add Another Item button — product-aware for correct tab routing */}
-                {!items.every(i => i.product_type === 'design_deposit') && (
+                {!isFixedFeeOnlyCart && (
                 <div className="mt-4">
                   {(() => {
                     const hasYardSigns = items.some(i => isYardSignItem(i));
@@ -753,7 +864,7 @@ const Checkout: React.FC = () => {
                 )}
 
                 {/* Discount Code Section */}
-                {!items.every(i => i.product_type === 'design_deposit') && (
+                {!isFixedFeeOnlyCart && (
                 <div className="border-t border-gray-200 pt-6 mt-6">
                   {!discountCode ? (
                     <div className="space-y-3">
