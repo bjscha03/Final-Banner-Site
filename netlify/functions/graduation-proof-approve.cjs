@@ -87,9 +87,9 @@ exports.handler = async (event) => {
     const productSpecs = safeJson(intake.product_specs, {});
     const recomputed = calculateEstimateForIntake(intake.product_type, productSpecs);
     const amountCents =
-      intake.final_product_amount_cents ||
-      (recomputed ? recomputed.totalCents : intake.estimated_product_total_cents) ||
-      0;
+      intake.final_product_amount_cents
+      ?? (recomputed ? recomputed.totalCents : intake.estimated_product_total_cents)
+      ?? 0;
     if (!amountCents || amountCents <= 0) {
       return { statusCode: 400, headers, body: JSON.stringify({ ok: false, error: 'Final balance not configured. Please contact support.' }) };
     }

@@ -15,7 +15,8 @@ ALTER TABLE designer_intake_orders
   ADD COLUMN IF NOT EXISTS estimated_product_total_cents    INTEGER,
   ADD COLUMN IF NOT EXISTS design_fee_paid_at               TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS final_payment_paid_at            TIMESTAMPTZ,
-  ADD COLUMN IF NOT EXISTS final_paypal_order_id            TEXT,
+  -- PayPal order id of the final-balance capture (used for idempotency
+  -- and to correlate webhook events to the intake).
   ADD COLUMN IF NOT EXISTS final_product_paypal_order_id    TEXT,
   ADD COLUMN IF NOT EXISTS latest_proof_version             INTEGER NOT NULL DEFAULT 0,
   ADD COLUMN IF NOT EXISTS last_status_change_at            TIMESTAMPTZ;

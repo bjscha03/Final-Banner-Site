@@ -100,16 +100,19 @@ const ProofApproval: React.FC = () => {
   }, [token, loadProof]);
 
   // PayPal redirect-back handler: ?final=success&token=<paypal_order_id>
+  // We extract the param values once per render before the effect so the
+  // dependency array compares stable primitives instead of re-deriving on
+  // every render via searchParams.get().
+  const finalParam = searchParams.get('final');
+  const paypalOrderIdParam = searchParams.get('token');
   useEffect(() => {
-    const finalStatus = searchParams.get('final');
-    const paypalOrderId = searchParams.get('token');
-    if (finalStatus === 'success' && paypalOrderId && !paymentCaptured) {
+    if (finalParam === 'success' && paypalOrderIdParam && !paymentCaptured) {
       (async () => {
         try {
           const res = await fetch('/.netlify/functions/paypal-capture-final-product', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ token, paypalOrderId }),
+            body: JSON.stringify({ token, paypalOrderId: paypalOrderIdParam }),
           });
           const data = await res.json();
           if (!res.ok || !data.ok) throw new Error(data.error || 'Payment capture failed');
@@ -131,7 +134,7 @@ const ProofApproval: React.FC = () => {
       })();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams.get('final'), searchParams.get('token')]);
+  }, [finalParam, paypalOrderIdParam]);
 
   const handleApprove = async () => {
     if (!intake) return;

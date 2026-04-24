@@ -307,7 +307,6 @@ const GraduationSigns: React.FC = () => {
       return null;
     }
     return null;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [designerProduct, bannerSpecs, yardSignSpecs, carMagnetSpecs]);
 
 

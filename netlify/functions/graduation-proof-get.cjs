@@ -53,10 +53,12 @@ exports.handler = async (event) => {
     const productSpecs = safeJson(intake.product_specs, {});
     // ALWAYS recompute the final balance server-side. Use stored final amount
     // if present (set by admin override), otherwise fall back to the recomputed
-    // estimate so the customer sees a consistent number.
+    // estimate so the customer sees a consistent number. Use ?? so a legitimate
+    // 0 is preserved (though graduation orders should never be free in practice).
     const recomputed = calculateEstimateForIntake(intake.product_type, productSpecs);
-    const finalBalanceCents = intake.final_product_amount_cents ||
-      (recomputed ? recomputed.totalCents : intake.estimated_product_total_cents) || 0;
+    const finalBalanceCents = intake.final_product_amount_cents
+      ?? (recomputed ? recomputed.totalCents : intake.estimated_product_total_cents)
+      ?? 0;
 
     // Build public-safe payload
     const publicIntake = {
