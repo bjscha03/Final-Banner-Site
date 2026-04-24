@@ -66,6 +66,9 @@ const CategoryPage = lazy(() => import("./pages/CategoryPage"));
 // Google Ads landing page - lazy load
 const GoogleAdsBanner = lazy(() => import("./pages/GoogleAdsBanner"));
 
+// Graduation landing page - lazy load
+const GraduationSigns = lazy(() => import("./pages/GraduationSigns"));
+
 // Admin pages - lazy load (heavy, rarely accessed)
 const AdminOrders = lazy(() => import("./pages/admin/Orders"));
 const AdminAbandonedCarts = lazy(() => import("./pages/admin/AbandonedCarts"));
@@ -192,6 +195,9 @@ const App = () => (
 
             {/* Google Ads landing page */}
             <Route path="/google-ads-banner" element={<GoogleAdsBanner />} />
+
+            {/* Graduation landing page */}
+            <Route path="/graduation-signs" element={<GraduationSigns />} />
 
             {/* 404 – catch-all must be last */}
             <Route path="*" element={<NotFound />} />
