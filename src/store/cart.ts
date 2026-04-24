@@ -171,7 +171,7 @@ export interface CartState {
   isLoading: boolean;  // Loading state for cart operations (merge, load from server)
   isSyncing: boolean;  // Flag to prevent loadFromServer from overwriting during sync
   discountCode: DiscountCode | null;
-  addFromQuote: (quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => void;
+  addFromQuote: (quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => string;
   loadItemIntoQuote: (itemId: string) => CartItem | null;
   updateCartItem: (itemId: string, quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => void;
   updateItemThumbnail: (itemId: string, thumbnailUrl: string) => void;
@@ -252,7 +252,7 @@ export const useCartStore = create<CartState>()(
       isSyncing: false,
       discountCode: null,
       
-      addFromQuote: (quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => {
+      addFromQuote: (quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing): string => {
         debugLog('🚨 addFromQuote CALLED - Current items in cart:', get().items.length);
         debugLog('🚨 addFromQuote CALLED - Current items in cart:', get().items.length);
         // Capture design-page authoritative pricing when provided
@@ -498,8 +498,9 @@ export const useCartStore = create<CartState>()(
         });
         get().syncToServer();
       }, 0);
+      return newItem.id;
       },
-      
+
       updateQuantity: (id: string, quantity: number) => {
         set((state) => ({
           items: state.items.map(item => {

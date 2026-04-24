@@ -18,7 +18,7 @@ import {
 import { resolvePromo, getKnownPromo } from '@/lib/promoEngine';
 import { useToast } from '@/components/ui/use-toast';
 import { generateFinalRenderFromHTML } from '@/utils/generateFinalRenderFromHTML';
-import { generatePositionedThumbnail } from '@/utils/generatePositionedThumbnail';
+import { generatePositionedThumbnail, renderPositionedThumbnailDataUrl } from '@/utils/generatePositionedThumbnail';
 import type { ProductTypeSlug } from '@/lib/products';
 import ProductTypeSwitcher from '@/components/design/ProductTypeSwitcher';
 import YardSignConfigurator from '@/components/design/YardSignConfigurator';
@@ -615,6 +615,72 @@ const Design: React.FC = () => {
     }
   }, [compressImage]);
 
+  // Reset the preview/builder state after a successful "Add to Cart" so the
+  // user can immediately start building another product without lingering
+  // artwork/transform state from the previous item.
+  const resetPreview = useCallback(() => {
+    setUploadedFile(null);
+    setImgPos({ x: 0, y: 0 });
+    setImgScale(1);
+    setUploadError(null);
+    if (isYardSign) {
+      setYardSignDesigns([]);
+    }
+  }, [isYardSign]);
+
+  // Shared post-add-to-cart UX:
+  //  - 'checkout' -> open cart drawer + navigate to /checkout (fast, no awaits)
+  //  - 'cart'     -> stay on page, show toast confirmation, reset preview
+  const finishAddToCart = useCallback((
+    actionType: 'checkout' | 'cart',
+    navigateUrl?: string,
+  ) => {
+    setPendingCheckoutData(null);
+    if (actionType === 'checkout') {
+      setIsCartOpen(true);
+      if (navigateUrl) {
+        window.history.replaceState(null, '', navigateUrl);
+      }
+      navigate('/checkout');
+    } else {
+      toast({
+        title: 'Item added to your cart',
+      });
+      resetPreview();
+    }
+  }, [setIsCartOpen, navigate, toast, resetPreview]);
+
+  // Background helper: render a positioned thumbnail dataUrl (synchronously
+  // from cached image), upload it to Cloudinary, then patch the cart item's
+  // thumbnail_url so admin/email/checkout views eventually see the baked
+  // approved snapshot. Failures are silently swallowed — the cart item
+  // already has the original artwork URL + position/scale to render from.
+  const scheduleThumbnailUpload = useCallback((
+    itemId: string | undefined,
+    input: {
+      imageUrl: string;
+      widthIn: number;
+      heightIn: number;
+      imgPosPercent: { x: number; y: number };
+      imgScale: number;
+    },
+  ) => {
+    if (!itemId) return;
+    void (async () => {
+      try {
+        const positioned = await generatePositionedThumbnail({
+          ...input,
+          backgroundColor: '#fafafa',
+        });
+        if (positioned?.url) {
+          cartStore.updateItemThumbnail(itemId, positioned.url);
+        }
+      } catch (err) {
+        console.warn('[DESIGN] Background thumbnail upload failed (non-blocking):', err);
+      }
+    })();
+  }, [cartStore]);
+
   // CRITICAL: Generate final_render before adding to cart - orders without it cannot be printed
   const performCheckout = useCallback(async (
     selectedOptions: UpsellOption[],
@@ -622,7 +688,6 @@ const Design: React.FC = () => {
     actionType: 'checkout' | 'cart' = 'checkout',
   ) => {
     const checkoutData = directData || pendingCheckoutData;
-    const shouldNavigateToCheckout = actionType === 'checkout';
 
     // Yard signs: multi-design flow
     if (isYardSign && yardSignPricing) {
@@ -712,13 +777,7 @@ const Design: React.FC = () => {
       cartStore.addFromQuote(quoteState, undefined, pricing);
 
       console.log('[YARD_SIGN] ✅ Cart item created with yard sign metadata (design page)');
-      setIsCartOpen(true);
-      setPendingCheckoutData(null);
-      if (shouldNavigateToCheckout) {
-        // Preserve tab in history so browser Back returns to Yard Sign tab
-        window.history.replaceState(null, '', '/design?product=yard-signs');
-        navigate('/checkout');
-      }
+      finishAddToCart(actionType, '/design?product=yard-signs');
       return;
     }
 
@@ -758,18 +817,25 @@ const Design: React.FC = () => {
         roundedCorners: carMagnetRoundedCorners,
       });
 
-      // Generate the approved thumbnail (single source of truth) by baking the
-      // user's position/scale onto a canvas at the magnet's aspect ratio.
+      // Render an immediate dataUrl thumbnail synchronously (canvas only, no
+      // network) so the cart drawer / cart modal show the correct cropped
+      // preview right away. The full Cloudinary upload happens in the
+      // background and patches the cart item once complete.
       const baseImageUrl = uploadedFile.thumbnailUrl || uploadedFile.url;
-      const positioned = await generatePositionedThumbnail({
-        imageUrl: baseImageUrl,
-        widthIn,
-        heightIn,
-        imgPosPercent: checkoutData.pos,
-        imgScale: checkoutData.scale,
-        backgroundColor: '#fafafa',
-      });
-      const approvedThumbnailUrl = positioned?.url || baseImageUrl;
+      let approvedThumbnailUrl = baseImageUrl;
+      try {
+        const rendered = await renderPositionedThumbnailDataUrl({
+          imageUrl: baseImageUrl,
+          widthIn,
+          heightIn,
+          imgPosPercent: checkoutData.pos,
+          imgScale: checkoutData.scale,
+          backgroundColor: '#fafafa',
+        });
+        approvedThumbnailUrl = rendered.dataUrl;
+      } catch (err) {
+        console.warn('[DESIGN_CHECKOUT] dataUrl thumbnail render failed (non-blocking):', err);
+      }
 
       quoteStore.set({
         widthIn,
@@ -796,7 +862,7 @@ const Design: React.FC = () => {
       const magnetQuoteState = useQuoteStore.getState();
       (magnetQuoteState as any).product_type = 'car_magnet';
       (magnetQuoteState as any).rounded_corners = carMagnetRoundedCorners;
-      cartStore.addFromQuote(magnetQuoteState, undefined, {
+      const magnetAddedId = cartStore.addFromQuote(magnetQuoteState, undefined, {
         unit_price_cents: carMagnetPricing.unitPriceCents,
         rope_cost_cents: 0,
         pole_pocket_cost_cents: 0,
@@ -805,12 +871,16 @@ const Design: React.FC = () => {
         line_total_cents: carMagnetPricing.baseSubtotalCents,
       });
 
-      setIsCartOpen(true);
-      setPendingCheckoutData(null);
-      if (shouldNavigateToCheckout) {
-        window.history.replaceState(null, '', '/design?product=car-magnets');
-        navigate('/checkout');
-      }
+      // Kick off background Cloudinary upload + thumbnail patch.
+      scheduleThumbnailUpload(magnetAddedId, {
+        imageUrl: baseImageUrl,
+        widthIn,
+        heightIn,
+        imgPosPercent: checkoutData.pos,
+        imgScale: checkoutData.scale,
+      });
+
+      finishAddToCart(actionType, '/design?product=car-magnets');
       return;
     }
 
@@ -889,16 +959,23 @@ const Design: React.FC = () => {
     // Generate the approved thumbnail (single source of truth) by baking the
     // user's position/scale onto a canvas at the banner's aspect ratio so the
     // cart/checkout/admin all show exactly what the user approved.
+    // Render synchronously to a dataUrl (canvas only, no network) for instant
+    // cart display; upload to Cloudinary in the background.
     const baseImageUrl = uploadedFile.thumbnailUrl || uploadedFile.url;
-    const positioned = await generatePositionedThumbnail({
-      imageUrl: baseImageUrl,
-      widthIn,
-      heightIn,
-      imgPosPercent: checkoutData.pos,
-      imgScale: checkoutData.scale,
-      backgroundColor: '#fafafa',
-    });
-    const approvedThumbnailUrl = positioned?.url || baseImageUrl;
+    let approvedThumbnailUrl = baseImageUrl;
+    try {
+      const rendered = await renderPositionedThumbnailDataUrl({
+        imageUrl: baseImageUrl,
+        widthIn,
+        heightIn,
+        imgPosPercent: checkoutData.pos,
+        imgScale: checkoutData.scale,
+        backgroundColor: '#fafafa',
+      });
+      approvedThumbnailUrl = rendered.dataUrl;
+    } catch (err) {
+      console.warn('[DESIGN_CHECKOUT] dataUrl thumbnail render failed (non-blocking):', err);
+    }
 
     const updatedTotals = calcTotals({
       widthIn, heightIn, qty: quantity, material,
@@ -935,15 +1012,19 @@ const Design: React.FC = () => {
     // Explicitly set product_type on quote state so cart item is correctly tagged as banner
     const bannerQuoteState = useQuoteStore.getState();
     (bannerQuoteState as any).product_type = 'banner';
-    cartStore.addFromQuote(bannerQuoteState, undefined, pricing);
-    setIsCartOpen(true);
-    setPendingCheckoutData(null);
-    if (shouldNavigateToCheckout) {
-      // Preserve tab in history so browser Back returns to Banner tab
-      window.history.replaceState(null, '', '/design?product=banner');
-      navigate('/checkout');
-    }
-  }, [uploadedFile, pendingCheckoutData, grommets, addRope, polePockets, widthIn, heightIn, quantity, material, quoteStore, cartStore, setIsCartOpen, navigate, toast, isYardSign, isCarMagnet, carMagnetPricing, carMagnetRoundedCorners, yardSignPricing, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, yardSignSidedness, yardSignAddStepStakes, yardSignStepStakeQty]);
+    const bannerAddedId = cartStore.addFromQuote(bannerQuoteState, undefined, pricing);
+
+    // Kick off background Cloudinary upload of positioned thumbnail.
+    scheduleThumbnailUpload(bannerAddedId, {
+      imageUrl: baseImageUrl,
+      widthIn,
+      heightIn,
+      imgPosPercent: checkoutData.pos,
+      imgScale: checkoutData.scale,
+    });
+
+    finishAddToCart(actionType, '/design?product=banner');
+  }, [uploadedFile, pendingCheckoutData, grommets, addRope, polePockets, widthIn, heightIn, quantity, material, quoteStore, cartStore, navigate, toast, isYardSign, isCarMagnet, carMagnetPricing, carMagnetRoundedCorners, yardSignPricing, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, yardSignSidedness, yardSignAddStepStakes, yardSignStepStakeQty, finishAddToCart, scheduleThumbnailUpload]);
 
 
   // Proceed directly to checkout using current inline preview position
