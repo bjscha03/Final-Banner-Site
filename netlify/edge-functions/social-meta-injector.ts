@@ -97,7 +97,7 @@ function injectStaticPageMetaTags(html: string, key: string): string {
     <meta property="og:image" content="${page.image}">
     <meta property="og:image:width" content="1200">
     <meta property="og:image:height" content="630">
-    <meta property="og:site_name" content="Banners on the Fly">
+    <meta property="og:site_name" content="Banners On The Fly">
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:url" content="${page.url}">
     <meta name="twitter:title" content="${page.title}">
@@ -164,7 +164,7 @@ export default async (request: Request, context: Context) => {
   const blogMatch = url.pathname.match(/^\/blog\/([^\/]+)$/);
   
   // Check if this is a static page with custom meta
-  const staticPageMatch = url.pathname.match(/^\/graduation-signs$/);
+  const staticPageKey = Object.keys(staticPages).find(key => url.pathname === `/${key}`);
 
   if (blogMatch && isBot(userAgent)) {
     const slug = blogMatch[1];
@@ -184,8 +184,8 @@ export default async (request: Request, context: Context) => {
     });
   }
 
-  if (staticPageMatch && isBot(userAgent)) {
-    const key = url.pathname.replace(/^\//, '');
+  if (staticPageKey && isBot(userAgent)) {
+    const key = staticPageKey;
     
     const response = await context.next();
     const html = await response.text();
