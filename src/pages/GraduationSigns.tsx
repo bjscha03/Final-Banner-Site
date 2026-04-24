@@ -287,6 +287,10 @@ const GraduationSigns: React.FC = () => {
       if (!res.ok || !data.ok) {
         throw new Error(data.error || 'Submission failed');
       }
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+        return;
+      }
       setSubmittedId(data.intakeId || 'submitted');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } catch (err) {

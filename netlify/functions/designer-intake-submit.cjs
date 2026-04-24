@@ -2,12 +2,9 @@
  * Designer-assisted (graduation) intake submission.
  *
  * Receives the JSON payload from the /graduation-signs landing page intake form,
- * validates it, stores it in the designer_intake_orders table, and emails the
- * customer + admin. Modeled on contact-submit.cjs (same Resend / Neon pattern).
- *
- * NOTE: $19 design-fee PayPal capture, proof upload UI, customer approval page,
- * and final-payment flow are deferred to follow-up PRs. This function intentionally
- * only persists the intake and triggers the two confirmation emails.
+ * validates it, stores it in the designer_intake_orders table, creates a $19
+ * Stripe design-deposit checkout session, and returns the checkout URL so the
+ * frontend can redirect the customer. Also emails the customer + admin.
  */
 const { neon } = require('@neondatabase/serverless');
 const crypto = require('crypto');
@@ -15,6 +12,41 @@ const crypto = require('crypto');
 const ALLOWED_PRODUCT_TYPES = new Set(['banner', 'yard_sign', 'car_magnet']);
 const DESIGN_FEE_CENTS = 1900;
 const MAX_INSPIRATION_FILES = 10;
+
+// Ensure the designer_intake_orders table exists (idempotent DDL).
+// Also adds stripe_session_id column if the table was created before this change.
+async function ensureTable(sql) {
+  await sql`
+    CREATE TABLE IF NOT EXISTS designer_intake_orders (
+      id                         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      customer_name              VARCHAR(160) NOT NULL,
+      customer_email             VARCHAR(255) NOT NULL,
+      customer_phone             VARCHAR(40),
+      order_type                 VARCHAR(40)  NOT NULL DEFAULT 'designer_assisted',
+      source                     VARCHAR(60)  NOT NULL DEFAULT 'graduation_landing_page',
+      product_type               VARCHAR(40)  NOT NULL,
+      product_specs              JSONB        NOT NULL DEFAULT '{}'::jsonb,
+      graduate_info              JSONB        NOT NULL DEFAULT '{}'::jsonb,
+      design_notes               JSONB        NOT NULL DEFAULT '{}'::jsonb,
+      inspiration_files          JSONB        NOT NULL DEFAULT '[]'::jsonb,
+      design_fee_amount_cents    INTEGER      NOT NULL DEFAULT 1900,
+      design_fee_paid            BOOLEAN      NOT NULL DEFAULT FALSE,
+      final_product_amount_cents INTEGER,
+      final_payment_paid         BOOLEAN      NOT NULL DEFAULT FALSE,
+      status                     VARCHAR(40)  NOT NULL DEFAULT 'design_requested',
+      stripe_session_id          TEXT,
+      approval_token             VARCHAR(64),
+      approved_proof_url         TEXT,
+      created_at                 TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
+      updated_at                 TIMESTAMPTZ  NOT NULL DEFAULT NOW()
+    )
+  `;
+  // Add stripe_session_id if it was missing from an earlier table version
+  await sql`
+    ALTER TABLE designer_intake_orders
+      ADD COLUMN IF NOT EXISTS stripe_session_id TEXT
+  `;
+}
 
 function sanitize(value) {
   if (value == null) return '';
@@ -135,19 +167,26 @@ exports.handler = async (event) => {
     'Content-Type': 'application/json',
   };
 
+  // --- CORS preflight ---
   if (event.httpMethod === 'OPTIONS') {
     return { statusCode: 200, headers, body: '' };
   }
+
+  console.log('designer-intake-submit invoked:', event.httpMethod);
+
   if (event.httpMethod !== 'POST') {
     return jsonResponse(headers, 405, { ok: false, error: 'Method not allowed' });
   }
 
+  // --- Parse body ---
   let payload;
   try {
     payload = JSON.parse(event.body || '{}');
   } catch (_e) {
     return jsonResponse(headers, 400, { ok: false, error: 'Invalid JSON body' });
   }
+
+  console.log('designer-intake-submit payload keys:', Object.keys(payload));
 
   // --- Validation ---
   const customerName = typeof payload.customerName === 'string' ? payload.customerName.trim() : '';
@@ -179,16 +218,36 @@ exports.handler = async (event) => {
     return jsonResponse(headers, 400, { ok: false, error: 'Submission payload too large.' });
   }
 
+  // --- Env var checks ---
   const dbUrl = process.env.NETLIFY_DATABASE_URL || process.env.VITE_DATABASE_URL || process.env.DATABASE_URL;
   if (!dbUrl) {
+    console.error('designer-intake-submit: DATABASE_URL not configured');
     return jsonResponse(headers, 500, { ok: false, error: 'Database not configured' });
   }
 
+  const stripeKey = process.env.STRIPE_SECRET_KEY;
+  if (!stripeKey) {
+    console.error('designer-intake-submit: STRIPE_SECRET_KEY not configured');
+    return jsonResponse(headers, 500, { ok: false, error: 'Payment provider not configured' });
+  }
+
+  const siteUrl = process.env.SITE_URL || process.env.URL || 'https://bannersonthefly.com';
+
+  // --- Ensure DB table exists ---
+  let sql;
+  try {
+    sql = neon(dbUrl);
+    await ensureTable(sql);
+  } catch (ddlErr) {
+    console.error('designer-intake-submit DDL error:', ddlErr.message, ddlErr);
+    return jsonResponse(headers, 500, { ok: false, error: 'Failed to initialize database table' });
+  }
+
+  // --- Save intake to DB ---
   let intakeId;
   let createdAt;
   try {
-    const sql = neon(dbUrl);
-    const approvalToken = crypto.randomBytes(24).toString('hex'); // pre-generated for deferred /proof/:token flow
+    const approvalToken = crypto.randomBytes(24).toString('hex');
 
     const result = await sql`
       INSERT INTO designer_intake_orders (
@@ -226,9 +285,59 @@ exports.handler = async (event) => {
     `;
     intakeId = result[0].id;
     createdAt = result[0].created_at;
+    console.log('designer-intake-submit: intake saved, id:', intakeId);
   } catch (dbErr) {
-    console.error('designer-intake-submit DB error:', dbErr);
+    console.error('designer-intake-submit DB insert error:', dbErr.message, dbErr);
     return jsonResponse(headers, 500, { ok: false, error: 'Failed to save intake', details: dbErr.message });
+  }
+
+  // --- Create Stripe $19 design deposit checkout ---
+  let checkoutUrl;
+  try {
+    const Stripe = require('stripe');
+    const stripe = Stripe(stripeKey);
+
+    const session = await stripe.checkout.sessions.create({
+      mode: 'payment',
+      customer_email: customerEmail,
+      line_items: [
+        {
+          price_data: {
+            currency: 'usd',
+            unit_amount: DESIGN_FEE_CENTS,
+            product_data: {
+              name: 'Graduation Design Deposit',
+              description: 'Custom design proof for graduation banner, yard sign, or car magnet',
+            },
+          },
+          quantity: 1,
+        },
+      ],
+      metadata: {
+        type: 'graduation_design_deposit',
+        intakeId,
+      },
+      success_url: siteUrl + '/graduation-signs?deposit=success&intakeId=' + intakeId,
+      cancel_url: siteUrl + '/graduation-signs?deposit=cancel&intakeId=' + intakeId,
+    });
+
+    checkoutUrl = session.url;
+    console.log('designer-intake-submit: Stripe session created:', session.id);
+
+    // Persist the Stripe session ID to the intake row
+    try {
+      await sql`
+        UPDATE designer_intake_orders
+        SET stripe_session_id = ${session.id}, updated_at = NOW()
+        WHERE id = ${intakeId}
+      `;
+    } catch (updateErr) {
+      console.warn('designer-intake-submit: failed to save stripe_session_id:', updateErr.message);
+    }
+  } catch (stripeErr) {
+    console.error('designer-intake-submit Stripe error:', stripeErr.message, stripeErr);
+    // Intake is already saved — don't roll back, just return error so user can retry payment
+    return jsonResponse(headers, 500, { ok: false, error: 'Failed to create payment session', intakeId });
   }
 
   // --- Emails (best effort, never fail the request) ---
@@ -276,7 +385,6 @@ exports.handler = async (event) => {
       });
 
       try {
-        const sql = neon(dbUrl);
         await sql`INSERT INTO email_events (type, to_email, status, provider_msg_id, created_at) VALUES ('designer_intake.admin', ${adminEmail}, 'sent', ${adminResult.data?.id || null}, NOW())`;
         await sql`INSERT INTO email_events (type, to_email, status, provider_msg_id, created_at) VALUES ('designer_intake.ack', ${customerEmail}, 'sent', ${customerResult.data?.id || null}, NOW())`;
       } catch (logErr) {
@@ -293,5 +401,6 @@ exports.handler = async (event) => {
     ok: true,
     message: 'Designer intake submitted',
     intakeId,
+    checkoutUrl,
   });
 };
