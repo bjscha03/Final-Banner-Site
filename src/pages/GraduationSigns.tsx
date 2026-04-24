@@ -329,6 +329,15 @@ const GraduationSigns: React.FC = () => {
           property="og:description"
           content="Custom graduation banners, yard signs, and car magnets printed fast. Upload your own design or let our designers create one."
         />
+        <meta
+          property="og:image"
+          content="https://res.cloudinary.com/dtrxl120u/image/upload/v1777021980/Graduation_hero_xw9rnh.png"
+        />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta
+          name="twitter:image"
+          content="https://res.cloudinary.com/dtrxl120u/image/upload/v1777021980/Graduation_hero_xw9rnh.png"
+        />
       </Helmet>
 
       {/* Hero */}
@@ -703,12 +712,6 @@ const GraduationSigns: React.FC = () => {
                       options={['none', 'top', 'top-and-bottom']}
                       onChange={(v) => setBannerSpecs({ ...bannerSpecs, rope: v })}
                     />
-                    <SelectField
-                      label="Print sides"
-                      value={bannerSpecs.sidedness}
-                      options={['single', 'double']}
-                      onChange={(v) => setBannerSpecs({ ...bannerSpecs, sidedness: v })}
-                    />
                   </div>
                 )}
 
@@ -724,12 +727,6 @@ const GraduationSigns: React.FC = () => {
                       label="Quantity"
                       value={yardSignSpecs.quantity}
                       onChange={(v) => setYardSignSpecs({ ...yardSignSpecs, quantity: v })}
-                    />
-                    <SelectField
-                      label="Print sides"
-                      value={yardSignSpecs.sidedness}
-                      options={['single', 'double']}
-                      onChange={(v) => setYardSignSpecs({ ...yardSignSpecs, sidedness: v })}
                     />
                     <SelectField
                       label="Include H-stakes?"
