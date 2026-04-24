@@ -59,6 +59,31 @@ const isHttpUrl = (url: string) => {
   }
 };
 
+// Designer-assisted (graduation) detection: orders that include a
+// `design_deposit` line item created by the graduation intake flow. The
+// intake id is encoded in `design_request_text` as JSON `{ intakeId, ... }`.
+const getGraduationIntakeId = (order: Order): string | null => {
+  const items = (order.items || []) as Array<{ product_type?: string; design_request_text?: string | null }>;
+  for (const item of items) {
+    if (item.product_type !== 'design_deposit') continue;
+    const raw = item.design_request_text;
+    if (!raw || typeof raw !== 'string') continue;
+    try {
+      const meta = JSON.parse(raw);
+      const intakeId = typeof meta?.intakeId === 'string' ? meta.intakeId : null;
+      if (intakeId && /^[0-9a-f-]{36}$/i.test(intakeId)) return intakeId;
+    } catch {
+      // ignore non-JSON values
+    }
+  }
+  return null;
+};
+
+const isGraduationOrder = (order: Order): boolean => {
+  const items = (order.items || []) as Array<{ product_type?: string }>;
+  return items.some((item) => item.product_type === 'design_deposit');
+};
+
 const AdminOrders: React.FC = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
@@ -995,6 +1020,11 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
 }) => {
   const [trackingNumber, setTrackingNumber] = useState('');
   const [isAddingTracking, setIsAddingTracking] = useState(false);
+  const isGraduation = isGraduationOrder(order);
+  const graduationIntakeId = isGraduation ? getGraduationIntakeId(order) : null;
+  const graduationLink = graduationIntakeId
+    ? `/admin/graduation/${graduationIntakeId}`
+    : '/admin/graduation-intakes';
   // Helper function to get the best download URL for an item (AI or uploaded)
   const getBestDownloadUrl = (item) => {
     // For AI-generated items, prioritize print_ready_url for high-quality downloads
@@ -1190,7 +1220,22 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                 Design Service
               </Badge>
             )}
+            {isGraduation && (
+              <Badge className="bg-orange-100 text-orange-800 text-xs">
+                <GraduationCap className="h-3 w-3 mr-1" />
+                Graduation Designer Request
+              </Badge>
+            )}
           </div>
+          {isGraduation && (
+            <a
+              href={graduationLink}
+              className="inline-flex items-center gap-1 text-xs font-semibold text-[#FF6A00] hover:underline"
+            >
+              <GraduationCap className="h-3.5 w-3.5" />
+              Open Design Request
+            </a>
+          )}
         </div>
 
         {/* RIGHT SECTION */}
@@ -1421,6 +1466,11 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
   pdfLoadingStates
 }) => {
   const [isMarkingProduction, setIsMarkingProduction] = useState(false);
+  const isGraduation = isGraduationOrder(order);
+  const graduationIntakeId = isGraduation ? getGraduationIntakeId(order) : null;
+  const graduationLink = graduationIntakeId
+    ? `/admin/graduation/${graduationIntakeId}`
+    : '/admin/graduation-intakes';
 
   const handleMarkInProduction = async () => {
     setIsMarkingProduction(true);
@@ -1502,6 +1552,20 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
                   <Palette className="h-3 w-3 mr-1" />
                   Design
                 </Badge>
+              )}
+              {isGraduation && (
+                <>
+                  <Badge className="bg-orange-100 text-orange-800 text-xs">
+                    <GraduationCap className="h-3 w-3 mr-1" />
+                    Graduation Designer
+                  </Badge>
+                  <a
+                    href={graduationLink}
+                    className="text-xs font-semibold text-[#FF6A00] hover:underline whitespace-nowrap"
+                  >
+                    Open Design Request →
+                  </a>
+                </>
               )}
             </div>
           </div>

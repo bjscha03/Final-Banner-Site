@@ -2,8 +2,8 @@
  * Admin endpoint: get a single designer-assisted (graduation) intake with
  * full details, proof history, and revision requests.
  *
- * Auth: requires the requesting user's email to be in the
- * ADMIN_TEST_PAY_ALLOWLIST environment variable.
+ * Auth: requires the requesting user's profile row in the database to have
+ * `is_admin = true`. ADMIN_TEST_PAY_ALLOWLIST is honored as a fallback only.
  *
  * Method: POST  body { email: string, intakeId: string }
  * Returns: { ok: true, intake, proofs, revisions }
@@ -11,7 +11,7 @@
 const {
   getSql,
   ensureSchema,
-  isAdminEmail,
+  isAdminUser,
   safeJson,
   getIntakeById,
   getProofsForIntake,
@@ -33,7 +33,17 @@ exports.handler = async (event) => {
   try { body = JSON.parse(event.body || '{}'); } catch (_e) { /* ignore */ }
   const email = typeof body.email === 'string' ? body.email : '';
   const intakeId = typeof body.intakeId === 'string' ? body.intakeId : '';
-  if (!isAdminEmail(email)) {
+
+  let sql;
+  try {
+    sql = getSql();
+    await ensureSchema(sql);
+  } catch (err) {
+    console.error('admin-graduation-get bootstrap error:', err);
+    return { statusCode: 500, headers, body: JSON.stringify({ ok: false, error: err.message }) };
+  }
+
+  if (!(await isAdminUser(sql, email))) {
     return { statusCode: 403, headers, body: JSON.stringify({ ok: false, error: 'Admin access required' }) };
   }
   if (!/^[0-9a-f-]{36}$/i.test(intakeId)) {
@@ -41,8 +51,6 @@ exports.handler = async (event) => {
   }
 
   try {
-    const sql = getSql();
-    await ensureSchema(sql);
     const intake = await getIntakeById(sql, intakeId);
     if (!intake) {
       return { statusCode: 404, headers, body: JSON.stringify({ ok: false, error: 'Intake not found' }) };

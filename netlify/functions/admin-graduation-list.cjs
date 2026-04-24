@@ -1,14 +1,15 @@
 /**
  * Admin endpoint: list designer-assisted (graduation) intakes.
  *
- * Auth: requires the requesting user's email to be in the
- * ADMIN_TEST_PAY_ALLOWLIST environment variable (same allowlist used by
- * the existing check-admin-status.cjs endpoint and the in-app admin UI).
+ * Auth: requires the requesting user's profile row in the database to have
+ * `is_admin = true` (the same flag used by /admin/orders and the rest of the
+ * admin panel). The legacy ADMIN_TEST_PAY_ALLOWLIST env var is still honored
+ * as a fallback for back-compat.
  *
  * Method: POST  body { email: string }
  * Returns: { ok: true, intakes: [...minimal rows] }
  */
-const { getSql, ensureSchema, isAdminEmail, safeJson } = require('./lib/graduation.cjs');
+const { getSql, ensureSchema, isAdminUser, safeJson } = require('./lib/graduation.cjs');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -24,13 +25,21 @@ exports.handler = async (event) => {
   let body = {};
   try { body = JSON.parse(event.body || '{}'); } catch (_e) { /* ignore */ }
   const email = typeof body.email === 'string' ? body.email : '';
-  if (!isAdminEmail(email)) {
+
+  let sql;
+  try {
+    sql = getSql();
+    await ensureSchema(sql);
+  } catch (err) {
+    console.error('admin-graduation-list bootstrap error:', err);
+    return { statusCode: 500, headers, body: JSON.stringify({ ok: false, error: err.message }) };
+  }
+
+  if (!(await isAdminUser(sql, email))) {
     return { statusCode: 403, headers, body: JSON.stringify({ ok: false, error: 'Admin access required' }) };
   }
 
   try {
-    const sql = getSql();
-    await ensureSchema(sql);
     const rows = await sql`
       SELECT id, customer_name, customer_email, product_type, status,
              design_fee_paid, final_payment_paid,

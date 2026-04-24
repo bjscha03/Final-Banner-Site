@@ -7,8 +7,8 @@
  * URL is posted to this endpoint. This keeps the function payload small and
  * reuses the existing upload infrastructure.
  *
- * Auth: requires the requesting user's email to be in the
- * ADMIN_TEST_PAY_ALLOWLIST environment variable.
+ * Auth: requires the requesting user's profile row in the database to have
+ * `is_admin = true`. ADMIN_TEST_PAY_ALLOWLIST is honored as a fallback only.
  *
  * Method: POST
  * Body: {
@@ -29,7 +29,7 @@
 const {
   getSql,
   ensureSchema,
-  isAdminEmail,
+  isAdminUser,
   getIntakeById,
   sendProofToCustomer,
 } = require('./lib/graduation.cjs');
@@ -64,9 +64,6 @@ exports.handler = async (event) => {
   const proofFileName = typeof body.proofFileName === 'string' ? body.proofFileName.slice(0, 200) : null;
   const adminMessage = typeof body.adminMessage === 'string' ? body.adminMessage.slice(0, 4000) : null;
 
-  if (!isAdminEmail(email)) {
-    return { statusCode: 403, headers, body: JSON.stringify({ ok: false, error: 'Admin access required' }) };
-  }
   if (!/^[0-9a-f-]{36}$/i.test(intakeId)) {
     return { statusCode: 400, headers, body: JSON.stringify({ ok: false, error: 'Invalid intakeId' }) };
   }
@@ -77,6 +74,9 @@ exports.handler = async (event) => {
   try {
     const sql = getSql();
     await ensureSchema(sql);
+    if (!(await isAdminUser(sql, email))) {
+      return { statusCode: 403, headers, body: JSON.stringify({ ok: false, error: 'Admin access required' }) };
+    }
     const intake = await getIntakeById(sql, intakeId);
     if (!intake) {
       return { statusCode: 404, headers, body: JSON.stringify({ ok: false, error: 'Intake not found' }) };

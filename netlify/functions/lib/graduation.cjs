@@ -100,7 +100,17 @@ async function ensureSchema(sql) {
 }
 
 // --- Admin auth -------------------------------------------------------------
+//
+// The canonical admin auth used everywhere else in the app (sign-in.cjs,
+// /admin/orders, etc.) is the `is_admin` column on the `profiles` table.
+// Historically, the graduation endpoints only consulted the
+// ADMIN_TEST_PAY_ALLOWLIST env var, which broke real logged-in admins whose
+// email wasn't in that list and produced "Admin access required" on
+// /admin/graduation-intakes. We now check the database first and fall back
+// to the env allowlist only as a legacy safety net.
+
 function isAdminEmail(email) {
+  // Env-allowlist check, kept as a synchronous fallback for back-compat.
   if (!email || typeof email !== 'string') return false;
   const allow = process.env.ADMIN_TEST_PAY_ALLOWLIST;
   if (!allow) return false;
@@ -109,6 +119,51 @@ function isAdminEmail(email) {
     .map((e) => e.trim().toLowerCase())
     .filter(Boolean);
   return set.includes(email.toLowerCase());
+}
+
+/**
+ * Returns true if the email belongs to an admin user. Checks the
+ * `profiles.is_admin` flag in the database (the same source of truth used by
+ * sign-in.cjs and /admin/orders), and falls back to the
+ * ADMIN_TEST_PAY_ALLOWLIST env var if the DB check is inconclusive.
+ *
+ * Logs the decision so failed admin lookups are debuggable in Netlify
+ * function logs without leaking sensitive info.
+ */
+async function isAdminUser(sql, email) {
+  if (!email || typeof email !== 'string') {
+    console.warn('[graduation-admin-auth] denied: missing email');
+    return false;
+  }
+  const normalized = email.toLowerCase().trim();
+  try {
+    const rows = await sql`
+      SELECT is_admin
+      FROM profiles
+      WHERE LOWER(email) = ${normalized}
+      LIMIT 1
+    `;
+    if (rows.length > 0 && rows[0].is_admin === true) {
+      console.log(`[graduation-admin-auth] allowed via profiles.is_admin: ${normalized}`);
+      return true;
+    }
+    if (rows.length === 0) {
+      console.warn(`[graduation-admin-auth] no profile row for ${normalized}`);
+    } else {
+      console.warn(`[graduation-admin-auth] profile.is_admin is not true for ${normalized}`);
+    }
+  } catch (err) {
+    // DB lookup errors should not silently grant access — log and continue
+    // to the env-allowlist fallback.
+    console.error('[graduation-admin-auth] profiles lookup failed:', err && err.message);
+  }
+  // Legacy env-allowlist fallback (kept so existing infra still works).
+  if (isAdminEmail(normalized)) {
+    console.log(`[graduation-admin-auth] allowed via ADMIN_TEST_PAY_ALLOWLIST fallback: ${normalized}`);
+    return true;
+  }
+  console.warn(`[graduation-admin-auth] denied: ${normalized} is not an admin`);
+  return false;
 }
 
 // --- HTML escape ------------------------------------------------------------
@@ -664,6 +719,7 @@ module.exports = {
   getSql,
   ensureSchema,
   isAdminEmail,
+  isAdminUser,
   esc,
   fmtMoneyCents,
   safeJson,
