@@ -17,9 +17,25 @@ import {
 import Layout from '@/components/Layout';
 import { useToast } from '@/components/ui/use-toast';
 import { useCartStore } from '@/store/cart';
+import type { MaterialKey } from '@/store/quote';
 import { calculateBannerPricing } from '@/lib/bannerPricingEngine';
-import { calcCarMagnetPricing, CAR_MAGNET_SIZES } from '@/lib/car-magnet-pricing';
-import { calcYardSignPricing } from '@/lib/yard-sign-pricing';
+import {
+  calcCarMagnetPricing,
+  CAR_MAGNET_SIZES,
+  CAR_MAGNET_ROUNDED_CORNERS,
+  getCarMagnetRoundedCornersLabel,
+  type CarMagnetRoundedCorner,
+} from '@/lib/car-magnet-pricing';
+import {
+  calcYardSignPricing,
+  validateYardSignQuantity,
+  YARD_SIGN_INCREMENT,
+  YARD_SIGN_MIN_QUANTITY,
+  YARD_SIGN_MAX_QUANTITY,
+  type YardSignSidedness,
+} from '@/lib/yard-sign-pricing';
+import { DESIGN_GROMMET_OPTIONS } from '@/lib/grommets';
+import { BANNER_MATERIALS, getBannerMaterialByKey } from '@/lib/banner-materials';
 import { usd } from '@/lib/pricing';
 
 type ProductType = 'banner' | 'yard_sign' | 'car_magnet';
@@ -46,6 +62,7 @@ const PRODUCT_QUERY_SLUG: Record<ProductType, string> = {
   car_magnet: 'car-magnets',
 };
 
+// Banner size presets — match the normal banner builder (`src/pages/Design.tsx` PRESET_SIZES).
 const BANNER_SIZE_PRESETS = [
   "2' × 4'",
   "2' × 6'",
@@ -56,12 +73,16 @@ const BANNER_SIZE_PRESETS = [
   'Custom',
 ];
 
-const CAR_MAGNET_SIZE_PRESETS = [
-  '12" × 24"',
-  '12" × 18"',
-  '6" × 24"',
-  '8" × 16"',
-  'Other',
+// Banner pole-pocket option values match the normal banner builder dropdown
+// in `src/pages/Design.tsx` (and the `PolePocketPosition` type in
+// `src/lib/bannerPricingEngine.ts`).
+const POLE_POCKET_OPTIONS: { value: string; label: string }[] = [
+  { value: 'none', label: 'None' },
+  { value: 'top', label: 'Top' },
+  { value: 'bottom', label: 'Bottom' },
+  { value: 'top-bottom', label: 'Top & Bottom' },
+  { value: 'left', label: 'Left' },
+  { value: 'right', label: 'Right' },
 ];
 
 const STYLE_OPTIONS = [
@@ -126,27 +147,29 @@ const GraduationSigns: React.FC = () => {
   const [bannerSpecs, setBannerSpecs] = useState({
     sizePreset: "3' × 6'",
     customSize: '',
-    material: '13oz Vinyl',
+    // Stored as the shared MaterialKey ('13oz' | '15oz' | '18oz' | 'mesh')
+    // so the same value feeds the pricing engine and the material lookup.
+    material: '13oz' as MaterialKey,
     quantity: 1,
     grommets: '4-corners',
     polePockets: 'none',
-    rope: 'none',
+    addRope: false,
     sidedness: 'single',
   });
+  const [bannerMaterialDropdownOpen, setBannerMaterialDropdownOpen] = useState(false);
 
-  // Yard sign specs
+  // Yard sign specs — fixed 24" × 18" corrugated plastic, like the normal builder.
   const [yardSignSpecs, setYardSignSpecs] = useState({
-    quantity: 1,
-    sizeType: '18" × 24" coroplast',
-    sidedness: 'single',
-    addStakes: 'yes',
+    quantity: YARD_SIGN_MIN_QUANTITY,
+    sidedness: 'single' as YardSignSidedness,
+    addStakes: true,
   });
 
-  // Car magnet specs
+  // Car magnet specs — sourced from CAR_MAGNET_SIZES / CAR_MAGNET_ROUNDED_CORNERS.
   const [carMagnetSpecs, setCarMagnetSpecs] = useState({
-    size: '12" × 24"',
+    size: CAR_MAGNET_SIZES[0].label,
     quantity: 1,
-    roundedCorners: 'standard',
+    roundedCorners: 'none' as CarMagnetRoundedCorner,
   });
 
   // Design direction
@@ -229,14 +252,26 @@ const GraduationSigns: React.FC = () => {
 
   const productSpecsFor = (p: ProductType) => {
     if (p === 'banner') {
-      const { sizePreset, customSize, ...rest } = bannerSpecs;
+      const { sizePreset, customSize, material, ...rest } = bannerSpecs;
+      const matLabel = getBannerMaterialByKey(material).label;
       return {
         size: sizePreset === 'Custom' ? customSize || 'Custom (TBD)' : sizePreset,
+        material: matLabel,
         ...rest,
       };
     }
-    if (p === 'yard_sign') return { ...yardSignSpecs };
-    return { ...carMagnetSpecs };
+    if (p === 'yard_sign') {
+      return {
+        size: '24" × 18"',
+        material: 'Corrugated Plastic',
+        ...yardSignSpecs,
+      };
+    }
+    return {
+      ...carMagnetSpecs,
+      material: 'Premium Magnetic Material',
+      roundedCornersLabel: getCarMagnetRoundedCornersLabel(carMagnetSpecs.roundedCorners),
+    };
   };
 
   /**
@@ -260,19 +295,12 @@ const GraduationSigns: React.FC = () => {
         const isFeetH = m[4] === "'" || (!m[4] && isFeetW);
         const widthIn = Number(m[1]) * (isFeetW ? 12 : 1);
         const heightIn = Number(m[3]) * (isFeetH ? 12 : 1);
-        const materialKey = ({
-          '13oz Vinyl': '13oz',
-          '15oz Vinyl': '15oz',
-          '18oz Vinyl': '18oz',
-          'Mesh Fence': 'Mesh',
-        } as Record<string, string>)[bannerSpecs.material] || '13oz';
         const result = calculateBannerPricing({
           widthIn,
           heightIn,
           quantity: Math.max(1, Number(bannerSpecs.quantity) || 1),
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          material: materialKey as any,
-          addRope: bannerSpecs.rope !== 'none',
+          material: bannerSpecs.material,
+          addRope: bannerSpecs.addRope,
           polePockets: bannerSpecs.polePockets,
           grommets: bannerSpecs.grommets,
         });
@@ -283,23 +311,14 @@ const GraduationSigns: React.FC = () => {
         };
       }
       if (designerProduct === 'yard_sign') {
-        const sidedness = yardSignSpecs.sidedness === 'double' ? 'double' : 'single';
-        const qty = Math.max(1, Number(yardSignSpecs.quantity) || 1);
-        const addStakes = yardSignSpecs.addStakes === 'yes';
+        const sidedness: YardSignSidedness = yardSignSpecs.sidedness === 'double' ? 'double' : 'single';
+        const qty = Math.max(YARD_SIGN_MIN_QUANTITY, Number(yardSignSpecs.quantity) || YARD_SIGN_MIN_QUANTITY);
+        const addStakes = yardSignSpecs.addStakes === true;
         const r = calcYardSignPricing(sidedness, qty, addStakes, qty, 0);
         return { subtotalCents: r.subtotalCents, taxCents: r.taxCents, totalCents: r.totalWithTaxCents };
       }
       if (designerProduct === 'car_magnet') {
-        const sizeStr = carMagnetSpecs.size
-          .replace(/[\u201C\u201D\u2033]/g, '"')
-          .replace(/×/g, 'x')
-          .replace(/\s+/g, '');
-        const m = sizeStr.match(/(\d+(?:\.\d+)?)"?x(\d+(?:\.\d+)?)"?/i);
-        if (!m) return null;
-        const w = Number(m[1]);
-        const h = Number(m[2]);
-        const match = CAR_MAGNET_SIZES.find((o) => o.widthIn === w && o.heightIn === h);
-        if (!match) return null;
+        const match = CAR_MAGNET_SIZES.find((o) => o.label === carMagnetSpecs.size) || CAR_MAGNET_SIZES[0];
         const r = calcCarMagnetPricing(match.widthIn, match.heightIn, Math.max(1, Number(carMagnetSpecs.quantity) || 1));
         return { subtotalCents: r.subtotalCents, taxCents: r.taxCents, totalCents: r.totalCents };
       }
@@ -337,6 +356,20 @@ const GraduationSigns: React.FC = () => {
         variant: 'destructive',
       });
       return;
+    }
+
+    // Yard signs follow the same business rules as the normal builder:
+    // multiples of YARD_SIGN_INCREMENT, between min and max.
+    if (designerProduct === 'yard_sign') {
+      const v = validateYardSignQuantity(yardSignSpecs.quantity);
+      if (!v.valid) {
+        toast({
+          title: 'Invalid yard sign quantity',
+          description: v.message || `Order in increments of ${YARD_SIGN_INCREMENT} (min ${YARD_SIGN_MIN_QUANTITY}, max ${YARD_SIGN_MAX_QUANTITY}).`,
+          variant: 'destructive',
+        });
+        return;
+      }
     }
 
     setSubmitting(true);
@@ -775,10 +808,11 @@ const GraduationSigns: React.FC = () => {
                         onChange={(v) => setBannerSpecs({ ...bannerSpecs, customSize: v })}
                       />
                     )}
-                    <SelectField
-                      label="Material"
+                    <BannerMaterialSelect
                       value={bannerSpecs.material}
-                      options={['13oz Vinyl', '15oz Vinyl', '18oz Vinyl', 'Mesh Fence']}
+                      open={bannerMaterialDropdownOpen}
+                      onToggle={() => setBannerMaterialDropdownOpen((o) => !o)}
+                      onClose={() => setBannerMaterialDropdownOpen(false)}
                       onChange={(v) => setBannerSpecs({ ...bannerSpecs, material: v })}
                     />
                     <NumberField
@@ -789,43 +823,73 @@ const GraduationSigns: React.FC = () => {
                     <SelectField
                       label="Grommets"
                       value={bannerSpecs.grommets}
-                      options={['none', '4-corners', 'top-corners', 'every-2ft', 'every-1-2ft']}
+                      options={DESIGN_GROMMET_OPTIONS.map((o) => ({ value: o.value, label: o.label }))}
                       onChange={(v) => setBannerSpecs({ ...bannerSpecs, grommets: v })}
                     />
                     <SelectField
                       label="Pole pockets"
                       value={bannerSpecs.polePockets}
-                      options={['none', 'top', 'bottom', 'top-and-bottom']}
+                      options={POLE_POCKET_OPTIONS}
                       onChange={(v) => setBannerSpecs({ ...bannerSpecs, polePockets: v })}
                     />
-                    <SelectField
-                      label="Rope"
-                      value={bannerSpecs.rope}
-                      options={['none', 'top', 'top-and-bottom']}
-                      onChange={(v) => setBannerSpecs({ ...bannerSpecs, rope: v })}
-                    />
+                    <label className="flex items-center gap-2 text-sm font-semibold text-[#0B1F3A] sm:col-span-2 mt-1 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={bannerSpecs.addRope}
+                        onChange={(e) => setBannerSpecs({ ...bannerSpecs, addRope: e.target.checked })}
+                        className="accent-[#FF6A00]"
+                      />
+                      Add rope (priced per linear foot)
+                    </label>
                   </div>
                 )}
 
                 {designerProduct === 'yard_sign' && (
-                  <div className="grid sm:grid-cols-2 gap-4 pt-2">
-                    <SelectField
-                      label="Sign type / size"
-                      value={yardSignSpecs.sizeType}
-                      options={['18" × 24" coroplast', 'Other (note in design notes)']}
-                      onChange={(v) => setYardSignSpecs({ ...yardSignSpecs, sizeType: v })}
-                    />
-                    <NumberField
-                      label="Quantity"
-                      value={yardSignSpecs.quantity}
-                      onChange={(v) => setYardSignSpecs({ ...yardSignSpecs, quantity: v })}
-                    />
-                    <SelectField
-                      label="Include H-stakes?"
-                      value={yardSignSpecs.addStakes}
-                      options={['yes', 'no']}
-                      onChange={(v) => setYardSignSpecs({ ...yardSignSpecs, addStakes: v })}
-                    />
+                  <div className="pt-2 space-y-4">
+                    <div className="rounded-xl border-2 border-[#FF6A00]/30 bg-white p-4">
+                      <p className="text-xs uppercase tracking-wide text-[#FF6A00] font-bold">Sign Size</p>
+                      <p className="text-lg font-bold text-[#0B1F3A] mt-1">24" × 18"</p>
+                      <p className="text-sm text-gray-600">Corrugated Plastic</p>
+                      <p className="text-xs text-gray-500 mt-2">
+                        One standard size for fast 24-hour production. Includes free next-day air shipping.
+                      </p>
+                    </div>
+                    <div className="grid sm:grid-cols-2 gap-4">
+                      <SelectField
+                        label="Print"
+                        value={yardSignSpecs.sidedness}
+                        options={[
+                          { value: 'single', label: 'Single-Sided ($12 / sign)' },
+                          { value: 'double', label: 'Double-Sided ($14 / sign)' },
+                        ]}
+                        onChange={(v) =>
+                          setYardSignSpecs({ ...yardSignSpecs, sidedness: v as YardSignSidedness })
+                        }
+                      />
+                      <NumberField
+                        label={`Quantity (multiples of ${YARD_SIGN_INCREMENT}, max ${YARD_SIGN_MAX_QUANTITY})`}
+                        value={yardSignSpecs.quantity}
+                        min={YARD_SIGN_MIN_QUANTITY}
+                        max={YARD_SIGN_MAX_QUANTITY}
+                        step={YARD_SIGN_INCREMENT}
+                        onChange={(v) => setYardSignSpecs({ ...yardSignSpecs, quantity: v })}
+                      />
+                      <label className="flex items-center gap-2 text-sm font-semibold text-[#0B1F3A] mt-1 cursor-pointer sm:col-span-2">
+                        <input
+                          type="checkbox"
+                          checked={yardSignSpecs.addStakes}
+                          onChange={(e) => setYardSignSpecs({ ...yardSignSpecs, addStakes: e.target.checked })}
+                          className="accent-[#FF6A00]"
+                        />
+                        Include H-stakes (+$1.50 each)
+                      </label>
+                    </div>
+                    {!validateYardSignQuantity(yardSignSpecs.quantity).valid && (
+                      <p className="text-xs text-red-600 font-medium">
+                        {validateYardSignQuantity(yardSignSpecs.quantity).message ||
+                          `Quantity must be a multiple of ${YARD_SIGN_INCREMENT} between ${YARD_SIGN_MIN_QUANTITY} and ${YARD_SIGN_MAX_QUANTITY}.`}
+                      </p>
+                    )}
                   </div>
                 )}
 
@@ -834,7 +898,7 @@ const GraduationSigns: React.FC = () => {
                     <SelectField
                       label="Size"
                       value={carMagnetSpecs.size}
-                      options={CAR_MAGNET_SIZE_PRESETS}
+                      options={CAR_MAGNET_SIZES.map((s) => ({ value: s.label, label: s.label }))}
                       onChange={(v) => setCarMagnetSpecs({ ...carMagnetSpecs, size: v })}
                     />
                     <NumberField
@@ -843,11 +907,17 @@ const GraduationSigns: React.FC = () => {
                       onChange={(v) => setCarMagnetSpecs({ ...carMagnetSpecs, quantity: v })}
                     />
                     <SelectField
-                      label="Rounded corners"
+                      label="Rounded Corners (Included Free)"
                       value={carMagnetSpecs.roundedCorners}
-                      options={['none', 'standard', 'large']}
-                      onChange={(v) => setCarMagnetSpecs({ ...carMagnetSpecs, roundedCorners: v })}
+                      options={CAR_MAGNET_ROUNDED_CORNERS.map((o) => ({ value: o.value, label: o.label }))}
+                      onChange={(v) =>
+                        setCarMagnetSpecs({ ...carMagnetSpecs, roundedCorners: v as CarMagnetRoundedCorner })
+                      }
                     />
+                    <div className="rounded-xl border border-[#E5E5E5] bg-[#F7F7F7] p-3 text-sm sm:col-span-2">
+                      <p className="font-semibold text-[#0B1F3A]">Material</p>
+                      <p className="text-gray-600">Premium Magnetic Material</p>
+                    </div>
                   </div>
                 )}
               </fieldset>
@@ -1080,40 +1150,130 @@ const Field: React.FC<{
   </label>
 );
 
-const NumberField: React.FC<{ label: string; value: number; onChange: (v: number) => void }> = ({
-  label,
-  value,
-  onChange,
-}) => (
+const NumberField: React.FC<{
+  label: string;
+  value: number;
+  onChange: (v: number) => void;
+  min?: number;
+  max?: number;
+  step?: number;
+}> = ({ label, value, onChange, min = 1, max, step = 1 }) => (
   <label className="block">
     <span className="block text-sm font-semibold text-[#0B1F3A] mb-1">{label}</span>
     <input
       type="number"
-      min={1}
+      min={min}
+      max={max}
+      step={step}
       value={value}
-      onChange={(e) => onChange(Math.max(1, parseInt(e.target.value || '1', 10)))}
+      onChange={(e) => onChange(Math.max(min, parseInt(e.target.value || String(min), 10) || min))}
       className={baseInput}
     />
   </label>
 );
 
+type SelectOption = string | { value: string; label: string };
+
 const SelectField: React.FC<{
   label: string;
   value: string;
-  options: string[];
+  options: SelectOption[];
   onChange: (v: string) => void;
 }> = ({ label, value, options, onChange }) => (
   <label className="block">
     <span className="block text-sm font-semibold text-[#0B1F3A] mb-1">{label}</span>
     <select value={value} onChange={(e) => onChange(e.target.value)} className={baseInput}>
-      {options.map((opt) => (
-        <option key={opt} value={opt}>
-          {opt}
-        </option>
-      ))}
+      {options.map((opt) => {
+        const o = typeof opt === 'string' ? { value: opt, label: opt } : opt;
+        return (
+          <option key={o.value} value={o.value}>
+            {o.label}
+          </option>
+        );
+      })}
     </select>
   </label>
 );
+
+/**
+ * Banner material selector that mirrors the image-thumbnail dropdown used by
+ * the normal banner builder (`src/pages/Design.tsx`). Backed by the shared
+ * `BANNER_MATERIALS` source of truth.
+ */
+const BannerMaterialSelect: React.FC<{
+  value: MaterialKey;
+  open: boolean;
+  onToggle: () => void;
+  onClose: () => void;
+  onChange: (v: MaterialKey) => void;
+}> = ({ value, open, onToggle, onClose, onChange }) => {
+  const selected = getBannerMaterialByKey(value);
+  return (
+    <div className="block">
+      <span className="block text-sm font-semibold text-[#0B1F3A] mb-1">Material</span>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={onToggle}
+          className="w-full flex items-center gap-3 rounded-lg border border-[#E5E5E5] bg-white px-3 py-2 text-left hover:border-[#FF6A00] focus:border-[#FF6A00] focus:ring-1 focus:ring-[#FF6A00] outline-none"
+        >
+          <img
+            src={selected.image}
+            alt={selected.label}
+            className="w-9 h-9 rounded object-cover flex-shrink-0 bg-gray-100"
+            onError={(e) => {
+              (e.target as HTMLImageElement).style.display = 'none';
+            }}
+          />
+          <span className="font-medium text-[#0B1F3A]">{selected.label}</span>
+          <svg
+            className={`ml-auto w-4 h-4 text-gray-400 transition-transform ${open ? 'rotate-180' : ''}`}
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+        {open && (
+          <div className="absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden max-h-72 overflow-y-auto">
+            {BANNER_MATERIALS.map((m) => (
+              <button
+                key={m.key}
+                type="button"
+                onClick={() => {
+                  onChange(m.mapped);
+                  onClose();
+                }}
+                className={`w-full flex items-center gap-3 px-3 py-3 text-left transition-colors cursor-pointer ${
+                  m.mapped === value
+                    ? 'bg-[#FF6A00]/5 border-l-2 border-[#FF6A00]'
+                    : 'hover:bg-gray-50 border-l-2 border-transparent'
+                }`}
+              >
+                <img
+                  src={m.image}
+                  alt={m.label}
+                  className="w-10 h-10 rounded object-cover flex-shrink-0 bg-gray-100"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).style.display = 'none';
+                  }}
+                />
+                <div className="min-w-0">
+                  <div className={`text-sm font-medium ${m.mapped === value ? 'text-[#FF6A00]' : 'text-[#0B1F3A]'}`}>
+                    {m.label}
+                  </div>
+                  <div className="text-xs text-gray-500 truncate">{m.desc}</div>
+                </div>
+                {m.mapped === value && <CheckCircle className="ml-auto w-4 h-4 text-[#FF6A00] flex-shrink-0" />}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const TextAreaField: React.FC<{
   label: string;
