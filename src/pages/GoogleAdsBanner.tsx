@@ -104,6 +104,25 @@ function getPdfThumbnailUrl(pdfUrl: string): string {
   if (!pdfUrl || !pdfUrl.includes('cloudinary.com') || !pdfUrl.toLowerCase().endsWith('.pdf')) return pdfUrl;
   return pdfUrl.replace('/upload/', '/upload/pg_1,f_jpg,w_800/');
 }
+
+// Build a downscaled, format/quality-optimized Cloudinary URL for the live
+// preview surface. The original full-resolution Cloudinary URL is preserved on
+// the cart/order item for print/admin export — only the on-screen preview uses
+// this transformed variant. This avoids decoding 10–50MB images in the browser
+// (which causes Chrome to hang and Safari to lay out the page incorrectly).
+function getImagePreviewUrl(imageUrl: string): string {
+  if (!imageUrl) return imageUrl;
+  let host = '';
+  try {
+    host = new URL(imageUrl).hostname.toLowerCase();
+  } catch {
+    return imageUrl;
+  }
+  if (host !== 'res.cloudinary.com' && !host.endsWith('.res.cloudinary.com')) return imageUrl;
+  if (!imageUrl.includes('/upload/')) return imageUrl;
+  if (/\/upload\/[a-z]_[^/]+\//.test(imageUrl)) return imageUrl;
+  return imageUrl.replace('/upload/', '/upload/f_auto,q_auto:good,w_1600,c_limit/');
+}
 const GoogleAdsBanner: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -515,6 +534,8 @@ const GoogleAdsBanner: React.FC = () => {
     if (file.type === 'application/pdf' || file.size <= 4.5 * 1024 * 1024) return file;
     return new Promise((resolve) => {
       const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      const cleanup = () => URL.revokeObjectURL(objectUrl);
       img.onload = () => {
         const canvas = document.createElement('canvas');
         // Cap at 4000px on longest side to keep file size reasonable
@@ -528,17 +549,18 @@ const GoogleAdsBanner: React.FC = () => {
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext('2d');
-        if (!ctx) { resolve(file); return; }
+        if (!ctx) { cleanup(); resolve(file); return; }
         ctx.drawImage(img, 0, 0, width, height);
         canvas.toBlob((blob) => {
+          cleanup();
           if (!blob || blob.size >= file.size) { resolve(file); return; }
           const compressed = new File([blob], file.name.replace(/.png$/i, '.jpg'), { type: 'image/jpeg' });
           console.log('Compressed:', file.size, '->', compressed.size);
           resolve(compressed);
         }, 'image/jpeg', 0.85);
       };
-      img.onerror = () => resolve(file);
-      img.src = URL.createObjectURL(file);
+      img.onerror = () => { cleanup(); resolve(file); };
+      img.src = objectUrl;
     });
   }, []);
 
@@ -562,7 +584,7 @@ const GoogleAdsBanner: React.FC = () => {
       const res = await fetch('/.netlify/functions/upload-file', { method: 'POST', body: formData });
       if (!res.ok) throw new Error('Upload failed');
       const data = await res.json();
-      setUploadedFile({ name: file.name, url: data.secureUrl, fileKey: data.fileKey || data.publicId, size: file.size, isPdf: file.type === 'application/pdf', thumbnailUrl: file.type === 'application/pdf' ? getPdfThumbnailUrl(data.secureUrl) : data.secureUrl });
+      setUploadedFile({ name: file.name, url: data.secureUrl, fileKey: data.fileKey || data.publicId, size: file.size, isPdf: file.type === 'application/pdf', thumbnailUrl: file.type === 'application/pdf' ? getPdfThumbnailUrl(data.secureUrl) : getImagePreviewUrl(data.secureUrl) });
       setImgPos({ x: 0, y: 0 });
       setImgScale(1);
     } catch {
