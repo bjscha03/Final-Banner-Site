@@ -173,6 +173,26 @@ function getPdfThumbnailUrl(pdfUrl: string): string {
   return pdfUrl.replace('/upload/', '/upload/pg_1,f_jpg,w_800/');
 }
 
+// Build a downscaled, format/quality-optimized Cloudinary URL for the live
+// preview surface. The original full-resolution Cloudinary URL is preserved on
+// the cart/order item for print/admin export — only the on-screen preview uses
+// this transformed variant. This avoids decoding 10–50MB images in the browser
+// (which causes Chrome to hang and Safari to lay out the page incorrectly).
+function getImagePreviewUrl(imageUrl: string): string {
+  if (!imageUrl) return imageUrl;
+  let host = '';
+  try {
+    host = new URL(imageUrl).hostname.toLowerCase();
+  } catch {
+    return imageUrl;
+  }
+  if (host !== 'res.cloudinary.com' && !host.endsWith('.res.cloudinary.com')) return imageUrl;
+  if (!imageUrl.includes('/upload/')) return imageUrl;
+  // Skip if a transformation already exists right after /upload/.
+  if (/\/upload\/[a-z]_[^/]+\//.test(imageUrl)) return imageUrl;
+  return imageUrl.replace('/upload/', '/upload/f_auto,q_auto:good,w_1600,c_limit/');
+}
+
 const Design: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -457,6 +477,26 @@ const Design: React.FC = () => {
 
   const previewCanvasStyle = useMemo(() => getCanvasStyle(isLgScreen ? 400 : 260), [getCanvasStyle, isLgScreen]);
   const dimPreviewCanvasStyle = useMemo(() => getCanvasStyle(isLgScreen ? 200 : 140), [getCanvasStyle, isLgScreen]);
+
+  // Cross-browser preview container styles using padding-bottom technique.
+  // The CSS `aspect-ratio` property collapses to 0 height on mobile Safari /
+  // Firefox when combined with absolutely-positioned children + overflow:hidden,
+  // which causes the live preview image to render at its natural pixel size and
+  // overflow the page after upload. Using a width wrapper with a padding-bottom
+  // child reliably reserves vertical space across all browsers.
+  const getPreviewContainerStyles = useCallback((maxH: number) => {
+    const w = widthIn || 96;
+    const h = heightIn || 48;
+    const ar = w / h;
+    return {
+      wrapperStyle: { width: '100%', maxWidth: `${Math.round(maxH * ar)}px` } as React.CSSProperties,
+      paddingPct: `${(h / w) * 100}%`,
+    };
+  }, [widthIn, heightIn]);
+  const { wrapperStyle: previewWrapperStyle, paddingPct: previewPaddingPct } = useMemo(
+    () => getPreviewContainerStyles(isLgScreen ? 400 : 260),
+    [getPreviewContainerStyles, isLgScreen]
+  );
   const bannerPricing = calculateBannerPricing({
     widthIn,
     heightIn,
@@ -558,6 +598,8 @@ const Design: React.FC = () => {
     if (file.type === 'application/pdf' || file.size <= 4.5 * 1024 * 1024) return file;
     return new Promise((resolve) => {
       const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      const cleanup = () => URL.revokeObjectURL(objectUrl);
       img.onload = () => {
         const canvas = document.createElement('canvas');
         const maxDim = 4000;
@@ -570,16 +612,17 @@ const Design: React.FC = () => {
         canvas.width = width;
         canvas.height = height;
         const ctx = canvas.getContext('2d');
-        if (!ctx) { resolve(file); return; }
+        if (!ctx) { cleanup(); resolve(file); return; }
         ctx.drawImage(img, 0, 0, width, height);
         canvas.toBlob((blob) => {
+          cleanup();
           if (!blob || blob.size >= file.size) { resolve(file); return; }
           const compressed = new File([blob], file.name.replace(/.png$/i, '.jpg'), { type: 'image/jpeg' });
           resolve(compressed);
         }, 'image/jpeg', 0.85);
       };
-      img.onerror = () => resolve(file);
-      img.src = URL.createObjectURL(file);
+      img.onerror = () => { cleanup(); resolve(file); };
+      img.src = objectUrl;
     });
   }, []);
 
@@ -603,7 +646,7 @@ const Design: React.FC = () => {
       const res = await fetch('/.netlify/functions/upload-file', { method: 'POST', body: formData });
       if (!res.ok) throw new Error('Upload failed');
       const data = await res.json();
-      setUploadedFile({ name: file.name, url: data.secureUrl, fileKey: data.fileKey || data.publicId, size: file.size, isPdf: file.type === 'application/pdf', thumbnailUrl: file.type === 'application/pdf' ? getPdfThumbnailUrl(data.secureUrl) : data.secureUrl });
+      setUploadedFile({ name: file.name, url: data.secureUrl, fileKey: data.fileKey || data.publicId, size: file.size, isPdf: file.type === 'application/pdf', thumbnailUrl: file.type === 'application/pdf' ? getPdfThumbnailUrl(data.secureUrl) : getImagePreviewUrl(data.secureUrl) });
     } catch {
       setUploadError('Upload failed. Please try again.');
     } finally {
@@ -1532,11 +1575,12 @@ const Design: React.FC = () => {
                       <p className="text-xs text-gray-400">Final print preview — what you see is what you get</p>
                     </div>
                     <div className="rounded-xl p-4 md:p-6" style={{ background: 'linear-gradient(180deg, #f5f6f8 0%, #e9edf2 100%)' }}>
+                      <div className="mx-auto" style={previewWrapperStyle}>
                       <div
                         ref={previewContainerRef}
-                        className="relative mx-auto rounded-sm select-none overflow-hidden transition-all duration-300 ease-out"
+                        className="relative w-full rounded-sm select-none overflow-hidden transition-all duration-300 ease-out"
                         style={{
-                          ...previewCanvasStyle,
+                          paddingBottom: previewPaddingPct,
                           cursor: isDraggingPreview ? "grabbing" : "grab",
                           touchAction: "none",
                           backgroundColor: '#fafafa',
@@ -1580,6 +1624,7 @@ const Design: React.FC = () => {
                           );
                         })}
                       </div>
+                      </div>{/* close width wrapper */}
                       <div className="flex items-center justify-center mt-3">
                         <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm rounded-full px-3 py-1.5 shadow-sm border border-gray-200/60">
                           <button onClick={() => setImgScale(s => Math.max(0.5, s - 0.1))} className="p-1.5 rounded-full hover:bg-gray-100 transition-colors" aria-label="Zoom out"><ZoomOut className="w-4 h-4 text-gray-600" /></button>
