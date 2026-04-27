@@ -146,8 +146,8 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   const bannerOffsetY = RULER_HEIGHT + BLEED_SIZE;
 
   return (
-    <div className={`${className} w-full`}>
-      <div className="relative bg-gray-50 p-8 rounded-lg overflow-hidden" style={{height: "500px", width: "100%", display: "flex", alignItems: "center", justifyContent: "center"}}>
+    <div className={`${className} w-full`} style={{ maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+      <div className="relative bg-gray-50 p-8 rounded-lg overflow-hidden" style={{height: "500px", width: "100%", maxWidth: "100%", boxSizing: "border-box", minWidth: 0, display: "flex", alignItems: "center", justifyContent: "center"}}>
         {/* Loading Spinner Overlay */}
         {isUploading && (
           <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 rounded-lg">
@@ -161,10 +161,12 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           className="border-2 border-gray-400 rounded-xl bg-white shadow-sm"
           onClick={onCanvasClick}
           style={{
+            width: "100%",
+            height: "auto",
             maxWidth: "100%",
             maxHeight: "100%",
-            width: "auto",
-            height: "auto"
+            display: "block",
+            minWidth: 0,
           }}
         >
         {/* PROFESSIONAL PRINT GUIDELINES - ALWAYS VISIBLE */}

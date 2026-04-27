@@ -1606,7 +1606,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         tabIndex={-1}
       />
       
-      <div className="bg-white border border-gray-200/60 rounded-lg overflow-hidden shadow-sm" style={{ touchAction: 'pan-y' }}>
+      <div className="bg-white border border-gray-200/60 rounded-lg overflow-hidden shadow-sm" style={{ touchAction: 'pan-y', maxWidth: '100%', width: '100%', boxSizing: 'border-box' }}>
       {/* Header - responsive design */}
       <div className="px-4 sm:px-6 py-4 sm:py-5 border-b border-gray-100">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -1812,21 +1812,20 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
           </div>
         ) : (
           /* Preview Canvas */
-          <div className="mx-4 sm:mx-6 mb-4 sm:mb-6 bg-gray-100 border-2 border-gray-300 rounded-lg overflow-hidden relative min-h-[500px] sm:min-h-[600px] h-auto touch-pan-x touch-pan-y touch-pinch-zoom">
-            <div className="flex items-center justify-center h-full p-2">
+          <div className="mx-4 sm:mx-6 mb-4 sm:mb-6 bg-gray-100 border-2 border-gray-300 rounded-lg overflow-hidden relative min-h-[500px] sm:min-h-[600px] touch-pan-x touch-pan-y touch-pinch-zoom" style={{ maxWidth: '100%', boxSizing: 'border-box', WebkitTransform: 'translateZ(0)', transform: 'translateZ(0)' }}>
+            <div style={{ overflow: 'hidden', width: '100%', maxWidth: '100%', boxSizing: 'border-box', padding: '0.5rem' }}>
               <div
                 style={{
                   transform: `scale(${previewScalePct / 100})`,
-                  transformOrigin: 'center center',
-                  width: '90%',
-                  height: '90%',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center'
+                  transformOrigin: 'top center',
+                  width: '100%',
+                  maxWidth: '100%',
+                  overflow: 'hidden',
+                  boxSizing: 'border-box',
                 }}
               >
                 <div 
-                  style={{ position: 'relative', width: '100%', height: '100%' }}
+                  style={{ position: 'relative', width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}
                   onClick={(e) => {
                     // Deselect text and image when clicking on the container background
                     if (e.target === e.currentTarget) {
