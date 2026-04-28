@@ -497,6 +497,10 @@ const Design: React.FC = () => {
     () => getPreviewContainerStyles(isLgScreen ? 400 : 260),
     [getPreviewContainerStyles, isLgScreen]
   );
+  const { wrapperStyle: dimPreviewWrapperStyle, paddingPct: dimPreviewPaddingPct } = useMemo(
+    () => getPreviewContainerStyles(isLgScreen ? 200 : 140),
+    [getPreviewContainerStyles, isLgScreen]
+  );
   const bannerPricing = calculateBannerPricing({
     widthIn,
     heightIn,
@@ -1485,9 +1489,10 @@ const Design: React.FC = () => {
                 {/* Dimension preview canvas */}
                 <label className="block text-sm font-semibold text-gray-700 mb-2 mt-4">Banner Size Preview</label>
                 <div className="flex justify-center mb-6">
+                  <div style={dimPreviewWrapperStyle}>
                   <div
-                    className="bg-gray-100/70 border border-gray-200 rounded-lg relative transition-all duration-300 ease-out"
-                    style={dimPreviewCanvasStyle}
+                    className="bg-gray-100/70 border border-gray-200 rounded-lg relative w-full transition-all duration-300 ease-out overflow-hidden"
+                    style={{ paddingBottom: dimPreviewPaddingPct, WebkitTransform: 'translateZ(0)', transform: 'translateZ(0)' }}
                   >
                     <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
                       <Ruler className="h-4 w-4 text-gray-300" />
@@ -1496,6 +1501,7 @@ const Design: React.FC = () => {
                       </span>
                       <span className="text-[10px] text-gray-400">Preview of selected size</span>
                     </div>
+                  </div>
                   </div>
                 </div>
               </div>
@@ -1586,6 +1592,8 @@ const Design: React.FC = () => {
                           backgroundColor: '#fafafa',
                           border: '1px solid #e2e5ea',
                           boxShadow: '0 4px 16px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06), inset 0 0 0 1px rgba(255,255,255,0.6)',
+                          WebkitTransform: 'translateZ(0)',
+                          transform: 'translateZ(0)',
                         }}
                         onMouseDown={onPreviewMouseDown}
                         onMouseMove={onPreviewMouseMove}
@@ -1938,15 +1946,18 @@ const Design: React.FC = () => {
             <div className="p-4 flex-1 overflow-auto">
               <p className="text-sm text-gray-500 mb-3 flex items-center gap-1"><Move className="w-4 h-4" /> Drag to reposition · Pinch or use buttons to zoom</p>
               <div className="rounded-lg p-4" style={{ background: 'linear-gradient(180deg, #f5f6f8 0%, #e9edf2 100%)' }}>
+                <div className="mx-auto" style={previewWrapperStyle}>
                 <div
                   className="relative w-full rounded-sm select-none overflow-hidden transition-all duration-300 ease-out"
                   style={{
-                    aspectRatio: `${widthIn || 96} / ${heightIn || 48}`,
+                    paddingBottom: previewPaddingPct,
                     cursor: isDraggingPreview ? "grabbing" : "grab",
                     touchAction: "none",
                     backgroundColor: '#fafafa',
                     border: '1px solid #e2e5ea',
                     boxShadow: '0 4px 16px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06), inset 0 0 0 1px rgba(255,255,255,0.6)',
+                    WebkitTransform: 'translateZ(0)',
+                    transform: 'translateZ(0)',
                   }}
                   onMouseDown={onPreviewMouseDown}
                   onMouseMove={onPreviewMouseMove}
@@ -1995,6 +2006,7 @@ const Design: React.FC = () => {
                       </div>
                     );
                   })}
+                </div>
                 </div>
               </div>
               <p className="text-xs text-gray-400 text-center mt-2">

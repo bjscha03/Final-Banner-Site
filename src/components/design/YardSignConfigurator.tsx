@@ -739,16 +739,20 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
                 <Move className="w-4 h-4" /> Drag to reposition · Use buttons or scroll to zoom
               </p>
               <div className="rounded-lg p-4" style={{ background: 'linear-gradient(180deg, #f5f6f8 0%, #e9edf2 100%)' }}>
+                {/* Width wrapper — constrains max-width so padding-bottom produces correct height (cross-browser safe, fixes Safari aspect-ratio bug) */}
+                <div className="mx-auto" style={{ width: '100%', maxWidth: `${Math.round(400 * (24 / 18))}px` }}>
                 <div
                   ref={previewCanvasRef}
                   className="relative w-full rounded-sm select-none overflow-hidden transition-all duration-300 ease-out"
                   style={{
-                    aspectRatio: '24 / 18',
+                    paddingBottom: `${(18 / 24) * 100}%`,
                     cursor: isDraggingPreview ? 'grabbing' : 'grab',
                     touchAction: 'none',
                     backgroundColor: '#fafafa',
                     border: '1px solid #e2e5ea',
                     boxShadow: '0 4px 16px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06), inset 0 0 0 1px rgba(255,255,255,0.6)',
+                    WebkitTransform: 'translateZ(0)',
+                    transform: 'translateZ(0)',
                   }}
                   onMouseDown={onPreviewMouseDown}
                   onMouseMove={onPreviewMouseMove}
@@ -778,6 +782,7 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
                   </div>
                   {/* Safe zone border indicator */}
                   <div className="absolute inset-1 border border-dashed border-gray-300/50 rounded-sm pointer-events-none" />
+                </div>
                 </div>
               </div>
               <p className="text-xs text-gray-400 text-center mt-2 truncate max-w-full px-4">

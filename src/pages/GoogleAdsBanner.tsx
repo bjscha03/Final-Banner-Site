@@ -1567,6 +1567,8 @@ const GoogleAdsBanner: React.FC = () => {
                             backgroundColor: '#fafafa',
                             border: '1px solid #e2e5ea',
                             boxShadow: '0 4px 16px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06), inset 0 0 0 1px rgba(255,255,255,0.6)',
+                            WebkitTransform: 'translateZ(0)',
+                            transform: 'translateZ(0)',
                           }}
                           onMouseDown={onPreviewMouseDown}
                           onMouseMove={onPreviewMouseMove}
@@ -1983,6 +1985,8 @@ const GoogleAdsBanner: React.FC = () => {
                     backgroundColor: '#fafafa',
                     border: '1px solid #e2e5ea',
                     boxShadow: '0 4px 16px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06), inset 0 0 0 1px rgba(255,255,255,0.6)',
+                    WebkitTransform: 'translateZ(0)',
+                    transform: 'translateZ(0)',
                   }}
                   onMouseDown={onPreviewMouseDown}
                   onMouseMove={onPreviewMouseMove}
