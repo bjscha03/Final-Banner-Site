@@ -8,6 +8,7 @@
   html, body {
     max-width: 100%;
     overflow-x: hidden;
+    height: 100%;
     -webkit-text-size-adjust: 100%;
     -ms-text-size-adjust: 100%;
   }
@@ -32,6 +33,7 @@
   /* Fix iOS Safari viewport height issues */
   .min-h-screen-mobile {
     min-height: 100vh;
+    min-height: 100svh;
     min-height: -webkit-fill-available;
   }
 
@@ -191,6 +193,22 @@
   #root {
     max-width: 100%;
     overflow-x: hidden;
+  }
+
+  /* Prevent main layout containers from expanding beyond viewport */
+  .container,
+  .preview-wrapper,
+  .design-container {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  /* Prevent flex/grid children from expanding beyond parent bounds (Safari) */
+  .preview-frame {
+    width: 100%;
+    max-width: 100%;
+    overflow: hidden;
+    position: relative;
   }
 
   * {
@@ -635,4 +653,27 @@ embed[type="application/pdf"] .pdfViewer .toolbar {
 @keyframes fadeOut {
   from { opacity: 1; }
   to { opacity: 0; }
+}
+
+/* Safari-specific overflow containment for preview area */
+@supports (-webkit-touch-callout: none) {
+  .preview-wrapper {
+    overflow: hidden;
+    max-width: 100%;
+  }
+
+  /* Prevent flex children from overflowing in Safari */
+  .space-y-8,
+  .space-y-6 {
+    min-width: 0;
+  }
+
+  /* Uploaded preview images must not expand parent containers */
+  .preview-wrapper img,
+  .preview-frame img {
+    max-width: 100%;
+    height: auto;
+    object-fit: contain;
+    display: block;
+  }
 }

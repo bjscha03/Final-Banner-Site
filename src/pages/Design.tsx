@@ -651,6 +651,10 @@ const Design: React.FC = () => {
       if (!res.ok) throw new Error('Upload failed');
       const data = await res.json();
       setUploadedFile({ name: file.name, url: data.secureUrl, fileKey: data.fileKey || data.publicId, size: file.size, isPdf: file.type === 'application/pdf', thumbnailUrl: file.type === 'application/pdf' ? getPdfThumbnailUrl(data.secureUrl) : getImagePreviewUrl(data.secureUrl) });
+      // Force Safari to recalculate layout after the new image is rendered into the preview container
+      requestAnimationFrame(() => {
+        window.dispatchEvent(new Event('resize'));
+      });
     } catch {
       setUploadError('Upload failed. Please try again.');
     } finally {
@@ -1445,7 +1449,7 @@ const Design: React.FC = () => {
           ) : (
           /* ========== BANNER ORDER BUILDER (existing) ========== */
           <div className="grid md:grid-cols-2 lg:grid-cols-[1.4fr_1fr] gap-10">
-            <div className="space-y-8">
+            <div className="space-y-8 min-w-0">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Popular Sizes</label>
                 <div className="grid grid-cols-3 gap-2">
