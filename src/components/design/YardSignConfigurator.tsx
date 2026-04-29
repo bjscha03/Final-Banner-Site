@@ -19,7 +19,7 @@
  *   original high-res source, never from the generated thumbnail.
  */
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { X, Plus, Minus, Loader2, AlertTriangle, CheckCircle, ZoomIn, ZoomOut, Move, Eye } from 'lucide-react';
+import { X, Plus, Minus, Loader2, AlertTriangle, CheckCircle, ZoomIn, ZoomOut, Move, Eye, Sparkles } from 'lucide-react';
 import {
   type YardSignSidedness,
   type YardSignDesign,
@@ -30,12 +30,16 @@ import {
   YARD_SIGN_SINGLE_SIDED_CENTS,
   YARD_SIGN_DOUBLE_SIDED_CENTS,
   YARD_SIGN_STEP_STAKE_CENTS,
+  YARD_SIGN_WIDTH_IN,
+  YARD_SIGN_HEIGHT_IN,
   getTotalDesignQuantity,
   validateYardSignQuantity,
 } from '@/lib/yard-sign-pricing';
 import { usd } from '@/lib/pricing';
 import { uploadCanvasImageToCloudinary } from '@/utils/uploadCanvasImage';
 import FileUploader from '@/components/ui/FileUploader';
+import CreateWithAIModal, { type CreateWithAIResult } from '@/components/design/CreateWithAIModal';
+import { base64ToFile } from '@/utils/base64ToFile';
 
 // Helper to generate PDF thumbnail URL from Cloudinary
 function getPdfThumbnailUrl(pdfUrl: string): string {
@@ -123,6 +127,7 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
   const [isUploading, setIsUploading] = useState(false);
   const [isSavingPreview, setIsSavingPreview] = useState(false);
   const [uploadError, setUploadError] = useState('');
+  const [aiModalOpen, setAiModalOpen] = useState(false);
 
   const totalQuantity = getTotalDesignQuantity(designs);
   const quantityValidation = validateYardSignQuantity(totalQuantity);
@@ -616,14 +621,27 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
 
         {/* Upload dropzone */}
         {canAddMoreDesigns && (
-          <FileUploader
-            onUpload={handleFileUpload}
-            acceptedTypes="image/png,image/jpeg,.pdf"
-            maxSize={50 * 1024 * 1024}
-            label={designs.length === 0 ? 'Upload your artwork' : 'Add another design'}
-            subText="PNG, JPG, or PDF • Max 50MB"
-            isUploading={isUploading}
-          />
+          <>
+            <FileUploader
+              onUpload={handleFileUpload}
+              acceptedTypes="image/png,image/jpeg,.pdf"
+              maxSize={50 * 1024 * 1024}
+              label={designs.length === 0 ? 'Upload your artwork' : 'Add another design'}
+              subText="PNG, JPG, or PDF • Max 50MB"
+              isUploading={isUploading}
+            />
+            <div className="mt-3 flex justify-center">
+              <button
+                type="button"
+                onClick={() => setAiModalOpen(true)}
+                disabled={isUploading}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-500 text-white text-sm font-semibold shadow-sm hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                <Sparkles className="w-4 h-4" />
+                Create with AI
+              </button>
+            </div>
+          </>
         )}
 
         {uploadError && (
@@ -813,6 +831,20 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
           </div>
         </div>
       )}
+
+      <CreateWithAIModal
+        open={aiModalOpen}
+        onOpenChange={setAiModalOpen}
+        productType="yard_sign"
+        widthIn={YARD_SIGN_WIDTH_IN}
+        heightIn={YARD_SIGN_HEIGHT_IN}
+        material="corrugated_plastic"
+        materialLabel="Corrugated Plastic"
+        onGenerated={async (result: CreateWithAIResult) => {
+          const file = base64ToFile(result.imageBase64, result.fileName, result.mimeType);
+          await handleFileUpload(file);
+        }}
+      />
     </div>
   );
 };
