@@ -918,7 +918,7 @@ async function createVectorPdfFromEditorObjects(editorObjects, backgroundColor, 
             const color = obj.color || '#000000';
 
             doc.save();
-            if (rotation) doc.rotate(rotation, { origin: [xPt, yPt] });
+            if (rotation) doc.rotate(rotation, { origin: [xPt + wPt / 2, yPt + hPt / 2] });
             doc.opacity(obj.opacity !== undefined ? obj.opacity : 1);
             doc.font(pdfFont)
                .fontSize(fontSizePt)
@@ -1103,7 +1103,7 @@ exports.handler = async (event) => {
         console.log('[VECTOR_PDF] ===== TOP PRIORITY: VECTOR PDF FROM BANNER EDITOR =====');
         console.log('[VECTOR_PDF] Editor state v' + editorState.version + ', objects: ' + (editorState.objects ? editorState.objects.length : 0));
         console.log('[VECTOR_PDF] Order size: ' + req.bannerWidthIn + ' × ' + req.bannerHeightIn + ' in');
-        console.log('[VECTOR_PDF] PDF page: ' + (req.bannerWidthIn * 72) + ' × ' + (req.bannerHeightIn * 72) + ' pt');
+        console.log('[VECTOR_PDF] PDF page: ' + ((req.bannerWidthIn + 2 * bleedIn) * 72) + ' × ' + ((req.bannerHeightIn + 2 * bleedIn) * 72) + ' pt');
 
         try {
           const pdfBuffer = await createVectorPdfFromEditorObjects(

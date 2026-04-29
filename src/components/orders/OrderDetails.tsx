@@ -527,10 +527,9 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
         throw new Error("No print file data in response");
       }
 
-      const isVectorResult = result.format === 'pdf' && result.source === 'vector_from_editor_objects';
       toast({
         title: "Print File Downloaded",
-        description: isVectorResult
+        description: (result.format === 'pdf' && result.source === 'vector_from_editor_objects')
           ? `Print-ready vector PDF (${result.dimensions?.widthIn}″×${result.dimensions?.heightIn}″) ready for production.`
           : `Print-ready JPEG (${dpi} DPI with ${bleed}" bleed) ready for production.`,
       });
