@@ -5,6 +5,21 @@ import { useQuoteStore } from '@/store/quote';
 import { formatArea, formatDimensions, inchesToSqFt } from '@/lib/pricing';
 import { Input } from '@/components/ui/input';
 import { SizeStepper } from '@/components/ui/SizeStepper';
+import {
+  type DimensionUnit,
+  inchesToFeet,
+  feetToInches,
+  formatDimensionInUnit,
+} from '@/lib/dimensions/units';
+
+// Existing pricing/print pipeline expects values in inches with a min/max
+// of 1–1000. The toggle simply lets users enter a feet equivalent.
+const MIN_IN = 1;
+const MAX_IN = 1000;
+// In feet mode we use whole-foot increments; clamp to a sensible range
+// inside the inch limits.
+const MIN_FT = 1;          // 1 ft = 12 in (well above the 1 in inch minimum)
+const MAX_FT = 83;         // 83 ft = 996 in (below 1000 in inch maximum)
 
 const SizeQuantityCard: React.FC = () => {
   console.log('[SizeQuantityCard] Component rendered');
@@ -13,6 +28,7 @@ const SizeQuantityCard: React.FC = () => {
   const [heightInput, setHeightInput] = useState(heightIn.toString());
   const [widthError, setWidthError] = useState('');
   const [heightError, setHeightError] = useState('');
+  const [unit, setUnit] = useState<DimensionUnit>('in');
 
   const quickQuantities = [1, 2, 5, 10];
   const quickSizes = [
@@ -137,23 +153,82 @@ const SizeQuantityCard: React.FC = () => {
             ))}
           </div>
 
+          {/* Unit toggle (Feet / Inches). Internal storage is always in
+              inches — pricing, cart, and print pipelines never see feet. */}
+          <div className="flex items-center justify-between mb-3">
+            <span className="text-xs font-semibold text-gray-700">Custom size unit</span>
+            <div
+              role="group"
+              aria-label="Dimension unit"
+              className="inline-flex rounded-lg border border-slate-300 bg-white p-0.5"
+            >
+              <button
+                type="button"
+                onClick={() => setUnit('in')}
+                aria-pressed={unit === 'in'}
+                className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
+                  unit === 'in'
+                    ? 'bg-orange-500 text-white shadow-sm'
+                    : 'text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                Inches
+              </button>
+              <button
+                type="button"
+                onClick={() => setUnit('ft')}
+                aria-pressed={unit === 'ft'}
+                className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
+                  unit === 'ft'
+                    ? 'bg-orange-500 text-white shadow-sm'
+                    : 'text-slate-700 hover:bg-slate-50'
+                }`}
+              >
+                Feet
+              </button>
+            </div>
+          </div>
+
           {/* Custom Size Inputs with Mobile-Optimized Steppers */}
           <div className="space-y-3">
             <SizeStepper
-              label="Width (in)"
-              value={widthIn}
-              onChange={(value) => set({ widthIn: value })}
-              min={1}
-              max={1000}
+              label={unit === 'ft' ? 'Width (ft)' : 'Width (in)'}
+              value={unit === 'ft' ? Math.max(1, Math.round(inchesToFeet(widthIn))) : widthIn}
+              onChange={(value) => {
+                const inches =
+                  unit === 'ft' ? feetToInches(value) : value;
+                if (!Number.isFinite(inches) || inches <= 0) return;
+                const clamped = Math.min(MAX_IN, Math.max(MIN_IN, inches));
+                set({ widthIn: clamped });
+              }}
+              min={unit === 'ft' ? MIN_FT : MIN_IN}
+              max={unit === 'ft' ? MAX_FT : MAX_IN}
+              step={1}
             />
             <SizeStepper
-              label="Height (in)"
-              value={heightIn}
-              onChange={(value) => set({ heightIn: value })}
-              min={1}
-              max={1000}
+              label={unit === 'ft' ? 'Height (ft)' : 'Height (in)'}
+              value={unit === 'ft' ? Math.max(1, Math.round(inchesToFeet(heightIn))) : heightIn}
+              onChange={(value) => {
+                const inches =
+                  unit === 'ft' ? feetToInches(value) : value;
+                if (!Number.isFinite(inches) || inches <= 0) return;
+                const clamped = Math.min(MAX_IN, Math.max(MIN_IN, inches));
+                set({ heightIn: clamped });
+              }}
+              min={unit === 'ft' ? MIN_FT : MIN_IN}
+              max={unit === 'ft' ? MAX_FT : MAX_IN}
+              step={1}
             />
           </div>
+
+          {/* Equivalent in the other unit */}
+          <p className="mt-2 text-xs text-gray-500">
+            Equivalent:{' '}
+            <span className="font-medium text-gray-700">
+              {formatDimensionInUnit(widthIn, unit === 'ft' ? 'in' : 'ft')} ×{' '}
+              {formatDimensionInUnit(heightIn, unit === 'ft' ? 'in' : 'ft')}
+            </span>
+          </p>
 
           {/* Size Info */}
           <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">

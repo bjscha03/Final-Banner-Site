@@ -3,6 +3,12 @@ import { Minus, Plus, Ruler } from 'lucide-react';
 import { useQuoteStore } from '@/store/quote';
 import { formatArea, formatDimensions, inchesToSqFt } from '@/lib/pricing';
 import { Input } from '@/components/ui/input';
+import {
+  type DimensionUnit,
+  inchesToFeet,
+  feetToInches,
+  formatDimensionInUnit,
+} from '@/lib/dimensions/units';
 
 const SizeCard: React.FC = () => {
   const { widthIn, heightIn, set } = useQuoteStore();
@@ -10,32 +16,59 @@ const SizeCard: React.FC = () => {
   const [heightInput, setHeightInput] = useState(heightIn.toString());
   const [widthError, setWidthError] = useState('');
   const [heightError, setHeightError] = useState('');
+  // UI-only unit toggle. Internal store always uses inches so pricing,
+  // cart, and print pipelines see no change.
+  const [unit, setUnit] = useState<DimensionUnit>('in');
 
-  // Update local state when store values change
+  // Trim trailing zeros so 4 ft displays as "4" not "4.000"
+  const formatForInput = (n: number): string => {
+    if (!Number.isFinite(n)) return '';
+    return Number(n.toFixed(2)).toString();
+  };
+
+
+  // Update local state when store values change OR when the displayed unit changes.
+  // Local input strings always reflect the value in the *currently displayed* unit;
+  // the store always holds inches.
   useEffect(() => {
-    setWidthInput(widthIn.toString());
-    setHeightInput(heightIn.toString());
-  }, [widthIn, heightIn]);
+    if (unit === 'ft') {
+      setWidthInput(formatForInput(inchesToFeet(widthIn)));
+      setHeightInput(formatForInput(inchesToFeet(heightIn)));
+    } else {
+      setWidthInput(widthIn.toString());
+      setHeightInput(heightIn.toString());
+    }
+  }, [widthIn, heightIn, unit]);
 
-  // Debounced update to store
+  // Debounced update to store. Always stores inches, regardless of unit.
   useEffect(() => {
     const timer = setTimeout(() => {
-      const width = parseFloat(widthInput) || 0;
-      const height = parseFloat(heightInput) || 0;
-      
-      if (width >= 1 && width <= 1000 && height >= 1 && height <= 1000) {
-        set({ widthIn: width, heightIn: height });
+      const enteredW = parseFloat(widthInput);
+      const enteredH = parseFloat(heightInput);
+      if (!Number.isFinite(enteredW) || !Number.isFinite(enteredH)) return;
+      const widthInches = unit === 'ft' ? feetToInches(enteredW) : enteredW;
+      const heightInches = unit === 'ft' ? feetToInches(enteredH) : enteredH;
+      if (
+        widthInches >= 1 && widthInches <= 1000 &&
+        heightInches >= 1 && heightInches <= 1000
+      ) {
+        set({ widthIn: widthInches, heightIn: heightInches });
       }
     }, 150);
 
     return () => clearTimeout(timer);
-  }, [widthInput, heightInput, set]);
+  }, [widthInput, heightInput, unit, set]);
+
+  // Bounds in the currently displayed unit.
+  const minDisplay = unit === 'ft' ? 1 : 1;       // 1 ft / 1 in
+  const maxDisplay = unit === 'ft' ? 83 : 1000;   // 83 ft (~996 in) / 1000 in
+  const unitLabel = unit === 'ft' ? 'ft' : 'inches';
 
   const validateAndSetWidth = (value: string) => {
     setWidthInput(value);
     const num = parseFloat(value);
-    if (isNaN(num) || num < 1 || num > 1000) {
-      setWidthError('Width must be between 1 and 1000 inches');
+    if (isNaN(num) || num < minDisplay || num > maxDisplay) {
+      setWidthError(`Width must be between ${minDisplay} and ${maxDisplay} ${unitLabel}`);
     } else {
       setWidthError('');
     }
@@ -44,53 +77,69 @@ const SizeCard: React.FC = () => {
   const validateAndSetHeight = (value: string) => {
     setHeightInput(value);
     const num = parseFloat(value);
-    if (isNaN(num) || num < 1 || num > 1000) {
-      setHeightError('Height must be between 1 and 1000 inches');
+    if (isNaN(num) || num < minDisplay || num > maxDisplay) {
+      setHeightError(`Height must be between ${minDisplay} and ${maxDisplay} ${unitLabel}`);
     } else {
       setHeightError('');
     }
   };
 
   const adjustWidth = (delta: number) => {
-    const newValue = Math.max(1, Math.min(1000, widthIn + delta));
-    setWidthInput(newValue.toString());
-    set({ widthIn: newValue });
+    // delta is in displayed units (1 in or 1 ft)
+    const currentDisplay = unit === 'ft' ? inchesToFeet(widthIn) : widthIn;
+    const nextDisplay = Math.max(minDisplay, Math.min(maxDisplay, currentDisplay + delta));
+    const nextInches = unit === 'ft' ? feetToInches(nextDisplay) : nextDisplay;
+    const clamped = Math.max(1, Math.min(1000, nextInches));
+    setWidthInput(formatForInput(nextDisplay));
+    set({ widthIn: clamped });
   };
 
   const adjustHeight = (delta: number) => {
-    const newValue = Math.max(1, Math.min(1000, heightIn + delta));
-    setHeightInput(newValue.toString());
-    set({ heightIn: newValue });
+    const currentDisplay = unit === 'ft' ? inchesToFeet(heightIn) : heightIn;
+    const nextDisplay = Math.max(minDisplay, Math.min(maxDisplay, currentDisplay + delta));
+    const nextInches = unit === 'ft' ? feetToInches(nextDisplay) : nextDisplay;
+    const clamped = Math.max(1, Math.min(1000, nextInches));
+    setHeightInput(formatForInput(nextDisplay));
+    set({ heightIn: clamped });
   };
 
   const handleWidthBlur = () => {
     const num = parseFloat(widthInput);
-    if (isNaN(num) || num < 1) {
-      setWidthInput('1');
-      set({ widthIn: 1 });
-    } else if (num > 1000) {
-      setWidthInput('1000');
-      set({ widthIn: 1000 });
+    if (isNaN(num) || num < minDisplay) {
+      setWidthInput(String(minDisplay));
+      const inches = unit === 'ft' ? feetToInches(minDisplay) : minDisplay;
+      set({ widthIn: inches });
+    } else if (num > maxDisplay) {
+      setWidthInput(String(maxDisplay));
+      const inches = unit === 'ft' ? feetToInches(maxDisplay) : maxDisplay;
+      set({ widthIn: inches });
     }
   };
 
   const handleHeightBlur = () => {
     const num = parseFloat(heightInput);
-    if (isNaN(num) || num < 1) {
-      setHeightInput('1');
-      set({ heightIn: 1 });
-    } else if (num > 1000) {
-      setHeightInput('1000');
-      set({ heightIn: 1000 });
+    if (isNaN(num) || num < minDisplay) {
+      setHeightInput(String(minDisplay));
+      const inches = unit === 'ft' ? feetToInches(minDisplay) : minDisplay;
+      set({ heightIn: inches });
+    } else if (num > maxDisplay) {
+      setHeightInput(String(maxDisplay));
+      const inches = unit === 'ft' ? feetToInches(maxDisplay) : maxDisplay;
+      set({ heightIn: inches });
     }
   };
 
   const handleReset = () => {
-    setWidthInput('48');
-    setHeightInput('24');
     setWidthError('');
     setHeightError('');
     set({ widthIn: 48, heightIn: 24 });
+    if (unit === 'ft') {
+      setWidthInput('4');
+      setHeightInput('2');
+    } else {
+      setWidthInput('48');
+      setHeightInput('24');
+    }
   };
 
   const area = inchesToSqFt(widthIn, heightIn);
@@ -104,10 +153,42 @@ const SizeCard: React.FC = () => {
         <h3 className="text-lg md:text-xl font-bold text-slate-900">📐 Choose Size</h3>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+      {/* Unit toggle (Feet / Inches). Internal storage stays in inches —
+          pricing, cart, and print pipelines never see feet. */}
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-sm font-medium text-gray-700">Unit</span>
+        <div
+          role="group"
+          aria-label="Dimension unit"
+          className="inline-flex rounded-lg border border-slate-300 bg-white p-0.5"
+        >
+          <button
+            type="button"
+            onClick={() => setUnit('in')}
+            aria-pressed={unit === 'in'}
+            className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
+              unit === 'in' ? 'bg-orange-500 text-white shadow-sm' : 'text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            Inches
+          </button>
+          <button
+            type="button"
+            onClick={() => setUnit('ft')}
+            aria-pressed={unit === 'ft'}
+            className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
+              unit === 'ft' ? 'bg-orange-500 text-white shadow-sm' : 'text-slate-700 hover:bg-slate-50'
+            }`}
+          >
+            Feet
+          </button>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-2">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Width (inches)
+            Width ({unit === 'ft' ? 'feet' : 'inches'})
           </label>
           <div className="flex items-center gap-3">
             <button
@@ -123,9 +204,9 @@ const SizeCard: React.FC = () => {
               onChange={(e) => validateAndSetWidth(e.target.value)}
               onBlur={handleWidthBlur}
               className="flex-1 min-w-[5rem] text-center bg-white border border-slate-300 rounded-md px-4 py-2 text-base font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
-              min="1"
-              max="1000"
-              step="1"
+              min={minDisplay}
+              max={maxDisplay}
+              step={unit === 'ft' ? 0.5 : 1}
             />
             <button
               onClick={() => adjustWidth(1)}
@@ -142,7 +223,7 @@ const SizeCard: React.FC = () => {
 
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-2">
-            Height (inches)
+            Height ({unit === 'ft' ? 'feet' : 'inches'})
           </label>
           <div className="flex items-center gap-3">
             <button
@@ -158,9 +239,9 @@ const SizeCard: React.FC = () => {
               onChange={(e) => validateAndSetHeight(e.target.value)}
               onBlur={handleHeightBlur}
               className="flex-1 min-w-[5rem] text-center bg-white border border-slate-300 rounded-md px-4 py-2 text-base font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
-              min="1"
-              max="1000"
-              step="1"
+              min={minDisplay}
+              max={maxDisplay}
+              step={unit === 'ft' ? 0.5 : 1}
             />
             <button
               onClick={() => adjustHeight(1)}
@@ -175,6 +256,15 @@ const SizeCard: React.FC = () => {
           )}
         </div>
       </div>
+
+      {/* Equivalent in the other unit (always in inches alongside feet). */}
+      <p className="mb-4 text-xs text-gray-500">
+        Equivalent:{' '}
+        <span className="font-medium text-gray-700">
+          {formatDimensionInUnit(widthIn, unit === 'ft' ? 'in' : 'ft')} ×{' '}
+          {formatDimensionInUnit(heightIn, unit === 'ft' ? 'in' : 'ft')}
+        </span>
+      </p>
 
       {/* Reset Button */}
       <div className="mb-4">

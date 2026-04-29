@@ -3,6 +3,7 @@ import { Grommets } from '@/store/quote';
 import { FileText, Image, Loader2 } from 'lucide-react';
 import PDFPreview from './PDFPreview';
 import PdfImagePreview from '@/components/preview/PdfImagePreview';
+import GrommetOverlay from '@/components/preview/GrommetOverlay';
 import { getRulerTicks, type RulerUnit } from '@/lib/dimensions/rulers';
 
 interface PreviewCanvasProps {
@@ -471,86 +472,19 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
             />
           </clipPath>        </defs>
 
-        {/* PROFESSIONAL VISTAPRINT-STYLE GROMMETS */}
-        {grommetPositions.map((point, index) => (
-          <g key={index}>
-            {/* Drop shadow */}
-            <circle
-              cx={bannerOffsetX + point.x + 0.08}
-              cy={bannerOffsetY + point.y + 0.08}
-              r={grommetRadius * 1.3}
-              fill="#000000"
-              opacity="0.15"
-            />
-            
-            {/* Outer metallic ring */}
-            <circle
-              cx={bannerOffsetX + point.x}
-              cy={bannerOffsetY + point.y}
-              r={grommetRadius * 1.3}
-              fill="url(#grommetGradient)"
-              stroke="#2d3748"
-              strokeWidth="0.08"
-            />
-            
-            {/* Inner hole */}
-            <circle
-              cx={bannerOffsetX + point.x}
-              cy={bannerOffsetY + point.y}
-              r={grommetRadius * 0.7}
-              fill="#f7fafc"
-              stroke="#cbd5e0"
-              strokeWidth="0.04"
-            />
-            
-            {/* Target-style crosshairs */}
-            <g opacity="0.6">
-              <line
-                x1={bannerOffsetX + point.x - grommetRadius * 0.5}
-                y1={bannerOffsetY + point.y}
-                x2={bannerOffsetX + point.x + grommetRadius * 0.5}
-                y2={bannerOffsetY + point.y}
-                stroke="#718096"
-                strokeWidth="0.02"
-              />
-              <line
-                x1={bannerOffsetX + point.x}
-                y1={bannerOffsetY + point.y - grommetRadius * 0.5}
-                x2={bannerOffsetX + point.x}
-                y2={bannerOffsetY + point.y + grommetRadius * 0.5}
-                stroke="#718096"
-                strokeWidth="0.02"
-              />
-            </g>
-            
-            {/* Center dot */}
-            <circle
-              cx={bannerOffsetX + point.x}
-              cy={bannerOffsetY + point.y}
-              r={grommetRadius * 0.15}
-              fill="#4a5568"
-              opacity="0.8"
-            />
-            
-            {/* Highlight for 3D effect */}
-            <circle
-              cx={bannerOffsetX + point.x - grommetRadius * 0.4}
-              cy={bannerOffsetY + point.y - grommetRadius * 0.4}
-              r={grommetRadius * 0.3}
-              fill="#ffffff"
-              opacity="0.4"
-            />
-          </g>
-        ))}
-        
-        {/* Gradient definitions for grommets */}
-        <defs>
-          <radialGradient id="grommetGradient" cx="30%" cy="30%">
-            <stop offset="0%" stopColor="#e2e8f0" />
-            <stop offset="50%" stopColor="#a0aec0" />
-            <stop offset="100%" stopColor="#4a5568" />
-          </radialGradient>
-        </defs>
+        {/* PROFESSIONAL VISTAPRINT-STYLE GROMMETS — preview-only.
+            Rendered via the shared <GrommetOverlay/> component so multiple
+            preview surfaces share one implementation. Grommets are NOT
+            included in canvas_state_json or any export pipeline. */}
+        <GrommetOverlay
+          widthIn={widthIn}
+          heightIn={heightIn}
+          option={grommets}
+          offsetX={bannerOffsetX}
+          offsetY={bannerOffsetY}
+          radius={grommetRadius}
+          idSuffix="preview-canvas"
+        />
 
       </svg>
 
