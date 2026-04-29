@@ -82,9 +82,9 @@ const CreateWithAIModal: React.FC<CreateWithAIModalProps> = ({
 
   const requirementsMet = useMemo(
     () =>
-      Number.isFinite(widthIn || NaN) &&
-      Number.isFinite(heightIn || NaN) &&
+      Number.isFinite(widthIn) &&
       (widthIn || 0) > 0 &&
+      Number.isFinite(heightIn) &&
       (heightIn || 0) > 0 &&
       !!material,
     [widthIn, heightIn, material],

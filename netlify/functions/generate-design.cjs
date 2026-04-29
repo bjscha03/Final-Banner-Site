@@ -288,6 +288,9 @@ exports.handler = async (event) => {
     return jsonResponse(400, { error: 'width and height must be positive numbers (inches).' });
   }
   if (w > 600 || h > 600) {
+    // 600" (50 ft) is a generous upper bound for the largest realistic
+    // banner the site sells; rejects nonsense input early before we spend
+    // an Imagen call on it.
     return jsonResponse(400, { error: 'width and height must each be 600 inches or less.' });
   }
 
