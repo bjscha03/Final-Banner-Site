@@ -301,38 +301,21 @@ const AdminOrders: React.FC = () => {
       console.log('[ADMIN_PDF] Cached generated_print_pdf_url:', item.generated_print_pdf_url || 'NONE');
       console.log('[ADMIN_PDF] ============================================');
 
-      // FAST PATH: If a generated PDF already exists for this order item, just
-      // download it directly — no backend call required. This satisfies the
-      // "PDF already existed" cache-reuse requirement and gives instant downloads.
-      if (item.generated_print_pdf_url) {
-        console.log('[ADMIN_PDF] ✅ Using cached PDF URL (no regeneration):', item.generated_print_pdf_url);
-        toast({
-          title: 'Downloading Print PDF',
-          description: 'Using previously generated print-ready PDF...',
-        });
-        const cachedResp = await fetch(item.generated_print_pdf_url);
-        if (!cachedResp.ok) throw new Error('Failed to fetch cached PDF: ' + cachedResp.status);
-        const cachedBlob = await cachedResp.blob();
-        const cachedBlobUrl = window.URL.createObjectURL(cachedBlob);
-        const cachedLink = document.createElement('a');
-        cachedLink.href = cachedBlobUrl;
-        cachedLink.download = `order-${orderId.slice(-8)}-banner-${itemIndex + 1}-print-ready.pdf`;
-        document.body.appendChild(cachedLink);
-        cachedLink.click();
-        document.body.removeChild(cachedLink);
-        window.URL.revokeObjectURL(cachedBlobUrl);
-        toast({
-          title: 'Print PDF Downloaded',
-          description: 'Print-ready PDF downloaded successfully.',
-        });
-        return;
-      }
-
+      // Always route the download through the backend admin endpoint.
+      // The backend will:
+      //   - serve the cached PDF if it can be fetched (using a signed
+      //     Cloudinary URL when direct delivery is restricted), OR
+      //   - regenerate the PDF on the fly if the cached asset returns
+      //     401/403/404 (no more "Failed to fetch cached PDF: 401" in the UI).
+      // We never fetch the raw Cloudinary URL from the browser anymore, which
+      // is what was producing the 401 error for protected/authenticated assets.
       toast({
-        title: 'Generating Print-Ready PDF',
-        description: 'Creating high-quality PDF with proper dimensions...',
+        title: item.generated_print_pdf_url ? 'Downloading Print PDF' : 'Generating Print-Ready PDF',
+        description: item.generated_print_pdf_url
+          ? 'Fetching previously generated print-ready PDF...'
+          : 'Creating high-quality PDF with proper dimensions...',
       });
-      console.log('[ADMIN_PDF] No cached PDF — requesting on-demand generation from saved design data');
+      console.log('[ADMIN_PDF] Routing through /.netlify/functions/download-print-pdf (backend proxy)');
 
       // Determine the best image source
       // CRITICAL: overlay_image.fileKey contains the ORIGINAL uploaded file (no grommets)
@@ -406,7 +389,7 @@ const AdminOrders: React.FC = () => {
           }
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 150000); // 150s client timeout
-          response = await fetch('/.netlify/functions/render-order-pdf', {
+          response = await fetch('/.netlify/functions/download-print-pdf', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(requestBody),
@@ -432,82 +415,41 @@ const AdminOrders: React.FC = () => {
       }
 
       if (!response || !response.ok) {
-        const errorText = response ? await response.text() : 'No response';
-        console.error('[ADMIN_PDF] PDF generation failed:', errorText);
-        throw new Error(`HTTP ${response?.status || 'unknown'}: ${errorText}`);
+        // The backend returns JSON {error} on failure; surface it nicely.
+        let errorMessage = `HTTP ${response?.status || 'unknown'}`;
+        if (response) {
+          try {
+            const errJson = await response.clone().json();
+            if (errJson && errJson.error) errorMessage = String(errJson.error);
+          } catch {
+            try { errorMessage = (await response.text()) || errorMessage; } catch { /* ignore */ }
+          }
+        }
+        console.error('[ADMIN_PDF] PDF download failed:', errorMessage);
+        throw new Error(errorMessage);
       }
 
-      // Response is JSON containing pdfUrl (preferred) and/or pdfBase64
-      const result = await response.json();
-      if (result.error) {
-        // Handle specific print pipeline errors with descriptive messages
-        if (result.error === 'low_resolution') {
-          throw new Error(`⚠️ Low Resolution: ${result.message}`);
-        }
-        if (result.error === 'no_print_source') {
-          throw new Error(`⚠️ No Print Source: ${result.message}`);
-        }
-        throw new Error(result.error || 'Print PDF generation failed');
-      }
+      // Backend always returns the PDF bytes directly with
+      // Content-Type: application/pdf and Content-Disposition: attachment.
+      const source = response.headers.get('X-Print-PDF-Source') || 'unknown';
+      console.log('[ADMIN_PDF] ✅ Backend delivered PDF (source=' + source + ')');
 
-      console.log('[ADMIN_PDF] Generation result:', {
-        format: result.format,
-        source: result.source,
-        cached: !!result.cached,
-        pdfUrl: result.pdfUrl || result.downloadUrl || null,
-        hasInlineBase64: !!result.pdfBase64,
-      });
-      const finalPdfUrl = result.pdfUrl || result.downloadUrl || null;
-      console.log('[ADMIN_PDF] ✅ Final PDF URL returned:', finalPdfUrl || '(inline base64 only)');
-
-      // Update local state so a follow-up click downloads the cached URL directly
-      if (finalPdfUrl && item && typeof item === 'object') {
-        item.generated_print_pdf_url = finalPdfUrl;
-      }
-
-      // PRIMARY: download from the uploaded PDF URL (preferred path)
-      if (finalPdfUrl) {
-        let pdfResp = await fetch(finalPdfUrl);
-        if (!pdfResp.ok && result.rawUrl) {
-          console.warn('[ADMIN_PDF] Primary URL failed, falling back to raw URL');
-          pdfResp = await fetch(result.rawUrl);
-        }
-        if (!pdfResp.ok) throw new Error('Failed to download PDF: ' + pdfResp.status);
-        const blob = await pdfResp.blob();
-        if (blob.size === 0) throw new Error('Downloaded PDF is empty');
-        const blobUrl = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = `order-${orderId.slice(-8)}-banner-${itemIndex + 1}-print-ready.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(blobUrl);
-      } else if (result.pdfBase64) {
-        // FALLBACK: inline base64 PDF (legacy path / when Cloudinary upload failed)
-        const binaryString = atob(result.pdfBase64);
-        const bytes = new Uint8Array(binaryString.length);
-        for (let i = 0; i < binaryString.length; i++) {
-          bytes[i] = binaryString.charCodeAt(i);
-        }
-        const blob = new Blob([bytes], { type: 'application/pdf' });
-        const url = window.URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `order-${orderId.slice(-8)}-banner-${itemIndex + 1}-print-ready.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        window.URL.revokeObjectURL(url);
-      } else {
-        throw new Error('No print PDF data in response');
-      }
+      const blob = await response.blob();
+      if (blob.size === 0) throw new Error('Downloaded PDF is empty');
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `order-${orderId.slice(-8)}-banner-${itemIndex + 1}-print.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
 
       toast({
         title: 'Print PDF Downloaded',
-        description: result.cached
-          ? 'Reused previously generated print-ready PDF.'
-          : 'Print-ready PDF generated and downloaded successfully.',
+        description: source === 'regenerated'
+          ? 'Print-ready PDF generated and downloaded successfully.'
+          : 'Reused previously generated print-ready PDF.',
       });
     } catch (error) {
       console.error('[ADMIN_PDF] Print PDF Download Error:', error);
