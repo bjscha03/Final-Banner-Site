@@ -145,18 +145,31 @@ async function downloadCloudinaryPdf(cachedUrl, log) {
 /**
  * Invoke the existing render-order-pdf function in-process, falling back to an
  * HTTP self-call if the module export is unavailable. Returns a Buffer.
+ *
+ * IMPORTANT: We force regeneration here. Without `forceRegenerate: true`,
+ * `render-order-pdf` would short-circuit on its own cache lookup and hand
+ * back the SAME `generated_print_pdf_url` we already failed to download —
+ * leading to "Regenerated PDF response had no usable data".
  */
 async function regeneratePdf(requestBody, log) {
+  const regenBody = {
+    ...(requestBody || {}),
+    forceRegenerate: true,
+    // Strip any cached-URL hints so render-order-pdf cannot reuse the broken URL.
+    cachedPdfUrl: null,
+    generatedPrintPdfUrl: null,
+  };
+
   // Prefer in-process invocation to avoid an extra HTTP round-trip and to
   // sidestep any Netlify routing that may not be configured locally.
   try {
     const renderModule = require('./render-order-pdf.cjs');
     if (renderModule && typeof renderModule.handler === 'function') {
-      log('regenerating PDF via in-process render-order-pdf handler');
+      log('regenerating PDF via in-process render-order-pdf handler (forceRegenerate=true)');
       const fakeEvent = {
         httpMethod: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(requestBody || {}),
+        body: JSON.stringify(regenBody),
         isBase64Encoded: false,
       };
       const res = await renderModule.handler(fakeEvent, {});
@@ -166,15 +179,24 @@ async function regeneratePdf(requestBody, log) {
       }
       const json = JSON.parse(res.body || '{}');
       if (json.error) throw new Error(typeof json.error === 'string' ? json.error : 'Regeneration failed');
+      log('regen response keys=', Object.keys(json).join(','),
+        'pdfBase64.len=', json.pdfBase64 ? json.pdfBase64.length : 0,
+        'pdfUrl=', json.pdfUrl ? 'present' : 'none');
       if (json.pdfBase64) {
-        return { buffer: Buffer.from(json.pdfBase64, 'base64'), pdfUrl: json.pdfUrl || null };
+        const buf = Buffer.from(json.pdfBase64, 'base64');
+        if (!buf || buf.length === 0) {
+          throw new Error('PDF generation completed but returned an empty buffer');
+        }
+        return { buffer: buf, pdfUrl: json.pdfUrl || null };
       }
       // No inline base64? Try to fetch the URL it returned.
       if (json.pdfUrl) {
         const fetched = await downloadCloudinaryPdf(json.pdfUrl, log);
-        if (fetched.ok) return { buffer: fetched.buffer, pdfUrl: json.pdfUrl };
+        if (fetched.ok && fetched.buffer && fetched.buffer.length > 0) {
+          return { buffer: fetched.buffer, pdfUrl: json.pdfUrl };
+        }
       }
-      throw new Error('Regenerated PDF response had no usable data');
+      throw new Error('PDF generation completed but returned no buffer or downloadUrl');
     }
   } catch (err) {
     log('in-process regeneration failed, falling back to HTTP:', err && err.message);
@@ -190,7 +212,7 @@ async function regeneratePdf(requestBody, log) {
   const res = await fetch(fnUrl, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(requestBody || {}),
+    body: JSON.stringify(regenBody),
   });
   if (!res.ok) {
     const text = await res.text();
@@ -198,14 +220,23 @@ async function regeneratePdf(requestBody, log) {
   }
   const json = await res.json();
   if (json.error) throw new Error(typeof json.error === 'string' ? json.error : 'Regeneration failed');
+  log('regen HTTP response keys=', Object.keys(json).join(','),
+    'pdfBase64.len=', json.pdfBase64 ? json.pdfBase64.length : 0,
+    'pdfUrl=', json.pdfUrl ? 'present' : 'none');
   if (json.pdfBase64) {
-    return { buffer: Buffer.from(json.pdfBase64, 'base64'), pdfUrl: json.pdfUrl || null };
+    const buf = Buffer.from(json.pdfBase64, 'base64');
+    if (!buf || buf.length === 0) {
+      throw new Error('PDF generation completed but returned an empty buffer');
+    }
+    return { buffer: buf, pdfUrl: json.pdfUrl || null };
   }
   if (json.pdfUrl) {
     const fetched = await downloadCloudinaryPdf(json.pdfUrl, log);
-    if (fetched.ok) return { buffer: fetched.buffer, pdfUrl: json.pdfUrl };
+    if (fetched.ok && fetched.buffer && fetched.buffer.length > 0) {
+      return { buffer: fetched.buffer, pdfUrl: json.pdfUrl };
+    }
   }
-  throw new Error('Regenerated PDF response had no usable data');
+  throw new Error('PDF generation completed but returned no buffer or downloadUrl');
 }
 
 exports.handler = async (event) => {
@@ -241,7 +272,15 @@ exports.handler = async (event) => {
   }
 
   const log = (...args) => console.log('[ADMIN_PRINT_PDF]', `order=${orderId}`, ...args);
-  log('request received', { itemId: itemId || null, itemIndex: typeof itemIndex === 'number' ? itemIndex : null });
+  log('request received', {
+    itemId: itemId || null,
+    itemIndex: typeof itemIndex === 'number' ? itemIndex : null,
+    bannerSize: req.bannerWidthIn && req.bannerHeightIn
+      ? `${req.bannerWidthIn}x${req.bannerHeightIn}in`
+      : 'unknown',
+    hasCanvasStateJson: !!req.canvasStateJson,
+    hasFinalRender: !!(req.finalRenderUrl || req.finalRenderFileKey),
+  });
 
   // 1) Resolve the cached PDF URL — DB is authoritative when an itemId is given.
   let cachedUrl = req.cachedPdfUrl || req.generatedPrintPdfUrl || null;
@@ -272,9 +311,23 @@ exports.handler = async (event) => {
     if (result.ok) {
       pdfBuffer = result.buffer;
       method = result.method;
-      log('✅ delivered cached PDF via', method);
+      log('✅ delivered cached PDF via', method, 'bytes=', pdfBuffer.length);
     } else {
       log(`Cached PDF unauthorized; regenerating PDF (status=${result.status})`);
+      // Best-effort: clear the stale URL so subsequent calls don't loop on it.
+      if (sql && itemId) {
+        try {
+          await sql`
+            UPDATE order_items
+            SET generated_print_pdf_url = NULL,
+                generated_print_pdf_uploaded_at = NULL
+            WHERE id = ${itemId}
+          `;
+          log('cleared stale generated_print_pdf_url for item', itemId);
+        } catch (clearErr) {
+          log('failed to clear stale URL (non-fatal):', clearErr && clearErr.message);
+        }
+      }
     }
   } else {
     log('no cached PDF URL — regenerating');
@@ -291,22 +344,24 @@ exports.handler = async (event) => {
       return {
         statusCode: 500,
         headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ error: (err && err.message) || 'Failed to produce print PDF' }),
+        body: JSON.stringify({ success: false, error: (err && err.message) || 'Failed to produce print PDF' }),
       };
     }
   }
 
   if (!pdfBuffer || pdfBuffer.length === 0) {
+    log('❌ pdfBuffer missing or empty after generation');
     return {
       statusCode: 500,
       headers: { ...CORS_HEADERS, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ error: 'Print PDF was empty' }),
+      body: JSON.stringify({ success: false, error: 'Print PDF was empty' }),
     };
   }
 
   const safeOrderId = String(orderId).replace(/[^A-Za-z0-9_-]/g, '');
   const filename = `order-${safeOrderId.slice(-8) || safeOrderId}-print.pdf`;
-  log('final delivery method:', method, 'bytes:', pdfBuffer.length, 'filename:', filename);
+  log('final delivery: contentType=application/pdf method=' + method +
+    ' bytes=' + pdfBuffer.length + ' filename=' + filename);
 
   return {
     statusCode: 200,

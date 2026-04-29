@@ -1040,7 +1040,7 @@ exports.handler = async (event) => {
     // already generated a print-ready PDF for that order_item, return the
     // saved Cloudinary URL immediately rather than regenerating.
     // =========================================================================
-    if (req.itemId && req.format === 'pdf') {
+    if (req.itemId && req.format === 'pdf' && !req.forceRegenerate) {
       try {
         await sql`
           ALTER TABLE order_items
@@ -1076,6 +1076,8 @@ exports.handler = async (event) => {
       } catch (cacheErr) {
         console.warn('[ADMIN_PDF] Cache lookup failed (continuing with generation): ' + cacheErr.message);
       }
+    } else if (req.itemId && req.format === 'pdf' && req.forceRegenerate) {
+      console.log('[ADMIN_PDF] forceRegenerate=true — skipping cached PDF lookup for item ' + req.itemId);
     }
 
     // DEBUG: Log all received values for image positioning
