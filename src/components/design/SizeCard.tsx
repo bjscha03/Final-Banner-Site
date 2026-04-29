@@ -59,8 +59,10 @@ const SizeCard: React.FC = () => {
     return () => clearTimeout(timer);
   }, [widthInput, heightInput, unit, set]);
 
-  // Bounds in the currently displayed unit.
-  const minDisplay = unit === 'ft' ? 1 : 1;       // 1 ft / 1 in
+  // Bounds in the currently displayed unit. Both units share a 1 lower
+  // bound (1 in / 1 ft) since 1 in is the inch-side minimum and 1 ft is
+  // a sensible smallest custom banner.
+  const minDisplay = 1;
   const maxDisplay = unit === 'ft' ? 83 : 1000;   // 83 ft (~996 in) / 1000 in
   const unitLabel = unit === 'ft' ? 'ft' : 'inches';
 
@@ -206,7 +208,7 @@ const SizeCard: React.FC = () => {
               className="flex-1 min-w-[5rem] text-center bg-white border border-slate-300 rounded-md px-4 py-2 text-base font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
               min={minDisplay}
               max={maxDisplay}
-              step={unit === 'ft' ? 0.5 : 1}
+              step={1}
             />
             <button
               onClick={() => adjustWidth(1)}
@@ -241,7 +243,7 @@ const SizeCard: React.FC = () => {
               className="flex-1 min-w-[5rem] text-center bg-white border border-slate-300 rounded-md px-4 py-2 text-base font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
               min={minDisplay}
               max={maxDisplay}
-              step={unit === 'ft' ? 0.5 : 1}
+              step={1}
             />
             <button
               onClick={() => adjustHeight(1)}
