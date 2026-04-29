@@ -664,7 +664,8 @@ async function uploadPdfToCloudinary(pdfBuffer, orderId) {
       {
         resource_type: 'raw',
         folder: 'order-pdfs',
-        public_id: 'order-' + orderId + '-print-ready-' + Date.now() + '.pdf',
+        public_id: 'order-' + orderId + '-print-ready-' + Date.now(),
+        format: 'pdf',
         type: 'upload',
       },
       (error, result) => {
