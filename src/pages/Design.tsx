@@ -1373,8 +1373,8 @@ const Design: React.FC = () => {
           </h2>
           {isYardSign ? (
             /* ========== YARD SIGN ORDER BUILDER ========== */
-            <div className="grid md:grid-cols-2 lg:grid-cols-[1.4fr_1fr] gap-10">
-              <div className="space-y-8 min-w-0">
+            <div className="grid md:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-10 max-w-full">
+              <div className="space-y-8 min-w-0 max-w-full">
                 <YardSignConfigurator
                   designs={yardSignDesigns}
                   onDesignsChange={setYardSignDesigns}
@@ -1392,7 +1392,7 @@ const Design: React.FC = () => {
                   autoOpenDesignId={autoOpenDesignId}
                 />
               </div>
-              <div className="space-y-6">
+              <div className="space-y-6 min-w-0 max-w-full">
                 {yardSignPricing && (
                   <YardSignPriceSummary
                     pricing={yardSignPricing}
@@ -1444,8 +1444,8 @@ const Design: React.FC = () => {
             </div>
           ) : (
           /* ========== BANNER ORDER BUILDER (existing) ========== */
-          <div className="grid md:grid-cols-2 lg:grid-cols-[1.4fr_1fr] gap-10">
-            <div className="space-y-8">
+          <div className="grid md:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-10 max-w-full">
+            <div className="space-y-8 min-w-0 max-w-full">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Popular Sizes</label>
                 <div className="grid grid-cols-3 gap-2">
@@ -1580,8 +1580,8 @@ const Design: React.FC = () => {
                       <h3 className="text-sm font-bold text-gray-800">Live Banner Preview</h3>
                       <p className="text-xs text-gray-400">Final print preview — what you see is what you get</p>
                     </div>
-                    <div className="rounded-xl p-4 md:p-6" style={{ background: 'linear-gradient(180deg, #f5f6f8 0%, #e9edf2 100%)' }}>
-                      <div className="mx-auto" style={previewWrapperStyle}>
+                    <div className="rounded-xl p-4 md:p-6 max-w-full overflow-hidden" style={{ background: 'linear-gradient(180deg, #f5f6f8 0%, #e9edf2 100%)' }}>
+                      <div className="mx-auto max-w-full" style={previewWrapperStyle}>
                       <div
                         ref={previewContainerRef}
                         className="relative w-full rounded-sm select-none overflow-hidden transition-all duration-300 ease-out"
@@ -1724,7 +1724,7 @@ const Design: React.FC = () => {
               </div>
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-6 min-w-0 max-w-full">
               {isCarMagnet && carMagnetPricing ? (
                 <PriceBreakdown
                   topLine={`${widthDisplay} × ${heightDisplay} Car Magnets • ${usd(carMagnetPricing.unitPriceCents / 100)}/magnet`}
@@ -1945,8 +1945,8 @@ const Design: React.FC = () => {
             </div>
             <div className="p-4 flex-1 overflow-auto">
               <p className="text-sm text-gray-500 mb-3 flex items-center gap-1"><Move className="w-4 h-4" /> Drag to reposition · Pinch or use buttons to zoom</p>
-              <div className="rounded-lg p-4" style={{ background: 'linear-gradient(180deg, #f5f6f8 0%, #e9edf2 100%)' }}>
-                <div className="mx-auto" style={previewWrapperStyle}>
+              <div className="rounded-lg p-4 max-w-full overflow-hidden" style={{ background: 'linear-gradient(180deg, #f5f6f8 0%, #e9edf2 100%)' }}>
+                <div className="mx-auto max-w-full" style={previewWrapperStyle}>
                 <div
                   className="relative w-full rounded-sm select-none overflow-hidden transition-all duration-300 ease-out"
                   style={{

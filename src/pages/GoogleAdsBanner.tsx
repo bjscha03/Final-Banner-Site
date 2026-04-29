@@ -1335,8 +1335,8 @@ const GoogleAdsBanner: React.FC = () => {
             </h2>
             {isYardSign ? (
               /* ========== YARD SIGN ORDER BUILDER (v2) ========== */
-              <div className="grid md:grid-cols-2 lg:grid-cols-[1.4fr_1fr] gap-10">
-                <div className="space-y-8 min-w-0">
+              <div className="grid md:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-10 max-w-full">
+                <div className="space-y-8 min-w-0 max-w-full">
                   <YardSignConfigurator
                     designs={yardSignDesigns}
                     onDesignsChange={setYardSignDesigns}
@@ -1355,7 +1355,7 @@ const GoogleAdsBanner: React.FC = () => {
                   />
                 </div>
 
-                <div className="space-y-6">
+                <div className="space-y-6 min-w-0 max-w-full">
                   {yardSignPricing && (
                     <YardSignPriceSummary
                       pricing={yardSignPricing}
@@ -1408,8 +1408,8 @@ const GoogleAdsBanner: React.FC = () => {
               </div>
             ) : (
             /* ========== BANNER ORDER BUILDER (existing) ========== */
-            <div className="grid md:grid-cols-2 lg:grid-cols-[1.4fr_1fr] gap-10">
-              <div className="space-y-8">
+            <div className="grid md:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-10 max-w-full">
+              <div className="space-y-8 min-w-0 max-w-full">
                 {false ? (
                   null /* placeholder — yard sign path handled above */
                 ) : (
@@ -1553,9 +1553,9 @@ const GoogleAdsBanner: React.FC = () => {
                         <p className="text-xs text-gray-400">Final print preview — what you see is what you get</p>
                       </div>
                       {/* Banner preview with depth background */}
-                      <div className="rounded-xl p-4 md:p-6" style={{ background: 'linear-gradient(180deg, #f5f6f8 0%, #e9edf2 100%)' }}>
+                      <div className="rounded-xl p-4 md:p-6 max-w-full overflow-hidden" style={{ background: 'linear-gradient(180deg, #f5f6f8 0%, #e9edf2 100%)' }}>
                         {/* Width wrapper — constrains max-width so padding-bottom produces correct height */}
-                        <div className="mx-auto" style={previewWrapperStyle}>
+                        <div className="mx-auto max-w-full" style={previewWrapperStyle}>
                         {/* Banner surface — uses padding-bottom for aspect ratio (cross-browser safe) */}
                         <div
                           ref={previewContainerRef}
@@ -1707,7 +1707,7 @@ const GoogleAdsBanner: React.FC = () => {
                 )}
               </div>
 
-              <div className="space-y-6">
+              <div className="space-y-6 min-w-0 max-w-full">
                 {isCarMagnet && carMagnetPricing ? (
                   <PriceBreakdown
                     topLine={`${widthDisplay} × ${heightDisplay} Car Magnets • ${usd(carMagnetPricing.unitPriceCents / 100)}/magnet`}
