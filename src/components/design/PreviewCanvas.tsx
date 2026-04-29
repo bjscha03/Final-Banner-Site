@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Grommets } from '@/store/quote';
 import { FileText, Image, Loader2 } from 'lucide-react';
 import PDFPreview from './PDFPreview';
@@ -130,8 +130,21 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   // the canvas's responsive scaling but are excluded from the print
   // pipeline, which uses canvas_state_json server-side).
   // On narrow viewports the ruler is intentionally label-sparse to stay
-  // readable; we approximate "narrow" via a smaller maxMajorLabels cap.
-  const isNarrowViewport = typeof window !== 'undefined' && window.innerWidth < 480;
+  // readable; we approximate "narrow" via a smaller maxMajorLabels cap
+  // and react to window resizes / device rotation so the cap stays current.
+  const [isNarrowViewport, setIsNarrowViewport] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth < 480
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onResize = () => setIsNarrowViewport(window.innerWidth < 480);
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('orientationchange', onResize);
+    };
+  }, []);
   const maxMajorLabels = isNarrowViewport ? 4 : 12;
   const horizontalTicks = useMemo(
     () => getRulerTicks(widthIn, unit, { maxMajorLabels }),

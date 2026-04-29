@@ -114,7 +114,7 @@ export function getRulerTicks(
       });
     }
 
-    // Minor ticks: every inch when major step >= 5 and total span manageable.
+    // Minor ticks: every inch when major step >= 2 and total span manageable.
     if (stepIn >= 2 && totalIn <= 96) {
       for (let i = 1; i < totalIn; i++) {
         if (i % stepIn !== 0) {
