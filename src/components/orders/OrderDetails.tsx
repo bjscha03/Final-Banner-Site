@@ -501,29 +501,38 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
       } else if (result.pdfBase64) {
-        // Legacy base64 fallback
+        // Vector PDF (from banner-editor objects) or legacy base64 PDF
+        const isVectorPdf = result.format === 'pdf' && result.source === 'vector_from_editor_objects';
+        const mimeType = isVectorPdf ? 'application/pdf' : 'image/jpeg';
+        const extension = isVectorPdf ? 'pdf' : 'jpg';
         const productSlug = isYardSignItem(item) ? 'yard-sign' : 'banner';
         const binaryString = atob(result.pdfBase64);
         const bytes = new Uint8Array(binaryString.length);
         for (let i = 0; i < binaryString.length; i++) {
           bytes[i] = binaryString.charCodeAt(i);
         }
-        const blob = new Blob([bytes], { type: 'image/jpeg' });
+        const blob = new Blob([bytes], { type: mimeType });
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `order-${order.id.slice(-8)}-${productSlug}-${index + 1}-print-ready.jpg`;
+        link.download = `order-${order.id.slice(-8)}-${productSlug}-${index + 1}-print-ready.${extension}`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
+        if (isVectorPdf) {
+          console.log('[PDF] Downloaded vector PDF:', result.dimensions, 'objects:', result.objectCount);
+        }
       } else {
         throw new Error("No print file data in response");
       }
 
+      const isVectorResult = result.format === 'pdf' && result.source === 'vector_from_editor_objects';
       toast({
         title: "Print File Downloaded",
-        description: `Print-ready JPEG (${dpi} DPI with ${bleed}" bleed) ready for production.`,
+        description: isVectorResult
+          ? `Print-ready vector PDF (${result.dimensions?.widthIn}″×${result.dimensions?.heightIn}″) ready for production.`
+          : `Print-ready JPEG (${dpi} DPI with ${bleed}" bleed) ready for production.`,
       });
     } catch (error) {
       console.error('[PDF Download] Error:', error);

@@ -1385,10 +1385,22 @@ const BannerEditorLayout: React.FC<BannerEditorLayoutProps> = ({ onOpenAIModal, 
         console.log("[FINAL_RENDER] stage_json_exists: true");
         console.log("[FINAL_RENDER] final_render_generation_started: true");
 
-        // Capture stage JSON for re-rendering if needed
+        // Capture editor objects JSON for server-side VECTOR PDF generation.
+        // We store the clean editor store objects (inches-based coordinates) rather
+        // than the Konva stage JSON, so the server can reconstruct a true vector PDF
+        // directly from the design data without rasterizing the canvas.
         try {
-          canvasStateJson = stage.toJSON();
-          console.log("[FINAL_RENDER] canvas_state_json captured:", canvasStateJson.length, "chars");
+          const editorState = useEditorStore.getState();
+          const editorObjects = editorState.objects.filter(obj => obj.visible !== false);
+          canvasStateJson = JSON.stringify({
+            source: 'banner-editor',
+            version: 1,
+            widthIn,
+            heightIn,
+            backgroundColor: editorState.canvasBackgroundColor,
+            objects: editorObjects,
+          });
+          console.log("[FINAL_RENDER] canvas_state_json captured (banner-editor format):", canvasStateJson.length, "chars,", editorObjects.length, "objects");
         } catch (jsonErr) {
           console.warn("[FINAL_RENDER] canvas_state_json capture failed:", jsonErr);
         }
