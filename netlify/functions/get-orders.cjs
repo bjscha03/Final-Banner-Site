@@ -97,6 +97,8 @@ exports.handler = async (event, context) => {
         ADD COLUMN IF NOT EXISTS final_print_pdf_url TEXT,
         ADD COLUMN IF NOT EXISTS final_print_pdf_file_key TEXT,
         ADD COLUMN IF NOT EXISTS final_print_pdf_uploaded_at TIMESTAMP WITH TIME ZONE,
+        ADD COLUMN IF NOT EXISTS generated_print_pdf_url TEXT,
+        ADD COLUMN IF NOT EXISTS generated_print_pdf_uploaded_at TIMESTAMP WITH TIME ZONE,
         ADD COLUMN IF NOT EXISTS product_type TEXT DEFAULT 'banner'
       `;
       console.log('[get-orders] Auto-migration: order_items columns verified');
@@ -185,6 +187,8 @@ exports.handler = async (event, context) => {
                    'final_print_pdf_url', oi.final_print_pdf_url,
                    'final_print_pdf_file_key', oi.final_print_pdf_file_key,
                    'final_print_pdf_uploaded_at', oi.final_print_pdf_uploaded_at,
+                   'generated_print_pdf_url', oi.generated_print_pdf_url,
+                   'generated_print_pdf_uploaded_at', oi.generated_print_pdf_uploaded_at,
                    'product_type', COALESCE(oi.product_type, 'banner'),
                    'yard_sign_sidedness', oi.yard_sign_sidedness,
                    'yard_sign_step_stakes_enabled', COALESCE(oi.yard_sign_step_stakes_enabled, false),
@@ -249,6 +253,8 @@ exports.handler = async (event, context) => {
                    'final_print_pdf_url', oi.final_print_pdf_url,
                    'final_print_pdf_file_key', oi.final_print_pdf_file_key,
                    'final_print_pdf_uploaded_at', oi.final_print_pdf_uploaded_at,
+                   'generated_print_pdf_url', oi.generated_print_pdf_url,
+                   'generated_print_pdf_uploaded_at', oi.generated_print_pdf_uploaded_at,
                    'product_type', COALESCE(oi.product_type, 'banner'),
                    'yard_sign_sidedness', oi.yard_sign_sidedness,
                    'yard_sign_step_stakes_enabled', COALESCE(oi.yard_sign_step_stakes_enabled, false),

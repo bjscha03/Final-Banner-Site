@@ -65,6 +65,8 @@ exports.handler = async (event, context) => {
         ADD COLUMN IF NOT EXISTS final_print_pdf_url TEXT,
         ADD COLUMN IF NOT EXISTS final_print_pdf_file_key TEXT,
         ADD COLUMN IF NOT EXISTS final_print_pdf_uploaded_at TIMESTAMP WITH TIME ZONE,
+        ADD COLUMN IF NOT EXISTS generated_print_pdf_url TEXT,
+        ADD COLUMN IF NOT EXISTS generated_print_pdf_uploaded_at TIMESTAMP WITH TIME ZONE,
         ADD COLUMN IF NOT EXISTS product_type TEXT DEFAULT 'banner'
       `;
     } catch (migErr) {
@@ -182,6 +184,8 @@ exports.handler = async (event, context) => {
         final_print_pdf_url,
         final_print_pdf_file_key,
         final_print_pdf_uploaded_at,
+        generated_print_pdf_url,
+        generated_print_pdf_uploaded_at,
         COALESCE(product_type, 'banner') as product_type,
         yard_sign_sidedness,
         yard_sign_step_stakes_enabled,
