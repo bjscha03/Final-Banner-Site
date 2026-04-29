@@ -662,9 +662,9 @@ async function uploadPdfToCloudinary(pdfBuffer, orderId) {
   return new Promise((resolve, reject) => {
     const uploadStream = cloudinary.uploader.upload_stream(
       {
-        resource_type: 'image',
+        resource_type: 'raw',
         folder: 'order-pdfs',
-        public_id: 'order-' + orderId + '-print-ready-' + Date.now(),
+        public_id: 'order-' + orderId + '-print-ready-' + Date.now() + '.pdf',
         type: 'upload',
       },
       (error, result) => {
@@ -679,6 +679,62 @@ async function uploadPdfToCloudinary(pdfBuffer, orderId) {
     );
     uploadStream.end(pdfBuffer);
   });
+}
+
+/**
+ * Persist a generated print-ready PDF URL to a specific order_item.
+ * Safe no-op if itemId is missing or the DB write fails.
+ */
+async function saveGeneratedPdfUrl(itemId, pdfUrl) {
+  if (!itemId || !pdfUrl) return;
+  try {
+    // Ensure column exists (idempotent, cheap with IF NOT EXISTS)
+    await sql`
+      ALTER TABLE order_items
+      ADD COLUMN IF NOT EXISTS generated_print_pdf_url TEXT,
+      ADD COLUMN IF NOT EXISTS generated_print_pdf_uploaded_at TIMESTAMP WITH TIME ZONE
+    `;
+    await sql`
+      UPDATE order_items
+      SET generated_print_pdf_url = ${pdfUrl},
+          generated_print_pdf_uploaded_at = NOW()
+      WHERE id = ${itemId}
+    `;
+    console.log('[ADMIN_PDF] Saved generated_print_pdf_url to order_items.id=' + itemId + ': ' + pdfUrl);
+  } catch (err) {
+    console.warn('[ADMIN_PDF] Failed to persist generated_print_pdf_url for item ' + itemId + ': ' + err.message);
+  }
+}
+
+/**
+ * Build a JSON response that includes both inline base64 PDF (for legacy
+ * callers) and an uploaded Cloudinary URL (preferred). Also persists the URL
+ * back to the order_item row when `itemId` is supplied so subsequent admin
+ * downloads can reuse it without re-rendering.
+ */
+async function respondWithPdf(pdfBuffer, orderId, itemId, extra = {}) {
+  let pdfUrl = null;
+  try {
+    pdfUrl = await uploadPdfToCloudinary(pdfBuffer, orderId);
+  } catch (uploadErr) {
+    console.warn('[ADMIN_PDF] PDF upload failed (returning inline only): ' + uploadErr.message);
+  }
+  if (pdfUrl) {
+    await saveGeneratedPdfUrl(itemId, pdfUrl);
+  }
+  const pdfBase64 = pdfBuffer.toString('base64');
+  console.log('[ADMIN_PDF] Returning PDF for order ' + orderId + ' item ' + (itemId || 'unknown') + ' (url=' + (pdfUrl || 'inline-only') + ', bytes=' + pdfBuffer.length + ')');
+  return {
+    statusCode: 200,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      pdfBase64,
+      pdfUrl,
+      downloadUrl: pdfUrl,
+      format: 'pdf',
+      ...extra,
+    }),
+  };
 }
 
 // =============================================================================
@@ -977,7 +1033,50 @@ exports.handler = async (event) => {
     }
 
     const req = JSON.parse(event.body);
-    
+
+    // =========================================================================
+    // ADMIN PDF CACHE: If the caller (admin) provided an itemId and we have
+    // already generated a print-ready PDF for that order_item, return the
+    // saved Cloudinary URL immediately rather than regenerating.
+    // =========================================================================
+    if (req.itemId && req.format === 'pdf') {
+      try {
+        await sql`
+          ALTER TABLE order_items
+          ADD COLUMN IF NOT EXISTS generated_print_pdf_url TEXT,
+          ADD COLUMN IF NOT EXISTS generated_print_pdf_uploaded_at TIMESTAMP WITH TIME ZONE
+        `;
+        const rows = await sql`
+          SELECT generated_print_pdf_url
+          FROM order_items
+          WHERE id = ${req.itemId}
+          LIMIT 1
+        `;
+        const cachedUrl = rows && rows[0] && rows[0].generated_print_pdf_url;
+        console.log('[ADMIN_PDF] === Admin PDF download requested ===');
+        console.log('[ADMIN_PDF] Order ID: ' + (req.orderId || 'unknown'));
+        console.log('[ADMIN_PDF] Item ID:  ' + req.itemId);
+        console.log('[ADMIN_PDF] Cached PDF on item: ' + (cachedUrl ? 'YES' : 'NO'));
+        if (cachedUrl) {
+          console.log('[ADMIN_PDF] ✅ Returning cached print-ready PDF URL: ' + cachedUrl);
+          return {
+            statusCode: 200,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              pdfUrl: cachedUrl,
+              downloadUrl: cachedUrl,
+              format: 'pdf',
+              source: 'cached',
+              cached: true,
+            }),
+          };
+        }
+        console.log('[ADMIN_PDF] No cached PDF — generating on demand from saved design data');
+      } catch (cacheErr) {
+        console.warn('[ADMIN_PDF] Cache lookup failed (continuing with generation): ' + cacheErr.message);
+      }
+    }
+
     // DEBUG: Log all received values for image positioning
     console.log('[PDF] ======= RECEIVED REQUEST =======');
     console.log('[PDF] imageScale:', req.imageScale, 'type:', typeof req.imageScale);
@@ -1121,24 +1220,33 @@ exports.handler = async (event) => {
           console.log('[VECTOR_PDF] ✅ VALIDATION PASSED: No rasterized full-canvas image was used');
 
           const pdfBase64 = pdfBuffer.toString('base64');
-          return {
-            statusCode: 200,
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              pdfBase64,
-              format: 'pdf',
-              source: 'vector_from_editor_objects',
-              dpi: 72, // PDFs are resolution-independent (points, not pixels)
-              bleed: bleedIn,
-              dimensions: {
-                widthIn:  req.bannerWidthIn,
-                heightIn: req.bannerHeightIn,
-                widthPt:  req.bannerWidthIn  * 72,
-                heightPt: req.bannerHeightIn * 72,
-              },
-              objectCount: (editorState.objects || []).length,
-            }),
+          const extra = {
+            source: 'vector_from_editor_objects',
+            dpi: 72, // PDFs are resolution-independent (points, not pixels)
+            bleed: bleedIn,
+            dimensions: {
+              widthIn:  req.bannerWidthIn,
+              heightIn: req.bannerHeightIn,
+              widthPt:  req.bannerWidthIn  * 72,
+              heightPt: req.bannerHeightIn * 72,
+            },
+            objectCount: (editorState.objects || []).length,
           };
+          // Prefer uploading + persisting the URL; fall back to inline-only on failure.
+          try {
+            return await respondWithPdf(pdfBuffer, req.orderId, req.itemId, extra);
+          } catch (respondErr) {
+            console.warn('[ADMIN_PDF] respondWithPdf failed, returning inline base64: ' + respondErr.message);
+            return {
+              statusCode: 200,
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                pdfBase64,
+                format: 'pdf',
+                ...extra,
+              }),
+            };
+          }
         } catch (vectorErr) {
           console.error('[VECTOR_PDF] ❌ Vector PDF generation failed:', vectorErr.message);
           console.error('[VECTOR_PDF] Stack:', vectorErr.stack);
@@ -1793,23 +1901,17 @@ exports.handler = async (event) => {
           .resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground })
           .jpeg({ quality: 65, chromaSubsampling: '4:2:0' })
           .toBuffer();
-        const pdfBuffer = await rasterToPdfBuffer(pdfImgBuffer, finalWidthIn, finalHeightIn, [], req.bannerWidthIn, req.bannerHeightIn, null, bleedIn);
-        console.log(`[PDF] PDF generated from final_render: ${pdfBuffer.length} bytes`);
-        let pdfBase64 = pdfBuffer.toString('base64');
-        if (pdfBase64.length > 5 * 1024 * 1024) {
+        let finalPdfBuffer = await rasterToPdfBuffer(pdfImgBuffer, finalWidthIn, finalHeightIn, [], req.bannerWidthIn, req.bannerHeightIn, null, bleedIn);
+        console.log(`[PDF] PDF generated from final_render: ${finalPdfBuffer.length} bytes`);
+        if (finalPdfBuffer.toString('base64').length > 5 * 1024 * 1024) {
           console.warn('[PDF] Base64 too large, re-encoding at quality 40');
           const smallerImg = await sharp(finalRenderBuffer)
             .resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground })
             .jpeg({ quality: 40, chromaSubsampling: '4:2:0' })
             .toBuffer();
-          const smallerPdf = await rasterToPdfBuffer(smallerImg, finalWidthIn, finalHeightIn, [], req.bannerWidthIn, req.bannerHeightIn, null, bleedIn);
-          pdfBase64 = smallerPdf.toString('base64');
+          finalPdfBuffer = await rasterToPdfBuffer(smallerImg, finalWidthIn, finalHeightIn, [], req.bannerWidthIn, req.bannerHeightIn, null, bleedIn);
         }
-        return {
-          statusCode: 200,
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pdfBase64, dpi: targetDpi, bleed: bleedIn }),
-        };
+        return await respondWithPdf(finalPdfBuffer, req.orderId, req.itemId, { dpi: targetDpi, bleed: bleedIn, source: 'final_render' });
       } catch (frError) {
         console.error('[PDF] ❌ Final render path failed:', frError.message);
         console.warn('[PDF] Falling back to thumbnail/reconstruction path for PDF');
@@ -1833,28 +1935,20 @@ exports.handler = async (event) => {
       } else {
         // PDF OUTPUT: Use thumbnail for PDF
         console.log('[PDF] Using thumbnail for PDF export');
-        const pdfBuffer = await sharp(sourceBuffer)
+        let thumbPdfBuffer = await sharp(sourceBuffer)
         .resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground })
         .jpeg({ quality: 65, chromaSubsampling: "4:2:0" })
         .toBuffer()
         .then(imgBuf => rasterToPdfBuffer(imgBuf, finalWidthIn, finalHeightIn, [], req.bannerWidthIn, req.bannerHeightIn, null, bleedIn));
 
-      console.log(`[PDF] PDF generated from thumbnail: ${pdfBuffer.length} bytes`);
-      let pdfBase64 = pdfBuffer.toString('base64');
-      console.log('[PDF] Base64 length:', pdfBase64.length);
+      console.log(`[PDF] PDF generated from thumbnail: ${thumbPdfBuffer.length} bytes`);
       // Safety: if base64 > 5MB, re-encode at lower quality
-      if (pdfBase64.length > 5 * 1024 * 1024) {
-        console.warn('[PDF] Base64 too large (' + pdfBase64.length + ' chars), re-encoding at quality 40');
+      if (thumbPdfBuffer.toString('base64').length > 5 * 1024 * 1024) {
+        console.warn('[PDF] Base64 too large, re-encoding at quality 40');
         const smallerImg = await sharp(sourceBuffer).resize(targetPxW, targetPxH, { fit: 'contain', background: padBackground }).jpeg({ quality: 40, chromaSubsampling: "4:2:0" }).toBuffer();
-        const smallerPdf = await rasterToPdfBuffer(smallerImg, finalWidthIn, finalHeightIn, [], req.bannerWidthIn, req.bannerHeightIn, null, bleedIn);
-        pdfBase64 = smallerPdf.toString("base64");
-        console.log('[PDF] Re-encoded base64 length:', pdfBase64.length);
+        thumbPdfBuffer = await rasterToPdfBuffer(smallerImg, finalWidthIn, finalHeightIn, [], req.bannerWidthIn, req.bannerHeightIn, null, bleedIn);
       }
-      return {
-        statusCode: 200,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pdfBase64, dpi: targetDpi, bleed: bleedIn }),
-      };
+      return await respondWithPdf(thumbPdfBuffer, req.orderId, req.itemId, { dpi: targetDpi, bleed: bleedIn, source: 'thumbnail' });
       }
     }
     
@@ -2305,23 +2399,17 @@ exports.handler = async (event) => {
     const pdfBuffer = await rasterToPdfBuffer(merged, finalWidthIn, finalHeightIn, req.textElements, req.bannerWidthIn, req.bannerHeightIn, req.previewCanvasPx, bleedIn);
     console.log(`[PDF] PDF generated: ${pdfBuffer.length} bytes`);
 
-    let pdfBase64 = pdfBuffer.toString('base64');
-    console.log('[PDF] Base64 length:', pdfBase64.length, 'chars (binary:', pdfBuffer.length, 'bytes)');
+    let finalPdfBuffer = pdfBuffer;
+    console.log('[PDF] Base64 length:', finalPdfBuffer.toString('base64').length, 'chars (binary:', finalPdfBuffer.length, 'bytes)');
     // Safety: if base64 > 5MB, re-encode at lower quality
-    if (pdfBase64.length > 5 * 1024 * 1024) {
-      console.warn('[PDF] Base64 too large (' + pdfBase64.length + ' chars), re-encoding at quality 40');
+    if (finalPdfBuffer.toString('base64').length > 5 * 1024 * 1024) {
+      console.warn('[PDF] Base64 too large, re-encoding at quality 40');
       const smallerImg = await sharp(backgroundCanvas).composite(compositeLayers).jpeg({ quality: 40, chromaSubsampling: "4:2:0" }).toBuffer();
-      const smallerPdf = await rasterToPdfBuffer(smallerImg, finalWidthIn, finalHeightIn, req.textElements, req.bannerWidthIn, req.bannerHeightIn, req.previewCanvasPx, bleedIn);
-      pdfBase64 = smallerPdf.toString("base64");
-      console.log('[PDF] Re-encoded base64 length:', pdfBase64.length);
+      finalPdfBuffer = await rasterToPdfBuffer(smallerImg, finalWidthIn, finalHeightIn, req.textElements, req.bannerWidthIn, req.bannerHeightIn, req.previewCanvasPx, bleedIn);
     }
     console.log('[PDF] === PDF render complete ===');
 
-    return {
-      statusCode: 200,
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ pdfBase64, dpi: targetDpi, bleed: bleedIn }),
-    };
+    return await respondWithPdf(finalPdfBuffer, req.orderId, req.itemId, { dpi: targetDpi, bleed: bleedIn, source: 'reconstruction' });
   } catch (error) {
     console.error('[PDF] Error:', error);
     return {

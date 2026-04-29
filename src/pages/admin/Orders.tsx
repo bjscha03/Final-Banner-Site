@@ -287,54 +287,81 @@ const AdminOrders: React.FC = () => {
 
   const handlePdfDownload = async (item: any, itemIndex: number, orderId: string) => {
     const loadingKey = `${orderId}-${itemIndex}`;
-    
+
     try {
       // Set loading state for this specific PDF button
       setPdfLoadingStates(prev => ({ ...prev, [loadingKey]: true }));
-      
+
+      console.log('[ADMIN_PDF] ============================================');
+      console.log('[ADMIN_PDF] Print PDF download requested');
+      console.log('[ADMIN_PDF] Order ID:', orderId);
+      console.log('[ADMIN_PDF] Order item ID:', item.id || 'unknown');
+      console.log('[ADMIN_PDF] Order item index:', itemIndex);
+      console.log('[ADMIN_PDF] Banner size:', item.width_in, '×', item.height_in, 'in');
+      console.log('[ADMIN_PDF] Cached generated_print_pdf_url:', item.generated_print_pdf_url || 'NONE');
+      console.log('[ADMIN_PDF] ============================================');
+
+      // FAST PATH: If a generated PDF already exists for this order item, just
+      // download it directly — no backend call required. This satisfies the
+      // "PDF already existed" cache-reuse requirement and gives instant downloads.
+      if (item.generated_print_pdf_url) {
+        console.log('[ADMIN_PDF] ✅ Using cached PDF URL (no regeneration):', item.generated_print_pdf_url);
+        toast({
+          title: 'Downloading Print PDF',
+          description: 'Using previously generated print-ready PDF...',
+        });
+        const cachedResp = await fetch(item.generated_print_pdf_url);
+        if (!cachedResp.ok) throw new Error('Failed to fetch cached PDF: ' + cachedResp.status);
+        const cachedBlob = await cachedResp.blob();
+        const cachedBlobUrl = window.URL.createObjectURL(cachedBlob);
+        const cachedLink = document.createElement('a');
+        cachedLink.href = cachedBlobUrl;
+        cachedLink.download = `order-${orderId.slice(-8)}-banner-${itemIndex + 1}-print-ready.pdf`;
+        document.body.appendChild(cachedLink);
+        cachedLink.click();
+        document.body.removeChild(cachedLink);
+        window.URL.revokeObjectURL(cachedBlobUrl);
+        toast({
+          title: 'Print PDF Downloaded',
+          description: 'Print-ready PDF downloaded successfully.',
+        });
+        return;
+      }
+
       toast({
-        title: "Generating Print-Ready File",
-        description: "Creating high-quality JPEG with proper dimensions and bleed...",
+        title: 'Generating Print-Ready PDF',
+        description: 'Creating high-quality PDF with proper dimensions...',
       });
-      console.log("🟢 PDF Download - Item data:", item);
-      console.log("🟢 PDF Download - overlay_image:", item.overlay_image);
-      console.log('[JPEG_EXPORT_DEBUG] ======= ADMIN JPEG DOWNLOAD =======');
-      console.log('[JPEG_EXPORT_DEBUG] Item final_render_url:', item.final_render_url || 'MISSING');
-      console.log('[JPEG_EXPORT_DEBUG] Item final_render_file_key:', item.final_render_file_key || 'MISSING');
-      console.log('[JPEG_EXPORT_DEBUG] Item final_render_dpi:', item.final_render_dpi || 'MISSING');
-      console.log('[JPEG_EXPORT_DEBUG] Item dimensions:', item.width_in, '×', item.height_in, 'inches');
-      console.log('[JPEG_EXPORT_DEBUG] Will use:', item.final_render_url || item.final_render_file_key ? 'FINAL_RENDER (pixel-perfect)' : 'FALLBACK (reconstruction)');
-      console.log('[JPEG_EXPORT_DEBUG] =================================');
+      console.log('[ADMIN_PDF] No cached PDF — requesting on-demand generation from saved design data');
 
       // Determine the best image source
       // CRITICAL: overlay_image.fileKey contains the ORIGINAL uploaded file (no grommets)
       // file_key is the THUMBNAIL (has grommets baked in) - use overlay_image.fileKey first!
       const overlayImageFileKey = item.overlay_image?.fileKey;
       const overlayImagesFileKey = item.overlay_images?.[0]?.fileKey;
-      
+
       // CRITICAL FIX: Prioritize overlay_image.fileKey (original upload) over file_key (thumbnail with grommets)
       const imageSource = item.print_ready_url || overlayImageFileKey || overlayImagesFileKey || item.file_url || item.web_preview_url || item.file_key;
       const isCloudinaryKey = imageSource && !imageSource.startsWith('http');
-      
-      console.log('[PDF DEBUG] Image source resolution:', {
+
+      console.log('[ADMIN_PDF] Image source resolution:', {
         print_ready_url: item.print_ready_url,
         web_preview_url: item.web_preview_url,
         file_key: item.file_key,
         file_url: item.file_url,
         final_imageSource: imageSource,
-        isCloudinaryKey
+        isCloudinaryKey,
       });
 
       // Check if user designed with OVERLAY positioning (blank canvas + positioned image)
       const hasOverlayWithPosition = item.overlay_image && item.overlay_image.position && item.overlay_image.scale;
-      
+
       // CRITICAL FIX: If user has overlay_image with position/scale, that IS their design!
       const isOverlayOnlyDesign = hasOverlayWithPosition && !item.print_ready_url && !item.web_preview_url;
-      
-      console.log('[PDF DEBUG] Design type detection:', {hasOverlayWithPosition, isOverlayOnlyDesign});
-      
+
       const requestBody = {
         orderId: orderId,
+        itemId: item.id || null,
         productType: (item as any).product_type || 'banner',
         roundedCorners: (item as any).rounded_corners || null,
         bannerWidthIn: item.width_in,
@@ -363,21 +390,8 @@ const AdminOrders: React.FC = () => {
         imageScale: item.image_scale ?? 1,
         imagePosition: item.image_position || { x: 0, y: 0 },
         thumbnailUrl: item.thumbnail_url || null,
-        format: 'jpeg'  // Return JPEG directly instead of PDF
+        format: 'pdf', // Production print download is PDF
       };
-
-      // DEBUG: Log what source will be used for export
-      console.log('[JPEG_EXPORT_DEBUG] ======= ADMIN DOWNLOAD REQUEST (Orders.tsx) =======');
-      console.log('[JPEG_EXPORT_DEBUG] Order ID:', orderId);
-      console.log('[JPEG_EXPORT_DEBUG] Banner size:', item.width_in, '×', item.height_in, 'inches');
-      console.log('[JPEG_EXPORT_DEBUG] finalRenderUrl:', item.final_render_url ? item.final_render_url.substring(0, 80) + '...' : 'NONE');
-      console.log('[JPEG_EXPORT_DEBUG] finalRenderFileKey:', item.final_render_file_key || 'NONE');
-      console.log('[JPEG_EXPORT_DEBUG] finalRenderWidthPx:', item.final_render_width_px || 'NONE');
-      console.log('[JPEG_EXPORT_DEBUG] finalRenderHeightPx:', item.final_render_height_px || 'NONE');
-      console.log('[JPEG_EXPORT_DEBUG] thumbnailUrl:', item.thumbnail_url ? item.thumbnail_url.substring(0, 80) + '...' : 'NONE');
-      console.log('[JPEG_EXPORT_DEBUG] Using final_render:', !!(item.final_render_url || item.final_render_file_key));
-      console.log('[JPEG_EXPORT_DEBUG] ================================================');
-      console.log('🔴 PDF REQUEST:', JSON.stringify(requestBody, null, 2));
 
       // Retry logic for transient 504 timeouts
       let response: Response | null = null;
@@ -386,7 +400,7 @@ const AdminOrders: React.FC = () => {
         try {
           if (attempt > 0) {
             toast({
-              title: "Retrying Print File Generation",
+              title: 'Retrying Print PDF Generation',
               description: `Attempt ${attempt + 1} of ${maxRetries + 1}...`,
             });
           }
@@ -401,17 +415,17 @@ const AdminOrders: React.FC = () => {
           clearTimeout(timeoutId);
           // If we get a 504, retry
           if (response.status === 504 && attempt < maxRetries) {
-            console.warn(`PDF generation got 504 on attempt ${attempt + 1}, retrying...`);
+            console.warn(`[ADMIN_PDF] PDF generation got 504 on attempt ${attempt + 1}, retrying...`);
             continue;
           }
           break;
         } catch (fetchError: any) {
           if (fetchError.name === 'AbortError') {
             if (attempt < maxRetries) {
-              console.warn(`PDF generation timed out on attempt ${attempt + 1}, retrying...`);
+              console.warn(`[ADMIN_PDF] PDF generation timed out on attempt ${attempt + 1}, retrying...`);
               continue;
             }
-            throw new Error('Print file generation timed out. Please try again.');
+            throw new Error('Print PDF generation timed out. Please try again.');
           }
           throw fetchError;
         }
@@ -419,11 +433,11 @@ const AdminOrders: React.FC = () => {
 
       if (!response || !response.ok) {
         const errorText = response ? await response.text() : 'No response';
-        console.error('PDF generation failed:', errorText);
+        console.error('[ADMIN_PDF] PDF generation failed:', errorText);
         throw new Error(`HTTP ${response?.status || 'unknown'}: ${errorText}`);
       }
 
-      // Response is JSON with Cloudinary download URL
+      // Response is JSON containing pdfUrl (preferred) and/or pdfBase64
       const result = await response.json();
       if (result.error) {
         // Handle specific print pipeline errors with descriptive messages
@@ -433,64 +447,74 @@ const AdminOrders: React.FC = () => {
         if (result.error === 'no_print_source') {
           throw new Error(`⚠️ No Print Source: ${result.message}`);
         }
-        throw new Error(result.error || 'Print file generation failed');
+        throw new Error(result.error || 'Print PDF generation failed');
       }
 
-      if (result.downloadUrl) {
-        // High-res JPEG hosted on Cloudinary - fetch as blob to force download
-        let imgResponse = await fetch(result.downloadUrl);
-        // If transformed URL fails, fall back to raw Cloudinary URL
-        if (!imgResponse.ok && result.rawUrl) {
-          console.warn('Transformed URL failed, falling back to raw URL');
-          imgResponse = await fetch(result.rawUrl);
+      console.log('[ADMIN_PDF] Generation result:', {
+        format: result.format,
+        source: result.source,
+        cached: !!result.cached,
+        pdfUrl: result.pdfUrl || result.downloadUrl || null,
+        hasInlineBase64: !!result.pdfBase64,
+      });
+      const finalPdfUrl = result.pdfUrl || result.downloadUrl || null;
+      console.log('[ADMIN_PDF] ✅ Final PDF URL returned:', finalPdfUrl || '(inline base64 only)');
+
+      // Update local state so a follow-up click downloads the cached URL directly
+      if (finalPdfUrl && item && typeof item === 'object') {
+        item.generated_print_pdf_url = finalPdfUrl;
+      }
+
+      // PRIMARY: download from the uploaded PDF URL (preferred path)
+      if (finalPdfUrl) {
+        let pdfResp = await fetch(finalPdfUrl);
+        if (!pdfResp.ok && result.rawUrl) {
+          console.warn('[ADMIN_PDF] Primary URL failed, falling back to raw URL');
+          pdfResp = await fetch(result.rawUrl);
         }
-        if (!imgResponse.ok) throw new Error('Failed to download image: ' + imgResponse.status);
-        const blob = await imgResponse.blob();
-        if (blob.size === 0) throw new Error('Downloaded file is empty');
+        if (!pdfResp.ok) throw new Error('Failed to download PDF: ' + pdfResp.status);
+        const blob = await pdfResp.blob();
+        if (blob.size === 0) throw new Error('Downloaded PDF is empty');
         const blobUrl = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = blobUrl;
-        link.download = `order-${orderId.slice(-8)}-banner-${itemIndex + 1}-print-ready.jpg`;
+        link.download = `order-${orderId.slice(-8)}-banner-${itemIndex + 1}-print-ready.pdf`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         window.URL.revokeObjectURL(blobUrl);
       } else if (result.pdfBase64) {
-        // Vector PDF (from banner-editor objects) or legacy base64 PDF
-        const isVectorPdf = result.format === 'pdf' && result.source === 'vector_from_editor_objects';
-        const mimeType = isVectorPdf ? 'application/pdf' : 'image/jpeg';
-        const extension = isVectorPdf ? 'pdf' : 'jpg';
+        // FALLBACK: inline base64 PDF (legacy path / when Cloudinary upload failed)
         const binaryString = atob(result.pdfBase64);
         const bytes = new Uint8Array(binaryString.length);
         for (let i = 0; i < binaryString.length; i++) {
           bytes[i] = binaryString.charCodeAt(i);
         }
-        const blob = new Blob([bytes], { type: mimeType });
+        const blob = new Blob([bytes], { type: 'application/pdf' });
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `order-${orderId.slice(-8)}-banner-${itemIndex + 1}-print-ready.${extension}`;
+        link.download = `order-${orderId.slice(-8)}-banner-${itemIndex + 1}-print-ready.pdf`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
-        if (isVectorPdf) {
-          console.log('[PDF] Downloaded vector PDF:', result.dimensions, 'objects:', result.objectCount);
-        }
       } else {
-        throw new Error("No print file data in response");
+        throw new Error('No print PDF data in response');
       }
 
       toast({
-        title: "Print File Downloaded",
-        description: "Print-ready file downloaded successfully.",
+        title: 'Print PDF Downloaded',
+        description: result.cached
+          ? 'Reused previously generated print-ready PDF.'
+          : 'Print-ready PDF generated and downloaded successfully.',
       });
     } catch (error) {
-      console.error('PDF Download Error:', error);
+      console.error('[ADMIN_PDF] Print PDF Download Error:', error);
       toast({
-        title: "Print File Generation Failed",
-        description: error instanceof Error ? error.message : "Failed to generate print file",
-        variant: "destructive",
+        title: 'Print PDF Generation Failed',
+        description: error instanceof Error ? error.message : 'Failed to generate print PDF',
+        variant: 'destructive',
       });
     } finally {
       // Clear loading state for this PDF button
@@ -1356,7 +1380,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                 ))}
                 {filesWithDownload.map(({ item, index }) => (
                   <Button
-                    key={`jpeg-${index}`}
+                    key={`pdf-${index}`}
                     size="sm"
                     variant="outline"
                     onClick={() => onPdfDownload(item, index, order.id)}
@@ -1371,7 +1395,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                     ) : (
                       <>
                         <FileText className="h-3 w-3 mr-1" />
-                        JPEG {index + 1}
+                        PDF {index + 1}
                       </>
                     )}
                   </Button>
@@ -1665,7 +1689,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
                 ) : (
                   <>
                     <FileText className="h-3 w-3 mr-1" />
-                    JPEG {index + 1}
+                    PDF {index + 1}
                   </>
                 )}
               </Button>
