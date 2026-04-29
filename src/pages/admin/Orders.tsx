@@ -416,14 +416,27 @@ const AdminOrders: React.FC = () => {
 
       if (!response || !response.ok) {
         // The backend returns JSON {error} on failure; surface it nicely.
-        let errorMessage = `HTTP ${response?.status || 'unknown'}`;
+        const status = response?.status;
+        const contentType = response?.headers.get('content-type') || '';
+        let errorMessage = `HTTP ${status || 'unknown'}`;
         if (response) {
           try {
             const errJson = await response.clone().json();
+            console.error('[ADMIN_PDF] PDF endpoint failed', {
+              status,
+              contentType,
+              json: errJson,
+            });
             if (errJson && errJson.error) errorMessage = String(errJson.error);
           } catch {
-            try { errorMessage = (await response.text()) || errorMessage; } catch { /* ignore */ }
+            try {
+              const text = await response.text();
+              console.error('[ADMIN_PDF] PDF endpoint failed', { status, contentType, body: text.slice(0, 500) });
+              errorMessage = text || errorMessage;
+            } catch { /* ignore */ }
           }
+        } else {
+          console.error('[ADMIN_PDF] PDF endpoint failed: no response object');
         }
         console.error('[ADMIN_PDF] PDF download failed:', errorMessage);
         throw new Error(errorMessage);
@@ -432,9 +445,45 @@ const AdminOrders: React.FC = () => {
       // Backend always returns the PDF bytes directly with
       // Content-Type: application/pdf and Content-Disposition: attachment.
       const source = response.headers.get('X-Print-PDF-Source') || 'unknown';
-      console.log('[ADMIN_PDF] ✅ Backend delivered PDF (source=' + source + ')');
+      const responseContentType = response.headers.get('content-type') || '';
+      console.log('[ADMIN_PDF] ✅ Backend delivered response', {
+        status: response.status,
+        contentType: responseContentType,
+        source,
+      });
+
+      // If backend unexpectedly returned JSON instead of a PDF, parse it and
+      // honor a `downloadUrl` field per the standardized contract.
+      if (!responseContentType.includes('application/pdf')) {
+        let json: any = null;
+        try {
+          json = await response.clone().json();
+        } catch {
+          /* not JSON */
+        }
+        console.log('[ADMIN_PDF] Non-PDF response body:', json);
+        const downloadUrl = json && (json.downloadUrl || json.pdfUrl);
+        if (json && json.success !== false && downloadUrl) {
+          const link = document.createElement('a');
+          link.href = downloadUrl;
+          link.download = json.fileName || `order-${orderId.slice(-8)}-banner-${itemIndex + 1}-print.pdf`;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          toast({
+            title: 'Print PDF Downloaded',
+            description: 'Print-ready PDF download started.',
+          });
+          return;
+        }
+        throw new Error(
+          (json && json.error) ||
+            `Unexpected response (content-type: ${responseContentType || 'unknown'})`
+        );
+      }
 
       const blob = await response.blob();
+      console.log('[ADMIN_PDF] PDF blob received', { size: blob.size, type: blob.type });
       if (blob.size === 0) throw new Error('Downloaded PDF is empty');
       const blobUrl = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
