@@ -1,8 +1,9 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Grommets } from '@/store/quote';
 import { FileText, Image, Loader2 } from 'lucide-react';
 import PDFPreview from './PDFPreview';
 import PdfImagePreview from '@/components/preview/PdfImagePreview';
+import { getRulerTicks, type RulerUnit } from '@/lib/dimensions/rulers';
 
 interface PreviewCanvasProps {
   widthIn: number;
@@ -11,6 +12,10 @@ interface PreviewCanvasProps {
   imageUrl?: string;
   className?: string;
   scale?: number;
+  /** Display unit for the measurement rulers around the canvas. Defaults
+   *  to 'in' so existing callers are unchanged. UI ruler only — does not
+   *  affect any pricing, cart, or print pipeline. */
+  unit?: RulerUnit;
   file?: {
     name: string;
     type: string;
@@ -103,6 +108,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   imageUrl,
   className = "",
   scale = 1,
+  unit = 'in',
   file,
   imagePosition = { x: 0, y: 0 },
   imageScale = 1,
@@ -119,6 +125,35 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   const grommetPositions = useMemo(() => {
     return grommetPoints(widthIn, heightIn, grommets);
   }, [widthIn, heightIn, grommets]);
+
+  // Measurement ruler ticks (UI-only, kept inside the SVG so they share
+  // the canvas's responsive scaling but are excluded from the print
+  // pipeline, which uses canvas_state_json server-side).
+  // On narrow viewports the ruler is intentionally label-sparse to stay
+  // readable; we approximate "narrow" via a smaller maxMajorLabels cap
+  // and react to window resizes / device rotation so the cap stays current.
+  const [isNarrowViewport, setIsNarrowViewport] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth < 480
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onResize = () => setIsNarrowViewport(window.innerWidth < 480);
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('orientationchange', onResize);
+    };
+  }, []);
+  const maxMajorLabels = isNarrowViewport ? 4 : 12;
+  const horizontalTicks = useMemo(
+    () => getRulerTicks(widthIn, unit, { maxMajorLabels }),
+    [widthIn, unit, maxMajorLabels]
+  );
+  const verticalTicks = useMemo(
+    () => getRulerTicks(heightIn, unit, { maxMajorLabels }),
+    [heightIn, unit, maxMajorLabels]
+  );
 
   const grommetRadius = useMemo(() => {
     return Math.max(0.25, Math.min(widthIn, heightIn) * 0.015);
@@ -147,7 +182,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
 
   return (
     <div className={`${className} w-full`} style={{ maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
-      <div className="relative bg-gray-50 p-8 rounded-lg overflow-hidden" style={{height: "500px", width: "100%", maxWidth: "100%", boxSizing: "border-box", minWidth: 0, display: "flex", alignItems: "center", justifyContent: "center"}}>
+      <div className="relative bg-slate-100 p-8 rounded-lg overflow-hidden" style={{height: "500px", width: "100%", maxWidth: "100%", boxSizing: "border-box", minWidth: 0, display: "flex", alignItems: "center", justifyContent: "center"}}>
         {/* Loading Spinner Overlay */}
         {isUploading && (
           <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 rounded-lg">
@@ -158,7 +193,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           </div>
         )}        <svg
           viewBox={`0 0 ${totalWidth} ${totalHeight}`}
-          className="border-2 border-gray-400 rounded-xl bg-white shadow-sm"
+          className="border border-slate-300 rounded-xl bg-white"
           onClick={onCanvasClick}
           style={{
             width: "100%",
@@ -167,29 +202,60 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
             maxHeight: "100%",
             display: "block",
             minWidth: 0,
+            // Stronger drop shadow gives the printable canvas a clear,
+            // elevated "physical product" feel without affecting exports.
+            boxShadow: "0 10px 24px -8px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(15, 23, 42, 0.08)",
           }}
         >
-        {/* PROFESSIONAL PRINT GUIDELINES - ALWAYS VISIBLE */}
-        <g className="print-rulers">
-          <rect x="0" y="0" width={totalWidth} height={RULER_HEIGHT} fill="#f1f5f9" stroke="#64748b" strokeWidth="0.02"/>
-          <text x={totalWidth/2} y={RULER_HEIGHT/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.5" fill="#1e293b" fontWeight="600">
-            {/* Ruler tick marks */}
-            {Array.from({length: Math.floor(widthIn)}, (_, i) => (
-              <line key={i} x1={RULER_HEIGHT + BLEED_SIZE + i} y1={RULER_HEIGHT - TICK_SIZE} x2={RULER_HEIGHT + BLEED_SIZE + i} y2={RULER_HEIGHT} stroke="#64748b" strokeWidth="0.02" />
-            ))}            {`${widthIn}"`}
-          </text>
-          <rect x="0" y={totalHeight - RULER_HEIGHT} width={totalWidth} height={RULER_HEIGHT} fill="#f1f5f9" stroke="#64748b" strokeWidth="0.02"/>
-          <text x={totalWidth/2} y={totalHeight - RULER_HEIGHT/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.5" fill="#1e293b" fontWeight="600">
-            {`${widthIn}"`}
-          </text>
-          <rect x="0" y="0" width={RULER_HEIGHT} height={totalHeight} fill="#f1f5f9" stroke="#64748b" strokeWidth="0.02"/>
-          <text x={RULER_HEIGHT/2} y={totalHeight/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.5" fill="#1e293b" fontWeight="600" transform={`rotate(-90, ${RULER_HEIGHT/2}, ${totalHeight/2})`}>
-            {`${heightIn}"`}
-          </text>
-          <rect x={totalWidth - RULER_HEIGHT} y="0" width={RULER_HEIGHT} height={totalHeight} fill="#f1f5f9" stroke="#64748b" strokeWidth="0.02"/>
-          <text x={totalWidth - RULER_HEIGHT/2} y={totalHeight/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.5" fill="#1e293b" fontWeight="600" transform={`rotate(90, ${totalWidth - RULER_HEIGHT/2}, ${totalHeight/2})`}>
-            {`${heightIn}"`}
-          </text>
+        {/* PROFESSIONAL PRINT GUIDELINES — measurement rulers (UI overlay
+            inside the SVG; not consumed by the print pipeline, which uses
+            canvas_state_json server-side). */}
+        <g className="print-rulers" pointerEvents="none">
+          {/* Ruler backgrounds */}
+          <rect x="0" y="0" width={totalWidth} height={RULER_HEIGHT} fill="#f8fafc" stroke="#cbd5e1" strokeWidth="0.02" />
+          <rect x="0" y={totalHeight - RULER_HEIGHT} width={totalWidth} height={RULER_HEIGHT} fill="#f8fafc" stroke="#cbd5e1" strokeWidth="0.02" />
+          <rect x="0" y="0" width={RULER_HEIGHT} height={totalHeight} fill="#f8fafc" stroke="#cbd5e1" strokeWidth="0.02" />
+          <rect x={totalWidth - RULER_HEIGHT} y="0" width={RULER_HEIGHT} height={totalHeight} fill="#f8fafc" stroke="#cbd5e1" strokeWidth="0.02" />
+
+          {/* Top + bottom horizontal ruler ticks */}
+          {horizontalTicks.map((t, i) => {
+            const x = bannerOffsetX + t.pos;
+            const tick = t.major ? TICK_SIZE : TICK_SIZE * 0.55;
+            return (
+              <g key={`h-${i}`}>
+                {/* top */}
+                <line x1={x} y1={RULER_HEIGHT - tick} x2={x} y2={RULER_HEIGHT} stroke="#475569" strokeWidth={t.major ? 0.04 : 0.025} />
+                {/* bottom */}
+                <line x1={x} y1={totalHeight - RULER_HEIGHT} x2={x} y2={totalHeight - RULER_HEIGHT + tick} stroke="#475569" strokeWidth={t.major ? 0.04 : 0.025} />
+                {t.major && t.label && (
+                  <>
+                    <text x={x} y={RULER_HEIGHT - tick - 0.18} textAnchor="middle" fontSize="0.42" fill="#1e293b" fontWeight="600">{t.label}</text>
+                    <text x={x} y={totalHeight - RULER_HEIGHT + tick + 0.5} textAnchor="middle" fontSize="0.42" fill="#1e293b" fontWeight="600">{t.label}</text>
+                  </>
+                )}
+              </g>
+            );
+          })}
+
+          {/* Left + right vertical ruler ticks */}
+          {verticalTicks.map((t, i) => {
+            const y = bannerOffsetY + t.pos;
+            const tick = t.major ? TICK_SIZE : TICK_SIZE * 0.55;
+            return (
+              <g key={`v-${i}`}>
+                {/* left */}
+                <line x1={RULER_HEIGHT - tick} y1={y} x2={RULER_HEIGHT} y2={y} stroke="#475569" strokeWidth={t.major ? 0.04 : 0.025} />
+                {/* right */}
+                <line x1={totalWidth - RULER_HEIGHT} y1={y} x2={totalWidth - RULER_HEIGHT + tick} y2={y} stroke="#475569" strokeWidth={t.major ? 0.04 : 0.025} />
+                {t.major && t.label && (
+                  <>
+                    <text x={RULER_HEIGHT - tick - 0.15} y={y} textAnchor="end" dominantBaseline="middle" fontSize="0.42" fill="#1e293b" fontWeight="600" transform={`rotate(-90, ${RULER_HEIGHT - tick - 0.15}, ${y})`}>{t.label}</text>
+                    <text x={totalWidth - RULER_HEIGHT + tick + 0.5} y={y} textAnchor="start" dominantBaseline="middle" fontSize="0.42" fill="#1e293b" fontWeight="600" transform={`rotate(90, ${totalWidth - RULER_HEIGHT + tick + 0.5}, ${y})`}>{t.label}</text>
+                  </>
+                )}
+              </g>
+            );
+          })}
         </g>
 
         {/* PROFESSIONAL PRINT GUIDELINES - VISTAPRINT STYLE */}
