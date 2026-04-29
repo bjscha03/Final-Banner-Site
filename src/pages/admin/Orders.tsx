@@ -456,21 +456,27 @@ const AdminOrders: React.FC = () => {
         document.body.removeChild(link);
         window.URL.revokeObjectURL(blobUrl);
       } else if (result.pdfBase64) {
-        // Legacy base64 fallback
+        // Vector PDF (from banner-editor objects) or legacy base64 PDF
+        const isVectorPdf = result.format === 'pdf' && result.source === 'vector_from_editor_objects';
+        const mimeType = isVectorPdf ? 'application/pdf' : 'image/jpeg';
+        const extension = isVectorPdf ? 'pdf' : 'jpg';
         const binaryString = atob(result.pdfBase64);
         const bytes = new Uint8Array(binaryString.length);
         for (let i = 0; i < binaryString.length; i++) {
           bytes[i] = binaryString.charCodeAt(i);
         }
-        const blob = new Blob([bytes], { type: 'image/jpeg' });
+        const blob = new Blob([bytes], { type: mimeType });
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = `order-${orderId.slice(-8)}-banner-${itemIndex + 1}-print-ready.jpg`;
+        link.download = `order-${orderId.slice(-8)}-banner-${itemIndex + 1}-print-ready.${extension}`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
         window.URL.revokeObjectURL(url);
+        if (isVectorPdf) {
+          console.log('[PDF] Downloaded vector PDF:', result.dimensions, 'objects:', result.objectCount);
+        }
       } else {
         throw new Error("No print file data in response");
       }

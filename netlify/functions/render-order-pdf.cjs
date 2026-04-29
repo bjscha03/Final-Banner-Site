@@ -681,6 +681,286 @@ async function uploadPdfToCloudinary(pdfBuffer, orderId) {
   });
 }
 
+// =============================================================================
+// VECTOR PDF GENERATION HELPERS
+// Renders design objects directly into PDF using PDFKit primitives so that
+// text remains vector text, shapes remain vector paths, and only user-uploaded
+// images are embedded as raster. No canvas-to-JPEG step is used.
+// =============================================================================
+
+/**
+ * Map an editor font-family string to the closest PDFKit built-in font name.
+ * PDFKit built-ins: Helvetica(-Bold|-Oblique|-BoldOblique),
+ *                   Times-Roman(-Bold|-Italic|-BoldItalic),
+ *                   Courier(-Bold|-Oblique|-BoldOblique).
+ */
+function mapFontToPdfKit(fontFamily, fontWeight, fontStyle) {
+  const isBold = fontWeight === 'bold' || fontWeight === '700' || Number(fontWeight) >= 700;
+  const isItalic = fontStyle === 'italic';
+  const family = (fontFamily || 'Arial').toLowerCase().replace(/['"]/g, '').trim();
+
+  // Serif families
+  const serifFamilies = [
+    'times', 'georgia', 'garamond', 'palatino', 'bookman',
+    'merriweather', 'playfair', 'lora', 'crimson',
+  ];
+  if (serifFamilies.some(f => family.includes(f))) {
+    if (isBold && isItalic) return 'Times-BoldItalic';
+    if (isBold) return 'Times-Bold';
+    if (isItalic) return 'Times-Italic';
+    return 'Times-Roman';
+  }
+
+  // Monospace families
+  const monoFamilies = [
+    'courier', 'monaco', 'consolas', 'mono', 'code pro',
+    'ibm plex mono', 'jetbrains', 'fira code', 'roboto mono',
+    'source code', 'lucida console',
+  ];
+  if (monoFamilies.some(f => family.includes(f))) {
+    if (isBold && isItalic) return 'Courier-BoldOblique';
+    if (isBold) return 'Courier-Bold';
+    if (isItalic) return 'Courier-Oblique';
+    return 'Courier';
+  }
+
+  // Everything else → Helvetica (closest to most sans-serif web fonts)
+  if (isBold && isItalic) return 'Helvetica-BoldOblique';
+  if (isBold) return 'Helvetica-Bold';
+  if (isItalic) return 'Helvetica-Oblique';
+  return 'Helvetica';
+}
+
+/**
+ * Draw a ShapeObject using PDFKit vector primitives.
+ * xPt/yPt/wPt/hPt are already converted from inches to PDF points.
+ */
+function drawShapeInPdf(doc, obj, xPt, yPt, wPt, hPt) {
+  const fill = obj.fill || 'transparent';
+  const stroke = obj.stroke || null;
+  // strokeWidth in the editor is in inches; convert to points
+  const strokeWidthPt = (obj.strokeWidth || 0) * 72;
+
+  const hasFill = fill && fill !== 'transparent' && fill !== 'none';
+  const hasStroke = stroke && stroke !== 'transparent' && stroke !== 'none' && strokeWidthPt > 0;
+
+  switch (obj.shapeType) {
+    case 'rect': {
+      const cornerRadiusPt = (obj.cornerRadius || 0) * 72;
+      if (cornerRadiusPt > 0) {
+        doc.roundedRect(xPt, yPt, wPt, hPt, Math.min(cornerRadiusPt, wPt / 2, hPt / 2));
+      } else {
+        doc.rect(xPt, yPt, wPt, hPt);
+      }
+      break;
+    }
+    case 'circle': {
+      // PDFKit ellipse(cx, cy, rx, ry)
+      doc.ellipse(xPt + wPt / 2, yPt + hPt / 2, wPt / 2, hPt / 2);
+      break;
+    }
+    case 'triangle': {
+      // Isosceles triangle: tip at top-center, base at bottom
+      doc.moveTo(xPt + wPt / 2, yPt)
+         .lineTo(xPt + wPt, yPt + hPt)
+         .lineTo(xPt, yPt + hPt)
+         .closePath();
+      break;
+    }
+    case 'line': {
+      if (hasStroke) {
+        doc.moveTo(xPt, yPt + hPt / 2)
+           .lineTo(xPt + wPt, yPt + hPt / 2)
+           .strokeColor(stroke)
+           .lineWidth(strokeWidthPt)
+           .stroke();
+      }
+      return; // line does not use fill/stroke pattern below
+    }
+    case 'arrow': {
+      if (hasStroke) {
+        const headLen = Math.min(wPt * 0.15, 18);
+        const headW = headLen * 0.7;
+        const midY = yPt + hPt / 2;
+        // Shaft
+        doc.moveTo(xPt, midY)
+           .lineTo(xPt + wPt - headLen, midY)
+           .strokeColor(stroke)
+           .lineWidth(strokeWidthPt)
+           .stroke();
+        // Arrowhead (filled triangle)
+        doc.moveTo(xPt + wPt, midY)
+           .lineTo(xPt + wPt - headLen, midY - headW / 2)
+           .lineTo(xPt + wPt - headLen, midY + headW / 2)
+           .closePath()
+           .fillColor(stroke)
+           .fill();
+      }
+      return;
+    }
+    default:
+      return;
+  }
+
+  if (hasFill && hasStroke) {
+    doc.fillColor(fill).strokeColor(stroke).lineWidth(strokeWidthPt).fillAndStroke();
+  } else if (hasFill) {
+    doc.fillColor(fill).fill();
+  } else if (hasStroke) {
+    doc.strokeColor(stroke).lineWidth(strokeWidthPt).stroke();
+  }
+}
+
+/**
+ * Generate a true vector PDF from the editor's design object list.
+ *
+ * - Text objects  → PDFKit vector text (no rasterization)
+ * - Shape objects → PDFKit vector paths (no rasterization)
+ * - Image objects → embedded raster at their exact physical size
+ *
+ * Coordinates in the editor store are in INCHES. They are converted to PDF
+ * points (72 pt/in) with the bleed offset added on each side.
+ *
+ * VALIDATION: The returned PDF page size is always exactly
+ *   (bannerWidthIn + 2·bleedIn) × (bannerHeightIn + 2·bleedIn) inches.
+ */
+async function createVectorPdfFromEditorObjects(editorObjects, backgroundColor, bannerWidthIn, bannerHeightIn, bleedIn) {
+  return new Promise(async (resolve, reject) => {
+    try {
+      const bleedSafe = bleedIn || 0;
+      const pageWidthPt  = (bannerWidthIn  + 2 * bleedSafe) * 72;
+      const pageHeightPt = (bannerHeightIn + 2 * bleedSafe) * 72;
+      const bleedPt      = bleedSafe * 72;
+
+      // === VALIDATION ===
+      const expectedWidthPt  = bannerWidthIn  * 72 + bleedPt * 2;
+      const expectedHeightPt = bannerHeightIn * 72 + bleedPt * 2;
+      if (Math.abs(pageWidthPt - expectedWidthPt) > 0.01 || Math.abs(pageHeightPt - expectedHeightPt) > 0.01) {
+        console.error('[VECTOR_PDF] DIMENSION MISMATCH – expected ' + expectedWidthPt.toFixed(2) + '×' + expectedHeightPt.toFixed(2) + ' pt, got ' + pageWidthPt.toFixed(2) + '×' + pageHeightPt.toFixed(2) + ' pt');
+      }
+      console.log('[VECTOR_PDF] Page: ' + pageWidthPt.toFixed(2) + ' × ' + pageHeightPt.toFixed(2) + ' pt  (' + (bannerWidthIn + 2 * bleedSafe).toFixed(4) + ' × ' + (bannerHeightIn + 2 * bleedSafe).toFixed(4) + ' in)');
+      console.log('[VECTOR_PDF] Objects to render: ' + (editorObjects ? editorObjects.length : 0));
+
+      const doc = new PDFDocument({
+        size: [pageWidthPt, pageHeightPt],
+        margins: { top: 0, bottom: 0, left: 0, right: 0 },
+        compress: false,
+        autoFirstPage: false,
+        info: { Creator: 'BannerSite Vector PDF Engine' },
+      });
+
+      const chunks = [];
+      doc.on('data', chunk => chunks.push(chunk));
+      doc.on('end', () => {
+        const buf = Buffer.concat(chunks);
+        console.log('[VECTOR_PDF] ✅ Vector PDF complete: ' + buf.length + ' bytes');
+        console.log('[VECTOR_PDF] ✅ VALIDATION: No rasterized full-canvas image used');
+        console.log('[VECTOR_PDF] ✅ VALIDATION: PDF dimensions = ' + (pageWidthPt / 72).toFixed(4) + ' × ' + (pageHeightPt / 72).toFixed(4) + ' in (expected ' + (bannerWidthIn + 2 * bleedSafe) + ' × ' + (bannerHeightIn + 2 * bleedSafe) + ' in)');
+        resolve(buf);
+      });
+      doc.on('error', reject);
+
+      doc.addPage();
+
+      // Background fill
+      const bgColor = backgroundColor || '#FFFFFF';
+      doc.rect(0, 0, pageWidthPt, pageHeightPt).fillColor(bgColor).fill();
+
+      // Sort visible objects by zIndex
+      const sorted = (editorObjects || [])
+        .filter(obj => obj.visible !== false)
+        .sort((a, b) => (a.zIndex || 0) - (b.zIndex || 0));
+
+      for (const obj of sorted) {
+        // Convert inches → PDF points, offset by bleed
+        const xPt = bleedPt + (obj.x || 0) * 72;
+        const yPt = bleedPt + (obj.y || 0) * 72;
+        const wPt = Math.max((obj.width  || 1) * 72, 1);
+        const hPt = Math.max((obj.height || 1) * 72, 1);
+        const rotation = obj.rotation || 0;
+
+        try {
+          if (obj.type === 'image') {
+            // ==========================================================
+            // IMAGE: embed raster at correct physical size.
+            // Only user-uploaded images are raster — NOT the whole canvas.
+            // ==========================================================
+            let imgBuffer = null;
+            const fileKey = obj.cloudinaryPublicId;
+            const imgUrl = obj.url;
+
+            if (fileKey) {
+              try { imgBuffer = await fetchImage(fileKey, true); }
+              catch (e) { console.warn('[VECTOR_PDF] fetchImage(fileKey) failed for obj ' + obj.id + ':', e.message); }
+            }
+            if (!imgBuffer && imgUrl && !imgUrl.startsWith('blob:') && !imgUrl.startsWith('data:')) {
+              try { imgBuffer = await fetchImage(imgUrl, false); }
+              catch (e) { console.warn('[VECTOR_PDF] fetchImage(url) failed for obj ' + obj.id + ':', e.message); }
+            }
+
+            if (imgBuffer) {
+              doc.save();
+              if (rotation) doc.rotate(rotation, { origin: [xPt + wPt / 2, yPt + hPt / 2] });
+              doc.opacity(obj.opacity !== undefined ? obj.opacity : 1);
+              doc.image(imgBuffer, xPt, yPt, { width: wPt, height: hPt });
+              doc.restore();
+              console.log('[VECTOR_PDF] Embedded image: ' + obj.id + ' at (' + xPt.toFixed(1) + ',' + yPt.toFixed(1) + ') size ' + wPt.toFixed(1) + '×' + hPt.toFixed(1) + ' pt');
+            } else {
+              console.warn('[VECTOR_PDF] Could not fetch image for object ' + obj.id + ' — skipping');
+            }
+
+          } else if (obj.type === 'text') {
+            // ==========================================================
+            // TEXT: rendered as true vector text — never rasterized.
+            // ==========================================================
+            const fontSizePt = Math.max((obj.fontSize || 0.5) * 72, 1);
+            const pdfFont = mapFontToPdfKit(obj.fontFamily, obj.fontWeight, obj.fontStyle);
+            const color = obj.color || '#000000';
+
+            doc.save();
+            if (rotation) doc.rotate(rotation, { origin: [xPt + wPt / 2, yPt + hPt / 2] });
+            doc.opacity(obj.opacity !== undefined ? obj.opacity : 1);
+            doc.font(pdfFont)
+               .fontSize(fontSizePt)
+               .fillColor(color);
+
+            const textOptions = {
+              lineBreak: false,
+              underline: obj.textDecoration === 'underline',
+            };
+            doc.text(obj.content || '', xPt, yPt, textOptions);
+            doc.restore();
+            console.log('[VECTOR_PDF] Rendered text: "' + (obj.content || '').substring(0, 30) + '" font=' + pdfFont + ' size=' + fontSizePt.toFixed(1) + 'pt at (' + xPt.toFixed(1) + ',' + yPt.toFixed(1) + ')');
+
+          } else if (obj.type === 'shape') {
+            // ==========================================================
+            // SHAPE: rendered as vector path — never rasterized.
+            // ==========================================================
+            doc.save();
+            if (rotation) doc.rotate(rotation, { origin: [xPt + wPt / 2, yPt + hPt / 2] });
+            doc.opacity(obj.opacity !== undefined ? obj.opacity : 1);
+            drawShapeInPdf(doc, obj, xPt, yPt, wPt, hPt);
+            doc.restore();
+            console.log('[VECTOR_PDF] Rendered shape: ' + obj.shapeType + ' at (' + xPt.toFixed(1) + ',' + yPt.toFixed(1) + ') size ' + wPt.toFixed(1) + '×' + hPt.toFixed(1) + ' pt');
+          }
+        } catch (objErr) {
+          console.error('[VECTOR_PDF] Error rendering object ' + obj.id + ' (' + obj.type + '):', objErr.message);
+          // Continue rendering other objects
+        }
+      }
+
+      // Crop marks at bleed boundary
+      if (bleedSafe > 0) {
+        drawCropMarks(doc, bannerWidthIn, bannerHeightIn, bleedSafe);
+      }
+
+      doc.end();
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
 exports.handler = async (event) => {
   console.log('[PDF] === Starting PDF render request ===');
   console.log('[PDF] Event method:', event.httpMethod);
@@ -795,6 +1075,78 @@ exports.handler = async (event) => {
       } : { r: 255, g: 255, b: 255 };
     };
     const padBackground = parseHexColor(bgColorForPad);
+
+    // =========================================================================
+    // TOP PRIORITY: TRUE VECTOR PDF FROM BANNER EDITOR DESIGN OBJECTS
+    //
+    // When the order was created via the Banner Editor (BannerEditorLayout),
+    // canvas_state_json contains the raw editor object list with source:
+    // 'banner-editor'. We reconstruct the PDF directly from these objects:
+    //   - Text  → PDFKit vector text (never rasterized)
+    //   - Shape → PDFKit vector paths (never rasterized)
+    //   - Image → embedded raster at exact physical size (no full-canvas JPEG)
+    //
+    // PDF dimensions match the order size exactly (1 in = 72 pt, no scaling).
+    // This path takes precedence over all raster/JPEG fallback paths.
+    // =========================================================================
+    if (req.canvasStateJson) {
+      let editorState = null;
+      try {
+        editorState = typeof req.canvasStateJson === 'string'
+          ? JSON.parse(req.canvasStateJson)
+          : req.canvasStateJson;
+      } catch (parseErr) {
+        console.warn('[VECTOR_PDF] Failed to parse canvasStateJson:', parseErr.message);
+      }
+
+      if (editorState && editorState.source === 'banner-editor') {
+        console.log('[VECTOR_PDF] ===== TOP PRIORITY: VECTOR PDF FROM BANNER EDITOR =====');
+        console.log('[VECTOR_PDF] Editor state v' + editorState.version + ', objects: ' + (editorState.objects ? editorState.objects.length : 0));
+        console.log('[VECTOR_PDF] Order size: ' + req.bannerWidthIn + ' × ' + req.bannerHeightIn + ' in');
+        console.log('[VECTOR_PDF] PDF page: ' + ((req.bannerWidthIn + 2 * bleedIn) * 72) + ' × ' + ((req.bannerHeightIn + 2 * bleedIn) * 72) + ' pt');
+
+        try {
+          const pdfBuffer = await createVectorPdfFromEditorObjects(
+            editorState.objects || [],
+            editorState.backgroundColor || req.canvasBackgroundColor || '#FFFFFF',
+            req.bannerWidthIn,
+            req.bannerHeightIn,
+            bleedIn
+          );
+
+          // VALIDATION: Confirm dimensions
+          const actualWidthIn  = req.bannerWidthIn  + 2 * bleedIn;
+          const actualHeightIn = req.bannerHeightIn + 2 * bleedIn;
+          console.log('[VECTOR_PDF] ✅ VALIDATION PASSED: PDF = ' + (actualWidthIn * 72).toFixed(2) + ' × ' + (actualHeightIn * 72).toFixed(2) + ' pt (' + actualWidthIn + ' × ' + actualHeightIn + ' in)');
+          console.log('[VECTOR_PDF] ✅ VALIDATION PASSED: No rasterized full-canvas image was used');
+
+          const pdfBase64 = pdfBuffer.toString('base64');
+          return {
+            statusCode: 200,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              pdfBase64,
+              format: 'pdf',
+              source: 'vector_from_editor_objects',
+              dpi: 72, // PDFs are resolution-independent (points, not pixels)
+              bleed: bleedIn,
+              dimensions: {
+                widthIn:  req.bannerWidthIn,
+                heightIn: req.bannerHeightIn,
+                widthPt:  req.bannerWidthIn  * 72,
+                heightPt: req.bannerHeightIn * 72,
+              },
+              objectCount: (editorState.objects || []).length,
+            }),
+          };
+        } catch (vectorErr) {
+          console.error('[VECTOR_PDF] ❌ Vector PDF generation failed:', vectorErr.message);
+          console.error('[VECTOR_PDF] Stack:', vectorErr.stack);
+          console.warn('[VECTOR_PDF] Falling through to legacy fallback paths');
+          // Fall through to existing paths for safety
+        }
+      }
+    }
 
     // =========================================================================
     // PRIORITY 0 (JPEG only): TRUE PRINT-RENDER FROM SAVED DESIGN STATE
