@@ -303,13 +303,16 @@ export const useCartStore = create<CartState>()(
       setSameDayHitService: (on: boolean) => {
         if (on) {
           // Server is authoritative, but we mirror server logic on the client
-          // to keep UX consistent and prevent the user from selecting an
-          // option that will be rejected at checkout.
-            const items = get().items.map(migrateCartItem);
-            const evalResult = evaluateSameDayEligibility({ items });
-            if (!evalResult.windowOpen || !evalResult.hasEligibleItem) {
-              return;
-            }
+          // to keep UX consistent. We only gate on the ET window here — not
+          // on cart eligibility — so the option can be selected from a product
+          // page before the item is in the cart. The reconciler runs whenever
+          // items change and will clear the flag if the cart ends up
+          // ineligible at checkout time.
+          const items = get().items.map(migrateCartItem);
+          const evalResult = evaluateSameDayEligibility({ items });
+          if (!evalResult.windowOpen) {
+            return;
+          }
           set({ sameDayHitService: true });
         } else {
           // Turning off Same-Day automatically clears Saturday Delivery.

@@ -24,6 +24,7 @@ import ProductTypeSwitcher from '@/components/design/ProductTypeSwitcher';
 import YardSignConfigurator from '@/components/design/YardSignConfigurator';
 import YardSignPriceSummary from '@/components/design/YardSignPriceSummary';
 import PriceBreakdown from '@/components/pricing/PriceBreakdown';
+import SameDayHitServiceCard from '@/components/cart/SameDayHitServiceCard';
 import FileUploader from '@/components/ui/FileUploader';
 import {
   calcYardSignPricing,
@@ -1405,6 +1406,13 @@ const Design: React.FC = () => {
                   />
                 )}
 
+                {/* Same-Day Hit Service upsell — production priority (NOT shipping). */}
+                <SameDayHitServiceCard
+                  variant="compact"
+                  previewHasPrice={!!yardSignPricing && yardSignTotalQty > 0 && yardSignQuantityValid.valid}
+                  previewSubtotalCents={yardSignPricing?.totalCents}
+                />
+
                 <button
                   onClick={handleCheckout}
                   disabled={yardSignDesigns.length === 0 || yardSignTotalQty === 0 || !yardSignQuantityValid.valid}
@@ -1810,6 +1818,21 @@ const Design: React.FC = () => {
                   footerNote="FREE Next-Day Air Included • Tax calculated at checkout"
                 />
               )}
+
+              {/* Same-Day Hit Service upsell — production priority (NOT shipping). */}
+              <SameDayHitServiceCard
+                variant="compact"
+                previewHasPrice={
+                  isCarMagnet
+                    ? !!carMagnetPricing && !!uploadedFile
+                    : !!uploadedFile && bannerPricing.subtotalBeforeDiscountCents > 0
+                }
+                previewSubtotalCents={
+                  isCarMagnet
+                    ? carMagnetPricing?.baseSubtotalCents
+                    : bannerPricing.subtotalBeforeDiscountCents
+                }
+              />
 
               <button onClick={handleCheckout} disabled={!uploadedFile} className={`group w-full font-bold text-lg py-5 rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${uploadedFile ? 'bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white cursor-pointer shadow-orange-500/30' : 'bg-orange-300 text-white/80 cursor-not-allowed'}`}>
                 Checkout
