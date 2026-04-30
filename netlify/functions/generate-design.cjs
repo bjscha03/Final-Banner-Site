@@ -19,13 +19,13 @@
 //   { imageBase64, mimeType, width, height, aspectRatio, prompt }
 //
 // Env vars (server-side only — never exposed to the browser):
-//   GOOGLE_CLOUD_PROJECT_ID                Required. GCP project id.
-//   GOOGLE_APPLICATION_CREDENTIALS_JSON    Service-account JSON (raw or base64).
-//                                          On Netlify this is the recommended way.
-//   GOOGLE_APPLICATION_CREDENTIALS         Optional. Path to a SA JSON file
-//                                          (used when running locally).
-//   VERTEX_AI_LOCATION                     Optional. Defaults to "us-central1".
-//   VERTEX_AI_IMAGEN_MODEL                 Optional. Defaults to "imagegeneration@006".
+//   GOOGLE_CLOUD_PROJECT_ID   Required. GCP project id.
+//   GOOGLE_CLIENT_EMAIL       Required. Service-account client email.
+//   GOOGLE_PRIVATE_KEY        Required. Service-account private key. Stored as a
+//                             single-line string with literal "\n" sequences,
+//                             which are converted to real newlines at runtime.
+//   VERTEX_AI_LOCATION        Optional. Defaults to "us-central1".
+//   VERTEX_AI_IMAGEN_MODEL    Optional. Defaults to "imagegeneration@006".
 
 const { GoogleAuth } = require('google-auth-library');
 const sharp = require('sharp');
@@ -100,10 +100,14 @@ function buildEnhancedPrompt({ productType, width, height, material, prompt }) {
 }
 
 /**
- * Loads Google service-account credentials from environment.
- * Supports either:
- *   - GOOGLE_APPLICATION_CREDENTIALS_JSON: raw or base64-encoded JSON content
- *   - GOOGLE_APPLICATION_CREDENTIALS: path to a JSON file (local dev)
+ * Loads Google service-account credentials from environment variables and
+ * builds an explicit GoogleAuth instance. Does NOT use Application Default
+ * Credentials, since they are not available in the Netlify Functions runtime.
+ *
+ * Required env vars:
+ *   - GOOGLE_CLOUD_PROJECT_ID
+ *   - GOOGLE_CLIENT_EMAIL
+ *   - GOOGLE_PRIVATE_KEY  (single-line with literal "\n" sequences)
  */
 function getGoogleAuth() {
   const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
@@ -111,31 +115,25 @@ function getGoogleAuth() {
     throw new Error('GOOGLE_CLOUD_PROJECT_ID env var is not set.');
   }
 
-  const credsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
-  if (credsJson) {
-    let parsed;
-    try {
-      parsed = JSON.parse(credsJson);
-    } catch {
-      // Try base64 decode
-      try {
-        parsed = JSON.parse(Buffer.from(credsJson, 'base64').toString('utf8'));
-      } catch {
-        throw new Error(
-          'GOOGLE_APPLICATION_CREDENTIALS_JSON is set but could not be parsed as JSON or base64-encoded JSON.'
-        );
-      }
-    }
-    return new GoogleAuth({
-      projectId,
-      credentials: parsed,
-      scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-    });
+  const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
+  if (!clientEmail) {
+    throw new Error('GOOGLE_CLIENT_EMAIL env var is not set.');
   }
 
-  // Falls back to GOOGLE_APPLICATION_CREDENTIALS file path or platform ADC.
+  const rawPrivateKey = process.env.GOOGLE_PRIVATE_KEY;
+  if (!rawPrivateKey) {
+    throw new Error('GOOGLE_PRIVATE_KEY env var is not set.');
+  }
+  // GOOGLE_PRIVATE_KEY is stored in Netlify as a single-line string with
+  // literal "\n" sequences; convert them to real newlines for PEM parsing.
+  const privateKey = rawPrivateKey.replace(/\\n/g, '\n');
+
   return new GoogleAuth({
     projectId,
+    credentials: {
+      client_email: clientEmail,
+      private_key: privateKey,
+    },
     scopes: ['https://www.googleapis.com/auth/cloud-platform'],
   });
 }
