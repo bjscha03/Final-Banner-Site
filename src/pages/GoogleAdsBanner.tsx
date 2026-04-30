@@ -47,6 +47,7 @@ import {
 } from '@/lib/car-magnet-pricing';
 import { BANNER_MATERIALS as MATERIALS } from '@/lib/banner-materials';
 import CreateWithAIModal, { type CreateWithAIResult } from '@/components/design/CreateWithAIModal';
+import EditWithAIModal from '@/components/design/EditWithAIModal';
 import { base64ToFile } from '@/utils/base64ToFile';
 import { computeSameDayFeesCents } from '@/lib/sameDayService';
 
@@ -221,6 +222,8 @@ const GoogleAdsBanner: React.FC = () => {
   // page — yard signs use YardSignConfigurator which has its own button.
   const [aiModalOpen, setAiModalOpen] = useState(false);
   const [aiPrompt, setAiPrompt] = useState<string | null>(null);
+  const [aiEditModalOpen, setAiEditModalOpen] = useState(false);
+  const [aiEditPrompt, setAiEditPrompt] = useState<string | null>(null);
 
   const quoteStore = useQuoteStore();
   const cartStore = useCartStore();
@@ -629,6 +632,19 @@ const GoogleAdsBanner: React.FC = () => {
     async (result: CreateWithAIResult) => {
       const file = base64ToFile(result.imageBase64, result.fileName, result.mimeType);
       setAiPrompt(result.prompt);
+      setAiEditPrompt(null);
+      setImgPos({ x: 0, y: 0 });
+      setImgScale(1);
+      await handleFileUpload(file);
+    },
+    [handleFileUpload],
+  );
+
+  // Handle a successful "Edit with AI" update.
+  const handleAIEdited = useCallback(
+    async (result: CreateWithAIResult & { editPrompt: string }) => {
+      const file = base64ToFile(result.imageBase64, result.fileName, result.mimeType);
+      setAiEditPrompt(result.editPrompt);
       setImgPos({ x: 0, y: 0 });
       setImgScale(1);
       await handleFileUpload(file);
@@ -644,6 +660,7 @@ const GoogleAdsBanner: React.FC = () => {
     setImgScale(1);
     setUploadError(null);
     setAiPrompt(null);
+    setAiEditPrompt(null);
     if (isYardSign) {
       setYardSignDesigns([]);
     }
@@ -823,6 +840,7 @@ const GoogleAdsBanner: React.FC = () => {
         productType: 'car_magnet',
         roundedCorners: carMagnetRoundedCorners,
         ...(aiPrompt ? { aiPrompt } : {}),
+        ...(aiEditPrompt ? { aiEditPrompt } : {}),
       });
 
       // Render an immediate dataUrl thumbnail synchronously (canvas only,
@@ -937,6 +955,7 @@ const GoogleAdsBanner: React.FC = () => {
       bgColor: '#fafafa',
       productType: 'banner',
       ...(aiPrompt ? { aiPrompt } : {}),
+      ...(aiEditPrompt ? { aiEditPrompt } : {}),
     });
     console.log('[DESIGN_STATE] Saved design state:', canvasStateJson.length, 'chars');
 
@@ -1626,7 +1645,7 @@ const GoogleAdsBanner: React.FC = () => {
                         <p className="text-xs text-gray-400">Final print preview — what you see is what you get</p>
                       </div>
                       {/* Banner preview with depth background */}
-                      <div className="rounded-xl p-4 md:p-6 max-w-full overflow-hidden" style={{ background: 'linear-gradient(180deg, #f5f6f8 0%, #e9edf2 100%)' }}>
+                      <div className="rounded-xl p-4 md:p-6 max-w-full overflow-hidden bg-white">
                         {/* Width wrapper — constrains max-width so padding-bottom produces correct height */}
                         <div className="mx-auto max-w-full" style={previewWrapperStyle}>
                         {/* Banner surface — uses padding-bottom for aspect ratio (cross-browser safe) */}
@@ -1706,8 +1725,21 @@ const GoogleAdsBanner: React.FC = () => {
                           <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
                           <span className="text-sm font-semibold text-green-800 truncate">{uploadedFile.name}</span>
                         </div>
-                        <button onClick={() => { setUploadedFile(null); setImgPos({ x: 0, y: 0 }); setImgScale(1); }} className="ml-2 flex-shrink-0 p-1.5 rounded-full hover:bg-green-100 text-gray-500 hover:text-gray-700 transition-colors"><X className="h-4 w-4" /></button>
+                        <button onClick={() => { setUploadedFile(null); setImgPos({ x: 0, y: 0 }); setImgScale(1); setAiPrompt(null); setAiEditPrompt(null); }} className="ml-2 flex-shrink-0 p-1.5 rounded-full hover:bg-green-100 text-gray-500 hover:text-gray-700 transition-colors"><X className="h-4 w-4" /></button>
                       </div>
+                      {aiPrompt && !isYardSign && (
+                        <div className="mt-2 flex justify-center">
+                          <button
+                            type="button"
+                            onClick={() => setAiEditModalOpen(true)}
+                            disabled={!widthIn || !heightIn || !material || isUploading}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-purple-600 text-white text-sm font-semibold shadow-sm hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            <Sparkles className="w-4 h-4" />
+                            Edit with AI
+                          </button>
+                        </div>
+                      )}
                     </div>
                   )}
                   {uploadError && <p className="text-xs text-red-600 mt-2">{uploadError}</p>}
@@ -2064,8 +2096,8 @@ const GoogleAdsBanner: React.FC = () => {
             </div>
             <div className="p-4 flex-1 overflow-auto">
               <p className="text-sm text-gray-500 mb-3 flex items-center gap-1"><Move className="w-4 h-4" /> Drag to reposition · Pinch or use buttons to zoom</p>
-              {/* Banner surface with gradient background */}
-              <div className="rounded-lg p-4" style={{ background: 'linear-gradient(180deg, #f5f6f8 0%, #e9edf2 100%)' }}>
+              {/* Banner surface */}
+              <div className="rounded-lg p-4 bg-white">
                 <div
                   className="relative w-full rounded-sm select-none overflow-hidden transition-all duration-300 ease-out"
                   style={{
@@ -2192,6 +2224,21 @@ const GoogleAdsBanner: React.FC = () => {
           material={material || null}
           materialLabel={materialLabel}
           onGenerated={handleAIGenerated}
+        />
+      )}
+      {/* Edit with AI Modal */}
+      {!isYardSign && (
+        <EditWithAIModal
+          open={aiEditModalOpen}
+          onOpenChange={setAiEditModalOpen}
+          productType={isCarMagnet ? 'car_magnet' : 'banner'}
+          widthIn={widthIn || null}
+          heightIn={heightIn || null}
+          material={material || null}
+          materialLabel={materialLabel}
+          originalPrompt={aiPrompt}
+          currentImageUrl={uploadedFile?.thumbnailUrl || uploadedFile?.url || null}
+          onEdited={handleAIEdited}
         />
       )}
     </>

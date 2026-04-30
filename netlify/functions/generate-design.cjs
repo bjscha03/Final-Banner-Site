@@ -70,30 +70,49 @@ function pickClosestImagenAspectRatio(width, height) {
   return best.value;
 }
 
-function buildEnhancedPrompt({ productType, width, height, material, prompt }) {
+function buildEnhancedPrompt({ productType, width, height, material, prompt, editPrompt }) {
   const aspectRatio = `${width}:${height}`;
+  const productLabel =
+    productType === 'yard_sign' ? 'yard sign'
+    : productType === 'car_magnet' ? 'car magnet'
+    : 'vinyl banner';
+
+  // Strict print-ready rules — applied to every Imagen call so the model
+  // produces a REAL banner that fills the canvas, not a graphic-design
+  // mockup with margins, frames, or decorative clutter.
   let basePrompt =
-    `Create a professional PRINT-READY ${productType} design.\n` +
+    `Create a print-ready ${productLabel} that fills the entire canvas edge-to-edge.\n` +
     `Size: ${width}" x ${height}" (${aspectRatio} aspect ratio EXACT).\n` +
     `Material: ${material}.\n` +
     `\n` +
-    `Requirements:\n` +
-    `- Exact aspect ratio match (no cropping required)\n` +
-    `- High contrast, bold layout\n` +
-    `- Large readable text for distance viewing\n` +
-    `- Safe margins (no critical text near edges)\n` +
-    `- Clean commercial print style\n` +
-    `- No blur, no artifacts\n` +
+    `STRICT RULES (must follow exactly):\n` +
+    `- Fill 100% of the canvas edge-to-edge. No margins, no outer background, no border, no frame.\n` +
+    `- Do NOT render the design as a mockup, poster on a wall, photo of a sign, or "design inside a design".\n` +
+    `- No 3D perspective, no fake shadows under the banner, no floating-card effect, no curl, no folds.\n` +
+    `- Output must be FLAT, print-ready vector-style artwork.\n` +
+    `- Use very large bold text that dominates the design.\n` +
+    `- High contrast colors only (black, white, red, yellow, or one strong solid brand color).\n` +
+    `- No gradients, no decorative graphics, no icons, no lightning bolts, no diagonal lines, no dot patterns.\n` +
+    `- No small paragraphs, no lorem ipsum, no gibberish — text must be real readable words only.\n` +
+    `- Layout MUST be extremely simple: 1 headline, an optional short subheadline, an optional short call-to-action. No more than 2 text blocks.\n` +
+    `- Text must be readable from 50+ feet away (roadside style).\n` +
+    `- Decorative elements must occupy less than 10% of the design area.\n` +
     `\n` +
     `User request:\n` +
     `${prompt}\n`;
 
+  if (editPrompt && typeof editPrompt === 'string' && editPrompt.trim()) {
+    basePrompt +=
+      `\nEDIT INSTRUCTIONS (apply these changes to the design while keeping the layout simple, ` +
+      `print-ready, and edge-to-edge as described above):\n${editPrompt.trim()}\n`;
+  }
+
   if (productType === 'yard_sign') {
-    basePrompt += '\nUse very large roadside-readable typography.';
+    basePrompt += '\nUse very large roadside-readable typography. Solid background color, single bold headline.';
   } else if (productType === 'banner') {
-    basePrompt += '\nUse bold layout suitable for vinyl banners.';
+    basePrompt += '\nUse bold layout suitable for vinyl banners. Solid color background, oversized headline.';
   } else if (productType === 'car_magnet') {
-    basePrompt += '\nDesign for vehicle visibility and branding clarity.';
+    basePrompt += '\nDesign for vehicle visibility and branding clarity. Solid background, oversized contact info if relevant.';
   }
 
   return basePrompt;
@@ -337,3 +356,12 @@ exports.handler = async (event) => {
     });
   }
 };
+
+// Exported helpers so sibling Netlify functions (e.g. edit-design.cjs) can
+// reuse the exact same Vertex AI Imagen pipeline + prompt enforcement.
+exports.buildEnhancedPrompt = buildEnhancedPrompt;
+exports.callImagen = callImagen;
+exports.cropToExactAspectRatio = cropToExactAspectRatio;
+exports.pickClosestImagenAspectRatio = pickClosestImagenAspectRatio;
+exports.ALLOWED_PRODUCT_TYPES = ALLOWED_PRODUCT_TYPES;
+exports.MAX_PROMPT_LENGTH = MAX_PROMPT_LENGTH;
