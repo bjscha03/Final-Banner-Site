@@ -32,6 +32,14 @@
 [functions."generate-design"]
   timeout = 60
   memory = 1024
+  # Restrict environment variables passed to this function to stay under the 4KB Lambda limit.
+  # Only the variables required for Vertex AI Imagen calls are included here.
+  included_environment_variables = [
+    "GOOGLE_APPLICATION_CREDENTIALS_JSON",
+    "GOOGLE_CLOUD_PROJECT_ID",
+    "VERTEX_AI_LOCATION",
+    "VERTEX_AI_IMAGEN_MODEL",
+  ]
 
 [functions."ai-preview-image"]
   timeout = 60
