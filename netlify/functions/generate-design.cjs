@@ -25,7 +25,7 @@
 //                             single-line string with literal "\n" sequences,
 //                             which are converted to real newlines at runtime.
 //   VERTEX_AI_LOCATION        Optional. Defaults to "us-central1".
-//   VERTEX_AI_IMAGEN_MODEL    Optional. Defaults to "imagegeneration@006".
+//   VERTEX_AI_IMAGEN_MODEL    Optional. Defaults to "imagen-3.0-generate-001".
 
 const { GoogleAuth } = require('google-auth-library');
 const sharp = require('sharp');
@@ -145,7 +145,7 @@ function getGoogleAuth() {
 async function callImagen({ enhancedPrompt, imagenAspectRatio }) {
   const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
   const location = process.env.VERTEX_AI_LOCATION || 'us-central1';
-  const model = process.env.VERTEX_AI_IMAGEN_MODEL || 'imagegeneration@006';
+  const model = process.env.VERTEX_AI_IMAGEN_MODEL || 'imagen-3.0-generate-001';
 
   const auth = getGoogleAuth();
   const client = await auth.getClient();
