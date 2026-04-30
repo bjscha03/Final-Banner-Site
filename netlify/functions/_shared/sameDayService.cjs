@@ -72,10 +72,10 @@ function isSameDayWindowOpen(now, cfg) {
   else if (p.hour > 22) windowOpen = true;
   else if (p.hour === 22 && p.minute >= 1) windowOpen = true;
   if (!windowOpen) return false;
-  // Weekend lock check.
+  // Weekend lock check (mirror of isWeekendLock in src/lib/delivery/engine.ts).
   const dow = p.dayOfWeek;
-  if (dow === 5 || dow === 6 || dow === 0) return false;             // Fri / Sat / Sun
-  if (dow === 4 && (p.hour > 22 || (p.hour === 22 && p.minute >= 0))) return false; // Thu >= 22:00
+  if (dow === 5 || dow === 6 || dow === 0) return false; // Fri / Sat / Sun
+  if (dow === 4 && p.hour >= 22) return false;           // Thu >= 22:00 ET
   return true;
 }
 

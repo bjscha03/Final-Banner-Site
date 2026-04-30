@@ -10,8 +10,8 @@
  *   the following Monday (or next non-blackout business day).
  *
  * HIT (Same-Day Hit Service) window:
- *   Open from 22:01 ET (previous calendar day) through 12:00 ET, inclusive
- *   of 12:00. Outside this window the option is hidden.
+ *   Open from 22:01 ET (previous calendar day) up to but NOT including
+ *   12:00 ET. Outside this window the option is hidden.
  *   HIT is unavailable while the weekend lock is in effect.
  */
 

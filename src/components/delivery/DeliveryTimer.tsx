@@ -5,6 +5,7 @@ import { useCartStore } from '@/store/cart';
 import {
   formatCountdown,
   formatWeekdayLong,
+  getDeliveryEstimate,
   hitOfferLine,
   hitSelectedLine,
   standardLine,
@@ -116,11 +117,10 @@ export const DeliveryTimer: React.FC<DeliveryTimerProps> = ({
   }
 
   // HIT available (not yet selected) — show the upsell line + countdown
-  // to today's noon ET cutoff.
+  // to today's noon ET cutoff. Compute a HIT-selected estimate so the
+  // copy reflects the FASTER delivery date the customer would receive.
   if (estimate.state === 'hit_available') {
-    // Compute the HIT-selected variant of the estimate so we can show the
-    // FASTER delivery date in the copy without flipping the surrounding UI.
-    const fasterEstimate = { ...estimate, deliveryDate: estimate.deliveryDate };
+    const fasterEstimate = getDeliveryEstimate({ isHitSelected: true });
     return (
       <div
         className={wrapperClass}
