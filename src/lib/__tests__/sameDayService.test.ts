@@ -40,55 +40,76 @@ function etDate(year: number, month: number, day: number, hour: number, minute: 
   throw new Error(`Could not construct ET date ${year}-${month}-${day} ${hour}:${minute}`);
 }
 
-describe('Same-Day Hit Service: ET window logic', () => {
-  it('11:59 AM ET → window open', () => {
+describe('Same-Day Hit Service: ET window logic (with new HIT window 22:01–12:00 + weekend lock)', () => {
+  // Use Thursday 2026-04-30 (a non-locked weekday) for the pre-noon checks.
+  it('Thu 11:59 AM ET → window open', () => {
     expect(isSameDayWindowOpen(etDate(2026, 4, 30, 11, 59))).toBe(true);
   });
 
-  it('12:00 PM ET → window closed', () => {
+  it('Thu 12:00 PM ET → window closed', () => {
     expect(isSameDayWindowOpen(etDate(2026, 4, 30, 12, 0))).toBe(false);
   });
 
-  it('12:01 PM ET → window closed', () => {
+  it('Thu 12:01 PM ET → window closed', () => {
     expect(isSameDayWindowOpen(etDate(2026, 4, 30, 12, 1))).toBe(false);
   });
 
-  it('11:59 PM ET → window closed', () => {
-    expect(isSameDayWindowOpen(etDate(2026, 4, 30, 23, 59))).toBe(false);
+  it('Thu 21:59 PM ET → window closed (HIT not yet open)', () => {
+    expect(isSameDayWindowOpen(etDate(2026, 4, 30, 21, 59))).toBe(false);
   });
 
-  it('12:00 AM ET → window open again', () => {
-    expect(isSameDayWindowOpen(etDate(2026, 5, 1, 0, 0))).toBe(true);
+  it('Thu 22:00 PM ET → weekend lock begins → window closed', () => {
+    expect(isSameDayWindowOpen(etDate(2026, 4, 30, 22, 0))).toBe(false);
   });
 
-  it('handles DST: standard-time winter morning is open', () => {
-    // January is EST (UTC-5)
+  it('Thu 22:01 PM ET → weekend lock active → window closed', () => {
+    // Thursday >= 22:00 enters the weekend lock; HIT therefore unavailable.
+    expect(isSameDayWindowOpen(etDate(2026, 4, 30, 22, 1))).toBe(false);
+  });
+
+  it('Wed 22:01 PM ET (mid-week) → window OPEN (re-opens for late-night HIT)', () => {
+    // 2026-04-29 is a Wednesday (no weekend lock).
+    expect(isSameDayWindowOpen(etDate(2026, 4, 29, 22, 1))).toBe(true);
+  });
+
+  it('Mon 12:00 AM ET → window open again', () => {
+    // 2026-05-04 is a Monday.
+    expect(isSameDayWindowOpen(etDate(2026, 5, 4, 0, 0))).toBe(true);
+  });
+
+  it('Friday any time → window closed (weekend lock)', () => {
+    expect(isSameDayWindowOpen(etDate(2026, 5, 1, 9, 0))).toBe(false);
+    expect(isSameDayWindowOpen(etDate(2026, 5, 1, 11, 59))).toBe(false);
+  });
+
+  it('handles DST: standard-time winter morning is open (Thursday Jan 15)', () => {
+    // 2026-01-15 is a Thursday in EST.
     expect(isSameDayWindowOpen(etDate(2026, 1, 15, 9, 0))).toBe(true);
   });
 
-  it('handles DST: daylight-time summer afternoon is closed', () => {
-    // July is EDT (UTC-4)
+  it('handles DST: daylight-time summer afternoon is closed (Wednesday July 15)', () => {
+    // 2026-07-15 is a Wednesday in EDT.
     expect(isSameDayWindowOpen(etDate(2026, 7, 15, 13, 0))).toBe(false);
   });
 });
 
 describe('Same-Day Hit Service: Saturday delivery eligibility', () => {
-  it('open window on Friday → eligible', () => {
-    // 2026-05-01 is a Friday
-    expect(qualifiesForSaturdayDelivery(etDate(2026, 5, 1, 9, 0))).toBe(true);
+  it('Friday is weekend-locked → never Saturday-eligible', () => {
+    // 2026-05-01 is a Friday → weekend lock → no HIT, no Saturday delivery.
+    expect(qualifiesForSaturdayDelivery(etDate(2026, 5, 1, 9, 0))).toBe(false);
   });
 
-  it('open window on Thursday → not eligible', () => {
-    // 2026-04-30 is a Thursday
+  it('open window on Thursday → not Saturday-eligible', () => {
+    // 2026-04-30 is a Thursday.
     expect(qualifiesForSaturdayDelivery(etDate(2026, 4, 30, 9, 0))).toBe(false);
   });
 
-  it('open window on Monday → not eligible', () => {
-    // 2026-05-04 is a Monday
+  it('open window on Monday → not Saturday-eligible', () => {
+    // 2026-05-04 is a Monday.
     expect(qualifiesForSaturdayDelivery(etDate(2026, 5, 4, 9, 0))).toBe(false);
   });
 
-  it('after cutoff on Friday → not eligible', () => {
+  it('after cutoff on Friday → not Saturday-eligible', () => {
     expect(qualifiesForSaturdayDelivery(etDate(2026, 5, 1, 13, 0))).toBe(false);
   });
 });
@@ -166,14 +187,14 @@ describe('Same-Day Hit Service: evaluateSameDayEligibility', () => {
     expect(result.reason).toBe('no_eligible_items');
   });
 
-  it('available + Saturday eligible on Friday morning', () => {
+  it('available on Thursday morning (eligible item, no Saturday because Friday is weekend-locked)', () => {
     const result = evaluateSameDayEligibility({
-      now: etDate(2026, 5, 1, 10, 0),
+      now: etDate(2026, 4, 30, 10, 0),
       items: [{ product_type: 'banner', quantity: 1, line_total_cents: 5000 }],
     });
     expect(result.windowOpen).toBe(true);
     expect(result.hasEligibleItem).toBe(true);
-    expect(result.saturdayEligible).toBe(true);
+    expect(result.saturdayEligible).toBe(false);
     expect(result.reason).toBe('available');
     expect(result.eligibleSubtotalCents).toBe(5000);
   });
