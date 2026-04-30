@@ -62,15 +62,28 @@ function getEasternTimeParts(now) {
 function isSameDayWindowOpen(now, cfg) {
   cfg = cfg || sameDayConfig;
   if (!cfg.enabled) return false;
-  const { hour, minute } = getEasternTimeParts(now);
-  if (hour < cfg.cutoffHour) return true;
-  if (hour === cfg.cutoffHour && minute < cfg.cutoffMinute) return true;
-  return false;
+  // New policy: HIT window is 22:01 ET (prev day) → 12:00 ET (exclusive),
+  // AND weekend lock (Thu>=22:00 / Fri / Sat / Sun, plus blackouts) makes
+  // HIT unavailable. Mirror of src/lib/delivery/engine.ts.
+  const p = getEasternTimeParts(now);
+  // Window-open check: hour < 12 OR (hour > 22) OR (hour == 22 && minute >= 1).
+  let windowOpen = false;
+  if (p.hour < 12) windowOpen = true;
+  else if (p.hour > 22) windowOpen = true;
+  else if (p.hour === 22 && p.minute >= 1) windowOpen = true;
+  if (!windowOpen) return false;
+  // Weekend lock check (mirror of isWeekendLock in src/lib/delivery/engine.ts).
+  const dow = p.dayOfWeek;
+  if (dow === 5 || dow === 6 || dow === 0) return false; // Fri / Sat / Sun
+  if (dow === 4 && p.hour >= 22) return false;           // Thu >= 22:00 ET
+  return true;
 }
 
 function qualifiesForSaturdayDelivery(now, cfg) {
   cfg = cfg || sameDayConfig;
   if (!isSameDayWindowOpen(now, cfg)) return false;
+  // Saturday delivery is meaningless under the new weekend-lock rules
+  // (Friday is locked) but kept here for forward compatibility.
   return getEasternTimeParts(now).dayOfWeek === 5;
 }
 

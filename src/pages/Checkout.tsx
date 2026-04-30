@@ -19,6 +19,7 @@ import { CartItem } from '@/store/cart';
 import BannerPreview from '@/components/cart/BannerPreview';
 import CartItemBreakdown from '@/components/cart/CartItemBreakdown';
 import SameDayHitServiceCard from '@/components/cart/SameDayHitServiceCard';
+import DeliveryTimer from '@/components/delivery/DeliveryTimer';
 import { useCheckoutContext } from '@/store/checkoutContext';
 import { cartSyncService } from '@/lib/cartSync';
 import { trackBeginCheckout, trackViewCart, trackFBInitiateCheckout } from '@/lib/analytics';
@@ -939,7 +940,10 @@ const Checkout: React.FC = () => {
                 {/* Same-Day Hit Service upsell — production priority (NOT shipping) */}
                 {!isFixedFeeOnlyCart && (
                   <div className="border-t border-gray-200 pt-6 mt-6">
-                    <SameDayHitServiceCard />
+                    <DeliveryTimer reflectCartSelection />
+                    <div className="mt-4">
+                      <SameDayHitServiceCard />
+                    </div>
                   </div>
                 )}
 
@@ -1128,7 +1132,7 @@ const Checkout: React.FC = () => {
                   </li>
                   <li className="flex items-start gap-2">
                     <span aria-hidden="true">🚚</span>
-                    <span>FREE Next-Day Air Shipping</span>
+                    <span>{sameDayHitService ? 'Next-Day Air Shipping included' : 'FREE Next-Day Air Shipping'}</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span aria-hidden="true">✅</span>

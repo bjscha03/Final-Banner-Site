@@ -25,6 +25,7 @@ import YardSignConfigurator from '@/components/design/YardSignConfigurator';
 import YardSignPriceSummary from '@/components/design/YardSignPriceSummary';
 import PriceBreakdown from '@/components/pricing/PriceBreakdown';
 import SameDayHitServiceCard from '@/components/cart/SameDayHitServiceCard';
+import DeliveryTimer from '@/components/delivery/DeliveryTimer';
 import FileUploader from '@/components/ui/FileUploader';
 import {
   calcYardSignPricing,
@@ -1480,6 +1481,7 @@ const Design: React.FC = () => {
                 )}
 
                 {/* Same-Day Hit Service upsell — production priority (NOT shipping). */}
+                <DeliveryTimer variant="compact" />
                 <SameDayHitServiceCard
                   variant="compact"
                   previewHasPrice={!!yardSignPricing && yardSignTotalQty > 0 && yardSignQuantityValid.valid}
@@ -1928,6 +1930,7 @@ const Design: React.FC = () => {
               )}
 
               {/* Same-Day Hit Service upsell — production priority (NOT shipping). */}
+              <DeliveryTimer variant="compact" />
               <SameDayHitServiceCard
                 variant="compact"
                 previewHasPrice={

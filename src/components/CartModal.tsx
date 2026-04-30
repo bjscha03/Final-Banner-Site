@@ -7,6 +7,7 @@ import { useCartStore } from '@/store/cart';
 import { getItemDisplayName, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
 import { getProductCopy, getDominantProductType } from '@/lib/product-copy';
 import CartItemBreakdown from './cart/CartItemBreakdown';
+import DeliveryTimer from './delivery/DeliveryTimer';
 
 interface CartModalProps {
   isOpen: boolean;
@@ -230,6 +231,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
           {/* Footer */}
           {items.length > 0 && (
             <div className="border-t border-gray-200 p-6 space-y-3 bg-white shadow-lg">
+              {/* Dynamic delivery timer — reflects HIT toggle if present */}
+              <DeliveryTimer variant="compact" reflectCartSelection />
               <div className="flex justify-between text-gray-700">
                 <span className="font-medium">Subtotal:</span>
                 <span className="font-semibold">{usd(subtotalCents/100)}</span>

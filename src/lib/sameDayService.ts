@@ -14,6 +14,7 @@ import {
   SameDayConfig,
   SameDayProductKey,
 } from './sameDayConfig';
+import { etPartsOf, isHitAvailable } from './delivery';
 
 export interface EasternTimeParts {
   /** ET hour 0..23 */
@@ -72,15 +73,18 @@ export function getEasternTimeParts(now: Date = new Date()): EasternTimeParts {
 }
 
 /**
- * The Same-Day window is OPEN from 00:00 ET (inclusive) up to but not
- * including the configured cutoff (default 12:00 ET).
+ * The Same-Day window is OPEN only when the new dynamic delivery engine
+ * reports HIT as available (window 22:01 → 12:00 ET, AND not weekend-locked).
+ *
+ * NOTE: This used to be a simple "before noon" check. The new operational
+ * policy adds a weekend lock (Thu >= 22:00 ET / Fri / Sat / Sun) and an
+ * evening re-open at 22:01 ET. The legacy `cfg.cutoffHour/cutoffMinute`
+ * fields are kept on the config for backward compatibility but are no
+ * longer the source of truth for window state.
  */
 export function isSameDayWindowOpen(now: Date = new Date(), cfg: SameDayConfig = sameDayConfig): boolean {
   if (!cfg.enabled) return false;
-  const { hour, minute } = getEasternTimeParts(now);
-  if (hour < cfg.cutoffHour) return true;
-  if (hour === cfg.cutoffHour && minute < cfg.cutoffMinute) return true;
-  return false;
+  return isHitAvailable(etPartsOf(now));
 }
 
 /**
