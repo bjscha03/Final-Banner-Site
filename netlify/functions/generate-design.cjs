@@ -20,7 +20,7 @@
 //
 // Env vars (server-side only — never exposed to the browser):
 //   GOOGLE_CLOUD_PROJECT_ID                Required. GCP project id.
-//   GOOGLE_APPLICATION_CREDENTIALS_JSON    Service-account JSON (raw or base64).
+//   GOOGLE_CREDENTIALS                     Service-account JSON (raw minified JSON).
 //                                          On Netlify this is the recommended way.
 //   GOOGLE_APPLICATION_CREDENTIALS         Optional. Path to a SA JSON file
 //                                          (used when running locally).
@@ -102,7 +102,7 @@ function buildEnhancedPrompt({ productType, width, height, material, prompt }) {
 /**
  * Loads Google service-account credentials from environment.
  * Supports either:
- *   - GOOGLE_APPLICATION_CREDENTIALS_JSON: raw or base64-encoded JSON content
+ *   - GOOGLE_CREDENTIALS: raw (minified) service-account JSON content
  *   - GOOGLE_APPLICATION_CREDENTIALS: path to a JSON file (local dev)
  */
 function getGoogleAuth() {
@@ -111,20 +111,20 @@ function getGoogleAuth() {
     throw new Error('GOOGLE_CLOUD_PROJECT_ID env var is not set.');
   }
 
-  const credsJson = process.env.GOOGLE_APPLICATION_CREDENTIALS_JSON;
+  const credsJson = process.env.GOOGLE_CREDENTIALS;
   if (credsJson) {
     let parsed;
     try {
       parsed = JSON.parse(credsJson);
     } catch {
-      // Try base64 decode
-      try {
-        parsed = JSON.parse(Buffer.from(credsJson, 'base64').toString('utf8'));
-      } catch {
-        throw new Error(
-          'GOOGLE_APPLICATION_CREDENTIALS_JSON is set but could not be parsed as JSON or base64-encoded JSON.'
-        );
-      }
+      throw new Error(
+        'GOOGLE_CREDENTIALS is set but could not be parsed as JSON.'
+      );
+    }
+    if (!parsed || typeof parsed !== 'object' || !parsed.client_email || !parsed.private_key) {
+      throw new Error(
+        'GOOGLE_CREDENTIALS is missing required service-account fields.'
+      );
     }
     return new GoogleAuth({
       projectId,
@@ -134,6 +134,11 @@ function getGoogleAuth() {
   }
 
   // Falls back to GOOGLE_APPLICATION_CREDENTIALS file path or platform ADC.
+  if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    throw new Error(
+      'Neither GOOGLE_CREDENTIALS env var nor GOOGLE_APPLICATION_CREDENTIALS file path is set.'
+    );
+  }
   return new GoogleAuth({
     projectId,
     scopes: ['https://www.googleapis.com/auth/cloud-platform'],
