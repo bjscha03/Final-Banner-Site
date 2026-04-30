@@ -1329,11 +1329,10 @@ export const useCartStore = create<CartState>()(
           // This prevents items from being lost during page navigation (e.g., Canva flow)
           // Server is still the source of truth - loadFromServer() will update/merge
           items: state.items,
-          // Persist Same-Day Hit Service flags so they survive navigation
-          // within the same window. They are still re-validated against the
-          // ET clock on rehydrate and at server-side order creation time.
-          sameDayHitService: state.sameDayHitService,
-          saturdayDelivery: state.saturdayDelivery,
+          // Same-Day Hit Service and Saturday Delivery flags are intentionally
+          // NOT persisted. The option must default to OFF on every refresh,
+          // returning session, page load, tab switch, etc. — only the
+          // customer can opt in manually within the current session.
           // Store cart owner for rehydration check
           _cartOwnerId: cartOwnerId,
         };
@@ -1400,24 +1399,14 @@ export const useCartStore = create<CartState>()(
             debugLog('💾 CART STORAGE: Rehydrated item ' + idx + ': ' + item.id);
           });
         }
-        // Re-validate Same-Day Hit Service against current ET clock.
-        // If user closed the tab before noon and reopened after noon,
-        // we must clear the flag so the upsell isn't silently applied.
-        if (state && (state.sameDayHitService || state.saturdayDelivery)) {
-          try {
-            const items = (state.items || []).map(migrateCartItem);
-            const evalResult = evaluateSameDayEligibility({ items });
-            if (!evalResult.windowOpen || !evalResult.hasEligibleItem) {
-              state.sameDayHitService = false;
-              state.saturdayDelivery = false;
-            } else if (state.saturdayDelivery && !evalResult.saturdayEligible) {
-              state.saturdayDelivery = false;
-            }
-          } catch (_e) {
-            // Be defensive — never let rehydration crash the app.
-            state.sameDayHitService = false;
-            state.saturdayDelivery = false;
-          }
+        // Same-Day Hit Service and Saturday Delivery flags are never
+        // restored from localStorage — they always start OFF on rehydrate,
+        // matching the in-memory default in the store initializer. This
+        // belt-and-suspenders clears any flags lingering from older builds
+        // that did persist them.
+        if (state) {
+          state.sameDayHitService = false;
+          state.saturdayDelivery = false;
         }
       },
     }
