@@ -136,7 +136,7 @@ function getGoogleAuth() {
   // Falls back to GOOGLE_APPLICATION_CREDENTIALS file path or platform ADC.
   if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) {
     throw new Error(
-      'GOOGLE_CREDENTIALS env var is not set (and no GOOGLE_APPLICATION_CREDENTIALS file path provided).'
+      'Neither GOOGLE_CREDENTIALS env var nor GOOGLE_APPLICATION_CREDENTIALS file path is set.'
     );
   }
   return new GoogleAuth({
