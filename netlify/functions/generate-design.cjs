@@ -78,41 +78,69 @@ function buildEnhancedPrompt({ productType, width, height, material, prompt, edi
     : 'vinyl banner';
 
   // Strict print-ready rules — applied to every Imagen call so the model
-  // produces a REAL banner that fills the canvas, not a graphic-design
-  // mockup with margins, frames, or decorative clutter.
+  // produces FLAT PRINT ARTWORK ONLY (the actual file that will print),
+  // not a product mockup, scene render, or "design inside a design".
+  //
+  // The canvas IS the final print file. It is NOT a product preview.
+  // Any physical mockup elements (gray background, hanging banner with
+  // grommets/ropes/eyelets, perspective, shadows, walls, frames, etc.)
+  // are forbidden — those are added separately in the live preview UI
+  // as overlays and must never be baked into the generated image.
   let basePrompt =
-    `Create a print-ready ${productLabel} that fills the entire canvas edge-to-edge.\n` +
-    `Size: ${width}" x ${height}" (${aspectRatio} aspect ratio EXACT).\n` +
+    `Generate FLAT 2D PRINT-READY ARTWORK ONLY for a ${productLabel}.\n` +
+    `This image IS the final print file, not a product preview or mockup.\n` +
+    `Canvas size: ${width}" x ${height}" (${aspectRatio} aspect ratio EXACT).\n` +
     `Material: ${material}.\n` +
     `\n` +
-    `STRICT RULES (must follow exactly):\n` +
-    `- Fill 100% of the canvas edge-to-edge. No margins, no outer background, no border, no frame.\n` +
-    `- Do NOT render the design as a mockup, poster on a wall, photo of a sign, or "design inside a design".\n` +
-    `- No 3D perspective, no fake shadows under the banner, no floating-card effect, no curl, no folds.\n` +
-    `- Output must be FLAT, print-ready vector-style artwork.\n` +
-    `- Use very large bold text that dominates the design.\n` +
-    `- High contrast colors only (black, white, red, yellow, or one strong solid brand color).\n` +
-    `- No gradients, no decorative graphics, no icons, no lightning bolts, no diagonal lines, no dot patterns.\n` +
-    `- No small paragraphs, no lorem ipsum, no gibberish — text must be real readable words only.\n` +
-    `- Layout MUST be extremely simple: 1 headline, an optional short subheadline, an optional short call-to-action. No more than 2 text blocks.\n` +
-    `- Text must be readable from 50+ feet away (roadside style).\n` +
-    `- Decorative elements must occupy less than 10% of the design area.\n` +
+    `POSITIVE REQUIREMENTS (must follow):\n` +
+    `- Generate flat 2D print-ready artwork only.\n` +
+    `- Artwork must fill the full canvas edge-to-edge with the actual design that will be printed.\n` +
+    `- Treat the canvas as the final print file, not a product preview.\n` +
+    `- Use clean, readable text with real words.\n` +
+    `- Use a solid colored or designed background that fills the entire canvas.\n` +
+    `- Output must look like a finished art file ready to send to a printer.\n` +
     `\n` +
-    `User request:\n` +
+    `NEGATIVE INSTRUCTIONS (absolutely forbidden — do NOT include any of these):\n` +
+    `- NO gray background, NO neutral page/studio background behind the artwork.\n` +
+    `- NO mockup, NO product mockup, NO product preview, NO product photo.\n` +
+    `- NO room or background scene (no wall, no floor, no studio, no outdoor scene around the artwork).\n` +
+    `- NO hanging banner, NO banner being displayed, NO photo of a sign, NO photo of a banner.\n` +
+    `- NO grommets, NO eyelets, NO metal rings, NO holes, NO ropes, NO strings, NO bungee cords.\n` +
+    `- NO corner screws, NO stakes, NO poles, NO stands, NO mounting hardware of any kind.\n` +
+    `- NO folds, NO curls, NO wrinkles, NO ripples, NO fabric texture overlay.\n` +
+    `- NO shadows cast by the banner, NO drop shadow under the artwork, NO floating-card effect.\n` +
+    `- NO 3D perspective, NO tilt, NO angle — render perfectly flat, head-on, 0° rotation.\n` +
+    `- NO wall, NO frame around the artwork, NO picture-frame border.\n` +
+    `- NO border around the design unless the user explicitly asked for one.\n` +
+    `- NO banner displayed inside another image, NO "design inside a design", NO nested canvas.\n` +
+    `- NO small gibberish text, NO lorem ipsum, NO unreadable micro-text.\n` +
+    `- NO decorative mockup hardware (no ring icons, no rope graphics, no fake stitching).\n` +
+    `- NO watermarks, NO logos that were not requested, NO signature.\n` +
+    `\n` +
+    `User request (the actual artwork to design):\n` +
     `${prompt}\n`;
 
   if (editPrompt && typeof editPrompt === 'string' && editPrompt.trim()) {
     basePrompt +=
-      `\nEDIT INSTRUCTIONS (apply these changes to the design while keeping the layout simple, ` +
-      `print-ready, and edge-to-edge as described above):\n${editPrompt.trim()}\n`;
+      `\nEDIT INSTRUCTIONS (apply these changes to the artwork while keeping it FLAT, ` +
+      `print-ready, and edge-to-edge as described above — do not add mockup elements):\n` +
+      `${editPrompt.trim()}\n`;
   }
 
   if (productType === 'yard_sign') {
-    basePrompt += '\nUse very large roadside-readable typography. Solid background color, single bold headline.';
+    basePrompt +=
+      '\nYard sign specifics: Flat print artwork only. Use very large roadside-readable typography ' +
+      'on a solid filled background. Do NOT draw a stake, H-frame, ground, grass, or any mounting hardware.';
   } else if (productType === 'banner') {
-    basePrompt += '\nUse bold layout suitable for vinyl banners. Solid color background, oversized headline.';
+    basePrompt +=
+      '\nBanner specifics: Flat print artwork only. Bold layout suitable for vinyl banners with an ' +
+      'oversized headline on a solid filled background. Do NOT draw grommets, eyelets, ropes, hems, ' +
+      'pole pockets, or any hanging hardware — those are added separately by the print shop.';
   } else if (productType === 'car_magnet') {
-    basePrompt += '\nDesign for vehicle visibility and branding clarity. Solid background, oversized contact info if relevant.';
+    basePrompt +=
+      '\nCar magnet specifics: Flat print artwork only. Design for vehicle visibility and branding ' +
+      'clarity on a solid filled background, with oversized contact info if relevant. Do NOT draw a ' +
+      'car, vehicle body, door panel, or any 3D magnet shape — render only the flat printed face.';
   }
 
   return basePrompt;
