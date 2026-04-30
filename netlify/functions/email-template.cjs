@@ -103,8 +103,10 @@ function renderItems(items = []) {
   `;
 }
 
-function renderTotals({ subtotal = 0, tax = 0, total = 0, discountCents = 0, discountLabel = '' } = {}) {
+function renderTotals({ subtotal = 0, tax = 0, total = 0, discountCents = 0, discountLabel = '', sameDayFeeCents = 0, saturdayFeeCents = 0 } = {}) {
   const discountDollars = Number(discountCents || 0) / 100;
+  const sameDayDollars = Number(sameDayFeeCents || 0) / 100;
+  const saturdayDollars = Number(saturdayFeeCents || 0) / 100;
   return `
     <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin-top:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;">
       <tr><td style="padding:14px;">
@@ -112,6 +114,8 @@ function renderTotals({ subtotal = 0, tax = 0, total = 0, discountCents = 0, dis
           <tr><td style="color:#64748b;font-size:13px;padding:4px 0;">Subtotal</td><td style="text-align:right;color:#0f172a;font-size:13px;padding:4px 0;">$${Number(subtotal).toFixed(2)}</td></tr>
           ${discountDollars > 0 ? `<tr><td style="color:${BRAND_ORANGE_DARK};font-size:13px;padding:4px 0;">${escapeHtml(discountLabel || 'Discount')}</td><td style="text-align:right;color:${BRAND_ORANGE_DARK};font-size:13px;padding:4px 0;">-$${discountDollars.toFixed(2)}</td></tr>` : ''}
           ${Number(tax) > 0 ? `<tr><td style="color:#64748b;font-size:13px;padding:4px 0;">Tax</td><td style="text-align:right;color:#0f172a;font-size:13px;padding:4px 0;">$${Number(tax).toFixed(2)}</td></tr>` : ''}
+          ${sameDayDollars > 0 ? `<tr><td style="color:#64748b;font-size:13px;padding:4px 0;">Same-Day Hit Service</td><td style="text-align:right;color:#0f172a;font-size:13px;padding:4px 0;">$${sameDayDollars.toFixed(2)}</td></tr>` : ''}
+          ${saturdayDollars > 0 ? `<tr><td style="color:#64748b;font-size:13px;padding:4px 0;">Saturday Delivery</td><td style="text-align:right;color:#0f172a;font-size:13px;padding:4px 0;">$${saturdayDollars.toFixed(2)}</td></tr>` : ''}
           <tr><td style="padding-top:8px;border-top:1px solid #cbd5e1;color:#0f172a;font-size:16px;font-weight:700;">Total</td><td style="text-align:right;padding-top:8px;border-top:1px solid #cbd5e1;color:${BRAND_NAVY};font-size:18px;font-weight:700;">$${Number(total).toFixed(2)}</td></tr>
         </table>
       </td></tr>

@@ -1,5 +1,8 @@
 const { randomUUID } = require('crypto');
 const { getPayPalDescription } = require('./product-display-helpers.cjs');
+const {
+  reconcileSameDayFlags,
+} = require('./_shared/sameDayService.cjs');
 
 // Feature flag support for pricing logic (copied from create-order.js)
 const getFeatureFlags = () => {
@@ -253,7 +256,7 @@ exports.handler = async (event, context) => {
       };
     }
 
-    const { items, shippingAddress, email, discountCode, totalCents: clientTotalCents } = payload;
+    const { items, shippingAddress, email, discountCode, totalCents: clientTotalCents, sameDayHitService: reqSameDay, saturdayDelivery: reqSaturday } = payload;
 
     // Validate required fields
     if (!items || !Array.isArray(items) || items.length === 0) {
@@ -287,6 +290,45 @@ exports.handler = async (event, context) => {
     // This ensures frontend discount matches backend PayPal order amount
     const totals = computeTotals(items, taxRate, pricingOptions, discountCode);
 
+    // ------------------------------------------------------------------
+    // Same-Day Hit Service — server-side enforcement.
+    //
+    // The client sends `sameDayHitService` and `saturdayDelivery` flags
+    // as opt-ins only. We re-evaluate against the canonical ET clock
+    // and product eligibility. If the client requested same-day and the
+    // window has closed (or no eligible items), we REJECT the order so
+    // the client can drop the fees and let the user proceed without it.
+    // ------------------------------------------------------------------
+    const sameDayResult = reconcileSameDayFlags({
+      now: new Date(),
+      items,
+      requestedSameDay: !!reqSameDay,
+      requestedSaturday: !!reqSaturday,
+    });
+
+    if (reqSameDay && !sameDayResult.sameDay) {
+      console.warn('PayPal create order - same-day rejected', {
+        cid,
+        reason: sameDayResult.rejectionReason,
+        ETnow: sameDayResult.eval && sameDayResult.eval.ETnow && sameDayResult.eval.ETnow.display,
+      });
+      return {
+        statusCode: 409,
+        headers,
+        body: JSON.stringify({
+          ok: false,
+          error: 'SAME_DAY_NOT_AVAILABLE',
+          message: 'Same-Day Hit Service is no longer available for today’s production window.',
+          reason: sameDayResult.rejectionReason,
+          cid,
+        }),
+      };
+    }
+
+    const sameDayFeeCents = sameDayResult.fees.sameDayFeeCents;
+    const saturdayFeeCents = sameDayResult.fees.saturdayFeeCents;
+    const serverTotalWithSameDayCents = totals.total_cents + sameDayFeeCents + saturdayFeeCents;
+
     // Use the client-supplied totalCents as the authoritative PayPal amount when
     // it matches the server calculation within 1 cent (floating-point tolerance).
     // This prevents a 1-cent rounding drift between the displayed checkout total
@@ -295,10 +337,10 @@ exports.handler = async (event, context) => {
     // Security: we only accept the client value when it is within 1 cent of the
     // server-computed total AND is within a sane range of that total. The maximum
     // exploitable under-charge is therefore 1 cent, which is acceptable.
-    let finalTotalCents = totals.total_cents;
+    let finalTotalCents = serverTotalWithSameDayCents;
     if (typeof clientTotalCents === 'number' && Number.isFinite(clientTotalCents) && clientTotalCents > 0) {
-      const diff = Math.abs(clientTotalCents - totals.total_cents);
-      if (diff <= 1 && clientTotalCents >= totals.total_cents - 1) {
+      const diff = Math.abs(clientTotalCents - serverTotalWithSameDayCents);
+      if (diff <= 1 && clientTotalCents >= serverTotalWithSameDayCents - 1) {
         // Use client value - it matches displayed checkout total exactly
         finalTotalCents = clientTotalCents;
       } else {
@@ -306,7 +348,10 @@ exports.handler = async (event, context) => {
         console.warn('PayPal create order - client/server total mismatch exceeds 1 cent:', {
           cid,
           clientTotalCents,
-          serverTotalCents: totals.total_cents,
+          serverTotalCents: serverTotalWithSameDayCents,
+          serverBaseTotalCents: totals.total_cents,
+          sameDayFeeCents,
+          saturdayFeeCents,
           diff,
         });
       }
@@ -329,6 +374,16 @@ exports.handler = async (event, context) => {
     const accessToken = await getPayPalAccessToken();
     const { baseUrl } = getPayPalCredentials();
 
+    let payPalDescription = getPayPalDescription(items);
+    if (sameDayResult.sameDay) {
+      const noteParts = [];
+      noteParts.push(`+ Same-Day Hit Service ($${(sameDayFeeCents / 100).toFixed(2)})`);
+      if (sameDayResult.saturday) {
+        noteParts.push(`Saturday Delivery ($${(saturdayFeeCents / 100).toFixed(2)})`);
+      }
+      payPalDescription = `${payPalDescription} | ${noteParts.join(' + ')}`.slice(0, 127);
+    }
+
     const orderRequest = {
       intent: 'CAPTURE',
       purchase_units: [{
@@ -336,7 +391,7 @@ exports.handler = async (event, context) => {
           currency_code: 'USD',
           value: totalAmount
         },
-        description: getPayPalDescription(items)
+        description: payPalDescription
       }],
       application_context: {
         brand_name: 'Banners On The Fly',
