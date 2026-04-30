@@ -381,7 +381,18 @@ exports.handler = async (event, context) => {
       if (sameDayResult.saturday) {
         noteParts.push(`Saturday Delivery ($${(saturdayFeeCents / 100).toFixed(2)})`);
       }
-      payPalDescription = `${payPalDescription} | ${noteParts.join(' + ')}`.slice(0, 127);
+      const combined = `${payPalDescription} | ${noteParts.join(' + ')}`;
+      // PayPal description limit is 127 chars. Prefer to drop the suffix
+      // entirely rather than truncate mid-token (which could produce broken
+      // surrogate pairs or misleading partial words).
+      if (combined.length <= 127) {
+        payPalDescription = combined;
+      } else if (payPalDescription.length <= 127) {
+        // Keep the original description intact if it already fits.
+        payPalDescription = payPalDescription.slice(0, 127);
+      } else {
+        payPalDescription = payPalDescription.slice(0, 127);
+      }
     }
 
     const orderRequest = {

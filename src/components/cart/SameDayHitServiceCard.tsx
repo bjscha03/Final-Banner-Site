@@ -4,6 +4,7 @@ import { useCartStore } from '@/store/cart';
 import { useToast } from '@/components/ui/use-toast';
 import { useSameDayService } from '@/hooks/useSameDayService';
 import { computeSameDayFeesCents } from '@/lib/sameDayService';
+import { getSameDayKeyForProduct } from '@/lib/sameDayConfig';
 import { sameDayConfig } from '@/lib/sameDayConfig';
 import { usd } from '@/lib/pricing';
 
@@ -49,7 +50,7 @@ const SameDayHitServiceCard: React.FC = () => {
   // customers understand the option exists earlier in the day).
   if (!evalResult.windowOpen) {
     // If there are no matching products at all, hide entirely to reduce noise.
-    if (!items.some((i) => ['banner', 'yard_sign', 'car_magnet'].includes(i.product_type || 'banner'))) {
+    if (!items.some((i) => !!getSameDayKeyForProduct(i.product_type))) {
       return null;
     }
     return (

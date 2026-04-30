@@ -20,6 +20,8 @@ export interface EasternTimeParts {
   hour: number;
   /** ET minute 0..59 */
   minute: number;
+  /** ET second 0..59 */
+  second: number;
   /** ET day-of-week (0 = Sunday, 6 = Saturday) */
   dayOfWeek: number;
   /** ISO-like ET wall-clock string, e.g. "2026-04-30 11:59:00 ET" */
@@ -62,12 +64,11 @@ export function getEasternTimeParts(now: Date = new Date()): EasternTimeParts {
   return {
     hour,
     minute,
+    second,
     dayOfWeek,
     display,
     utcIso: now.toISOString(),
-    // expose seconds for server logging if needed
-    ...({ second } as object),
-  } as EasternTimeParts;
+  };
 }
 
 /**
