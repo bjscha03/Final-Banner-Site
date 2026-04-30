@@ -15,7 +15,7 @@ interface CartModalProps {
 
 const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
-  const { getMigratedItems, updateQuantity, removeItem, getSubtotalCents, getTaxCents, getTotalCents, getResolvedDiscount } = useCartStore();
+  const { getMigratedItems, updateQuantity, removeItem, getSubtotalCents, getTaxCents, getTotalCents, getResolvedDiscount, getSameDayFeeCents, getSaturdayDeliveryFeeCents } = useCartStore();
 
   // CRITICAL: Use migrated items to ensure rope/pole pocket costs are calculated
   const items = getMigratedItems();
@@ -77,6 +77,9 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
   const taxCents = getTaxCents();
   const totalCents = getTotalCents();
   const resolvedDiscount = getResolvedDiscount();
+  const sameDayFeeCents = getSameDayFeeCents();
+  const saturdayFeeCents = getSaturdayDeliveryFeeCents();
+  const hasSameDayFee = sameDayFeeCents > 0;
 
   return (
     <div className="fixed inset-0 z-50 overflow-hidden">
@@ -246,10 +249,22 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                   )}
                 </div>
               )}
-              <div className="flex justify-between text-green-600 font-semibold">
+              <div className={`flex justify-between font-semibold ${hasSameDayFee ? 'text-slate-700' : 'text-green-600'}`}>
                 <span>Shipping:</span>
-                <span>FREE</span>
+                <span>{hasSameDayFee ? 'Next-Day Air Included' : 'FREE'}</span>
               </div>
+              {sameDayFeeCents > 0 && (
+                <div className="flex justify-between text-gray-700">
+                  <span className="font-medium">Same-Day Hit Service:</span>
+                  <span className="font-semibold">+{usd(sameDayFeeCents/100)}</span>
+                </div>
+              )}
+              {saturdayFeeCents > 0 && (
+                <div className="flex justify-between text-gray-700">
+                  <span className="font-medium">Saturday Delivery:</span>
+                  <span className="font-semibold">+{usd(saturdayFeeCents/100)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-gray-700">
                 <span className="font-medium">Tax (6%):</span>
                 <span className="font-semibold">{usd(taxCents/100)}</span>

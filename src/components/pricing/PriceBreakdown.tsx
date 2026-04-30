@@ -139,8 +139,18 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
 
   const hasSameDayFee = sameDayHitServiceCents > 0;
   const shippingNote = hasSameDayFee
-    ? 'Same-Day Hit Service selected. Your order will be prioritized to ship today when available before the cutoff.'
+    ? 'Same-Day production priority selected. Next-day air shipping is still included.'
     : '24-hour production and free next-day air shipping included.';
+  const shippingValueLabel = hasSameDayFee ? 'Next-Day Air Included' : 'FREE';
+  // Footer note: combine shipping language (per spec) with the caller's note
+  // (typically "Tax calculated at checkout") so the message is consistent
+  // across product pages, cart, and checkout.
+  const baseFooterNote = footerNote || '';
+  const composedFooterNote = hasSameDayFee
+    ? ['Next-Day Air Included', 'Same-Day production priority selected', baseFooterNote]
+        .filter(Boolean)
+        .join(' • ')
+    : ['FREE Next-Day Air Included', baseFooterNote].filter(Boolean).join(' • ');
 
   const visibleAddOns = (addOns || []).filter(a => a && a.amountCents > 0);
   const hasQuantityDiscount = quantityDiscountCents > 0;
@@ -311,14 +321,16 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
               </div>
             )}
 
-            {/* Shipping: always FREE */}
+            {/* Shipping: free next-day air, with label/value adjusted when
+                Same-Day Hit Service is selected so it is never implied that
+                the same-day fee is shipping. */}
             <div className="flex flex-col gap-0.5">
               <div className="flex justify-between gap-3">
-                <span className="flex items-center gap-1.5 text-green-700 font-medium">
+                <span className={`flex items-center gap-1.5 font-medium ${hasSameDayFee ? 'text-slate-700' : 'text-green-700'}`}>
                   <Truck className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
                   Shipping
                 </span>
-                <span className="font-semibold text-green-700">FREE</span>
+                <span className={`font-semibold ${hasSameDayFee ? 'text-slate-700' : 'text-green-700'}`}>{shippingValueLabel}</span>
               </div>
               <p className="text-[11px] text-slate-500 leading-tight pl-5">{shippingNote}</p>
             </div>
@@ -385,8 +397,8 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
           </div>
         )}
 
-        {footerNote && (
-          <p className="text-xs text-gray-400 mt-4 text-center">{footerNote}</p>
+        {composedFooterNote && (
+          <p className="text-xs text-gray-400 mt-4 text-center">{composedFooterNote}</p>
         )}
       </div>
     </div>

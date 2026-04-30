@@ -242,6 +242,10 @@ const Design: React.FC = () => {
     setQuantity(1);
     setPromoCode('');
     setPromoApplied(false);
+    // Tab switch must reset Same-Day Hit Service / Saturday Delivery so the
+    // new product never starts with these auto-selected.
+    useCartStore.getState().setSameDayHitService(false);
+    useCartStore.getState().setSaturdayDelivery(false);
     if (newType === 'yard_sign') {
       setYardSignDesigns([]);
       setYardSignSidedness('single');
