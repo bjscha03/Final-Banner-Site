@@ -24,10 +24,9 @@
 //   { imageBase64, mimeType, width, height, aspectRatio, prompt, editPrompt }
 
 const {
-  buildEnhancedPrompt,
-  callImagen,
   cropToExactAspectRatio,
   pickClosestImagenAspectRatio,
+  generateWithRetry,
   ALLOWED_PRODUCT_TYPES,
   MAX_PROMPT_LENGTH,
 } = require('./generate-design.cjs');
@@ -118,18 +117,18 @@ exports.handler = async (event) => {
     trimmedOriginalPrompt ||
     `A simple, bold ${productType.replace('_', ' ')} design.`;
 
-  const enhancedPrompt = buildEnhancedPrompt({
-    productType,
-    width: w,
-    height: h,
-    material,
-    prompt: effectiveBasePrompt,
-    editPrompt: trimmedEditPrompt,
-  });
   const imagenAspectRatio = pickClosestImagenAspectRatio(w, h);
 
   try {
-    const rawBase64 = await callImagen({ enhancedPrompt, imagenAspectRatio });
+    const { rawBase64, attempts, regenerated } = await generateWithRetry({
+      productType,
+      width: w,
+      height: h,
+      material,
+      prompt: effectiveBasePrompt,
+      editPrompt: trimmedEditPrompt,
+      imagenAspectRatio,
+    });
     const cropped = await cropToExactAspectRatio(rawBase64, w, h);
 
     return jsonResponse(200, {
@@ -141,6 +140,8 @@ exports.handler = async (event) => {
       imagenAspectRatio,
       prompt: trimmedOriginalPrompt,
       editPrompt: trimmedEditPrompt,
+      attempts,
+      regenerated,
     });
   } catch (err) {
     console.error('[edit-design] Generation failed:', err && err.message);

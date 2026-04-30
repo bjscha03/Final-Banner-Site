@@ -41,6 +41,42 @@ function generateId() {
   return `gen_${Date.now()}_${crypto.randomBytes(8).toString('hex')}`;
 }
 
+/**
+ * Wraps a raw user prompt with strict flat-print-artwork rules so DALL-E /
+ * Fal generate the actual print file (edge-to-edge artwork) instead of a
+ * product mockup (banner hanging on a stand inside a gray room, etc.).
+ * The canvas IS the final print file — never a product preview.
+ */
+function enforcePrintArtworkPrompt(userPrompt, aspect) {
+  const safeAspect = aspect ? String(aspect) : '';
+  return (
+    `Create a flat 2D print-ready banner design.\n` +
+    `This is NOT a product mockup. The image IS the final print file (the actual artwork sent to the printer).\n` +
+    (safeAspect ? `Aspect ratio: ${safeAspect} EXACT.\n` : '') +
+    `\n` +
+    `Positive requirements:\n` +
+    `- Fill the ENTIRE canvas edge-to-edge with the printed design — no margins, no padding, no outer background, no mockup framing.\n` +
+    `- Extremely bold, simple layout with high contrast colors readable from a distance.\n` +
+    `- One main headline rendered very large; optional short subheadline.\n` +
+    `- Solid colored or fully designed background that fills 100% of the canvas.\n` +
+    `\n` +
+    `Do NOT show any of the following (hard fail):\n` +
+    `- NO banner hanging, mounted, or displayed as a physical object in space.\n` +
+    `- NO walls, floors, rooms, indoor or outdoor scenes around the artwork.\n` +
+    `- NO stands, X-stands, easels, tripods, poles, ropes, strings, chains, hooks.\n` +
+    `- NO grommets, eyelets, metal rings, holes, stakes, screws, mounting hardware.\n` +
+    `- NO shadows cast by the banner, NO drop shadow under the artwork, NO floating-card effect.\n` +
+    `- NO perspective, tilt, angle, or 3D look — render perfectly flat, head-on, 0° rotation.\n` +
+    `- NO lighting environment, NO studio lighting, NO ambient gradients or vignette.\n` +
+    `- NO gray or neutral studio background, NO empty padding around the design.\n` +
+    `- NO frame around the artwork, NO product photo, NO design-inside-a-design.\n` +
+    `- NO tiny text, NO lorem ipsum, NO unreadable micro-text, NO decorative clutter.\n` +
+    `\n` +
+    `User request (the actual artwork to design):\n` +
+    `${userPrompt}\n`
+  );
+}
+
 async function ensureUser(userId, email = null) {
   await sql`INSERT INTO users (id, email) VALUES (${userId}, ${email}) ON CONFLICT (id) DO NOTHING`;
   await sql`INSERT INTO user_credits (user_id, credits, last_reset_date) VALUES (${userId}, 0, CURRENT_DATE) ON CONFLICT (user_id) DO NOTHING`;
@@ -94,16 +130,16 @@ async function uploadToCloudinary(imageUrl) {
 async function generateWithOpenAI(prompt, aspect) {
   const size = ASPECT_TO_SIZE_MAP[aspect] || '1792x1024';
   const quality = process.env.DALLE_QUALITY || 'hd';
-  
+
   const response = await openai.images.generate({
     model: 'dall-e-3',
-    prompt,
+    prompt: enforcePrintArtworkPrompt(prompt, aspect),
     n: 1,
     size,
     quality,
     response_format: 'url',
   });
-  
+
   return response.data[0]?.url;
 }
 
@@ -124,7 +160,7 @@ async function generateWithFal(prompt, aspect) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      prompt,
+      prompt: enforcePrintArtworkPrompt(prompt, aspect),
       image_size: aspectRatio,
       num_inference_steps: 4,
       num_images: 1,
