@@ -1,10 +1,9 @@
 import React, { useEffect, useRef } from 'react';
-import { Clock, Zap } from 'lucide-react';
+import { Zap } from 'lucide-react';
 import { useCartStore } from '@/store/cart';
 import { useToast } from '@/components/ui/use-toast';
 import { useSameDayService } from '@/hooks/useSameDayService';
 import { computeSameDayFeesCents } from '@/lib/sameDayService';
-import { getSameDayKeyForProduct } from '@/lib/sameDayConfig';
 import { sameDayConfig } from '@/lib/sameDayConfig';
 import { usd } from '@/lib/pricing';
 
@@ -76,41 +75,11 @@ const SameDayHitServiceCard: React.FC<SameDayHitServiceCardProps> = ({
     }
   }, [evalResult.windowOpen, sameDayHitService, saturdayDelivery, reconcileSameDayHitService, toast]);
 
-  // Closed-window state: render a disabled notice. Reinforce that standard
-  // service (24h production + free next-day air) still applies so customers
-  // don't feel the standard offer is worse.
+  // Closed-window state: hide the component entirely. Per product spec, when
+  // Same-Day Hit Service is not available we do NOT render a disabled or
+  // greyed-out notice — the entire section is removed from the DOM.
   if (!evalResult.windowOpen) {
-    // For the default variant, if the cart has nothing eligible at all, hide
-    // entirely to reduce noise on the cart/checkout page. Compact variants on
-    // product pages always show the closed notice so customers learn the
-    // option exists earlier in the day.
-    if (
-      !isCompact &&
-      !items.some((i) => !!getSameDayKeyForProduct(i.product_type))
-    ) {
-      return null;
-    }
-    return (
-      <div
-        className={`rounded-xl border border-slate-200 bg-slate-50 ${
-          isCompact ? 'p-3 sm:p-4' : 'p-4 sm:p-5'
-        } opacity-90`}
-        data-testid="same-day-hit-service-card-closed"
-      >
-        <div className="flex items-start gap-3">
-          <Clock className="h-5 w-5 text-slate-400 mt-0.5 flex-shrink-0" aria-hidden="true" />
-          <div>
-            <h3 className={`font-semibold text-slate-700 ${isCompact ? 'text-sm' : 'text-sm'}`}>
-              Same-Day Hit Service
-            </h3>
-            <p className={`text-slate-500 mt-1 ${isCompact ? 'text-xs' : 'text-sm'}`}>
-              Same-Day Hit Service is available on eligible orders before 12:00 PM ET. Standard
-              24-hour production and free next-day air shipping still apply.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   // Window is open. For the default (cart/checkout) variant, hide entirely
@@ -120,25 +89,9 @@ const SameDayHitServiceCard: React.FC<SameDayHitServiceCardProps> = ({
   }
 
   // Compact (product-page) variant: if the page hasn't computed a price yet,
-  // render a disabled hint so the customer knows the option is coming.
+  // hide the component entirely (no disabled / greyed-out hint).
   if (isCompact && !previewHasPrice) {
-    return (
-      <div
-        className="rounded-xl border border-slate-200 bg-slate-50 p-3 sm:p-4 opacity-90"
-        data-testid="same-day-hit-service-card-pending"
-      >
-        <div className="flex items-start gap-3">
-          <Clock className="h-5 w-5 text-slate-400 mt-0.5 flex-shrink-0" aria-hidden="true" />
-          <div>
-            <h3 className="text-sm font-semibold text-slate-700">Same-Day Hit Service</h3>
-            <p className="text-xs text-slate-500 mt-1">
-              Same-Day Hit Service may be available after you upload artwork and complete your
-              order details.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
+    return null;
   }
 
   // Pick the subtotal used for fee preview. On product pages, prefer the
