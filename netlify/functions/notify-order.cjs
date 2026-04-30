@@ -499,8 +499,26 @@ async function sendEmail(type, payload) {
         total,
         discountCents: order.discountCents || 0,
         discountLabel: order.discountLabel || '',
+        sameDayFeeCents: order.sameDayFeeCents || 0,
+        saturdayFeeCents: order.saturdayFeeCents || 0,
       });
       const shippingHtml = renderAddress(order);
+
+      // Same-Day Hit Service confirmation block (production priority — NOT
+      // rush shipping, never reference "delivered tomorrow").
+      const sameDayHit = !!order.sameDayHitService;
+      const saturdayDelivery = !!order.saturdayDelivery;
+      const sameDayBlock = sameDayHit
+        ? `
+          <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:14px 0;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;">
+            <tr><td style="padding:14px;">
+              <p style="margin:0 0 4px;color:#9a3412;font-size:14px;font-weight:700;">Same-Day Hit Service: Added</p>
+              <p style="margin:0;color:#7c2d12;font-size:13px;">Your order has been prioritized for same-day production based on Eastern Time cutoff.</p>
+              ${saturdayDelivery ? `<p style="margin:6px 0 0;color:#7c2d12;font-size:13px;font-weight:600;">Saturday Delivery: Added</p>` : ''}
+            </td></tr>
+          </table>
+        `
+        : '';
 
       if (type === 'order.confirmation') {
         subject = `Order Confirmation #${order.number} - Banners On The Fly`;
@@ -512,6 +530,7 @@ async function sendEmail(type, payload) {
             <p style="margin:0 0 12px;font-size:15px;color:#334155;">Hi ${escapeHtml(names.firstName)},</p>
             <p style="margin:0 0 16px;font-size:14px;color:#334155;">Thank you for your order!</p>
             ${itemHtml}
+            ${sameDayBlock}
             ${totalsHtml}
             ${shippingHtml}
             <p style="margin:16px 0 0;font-size:13px;color:#64748b;">You’ll receive another email when your order ships.</p>
@@ -521,12 +540,27 @@ async function sendEmail(type, payload) {
           `,
         });
       } else {
-        subject = `🎉 New Order #${order.number} - $${Number(total).toFixed(2)}`;
+        const adminPriorityPrefix = sameDayHit
+          ? `PRIORITY ORDER – SAME-DAY HIT SERVICE${saturdayDelivery ? ' / SATURDAY DELIVERY INCLUDED' : ''}: `
+          : '';
+        subject = `${adminPriorityPrefix}🎉 New Order #${order.number} - $${Number(total).toFixed(2)}`;
+        const adminPriorityBanner = sameDayHit
+          ? `
+            <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:0 0 14px;background:#fef3c7;border:2px solid #f59e0b;border-radius:10px;">
+              <tr><td style="padding:14px;text-align:center;">
+                <p style="margin:0;color:#92400e;font-size:15px;font-weight:800;letter-spacing:0.4px;text-transform:uppercase;">PRIORITY ORDER – SAME-DAY HIT SERVICE</p>
+                ${saturdayDelivery ? `<p style="margin:6px 0 0;color:#92400e;font-size:13px;font-weight:700;">SATURDAY DELIVERY INCLUDED</p>` : ''}
+                ${order.orderTimestampEt ? `<p style="margin:6px 0 0;color:#92400e;font-size:12px;">Order timestamp (ET): ${escapeHtml(order.orderTimestampEt)}</p>` : ''}
+              </td></tr>
+            </table>
+          `
+          : '';
         html = renderEmailLayout({
           title: 'New Order Received',
           subtitle: 'A new customer order was placed.',
           orderNumber: order.number,
           bodyHtml: `
+            ${adminPriorityBanner}
             <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="margin:0 0 14px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;">
               <tr><td style="padding:14px;">
                 <p style="margin:0 0 6px;color:#0f172a;font-size:14px;font-weight:700;">Customer Name: ${escapeHtml(names.fullName || 'Not provided')}</p>
@@ -535,6 +569,7 @@ async function sendEmail(type, payload) {
               </td></tr>
             </table>
             ${itemHtml}
+            ${sameDayBlock}
             ${totalsHtml}
             ${shippingHtml}
             <div style="margin-top:16px;">
@@ -753,7 +788,9 @@ exports.handler = async (event) => {
           const discount = order.applied_discount_cents || 0;
           const afterDiscount = calculatedSubtotal - discount;
           const calculatedTax = Math.round(afterDiscount * 0.06);
-          const calculatedTotal = afterDiscount + calculatedTax;
+          const sameDayFee = order.same_day_fee_cents || 0;
+          const saturdayFee = order.saturday_fee_cents || 0;
+          const calculatedTotal = afterDiscount + calculatedTax + sameDayFee + saturdayFee;
           return calculatedTotal / 100;
         },
         get subtotalCents() {
@@ -762,6 +799,13 @@ exports.handler = async (event) => {
         discountCents: order.applied_discount_cents || 0,
         discountLabel: order.applied_discount_label || "",
         discountType: order.applied_discount_type || "none",
+        // Same-Day Hit Service fields
+        sameDayHitService: !!order.same_day_hit_service,
+        saturdayDelivery: !!order.saturday_delivery,
+        sameDayFeeCents: order.same_day_fee_cents || 0,
+        saturdayFeeCents: order.saturday_fee_cents || 0,
+        orderTimestampEt: order.order_timestamp_et || null,
+        sameDayQualified: !!order.same_day_qualified,
         get taxCents() {
           const calculatedSubtotal = itemRows.reduce((sum, item) => sum + item.line_total_cents, 0);
           const discount = order.applied_discount_cents || 0;
@@ -772,7 +816,9 @@ exports.handler = async (event) => {
           const discount = order.applied_discount_cents || 0;
           const afterDiscount = calculatedSubtotal - discount;
           const calculatedTax = Math.round(afterDiscount * 0.06);
-          return afterDiscount + calculatedTax;
+          const sameDayFee = order.same_day_fee_cents || 0;
+          const saturdayFee = order.saturday_fee_cents || 0;
+          return afterDiscount + calculatedTax + sameDayFee + saturdayFee;
         },
         shipping_name: order.shipping_name,
         shipping_street: order.shipping_street,

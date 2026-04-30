@@ -9,6 +9,11 @@ import { trackAddToCart, trackFBAddToCart } from '@/lib/analytics';
 import { getProductConfig } from '@/lib/products';
 import type { ProductTypeSlug } from '@/lib/products';
 import { calculateBannerPricing } from '@/lib/bannerPricingEngine';
+import {
+  computeSameDayFeesCents,
+  evaluateSameDayEligibility,
+  getEligibleSubtotalCents,
+} from '@/lib/sameDayService';
 
 
 // PERFORMANCE: Disable verbose logging in production for faster cart operations
@@ -145,6 +150,10 @@ export interface CartItem {
   final_print_pdf_url?: string;                  // Admin-uploaded final print PDF
   final_print_pdf_file_key?: string;             // Cloudinary file key for final PDF
   final_print_pdf_uploaded_at?: string;          // ISO timestamp of when admin uploaded PDF
+
+  // Same-Day Hit Service (captured at add-to-cart time for display and order tracking)
+  sameDayHitServiceSelected?: boolean;           // Whether Same-Day Hit Service was selected for this item
+  sameDayHitServicePrice?: number;               // Same-Day Hit Service fee in cents for this item at add-to-cart time
 }
 
 export interface AuthoritativePricing {
@@ -171,6 +180,20 @@ export interface CartState {
   isLoading: boolean;  // Loading state for cart operations (merge, load from server)
   isSyncing: boolean;  // Flag to prevent loadFromServer from overwriting during sync
   discountCode: DiscountCode | null;
+  // Same-Day Hit Service upsell flags (production priority — NOT shipping)
+  sameDayHitService: boolean;
+  saturdayDelivery: boolean;
+  setSameDayHitService: (on: boolean) => void;
+  setSaturdayDelivery: (on: boolean) => void;
+  /**
+   * Re-evaluate Same-Day window/eligibility against the current ET clock and
+   * cart contents. Clears `sameDayHitService` (and `saturdayDelivery`) if the
+   * cutoff has passed or no items remain eligible. Returns true if anything
+   * was cleared so the caller can surface a toast.
+   */
+  reconcileSameDayHitService: () => { cleared: boolean; reason: string | null };
+  getSameDayFeeCents: () => number;
+  getSaturdayDeliveryFeeCents: () => number;
   addFromQuote: (quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing) => string;
   addDesignDeposit: (intakeData: {
     intakeId: string;
@@ -278,6 +301,86 @@ export const useCartStore = create<CartState>()(
       isLoading: false,
       isSyncing: false,
       discountCode: null,
+      sameDayHitService: false,
+      saturdayDelivery: false,
+
+      setSameDayHitService: (on: boolean) => {
+        if (on) {
+          // Server is authoritative, but we mirror server logic on the client
+          // to keep UX consistent. We only gate on the ET window here — not
+          // on cart eligibility — so the option can be selected from a product
+          // page before the item is in the cart. The reconciler runs whenever
+          // items change and will clear the flag if the cart ends up
+          // ineligible at checkout time.
+          const items = get().items.map(migrateCartItem);
+          const evalResult = evaluateSameDayEligibility({ items });
+          if (!evalResult.windowOpen) {
+            return;
+          }
+          set({ sameDayHitService: true });
+        } else {
+          // Turning off Same-Day automatically clears Saturday Delivery.
+          set({ sameDayHitService: false, saturdayDelivery: false });
+        }
+      },
+
+      setSaturdayDelivery: (on: boolean) => {
+        if (!on) {
+          set({ saturdayDelivery: false });
+          return;
+        }
+        // Guard: only allowed when same-day is on AND today qualifies (Friday)
+        if (!get().sameDayHitService) return;
+        const items = get().items.map(migrateCartItem);
+        const evalResult = evaluateSameDayEligibility({ items });
+        if (!evalResult.saturdayEligible) return;
+        set({ saturdayDelivery: true });
+      },
+
+      reconcileSameDayHitService: () => {
+        const state = get();
+        if (!state.sameDayHitService && !state.saturdayDelivery) {
+          return { cleared: false, reason: null };
+        }
+        const items = state.items.map(migrateCartItem);
+        const evalResult = evaluateSameDayEligibility({ items });
+        // If window closed or eligibility lost, clear both flags.
+        if (!evalResult.windowOpen || !evalResult.hasEligibleItem) {
+          set({ sameDayHitService: false, saturdayDelivery: false });
+          return { cleared: true, reason: evalResult.reason };
+        }
+        // Saturday no longer eligible (e.g. day rolled over) — clear it
+        // but keep same-day on.
+        if (state.saturdayDelivery && !evalResult.saturdayEligible) {
+          set({ saturdayDelivery: false });
+          return { cleared: true, reason: 'saturday_no_longer_eligible' };
+        }
+        return { cleared: false, reason: null };
+      },
+
+      getSameDayFeeCents: () => {
+        const state = get();
+        if (!state.sameDayHitService) return 0;
+        const items = state.items.map(migrateCartItem);
+        const eligibleSubtotal = getEligibleSubtotalCents(items);
+        const fees = computeSameDayFeesCents(eligibleSubtotal, {
+          sameDay: true,
+          saturday: state.saturdayDelivery,
+        });
+        return fees.sameDayFeeCents;
+      },
+
+      getSaturdayDeliveryFeeCents: () => {
+        const state = get();
+        if (!state.sameDayHitService || !state.saturdayDelivery) return 0;
+        const items = state.items.map(migrateCartItem);
+        const eligibleSubtotal = getEligibleSubtotalCents(items);
+        const fees = computeSameDayFeesCents(eligibleSubtotal, {
+          sameDay: true,
+          saturday: true,
+        });
+        return fees.saturdayFeeCents;
+      },
       
       addFromQuote: (quote: QuoteState, aiMetadata?: any, pricing?: AuthoritativePricing): string => {
         debugLog('🚨 addFromQuote CALLED - Current items in cart:', get().items.length);
@@ -467,6 +570,9 @@ export const useCartStore = create<CartState>()(
           design_draft_preference: (quote as any).design_draft_preference || undefined,
           design_draft_contact: (quote as any).design_draft_contact || undefined,
           design_uploaded_assets: (quote as any).design_uploaded_assets || undefined,
+          // Same-Day Hit Service: capture cart-level selection at add-to-cart time
+          sameDayHitServiceSelected: get().sameDayHitService || undefined,
+          sameDayHitServicePrice: get().sameDayHitService ? get().getSameDayFeeCents() : undefined,
           ...(aiMetadata || {}),
         };
 
@@ -881,6 +987,9 @@ export const useCartStore = create<CartState>()(
         set((state) => ({
           items: state.items.filter(item => item.id !== id)
         }));
+        // After item changes, ensure Same-Day flags are still valid (e.g. if
+        // the removed item was the only eligible product in the cart).
+        get().reconcileSameDayHitService();
       // CRITICAL FIX: Sync to Neon database AFTER state update completes
       // Use setTimeout to ensure state has been updated before syncing
       setTimeout(() => {
@@ -913,7 +1022,7 @@ export const useCartStore = create<CartState>()(
       },
       
       clearCart: () => {
-        set({ items: [], discountCode: null });
+        set({ items: [], discountCode: null, sameDayHitService: false, saturdayDelivery: false });
       // CRITICAL FIX: Sync to Neon database AFTER state update completes
       // Use setTimeout to ensure state has been updated before syncing
       setTimeout(() => {
@@ -926,7 +1035,7 @@ export const useCartStore = create<CartState>()(
       },
 
       clearCartLocal: () => {
-        set({ items: [], discountCode: null });
+        set({ items: [], discountCode: null, sameDayHitService: false, saturdayDelivery: false });
       },
 
       applyDiscountCode: (discount: DiscountCode) => {
@@ -1126,13 +1235,17 @@ export const useCartStore = create<CartState>()(
         return Math.round(calculateTax(subtotalAfterDiscount / 100) * 100);
       },
 
-      // Total = subtotal - best discount + tax (no stacking)
+      // Total = subtotal - best discount + tax + same-day fees (no stacking)
       getTotalCents: () => {
         const rawSubtotal = get().getSubtotalCents();
         const resolved = get().getResolvedDiscount();
         const subtotalAfterDiscount = rawSubtotal - resolved.appliedDiscountAmountCents;
         const tax = Math.round(calculateTax(subtotalAfterDiscount / 100) * 100);
-        return Math.max(0, subtotalAfterDiscount + tax);
+        // Same-Day Hit Service and Saturday Delivery fees are added AFTER tax
+        // and do NOT affect the existing tax base or free next-day shipping.
+        const sameDayFee = get().getSameDayFeeCents();
+        const saturdayFee = get().getSaturdayDeliveryFeeCents();
+        return Math.max(0, subtotalAfterDiscount + tax + sameDayFee + saturdayFee);
       },
 
 
@@ -1216,6 +1329,10 @@ export const useCartStore = create<CartState>()(
           // This prevents items from being lost during page navigation (e.g., Canva flow)
           // Server is still the source of truth - loadFromServer() will update/merge
           items: state.items,
+          // Same-Day Hit Service and Saturday Delivery flags are intentionally
+          // NOT persisted. The option must default to OFF on every refresh,
+          // returning session, page load, tab switch, etc. — only the
+          // customer can opt in manually within the current session.
           // Store cart owner for rehydration check
           _cartOwnerId: cartOwnerId,
         };
@@ -1281,6 +1398,15 @@ export const useCartStore = create<CartState>()(
           state.items.forEach((item, idx) => {
             debugLog('💾 CART STORAGE: Rehydrated item ' + idx + ': ' + item.id);
           });
+        }
+        // Same-Day Hit Service and Saturday Delivery flags are never
+        // restored from localStorage — they always start OFF on rehydrate,
+        // matching the in-memory default in the store initializer. This
+        // belt-and-suspenders clears any flags lingering from older builds
+        // that did persist them.
+        if (state) {
+          state.sameDayHitService = false;
+          state.saturdayDelivery = false;
         }
       },
     }

@@ -100,6 +100,13 @@ export interface Order {
   applied_discount_cents?: number;
   applied_discount_label?: string;
   applied_discount_type?: string;
+  // Same-Day Hit Service (production priority — NOT shipping)
+  same_day_hit_service?: boolean;
+  saturday_delivery?: boolean;
+  same_day_fee_cents?: number;
+  saturday_fee_cents?: number;
+  order_timestamp_et?: string | null;
+  same_day_qualified?: boolean;
 }
 
 export interface CreateOrderData {

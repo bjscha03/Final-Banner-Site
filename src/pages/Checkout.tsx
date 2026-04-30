@@ -18,6 +18,7 @@ import { emailApi } from '@/lib/api';
 import { CartItem } from '@/store/cart';
 import BannerPreview from '@/components/cart/BannerPreview';
 import CartItemBreakdown from '@/components/cart/CartItemBreakdown';
+import SameDayHitServiceCard from '@/components/cart/SameDayHitServiceCard';
 import { useCheckoutContext } from '@/store/checkoutContext';
 import { cartSyncService } from '@/lib/cartSync';
 import { trackBeginCheckout, trackViewCart, trackFBInitiateCheckout } from '@/lib/analytics';
@@ -27,7 +28,7 @@ import { getProductCopy, getDominantProductType } from '@/lib/product-copy';
 
 const Checkout: React.FC = () => {
   const navigate = useNavigate();
-  const { items: rawItems, getMigratedItems, isLoading, syncToServer, clearCart, getSubtotalCents, getTaxCents, getTotalCents, updateQuantity, removeItem, discountCode, applyDiscountCode, removeDiscountCode, getResolvedDiscount } = useCartStore();
+  const { items: rawItems, getMigratedItems, isLoading, syncToServer, clearCart, getSubtotalCents, getTaxCents, getTotalCents, updateQuantity, removeItem, discountCode, applyDiscountCode, removeDiscountCode, getResolvedDiscount, sameDayHitService, saturdayDelivery, getSameDayFeeCents, getSaturdayDeliveryFeeCents } = useCartStore();
 
   // CRITICAL: Use migrated items to ensure rope/pole pocket costs are calculated
   const items = getMigratedItems();
@@ -48,6 +49,8 @@ const Checkout: React.FC = () => {
   const taxCents = getTaxCents();
   const totalCents = getTotalCents();
   const resolvedDiscount = getResolvedDiscount();
+  const sameDayFeeCents = getSameDayFeeCents();
+  const saturdayFeeCents = getSaturdayDeliveryFeeCents();
 
   // Raw subtotals used by per-item breakdowns to allocate cart-level discounts.
   // - cartRawSubtotalCents: full cart subtotal (used for promo allocation)
@@ -933,6 +936,13 @@ const Checkout: React.FC = () => {
                 </div>
                 )}
 
+                {/* Same-Day Hit Service upsell — production priority (NOT shipping) */}
+                {!isFixedFeeOnlyCart && (
+                  <div className="border-t border-gray-200 pt-6 mt-6">
+                    <SameDayHitServiceCard />
+                  </div>
+                )}
+
                 <div className="mt-6">
                   <div
                     className="rounded-xl p-4 sm:p-5 space-y-1.5 text-sm"
@@ -983,12 +993,18 @@ const Checkout: React.FC = () => {
                       <span className="text-gray-600">
                         {flags.freeShipping ? flags.shippingMethodLabel : 'Shipping'}
                       </span>
-                      <span className="text-green-700 font-semibold flex items-center gap-1">
-                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                          <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-                        </svg>
-                        FREE
-                      </span>
+                      {sameDayFeeCents > 0 ? (
+                        <span className="font-semibold text-slate-700">
+                          Next-Day Air Included
+                        </span>
+                      ) : (
+                        <span className="text-green-700 font-semibold flex items-center gap-1">
+                          <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                          </svg>
+                          FREE
+                        </span>
+                      )}
                     </div>
 
                     <div className="flex justify-between gap-3">
@@ -997,6 +1013,24 @@ const Checkout: React.FC = () => {
                         {usd(taxCents / 100)}
                       </span>
                     </div>
+
+                    {sameDayFeeCents > 0 && (
+                      <div className="flex justify-between gap-3">
+                        <span className="text-gray-600">Same-Day Hit Service</span>
+                        <span className="font-semibold text-gray-800">
+                          {usd(sameDayFeeCents / 100)}
+                        </span>
+                      </div>
+                    )}
+
+                    {saturdayFeeCents > 0 && (
+                      <div className="flex justify-between gap-3">
+                        <span className="text-gray-600">Saturday Delivery</span>
+                        <span className="font-semibold text-gray-800">
+                          {usd(saturdayFeeCents / 100)}
+                        </span>
+                      </div>
+                    )}
 
                     <div className="flex justify-between gap-3 pt-2 mt-1 border-t border-slate-300/60">
                       <span className="font-bold text-gray-800">Adjusted subtotal</span>

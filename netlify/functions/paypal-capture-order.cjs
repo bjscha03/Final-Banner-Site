@@ -2,6 +2,10 @@
 const fetch = require('node-fetch'); // Ensure node-fetch is used
 const { neon } = require('@neondatabase/serverless');
 const { randomUUID } = require('crypto');
+const {
+  reconcileSameDayFlags,
+  getEasternTimeParts,
+} = require('./_shared/sameDayService.cjs');
 
 // Helper to detect bad URLs (blob:, data:, or huge strings)
 function isBadUrl(url) {
@@ -151,7 +155,7 @@ exports.handler = async (event) => {
 
     // CRITICAL FIX: The entire payload from the client is needed, not just the orderID.
     const payload = JSON.parse(event.body || '{}');
-    const { orderID, cartItems, userEmail, userId, shippingAddress, customerName } = payload;
+    const { orderID, cartItems, userEmail, userId, shippingAddress, customerName, sameDayHitService: reqSameDay, saturdayDelivery: reqSaturday } = payload;
 
     if (!orderID) return send(400, { error: 'MISSING_ORDER_ID' });
     if (!cartItems || !Array.isArray(cartItems) || cartItems.length === 0) {
@@ -173,6 +177,20 @@ exports.handler = async (event) => {
       `;
     } catch (migrationError) {
       console.warn('[paypal-capture-order] order_items migration warning:', migrationError.message);
+    }
+
+    try {
+      await sql`
+        ALTER TABLE orders
+        ADD COLUMN IF NOT EXISTS same_day_hit_service BOOLEAN DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS saturday_delivery BOOLEAN DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS same_day_fee_cents INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS saturday_fee_cents INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS order_timestamp_et TEXT,
+        ADD COLUMN IF NOT EXISTS same_day_qualified BOOLEAN DEFAULT FALSE
+      `;
+    } catch (migrationError) {
+      console.warn('[paypal-capture-order] same-day migration warning:', migrationError.message);
     }
 
     // OAuth
@@ -215,7 +233,31 @@ exports.handler = async (event) => {
     // Server-side calculation to verify amount
     const subtotalCents = (cartItems || []).reduce((sum, i) => sum + i.line_total_cents, 0);
     const taxCents = Math.round(subtotalCents * 0.06); // 6% tax rate
-    const totalCents = subtotalCents + taxCents;
+
+    // Same-Day Hit Service: server-side reconciliation. Re-compute fees from
+    // the eligible subtotal — never trust client values.
+    const sameDayNow = new Date();
+    const sameDayResult = reconcileSameDayFlags({
+      now: sameDayNow,
+      items: cartItems || [],
+      requestedSameDay: !!reqSameDay,
+      requestedSaturday: !!reqSaturday,
+    });
+    if (reqSameDay && !sameDayResult.sameDay) {
+      return send(409, {
+        error: 'SAME_DAY_NOT_AVAILABLE',
+        message: 'Same-Day Hit Service is no longer available for today’s production window.',
+        reason: sameDayResult.rejectionReason,
+      });
+    }
+    const orderSameDayHitService = sameDayResult.sameDay;
+    const orderSaturdayDelivery = sameDayResult.saturday;
+    const orderSameDayFeeCents = sameDayResult.fees.sameDayFeeCents;
+    const orderSaturdayFeeCents = sameDayResult.fees.saturdayFeeCents;
+    const orderSameDayQualified = sameDayResult.eval.windowOpen && sameDayResult.eval.hasEligibleItem;
+    const orderTimestampEt = getEasternTimeParts(sameDayNow).display;
+
+    const totalCents = subtotalCents + taxCents + orderSameDayFeeCents + orderSaturdayFeeCents;
 
     if (Math.round(capturedAmount * 100) !== totalCents) {
       console.error('PayPal amount mismatch:', { expected: totalCents, captured: Math.round(capturedAmount * 100) });
@@ -230,10 +272,14 @@ exports.handler = async (event) => {
       await tx`
         INSERT INTO orders (
           id, user_id, email, subtotal_cents, tax_cents, total_cents, status,
-          paypal_order_id, paypal_capture_id, customer_name, shipping_address
+          paypal_order_id, paypal_capture_id, customer_name, shipping_address,
+          same_day_hit_service, saturday_delivery, same_day_fee_cents, saturday_fee_cents,
+          order_timestamp_et, same_day_qualified
         ) VALUES (
           ${orderId}, ${userId || null}, ${finalEmail}, ${subtotalCents}, ${taxCents}, ${totalCents}, 'paid',
-          ${orderID}, ${capture.id}, ${finalCustomerName}, ${shippingAddress || null}
+          ${orderID}, ${capture.id}, ${finalCustomerName}, ${shippingAddress || null},
+          ${orderSameDayHitService}, ${orderSaturdayDelivery}, ${orderSameDayFeeCents}, ${orderSaturdayFeeCents},
+          ${orderTimestampEt}, ${orderSameDayQualified}
         )
       `;
 

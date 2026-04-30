@@ -1,5 +1,5 @@
 import React from 'react';
-import { Tag, DollarSign } from 'lucide-react';
+import { Tag, DollarSign, Truck } from 'lucide-react';
 import { usd } from '@/lib/pricing';
 
 /**
@@ -72,6 +72,13 @@ export interface PriceBreakdownProps {
   /** Optional minimum-order adjustment row (positive cents). */
   minOrderAdjustmentCents?: number;
 
+  /**
+   * Same-Day Hit Service fee (positive cents). When > 0, a line item is
+   * shown and the shipping supporting text switches to the same-day message.
+   * The caller is responsible for including this in `totalCents`.
+   */
+  sameDayHitServiceCents?: number;
+
   /** Tax (cents). */
   taxCents: number;
   /** Tax rate 0..1; controls label like "Tax (6%)". */
@@ -113,6 +120,7 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
   promoDiscountRate,
   promoDiscountCode,
   minOrderAdjustmentCents = 0,
+  sameDayHitServiceCents = 0,
   taxCents,
   taxRate = 0.06,
   adjustedSubtotalCents,
@@ -128,6 +136,21 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
   const promoDiscountLabel = `Promo${promoDiscountCode ? ` ${promoDiscountCode}` : ''}${
     promoDiscountRate ? ` (${Math.round(promoDiscountRate * 100)}% off)` : ''
   }`;
+
+  const hasSameDayFee = sameDayHitServiceCents > 0;
+  const shippingNote = hasSameDayFee
+    ? 'Same-Day production priority selected. Next-day air shipping is still included.'
+    : '24-hour production and free next-day air shipping included.';
+  const shippingValueLabel = hasSameDayFee ? 'Next-Day Air Included' : 'FREE';
+  // Footer note: combine shipping language (per spec) with the caller's note
+  // (typically "Tax calculated at checkout") so the message is consistent
+  // across product pages, cart, and checkout.
+  const baseFooterNote = footerNote || '';
+  const composedFooterNote = hasSameDayFee
+    ? ['Next-Day Air Included', 'Same-Day production priority selected', baseFooterNote]
+        .filter(Boolean)
+        .join(' • ')
+    : ['FREE Next-Day Air Included', baseFooterNote].filter(Boolean).join(' • ');
 
   const visibleAddOns = (addOns || []).filter(a => a && a.amountCents > 0);
   const hasQuantityDiscount = quantityDiscountCents > 0;
@@ -291,6 +314,27 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
               </div>
             )}
 
+            {hasSameDayFee && (
+              <div className="flex justify-between gap-3 text-amber-700">
+                <span className="font-medium">Same-Day Hit Service</span>
+                <span className="font-semibold">+{usd(sameDayHitServiceCents / 100)}</span>
+              </div>
+            )}
+
+            {/* Shipping: free next-day air, with label/value adjusted when
+                Same-Day Hit Service is selected so it is never implied that
+                the same-day fee is shipping. */}
+            <div className="flex flex-col gap-0.5">
+              <div className="flex justify-between gap-3">
+                <span className={`flex items-center gap-1.5 font-medium ${hasSameDayFee ? 'text-slate-700' : 'text-green-700'}`}>
+                  <Truck className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+                  Shipping
+                </span>
+                <span className={`font-semibold ${hasSameDayFee ? 'text-slate-700' : 'text-green-700'}`}>{shippingValueLabel}</span>
+              </div>
+              <p className="text-[11px] text-slate-500 leading-tight pl-5">{shippingNote}</p>
+            </div>
+
             <div className="flex justify-between gap-3">
               <span className="text-gray-600">{taxLabel}</span>
               <span className="font-semibold text-gray-800">
@@ -353,8 +397,8 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
           </div>
         )}
 
-        {footerNote && (
-          <p className="text-xs text-gray-400 mt-4 text-center">{footerNote}</p>
+        {composedFooterNote && (
+          <p className="text-xs text-gray-400 mt-4 text-center">{composedFooterNote}</p>
         )}
       </div>
     </div>

@@ -24,6 +24,7 @@ import ProductTypeSwitcher from '@/components/design/ProductTypeSwitcher';
 import YardSignConfigurator from '@/components/design/YardSignConfigurator';
 import YardSignPriceSummary from '@/components/design/YardSignPriceSummary';
 import PriceBreakdown from '@/components/pricing/PriceBreakdown';
+import SameDayHitServiceCard from '@/components/cart/SameDayHitServiceCard';
 import FileUploader from '@/components/ui/FileUploader';
 import {
   calcYardSignPricing,
@@ -45,6 +46,7 @@ import {
 import { BANNER_MATERIALS as MATERIALS } from '@/lib/banner-materials';
 import CreateWithAIModal, { type CreateWithAIResult } from '@/components/design/CreateWithAIModal';
 import { base64ToFile } from '@/utils/base64ToFile';
+import { computeSameDayFeesCents } from '@/lib/sameDayService';
 
 const PRESET_SIZES = [
   { label: "2' × 4'", w: 48, h: 24 },
@@ -242,6 +244,10 @@ const Design: React.FC = () => {
     setQuantity(1);
     setPromoCode('');
     setPromoApplied(false);
+    // Tab switch must reset Same-Day Hit Service / Saturday Delivery so the
+    // new product never starts with these auto-selected.
+    useCartStore.getState().setSameDayHitService(false);
+    useCartStore.getState().setSaturdayDelivery(false);
     if (newType === 'yard_sign') {
       setYardSignDesigns([]);
       setYardSignSidedness('single');
@@ -553,6 +559,25 @@ const Design: React.FC = () => {
   const bannerPromoActuallyApplied =
     bannerPromoResolution.appliedDiscountType === 'promo' &&
     bannerPromoResolution.appliedDiscountAmountCents > 0;
+
+  // Same-Day Hit Service preview fee for product-page summary.
+  // Read cart-level flag; if selected compute the fee against the product subtotal
+  // so the PriceBreakdown shows the line item and updated total before adding to cart.
+  const sameDayHitService = useCartStore(s => s.sameDayHitService);
+  // Compute the Same-Day Hit Service fee preview for the currently selected product type.
+  // Used to update PriceBreakdown totals and show the line item before adding to cart.
+  const previewSameDayFeeCents = useMemo(() => {
+    if (!sameDayHitService) return 0;
+    let previewSubtotal: number;
+    if (isCarMagnet) {
+      previewSubtotal = carMagnetPricing?.baseSubtotalCents ?? 0;
+    } else if (isYardSign) {
+      previewSubtotal = yardSignPricing?.totalCents ?? 0;
+    } else {
+      previewSubtotal = bannerPricing.subtotalBeforeDiscountCents;
+    }
+    return computeSameDayFeesCents(previewSubtotal, { sameDay: true, saturday: false }).sameDayFeeCents;
+  }, [sameDayHitService, isCarMagnet, isYardSign, carMagnetPricing?.baseSubtotalCents, yardSignPricing?.totalCents, bannerPricing.subtotalBeforeDiscountCents]);
 
   const scrollToOrder = useCallback(() => {
     setHasEnteredBuilder(true);
@@ -1428,8 +1453,16 @@ const Design: React.FC = () => {
                     onPromoCodeChange={setPromoCode}
                     onPromoApply={handlePromoApply}
                     onPromoRemove={handlePromoRemove}
+                    sameDayHitServiceCents={previewSameDayFeeCents}
                   />
                 )}
+
+                {/* Same-Day Hit Service upsell — production priority (NOT shipping). */}
+                <SameDayHitServiceCard
+                  variant="compact"
+                  previewHasPrice={!!yardSignPricing && yardSignTotalQty > 0 && yardSignQuantityValid.valid}
+                  previewSubtotalCents={yardSignPricing?.totalCents}
+                />
 
                 <button
                   onClick={handleCheckout}
@@ -1784,11 +1817,12 @@ const Design: React.FC = () => {
                   baseSubtotalLabel="Base price"
                   quantityDiscountCents={carMagnetPricing.quantityDiscountCents}
                   quantityDiscountRate={carMagnetPricing.quantityDiscountRate}
+                  sameDayHitServiceCents={previewSameDayFeeCents}
                   taxCents={carMagnetPricing.taxCents}
                   taxRate={0.06}
                   adjustedSubtotalCents={carMagnetPricing.subtotalCents}
-                  totalCents={carMagnetPricing.totalCents}
-                  footerNote="FREE Next-Day Air Included • Tax calculated at checkout"
+                  totalCents={carMagnetPricing.totalCents + previewSameDayFeeCents}
+                  footerNote="Tax calculated at checkout"
                 />
               ) : (
                 <PriceBreakdown
@@ -1839,10 +1873,11 @@ const Design: React.FC = () => {
                       ? bannerPromoResolution.promoDiscountCode
                       : undefined
                   }
+                  sameDayHitServiceCents={previewSameDayFeeCents}
                   taxCents={bannerTaxAfterAllDiscountsCents}
                   taxRate={0.06}
                   adjustedSubtotalCents={bannerSubtotalAfterAllDiscountsCents}
-                  totalCents={bannerTotalAfterAllDiscountsCents}
+                  totalCents={bannerTotalAfterAllDiscountsCents + previewSameDayFeeCents}
                   promo={{
                     code: promoCode,
                     applied: promoApplied,
@@ -1853,9 +1888,24 @@ const Design: React.FC = () => {
                       ? `${promoCode} — ${Math.round(bannerPromoResolution.promoDiscountRate * 100)}% off applied`
                       : `${promoCode} entered — quantity discount is larger, so we kept that`,
                   }}
-                  footerNote="FREE Next-Day Air Included • Tax calculated at checkout"
+                  footerNote="Tax calculated at checkout"
                 />
               )}
+
+              {/* Same-Day Hit Service upsell — production priority (NOT shipping). */}
+              <SameDayHitServiceCard
+                variant="compact"
+                previewHasPrice={
+                  isCarMagnet
+                    ? !!carMagnetPricing && !!uploadedFile
+                    : !!uploadedFile && bannerPricing.subtotalBeforeDiscountCents > 0
+                }
+                previewSubtotalCents={
+                  isCarMagnet
+                    ? carMagnetPricing?.baseSubtotalCents
+                    : bannerPricing.subtotalBeforeDiscountCents
+                }
+              />
 
               <button onClick={handleCheckout} disabled={!uploadedFile} className={`group w-full font-bold text-lg py-5 rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${uploadedFile ? 'bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white cursor-pointer shadow-orange-500/30' : 'bg-orange-300 text-white/80 cursor-not-allowed'}`}>
                 Checkout

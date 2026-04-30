@@ -1,8 +1,10 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Grommets } from '@/store/quote';
 import { FileText, Image, Loader2 } from 'lucide-react';
 import PDFPreview from './PDFPreview';
 import PdfImagePreview from '@/components/preview/PdfImagePreview';
+import GrommetOverlay from '@/components/preview/GrommetOverlay';
+import { getRulerTicks, type RulerUnit } from '@/lib/dimensions/rulers';
 
 interface PreviewCanvasProps {
   widthIn: number;
@@ -11,6 +13,10 @@ interface PreviewCanvasProps {
   imageUrl?: string;
   className?: string;
   scale?: number;
+  /** Display unit for the measurement rulers around the canvas. Defaults
+   *  to 'in' so existing callers are unchanged. UI ruler only — does not
+   *  affect any pricing, cart, or print pipeline. */
+  unit?: RulerUnit;
   file?: {
     name: string;
     type: string;
@@ -103,6 +109,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   imageUrl,
   className = "",
   scale = 1,
+  unit = 'in',
   file,
   imagePosition = { x: 0, y: 0 },
   imageScale = 1,
@@ -119,6 +126,35 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
   const grommetPositions = useMemo(() => {
     return grommetPoints(widthIn, heightIn, grommets);
   }, [widthIn, heightIn, grommets]);
+
+  // Measurement ruler ticks (UI-only, kept inside the SVG so they share
+  // the canvas's responsive scaling but are excluded from the print
+  // pipeline, which uses canvas_state_json server-side).
+  // On narrow viewports the ruler is intentionally label-sparse to stay
+  // readable; we approximate "narrow" via a smaller maxMajorLabels cap
+  // and react to window resizes / device rotation so the cap stays current.
+  const [isNarrowViewport, setIsNarrowViewport] = useState(
+    () => typeof window !== 'undefined' && window.innerWidth < 480
+  );
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onResize = () => setIsNarrowViewport(window.innerWidth < 480);
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onResize);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('orientationchange', onResize);
+    };
+  }, []);
+  const maxMajorLabels = isNarrowViewport ? 4 : 12;
+  const horizontalTicks = useMemo(
+    () => getRulerTicks(widthIn, unit, { maxMajorLabels }),
+    [widthIn, unit, maxMajorLabels]
+  );
+  const verticalTicks = useMemo(
+    () => getRulerTicks(heightIn, unit, { maxMajorLabels }),
+    [heightIn, unit, maxMajorLabels]
+  );
 
   const grommetRadius = useMemo(() => {
     return Math.max(0.25, Math.min(widthIn, heightIn) * 0.015);
@@ -147,7 +183,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
 
   return (
     <div className={`${className} w-full`} style={{ maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
-      <div className="relative bg-gray-50 p-8 rounded-lg overflow-hidden" style={{height: "500px", width: "100%", maxWidth: "100%", boxSizing: "border-box", minWidth: 0, display: "flex", alignItems: "center", justifyContent: "center"}}>
+      <div className="relative bg-slate-100 p-8 rounded-lg overflow-hidden" style={{height: "500px", width: "100%", maxWidth: "100%", boxSizing: "border-box", minWidth: 0, display: "flex", alignItems: "center", justifyContent: "center"}}>
         {/* Loading Spinner Overlay */}
         {isUploading && (
           <div className="absolute inset-0 bg-white/80 backdrop-blur-sm flex items-center justify-center z-50 rounded-lg">
@@ -158,7 +194,7 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
           </div>
         )}        <svg
           viewBox={`0 0 ${totalWidth} ${totalHeight}`}
-          className="border-2 border-gray-400 rounded-xl bg-white shadow-sm"
+          className="border border-slate-300 rounded-xl bg-white"
           onClick={onCanvasClick}
           style={{
             width: "100%",
@@ -167,29 +203,60 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
             maxHeight: "100%",
             display: "block",
             minWidth: 0,
+            // Stronger drop shadow gives the printable canvas a clear,
+            // elevated "physical product" feel without affecting exports.
+            boxShadow: "0 10px 24px -8px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(15, 23, 42, 0.08)",
           }}
         >
-        {/* PROFESSIONAL PRINT GUIDELINES - ALWAYS VISIBLE */}
-        <g className="print-rulers">
-          <rect x="0" y="0" width={totalWidth} height={RULER_HEIGHT} fill="#f1f5f9" stroke="#64748b" strokeWidth="0.02"/>
-          <text x={totalWidth/2} y={RULER_HEIGHT/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.5" fill="#1e293b" fontWeight="600">
-            {/* Ruler tick marks */}
-            {Array.from({length: Math.floor(widthIn)}, (_, i) => (
-              <line key={i} x1={RULER_HEIGHT + BLEED_SIZE + i} y1={RULER_HEIGHT - TICK_SIZE} x2={RULER_HEIGHT + BLEED_SIZE + i} y2={RULER_HEIGHT} stroke="#64748b" strokeWidth="0.02" />
-            ))}            {`${widthIn}"`}
-          </text>
-          <rect x="0" y={totalHeight - RULER_HEIGHT} width={totalWidth} height={RULER_HEIGHT} fill="#f1f5f9" stroke="#64748b" strokeWidth="0.02"/>
-          <text x={totalWidth/2} y={totalHeight - RULER_HEIGHT/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.5" fill="#1e293b" fontWeight="600">
-            {`${widthIn}"`}
-          </text>
-          <rect x="0" y="0" width={RULER_HEIGHT} height={totalHeight} fill="#f1f5f9" stroke="#64748b" strokeWidth="0.02"/>
-          <text x={RULER_HEIGHT/2} y={totalHeight/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.5" fill="#1e293b" fontWeight="600" transform={`rotate(-90, ${RULER_HEIGHT/2}, ${totalHeight/2})`}>
-            {`${heightIn}"`}
-          </text>
-          <rect x={totalWidth - RULER_HEIGHT} y="0" width={RULER_HEIGHT} height={totalHeight} fill="#f1f5f9" stroke="#64748b" strokeWidth="0.02"/>
-          <text x={totalWidth - RULER_HEIGHT/2} y={totalHeight/2} textAnchor="middle" dominantBaseline="middle" fontSize="0.5" fill="#1e293b" fontWeight="600" transform={`rotate(90, ${totalWidth - RULER_HEIGHT/2}, ${totalHeight/2})`}>
-            {`${heightIn}"`}
-          </text>
+        {/* PROFESSIONAL PRINT GUIDELINES — measurement rulers (UI overlay
+            inside the SVG; not consumed by the print pipeline, which uses
+            canvas_state_json server-side). */}
+        <g className="print-rulers" pointerEvents="none">
+          {/* Ruler backgrounds */}
+          <rect x="0" y="0" width={totalWidth} height={RULER_HEIGHT} fill="#f8fafc" stroke="#cbd5e1" strokeWidth="0.02" />
+          <rect x="0" y={totalHeight - RULER_HEIGHT} width={totalWidth} height={RULER_HEIGHT} fill="#f8fafc" stroke="#cbd5e1" strokeWidth="0.02" />
+          <rect x="0" y="0" width={RULER_HEIGHT} height={totalHeight} fill="#f8fafc" stroke="#cbd5e1" strokeWidth="0.02" />
+          <rect x={totalWidth - RULER_HEIGHT} y="0" width={RULER_HEIGHT} height={totalHeight} fill="#f8fafc" stroke="#cbd5e1" strokeWidth="0.02" />
+
+          {/* Top + bottom horizontal ruler ticks */}
+          {horizontalTicks.map((t, i) => {
+            const x = bannerOffsetX + t.pos;
+            const tick = t.major ? TICK_SIZE : TICK_SIZE * 0.55;
+            return (
+              <g key={`h-${i}`}>
+                {/* top */}
+                <line x1={x} y1={RULER_HEIGHT - tick} x2={x} y2={RULER_HEIGHT} stroke="#475569" strokeWidth={t.major ? 0.04 : 0.025} />
+                {/* bottom */}
+                <line x1={x} y1={totalHeight - RULER_HEIGHT} x2={x} y2={totalHeight - RULER_HEIGHT + tick} stroke="#475569" strokeWidth={t.major ? 0.04 : 0.025} />
+                {t.major && t.label && (
+                  <>
+                    <text x={x} y={RULER_HEIGHT - tick - 0.18} textAnchor="middle" fontSize="0.42" fill="#1e293b" fontWeight="600">{t.label}</text>
+                    <text x={x} y={totalHeight - RULER_HEIGHT + tick + 0.5} textAnchor="middle" fontSize="0.42" fill="#1e293b" fontWeight="600">{t.label}</text>
+                  </>
+                )}
+              </g>
+            );
+          })}
+
+          {/* Left + right vertical ruler ticks */}
+          {verticalTicks.map((t, i) => {
+            const y = bannerOffsetY + t.pos;
+            const tick = t.major ? TICK_SIZE : TICK_SIZE * 0.55;
+            return (
+              <g key={`v-${i}`}>
+                {/* left */}
+                <line x1={RULER_HEIGHT - tick} y1={y} x2={RULER_HEIGHT} y2={y} stroke="#475569" strokeWidth={t.major ? 0.04 : 0.025} />
+                {/* right */}
+                <line x1={totalWidth - RULER_HEIGHT} y1={y} x2={totalWidth - RULER_HEIGHT + tick} y2={y} stroke="#475569" strokeWidth={t.major ? 0.04 : 0.025} />
+                {t.major && t.label && (
+                  <>
+                    <text x={RULER_HEIGHT - tick - 0.15} y={y} textAnchor="end" dominantBaseline="middle" fontSize="0.42" fill="#1e293b" fontWeight="600" transform={`rotate(-90, ${RULER_HEIGHT - tick - 0.15}, ${y})`}>{t.label}</text>
+                    <text x={totalWidth - RULER_HEIGHT + tick + 0.5} y={y} textAnchor="start" dominantBaseline="middle" fontSize="0.42" fill="#1e293b" fontWeight="600" transform={`rotate(90, ${totalWidth - RULER_HEIGHT + tick + 0.5}, ${y})`}>{t.label}</text>
+                  </>
+                )}
+              </g>
+            );
+          })}
         </g>
 
         {/* PROFESSIONAL PRINT GUIDELINES - VISTAPRINT STYLE */}
@@ -405,86 +472,19 @@ const PreviewCanvas: React.FC<PreviewCanvasProps> = ({
             />
           </clipPath>        </defs>
 
-        {/* PROFESSIONAL VISTAPRINT-STYLE GROMMETS */}
-        {grommetPositions.map((point, index) => (
-          <g key={index}>
-            {/* Drop shadow */}
-            <circle
-              cx={bannerOffsetX + point.x + 0.08}
-              cy={bannerOffsetY + point.y + 0.08}
-              r={grommetRadius * 1.3}
-              fill="#000000"
-              opacity="0.15"
-            />
-            
-            {/* Outer metallic ring */}
-            <circle
-              cx={bannerOffsetX + point.x}
-              cy={bannerOffsetY + point.y}
-              r={grommetRadius * 1.3}
-              fill="url(#grommetGradient)"
-              stroke="#2d3748"
-              strokeWidth="0.08"
-            />
-            
-            {/* Inner hole */}
-            <circle
-              cx={bannerOffsetX + point.x}
-              cy={bannerOffsetY + point.y}
-              r={grommetRadius * 0.7}
-              fill="#f7fafc"
-              stroke="#cbd5e0"
-              strokeWidth="0.04"
-            />
-            
-            {/* Target-style crosshairs */}
-            <g opacity="0.6">
-              <line
-                x1={bannerOffsetX + point.x - grommetRadius * 0.5}
-                y1={bannerOffsetY + point.y}
-                x2={bannerOffsetX + point.x + grommetRadius * 0.5}
-                y2={bannerOffsetY + point.y}
-                stroke="#718096"
-                strokeWidth="0.02"
-              />
-              <line
-                x1={bannerOffsetX + point.x}
-                y1={bannerOffsetY + point.y - grommetRadius * 0.5}
-                x2={bannerOffsetX + point.x}
-                y2={bannerOffsetY + point.y + grommetRadius * 0.5}
-                stroke="#718096"
-                strokeWidth="0.02"
-              />
-            </g>
-            
-            {/* Center dot */}
-            <circle
-              cx={bannerOffsetX + point.x}
-              cy={bannerOffsetY + point.y}
-              r={grommetRadius * 0.15}
-              fill="#4a5568"
-              opacity="0.8"
-            />
-            
-            {/* Highlight for 3D effect */}
-            <circle
-              cx={bannerOffsetX + point.x - grommetRadius * 0.4}
-              cy={bannerOffsetY + point.y - grommetRadius * 0.4}
-              r={grommetRadius * 0.3}
-              fill="#ffffff"
-              opacity="0.4"
-            />
-          </g>
-        ))}
-        
-        {/* Gradient definitions for grommets */}
-        <defs>
-          <radialGradient id="grommetGradient" cx="30%" cy="30%">
-            <stop offset="0%" stopColor="#e2e8f0" />
-            <stop offset="50%" stopColor="#a0aec0" />
-            <stop offset="100%" stopColor="#4a5568" />
-          </radialGradient>
-        </defs>
+        {/* PROFESSIONAL VISTAPRINT-STYLE GROMMETS — preview-only.
+            Rendered via the shared <GrommetOverlay/> component so multiple
+            preview surfaces share one implementation. Grommets are NOT
+            included in canvas_state_json or any export pipeline. */}
+        <GrommetOverlay
+          widthIn={widthIn}
+          heightIn={heightIn}
+          option={grommets}
+          offsetX={bannerOffsetX}
+          offsetY={bannerOffsetY}
+          radius={grommetRadius}
+          idSuffix="preview-canvas"
+        />
 
       </svg>
 
