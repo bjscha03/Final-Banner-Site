@@ -82,12 +82,37 @@ function hexToColorName(hex) {
   return `${brightness}${saturation}${colorName}`.trim();
 }
 
-// ISSUE #1 FIX: Rewritten to avoid "banner" and "mockup" language
+// Build a strict flat-print-artwork prompt. The banner generation pipeline
+// must produce the actual print file (edge-to-edge artwork) — never a
+// product mockup with the banner hanging on a stand inside a room.
 function enhancePrompt(prompt, styles = [], colors = [], size) {
-  // Start with a clean prompt that focuses on the scene/background itself
-  // Avoid words like "banner", "sign", "mockup" that cause DALL-E to generate product shots
-  let enhancedPrompt = `Professional high-resolution photograph: ${prompt}`;
-  
+  const aspect = size && size.wIn && size.hIn ? `${size.wIn}:${size.hIn}` : '';
+
+  let header =
+    `Create a flat 2D print-ready vinyl banner design.\n` +
+    `This is NOT a product mockup. The image IS the final print file (the actual artwork sent to the printer).\n` +
+    (aspect ? `Aspect ratio: ${aspect} EXACT.\n` : '') +
+    `\n` +
+    `Positive requirements:\n` +
+    `- Fill the ENTIRE canvas edge-to-edge with the printed design — no margins, no padding, no outer background, no mockup framing.\n` +
+    `- Extremely bold, simple layout with high contrast colors readable from a distance.\n` +
+    `- One main headline rendered very large; optional short subheadline.\n` +
+    `- Solid colored or fully designed background that fills 100% of the canvas.\n` +
+    `\n` +
+    `Do NOT show (hard fail):\n` +
+    `- NO banner hanging, mounted, or displayed as a physical object in space.\n` +
+    `- NO walls, floors, rooms, indoor or outdoor scenes around the artwork.\n` +
+    `- NO stands, X-stands, easels, tripods, poles, ropes, chains, hooks.\n` +
+    `- NO grommets, eyelets, metal rings, holes, stakes, screws, mounting hardware.\n` +
+    `- NO shadows cast by the banner, NO drop shadow under the artwork.\n` +
+    `- NO perspective, tilt, angle, or 3D look — render perfectly flat, head-on, 0° rotation.\n` +
+    `- NO lighting environment, studio lighting, ambient gradients, or vignette.\n` +
+    `- NO gray or neutral studio background, NO empty padding around the design.\n` +
+    `- NO frame around the artwork, NO product photo, NO design-inside-a-design.\n` +
+    `- NO tiny text, NO lorem ipsum, NO unreadable micro-text, NO decorative clutter.\n`;
+
+  let userBlock = `\nUser request (the actual artwork to design):\n${prompt}\n`;
+
   if (styles && styles.length > 0) {
     const styleDescriptions = {
       'corporate': 'clean, professional, business-appropriate, polished',
@@ -103,20 +128,16 @@ function enhancePrompt(prompt, styles = [], colors = [], size) {
       'seasonal': 'timely, festive, appropriate for the season'
     };
     const styleText = styles.map(style => styleDescriptions[style] || style).join(', ');
-    enhancedPrompt += `. Style: ${styleText}`;
+    userBlock += `Style: ${styleText}.\n`;
   }
-  
+
   if (colors && colors.length > 0) {
     const colorNames = colors.map(color => hexToColorName(color));
-    const uniqueColors = [...new Set(colorNames)]; // Remove duplicates
-    enhancedPrompt += `. Color palette: prominently featuring ${uniqueColors.join(', ')} as the dominant colors throughout the composition`;
+    const uniqueColors = [...new Set(colorNames)];
+    userBlock += `Color palette: prominently featuring ${uniqueColors.join(', ')} as the dominant colors throughout the design.\n`;
   }
-  
-  // Focus on what makes a good background: wide composition, no text, suitable for printing
-  // Use "landscape orientation" instead of "banner format"
-  enhancedPrompt += '. Composition: wide landscape orientation filling the entire frame, ultra high resolution suitable for large format printing, professional commercial photography quality, vibrant saturated colors, sharp focus, no text, no logos, no watermarks, clean uncluttered composition';
-  
-  return enhancedPrompt;
+
+  return header + userBlock;
 }
 
 async function uploadToCloudinary(imageUrl, index) {
