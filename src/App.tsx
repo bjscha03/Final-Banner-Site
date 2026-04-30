@@ -8,6 +8,8 @@ import { HelmetProvider } from "react-helmet-async";
 import { ThemeProvider } from "@/components/theme-provider";
 import { useCartSync } from "@/hooks/useCartSync";
 import { useCartRevalidation } from "@/hooks/useCartRevalidation";
+import { useCartStore } from "@/store/cart";
+import { toast } from "@/components/ui/use-toast";
 import { initPostHog } from "@/lib/posthog";
 // DISABLED: Popup promo flow replaced with static NEW20 code in PromoBanner
 // import { PromoPopup } from "@/components/PromoPopup";
@@ -104,6 +106,23 @@ const CartSyncWrapper = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     initPostHog();
   }, []);
+
+  // Same-Day Hit Service: 60s ticker. If the ET cutoff passes mid-session,
+  // automatically clear the cart flags and surface a one-time toast so the
+  // customer doesn't try to check out with an option we can no longer honor.
+  const reconcileSameDayHitService = useCartStore((s) => s.reconcileSameDayHitService);
+  useEffect(() => {
+    const id = setInterval(() => {
+      const result = reconcileSameDayHitService();
+      if (result.cleared && result.reason === 'window_closed') {
+        toast({
+          title: 'Same-Day Hit Service removed',
+          description: 'Same-Day Hit Service is no longer available for today’s production window.',
+        });
+      }
+    }, 60 * 1000);
+    return () => clearInterval(id);
+  }, [reconcileSameDayHitService]);
 
   // DISABLED: Popup promo flow replaced with static NEW20 code in PromoBanner
   // The PromoBanner now shows "New Customers: 20% OFF with code NEW20" with click-to-copy

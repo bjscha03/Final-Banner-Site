@@ -63,7 +63,7 @@ const extractShippingFromCapture = (captureResult: any) => {
 const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onError, disabled = false }) => {
   const { toast } = useToast();
   const { user } = useAuth();
-  const { items, discountCode } = useCartStore();
+  const { items, discountCode, sameDayHitService, saturdayDelivery } = useCartStore();
   const [paypalConfig, setPaypalConfig] = useState<PayPalConfig | null>(null);
   const [isLoadingConfig, setIsLoadingConfig] = useState(true);
   const [isCreatingOrder, setIsCreatingOrder] = useState(false);
@@ -400,6 +400,11 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
             discountPercentage: discountCode.discountPercentage,
             discountAmountCents: discountCode.discountAmountCents,
           } : null,
+          // Same-Day Hit Service flags. The server is authoritative — it
+          // re-validates the ET window and product eligibility and may
+          // strip these flags before charging PayPal.
+          sameDayHitService: !!sameDayHitService,
+          saturdayDelivery: !!saturdayDelivery,
         }),
       });
 
@@ -567,6 +572,10 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
             };
           }),
           discountCode: discountCode ? { code: discountCode.code, discountPercentage: discountCode.discountPercentage, discountAmountCents: discountCode.discountAmountCents } : null,
+          // Same-Day Hit Service flags (server re-validates, recomputes fees,
+          // and persists same_day_* columns onto the order).
+          sameDayHitService: !!sameDayHitService,
+          saturdayDelivery: !!saturdayDelivery,
         }),
       });
 

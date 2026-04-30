@@ -1,6 +1,10 @@
 const { neon } = require('@neondatabase/serverless');
 const { randomUUID } = require('crypto');
 const { normalizeShippingAddress } = require('./shipping-address-helpers.cjs');
+const {
+  reconcileSameDayFlags,
+  getEasternTimeParts,
+} = require('./_shared/sameDayService.cjs');
 
 // Helper to detect bad URLs (blob:, data:, or huge strings)
 function isBadUrl(url) {
@@ -310,6 +314,22 @@ exports.handler = async (event, context) => {
       console.warn('⚠️ Discount columns migration warning:', migrationError.message);
     }
     
+    // AUTO-MIGRATE: Add Same-Day Hit Service columns to orders table
+    try {
+      await sql`
+        ALTER TABLE orders
+        ADD COLUMN IF NOT EXISTS same_day_hit_service BOOLEAN DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS saturday_delivery BOOLEAN DEFAULT FALSE,
+        ADD COLUMN IF NOT EXISTS same_day_fee_cents INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS saturday_fee_cents INTEGER DEFAULT 0,
+        ADD COLUMN IF NOT EXISTS order_timestamp_et TEXT,
+        ADD COLUMN IF NOT EXISTS same_day_qualified BOOLEAN DEFAULT FALSE
+      `;
+      console.log('✅ Database migration: same-day hit service columns verified/created');
+    } catch (migrationError) {
+      console.warn('⚠️ Same-day hit service migration warning:', migrationError.message);
+    }
+
     try {
       await sql`
         ALTER TABLE order_items
@@ -637,9 +657,47 @@ exports.handler = async (event, context) => {
     orderData.customer_name = normalizedCustomerName.fullName;
     orderData.customer_first_name = normalizedCustomerName.firstName;
 
+    // ----- Same-Day Hit Service: server-side reconciliation -----
+    // The client may have requested same-day / Saturday delivery flags.
+    // Re-validate them server-side using ET clock + product eligibility,
+    // and recompute the fee values from the eligible subtotal. We never
+    // trust client fee amounts.
+    const sameDayNow = new Date();
+    const sameDayResult = reconcileSameDayFlags({
+      now: sameDayNow,
+      items: Array.isArray(orderData.items) ? orderData.items : [],
+      requestedSameDay: !!orderData.sameDayHitService,
+      requestedSaturday: !!orderData.saturdayDelivery,
+    });
+
+    // Hard fail if the client claimed same-day but the window has passed.
+    if (orderData.sameDayHitService && !sameDayResult.sameDay) {
+      console.warn('create-order: same-day rejected', {
+        reason: sameDayResult.rejectionReason,
+        ETnow: sameDayResult.eval && sameDayResult.eval.ETnow && sameDayResult.eval.ETnow.display,
+      });
+      return {
+        statusCode: 409,
+        headers,
+        body: JSON.stringify({
+          ok: false,
+          error: 'SAME_DAY_NOT_AVAILABLE',
+          message: 'Same-Day Hit Service is no longer available for today’s production window.',
+          reason: sameDayResult.rejectionReason,
+        }),
+      };
+    }
+
+    const orderSameDayHitService = sameDayResult.sameDay;
+    const orderSaturdayDelivery = sameDayResult.saturday;
+    const orderSameDayFeeCents = sameDayResult.fees.sameDayFeeCents;
+    const orderSaturdayFeeCents = sameDayResult.fees.saturdayFeeCents;
+    const orderSameDayQualified = sameDayResult.eval.windowOpen && sameDayResult.eval.hasEligibleItem;
+    const orderTimestampEt = getEasternTimeParts(sameDayNow);
+
     const orderResult = await sql`
-      INSERT INTO orders (id, user_id, email, customer_name, customer_first_name, subtotal_cents, tax_cents, total_cents, status, paypal_order_id, paypal_capture_id, shipping_name, shipping_street, shipping_street2, shipping_city, shipping_state, shipping_zip, shipping_country, applied_discount_cents, applied_discount_label, applied_discount_type)
-      VALUES (${orderId}, ${finalUserId}, ${userEmail}, ${orderData.customer_name || null}, ${orderData.customer_first_name || null}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, 'paid', ${orderData.paypal_order_id || null}, ${orderData.paypal_capture_id || null}, ${orderData.shipping_name || null}, ${orderData.shipping_street || null}, ${orderData.shipping_street2 || null}, ${orderData.shipping_city || null}, ${orderData.shipping_state || null}, ${orderData.shipping_zip || null}, ${orderData.shipping_country || 'US'}, ${orderData.applied_discount_cents || 0}, ${orderData.applied_discount_label || ''}, ${orderData.applied_discount_type || 'none'})
+      INSERT INTO orders (id, user_id, email, customer_name, customer_first_name, subtotal_cents, tax_cents, total_cents, status, paypal_order_id, paypal_capture_id, shipping_name, shipping_street, shipping_street2, shipping_city, shipping_state, shipping_zip, shipping_country, applied_discount_cents, applied_discount_label, applied_discount_type, same_day_hit_service, saturday_delivery, same_day_fee_cents, saturday_fee_cents, order_timestamp_et, same_day_qualified)
+      VALUES (${orderId}, ${finalUserId}, ${userEmail}, ${orderData.customer_name || null}, ${orderData.customer_first_name || null}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, 'paid', ${orderData.paypal_order_id || null}, ${orderData.paypal_capture_id || null}, ${orderData.shipping_name || null}, ${orderData.shipping_street || null}, ${orderData.shipping_street2 || null}, ${orderData.shipping_city || null}, ${orderData.shipping_state || null}, ${orderData.shipping_zip || null}, ${orderData.shipping_country || 'US'}, ${orderData.applied_discount_cents || 0}, ${orderData.applied_discount_label || ''}, ${orderData.applied_discount_type || 'none'}, ${orderSameDayHitService}, ${orderSaturdayDelivery}, ${orderSameDayFeeCents}, ${orderSaturdayFeeCents}, ${orderTimestampEt.display}, ${orderSameDayQualified})
       RETURNING *
     `;
 

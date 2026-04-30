@@ -1241,6 +1241,16 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                 Design Service
               </Badge>
             )}
+            {order.same_day_hit_service && (
+              <Badge className="bg-amber-100 text-amber-800 text-xs">
+                Same-Day Hit Service
+              </Badge>
+            )}
+            {order.saturday_delivery && (
+              <Badge className="bg-purple-200 text-purple-900 text-xs">
+                Saturday Delivery
+              </Badge>
+            )}
             {isGraduation && (
               <Badge className="bg-orange-100 text-orange-800 text-xs">
                 <GraduationCap className="h-3 w-3 mr-1" />
@@ -1593,6 +1603,16 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
                 <Badge className="bg-purple-100 text-purple-800 text-xs">
                   <Palette className="h-3 w-3 mr-1" />
                   Design
+                </Badge>
+              )}
+              {order.same_day_hit_service && (
+                <Badge className="bg-amber-100 text-amber-800 text-xs">
+                  Same-Day
+                </Badge>
+              )}
+              {order.saturday_delivery && (
+                <Badge className="bg-purple-200 text-purple-900 text-xs">
+                  Saturday
                 </Badge>
               )}
               {isGraduation && (
