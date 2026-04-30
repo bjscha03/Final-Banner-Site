@@ -86,7 +86,41 @@ function buildEnhancedPrompt({ productType, width, height, material, prompt, edi
   // grommets/ropes/eyelets, perspective, shadows, walls, frames, etc.)
   // are forbidden — those are added separately in the live preview UI
   // as overlays and must never be baked into the generated image.
+  // System-instruction-style preamble: forces the model into "flat 2D print
+  // artwork" mode, so it generates the printable file itself instead of a
+  // photo of a banner hanging in a room. Mirrors the rules below but stated
+  // up front so the model anchors on them before reading the user request.
+  const systemInstruction =
+    `You are generating flat 2D print artwork for a ${productLabel}.\n` +
+    `\n` +
+    `STRICT RULES:\n` +
+    `- DO NOT create a photo or scene.\n` +
+    `- DO NOT show walls, rooms, lighting, or environments.\n` +
+    `- DO NOT show hanging banners or grommets.\n` +
+    `- DO NOT create mockups.\n` +
+    `\n` +
+    `INSTEAD:\n` +
+    `- Generate ONLY the banner artwork itself.\n` +
+    `- Fill the entire image edge-to-edge.\n` +
+    `- No borders, no padding, no background outside the design.\n` +
+    `- This image will be printed directly.\n` +
+    `\n` +
+    `DESIGN REQUIREMENTS:\n` +
+    `- Include the requested subject clearly.\n` +
+    `- Include the exact text provided by the user.\n` +
+    `- Use large readable typography.\n` +
+    `- High contrast colors.\n` +
+    `- Simple layout.\n` +
+    `\n` +
+    `FAIL CONDITIONS (the image must NOT have any of these):\n` +
+    `- any environment or background scene\n` +
+    `- empty design\n` +
+    `- missing requested objects (e.g. dog/cat/etc.)\n` +
+    `- missing requested text\n` +
+    `\n`;
+
   let basePrompt =
+    systemInstruction +
     `Create a flat 2D print-ready ${productLabel} design.\n` +
     `This is NOT a product mockup. This image IS the final print file (the actual artwork that gets sent to the printer).\n` +
     `Canvas size: ${width}" x ${height}" (${aspectRatio} aspect ratio EXACT). Treat the entire canvas as the final print file.\n` +
@@ -342,11 +376,29 @@ async function callImagen({ enhancedPrompt, imagenAspectRatio }) {
     `https://${location}-aiplatform.googleapis.com/v1/projects/${projectId}` +
     `/locations/${location}/publishers/google/models/${model}:predict`;
 
+  // Negative prompt pushes Imagen away from photorealism / mockup framing
+  // and toward flat print artwork. Imagen 3 supports `negativePrompt` on
+  // the predict endpoint as a sibling to `aspectRatio` / `sampleCount`.
+  const negativePrompt = [
+    'mockup', 'product mockup', 'product photo', 'photo of a banner',
+    'banner hanging on a wall', 'hanging banner', 'wall', 'room',
+    'indoor scene', 'outdoor scene', 'environment', 'background scene',
+    'lighting fixtures', 'studio lighting', 'ambient light', 'vignette',
+    'shadow', 'drop shadow', 'cast shadow',
+    'perspective', 'tilt', '3d render', '3d', 'depth',
+    'grommets', 'eyelets', 'metal rings', 'holes',
+    'ropes', 'strings', 'poles', 'stand', 'easel', 'tripod', 'frame',
+    'fabric texture', 'folds', 'wrinkles', 'curls',
+    'gray background', 'neutral background', 'empty design', 'blank canvas',
+    'watermark', 'signature',
+  ].join(', ');
+
   const requestBody = {
     instances: [{ prompt: enhancedPrompt }],
     parameters: {
       sampleCount: 1,
       aspectRatio: imagenAspectRatio,
+      negativePrompt,
       safetyFilterLevel: 'block_medium_and_above',
       personGeneration: 'allow_adult',
     },
