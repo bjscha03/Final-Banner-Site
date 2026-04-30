@@ -49,9 +49,6 @@ const HeroSection: React.FC = () => {
               <p className="text-lg md:text-2xl text-slate-100">
                 Printed in 24 Hours • Free <span className="text-orange-400 italic font-semibold">Next-Day Air</span> Shipping
               </p>
-              <p className="text-sm md:text-base text-slate-200">
-                Order today. Delivered tomorrow.
-              </p>
             </div>
 
             <p className="text-base md:text-xl text-slate-100 font-semibold tracking-wide">
