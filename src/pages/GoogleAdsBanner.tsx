@@ -46,6 +46,7 @@ import {
   type CarMagnetRoundedCorner,
 } from '@/lib/car-magnet-pricing';
 import { BANNER_MATERIALS as MATERIALS } from '@/lib/banner-materials';
+import { computeSameDayFeesCents } from '@/lib/sameDayService';
 
 const PRESET_SIZES = [
   { label: "2' × 4'", w: 48, h: 24 },
@@ -368,6 +369,21 @@ const GoogleAdsBanner: React.FC = () => {
   const bannerPromoActuallyApplied =
     bannerPromoResolution.appliedDiscountType === 'promo' &&
     bannerPromoResolution.appliedDiscountAmountCents > 0;
+
+  // Same-Day Hit Service preview fee for product-page summary.
+  const sameDayHitService = useCartStore(s => s.sameDayHitService);
+  const previewSameDayFeeCents = useMemo(() => {
+    if (!sameDayHitService) return 0;
+    let previewSubtotal: number;
+    if (isCarMagnet) {
+      previewSubtotal = carMagnetPricing?.baseSubtotalCents ?? 0;
+    } else if (isYardSign) {
+      previewSubtotal = yardSignPricing?.totalCents ?? 0;
+    } else {
+      previewSubtotal = bannerPricing.subtotalBeforeDiscountCents;
+    }
+    return computeSameDayFeesCents(previewSubtotal, { sameDay: true, saturday: false }).sameDayFeeCents;
+  }, [sameDayHitService, isCarMagnet, isYardSign, carMagnetPricing?.baseSubtotalCents, yardSignPricing?.totalCents, bannerPricing.subtotalBeforeDiscountCents]);
 
   useEffect(() => {
     // Flag this session as coming from Google Ads landing page
@@ -1366,6 +1382,7 @@ const GoogleAdsBanner: React.FC = () => {
                       onPromoCodeChange={setPromoCode}
                       onPromoApply={handlePromoApply}
                       onPromoRemove={handlePromoRemove}
+                      sameDayHitServiceCents={previewSameDayFeeCents}
                     />
                   )}
 
@@ -1729,11 +1746,12 @@ const GoogleAdsBanner: React.FC = () => {
                     baseSubtotalLabel="Base price"
                     quantityDiscountCents={carMagnetPricing.quantityDiscountCents}
                     quantityDiscountRate={carMagnetPricing.quantityDiscountRate}
+                    sameDayHitServiceCents={previewSameDayFeeCents}
                     taxCents={carMagnetPricing.taxCents}
                     taxRate={0.06}
                     adjustedSubtotalCents={carMagnetPricing.subtotalCents}
-                    totalCents={carMagnetPricing.totalCents}
-                    footerNote="FREE Next-Day Air Included • Tax calculated at checkout"
+                    totalCents={carMagnetPricing.totalCents + previewSameDayFeeCents}
+                    footerNote="Tax calculated at checkout"
                   />
                 ) : (
                   <PriceBreakdown
@@ -1784,10 +1802,11 @@ const GoogleAdsBanner: React.FC = () => {
                         ? bannerPromoResolution.promoDiscountCode
                         : undefined
                     }
+                    sameDayHitServiceCents={previewSameDayFeeCents}
                     taxCents={bannerTaxAfterAllDiscountsCents}
                     taxRate={0.06}
                     adjustedSubtotalCents={bannerSubtotalAfterAllDiscountsCents}
-                    totalCents={bannerTotalAfterAllDiscountsCents}
+                    totalCents={bannerTotalAfterAllDiscountsCents + previewSameDayFeeCents}
                     promo={{
                       code: promoCode,
                       applied: promoApplied,
@@ -1798,7 +1817,7 @@ const GoogleAdsBanner: React.FC = () => {
                         ? `${promoCode} — ${Math.round(bannerPromoResolution.promoDiscountRate * 100)}% off applied`
                         : `${promoCode} entered — quantity discount is larger, so we kept that`,
                     }}
-                    footerNote="FREE Next-Day Air Included • Tax calculated at checkout"
+                    footerNote="Tax calculated at checkout"
                   />
                 )}
 

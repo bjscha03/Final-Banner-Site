@@ -1,5 +1,5 @@
 import React from 'react';
-import { Tag, DollarSign } from 'lucide-react';
+import { Tag, DollarSign, Truck } from 'lucide-react';
 import { usd } from '@/lib/pricing';
 
 /**
@@ -72,6 +72,13 @@ export interface PriceBreakdownProps {
   /** Optional minimum-order adjustment row (positive cents). */
   minOrderAdjustmentCents?: number;
 
+  /**
+   * Same-Day Hit Service fee (positive cents). When > 0, a line item is
+   * shown and the shipping supporting text switches to the same-day message.
+   * The caller is responsible for including this in `totalCents`.
+   */
+  sameDayHitServiceCents?: number;
+
   /** Tax (cents). */
   taxCents: number;
   /** Tax rate 0..1; controls label like "Tax (6%)". */
@@ -113,6 +120,7 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
   promoDiscountRate,
   promoDiscountCode,
   minOrderAdjustmentCents = 0,
+  sameDayHitServiceCents = 0,
   taxCents,
   taxRate = 0.06,
   adjustedSubtotalCents,
@@ -128,6 +136,11 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
   const promoDiscountLabel = `Promo${promoDiscountCode ? ` ${promoDiscountCode}` : ''}${
     promoDiscountRate ? ` (${Math.round(promoDiscountRate * 100)}% off)` : ''
   }`;
+
+  const hasSameDayFee = sameDayHitServiceCents > 0;
+  const shippingNote = hasSameDayFee
+    ? 'Same-Day Hit Service selected. Your order will be prioritized to ship today when available before the cutoff.'
+    : '24-hour production and free next-day air shipping included.';
 
   const visibleAddOns = (addOns || []).filter(a => a && a.amountCents > 0);
   const hasQuantityDiscount = quantityDiscountCents > 0;
@@ -290,6 +303,25 @@ const PriceBreakdown: React.FC<PriceBreakdownProps> = ({
                 </span>
               </div>
             )}
+
+            {hasSameDayFee && (
+              <div className="flex justify-between gap-3 text-amber-700">
+                <span className="font-medium">Same-Day Hit Service</span>
+                <span className="font-semibold">+{usd(sameDayHitServiceCents / 100)}</span>
+              </div>
+            )}
+
+            {/* Shipping: always FREE */}
+            <div className="flex flex-col gap-0.5">
+              <div className="flex justify-between gap-3">
+                <span className="flex items-center gap-1.5 text-green-700 font-medium">
+                  <Truck className="h-3.5 w-3.5 flex-shrink-0" aria-hidden="true" />
+                  Shipping
+                </span>
+                <span className="font-semibold text-green-700">FREE</span>
+              </div>
+              <p className="text-[11px] text-slate-500 leading-tight pl-5">{shippingNote}</p>
+            </div>
 
             <div className="flex justify-between gap-3">
               <span className="text-gray-600">{taxLabel}</span>

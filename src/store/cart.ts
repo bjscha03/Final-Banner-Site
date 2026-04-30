@@ -150,6 +150,10 @@ export interface CartItem {
   final_print_pdf_url?: string;                  // Admin-uploaded final print PDF
   final_print_pdf_file_key?: string;             // Cloudinary file key for final PDF
   final_print_pdf_uploaded_at?: string;          // ISO timestamp of when admin uploaded PDF
+
+  // Same-Day Hit Service (captured at add-to-cart time for display and order tracking)
+  sameDayHitServiceSelected?: boolean;           // Whether Same-Day Hit Service was selected for this item
+  sameDayHitServicePrice?: number;               // Same-Day Hit Service fee in cents for this item at add-to-cart time
 }
 
 export interface AuthoritativePricing {
@@ -566,6 +570,9 @@ export const useCartStore = create<CartState>()(
           design_draft_preference: (quote as any).design_draft_preference || undefined,
           design_draft_contact: (quote as any).design_draft_contact || undefined,
           design_uploaded_assets: (quote as any).design_uploaded_assets || undefined,
+          // Same-Day Hit Service: capture cart-level selection at add-to-cart time
+          sameDayHitServiceSelected: get().sameDayHitService || undefined,
+          sameDayHitServicePrice: get().sameDayHitService ? get().getSameDayFeeCents() : undefined,
           ...(aiMetadata || {}),
         };
 
