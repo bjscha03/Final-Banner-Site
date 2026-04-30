@@ -48,6 +48,7 @@ import {
 import { BANNER_MATERIALS as MATERIALS } from '@/lib/banner-materials';
 import CreateWithAIModal, { type CreateWithAIResult } from '@/components/design/CreateWithAIModal';
 import EditWithAIModal from '@/components/design/EditWithAIModal';
+import { ENABLE_AI } from '@/lib/featureFlags';
 import { base64ToFile } from '@/utils/base64ToFile';
 import { computeSameDayFeesCents } from '@/lib/sameDayService';
 
@@ -1618,7 +1619,7 @@ const GoogleAdsBanner: React.FC = () => {
                         style={previewCanvasStyle}
                         className="mx-auto"
                       />
-                      {!isYardSign && (
+                      {!isYardSign && ENABLE_AI && (
                         <div className="mt-3 flex flex-col items-center gap-1">
                           <button
                             type="button"
@@ -1727,7 +1728,7 @@ const GoogleAdsBanner: React.FC = () => {
                         </div>
                         <button onClick={() => { setUploadedFile(null); setImgPos({ x: 0, y: 0 }); setImgScale(1); setAiPrompt(null); setAiEditPrompt(null); }} className="ml-2 flex-shrink-0 p-1.5 rounded-full hover:bg-green-100 text-gray-500 hover:text-gray-700 transition-colors"><X className="h-4 w-4" /></button>
                       </div>
-                      {aiPrompt && !isYardSign && (
+                      {aiPrompt && !isYardSign && ENABLE_AI && (
                         <div className="mt-2 flex justify-center">
                           <button
                             type="button"
@@ -2214,7 +2215,7 @@ const GoogleAdsBanner: React.FC = () => {
         onClose={() => setIsCartOpen(false)}
       />
       {/* Create with AI Modal */}
-      {!isYardSign && (
+      {!isYardSign && ENABLE_AI && (
         <CreateWithAIModal
           open={aiModalOpen}
           onOpenChange={setAiModalOpen}
@@ -2227,7 +2228,7 @@ const GoogleAdsBanner: React.FC = () => {
         />
       )}
       {/* Edit with AI Modal */}
-      {!isYardSign && (
+      {!isYardSign && ENABLE_AI && (
         <EditWithAIModal
           open={aiEditModalOpen}
           onOpenChange={setAiEditModalOpen}

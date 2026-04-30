@@ -39,6 +39,7 @@ import { usd } from '@/lib/pricing';
 import { uploadCanvasImageToCloudinary } from '@/utils/uploadCanvasImage';
 import FileUploader from '@/components/ui/FileUploader';
 import CreateWithAIModal, { type CreateWithAIResult } from '@/components/design/CreateWithAIModal';
+import { ENABLE_AI } from '@/lib/featureFlags';
 import { base64ToFile } from '@/utils/base64ToFile';
 
 // Helper to generate PDF thumbnail URL from Cloudinary
@@ -631,15 +632,17 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
               isUploading={isUploading}
             />
             <div className="mt-3 flex justify-center">
-              <button
-                type="button"
-                onClick={() => setAiModalOpen(true)}
-                disabled={isUploading}
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-500 text-white text-sm font-semibold shadow-sm hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                <Sparkles className="w-4 h-4" />
-                Create with AI
-              </button>
+              {ENABLE_AI && (
+                <button
+                  type="button"
+                  onClick={() => setAiModalOpen(true)}
+                  disabled={isUploading}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-500 text-white text-sm font-semibold shadow-sm hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Create with AI
+                </button>
+              )}
             </div>
           </>
         )}
@@ -832,19 +835,21 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
         </div>
       )}
 
-      <CreateWithAIModal
-        open={aiModalOpen}
-        onOpenChange={setAiModalOpen}
-        productType="yard_sign"
-        widthIn={YARD_SIGN_WIDTH_IN}
-        heightIn={YARD_SIGN_HEIGHT_IN}
-        material="corrugated_plastic"
-        materialLabel="Corrugated Plastic"
-        onGenerated={async (result: CreateWithAIResult) => {
-          const file = base64ToFile(result.imageBase64, result.fileName, result.mimeType);
-          await handleFileUpload(file);
-        }}
-      />
+      {ENABLE_AI && (
+        <CreateWithAIModal
+          open={aiModalOpen}
+          onOpenChange={setAiModalOpen}
+          productType="yard_sign"
+          widthIn={YARD_SIGN_WIDTH_IN}
+          heightIn={YARD_SIGN_HEIGHT_IN}
+          material="corrugated_plastic"
+          materialLabel="Corrugated Plastic"
+          onGenerated={async (result: CreateWithAIResult) => {
+            const file = base64ToFile(result.imageBase64, result.fileName, result.mimeType);
+            await handleFileUpload(file);
+          }}
+        />
+      )}
     </div>
   );
 };

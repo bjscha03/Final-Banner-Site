@@ -9,6 +9,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
+import { ENABLE_AI } from '@/lib/featureFlags';
 
 export type CreateWithAIProductType = 'banner' | 'yard_sign' | 'car_magnet';
 
@@ -64,7 +65,14 @@ const PRODUCT_LABEL: Record<CreateWithAIProductType, string> = {
   car_magnet: 'car magnet',
 };
 
-const CreateWithAIModal: React.FC<CreateWithAIModalProps> = ({
+const CreateWithAIModal: React.FC<CreateWithAIModalProps> = (props) => {
+  // Feature-flagged off: render nothing and never mount the heavy implementation
+  // (no hooks, no fetch to /.netlify/functions/generate-design) when AI is disabled.
+  if (!ENABLE_AI) return null;
+  return <CreateWithAIModalImpl {...props} />;
+};
+
+const CreateWithAIModalImpl: React.FC<CreateWithAIModalProps> = ({
   open,
   onOpenChange,
   productType,
@@ -120,6 +128,10 @@ const CreateWithAIModal: React.FC<CreateWithAIModalProps> = ({
   };
 
   const handleGenerate = async () => {
+    if (!ENABLE_AI) {
+      console.warn('AI generation disabled');
+      return;
+    }
     if (!requirementsMet || !widthIn || !heightIn || !material) {
       setError(
         'Select size and material first so AI can fit your design perfectly.',
