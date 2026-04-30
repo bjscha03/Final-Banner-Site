@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { Shield, Clock, Star, CheckCircle, Truck, Users, FileCheck, X, Loader2, ArrowRight, Brush, Minus, Plus, Lock, Mail, Droplets, Sun, Wind, Palette, Tag, Move, ZoomIn, ZoomOut, ShoppingCart, Ruler, Layers, Package } from 'lucide-react';
+import { Shield, Clock, Star, CheckCircle, Truck, Users, FileCheck, X, Loader2, ArrowRight, Brush, Minus, Plus, Lock, Mail, Droplets, Sun, Wind, Palette, Tag, Move, ZoomIn, ZoomOut, ShoppingCart, Ruler, Layers, Package, Sparkles } from 'lucide-react';
 import { useQuoteStore, type MaterialKey } from '@/store/quote';
 import { useCartStore, type CartItem } from '@/store/cart';
 import { useUIStore } from '@/store/ui';
@@ -46,6 +46,8 @@ import {
   type CarMagnetRoundedCorner,
 } from '@/lib/car-magnet-pricing';
 import { BANNER_MATERIALS as MATERIALS } from '@/lib/banner-materials';
+import CreateWithAIModal, { type CreateWithAIResult } from '@/components/design/CreateWithAIModal';
+import { base64ToFile } from '@/utils/base64ToFile';
 import { computeSameDayFeesCents } from '@/lib/sameDayService';
 
 const PRESET_SIZES = [
@@ -214,6 +216,11 @@ const GoogleAdsBanner: React.FC = () => {
   const [isProcessingUpsell, setIsProcessingUpsell] = useState(false);
   const [pendingCheckoutData, setPendingCheckoutData] = useState<{pos: {x: number; y: number}; scale: number} | null>(null);
   const [pendingActionType, setPendingActionType] = useState<'checkout' | 'cart'>('checkout');
+
+  // "Create with AI" modal state. Available for banner & car_magnet on this
+  // page — yard signs use YardSignConfigurator which has its own button.
+  const [aiModalOpen, setAiModalOpen] = useState(false);
+  const [aiPrompt, setAiPrompt] = useState<string | null>(null);
 
   const quoteStore = useQuoteStore();
   const cartStore = useCartStore();
@@ -615,6 +622,20 @@ const GoogleAdsBanner: React.FC = () => {
     }
   }, [compressImage]);
 
+  // Handle a successful "Create with AI" generation: convert the returned
+  // base64 PNG into a File and run it through the SAME upload pipeline used
+  // for user-uploaded artwork.
+  const handleAIGenerated = useCallback(
+    async (result: CreateWithAIResult) => {
+      const file = base64ToFile(result.imageBase64, result.fileName, result.mimeType);
+      setAiPrompt(result.prompt);
+      setImgPos({ x: 0, y: 0 });
+      setImgScale(1);
+      await handleFileUpload(file);
+    },
+    [handleFileUpload],
+  );
+
   // Reset the preview/builder state after a successful "Add to Cart" so the
   // user can immediately start building another product.
   const resetPreview = useCallback(() => {
@@ -622,6 +643,7 @@ const GoogleAdsBanner: React.FC = () => {
     setImgPos({ x: 0, y: 0 });
     setImgScale(1);
     setUploadError(null);
+    setAiPrompt(null);
     if (isYardSign) {
       setYardSignDesigns([]);
     }
@@ -800,6 +822,7 @@ const GoogleAdsBanner: React.FC = () => {
         bgColor: '#fafafa',
         productType: 'car_magnet',
         roundedCorners: carMagnetRoundedCorners,
+        ...(aiPrompt ? { aiPrompt } : {}),
       });
 
       // Render an immediate dataUrl thumbnail synchronously (canvas only,
@@ -913,6 +936,7 @@ const GoogleAdsBanner: React.FC = () => {
       containerCssHeight: container?.offsetHeight || null,
       bgColor: '#fafafa',
       productType: 'banner',
+      ...(aiPrompt ? { aiPrompt } : {}),
     });
     console.log('[DESIGN_STATE] Saved design state:', canvasStateJson.length, 'chars');
 
@@ -1564,16 +1588,36 @@ const GoogleAdsBanner: React.FC = () => {
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Upload Your Artwork</label>
                   {!uploadedFile ? (
-                    <FileUploader
-                      onUpload={handleFileUpload}
-                      acceptedTypes="image/png,image/jpeg,application/pdf,.png,.jpg,.jpeg,.pdf"
-                      maxSize={50 * 1024 * 1024}
-                      label="Upload your artwork"
-                      subText={`PNG, JPG, or PDF • Max 50MB • ${widthDisplay} × ${heightDisplay}`}
-                      isUploading={isUploading}
-                      style={previewCanvasStyle}
-                      className="mx-auto"
-                    />
+                    <>
+                      <FileUploader
+                        onUpload={handleFileUpload}
+                        acceptedTypes="image/png,image/jpeg,application/pdf,.png,.jpg,.jpeg,.pdf"
+                        maxSize={50 * 1024 * 1024}
+                        label="Upload your artwork"
+                        subText={`PNG, JPG, or PDF • Max 50MB • ${widthDisplay} × ${heightDisplay}`}
+                        isUploading={isUploading}
+                        style={previewCanvasStyle}
+                        className="mx-auto"
+                      />
+                      {!isYardSign && (
+                        <div className="mt-3 flex flex-col items-center gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setAiModalOpen(true)}
+                            disabled={!widthIn || !heightIn || !material || isUploading}
+                            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-orange-500 text-white text-sm font-semibold shadow-sm hover:bg-orange-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                          >
+                            <Sparkles className="w-4 h-4" />
+                            Create with AI
+                          </button>
+                          {(!widthIn || !heightIn || !material) && (
+                            <p className="text-xs text-gray-500">
+                              Select size and material first so AI can fit your design perfectly.
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </>
                   ) : (
                     <div>
                       {/* Preview labeling */}
@@ -2137,6 +2181,19 @@ const GoogleAdsBanner: React.FC = () => {
         isOpen={isCartOpen}
         onClose={() => setIsCartOpen(false)}
       />
+      {/* Create with AI Modal */}
+      {!isYardSign && (
+        <CreateWithAIModal
+          open={aiModalOpen}
+          onOpenChange={setAiModalOpen}
+          productType={isCarMagnet ? 'car_magnet' : 'banner'}
+          widthIn={widthIn || null}
+          heightIn={heightIn || null}
+          material={material || null}
+          materialLabel={materialLabel}
+          onGenerated={handleAIGenerated}
+        />
+      )}
     </>
   );
 };
