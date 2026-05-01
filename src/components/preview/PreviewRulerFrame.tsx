@@ -95,130 +95,167 @@ const PreviewRulerFrame: React.FC<PreviewRulerFrameProps> = ({
   // Tick/label positioning is expressed as a percentage along the axis
   // (`pos / lengthIn * 100%`) so the rulers stay perfectly aligned with
   // the canvas at any zoom level or resize.
+  //
+  // CRITICAL — canvas-locked ruler bounds:
+  //   The rulers MUST measure the printable canvas only, not the entire
+  //   wrapper (which may be taller than the canvas because children like
+  //   `ArtworkPreviewEditor` render a controls pill below the canvas in
+  //   normal flow). To guarantee ruler 0 sits exactly on the canvas's
+  //   top-left corner and ruler endpoint sits exactly on the canvas's
+  //   bottom-right corner, we:
+  //     1. Define an explicit canvas slot whose height is locked to the
+  //        print aspect ratio via `paddingBottom = (heightIn/widthIn) * 100%`.
+  //     2. Render `children` absolutely positioned inside that slot
+  //        (`inset: 0`) so the canvas content fills it exactly.
+  //     3. Render the rulers absolutely on the gutters surrounding the
+  //        canvas slot — left ruler height = canvas slot height, bottom
+  //        ruler width = canvas slot width.
+  //   Anything the children render BELOW their own canvas (e.g. the
+  //   absolute-positioned overlay toolbar in `ArtworkPreviewEditor`) is
+  //   visually outside the canvas slot and does not affect ruler size.
   const tickColor = '#475569';
   const labelColor = '#1e293b';
   const labelFont = '10px/1 system-ui, -apple-system, "Segoe UI", sans-serif';
   const majorTickPx = 8;
   const minorTickPx = 4;
+  const aspectPct = `${(heightIn / widthIn) * 100}%`;
 
   return (
     <div
       className={className}
       style={{
-        position: 'relative',
-        display: 'block',
         boxSizing: 'border-box',
-        paddingLeft: bandPx,
-        paddingBottom: bandPx,
         ...style,
       }}
     >
-      {/* Canvas (children) renders into the area to the right of the
-          left ruler and above the bottom ruler. */}
-      {children}
-
-      {/* Left vertical ruler — exactly the canvas's height. Ticks point
-          RIGHT toward the canvas; labels sit to the LEFT of the ticks. */}
+      {/* Padded frame: bandPx of left/bottom gutter for the rulers. */}
       <div
         style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          width: bandPx,
-          height: `calc(100% - ${bandPx}px)`,
-          pointerEvents: 'none',
-          font: labelFont,
-          color: labelColor,
+          position: 'relative',
+          paddingLeft: bandPx,
+          paddingBottom: bandPx,
+          boxSizing: 'border-box',
         }}
-        aria-hidden="true"
       >
-        {verticalTicks.map((t, i) => {
-          const pct = (t.pos / heightIn) * 100;
-          const tickW = t.major ? majorTickPx : minorTickPx;
-          return (
-            <React.Fragment key={`v-${i}`}>
-              <div
-                style={{
-                  position: 'absolute',
-                  top: `${pct}%`,
-                  right: 0,
-                  width: tickW,
-                  height: t.major ? 1 : 1,
-                  background: tickColor,
-                  transform: 'translateY(-0.5px)',
-                  opacity: t.major ? 1 : 0.55,
-                }}
-              />
-              {t.major && t.label && (
-                <span
+        {/* Canvas slot — width = parent content width, height locked to
+            the print aspect ratio. This is the SINGLE SOURCE OF TRUTH
+            for canvas bounds; rulers and children both reference it. */}
+        <div
+          style={{
+            position: 'relative',
+            width: '100%',
+            paddingBottom: aspectPct,
+          }}
+        >
+          {/* Children fill the canvas slot exactly. Anything the child
+              renders outside this absolute box (e.g. an overlay toolbar)
+              spills visually but does NOT influence ruler sizing. */}
+          <div style={{ position: 'absolute', inset: 0 }}>{children}</div>
+        </div>
+
+        {/* Left vertical ruler — exactly the canvas slot's height. Ticks
+            point RIGHT toward the canvas; labels sit to the LEFT of the ticks. */}
+        <div
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            width: bandPx,
+            height: `calc(100% - ${bandPx}px)`,
+            pointerEvents: 'none',
+            font: labelFont,
+            color: labelColor,
+          }}
+          aria-hidden="true"
+        >
+          {verticalTicks.map((t, i) => {
+            const pct = (t.pos / heightIn) * 100;
+            const tickW = t.major ? majorTickPx : minorTickPx;
+            return (
+              <React.Fragment key={`v-${i}`}>
+                <div
                   style={{
                     position: 'absolute',
                     top: `${pct}%`,
-                    right: majorTickPx + 3,
-                    transform: 'translateY(-50%)',
-                    whiteSpace: 'nowrap',
-                    fontWeight: 600,
-                    fontVariantNumeric: 'tabular-nums',
+                    right: 0,
+                    width: tickW,
+                    height: t.major ? 1 : 1,
+                    background: tickColor,
+                    transform: 'translateY(-0.5px)',
+                    opacity: t.major ? 1 : 0.55,
                   }}
-                >
-                  {t.label}
-                </span>
-              )}
-            </React.Fragment>
-          );
-        })}
-      </div>
+                />
+                {t.major && t.label && (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      top: `${pct}%`,
+                      right: majorTickPx + 3,
+                      transform: 'translateY(-50%)',
+                      whiteSpace: 'nowrap',
+                      fontWeight: 600,
+                      fontVariantNumeric: 'tabular-nums',
+                    }}
+                  >
+                    {t.label}
+                  </span>
+                )}
+              </React.Fragment>
+            );
+          })}
+        </div>
 
-      {/* Bottom horizontal ruler — exactly the canvas's width. Ticks
-          point UP toward the canvas; labels sit BELOW the ticks. */}
-      <div
-        style={{
-          position: 'absolute',
-          left: bandPx,
-          bottom: 0,
-          width: `calc(100% - ${bandPx}px)`,
-          height: bandPx,
-          pointerEvents: 'none',
-          font: labelFont,
-          color: labelColor,
-        }}
-        aria-hidden="true"
-      >
-        {horizontalTicks.map((t, i) => {
-          const pct = (t.pos / widthIn) * 100;
-          const tickH = t.major ? majorTickPx : minorTickPx;
-          return (
-            <React.Fragment key={`h-${i}`}>
-              <div
-                style={{
-                  position: 'absolute',
-                  left: `${pct}%`,
-                  top: 0,
-                  height: tickH,
-                  width: 1,
-                  background: tickColor,
-                  transform: 'translateX(-0.5px)',
-                  opacity: t.major ? 1 : 0.55,
-                }}
-              />
-              {t.major && t.label && (
-                <span
+        {/* Bottom horizontal ruler — exactly the canvas slot's width. Ticks
+            point UP toward the canvas; labels sit BELOW the ticks. */}
+        <div
+          style={{
+            position: 'absolute',
+            left: bandPx,
+            bottom: 0,
+            width: `calc(100% - ${bandPx}px)`,
+            height: bandPx,
+            pointerEvents: 'none',
+            font: labelFont,
+            color: labelColor,
+          }}
+          aria-hidden="true"
+        >
+          {horizontalTicks.map((t, i) => {
+            const pct = (t.pos / widthIn) * 100;
+            const tickH = t.major ? majorTickPx : minorTickPx;
+            return (
+              <React.Fragment key={`h-${i}`}>
+                <div
                   style={{
                     position: 'absolute',
                     left: `${pct}%`,
-                    top: majorTickPx + 2,
-                    transform: 'translateX(-50%)',
-                    whiteSpace: 'nowrap',
-                    fontWeight: 600,
-                    fontVariantNumeric: 'tabular-nums',
+                    top: 0,
+                    height: tickH,
+                    width: 1,
+                    background: tickColor,
+                    transform: 'translateX(-0.5px)',
+                    opacity: t.major ? 1 : 0.55,
                   }}
-                >
-                  {t.label}
-                </span>
-              )}
-            </React.Fragment>
-          );
-        })}
+                />
+                {t.major && t.label && (
+                  <span
+                    style={{
+                      position: 'absolute',
+                      left: `${pct}%`,
+                      top: majorTickPx + 2,
+                      transform: 'translateX(-50%)',
+                      whiteSpace: 'nowrap',
+                      fontWeight: 600,
+                      fontVariantNumeric: 'tabular-nums',
+                    }}
+                  >
+                    {t.label}
+                  </span>
+                )}
+              </React.Fragment>
+            );
+          })}
+        </div>
       </div>
     </div>
   );

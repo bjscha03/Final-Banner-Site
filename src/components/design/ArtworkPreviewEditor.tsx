@@ -93,6 +93,16 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
     if (autoSelect) setSelected(true);
   }, [autoSelect, src]);
 
+  // Refs that mirror props/state so non-React listeners (resize observer,
+  // window pointer events, rAF callbacks) always read the latest values
+  // without retriggering the effect on every render.
+  const valueRef = useRef(value);
+  valueRef.current = value;
+  const onChangeRef = useRef(onChange);
+  onChangeRef.current = onChange;
+  const constrainRef = useRef(constrain);
+  constrainRef.current = constrain;
+
   // Track image natural size so we can size the transform wrapper to the
   // *actual rendered image rect* (not the full canvas). This is critical:
   // the selection box and resize handles live inside the same wrapper as
@@ -110,17 +120,39 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
   // Track canvas (outer surface) size so we can compute the contained
   // image rect on every layout change, including viewport resizes and
   // mobile rotation.
+  //
+  // CRITICAL: when the canvas resizes (e.g. window resize, orientation
+  // change, container width change because the user switched between
+  // mobile / desktop layouts) we MUST rescale the artwork's pixel-based
+  // translate so the artwork stays anchored to the same canvas-relative
+  // position the rulers are measuring. Otherwise the artwork drifts off
+  // the canvas because translate is in px while the canvas itself shrank
+  // or grew. This keeps artwork and ruler in a single coordinate system
+  // (canvas-relative percent) without changing the external API
+  // (page-level cart serialization continues to read px and convert to
+  // percent of container width — so percent-of-canvas stays stable).
   const [canvasSize, setCanvasSize] = useState<{ w: number; h: number } | null>(null);
+  const lastCanvasSizeRef = useRef<{ w: number; h: number } | null>(null);
   useEffect(() => {
     const node = internalRef.current;
     if (!node || typeof ResizeObserver === 'undefined') return;
     const update = () => {
       const r = node.getBoundingClientRect();
-      if (r.width > 0 && r.height > 0) {
-        setCanvasSize((prev) =>
-          prev && prev.w === r.width && prev.h === r.height ? prev : { w: r.width, h: r.height },
-        );
+      if (r.width <= 0 || r.height <= 0) return;
+      const next = { w: r.width, h: r.height };
+      const prev = lastCanvasSizeRef.current;
+      if (prev && (prev.w !== next.w || prev.h !== next.h)) {
+        // Rescale current pixel translate so artwork stays at the same
+        // canvas-relative position.
+        const sx = next.w / prev.w;
+        const sy = next.h / prev.h;
+        const v = valueRef.current;
+        if (v && (v.x !== 0 || v.y !== 0) && Number.isFinite(sx) && Number.isFinite(sy)) {
+          onChangeRef.current?.({ ...v, x: v.x * sx, y: v.y * sy });
+        }
       }
+      lastCanvasSizeRef.current = next;
+      setCanvasSize((p) => (p && p.w === next.w && p.h === next.h ? p : next));
     };
     update();
     const ro = new ResizeObserver(update);
@@ -179,11 +211,112 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
     startY: number;
   } | null>(null);
 
-  // Keep latest value in a ref so global mouse/touch listeners pick it up.
-  const valueRef = useRef(value);
-  valueRef.current = value;
-  const constrainRef = useRef(constrain);
-  constrainRef.current = constrain;
+  // ------- Multi-touch pointer tracking (pinch-to-scale support) -------
+  // We track every pointer that came down on this canvas surface in a
+  // Map keyed by pointerId. When 2 pointers are active we treat it as a
+  // pinch gesture; otherwise the existing single-pointer drag / resize
+  // behavior runs.
+  const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map());
+
+  // Pinch gesture snapshot — captured once on pinch start so per-frame
+  // updates are stable and free of jitter.
+  const pinchRef = useRef<{
+    active: boolean;
+    startDist: number;
+    startCenterX: number; // client coords midpoint at pinch start
+    startCenterY: number;
+    canvasCenterX: number; // client coords canvas center at pinch start
+    canvasCenterY: number;
+    startScaleX: number;
+    startScaleY: number;
+    startX: number;
+    startY: number;
+    pending: { x: number; y: number; scaleX: number; scaleY: number } | null;
+    raf: number | null;
+  } | null>(null);
+
+  const flushPinch = useCallback(() => {
+    const p = pinchRef.current;
+    if (!p) return;
+    p.raf = null;
+    if (p.pending) {
+      onChangeRef.current(p.pending);
+      p.pending = null;
+    }
+  }, []);
+
+  const startPinchIfReady = useCallback(() => {
+    const node = internalRef.current;
+    if (!node) return;
+    const pts = Array.from(pointersRef.current.values());
+    if (pts.length < 2) return;
+    const [p1, p2] = pts;
+    const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+    if (dist < 1) return;
+    const rect = node.getBoundingClientRect();
+    // Cancel any in-progress drag/resize so they don't compete.
+    dragRef.current.active = false;
+    if (resizeRef.current) resizeRef.current.active = false;
+    pinchRef.current = {
+      active: true,
+      startDist: dist,
+      startCenterX: (p1.x + p2.x) / 2,
+      startCenterY: (p1.y + p2.y) / 2,
+      canvasCenterX: rect.left + rect.width / 2,
+      canvasCenterY: rect.top + rect.height / 2,
+      startScaleX: valueRef.current.scaleX,
+      startScaleY: valueRef.current.scaleY,
+      startX: valueRef.current.x,
+      startY: valueRef.current.y,
+      pending: null,
+      raf: null,
+    };
+  }, []);
+
+  const updatePinch = useCallback(() => {
+    const p = pinchRef.current;
+    if (!p || !p.active) return;
+    const pts = Array.from(pointersRef.current.values());
+    if (pts.length < 2) return;
+    const [a, b] = pts;
+    const cx = (a.x + b.x) / 2;
+    const cy = (a.y + b.y) / 2;
+    const dist = Math.hypot(b.x - a.x, b.y - a.y);
+    if (dist < 1 || p.startDist < 1) return;
+    let ratio = dist / p.startDist;
+    // Clamp ratio so resulting scale stays within [CLAMP_MIN, CLAMP_MAX].
+    const baseScale = Math.max(p.startScaleX, p.startScaleY, 0.0001);
+    const minRatio = CLAMP_MIN / baseScale;
+    const maxRatio = CLAMP_MAX / baseScale;
+    ratio = clamp(ratio, minRatio, maxRatio);
+    const newScaleX = clamp(p.startScaleX * ratio, CLAMP_MIN, CLAMP_MAX);
+    const newScaleY = clamp(p.startScaleY * ratio, CLAMP_MIN, CLAMP_MAX);
+    // Scale around the pinch midpoint: keep the world-space point that
+    // started under the pinch center anchored to the (now possibly drifted)
+    // current pinch center. Solving the scale-about-point equation with
+    // transform-origin "50% 50%":
+    //   newX = (currentCenter - canvasCenter) - ratio * (startCenter - canvasCenter - startX)
+    const newX = cx - p.canvasCenterX - ratio * (p.startCenterX - p.canvasCenterX - p.startX);
+    const newY = cy - p.canvasCenterY - ratio * (p.startCenterY - p.canvasCenterY - p.startY);
+    p.pending = { x: newX, y: newY, scaleX: newScaleX, scaleY: newScaleY };
+    if (p.raf === null) {
+      p.raf = requestAnimationFrame(flushPinch);
+    }
+  }, [flushPinch]);
+
+  const endPinch = useCallback(() => {
+    const p = pinchRef.current;
+    if (!p) return;
+    if (p.raf !== null) {
+      cancelAnimationFrame(p.raf);
+      p.raf = null;
+    }
+    if (p.pending) {
+      onChangeRef.current(p.pending);
+      p.pending = null;
+    }
+    pinchRef.current = null;
+  }, []);
 
   // ------- Drag handlers -------
   const beginDrag = useCallback((clientX: number, clientY: number) => {
@@ -198,7 +331,41 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
 
   const onPointerDown = useCallback(
     (e: React.PointerEvent) => {
-      if (e.button !== undefined && e.button !== 0) return;
+      // If the pointerdown originated inside the floating controls toolbar
+      // (Fit / Fill / Reset / Locked), bail out completely — do NOT call
+      // preventDefault or setPointerCapture, otherwise the synthesized
+      // click event for the button gets suppressed and the buttons appear
+      // dead. The toolbar pill is rendered absolutely INSIDE this canvas
+      // div so its pointerdown bubbles up here.
+      const targetEl = e.target as HTMLElement | null;
+      if (targetEl && typeof targetEl.closest === 'function' && targetEl.closest('[data-artwork-toolbar="true"]')) {
+        return;
+      }
+
+      // Track this pointer for multi-touch (pinch) detection. We register
+      // BOTH mouse and touch/pen pointers — pinch only ever engages with
+      // 2+ touch-like pointers in practice (a desktop user has 1 mouse).
+      pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+      // Try to capture so subsequent move/up events fire reliably even
+      // if the finger drifts off the element.
+      try {
+        (e.currentTarget as Element).setPointerCapture?.(e.pointerId);
+      } catch {
+        /* ignore */
+      }
+
+      // If we now have 2 active pointers, start a pinch and bail out of
+      // drag/resize entirely.
+      if (pointersRef.current.size >= 2) {
+        e.preventDefault();
+        setSelected(true);
+        startPinchIfReady();
+        return;
+      }
+
+      // Single-pointer path: existing drag behavior.
+      if (e.button !== undefined && e.button !== 0 && e.pointerType === 'mouse') return;
       // Don't trigger drag from a resize handle.
       const target = e.target as HTMLElement;
       if (target.dataset && target.dataset.handle) return;
@@ -206,13 +373,25 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
       setSelected(true);
       beginDrag(e.clientX, e.clientY);
     },
-    [beginDrag],
+    [beginDrag, startPinchIfReady],
   );
 
   // Global pointer move/up so dragging keeps working even when the cursor
   // briefly leaves the canvas (matches Canva-style UX expectations).
   useEffect(() => {
     const onMove = (e: PointerEvent) => {
+      // Always update tracked pointer position if we know about it.
+      if (pointersRef.current.has(e.pointerId)) {
+        pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+      }
+
+      // Pinch path takes priority over drag/resize.
+      if (pinchRef.current?.active) {
+        e.preventDefault?.();
+        updatePinch();
+        return;
+      }
+
       if (resizeRef.current?.active) {
         const r = resizeRef.current;
         const dx = e.clientX - r.startMouseX;
@@ -239,19 +418,27 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
           newScaleX = clamp(r.startScaleX * ratio, CLAMP_MIN, CLAMP_MAX);
           newScaleY = clamp(r.startScaleY * ratio, CLAMP_MIN, CLAMP_MAX);
         }
-        onChange({ x: r.startX, y: r.startY, scaleX: newScaleX, scaleY: newScaleY });
+        onChangeRef.current({ x: r.startX, y: r.startY, scaleX: newScaleX, scaleY: newScaleY });
         return;
       }
       if (dragRef.current.active) {
         const d = dragRef.current;
         const dx = e.clientX - d.startX;
         const dy = e.clientY - d.startY;
-        onChange({ ...valueRef.current, x: d.origX + dx, y: d.origY + dy });
+        onChangeRef.current({ ...valueRef.current, x: d.origX + dx, y: d.origY + dy });
       }
     };
-    const onUp = () => {
-      dragRef.current.active = false;
-      if (resizeRef.current) resizeRef.current.active = false;
+    const onUp = (e: PointerEvent) => {
+      pointersRef.current.delete(e.pointerId);
+      // End pinch when fewer than 2 pointers remain.
+      if (pinchRef.current?.active && pointersRef.current.size < 2) {
+        endPinch();
+      }
+      // If no pointers remain at all, also end drag/resize.
+      if (pointersRef.current.size === 0) {
+        dragRef.current.active = false;
+        if (resizeRef.current) resizeRef.current.active = false;
+      }
     };
     window.addEventListener('pointermove', onMove);
     window.addEventListener('pointerup', onUp);
@@ -261,7 +448,7 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
     };
-  }, [onChange]);
+  }, [updatePinch, endPinch]);
 
   // Begin a resize from a corner handle.
   const beginResize = useCallback(
@@ -513,67 +700,85 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
 
         {/* Grommets / other overlays */}
         {overlay}
-      </div>
 
-      {/* Selection-only controls. Hidden until the user has selected the
-          artwork so the canvas stays clean while browsing. */}
-      {selected && (
-        <div className="flex items-center justify-center mt-3">
+        {/* Selection-only controls overlay. Positioned absolutely INSIDE
+            the canvas region so it does NOT add layout height — that
+            kept the parent ruler frame from misaligning the left ruler
+            (left ruler height was reading wrapper height = canvas + the
+            old in-flow toolbar). Canva-style floating pill at the bottom
+            center of the canvas. */}
+        {selected && (
           <div
-            className={
-              'inline-flex items-center gap-1.5 bg-white/90 backdrop-blur-sm rounded-full shadow-md border border-gray-200/70 ' +
-              (compactControls ? 'px-2 py-1' : 'px-3 py-1.5')
-            }
+            className="absolute left-1/2 z-30 pointer-events-none"
+            style={{
+              bottom: 8,
+              transform: 'translateX(-50%)',
+            }}
           >
-            <button
-              type="button"
-              onClick={fit}
-              className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-gray-700 hover:text-orange-600 hover:bg-orange-50 rounded-full transition-colors"
-              aria-label="Fit artwork to canvas"
-              title="Fit to canvas"
-            >
-              <Minimize2 className="w-4 h-4" />
-              <span className="hidden sm:inline">Fit</span>
-            </button>
-            <button
-              type="button"
-              onClick={fill}
-              className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-gray-700 hover:text-orange-600 hover:bg-orange-50 rounded-full transition-colors"
-              aria-label="Fill canvas with artwork"
-              title="Fill canvas"
-            >
-              <Maximize2 className="w-4 h-4" />
-              <span className="hidden sm:inline">Fill</span>
-            </button>
-            <button
-              type="button"
-              onClick={reset}
-              className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-orange-600 hover:bg-orange-50 rounded-full transition-colors"
-              aria-label="Reset artwork position and scale"
-              title="Reset"
-            >
-              <RotateCcw className="w-4 h-4" />
-              <span className="hidden sm:inline">Reset</span>
-            </button>
-            <div className="w-px h-4 bg-gray-200" aria-hidden="true" />
-            <button
-              type="button"
-              onClick={toggleConstrain}
-              aria-pressed={constrain}
+            <div
+              data-artwork-toolbar="true"
+              // Bubble-phase only. Do NOT use capture-phase stopPropagation:
+              // that would prevent the click event from reaching the button's
+              // own onClick handler. These listeners run AFTER the button
+              // onClick fires and just stop the event from also reaching the
+              // canvas's onPointerDown / onClick handlers above.
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
               className={
-                'inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium rounded-full transition-colors ' +
-                (constrain
-                  ? 'text-orange-600 hover:bg-orange-50'
-                  : 'text-gray-600 hover:bg-gray-100')
+                'pointer-events-auto inline-flex items-center gap-1.5 bg-white/90 backdrop-blur-sm rounded-full shadow-md border border-gray-200/70 ' +
+                (compactControls ? 'px-2 py-1' : 'px-3 py-1.5')
               }
-              title={constrain ? 'Constrain proportions: ON' : 'Constrain proportions: OFF (freeform)'}
             >
-              {constrain ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
-              <span className="hidden sm:inline">{constrain ? 'Locked' : 'Free'}</span>
-            </button>
+              <button
+                type="button"
+                onClick={fit}
+                className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-gray-700 hover:text-orange-600 hover:bg-orange-50 rounded-full transition-colors"
+                aria-label="Fit artwork to canvas"
+                title="Fit to canvas"
+              >
+                <Minimize2 className="w-4 h-4" />
+                <span className="hidden sm:inline">Fit</span>
+              </button>
+              <button
+                type="button"
+                onClick={fill}
+                className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-gray-700 hover:text-orange-600 hover:bg-orange-50 rounded-full transition-colors"
+                aria-label="Fill canvas with artwork"
+                title="Fill canvas"
+              >
+                <Maximize2 className="w-4 h-4" />
+                <span className="hidden sm:inline">Fill</span>
+              </button>
+              <button
+                type="button"
+                onClick={reset}
+                className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-orange-600 hover:bg-orange-50 rounded-full transition-colors"
+                aria-label="Reset artwork position and scale"
+                title="Reset"
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span className="hidden sm:inline">Reset</span>
+              </button>
+              <div className="w-px h-4 bg-gray-200" aria-hidden="true" />
+              <button
+                type="button"
+                onClick={toggleConstrain}
+                aria-pressed={constrain}
+                className={
+                  'inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium rounded-full transition-colors ' +
+                  (constrain
+                    ? 'text-orange-600 hover:bg-orange-50'
+                    : 'text-gray-600 hover:bg-gray-100')
+                }
+                title={constrain ? 'Constrain proportions: ON' : 'Constrain proportions: OFF (freeform)'}
+              >
+                {constrain ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+                <span className="hidden sm:inline">{constrain ? 'Locked' : 'Free'}</span>
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };
