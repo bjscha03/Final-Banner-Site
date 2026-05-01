@@ -17,6 +17,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { emailApi } from '@/lib/api';
 import { CartItem } from '@/store/cart';
 import BannerPreview from '@/components/cart/BannerPreview';
+import ThumbnailPreviewWrapper from '@/components/preview/ThumbnailPreviewWrapper';
 import CartItemBreakdown from '@/components/cart/CartItemBreakdown';
 import SameDayHitServiceCard from '@/components/cart/SameDayHitServiceCard';
 import DeliveryTimer from '@/components/delivery/DeliveryTimer';
@@ -656,41 +657,95 @@ const Checkout: React.FC = () => {
                       <div className="grid gap-4 md:grid-cols-[auto_minmax(0,1fr)_auto] md:items-start">
                         {isYardSign ? (
                           <div className="flex justify-center shrink-0">
-                            <BannerPreview
-                              widthIn={item.width_in}
-                              heightIn={item.height_in}
-                              grommets={item.grommets}
-                              imageUrl={yardSignPreviewUrl}
-                              material={item.material}
-                              textElements={item.text_elements}
-                              overlayImage={item.overlay_image}
-                              imageScale={item.image_scale}
-                              imagePosition={item.image_position}
-                              fitMode={item.fit_mode || "fill"}
-                              className="flex-shrink-0"
-                              designServiceEnabled={item.design_service_enabled}
-                              source={item.source}
-                              isFinalizedSnapshot={!!item.thumbnail_url}
-                            />
+                            <ThumbnailPreviewWrapper
+                              title={getItemDisplayName(item)}
+                              details={[
+                                ...details,
+                                { label: 'Qty', value: normalized.qtyDisplay },
+                              ]}
+                              largePreview={
+                                <BannerPreview
+                                  widthIn={item.width_in}
+                                  heightIn={item.height_in}
+                                  grommets={item.grommets}
+                                  imageUrl={yardSignPreviewUrl}
+                                  material={item.material}
+                                  textElements={item.text_elements}
+                                  overlayImage={item.overlay_image}
+                                  imageScale={item.image_scale}
+                                  imagePosition={item.image_position}
+                                  fitMode={item.fit_mode || "fill"}
+                                  className="flex-shrink-0"
+                                  designServiceEnabled={item.design_service_enabled}
+                                  source={item.source}
+                                  isFinalizedSnapshot={!!item.thumbnail_url}
+                                  maxSize={560}
+                                />
+                              }
+                            >
+                              <BannerPreview
+                                widthIn={item.width_in}
+                                heightIn={item.height_in}
+                                grommets={item.grommets}
+                                imageUrl={yardSignPreviewUrl}
+                                material={item.material}
+                                textElements={item.text_elements}
+                                overlayImage={item.overlay_image}
+                                imageScale={item.image_scale}
+                                imagePosition={item.image_position}
+                                fitMode={item.fit_mode || "fill"}
+                                className="flex-shrink-0"
+                                designServiceEnabled={item.design_service_enabled}
+                                source={item.source}
+                                isFinalizedSnapshot={!!item.thumbnail_url}
+                              />
+                            </ThumbnailPreviewWrapper>
                           </div>
                         ) : (
                           <div className="flex justify-center shrink-0">
-                            <BannerPreview
-                              widthIn={item.width_in}
-                              heightIn={item.height_in}
-                              grommets={item.grommets}
-                              imageUrl={bannerPreviewUrl}
-                              material={item.material}
-                              textElements={item.text_elements}
-                              overlayImage={item.overlay_image}
-                              imageScale={item.image_scale}
-                              imagePosition={item.image_position}
-                              fitMode={item.fit_mode || "fill"}
-                              className="flex-shrink-0"
-                              designServiceEnabled={item.design_service_enabled}
-                              source={item.source}
-                              isFinalizedSnapshot={!!item.thumbnail_url}
-                            />
+                            <ThumbnailPreviewWrapper
+                              title={getItemDisplayName(item)}
+                              details={[
+                                ...details,
+                                { label: 'Qty', value: normalized.qtyDisplay },
+                              ]}
+                              largePreview={
+                                <BannerPreview
+                                  widthIn={item.width_in}
+                                  heightIn={item.height_in}
+                                  grommets={item.grommets}
+                                  imageUrl={bannerPreviewUrl}
+                                  material={item.material}
+                                  textElements={item.text_elements}
+                                  overlayImage={item.overlay_image}
+                                  imageScale={item.image_scale}
+                                  imagePosition={item.image_position}
+                                  fitMode={item.fit_mode || "fill"}
+                                  className="flex-shrink-0"
+                                  designServiceEnabled={item.design_service_enabled}
+                                  source={item.source}
+                                  isFinalizedSnapshot={!!item.thumbnail_url}
+                                  maxSize={560}
+                                />
+                              }
+                            >
+                              <BannerPreview
+                                widthIn={item.width_in}
+                                heightIn={item.height_in}
+                                grommets={item.grommets}
+                                imageUrl={bannerPreviewUrl}
+                                material={item.material}
+                                textElements={item.text_elements}
+                                overlayImage={item.overlay_image}
+                                imageScale={item.image_scale}
+                                imagePosition={item.image_position}
+                                fitMode={item.fit_mode || "fill"}
+                                className="flex-shrink-0"
+                                designServiceEnabled={item.design_service_enabled}
+                                source={item.source}
+                                isFinalizedSnapshot={!!item.thumbnail_url}
+                              />
+                            </ThumbnailPreviewWrapper>
                           </div>
                         )}
 
