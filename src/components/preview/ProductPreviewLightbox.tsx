@@ -101,10 +101,18 @@ const FitToContainer: React.FC<{ children: React.ReactNode }> = ({ children }) =
     <div
       ref={containerRef}
       // Fill the slot reserved by the parent (which sets width + aspect-ratio).
-      // `overflow: hidden` is a defensive clip so any descendant that draws
-      // outside the slot (e.g., an SVG with overflow="visible") cannot
-      // contribute extra scrollable space inside the lightbox panel.
-      className="w-full h-full flex items-center justify-center overflow-hidden"
+      // IMPORTANT: do NOT clip overflow here. BannerPreview's grommet overlays
+      // are absolutely positioned at the banner corners with
+      // `transform: translate(-50%, -50%)`, so half of each corner grommet
+      // visually extends outside the previewWidth×previewHeight box. Once the
+      // viewport is sized so FitToContainer's scale lands at 1, the slot is
+      // the exact size of the BannerPreview and any `overflow: hidden` here
+      // would clip those grommet halves out of view — which looked like the
+      // zoom modal "removed" the grommets after a window resize. The lightbox
+      // panel already has its own `overflowY: auto` + `max-height` for scroll
+      // containment, so a few pixels of grommet bleed into the panel padding
+      // is harmless.
+      className="w-full h-full flex items-center justify-center"
     >
       <div
         ref={contentRef}
