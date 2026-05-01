@@ -292,12 +292,8 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
     // factor needed to make that box cover the canvas is:
     let s: number;
     if (imgAspect > canvasAspect) {
-      // Image is wider than canvas → contained height = rect.height,
-      // contained width = rect.height * imgAspect, which exceeds canvas w.
-      // To cover, scale = canvasAspect (width/height) / imgAspect inverted.
-      s = canvasAspect / imgAspect; // <1, would shrink; we need the inverse direction.
-      // Cover scale = canvas.height / (canvas.width / imgAspect) =
-      //              imgAspect / canvasAspect.
+      // Image wider than canvas → contained height = rect.height; the cover
+      // scale is imgAspect / canvasAspect.
       s = imgAspect / canvasAspect;
     } else {
       s = canvasAspect / imgAspect;
