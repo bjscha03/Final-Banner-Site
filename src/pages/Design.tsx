@@ -47,6 +47,8 @@ import {
 import { BANNER_MATERIALS as MATERIALS } from '@/lib/banner-materials';
 import CreateWithAIModal, { type CreateWithAIResult } from '@/components/design/CreateWithAIModal';
 import EditWithAIModal from '@/components/design/EditWithAIModal';
+import GrommetOverlay from '@/components/preview/GrommetOverlay';
+import PreviewRulerFrame from '@/components/preview/PreviewRulerFrame';
 import { ENABLE_AI } from '@/lib/featureFlags';
 import { base64ToFile } from '@/utils/base64ToFile';
 import { computeSameDayFeesCents } from '@/lib/sameDayService';
@@ -154,25 +156,6 @@ const PRODUCT_MODE_CONTENT = {
     ],
   },
 } as const;
-
-// Calculate grommet positions for preview overlay
-function calcGrommetPts(w: number, h: number, mode: string): { x: number; y: number }[] {
-  const m = 1;
-  const corners = [{ x: m, y: m }, { x: w - m, y: m }, { x: m, y: h - m }, { x: w - m, y: h - m }];
-  if (mode === "none") return [];
-  if (mode === "4-corners") return corners;
-  if (mode === "top-corners") return [corners[0], corners[1]];
-  if (mode === "left-corners") return [corners[0], corners[2]];
-  if (mode === "right-corners") return [corners[1], corners[3]];
-  const spacing = mode === "every-1-2ft" ? 18 : 24;
-  const pts = [...corners];
-  const uw = Math.max(0, w - 2 * m), nw = Math.floor(uw / spacing);
-  if (nw > 0) { const ws = uw / (nw + 1); for (let i = 1; i <= nw; i++) { pts.push({ x: m + i * ws, y: m }); pts.push({ x: m + i * ws, y: h - m }); } }
-  const uh = Math.max(0, h - 2 * m), nh = Math.floor(uh / spacing);
-  if (nh > 0) { const hs = uh / (nh + 1); for (let i = 1; i <= nh; i++) { pts.push({ x: m, y: m + i * hs }); pts.push({ x: w - m, y: m + i * hs }); } }
-  const seen = new Set<string>();
-  return pts.filter(p => { const k = p.x.toFixed(2) + "," + p.y.toFixed(2); if (seen.has(k)) return false; seen.add(k); return true; });
-}
 
 // Convert Cloudinary PDF URL to an image thumbnail (renders page 1)
 function getPdfThumbnailUrl(pdfUrl: string): string {
@@ -360,6 +343,12 @@ const Design: React.FC = () => {
   const materialDropdownRef = useRef<HTMLDivElement>(null);
   const [grommets, setGrommets] = useState('none');
   const [polePockets, setPolePockets] = useState('none');
+  // Display unit for size inputs and the live preview ruler. Single source
+  // of truth — both the Feet/Inches toggle and PreviewRulerFrame read this
+  // state, so switching units updates the visible ruler immediately. Pure
+  // UI state — does NOT affect pricing, cart, or print pipeline (those
+  // continue to use widthIn / heightIn in inches).
+  const [unit, setUnit] = useState<'in' | 'ft'>('in');
   const [addRope, setAddRope] = useState(false);
   const [hemming, setHemming] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
@@ -1547,7 +1536,30 @@ const Design: React.FC = () => {
               </div>
               {!isCarMagnet && (
               <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Custom Size</label>
+                <div className="flex items-center justify-between mb-2">
+                  <label className="block text-sm font-semibold text-gray-700">Custom Size</label>
+                  {/* Feet/Inches toggle — UI display only; pricing/cart still use inches. */}
+                  <div className="inline-flex items-center rounded-lg border border-gray-200 bg-white p-0.5 text-xs" role="tablist" aria-label="Display unit">
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={unit === 'in'}
+                      onClick={() => setUnit('in')}
+                      className={`px-2.5 py-1 rounded-md transition-colors ${unit === 'in' ? 'bg-orange-500 text-white font-semibold' : 'text-gray-600 hover:text-gray-800'}`}
+                    >
+                      Inches
+                    </button>
+                    <button
+                      type="button"
+                      role="tab"
+                      aria-selected={unit === 'ft'}
+                      onClick={() => setUnit('ft')}
+                      className={`px-2.5 py-1 rounded-md transition-colors ${unit === 'ft' ? 'bg-orange-500 text-white font-semibold' : 'text-gray-600 hover:text-gray-800'}`}
+                    >
+                      Feet
+                    </button>
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <span className="text-xs text-gray-500">Width</span>
@@ -1569,6 +1581,14 @@ const Design: React.FC = () => {
                   </div>
                 </div>
                 <p className="text-xs text-gray-500 mt-1">{sqft.toFixed(1)} sq ft</p>
+                {/* Equivalent size — shows the size in the OTHER unit so the
+                    Feet/Inches toggle gives users an instant cross-reference.
+                    Display-only; never touches pricing or cart. */}
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {unit === 'in'
+                    ? `≈ ${widthFt}${widthInR > 0 ? ` ${widthInR}/12` : ''} ft × ${heightFt}${heightInR > 0 ? ` ${heightInR}/12` : ''} ft`
+                    : `≈ ${widthIn} in × ${heightIn} in`}
+                </p>
                 {/* Dimension preview canvas */}
                 <label className="block text-sm font-semibold text-gray-700 mb-2 mt-4">Banner Size Preview</label>
                 <div className="flex justify-center mb-6">
@@ -1684,7 +1704,14 @@ const Design: React.FC = () => {
                       <p className="text-xs text-gray-400">Final print preview — what you see is what you get</p>
                     </div>
                     <div className="rounded-xl p-4 md:p-6 max-w-full overflow-hidden bg-white">
-                      <div className="mx-auto max-w-full" style={previewWrapperStyle}>
+                      <PreviewRulerFrame
+                        widthIn={widthIn}
+                        heightIn={heightIn}
+                        unit={unit}
+                        debug={import.meta.env.DEV}
+                        className="mx-auto max-w-full"
+                        style={previewWrapperStyle}
+                      >
                       <div
                         ref={previewContainerRef}
                         className="relative w-full rounded-sm select-none overflow-hidden transition-all duration-300 ease-out"
@@ -1693,8 +1720,11 @@ const Design: React.FC = () => {
                           cursor: isDraggingPreview ? "grabbing" : "grab",
                           touchAction: "none",
                           backgroundColor: '#fafafa',
-                          border: '1px solid #e2e5ea',
-                          boxShadow: '0 4px 16px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06), inset 0 0 0 1px rgba(255,255,255,0.6)',
+                          // Stronger drop shadow + subtle inset highlight gives the
+                          // printable canvas a clear "physical product" feel
+                          // (matches PreviewCanvas styling).
+                          border: '1px solid #cbd5e1',
+                          boxShadow: '0 10px 24px -8px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(15, 23, 42, 0.08), inset 0 0 0 1px rgba(255,255,255,0.6)',
                           WebkitTransform: 'translateZ(0)',
                           transform: 'translateZ(0)',
                         }}
@@ -1724,18 +1754,25 @@ const Design: React.FC = () => {
                             </span>
                           </div>
                         )}
-                        {grommets !== "none" && calcGrommetPts(widthIn, heightIn, grommets).map((pos, idx) => {
-                          const leftPct = (pos.x / widthIn) * 100;
-                          const topPct = (pos.y / heightIn) * 100;
-                          const dotSize = Math.max(6, Math.min(12, 180 / Math.max(widthIn, heightIn)));
-                          return (
-                            <div key={`inline-grommet-${idx}`} className="absolute rounded-full pointer-events-none" style={{ left: `${leftPct}%`, top: `${topPct}%`, width: `${dotSize}px`, height: `${dotSize}px`, transform: "translate(-50%, -50%)", background: 'radial-gradient(circle at 40% 35%, #d1d5db, #6b7280)', border: '1px solid #9ca3af', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.25), 0 0.5px 1px rgba(0,0,0,0.15)', zIndex: 10 }}>
-                              <div className="absolute rounded-full" style={{ left: "50%", top: "50%", width: "45%", height: "45%", transform: "translate(-50%, -50%)", background: '#374151', border: '0.5px solid #4b5563' }} />
-                            </div>
-                          );
-                        })}
+                        {/* Shared GrommetOverlay (preview-only; never serialized to print pipeline). */}
+                        {grommets !== 'none' && (
+                          <svg
+                            className="absolute inset-0 w-full h-full pointer-events-none"
+                            viewBox={`0 0 ${widthIn} ${heightIn}`}
+                            preserveAspectRatio="none"
+                            style={{ zIndex: 10 }}
+                            aria-hidden="true"
+                          >
+                            <GrommetOverlay
+                              widthIn={widthIn}
+                              heightIn={heightIn}
+                              option={grommets}
+                              idSuffix="design-inline"
+                            />
+                          </svg>
+                        )}
                       </div>
-                      </div>{/* close width wrapper */}
+                      </PreviewRulerFrame>{/* close ruler frame */}
                       <div className="flex items-center justify-center mt-3">
                         <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm rounded-full px-3 py-1.5 shadow-sm border border-gray-200/60">
                           <button onClick={() => setImgScale(s => Math.max(0.5, s - 0.1))} className="p-1.5 rounded-full hover:bg-gray-100 transition-colors" aria-label="Zoom out"><ZoomOut className="w-4 h-4 text-gray-600" /></button>
@@ -2080,7 +2117,13 @@ const Design: React.FC = () => {
             <div className="p-4 flex-1 overflow-auto">
               <p className="text-sm text-gray-500 mb-3 flex items-center gap-1"><Move className="w-4 h-4" /> Drag to reposition · Pinch or use buttons to zoom</p>
               <div className="rounded-lg p-4 max-w-full overflow-hidden" style={{ background: 'linear-gradient(180deg, #f5f6f8 0%, #e9edf2 100%)' }}>
-                <div className="mx-auto max-w-full" style={previewWrapperStyle}>
+                <PreviewRulerFrame
+                  widthIn={widthIn}
+                  heightIn={heightIn}
+                  unit={unit}
+                  className="mx-auto max-w-full"
+                  style={previewWrapperStyle}
+                >
                 <div
                   className="relative w-full rounded-sm select-none overflow-hidden transition-all duration-300 ease-out"
                   style={{
@@ -2088,8 +2131,8 @@ const Design: React.FC = () => {
                     cursor: isDraggingPreview ? "grabbing" : "grab",
                     touchAction: "none",
                     backgroundColor: '#fafafa',
-                    border: '1px solid #e2e5ea',
-                    boxShadow: '0 4px 16px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06), inset 0 0 0 1px rgba(255,255,255,0.6)',
+                    border: '1px solid #cbd5e1',
+                    boxShadow: '0 10px 24px -8px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(15, 23, 42, 0.08), inset 0 0 0 1px rgba(255,255,255,0.6)',
                     WebkitTransform: 'translateZ(0)',
                     transform: 'translateZ(0)',
                   }}
@@ -2130,18 +2173,24 @@ const Design: React.FC = () => {
                       />
                     ))}
                   </div>
-                  {grommets !== "none" && calcGrommetPts(widthIn, heightIn, grommets).map((pos, idx) => {
-                    const leftPct = (pos.x / widthIn) * 100;
-                    const topPct = (pos.y / heightIn) * 100;
-                    const dotSize = Math.max(6, Math.min(12, 200 / Math.max(widthIn, heightIn)));
-                    return (
-                      <div key={`grommet-preview-${idx}`} className="absolute rounded-full pointer-events-none" style={{ left: `${leftPct}%`, top: `${topPct}%`, width: `${dotSize}px`, height: `${dotSize}px`, transform: "translate(-50%, -50%)", background: 'radial-gradient(circle at 40% 35%, #d1d5db, #6b7280)', border: '1px solid #9ca3af', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.25), 0 0.5px 1px rgba(0,0,0,0.15)', zIndex: 10 }}>
-                        <div className="absolute rounded-full" style={{ left: "50%", top: "50%", width: "45%", height: "45%", transform: "translate(-50%, -50%)", background: '#374151', border: '0.5px solid #4b5563' }} />
-                      </div>
-                    );
-                  })}
+                  {grommets !== 'none' && (
+                    <svg
+                      className="absolute inset-0 w-full h-full pointer-events-none"
+                      viewBox={`0 0 ${widthIn} ${heightIn}`}
+                      preserveAspectRatio="none"
+                      style={{ zIndex: 10 }}
+                      aria-hidden="true"
+                    >
+                      <GrommetOverlay
+                        widthIn={widthIn}
+                        heightIn={heightIn}
+                        option={grommets}
+                        idSuffix="design-modal"
+                      />
+                    </svg>
+                  )}
                 </div>
-                </div>
+                </PreviewRulerFrame>
               </div>
               <p className="text-xs text-gray-400 text-center mt-2">
                 Size: {widthFt} ft{widthInR > 0 ? ` ${widthInR} in` : ''} × {heightFt} ft{heightInR > 0 ? ` ${heightInR} in` : ''} ({sqft.toFixed(1)} sq ft)
