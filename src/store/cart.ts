@@ -73,6 +73,7 @@ export interface CartItem {
   canva_design_id?: string;           // Canva design ID for re-editing
   canvas_background_color?: string;    // Canvas background color (hex)
   image_scale?: number;                // Background image scale (for uploaded images)
+  image_scale_y?: number;              // PR3: Per-axis Y scale for freeform resize. Defaults to image_scale (uniform).
   image_position?: { x: number; y: number }; // Background image position (for uploaded images)
   fit_mode?: 'fill' | 'fit' | 'stretch';     // Image fit mode (for uploaded images)
   aiDesign?: {
@@ -540,6 +541,7 @@ export const useCartStore = create<CartState>()(
           canva_design_id: (quote as any).canvaDesignId || undefined,
           canvas_background_color: (quote as any).canvasBackgroundColor || '#FFFFFF',
           image_scale: quote.imageScale || 1,
+          image_scale_y: (quote as any).imageScaleY ?? quote.imageScale ?? 1,
           image_position: quote.imagePosition || { x: 0, y: 0 },
           fit_mode: quote.fitMode || 'fill',
           artwork_width: quote.file?.artworkWidth,
@@ -943,6 +945,7 @@ export const useCartStore = create<CartState>()(
           canva_design_id: (quote as any).canvaDesignId || undefined,
           canvas_background_color: (quote as any).canvasBackgroundColor || '#FFFFFF',
           image_scale: quote.imageScale || 1,
+          image_scale_y: (quote as any).imageScaleY ?? quote.imageScale ?? 1,
           image_position: quote.imagePosition || { x: 0, y: 0 },
           fit_mode: quote.fitMode || 'fill',
           // FINAL_RENDER: High-res snapshot for admin PDF

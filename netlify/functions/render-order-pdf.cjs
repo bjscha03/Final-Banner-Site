@@ -1339,8 +1339,10 @@ exports.handler = async (event) => {
             }
 
             const imgScale = designState.imgScale || 1;
+            // PR3: optional per-axis Y scale for freeform resize (defaults to imgScale).
+            const imgScaleY = designState.imgScaleY != null ? designState.imgScaleY : imgScale;
             const requiredW = Math.round(containedW * imgScale);
-            const requiredH = Math.round(containedH * imgScale);
+            const requiredH = Math.round(containedH * imgScaleY);
 
             const qualityRatioW = origW / requiredW;
             const qualityRatioH = origH / requiredH;
@@ -1373,12 +1375,13 @@ exports.handler = async (event) => {
             const centerY = targetPxH / 2;
 
             const drawX = Math.round(centerX + posXPx + imgScale * (offsetX - centerX));
-            const drawY = Math.round(centerY + posYPx + imgScale * (offsetY - centerY));
+            const drawY = Math.round(centerY + posYPx + imgScaleY * (offsetY - centerY));
             const drawW = Math.round(containedW * imgScale);
-            const drawH = Math.round(containedH * imgScale);
+            const drawH = Math.round(containedH * imgScaleY);
 
             console.log("[PRINT_RENDER] === DETAILED DEBUG ===");
             console.log("[PRINT_RENDER] designState.imgScale:", designState.imgScale);
+            console.log("[PRINT_RENDER] designState.imgScaleY:", designState.imgScaleY);
             console.log("[PRINT_RENDER] designState.imgPos:", JSON.stringify(designState.imgPos));
             console.log("[PRINT_RENDER] imgAspect:", imgAspect.toFixed(4));
             console.log("[PRINT_RENDER] bannerAspect:", bannerAspect.toFixed(4));

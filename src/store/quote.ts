@@ -79,6 +79,7 @@ export interface QuoteState {
   }>; // NEW: Support multiple overlay images
   canvaDesignId?: string;              // Canva design ID for re-editing
   imageScale?: number;                 // Background image scale (for uploaded images)
+  imageScaleY?: number;                // PR3: Per-axis Y scale for freeform resize. Defaults to imageScale (uniform).
   imagePosition?: { x: number; y: number }; // Background image position (for uploaded images)
   fitMode?: 'fill' | 'fit' | 'stretch';  // Image fit mode for uploaded images
   set: (partial: Partial<QuoteState>) => void;
@@ -123,6 +124,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
   file: undefined,
   overlayImages: undefined,
   imageScale: 1,
+  imageScaleY: 1,
   imagePosition: { x: 0, y: 0 },
   fitMode: 'fill',
   set: (partial) => set((state) => {
@@ -252,6 +254,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
       })(),
 
       imageScale: item.image_scale || 1,
+      imageScaleY: item.image_scale_y ?? item.image_scale ?? 1,
       imagePosition: item.image_position || { x: 0, y: 0 },
       fitMode: item.fit_mode || 'fill',
       // CRITICAL FIX: Single source of truth = overlayImages (array)
@@ -343,6 +346,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
     overlayImage: undefined,
     overlayImages: undefined,
     imageScale: 1,
+    imageScaleY: 1,
     imagePosition: { x: 0, y: 0 },
     fitMode: 'fill',
   };
