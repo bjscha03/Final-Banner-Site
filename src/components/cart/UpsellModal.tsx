@@ -4,6 +4,7 @@ import { createPortal } from 'react-dom';
 import { QuoteState, Grommets, PolePocketSize } from '@/store/quote';
 import { formatDimensions, usd, ropeCost, polePocketCost } from '@/lib/pricing';
 import BannerPreview from './BannerPreview';
+import ThumbnailPreviewWrapper from '@/components/preview/ThumbnailPreviewWrapper';
 import { getProductCopy } from '@/lib/product-copy';
 
 export interface UpsellOption {
@@ -325,20 +326,56 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
           <div className="bg-gray-50 rounded-xl p-4">
             <div className="flex items-center gap-4">
               {/* Live Banner Preview */}
-              <BannerPreview
-                widthIn={quote.widthIn}
-                heightIn={quote.heightIn}
-                grommets={selectedOptions.find(opt => opt.id === 'grommets' && opt.selected)?.grommetSelection as Grommets || quote.grommets}
-                imageUrl={thumbnailUrl || quote.file?.url}
-                material={quote.material}
-                textElements={quote.textElements}
-                overlayImage={quote.overlayImage}
-                className="flex-shrink-0"
-                imageScale={quote.imageScale}
-                imagePosition={quote.imagePosition}
-                fitMode={quote.fitMode || "fill"}
-                designServiceEnabled={designServiceEnabled}
-              />
+              {(() => {
+                const effectiveGrommets =
+                  (selectedOptions.find(opt => opt.id === 'grommets' && opt.selected)?.grommetSelection as Grommets) ||
+                  quote.grommets;
+                return (
+              <ThumbnailPreviewWrapper
+                title={`${formatDimensions(quote.widthIn, quote.heightIn)} ${copy.singularLabel}`}
+                details={[
+                  { label: 'Size', value: formatDimensions(quote.widthIn, quote.heightIn) },
+                  { label: 'Material', value: `${quote.material} vinyl` },
+                  { label: 'Quantity', value: String(quote.quantity) },
+                  ...(effectiveGrommets !== 'none'
+                    ? [{ label: 'Grommets', value: String(effectiveGrommets) }]
+                    : []),
+                ]}
+                largePreview={
+                  <BannerPreview
+                    widthIn={quote.widthIn}
+                    heightIn={quote.heightIn}
+                    grommets={effectiveGrommets}
+                    imageUrl={thumbnailUrl || quote.file?.url}
+                    material={quote.material}
+                    textElements={quote.textElements}
+                    overlayImage={quote.overlayImage}
+                    className="flex-shrink-0"
+                    imageScale={quote.imageScale}
+                    imagePosition={quote.imagePosition}
+                    fitMode={quote.fitMode || "fill"}
+                    designServiceEnabled={designServiceEnabled}
+                    maxSize={560}
+                  />
+                }
+              >
+                <BannerPreview
+                  widthIn={quote.widthIn}
+                  heightIn={quote.heightIn}
+                  grommets={effectiveGrommets}
+                  imageUrl={thumbnailUrl || quote.file?.url}
+                  material={quote.material}
+                  textElements={quote.textElements}
+                  overlayImage={quote.overlayImage}
+                  className="flex-shrink-0"
+                  imageScale={quote.imageScale}
+                  imagePosition={quote.imagePosition}
+                  fitMode={quote.fitMode || "fill"}
+                  designServiceEnabled={designServiceEnabled}
+                />
+              </ThumbnailPreviewWrapper>
+                );
+              })()}
               <div className="flex-1 min-w-0">
                 <h3 className="font-semibold text-gray-900 text-lg">
                   {formatDimensions(quote.widthIn, quote.heightIn)} {copy.singularLabel}

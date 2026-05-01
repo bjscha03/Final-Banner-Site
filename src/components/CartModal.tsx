@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { X, Trash2, Plus, Minus, ShoppingBag, Eye, Tag } from 'lucide-react';
 import BannerPreview from './cart/BannerPreview';
+import ThumbnailPreviewWrapper from './preview/ThumbnailPreviewWrapper';
 import { useNavigate } from 'react-router-dom';
 import { usd } from '@/lib/pricing';
 import { useCartStore } from '@/store/cart';
@@ -128,23 +129,58 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                     <div key={item.id} className="bg-white rounded-xl p-4 shadow-lg border border-gray-200 hover:shadow-xl transition-shadow">
                       {/* Thumbnail on top - centered */}
                       <div className="flex justify-center mb-4">
-                        <BannerPreview
-                            key={`thumbnail-${item.id}-${item.text_elements?.length || 0}-${item.image_scale || 1}`}
-                            widthIn={item.width_in}
-                            heightIn={item.height_in}
-                            grommets={item.grommets}
-                            imageUrl={item.thumbnail_url || item.file_url || item.web_preview_url || item.print_ready_url || item.aiDesign?.assets?.proofUrl}
-                            material={item.material}
-                            textElements={item.text_elements}
-                            overlayImage={item.overlay_image}
-                            imageScale={item.image_scale}
-                            imagePosition={item.image_position}
-                            fitMode={item.fit_mode || "fill"}
-                            className="flex-shrink-0"
-                            designServiceEnabled={item.design_service_enabled}
-                            source={item.source}
-                            isFinalizedSnapshot={!!item.thumbnail_url}
-                          />
+                        <ThumbnailPreviewWrapper
+                          title={getItemDisplayName(item)}
+                          details={[
+                            { label: 'Size', value: normalized.sizeDisplay },
+                            { label: 'Material', value: normalized.materialDisplay },
+                            { label: 'Print', value: normalized.printDisplay },
+                            { label: 'Qty', value: normalized.qtyDisplay },
+                            ...(normalized.uploadedDesignsCount ? [{ label: 'Uploaded Designs', value: String(normalized.uploadedDesignsCount) }] : []),
+                            ...(normalized.stepStakesQty ? [{ label: 'Step Stakes', value: String(normalized.stepStakesQty) }] : []),
+                            ...(normalized.grommetsDisplay ? [{ label: 'Grommets', value: normalized.grommetsDisplay }] : []),
+                            ...(normalized.polePocketsDisplay ? [{ label: 'Pole Pockets', value: normalized.polePocketsDisplay }] : []),
+                            ...(normalized.ropeDisplay ? [{ label: 'Rope', value: normalized.ropeDisplay }] : []),
+                            ...(normalized.roundedCornersDisplay ? [{ label: 'Rounded Corners', value: normalized.roundedCornersDisplay }] : []),
+                          ]}
+                          largePreview={
+                            <BannerPreview
+                              widthIn={item.width_in}
+                              heightIn={item.height_in}
+                              grommets={item.grommets}
+                              imageUrl={item.thumbnail_url || item.file_url || item.web_preview_url || item.print_ready_url || item.aiDesign?.assets?.proofUrl}
+                              material={item.material}
+                              textElements={item.text_elements}
+                              overlayImage={item.overlay_image}
+                              imageScale={item.image_scale}
+                              imagePosition={item.image_position}
+                              fitMode={item.fit_mode || "fill"}
+                              className="flex-shrink-0"
+                              designServiceEnabled={item.design_service_enabled}
+                              source={item.source}
+                              isFinalizedSnapshot={!!item.thumbnail_url}
+                              maxSize={560}
+                            />
+                          }
+                        >
+                          <BannerPreview
+                              key={`thumbnail-${item.id}-${item.text_elements?.length || 0}-${item.image_scale || 1}`}
+                              widthIn={item.width_in}
+                              heightIn={item.height_in}
+                              grommets={item.grommets}
+                              imageUrl={item.thumbnail_url || item.file_url || item.web_preview_url || item.print_ready_url || item.aiDesign?.assets?.proofUrl}
+                              material={item.material}
+                              textElements={item.text_elements}
+                              overlayImage={item.overlay_image}
+                              imageScale={item.image_scale}
+                              imagePosition={item.image_position}
+                              fitMode={item.fit_mode || "fill"}
+                              className="flex-shrink-0"
+                              designServiceEnabled={item.design_service_enabled}
+                              source={item.source}
+                              isFinalizedSnapshot={!!item.thumbnail_url}
+                            />
+                        </ThumbnailPreviewWrapper>
                       </div>
 
                       {/* Title and Price on same line */}

@@ -46,6 +46,9 @@ interface BannerPreviewProps {
   /** When true, the imageUrl is a canonical finalized snapshot (e.g., uploaded to Cloudinary
    * from the preview canvas). Render it full-bleed without applying scale/position transforms. */
   isFinalizedSnapshot?: boolean;
+  /** Maximum container size in pixels. Defaults to 200 (the standard thumbnail size).
+   * Use a larger value (e.g., 560) when rendering an enlarged preview in a lightbox. */
+  maxSize?: number;
 }
 
 interface Point {
@@ -137,6 +140,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   designServiceEnabled = false,
   source,
   isFinalizedSnapshot = false,
+  maxSize: maxSizeProp,
 }) => {
   // Detect if imageUrl is a canvas thumbnail with the full design baked in.
   // Canvas thumbnails should be rendered full-bleed without position/scale transforms
@@ -192,8 +196,9 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   const aspectRatio = widthIn / heightIn;
   
   // Calculate optimal preview size based on aspect ratio
-  // Max container size: 200px (to fit in modal)
-  const maxSize = 200;
+  // Default max container size: 200px (to fit in modal). When maxSizeProp is supplied
+  // (e.g., enlarged lightbox preview), use it instead.
+  const maxSize = maxSizeProp ?? 200;
   
   let previewWidth: number;
   let previewHeight: number;
