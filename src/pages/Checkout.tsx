@@ -1161,7 +1161,7 @@ const Checkout: React.FC = () => {
             )}
             {/* Payment */}
             <div className="space-y-6 w-full">
-              <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 sm:p-8 transition-shadow hover:shadow-xl lg:sticky lg:top-4">
+              <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 sm:p-8 transition-shadow hover:shadow-xl lg:sticky lg:top-4" style={{ contain: 'layout paint' }}>
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-2xl font-bold text-[#18448D]">Payment</h2>
                   <div className="flex items-center gap-2 bg-green-50 px-3 py-1.5 rounded-full">
