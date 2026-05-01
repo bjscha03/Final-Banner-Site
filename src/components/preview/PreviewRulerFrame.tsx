@@ -1,15 +1,15 @@
 /**
  * PreviewRulerFrame
  *
- * Wraps the live preview surface with measurement rulers on all four edges
- * (top / bottom / left / right). Pure UI overlay — does not affect pricing,
- * cart serialization, or print/PDF exports.
+ * Wraps the live preview surface with measurement rulers on the LEFT
+ * (vertical) and BOTTOM (horizontal) edges only. Pure UI overlay — does
+ * not affect pricing, cart serialization, or print/PDF exports.
  *
- * The wrapped child is expected to be a relatively-positioned element that
- * uses the padding-bottom technique for its aspect ratio (matches the
- * existing inline preview on Design.tsx / GoogleAdsBanner.tsx). This
+ * The wrapped child is expected to be a relatively-positioned element
+ * that uses the padding-bottom technique for its aspect ratio (matches
+ * the existing inline preview on Design.tsx / GoogleAdsBanner.tsx). This
  * component does not modify the child's layout — it only renders the
- * ruler bands around it using a 3-column / 3-row CSS grid.
+ * ruler bands on the left and bottom using a 2-column / 2-row CSS grid.
  *
  * Tick positions are computed via the shared `getRulerTicks` helper so
  * the same logic powers PreviewCanvas and this in-page wrapper.
@@ -88,27 +88,26 @@ const PreviewRulerFrame: React.FC<PreviewRulerFrameProps> = ({
   // Vertical band is `0 0 1 heightIn` analogously.
   const tickColor = '#475569';
   const labelColor = '#1e293b';
-  const bandBg = '#f8fafc';
+  const bandBg = '#f1f5f9';
   const bandBorder = '#cbd5e1';
 
-  const HorizontalBand: React.FC<{ flip?: boolean }> = ({ flip = false }) => (
+  // Bottom horizontal ruler — ticks point UP toward the canvas.
+  const HorizontalBand: React.FC = () => (
     <svg
       viewBox={`0 0 ${widthIn} 1`}
       preserveAspectRatio="none"
-      style={{ display: 'block', width: '100%', height: bandPx, background: bandBg, borderTop: flip ? `1px solid ${bandBorder}` : 'none', borderBottom: flip ? 'none' : `1px solid ${bandBorder}` }}
+      style={{ display: 'block', width: '100%', height: bandPx, background: bandBg, borderTop: `1px solid ${bandBorder}` }}
       aria-hidden="true"
     >
       {horizontalTicks.map((t, i) => {
         const tickH = t.major ? 0.45 : 0.25;
-        const y1 = flip ? 0 : 1 - tickH;
-        const y2 = flip ? tickH : 1;
         return (
           <g key={`h-${i}`}>
             <line
               x1={t.pos}
-              y1={y1}
+              y1={0}
               x2={t.pos}
-              y2={y2}
+              y2={tickH}
               stroke={tickColor}
               strokeWidth={t.major ? 0.04 : 0.025}
               vectorEffect="non-scaling-stroke"
@@ -116,9 +115,9 @@ const PreviewRulerFrame: React.FC<PreviewRulerFrameProps> = ({
             {t.major && t.label && (
               <text
                 x={t.pos}
-                y={flip ? 0.95 : 0.45}
+                y={0.95}
                 textAnchor="middle"
-                dominantBaseline={flip ? 'auto' : 'hanging'}
+                dominantBaseline="auto"
                 fontSize={0.42}
                 fill={labelColor}
                 fontWeight={600}
@@ -133,23 +132,22 @@ const PreviewRulerFrame: React.FC<PreviewRulerFrameProps> = ({
     </svg>
   );
 
-  const VerticalBand: React.FC<{ flip?: boolean }> = ({ flip = false }) => (
+  // Left vertical ruler — ticks point RIGHT toward the canvas.
+  const VerticalBand: React.FC = () => (
     <svg
       viewBox={`0 0 1 ${heightIn}`}
       preserveAspectRatio="none"
-      style={{ display: 'block', height: '100%', width: bandPx, background: bandBg, borderLeft: flip ? `1px solid ${bandBorder}` : 'none', borderRight: flip ? 'none' : `1px solid ${bandBorder}` }}
+      style={{ display: 'block', height: '100%', width: bandPx, background: bandBg, borderRight: `1px solid ${bandBorder}` }}
       aria-hidden="true"
     >
       {verticalTicks.map((t, i) => {
         const tickW = t.major ? 0.45 : 0.25;
-        const x1 = flip ? 0 : 1 - tickW;
-        const x2 = flip ? tickW : 1;
         return (
           <g key={`v-${i}`}>
             <line
-              x1={x1}
+              x1={1 - tickW}
               y1={t.pos}
-              x2={x2}
+              x2={1}
               y2={t.pos}
               stroke={tickColor}
               strokeWidth={t.major ? 0.04 : 0.025}
@@ -157,14 +155,14 @@ const PreviewRulerFrame: React.FC<PreviewRulerFrameProps> = ({
             />
             {t.major && t.label && (
               <text
-                x={flip ? 0.95 : 0.45}
+                x={0.45}
                 y={t.pos}
                 textAnchor="middle"
                 dominantBaseline="middle"
                 fontSize={0.42}
                 fill={labelColor}
                 fontWeight={600}
-                transform={`rotate(${flip ? 90 : -90}, ${flip ? 0.95 : 0.45}, ${t.pos})`}
+                transform={`rotate(-90, 0.45, ${t.pos})`}
                 style={{ fontFamily: 'system-ui, sans-serif' }}
               >
                 {t.label}
@@ -181,21 +179,16 @@ const PreviewRulerFrame: React.FC<PreviewRulerFrameProps> = ({
       className={className}
       style={{
         display: 'grid',
-        gridTemplateColumns: `${bandPx}px 1fr ${bandPx}px`,
-        gridTemplateRows: `${bandPx}px auto ${bandPx}px`,
+        gridTemplateColumns: `${bandPx}px 1fr`,
+        gridTemplateRows: `auto ${bandPx}px`,
         width: '100%',
         ...style,
       }}
     >
-      <div />
-      <HorizontalBand />
-      <div />
       <VerticalBand />
       <div style={{ minWidth: 0 }}>{children}</div>
-      <VerticalBand flip />
       <div />
-      <HorizontalBand flip />
-      <div />
+      <HorizontalBand />
     </div>
   );
 };

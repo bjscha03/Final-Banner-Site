@@ -313,7 +313,7 @@ const GoogleAdsBanner: React.FC = () => {
     };
   }, [widthIn, heightIn]);
 
-  const previewCanvasStyle = useMemo(() => getCanvasStyle(isLgScreen ? 400 : 260), [getCanvasStyle, isLgScreen]);
+  const previewCanvasStyle = useMemo(() => getCanvasStyle(isLgScreen ? 480 : 280), [getCanvasStyle, isLgScreen]);
   const dimPreviewCanvasStyle = useMemo(() => getCanvasStyle(isLgScreen ? 200 : 140), [getCanvasStyle, isLgScreen]);
 
   // Cross-browser preview container styles using padding-bottom technique
@@ -327,7 +327,7 @@ const GoogleAdsBanner: React.FC = () => {
       paddingPct: `${(h / w) * 100}%`,
     };
   }, [widthIn, heightIn]);
-  const { wrapperStyle: previewWrapperStyle, paddingPct: previewPaddingPct } = useMemo(() => getPreviewContainerStyles(isLgScreen ? 400 : 260), [getPreviewContainerStyles, isLgScreen]);
+  const { wrapperStyle: previewWrapperStyle, paddingPct: previewPaddingPct } = useMemo(() => getPreviewContainerStyles(isLgScreen ? 480 : 280), [getPreviewContainerStyles, isLgScreen]);
   const { wrapperStyle: dimPreviewWrapperStyle, paddingPct: dimPreviewPaddingPct } = useMemo(() => getPreviewContainerStyles(isLgScreen ? 200 : 140), [getPreviewContainerStyles, isLgScreen]);
   const totals = calcTotals({ widthIn, heightIn, qty: quantity, material, addRope, polePockets });
   const bannerPricing = calculateBannerPricing({
@@ -499,12 +499,34 @@ const GoogleAdsBanner: React.FC = () => {
     return () => observer.disconnect();
   }, []);
 
+  // Per-product design state stash. Each product tab keeps its own
+  // uploaded artwork and image transform so switching tabs does NOT
+  // leak design state between banner / car magnet (yard sign manages
+  // its own multi-design array via `yardSignDesigns`).
+  const productDesignStashRef = useRef<Record<string, {
+    uploadedFile: { name: string; url: string; fileKey: string; size: number; isPdf: boolean; thumbnailUrl?: string } | null;
+    imgPos: { x: number; y: number };
+    imgScale: number;
+  }>>({});
+
   // Handle product type switch — reset state
   const handleProductTypeChange = useCallback((newType: ProductTypeSlug) => {
+    if (newType === productType) return;
+    productDesignStashRef.current[productType] = {
+      uploadedFile,
+      imgPos,
+      imgScale,
+    };
     setProductType(newType);
     navigate(`/google-ads-banner?product=${getProductQuerySlug(newType)}`, { replace: true });
-    setImgPos({ x: 0, y: 0 });
-    setImgScale(1);
+    const restored = productDesignStashRef.current[newType] ?? {
+      uploadedFile: null,
+      imgPos: { x: 0, y: 0 },
+      imgScale: 1,
+    };
+    setUploadedFile(restored.uploadedFile);
+    setImgPos(restored.imgPos);
+    setImgScale(restored.imgScale);
     setQuantity(1);
     setPromoCode('');
     setPromoApplied(false);
@@ -525,7 +547,7 @@ const GoogleAdsBanner: React.FC = () => {
       setPolePockets('none');
       setAddRope(false);
     }
-  }, [getProductQuerySlug, navigate]);
+  }, [productType, uploadedFile, imgPos, imgScale, getProductQuerySlug, navigate]);
 
   const applyPreset = (idx: number) => {
     const p = PRESET_SIZES[idx];
@@ -1542,24 +1564,6 @@ const GoogleAdsBanner: React.FC = () => {
                       ? `≈ ${widthFt}${widthInR > 0 ? ` ${widthInR}/12` : ''} ft × ${heightFt}${heightInR > 0 ? ` ${heightInR}/12` : ''} ft`
                       : `≈ ${widthIn} in × ${heightIn} in`}
                   </p>
-                  {/* Dimension preview canvas — adjusts to banner aspect ratio */}
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 mt-4">Banner Size Preview</label>
-                  <div className="flex justify-center mb-6">
-                    <div className="relative" style={dimPreviewWrapperStyle}>
-                    <div
-                      className="bg-gray-100/70 border border-gray-200 rounded-lg relative w-full transition-all duration-300 ease-out"
-                      style={{ paddingBottom: dimPreviewPaddingPct }}
-                    >
-                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
-                        <Ruler className="h-4 w-4 text-gray-300" />
-                        <span className="text-xs text-gray-500 font-medium whitespace-nowrap">
-                          {widthDisplay} × {heightDisplay}
-                        </span>
-                        <span className="text-[10px] text-gray-400">Preview of selected size</span>
-                      </div>
-                    </div>
-                    </div>
-                  </div>
                 </div>
                 )}
                 <div ref={materialDropdownRef} className="relative">
@@ -1661,7 +1665,7 @@ const GoogleAdsBanner: React.FC = () => {
                         <p className="text-xs text-gray-400">Final print preview — what you see is what you get</p>
                       </div>
                       {/* Banner preview with depth background */}
-                      <div className="rounded-xl p-4 md:p-6 max-w-full overflow-hidden bg-white">
+                      <div className="rounded-xl p-3 md:p-4 max-w-full overflow-hidden bg-slate-200/70 border border-slate-300">
                         {/* Width wrapper — constrains max-width so padding-bottom produces correct height */}
                         <PreviewRulerFrame
                           widthIn={widthIn}
@@ -1679,9 +1683,9 @@ const GoogleAdsBanner: React.FC = () => {
                             paddingBottom: previewPaddingPct,
                             cursor: isDraggingPreview ? "grabbing" : "grab",
                             touchAction: "none",
-                            backgroundColor: '#fafafa',
-                            border: '1px solid #cbd5e1',
-                            boxShadow: '0 10px 24px -8px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(15, 23, 42, 0.08), inset 0 0 0 1px rgba(255,255,255,0.6)',
+                            backgroundColor: '#ffffff',
+                            border: '1px solid #94a3b8',
+                            boxShadow: '0 14px 28px -10px rgba(15, 23, 42, 0.28), 0 4px 8px rgba(15, 23, 42, 0.10), inset 0 0 0 1px rgba(255,255,255,0.6)',
                             WebkitTransform: 'translateZ(0)',
                             transform: 'translateZ(0)',
                           }}
@@ -2127,7 +2131,7 @@ const GoogleAdsBanner: React.FC = () => {
             <div className="p-4 flex-1 overflow-auto">
               <p className="text-sm text-gray-500 mb-3 flex items-center gap-1"><Move className="w-4 h-4" /> Drag to reposition · Pinch or use buttons to zoom</p>
               {/* Banner surface */}
-              <div className="rounded-lg p-4 bg-white">
+              <div className="rounded-lg p-3 border border-slate-300" style={{ background: 'linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%)' }}>
                 <PreviewRulerFrame
                   widthIn={widthIn}
                   heightIn={heightIn}
@@ -2141,9 +2145,9 @@ const GoogleAdsBanner: React.FC = () => {
                     paddingBottom: previewPaddingPct,
                     cursor: isDraggingPreview ? "grabbing" : "grab",
                     touchAction: "none",
-                    backgroundColor: '#fafafa',
-                    border: '1px solid #cbd5e1',
-                    boxShadow: '0 10px 24px -8px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(15, 23, 42, 0.08), inset 0 0 0 1px rgba(255,255,255,0.6)',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #94a3b8',
+                    boxShadow: '0 14px 28px -10px rgba(15, 23, 42, 0.28), 0 4px 8px rgba(15, 23, 42, 0.10), inset 0 0 0 1px rgba(255,255,255,0.6)',
                     WebkitTransform: 'translateZ(0)',
                     transform: 'translateZ(0)',
                   }}

@@ -221,12 +221,37 @@ const Design: React.FC = () => {
   // Auto-open first design preview when editing yard sign from cart
   const [autoOpenDesignId, setAutoOpenDesignId] = useState<string | null>(null);
 
+  // Per-product design state stash. Each product tab keeps its own
+  // uploaded artwork and image transform so switching tabs does NOT
+  // leak design state between banner / car magnet (yard sign manages
+  // its own multi-design array via `yardSignDesigns`).
+  const productDesignStashRef = useRef<Record<string, {
+    uploadedFile: { name: string; url: string; fileKey: string; size: number; isPdf: boolean; thumbnailUrl?: string } | null;
+    imgPos: { x: number; y: number };
+    imgScale: number;
+  }>>({});
+
   // Handle product type switch — reset state
   const handleProductTypeChange = useCallback((newType: ProductTypeSlug) => {
+    if (newType === productType) return;
+    // Stash current product's design before switching.
+    productDesignStashRef.current[productType] = {
+      uploadedFile,
+      imgPos,
+      imgScale,
+    };
     setProductType(newType);
     navigate(`${location.pathname}?product=${getProductQuerySlug(newType)}`, { replace: true });
-    setImgPos({ x: 0, y: 0 });
-    setImgScale(1);
+    // Restore destination's stashed design (or clean defaults). This is
+    // what isolates artwork between product tabs.
+    const restored = productDesignStashRef.current[newType] ?? {
+      uploadedFile: null,
+      imgPos: { x: 0, y: 0 },
+      imgScale: 1,
+    };
+    setUploadedFile(restored.uploadedFile);
+    setImgPos(restored.imgPos);
+    setImgScale(restored.imgScale);
     setQuantity(1);
     setPromoCode('');
     setPromoApplied(false);
@@ -246,7 +271,7 @@ const Design: React.FC = () => {
       setPolePockets('none');
       setAddRope(false);
     }
-  }, [getProductQuerySlug, location.pathname, navigate]);
+  }, [productType, uploadedFile, imgPos, imgScale, getProductQuerySlug, location.pathname, navigate]);
 
   // Restore cart item state when editing from cart (editItem query param)
   const editItemId = searchParams.get('editItem');
@@ -482,7 +507,7 @@ const Design: React.FC = () => {
     };
   }, [widthIn, heightIn]);
 
-  const previewCanvasStyle = useMemo(() => getCanvasStyle(isLgScreen ? 400 : 260), [getCanvasStyle, isLgScreen]);
+  const previewCanvasStyle = useMemo(() => getCanvasStyle(isLgScreen ? 480 : 280), [getCanvasStyle, isLgScreen]);
   const dimPreviewCanvasStyle = useMemo(() => getCanvasStyle(isLgScreen ? 200 : 140), [getCanvasStyle, isLgScreen]);
 
   // Cross-browser preview container styles using padding-bottom technique.
@@ -501,7 +526,7 @@ const Design: React.FC = () => {
     };
   }, [widthIn, heightIn]);
   const { wrapperStyle: previewWrapperStyle, paddingPct: previewPaddingPct } = useMemo(
-    () => getPreviewContainerStyles(isLgScreen ? 400 : 260),
+    () => getPreviewContainerStyles(isLgScreen ? 480 : 280),
     [getPreviewContainerStyles, isLgScreen]
   );
   const { wrapperStyle: dimPreviewWrapperStyle, paddingPct: dimPreviewPaddingPct } = useMemo(
@@ -1587,24 +1612,6 @@ const Design: React.FC = () => {
                     ? `≈ ${widthFt}${widthInR > 0 ? ` ${widthInR}/12` : ''} ft × ${heightFt}${heightInR > 0 ? ` ${heightInR}/12` : ''} ft`
                     : `≈ ${widthIn} in × ${heightIn} in`}
                 </p>
-                {/* Dimension preview canvas */}
-                <label className="block text-sm font-semibold text-gray-700 mb-2 mt-4">Banner Size Preview</label>
-                <div className="flex justify-center mb-6">
-                  <div style={dimPreviewWrapperStyle}>
-                  <div
-                    className="bg-gray-100/70 border border-gray-200 rounded-lg relative w-full transition-all duration-300 ease-out overflow-hidden"
-                    style={{ paddingBottom: dimPreviewPaddingPct, WebkitTransform: 'translateZ(0)', transform: 'translateZ(0)' }}
-                  >
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
-                      <Ruler className="h-4 w-4 text-gray-300" />
-                      <span className="text-xs text-gray-500 font-medium whitespace-nowrap">
-                        {widthDisplay} × {heightDisplay}
-                      </span>
-                      <span className="text-[10px] text-gray-400">Preview of selected size</span>
-                    </div>
-                  </div>
-                  </div>
-                </div>
               </div>
               )}
               <div ref={materialDropdownRef} className="relative">
@@ -1701,7 +1708,7 @@ const Design: React.FC = () => {
                       <h3 className="text-sm font-bold text-gray-800">Live Banner Preview</h3>
                       <p className="text-xs text-gray-400">Final print preview — what you see is what you get</p>
                     </div>
-                    <div className="rounded-xl p-4 md:p-6 max-w-full overflow-hidden bg-white">
+                    <div className="rounded-xl p-3 md:p-4 max-w-full overflow-hidden bg-slate-200/70 border border-slate-300">
                       <PreviewRulerFrame
                         widthIn={widthIn}
                         heightIn={heightIn}
@@ -1717,12 +1724,11 @@ const Design: React.FC = () => {
                           paddingBottom: previewPaddingPct,
                           cursor: isDraggingPreview ? "grabbing" : "grab",
                           touchAction: "none",
-                          backgroundColor: '#fafafa',
-                          // Stronger drop shadow + subtle inset highlight gives the
-                          // printable canvas a clear "physical product" feel
-                          // (matches PreviewCanvas styling).
-                          border: '1px solid #cbd5e1',
-                          boxShadow: '0 10px 24px -8px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(15, 23, 42, 0.08), inset 0 0 0 1px rgba(255,255,255,0.6)',
+                          backgroundColor: '#ffffff',
+                          // Stronger drop shadow + crisp slate border so the
+                          // white print canvas pops against the darker frame.
+                          border: '1px solid #94a3b8',
+                          boxShadow: '0 14px 28px -10px rgba(15, 23, 42, 0.28), 0 4px 8px rgba(15, 23, 42, 0.10), inset 0 0 0 1px rgba(255,255,255,0.6)',
                           WebkitTransform: 'translateZ(0)',
                           transform: 'translateZ(0)',
                         }}
@@ -2114,7 +2120,7 @@ const Design: React.FC = () => {
             </div>
             <div className="p-4 flex-1 overflow-auto">
               <p className="text-sm text-gray-500 mb-3 flex items-center gap-1"><Move className="w-4 h-4" /> Drag to reposition · Pinch or use buttons to zoom</p>
-              <div className="rounded-lg p-4 max-w-full overflow-hidden" style={{ background: 'linear-gradient(180deg, #f5f6f8 0%, #e9edf2 100%)' }}>
+              <div className="rounded-lg p-3 max-w-full overflow-hidden border border-slate-300" style={{ background: 'linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%)' }}>
                 <PreviewRulerFrame
                   widthIn={widthIn}
                   heightIn={heightIn}
@@ -2128,9 +2134,9 @@ const Design: React.FC = () => {
                     paddingBottom: previewPaddingPct,
                     cursor: isDraggingPreview ? "grabbing" : "grab",
                     touchAction: "none",
-                    backgroundColor: '#fafafa',
-                    border: '1px solid #cbd5e1',
-                    boxShadow: '0 10px 24px -8px rgba(15, 23, 42, 0.18), 0 2px 6px rgba(15, 23, 42, 0.08), inset 0 0 0 1px rgba(255,255,255,0.6)',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #94a3b8',
+                    boxShadow: '0 14px 28px -10px rgba(15, 23, 42, 0.28), 0 4px 8px rgba(15, 23, 42, 0.10), inset 0 0 0 1px rgba(255,255,255,0.6)',
                     WebkitTransform: 'translateZ(0)',
                     transform: 'translateZ(0)',
                   }}
