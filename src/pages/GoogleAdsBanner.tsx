@@ -56,13 +56,22 @@ import { base64ToFile } from '@/utils/base64ToFile';
 import { computeSameDayFeesCents } from '@/lib/sameDayService';
 
 const PRESET_SIZES = [
-  { label: "2' × 4'", w: 48, h: 24 },
-  { label: "2' × 6'", w: 72, h: 24 },
-  { label: "3' × 6'", w: 72, h: 36 },
-  { label: "3' × 8'", w: 96, h: 36 },
-  { label: "4' × 8'", w: 96, h: 48 },
-  { label: "4' × 10'", w: 120, h: 48 },
+  { w: 48, h: 24 },
+  { w: 72, h: 24 },
+  { w: 72, h: 36 },
+  { w: 96, h: 36 },
+  { w: 96, h: 48 },
+  { w: 120, h: 48 },
 ];
+
+/**
+ * Format a preset size label according to the user's selected display
+ * unit. Pure UI helper — never affects pricing/cart/print.
+ */
+function formatPresetLabel(w: number, h: number, unit: 'in' | 'ft'): string {
+  if (unit === 'ft') return `${w / 12}' × ${h / 12}'`;
+  return `${w}" × ${h}"`;
+}
 
 const PROMO_NEW20_DISCOUNT_RATE = 0.2;
 const HERO_BG_VIDEO_URL = 'https://res.cloudinary.com/dtrxl120u/video/upload/v1776752374/Multi-Shot_Video_-_Create_a_premium__high-end_commercial_background_video_for_a_fast_custom_printing_plodlm.mp4';
@@ -1507,26 +1516,10 @@ const GoogleAdsBanner: React.FC = () => {
                   null /* placeholder — yard sign path handled above */
                 ) : (
                   <>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Popular Sizes</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {isCarMagnet
-                      ? CAR_MAGNET_SIZES.map((p) => (
-                          <button key={p.label} onClick={() => setCarMagnetSizeLabel(p.label)} className={`border rounded-xl py-2.5 px-3 text-sm font-medium transition-all ${carMagnetSizeLabel === p.label ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-gray-200 hover:border-gray-400 text-gray-700'}`}>
-                            {p.label}
-                          </button>
-                        ))
-                      : PRESET_SIZES.map((p, i) => (
-                          <button key={i} onClick={() => applyPreset(i)} className={`border rounded-xl py-2.5 px-3 text-sm font-medium transition-all ${activePreset === i ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-gray-200 hover:border-gray-400 text-gray-700'}`}>
-                            {p.label}
-                          </button>
-                        ))}
-                  </div>
-                </div>
+                {/* Unit toggle (banner only) — sits ABOVE Popular Sizes. */}
                 {!isCarMagnet && (
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="block text-sm font-semibold text-gray-700">Custom Size</label>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-sm font-semibold text-gray-700">Units</label>
                     <div className="inline-flex items-center rounded-lg border border-gray-200 bg-white p-0.5 text-xs" role="group" aria-label="Display unit">
                       <button
                         type="button"
@@ -1546,26 +1539,103 @@ const GoogleAdsBanner: React.FC = () => {
                       </button>
                     </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <span className="text-xs text-gray-500">Width</span>
-                      <div className="flex gap-1 mt-1">
-                        <input type="number" min={1} max={50} value={widthFtStr} onChange={e => { setWidthFtStr(e.target.value); setActivePreset(null); }} onBlur={() => { const n = parseInt(widthFtStr, 10); setWidthFtStr(String(isNaN(n) ? 1 : Math.max(1, Math.min(50, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
-                        <span className="self-center text-xs text-gray-500">ft</span>
-                        <input type="number" min={0} max={11} value={widthInRStr} onChange={e => { setWidthInRStr(e.target.value); setActivePreset(null); }} onBlur={() => { const n = parseInt(widthInRStr, 10); setWidthInRStr(String(isNaN(n) ? 0 : Math.max(0, Math.min(11, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
-                        <span className="self-center text-xs text-gray-500">in</span>
-                      </div>
-                    </div>
-                    <div>
-                      <span className="text-xs text-gray-500">Height</span>
-                      <div className="flex gap-1 mt-1">
-                        <input type="number" min={1} max={50} value={heightFtStr} onChange={e => { setHeightFtStr(e.target.value); setActivePreset(null); }} onBlur={() => { const n = parseInt(heightFtStr, 10); setHeightFtStr(String(isNaN(n) ? 1 : Math.max(1, Math.min(50, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
-                        <span className="self-center text-xs text-gray-500">ft</span>
-                        <input type="number" min={0} max={11} value={heightInRStr} onChange={e => { setHeightInRStr(e.target.value); setActivePreset(null); }} onBlur={() => { const n = parseInt(heightInRStr, 10); setHeightInRStr(String(isNaN(n) ? 0 : Math.max(0, Math.min(11, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
-                        <span className="self-center text-xs text-gray-500">in</span>
-                      </div>
-                    </div>
+                )}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Popular Sizes</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {isCarMagnet
+                      ? CAR_MAGNET_SIZES.map((p) => (
+                          <button key={p.label} onClick={() => setCarMagnetSizeLabel(p.label)} className={`border rounded-xl py-2.5 px-3 text-sm font-medium transition-all ${carMagnetSizeLabel === p.label ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-gray-200 hover:border-gray-400 text-gray-700'}`}>
+                            {p.label}
+                          </button>
+                        ))
+                      : PRESET_SIZES.map((p, i) => (
+                          <button key={i} onClick={() => applyPreset(i)} className={`border rounded-xl py-2.5 px-3 text-sm font-medium transition-all ${activePreset === i ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-gray-200 hover:border-gray-400 text-gray-700'}`}>
+                            {formatPresetLabel(p.w, p.h, unit)}
+                          </button>
+                        ))}
                   </div>
+                </div>
+                {!isCarMagnet && (
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-2">Custom Size</label>
+                  {unit === 'in' ? (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-xs text-gray-500">Width</span>
+                        <div className="flex gap-1 mt-1">
+                          <input
+                            type="number"
+                            min={1}
+                            max={600}
+                            value={widthIn}
+                            onChange={e => {
+                              const n = parseInt(e.target.value, 10);
+                              const v = Number.isFinite(n) ? Math.max(0, n) : 0;
+                              setWidthFtStr(String(Math.floor(v / 12)));
+                              setWidthInRStr(String(v % 12));
+                              setActivePreset(null);
+                            }}
+                            onBlur={() => {
+                              const n = widthIn;
+                              const clamped = Math.max(1, Math.min(600, isNaN(n) ? 1 : n));
+                              setWidthFtStr(String(Math.floor(clamped / 12)));
+                              setWidthInRStr(String(clamped % 12));
+                            }}
+                            className="w-20 border rounded-lg px-2 py-1.5 text-base"
+                          />
+                          <span className="self-center text-xs text-gray-500">in</span>
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-xs text-gray-500">Height</span>
+                        <div className="flex gap-1 mt-1">
+                          <input
+                            type="number"
+                            min={1}
+                            max={600}
+                            value={heightIn}
+                            onChange={e => {
+                              const n = parseInt(e.target.value, 10);
+                              const v = Number.isFinite(n) ? Math.max(0, n) : 0;
+                              setHeightFtStr(String(Math.floor(v / 12)));
+                              setHeightInRStr(String(v % 12));
+                              setActivePreset(null);
+                            }}
+                            onBlur={() => {
+                              const n = heightIn;
+                              const clamped = Math.max(1, Math.min(600, isNaN(n) ? 1 : n));
+                              setHeightFtStr(String(Math.floor(clamped / 12)));
+                              setHeightInRStr(String(clamped % 12));
+                            }}
+                            className="w-20 border rounded-lg px-2 py-1.5 text-base"
+                          />
+                          <span className="self-center text-xs text-gray-500">in</span>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-xs text-gray-500">Width</span>
+                        <div className="flex gap-1 mt-1">
+                          <input type="number" min={1} max={50} value={widthFtStr} onChange={e => { setWidthFtStr(e.target.value); setActivePreset(null); }} onBlur={() => { const n = parseInt(widthFtStr, 10); setWidthFtStr(String(isNaN(n) ? 1 : Math.max(1, Math.min(50, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
+                          <span className="self-center text-xs text-gray-500">ft</span>
+                          <input type="number" min={0} max={11} value={widthInRStr} onChange={e => { setWidthInRStr(e.target.value); setActivePreset(null); }} onBlur={() => { const n = parseInt(widthInRStr, 10); setWidthInRStr(String(isNaN(n) ? 0 : Math.max(0, Math.min(11, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
+                          <span className="self-center text-xs text-gray-500">in</span>
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-xs text-gray-500">Height</span>
+                        <div className="flex gap-1 mt-1">
+                          <input type="number" min={1} max={50} value={heightFtStr} onChange={e => { setHeightFtStr(e.target.value); setActivePreset(null); }} onBlur={() => { const n = parseInt(heightFtStr, 10); setHeightFtStr(String(isNaN(n) ? 1 : Math.max(1, Math.min(50, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
+                          <span className="self-center text-xs text-gray-500">ft</span>
+                          <input type="number" min={0} max={11} value={heightInRStr} onChange={e => { setHeightInRStr(e.target.value); setActivePreset(null); }} onBlur={() => { const n = parseInt(heightInRStr, 10); setHeightInRStr(String(isNaN(n) ? 0 : Math.max(0, Math.min(11, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
+                          <span className="self-center text-xs text-gray-500">in</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   <p className="text-xs text-gray-500 mt-1">{sqft.toFixed(1)} sq ft</p>
                   <p className="text-xs text-gray-500 mt-0.5">
                     {unit === 'in'
@@ -2129,7 +2199,7 @@ const GoogleAdsBanner: React.FC = () => {
           <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-3xl w-full max-h-[95vh] sm:max-h-[90vh] flex flex-col modal-dvh-fix">
             <div className="flex items-center justify-between p-4 border-b">
               <div>
-                <h3 className="text-lg font-bold text-gray-900">Live Banner Preview</h3>
+                <h3 className="text-lg font-bold text-gray-900">{isYardSign ? 'Live Yard Sign Preview' : isCarMagnet ? 'Live Car Magnet Preview' : 'Live Banner Preview'}</h3>
                 <p className="text-xs text-gray-400">Final print preview — what you see is what you get</p>
               </div>
               <button onClick={() => setShowPreview(false)} className="p-2 hover:bg-gray-100 rounded-full">

@@ -68,8 +68,15 @@ export function getRulerTicks(
         major: true,
       });
     }
-    // Always include the end as a major tick if not already.
+    // Always include the end as a major tick if not already. If the last
+    // existing major sits within < stepFt * 0.5 of the endpoint, drop it
+    // so the endpoint label doesn't visually collide with it (e.g. for
+    // 30 in / 2.5 ft with a 1 ft step we don't render "2 ft" and "2.5 ft"
+    // stacked together).
     if (ticks.length === 0 || Math.abs(ticks[ticks.length - 1].pos - lengthIn) > 1e-3) {
+      if (ticks.length > 0 && (lengthIn - ticks[ticks.length - 1].pos) < stepFt * 12 * 0.5) {
+        ticks.pop();
+      }
       ticks.push({
         pos: lengthIn,
         label: `${formatNumber(totalFt)} ft`,
@@ -106,7 +113,15 @@ export function getRulerTicks(
         major: true,
       });
     }
+    // Always include the end as a major tick if not already. If the last
+    // existing major sits within < stepIn * 0.5 of the endpoint, drop it
+    // so the endpoint label doesn't visually collide (e.g. on a 72 in
+    // ruler with step=10 we'd otherwise render "70 in" and "72 in"
+    // stacked together).
     if (ticks.length === 0 || Math.abs(ticks[ticks.length - 1].pos - totalIn) > 1e-3) {
+      if (ticks.length > 0 && (totalIn - ticks[ticks.length - 1].pos) < stepIn * 0.5) {
+        ticks.pop();
+      }
       ticks.push({
         pos: totalIn,
         label: `${formatNumber(totalIn)} in`,
