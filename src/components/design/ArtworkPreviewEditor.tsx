@@ -689,67 +689,77 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
 
         {/* Grommets / other overlays */}
         {overlay}
-      </div>
 
-      {/* Selection-only controls. Hidden until the user has selected the
-          artwork so the canvas stays clean while browsing. */}
-      {selected && (
-        <div className="flex items-center justify-center mt-3">
+        {/* Selection-only controls overlay. Positioned absolutely INSIDE
+            the canvas region so it does NOT add layout height — that
+            kept the parent ruler frame from misaligning the left ruler
+            (left ruler height was reading wrapper height = canvas + the
+            old in-flow toolbar). Canva-style floating pill at the bottom
+            center of the canvas. */}
+        {selected && (
           <div
-            className={
-              'inline-flex items-center gap-1.5 bg-white/90 backdrop-blur-sm rounded-full shadow-md border border-gray-200/70 ' +
-              (compactControls ? 'px-2 py-1' : 'px-3 py-1.5')
-            }
+            className="absolute left-1/2 z-30 pointer-events-none"
+            style={{
+              bottom: 8,
+              transform: 'translateX(-50%)',
+            }}
           >
-            <button
-              type="button"
-              onClick={fit}
-              className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-gray-700 hover:text-orange-600 hover:bg-orange-50 rounded-full transition-colors"
-              aria-label="Fit artwork to canvas"
-              title="Fit to canvas"
-            >
-              <Minimize2 className="w-4 h-4" />
-              <span className="hidden sm:inline">Fit</span>
-            </button>
-            <button
-              type="button"
-              onClick={fill}
-              className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-gray-700 hover:text-orange-600 hover:bg-orange-50 rounded-full transition-colors"
-              aria-label="Fill canvas with artwork"
-              title="Fill canvas"
-            >
-              <Maximize2 className="w-4 h-4" />
-              <span className="hidden sm:inline">Fill</span>
-            </button>
-            <button
-              type="button"
-              onClick={reset}
-              className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-orange-600 hover:bg-orange-50 rounded-full transition-colors"
-              aria-label="Reset artwork position and scale"
-              title="Reset"
-            >
-              <RotateCcw className="w-4 h-4" />
-              <span className="hidden sm:inline">Reset</span>
-            </button>
-            <div className="w-px h-4 bg-gray-200" aria-hidden="true" />
-            <button
-              type="button"
-              onClick={toggleConstrain}
-              aria-pressed={constrain}
+            <div
               className={
-                'inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium rounded-full transition-colors ' +
-                (constrain
-                  ? 'text-orange-600 hover:bg-orange-50'
-                  : 'text-gray-600 hover:bg-gray-100')
+                'pointer-events-auto inline-flex items-center gap-1.5 bg-white/90 backdrop-blur-sm rounded-full shadow-md border border-gray-200/70 ' +
+                (compactControls ? 'px-2 py-1' : 'px-3 py-1.5')
               }
-              title={constrain ? 'Constrain proportions: ON' : 'Constrain proportions: OFF (freeform)'}
             >
-              {constrain ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
-              <span className="hidden sm:inline">{constrain ? 'Locked' : 'Free'}</span>
-            </button>
+              <button
+                type="button"
+                onClick={fit}
+                className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-gray-700 hover:text-orange-600 hover:bg-orange-50 rounded-full transition-colors"
+                aria-label="Fit artwork to canvas"
+                title="Fit to canvas"
+              >
+                <Minimize2 className="w-4 h-4" />
+                <span className="hidden sm:inline">Fit</span>
+              </button>
+              <button
+                type="button"
+                onClick={fill}
+                className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-gray-700 hover:text-orange-600 hover:bg-orange-50 rounded-full transition-colors"
+                aria-label="Fill canvas with artwork"
+                title="Fill canvas"
+              >
+                <Maximize2 className="w-4 h-4" />
+                <span className="hidden sm:inline">Fill</span>
+              </button>
+              <button
+                type="button"
+                onClick={reset}
+                className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-orange-600 hover:bg-orange-50 rounded-full transition-colors"
+                aria-label="Reset artwork position and scale"
+                title="Reset"
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span className="hidden sm:inline">Reset</span>
+              </button>
+              <div className="w-px h-4 bg-gray-200" aria-hidden="true" />
+              <button
+                type="button"
+                onClick={toggleConstrain}
+                aria-pressed={constrain}
+                className={
+                  'inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium rounded-full transition-colors ' +
+                  (constrain
+                    ? 'text-orange-600 hover:bg-orange-50'
+                    : 'text-gray-600 hover:bg-gray-100')
+                }
+                title={constrain ? 'Constrain proportions: ON' : 'Constrain proportions: OFF (freeform)'}
+              >
+                {constrain ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+                <span className="hidden sm:inline">{constrain ? 'Locked' : 'Free'}</span>
+              </button>
+            </div>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };
