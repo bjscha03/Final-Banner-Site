@@ -115,7 +115,7 @@ export function useCanvasInteraction(opts: UseCanvasInteractionOptions) {
   const schedule = useCallback(
     (next: Transform) => {
       pendingRef.current = next;
-      if (rafRef.current == null) {
+      if (rafRef.current === null) {
         rafRef.current = requestAnimationFrame(flush);
       }
     },
@@ -129,7 +129,7 @@ export function useCanvasInteraction(opts: UseCanvasInteractionOptions) {
     singleStartRef.current = null;
     pinchStartDistRef.current = 0;
     pinchStartMidRef.current = null;
-    if (rafRef.current != null) {
+    if (rafRef.current !== null) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
     }
@@ -138,7 +138,7 @@ export function useCanvasInteraction(opts: UseCanvasInteractionOptions) {
 
   useEffect(() => {
     return () => {
-      if (rafRef.current != null) {
+      if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
       }
     };
@@ -297,7 +297,7 @@ export function useCanvasInteraction(opts: UseCanvasInteractionOptions) {
         /* noop */
       }
       // Flush any pending transform so the React state is up to date.
-      if (rafRef.current != null) {
+      if (rafRef.current !== null) {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
       }

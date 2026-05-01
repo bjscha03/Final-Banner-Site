@@ -49,7 +49,11 @@ const createFittedImageUrl = (originalUrl: string, targetWidthIn: number, target
 
 
 // Helper function to calculate distance between two touch points
-const getTouchDistance = (touch1: React.Touch, touch2: React.Touch): number => {
+// Accepts both React.Touch and DOM Touch (they share clientX/clientY).
+const getTouchDistance = (
+  touch1: { clientX: number; clientY: number },
+  touch2: { clientX: number; clientY: number }
+): number => {
   const dx = touch1.clientX - touch2.clientX;
   const dy = touch1.clientY - touch2.clientY;
   return Math.sqrt(dx * dx + dy * dy);
@@ -1491,7 +1495,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       // Handle pinch-to-zoom for main image
       if (isPinchingImage && e.touches.length === 2) {
         e.preventDefault();
-        const currentDistance = getTouchDistance(e.touches[0] as unknown as React.Touch, e.touches[1] as unknown as React.Touch);
+        const currentDistance = getTouchDistance(e.touches[0], e.touches[1]);
         const scaleFactor = currentDistance / initialPinchDistance;
         const newScale = Math.max(0.1, Math.min(5, pinchStartScale * scaleFactor));
         setImageScale(newScale);
@@ -1518,7 +1522,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       // Handle pinch-to-zoom for overlay
       if (isPinchingOverlay && e.touches.length === 2 && overlayImage) {
         e.preventDefault();
-        const currentDistance = getTouchDistance(e.touches[0] as unknown as React.Touch, e.touches[1] as unknown as React.Touch);
+        const currentDistance = getTouchDistance(e.touches[0], e.touches[1]);
         const scaleFactor = currentDistance / initialOverlayPinchDistance;
         const newScale = Math.max(0.05, Math.min(2, pinchStartOverlayScale * scaleFactor));
         // PR3: midpoint tracking for overlay, same pattern as main image.
