@@ -448,11 +448,21 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
     container.addEventListener('touchstart', handleTouchStart, { passive: false });
     container.addEventListener('touchmove', handleTouchMove, { passive: false });
     container.addEventListener('touchend', handleTouchEnd);
+    // PR3 mobile fix: block Safari iOS native page-zoom gestures inside the
+    // editor canvas. We own pinch via TouchEvent above; the browser would
+    // otherwise zoom the page on top of our scaling.
+    const blockGesture = (ev: Event) => ev.preventDefault();
+    container.addEventListener('gesturestart', blockGesture as EventListener);
+    container.addEventListener('gesturechange', blockGesture as EventListener);
+    container.addEventListener('gestureend', blockGesture as EventListener);
     
     return () => {
       container.removeEventListener('touchstart', handleTouchStart);
       container.removeEventListener('touchmove', handleTouchMove);
       container.removeEventListener('touchend', handleTouchEnd);
+      container.removeEventListener('gesturestart', blockGesture as EventListener);
+      container.removeEventListener('gesturechange', blockGesture as EventListener);
+      container.removeEventListener('gestureend', blockGesture as EventListener);
     };
   }, [selectedIds, objects, updateObject]);
   
@@ -756,7 +766,7 @@ const EditorCanvas: React.ForwardRefRenderFunction<{ getStage: () => any }, Edit
   console.log("[GROMMET DEBUG] grommetPositions count:", grommetPositions.length, grommetPositions);
   
   return (
-    <Card ref={containerRef} className="w-full h-full bg-gray-100 overflow-hidden relative">
+    <Card ref={containerRef} className="canvas-interaction-layer w-full h-full bg-gray-100 overflow-hidden relative">
       <Stage
         ref={stageRef}
         width={stageSize.width}
