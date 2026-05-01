@@ -717,8 +717,13 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
           >
             <div
               data-artwork-toolbar="true"
-              onPointerDownCapture={(e) => e.stopPropagation()}
-              onClickCapture={(e) => e.stopPropagation()}
+              // Bubble-phase only. Do NOT use capture-phase stopPropagation:
+              // that would prevent the click event from reaching the button's
+              // own onClick handler. These listeners run AFTER the button
+              // onClick fires and just stop the event from also reaching the
+              // canvas's onPointerDown / onClick handlers above.
+              onPointerDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
               className={
                 'pointer-events-auto inline-flex items-center gap-1.5 bg-white/90 backdrop-blur-sm rounded-full shadow-md border border-gray-200/70 ' +
                 (compactControls ? 'px-2 py-1' : 'px-3 py-1.5')
