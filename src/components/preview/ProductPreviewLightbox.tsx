@@ -43,10 +43,16 @@ const FitToContainer: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
     const recompute = () => {
       const containerWidth = container.clientWidth;
-      // Use scrollWidth/scrollHeight to read the unscaled natural size of the
-      // content (transforms don't affect scroll metrics in modern browsers).
-      const naturalWidth = content.scrollWidth;
-      const measuredHeight = content.scrollHeight;
+      // Use offsetWidth/offsetHeight to read the unscaled natural size of the
+      // content. CSS transforms don't affect offset metrics, and unlike
+      // scrollWidth/scrollHeight these don't pick up overflowing descendants
+      // (e.g., the BannerPreview's inner `<svg overflow="visible">` whose
+      // text or overlay children can extend past the SVG box). Reading the
+      // wrapper's own layout box keeps the measurement equal to the visible
+      // banner frame so the wrapper height matches the rendered preview
+      // exactly and no phantom white space is introduced inside the panel.
+      const naturalWidth = content.offsetWidth;
+      const measuredHeight = content.offsetHeight;
       if (!containerWidth || !naturalWidth || !measuredHeight) return;
 
       // Compute scale by both the available width AND the available height.
@@ -99,6 +105,12 @@ const FitToContainer: React.FC<{ children: React.ReactNode }> = ({ children }) =
           width: '100%',
           display: 'flex',
           justifyContent: 'center',
+          // Defensive clip: even if a descendant of the scaled content has
+          // overflowing children (e.g., an SVG with overflow="visible"), this
+          // wrapper's height is the source of truth for the panel layout, so
+          // anything beyond it must not contribute additional scrollable
+          // space inside the lightbox panel.
+          overflow: 'hidden',
         }}
       >
         <div
@@ -106,7 +118,7 @@ const FitToContainer: React.FC<{ children: React.ReactNode }> = ({ children }) =
           style={{
             transform: `scale(${scale})`,
             transformOrigin: 'top center',
-            // Inline-block so scrollWidth/scrollHeight reflect the natural
+            // Inline-block so offsetWidth/offsetHeight reflect the natural
             // intrinsic size of the child rather than expanding to the parent.
             display: 'inline-block',
           }}
