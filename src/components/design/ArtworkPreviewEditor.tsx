@@ -57,11 +57,14 @@ export interface ArtworkPreviewEditorProps {
   canvasStyle?: React.CSSProperties;
   /**
    * Optional mount point for rendering the Fit/Fill/Reset/Locked toolbar
-   * BELOW the canvas on mobile. The desktop overlay (floating pill at the
-   * bottom of the canvas) is hidden on `< sm` viewports when this is
-   * provided so the controls do not cover the printable artwork on
-   * mobile. The container is typically a `<div ref={...} className="sm:hidden" />`
-   * placed in the page layout immediately below the preview frame.
+   * BELOW the canvas. When provided, the floating canvas overlay is hidden
+   * on EVERY screen size (desktop + mobile) and the toolbar is rendered
+   * via React portal into this container. This keeps the toolbar off the
+   * printable artwork area so previews/exports match the canvas exactly.
+   * The container is typically a `<div ref={...} />` placed immediately
+   * below the preview frame in the page layout.
+   *
+   * (Legacy name kept for backward compatibility with existing call sites.)
    */
   mobileToolbarContainer?: HTMLElement | null;
   /** Optional CORS attribute forwarded to the underlying <img>. Required
@@ -725,15 +728,13 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
             old in-flow toolbar). Canva-style floating pill at the bottom
             center of the canvas.
 
-            On mobile (<sm), if `mobileToolbarContainer` is provided the
-            overlay is hidden and the toolbar is rendered BELOW the canvas
-            via a portal so it does not cover the printable artwork. */}
-        {selected && (
+            When `mobileToolbarContainer` is provided the overlay is
+            hidden on EVERY screen size and the toolbar renders BELOW the
+            canvas via portal so the controls never cover the printable
+            artwork — on desktop or mobile. */}
+        {selected && !mobileToolbarContainer && (
           <div
-            className={
-              'absolute left-1/2 z-30 pointer-events-none ' +
-              (mobileToolbarContainer ? 'hidden sm:block' : '')
-            }
+            className="absolute left-1/2 z-30 pointer-events-none"
             style={{
               bottom: 8,
               transform: 'translateX(-50%)',
@@ -743,8 +744,9 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
           </div>
         )}
       </div>
-      {/* Mobile-only toolbar rendered below the canvas via portal so it
-          doesn't sit on top of the printable artwork. */}
+      {/* Toolbar rendered below the canvas via portal so it doesn't sit
+          on top of the printable artwork. Used for both desktop and
+          mobile when the host page provides a mount point. */}
       {selected && mobileToolbarContainer
         ? createPortal(
             <div className="flex justify-center w-full">
@@ -758,8 +760,9 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
 
   function renderToolbarPill(variant: 'overlay' | 'mobile') {
     // The overlay variant sits on top of the canvas — keep labels hidden
-    // on small screens to stay compact. The mobile variant lives below
-    // the canvas with plenty of room, so always show labels there.
+    // on small screens to stay compact. The "mobile" variant (used for
+    // both desktop and mobile when toolbar is portaled below the canvas)
+    // has plenty of room, so always show labels there.
     const labelClass = variant === 'mobile' ? 'inline' : 'hidden sm:inline';
     return (
       <div

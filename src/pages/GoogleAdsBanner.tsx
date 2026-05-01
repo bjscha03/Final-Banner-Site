@@ -211,9 +211,9 @@ const GoogleAdsBanner: React.FC = () => {
   const [resizeStartDist, setResizeStartDist] = useState(0);
   const [resizeCenter, setResizeCenter] = useState({ x: 0, y: 0 });
   const previewContainerRef = useRef<HTMLDivElement>(null);
-  // Mount points for the mobile (<sm) Fit/Fill/Reset/Locked toolbar that
-  // ArtworkPreviewEditor renders BELOW the preview canvas via portal so
-  // the controls don't cover the printable artwork on mobile.
+  // Mount points for the Fit/Fill/Reset/Locked toolbar that
+  // ArtworkPreviewEditor renders BELOW the preview canvas via portal on
+  // every screen size so the controls never cover the printable artwork.
   const [inlineMobileToolbarEl, setInlineMobileToolbarEl] = useState<HTMLDivElement | null>(null);
   const [modalMobileToolbarEl, setModalMobileToolbarEl] = useState<HTMLDivElement | null>(null);
 
@@ -752,6 +752,7 @@ const GoogleAdsBanner: React.FC = () => {
       heightIn: number;
       imgPosPercent: { x: number; y: number };
       imgScale: number;
+      imgScaleY?: number;
     },
   ) => {
     if (!itemId) return;
@@ -958,6 +959,7 @@ const GoogleAdsBanner: React.FC = () => {
         heightIn,
         imgPosPercent: checkoutData.pos,
         imgScale: checkoutData.scale,
+        imgScaleY: checkoutData.scaleY ?? checkoutData.scale,
       });
 
       finishAddToCart(actionType, '/google-ads-banner?product=car-magnets');
@@ -1079,6 +1081,7 @@ const GoogleAdsBanner: React.FC = () => {
       heightIn,
       imgPosPercent: checkoutData.pos,
       imgScale: checkoutData.scale,
+      imgScaleY: checkoutData.scaleY ?? checkoutData.scale,
     });
 
     console.log('[FINAL_RENDER_HTML] ✅ Cart item created (background thumbnail upload scheduled)');
@@ -1826,11 +1829,12 @@ const GoogleAdsBanner: React.FC = () => {
                           />
                         </PreviewRulerFrame>{/* close ruler frame */}
                       </div>
-                      {/* Mobile-only toolbar slot: Fit/Fill/Reset/Locked
-                          renders here BELOW the canvas on <sm screens. */}
+                      {/* Toolbar slot: Fit/Fill/Reset/Locked render here
+                          BELOW the canvas on every screen size so they
+                          do not cover the printable artwork. */}
                       <div
                         ref={setInlineMobileToolbarEl}
-                        className="sm:hidden mt-2"
+                        className="mt-2"
                         data-mobile-artwork-toolbar="ga-inline"
                       />
                       {/* Size dimensions below preview */}
@@ -2268,10 +2272,11 @@ const GoogleAdsBanner: React.FC = () => {
                   />
                 </PreviewRulerFrame>
               </div>
-              {/* Mobile-only toolbar slot for the modal preview. */}
+              {/* Toolbar slot for the modal preview — rendered below the
+                  canvas on all screen sizes. */}
               <div
                 ref={setModalMobileToolbarEl}
-                className="sm:hidden mt-2"
+                className="mt-2"
                 data-mobile-artwork-toolbar="ga-modal"
               />
               {/* Size below preview */}
@@ -2305,6 +2310,7 @@ const GoogleAdsBanner: React.FC = () => {
           file: uploadedFile ? { name: uploadedFile.name, url: uploadedFile.url } : undefined,
           imagePosition: pendingCheckoutData?.pos,
           imageScale: pendingCheckoutData?.scale,
+          imageScaleY: pendingCheckoutData?.scaleY ?? pendingCheckoutData?.scale,
         } as any}
         thumbnailUrl={uploadedFile?.thumbnailUrl || uploadedFile?.url}
         actionType={pendingActionType === 'checkout' ? 'checkout' : 'cart'}

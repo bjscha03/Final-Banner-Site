@@ -31,6 +31,9 @@ export interface PositionedThumbnailInput {
   imgPosPercent: { x: number; y: number };
   /** Image scale (1 = native object-contain fit inside the container). */
   imgScale: number;
+  /** Optional vertical scale for non-uniform (freeform) transforms. Defaults
+   *  to `imgScale` so existing callers stay backward-compatible. */
+  imgScaleY?: number;
   /** Background color for areas not covered by the image (neutral). */
   backgroundColor?: string;
   /** Maximum output dimension on the longer side (px). Defaults to 1200. */
@@ -72,9 +75,12 @@ export async function renderPositionedThumbnailDataUrl(
     heightIn,
     imgPosPercent,
     imgScale,
+    imgScaleY,
     backgroundColor = '#fafafa',
     maxOutputPx = 1200,
   } = input;
+  const scaleX = imgScale;
+  const scaleY = imgScaleY ?? imgScale;
 
   if (!imageUrl) throw new Error('generatePositionedThumbnail: imageUrl is required');
   if (!widthIn || !heightIn) throw new Error('generatePositionedThumbnail: widthIn/heightIn required');
@@ -120,9 +126,10 @@ export async function renderPositionedThumbnailDataUrl(
   const baseDrawW = naturalW * fitScale;
   const baseDrawH = naturalH * fitScale;
 
-  // Step 2: apply user scale around the container's center.
-  const finalDrawW = baseDrawW * imgScale;
-  const finalDrawH = baseDrawH * imgScale;
+  // Step 2: apply user scale around the container's center (per-axis to
+  // mirror ArtworkPreviewEditor's transform: translate() scale(scaleX, scaleY)).
+  const finalDrawW = baseDrawW * scaleX;
+  const finalDrawH = baseDrawH * scaleY;
 
   // Step 3: apply user translate (percent of container -> pixels of output).
   const tx = (imgPosPercent.x / 100) * outW;
