@@ -121,6 +121,48 @@
     backdrop-filter: blur(40px);
   }
 
+  /* ---------------------------------------------------------------- */
+  /* Canvas interaction layer (PR3 mobile fix)                        */
+  /* ---------------------------------------------------------------- */
+  /* Apply to the artwork interaction surface ONLY — never <body>/<html> */
+  /* so the rest of the page can scroll normally. We own all gestures   */
+  /* (drag / corner-resize / pinch) inside this layer.                  */
+  .canvas-interaction-layer {
+    touch-action: none;
+    -ms-touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: contain;
+    /* Promote to its own layer so transforms during a gesture don't cause
+       Safari layout thrash on the rest of the page. */
+    transform: translateZ(0);
+    -webkit-transform: translateZ(0);
+  }
+  /* Enlarge SVG corner-handle hit areas on touch devices to ≥44px        */
+  /* equivalent without changing the visual handle size. We do this by    */
+  /* expanding the invisible outer "glow" circle's stroke instead of its  */
+  /* radius, so layout / coordinate math is unaffected.                   */
+  @media (pointer: coarse) {
+    .canvas-interaction-layer .resize-handle-glow,
+    .canvas-interaction-layer .overlay-resize-handle-glow {
+      /* Wider invisible stroke = bigger touch target on iOS / Android. */
+      stroke: rgba(59, 130, 246, 0.001);
+      stroke-width: 0.6; /* SVG units; tunable per editor coord system */
+      pointer-events: all;
+    }
+    .canvas-interaction-layer .resize-handle,
+    .canvas-interaction-layer .overlay-resize-handle {
+      stroke-width: 0.16;
+    }
+    .canvas-interaction-layer .resize-handle-group {
+      /* Make the whole group the hit target so any pixel within the glow
+         radius dispatches the resize gesture. */
+      pointer-events: all;
+    }
+  }
+
   /* Use dynamic viewport height where supported for accurate mobile sizing */
   @supports (max-height: 1dvh) {
     .modal-dvh-fix {

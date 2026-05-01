@@ -49,7 +49,11 @@ const createFittedImageUrl = (originalUrl: string, targetWidthIn: number, target
 
 
 // Helper function to calculate distance between two touch points
-const getTouchDistance = (touch1: React.Touch, touch2: React.Touch): number => {
+// Accepts both React.Touch and DOM Touch (they share clientX/clientY).
+const getTouchDistance = (
+  touch1: { clientX: number; clientY: number },
+  touch2: { clientX: number; clientY: number }
+): number => {
   const dx = touch1.clientX - touch2.clientX;
   const dy = touch1.clientY - touch2.clientY;
   return Math.sqrt(dx * dx + dy * dy);
@@ -99,11 +103,17 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
   const [isPinchingImage, setIsPinchingImage] = useState(false);
   const [initialPinchDistance, setInitialPinchDistance] = useState(0);
   const [pinchStartScale, setPinchStartScale] = useState(1);
+  // PR3: midpoint tracking + position snapshot so pinch follows fingers and
+  // releasing one finger doesn't jump the artwork.
+  const pinchStartMidpointRef = useRef<{ x: number; y: number } | null>(null);
+  const pinchStartImagePositionRef = useRef<{ x: number; y: number } | null>(null);
   
   // Pinch-to-zoom state for overlay
   const [isPinchingOverlay, setIsPinchingOverlay] = useState(false);
   const [initialOverlayPinchDistance, setInitialOverlayPinchDistance] = useState(0);
   const [pinchStartOverlayScale, setPinchStartOverlayScale] = useState(0.3);
+  const overlayPinchStartMidpointRef = useRef<{ x: number; y: number } | null>(null);
+  const overlayPinchStartPositionRef = useRef<{ x: number; y: number } | null>(null);
 
   // Mobile detection for auto-select behavior after upload
   const [isMobile, setIsMobile] = useState(false);
@@ -114,6 +124,23 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     const handler = (e: MediaQueryListEvent) => setIsMobile(e.matches);
     mediaQuery.addEventListener("change", handler);
     return () => mediaQuery.removeEventListener("change", handler);
+  }, []);
+
+  // PR3 mobile fix: Block Safari iOS native gesture (page-zoom) events on the
+  // preview canvas only. We own pinch via TouchEvent handlers; the browser
+  // would otherwise zoom the page on top of our scaling.
+  useEffect(() => {
+    const el = previewContainerRef.current;
+    if (!el) return;
+    const block = (ev: Event) => ev.preventDefault();
+    el.addEventListener('gesturestart', block as EventListener);
+    el.addEventListener('gesturechange', block as EventListener);
+    el.addEventListener('gestureend', block as EventListener);
+    return () => {
+      el.removeEventListener('gesturestart', block as EventListener);
+      el.removeEventListener('gesturechange', block as EventListener);
+      el.removeEventListener('gestureend', block as EventListener);
+    };
   }, []);
 
   // Canva OAuth integration uses Netlify functions (canva-start.cjs)
@@ -875,9 +902,15 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     if (e.touches.length === 2) {
       console.log('📌 Two-finger pinch detected on overlay');
       const distance = getTouchDistance(e.touches[0], e.touches[1]);
+      const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      const my = (e.touches[0].clientY + e.touches[1].clientY) / 2;
       setIsPinchingOverlay(true);
       setInitialOverlayPinchDistance(distance);
       setPinchStartOverlayScale(overlayImage.scale);
+      overlayPinchStartMidpointRef.current = { x: mx, y: my };
+      overlayPinchStartPositionRef.current = { ...overlayImage.position };
+      setInitialOverlayPosition({ ...overlayImage.position });
+      setDragStart({ x: mx, y: my });
       setIsOverlaySelected(true);
       return;
     }
@@ -1324,9 +1357,18 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     if (e.touches.length === 2) {
       console.log('📌 Two-finger pinch detected on main image');
       const distance = getTouchDistance(e.touches[0], e.touches[1]);
+      const mx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+      const my = (e.touches[0].clientY + e.touches[1].clientY) / 2;
       setIsPinchingImage(true);
       setInitialPinchDistance(distance);
       setPinchStartScale(imageScale);
+      // PR3: snapshot midpoint + current image position so we can:
+      //  (a) translate the image as the midpoint drifts during pinch
+      //  (b) avoid a jump when one finger lifts and pinch becomes a 1-finger drag
+      pinchStartMidpointRef.current = { x: mx, y: my };
+      pinchStartImagePositionRef.current = { ...imagePosition };
+      setInitialImagePosition({ ...imagePosition });
+      setDragStart({ x: mx, y: my });
       setIsImageSelected(true);
       return;
     }
@@ -1457,7 +1499,23 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         const scaleFactor = currentDistance / initialPinchDistance;
         const newScale = Math.max(0.1, Math.min(5, pinchStartScale * scaleFactor));
         setImageScale(newScale);
-        console.log('🔍 Pinching main image - scale:', newScale.toFixed(2));
+        // PR3: translate the artwork so the midpoint stays under the user's
+        // fingers as they move during the pinch (no "scale-but-stuck" feel).
+        const startMid = pinchStartMidpointRef.current;
+        const startPos = pinchStartImagePositionRef.current;
+        if (startMid && startPos) {
+          const currMx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+          const currMy = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+          const deltaMx = currMx - startMid.x;
+          const deltaMy = currMy - startMid.y;
+          // Match the drag sensitivity used elsewhere in this component
+          // so finger movement maps 1:1 with what the user expects.
+          const sensitivity = 30;
+          const maxMove = Math.max(widthIn, heightIn) * 100;
+          const newX = Math.max(-maxMove, Math.min(maxMove, startPos.x + deltaMx * sensitivity));
+          const newY = Math.max(-maxMove, Math.min(maxMove, startPos.y + deltaMy * sensitivity));
+          setImagePosition({ x: newX, y: newY });
+        }
         return;
       }
       
@@ -1467,13 +1525,45 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
         const currentDistance = getTouchDistance(e.touches[0], e.touches[1]);
         const scaleFactor = currentDistance / initialOverlayPinchDistance;
         const newScale = Math.max(0.05, Math.min(2, pinchStartOverlayScale * scaleFactor));
+        // PR3: midpoint tracking for overlay, same pattern as main image.
+        const startMid = overlayPinchStartMidpointRef.current;
+        const startPos = overlayPinchStartPositionRef.current;
+        let nextPos = overlayImage.position;
+        if (startMid && startPos) {
+          const currMx = (e.touches[0].clientX + e.touches[1].clientX) / 2;
+          const currMy = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+          const deltaMx = currMx - startMid.x;
+          const deltaMy = currMy - startMid.y;
+          const sensitivity = 0.3;
+          nextPos = {
+            x: Math.max(0, Math.min(100, startPos.x + deltaMx * sensitivity)),
+            y: Math.max(0, Math.min(100, startPos.y + deltaMy * sensitivity)),
+          };
+        }
         set({
           overlayImage: {
             ...overlayImage,
-            scale: newScale
+            scale: newScale,
+            position: nextPos,
           }
         });
-        console.log('🔍 Pinching overlay - scale:', newScale.toFixed(2));
+        return;
+      }
+
+      // PR3: graceful 2→1 finger transition. If a pinch has just ended (one
+      // finger lifted) but the user is still touching, rebase the drag start
+      // to the remaining finger's position so the artwork doesn't jump.
+      if ((isPinchingImage || isPinchingOverlay) && e.touches.length === 1) {
+        const t = e.touches[0];
+        setDragStart({ x: t.clientX, y: t.clientY });
+        setInitialImagePosition({ ...imagePosition });
+        if (overlayImage) setInitialOverlayPosition({ ...overlayImage.position });
+        setIsPinchingImage(false);
+        setIsPinchingOverlay(false);
+        pinchStartMidpointRef.current = null;
+        pinchStartImagePositionRef.current = null;
+        overlayPinchStartMidpointRef.current = null;
+        overlayPinchStartPositionRef.current = null;
         return;
       }
       
@@ -1551,13 +1641,6 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
     };
     
     const handleTouchEnd = () => {
-      // REMOVED: Auto-deselect was causing unexpected deselection issues
-      // Keep selection active so users can continue interacting with the image
-      // if (isDraggingOverlay || isResizingOverlay) {
-      //   setIsOverlaySelected(false);
-      //   console.log('🔵 Auto-deselected overlay after touch drag/resize');
-      // }
-      
       setIsDraggingImage(false);
       setIsResizingImage(false);
       setResizeHandle(null);
@@ -1566,6 +1649,11 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
       setOverlayResizeHandle(null);
       setIsPinchingImage(false);
       setIsPinchingOverlay(false);
+      // PR3: drop pinch snapshots on full release
+      pinchStartMidpointRef.current = null;
+      pinchStartImagePositionRef.current = null;
+      overlayPinchStartMidpointRef.current = null;
+      overlayPinchStartPositionRef.current = null;
     };
     
     if (isDraggingImage || isResizingImage || isDraggingOverlay || isResizingOverlay || isPinchingImage || isPinchingOverlay) {
@@ -1812,7 +1900,7 @@ const LivePreviewCard: React.FC<LivePreviewCardProps> = ({ onOpenAIModal, isGene
           </div>
         ) : (
           /* Preview Canvas */
-          <div className="mx-4 sm:mx-6 mb-4 sm:mb-6 bg-gray-100 border-2 border-gray-300 rounded-lg overflow-hidden relative min-h-[500px] sm:min-h-[600px] touch-pan-x touch-pan-y touch-pinch-zoom" style={{ maxWidth: '100%', boxSizing: 'border-box', WebkitTransform: 'translateZ(0)', transform: 'translateZ(0)' }}>
+          <div className="canvas-interaction-layer mx-4 sm:mx-6 mb-4 sm:mb-6 bg-gray-100 border-2 border-gray-300 rounded-lg overflow-hidden relative min-h-[500px] sm:min-h-[600px]" style={{ maxWidth: '100%', boxSizing: 'border-box', WebkitTransform: 'translateZ(0)', transform: 'translateZ(0)' }}>
             <div style={{ overflow: 'hidden', width: '100%', maxWidth: '100%', boxSizing: 'border-box', padding: '0.5rem' }}>
               <div
                 style={{
