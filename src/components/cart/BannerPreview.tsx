@@ -335,6 +335,8 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
                 alt="Banner preview"
                 className="absolute inset-0 w-full h-full object-fill"
                 draggable={false}
+                loading="lazy"
+                decoding="async"
                 onLoad={(e) => { setImageLoaded(true); }}
                 onError={() => setImageError(true)}
               />
@@ -395,6 +397,8 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
               alt="Banner preview"
               className="w-full h-full object-fill"
               draggable={false}
+              loading="lazy"
+              decoding="async"
               onLoad={(e) => { setImageLoaded(true); }}
               onError={() => setImageError(true)}
             />
@@ -435,6 +439,8 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
               alt="Banner preview"
               className="w-full h-full object-contain"
               draggable={false}
+              loading="lazy"
+              decoding="async"
               onLoad={() => {
                 setImageLoaded(true);
               }}
@@ -551,6 +557,8 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
             src={imageUrl} 
             alt="Banner preview"
             className="w-full h-full object-fill"
+            loading="lazy"
+            decoding="async"
           />
         </div>
       </div>
@@ -599,6 +607,8 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
                 alt="Banner artwork"
                 className="block w-full h-full object-contain"
                 draggable={false}
+                loading="lazy"
+                decoding="async"
                 onError={() => setImageError(true)}
                 onLoad={() => setImageLoaded(true)}
               />
