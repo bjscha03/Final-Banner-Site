@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { RotateCcw, Maximize2, Minimize2, Lock, Unlock } from 'lucide-react';
 
 /**
@@ -54,6 +55,19 @@ export interface ArtworkPreviewEditorProps {
   compactControls?: boolean;
   /** Optional inline style for the canvas surface (border/shadow/bg). */
   canvasStyle?: React.CSSProperties;
+  /**
+   * Optional mount point for rendering the Fit/Fill/Reset/Locked toolbar
+   * BELOW the canvas on mobile. The desktop overlay (floating pill at the
+   * bottom of the canvas) is hidden on `< sm` viewports when this is
+   * provided so the controls do not cover the printable artwork on
+   * mobile. The container is typically a `<div ref={...} className="sm:hidden" />`
+   * placed in the page layout immediately below the preview frame.
+   */
+  mobileToolbarContainer?: HTMLElement | null;
+  /** Optional CORS attribute forwarded to the underlying <img>. Required
+   *  when the host page generates a canvas thumbnail from the rendered
+   *  image (e.g. yard sign preview save). */
+  imageCrossOrigin?: '' | 'anonymous' | 'use-credentials';
 }
 
 type Corner = 'tl' | 'tr' | 'bl' | 'br';
@@ -78,6 +92,8 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
   autoSelect = true,
   compactControls = false,
   canvasStyle,
+  mobileToolbarContainer,
+  imageCrossOrigin,
 }) => {
   const internalRef = useRef<HTMLDivElement | null>(null);
   const setContainerRef = useCallback(
@@ -631,6 +647,7 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
             alt={alt}
             onLoad={onImgLoad}
             draggable={false}
+            crossOrigin={imageCrossOrigin}
             className={
               'absolute inset-0 w-full h-full pointer-events-none ' +
               (containedRect ? '' : 'object-contain')
@@ -706,81 +723,108 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
             kept the parent ruler frame from misaligning the left ruler
             (left ruler height was reading wrapper height = canvas + the
             old in-flow toolbar). Canva-style floating pill at the bottom
-            center of the canvas. */}
+            center of the canvas.
+
+            On mobile (<sm), if `mobileToolbarContainer` is provided the
+            overlay is hidden and the toolbar is rendered BELOW the canvas
+            via a portal so it does not cover the printable artwork. */}
         {selected && (
           <div
-            className="absolute left-1/2 z-30 pointer-events-none"
+            className={
+              'absolute left-1/2 z-30 pointer-events-none ' +
+              (mobileToolbarContainer ? 'hidden sm:block' : '')
+            }
             style={{
               bottom: 8,
               transform: 'translateX(-50%)',
             }}
           >
-            <div
-              data-artwork-toolbar="true"
-              // Bubble-phase only. Do NOT use capture-phase stopPropagation:
-              // that would prevent the click event from reaching the button's
-              // own onClick handler. These listeners run AFTER the button
-              // onClick fires and just stop the event from also reaching the
-              // canvas's onPointerDown / onClick handlers above.
-              onPointerDown={(e) => e.stopPropagation()}
-              onClick={(e) => e.stopPropagation()}
-              className={
-                'pointer-events-auto inline-flex items-center gap-1.5 bg-white/90 backdrop-blur-sm rounded-full shadow-md border border-gray-200/70 ' +
-                (compactControls ? 'px-2 py-1' : 'px-3 py-1.5')
-              }
-            >
-              <button
-                type="button"
-                onClick={fit}
-                className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-gray-700 hover:text-orange-600 hover:bg-orange-50 rounded-full transition-colors"
-                aria-label="Fit artwork to canvas"
-                title="Fit to canvas"
-              >
-                <Minimize2 className="w-4 h-4" />
-                <span className="hidden sm:inline">Fit</span>
-              </button>
-              <button
-                type="button"
-                onClick={fill}
-                className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-gray-700 hover:text-orange-600 hover:bg-orange-50 rounded-full transition-colors"
-                aria-label="Fill canvas with artwork"
-                title="Fill canvas"
-              >
-                <Maximize2 className="w-4 h-4" />
-                <span className="hidden sm:inline">Fill</span>
-              </button>
-              <button
-                type="button"
-                onClick={reset}
-                className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-orange-600 hover:bg-orange-50 rounded-full transition-colors"
-                aria-label="Reset artwork position and scale"
-                title="Reset"
-              >
-                <RotateCcw className="w-4 h-4" />
-                <span className="hidden sm:inline">Reset</span>
-              </button>
-              <div className="w-px h-4 bg-gray-200" aria-hidden="true" />
-              <button
-                type="button"
-                onClick={toggleConstrain}
-                aria-pressed={constrain}
-                className={
-                  'inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium rounded-full transition-colors ' +
-                  (constrain
-                    ? 'text-orange-600 hover:bg-orange-50'
-                    : 'text-gray-600 hover:bg-gray-100')
-                }
-                title={constrain ? 'Constrain proportions: ON' : 'Constrain proportions: OFF (freeform)'}
-              >
-                {constrain ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
-                <span className="hidden sm:inline">{constrain ? 'Locked' : 'Free'}</span>
-              </button>
-            </div>
+            {renderToolbarPill('overlay')}
           </div>
         )}
       </div>
+      {/* Mobile-only toolbar rendered below the canvas via portal so it
+          doesn't sit on top of the printable artwork. */}
+      {selected && mobileToolbarContainer
+        ? createPortal(
+            <div className="flex justify-center w-full">
+              {renderToolbarPill('mobile')}
+            </div>,
+            mobileToolbarContainer,
+          )
+        : null}
     </div>
   );
+
+  function renderToolbarPill(variant: 'overlay' | 'mobile') {
+    // The overlay variant sits on top of the canvas — keep labels hidden
+    // on small screens to stay compact. The mobile variant lives below
+    // the canvas with plenty of room, so always show labels there.
+    const labelClass = variant === 'mobile' ? 'inline' : 'hidden sm:inline';
+    return (
+      <div
+        data-artwork-toolbar="true"
+        // Bubble-phase only. Do NOT use capture-phase stopPropagation:
+        // that would prevent the click event from reaching the button's
+        // own onClick handler. These listeners run AFTER the button
+        // onClick fires and just stop the event from also reaching the
+        // canvas's onPointerDown / onClick handlers above.
+        onPointerDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+        className={
+          'pointer-events-auto inline-flex items-center gap-1.5 bg-white/95 backdrop-blur-sm rounded-full shadow-md border border-gray-200/70 ' +
+          (compactControls ? 'px-2 py-1' : 'px-3 py-1.5')
+        }
+      >
+        <button
+          type="button"
+          onClick={fit}
+          className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-gray-700 hover:text-orange-600 hover:bg-orange-50 rounded-full transition-colors"
+          aria-label="Fit artwork to canvas"
+          title="Fit to canvas"
+        >
+          <Minimize2 className="w-4 h-4" />
+          <span className={labelClass}>Fit</span>
+        </button>
+        <button
+          type="button"
+          onClick={fill}
+          className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-gray-700 hover:text-orange-600 hover:bg-orange-50 rounded-full transition-colors"
+          aria-label="Fill canvas with artwork"
+          title="Fill canvas"
+        >
+          <Maximize2 className="w-4 h-4" />
+          <span className={labelClass}>Fill</span>
+        </button>
+        <button
+          type="button"
+          onClick={reset}
+          className="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-orange-600 hover:bg-orange-50 rounded-full transition-colors"
+          aria-label="Reset artwork position and scale"
+          title="Reset"
+        >
+          <RotateCcw className="w-4 h-4" />
+          <span className={labelClass}>Reset</span>
+        </button>
+        <div className="w-px h-4 bg-gray-200" aria-hidden="true" />
+        <button
+          type="button"
+          onClick={toggleConstrain}
+          aria-pressed={constrain}
+          className={
+            'inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium rounded-full transition-colors ' +
+            (constrain
+              ? 'text-orange-600 hover:bg-orange-50'
+              : 'text-gray-600 hover:bg-gray-100')
+          }
+          title={constrain ? 'Constrain proportions: ON' : 'Constrain proportions: OFF (freeform)'}
+        >
+          {constrain ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+          <span className={labelClass}>{constrain ? 'Locked' : 'Free'}</span>
+        </button>
+      </div>
+    );
+  }
 };
 
 export default ArtworkPreviewEditor;
