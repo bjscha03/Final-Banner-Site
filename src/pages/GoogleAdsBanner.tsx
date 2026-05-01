@@ -26,6 +26,8 @@ import PriceBreakdown from '@/components/pricing/PriceBreakdown';
 import SameDayHitServiceCard from '@/components/cart/SameDayHitServiceCard';
 import DeliveryTimer from '@/components/delivery/DeliveryTimer';
 import FileUploader from '@/components/ui/FileUploader';
+import GrommetOverlay from '@/components/preview/GrommetOverlay';
+import PreviewRulerFrame from '@/components/preview/PreviewRulerFrame';
 import {
   calcYardSignPricing,
   getYardSignSizes,
@@ -54,13 +56,22 @@ import { base64ToFile } from '@/utils/base64ToFile';
 import { computeSameDayFeesCents } from '@/lib/sameDayService';
 
 const PRESET_SIZES = [
-  { label: "2' × 4'", w: 48, h: 24 },
-  { label: "2' × 6'", w: 72, h: 24 },
-  { label: "3' × 6'", w: 72, h: 36 },
-  { label: "3' × 8'", w: 96, h: 36 },
-  { label: "4' × 8'", w: 96, h: 48 },
-  { label: "4' × 10'", w: 120, h: 48 },
+  { w: 48, h: 24 },
+  { w: 72, h: 24 },
+  { w: 72, h: 36 },
+  { w: 96, h: 36 },
+  { w: 96, h: 48 },
+  { w: 120, h: 48 },
 ];
+
+/**
+ * Format a preset size label according to the user's selected display
+ * unit. Pure UI helper — never affects pricing/cart/print.
+ */
+function formatPresetLabel(w: number, h: number, unit: 'in' | 'ft'): string {
+  if (unit === 'ft') return `${w / 12}' × ${h / 12}'`;
+  return `${w}" × ${h}"`;
+}
 
 const PROMO_NEW20_DISCOUNT_RATE = 0.2;
 const HERO_BG_VIDEO_URL = 'https://res.cloudinary.com/dtrxl120u/video/upload/v1776752374/Multi-Shot_Video_-_Create_a_premium__high-end_commercial_background_video_for_a_fast_custom_printing_plodlm.mp4';
@@ -85,25 +96,6 @@ const TESTIMONIALS = [
     text: "We order dozens of banners monthly for events. Banners On The Fly consistently delivers premium quality with fast turnaround.",
   },
 ];
-
-// Calculate grommet positions for preview overlay
-function calcGrommetPts(w: number, h: number, mode: string): { x: number; y: number }[] {
-  const m = 1;
-  const corners = [{ x: m, y: m }, { x: w - m, y: m }, { x: m, y: h - m }, { x: w - m, y: h - m }];
-  if (mode === "none") return [];
-  if (mode === "4-corners") return corners;
-  if (mode === "top-corners") return [corners[0], corners[1]];
-  if (mode === "left-corners") return [corners[0], corners[2]];
-  if (mode === "right-corners") return [corners[1], corners[3]];
-  const spacing = mode === "every-1-2ft" ? 18 : 24;
-  const pts = [...corners];
-  const uw = Math.max(0, w - 2 * m), nw = Math.floor(uw / spacing);
-  if (nw > 0) { const ws = uw / (nw + 1); for (let i = 1; i <= nw; i++) { pts.push({ x: m + i * ws, y: m }); pts.push({ x: m + i * ws, y: h - m }); } }
-  const uh = Math.max(0, h - 2 * m), nh = Math.floor(uh / spacing);
-  if (nh > 0) { const hs = uh / (nh + 1); for (let i = 1; i <= nh; i++) { pts.push({ x: m, y: m + i * hs }); pts.push({ x: w - m, y: m + i * hs }); } }
-  const seen = new Set<string>();
-  return pts.filter(p => { const k = p.x.toFixed(2) + "," + p.y.toFixed(2); if (seen.has(k)) return false; seen.add(k); return true; });
-}
 
 
 // Convert Cloudinary PDF URL to an image thumbnail (renders page 1)
@@ -187,6 +179,11 @@ const GoogleAdsBanner: React.FC = () => {
   const materialDropdownRef = useRef<HTMLDivElement>(null);
   const [grommets, setGrommets] = useState('none');
   const [polePockets, setPolePockets] = useState('none');
+  // Display unit for size inputs and the live preview ruler. Single source
+  // of truth — both the Feet/Inches toggle and PreviewRulerFrame read this
+  // state, so switching units updates the visible ruler immediately. Pure
+  // UI state — does NOT affect pricing, cart, or print pipeline.
+  const [unit, setUnit] = useState<'in' | 'ft'>('in');
   const [addRope, setAddRope] = useState(false);
   const [hemming, setHemming] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
@@ -325,7 +322,7 @@ const GoogleAdsBanner: React.FC = () => {
     };
   }, [widthIn, heightIn]);
 
-  const previewCanvasStyle = useMemo(() => getCanvasStyle(isLgScreen ? 400 : 260), [getCanvasStyle, isLgScreen]);
+  const previewCanvasStyle = useMemo(() => getCanvasStyle(isLgScreen ? 480 : 280), [getCanvasStyle, isLgScreen]);
   const dimPreviewCanvasStyle = useMemo(() => getCanvasStyle(isLgScreen ? 200 : 140), [getCanvasStyle, isLgScreen]);
 
   // Cross-browser preview container styles using padding-bottom technique
@@ -339,7 +336,7 @@ const GoogleAdsBanner: React.FC = () => {
       paddingPct: `${(h / w) * 100}%`,
     };
   }, [widthIn, heightIn]);
-  const { wrapperStyle: previewWrapperStyle, paddingPct: previewPaddingPct } = useMemo(() => getPreviewContainerStyles(isLgScreen ? 400 : 260), [getPreviewContainerStyles, isLgScreen]);
+  const { wrapperStyle: previewWrapperStyle, paddingPct: previewPaddingPct } = useMemo(() => getPreviewContainerStyles(isLgScreen ? 480 : 280), [getPreviewContainerStyles, isLgScreen]);
   const { wrapperStyle: dimPreviewWrapperStyle, paddingPct: dimPreviewPaddingPct } = useMemo(() => getPreviewContainerStyles(isLgScreen ? 200 : 140), [getPreviewContainerStyles, isLgScreen]);
   const totals = calcTotals({ widthIn, heightIn, qty: quantity, material, addRope, polePockets });
   const bannerPricing = calculateBannerPricing({
@@ -443,13 +440,19 @@ const GoogleAdsBanner: React.FC = () => {
     } else if (item.product_type === 'car_magnet') {
       setProductType('car_magnet');
       if (item.file_url) {
+        // IMPORTANT: derive the live-preview thumbnail from the raw
+        // artwork URL (item.file_url) — NOT from item.thumbnail_url. The
+        // stored thumbnail_url is a positioned screenshot of the prior
+        // preview canvas; using it here renders a "preview-of-the-preview"
+        // (the entire preview UI appears to recurse inside the canvas).
+        const isPdf = item.is_pdf || false;
         setUploadedFile({
           name: item.file_name || 'artwork',
           url: item.file_url,
           fileKey: item.file_key || '',
           size: 0,
-          isPdf: item.is_pdf || false,
-          thumbnailUrl: item.thumbnail_url || item.file_url,
+          isPdf,
+          thumbnailUrl: isPdf ? getPdfThumbnailUrl(item.file_url) : getImagePreviewUrl(item.file_url),
         });
       }
       const matchedSize = CAR_MAGNET_SIZES.find((size) => size.widthIn === item.width_in && size.heightIn === item.height_in);
@@ -511,12 +514,36 @@ const GoogleAdsBanner: React.FC = () => {
     return () => observer.disconnect();
   }, []);
 
+  // Per-product design state stash. Each product tab keeps its own
+  // uploaded artwork and image transform so switching tabs does NOT
+  // leak design state between banner / car magnet (yard sign manages
+  // its own multi-design array via `yardSignDesigns`).
+  type DesignSnapshot = {
+    uploadedFile: { name: string; url: string; fileKey: string; size: number; isPdf: boolean; thumbnailUrl?: string } | null;
+    imgPos: { x: number; y: number };
+    imgScale: number;
+  };
+  const productDesignStashRef = useRef<Record<string, DesignSnapshot>>({});
+  const latestDesignRef = useRef<DesignSnapshot>({ uploadedFile: null, imgPos: { x: 0, y: 0 }, imgScale: 1 });
+  useEffect(() => {
+    latestDesignRef.current = { uploadedFile, imgPos, imgScale };
+  }, [uploadedFile, imgPos, imgScale]);
+
   // Handle product type switch — reset state
   const handleProductTypeChange = useCallback((newType: ProductTypeSlug) => {
+    if (newType === productType) return;
+    productDesignStashRef.current[productType] = { ...latestDesignRef.current };
     setProductType(newType);
     navigate(`/google-ads-banner?product=${getProductQuerySlug(newType)}`, { replace: true });
-    setImgPos({ x: 0, y: 0 });
-    setImgScale(1);
+    const restored: DesignSnapshot = productDesignStashRef.current[newType] ?? {
+      uploadedFile: null,
+      imgPos: { x: 0, y: 0 },
+      imgScale: 1,
+    };
+    setUploadedFile(restored.uploadedFile);
+    setImgPos(restored.imgPos);
+    setImgScale(restored.imgScale);
+    latestDesignRef.current = { ...restored };
     setQuantity(1);
     setPromoCode('');
     setPromoApplied(false);
@@ -537,7 +564,7 @@ const GoogleAdsBanner: React.FC = () => {
       setPolePockets('none');
       setAddRope(false);
     }
-  }, [getProductQuerySlug, navigate]);
+  }, [productType, getProductQuerySlug, navigate]);
 
   const applyPreset = (idx: number) => {
     const p = PRESET_SIZES[idx];
@@ -1489,6 +1516,30 @@ const GoogleAdsBanner: React.FC = () => {
                   null /* placeholder — yard sign path handled above */
                 ) : (
                   <>
+                {/* Unit toggle (banner only) — sits ABOVE Popular Sizes. */}
+                {!isCarMagnet && (
+                  <div className="flex items-center justify-between">
+                    <label className="block text-sm font-semibold text-gray-700">Units</label>
+                    <div className="inline-flex items-center rounded-lg border border-gray-200 bg-white p-0.5 text-xs" role="group" aria-label="Display unit">
+                      <button
+                        type="button"
+                        aria-pressed={unit === 'in'}
+                        onClick={() => setUnit('in')}
+                        className={`px-2.5 py-1 rounded-md transition-colors ${unit === 'in' ? 'bg-orange-500 text-white font-semibold' : 'text-gray-600 hover:text-gray-800'}`}
+                      >
+                        Inches
+                      </button>
+                      <button
+                        type="button"
+                        aria-pressed={unit === 'ft'}
+                        onClick={() => setUnit('ft')}
+                        className={`px-2.5 py-1 rounded-md transition-colors ${unit === 'ft' ? 'bg-orange-500 text-white font-semibold' : 'text-gray-600 hover:text-gray-800'}`}
+                      >
+                        Feet
+                      </button>
+                    </div>
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Popular Sizes</label>
                   <div className="grid grid-cols-3 gap-2">
@@ -1500,7 +1551,7 @@ const GoogleAdsBanner: React.FC = () => {
                         ))
                       : PRESET_SIZES.map((p, i) => (
                           <button key={i} onClick={() => applyPreset(i)} className={`border rounded-xl py-2.5 px-3 text-sm font-medium transition-all ${activePreset === i ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-gray-200 hover:border-gray-400 text-gray-700'}`}>
-                            {p.label}
+                            {formatPresetLabel(p.w, p.h, unit)}
                           </button>
                         ))}
                   </div>
@@ -1508,45 +1559,89 @@ const GoogleAdsBanner: React.FC = () => {
                 {!isCarMagnet && (
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">Custom Size</label>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <span className="text-xs text-gray-500">Width</span>
-                      <div className="flex gap-1 mt-1">
-                        <input type="number" min={1} max={50} value={widthFtStr} onChange={e => { setWidthFtStr(e.target.value); setActivePreset(null); }} onBlur={() => { const n = parseInt(widthFtStr, 10); setWidthFtStr(String(isNaN(n) ? 1 : Math.max(1, Math.min(50, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
-                        <span className="self-center text-xs text-gray-500">ft</span>
-                        <input type="number" min={0} max={11} value={widthInRStr} onChange={e => { setWidthInRStr(e.target.value); setActivePreset(null); }} onBlur={() => { const n = parseInt(widthInRStr, 10); setWidthInRStr(String(isNaN(n) ? 0 : Math.max(0, Math.min(11, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
-                        <span className="self-center text-xs text-gray-500">in</span>
+                  {unit === 'in' ? (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-xs text-gray-500">Width</span>
+                        <div className="flex gap-1 mt-1">
+                          <input
+                            type="number"
+                            min={1}
+                            max={600}
+                            value={widthIn}
+                            onChange={e => {
+                              const n = parseInt(e.target.value, 10);
+                              const v = Number.isFinite(n) ? Math.max(0, n) : 0;
+                              setWidthFtStr(String(Math.floor(v / 12)));
+                              setWidthInRStr(String(v % 12));
+                              setActivePreset(null);
+                            }}
+                            onBlur={() => {
+                              const n = widthIn;
+                              const clamped = Math.max(1, Math.min(600, isNaN(n) ? 1 : n));
+                              setWidthFtStr(String(Math.floor(clamped / 12)));
+                              setWidthInRStr(String(clamped % 12));
+                            }}
+                            className="w-20 border rounded-lg px-2 py-1.5 text-base"
+                          />
+                          <span className="self-center text-xs text-gray-500">in</span>
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-xs text-gray-500">Height</span>
+                        <div className="flex gap-1 mt-1">
+                          <input
+                            type="number"
+                            min={1}
+                            max={600}
+                            value={heightIn}
+                            onChange={e => {
+                              const n = parseInt(e.target.value, 10);
+                              const v = Number.isFinite(n) ? Math.max(0, n) : 0;
+                              setHeightFtStr(String(Math.floor(v / 12)));
+                              setHeightInRStr(String(v % 12));
+                              setActivePreset(null);
+                            }}
+                            onBlur={() => {
+                              const n = heightIn;
+                              const clamped = Math.max(1, Math.min(600, isNaN(n) ? 1 : n));
+                              setHeightFtStr(String(Math.floor(clamped / 12)));
+                              setHeightInRStr(String(clamped % 12));
+                            }}
+                            className="w-20 border rounded-lg px-2 py-1.5 text-base"
+                          />
+                          <span className="self-center text-xs text-gray-500">in</span>
+                        </div>
                       </div>
                     </div>
-                    <div>
-                      <span className="text-xs text-gray-500">Height</span>
-                      <div className="flex gap-1 mt-1">
-                        <input type="number" min={1} max={50} value={heightFtStr} onChange={e => { setHeightFtStr(e.target.value); setActivePreset(null); }} onBlur={() => { const n = parseInt(heightFtStr, 10); setHeightFtStr(String(isNaN(n) ? 1 : Math.max(1, Math.min(50, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
-                        <span className="self-center text-xs text-gray-500">ft</span>
-                        <input type="number" min={0} max={11} value={heightInRStr} onChange={e => { setHeightInRStr(e.target.value); setActivePreset(null); }} onBlur={() => { const n = parseInt(heightInRStr, 10); setHeightInRStr(String(isNaN(n) ? 0 : Math.max(0, Math.min(11, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
-                        <span className="self-center text-xs text-gray-500">in</span>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <span className="text-xs text-gray-500">Width</span>
+                        <div className="flex gap-1 mt-1">
+                          <input type="number" min={1} max={50} value={widthFtStr} onChange={e => { setWidthFtStr(e.target.value); setActivePreset(null); }} onBlur={() => { const n = parseInt(widthFtStr, 10); setWidthFtStr(String(isNaN(n) ? 1 : Math.max(1, Math.min(50, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
+                          <span className="self-center text-xs text-gray-500">ft</span>
+                          <input type="number" min={0} max={11} value={widthInRStr} onChange={e => { setWidthInRStr(e.target.value); setActivePreset(null); }} onBlur={() => { const n = parseInt(widthInRStr, 10); setWidthInRStr(String(isNaN(n) ? 0 : Math.max(0, Math.min(11, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
+                          <span className="self-center text-xs text-gray-500">in</span>
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-xs text-gray-500">Height</span>
+                        <div className="flex gap-1 mt-1">
+                          <input type="number" min={1} max={50} value={heightFtStr} onChange={e => { setHeightFtStr(e.target.value); setActivePreset(null); }} onBlur={() => { const n = parseInt(heightFtStr, 10); setHeightFtStr(String(isNaN(n) ? 1 : Math.max(1, Math.min(50, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
+                          <span className="self-center text-xs text-gray-500">ft</span>
+                          <input type="number" min={0} max={11} value={heightInRStr} onChange={e => { setHeightInRStr(e.target.value); setActivePreset(null); }} onBlur={() => { const n = parseInt(heightInRStr, 10); setHeightInRStr(String(isNaN(n) ? 0 : Math.max(0, Math.min(11, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
+                          <span className="self-center text-xs text-gray-500">in</span>
+                        </div>
                       </div>
                     </div>
-                  </div>
+                  )}
                   <p className="text-xs text-gray-500 mt-1">{sqft.toFixed(1)} sq ft</p>
-                  {/* Dimension preview canvas — adjusts to banner aspect ratio */}
-                  <label className="block text-sm font-semibold text-gray-700 mb-2 mt-4">Banner Size Preview</label>
-                  <div className="flex justify-center mb-6">
-                    <div className="relative" style={dimPreviewWrapperStyle}>
-                    <div
-                      className="bg-gray-100/70 border border-gray-200 rounded-lg relative w-full transition-all duration-300 ease-out"
-                      style={{ paddingBottom: dimPreviewPaddingPct }}
-                    >
-                      <div className="absolute inset-0 flex flex-col items-center justify-center gap-1">
-                        <Ruler className="h-4 w-4 text-gray-300" />
-                        <span className="text-xs text-gray-500 font-medium whitespace-nowrap">
-                          {widthDisplay} × {heightDisplay}
-                        </span>
-                        <span className="text-[10px] text-gray-400">Preview of selected size</span>
-                      </div>
-                    </div>
-                    </div>
-                  </div>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {unit === 'in'
+                      ? `≈ ${widthFt}${widthInR > 0 ? ` ft ${widthInR} in` : ' ft'} × ${heightFt}${heightInR > 0 ? ` ft ${heightInR} in` : ' ft'}`
+                      : `≈ ${widthIn} in × ${heightIn} in`}
+                  </p>
                 </div>
                 )}
                 <div ref={materialDropdownRef} className="relative">
@@ -1648,9 +1743,16 @@ const GoogleAdsBanner: React.FC = () => {
                         <p className="text-xs text-gray-400">Final print preview — what you see is what you get</p>
                       </div>
                       {/* Banner preview with depth background */}
-                      <div className="rounded-xl p-4 md:p-6 max-w-full overflow-hidden bg-white">
+                      <div className="rounded-xl p-4 md:p-6 max-w-full overflow-hidden bg-slate-300 border border-slate-400/70 shadow-inner">
                         {/* Width wrapper — constrains max-width so padding-bottom produces correct height */}
-                        <div className="mx-auto max-w-full" style={previewWrapperStyle}>
+                        <PreviewRulerFrame
+                          widthIn={widthIn}
+                          heightIn={heightIn}
+                          unit={isCarMagnet ? 'in' : unit}
+                          debug={import.meta.env.DEV}
+                          className="mx-auto max-w-full"
+                          style={previewWrapperStyle}
+                        >
                         {/* Banner surface — uses padding-bottom for aspect ratio (cross-browser safe) */}
                         <div
                           ref={previewContainerRef}
@@ -1659,9 +1761,9 @@ const GoogleAdsBanner: React.FC = () => {
                             paddingBottom: previewPaddingPct,
                             cursor: isDraggingPreview ? "grabbing" : "grab",
                             touchAction: "none",
-                            backgroundColor: '#fafafa',
-                            border: '1px solid #e2e5ea',
-                            boxShadow: '0 4px 16px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06), inset 0 0 0 1px rgba(255,255,255,0.6)',
+                            backgroundColor: '#ffffff',
+                            border: '1px solid #94a3b8',
+                            boxShadow: '0 14px 28px -10px rgba(15, 23, 42, 0.28), 0 4px 8px rgba(15, 23, 42, 0.10), inset 0 0 0 1px rgba(255,255,255,0.6)',
                             WebkitTransform: 'translateZ(0)',
                             transform: 'translateZ(0)',
                           }}
@@ -1692,19 +1794,25 @@ const GoogleAdsBanner: React.FC = () => {
                               </span>
                             </div>
                           )}
-                          {/* Grommet overlay on inline preview */}
-                          {grommets !== "none" && calcGrommetPts(widthIn, heightIn, grommets).map((pos, idx) => {
-                            const leftPct = (pos.x / widthIn) * 100;
-                            const topPct = (pos.y / heightIn) * 100;
-                            const dotSize = Math.max(6, Math.min(12, 180 / Math.max(widthIn, heightIn)));
-                            return (
-                              <div key={`inline-grommet-${idx}`} className="absolute rounded-full pointer-events-none" style={{ left: `${leftPct}%`, top: `${topPct}%`, width: `${dotSize}px`, height: `${dotSize}px`, transform: "translate(-50%, -50%)", background: 'radial-gradient(circle at 40% 35%, #d1d5db, #6b7280)', border: '1px solid #9ca3af', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.25), 0 0.5px 1px rgba(0,0,0,0.15)', zIndex: 10 }}>
-                                <div className="absolute rounded-full" style={{ left: "50%", top: "50%", width: "45%", height: "45%", transform: "translate(-50%, -50%)", background: '#374151', border: '0.5px solid #4b5563' }} />
-                              </div>
-                            );
-                          })}
+                          {/* Shared GrommetOverlay (preview-only). */}
+                          {grommets !== 'none' && (
+                            <svg
+                              className="absolute inset-0 w-full h-full pointer-events-none"
+                              viewBox={`0 0 ${widthIn} ${heightIn}`}
+                              preserveAspectRatio="none"
+                              style={{ zIndex: 10 }}
+                              aria-hidden="true"
+                            >
+                              <GrommetOverlay
+                                widthIn={widthIn}
+                                heightIn={heightIn}
+                                option={grommets}
+                                idSuffix="ga-inline"
+                              />
+                            </svg>
+                          )}
                         </div>
-                        </div>{/* close width wrapper */}
+                        </PreviewRulerFrame>{/* close ruler frame */}
                         {/* Zoom controls - grouped in rounded container */}
                         <div className="flex items-center justify-center mt-3">
                           <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm rounded-full px-3 py-1.5 shadow-sm border border-gray-200/60">
@@ -2091,7 +2199,7 @@ const GoogleAdsBanner: React.FC = () => {
           <div className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl max-w-3xl w-full max-h-[95vh] sm:max-h-[90vh] flex flex-col modal-dvh-fix">
             <div className="flex items-center justify-between p-4 border-b">
               <div>
-                <h3 className="text-lg font-bold text-gray-900">Live Banner Preview</h3>
+                <h3 className="text-lg font-bold text-gray-900">{isYardSign ? 'Live Yard Sign Preview' : isCarMagnet ? 'Live Car Magnet Preview' : 'Live Banner Preview'}</h3>
                 <p className="text-xs text-gray-400">Final print preview — what you see is what you get</p>
               </div>
               <button onClick={() => setShowPreview(false)} className="p-2 hover:bg-gray-100 rounded-full">
@@ -2101,16 +2209,23 @@ const GoogleAdsBanner: React.FC = () => {
             <div className="p-4 flex-1 overflow-auto">
               <p className="text-sm text-gray-500 mb-3 flex items-center gap-1"><Move className="w-4 h-4" /> Drag to reposition · Pinch or use buttons to zoom</p>
               {/* Banner surface */}
-              <div className="rounded-lg p-4 bg-white">
+              <div className="rounded-lg p-3 border border-slate-300" style={{ background: 'linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%)' }}>
+                <PreviewRulerFrame
+                  widthIn={widthIn}
+                  heightIn={heightIn}
+                  unit={isCarMagnet ? 'in' : unit}
+                  className="mx-auto max-w-full"
+                  style={previewWrapperStyle}
+                >
                 <div
                   className="relative w-full rounded-sm select-none overflow-hidden transition-all duration-300 ease-out"
                   style={{
                     paddingBottom: previewPaddingPct,
                     cursor: isDraggingPreview ? "grabbing" : "grab",
                     touchAction: "none",
-                    backgroundColor: '#fafafa',
-                    border: '1px solid #e2e5ea',
-                    boxShadow: '0 4px 16px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06), inset 0 0 0 1px rgba(255,255,255,0.6)',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #94a3b8',
+                    boxShadow: '0 14px 28px -10px rgba(15, 23, 42, 0.28), 0 4px 8px rgba(15, 23, 42, 0.10), inset 0 0 0 1px rgba(255,255,255,0.6)',
                     WebkitTransform: 'translateZ(0)',
                     transform: 'translateZ(0)',
                   }}
@@ -2153,17 +2268,24 @@ const GoogleAdsBanner: React.FC = () => {
                     ))}
                   </div>
                   {/* Grommet overlay */}
-                  {grommets !== "none" && calcGrommetPts(widthIn, heightIn, grommets).map((pos, idx) => {
-                    const leftPct = (pos.x / widthIn) * 100;
-                    const topPct = (pos.y / heightIn) * 100;
-                    const dotSize = Math.max(6, Math.min(12, 200 / Math.max(widthIn, heightIn)));
-                    return (
-                      <div key={`grommet-preview-${idx}`} className="absolute rounded-full pointer-events-none" style={{ left: `${leftPct}%`, top: `${topPct}%`, width: `${dotSize}px`, height: `${dotSize}px`, transform: "translate(-50%, -50%)", background: 'radial-gradient(circle at 40% 35%, #d1d5db, #6b7280)', border: '1px solid #9ca3af', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.25), 0 0.5px 1px rgba(0,0,0,0.15)', zIndex: 10 }}>
-                        <div className="absolute rounded-full" style={{ left: "50%", top: "50%", width: "45%", height: "45%", transform: "translate(-50%, -50%)", background: '#374151', border: '0.5px solid #4b5563' }} />
-                      </div>
-                    );
-                  })}
+                  {grommets !== 'none' && (
+                    <svg
+                      className="absolute inset-0 w-full h-full pointer-events-none"
+                      viewBox={`0 0 ${widthIn} ${heightIn}`}
+                      preserveAspectRatio="none"
+                      style={{ zIndex: 10 }}
+                      aria-hidden="true"
+                    >
+                      <GrommetOverlay
+                        widthIn={widthIn}
+                        heightIn={heightIn}
+                        option={grommets}
+                        idSuffix="ga-modal"
+                      />
+                    </svg>
+                  )}
                 </div>
+                </PreviewRulerFrame>
               </div>
               {/* Size below preview */}
               <p className="text-xs text-gray-400 text-center mt-2">
