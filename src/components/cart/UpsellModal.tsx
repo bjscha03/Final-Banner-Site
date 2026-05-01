@@ -133,7 +133,22 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
     }
 
     setSelectedOptions(options);
-  }, [isOpen, quote]);
+    // Only re-initialize when the modal opens or when the underlying quote
+    // fields that determine which options are *available* actually change.
+    // Depending on the entire `quote` object would reset user selections on
+    // every parent re-render (e.g. window resize), causing toggles like the
+    // grommet checkbox to silently un-check themselves. See issue: grommets
+    // disappear / get unselected when dragging the browser window.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    isOpen,
+    quote.grommets,
+    quote.polePockets,
+    quote.addRope,
+    quote.widthIn,
+    quote.heightIn,
+    quote.quantity,
+  ]);
 
   // Handle option toggle with mutual exclusivity
   const toggleOption = (optionId: string) => {
