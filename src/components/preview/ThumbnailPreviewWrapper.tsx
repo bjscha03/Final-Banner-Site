@@ -32,6 +32,10 @@ export interface ThumbnailPreviewWrapperProps {
   className?: string;
   /** Accessible label for the magnifier button (defaults to "Enlarge preview"). */
   ariaLabel?: string;
+  /** Product width in inches; passed to the lightbox to reserve an aspect-ratio slot. */
+  widthIn?: number;
+  /** Product height in inches; passed to the lightbox to reserve an aspect-ratio slot. */
+  heightIn?: number;
 }
 
 const ThumbnailPreviewWrapper: React.FC<ThumbnailPreviewWrapperProps> = ({
@@ -41,6 +45,8 @@ const ThumbnailPreviewWrapper: React.FC<ThumbnailPreviewWrapperProps> = ({
   details,
   className = '',
   ariaLabel = 'Enlarge preview',
+  widthIn,
+  heightIn,
 }) => {
   const [open, setOpen] = useState(false);
 
@@ -89,6 +95,8 @@ const ThumbnailPreviewWrapper: React.FC<ThumbnailPreviewWrapperProps> = ({
         onClose={() => setOpen(false)}
         title={title}
         details={details}
+        widthIn={widthIn}
+        heightIn={heightIn}
       >
         {largePreview}
       </ProductPreviewLightbox>

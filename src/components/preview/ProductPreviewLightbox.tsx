@@ -21,20 +21,24 @@ import { X } from 'lucide-react';
  * FitToContainer
  *
  * Scales an arbitrary natural-size child down with CSS `transform: scale()` so
- * that it never exceeds the width of its parent container. Used inside the
- * lightbox so that fixed-pixel previews (e.g., a 560px BannerPreview) shrink to
- * fit on portrait mobile viewports without being horizontally cropped.
+ * that it never exceeds the dimensions of its parent slot. Used inside the
+ * lightbox so that fixed-pixel previews (e.g., a 820px BannerPreview) shrink
+ * to fit on portrait mobile viewports without being horizontally cropped.
  *
  * The scale is applied uniformly so the preview keeps its aspect ratio and any
  * absolutely positioned overlays (such as grommets) stay aligned and visible.
- * The wrapper height is updated to match the scaled height so surrounding
- * content (details, close button) reflows correctly.
+ *
+ * The wrapper itself takes `width: 100%; height: 100%` so the parent (which
+ * reserves a slot of an explicit aspect ratio derived from product
+ * dimensions) controls layout. This means the slot height is guaranteed by
+ * CSS even on the first paint, before the BannerPreview's image has loaded —
+ * preventing the "thin strip" mobile collapse where the wrapper's height
+ * collapses to zero waiting for content measurement.
  */
 const FitToContainer: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
-  const [naturalHeight, setNaturalHeight] = useState<number | null>(null);
 
   useLayoutEffect(() => {
     const container = containerRef.current;
@@ -43,44 +47,28 @@ const FitToContainer: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
     const recompute = () => {
       const containerWidth = container.clientWidth;
+      const containerHeight = container.clientHeight;
       // Use offsetWidth/offsetHeight to read the unscaled natural size of the
       // content. CSS transforms don't affect offset metrics, and unlike
       // scrollWidth/scrollHeight these don't pick up overflowing descendants
       // (e.g., the BannerPreview's inner `<svg overflow="visible">` whose
-      // text or overlay children can extend past the SVG box). Reading the
-      // wrapper's own layout box keeps the measurement equal to the visible
-      // banner frame so the wrapper height matches the rendered preview
-      // exactly and no phantom white space is introduced inside the panel.
+      // text or overlay children can extend past the SVG box).
       const naturalWidth = content.offsetWidth;
-      const measuredHeight = content.offsetHeight;
-      if (!containerWidth || !naturalWidth || !measuredHeight) return;
+      const naturalHeight = content.offsetHeight;
+      if (!containerWidth || !containerHeight || !naturalWidth || !naturalHeight) return;
 
-      // Compute the scale required to make the preview fit within the
-      // available width AND available height of the lightbox panel.
-      //
-      // Important: clamp to a maximum of 1, i.e. only scale DOWN, never up.
-      // The caller already passes a generously sized preview (e.g. 820px
-      // wide). Scaling that further up on a wide panel would either crop or
-      // — combined with the centering wrapper — leave large amounts of
-      // visual whitespace around a still-modest preview because the
-      // wrapper's height tracks the scaled box rather than the actual
-      // visible content. Keeping scale ≤ 1 means the wrapper height always
-      // equals the rendered preview height, eliminating phantom empty space
-      // inside the modal panel while still shrinking the preview on small
-      // viewports so it remains fully visible without horizontal scroll.
-      //
-      // Reserve roughly 30vh for the lightbox title, details, padding, and
-      // page gutter so the preview never crowds them out.
-      const viewportHeight =
-        typeof window !== 'undefined' ? window.innerHeight : measuredHeight;
-      const availableHeight = Math.max(160, viewportHeight * 0.7);
-
+      // Scale-down only. The caller reserves a slot whose aspect ratio
+      // already matches the BannerPreview's intrinsic aspect ratio, so the
+      // width and height scales should be approximately equal — picking the
+      // smaller guarantees no overflow if the slot is briefly off by a
+      // pixel due to padding rounding. Capping at 1 keeps the wrapper's
+      // visible content equal to the BannerPreview's actual rendered area
+      // and prevents upscaling artifacts.
       const widthScale = containerWidth / naturalWidth;
-      const heightScale = availableHeight / measuredHeight;
+      const heightScale = containerHeight / naturalHeight;
       const next = Math.min(1, widthScale, heightScale);
 
       setScale(next);
-      setNaturalHeight(measuredHeight);
     };
 
     recompute();
@@ -105,33 +93,25 @@ const FitToContainer: React.FC<{ children: React.ReactNode }> = ({ children }) =
   }, [children]);
 
   return (
-    <div ref={containerRef} className="w-full max-w-full flex items-start justify-center">
+    <div
+      ref={containerRef}
+      // Fill the slot reserved by the parent (which sets width + aspect-ratio).
+      // `overflow: hidden` is a defensive clip so any descendant that draws
+      // outside the slot (e.g., an SVG with overflow="visible") cannot
+      // contribute extra scrollable space inside the lightbox panel.
+      className="w-full h-full flex items-center justify-center overflow-hidden"
+    >
       <div
+        ref={contentRef}
         style={{
-          height: naturalHeight != null ? `${naturalHeight * scale}px` : undefined,
-          width: '100%',
-          display: 'flex',
-          justifyContent: 'center',
-          // Defensive clip: even if a descendant of the scaled content has
-          // overflowing children (e.g., an SVG with overflow="visible"), this
-          // wrapper's height is the source of truth for the panel layout, so
-          // anything beyond it must not contribute additional scrollable
-          // space inside the lightbox panel.
-          overflow: 'hidden',
+          transform: `scale(${scale})`,
+          transformOrigin: 'center center',
+          // Inline-block so offsetWidth/offsetHeight reflect the natural
+          // intrinsic size of the child rather than expanding to the parent.
+          display: 'inline-block',
         }}
       >
-        <div
-          ref={contentRef}
-          style={{
-            transform: `scale(${scale})`,
-            transformOrigin: 'top center',
-            // Inline-block so offsetWidth/offsetHeight reflect the natural
-            // intrinsic size of the child rather than expanding to the parent.
-            display: 'inline-block',
-          }}
-        >
-          {children}
-        </div>
+        {children}
       </div>
     </div>
   );
@@ -151,6 +131,16 @@ export interface ProductPreviewLightboxProps {
   details?: PreviewDetail[];
   /** The enlarged preview node (typically a <BannerPreview /> with a larger maxSize). */
   children: React.ReactNode;
+  /**
+   * Product width in inches. Used together with `heightIn` to reserve a
+   * preview slot whose CSS `aspect-ratio` matches the product. This
+   * guarantees the slot has a real height on the very first paint, so the
+   * preview never collapses to a thin strip on mobile while waiting for the
+   * inner image to load and report its size.
+   */
+  widthIn?: number;
+  /** Product height in inches. See `widthIn`. */
+  heightIn?: number;
 }
 
 const ProductPreviewLightbox: React.FC<ProductPreviewLightboxProps> = ({
@@ -159,6 +149,8 @@ const ProductPreviewLightbox: React.FC<ProductPreviewLightboxProps> = ({
   title,
   details,
   children,
+  widthIn,
+  heightIn,
 }) => {
   // Drive an "entered" state one tick after mount so CSS transitions can run.
   const [mounted, setMounted] = useState(false);
@@ -255,11 +247,24 @@ const ProductPreviewLightbox: React.FC<ProductPreviewLightboxProps> = ({
             </h2>
           )}
 
-          {/* Enlarged preview — fits within the panel width on any viewport
-              (including portrait mobile) without horizontal cropping. The
-              FitToContainer wrapper uniformly scales the child so absolutely
-              positioned overlays such as grommets stay aligned and visible. */}
-          <div className="w-full">
+          {/* Enlarged preview slot.
+              The slot has an explicit `aspect-ratio` derived from the
+              product dimensions so it always has a real, layout-defined
+              height — even on the first paint, before the BannerPreview's
+              inner <img> has loaded. This is what fixes the mobile bug
+              where the preview collapsed to a thin strip waiting for
+              measurement. The slot is also capped at ~70vh on tall portrait
+              banners so it never pushes the close button off-screen. */}
+          <div
+            className="w-full"
+            style={{
+              aspectRatio:
+                widthIn && heightIn && widthIn > 0 && heightIn > 0
+                  ? `${widthIn} / ${heightIn}`
+                  : undefined,
+              maxHeight: '70vh',
+            }}
+          >
             <FitToContainer>{children}</FitToContainer>
           </div>
 

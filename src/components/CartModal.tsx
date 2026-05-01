@@ -131,6 +131,8 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                       <div className="flex justify-center mb-4">
                         <ThumbnailPreviewWrapper
                           title={getItemDisplayName(item)}
+                          widthIn={item.width_in}
+                          heightIn={item.height_in}
                           details={[
                             { label: 'Size', value: normalized.sizeDisplay },
                             { label: 'Material', value: normalized.materialDisplay },

@@ -659,6 +659,8 @@ const Checkout: React.FC = () => {
                           <div className="flex justify-center shrink-0">
                             <ThumbnailPreviewWrapper
                               title={getItemDisplayName(item)}
+                              widthIn={item.width_in}
+                              heightIn={item.height_in}
                               details={[
                                 ...details,
                                 { label: 'Qty', value: normalized.qtyDisplay },
@@ -705,6 +707,8 @@ const Checkout: React.FC = () => {
                           <div className="flex justify-center shrink-0">
                             <ThumbnailPreviewWrapper
                               title={getItemDisplayName(item)}
+                              widthIn={item.width_in}
+                              heightIn={item.height_in}
                               details={[
                                 ...details,
                                 { label: 'Qty', value: normalized.qtyDisplay },

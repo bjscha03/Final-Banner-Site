@@ -333,6 +333,8 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
                 return (
               <ThumbnailPreviewWrapper
                 title={`${formatDimensions(quote.widthIn, quote.heightIn)} ${copy.singularLabel}`}
+                widthIn={quote.widthIn}
+                heightIn={quote.heightIn}
                 details={[
                   { label: 'Size', value: formatDimensions(quote.widthIn, quote.heightIn) },
                   { label: 'Material', value: `${quote.material} vinyl` },
