@@ -331,6 +331,17 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
 
   const onPointerDown = useCallback(
     (e: React.PointerEvent) => {
+      // If the pointerdown originated inside the floating controls toolbar
+      // (Fit / Fill / Reset / Locked), bail out completely — do NOT call
+      // preventDefault or setPointerCapture, otherwise the synthesized
+      // click event for the button gets suppressed and the buttons appear
+      // dead. The toolbar pill is rendered absolutely INSIDE this canvas
+      // div so its pointerdown bubbles up here.
+      const targetEl = e.target as HTMLElement | null;
+      if (targetEl && typeof targetEl.closest === 'function' && targetEl.closest('[data-artwork-toolbar="true"]')) {
+        return;
+      }
+
       // Track this pointer for multi-touch (pinch) detection. We register
       // BOTH mouse and touch/pen pointers — pinch only ever engages with
       // 2+ touch-like pointers in practice (a desktop user has 1 mouse).
@@ -705,6 +716,9 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
             }}
           >
             <div
+              data-artwork-toolbar="true"
+              onPointerDownCapture={(e) => e.stopPropagation()}
+              onClickCapture={(e) => e.stopPropagation()}
               className={
                 'pointer-events-auto inline-flex items-center gap-1.5 bg-white/90 backdrop-blur-sm rounded-full shadow-md border border-gray-200/70 ' +
                 (compactControls ? 'px-2 py-1' : 'px-3 py-1.5')
