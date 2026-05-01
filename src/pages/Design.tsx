@@ -1539,11 +1539,10 @@ const Design: React.FC = () => {
                 <div className="flex items-center justify-between mb-2">
                   <label className="block text-sm font-semibold text-gray-700">Custom Size</label>
                   {/* Feet/Inches toggle — UI display only; pricing/cart still use inches. */}
-                  <div className="inline-flex items-center rounded-lg border border-gray-200 bg-white p-0.5 text-xs" role="tablist" aria-label="Display unit">
+                  <div className="inline-flex items-center rounded-lg border border-gray-200 bg-white p-0.5 text-xs" role="group" aria-label="Display unit">
                     <button
                       type="button"
-                      role="tab"
-                      aria-selected={unit === 'in'}
+                      aria-pressed={unit === 'in'}
                       onClick={() => setUnit('in')}
                       className={`px-2.5 py-1 rounded-md transition-colors ${unit === 'in' ? 'bg-orange-500 text-white font-semibold' : 'text-gray-600 hover:text-gray-800'}`}
                     >
@@ -1551,8 +1550,7 @@ const Design: React.FC = () => {
                     </button>
                     <button
                       type="button"
-                      role="tab"
-                      aria-selected={unit === 'ft'}
+                      aria-pressed={unit === 'ft'}
                       onClick={() => setUnit('ft')}
                       className={`px-2.5 py-1 rounded-md transition-colors ${unit === 'ft' ? 'bg-orange-500 text-white font-semibold' : 'text-gray-600 hover:text-gray-800'}`}
                     >
