@@ -583,7 +583,10 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
             {/* Mirror of ArtworkPreviewEditor's transform: object-contain
                 inside the canvas, then translate(x%, y%) scale(scaleX, scaleY)
                 around the center. translate uses percentage of container so
-                the math matches the live canvas at any preview size. */}
+                the math matches the live canvas at any preview size.
+                (The mobile branch above uses an equivalent pixel-based
+                translate because that path already pre-computes pixels for
+                its grommet overlays.) */}
             <div
               className="absolute inset-0 w-full h-full"
               style={{
