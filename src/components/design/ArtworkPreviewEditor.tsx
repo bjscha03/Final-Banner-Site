@@ -93,8 +93,12 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
     if (autoSelect) setSelected(true);
   }, [autoSelect, src]);
 
-  // Track image natural size so Fill can compute the correct cover scale
-  // for the current aspect ratio.
+  // Track image natural size so we can size the transform wrapper to the
+  // *actual rendered image rect* (not the full canvas). This is critical:
+  // the selection box and resize handles live inside the same wrapper as
+  // the image, so they always sit exactly on the image corners — even
+  // when image aspect != canvas aspect (otherwise object-contain
+  // letterboxing leaves the handles out in space).
   const [naturalSize, setNaturalSize] = useState<{ w: number; h: number } | null>(null);
   const onImgLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const t = e.currentTarget;
@@ -102,6 +106,54 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
       setNaturalSize({ w: t.naturalWidth, h: t.naturalHeight });
     }
   }, []);
+
+  // Track canvas (outer surface) size so we can compute the contained
+  // image rect on every layout change, including viewport resizes and
+  // mobile rotation.
+  const [canvasSize, setCanvasSize] = useState<{ w: number; h: number } | null>(null);
+  useEffect(() => {
+    const node = internalRef.current;
+    if (!node || typeof ResizeObserver === 'undefined') return;
+    const update = () => {
+      const r = node.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0) {
+        setCanvasSize((prev) =>
+          prev && prev.w === r.width && prev.h === r.height ? prev : { w: r.width, h: r.height },
+        );
+      }
+    };
+    update();
+    const ro = new ResizeObserver(update);
+    ro.observe(node);
+    return () => ro.disconnect();
+  }, [paddingPct]);
+
+  // Compute the contained image rect (object-fit: contain) from natural
+  // image size + canvas size. SINGLE SOURCE OF TRUTH used by:
+  //   - the transform wrapper that contains <img>
+  //   - the selection bounding box
+  //   - the resize handles
+  //   - the resize math (corner offset = ±containedW/2 * scaleX)
+  const containedRect = (() => {
+    if (!canvasSize || !naturalSize || naturalSize.w <= 0 || naturalSize.h <= 0) return null;
+    const canvasAspect = canvasSize.w / canvasSize.h;
+    const imgAspect = naturalSize.w / naturalSize.h;
+    let w: number;
+    let h: number;
+    if (imgAspect > canvasAspect) {
+      w = canvasSize.w;
+      h = canvasSize.w / imgAspect;
+    } else {
+      h = canvasSize.h;
+      w = canvasSize.h * imgAspect;
+    }
+    return {
+      w,
+      h,
+      left: (canvasSize.w - w) / 2,
+      top: (canvasSize.h - h) / 2,
+    };
+  })();
 
   // ------- Drag state (refs to avoid re-render storms) -------
   const dragRef = useRef<{
@@ -219,15 +271,27 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
       const node = internalRef.current;
       if (!node) return;
       const rect = node.getBoundingClientRect();
+      // Resize math is in *image space*: corner offset from the image
+      // center is ±(containedW/2 * scaleX) horizontally, ±(containedH/2 *
+      // scaleY) vertically. Use the contained image rect (not the full
+      // canvas) so the math matches what the user sees and grabs.
+      const imgW = containedRect ? containedRect.w : rect.width;
+      const imgH = containedRect ? containedRect.h : rect.height;
+      const imgCenterX = containedRect
+        ? rect.left + containedRect.left + containedRect.w / 2
+        : rect.left + rect.width / 2;
+      const imgCenterY = containedRect
+        ? rect.top + containedRect.top + containedRect.h / 2
+        : rect.top + rect.height / 2;
       resizeRef.current = {
         active: true,
         corner,
         startMouseX: e.clientX,
         startMouseY: e.clientY,
-        centerX: rect.left + rect.width / 2,
-        centerY: rect.top + rect.height / 2,
-        canvasW: rect.width,
-        canvasH: rect.height,
+        centerX: imgCenterX,
+        centerY: imgCenterY,
+        canvasW: imgW,
+        canvasH: imgH,
         startScaleX: valueRef.current.scaleX,
         startScaleY: valueRef.current.scaleY,
         startX: valueRef.current.x,
@@ -235,7 +299,7 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
       };
       setSelected(true);
     },
-    [],
+    [containedRect],
   );
 
   // Keyboard activation for resize handles (basic accessibility).
@@ -346,21 +410,44 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
           e.stopPropagation();
         }}
       >
-        {/* Artwork transform wrapper. translate3d + non-uniform scale. */}
+        {/* Artwork transform wrapper. Sized to the *visible image rect*
+            (not the full canvas) so the selection box and corner handles
+            inside it sit exactly on the image corners regardless of
+            aspect ratio. translate3d + non-uniform scale.
+
+            Until the image has loaded (and we know natural size + canvas
+            size), fall back to filling the canvas so the <img> can render
+            and report its natural dimensions. */}
         <div
-          className="absolute inset-0 w-full h-full"
-          style={{
-            transform: `translate3d(${value.x}px, ${value.y}px, 0) scale(${value.scaleX}, ${value.scaleY})`,
-            transformOrigin: '50% 50%',
-            willChange: 'transform',
-          }}
+          className="absolute"
+          style={
+            containedRect
+              ? {
+                  left: containedRect.left,
+                  top: containedRect.top,
+                  width: containedRect.w,
+                  height: containedRect.h,
+                  transform: `translate3d(${value.x}px, ${value.y}px, 0) scale(${value.scaleX}, ${value.scaleY})`,
+                  transformOrigin: '50% 50%',
+                  willChange: 'transform',
+                }
+              : {
+                  inset: 0,
+                  transform: `translate3d(${value.x}px, ${value.y}px, 0) scale(${value.scaleX}, ${value.scaleY})`,
+                  transformOrigin: '50% 50%',
+                  willChange: 'transform',
+                }
+          }
         >
           <img
             src={src}
             alt={alt}
             onLoad={onImgLoad}
             draggable={false}
-            className="absolute inset-0 w-full h-full pointer-events-none object-contain"
+            className={
+              'absolute inset-0 w-full h-full pointer-events-none ' +
+              (containedRect ? '' : 'object-contain')
+            }
           />
           {/* Selection bounding box + handles (only when selected) */}
           {selected && (
