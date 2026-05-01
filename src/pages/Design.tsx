@@ -49,6 +49,7 @@ import CreateWithAIModal, { type CreateWithAIResult } from '@/components/design/
 import EditWithAIModal from '@/components/design/EditWithAIModal';
 import GrommetOverlay from '@/components/preview/GrommetOverlay';
 import PreviewRulerFrame from '@/components/preview/PreviewRulerFrame';
+import ArtworkPreviewEditor from '@/components/design/ArtworkPreviewEditor';
 import { ENABLE_AI } from '@/lib/featureFlags';
 import { base64ToFile } from '@/utils/base64ToFile';
 import { computeSameDayFeesCents } from '@/lib/sameDayService';
@@ -240,6 +241,11 @@ const Design: React.FC = () => {
     uploadedFile: { name: string; url: string; fileKey: string; size: number; isPdf: boolean; thumbnailUrl?: string } | null;
     imgPos: { x: number; y: number };
     imgScale: number;
+    // PR3: per-axis scale + constrain-proportions toggle. scaleY defaults
+    // to imgScale (uniform) for backward compatibility; constrainProps
+    // defaults to ON.
+    imgScaleY: number;
+    constrainProps: boolean;
   };
   const productDesignStashRef = useRef<Record<string, DesignSnapshot>>({});
   // Mirror of the latest design snapshot for the *current* product. Read
@@ -248,7 +254,7 @@ const Design: React.FC = () => {
   // dependencies (those `useState` calls are declared further down in
   // the function body and would cause a TDZ error if referenced in this
   // useCallback's deps array).
-  const latestDesignRef = useRef<DesignSnapshot>({ uploadedFile: null, imgPos: { x: 0, y: 0 }, imgScale: 1 });
+  const latestDesignRef = useRef<DesignSnapshot>({ uploadedFile: null, imgPos: { x: 0, y: 0 }, imgScale: 1, imgScaleY: 1, constrainProps: true });
 
   // Handle product type switch — reset state
   const handleProductTypeChange = useCallback((newType: ProductTypeSlug) => {
@@ -263,10 +269,14 @@ const Design: React.FC = () => {
       uploadedFile: null,
       imgPos: { x: 0, y: 0 },
       imgScale: 1,
+      imgScaleY: 1,
+      constrainProps: true,
     };
     setUploadedFile(restored.uploadedFile);
     setImgPos(restored.imgPos);
     setImgScale(restored.imgScale);
+    setImgScaleY(restored.imgScaleY);
+    setConstrainProps(restored.constrainProps);
     // Keep the latest mirror in sync immediately so a rapid second
     // switch can't re-stash the just-restored snapshot.
     latestDesignRef.current = { ...restored };
@@ -347,6 +357,8 @@ const Design: React.FC = () => {
       setCarMagnetRoundedCorners(((item as any).rounded_corners || 'none') as CarMagnetRoundedCorner);
       setImgPos(item.image_position || { x: 0, y: 0 });
       setImgScale(item.image_scale || 1);
+      setImgScaleY(item.image_scale_y ?? item.image_scale ?? 1);
+      setConstrainProps(item.image_scale_y == null || item.image_scale_y === item.image_scale);
       setQuantity(item.quantity || 1);
       setShowPreview(true);
     } else {
@@ -364,6 +376,8 @@ const Design: React.FC = () => {
       }
       setImgPos(item.image_position || { x: 0, y: 0 });
       setImgScale(item.image_scale || 1);
+      setImgScaleY(item.image_scale_y ?? item.image_scale ?? 1);
+      setConstrainProps(item.image_scale_y == null || item.image_scale_y === item.image_scale);
       if (item.grommets) setGrommets(item.grommets);
       if (item.pole_pockets) setPolePockets(item.pole_pockets);
       setAddRope(!!item.rope_feet);
@@ -412,13 +426,18 @@ const Design: React.FC = () => {
   const [showPreview, setShowPreview] = useState(false);
   const [imgPos, setImgPos] = useState({ x: 0, y: 0 });
   const [imgScale, setImgScale] = useState(1);
+  // PR3: per-axis Y scale (defaults to imgScale → uniform). The
+  // "Constrain proportions" toggle, when ON, keeps scaleY tied to scaleX
+  // so freeform mode is opt-in.
+  const [imgScaleY, setImgScaleY] = useState(1);
+  const [constrainProps, setConstrainProps] = useState(true);
   // Keep the latest design snapshot mirrored in a ref so
   // `handleProductTypeChange` (declared above the underlying useState
   // calls) can read the current artwork/transform without referencing
   // those state variables in its dependency array.
   useEffect(() => {
-    latestDesignRef.current = { uploadedFile, imgPos, imgScale };
-  }, [uploadedFile, imgPos, imgScale]);
+    latestDesignRef.current = { uploadedFile, imgPos, imgScale, imgScaleY, constrainProps };
+  }, [uploadedFile, imgPos, imgScale, imgScaleY, constrainProps]);
   const [isDraggingPreview, setIsDraggingPreview] = useState(false);
   const [dragStartPt, setDragStartPt] = useState({ x: 0, y: 0 });
   const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
@@ -435,7 +454,7 @@ const Design: React.FC = () => {
   // Upsell modal state
   const [showUpsellModal, setShowUpsellModal] = useState(false);
   const [isProcessingUpsell, setIsProcessingUpsell] = useState(false);
-  const [pendingCheckoutData, setPendingCheckoutData] = useState<{pos: {x: number; y: number}; scale: number} | null>(null);
+  const [pendingCheckoutData, setPendingCheckoutData] = useState<{pos: {x: number; y: number}; scale: number; scaleY?: number} | null>(null);
   const [pendingActionType, setPendingActionType] = useState<'checkout' | 'cart'>('checkout');
 
   // "Create with AI" modal state. Only available for banner & car_magnet on
@@ -488,6 +507,7 @@ const Design: React.FC = () => {
   useEffect(() => {
     setImgPos({ x: 0, y: 0 });
     setImgScale(1);
+    setImgScaleY(1);
   }, [widthIn, heightIn]);
 
   // Show drag hint briefly when artwork is first uploaded
@@ -752,6 +772,7 @@ const Design: React.FC = () => {
       // Reset position/scale so the AI image is shown full-bleed by default.
       setImgPos({ x: 0, y: 0 });
       setImgScale(1);
+      setImgScaleY(1);
       await handleFileUpload(file);
     },
     [handleFileUpload],
@@ -766,6 +787,7 @@ const Design: React.FC = () => {
       // Keep aiPrompt as-is (the original "Create with AI" intent).
       setImgPos({ x: 0, y: 0 });
       setImgScale(1);
+      setImgScaleY(1);
       await handleFileUpload(file);
     },
     [handleFileUpload],
@@ -778,6 +800,7 @@ const Design: React.FC = () => {
     setUploadedFile(null);
     setImgPos({ x: 0, y: 0 });
     setImgScale(1);
+    setImgScaleY(1);
     setUploadError(null);
     setAiPrompt(null);
     setAiEditPrompt(null);
@@ -842,7 +865,7 @@ const Design: React.FC = () => {
   // CRITICAL: Generate final_render before adding to cart - orders without it cannot be printed
   const performCheckout = useCallback(async (
     selectedOptions: UpsellOption[],
-    directData?: { pos: { x: number; y: number }, scale: number },
+    directData?: { pos: { x: number; y: number }, scale: number, scaleY?: number },
     actionType: 'checkout' | 'cart' = 'checkout',
   ) => {
     const checkoutData = directData || pendingCheckoutData;
@@ -968,6 +991,7 @@ const Design: React.FC = () => {
         heightIn,
         imgPos: checkoutData.pos,
         imgScale: checkoutData.scale,
+        ...(checkoutData.scaleY != null && checkoutData.scaleY !== checkoutData.scale ? { imgScaleY: checkoutData.scaleY } : {}),
         containerCssWidth: container?.offsetWidth || null,
         containerCssHeight: container?.offsetHeight || null,
         bgColor: '#fafafa',
@@ -1008,6 +1032,7 @@ const Design: React.FC = () => {
         addRope: false,
         imagePosition: checkoutData.pos,
         imageScale: checkoutData.scale,
+        imageScaleY: checkoutData.scaleY ?? checkoutData.scale,
         fitMode: 'fill',
         thumbnailUrl: approvedThumbnailUrl,
         file: { name: uploadedFile.name, url: uploadedFile.url, fileKey: uploadedFile.fileKey, size: uploadedFile.size, isPdf: uploadedFile.isPdf, thumbnailUrl: uploadedFile.thumbnailUrl, type: uploadedFile.isPdf ? 'application/pdf' : 'image/*' } as any,
@@ -1110,6 +1135,9 @@ const Design: React.FC = () => {
       heightIn,
       imgPos: checkoutData.pos,
       imgScale: checkoutData.scale,
+      // PR3: optional per-axis Y scale for freeform resize. Falls back to
+      // imgScale on the server (uniform) when omitted.
+      ...(checkoutData.scaleY != null && checkoutData.scaleY !== checkoutData.scale ? { imgScaleY: checkoutData.scaleY } : {}),
       containerCssWidth: container?.offsetWidth || null,
       containerCssHeight: container?.offsetHeight || null,
       bgColor: '#fafafa',
@@ -1152,6 +1180,8 @@ const Design: React.FC = () => {
       addRope: finalRope,
       imagePosition: checkoutData.pos,
       imageScale: checkoutData.scale,
+      // PR3: thread per-axis Y scale through quote → cart → server PDF.
+      imageScaleY: checkoutData.scaleY ?? checkoutData.scale,
       fitMode: 'fill',
       thumbnailUrl: approvedThumbnailUrl,
       file: { name: uploadedFile.name, url: uploadedFile.url, fileKey: uploadedFile.fileKey, size: uploadedFile.size, isPdf: uploadedFile.isPdf, thumbnailUrl: uploadedFile.thumbnailUrl, type: uploadedFile.isPdf ? 'application/pdf' : 'image/*' } as any,
@@ -1214,7 +1244,7 @@ const Design: React.FC = () => {
         x: (imgPos.x / containerWidth) * 100,
         y: (imgPos.y / containerHeight) * 100,
       };
-      performCheckout([], { pos: posPercent, scale: imgScale });
+      performCheckout([], { pos: posPercent, scale: imgScale, scaleY: imgScaleY });
       return;
     }
 
@@ -1227,17 +1257,17 @@ const Design: React.FC = () => {
       x: (imgPos.x / containerWidth) * 100,
       y: (imgPos.y / containerHeight) * 100
     };
-    setPendingCheckoutData({ pos: posPercent, scale: imgScale });
+    setPendingCheckoutData({ pos: posPercent, scale: imgScale, scaleY: imgScaleY });
 
     const hasFinishing = grommets !== 'none' || polePockets !== 'none';
     const hasRope = addRope;
     if (hasFinishing && hasRope) {
-      performCheckout([], { pos: posPercent, scale: imgScale });
+      performCheckout([], { pos: posPercent, scale: imgScale, scaleY: imgScaleY });
     } else {
       setPendingActionType('checkout');
       setShowUpsellModal(true);
     }
-  }, [uploadedFile, imgPos, imgScale, grommets, polePockets, addRope, performCheckout, isYardSign, isCarMagnet, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, toast]);
+  }, [uploadedFile, imgPos, imgScale, imgScaleY, grommets, polePockets, addRope, performCheckout, isYardSign, isCarMagnet, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, toast]);
 
   const handleAddToCart = useCallback(() => {
     if (isYardSign) {
@@ -1263,7 +1293,7 @@ const Design: React.FC = () => {
         x: (imgPos.x / containerWidth) * 100,
         y: (imgPos.y / containerHeight) * 100,
       };
-      performCheckout([], { pos: posPercent, scale: imgScale }, 'cart');
+      performCheckout([], { pos: posPercent, scale: imgScale, scaleY: imgScaleY }, 'cart');
       return;
     }
 
@@ -1275,13 +1305,13 @@ const Design: React.FC = () => {
       x: (imgPos.x / containerWidth) * 100,
       y: (imgPos.y / containerHeight) * 100,
     };
-    setPendingCheckoutData({ pos: posPercent, scale: imgScale });
+    setPendingCheckoutData({ pos: posPercent, scale: imgScale, scaleY: imgScaleY });
     setPendingActionType('cart');
     setShowUpsellModal(true);
-  }, [uploadedFile, imgPos, imgScale, performCheckout, isYardSign, isCarMagnet, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, toast]);
+  }, [uploadedFile, imgPos, imgScale, imgScaleY, performCheckout, isYardSign, isCarMagnet, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, toast]);
 
   // Trigger upsell modal after confirming position from preview modal
-  const handleConfirmPosition = useCallback((pos: { x: number; y: number }, scale: number) => {
+  const handleConfirmPosition = useCallback((pos: { x: number; y: number }, scale: number, scaleY?: number) => {
     if (!uploadedFile) return;
     const container = previewContainerRef.current;
     const containerWidth = container?.offsetWidth || 1;
@@ -1290,18 +1320,18 @@ const Design: React.FC = () => {
       x: (pos.x / containerWidth) * 100,
       y: (pos.y / containerHeight) * 100
     };
-    setPendingCheckoutData({ pos: posPercent, scale });
+    setPendingCheckoutData({ pos: posPercent, scale, scaleY: scaleY ?? scale });
     setShowPreview(false);
 
     if (isCarMagnet) {
-      performCheckout([], { pos: posPercent, scale });
+      performCheckout([], { pos: posPercent, scale, scaleY: scaleY ?? scale });
       return;
     }
 
     const hasFinishing = grommets !== 'none' || polePockets !== 'none';
     const hasRope = addRope;
     if (hasFinishing && hasRope) {
-      performCheckout([], { pos: posPercent, scale });
+      performCheckout([], { pos: posPercent, scale, scaleY: scaleY ?? scale });
     } else {
       setPendingActionType('checkout');
       setShowUpsellModal(true);
@@ -1811,75 +1841,48 @@ const Design: React.FC = () => {
                         className="mx-auto max-w-full"
                         style={previewWrapperStyle}
                       >
-                      <div
-                        ref={previewContainerRef}
-                        className="relative w-full rounded-sm select-none overflow-hidden transition-all duration-300 ease-out"
-                        style={{
-                          paddingBottom: previewPaddingPct,
-                          cursor: isDraggingPreview ? "grabbing" : "grab",
-                          touchAction: "none",
-                          backgroundColor: '#ffffff',
-                          // Stronger drop shadow + crisp slate border so the
-                          // white print canvas pops against the darker frame.
-                          border: '1px solid #94a3b8',
-                          boxShadow: '0 14px 28px -10px rgba(15, 23, 42, 0.28), 0 4px 8px rgba(15, 23, 42, 0.10), inset 0 0 0 1px rgba(255,255,255,0.6)',
-                          WebkitTransform: 'translateZ(0)',
-                          transform: 'translateZ(0)',
-                        }}
-                        onMouseDown={onPreviewMouseDown}
-                        onMouseMove={onPreviewMouseMove}
-                        onMouseUp={onPreviewMouseUp}
-                        onMouseLeave={onPreviewMouseUp}
-                        onTouchStart={onPreviewTouchStart}
-                        onTouchMove={onPreviewTouchMove}
-                        onTouchEnd={onPreviewTouchEnd}
-                      >
-                        <div
-                          className="absolute inset-0 w-full h-full"
-                          style={{ transform: `translate(${imgPos.x}px, ${imgPos.y}px) scale(${imgScale})` }}
-                        >
-                          <img
-                            src={uploadedFile.thumbnailUrl || uploadedFile.url}
-                            alt="Uploaded artwork preview"
-                            className="absolute inset-0 w-full h-full pointer-events-none object-contain"
-                            draggable={false}
-                          />
-                        </div>
-                        {showDragHint && (
-                          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20" style={{ animation: 'fadeOut 0.5s ease-out 1.5s forwards' }}>
-                            <span className="bg-black/60 text-white text-xs px-3 py-1.5 rounded-full backdrop-blur-sm">
-                              Drag to reposition • Use buttons to zoom
-                            </span>
-                          </div>
-                        )}
-                        {/* Shared GrommetOverlay (preview-only; never serialized to print pipeline). */}
-                        {grommets !== 'none' && (
-                          <svg
-                            className="absolute inset-0 w-full h-full pointer-events-none"
-                            viewBox={`0 0 ${widthIn} ${heightIn}`}
-                            preserveAspectRatio="none"
-                            style={{ zIndex: 10 }}
-                            aria-hidden="true"
-                          >
-                            <GrommetOverlay
-                              widthIn={widthIn}
-                              heightIn={heightIn}
-                              option={grommets}
-                              idSuffix="design-inline"
-                            />
-                          </svg>
-                        )}
-                      </div>
+                        {/* PR3: Modern Canva-style artwork editor (drag,
+                            resize handles, fit/fill/reset/constrain). */}
+                        <ArtworkPreviewEditor
+                          src={uploadedFile.thumbnailUrl || uploadedFile.url}
+                          alt="Uploaded artwork preview"
+                          paddingPct={previewPaddingPct}
+                          containerRef={previewContainerRef}
+                          value={{ x: imgPos.x, y: imgPos.y, scaleX: imgScale, scaleY: imgScaleY }}
+                          onChange={(v) => {
+                            setImgPos({ x: v.x, y: v.y });
+                            setImgScale(v.scaleX);
+                            setImgScaleY(v.scaleY);
+                          }}
+                          constrain={constrainProps}
+                          onConstrainChange={setConstrainProps}
+                          showDragHint={showDragHint}
+                          canvasStyle={{
+                            backgroundColor: '#ffffff',
+                            borderRadius: 2,
+                            border: '1px solid #94a3b8',
+                            boxShadow: '0 14px 28px -10px rgba(15, 23, 42, 0.28), 0 4px 8px rgba(15, 23, 42, 0.10), inset 0 0 0 1px rgba(255,255,255,0.6)',
+                          }}
+                          overlay={
+                            grommets !== 'none' ? (
+                              <svg
+                                className="absolute inset-0 w-full h-full pointer-events-none"
+                                viewBox={`0 0 ${widthIn} ${heightIn}`}
+                                preserveAspectRatio="none"
+                                style={{ zIndex: 10 }}
+                                aria-hidden="true"
+                              >
+                                <GrommetOverlay
+                                  widthIn={widthIn}
+                                  heightIn={heightIn}
+                                  option={grommets}
+                                  idSuffix="design-inline"
+                                />
+                              </svg>
+                            ) : null
+                          }
+                        />
                       </PreviewRulerFrame>{/* close ruler frame */}
-                      <div className="flex items-center justify-center mt-3">
-                        <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm rounded-full px-3 py-1.5 shadow-sm border border-gray-200/60">
-                          <button onClick={() => setImgScale(s => Math.max(0.5, s - 0.1))} className="p-1.5 rounded-full hover:bg-gray-100 transition-colors" aria-label="Zoom out"><ZoomOut className="w-4 h-4 text-gray-600" /></button>
-                          <span className="text-xs font-medium text-gray-500 min-w-[3ch] text-center">{Math.round(imgScale * 100)}%</span>
-                          <button onClick={() => setImgScale(s => Math.min(3, s + 0.1))} className="p-1.5 rounded-full hover:bg-gray-100 transition-colors" aria-label="Zoom in"><ZoomIn className="w-4 h-4 text-gray-600" /></button>
-                          <div className="w-px h-4 bg-gray-200" />
-                          <button onClick={() => { setImgPos({ x: 0, y: 0 }); setImgScale(1); }} className="text-xs text-orange-600 hover:text-orange-700 font-medium px-1.5">Reset</button>
-                        </div>
-                      </div>
                     </div>
                     <p className="text-xs text-gray-400 text-center mt-2">
                       Size: {widthFt} ft{widthInR > 0 ? ` ${widthInR} in` : ''} × {heightFt} ft{heightInR > 0 ? ` ${heightInR} in` : ''} ({sqft.toFixed(1)} sq ft)
@@ -1890,7 +1893,7 @@ const Design: React.FC = () => {
                         <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0" />
                         <span className="text-sm font-semibold text-green-800 truncate">{uploadedFile.name}</span>
                       </div>
-                      <button onClick={() => { setUploadedFile(null); setImgPos({ x: 0, y: 0 }); setImgScale(1); setAiPrompt(null); setAiEditPrompt(null); }} className="ml-2 flex-shrink-0 p-1.5 rounded-full hover:bg-green-100 text-gray-500 hover:text-gray-700 transition-colors"><X className="h-4 w-4" /></button>
+                      <button onClick={() => { setUploadedFile(null); setImgPos({ x: 0, y: 0 }); setImgScale(1); setImgScaleY(1); setAiPrompt(null); setAiEditPrompt(null); }} className="ml-2 flex-shrink-0 p-1.5 rounded-full hover:bg-green-100 text-gray-500 hover:text-gray-700 transition-colors"><X className="h-4 w-4" /></button>
                     </div>
                     {aiPrompt && !isYardSign && ENABLE_AI && (
                       <div className="mt-2 flex justify-center">
@@ -2213,7 +2216,7 @@ const Design: React.FC = () => {
               </button>
             </div>
             <div className="p-4 flex-1 overflow-auto">
-              <p className="text-sm text-gray-500 mb-3 flex items-center gap-1"><Move className="w-4 h-4" /> Drag to reposition · Pinch or use buttons to zoom</p>
+              <p className="text-sm text-gray-500 mb-3 flex items-center gap-1"><Move className="w-4 h-4" /> Drag to reposition · Drag corners to resize</p>
               <div className="rounded-lg p-3 max-w-full overflow-hidden border border-slate-300" style={{ background: 'linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%)' }}>
                 <PreviewRulerFrame
                   widthIn={widthIn}
@@ -2222,91 +2225,55 @@ const Design: React.FC = () => {
                   className="mx-auto max-w-full"
                   style={previewWrapperStyle}
                 >
-                <div
-                  className="relative w-full rounded-sm select-none overflow-hidden transition-all duration-300 ease-out"
-                  style={{
-                    paddingBottom: previewPaddingPct,
-                    cursor: isDraggingPreview ? "grabbing" : "grab",
-                    touchAction: "none",
-                    backgroundColor: '#ffffff',
-                    border: '1px solid #94a3b8',
-                    boxShadow: '0 14px 28px -10px rgba(15, 23, 42, 0.28), 0 4px 8px rgba(15, 23, 42, 0.10), inset 0 0 0 1px rgba(255,255,255,0.6)',
-                    WebkitTransform: 'translateZ(0)',
-                    transform: 'translateZ(0)',
-                  }}
-                  onMouseDown={onPreviewMouseDown}
-                  onMouseMove={onPreviewMouseMove}
-                  onMouseUp={onPreviewMouseUp}
-                  onMouseLeave={onPreviewMouseUp}
-                  onTouchStart={onPreviewTouchStart}
-                  onTouchMove={onPreviewTouchMove}
-                  onTouchEnd={onPreviewTouchEnd}
-                >
-                  <div
-                    className="absolute inset-0 w-full h-full"
-                    style={{ transform: `translate(${imgPos.x}px, ${imgPos.y}px) scale(${imgScale})` }}
-                  >
-                    <img
-                      src={uploadedFile.thumbnailUrl || uploadedFile.url}
-                      alt="Banner preview"
-                      className="absolute inset-0 w-full h-full pointer-events-none object-contain"
-                      draggable={false}
-                    />
-                    {['top-left', 'top-right', 'bottom-left', 'bottom-right'].map((corner) => (
-                      <div
-                        key={corner}
-                        role="slider"
-                        aria-label={`Resize from ${corner} corner`}
-                        tabIndex={0}
-                        onMouseDown={onCornerMouseDown}
-                        className="absolute w-7 h-7 sm:w-5 sm:h-5 bg-white border-2 border-orange-500 rounded-sm z-20 hover:bg-orange-50 pointer-events-auto shadow-md"
-                        style={{
-                          top: corner.includes('top') ? 0 : 'auto',
-                          bottom: corner.includes('bottom') ? 0 : 'auto',
-                          left: corner.includes('left') ? 0 : 'auto',
-                          right: corner.includes('right') ? 0 : 'auto',
-                          transform: `translate(${corner.includes('left') ? '-50%' : '50%'}, ${corner.includes('top') ? '-50%' : '50%'})`,
-                          cursor: corner === 'top-left' || corner === 'bottom-right' ? 'nwse-resize' : 'nesw-resize'
-                        }}
-                      />
-                    ))}
-                  </div>
-                  {grommets !== 'none' && (
-                    <svg
-                      className="absolute inset-0 w-full h-full pointer-events-none"
-                      viewBox={`0 0 ${widthIn} ${heightIn}`}
-                      preserveAspectRatio="none"
-                      style={{ zIndex: 10 }}
-                      aria-hidden="true"
-                    >
-                      <GrommetOverlay
-                        widthIn={widthIn}
-                        heightIn={heightIn}
-                        option={grommets}
-                        idSuffix="design-modal"
-                      />
-                    </svg>
-                  )}
-                </div>
+                  <ArtworkPreviewEditor
+                    src={uploadedFile.thumbnailUrl || uploadedFile.url}
+                    alt="Banner preview"
+                    paddingPct={previewPaddingPct}
+                    containerRef={previewContainerRef}
+                    value={{ x: imgPos.x, y: imgPos.y, scaleX: imgScale, scaleY: imgScaleY }}
+                    onChange={(v) => {
+                      setImgPos({ x: v.x, y: v.y });
+                      setImgScale(v.scaleX);
+                      setImgScaleY(v.scaleY);
+                    }}
+                    constrain={constrainProps}
+                    onConstrainChange={setConstrainProps}
+                    compactControls
+                    canvasStyle={{
+                      backgroundColor: '#ffffff',
+                      borderRadius: 2,
+                      border: '1px solid #94a3b8',
+                      boxShadow: '0 14px 28px -10px rgba(15, 23, 42, 0.28), 0 4px 8px rgba(15, 23, 42, 0.10), inset 0 0 0 1px rgba(255,255,255,0.6)',
+                    }}
+                    overlay={
+                      grommets !== 'none' ? (
+                        <svg
+                          className="absolute inset-0 w-full h-full pointer-events-none"
+                          viewBox={`0 0 ${widthIn} ${heightIn}`}
+                          preserveAspectRatio="none"
+                          style={{ zIndex: 10 }}
+                          aria-hidden="true"
+                        >
+                          <GrommetOverlay
+                            widthIn={widthIn}
+                            heightIn={heightIn}
+                            option={grommets}
+                            idSuffix="design-modal"
+                          />
+                        </svg>
+                      ) : null
+                    }
+                  />
                 </PreviewRulerFrame>
               </div>
               <p className="text-xs text-gray-400 text-center mt-2">
                 Size: {widthFt} ft{widthInR > 0 ? ` ${widthInR} in` : ''} × {heightFt} ft{heightInR > 0 ? ` ${heightInR} in` : ''} ({sqft.toFixed(1)} sq ft)
               </p>
-              <div className="flex items-center justify-center mt-3">
-                <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm rounded-full px-3 py-1.5 shadow-sm border border-gray-200/60">
-                  <button onClick={() => setImgScale(s => Math.max(0.5, s - 0.1))} className="p-2 sm:p-1.5 rounded-full hover:bg-gray-100 transition-colors" aria-label="Zoom out"><ZoomOut className="w-5 h-5 text-gray-600" /></button>
-                  <span className="text-sm font-medium text-gray-500 min-w-[3ch] text-center">{Math.round(imgScale * 100)}%</span>
-                  <button onClick={() => setImgScale(s => Math.min(3, s + 0.1))} className="p-2 sm:p-1.5 rounded-full hover:bg-gray-100 transition-colors" aria-label="Zoom in"><ZoomIn className="w-5 h-5 text-gray-600" /></button>
-                  <div className="w-px h-4 bg-gray-200" />
-                  <button onClick={() => { setImgPos({ x: 0, y: 0 }); setImgScale(1); }} className="text-sm text-orange-600 hover:text-orange-700 font-medium px-2">Reset</button>
-                </div>
-              </div>
               <p className="text-xs text-gray-500 text-center mt-2 font-medium">Your design will be printed based on this preview</p>
             </div>
             <div className="flex gap-3 p-4 border-t">
               <button onClick={() => setShowPreview(false)} className="flex-1 py-3.5 sm:py-3 rounded-xl border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50">Cancel</button>
-              <button onClick={() => handleConfirmPosition(imgPos, imgScale)} className="flex-1 py-3.5 sm:py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold shadow-lg">Confirm & Checkout</button>
+              <button onClick={() => handleConfirmPosition(imgPos, imgScale, imgScaleY)} className="flex-1 py-3.5 sm:py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold shadow-lg">Confirm & Checkout</button>
             </div>
           </div>
         </div>
