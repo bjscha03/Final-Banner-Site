@@ -503,23 +503,24 @@ const GoogleAdsBanner: React.FC = () => {
   // uploaded artwork and image transform so switching tabs does NOT
   // leak design state between banner / car magnet (yard sign manages
   // its own multi-design array via `yardSignDesigns`).
-  const productDesignStashRef = useRef<Record<string, {
+  type DesignSnapshot = {
     uploadedFile: { name: string; url: string; fileKey: string; size: number; isPdf: boolean; thumbnailUrl?: string } | null;
     imgPos: { x: number; y: number };
     imgScale: number;
-  }>>({});
+  };
+  const productDesignStashRef = useRef<Record<string, DesignSnapshot>>({});
+  const latestDesignRef = useRef<DesignSnapshot>({ uploadedFile: null, imgPos: { x: 0, y: 0 }, imgScale: 1 });
+  useEffect(() => {
+    latestDesignRef.current = { uploadedFile, imgPos, imgScale };
+  }, [uploadedFile, imgPos, imgScale]);
 
   // Handle product type switch — reset state
   const handleProductTypeChange = useCallback((newType: ProductTypeSlug) => {
     if (newType === productType) return;
-    productDesignStashRef.current[productType] = {
-      uploadedFile,
-      imgPos,
-      imgScale,
-    };
+    productDesignStashRef.current[productType] = { ...latestDesignRef.current };
     setProductType(newType);
     navigate(`/google-ads-banner?product=${getProductQuerySlug(newType)}`, { replace: true });
-    const restored = productDesignStashRef.current[newType] ?? {
+    const restored: DesignSnapshot = productDesignStashRef.current[newType] ?? {
       uploadedFile: null,
       imgPos: { x: 0, y: 0 },
       imgScale: 1,
@@ -527,6 +528,7 @@ const GoogleAdsBanner: React.FC = () => {
     setUploadedFile(restored.uploadedFile);
     setImgPos(restored.imgPos);
     setImgScale(restored.imgScale);
+    latestDesignRef.current = { ...restored };
     setQuantity(1);
     setPromoCode('');
     setPromoApplied(false);
@@ -547,7 +549,7 @@ const GoogleAdsBanner: React.FC = () => {
       setPolePockets('none');
       setAddRope(false);
     }
-  }, [productType, uploadedFile, imgPos, imgScale, getProductQuerySlug, navigate]);
+  }, [productType, getProductQuerySlug, navigate]);
 
   const applyPreset = (idx: number) => {
     const p = PRESET_SIZES[idx];

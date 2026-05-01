@@ -225,26 +225,30 @@ const Design: React.FC = () => {
   // uploaded artwork and image transform so switching tabs does NOT
   // leak design state between banner / car magnet (yard sign manages
   // its own multi-design array via `yardSignDesigns`).
-  const productDesignStashRef = useRef<Record<string, {
+  type DesignSnapshot = {
     uploadedFile: { name: string; url: string; fileKey: string; size: number; isPdf: boolean; thumbnailUrl?: string } | null;
     imgPos: { x: number; y: number };
     imgScale: number;
-  }>>({});
+  };
+  const productDesignStashRef = useRef<Record<string, DesignSnapshot>>({});
+  // Mirror of the latest design snapshot for the *current* product. Read
+  // by `handleProductTypeChange` at the moment of switching, so the
+  // callback does not need `uploadedFile` / `imgPos` / `imgScale` as
+  // dependencies (those `useState` calls are declared further down in
+  // the function body and would cause a TDZ error if referenced in this
+  // useCallback's deps array).
+  const latestDesignRef = useRef<DesignSnapshot>({ uploadedFile: null, imgPos: { x: 0, y: 0 }, imgScale: 1 });
 
   // Handle product type switch — reset state
   const handleProductTypeChange = useCallback((newType: ProductTypeSlug) => {
     if (newType === productType) return;
     // Stash current product's design before switching.
-    productDesignStashRef.current[productType] = {
-      uploadedFile,
-      imgPos,
-      imgScale,
-    };
+    productDesignStashRef.current[productType] = { ...latestDesignRef.current };
     setProductType(newType);
     navigate(`${location.pathname}?product=${getProductQuerySlug(newType)}`, { replace: true });
     // Restore destination's stashed design (or clean defaults). This is
     // what isolates artwork between product tabs.
-    const restored = productDesignStashRef.current[newType] ?? {
+    const restored: DesignSnapshot = productDesignStashRef.current[newType] ?? {
       uploadedFile: null,
       imgPos: { x: 0, y: 0 },
       imgScale: 1,
@@ -252,6 +256,9 @@ const Design: React.FC = () => {
     setUploadedFile(restored.uploadedFile);
     setImgPos(restored.imgPos);
     setImgScale(restored.imgScale);
+    // Keep the latest mirror in sync immediately so a rapid second
+    // switch can't re-stash the just-restored snapshot.
+    latestDesignRef.current = { ...restored };
     setQuantity(1);
     setPromoCode('');
     setPromoApplied(false);
@@ -271,7 +278,7 @@ const Design: React.FC = () => {
       setPolePockets('none');
       setAddRope(false);
     }
-  }, [productType, uploadedFile, imgPos, imgScale, getProductQuerySlug, location.pathname, navigate]);
+  }, [productType, getProductQuerySlug, location.pathname, navigate]);
 
   // Restore cart item state when editing from cart (editItem query param)
   const editItemId = searchParams.get('editItem');
@@ -388,6 +395,13 @@ const Design: React.FC = () => {
   const [showPreview, setShowPreview] = useState(false);
   const [imgPos, setImgPos] = useState({ x: 0, y: 0 });
   const [imgScale, setImgScale] = useState(1);
+  // Keep the latest design snapshot mirrored in a ref so
+  // `handleProductTypeChange` (declared above the underlying useState
+  // calls) can read the current artwork/transform without referencing
+  // those state variables in its dependency array.
+  useEffect(() => {
+    latestDesignRef.current = { uploadedFile, imgPos, imgScale };
+  }, [uploadedFile, imgPos, imgScale]);
   const [isDraggingPreview, setIsDraggingPreview] = useState(false);
   const [dragStartPt, setDragStartPt] = useState({ x: 0, y: 0 });
   const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
