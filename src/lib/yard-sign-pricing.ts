@@ -38,7 +38,9 @@ export interface YardSignDesign {
   quantity: number;
   // Preview state: saved when user adjusts in the preview modal
   imgScale?: number;
+  imgScaleY?: number;
   imgPos?: { x: number; y: number };
+  imgConstrain?: boolean;
   // Thumbnail rendered from the preview state (matches exactly what user saw)
   previewThumbnailUrl?: string;
 }

@@ -211,6 +211,11 @@ const GoogleAdsBanner: React.FC = () => {
   const [resizeStartDist, setResizeStartDist] = useState(0);
   const [resizeCenter, setResizeCenter] = useState({ x: 0, y: 0 });
   const previewContainerRef = useRef<HTMLDivElement>(null);
+  // Mount points for the mobile (<sm) Fit/Fill/Reset/Locked toolbar that
+  // ArtworkPreviewEditor renders BELOW the preview canvas via portal so
+  // the controls don't cover the printable artwork on mobile.
+  const [inlineMobileToolbarEl, setInlineMobileToolbarEl] = useState<HTMLDivElement | null>(null);
+  const [modalMobileToolbarEl, setModalMobileToolbarEl] = useState<HTMLDivElement | null>(null);
 
   // Drag hint auto-fade state
   const [showDragHint, setShowDragHint] = useState(false);
@@ -1784,6 +1789,7 @@ const GoogleAdsBanner: React.FC = () => {
                             alt="Uploaded artwork preview"
                             paddingPct={previewPaddingPct}
                             containerRef={previewContainerRef}
+                            mobileToolbarContainer={inlineMobileToolbarEl}
                             value={{ x: imgPos.x, y: imgPos.y, scaleX: imgScale, scaleY: imgScaleY }}
                             onChange={(v) => {
                               setImgPos({ x: v.x, y: v.y });
@@ -1820,6 +1826,13 @@ const GoogleAdsBanner: React.FC = () => {
                           />
                         </PreviewRulerFrame>{/* close ruler frame */}
                       </div>
+                      {/* Mobile-only toolbar slot: Fit/Fill/Reset/Locked
+                          renders here BELOW the canvas on <sm screens. */}
+                      <div
+                        ref={setInlineMobileToolbarEl}
+                        className="sm:hidden mt-2"
+                        data-mobile-artwork-toolbar="ga-inline"
+                      />
                       {/* Size dimensions below preview */}
                       <p className="text-xs text-gray-400 text-center mt-2">
                         Size: {isCarMagnet ? `${widthIn}" × ${heightIn}"` : `${widthFt} ft${widthInR > 0 ? ` ${widthInR} in` : ''} × ${heightFt} ft${heightInR > 0 ? ` ${heightInR} in` : ''}`} ({sqft.toFixed(1)} sq ft)
@@ -2218,6 +2231,7 @@ const GoogleAdsBanner: React.FC = () => {
                     alt="Banner preview"
                     paddingPct={previewPaddingPct}
                     containerRef={previewContainerRef}
+                    mobileToolbarContainer={modalMobileToolbarEl}
                     value={{ x: imgPos.x, y: imgPos.y, scaleX: imgScale, scaleY: imgScaleY }}
                     onChange={(v) => {
                       setImgPos({ x: v.x, y: v.y });
@@ -2254,6 +2268,12 @@ const GoogleAdsBanner: React.FC = () => {
                   />
                 </PreviewRulerFrame>
               </div>
+              {/* Mobile-only toolbar slot for the modal preview. */}
+              <div
+                ref={setModalMobileToolbarEl}
+                className="sm:hidden mt-2"
+                data-mobile-artwork-toolbar="ga-modal"
+              />
               {/* Size below preview */}
               <p className="text-xs text-gray-400 text-center mt-2">
                 Size: {widthFt} ft{widthInR > 0 ? ` ${widthInR} in` : ''} × {heightFt} ft{heightInR > 0 ? ` ${heightInR} in` : ''} ({sqft.toFixed(1)} sq ft)
