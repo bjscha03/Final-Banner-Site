@@ -133,7 +133,22 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
     }
 
     setSelectedOptions(options);
-  }, [isOpen, quote]);
+    // Only re-initialize when the modal opens or when the underlying quote
+    // fields that determine which options are *available* actually change.
+    // Depending on the entire `quote` object would reset user selections on
+    // every parent re-render (e.g. window resize), causing toggles like the
+    // grommet checkbox to silently un-check themselves. See issue: grommets
+    // disappear / get unselected when dragging the browser window.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    isOpen,
+    quote.grommets,
+    quote.polePockets,
+    quote.addRope,
+    quote.widthIn,
+    quote.heightIn,
+    quote.quantity,
+  ]);
 
   // Handle option toggle with mutual exclusivity
   const toggleOption = (optionId: string) => {
@@ -333,6 +348,8 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
                 return (
               <ThumbnailPreviewWrapper
                 title={`${formatDimensions(quote.widthIn, quote.heightIn)} ${copy.singularLabel}`}
+                widthIn={quote.widthIn}
+                heightIn={quote.heightIn}
                 details={[
                   { label: 'Size', value: formatDimensions(quote.widthIn, quote.heightIn) },
                   { label: 'Material', value: `${quote.material} vinyl` },
@@ -356,7 +373,7 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
                     imagePosition={quote.imagePosition}
                     fitMode={quote.fitMode || "fill"}
                     designServiceEnabled={designServiceEnabled}
-                    maxSize={560}
+                    maxSize={820}
                   />
                 }
               >

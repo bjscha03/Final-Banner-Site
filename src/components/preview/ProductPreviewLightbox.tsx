@@ -21,20 +21,28 @@ import { X } from 'lucide-react';
  * FitToContainer
  *
  * Scales an arbitrary natural-size child down with CSS `transform: scale()` so
- * that it never exceeds the width of its parent container. Used inside the
- * lightbox so that fixed-pixel previews (e.g., a 560px BannerPreview) shrink to
- * fit on portrait mobile viewports without being horizontally cropped.
+ * that it never exceeds the dimensions of its parent slot. Used inside the
+ * lightbox so that fixed-pixel previews (e.g., a 820px BannerPreview) shrink
+ * to fit on portrait mobile viewports without being horizontally cropped.
  *
  * The scale is applied uniformly so the preview keeps its aspect ratio and any
  * absolutely positioned overlays (such as grommets) stay aligned and visible.
- * The wrapper height is updated to match the scaled height so surrounding
- * content (details, close button) reflows correctly.
+ *
+ * The wrapper itself takes `width: 100%; height: 100%` so the parent (which
+ * reserves a slot of an explicit aspect ratio derived from product
+ * dimensions) controls layout. This means the slot height is guaranteed by
+ * CSS even on the first paint, before the BannerPreview's image has loaded —
+ * preventing the "thin strip" mobile collapse where the wrapper's height
+ * collapses to zero waiting for content measurement.
  */
 const FitToContainer: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
-  const [naturalHeight, setNaturalHeight] = useState<number | null>(null);
+  // Start at 0 so the natural-size BannerPreview never paints unscaled — even
+  // for the single frame between mount and the first useLayoutEffect — which
+  // would otherwise overflow the slot and get clipped by `overflow: hidden`,
+  // hiding edge content like grommets.
+  const [scale, setScale] = useState(0);
 
   useLayoutEffect(() => {
     const container = containerRef.current;
@@ -43,14 +51,29 @@ const FitToContainer: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
     const recompute = () => {
       const containerWidth = container.clientWidth;
-      // Use scrollWidth/scrollHeight to read the unscaled natural size of the
-      // content (transforms don't affect scroll metrics in modern browsers).
-      const naturalWidth = content.scrollWidth;
-      const measuredHeight = content.scrollHeight;
-      if (!containerWidth || !naturalWidth) return;
-      const next = Math.min(1, containerWidth / naturalWidth);
+      const containerHeight = container.clientHeight;
+      const naturalWidth = content.offsetWidth;
+      const naturalHeight = content.offsetHeight;
+      // Only require width measurements. The slot reserves its height via
+      // CSS `aspect-ratio` matching the BannerPreview's intrinsic ratio, so
+      // a width-only scale produces a perfectly fitting result. Some
+      // browsers (notably older Safari) momentarily report `clientHeight`
+      // as 0 for an element sized via `aspect-ratio` whose child uses
+      // `height: 100%`; gating on `containerHeight` here would leave
+      // `scale` stuck at the initial `1`, which would render the natural
+      // 820px BannerPreview at full size centered in a small slot under
+      // `overflow: hidden` — clipping the corner grommets out of view.
+      if (!containerWidth || !naturalWidth || !naturalHeight) return;
+
+      const widthScale = containerWidth / naturalWidth;
+      // Use the height scale as an extra clamp only when the slot has been
+      // resolved AND has been capped (e.g., by `max-height`) so its
+      // effective aspect ratio is taller than the BannerPreview's.
+      const heightScale =
+        containerHeight > 0 ? containerHeight / naturalHeight : widthScale;
+      const next = Math.min(1, widthScale, heightScale);
+
       setScale(next);
-      setNaturalHeight(measuredHeight);
     };
 
     recompute();
@@ -75,27 +98,33 @@ const FitToContainer: React.FC<{ children: React.ReactNode }> = ({ children }) =
   }, [children]);
 
   return (
-    <div ref={containerRef} className="w-full max-w-full flex items-start justify-center">
+    <div
+      ref={containerRef}
+      // Fill the slot reserved by the parent (which sets width + aspect-ratio).
+      // IMPORTANT: do NOT clip overflow here. BannerPreview's grommet overlays
+      // are absolutely positioned at the banner corners with
+      // `transform: translate(-50%, -50%)`, so half of each corner grommet
+      // visually extends outside the previewWidth×previewHeight box. Once the
+      // viewport is sized so FitToContainer's scale lands at 1, the slot is
+      // the exact size of the BannerPreview and any `overflow: hidden` here
+      // would clip those grommet halves out of view — which looked like the
+      // zoom modal "removed" the grommets after a window resize. The lightbox
+      // panel already has its own `overflowY: auto` + `max-height` for scroll
+      // containment, so a few pixels of grommet bleed into the panel padding
+      // is harmless.
+      className="w-full h-full flex items-center justify-center"
+    >
       <div
+        ref={contentRef}
         style={{
-          height: naturalHeight != null ? `${naturalHeight * scale}px` : undefined,
-          width: '100%',
-          display: 'flex',
-          justifyContent: 'center',
+          transform: `scale(${scale})`,
+          transformOrigin: 'center center',
+          // Inline-block so offsetWidth/offsetHeight reflect the natural
+          // intrinsic size of the child rather than expanding to the parent.
+          display: 'inline-block',
         }}
       >
-        <div
-          ref={contentRef}
-          style={{
-            transform: `scale(${scale})`,
-            transformOrigin: 'top center',
-            // Inline-block so scrollWidth/scrollHeight reflect the natural
-            // intrinsic size of the child rather than expanding to the parent.
-            display: 'inline-block',
-          }}
-        >
-          {children}
-        </div>
+        {children}
       </div>
     </div>
   );
@@ -115,6 +144,16 @@ export interface ProductPreviewLightboxProps {
   details?: PreviewDetail[];
   /** The enlarged preview node (typically a <BannerPreview /> with a larger maxSize). */
   children: React.ReactNode;
+  /**
+   * Product width in inches. Used together with `heightIn` to reserve a
+   * preview slot whose CSS `aspect-ratio` matches the product. This
+   * guarantees the slot has a real height on the very first paint, so the
+   * preview never collapses to a thin strip on mobile while waiting for the
+   * inner image to load and report its size.
+   */
+  widthIn?: number;
+  /** Product height in inches. See `widthIn`. */
+  heightIn?: number;
 }
 
 const ProductPreviewLightbox: React.FC<ProductPreviewLightboxProps> = ({
@@ -123,6 +162,8 @@ const ProductPreviewLightbox: React.FC<ProductPreviewLightboxProps> = ({
   title,
   details,
   children,
+  widthIn,
+  heightIn,
 }) => {
   // Drive an "entered" state one tick after mount so CSS transitions can run.
   const [mounted, setMounted] = useState(false);
@@ -178,14 +219,26 @@ const ProductPreviewLightbox: React.FC<ProductPreviewLightboxProps> = ({
         }`}
       />
 
-      {/* Panel */}
+      {/* Panel
+          Sized to its content rather than to the viewport. The width is
+          capped to a comfortable reading width on desktop and shrinks with
+          a small page gutter on mobile, so the modal never expands into a
+          mostly-empty box. Height is content-driven; we only impose a
+          viewport-relative `max-height` as a scroll fallback. */}
       <div
-        className={`relative w-full max-w-2xl max-h-[calc(100vh-24px)] sm:max-h-[92vh] overflow-y-auto bg-white rounded-2xl shadow-2xl transition-all duration-200 ease-out transform ${
+        className={`relative bg-white rounded-2xl shadow-2xl transition-all duration-200 ease-out transform ${
           entered ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-2'
         }`}
-        // Per spec: never exceed viewport width (minus 12px gutter on each
-        // side) so the modal always fits portrait mobile screens.
-        style={{ maxWidth: 'calc(100vw - 24px)' }}
+        style={{
+          // `min()` clamps to the smaller of the desktop cap and the mobile
+          // gutter. Using `width` (not `max-width`) gives the panel a
+          // definite size so the inner `w-full` measurement target is
+          // stable and the FitToContainer scale calculation is correct on
+          // first paint.
+          width: 'min(900px, calc(100vw - 24px))',
+          maxHeight: 'calc(100vh - 32px)',
+          overflowY: 'auto',
+        }}
         // Stop clicks inside the panel from bubbling to the backdrop button
         onClick={(e) => e.stopPropagation()}
       >
@@ -207,11 +260,24 @@ const ProductPreviewLightbox: React.FC<ProductPreviewLightboxProps> = ({
             </h2>
           )}
 
-          {/* Enlarged preview — fits within the panel width on any viewport
-              (including portrait mobile) without horizontal cropping. The
-              FitToContainer wrapper uniformly scales the child so absolutely
-              positioned overlays such as grommets stay aligned and visible. */}
-          <div className="w-full">
+          {/* Enlarged preview slot.
+              The slot has an explicit `aspect-ratio` derived from the
+              product dimensions so it always has a real, layout-defined
+              height — even on the first paint, before the BannerPreview's
+              inner <img> has loaded. This is what fixes the mobile bug
+              where the preview collapsed to a thin strip waiting for
+              measurement. The slot is also capped at ~70vh on tall portrait
+              banners so it never pushes the close button off-screen. */}
+          <div
+            className="w-full"
+            style={{
+              aspectRatio:
+                widthIn && heightIn && widthIn > 0 && heightIn > 0
+                  ? `${widthIn} / ${heightIn}`
+                  : undefined,
+              maxHeight: '70vh',
+            }}
+          >
             <FitToContainer>{children}</FitToContainer>
           </div>
 
