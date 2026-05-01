@@ -753,12 +753,12 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
                   />
                 </div>
               </div>
-              {/* Mobile-only toolbar slot — Fit/Fill/Reset/Locked render
-                  here BELOW the canvas on <sm screens via portal so they
-                  do not cover the printable yard sign artwork. */}
+              {/* Toolbar slot — Fit/Fill/Reset/Locked render here BELOW
+                  the canvas on every screen size via portal so they do
+                  not cover the printable yard sign artwork. */}
               <div
                 ref={setMobileToolbarEl}
-                className="sm:hidden mt-2"
+                className="mt-2"
                 data-mobile-artwork-toolbar="yard-sign"
               />
               <p className="text-xs text-gray-400 text-center mt-2 truncate max-w-full px-4">

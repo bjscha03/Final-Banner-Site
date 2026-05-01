@@ -447,11 +447,11 @@ const Design: React.FC = () => {
   const [resizeStartDist, setResizeStartDist] = useState(0);
   const [resizeCenter, setResizeCenter] = useState({ x: 0, y: 0 });
   const previewContainerRef = useRef<HTMLDivElement>(null);
-  // Mount points for the mobile (<sm) Fit/Fill/Reset/Locked toolbar that
-  // ArtworkPreviewEditor renders BELOW the preview canvas via portal.
-  // Using state (not refs) ensures the portal re-renders as soon as the
-  // mount node is attached. Two slots: one for the inline preview, one
-  // for the confirm modal preview.
+  // Mount points for the Fit/Fill/Reset/Locked toolbar that
+  // ArtworkPreviewEditor renders BELOW the preview canvas via portal on
+  // every screen size. Using state (not refs) ensures the portal
+  // re-renders as soon as the mount node is attached. Two slots: one for
+  // the inline preview, one for the confirm modal preview.
   const [inlineMobileToolbarEl, setInlineMobileToolbarEl] = useState<HTMLDivElement | null>(null);
   const [modalMobileToolbarEl, setModalMobileToolbarEl] = useState<HTMLDivElement | null>(null);
 
@@ -851,6 +851,7 @@ const Design: React.FC = () => {
       heightIn: number;
       imgPosPercent: { x: number; y: number };
       imgScale: number;
+      imgScaleY?: number;
     },
   ) => {
     if (!itemId) return;
@@ -1070,6 +1071,7 @@ const Design: React.FC = () => {
         heightIn,
         imgPosPercent: checkoutData.pos,
         imgScale: checkoutData.scale,
+        imgScaleY: checkoutData.scaleY ?? checkoutData.scale,
       });
 
       finishAddToCart(actionType, '/design?product=car-magnets');
@@ -1220,6 +1222,7 @@ const Design: React.FC = () => {
       heightIn,
       imgPosPercent: checkoutData.pos,
       imgScale: checkoutData.scale,
+      imgScaleY: checkoutData.scaleY ?? checkoutData.scale,
     });
 
     finishAddToCart(actionType, '/design?product=banner');
@@ -1892,12 +1895,13 @@ const Design: React.FC = () => {
                         />
                       </PreviewRulerFrame>{/* close ruler frame */}
                     </div>
-                    {/* Mobile-only toolbar slot: the Fit / Fill / Reset / Locked
-                        controls portal in here below the canvas on <sm screens
-                        so they no longer cover the printable artwork. */}
+                    {/* Toolbar slot: the Fit / Fill / Reset / Locked
+                        controls portal in here BELOW the canvas on every
+                        screen size so they no longer cover the printable
+                        artwork on desktop or mobile. */}
                     <div
                       ref={setInlineMobileToolbarEl}
-                      className="sm:hidden mt-2"
+                      className="mt-2"
                       data-mobile-artwork-toolbar="inline"
                     />
                     <p className="text-xs text-gray-400 text-center mt-2">
@@ -2283,10 +2287,11 @@ const Design: React.FC = () => {
                   />
                 </PreviewRulerFrame>
               </div>
-              {/* Mobile-only toolbar slot for the modal preview. */}
+              {/* Toolbar slot for the modal preview — rendered below the
+                  canvas on all screen sizes so it never covers artwork. */}
               <div
                 ref={setModalMobileToolbarEl}
-                className="sm:hidden mt-2"
+                className="mt-2"
                 data-mobile-artwork-toolbar="modal"
               />
               <p className="text-xs text-gray-400 text-center mt-2">
@@ -2319,6 +2324,7 @@ const Design: React.FC = () => {
           file: uploadedFile ? { name: uploadedFile.name, url: uploadedFile.url } : undefined,
           imagePosition: pendingCheckoutData?.pos,
           imageScale: pendingCheckoutData?.scale,
+          imageScaleY: pendingCheckoutData?.scaleY ?? pendingCheckoutData?.scale,
         } as any}
         thumbnailUrl={uploadedFile?.thumbnailUrl || uploadedFile?.url}
         actionType={pendingActionType === 'checkout' ? 'checkout' : 'cart'}

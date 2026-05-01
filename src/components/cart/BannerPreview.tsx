@@ -39,6 +39,7 @@ interface BannerPreviewProps {
     aspectRatio?: number;
   };
   imageScale?: number;
+  imageScaleY?: number;
   imagePosition?: { x: number; y: number };
   fitMode?: 'fill' | 'fit' | 'stretch';
   designServiceEnabled?: boolean;
@@ -135,6 +136,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   textElements = [],
   overlayImage,
   imageScale = 1,
+  imageScaleY,
   imagePosition = { x: 0, y: 0 },
   fitMode = 'fill',
   designServiceEnabled = false,
@@ -331,7 +333,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
                 ref={imgRef}
                 src={imageUrl}
                 alt="Banner preview"
-                className="absolute inset-0 w-full h-full object-contain"
+                className="absolute inset-0 w-full h-full object-fill"
                 draggable={false}
                 onLoad={(e) => { setImageLoaded(true); }}
                 onError={() => setImageError(true)}
@@ -391,7 +393,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
               ref={imgRef}
               src={imageUrl} 
               alt="Banner preview"
-              className="w-full h-full object-contain"
+              className="w-full h-full object-fill"
               draggable={false}
               onLoad={(e) => { setImageLoaded(true); }}
               onError={() => setImageError(true)}
@@ -416,13 +418,14 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
         <div
           className="rounded-lg overflow-hidden shadow-lg border-2 border-gray-200 bg-white absolute inset-0"
         >
-          {/* Wrapper div for transform - matches preview modal structure */}
+          {/* Wrapper div for transform — mirrors ArtworkPreviewEditor's
+              translate(x%, y%) scale(scaleX, scaleY) so freeform Fill
+              looks identical here. We always apply the transform when an
+              image is present (defaults are pos=(0,0) and scale=1). */}
           <div
             className="absolute inset-0 w-full h-full"
             style={{
-              transform: fitMode === 'fill' && imagePosition && imageScale 
-                ? `translate(${(imagePosition.x / 100) * previewWidth}px, ${(imagePosition.y / 100) * previewHeight}px) scale(${imageScale})`
-                : undefined,
+              transform: `translate(${(imagePosition.x / 100) * previewWidth}px, ${(imagePosition.y / 100) * previewHeight}px) scale(${imageScale}, ${imageScaleY ?? imageScale})`,
               transformOrigin: 'center center'
             }}
           >
@@ -504,14 +507,16 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
               className="w-full h-full"
               style={{ display: 'block' }}
             >
-              {/* Canvas thumbnail as background */}
+              {/* Canvas thumbnail as background — snapshot already matches
+                  the banner aspect ratio, so use "none" so any sub-pixel
+                  rounding does not introduce thin white bars. */}
               <image
                 href={imageUrl}
                 x="0"
                 y="0"
                 width={viewBoxWidth}
                 height={viewBoxHeight}
-                preserveAspectRatio="xMidYMid meet"
+                preserveAspectRatio="none"
               />
               
               {/* Grommets overlay */}
@@ -545,7 +550,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
           <img 
             src={imageUrl} 
             alt="Banner preview"
-            className={`w-full h-full ${fitMode === 'fill' ? 'object-cover' : fitMode === 'stretch' ? 'object-fill' : 'object-contain'}`}
+            className="w-full h-full object-fill"
           />
         </div>
       </div>
@@ -553,31 +558,72 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
   }
 
   // Otherwise, render the full SVG with grommets, text, etc.
+  // For raw uploaded images we render a DOM image layer UNDERNEATH the
+  // SVG so the contain+translate(scaleX, scaleY) math is identical to
+  // the live ArtworkPreviewEditor canvas. The SVG still renders text,
+  // overlay, grommets, and placeholders on top.
+  const showRawImageLayer = !isLoading && !!imageUrl && !isCanvasThumbnail && !imageError;
+  const effectiveScaleX = imageScale;
+  const effectiveScaleY = imageScaleY ?? imageScale;
   return (
     <div className={`flex items-center justify-center ${className}`}>
       <div 
-        className="relative rounded-lg shadow-lg border-2 border-gray-200"
+        className="relative rounded-lg shadow-lg border-2 border-gray-200 overflow-hidden bg-white"
         style={{
           width: `${previewWidth}px`,
           height: `${previewHeight}px`,
         }}
       >
+        {showRawImageLayer && (
+          <div
+            className="absolute inset-0 overflow-hidden"
+            aria-hidden="true"
+            style={{ backgroundColor: '#f9fafb' }}
+          >
+            {/* Mirror of ArtworkPreviewEditor's transform: object-contain
+                inside the canvas, then translate(x%, y%) scale(scaleX, scaleY)
+                around the center. translate uses percentage of container so
+                the math matches the live canvas at any preview size.
+                (The mobile branch above uses an equivalent pixel-based
+                translate because that path already pre-computes pixels for
+                its grommet overlays.) */}
+            <div
+              className="absolute inset-0 w-full h-full"
+              style={{
+                transform: `translate(${imagePosition.x}%, ${imagePosition.y}%) scale(${effectiveScaleX}, ${effectiveScaleY})`,
+                transformOrigin: 'center center',
+              }}
+            >
+              <img
+                src={imageUrl}
+                alt="Banner artwork"
+                className="block w-full h-full object-contain"
+                draggable={false}
+                onError={() => setImageError(true)}
+                onLoad={() => setImageLoaded(true)}
+              />
+            </div>
+          </div>
+        )}
         <svg
           width="100%"
           height="100%"
           viewBox={`0 0 ${viewBoxWidth} ${viewBoxHeight}`}
           preserveAspectRatio="xMidYMid meet"
           overflow="visible"
-          className="bg-white"
+          className={showRawImageLayer ? 'relative' : 'bg-white'}
         >
-          {/* Background */}
-          <rect
-            x="0"
-            y="0"
-            width={viewBoxWidth}
-            height={viewBoxHeight}
-            fill="#f9fafb"
-          />
+          {/* Background — only when we are NOT rendering the raw image
+              layer underneath (otherwise it would cover the artwork). */}
+          {!showRawImageLayer && (
+            <rect
+              x="0"
+              y="0"
+              width={viewBoxWidth}
+              height={viewBoxHeight}
+              fill="#f9fafb"
+            />
+          )}
 
           {/* Image or placeholder */}
           {isLoading ? (
@@ -603,7 +649,11 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
             </g>
           ) : imageUrl ? (
             isCanvasThumbnail ? (
-              // Canvas thumbnail - render full-bleed without scaling/positioning
+              // Canvas thumbnail - render full-bleed without scaling/positioning.
+              // Snapshot already matches banner aspect ratio, so use "slice"
+              // (== object-cover) to avoid any thin white bars from sub-pixel
+              // rounding when the snapshot dimensions round to a slightly
+              // different aspect than the preview box.
               <image
                 href={imageUrl}
                 x="0"
@@ -612,19 +662,7 @@ const BannerPreview: React.FC<BannerPreviewProps> = ({
                 height={viewBoxHeight}
                 preserveAspectRatio="xMidYMid slice"
               />
-            ) : (
-              // Regular uploaded image - apply scaling/positioning
-              <g clipPath={`url(#banner-clip-${widthIn}-${heightIn})`}>
-                <image
-                  href={imageUrl}
-                  x={(viewBoxWidth - viewBoxWidth * imageScale) / 2 + (imagePosition.x / 100) * viewBoxWidth}
-                  y={(viewBoxHeight - viewBoxHeight * imageScale) / 2 + (imagePosition.y / 100) * viewBoxHeight}
-                  width={viewBoxWidth * imageScale}
-                  height={viewBoxHeight * imageScale}
-                  preserveAspectRatio="xMidYMid meet"
-                />
-              </g>
-            )
+            ) : null /* Raw image rendered as DOM layer above (showRawImageLayer) */
           ) : (
             <g>
               <rect
