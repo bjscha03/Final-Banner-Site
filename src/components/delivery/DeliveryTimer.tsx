@@ -72,10 +72,7 @@ export const DeliveryTimer: React.FC<DeliveryTimerProps> = ({
         <div className="flex items-start gap-3">
           <Clock className={`${isCompact ? 'h-4 w-4' : 'h-5 w-5'} text-slate-500 mt-0.5 flex-shrink-0`} aria-hidden="true" />
           <div>
-            <h3 className={`font-semibold text-slate-800 ${isCompact ? 'text-sm' : 'text-base'}`}>
-              Production resumes Monday
-            </h3>
-            <p className={`mt-1 ${isCompact ? 'text-xs text-slate-600' : 'text-sm text-slate-600'}`}>
+            <p className={`font-semibold text-slate-800 ${isCompact ? 'text-sm' : 'text-base'}`}>
               {weekendLockLine(estimate)}
             </p>
           </div>
