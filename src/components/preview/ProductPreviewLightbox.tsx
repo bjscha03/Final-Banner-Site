@@ -13,9 +13,93 @@
  *  - Renders via React Portal so it always overlays everything else.
  *  - Smooth fade + scale animation using CSS transitions (no extra deps).
  */
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+
+/**
+ * FitToContainer
+ *
+ * Scales an arbitrary natural-size child down with CSS `transform: scale()` so
+ * that it never exceeds the width of its parent container. Used inside the
+ * lightbox so that fixed-pixel previews (e.g., a 560px BannerPreview) shrink to
+ * fit on portrait mobile viewports without being horizontally cropped.
+ *
+ * The scale is applied uniformly so the preview keeps its aspect ratio and any
+ * absolutely positioned overlays (such as grommets) stay aligned and visible.
+ * The wrapper height is updated to match the scaled height so surrounding
+ * content (details, close button) reflows correctly.
+ */
+const FitToContainer: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+  const [naturalHeight, setNaturalHeight] = useState<number | null>(null);
+
+  useLayoutEffect(() => {
+    const container = containerRef.current;
+    const content = contentRef.current;
+    if (!container || !content) return;
+
+    const recompute = () => {
+      const containerWidth = container.clientWidth;
+      // Use scrollWidth/scrollHeight to read the unscaled natural size of the
+      // content (transforms don't affect scroll metrics in modern browsers).
+      const naturalWidth = content.scrollWidth;
+      const measuredHeight = content.scrollHeight;
+      if (!containerWidth || !naturalWidth) return;
+      const next = Math.min(1, containerWidth / naturalWidth);
+      setScale(next);
+      setNaturalHeight(measuredHeight);
+    };
+
+    recompute();
+
+    const ro = new ResizeObserver(recompute);
+    ro.observe(container);
+    ro.observe(content);
+    window.addEventListener('resize', recompute);
+
+    // Re-measure shortly after mount in case images load and change size.
+    // 50ms catches synchronous/cached image loads; 250ms catches typical
+    // network image loads inside the preview.
+    const t = window.setTimeout(recompute, 50);
+    const t2 = window.setTimeout(recompute, 250);
+
+    return () => {
+      ro.disconnect();
+      window.removeEventListener('resize', recompute);
+      window.clearTimeout(t);
+      window.clearTimeout(t2);
+    };
+  }, [children]);
+
+  return (
+    <div ref={containerRef} className="w-full max-w-full flex items-start justify-center">
+      <div
+        style={{
+          height: naturalHeight != null ? `${naturalHeight * scale}px` : undefined,
+          width: '100%',
+          display: 'flex',
+          justifyContent: 'center',
+        }}
+      >
+        <div
+          ref={contentRef}
+          style={{
+            transform: `scale(${scale})`,
+            transformOrigin: 'top center',
+            // Inline-block so scrollWidth/scrollHeight reflect the natural
+            // intrinsic size of the child rather than expanding to the parent.
+            display: 'inline-block',
+          }}
+        >
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export interface PreviewDetail {
   label: string;
@@ -96,9 +180,12 @@ const ProductPreviewLightbox: React.FC<ProductPreviewLightboxProps> = ({
 
       {/* Panel */}
       <div
-        className={`relative w-full max-w-2xl max-h-[92vh] overflow-y-auto bg-white rounded-2xl shadow-2xl transition-all duration-200 ease-out transform ${
+        className={`relative w-full max-w-2xl max-h-[calc(100vh-24px)] sm:max-h-[92vh] overflow-y-auto bg-white rounded-2xl shadow-2xl transition-all duration-200 ease-out transform ${
           entered ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-2'
         }`}
+        // Per spec: never exceed viewport width (minus 12px gutter on each
+        // side) so the modal always fits portrait mobile screens.
+        style={{ maxWidth: 'calc(100vw - 24px)' }}
         // Stop clicks inside the panel from bubbling to the backdrop button
         onClick={(e) => e.stopPropagation()}
       >
@@ -120,9 +207,12 @@ const ProductPreviewLightbox: React.FC<ProductPreviewLightboxProps> = ({
             </h2>
           )}
 
-          {/* Enlarged preview */}
-          <div className="flex items-center justify-center w-full overflow-hidden">
-            {children}
+          {/* Enlarged preview — fits within the panel width on any viewport
+              (including portrait mobile) without horizontal cropping. The
+              FitToContainer wrapper uniformly scales the child so absolutely
+              positioned overlays such as grommets stay aligned and visible. */}
+          <div className="w-full">
+            <FitToContainer>{children}</FitToContainer>
           </div>
 
           {/* Details */}
