@@ -1561,7 +1561,7 @@ const GoogleAdsBanner: React.FC = () => {
                   <p className="text-xs text-gray-500 mt-1">{sqft.toFixed(1)} sq ft</p>
                   <p className="text-xs text-gray-500 mt-0.5">
                     {unit === 'in'
-                      ? `≈ ${widthFt}${widthInR > 0 ? ` ${widthInR}/12` : ''} ft × ${heightFt}${heightInR > 0 ? ` ${heightInR}/12` : ''} ft`
+                      ? `≈ ${widthFt}${widthInR > 0 ? ` ft ${widthInR} in` : ' ft'} × ${heightFt}${heightInR > 0 ? ` ft ${heightInR} in` : ' ft'}`
                       : `≈ ${widthIn} in × ${heightIn} in`}
                   </p>
                 </div>

@@ -1609,7 +1609,7 @@ const Design: React.FC = () => {
                     Display-only; never touches pricing or cart. */}
                 <p className="text-xs text-gray-500 mt-0.5">
                   {unit === 'in'
-                    ? `≈ ${widthFt}${widthInR > 0 ? ` ${widthInR}/12` : ''} ft × ${heightFt}${heightInR > 0 ? ` ${heightInR}/12` : ''} ft`
+                    ? `≈ ${widthFt}${widthInR > 0 ? ` ft ${widthInR} in` : ' ft'} × ${heightFt}${heightInR > 0 ? ` ft ${heightInR} in` : ' ft'}`
                     : `≈ ${widthIn} in × ${heightIn} in`}
                 </p>
               </div>
