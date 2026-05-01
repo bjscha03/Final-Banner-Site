@@ -35,7 +35,7 @@ const PreviewRulerFrame: React.FC<PreviewRulerFrameProps> = ({
   widthIn,
   heightIn,
   unit = 'in',
-  bandPx = 22,
+  bandPx = 28,
   debug = false,
   className = '',
   style,
@@ -83,22 +83,24 @@ const PreviewRulerFrame: React.FC<PreviewRulerFrameProps> = ({
     return <>{children}</>;
   }
 
-  // Ruler styling. Ticks point INWARD toward the canvas so the bands
-  // visually hug the print surface.
+  // Crisp-text strategy:
+  //   The canvas itself is a normal in-flow child whose intrinsic size
+  //   (set via padding-bottom aspect-ratio by the caller) drives the
+  //   wrapper's height. Rulers are rendered as plain HTML / CSS overlays
+  //   absolutely positioned over the padded gutters — NOT inside a
+  //   `preserveAspectRatio="none"` SVG — so labels and tick lines render
+  //   at 1:1 device pixels and never get stretched horizontally on the
+  //   bottom ruler or vertically on the left ruler.
+  //
+  // Tick/label positioning is expressed as a percentage along the axis
+  // (`pos / lengthIn * 100%`) so the rulers stay perfectly aligned with
+  // the canvas at any zoom level or resize.
   const tickColor = '#475569';
   const labelColor = '#1e293b';
+  const labelFont = '10px/1 system-ui, -apple-system, "Segoe UI", sans-serif';
+  const majorTickPx = 8;
+  const minorTickPx = 4;
 
-  // Layout strategy: a single block-level wrapper that reserves padding
-  // for the LEFT and BOTTOM ruler bands, with the canvas as a normal
-  // in-flow child. The wrapper's height is therefore driven by the
-  // canvas's intrinsic height (e.g. via padding-bottom aspect-ratio),
-  // which guarantees:
-  //   * the vertical ruler is exactly as tall as the canvas
-  //   * the horizontal ruler is exactly as wide as the canvas
-  //   * no oversized ruler "frame" stretches past the canvas when a
-  //     parent flex/grid container would otherwise stretch us.
-  // The rulers themselves are absolutely positioned over the padded
-  // gutters and never affect layout.
   return (
     <div
       className={className}
@@ -116,10 +118,8 @@ const PreviewRulerFrame: React.FC<PreviewRulerFrameProps> = ({
       {children}
 
       {/* Left vertical ruler — exactly the canvas's height. Ticks point
-          RIGHT toward the canvas. */}
-      <svg
-        viewBox={`0 0 1 ${heightIn}`}
-        preserveAspectRatio="none"
+          RIGHT toward the canvas; labels sit to the LEFT of the ticks. */}
+      <div
         style={{
           position: 'absolute',
           top: 0,
@@ -127,47 +127,51 @@ const PreviewRulerFrame: React.FC<PreviewRulerFrameProps> = ({
           width: bandPx,
           height: `calc(100% - ${bandPx}px)`,
           pointerEvents: 'none',
+          font: labelFont,
+          color: labelColor,
         }}
         aria-hidden="true"
       >
         {verticalTicks.map((t, i) => {
-          const tickW = t.major ? 0.45 : 0.25;
+          const pct = (t.pos / heightIn) * 100;
+          const tickW = t.major ? majorTickPx : minorTickPx;
           return (
-            <g key={`v-${i}`}>
-              <line
-                x1={1 - tickW}
-                y1={t.pos}
-                x2={1}
-                y2={t.pos}
-                stroke={tickColor}
-                strokeWidth={t.major ? 0.04 : 0.025}
-                vectorEffect="non-scaling-stroke"
+            <React.Fragment key={`v-${i}`}>
+              <div
+                style={{
+                  position: 'absolute',
+                  top: `${pct}%`,
+                  right: 0,
+                  width: tickW,
+                  height: t.major ? 1 : 1,
+                  background: tickColor,
+                  transform: 'translateY(-0.5px)',
+                  opacity: t.major ? 1 : 0.55,
+                }}
               />
               {t.major && t.label && (
-                <text
-                  x={0.42}
-                  y={t.pos}
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  fontSize={0.42}
-                  fill={labelColor}
-                  fontWeight={600}
-                  transform={`rotate(-90, 0.42, ${t.pos})`}
-                  style={{ fontFamily: 'system-ui, sans-serif' }}
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: `${pct}%`,
+                    right: majorTickPx + 3,
+                    transform: 'translateY(-50%)',
+                    whiteSpace: 'nowrap',
+                    fontWeight: 600,
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
                 >
                   {t.label}
-                </text>
+                </span>
               )}
-            </g>
+            </React.Fragment>
           );
         })}
-      </svg>
+      </div>
 
       {/* Bottom horizontal ruler — exactly the canvas's width. Ticks
-          point UP toward the canvas. */}
-      <svg
-        viewBox={`0 0 ${widthIn} 1`}
-        preserveAspectRatio="none"
+          point UP toward the canvas; labels sit BELOW the ticks. */}
+      <div
         style={{
           position: 'absolute',
           left: bandPx,
@@ -175,40 +179,47 @@ const PreviewRulerFrame: React.FC<PreviewRulerFrameProps> = ({
           width: `calc(100% - ${bandPx}px)`,
           height: bandPx,
           pointerEvents: 'none',
+          font: labelFont,
+          color: labelColor,
         }}
         aria-hidden="true"
       >
         {horizontalTicks.map((t, i) => {
-          const tickH = t.major ? 0.45 : 0.25;
+          const pct = (t.pos / widthIn) * 100;
+          const tickH = t.major ? majorTickPx : minorTickPx;
           return (
-            <g key={`h-${i}`}>
-              <line
-                x1={t.pos}
-                y1={0}
-                x2={t.pos}
-                y2={tickH}
-                stroke={tickColor}
-                strokeWidth={t.major ? 0.04 : 0.025}
-                vectorEffect="non-scaling-stroke"
+            <React.Fragment key={`h-${i}`}>
+              <div
+                style={{
+                  position: 'absolute',
+                  left: `${pct}%`,
+                  top: 0,
+                  height: tickH,
+                  width: 1,
+                  background: tickColor,
+                  transform: 'translateX(-0.5px)',
+                  opacity: t.major ? 1 : 0.55,
+                }}
               />
               {t.major && t.label && (
-                <text
-                  x={t.pos}
-                  y={0.92}
-                  textAnchor="middle"
-                  dominantBaseline="auto"
-                  fontSize={0.42}
-                  fill={labelColor}
-                  fontWeight={600}
-                  style={{ paintOrder: 'stroke', fontFamily: 'system-ui, sans-serif' }}
+                <span
+                  style={{
+                    position: 'absolute',
+                    left: `${pct}%`,
+                    top: majorTickPx + 2,
+                    transform: 'translateX(-50%)',
+                    whiteSpace: 'nowrap',
+                    fontWeight: 600,
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
                 >
                   {t.label}
-                </text>
+                </span>
               )}
-            </g>
+            </React.Fragment>
           );
         })}
-      </svg>
+      </div>
     </div>
   );
 };
