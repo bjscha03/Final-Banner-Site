@@ -19,7 +19,7 @@
  *   original high-res source, never from the generated thumbnail.
  */
 import React, { useState, useRef, useCallback, useEffect } from 'react';
-import { X, Plus, Minus, Loader2, AlertTriangle, CheckCircle, ZoomIn, ZoomOut, Move, Eye, Sparkles } from 'lucide-react';
+import { X, Plus, Minus, Loader2, AlertTriangle, CheckCircle, Move, Eye, Sparkles } from 'lucide-react';
 import {
   type YardSignSidedness,
   type YardSignDesign,
@@ -41,6 +41,7 @@ import FileUploader from '@/components/ui/FileUploader';
 import CreateWithAIModal, { type CreateWithAIResult } from '@/components/design/CreateWithAIModal';
 import { ENABLE_AI } from '@/lib/featureFlags';
 import { base64ToFile } from '@/utils/base64ToFile';
+import ArtworkPreviewEditor, { type ArtworkTransform } from '@/components/design/ArtworkPreviewEditor';
 
 // Helper to generate PDF thumbnail URL from Cloudinary
 function getPdfThumbnailUrl(pdfUrl: string): string {
@@ -138,9 +139,9 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
   const [previewDesignId, setPreviewDesignId] = useState<string | null>(null);
   const [previewImgPos, setPreviewImgPos] = useState({ x: 0, y: 0 });
   const [previewImgScale, setPreviewImgScale] = useState(1);
-  const [isDraggingPreview, setIsDraggingPreview] = useState(false);
-  const [dragStartPt, setDragStartPt] = useState({ x: 0, y: 0 });
-  const [dragStartPos, setDragStartPos] = useState({ x: 0, y: 0 });
+  const [previewImgScaleY, setPreviewImgScaleY] = useState(1);
+  const [previewConstrain, setPreviewConstrain] = useState(true);
+  const [mobileToolbarEl, setMobileToolbarEl] = useState<HTMLDivElement | null>(null);
   const previewDesign = designs.find(d => d.id === previewDesignId);
 
   const openPreview = useCallback((designId: string) => {
@@ -148,8 +149,9 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
     setPreviewDesignId(designId);
     // Restore saved state if available, otherwise default
     setPreviewImgPos(design?.imgPos || { x: 0, y: 0 });
-    setPreviewImgScale(design?.imgScale || 1);
-    setIsDraggingPreview(false);
+    setPreviewImgScale(design?.imgScale ?? 1);
+    setPreviewImgScaleY(design?.imgScaleY ?? design?.imgScale ?? 1);
+    setPreviewConstrain(design?.imgConstrain ?? true);
   }, [designs]);
 
   // Auto-open preview when editing from cart (autoOpenDesignId prop)
@@ -173,13 +175,17 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
   // Save preview state and generate thumbnail, then close
   const savePreviewAndClose = useCallback(async () => {
     if (!previewDesignId) { setPreviewDesignId(null); return; }
-    
+
     const currentDesign = designs.find(d => d.id === previewDesignId);
     if (!currentDesign) { setPreviewDesignId(null); return; }
-    
+
     setIsSavingPreview(true);
-    
-    // Generate a thumbnail from the preview canvas
+
+    // Generate a thumbnail from the preview canvas. The on-screen
+    // ArtworkPreviewEditor renders the image inside a "contained rect"
+    // (object-contain box) that is then translated by (x, y) and scaled
+    // around its own center by (scaleX, scaleY). Mirror that exact
+    // transform here so the thumbnail matches what the user just saw.
     const container = previewCanvasRef.current;
     if (container) {
       try {
@@ -194,44 +200,43 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
           // Draw background
           ctx.fillStyle = '#fafafa';
           ctx.fillRect(0, 0, rect.width, rect.height);
-          
+
           // Find the image element inside the preview
           const imgEl = container.querySelector('img') as HTMLImageElement;
           if (imgEl && imgEl.complete && imgEl.naturalWidth > 0) {
-            ctx.save();
-            ctx.beginPath();
-            ctx.rect(0, 0, rect.width, rect.height);
-            ctx.clip();
-            
-            // Apply the same transforms as the CSS on the preview layer:
-            // transform: translate(...) scale(...) with default transform-origin center center.
-            // CSS matrix equivalent: T(pos) * T(center) * S(scale) * T(-center)
-            const centerX = rect.width / 2;
-            const centerY = rect.height / 2;
-            ctx.translate(previewImgPos.x, previewImgPos.y);
-            ctx.translate(centerX, centerY);
-            ctx.scale(previewImgScale, previewImgScale);
-            ctx.translate(-centerX, -centerY);
-            
-            // Match object-contain: compute dimensions preserving aspect ratio
+            // Compute the contained rect (object-fit: contain) — the
+            // SAME source of truth ArtworkPreviewEditor uses for its
+            // transform wrapper.
             const imgAr = imgEl.naturalWidth / imgEl.naturalHeight;
             const containerAr = rect.width / rect.height;
             let drawW: number, drawH: number;
             if (imgAr > containerAr) {
-              // Image wider than container — fit to width
               drawW = rect.width;
               drawH = rect.width / imgAr;
             } else {
-              // Image taller — fit to height
               drawH = rect.height;
               drawW = rect.height * imgAr;
             }
             const drawX = (rect.width - drawW) / 2;
             const drawY = (rect.height - drawH) / 2;
+            const rectCenterX = drawX + drawW / 2;
+            const rectCenterY = drawY + drawH / 2;
+
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(0, 0, rect.width, rect.height);
+            ctx.clip();
+            // CSS equivalent applied by ArtworkPreviewEditor:
+            //   translate(x, y) then scale(scaleX, scaleY) about the
+            //   contained rect's center.
+            ctx.translate(previewImgPos.x, previewImgPos.y);
+            ctx.translate(rectCenterX, rectCenterY);
+            ctx.scale(previewImgScale, previewImgScaleY);
+            ctx.translate(-rectCenterX, -rectCenterY);
             ctx.drawImage(imgEl, drawX, drawY, drawW, drawH);
             ctx.restore();
           }
-          
+
           const dataUrl = canvas.toDataURL('image/jpeg', PREVIEW_THUMBNAIL_QUALITY);
           // Verify thumbnail isn't blank (a blank JPEG data URL is very short)
           if (dataUrl && dataUrl.length > MIN_VALID_THUMBNAIL_LENGTH) {
@@ -247,12 +252,13 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
               onDesignsChange(designs.map(d => d.id === previewDesignId ? {
                 ...d,
                 imgScale: previewImgScale,
+                imgScaleY: previewImgScaleY,
                 imgPos: { ...previewImgPos },
+                imgConstrain: previewConstrain,
                 previewThumbnailUrl: uploadResult.secureUrl,
               } : d));
               setIsSavingPreview(false);
               setPreviewDesignId(null);
-              setIsDraggingPreview(false);
               return;
             } catch (uploadErr) {
               console.warn('[YardSign] Failed to upload preview to Cloudinary, using data URL fallback:', uploadErr);
@@ -260,12 +266,13 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
               onDesignsChange(designs.map(d => d.id === previewDesignId ? {
                 ...d,
                 imgScale: previewImgScale,
+                imgScaleY: previewImgScaleY,
                 imgPos: { ...previewImgPos },
+                imgConstrain: previewConstrain,
                 previewThumbnailUrl: dataUrl,
               } : d));
               setIsSavingPreview(false);
               setPreviewDesignId(null);
-              setIsDraggingPreview(false);
               return;
             }
           }
@@ -274,7 +281,7 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
         console.warn('[YardSign] Failed to generate preview thumbnail:', err);
       }
     }
-    
+
     // Fallback: save state; for PDFs use Cloudinary thumbnail as preview reference
     const fallbackThumbnail = currentDesign?.isPdf
       ? getPdfThumbnailUrl(currentDesign.fileUrl)
@@ -282,67 +289,22 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
     onDesignsChange(designs.map(d => d.id === previewDesignId ? {
       ...d,
       imgScale: previewImgScale,
+      imgScaleY: previewImgScaleY,
       imgPos: { ...previewImgPos },
+      imgConstrain: previewConstrain,
       ...(fallbackThumbnail ? { previewThumbnailUrl: fallbackThumbnail } : {}),
     } : d));
     setIsSavingPreview(false);
     setPreviewDesignId(null);
-    setIsDraggingPreview(false);
-  }, [previewDesignId, previewImgPos, previewImgScale, designs, onDesignsChange]);
+  }, [previewDesignId, previewImgPos, previewImgScale, previewImgScaleY, previewConstrain, designs, onDesignsChange]);
 
   const closePreview = useCallback(() => {
     setPreviewDesignId(null);
-    setIsDraggingPreview(false);
   }, []);
 
-  // Preview drag handlers
-  const onPreviewMouseDown = useCallback((e: React.MouseEvent) => {
-    e.preventDefault();
-    setIsDraggingPreview(true);
-    setDragStartPt({ x: e.clientX, y: e.clientY });
-    setDragStartPos({ ...previewImgPos });
-  }, [previewImgPos]);
-
-  const onPreviewMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!isDraggingPreview) return;
-    setPreviewImgPos({
-      x: dragStartPos.x + (e.clientX - dragStartPt.x),
-      y: dragStartPos.y + (e.clientY - dragStartPt.y),
-    });
-  }, [isDraggingPreview, dragStartPt, dragStartPos]);
-
-  const onPreviewMouseUp = useCallback(() => {
-    setIsDraggingPreview(false);
-  }, []);
-
-  const onPreviewTouchStart = useCallback((e: React.TouchEvent) => {
-    if (e.touches.length === 1) {
-      const t = e.touches[0];
-      setIsDraggingPreview(true);
-      setDragStartPt({ x: t.clientX, y: t.clientY });
-      setDragStartPos({ ...previewImgPos });
-    }
-  }, [previewImgPos]);
-
-  const onPreviewTouchMove = useCallback((e: React.TouchEvent) => {
-    if (!isDraggingPreview || e.touches.length !== 1) return;
-    e.preventDefault();
-    const t = e.touches[0];
-    setPreviewImgPos({
-      x: dragStartPos.x + (t.clientX - dragStartPt.x),
-      y: dragStartPos.y + (t.clientY - dragStartPt.y),
-    });
-  }, [isDraggingPreview, dragStartPt, dragStartPos]);
-
-  const onPreviewTouchEnd = useCallback(() => {
-    setIsDraggingPreview(false);
-  }, []);
-
-  const onPreviewWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? 0.95 : 1.05;
-    setPreviewImgScale(s => Math.max(0.5, Math.min(3, s * delta)));
-  }, []);
+  // (Drag/zoom handlers were removed — ArtworkPreviewEditor now owns the
+  // pointer/touch interactions, including pinch-to-scale, drag, and
+  // corner-handle resize.)
 
   // Compress images client-side to stay under Netlify's 6 MB function limit
   const compressImage = useCallback(async (file: File): Promise<File> => {
@@ -757,72 +719,51 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
             </div>
             <div className="p-4 flex-1 overflow-auto">
               <p className="text-sm text-gray-500 mb-3 flex items-center gap-1">
-                <Move className="w-4 h-4" /> Drag to reposition · Use buttons or scroll to zoom
+                <Move className="w-4 h-4" /> Drag to reposition · Drag corners to resize · Pinch to scale
               </p>
               <div className="rounded-lg p-4" style={{ background: 'linear-gradient(180deg, #f5f6f8 0%, #e9edf2 100%)' }}>
                 {/* Width wrapper — constrains max-width so padding-bottom produces correct height (cross-browser safe, fixes Safari aspect-ratio bug) */}
                 <div className="mx-auto" style={{ width: '100%', maxWidth: `${Math.round(400 * (24 / 18))}px` }}>
-                <div
-                  ref={previewCanvasRef}
-                  className="relative w-full rounded-sm select-none overflow-hidden transition-all duration-300 ease-out"
-                  style={{
-                    paddingBottom: `${(18 / 24) * 100}%`,
-                    cursor: isDraggingPreview ? 'grabbing' : 'grab',
-                    touchAction: 'none',
-                    backgroundColor: '#fafafa',
-                    border: '1px solid #e2e5ea',
-                    boxShadow: '0 4px 16px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06), inset 0 0 0 1px rgba(255,255,255,0.6)',
-                    WebkitTransform: 'translateZ(0)',
-                    transform: 'translateZ(0)',
-                  }}
-                  onMouseDown={onPreviewMouseDown}
-                  onMouseMove={onPreviewMouseMove}
-                  onMouseUp={onPreviewMouseUp}
-                  onMouseLeave={onPreviewMouseUp}
-                  onTouchStart={onPreviewTouchStart}
-                  onTouchMove={onPreviewTouchMove}
-                  onTouchEnd={onPreviewTouchEnd}
-                  onWheel={onPreviewWheel}
-                >
-                  <div
-                    className="absolute inset-0 w-full h-full"
-                    style={{ transform: `translate(${previewImgPos.x}px, ${previewImgPos.y}px) scale(${previewImgScale})` }}
-                  >
-                    {/* CRITICAL: Always use the high-res original source in the preview modal,
-                        never the generated thumbnail data URL. This ensures:
-                        1. Sharp preview on every edit
-                        2. High-quality canvas thumbnails on save
-                        3. No quality degradation on repeated edits */}
-                    <img
-                      src={getPreviewModalSrc(previewDesign)}
-                      alt="Yard Sign preview"
-                      className="absolute inset-0 w-full h-full pointer-events-none object-contain"
-                      crossOrigin="anonymous"
-                      draggable={false}
-                    />
-                  </div>
-                  {/* Safe zone border indicator */}
-                  <div className="absolute inset-1 border border-dashed border-gray-300/50 rounded-sm pointer-events-none" />
-                </div>
+                  <ArtworkPreviewEditor
+                    src={getPreviewModalSrc(previewDesign)}
+                    alt="Yard Sign preview"
+                    paddingPct={`${(18 / 24) * 100}%`}
+                    containerRef={previewCanvasRef}
+                    mobileToolbarContainer={mobileToolbarEl}
+                    value={{ x: previewImgPos.x, y: previewImgPos.y, scaleX: previewImgScale, scaleY: previewImgScaleY }}
+                    onChange={(v: ArtworkTransform) => {
+                      setPreviewImgPos({ x: v.x, y: v.y });
+                      setPreviewImgScale(v.scaleX);
+                      setPreviewImgScaleY(v.scaleY);
+                    }}
+                    constrain={previewConstrain}
+                    onConstrainChange={setPreviewConstrain}
+                    compactControls
+                    imageCrossOrigin="anonymous"
+                    canvasStyle={{
+                      backgroundColor: '#fafafa',
+                      borderRadius: 2,
+                      border: '1px solid #e2e5ea',
+                      boxShadow: '0 4px 16px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.06), inset 0 0 0 1px rgba(255,255,255,0.6)',
+                    }}
+                    overlay={
+                      /* Safe zone border indicator */
+                      <div className="absolute inset-1 border border-dashed border-gray-300/50 rounded-sm pointer-events-none" />
+                    }
+                  />
                 </div>
               </div>
+              {/* Mobile-only toolbar slot — Fit/Fill/Reset/Locked render
+                  here BELOW the canvas on <sm screens via portal so they
+                  do not cover the printable yard sign artwork. */}
+              <div
+                ref={setMobileToolbarEl}
+                className="sm:hidden mt-2"
+                data-mobile-artwork-toolbar="yard-sign"
+              />
               <p className="text-xs text-gray-400 text-center mt-2 truncate max-w-full px-4">
                 Size: 24&quot; × 18&quot; · Corrugated Plastic · {previewDesign.fileName}
               </p>
-              {/* Zoom controls */}
-              <div className="flex items-center justify-center mt-3">
-                <div className="inline-flex items-center gap-2 bg-white/80 backdrop-blur-sm rounded-full px-3 py-1.5 shadow-sm border border-gray-200/60">
-                  <button onClick={() => setPreviewImgScale(s => Math.max(0.5, s - 0.1))} className="p-2 sm:p-1.5 rounded-full hover:bg-gray-100 transition-colors" aria-label="Zoom out">
-                    <ZoomOut className="w-5 h-5 text-gray-600" />
-                  </button>
-                  <span className="text-sm font-medium text-gray-500 min-w-[3ch] text-center">{Math.round(previewImgScale * 100)}%</span>
-                  <button onClick={() => setPreviewImgScale(s => Math.min(3, s + 0.1))} className="p-2 sm:p-1.5 rounded-full hover:bg-gray-100 transition-colors" aria-label="Zoom in">
-                    <ZoomIn className="w-5 h-5 text-gray-600" />
-                  </button>
-                  <div className="w-px h-4 bg-gray-200" />
-                  <button onClick={() => { setPreviewImgPos({ x: 0, y: 0 }); setPreviewImgScale(1); }} className="text-sm text-orange-600 hover:text-orange-700 font-medium px-2">Reset</button>
-                </div>
-              </div>
               <p className="text-xs text-gray-500 text-center mt-2 font-medium">Your design will be printed based on this preview</p>
             </div>
             <div className="flex gap-3 p-4 border-t">
