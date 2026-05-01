@@ -48,7 +48,12 @@ const FitToContainer: React.FC<{ children: React.ReactNode }> = ({ children }) =
       const naturalWidth = content.scrollWidth;
       const measuredHeight = content.scrollHeight;
       if (!containerWidth || !naturalWidth) return;
-      const next = Math.min(1, containerWidth / naturalWidth);
+      // Always scale to exactly match the container width — both down (mobile)
+      // and up (desktop, when the natural preview is narrower than the panel
+      // content area). This prevents horizontal white space from appearing on
+      // either side of the enlarged preview when it would otherwise sit
+      // centered inside a wider container.
+      const next = containerWidth / naturalWidth;
       setScale(next);
       setNaturalHeight(measuredHeight);
     };
