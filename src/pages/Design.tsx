@@ -316,13 +316,19 @@ const Design: React.FC = () => {
     } else if (item.product_type === 'car_magnet') {
       setProductType('car_magnet');
       if (item.file_url) {
+        // IMPORTANT: derive the live-preview thumbnail from the raw
+        // artwork URL (item.file_url) — NOT from item.thumbnail_url. The
+        // stored thumbnail_url is a positioned screenshot of the prior
+        // preview canvas; using it here renders a "preview-of-the-preview"
+        // (the entire preview UI appears to recurse inside the canvas).
+        const isPdf = item.is_pdf || false;
         setUploadedFile({
           name: item.file_name || 'artwork',
           url: item.file_url,
           fileKey: item.file_key || '',
           size: 0,
-          isPdf: item.is_pdf || false,
-          thumbnailUrl: item.thumbnail_url || item.file_url,
+          isPdf,
+          thumbnailUrl: isPdf ? getPdfThumbnailUrl(item.file_url) : getImagePreviewUrl(item.file_url),
         });
       }
       const matchedSize = CAR_MAGNET_SIZES.find((size) => size.widthIn === item.width_in && size.heightIn === item.height_in);
@@ -1726,7 +1732,7 @@ const Design: React.FC = () => {
                       <PreviewRulerFrame
                         widthIn={widthIn}
                         heightIn={heightIn}
-                        unit={unit}
+                        unit={isCarMagnet ? 'in' : unit}
                         debug={import.meta.env.DEV}
                         className="mx-auto max-w-full"
                         style={previewWrapperStyle}
@@ -2138,7 +2144,7 @@ const Design: React.FC = () => {
                 <PreviewRulerFrame
                   widthIn={widthIn}
                   heightIn={heightIn}
-                  unit={unit}
+                  unit={isCarMagnet ? 'in' : unit}
                   className="mx-auto max-w-full"
                   style={previewWrapperStyle}
                 >
