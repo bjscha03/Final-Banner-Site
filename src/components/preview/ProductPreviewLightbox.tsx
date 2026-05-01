@@ -38,7 +38,11 @@ import { X } from 'lucide-react';
 const FitToContainer: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
+  // Start at 0 so the natural-size BannerPreview never paints unscaled — even
+  // for the single frame between mount and the first useLayoutEffect — which
+  // would otherwise overflow the slot and get clipped by `overflow: hidden`,
+  // hiding edge content like grommets.
+  const [scale, setScale] = useState(0);
 
   useLayoutEffect(() => {
     const container = containerRef.current;
@@ -48,24 +52,25 @@ const FitToContainer: React.FC<{ children: React.ReactNode }> = ({ children }) =
     const recompute = () => {
       const containerWidth = container.clientWidth;
       const containerHeight = container.clientHeight;
-      // Use offsetWidth/offsetHeight to read the unscaled natural size of the
-      // content. CSS transforms don't affect offset metrics, and unlike
-      // scrollWidth/scrollHeight these don't pick up overflowing descendants
-      // (e.g., the BannerPreview's inner `<svg overflow="visible">` whose
-      // text or overlay children can extend past the SVG box).
       const naturalWidth = content.offsetWidth;
       const naturalHeight = content.offsetHeight;
-      if (!containerWidth || !containerHeight || !naturalWidth || !naturalHeight) return;
+      // Only require width measurements. The slot reserves its height via
+      // CSS `aspect-ratio` matching the BannerPreview's intrinsic ratio, so
+      // a width-only scale produces a perfectly fitting result. Some
+      // browsers (notably older Safari) momentarily report `clientHeight`
+      // as 0 for an element sized via `aspect-ratio` whose child uses
+      // `height: 100%`; gating on `containerHeight` here would leave
+      // `scale` stuck at the initial `1`, which would render the natural
+      // 820px BannerPreview at full size centered in a small slot under
+      // `overflow: hidden` — clipping the corner grommets out of view.
+      if (!containerWidth || !naturalWidth || !naturalHeight) return;
 
-      // Scale-down only. The caller reserves a slot whose aspect ratio
-      // already matches the BannerPreview's intrinsic aspect ratio, so the
-      // width and height scales should be approximately equal — picking the
-      // smaller guarantees no overflow if the slot is briefly off by a
-      // pixel due to padding rounding. Capping at 1 keeps the wrapper's
-      // visible content equal to the BannerPreview's actual rendered area
-      // and prevents upscaling artifacts.
       const widthScale = containerWidth / naturalWidth;
-      const heightScale = containerHeight / naturalHeight;
+      // Use the height scale as an extra clamp only when the slot has been
+      // resolved AND has been capped (e.g., by `max-height`) so its
+      // effective aspect ratio is taller than the BannerPreview's.
+      const heightScale =
+        containerHeight > 0 ? containerHeight / naturalHeight : widthScale;
       const next = Math.min(1, widthScale, heightScale);
 
       setScale(next);
