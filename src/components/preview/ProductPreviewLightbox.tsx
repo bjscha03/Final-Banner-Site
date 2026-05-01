@@ -47,13 +47,25 @@ const FitToContainer: React.FC<{ children: React.ReactNode }> = ({ children }) =
       // content (transforms don't affect scroll metrics in modern browsers).
       const naturalWidth = content.scrollWidth;
       const measuredHeight = content.scrollHeight;
-      if (!containerWidth || !naturalWidth) return;
-      // Always scale to exactly match the container width — both down (mobile)
-      // and up (desktop, when the natural preview is narrower than the panel
-      // content area). This prevents horizontal white space from appearing on
-      // either side of the enlarged preview when it would otherwise sit
-      // centered inside a wider container.
-      const next = containerWidth / naturalWidth;
+      if (!containerWidth || !naturalWidth || !measuredHeight) return;
+
+      // Compute scale by both the available width AND the available height.
+      // Scaling only by width causes tall/portrait banners to grow vertically
+      // far beyond the viewport, producing endless scroll inside the lightbox
+      // panel. Constraining by height as well keeps the enlarged preview
+      // inside the visible area without horizontal white space (the scale is
+      // still allowed to go above 1 to fill wider panels).
+      //
+      // Reserve roughly 30vh for the lightbox title, details, padding, and
+      // page gutter so the preview never crowds them out.
+      const viewportHeight =
+        typeof window !== 'undefined' ? window.innerHeight : measuredHeight;
+      const availableHeight = Math.max(160, viewportHeight * 0.7);
+
+      const widthScale = containerWidth / naturalWidth;
+      const heightScale = availableHeight / measuredHeight;
+      const next = Math.min(widthScale, heightScale);
+
       setScale(next);
       setNaturalHeight(measuredHeight);
     };
