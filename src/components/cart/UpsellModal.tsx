@@ -356,7 +356,7 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
                     imagePosition={quote.imagePosition}
                     fitMode={quote.fitMode || "fill"}
                     designServiceEnabled={designServiceEnabled}
-                    maxSize={560}
+                    maxSize={820}
                   />
                 }
               >

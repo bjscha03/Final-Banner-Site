@@ -55,12 +55,19 @@ const FitToContainer: React.FC<{ children: React.ReactNode }> = ({ children }) =
       const measuredHeight = content.offsetHeight;
       if (!containerWidth || !naturalWidth || !measuredHeight) return;
 
-      // Compute scale by both the available width AND the available height.
-      // Scaling only by width causes tall/portrait banners to grow vertically
-      // far beyond the viewport, producing endless scroll inside the lightbox
-      // panel. Constraining by height as well keeps the enlarged preview
-      // inside the visible area without horizontal white space (the scale is
-      // still allowed to go above 1 to fill wider panels).
+      // Compute the scale required to make the preview fit within the
+      // available width AND available height of the lightbox panel.
+      //
+      // Important: clamp to a maximum of 1, i.e. only scale DOWN, never up.
+      // The caller already passes a generously sized preview (e.g. 820px
+      // wide). Scaling that further up on a wide panel would either crop or
+      // — combined with the centering wrapper — leave large amounts of
+      // visual whitespace around a still-modest preview because the
+      // wrapper's height tracks the scaled box rather than the actual
+      // visible content. Keeping scale ≤ 1 means the wrapper height always
+      // equals the rendered preview height, eliminating phantom empty space
+      // inside the modal panel while still shrinking the preview on small
+      // viewports so it remains fully visible without horizontal scroll.
       //
       // Reserve roughly 30vh for the lightbox title, details, padding, and
       // page gutter so the preview never crowds them out.
@@ -70,7 +77,7 @@ const FitToContainer: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
       const widthScale = containerWidth / naturalWidth;
       const heightScale = availableHeight / measuredHeight;
-      const next = Math.min(widthScale, heightScale);
+      const next = Math.min(1, widthScale, heightScale);
 
       setScale(next);
       setNaturalHeight(measuredHeight);
@@ -207,14 +214,26 @@ const ProductPreviewLightbox: React.FC<ProductPreviewLightboxProps> = ({
         }`}
       />
 
-      {/* Panel */}
+      {/* Panel
+          Sized to its content rather than to the viewport. The width is
+          capped to a comfortable reading width on desktop and shrinks with
+          a small page gutter on mobile, so the modal never expands into a
+          mostly-empty box. Height is content-driven; we only impose a
+          viewport-relative `max-height` as a scroll fallback. */}
       <div
-        className={`relative w-full max-w-2xl max-h-[calc(100vh-24px)] sm:max-h-[92vh] overflow-y-auto bg-white rounded-2xl shadow-2xl transition-all duration-200 ease-out transform ${
+        className={`relative bg-white rounded-2xl shadow-2xl transition-all duration-200 ease-out transform ${
           entered ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-2'
         }`}
-        // Per spec: never exceed viewport width (minus 12px gutter on each
-        // side) so the modal always fits portrait mobile screens.
-        style={{ maxWidth: 'calc(100vw - 24px)' }}
+        style={{
+          // `min()` clamps to the smaller of the desktop cap and the mobile
+          // gutter. Using `width` (not `max-width`) gives the panel a
+          // definite size so the inner `w-full` measurement target is
+          // stable and the FitToContainer scale calculation is correct on
+          // first paint.
+          width: 'min(900px, calc(100vw - 24px))',
+          maxHeight: 'calc(100vh - 32px)',
+          overflowY: 'auto',
+        }}
         // Stop clicks inside the panel from bubbling to the backdrop button
         onClick={(e) => e.stopPropagation()}
       >

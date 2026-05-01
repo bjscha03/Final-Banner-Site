@@ -679,7 +679,7 @@ const Checkout: React.FC = () => {
                                   designServiceEnabled={item.design_service_enabled}
                                   source={item.source}
                                   isFinalizedSnapshot={!!item.thumbnail_url}
-                                  maxSize={560}
+                                  maxSize={820}
                                 />
                               }
                             >
@@ -725,7 +725,7 @@ const Checkout: React.FC = () => {
                                   designServiceEnabled={item.design_service_enabled}
                                   source={item.source}
                                   isFinalizedSnapshot={!!item.thumbnail_url}
-                                  maxSize={560}
+                                  maxSize={820}
                                 />
                               }
                             >
