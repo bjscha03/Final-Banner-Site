@@ -1722,7 +1722,7 @@ const Design: React.FC = () => {
                       <h3 className="text-sm font-bold text-gray-800">Live Banner Preview</h3>
                       <p className="text-xs text-gray-400">Final print preview — what you see is what you get</p>
                     </div>
-                    <div className="rounded-xl p-3 md:p-4 max-w-full overflow-hidden bg-slate-200/70 border border-slate-300">
+                    <div className="rounded-xl p-4 md:p-6 max-w-full overflow-hidden bg-slate-300 border border-slate-400/70 shadow-inner">
                       <PreviewRulerFrame
                         widthIn={widthIn}
                         heightIn={heightIn}

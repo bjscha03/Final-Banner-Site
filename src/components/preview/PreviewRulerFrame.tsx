@@ -83,112 +83,132 @@ const PreviewRulerFrame: React.FC<PreviewRulerFrameProps> = ({
     return <>{children}</>;
   }
 
-  // Ruler band dims in their own viewBox coords. Horizontal band is
-  // viewBox = `0 0 widthIn 1` so an x-position equals the inch position.
-  // Vertical band is `0 0 1 heightIn` analogously.
+  // Ruler styling. Ticks point INWARD toward the canvas so the bands
+  // visually hug the print surface.
   const tickColor = '#475569';
   const labelColor = '#1e293b';
-  const bandBg = '#f1f5f9';
-  const bandBorder = '#cbd5e1';
 
-  // Bottom horizontal ruler — ticks point UP toward the canvas.
-  const HorizontalBand: React.FC = () => (
-    <svg
-      viewBox={`0 0 ${widthIn} 1`}
-      preserveAspectRatio="none"
-      style={{ display: 'block', width: '100%', height: bandPx, background: bandBg, borderTop: `1px solid ${bandBorder}` }}
-      aria-hidden="true"
-    >
-      {horizontalTicks.map((t, i) => {
-        const tickH = t.major ? 0.45 : 0.25;
-        return (
-          <g key={`h-${i}`}>
-            <line
-              x1={t.pos}
-              y1={0}
-              x2={t.pos}
-              y2={tickH}
-              stroke={tickColor}
-              strokeWidth={t.major ? 0.04 : 0.025}
-              vectorEffect="non-scaling-stroke"
-            />
-            {t.major && t.label && (
-              <text
-                x={t.pos}
-                y={0.95}
-                textAnchor="middle"
-                dominantBaseline="auto"
-                fontSize={0.42}
-                fill={labelColor}
-                fontWeight={600}
-                style={{ paintOrder: 'stroke', fontFamily: 'system-ui, sans-serif' }}
-              >
-                {t.label}
-              </text>
-            )}
-          </g>
-        );
-      })}
-    </svg>
-  );
-
-  // Left vertical ruler — ticks point RIGHT toward the canvas.
-  const VerticalBand: React.FC = () => (
-    <svg
-      viewBox={`0 0 1 ${heightIn}`}
-      preserveAspectRatio="none"
-      style={{ display: 'block', height: '100%', width: bandPx, background: bandBg, borderRight: `1px solid ${bandBorder}` }}
-      aria-hidden="true"
-    >
-      {verticalTicks.map((t, i) => {
-        const tickW = t.major ? 0.45 : 0.25;
-        return (
-          <g key={`v-${i}`}>
-            <line
-              x1={1 - tickW}
-              y1={t.pos}
-              x2={1}
-              y2={t.pos}
-              stroke={tickColor}
-              strokeWidth={t.major ? 0.04 : 0.025}
-              vectorEffect="non-scaling-stroke"
-            />
-            {t.major && t.label && (
-              <text
-                x={0.45}
-                y={t.pos}
-                textAnchor="middle"
-                dominantBaseline="middle"
-                fontSize={0.42}
-                fill={labelColor}
-                fontWeight={600}
-                transform={`rotate(-90, 0.45, ${t.pos})`}
-                style={{ fontFamily: 'system-ui, sans-serif' }}
-              >
-                {t.label}
-              </text>
-            )}
-          </g>
-        );
-      })}
-    </svg>
-  );
-
+  // Layout strategy: a single block-level wrapper that reserves padding
+  // for the LEFT and BOTTOM ruler bands, with the canvas as a normal
+  // in-flow child. The wrapper's height is therefore driven by the
+  // canvas's intrinsic height (e.g. via padding-bottom aspect-ratio),
+  // which guarantees:
+  //   * the vertical ruler is exactly as tall as the canvas
+  //   * the horizontal ruler is exactly as wide as the canvas
+  //   * no oversized ruler "frame" stretches past the canvas when a
+  //     parent flex/grid container would otherwise stretch us.
+  // The rulers themselves are absolutely positioned over the padded
+  // gutters and never affect layout.
   return (
     <div
       className={className}
       style={{
-        display: 'grid',
-        gridTemplateColumns: `${bandPx}px 1fr`,
-        gridTemplateRows: `auto ${bandPx}px`,
-        width: '100%',
+        position: 'relative',
+        display: 'block',
+        boxSizing: 'border-box',
+        paddingLeft: bandPx,
+        paddingBottom: bandPx,
         ...style,
       }}
     >
-      <VerticalBand />
-      <div style={{ minWidth: 0 }}>{children}</div>
-      <div />
-      <HorizontalBand />
+      {/* Canvas (children) renders into the area to the right of the
+          left ruler and above the bottom ruler. */}
+      {children}
+
+      {/* Left vertical ruler — exactly the canvas's height. Ticks point
+          RIGHT toward the canvas. */}
+      <svg
+        viewBox={`0 0 1 ${heightIn}`}
+        preserveAspectRatio="none"
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: bandPx,
+          height: `calc(100% - ${bandPx}px)`,
+          pointerEvents: 'none',
+        }}
+        aria-hidden="true"
+      >
+        {verticalTicks.map((t, i) => {
+          const tickW = t.major ? 0.45 : 0.25;
+          return (
+            <g key={`v-${i}`}>
+              <line
+                x1={1 - tickW}
+                y1={t.pos}
+                x2={1}
+                y2={t.pos}
+                stroke={tickColor}
+                strokeWidth={t.major ? 0.04 : 0.025}
+                vectorEffect="non-scaling-stroke"
+              />
+              {t.major && t.label && (
+                <text
+                  x={0.42}
+                  y={t.pos}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  fontSize={0.42}
+                  fill={labelColor}
+                  fontWeight={600}
+                  transform={`rotate(-90, 0.42, ${t.pos})`}
+                  style={{ fontFamily: 'system-ui, sans-serif' }}
+                >
+                  {t.label}
+                </text>
+              )}
+            </g>
+          );
+        })}
+      </svg>
+
+      {/* Bottom horizontal ruler — exactly the canvas's width. Ticks
+          point UP toward the canvas. */}
+      <svg
+        viewBox={`0 0 ${widthIn} 1`}
+        preserveAspectRatio="none"
+        style={{
+          position: 'absolute',
+          left: bandPx,
+          bottom: 0,
+          width: `calc(100% - ${bandPx}px)`,
+          height: bandPx,
+          pointerEvents: 'none',
+        }}
+        aria-hidden="true"
+      >
+        {horizontalTicks.map((t, i) => {
+          const tickH = t.major ? 0.45 : 0.25;
+          return (
+            <g key={`h-${i}`}>
+              <line
+                x1={t.pos}
+                y1={0}
+                x2={t.pos}
+                y2={tickH}
+                stroke={tickColor}
+                strokeWidth={t.major ? 0.04 : 0.025}
+                vectorEffect="non-scaling-stroke"
+              />
+              {t.major && t.label && (
+                <text
+                  x={t.pos}
+                  y={0.92}
+                  textAnchor="middle"
+                  dominantBaseline="auto"
+                  fontSize={0.42}
+                  fill={labelColor}
+                  fontWeight={600}
+                  style={{ paintOrder: 'stroke', fontFamily: 'system-ui, sans-serif' }}
+                >
+                  {t.label}
+                </text>
+              )}
+            </g>
+          );
+        })}
+      </svg>
     </div>
   );
 };
