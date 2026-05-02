@@ -68,6 +68,9 @@ const CategoryPage = lazy(() => import("./pages/CategoryPage"));
 // Google Ads landing page - lazy load
 const GoogleAdsBanner = lazy(() => import("./pages/GoogleAdsBanner"));
 
+// Programmatic SEO city × product landing pages - lazy load
+const CityProductPage = lazy(() => import("./pages/CityProductPage"));
+
 // Graduation landing page - lazy load
 const GraduationSigns = lazy(() => import("./pages/GraduationSigns"));
 const GraduationSignsThankYou = lazy(() => import("./pages/GraduationSignsThankYou"));
@@ -220,6 +223,11 @@ const App = () => (
 
             {/* Google Ads landing page */}
             <Route path="/google-ads-banner" element={<GoogleAdsBanner />} />
+
+            {/* Programmatic SEO city pages (vinyl banners, yard signs, car magnets) */}
+            <Route path="/vinyl-banners/:citySlug" element={<CityProductPage productSlug="vinyl-banners" />} />
+            <Route path="/yard-signs/:citySlug" element={<CityProductPage productSlug="yard-signs" />} />
+            <Route path="/car-magnets/:citySlug" element={<CityProductPage productSlug="car-magnets" />} />
 
             {/* Graduation landing page */}
             <Route path="/graduation-signs" element={<GraduationSigns />} />
