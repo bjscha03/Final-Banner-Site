@@ -485,6 +485,26 @@ exports.handler = async (event, context) => {
       }
     }
 
+    // CRITICAL GUARD: detect orders that arrive with no line items.
+    // This typically happens when the PayPal capture in PayPalCheckout.handleApprove
+    // fires after the local cart has been emptied (cross-tab clear, rehydrate race,
+    // navigation reset, etc.). In that case PayPal has already captured the funds
+    // but we have no items to save. Without this guard the server would silently
+    // recompute totals to 0 and INSERT a `status='paid', total_cents=0, no order_items`
+    // row — exactly the failure mode that produced order #D601AC38.
+    const hasNoItems = !orderData.items || !Array.isArray(orderData.items) || orderData.items.length === 0;
+    const hasPaypalCapture = !!(orderData.paypal_capture_id || orderData.paypal_order_id);
+    if (hasNoItems) {
+      console.error('🚨 [CREATE_ORDER] CRITICAL: order received with no items', {
+        paypal_order_id: orderData.paypal_order_id || null,
+        paypal_capture_id: orderData.paypal_capture_id || null,
+        client_total_cents: orderData.total_cents || 0,
+        email: orderData.email || null,
+        user_id: orderData.user_id || null,
+        hasPaypalCapture,
+      });
+    }
+
     // Check if this is a design_deposit-only order
     const isDesignDepositOrder = orderData.items && Array.isArray(orderData.items)
       && orderData.items.length > 0
@@ -497,9 +517,13 @@ exports.handler = async (event, context) => {
       && orderData.items.length > 0
       && orderData.items.every(i => i.product_type === 'graduation_final_payment');
 
-    // ALWAYS recalculate totals server-side from line_total_cents
+    // ALWAYS recalculate totals server-side from line_total_cents — UNLESS the
+    // payload arrived with no items at all (orphaned PayPal capture). In that
+    // case recomputing would zero everything out and hide the real amount the
+    // customer paid; instead we keep the client-supplied totals so admin can see
+    // what was charged and reconcile via paypal_capture_id.
     const flags = getFeatureFlags();
-    {
+    if (!hasNoItems) {
 
       const taxRate = 0.06; // 6% tax rate
       const pricingOptions = {
@@ -695,9 +719,15 @@ exports.handler = async (event, context) => {
     const orderSameDayQualified = sameDayResult.eval.windowOpen && sameDayResult.eval.hasEligibleItem;
     const orderTimestampEt = getEasternTimeParts(sameDayNow);
 
+    // If items are missing we record the order as needing manual attention so
+    // admins can see the captured PayPal payment and recover the artwork from
+    // the customer. We never want to mark such an order as `paid` — that would
+    // hide it in the admin queue exactly as happened with #D601AC38.
+    const orderStatus = hasNoItems ? 'needs_attention' : 'paid';
+
     const orderResult = await sql`
       INSERT INTO orders (id, user_id, email, customer_name, customer_first_name, subtotal_cents, tax_cents, total_cents, status, paypal_order_id, paypal_capture_id, shipping_name, shipping_street, shipping_street2, shipping_city, shipping_state, shipping_zip, shipping_country, applied_discount_cents, applied_discount_label, applied_discount_type, same_day_hit_service, saturday_delivery, same_day_fee_cents, saturday_fee_cents, order_timestamp_et, same_day_qualified)
-      VALUES (${orderId}, ${finalUserId}, ${userEmail}, ${orderData.customer_name || null}, ${orderData.customer_first_name || null}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, 'paid', ${orderData.paypal_order_id || null}, ${orderData.paypal_capture_id || null}, ${orderData.shipping_name || null}, ${orderData.shipping_street || null}, ${orderData.shipping_street2 || null}, ${orderData.shipping_city || null}, ${orderData.shipping_state || null}, ${orderData.shipping_zip || null}, ${orderData.shipping_country || 'US'}, ${orderData.applied_discount_cents || 0}, ${orderData.applied_discount_label || ''}, ${orderData.applied_discount_type || 'none'}, ${orderSameDayHitService}, ${orderSaturdayDelivery}, ${orderSameDayFeeCents}, ${orderSaturdayFeeCents}, ${orderTimestampEt.display}, ${orderSameDayQualified})
+      VALUES (${orderId}, ${finalUserId}, ${userEmail}, ${orderData.customer_name || null}, ${orderData.customer_first_name || null}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, ${orderStatus}, ${orderData.paypal_order_id || null}, ${orderData.paypal_capture_id || null}, ${orderData.shipping_name || null}, ${orderData.shipping_street || null}, ${orderData.shipping_street2 || null}, ${orderData.shipping_city || null}, ${orderData.shipping_state || null}, ${orderData.shipping_zip || null}, ${orderData.shipping_country || 'US'}, ${orderData.applied_discount_cents || 0}, ${orderData.applied_discount_label || ''}, ${orderData.applied_discount_type || 'none'}, ${orderSameDayHitService}, ${orderSaturdayDelivery}, ${orderSameDayFeeCents}, ${orderSaturdayFeeCents}, ${orderTimestampEt.display}, ${orderSameDayQualified})
       RETURNING *
     `;
 
@@ -1100,7 +1130,7 @@ exports.handler = async (event, context) => {
         applied_discount_cents: orderData.applied_discount_cents || 0,
         applied_discount_label: orderData.applied_discount_label || "",
         applied_discount_type: orderData.applied_discount_type || "none",
-        status: 'paid',
+        status: orderStatus,
         currency: orderData.currency || 'USD',
         tracking_number: null,
         tracking_carrier: null,

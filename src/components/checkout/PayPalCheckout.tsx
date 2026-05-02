@@ -478,6 +478,30 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
         user?.email
       );
 
+      // CRITICAL GUARD: PayPal has captured funds, but if our local cart is
+      // empty (cleared in another tab, lost on rehydrate, navigation reset,
+      // etc.) we'd otherwise POST `items: []` to create-order and silently
+      // produce a $0/Paid/no-files order — the failure mode that produced
+      // order #D601AC38. Detect it here, alert the customer, and still POST
+      // so the server records the orphaned PayPal capture under
+      // status='needs_attention' (see netlify/functions/create-order.cjs).
+      const hasNoItems = !items || items.length === 0;
+      if (hasNoItems) {
+        console.error('🚨 [PayPalCheckout] CRITICAL: PayPal captured but local cart has no items', {
+          paypal_order_id: data.orderID,
+          paypal_capture_id: captureResult?.paypalData?.id || null,
+          email: user?.email || captureResult.paypalData?.payer?.email_address || null,
+          user_id: user?.id || null,
+          total_cents: total,
+        });
+        toast({
+          title: 'Order needs attention',
+          description:
+            'Your payment was received, but we could not read your cart. Please contact support with your PayPal confirmation so we can complete your order.',
+          variant: 'destructive',
+        });
+      }
+
       // Now create the database order
       const orderResponse = await fetch('/.netlify/functions/create-order', {
         method: 'POST',
