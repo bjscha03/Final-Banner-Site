@@ -124,7 +124,7 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
       options.push({
         id: 'polePockets',
         label: 'Pole Pockets',
-        description: 'Sewn pockets for pole mounting',
+        description: 'Heat-welded pockets for pole mounting',
         price: pocketCost,
         selected: false,
         polePocketSelection: defaultPolePocketSelection,

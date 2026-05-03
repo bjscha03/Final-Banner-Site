@@ -177,7 +177,7 @@ const PricingTable: React.FC = () => {
                 <Columns3 className="h-6 w-6 text-blue-600" />
               </div>
               <h4 className="font-bold text-gray-900 mb-3 text-lg">Pole Pockets</h4>
-              <p className="text-gray-600 mb-4 leading-relaxed">Sewn pockets for pole mounting (1", 2", 3", 4" sizes)</p>
+              <p className="text-gray-600 mb-4 leading-relaxed">Heat-welded pockets for pole mounting (1", 2", 3", 4" sizes)</p>
               <div className="bg-blue-50 text-blue-700 font-bold py-2 px-4 rounded-lg">
                 <div>$15 setup fee</div>
                 <div className="text-sm">+$2.00/linear ft</div>
