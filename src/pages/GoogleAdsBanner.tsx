@@ -55,6 +55,8 @@ import EditWithAIModal from '@/components/design/EditWithAIModal';
 import { ENABLE_AI } from '@/lib/featureFlags';
 import { base64ToFile } from '@/utils/base64ToFile';
 import { computeSameDayFeesCents } from '@/lib/sameDayService';
+import ConfigCard from '@/components/design/layout/ConfigCard';
+import TrustStrip from '@/components/design/layout/TrustStrip';
 
 const PRESET_SIZES = [
   { w: 48, h: 24 },
@@ -1505,8 +1507,8 @@ const GoogleAdsBanner: React.FC = () => {
           </div>
         </section>
 
-        <section ref={orderRef} id="order-builder" className="mt-8 py-12 px-4 bg-white">
-          <div className="max-w-4xl lg:max-w-6xl mx-auto">
+        <section ref={orderRef} id="order-builder" className="mt-8 py-12 px-4 bg-gray-50">
+          <div className="max-w-4xl lg:max-w-7xl mx-auto">
             {/* Product type switcher — public for all users */}
             <ProductTypeSwitcher productType={productType} onProductTypeChange={handleProductTypeChange} mobileStickyTopPx={56} />
             <h2
@@ -1601,15 +1603,17 @@ const GoogleAdsBanner: React.FC = () => {
             ) : (
             /* ========== BANNER ORDER BUILDER (existing) ========== */
             <div className="grid md:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-10 max-w-full">
-              <div className="space-y-8 min-w-0 max-w-full">
+              <div className="space-y-6 min-w-0 max-w-full">
                 {false ? (
                   null /* placeholder — yard sign path handled above */
                 ) : (
                   <>
-                {/* Unit toggle (banner only) — sits ABOVE Popular Sizes. */}
-                {!isCarMagnet && (
-                  <div className="flex items-center justify-between">
-                    <label className="block text-sm font-semibold text-gray-700">Units</label>
+                {/* Step 1 — Choose your size. Wraps the in/ft toggle (header right slot, banner only),
+                    popular sizes, and custom size inputs. */}
+                <ConfigCard
+                  step={1}
+                  title="Choose your size"
+                  headerRight={!isCarMagnet ? (
                     <div className="inline-flex items-center rounded-lg border border-gray-200 bg-white p-0.5 text-xs" role="group" aria-label="Display unit">
                       <button
                         type="button"
@@ -1628,170 +1632,238 @@ const GoogleAdsBanner: React.FC = () => {
                         Feet
                       </button>
                     </div>
-                  </div>
-                )}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Popular Sizes</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {isCarMagnet
-                      ? CAR_MAGNET_SIZES.map((p) => (
-                          <button key={p.label} onClick={() => setCarMagnetSizeLabel(p.label)} className={`border rounded-xl py-2.5 px-3 text-sm font-medium transition-all ${carMagnetSizeLabel === p.label ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-gray-200 hover:border-gray-400 text-gray-700'}`}>
-                            {p.label}
-                          </button>
-                        ))
-                      : PRESET_SIZES.map((p, i) => (
-                          <button key={i} onClick={() => applyPreset(i)} className={`border rounded-xl py-2.5 px-3 text-sm font-medium transition-all ${activePreset === i ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-gray-200 hover:border-gray-400 text-gray-700'}`}>
-                            {formatPresetLabel(p.w, p.h, unit)}
-                          </button>
-                        ))}
-                  </div>
-                </div>
-                {!isCarMagnet && (
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Custom Size</label>
-                  {unit === 'in' ? (
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <span className="text-xs text-gray-500">Width</span>
-                        <div className="flex gap-1 mt-1">
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            value={widthCustomInStr}
-                            onChange={e => {
-                              setWidthCustomInStr(e.target.value);
-                              setActivePreset(null);
-                            }}
-                            onFocus={e => e.target.select()}
-                            onBlur={() => {
-                              const n = parseInt(widthCustomInStr, 10);
-                              const clamped = Math.max(1, Math.min(600, Number.isFinite(n) ? n : 1));
-                              setWidthCustomInStr(String(clamped));
-                              setWidthFtStr(String(Math.floor(clamped / 12)));
-                              setWidthInRStr(String(clamped % 12));
-                            }}
-                            className="w-20 border rounded-lg px-2 py-1.5 text-base"
-                          />
-                          <span className="self-center text-xs text-gray-500">in</span>
-                        </div>
-                      </div>
-                      <div>
-                        <span className="text-xs text-gray-500">Height</span>
-                        <div className="flex gap-1 mt-1">
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            pattern="[0-9]*"
-                            value={heightCustomInStr}
-                            onChange={e => {
-                              setHeightCustomInStr(e.target.value);
-                              setActivePreset(null);
-                            }}
-                            onFocus={e => e.target.select()}
-                            onBlur={() => {
-                              const n = parseInt(heightCustomInStr, 10);
-                              const clamped = Math.max(1, Math.min(600, Number.isFinite(n) ? n : 1));
-                              setHeightCustomInStr(String(clamped));
-                              setHeightFtStr(String(Math.floor(clamped / 12)));
-                              setHeightInRStr(String(clamped % 12));
-                            }}
-                            className="w-20 border rounded-lg px-2 py-1.5 text-base"
-                          />
-                          <span className="self-center text-xs text-gray-500">in</span>
-                        </div>
+                  ) : undefined}
+                >
+                  <div className={isCarMagnet ? '' : 'grid lg:grid-cols-2 lg:gap-6'}>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Popular Sizes</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {isCarMagnet
+                          ? CAR_MAGNET_SIZES.map((p) => (
+                              <button key={p.label} onClick={() => setCarMagnetSizeLabel(p.label)} className={`border rounded-xl py-2.5 px-3 text-sm font-medium transition-all ${carMagnetSizeLabel === p.label ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-gray-200 hover:border-gray-400 text-gray-700'}`}>
+                                {p.label}
+                              </button>
+                            ))
+                          : PRESET_SIZES.map((p, i) => (
+                              <button key={i} onClick={() => applyPreset(i)} className={`border rounded-xl py-2.5 px-3 text-sm font-medium transition-all ${activePreset === i ? 'border-orange-500 bg-orange-50 text-orange-700 shadow-sm' : 'border-gray-200 hover:border-gray-400 text-gray-700'}`}>
+                                {formatPresetLabel(p.w, p.h, unit)}
+                              </button>
+                            ))}
                       </div>
                     </div>
-                  ) : (
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <span className="text-xs text-gray-500">Width</span>
-                        <div className="flex gap-1 mt-1">
-                          <input type="text" inputMode="numeric" pattern="[0-9]*" value={widthFtStr} onChange={e => { setWidthFtStr(e.target.value); setActivePreset(null); }} onFocus={e => e.target.select()} onBlur={() => { const n = parseInt(widthFtStr, 10); setWidthFtStr(String(isNaN(n) ? 1 : Math.max(1, Math.min(50, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
-                          <span className="self-center text-xs text-gray-500">ft</span>
-                          <input type="text" inputMode="numeric" pattern="[0-9]*" value={widthInRStr} onChange={e => { setWidthInRStr(e.target.value); setActivePreset(null); }} onFocus={e => e.target.select()} onBlur={() => { const n = parseInt(widthInRStr, 10); setWidthInRStr(String(isNaN(n) ? 0 : Math.max(0, Math.min(11, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
-                          <span className="self-center text-xs text-gray-500">in</span>
-                        </div>
-                      </div>
-                      <div>
-                        <span className="text-xs text-gray-500">Height</span>
-                        <div className="flex gap-1 mt-1">
-                          <input type="text" inputMode="numeric" pattern="[0-9]*" value={heightFtStr} onChange={e => { setHeightFtStr(e.target.value); setActivePreset(null); }} onFocus={e => e.target.select()} onBlur={() => { const n = parseInt(heightFtStr, 10); setHeightFtStr(String(isNaN(n) ? 1 : Math.max(1, Math.min(50, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
-                          <span className="self-center text-xs text-gray-500">ft</span>
-                          <input type="text" inputMode="numeric" pattern="[0-9]*" value={heightInRStr} onChange={e => { setHeightInRStr(e.target.value); setActivePreset(null); }} onFocus={e => e.target.select()} onBlur={() => { const n = parseInt(heightInRStr, 10); setHeightInRStr(String(isNaN(n) ? 0 : Math.max(0, Math.min(11, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
-                          <span className="self-center text-xs text-gray-500">in</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  <p className="text-xs text-gray-500 mt-1">{sqft.toFixed(1)} sq ft</p>
-                  <p className="text-xs text-gray-500 mt-0.5">
-                    {unit === 'in'
-                      ? `≈ ${widthFt}${widthInR > 0 ? ` ft ${widthInR} in` : ' ft'} × ${heightFt}${heightInR > 0 ? ` ft ${heightInR} in` : ' ft'}`
-                      : `≈ ${widthIn} in × ${heightIn} in`}
-                  </p>
-                </div>
-                )}
-                <div ref={materialDropdownRef} className="relative">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Material</label>
-                  {isCarMagnet ? (
-                    <div className="w-full border rounded-xl px-3 py-2.5 text-base bg-gray-50 text-gray-800 font-medium">
-                      Premium Magnetic Material
-                    </div>
-                  ) : (
-                    <>
-                      <button
-                        type="button"
-                        onClick={() => setMaterialDropdownOpen(prev => !prev)}
-                        className="w-full border rounded-xl px-3 py-2.5 text-base bg-white flex items-center gap-3 cursor-pointer hover:border-gray-400 transition-colors"
-                      >
-                        <img
-                          src={selectedMaterial.image}
-                          alt={selectedMaterial.label}
-                          className="w-9 h-9 rounded object-cover flex-shrink-0 bg-gray-100"
-                          onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-                        />
-                        <span className="font-medium text-gray-800">{selectedMaterial.label}</span>
-                        <svg className={`ml-auto w-4 h-4 text-gray-400 transition-transform ${materialDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
-                      </button>
-                      {materialDropdownOpen && (
-                        <div className="absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden max-h-72 overflow-y-auto">
-                          {MATERIALS.map(m => (
-                            <button
-                              key={m.key}
-                              type="button"
-                              onClick={() => { setMaterial(m.mapped); setMaterialDropdownOpen(false); }}
-                              className={`w-full flex items-center gap-3 px-3 py-3 text-left transition-colors cursor-pointer ${
-                                m.mapped === material
-                                  ? 'bg-orange-50 border-l-2 border-orange-500'
-                                  : 'hover:bg-gray-50 border-l-2 border-transparent'
-                              }`}
-                            >
-                              <img
-                                src={m.image}
-                                alt={m.label}
-                                className="w-10 h-10 rounded object-cover flex-shrink-0 bg-gray-100"
-                                onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                    {!isCarMagnet && (
+                    <div className="mt-6 lg:mt-0">
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Custom Size</label>
+                      {unit === 'in' ? (
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <span className="text-xs text-gray-500">Width</span>
+                            <div className="flex gap-1 mt-1">
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                value={widthCustomInStr}
+                                onChange={e => {
+                                  setWidthCustomInStr(e.target.value);
+                                  setActivePreset(null);
+                                }}
+                                onFocus={e => e.target.select()}
+                                onBlur={() => {
+                                  const n = parseInt(widthCustomInStr, 10);
+                                  const clamped = Math.max(1, Math.min(600, Number.isFinite(n) ? n : 1));
+                                  setWidthCustomInStr(String(clamped));
+                                  setWidthFtStr(String(Math.floor(clamped / 12)));
+                                  setWidthInRStr(String(clamped % 12));
+                                }}
+                                className="w-20 border rounded-lg px-2 py-1.5 text-base"
                               />
-                              <div className="min-w-0">
-                                <div className={`text-sm font-medium ${m.mapped === material ? 'text-orange-700' : 'text-gray-800'}`}>{m.label}</div>
-                                <div className="text-xs text-gray-400 truncate">{m.desc}</div>
-                              </div>
-                              {m.mapped === material && (
-                                <CheckCircle className="ml-auto w-4 h-4 text-orange-500 flex-shrink-0" />
-                              )}
-                            </button>
-                          ))}
+                              <span className="self-center text-xs text-gray-500">in</span>
+                            </div>
+                          </div>
+                          <div>
+                            <span className="text-xs text-gray-500">Height</span>
+                            <div className="flex gap-1 mt-1">
+                              <input
+                                type="text"
+                                inputMode="numeric"
+                                pattern="[0-9]*"
+                                value={heightCustomInStr}
+                                onChange={e => {
+                                  setHeightCustomInStr(e.target.value);
+                                  setActivePreset(null);
+                                }}
+                                onFocus={e => e.target.select()}
+                                onBlur={() => {
+                                  const n = parseInt(heightCustomInStr, 10);
+                                  const clamped = Math.max(1, Math.min(600, Number.isFinite(n) ? n : 1));
+                                  setHeightCustomInStr(String(clamped));
+                                  setHeightFtStr(String(Math.floor(clamped / 12)));
+                                  setHeightInRStr(String(clamped % 12));
+                                }}
+                                className="w-20 border rounded-lg px-2 py-1.5 text-base"
+                              />
+                              <span className="self-center text-xs text-gray-500">in</span>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <span className="text-xs text-gray-500">Width</span>
+                            <div className="flex gap-1 mt-1">
+                              <input type="text" inputMode="numeric" pattern="[0-9]*" value={widthFtStr} onChange={e => { setWidthFtStr(e.target.value); setActivePreset(null); }} onFocus={e => e.target.select()} onBlur={() => { const n = parseInt(widthFtStr, 10); setWidthFtStr(String(isNaN(n) ? 1 : Math.max(1, Math.min(50, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
+                              <span className="self-center text-xs text-gray-500">ft</span>
+                              <input type="text" inputMode="numeric" pattern="[0-9]*" value={widthInRStr} onChange={e => { setWidthInRStr(e.target.value); setActivePreset(null); }} onFocus={e => e.target.select()} onBlur={() => { const n = parseInt(widthInRStr, 10); setWidthInRStr(String(isNaN(n) ? 0 : Math.max(0, Math.min(11, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
+                              <span className="self-center text-xs text-gray-500">in</span>
+                            </div>
+                          </div>
+                          <div>
+                            <span className="text-xs text-gray-500">Height</span>
+                            <div className="flex gap-1 mt-1">
+                              <input type="text" inputMode="numeric" pattern="[0-9]*" value={heightFtStr} onChange={e => { setHeightFtStr(e.target.value); setActivePreset(null); }} onFocus={e => e.target.select()} onBlur={() => { const n = parseInt(heightFtStr, 10); setHeightFtStr(String(isNaN(n) ? 1 : Math.max(1, Math.min(50, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
+                              <span className="self-center text-xs text-gray-500">ft</span>
+                              <input type="text" inputMode="numeric" pattern="[0-9]*" value={heightInRStr} onChange={e => { setHeightInRStr(e.target.value); setActivePreset(null); }} onFocus={e => e.target.select()} onBlur={() => { const n = parseInt(heightInRStr, 10); setHeightInRStr(String(isNaN(n) ? 0 : Math.max(0, Math.min(11, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
+                              <span className="self-center text-xs text-gray-500">in</span>
+                            </div>
+                          </div>
                         </div>
                       )}
-                    </>
+                      <p className="text-xs text-gray-500 mt-1">{sqft.toFixed(1)} sq ft</p>
+                      <p className="text-xs text-gray-500 mt-0.5">
+                        {unit === 'in'
+                          ? `≈ ${widthFt}${widthInR > 0 ? ` ft ${widthInR} in` : ' ft'} × ${heightFt}${heightInR > 0 ? ` ft ${heightInR} in` : ' ft'}`
+                          : `≈ ${widthIn} in × ${heightIn} in`}
+                      </p>
+                    </div>
+                    )}
+                  </div>
+                </ConfigCard>
+                <ConfigCard step={2} title="Select material">
+                  <div ref={materialDropdownRef} className="relative">
+                    {isCarMagnet ? (
+                      <div className="w-full border rounded-xl px-3 py-2.5 text-base bg-gray-50 text-gray-800 font-medium">
+                        Premium Magnetic Material
+                      </div>
+                    ) : (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => setMaterialDropdownOpen(prev => !prev)}
+                          className="w-full border rounded-xl px-3 py-2.5 text-base bg-white flex items-center gap-3 cursor-pointer hover:border-gray-400 transition-colors"
+                        >
+                          <img
+                            src={selectedMaterial.image}
+                            alt={selectedMaterial.label}
+                            className="w-9 h-9 rounded object-cover flex-shrink-0 bg-gray-100"
+                            onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                          />
+                          <span className="font-medium text-gray-800">{selectedMaterial.label}</span>
+                          <svg className={`ml-auto w-4 h-4 text-gray-400 transition-transform ${materialDropdownOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                        </button>
+                        {materialDropdownOpen && (
+                          <div className="absolute z-30 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden max-h-72 overflow-y-auto">
+                            {MATERIALS.map(m => (
+                              <button
+                                key={m.key}
+                                type="button"
+                                onClick={() => { setMaterial(m.mapped); setMaterialDropdownOpen(false); }}
+                                className={`w-full flex items-center gap-3 px-3 py-3 text-left transition-colors cursor-pointer ${
+                                  m.mapped === material
+                                    ? 'bg-orange-50 border-l-2 border-orange-500'
+                                    : 'hover:bg-gray-50 border-l-2 border-transparent'
+                                }`}
+                              >
+                                <img
+                                  src={m.image}
+                                  alt={m.label}
+                                  className="w-10 h-10 rounded object-cover flex-shrink-0 bg-gray-100"
+                                  onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                                />
+                                <div className="min-w-0">
+                                  <div className={`text-sm font-medium ${m.mapped === material ? 'text-orange-700' : 'text-gray-800'}`}>{m.label}</div>
+                                  <div className="text-xs text-gray-400 truncate">{m.desc}</div>
+                                </div>
+                                {m.mapped === material && (
+                                  <CheckCircle className="ml-auto w-4 h-4 text-orange-500 flex-shrink-0" />
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                </ConfigCard>
+                  </>
+                )}
+                {/* Banner-only: Quantity + Finishing Options (yard signs include these in their config panel) */}
+                {!isYardSign && (
+                  <>
+                <ConfigCard step={3} title="Quantity">
+                  <div className="flex items-center gap-3">
+                    <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="w-9 h-9 flex items-center justify-center border border-gray-200 rounded-xl hover:border-gray-400 transition-colors">
+                      <Minus className="h-4 w-4 text-gray-600" />
+                    </button>
+                    <input type="number" min={1} max={999} value={quantity} onChange={e => setQuantity(Math.max(1, +e.target.value || 1))} className="w-20 border rounded-xl px-3 py-1.5 text-base text-center" />
+                    <button onClick={() => setQuantity(q => Math.min(999, q + 1))} className="w-9 h-9 flex items-center justify-center border border-gray-200 rounded-xl hover:border-gray-400 transition-colors">
+                      <Plus className="h-4 w-4 text-gray-600" />
+                    </button>
+                  </div>
+                  {!isCarMagnet && quantityDiscountRate > 0 && (
+                    <p className="text-xs text-green-600 font-medium mt-1.5">
+                      🎉 {Math.round(quantityDiscountRate * 100)}% bulk discount applied at checkout
+                    </p>
                   )}
-                </div>
+                  {!isCarMagnet && quantity === 1 && (
+                    <p className="text-xs text-gray-400 mt-1.5">Order 2+ for up to 13% off</p>
+                  )}
+                </ConfigCard>
+                <ConfigCard step={4} title={isCarMagnet ? 'Rounded Corners' : 'Finishing options'}>
+                  <div className="space-y-3">
+                    {isCarMagnet ? (
+                      <div>
+                        <select value={carMagnetRoundedCorners} onChange={e => setCarMagnetRoundedCorners(e.target.value as CarMagnetRoundedCorner)} className="w-full border rounded-xl px-3 py-1.5 text-base mt-1 bg-white">
+                          {CAR_MAGNET_ROUNDED_CORNERS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
+                        </select>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="grid md:grid-cols-2 gap-4">
+                          <div>
+                            <span className="text-xs text-gray-600">Grommets</span>
+                            <select value={grommets} onChange={e => setGrommets(e.target.value)} className="w-full border rounded-xl px-3 py-1.5 text-base mt-1 bg-white">
+                              {DESIGN_GROMMET_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                            </select>
+                          </div>
+                          <div>
+                            <span className="text-xs text-gray-600">Pole Pockets</span>
+                            <select value={polePockets} onChange={e => setPolePockets(e.target.value)} className="w-full border rounded-xl px-3 py-1.5 text-base mt-1 bg-white">
+                              <option value="none">None</option>
+                              <option value="top">Top</option>
+                              <option value="bottom">Bottom</option>
+                              <option value="top-bottom">Top &amp; Bottom</option>
+                              <option value="left">Left</option>
+                              <option value="right">Right</option>
+                            </select>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap gap-4 items-center">
+                          <label className="flex items-center gap-2 text-sm cursor-pointer">
+                            <input type="checkbox" checked={addRope} onChange={e => setAddRope(e.target.checked)} className="accent-orange-500" /> Rope
+                          </label>
+                          <label className="flex items-center gap-2 text-sm cursor-pointer">
+                            <input type="checkbox" checked={hemming} onChange={e => setHemming(e.target.checked)} className="accent-orange-500" /> Hemming (included)
+                          </label>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </ConfigCard>
                   </>
                 )}
                 {/* ========== SHARED: Upload Section ========== */}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Upload Your Artwork</label>
+                <ConfigCard step={5} title="Upload your artwork">
                   {!uploadedFile ? (
                     <>
                       <FileUploader
@@ -1924,75 +1996,13 @@ const GoogleAdsBanner: React.FC = () => {
                   )}
                   {uploadError && <p className="text-xs text-red-600 mt-2">{uploadError}</p>}
                   <p className="text-xs text-gray-400 mt-2 text-center">Every file reviewed by a real designer before printing.</p>
-                </div>
-                {/* Banner-only: Quantity + Finishing Options (yard signs include these in their config panel) */}
-                {!isYardSign && (
-                  <>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Quantity</label>
-                  <div className="flex items-center gap-3">
-                    <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="w-9 h-9 flex items-center justify-center border border-gray-200 rounded-xl hover:border-gray-400 transition-colors">
-                      <Minus className="h-4 w-4 text-gray-600" />
-                    </button>
-                    <input type="number" min={1} max={999} value={quantity} onChange={e => setQuantity(Math.max(1, +e.target.value || 1))} className="w-20 border rounded-xl px-3 py-1.5 text-base text-center" />
-                    <button onClick={() => setQuantity(q => Math.min(999, q + 1))} className="w-9 h-9 flex items-center justify-center border border-gray-200 rounded-xl hover:border-gray-400 transition-colors">
-                      <Plus className="h-4 w-4 text-gray-600" />
-                    </button>
-                  </div>
-                  {!isCarMagnet && quantityDiscountRate > 0 && (
-                    <p className="text-xs text-green-600 font-medium mt-1.5">
-                      🎉 {Math.round(quantityDiscountRate * 100)}% bulk discount applied at checkout
-                    </p>
-                  )}
-                  {!isCarMagnet && quantity === 1 && (
-                    <p className="text-xs text-gray-400 mt-1.5">Order 2+ for up to 13% off</p>
-                  )}
-                </div>
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">{isCarMagnet ? 'Rounded Corners' : 'Finishing Options'}</label>
-                  <div className="space-y-3">
-                    {isCarMagnet ? (
-                      <div>
-                        <select value={carMagnetRoundedCorners} onChange={e => setCarMagnetRoundedCorners(e.target.value as CarMagnetRoundedCorner)} className="w-full border rounded-xl px-3 py-1.5 text-base mt-1 bg-white">
-                          {CAR_MAGNET_ROUNDED_CORNERS.map(option => <option key={option.value} value={option.value}>{option.label}</option>)}
-                        </select>
-                      </div>
-                    ) : (
-                      <>
-                        <div>
-                          <span className="text-xs text-gray-600">Grommets</span>
-                          <select value={grommets} onChange={e => setGrommets(e.target.value)} className="w-full border rounded-xl px-3 py-1.5 text-base mt-1 bg-white">
-                            {DESIGN_GROMMET_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                          </select>
-                        </div>
-                        <div>
-                          <span className="text-xs text-gray-600">Pole Pockets</span>
-                          <select value={polePockets} onChange={e => setPolePockets(e.target.value)} className="w-full border rounded-xl px-3 py-1.5 text-base mt-1 bg-white">
-                            <option value="none">None</option>
-                            <option value="top">Top</option>
-                            <option value="bottom">Bottom</option>
-                            <option value="top-bottom">Top &amp; Bottom</option>
-                            <option value="left">Left</option>
-                            <option value="right">Right</option>
-                          </select>
-                        </div>
-                        <div className="flex gap-4">
-                          <label className="flex items-center gap-2 text-sm cursor-pointer">
-                            <input type="checkbox" checked={addRope} onChange={e => setAddRope(e.target.checked)} className="accent-orange-500" /> Rope
-                          </label>
-                          <label className="flex items-center gap-2 text-sm cursor-pointer">
-                            <input type="checkbox" checked={hemming} onChange={e => setHemming(e.target.checked)} className="accent-orange-500" /> Hemming (included)
-                          </label>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </div>
-                  </>
-                )}
+                </ConfigCard>
               </div>
 
-              <div className="space-y-6 min-w-0 max-w-full">
+              <div className="space-y-6 min-w-0 max-w-full lg:sticky lg:top-24 self-start">
+                <p className="text-sm text-emerald-700 -mt-1 font-medium">
+                  Includes next-day production &amp; <span className="text-emerald-700 font-semibold">free shipping</span>
+                </p>
                 {isCarMagnet && carMagnetPricing ? (
                   <PriceBreakdown
                     topLine={`${widthDisplay} × ${heightDisplay} Car Magnets • ${usd(carMagnetPricing.unitPriceCents / 100)}/magnet`}
@@ -2098,7 +2108,8 @@ const GoogleAdsBanner: React.FC = () => {
                 />
 
                 <button onClick={handleCheckout} disabled={!uploadedFile} className={`group w-full font-bold text-lg py-5 rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${uploadedFile ? 'bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white cursor-pointer shadow-orange-500/30' : 'bg-orange-300 text-white/80 cursor-not-allowed'}`}>
-                  Checkout
+                  <Lock className="h-4 w-4" aria-hidden="true" />
+                  Checkout securely
                   <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
                 </button>
                 <button
@@ -2130,6 +2141,8 @@ const GoogleAdsBanner: React.FC = () => {
             )}
           </div>
         </section>
+
+        <TrustStrip />
 
 
         {/* Testimonials */}
