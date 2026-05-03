@@ -138,12 +138,12 @@ const FinishingOptionsCard: React.FC<FinishingOptionsCardProps> = ({
         calloutText={FINISHING_CALLOUTS.grommets}
       >
         {finishingType === 'grommets' && (
-          <div className="mt-3" onClick={(e) => e.stopPropagation()}>
+          <div className="mt-3 relative z-10" onClick={(e) => e.stopPropagation()}>
             <p className="text-xs font-semibold text-blue-700 mb-1">Grommet Placement:</p>
             <select
               value={grommets}
               onChange={(e) => setGrommets(e.target.value)}
-              className="w-52 border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full sm:w-52 border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
               {grommetOptions.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -166,12 +166,12 @@ const FinishingOptionsCard: React.FC<FinishingOptionsCardProps> = ({
         calloutText={FINISHING_CALLOUTS.polePockets}
       >
         {finishingType === 'pole_pockets' && (
-          <div className="mt-3" onClick={(e) => e.stopPropagation()}>
+          <div className="mt-3 relative z-10" onClick={(e) => e.stopPropagation()}>
             <p className="text-xs font-semibold text-blue-700 mb-1">Pole Pocket Placement:</p>
             <select
               value={polePockets === 'none' ? 'top' : polePockets}
               onChange={(e) => setPolePockets(e.target.value)}
-              className="w-52 border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full sm:w-52 border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
               {POLE_POCKET_PLACEMENTS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -194,12 +194,12 @@ const FinishingOptionsCard: React.FC<FinishingOptionsCardProps> = ({
         calloutText={FINISHING_CALLOUTS.rope}
       >
         {finishingType === 'rope' && (
-          <div className="mt-3" onClick={(e) => e.stopPropagation()}>
+          <div className="mt-3 relative z-10" onClick={(e) => e.stopPropagation()}>
             <p className="text-xs font-semibold text-blue-700 mb-1">Choose Rope Placement:</p>
             <select
               value={ropePlacement}
               onChange={(e) => setRopePlacement(e.target.value as RopePlacement)}
-              className="w-52 border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
+              className="w-full sm:w-52 border border-gray-300 rounded-lg px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-400"
             >
               {ROPE_PLACEMENTS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -305,30 +305,32 @@ const FinishingCard: React.FC<FinishingCardProps> = ({
       </div>
     </div>
 
-    {/* Right: large product photo + callout annotation */}
-    <div className="flex items-stretch flex-shrink-0 self-stretch">
+    {/* Right: large product photo + callout annotation
+        Mobile (<sm): narrow, vertically-stacked column (image on top, callout below).
+        Desktop (sm+): original side-by-side layout, unchanged. */}
+    <div className="flex flex-col sm:flex-row items-center sm:items-stretch flex-shrink-0 self-stretch w-28 sm:w-auto z-0">
       {/* Main photo */}
-      <div className="relative w-36 sm:w-48 md:w-56 self-stretch overflow-hidden">
+      <div className="relative w-full h-24 sm:w-48 sm:h-auto md:w-56 sm:self-stretch overflow-hidden">
         <img
           src={imageSrc}
           alt={title}
-          className="absolute inset-0 w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-cover pointer-events-none"
           onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
         />
       </div>
 
       {/* Callout annotation */}
-      <div className="flex flex-col items-center justify-center gap-1.5 pr-3 pl-2 py-3 w-20 sm:w-24 flex-shrink-0">
+      <div className="flex flex-col items-center justify-center gap-1 sm:gap-1.5 px-2 sm:pr-3 sm:pl-2 py-2 sm:py-3 w-full sm:w-24 flex-shrink-0">
         {/* Annotation text */}
         <p className="text-[10px] text-blue-600 font-medium text-center leading-tight">
           {calloutText}
         </p>
         {/* Circular callout spot */}
-        <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-blue-400 overflow-hidden flex-shrink-0 shadow-sm bg-white">
+        <div className="w-9 h-9 sm:w-12 sm:h-12 rounded-full border-2 border-blue-400 overflow-hidden flex-shrink-0 shadow-sm bg-white">
           <img
             src={imageSrc}
             alt={`${title} detail`}
-            className="w-full h-full object-cover scale-150"
+            className="w-full h-full object-cover scale-150 pointer-events-none"
             onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
           />
         </div>
