@@ -19,7 +19,7 @@ const FINISHING_IMAGES = {
 } as const;
 
 const FINISHING_CALLOUTS = {
-  grommets: 'Metal grommets every 2-3 feet',
+  grommets: 'Metal grommets',
   polePockets: 'Pocket fits over pole',
   rope: 'Rope sewn into the banner edge',
 } as const;
@@ -302,33 +302,10 @@ const FinishingCard: React.FC<FinishingCardProps> = ({
 
       {/* Callout annotation */}
       <div className="flex flex-col items-center justify-center gap-1.5 pr-3 pl-2 py-3 w-20 sm:w-24 flex-shrink-0">
-        {/* Annotation text with arrow */}
+        {/* Annotation text */}
         <p className="text-[10px] text-blue-600 font-medium text-center leading-tight">
           {calloutText}
         </p>
-        {/* Arrow pointing down */}
-        <svg
-          width="16" height="20"
-          viewBox="0 0 16 20"
-          fill="none"
-          className="text-blue-400 flex-shrink-0"
-        >
-          <path
-            d="M8 1 C8 1 4 8 2 12 C0 16 4 18 8 18 C12 18 16 16 14 12 C12 8 8 1 8 1Z"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-          />
-          <path
-            d="M5 15 L8 19 L11 15"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </svg>
         {/* Circular callout spot */}
         <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full border-2 border-blue-400 overflow-hidden flex-shrink-0 shadow-sm bg-white">
           <img
