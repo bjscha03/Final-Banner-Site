@@ -19,6 +19,7 @@ export type NormalizableOrderItem = {
   material?: string;
   grommets?: string | null;
   rope_feet?: number | null;
+  rope_placement?: string | null;
   pole_pockets?: string | null | boolean;
   pole_pocket_position?: string | null;
   pole_pocket_size?: string | null;
@@ -89,13 +90,50 @@ export function getDisplaySize(item: {
 export function getDisplayGrommets(value?: string | null): string {
   const raw = String(value || '').trim().toLowerCase();
   if (!raw || raw === 'none' || raw === 'false') return '';
+  // Normalize underscores/spaces to hyphens so we accept both
+  // hyphenated codebase values (e.g. "every-2-3ft") and the
+  // underscored/key-style values (e.g. "every_2_3_feet") in spec.
+  const key = raw.replace(/[_\s]+/g, '-');
   const map: Record<string, string> = {
-    '4-corners': '4 Corners',
-    'every-2-3ft': 'Every 2 Feet',
+    // Codebase values
+    '4-corners': '4 Corners Only',
+    'every-2-3ft': 'Every 2–3 Feet',
     'every-1-2ft': 'Every 1–2 Feet',
-    'top-corners': 'Top Corners',
+    'top-corners': 'Top Corners Only',
+    'bottom-corners': 'Bottom Corners Only',
+    'left-corners': 'Left Side Only',
+    'right-corners': 'Right Side Only',
+    // Spec key-style values
+    'four-corners': '4 Corners Only',
+    'every-2-3-feet': 'Every 2–3 Feet',
+    'every-1-2-feet': 'Every 1–2 Feet',
+    'left-side': 'Left Side Only',
+    'right-side': 'Right Side Only',
   };
-  return map[raw] || toTitleCase(raw.replace(/-/g, ' '));
+  return map[key] || toTitleCase(key.replace(/-/g, ' '));
+}
+
+/**
+ * Map a rope or pole-pocket placement value to a friendly label.
+ * Accepts: 'top' | 'bottom' | 'top-bottom' | 'both' | 'top_only' | etc.
+ */
+export function getDisplayPlacement(value?: string | null): string {
+  const raw = String(value || '').trim().toLowerCase();
+  if (!raw || raw === 'none' || raw === 'false') return '';
+  const key = raw.replace(/[_\s]+/g, '-');
+  const map: Record<string, string> = {
+    'top': 'Top Only',
+    'top-only': 'Top Only',
+    'bottom': 'Bottom Only',
+    'bottom-only': 'Bottom Only',
+    'top-bottom': 'Top & Bottom',
+    'both': 'Top & Bottom',
+    'left': 'Left Only',
+    'left-only': 'Left Only',
+    'right': 'Right Only',
+    'right-only': 'Right Only',
+  };
+  return map[key] || toTitleCase(key.replace(/-/g, ' '));
 }
 
 /**
@@ -246,13 +284,19 @@ export function getEmailItemOptions(item: {
   }
 
   // Banner options
+  const polePocketPlacementLabel = (item.pole_pocket_position && item.pole_pocket_position !== 'none')
+    ? (getDisplayPlacement(item.pole_pocket_position) || item.pole_pocket_position)
+    : '';
+  const ropePlacementLabel = item.rope_feet && item.rope_feet > 0
+    ? (getDisplayPlacement(item.rope_placement) || `${item.rope_feet.toFixed(1)} ft`)
+    : '';
   const parts: (string | null)[] = [
     `Size: ${getDisplaySize(item)}`,
     `Material: ${getDisplayMaterial(item) || '13oz Vinyl'}`,
     getDisplayGrommets(item.grommets) ? `Grommets: ${getDisplayGrommets(item.grommets)}` : null,
-    item.rope_feet && item.rope_feet > 0 ? `Rope: ${item.rope_feet.toFixed(1)} ft` : null,
-    (item.pole_pocket_position && item.pole_pocket_position !== 'none')
-      ? `Pole Pockets: ${item.pole_pocket_position}${item.pole_pocket_size ? ` (${item.pole_pocket_size} inch)` : ''}`
+    ropePlacementLabel ? `Rope: ${ropePlacementLabel}` : null,
+    polePocketPlacementLabel
+      ? `Pole Pockets: ${polePocketPlacementLabel}${item.pole_pocket_size ? ` (${item.pole_pocket_size} inch)` : ''}`
       : (item.pole_pockets && item.pole_pockets !== 'none' && item.pole_pockets !== 'false')
         ? 'Pole Pockets: Yes'
         : null,
@@ -277,8 +321,20 @@ export function normalizeOrderItemDisplay(item: NormalizableOrderItem): Normaliz
         : 0
   );
   const ropeFeet = Number(item.rope_feet || 0);
-  const polePocketPosition = String(item.pole_pocket_position || item.pole_pockets || '').trim();
-  const hasPolePocket = polePocketPosition && polePocketPosition !== 'none' && polePocketPosition !== 'false';
+  const ropePlacementLabel = getDisplayPlacement(item.rope_placement);
+  // Show rope by placement when known; fall back to feet for legacy
+  // order items that pre-date the rope_placement field.
+  const ropeDisplay = ropeFeet > 0
+    ? (ropePlacementLabel || `${ropeFeet.toFixed(1)} ft`)
+    : '';
+  const polePocketPositionRaw = String(item.pole_pocket_position || item.pole_pockets || '').trim();
+  const hasPolePocket = polePocketPositionRaw && polePocketPositionRaw !== 'none' && polePocketPositionRaw !== 'false';
+  const polePocketPlacementLabel = hasPolePocket
+    ? (getDisplayPlacement(polePocketPositionRaw) || polePocketPositionRaw)
+    : '';
+  const polePocketsDisplay = hasPolePocket
+    ? `${polePocketPlacementLabel}${item.pole_pocket_size ? ` (${item.pole_pocket_size} inch)` : ''}`
+    : '';
   const stepStakesQty = Number(item.yard_sign_step_stakes_qty || 0);
   const uploadedDesignsCount = Number(item.yard_sign_design_count || 0);
 
@@ -331,12 +387,10 @@ export function normalizeOrderItemDisplay(item: NormalizableOrderItem): Normaliz
           }
       : {
           ...(getDisplayGrommets(item.grommets) ? { grommetsDisplay: getDisplayGrommets(item.grommets) } : {}),
-          ...(hasPolePocket
-            ? {
-                polePocketsDisplay: `${polePocketPosition}${item.pole_pocket_size ? ` (${item.pole_pocket_size} inch)` : ''}`,
-              }
+          ...(polePocketsDisplay
+            ? { polePocketsDisplay }
             : {}),
-          ...(ropeFeet > 0 ? { ropeDisplay: `${ropeFeet.toFixed(1)} ft` } : {}),
+          ...(ropeDisplay ? { ropeDisplay } : {}),
         }),
   };
 }

@@ -154,6 +154,7 @@ exports.handler = async (event, context) => {
         grommets,
         rounded_corners,
         rope_feet,
+        rope_placement,
         pole_pockets,
         pole_pocket_position,
         pole_pocket_size,

@@ -556,6 +556,7 @@ const GoogleAdsBanner: React.FC = () => {
       if (item.grommets) setGrommets(item.grommets);
       if (item.pole_pockets) setPolePockets(item.pole_pockets);
       setAddRope(!!item.rope_feet);
+      if (item.rope_placement) setRopePlacement(item.rope_placement as RopePlacement);
       // Restore finishingType from cart item so the correct card appears selected
       if (item.grommets && item.grommets !== 'none') {
         setFinishingType('grommets');
@@ -1123,6 +1124,7 @@ const GoogleAdsBanner: React.FC = () => {
       polePockets: finalPolePockets, 
       polePocketSize: finalPolePocketSize as any,
       addRope: finalRope,
+      ropePlacement,
       imagePosition: checkoutData.pos,
       imageScale: checkoutData.scale,
       imageScaleY: checkoutData.scaleY ?? checkoutData.scale,

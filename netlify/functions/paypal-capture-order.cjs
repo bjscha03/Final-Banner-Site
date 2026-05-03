@@ -173,7 +173,8 @@ exports.handler = async (event) => {
       await sql`
         ALTER TABLE order_items
         ADD COLUMN IF NOT EXISTS product_type TEXT DEFAULT 'banner',
-        ADD COLUMN IF NOT EXISTS rounded_corners TEXT
+        ADD COLUMN IF NOT EXISTS rounded_corners TEXT,
+        ADD COLUMN IF NOT EXISTS rope_placement TEXT
       `;
     } catch (migrationError) {
       console.warn('[paypal-capture-order] order_items migration warning:', migrationError.message);
@@ -329,7 +330,7 @@ exports.handler = async (event) => {
         await tx`
           INSERT INTO order_items (
             id, order_id, product_type, width_in, height_in, quantity, material,
-            grommets, rounded_corners, rope_feet, pole_pockets, pole_pocket_position, pole_pocket_size, pole_pocket_cost_cents,
+            grommets, rounded_corners, rope_feet, rope_placement, pole_pockets, pole_pocket_position, pole_pocket_size, pole_pocket_cost_cents,
             line_total_cents, file_key, file_url, print_ready_url, web_preview_url,
             text_elements, overlay_image, thumbnail_url,
             final_render_url, final_render_file_key, final_render_width_px, final_render_height_px, final_render_dpi,
@@ -345,6 +346,7 @@ exports.handler = async (event) => {
             ${item.grommets || 'none'},
             ${item.rounded_corners || null},
             ${item.rope_feet || 0},
+            ${item.rope_placement || null},
             ${polePocketsValue},
             ${item.pole_pocket_position || null},
             ${item.pole_pocket_size || null},

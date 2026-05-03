@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { useEditorStore } from './editor';
+import type { RopePlacement } from '@/lib/bannerPricingEngine';
 
 export type MaterialKey = '13oz' | '15oz' | '18oz' | 'mesh' | 'corrugated' | 'magnetic' | 'aluminum_040' | 'aluminum_063';
 export type Grommets =
@@ -39,6 +40,7 @@ export interface QuoteState {
   polePockets: string;
   polePocketSize: PolePocketSize;
   addRope: boolean;
+  ropePlacement: RopePlacement;
   previewScalePct: number;
   textElements: TextElement[];
   editingItemId?: string | null; // ID of cart item being edited, if any
@@ -117,6 +119,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
   polePockets: 'none',
   polePocketSize: '2',
   addRope: false, // Preserve rope selection
+  ropePlacement: 'top',
   previewScalePct: 100,
   textElements: [],
   editingItemId: null,
@@ -184,6 +187,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
       polePockets: item.pole_pocket_position || item.pole_pockets || 'none',
       polePocketSize: item.pole_pocket_size || '2',
       addRope: item.rope_feet > 0,
+      ropePlacement: (item.rope_placement as RopePlacement) || 'top',
       textElements: migratedTextElements,
       editingItemId: editingItemId || null, // Preserve editingItemId if provided
       // CRITICAL FIX: Don't load file as background if there's an overlay_image OR text elements
@@ -338,6 +342,7 @@ export const useQuoteStore = create<QuoteState>((set, get) => ({
     polePockets: 'none',
     polePocketSize: '2',
     addRope: false,
+    ropePlacement: 'top',
     previewScalePct: 100,
     textElements: [],
     editingItemId: null,

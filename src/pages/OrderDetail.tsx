@@ -31,6 +31,7 @@ interface OrderItem {
   material: string;
   grommets: string;
   rope_feet: number;
+  rope_placement?: string | null;
   pole_pockets: string;
   pole_pocket_position?: string;
   pole_pocket_size?: string;

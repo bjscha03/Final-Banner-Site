@@ -45,13 +45,41 @@ function getDisplaySize(item) {
 function getDisplayGrommets(value) {
   const raw = String(value || '').trim().toLowerCase();
   if (!raw || raw === 'none' || raw === 'false') return '';
+  const key = raw.replace(/[_\s]+/g, '-');
   const map = {
-    '4-corners': '4 Corners',
-    'every-2-3ft': 'Every 2 Feet',
+    '4-corners': '4 Corners Only',
+    'every-2-3ft': 'Every 2–3 Feet',
     'every-1-2ft': 'Every 1–2 Feet',
-    'top-corners': 'Top Corners',
+    'top-corners': 'Top Corners Only',
+    'bottom-corners': 'Bottom Corners Only',
+    'left-corners': 'Left Side Only',
+    'right-corners': 'Right Side Only',
+    'four-corners': '4 Corners Only',
+    'every-2-3-feet': 'Every 2–3 Feet',
+    'every-1-2-feet': 'Every 1–2 Feet',
+    'left-side': 'Left Side Only',
+    'right-side': 'Right Side Only',
   };
-  return map[raw] || toTitleCase(raw.replace(/-/g, ' '));
+  return map[key] || toTitleCase(key.replace(/-/g, ' '));
+}
+
+function getDisplayPlacement(value) {
+  const raw = String(value || '').trim().toLowerCase();
+  if (!raw || raw === 'none' || raw === 'false') return '';
+  const key = raw.replace(/[_\s]+/g, '-');
+  const map = {
+    'top': 'Top Only',
+    'top-only': 'Top Only',
+    'bottom': 'Bottom Only',
+    'bottom-only': 'Bottom Only',
+    'top-bottom': 'Top & Bottom',
+    'both': 'Top & Bottom',
+    'left': 'Left Only',
+    'left-only': 'Left Only',
+    'right': 'Right Only',
+    'right-only': 'Right Only',
+  };
+  return map[key] || toTitleCase(key.replace(/-/g, ' '));
 }
 
 function getItemDisplayName(item) {
@@ -145,8 +173,18 @@ function normalizeOrderItemDisplay(item) {
         : 0
   );
   const ropeFeet = Number(item.rope_feet || 0);
-  const polePocketPosition = String(item.pole_pocket_position || item.pole_pockets || '').trim();
-  const hasPolePocket = polePocketPosition && polePocketPosition !== 'none' && polePocketPosition !== 'false';
+  const ropePlacementLabel = getDisplayPlacement(item.rope_placement);
+  const ropeDisplay = ropeFeet > 0
+    ? (ropePlacementLabel || `${ropeFeet.toFixed(1)} ft`)
+    : '';
+  const polePocketPositionRaw = String(item.pole_pocket_position || item.pole_pockets || '').trim();
+  const hasPolePocket = polePocketPositionRaw && polePocketPositionRaw !== 'none' && polePocketPositionRaw !== 'false';
+  const polePocketPlacementLabel = hasPolePocket
+    ? (getDisplayPlacement(polePocketPositionRaw) || polePocketPositionRaw)
+    : '';
+  const polePocketsDisplay = hasPolePocket
+    ? `${polePocketPlacementLabel}${item.pole_pocket_size ? ` (${item.pole_pocket_size} inch)` : ''}`
+    : '';
   const stepStakesQty = Number(item.yard_sign_step_stakes_qty || 0);
   const uploadedDesignsCount = Number(item.yard_sign_design_count || 0);
   const grommetsDisplay = getDisplayGrommets(item.grommets);
@@ -178,8 +216,8 @@ function normalizeOrderItemDisplay(item) {
           }
       : {
           ...(grommetsDisplay ? { grommetsDisplay } : {}),
-          ...(ropeFeet > 0 ? { ropeDisplay: `${ropeFeet.toFixed(1)} ft` } : {}),
-          ...(hasPolePocket ? { polePocketsDisplay: `${polePocketPosition}${item.pole_pocket_size ? ` (${item.pole_pocket_size} inch)` : ''}` } : {}),
+          ...(ropeDisplay ? { ropeDisplay } : {}),
+          ...(polePocketsDisplay ? { polePocketsDisplay } : {}),
         }),
   };
 }
@@ -204,4 +242,6 @@ module.exports = {
   getEmailItemOptions,
   normalizeOrderItemDisplay,
   getPayPalDescription,
+  getDisplayGrommets,
+  getDisplayPlacement,
 };
