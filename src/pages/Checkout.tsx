@@ -1194,87 +1194,123 @@ const Checkout: React.FC = () => {
                     <span className="h-px flex-1 bg-gray-200" />
                   </div>
 
-                  {/* 3-column grid of trust items */}
-                  <ul className="mt-5 grid grid-cols-2 sm:grid-cols-3 divide-x divide-y divide-gray-200 [&>li]:px-3 [&>li]:py-5 [&>li:nth-child(-n+3)]:border-t-0 [&>li:nth-child(3n+1)]:border-l-0 max-sm:[&>li:nth-child(-n+2)]:border-t-0 max-sm:[&>li:nth-child(2n+1)]:border-l-0 max-sm:[&>li:nth-child(3)]:border-l-0">
-                    <li className="flex flex-col items-center text-center">
-                      <span className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[#FFF1E5]">
-                        <img
-                          src="https://res.cloudinary.com/dtrxl120u/image/upload/v1777841844/secure_checkout_ereeos.png"
-                          alt=""
-                          aria-hidden="true"
-                          className="h-9 w-9 object-contain"
-                        />
-                      </span>
-                      <span className="text-sm font-bold text-[#1a1a1a]">Secure Checkout</span>
-                      <span className="mt-0.5 text-xs text-[#666]">SSL Encrypted</span>
-                    </li>
-                    <li className="flex flex-col items-center text-center">
-                      <span className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[#FFF1E5]">
-                        <img
-                          src="https://res.cloudinary.com/dtrxl120u/image/upload/v1777841976/shipping_sfai9i.png"
-                          alt=""
-                          aria-hidden="true"
-                          className="h-9 w-9 object-contain"
-                        />
-                      </span>
-                      {sameDayHitService ? (
-                        <>
-                          <span className="text-sm font-bold text-[#1a1a1a]">Next-Day Air Shipping</span>
-                          <span className="mt-0.5 text-xs text-[#666]">Included</span>
-                        </>
-                      ) : (
-                        <>
-                          <span className="text-sm font-bold text-[#1a1a1a]">
-                            <span className="text-[#FF7A00]">FREE</span> Next-Day
-                          </span>
-                          <span className="text-sm font-bold text-[#1a1a1a]">Air Shipping</span>
-                        </>
-                      )}
-                    </li>
-                    <li className="flex flex-col items-center text-center">
-                      <span className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[#FFF1E5]">
-                        <img
-                          src="https://res.cloudinary.com/dtrxl120u/image/upload/v1777841978/quality_z9phmp.png"
-                          alt=""
-                          aria-hidden="true"
-                          className="h-9 w-9 object-contain"
-                        />
-                      </span>
-                      <span className="text-sm font-bold text-[#1a1a1a]">Quality</span>
-                      <span className="mt-0.5 text-xs text-[#666]">Guaranteed</span>
-                    </li>
-                    <li className="flex flex-col items-center text-center">
-                      <span className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[#FFF1E5]">
-                        <img
-                          src="https://res.cloudinary.com/dtrxl120u/image/upload/v1777841997/custom_orders_uplfjh.png"
-                          alt=""
-                          aria-hidden="true"
-                          className="h-9 w-9 object-contain"
-                        />
-                      </span>
-                      <span className="text-sm font-bold text-[#1a1a1a]">Custom Orders</span>
-                      <span className="mt-0.5 text-xs text-[#666]">Replaced if damaged in transit</span>
-                    </li>
-                    <li className="flex flex-col items-center text-center">
-                      <span className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[#FFF1E5]">
-                        <img
-                          src="https://res.cloudinary.com/dtrxl120u/image/upload/v1777842074/no_hidden_fees_vde5jz.png"
-                          alt=""
-                          aria-hidden="true"
-                          className="h-9 w-9 object-contain"
-                        />
-                      </span>
-                      <span className="text-sm font-bold text-[#1a1a1a]">No Hidden Fees</span>
-                      <span className="mt-0.5 text-xs text-[#666]">What you see is what you pay</span>
-                    </li>
-                    <li className="flex flex-col items-center text-center">
-                      <span className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[#FFF1E5]">
-                        <Headphones aria-hidden="true" className="h-9 w-9 text-[#FF7A00]" strokeWidth={2.25} />
-                      </span>
-                      <span className="text-sm font-bold text-[#1a1a1a]">Real People</span>
-                      <span className="mt-0.5 text-xs text-[#666]">Here to help</span>
-                    </li>
-                  </ul>
+                  {/* 3-column grid of trust items.
+                      Border classes per item position:
+                        - top borders skip row 1 (i<2 mobile, i<3 desktop)
+                        - left borders skip first column (i%2===0 mobile, i%3===0 desktop) */}
+                  {(() => {
+                    const trustItems: Array<{
+                      title: React.ReactNode;
+                      subtitle: React.ReactNode;
+                      icon: React.ReactNode;
+                    }> = [
+                      {
+                        title: 'Secure Checkout',
+                        subtitle: 'SSL Encrypted',
+                        icon: (
+                          <img
+                            src="https://res.cloudinary.com/dtrxl120u/image/upload/v1777841844/secure_checkout_ereeos.png"
+                            alt=""
+                            aria-hidden="true"
+                            className="h-9 w-9 object-contain"
+                          />
+                        ),
+                      },
+                      {
+                        title: sameDayHitService ? (
+                          'Next-Day Air Shipping'
+                        ) : (
+                          <>
+                            <span className="text-[#FF7A00]">FREE</span> Next-Day Air Shipping
+                          </>
+                        ),
+                        subtitle: sameDayHitService ? 'Included' : '',
+                        icon: (
+                          <img
+                            src="https://res.cloudinary.com/dtrxl120u/image/upload/v1777841976/shipping_sfai9i.png"
+                            alt=""
+                            aria-hidden="true"
+                            className="h-9 w-9 object-contain"
+                          />
+                        ),
+                      },
+                      {
+                        title: 'Quality',
+                        subtitle: 'Guaranteed',
+                        icon: (
+                          <img
+                            src="https://res.cloudinary.com/dtrxl120u/image/upload/v1777841978/quality_z9phmp.png"
+                            alt=""
+                            aria-hidden="true"
+                            className="h-9 w-9 object-contain"
+                          />
+                        ),
+                      },
+                      {
+                        title: 'Custom Orders',
+                        subtitle: 'Replaced if damaged in transit',
+                        icon: (
+                          <img
+                            src="https://res.cloudinary.com/dtrxl120u/image/upload/v1777841997/custom_orders_uplfjh.png"
+                            alt=""
+                            aria-hidden="true"
+                            className="h-9 w-9 object-contain"
+                          />
+                        ),
+                      },
+                      {
+                        title: 'No Hidden Fees',
+                        subtitle: 'What you see is what you pay',
+                        icon: (
+                          <img
+                            src="https://res.cloudinary.com/dtrxl120u/image/upload/v1777842074/no_hidden_fees_vde5jz.png"
+                            alt=""
+                            aria-hidden="true"
+                            className="h-9 w-9 object-contain"
+                          />
+                        ),
+                      },
+                      {
+                        title: 'Real People',
+                        subtitle: 'Here to help',
+                        icon: <Headphones aria-hidden="true" className="h-9 w-9 text-[#FF7A00]" strokeWidth={2.25} />,
+                      },
+                    ];
+
+                    // Border classes derived from position (mobile = 2 cols, sm = 3 cols).
+                    const borderClassFor = (i: number) => {
+                      const classes: string[] = [];
+                      // Top border: skip row 1. Mobile row 1 = i<2, desktop row 1 = i<3.
+                      if (i >= 3) classes.push('border-t border-gray-200');
+                      else if (i === 2) classes.push('border-t border-gray-200 sm:border-t-0');
+                      // Left border: skip first column. Mobile col 1 = i%2===0, desktop col 1 = i%3===0.
+                      const mobileLeft = i % 2 === 1;
+                      const desktopLeft = i % 3 !== 0;
+                      if (mobileLeft && desktopLeft) classes.push('border-l border-gray-200');
+                      else if (!mobileLeft && desktopLeft) classes.push('sm:border-l sm:border-gray-200');
+                      else if (mobileLeft && !desktopLeft) classes.push('border-l border-gray-200 sm:border-l-0');
+                      return classes.join(' ');
+                    };
+
+                    return (
+                      <ul className="mt-5 grid grid-cols-2 sm:grid-cols-3">
+                        {trustItems.map((item, i) => (
+                          <li
+                            key={i}
+                            className={`flex flex-col items-center text-center px-3 py-5 ${borderClassFor(i)}`}
+                          >
+                            <span className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[#FFF1E5]">
+                              {item.icon}
+                            </span>
+                            <span className="text-sm font-bold text-[#1a1a1a]">{item.title}</span>
+                            {item.subtitle && (
+                              <span className="mt-0.5 text-xs text-[#666]">{item.subtitle}</span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    );
+                  })()}
 
                   {/* Footer info box */}
                   <div className="mt-5 flex items-center gap-3 rounded-lg bg-[#FFF1E5] px-4 py-3">
