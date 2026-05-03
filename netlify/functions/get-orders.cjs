@@ -7,6 +7,12 @@ function getDbUrl() {
   return process.env.NETLIFY_DATABASE_URL || process.env.VITE_DATABASE_URL || process.env.DATABASE_URL;
 }
 
+// Module-scoped cache: auto-migrations only need to run once per cold start.
+// Running ~50 ALTER TABLE statements on every admin request was causing the
+// function to exceed the default 10s Netlify timeout, returning 5xx errors
+// to the admin Orders page ("Error Loading Orders").
+let _migrationsRan = false;
+
 
 exports.handler = async (event, context) => {
   // Set CORS headers
@@ -66,6 +72,7 @@ exports.handler = async (event, context) => {
     // AUTO-MIGRATE: Ensure all columns referenced by the query exist.
     // Each ALTER runs independently so a single failure does not roll back the rest
     // (PostgreSQL ALTER TABLE with multiple ADD COLUMN clauses is atomic).
+    // Cached at module scope: only runs on the first invocation per cold start.
     const ALLOWED_TABLES = new Set(['orders', 'order_items']);
     // Whitelist allowed characters for column DDL: identifiers, types, defaults,
     // simple JSON/string literals, parens. Refuses anything with semicolons,
@@ -127,10 +134,12 @@ exports.handler = async (event, context) => {
       `yard_sign_signs_subtotal_cents INTEGER DEFAULT 0`,
       `yard_sign_stakes_subtotal_cents INTEGER DEFAULT 0`,
     ];
-    for (const col of orderItemColumns) {
-      await ensureColumn('order_items', col);
+    if (!_migrationsRan) {
+      for (const col of orderItemColumns) {
+        await ensureColumn('order_items', col);
+      }
+      console.log('[get-orders] Auto-migration: order_items columns verified');
     }
-    console.log('[get-orders] Auto-migration: order_items columns verified');
 
     // AUTO-MIGRATE: Ensure orders table columns exist
     const orderColumns = [
@@ -160,10 +169,13 @@ exports.handler = async (event, context) => {
       `order_timestamp_et TEXT`,
       `same_day_qualified BOOLEAN DEFAULT FALSE`,
     ];
-    for (const col of orderColumns) {
-      await ensureColumn('orders', col);
+    if (!_migrationsRan) {
+      for (const col of orderColumns) {
+        await ensureColumn('orders', col);
+      }
+      console.log('[get-orders] Auto-migration: orders columns verified');
+      _migrationsRan = true;
     }
-    console.log('[get-orders] Auto-migration: orders columns verified');
 
     const { user_id, page = 1 } = event.queryStringParameters || {};
     const limit = 20;
@@ -174,11 +186,19 @@ exports.handler = async (event, context) => {
     // missing (e.g. a migration silently failed), it is emitted as NULL
     // instead of being referenced as `oi.col` which would throw
     // `column "..." does not exist` and 500 the whole admin page.
+    //
+    // We use 'order_items'::regclass (resolved via search_path) instead of
+    // filtering information_schema.columns by current_schema(). This works
+    // regardless of which schema the table lives in, as long as the table
+    // is reachable on the connection's search_path.
     let existingItemCols = new Set();
     try {
       const cols = await sql(
-        `SELECT column_name FROM information_schema.columns
-           WHERE table_schema = current_schema() AND table_name = 'order_items'`
+        `SELECT a.attname AS column_name
+           FROM pg_attribute a
+          WHERE a.attrelid = 'order_items'::regclass
+            AND a.attnum > 0
+            AND NOT a.attisdropped`
       );
       existingItemCols = new Set(cols.map(r => r.column_name));
     } catch (introspectErr) {
