@@ -1,7 +1,7 @@
 /**
  * Grommet position computation for the preview overlay.
  *
- * This is the canonical PR-2 helper for placing grommets on the design
+ * This is the canonical helper for placing grommets on the design
  * preview canvas. It returns positions in INCHES along the banner axis
  * so callers (e.g. <GrommetOverlay/>) can render them directly into the
  * existing inch-based SVG coordinate space used by <PreviewCanvas/>.
@@ -13,18 +13,31 @@
  *   - thumbnails
  *   - admin file downloads
  *
- * Supported overlay options (per PR-2 spec):
- *   - 'none'         no grommets
- *   - '4-corners'    one grommet inset slightly at each corner
- *   - 'every-2-feet' corners + evenly spaced midpoints along all edges
+ * Supported overlay options:
+ *   - 'none'             no grommets
+ *   - '4-corners'        one grommet inset slightly at each corner
+ *   - 'top-corners'      top-left and top-right only
+ *   - 'bottom-corners'   bottom-left and bottom-right only
+ *   - 'left-corners'     left edge only (top-left + bottom-left)
+ *   - 'right-corners'    right edge only (top-right + bottom-right)
+ *   - 'every-2-feet'     corners + midpoints along all edges (~24" spacing)
+ *   - 'every-1-foot'     corners + midpoints along all edges (~18" spacing)
  *
- * The store's `Grommets` type still includes other legacy values (e.g.
- * 'every-1-2ft', 'top-corners'); a small mapper is exported below so the
- * existing options keep rendering correctly without changes to the cart
- * or pricing layers.
+ * The store's `Grommets` type uses slightly different string values
+ * (e.g. 'every-1-2ft', 'every-2-3ft'); a small mapper is exported below
+ * so existing callers keep working without changes to the cart or
+ * pricing layers.
  */
 
-export type GrommetOverlayOption = 'none' | '4-corners' | 'every-2-feet';
+export type GrommetOverlayOption =
+  | 'none'
+  | '4-corners'
+  | 'top-corners'
+  | 'bottom-corners'
+  | 'left-corners'
+  | 'right-corners'
+  | 'every-2-feet'
+  | 'every-1-foot';
 
 export interface GrommetPosition {
   /** Horizontal position in INCHES from the banner's left edge. */
@@ -39,6 +52,9 @@ export const GROMMET_EDGE_INSET_IN = 1;
 /** Default mid-edge spacing in inches for the 'every-2-feet' option. */
 export const GROMMET_EVERY_TWO_FEET_SPACING_IN = 24;
 
+/** Default mid-edge spacing in inches for the 'every-1-foot' option (tighter spacing). */
+export const GROMMET_EVERY_ONE_FOOT_SPACING_IN = 18;
+
 /**
  * Compute grommet positions in inches.
  *
@@ -46,13 +62,15 @@ export const GROMMET_EVERY_TWO_FEET_SPACING_IN = 24;
  * @param heightIn  banner height in inches
  * @param option    overlay option
  * @param spacingIn (optional) spacing between mid-edge grommets in inches.
- *                  Defaults to {@link GROMMET_EVERY_TWO_FEET_SPACING_IN}.
+ *                  When omitted, defaults are derived from the option:
+ *                  'every-2-feet' → {@link GROMMET_EVERY_TWO_FEET_SPACING_IN},
+ *                  'every-1-foot' → {@link GROMMET_EVERY_ONE_FOOT_SPACING_IN}.
  */
 export function getGrommetPositions(
   widthIn: number,
   heightIn: number,
   option: GrommetOverlayOption,
-  spacingIn: number = GROMMET_EVERY_TWO_FEET_SPACING_IN
+  spacingIn?: number
 ): GrommetPosition[] {
   if (option === 'none') return [];
   if (!Number.isFinite(widthIn) || !Number.isFinite(heightIn)) return [];
@@ -62,22 +80,33 @@ export function getGrommetPositions(
   // Guard for very small banners where the inset would invert.
   const safeM = Math.min(m, widthIn / 2, heightIn / 2);
 
-  const corners: GrommetPosition[] = [
-    { x: safeM, y: safeM },
-    { x: widthIn - safeM, y: safeM },
-    { x: safeM, y: heightIn - safeM },
-    { x: widthIn - safeM, y: heightIn - safeM },
-  ];
+  const topLeft: GrommetPosition = { x: safeM, y: safeM };
+  const topRight: GrommetPosition = { x: widthIn - safeM, y: safeM };
+  const bottomLeft: GrommetPosition = { x: safeM, y: heightIn - safeM };
+  const bottomRight: GrommetPosition = { x: widthIn - safeM, y: heightIn - safeM };
+  const corners: GrommetPosition[] = [topLeft, topRight, bottomLeft, bottomRight];
 
   if (option === '4-corners') return dedupe(corners);
+  if (option === 'top-corners') return dedupe([topLeft, topRight]);
+  if (option === 'bottom-corners') return dedupe([bottomLeft, bottomRight]);
+  if (option === 'left-corners') return dedupe([topLeft, bottomLeft]);
+  if (option === 'right-corners') return dedupe([topRight, bottomRight]);
 
-  // 'every-2-feet': corners + evenly spaced midpoints along all 4 edges.
+  // 'every-2-feet' / 'every-1-foot': corners + evenly spaced midpoints
+  // along all 4 edges. Default spacing is option-driven but can be
+  // overridden by the optional argument.
+  const defaultSpacing =
+    option === 'every-1-foot'
+      ? GROMMET_EVERY_ONE_FOOT_SPACING_IN
+      : GROMMET_EVERY_TWO_FEET_SPACING_IN;
+  const spacing = spacingIn ?? defaultSpacing;
+
   const points: GrommetPosition[] = [...corners];
-  for (const x of midpoints(widthIn, safeM, spacingIn)) {
+  for (const x of midpoints(widthIn, safeM, spacing)) {
     points.push({ x, y: safeM });
     points.push({ x, y: heightIn - safeM });
   }
-  for (const y of midpoints(heightIn, safeM, spacingIn)) {
+  for (const y of midpoints(heightIn, safeM, spacing)) {
     points.push({ x: safeM, y });
     points.push({ x: widthIn - safeM, y });
   }
@@ -106,22 +135,27 @@ function dedupe(points: GrommetPosition[]): GrommetPosition[] {
 }
 
 /**
- * Map any legacy `Grommets` store value to the PR-2 overlay options.
+ * Map any legacy `Grommets` store value to the overlay options.
  * Lets existing callers (BannerEditor, GrommetsCard, etc.) continue to
  * use their richer option set without forcing a data-model change.
  *
- * - 'none'          -> 'none'
- * - '4-corners'     -> '4-corners'
- * - 'top-corners' / 'left-corners' / 'right-corners' -> '4-corners'
- *   (preview-only approximation; the actual grommet count for the order
- *   is still driven by the stored value, not this overlay).
- * - anything else (e.g. 'every-2-3ft', 'every-1-2ft') -> 'every-2-feet'
+ * - 'none'                                        -> 'none'
+ * - '4-corners'                                   -> '4-corners'
+ * - 'top-corners'                                 -> 'top-corners'
+ * - 'bottom-corners'                              -> 'bottom-corners'
+ * - 'left-corners'                                -> 'left-corners'   (Left Side Only)
+ * - 'right-corners'                               -> 'right-corners'  (Right Side Only)
+ * - 'every-1-2ft'                                 -> 'every-1-foot'   (tighter spacing)
+ * - 'every-2-3ft' (or any other value)            -> 'every-2-feet'   (default spacing)
  */
 export function toGrommetOverlayOption(value: string | null | undefined): GrommetOverlayOption {
   if (!value || value === 'none') return 'none';
-  if (value === '4-corners' || value === 'top-corners' || value === 'left-corners' || value === 'right-corners') {
-    return '4-corners';
-  }
+  if (value === '4-corners') return '4-corners';
+  if (value === 'top-corners') return 'top-corners';
+  if (value === 'bottom-corners') return 'bottom-corners';
+  if (value === 'left-corners') return 'left-corners';
+  if (value === 'right-corners') return 'right-corners';
+  if (value === 'every-1-2ft') return 'every-1-foot';
   return 'every-2-feet';
 }
 

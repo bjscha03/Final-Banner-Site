@@ -22,6 +22,44 @@ describe('getGrommetPositions', () => {
     expect(pts).toContainEqual({ x: 48 - m, y: 24 - m });
   });
 
+  it('returns only top corners for top-corners option', () => {
+    const pts = getGrommetPositions(48, 24, 'top-corners');
+    expect(pts).toHaveLength(2);
+    const m = GROMMET_EDGE_INSET_IN;
+    expect(pts).toContainEqual({ x: m, y: m });
+    expect(pts).toContainEqual({ x: 48 - m, y: m });
+  });
+
+  it('returns only bottom corners for bottom-corners option', () => {
+    const pts = getGrommetPositions(48, 24, 'bottom-corners');
+    expect(pts).toHaveLength(2);
+    const m = GROMMET_EDGE_INSET_IN;
+    expect(pts).toContainEqual({ x: m, y: 24 - m });
+    expect(pts).toContainEqual({ x: 48 - m, y: 24 - m });
+  });
+
+  it('returns only left-edge corners for left-corners option', () => {
+    const pts = getGrommetPositions(48, 24, 'left-corners');
+    expect(pts).toHaveLength(2);
+    const m = GROMMET_EDGE_INSET_IN;
+    expect(pts).toContainEqual({ x: m, y: m });
+    expect(pts).toContainEqual({ x: m, y: 24 - m });
+  });
+
+  it('returns only right-edge corners for right-corners option', () => {
+    const pts = getGrommetPositions(48, 24, 'right-corners');
+    expect(pts).toHaveLength(2);
+    const m = GROMMET_EDGE_INSET_IN;
+    expect(pts).toContainEqual({ x: 48 - m, y: m });
+    expect(pts).toContainEqual({ x: 48 - m, y: 24 - m });
+  });
+
+  it('places more grommets for every-1-foot than every-2-feet on the same banner', () => {
+    const tighter = getGrommetPositions(96, 48, 'every-1-foot');
+    const looser = getGrommetPositions(96, 48, 'every-2-feet');
+    expect(tighter.length).toBeGreaterThan(looser.length);
+  });
+
   it('returns evenly spaced grommets for every-2-feet on a 4ft x 2ft banner', () => {
     // 4 ft × 2 ft = 48 in × 24 in
     const pts = getGrommetPositions(48, 24, 'every-2-feet');
@@ -60,15 +98,16 @@ describe('getGrommetPositions', () => {
 });
 
 describe('toGrommetOverlayOption', () => {
-  it('maps legacy values to the PR-2 overlay options', () => {
+  it('maps store values to overlay options preserving placement distinctions', () => {
     expect(toGrommetOverlayOption('none')).toBe('none');
     expect(toGrommetOverlayOption(undefined)).toBe('none');
     expect(toGrommetOverlayOption('4-corners')).toBe('4-corners');
-    expect(toGrommetOverlayOption('top-corners')).toBe('4-corners');
-    expect(toGrommetOverlayOption('left-corners')).toBe('4-corners');
-    expect(toGrommetOverlayOption('right-corners')).toBe('4-corners');
+    expect(toGrommetOverlayOption('top-corners')).toBe('top-corners');
+    expect(toGrommetOverlayOption('bottom-corners')).toBe('bottom-corners');
+    expect(toGrommetOverlayOption('left-corners')).toBe('left-corners');
+    expect(toGrommetOverlayOption('right-corners')).toBe('right-corners');
     expect(toGrommetOverlayOption('every-2-3ft')).toBe('every-2-feet');
-    expect(toGrommetOverlayOption('every-1-2ft')).toBe('every-2-feet');
+    expect(toGrommetOverlayOption('every-1-2ft')).toBe('every-1-foot');
   });
 });
 
