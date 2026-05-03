@@ -12,9 +12,9 @@ import { DESIGN_GROMMET_OPTIONS } from '@/lib/grommets';
 // Image constants — swap these Cloudinary URLs when new assets are available
 // ---------------------------------------------------------------------------
 const FINISHING_IMAGES = {
-  grommets: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1777828366/4479a8a7-6471-4d11-9e85-c26aeb0b39ad_h1a5aj.png',
-  polePockets: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1777828413/88544e95-745f-4931-9639-78ff1ac25311_e3o666.png',
-  rope: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1777828503/6380a760-4b47-40c1-8d3a-8a78b8210e13_kwcxsd.png',
+  grommets: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1777834341/9ac6f57f-909e-4a89-9d23-100861ebec6e_f7gk2u.png',
+  polePockets: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1777834512/486f4992-2129-46c5-b51e-2f1e85f1436a_ujkpca.png',
+  rope: 'https://res.cloudinary.com/dtrxl120u/image/upload/v1777834830/28cd7448-1482-4754-b9a8-e006e888b0ec-1_tjmohh.png',
   hemming: '', // placeholder — set to Cloudinary URL when available
 } as const;
 
@@ -263,14 +263,14 @@ const FinishingCard: React.FC<FinishingCardProps> = ({
 }) => (
   <div
     onClick={onClick}
-    className={`relative flex rounded-xl border cursor-pointer transition-all duration-150 overflow-hidden ${
+    className={`relative flex flex-col md:flex-row rounded-xl border cursor-pointer transition-all duration-150 overflow-hidden ${
       active
         ? 'border-blue-500 ring-2 ring-blue-500 bg-white shadow-md'
         : 'border-gray-200 bg-white hover:border-gray-300 hover:shadow-sm'
     }`}
   >
-    {/* Left: radio + text */}
-    <div className="flex-1 p-4 min-w-0">
+    {/* Left: radio + text (appears first on mobile) */}
+    <div className="order-1 md:order-none flex-1 p-4 min-w-0">
       <div className="flex items-start gap-3">
         {/* Radio circle */}
         <div
@@ -281,7 +281,7 @@ const FinishingCard: React.FC<FinishingCardProps> = ({
           {active && <div className="w-2 h-2 rounded-full bg-white" />}
         </div>
 
-        <div className="min-w-0">
+        <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-bold text-gray-900 text-base">{title}</span>
             {badge && (
@@ -305,20 +305,22 @@ const FinishingCard: React.FC<FinishingCardProps> = ({
       </div>
     </div>
 
-    {/* Right: large product photo + callout annotation */}
-    <div className="flex items-stretch flex-shrink-0 self-stretch">
-      {/* Main photo */}
-      <div className="relative w-36 sm:w-48 md:w-56 self-stretch overflow-hidden">
+    {/* Right: large product photo + callout annotation
+        On mobile this becomes a full-width row that appears LAST (below text & dropdown).
+        On desktop (md+) it stays as the right-hand column with absolute-positioned cover image. */}
+    <div className="order-2 md:order-none flex items-stretch flex-shrink-0 w-full md:w-auto md:self-stretch">
+      {/* Main photo: explicit height + object-contain on mobile; absolute cover on desktop */}
+      <div className="relative w-full h-[120px] md:w-56 md:h-auto md:self-stretch overflow-hidden">
         <img
           src={imageSrc}
           alt={title}
-          className="absolute inset-0 w-full h-full object-cover"
+          className="w-full h-full object-contain px-3 pb-3 md:p-0 md:absolute md:inset-0 md:object-cover"
           onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
         />
       </div>
 
-      {/* Callout annotation */}
-      <div className="flex flex-col items-center justify-center gap-1.5 pr-3 pl-2 py-3 w-20 sm:w-24 flex-shrink-0">
+      {/* Callout annotation — desktop only (hidden on mobile to avoid cramped stacked layout) */}
+      <div className="hidden md:flex flex-col items-center justify-center gap-1.5 pr-3 pl-2 py-3 w-20 sm:w-24 flex-shrink-0">
         {/* Annotation text */}
         <p className="text-[10px] text-blue-600 font-medium text-center leading-tight">
           {calloutText}
