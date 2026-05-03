@@ -12,7 +12,7 @@ import PayPalCheckout from '@/components/checkout/PayPalCheckout';
 import SignUpEncouragementModal from '@/components/checkout/SignUpEncouragementModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Package, Truck, Plus, Minus, Trash2, Eye, Tag } from 'lucide-react';
+import { ArrowLeft, Package, Truck, Plus, Minus, Trash2, Eye, Tag, Lock, CheckCircle2, DollarSign, ShieldCheck } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { emailApi } from '@/lib/api';
 import { CartItem } from '@/store/cart';
@@ -1184,25 +1184,32 @@ const Checkout: React.FC = () => {
                 />
 
                 {/* Trust badges — reassurance near payment area */}
-                <ul className="mt-6 pt-5 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2 text-sm text-gray-700">
-                  <li className="flex items-start gap-2">
-                    <span aria-hidden="true">🔒</span>
-                    <span><span className="font-semibold">Secure Checkout</span> — SSL Encrypted</span>
+                <ul className="mt-6 pt-5 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2.5 text-sm text-[#1a1a1a]">
+                  <li className="flex items-center gap-2">
+                    <Lock aria-hidden="true" className="h-4 w-4 shrink-0 text-[#FF7A00]" />
+                    <span>
+                      <span className="font-semibold">Secure Checkout</span>
+                      <span className="text-gray-500"> — SSL Encrypted</span>
+                    </span>
                   </li>
-                  <li className="flex items-start gap-2">
-                    <span aria-hidden="true">🚚</span>
-                    <span>{sameDayHitService ? 'Next-Day Air Shipping included' : 'FREE Next-Day Air Shipping'}</span>
+                  <li className="flex items-center gap-2">
+                    <Truck aria-hidden="true" className="h-4 w-4 shrink-0 text-[#FF7A00]" />
+                    {sameDayHitService ? (
+                      <span>Next-Day Air Shipping <span className="text-gray-500">included</span></span>
+                    ) : (
+                      <span><span className="font-bold text-[#FF7A00]">FREE</span> Next-Day Air Shipping</span>
+                    )}
                   </li>
-                  <li className="flex items-start gap-2">
-                    <span aria-hidden="true">✅</span>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle2 aria-hidden="true" className="h-4 w-4 shrink-0 text-[#FF7A00]" />
                     <span>Quality Guaranteed</span>
                   </li>
-                  <li className="flex items-start gap-2">
-                    <span aria-hidden="true">💲</span>
+                  <li className="flex items-center gap-2">
+                    <DollarSign aria-hidden="true" className="h-4 w-4 shrink-0 text-[#FF7A00]" />
                     <span>No Hidden Fees</span>
                   </li>
-                  <li className="flex items-start gap-2 sm:col-span-2">
-                    <span aria-hidden="true">🛡️</span>
+                  <li className="flex items-center gap-2 sm:col-span-2">
+                    <ShieldCheck aria-hidden="true" className="h-4 w-4 shrink-0 text-[#FF7A00]" />
                     <span>Custom orders replaced if damaged in transit</span>
                   </li>
                 </ul>
