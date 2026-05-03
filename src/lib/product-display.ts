@@ -288,7 +288,7 @@ export function getEmailItemOptions(item: {
     ? (getDisplayPlacement(item.pole_pocket_position) || item.pole_pocket_position)
     : '';
   const ropePlacementLabel = item.rope_feet && item.rope_feet > 0
-    ? (getDisplayPlacement((item as any).rope_placement) || `${item.rope_feet.toFixed(1)} ft`)
+    ? (getDisplayPlacement(item.rope_placement) || `${item.rope_feet.toFixed(1)} ft`)
     : '';
   const parts: (string | null)[] = [
     `Size: ${getDisplaySize(item)}`,
