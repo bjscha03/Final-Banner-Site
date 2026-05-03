@@ -12,7 +12,7 @@ import PayPalCheckout from '@/components/checkout/PayPalCheckout';
 import SignUpEncouragementModal from '@/components/checkout/SignUpEncouragementModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Package, Plus, Minus, Trash2, Eye, Tag } from 'lucide-react';
+import { ArrowLeft, Package, Plus, Minus, Trash2, Eye, Tag, ShieldCheck, Headphones } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { emailApi } from '@/lib/api';
 import { CartItem } from '@/store/cart';
@@ -1183,61 +1183,108 @@ const Checkout: React.FC = () => {
                   onError={handlePaymentError}
                 />
 
-                {/* Trust badges — reassurance near payment area */}
-                <ul className="mt-6 pt-5 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2.5 text-sm font-medium text-[#1a1a1a]">
-                  <li className="flex items-center gap-2">
-                    <img
-                      src="https://res.cloudinary.com/dtrxl120u/image/upload/v1777841844/secure_checkout_ereeos.png"
-                      alt=""
-                      aria-hidden="true"
-                      className="h-5 w-5 shrink-0 object-contain"
-                    />
-                    <span>
-                      <span className="font-semibold">Secure Checkout</span>
-                      <span className="text-[#666]"> — SSL Encrypted</span>
-                    </span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <img
-                      src="https://res.cloudinary.com/dtrxl120u/image/upload/v1777841976/shipping_sfai9i.png"
-                      alt=""
-                      aria-hidden="true"
-                      className="h-5 w-5 shrink-0 object-contain"
-                    />
-                    {sameDayHitService ? (
-                      <span>Next-Day Air Shipping <span className="text-[#666]">included</span></span>
-                    ) : (
-                      <span><span className="font-bold text-[#FF7A00]">FREE</span> Next-Day Air Shipping</span>
-                    )}
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <img
-                      src="https://res.cloudinary.com/dtrxl120u/image/upload/v1777841978/quality_z9phmp.png"
-                      alt=""
-                      aria-hidden="true"
-                      className="h-5 w-5 shrink-0 object-contain"
-                    />
-                    <span>Quality Guaranteed</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <img
-                      src="https://res.cloudinary.com/dtrxl120u/image/upload/v1777842074/no_hidden_fees_vde5jz.png"
-                      alt=""
-                      aria-hidden="true"
-                      className="h-5 w-5 shrink-0 object-contain"
-                    />
-                    <span>No Hidden Fees</span>
-                  </li>
-                  <li className="flex items-center gap-2 sm:col-span-2">
-                    <img
-                      src="https://res.cloudinary.com/dtrxl120u/image/upload/v1777841997/custom_orders_uplfjh.png"
-                      alt=""
-                      aria-hidden="true"
-                      className="h-5 w-5 shrink-0 object-contain"
-                    />
-                    <span>Custom orders replaced if damaged in transit</span>
-                  </li>
-                </ul>
+                {/* Shop With Confidence — trust badges near payment area */}
+                <div className="mt-6 pt-5">
+                  {/* Header with side dividers */}
+                  <div className="flex items-center gap-3">
+                    <span className="h-px flex-1 bg-gray-200" />
+                    <h3 className="text-xs sm:text-sm font-bold tracking-[0.15em] text-[#FF7A00]">
+                      SHOP WITH CONFIDENCE
+                    </h3>
+                    <span className="h-px flex-1 bg-gray-200" />
+                  </div>
+
+                  {/* 3-column grid of trust items */}
+                  <ul className="mt-5 grid grid-cols-2 sm:grid-cols-3 divide-x divide-y divide-gray-200 [&>li]:px-3 [&>li]:py-5 [&>li:nth-child(-n+3)]:border-t-0 [&>li:nth-child(3n+1)]:border-l-0 max-sm:[&>li:nth-child(-n+2)]:border-t-0 max-sm:[&>li:nth-child(2n+1)]:border-l-0 max-sm:[&>li:nth-child(3)]:border-l-0">
+                    <li className="flex flex-col items-center text-center">
+                      <span className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[#FFF1E5]">
+                        <img
+                          src="https://res.cloudinary.com/dtrxl120u/image/upload/v1777841844/secure_checkout_ereeos.png"
+                          alt=""
+                          aria-hidden="true"
+                          className="h-9 w-9 object-contain"
+                        />
+                      </span>
+                      <span className="text-sm font-bold text-[#1a1a1a]">Secure Checkout</span>
+                      <span className="mt-0.5 text-xs text-[#666]">SSL Encrypted</span>
+                    </li>
+                    <li className="flex flex-col items-center text-center">
+                      <span className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[#FFF1E5]">
+                        <img
+                          src="https://res.cloudinary.com/dtrxl120u/image/upload/v1777841976/shipping_sfai9i.png"
+                          alt=""
+                          aria-hidden="true"
+                          className="h-9 w-9 object-contain"
+                        />
+                      </span>
+                      {sameDayHitService ? (
+                        <>
+                          <span className="text-sm font-bold text-[#1a1a1a]">Next-Day Air Shipping</span>
+                          <span className="mt-0.5 text-xs text-[#666]">Included</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="text-sm font-bold text-[#1a1a1a]">
+                            <span className="text-[#FF7A00]">FREE</span> Next-Day
+                          </span>
+                          <span className="text-sm font-bold text-[#1a1a1a]">Air Shipping</span>
+                        </>
+                      )}
+                    </li>
+                    <li className="flex flex-col items-center text-center">
+                      <span className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[#FFF1E5]">
+                        <img
+                          src="https://res.cloudinary.com/dtrxl120u/image/upload/v1777841978/quality_z9phmp.png"
+                          alt=""
+                          aria-hidden="true"
+                          className="h-9 w-9 object-contain"
+                        />
+                      </span>
+                      <span className="text-sm font-bold text-[#1a1a1a]">Quality</span>
+                      <span className="mt-0.5 text-xs text-[#666]">Guaranteed</span>
+                    </li>
+                    <li className="flex flex-col items-center text-center">
+                      <span className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[#FFF1E5]">
+                        <img
+                          src="https://res.cloudinary.com/dtrxl120u/image/upload/v1777841997/custom_orders_uplfjh.png"
+                          alt=""
+                          aria-hidden="true"
+                          className="h-9 w-9 object-contain"
+                        />
+                      </span>
+                      <span className="text-sm font-bold text-[#1a1a1a]">Custom Orders</span>
+                      <span className="mt-0.5 text-xs text-[#666]">Replaced if damaged in transit</span>
+                    </li>
+                    <li className="flex flex-col items-center text-center">
+                      <span className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[#FFF1E5]">
+                        <img
+                          src="https://res.cloudinary.com/dtrxl120u/image/upload/v1777842074/no_hidden_fees_vde5jz.png"
+                          alt=""
+                          aria-hidden="true"
+                          className="h-9 w-9 object-contain"
+                        />
+                      </span>
+                      <span className="text-sm font-bold text-[#1a1a1a]">No Hidden Fees</span>
+                      <span className="mt-0.5 text-xs text-[#666]">What you see is what you pay</span>
+                    </li>
+                    <li className="flex flex-col items-center text-center">
+                      <span className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[#FFF1E5]">
+                        <Headphones aria-hidden="true" className="h-9 w-9 text-[#FF7A00]" strokeWidth={2.25} />
+                      </span>
+                      <span className="text-sm font-bold text-[#1a1a1a]">Real People</span>
+                      <span className="mt-0.5 text-xs text-[#666]">Here to help</span>
+                    </li>
+                  </ul>
+
+                  {/* Footer info box */}
+                  <div className="mt-5 flex items-center gap-3 rounded-lg bg-[#FFF1E5] px-4 py-3">
+                    <ShieldCheck aria-hidden="true" className="h-6 w-6 shrink-0 text-[#FF7A00]" />
+                    <div className="text-sm leading-snug">
+                      <div className="font-bold text-[#1a1a1a]">Your information is safe with us.</div>
+                      <div className="text-[#666]">We never share your data.</div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* User Info */}
