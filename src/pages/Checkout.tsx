@@ -12,7 +12,7 @@ import PayPalCheckout from '@/components/checkout/PayPalCheckout';
 import SignUpEncouragementModal from '@/components/checkout/SignUpEncouragementModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Package, Truck, Plus, Minus, Trash2, Eye, Tag, Lock, CheckCircle2, DollarSign, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Package, Plus, Minus, Trash2, Eye, Tag } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { emailApi } from '@/lib/api';
 import { CartItem } from '@/store/cart';
@@ -1184,32 +1184,57 @@ const Checkout: React.FC = () => {
                 />
 
                 {/* Trust badges — reassurance near payment area */}
-                <ul className="mt-6 pt-5 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2.5 text-sm text-[#1a1a1a]">
+                <ul className="mt-6 pt-5 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2.5 text-sm font-medium text-[#1a1a1a]">
                   <li className="flex items-center gap-2">
-                    <Lock aria-hidden="true" className="h-4 w-4 shrink-0 text-[#FF7A00]" />
+                    <img
+                      src="https://res.cloudinary.com/dtrxl120u/image/upload/v1777841844/secure_checkout_ereeos.png"
+                      alt=""
+                      aria-hidden="true"
+                      className="h-5 w-5 shrink-0 object-contain"
+                    />
                     <span>
                       <span className="font-semibold">Secure Checkout</span>
-                      <span className="text-gray-500"> — SSL Encrypted</span>
+                      <span className="text-[#666]"> — SSL Encrypted</span>
                     </span>
                   </li>
                   <li className="flex items-center gap-2">
-                    <Truck aria-hidden="true" className="h-4 w-4 shrink-0 text-[#FF7A00]" />
+                    <img
+                      src="https://res.cloudinary.com/dtrxl120u/image/upload/v1777841976/shipping_sfai9i.png"
+                      alt=""
+                      aria-hidden="true"
+                      className="h-5 w-5 shrink-0 object-contain"
+                    />
                     {sameDayHitService ? (
-                      <span>Next-Day Air Shipping <span className="text-gray-500">included</span></span>
+                      <span>Next-Day Air Shipping <span className="text-[#666]">included</span></span>
                     ) : (
                       <span><span className="font-bold text-[#FF7A00]">FREE</span> Next-Day Air Shipping</span>
                     )}
                   </li>
                   <li className="flex items-center gap-2">
-                    <CheckCircle2 aria-hidden="true" className="h-4 w-4 shrink-0 text-[#FF7A00]" />
+                    <img
+                      src="https://res.cloudinary.com/dtrxl120u/image/upload/v1777841978/quality_z9phmp.png"
+                      alt=""
+                      aria-hidden="true"
+                      className="h-5 w-5 shrink-0 object-contain"
+                    />
                     <span>Quality Guaranteed</span>
                   </li>
                   <li className="flex items-center gap-2">
-                    <DollarSign aria-hidden="true" className="h-4 w-4 shrink-0 text-[#FF7A00]" />
+                    <img
+                      src="https://res.cloudinary.com/dtrxl120u/image/upload/v1777842074/no_hidden_fees_vde5jz.png"
+                      alt=""
+                      aria-hidden="true"
+                      className="h-5 w-5 shrink-0 object-contain"
+                    />
                     <span>No Hidden Fees</span>
                   </li>
                   <li className="flex items-center gap-2 sm:col-span-2">
-                    <ShieldCheck aria-hidden="true" className="h-4 w-4 shrink-0 text-[#FF7A00]" />
+                    <img
+                      src="https://res.cloudinary.com/dtrxl120u/image/upload/v1777841997/custom_orders_uplfjh.png"
+                      alt=""
+                      aria-hidden="true"
+                      className="h-5 w-5 shrink-0 object-contain"
+                    />
                     <span>Custom orders replaced if damaged in transit</span>
                   </li>
                 </ul>
