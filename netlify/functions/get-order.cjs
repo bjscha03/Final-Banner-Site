@@ -128,36 +128,64 @@ exports.handler = async (event, context) => {
       };
     }
 
+    // BULLETPROOF SELECT: introspect existing columns up front so a missing
+    // column (e.g. silent migration failure) never 500s the endpoint.
+    let existingOrderCols = new Set();
+    let existingItemCols = new Set();
+    try {
+      const [oCols, iCols] = await Promise.all([
+        sql(`SELECT column_name FROM information_schema.columns
+              WHERE table_schema = current_schema() AND table_name = 'orders'`),
+        sql(`SELECT column_name FROM information_schema.columns
+              WHERE table_schema = current_schema() AND table_name = 'order_items'`),
+      ]);
+      existingOrderCols = new Set(oCols.map(r => r.column_name));
+      existingItemCols = new Set(iCols.map(r => r.column_name));
+    } catch (introspectErr) {
+      console.warn('[get-order] Column introspection failed (non-fatal):', introspectErr.message);
+    }
+
+    const safeOrderCol = (col) => existingOrderCols.size === 0 || existingOrderCols.has(col)
+      ? col
+      : `NULL AS ${col}`;
+    // For order_items, allow an alias so an aliased expression can be substituted with NULL.
+    const safeItemCol = (col, alias) => {
+      const out = alias ? ` AS ${alias}` : '';
+      return existingItemCols.size === 0 || existingItemCols.has(col) ? `${col}${out}` : `NULL${out || ` AS ${col}`}`;
+    };
+
+    const orderSelectCols = [
+      'id',
+      'order_number',
+      'user_id',
+      'email',
+      'customer_name',
+      'customer_first_name',
+      'subtotal_cents',
+      'tax_cents',
+      'total_cents',
+      'status',
+      'tracking_number',
+      'shipping_name',
+      'shipping_street',
+      'shipping_street2',
+      'shipping_city',
+      'shipping_state',
+      'shipping_zip',
+      'shipping_country',
+      'shipping_address',
+      'applied_discount_cents',
+      'applied_discount_label',
+      'applied_discount_type',
+      'created_at',
+      'updated_at',
+    ].map(safeOrderCol).join(', ');
+
     // Get order details
-    const orderResult = await sql`
-      SELECT
-        id,
-        order_number,
-        user_id,
-        email,
-        customer_name,
-        customer_first_name,
-        subtotal_cents,
-        tax_cents,
-        total_cents,
-        status,
-        tracking_number,
-        shipping_name,
-        shipping_street,
-        shipping_street2,
-        shipping_city,
-        shipping_state,
-        shipping_zip,
-        shipping_country,
-        shipping_address,
-        applied_discount_cents,
-        applied_discount_label,
-        applied_discount_type,
-        created_at,
-        updated_at
-      FROM orders
-      WHERE id = ${orderId}
-    `;
+    const orderResult = await sql(
+      `SELECT ${orderSelectCols} FROM orders WHERE id = $1`,
+      [orderId]
+    );
 
     if (orderResult.length === 0) {
       return {
@@ -169,61 +197,73 @@ exports.handler = async (event, context) => {
 
     const order = orderResult[0];
 
-    // Get order items
-    const itemsResult = await sql`
-      SELECT
-        width_in,
-        height_in,
-        quantity,
-        material,
-        grommets,
-        rounded_corners,
-        rope_feet,
-        (to_jsonb(order_items)->>'rope_placement') AS rope_placement,
-        pole_pockets,
-        pole_pocket_position,
-        pole_pocket_size,
-        pole_pocket_cost_cents,
-        line_total_cents,
-        file_key,
-        file_url,
-        print_ready_url,
-        web_preview_url,
-        text_elements,
-        overlay_image,
-        overlay_images,
-        thumbnail_url,
-        canvas_background_color,
-        image_scale,
-        image_position,
-        final_render_url,
-        final_render_file_key,
-        final_render_width_px,
-        final_render_height_px,
-        final_render_dpi,
-        canvas_state_json,
-        design_service_enabled,
-        design_request_text,
-        design_draft_preference,
-        design_draft_contact,
-        design_uploaded_assets,
-        final_print_pdf_url,
-        final_print_pdf_file_key,
-        final_print_pdf_uploaded_at,
-        generated_print_pdf_url,
-        generated_print_pdf_uploaded_at,
-        COALESCE(product_type, 'banner') as product_type,
-        yard_sign_sidedness,
-        yard_sign_step_stakes_enabled,
-        yard_sign_step_stakes_qty,
-        yard_sign_design_count,
-        yard_sign_designs,
-        yard_sign_signs_subtotal_cents,
-        yard_sign_stakes_subtotal_cents
-      FROM order_items
-      WHERE order_id = ${orderId}
-      ORDER BY created_at
-    `;
+    // Get order items - same bulletproof approach.
+    // Pairs: [columnName, optionalAlias, optionalSqlExpr]
+    // When sqlExpr is given, the column existence check uses columnName but
+    // the SQL emitted is the expression (with the alias preserved).
+    const itemFields = [
+      ['width_in'],
+      ['height_in'],
+      ['quantity'],
+      ['material'],
+      ['grommets'],
+      ['rounded_corners'],
+      ['rope_feet'],
+      ['rope_placement'],
+      ['pole_pockets'],
+      ['pole_pocket_position'],
+      ['pole_pocket_size'],
+      ['pole_pocket_cost_cents'],
+      ['line_total_cents'],
+      ['file_key'],
+      ['file_url'],
+      ['print_ready_url'],
+      ['web_preview_url'],
+      ['text_elements'],
+      ['overlay_image'],
+      ['overlay_images'],
+      ['thumbnail_url'],
+      ['canvas_background_color'],
+      ['image_scale'],
+      ['image_position'],
+      ['final_render_url'],
+      ['final_render_file_key'],
+      ['final_render_width_px'],
+      ['final_render_height_px'],
+      ['final_render_dpi'],
+      ['canvas_state_json'],
+      ['design_service_enabled'],
+      ['design_request_text'],
+      ['design_draft_preference'],
+      ['design_draft_contact'],
+      ['design_uploaded_assets'],
+      ['final_print_pdf_url'],
+      ['final_print_pdf_file_key'],
+      ['final_print_pdf_uploaded_at'],
+      ['generated_print_pdf_url'],
+      ['generated_print_pdf_uploaded_at'],
+      ['product_type', 'product_type', `COALESCE(product_type, 'banner')`],
+      ['yard_sign_sidedness'],
+      ['yard_sign_step_stakes_enabled'],
+      ['yard_sign_step_stakes_qty'],
+      ['yard_sign_design_count'],
+      ['yard_sign_designs'],
+      ['yard_sign_signs_subtotal_cents'],
+      ['yard_sign_stakes_subtotal_cents'],
+    ];
+
+    const haveItemIntrospection = existingItemCols.size > 0;
+    const itemSelectCols = itemFields.map(([col, alias, expr]) => {
+      const exists = !haveItemIntrospection || existingItemCols.has(col);
+      const aliasOut = alias && alias !== col ? ` AS ${alias}` : '';
+      if (!exists) return `NULL AS ${alias || col}`;
+      return expr ? `${expr}${aliasOut || ` AS ${col}`}` : `${col}${aliasOut}`;
+    }).join(', ');
+
+    const itemsResult = await sql(
+      `SELECT ${itemSelectCols} FROM order_items WHERE order_id = $1 ORDER BY created_at`,
+      [orderId]
+    );
 
     // Combine order with items
     const shippingAddress = normalizeShippingAddress(order);

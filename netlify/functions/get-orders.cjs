@@ -169,141 +169,131 @@ exports.handler = async (event, context) => {
     const limit = 20;
     const offset = (page - 1) * limit;
 
+    // BULLETPROOF SELECT: dynamically build the json_build_object args
+    // from columns that actually exist in order_items. If a column is
+    // missing (e.g. a migration silently failed), it is emitted as NULL
+    // instead of being referenced as `oi.col` which would throw
+    // `column "..." does not exist` and 500 the whole admin page.
+    let existingItemCols = new Set();
+    try {
+      const cols = await sql(
+        `SELECT column_name FROM information_schema.columns
+           WHERE table_schema = current_schema() AND table_name = 'order_items'`
+      );
+      existingItemCols = new Set(cols.map(r => r.column_name));
+    } catch (introspectErr) {
+      console.warn('[get-orders] Column introspection failed (non-fatal):', introspectErr.message);
+    }
+
+    // (jsonKey, baseExpr-when-column-exists, fallbackExpr-when-missing)
+    // baseExpr is used as-is when ALL the columns it depends on exist.
+    // The dependent column is the same as jsonKey unless overridden via `deps`.
+    const itemFields = [
+      ['id',                              `oi.id`],
+      ['width_in',                        `oi.width_in`],
+      ['height_in',                       `oi.height_in`],
+      ['quantity',                        `oi.quantity`],
+      ['material',                        `oi.material`],
+      ['grommets',                        `COALESCE(oi.grommets, 'none')`],
+      ['rounded_corners',                 `oi.rounded_corners`],
+      ['rope_feet',                       `COALESCE(oi.rope_feet, 0)`],
+      ['rope_placement',                  `oi.rope_placement`],
+      ['pole_pockets',                    `COALESCE(oi.pole_pockets, false)`],
+      ['pole_pocket_position',            `oi.pole_pocket_position`],
+      ['pole_pocket_size',                `oi.pole_pocket_size`],
+      ['pole_pocket_cost_cents',          `oi.pole_pocket_cost_cents`],
+      ['area_sqft',                       `(oi.width_in * oi.height_in / 144.0)`,                                                  ['width_in', 'height_in']],
+      ['unit_price_cents',                `CASE WHEN oi.quantity > 0 THEN (oi.line_total_cents / oi.quantity) ELSE 0 END`,        ['quantity', 'line_total_cents']],
+      ['line_total_cents',                `oi.line_total_cents`],
+      ['file_key',                        `oi.file_key`],
+      ['file_url',                        `oi.file_url`],
+      ['print_ready_url',                 `oi.print_ready_url`],
+      ['web_preview_url',                 `oi.web_preview_url`],
+      ['text_elements',                   `COALESCE(oi.text_elements, '[]'::jsonb)`],
+      ['overlay_image',                   `oi.overlay_image`],
+      ['overlay_images',                  `oi.overlay_images`],
+      ['canvas_background_color',         `COALESCE(oi.canvas_background_color, '#FFFFFF')`],
+      ['image_scale',                     `COALESCE(oi.image_scale, 1)`],
+      ['image_position',                  `COALESCE(oi.image_position, '{"x": 0, "y": 0}'::jsonb)`],
+      ['thumbnail_url',                   `oi.thumbnail_url`],
+      ['final_render_url',                `oi.final_render_url`],
+      ['final_render_file_key',           `oi.final_render_file_key`],
+      ['final_render_width_px',           `oi.final_render_width_px`],
+      ['final_render_height_px',          `oi.final_render_height_px`],
+      ['final_render_dpi',                `oi.final_render_dpi`],
+      ['canvas_state_json',               `oi.canvas_state_json`],
+      ['design_service_enabled',          `COALESCE(oi.design_service_enabled, false)`],
+      ['design_request_text',             `oi.design_request_text`],
+      ['design_draft_preference',         `oi.design_draft_preference`],
+      ['design_draft_contact',            `oi.design_draft_contact`],
+      ['design_uploaded_assets',          `COALESCE(oi.design_uploaded_assets, '[]'::jsonb)`],
+      ['final_print_pdf_url',             `oi.final_print_pdf_url`],
+      ['final_print_pdf_file_key',        `oi.final_print_pdf_file_key`],
+      ['final_print_pdf_uploaded_at',     `oi.final_print_pdf_uploaded_at`],
+      ['generated_print_pdf_url',         `oi.generated_print_pdf_url`],
+      ['generated_print_pdf_uploaded_at', `oi.generated_print_pdf_uploaded_at`],
+      ['product_type',                    `COALESCE(oi.product_type, 'banner')`],
+      ['yard_sign_sidedness',             `oi.yard_sign_sidedness`],
+      ['yard_sign_step_stakes_enabled',   `COALESCE(oi.yard_sign_step_stakes_enabled, false)`],
+      ['yard_sign_step_stakes_qty',       `COALESCE(oi.yard_sign_step_stakes_qty, 0)`],
+      ['yard_sign_design_count',          `COALESCE(oi.yard_sign_design_count, 0)`],
+      ['yard_sign_designs',               `oi.yard_sign_designs`],
+      ['yard_sign_signs_subtotal_cents',  `COALESCE(oi.yard_sign_signs_subtotal_cents, 0)`],
+      ['yard_sign_stakes_subtotal_cents', `COALESCE(oi.yard_sign_stakes_subtotal_cents, 0)`],
+    ];
+
+    // Build the json_build_object(...) argument list. If introspection
+    // succeeded and a required column is missing, substitute NULL for that key.
+    const buildItemJsonArgs = () => {
+      const parts = [];
+      const haveIntrospection = existingItemCols.size > 0;
+      for (const [key, baseExpr, depsArg] of itemFields) {
+        const deps = depsArg || [key];
+        const allExist = !haveIntrospection || deps.every(c => existingItemCols.has(c));
+        parts.push(`'${key}', ${allExist ? baseExpr : 'NULL'}`);
+      }
+      return parts.join(',\n                   ');
+    };
+
+    const itemJsonArgs = buildItemJsonArgs();
+
+    // Note: parameter placeholders below ($1 etc.) follow the order they appear
+    // in the params array passed to sql(query, params).
     let orders;
 
     if (user_id) {
-      // Get orders for specific user
       console.log('[get-orders] Fetching orders for user:', user_id);
-      orders = await sql`
-        SELECT o.*,
-               json_agg(
-                 json_build_object(
-                   'id', oi.id,
-                   'width_in', oi.width_in,
-                   'height_in', oi.height_in,
-                   'quantity', oi.quantity,
-                   'material', oi.material,
-                    'grommets', COALESCE(oi.grommets, 'none'),
-                    'rounded_corners', oi.rounded_corners,
-                    'rope_feet', COALESCE(oi.rope_feet, 0),
-                    'rope_placement', (to_jsonb(oi)->>'rope_placement'),
-                   'pole_pockets', COALESCE(oi.pole_pockets, false),
-                   'pole_pocket_position', oi.pole_pocket_position,
-                   'pole_pocket_size', oi.pole_pocket_size,
-                   'pole_pocket_cost_cents', oi.pole_pocket_cost_cents,
-                   'area_sqft', (oi.width_in * oi.height_in / 144.0),
-                   'unit_price_cents', CASE WHEN oi.quantity > 0 THEN (oi.line_total_cents / oi.quantity) ELSE 0 END,
-                   'line_total_cents', oi.line_total_cents,
-                   'file_key', oi.file_key,
-                   'file_url', oi.file_url,
-                   'print_ready_url', oi.print_ready_url,
-                   'web_preview_url', oi.web_preview_url,
-                   'text_elements', COALESCE(oi.text_elements, '[]'::jsonb),
-                   'overlay_image', oi.overlay_image,
-                   'overlay_images', oi.overlay_images,
-                   'canvas_background_color', COALESCE(oi.canvas_background_color, '#FFFFFF'),
-                   'image_scale', COALESCE(oi.image_scale, 1),
-                   'image_position', COALESCE(oi.image_position, '{"x": 0, "y": 0}'::jsonb),
-                   'thumbnail_url', oi.thumbnail_url,
-                   'final_render_url', oi.final_render_url,
-                   'final_render_file_key', oi.final_render_file_key,
-                   'final_render_width_px', oi.final_render_width_px,
-                   'final_render_height_px', oi.final_render_height_px,
-                   'final_render_dpi', oi.final_render_dpi,
-                   'canvas_state_json', oi.canvas_state_json,
-                   'design_service_enabled', COALESCE(oi.design_service_enabled, false),
-                   'design_request_text', oi.design_request_text,
-                   'design_draft_preference', oi.design_draft_preference,
-                   'design_draft_contact', oi.design_draft_contact,
-                   'design_uploaded_assets', COALESCE(oi.design_uploaded_assets, '[]'::jsonb),
-                   'final_print_pdf_url', oi.final_print_pdf_url,
-                   'final_print_pdf_file_key', oi.final_print_pdf_file_key,
-                   'final_print_pdf_uploaded_at', oi.final_print_pdf_uploaded_at,
-                   'generated_print_pdf_url', oi.generated_print_pdf_url,
-                   'generated_print_pdf_uploaded_at', oi.generated_print_pdf_uploaded_at,
-                   'product_type', COALESCE(oi.product_type, 'banner'),
-                   'yard_sign_sidedness', oi.yard_sign_sidedness,
-                   'yard_sign_step_stakes_enabled', COALESCE(oi.yard_sign_step_stakes_enabled, false),
-                   'yard_sign_step_stakes_qty', COALESCE(oi.yard_sign_step_stakes_qty, 0),
-                   'yard_sign_design_count', COALESCE(oi.yard_sign_design_count, 0),
-                   'yard_sign_designs', oi.yard_sign_designs,
-                   'yard_sign_signs_subtotal_cents', COALESCE(oi.yard_sign_signs_subtotal_cents, 0),
-                   'yard_sign_stakes_subtotal_cents', COALESCE(oi.yard_sign_stakes_subtotal_cents, 0)
-                 )
-               ) as items
-        FROM orders o
-        LEFT JOIN order_items oi ON o.id = oi.order_id
-        WHERE o.user_id = ${user_id}
-        GROUP BY o.id
-        ORDER BY o.created_at DESC
-        LIMIT ${limit} OFFSET ${offset}
-      `;
+      orders = await sql(
+        `SELECT o.*,
+                json_agg(
+                  json_build_object(
+                    ${itemJsonArgs}
+                  )
+                ) as items
+           FROM orders o
+           LEFT JOIN order_items oi ON o.id = oi.order_id
+           WHERE o.user_id = $1
+           GROUP BY o.id
+           ORDER BY o.created_at DESC
+           LIMIT $2 OFFSET $3`,
+        [user_id, limit, offset]
+      );
     } else {
-      // Get all orders (admin view)
       console.log('[get-orders] Fetching all orders (admin)');
-      orders = await sql`
-        SELECT o.*,
-               json_agg(
-                 json_build_object(
-                   'id', oi.id,
-                   'width_in', oi.width_in,
-                   'height_in', oi.height_in,
-                   'quantity', oi.quantity,
-                   'material', oi.material,
-                    'grommets', COALESCE(oi.grommets, 'none'),
-                    'rounded_corners', oi.rounded_corners,
-                    'rope_feet', COALESCE(oi.rope_feet, 0),
-                    'rope_placement', (to_jsonb(oi)->>'rope_placement'),
-                   'pole_pockets', COALESCE(oi.pole_pockets, false),
-                   'pole_pocket_position', oi.pole_pocket_position,
-                   'pole_pocket_size', oi.pole_pocket_size,
-                   'pole_pocket_cost_cents', oi.pole_pocket_cost_cents,
-                   'area_sqft', (oi.width_in * oi.height_in / 144.0),
-                   'unit_price_cents', CASE WHEN oi.quantity > 0 THEN (oi.line_total_cents / oi.quantity) ELSE 0 END,
-                   'line_total_cents', oi.line_total_cents,
-                   'file_key', oi.file_key,
-                   'file_url', oi.file_url,
-                   'print_ready_url', oi.print_ready_url,
-                   'web_preview_url', oi.web_preview_url,
-                   'text_elements', COALESCE(oi.text_elements, '[]'::jsonb),
-                   'overlay_image', oi.overlay_image,
-                   'overlay_images', oi.overlay_images,
-                   'canvas_background_color', COALESCE(oi.canvas_background_color, '#FFFFFF'),
-                   'image_scale', COALESCE(oi.image_scale, 1),
-                   'image_position', COALESCE(oi.image_position, '{"x": 0, "y": 0}'::jsonb),
-                   'thumbnail_url', oi.thumbnail_url,
-                   'final_render_url', oi.final_render_url,
-                   'final_render_file_key', oi.final_render_file_key,
-                   'final_render_width_px', oi.final_render_width_px,
-                   'final_render_height_px', oi.final_render_height_px,
-                   'final_render_dpi', oi.final_render_dpi,
-                   'canvas_state_json', oi.canvas_state_json,
-                   'design_service_enabled', COALESCE(oi.design_service_enabled, false),
-                   'design_request_text', oi.design_request_text,
-                   'design_draft_preference', oi.design_draft_preference,
-                   'design_draft_contact', oi.design_draft_contact,
-                   'design_uploaded_assets', COALESCE(oi.design_uploaded_assets, '[]'::jsonb),
-                   'final_print_pdf_url', oi.final_print_pdf_url,
-                   'final_print_pdf_file_key', oi.final_print_pdf_file_key,
-                   'final_print_pdf_uploaded_at', oi.final_print_pdf_uploaded_at,
-                   'generated_print_pdf_url', oi.generated_print_pdf_url,
-                   'generated_print_pdf_uploaded_at', oi.generated_print_pdf_uploaded_at,
-                   'product_type', COALESCE(oi.product_type, 'banner'),
-                   'yard_sign_sidedness', oi.yard_sign_sidedness,
-                   'yard_sign_step_stakes_enabled', COALESCE(oi.yard_sign_step_stakes_enabled, false),
-                   'yard_sign_step_stakes_qty', COALESCE(oi.yard_sign_step_stakes_qty, 0),
-                   'yard_sign_design_count', COALESCE(oi.yard_sign_design_count, 0),
-                   'yard_sign_designs', oi.yard_sign_designs,
-                   'yard_sign_signs_subtotal_cents', COALESCE(oi.yard_sign_signs_subtotal_cents, 0),
-                   'yard_sign_stakes_subtotal_cents', COALESCE(oi.yard_sign_stakes_subtotal_cents, 0)
-                 )
-               ) as items
-        FROM orders o
-        LEFT JOIN order_items oi ON o.id = oi.order_id
-        GROUP BY o.id
-        ORDER BY o.created_at DESC
-        LIMIT ${limit} OFFSET ${offset}
-      `;
+      orders = await sql(
+        `SELECT o.*,
+                json_agg(
+                  json_build_object(
+                    ${itemJsonArgs}
+                  )
+                ) as items
+           FROM orders o
+           LEFT JOIN order_items oi ON o.id = oi.order_id
+           GROUP BY o.id
+           ORDER BY o.created_at DESC
+           LIMIT $1 OFFSET $2`,
+        [limit, offset]
+      );
     }
 
     console.log(`[get-orders] Found ${orders.length} orders`);
