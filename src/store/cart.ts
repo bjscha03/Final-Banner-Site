@@ -35,6 +35,7 @@ export interface CartItem {
   pole_pocket_position?: string;      // pole pocket position (e.g., "top", "bottom", "top-bottom")
   rounded_corners?: string | null;    // Car magnet rounded corner selection
   rope_feet: number;
+  rope_placement?: string | null;     // Rope placement: 'top' | 'bottom' | 'top-bottom'
   area_sqft: number;
 
   // Authoritative pricing fields captured at Add to Cart time
@@ -472,6 +473,7 @@ export const useCartStore = create<CartState>()(
           pole_pocket_position: quote.polePockets,
           rounded_corners: (quote as any).rounded_corners || null,
           rope_feet: ropeFeet,
+          rope_placement: quote.addRope ? (quote.ropePlacement || 'top') : null,
           area_sqft: area,
           unit_price_cents,
           rope_cost_cents,
@@ -918,6 +920,7 @@ export const useCartStore = create<CartState>()(
           pole_pocket_position: quote.polePockets,
           rounded_corners: (quote as any).rounded_corners || existingItem.rounded_corners || null,
           rope_feet: ropeFeet,
+          rope_placement: quote.addRope ? (quote.ropePlacement || 'top') : null,
           area_sqft: area,
           unit_price_cents,
           rope_cost_cents,
