@@ -12,13 +12,21 @@ import {
 
 const SizeCard: React.FC = () => {
   const { widthIn, heightIn, set } = useQuoteStore();
-  const [widthInput, setWidthInput] = useState(widthIn.toString());
-  const [heightInput, setHeightInput] = useState(heightIn.toString());
+  // Initialize the displayed input strings in feet to match the default
+  // unit below. The useEffect that mirrors store -> input keeps them in
+  // sync if the store value or unit changes.
+  const [widthInput, setWidthInput] = useState(() =>
+    Number(inchesToFeet(widthIn).toFixed(2)).toString()
+  );
+  const [heightInput, setHeightInput] = useState(() =>
+    Number(inchesToFeet(heightIn).toFixed(2)).toString()
+  );
   const [widthError, setWidthError] = useState('');
   const [heightError, setHeightError] = useState('');
   // UI-only unit toggle. Internal store always uses inches so pricing,
-  // cart, and print pipelines see no change.
-  const [unit, setUnit] = useState<DimensionUnit>('in');
+  // cart, and print pipelines see no change. Default to feet for the
+  // friendlier "4 ft × 2 ft" presentation; inches remain selectable.
+  const [unit, setUnit] = useState<DimensionUnit>('ft');
 
   // Trim trailing zeros so 4 ft displays as "4" not "4.000"
   const formatForInput = (n: number): string => {
@@ -274,7 +282,7 @@ const SizeCard: React.FC = () => {
           onClick={handleReset}
           className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-colors duration-200 text-sm font-medium"
         >
-          <span className="hidden sm:inline">Reset to Defaults (48" × 24")</span>
+          <span className="hidden sm:inline">Reset to Defaults (4' × 2')</span>
           <span className="sm:hidden">Reset to Defaults</span>
         </button>
       </div>
