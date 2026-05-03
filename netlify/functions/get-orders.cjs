@@ -262,20 +262,32 @@ exports.handler = async (event, context) => {
       ['yard_sign_stakes_subtotal_cents', `COALESCE(oi.yard_sign_stakes_subtotal_cents, 0)`],
     ];
 
-    // Build the json_build_object(...) argument list. If introspection
-    // succeeded and a required column is missing, substitute NULL for that key.
-    const buildItemJsonArgs = () => {
-      const parts = [];
+    // Build the per-item JSON expression. PostgreSQL has a hard
+    // FUNC_MAX_ARGS=100 limit on function arguments, so a single
+    // jsonb_build_object() call can hold at most 50 key/value pairs.
+    // We chunk itemFields into ≤40-key groups and concatenate them with
+    // the jsonb `||` operator so we stay safely under the limit.
+    //
+    // If introspection succeeded and a required column is missing,
+    // substitute NULL for that key (so a stale schema never 500s the page).
+    const buildItemJsonExpr = () => {
       const haveIntrospection = existingItemCols.size > 0;
-      for (const [key, baseExpr, depsArg] of itemFields) {
+      const pairs = itemFields.map(([key, baseExpr, depsArg]) => {
         const deps = depsArg || [key];
         const allExist = !haveIntrospection || deps.every(c => existingItemCols.has(c));
-        parts.push(`'${key}', ${allExist ? baseExpr : 'NULL'}`);
+        return `'${key}', ${allExist ? baseExpr : 'NULL'}`;
+      });
+
+      const CHUNK_SIZE = 40; // 40 keys = 80 args, comfortably under FUNC_MAX_ARGS=100
+      const chunks = [];
+      for (let i = 0; i < pairs.length; i += CHUNK_SIZE) {
+        chunks.push(`jsonb_build_object(\n                     ${pairs.slice(i, i + CHUNK_SIZE).join(',\n                     ')}\n                   )`);
       }
-      return parts.join(',\n                   ');
+      // Single chunk: no concat needed. Multiple chunks: merge left-to-right with ||.
+      return chunks.join('\n                   || ');
     };
 
-    const itemJsonArgs = buildItemJsonArgs();
+    const itemJsonExpr = buildItemJsonExpr();
 
     // Note: parameter placeholders below ($1 etc.) follow the order they appear
     // in the params array passed to sql(query, params).
@@ -286,9 +298,7 @@ exports.handler = async (event, context) => {
       orders = await sql(
         `SELECT o.*,
                 json_agg(
-                  json_build_object(
-                    ${itemJsonArgs}
-                  )
+                  ${itemJsonExpr}
                 ) as items
            FROM orders o
            LEFT JOIN order_items oi ON o.id = oi.order_id
@@ -303,9 +313,7 @@ exports.handler = async (event, context) => {
       orders = await sql(
         `SELECT o.*,
                 json_agg(
-                  json_build_object(
-                    ${itemJsonArgs}
-                  )
+                  ${itemJsonExpr}
                 ) as items
            FROM orders o
            LEFT JOIN order_items oi ON o.id = oi.order_id
