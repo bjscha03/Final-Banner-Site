@@ -18,7 +18,7 @@ export default function TrustStrip({
   supportEmail = 'support@bannersonthefly.com',
 }: TrustStripProps) {
   const items = [
-    { icon: Clock, title: 'Next-day production', subtitle: 'Order by 2 PM EST', iconClass: 'text-orange-500' },
+    { icon: Clock, title: 'Next-day production', subtitle: '', iconClass: 'text-orange-500' },
     { icon: Truck, title: 'Free next-day shipping', subtitle: 'On all orders', iconClass: 'text-orange-500' },
     { icon: ShieldCheck, title: 'Best quality guarantee', subtitle: '100% satisfaction', iconClass: 'text-orange-500' },
     { icon: Smile, title: 'Real people, real support', subtitle: "We're here to help", iconClass: 'text-orange-500' },
@@ -33,7 +33,9 @@ export default function TrustStrip({
               <item.icon className={`h-5 w-5 md:h-6 md:w-6 ${item.iconClass}`} aria-hidden="true" />
               <div className="min-w-0">
                 <p className="text-xs md:text-sm font-semibold text-slate-800 truncate">{item.title}</p>
-                <p className="text-[11px] md:text-xs text-slate-500 truncate">{item.subtitle}</p>
+                {item.subtitle ? (
+                  <p className="text-[11px] md:text-xs text-slate-500 truncate">{item.subtitle}</p>
+                ) : null}
               </div>
             </div>
           ))}
