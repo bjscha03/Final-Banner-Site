@@ -1,8 +1,9 @@
 import React from 'react';
 import { Star, Lock, CheckCircle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { muteVideoElement, stripCloudinaryAudio } from '@/lib/muteVideo';
 
-const HERO_BG_VIDEO_URL = 'https://res.cloudinary.com/dtrxl120u/video/upload/v1776752374/Multi-Shot_Video_-_Create_a_premium__high-end_commercial_background_video_for_a_fast_custom_printing_plodlm.mp4';
+const HERO_BG_VIDEO_URL = stripCloudinaryAudio('https://res.cloudinary.com/dtrxl120u/video/upload/v1776752374/Multi-Shot_Video_-_Create_a_premium__high-end_commercial_background_video_for_a_fast_custom_printing_plodlm.mp4');
 
 const HeroSection: React.FC = () => {
   const navigate = useNavigate();
@@ -17,13 +18,17 @@ const HeroSection: React.FC = () => {
   return (
     <section className="relative w-full overflow-hidden bg-slate-950 py-14 sm:py-16 md:py-20 lg:py-24">
       <video
+        ref={muteVideoElement}
         className="pointer-events-none absolute left-1/2 top-1/2 h-full w-full -translate-x-1/2 -translate-y-1/2 object-cover"
         autoPlay
         muted
         loop
         playsInline
+        controls={false}
         preload="auto"
         aria-hidden="true"
+        onLoadedMetadata={(e) => muteVideoElement(e.currentTarget)}
+        onPlay={(e) => muteVideoElement(e.currentTarget)}
       >
         <source src={HERO_BG_VIDEO_URL} type="video/mp4" />
       </video>
