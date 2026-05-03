@@ -12,7 +12,7 @@ import PayPalCheckout from '@/components/checkout/PayPalCheckout';
 import SignUpEncouragementModal from '@/components/checkout/SignUpEncouragementModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Package, Plus, Minus, Trash2, Eye, Tag, ShieldCheck, Headphones } from 'lucide-react';
+import { ArrowLeft, Package, Plus, Minus, Trash2, Eye, Tag, ShieldCheck, Headphones, Lock, Truck, Award, Shield, DollarSign } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { emailApi } from '@/lib/api';
 import { CartItem } from '@/store/cart';
@@ -1199,6 +1199,11 @@ const Checkout: React.FC = () => {
                         - top borders skip row 1 (i<2 mobile, i<3 desktop)
                         - left borders skip first column (i%2===0 mobile, i%3===0 desktop) */}
                   {(() => {
+                    // Single shared icon className → enforces identical size, color and stroke
+                    // for every trust item. Per spec: 24px square, orange #FF7A00, no white fills.
+                    const trustIconClass = "h-6 w-6 shrink-0 text-[#FF7A00]";
+                    const trustIconStroke = 2;
+
                     const trustItems: Array<{
                       title: React.ReactNode;
                       subtitle: React.ReactNode;
@@ -1207,14 +1212,7 @@ const Checkout: React.FC = () => {
                       {
                         title: 'Secure Checkout',
                         subtitle: 'SSL Encrypted',
-                        icon: (
-                          <img
-                            src="https://res.cloudinary.com/dtrxl120u/image/upload/v1777841844/secure_checkout_ereeos.png"
-                            alt=""
-                            aria-hidden="true"
-                            className="h-9 w-9 object-contain"
-                          />
-                        ),
+                        icon: <Lock aria-hidden="true" className={trustIconClass} strokeWidth={trustIconStroke} />,
                       },
                       {
                         title: sameDayHitService ? (
@@ -1225,55 +1223,27 @@ const Checkout: React.FC = () => {
                           </>
                         ),
                         subtitle: sameDayHitService ? 'Included' : '',
-                        icon: (
-                          <img
-                            src="https://res.cloudinary.com/dtrxl120u/image/upload/v1777841976/shipping_sfai9i.png"
-                            alt=""
-                            aria-hidden="true"
-                            className="h-9 w-9 object-contain"
-                          />
-                        ),
+                        icon: <Truck aria-hidden="true" className={trustIconClass} strokeWidth={trustIconStroke} />,
                       },
                       {
                         title: 'Quality',
                         subtitle: 'Guaranteed',
-                        icon: (
-                          <img
-                            src="https://res.cloudinary.com/dtrxl120u/image/upload/v1777841978/quality_z9phmp.png"
-                            alt=""
-                            aria-hidden="true"
-                            className="h-9 w-9 object-contain"
-                          />
-                        ),
+                        icon: <Award aria-hidden="true" className={trustIconClass} strokeWidth={trustIconStroke} />,
                       },
                       {
                         title: 'Custom Orders',
                         subtitle: 'Replaced if damaged in transit',
-                        icon: (
-                          <img
-                            src="https://res.cloudinary.com/dtrxl120u/image/upload/v1777841997/custom_orders_uplfjh.png"
-                            alt=""
-                            aria-hidden="true"
-                            className="h-9 w-9 object-contain"
-                          />
-                        ),
+                        icon: <Shield aria-hidden="true" className={trustIconClass} strokeWidth={trustIconStroke} />,
                       },
                       {
                         title: 'No Hidden Fees',
                         subtitle: 'What you see is what you pay',
-                        icon: (
-                          <img
-                            src="https://res.cloudinary.com/dtrxl120u/image/upload/v1777842074/no_hidden_fees_vde5jz.png"
-                            alt=""
-                            aria-hidden="true"
-                            className="h-9 w-9 object-contain"
-                          />
-                        ),
+                        icon: <DollarSign aria-hidden="true" className={trustIconClass} strokeWidth={trustIconStroke} />,
                       },
                       {
                         title: 'Real People',
                         subtitle: 'Here to help',
-                        icon: <Headphones aria-hidden="true" className="h-9 w-9 text-[#FF7A00]" strokeWidth={2.25} />,
+                        icon: <Headphones aria-hidden="true" className={trustIconClass} strokeWidth={trustIconStroke} />,
                       },
                     ];
 
@@ -1299,7 +1269,7 @@ const Checkout: React.FC = () => {
                             key={i}
                             className={`flex flex-col items-center text-center px-3 py-5 ${borderClassFor(i)}`}
                           >
-                            <span className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[#FFF1E5]">
+                            <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#FFF1E5]">
                               {item.icon}
                             </span>
                             <span className="text-sm font-bold text-[#1a1a1a]">{item.title}</span>
