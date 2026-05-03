@@ -501,7 +501,7 @@ function buildFaqs(product: ProductDefinition, city: CityEntry): { question: str
     },
     {
       question: `Do you offer design help if I don't have artwork ready?`,
-      answer: `Yes — you can upload finished artwork, design from scratch in our editor, or use the built-in AI tools to generate a starting point. We always send a free proof for approval before printing.`,
+      answer: `We do not offer design services — customers must upload their own print-ready artwork. We always send a free proof for approval before printing.`,
     },
     {
       question: `Are your ${product.lower} built for outdoor use?`,
