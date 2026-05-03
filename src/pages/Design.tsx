@@ -1765,50 +1765,23 @@ const Design: React.FC = () => {
                     </div>
                   </div>
                 ) : (
-                  /* Feet mode — single whole-foot input per dimension. Display
-                     value derives from widthIn / heightIn (kept in sync via the
-                     inches-string mirror effect). On change we always force the
-                     remainder-inch state to '0' so the canonical widthIn/heightIn
-                     (= widthFt*12 + widthInR) stays on whole-foot multiples. */
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <span className="text-xs text-gray-500">Width</span>
                       <div className="flex gap-1 mt-1">
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          pattern="[0-9]*"
-                          value={widthFtStr}
-                          onChange={e => { setWidthFtStr(e.target.value); setWidthInRStr('0'); setActivePreset(null); }}
-                          onFocus={e => e.target.select()}
-                          onBlur={() => {
-                            const n = parseInt(widthFtStr, 10);
-                            setWidthFtStr(String(isNaN(n) ? 1 : Math.max(1, Math.min(50, n))));
-                            setWidthInRStr('0');
-                          }}
-                          className="w-20 border rounded-lg px-2 py-1.5 text-base"
-                        />
+                        <input type="text" inputMode="numeric" pattern="[0-9]*" value={widthFtStr} onChange={e => { setWidthFtStr(e.target.value); setActivePreset(null); }} onFocus={e => e.target.select()} onBlur={() => { const n = parseInt(widthFtStr, 10); setWidthFtStr(String(isNaN(n) ? 1 : Math.max(1, Math.min(50, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
                         <span className="self-center text-xs text-gray-500">ft</span>
+                        <input type="text" inputMode="numeric" pattern="[0-9]*" value={widthInRStr} onChange={e => { setWidthInRStr(e.target.value); setActivePreset(null); }} onFocus={e => e.target.select()} onBlur={() => { const n = parseInt(widthInRStr, 10); setWidthInRStr(String(isNaN(n) ? 0 : Math.max(0, Math.min(11, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
+                        <span className="self-center text-xs text-gray-500">in</span>
                       </div>
                     </div>
                     <div>
                       <span className="text-xs text-gray-500">Height</span>
                       <div className="flex gap-1 mt-1">
-                        <input
-                          type="text"
-                          inputMode="numeric"
-                          pattern="[0-9]*"
-                          value={heightFtStr}
-                          onChange={e => { setHeightFtStr(e.target.value); setHeightInRStr('0'); setActivePreset(null); }}
-                          onFocus={e => e.target.select()}
-                          onBlur={() => {
-                            const n = parseInt(heightFtStr, 10);
-                            setHeightFtStr(String(isNaN(n) ? 1 : Math.max(1, Math.min(50, n))));
-                            setHeightInRStr('0');
-                          }}
-                          className="w-20 border rounded-lg px-2 py-1.5 text-base"
-                        />
+                        <input type="text" inputMode="numeric" pattern="[0-9]*" value={heightFtStr} onChange={e => { setHeightFtStr(e.target.value); setActivePreset(null); }} onFocus={e => e.target.select()} onBlur={() => { const n = parseInt(heightFtStr, 10); setHeightFtStr(String(isNaN(n) ? 1 : Math.max(1, Math.min(50, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
                         <span className="self-center text-xs text-gray-500">ft</span>
+                        <input type="text" inputMode="numeric" pattern="[0-9]*" value={heightInRStr} onChange={e => { setHeightInRStr(e.target.value); setActivePreset(null); }} onFocus={e => e.target.select()} onBlur={() => { const n = parseInt(heightInRStr, 10); setHeightInRStr(String(isNaN(n) ? 0 : Math.max(0, Math.min(11, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
+                        <span className="self-center text-xs text-gray-500">in</span>
                       </div>
                     </div>
                   </div>
