@@ -188,7 +188,11 @@ const GoogleAdsBanner: React.FC = () => {
   // of truth — both the Feet/Inches toggle and PreviewRulerFrame read this
   // state, so switching units updates the visible ruler immediately. Pure
   // UI state — does NOT affect pricing, cart, or print pipeline.
-  const [unit, setUnit] = useState<'in' | 'ft'>('ft');
+  // Initialise from localStorage so the user's previous choice survives a
+  // hard refresh; fall back to 'ft' when no stored value exists (first load).
+  const [unit, setUnit] = useState<'in' | 'ft'>(
+    () => (localStorage.getItem('banner-unit-pref') as 'in' | 'ft' | null) ?? 'ft'
+  );
   const [addRope, setAddRope] = useState(false);
   const [hemming, setHemming] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
@@ -332,6 +336,11 @@ const GoogleAdsBanner: React.FC = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [heightCustomInStr]);
+
+  // Persist the user's unit preference so it survives hard refreshes.
+  useEffect(() => {
+    localStorage.setItem('banner-unit-pref', unit);
+  }, [unit]);
 
   // Show drag hint briefly when artwork is first uploaded
   useEffect(() => {
