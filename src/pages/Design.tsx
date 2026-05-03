@@ -417,7 +417,7 @@ const Design: React.FC = () => {
   // state, so switching units updates the visible ruler immediately. Pure
   // UI state — does NOT affect pricing, cart, or print pipeline (those
   // continue to use widthIn / heightIn in inches).
-  const [unit, setUnit] = useState<'in' | 'ft'>('in');
+  const [unit, setUnit] = useState<'in' | 'ft'>('ft');
   const [addRope, setAddRope] = useState(false);
   const [hemming, setHemming] = useState(true);
   const [isUploading, setIsUploading] = useState(false);

@@ -188,7 +188,7 @@ const GoogleAdsBanner: React.FC = () => {
   // of truth — both the Feet/Inches toggle and PreviewRulerFrame read this
   // state, so switching units updates the visible ruler immediately. Pure
   // UI state — does NOT affect pricing, cart, or print pipeline.
-  const [unit, setUnit] = useState<'in' | 'ft'>('in');
+  const [unit, setUnit] = useState<'in' | 'ft'>('ft');
   const [addRope, setAddRope] = useState(false);
   const [hemming, setHemming] = useState(true);
   const [isUploading, setIsUploading] = useState(false);
