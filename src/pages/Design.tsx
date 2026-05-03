@@ -1343,15 +1343,13 @@ const Design: React.FC = () => {
     };
     setPendingCheckoutData({ pos: posPercent, scale: imgScale, scaleY: imgScaleY });
 
-    const hasFinishing = grommets !== 'none' || polePockets !== 'none';
-    const hasRope = addRope;
-    if (hasFinishing && hasRope) {
+    if (finishingType !== 'none') {
       performCheckout([], { pos: posPercent, scale: imgScale, scaleY: imgScaleY });
     } else {
       setPendingActionType('checkout');
       setShowUpsellModal(true);
     }
-  }, [uploadedFile, imgPos, imgScale, imgScaleY, grommets, polePockets, addRope, performCheckout, isYardSign, isCarMagnet, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, toast]);
+  }, [uploadedFile, imgPos, imgScale, imgScaleY, finishingType, performCheckout, isYardSign, isCarMagnet, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, toast]);
 
   const handleAddToCart = useCallback(() => {
     if (isYardSign) {
@@ -1390,9 +1388,13 @@ const Design: React.FC = () => {
       y: (imgPos.y / containerHeight) * 100,
     };
     setPendingCheckoutData({ pos: posPercent, scale: imgScale, scaleY: imgScaleY });
-    setPendingActionType('cart');
-    setShowUpsellModal(true);
-  }, [uploadedFile, imgPos, imgScale, imgScaleY, performCheckout, isYardSign, isCarMagnet, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, toast]);
+    if (finishingType !== 'none') {
+      performCheckout([], { pos: posPercent, scale: imgScale, scaleY: imgScaleY }, 'cart');
+    } else {
+      setPendingActionType('cart');
+      setShowUpsellModal(true);
+    }
+  }, [uploadedFile, imgPos, imgScale, imgScaleY, finishingType, performCheckout, isYardSign, isCarMagnet, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, toast]);
 
   // Trigger upsell modal after confirming position from preview modal
   const handleConfirmPosition = useCallback((pos: { x: number; y: number }, scale: number, scaleY?: number) => {
@@ -1412,15 +1414,13 @@ const Design: React.FC = () => {
       return;
     }
 
-    const hasFinishing = grommets !== 'none' || polePockets !== 'none';
-    const hasRope = addRope;
-    if (hasFinishing && hasRope) {
+    if (finishingType !== 'none') {
       performCheckout([], { pos: posPercent, scale, scaleY: scaleY ?? scale });
     } else {
       setPendingActionType('checkout');
       setShowUpsellModal(true);
     }
-  }, [uploadedFile, grommets, polePockets, addRope, performCheckout, isCarMagnet]);
+  }, [uploadedFile, finishingType, performCheckout, isCarMagnet]);
 
   // Handle upsell modal continue
   const handleUpsellContinue = useCallback((selectedOptions: UpsellOption[], dontAskAgain: boolean) => {
@@ -1429,6 +1429,20 @@ const Design: React.FC = () => {
     if (dontAskAgain) {
       sessionStorage.setItem('upsell-dont-show-again', 'true');
     }
+    // Sync chosen finishing options back to page state so preview and pricing reflect the choice
+    selectedOptions.forEach(opt => {
+      if (!opt.selected) return;
+      if (opt.id === 'grommets' && opt.grommetSelection) {
+        setGrommets(opt.grommetSelection);
+        setFinishingType('grommets');
+      } else if (opt.id === 'rope') {
+        setAddRope(true);
+        setFinishingType('rope');
+      } else if (opt.id === 'polePockets' && opt.polePocketSelection) {
+        setPolePockets(opt.polePocketSelection);
+        setFinishingType('pole_pockets');
+      }
+    });
     performCheckout(selectedOptions, undefined, pendingActionType);
     setIsProcessingUpsell(false);
   }, [pendingActionType, performCheckout]);
@@ -1993,7 +2007,7 @@ const Design: React.FC = () => {
                             boxShadow: '0 14px 28px -10px rgba(15, 23, 42, 0.28), 0 4px 8px rgba(15, 23, 42, 0.10), inset 0 0 0 1px rgba(255,255,255,0.6)',
                           }}
                           overlay={
-                            grommets !== 'none' ? (
+                            finishingType === 'grommets' && grommets !== 'none' ? (
                               <svg
                                 className="absolute inset-0 w-full h-full pointer-events-none"
                                 viewBox={`0 0 ${widthIn} ${heightIn}`}
@@ -2328,7 +2342,7 @@ const Design: React.FC = () => {
                       boxShadow: '0 14px 28px -10px rgba(15, 23, 42, 0.28), 0 4px 8px rgba(15, 23, 42, 0.10), inset 0 0 0 1px rgba(255,255,255,0.6)',
                     }}
                     overlay={
-                      grommets !== 'none' ? (
+                      finishingType === 'grommets' && grommets !== 'none' ? (
                         <svg
                           className="absolute inset-0 w-full h-full pointer-events-none"
                           viewBox={`0 0 ${widthIn} ${heightIn}`}
