@@ -12,7 +12,7 @@ import PayPalCheckout from '@/components/checkout/PayPalCheckout';
 import SignUpEncouragementModal from '@/components/checkout/SignUpEncouragementModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Package, Truck, Plus, Minus, Trash2, Eye, Tag, Lock, CheckCircle2, DollarSign, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Package, Plus, Minus, Trash2, Eye, Tag, ShieldCheck, Headphones, Lock, Truck, Award, Shield, DollarSign } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { emailApi } from '@/lib/api';
 import { CartItem } from '@/store/cart';
@@ -1183,36 +1183,114 @@ const Checkout: React.FC = () => {
                   onError={handlePaymentError}
                 />
 
-                {/* Trust badges — reassurance near payment area */}
-                <ul className="mt-6 pt-5 border-t border-gray-100 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2.5 text-sm text-[#1a1a1a]">
-                  <li className="flex items-center gap-2">
-                    <Lock aria-hidden="true" className="h-4 w-4 shrink-0 text-[#FF7A00]" />
-                    <span>
-                      <span className="font-semibold">Secure Checkout</span>
-                      <span className="text-gray-500"> — SSL Encrypted</span>
-                    </span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <Truck aria-hidden="true" className="h-4 w-4 shrink-0 text-[#FF7A00]" />
-                    {sameDayHitService ? (
-                      <span>Next-Day Air Shipping <span className="text-gray-500">included</span></span>
-                    ) : (
-                      <span><span className="font-bold text-[#FF7A00]">FREE</span> Next-Day Air Shipping</span>
-                    )}
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle2 aria-hidden="true" className="h-4 w-4 shrink-0 text-[#FF7A00]" />
-                    <span>Quality Guaranteed</span>
-                  </li>
-                  <li className="flex items-center gap-2">
-                    <DollarSign aria-hidden="true" className="h-4 w-4 shrink-0 text-[#FF7A00]" />
-                    <span>No Hidden Fees</span>
-                  </li>
-                  <li className="flex items-center gap-2 sm:col-span-2">
-                    <ShieldCheck aria-hidden="true" className="h-4 w-4 shrink-0 text-[#FF7A00]" />
-                    <span>Custom orders replaced if damaged in transit</span>
-                  </li>
-                </ul>
+                {/* Shop With Confidence — trust badges near payment area */}
+                <div className="mt-6 pt-5">
+                  {/* Header with side dividers */}
+                  <div className="flex items-center gap-3">
+                    <span className="h-px flex-1 bg-gray-200" />
+                    <h3 className="text-xs sm:text-sm font-bold tracking-[0.15em] text-[#FF7A00]">
+                      SHOP WITH CONFIDENCE
+                    </h3>
+                    <span className="h-px flex-1 bg-gray-200" />
+                  </div>
+
+                  {/* 3-column grid of trust items.
+                      Border classes per item position:
+                        - top borders skip row 1 (i<2 mobile, i<3 desktop)
+                        - left borders skip first column (i%2===0 mobile, i%3===0 desktop) */}
+                  {(() => {
+                    // Single shared icon className → enforces identical size, color and stroke
+                    // for every trust item. Per spec: 24px square, orange #FF7A00, no white fills.
+                    const trustIconClass = "h-6 w-6 shrink-0 text-[#FF7A00]";
+                    const trustIconStroke = 2;
+
+                    const trustItems: Array<{
+                      title: React.ReactNode;
+                      subtitle: React.ReactNode;
+                      icon: React.ReactNode;
+                    }> = [
+                      {
+                        title: 'Secure Checkout',
+                        subtitle: 'SSL Encrypted',
+                        icon: <Lock aria-hidden="true" className={trustIconClass} strokeWidth={trustIconStroke} />,
+                      },
+                      {
+                        title: sameDayHitService ? (
+                          'Next-Day Air Shipping'
+                        ) : (
+                          <>
+                            <span className="text-[#FF7A00]">FREE</span> Next-Day Air Shipping
+                          </>
+                        ),
+                        subtitle: sameDayHitService ? 'Included' : '',
+                        icon: <Truck aria-hidden="true" className={trustIconClass} strokeWidth={trustIconStroke} />,
+                      },
+                      {
+                        title: 'Quality',
+                        subtitle: 'Guaranteed',
+                        icon: <Award aria-hidden="true" className={trustIconClass} strokeWidth={trustIconStroke} />,
+                      },
+                      {
+                        title: 'Custom Orders',
+                        subtitle: 'Replaced if damaged in transit',
+                        icon: <Shield aria-hidden="true" className={trustIconClass} strokeWidth={trustIconStroke} />,
+                      },
+                      {
+                        title: 'No Hidden Fees',
+                        subtitle: 'What you see is what you pay',
+                        icon: <DollarSign aria-hidden="true" className={trustIconClass} strokeWidth={trustIconStroke} />,
+                      },
+                      {
+                        title: 'Real People',
+                        subtitle: 'Here to help',
+                        icon: <Headphones aria-hidden="true" className={trustIconClass} strokeWidth={trustIconStroke} />,
+                      },
+                    ];
+
+                    // Border classes derived from position (mobile = 2 cols, sm = 3 cols).
+                    const borderClassFor = (i: number) => {
+                      const classes: string[] = [];
+                      // Top border: skip row 1. Mobile row 1 = i<2, desktop row 1 = i<3.
+                      if (i >= 3) classes.push('border-t border-gray-200');
+                      else if (i === 2) classes.push('border-t border-gray-200 sm:border-t-0');
+                      // Left border: skip first column. Mobile col 1 = i%2===0, desktop col 1 = i%3===0.
+                      const mobileLeft = i % 2 === 1;
+                      const desktopLeft = i % 3 !== 0;
+                      if (mobileLeft && desktopLeft) classes.push('border-l border-gray-200');
+                      else if (!mobileLeft && desktopLeft) classes.push('sm:border-l sm:border-gray-200');
+                      else if (mobileLeft && !desktopLeft) classes.push('border-l border-gray-200 sm:border-l-0');
+                      return classes.join(' ');
+                    };
+
+                    return (
+                      <ul className="mt-5 grid grid-cols-2 sm:grid-cols-3">
+                        {trustItems.map((item, i) => (
+                          <li
+                            key={i}
+                            className={`flex flex-col items-center text-center px-3 py-5 ${borderClassFor(i)}`}
+                          >
+                            <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#FFF1E5]">
+                              {item.icon}
+                            </span>
+                            <span className="text-sm font-bold text-[#1a1a1a]">{item.title}</span>
+                            {item.subtitle && (
+                              <span className="mt-0.5 text-xs text-[#666]">{item.subtitle}</span>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    );
+                  })()}
+
+                  {/* Footer info box */}
+                  <div className="mt-5 flex items-center gap-3 rounded-lg bg-[#FFF1E5] px-4 py-3">
+                    <ShieldCheck aria-hidden="true" className="h-6 w-6 shrink-0 text-[#FF7A00]" />
+                    <div className="text-sm leading-snug">
+                      <div className="font-bold text-[#1a1a1a]">Your information is safe with us.</div>
+                      <div className="text-[#666]">We never share your data.</div>
+                    </div>
+                  </div>
+                </div>
               </div>
 
               {/* User Info */}
