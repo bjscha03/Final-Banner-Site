@@ -42,6 +42,7 @@ import CreateWithAIModal, { type CreateWithAIResult } from '@/components/design/
 import { ENABLE_AI } from '@/lib/featureFlags';
 import { base64ToFile } from '@/utils/base64ToFile';
 import ArtworkPreviewEditor, { type ArtworkTransform } from '@/components/design/ArtworkPreviewEditor';
+import ConfigCard from '@/components/design/layout/ConfigCard';
 
 // Helper to generate PDF thumbnail URL from Cloudinary
 function getPdfThumbnailUrl(pdfUrl: string): string {
@@ -399,10 +400,9 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
   }, [designs, onDesignsChange]);
 
   return (
-    <div className="space-y-8 max-w-full overflow-hidden">
-      {/* Fixed Size Display */}
-      <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">Sign Size</label>
+    <div className="space-y-6 max-w-full overflow-hidden">
+      {/* Step 1 — Sign Size (fixed) */}
+      <ConfigCard step={1} title="Choose your size">
         <div className="flex items-center gap-3 bg-gray-50 rounded-xl px-4 py-3 border border-gray-200">
           <div className="w-12 h-9 bg-white rounded border border-gray-300 flex items-center justify-center flex-shrink-0">
             <span className="text-[10px] font-bold text-gray-500">24×18</span>
@@ -413,11 +413,10 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
           </div>
           <CheckCircle className="ml-auto h-5 w-5 text-green-500 flex-shrink-0" />
         </div>
-      </div>
+      </ConfigCard>
 
-      {/* Sidedness Selector */}
-      <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">Print Side</label>
+      {/* Step 2 — Print Side (sidedness selector) */}
+      <ConfigCard step={2} title="Select material">
         <div className="grid grid-cols-2 gap-3">
           <button
             onClick={() => onSidednessChange('single')}
@@ -446,16 +445,10 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
             <p className="text-xs text-gray-500 mt-0.5">{usd(YARD_SIGN_DOUBLE_SIDED_CENTS / 100)}/sign</p>
           </button>
         </div>
-      </div>
+      </ConfigCard>
 
-      {/* Upload Section */}
-      <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">
-          Upload Artwork
-          <span className="text-xs font-normal text-gray-400 ml-2">
-            Up to {YARD_SIGN_MAX_DESIGNS} designs per order
-          </span>
-        </label>
+      {/* Step 3 — Upload + per-design quantity */}
+      <ConfigCard step={3} title="Upload your artwork" headerRight={<span className="text-xs font-normal text-gray-400">Up to {YARD_SIGN_MAX_DESIGNS} designs per order</span>}>
         <p className="text-xs text-gray-500 mb-2">
           Each uploaded design will be printed at 24&quot; × 18&quot;. Assign a quantity to each design.
         </p>
@@ -625,11 +618,10 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
             </p>
           </div>
         )}
-      </div>
+      </ConfigCard>
 
-      {/* Step Stakes Option */}
-      <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">Add-ons</label>
+      {/* Step 4 — Add-ons (step stakes) */}
+      <ConfigCard step={4} title="Finishing options">
         <div
           className={`border rounded-xl p-4 transition-all cursor-pointer ${
             addStepStakes
@@ -689,7 +681,7 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
             </div>
           )}
         </div>
-      </div>
+      </ConfigCard>
 
       {/* Helper text */}
       <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 space-y-1.5">
