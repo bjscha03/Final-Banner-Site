@@ -6,7 +6,7 @@ import { useQuoteStore, type MaterialKey } from '@/store/quote';
 import { useCartStore, type CartItem } from '@/store/cart';
 import { useUIStore } from '@/store/ui';
 import { calcTotals, usd, PRICE_PER_SQFT } from '@/lib/pricing';
-import { calculateBannerPricing } from '@/lib/bannerPricingEngine';
+import { calculateBannerPricing, type RopePlacement } from '@/lib/bannerPricingEngine';
 import { resolvePromo } from '@/lib/promoEngine';
 import { DESIGN_GROMMET_OPTIONS } from '@/lib/grommets';
 import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
@@ -57,6 +57,7 @@ import { base64ToFile } from '@/utils/base64ToFile';
 import { computeSameDayFeesCents } from '@/lib/sameDayService';
 import ConfigCard from '@/components/design/layout/ConfigCard';
 import TrustStrip from '@/components/design/layout/TrustStrip';
+import FinishingOptionsCard, { type FinishingType } from '@/components/design/FinishingOptionsCard';
 
 const PRESET_SIZES = [
   { w: 48, h: 24 },
@@ -196,7 +197,8 @@ const GoogleAdsBanner: React.FC = () => {
     () => (localStorage.getItem('banner-unit-pref') as 'in' | 'ft' | null) ?? 'ft'
   );
   const [addRope, setAddRope] = useState(false);
-  const [hemming, setHemming] = useState(true);
+  const [finishingType, setFinishingType] = useState<FinishingType>('none');
+  const [ropePlacement, setRopePlacement] = useState<RopePlacement>('top');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<{name: string; url: string; fileKey: string; size: number; isPdf: boolean; thumbnailUrl?: string} | null>(null);
   const [uploadError, setUploadError] = useState('');
@@ -416,6 +418,7 @@ const GoogleAdsBanner: React.FC = () => {
     material,
     grommets,
     addRope,
+    ropePlacement,
     polePockets,
   });
 
@@ -553,6 +556,16 @@ const GoogleAdsBanner: React.FC = () => {
       if (item.grommets) setGrommets(item.grommets);
       if (item.pole_pockets) setPolePockets(item.pole_pockets);
       setAddRope(!!item.rope_feet);
+      // Restore finishingType from cart item so the correct card appears selected
+      if (item.grommets && item.grommets !== 'none') {
+        setFinishingType('grommets');
+      } else if (item.pole_pockets && item.pole_pockets !== 'none') {
+        setFinishingType('pole_pockets');
+      } else if (item.rope_feet) {
+        setFinishingType('rope');
+      } else {
+        setFinishingType('none');
+      }
       setQuantity(item.quantity || 1);
 
       // Auto-open preview modal so user can adjust
@@ -643,6 +656,7 @@ const GoogleAdsBanner: React.FC = () => {
       setGrommets('none');
       setPolePockets('none');
       setAddRope(false);
+      setFinishingType('none');
     }
   }, [productType, getProductQuerySlug, navigate]);
 
@@ -1828,35 +1842,18 @@ const GoogleAdsBanner: React.FC = () => {
                         </select>
                       </div>
                     ) : (
-                      <>
-                        <div className="grid md:grid-cols-2 gap-4">
-                          <div>
-                            <span className="text-xs text-gray-600">Grommets</span>
-                            <select value={grommets} onChange={e => setGrommets(e.target.value)} className="w-full border rounded-xl px-3 py-1.5 text-base mt-1 bg-white">
-                              {DESIGN_GROMMET_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                            </select>
-                          </div>
-                          <div>
-                            <span className="text-xs text-gray-600">Pole Pockets</span>
-                            <select value={polePockets} onChange={e => setPolePockets(e.target.value)} className="w-full border rounded-xl px-3 py-1.5 text-base mt-1 bg-white">
-                              <option value="none">None</option>
-                              <option value="top">Top</option>
-                              <option value="bottom">Bottom</option>
-                              <option value="top-bottom">Top &amp; Bottom</option>
-                              <option value="left">Left</option>
-                              <option value="right">Right</option>
-                            </select>
-                          </div>
-                        </div>
-                        <div className="flex flex-wrap gap-4 items-center">
-                          <label className="flex items-center gap-2 text-sm cursor-pointer">
-                            <input type="checkbox" checked={addRope} onChange={e => setAddRope(e.target.checked)} className="accent-orange-500" /> Rope
-                          </label>
-                          <label className="flex items-center gap-2 text-sm cursor-pointer">
-                            <input type="checkbox" checked={hemming} onChange={e => setHemming(e.target.checked)} className="accent-orange-500" /> Hemming (included)
-                          </label>
-                        </div>
-                      </>
+                      <FinishingOptionsCard
+                        finishingType={finishingType}
+                        setFinishingType={setFinishingType}
+                        grommets={grommets}
+                        setGrommets={setGrommets}
+                        polePockets={polePockets}
+                        setPolePockets={setPolePockets}
+                        addRope={addRope}
+                        setAddRope={setAddRope}
+                        ropePlacement={ropePlacement}
+                        setRopePlacement={setRopePlacement}
+                      />
                     )}
                   </div>
                 </ConfigCard>

@@ -12,8 +12,9 @@ export const DESIGN_GROMMET_OPTIONS: ReadonlyArray<{
   { value: 'every-1-2ft', label: 'Every 1–2 Feet', description: 'Closer spacing' },
   { value: '4-corners', label: '4 Corners Only', description: 'One grommet in each corner' },
   { value: 'top-corners', label: 'Top Corners Only', description: 'Top two corners' },
-  { value: 'right-corners', label: 'Right Corners Only', description: 'Right two corners' },
-  { value: 'left-corners', label: 'Left Corners Only', description: 'Left two corners' },
+  { value: 'bottom-corners', label: 'Bottom Corners Only', description: 'Bottom two corners' },
+  { value: 'left-corners', label: 'Left Side Only', description: 'Left two corners' },
+  { value: 'right-corners', label: 'Right Side Only', description: 'Right two corners' },
 ] as const;
 
 const GROMMET_LABELS: Record<Grommets, string> = {
@@ -22,8 +23,9 @@ const GROMMET_LABELS: Record<Grommets, string> = {
   'every-2-3ft': 'Every 2–3 Feet',
   'every-1-2ft': 'Every 1–2 Feet',
   'top-corners': 'Top Corners Only',
-  'right-corners': 'Right Corners Only',
-  'left-corners': 'Left Corners Only',
+  'bottom-corners': 'Bottom Corners Only',
+  'right-corners': 'Right Side Only',
+  'left-corners': 'Left Side Only',
 };
 
 export function getGrommetLabel(grommets?: string | null): string {

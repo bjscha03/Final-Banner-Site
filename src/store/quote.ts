@@ -8,6 +8,7 @@ export type Grommets =
   | 'every-1-2ft'
   | '4-corners'
   | 'top-corners'
+  | 'bottom-corners'
   | 'right-corners'
   | 'left-corners';
 

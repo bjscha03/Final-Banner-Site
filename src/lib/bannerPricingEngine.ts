@@ -3,6 +3,7 @@ import { calculateQuantityDiscount } from './quantity-discount';
 import { getProductConfig, DEFAULT_PRODUCT_TYPE } from './products';
 
 export type PolePocketPosition = 'none' | 'top' | 'bottom' | 'left' | 'right' | 'top-bottom';
+export type RopePlacement = 'top' | 'bottom' | 'top-bottom';
 
 export interface BannerPricingInput {
   widthIn: number;
@@ -10,6 +11,7 @@ export interface BannerPricingInput {
   quantity: number;
   material: MaterialKey;
   addRope: boolean;
+  ropePlacement?: RopePlacement;
   polePockets?: string;
   grommets?: string;
 }
@@ -65,11 +67,19 @@ export const getPolePocketLinearFeet = (
 };
 
 /**
- * Rope pricing stays aligned with existing storefront behavior:
- * width linear feet at $2.00 / linear foot.
+ * Returns rope linear feet based on placement selection.
+ * Defaults to top-only (width) when no placement is given.
  */
-export const getRopeLinearFeet = (widthIn: number): number => {
-  return widthIn / 12;
+export const getRopeLinearFeet = (widthIn: number, heightIn = 0, placement: RopePlacement = 'top'): number => {
+  switch (placement) {
+    case 'top':
+    case 'bottom':
+      return widthIn / 12;
+    case 'top-bottom':
+      return (widthIn / 12) * 2;
+    default:
+      return widthIn / 12;
+  }
 };
 
 export const calculateBannerPricing = ({
@@ -78,6 +88,7 @@ export const calculateBannerPricing = ({
   quantity,
   material,
   addRope,
+  ropePlacement = 'top',
   polePockets = 'none',
   grommets = 'none',
 }: BannerPricingInput): BannerPricingResult => {
@@ -90,7 +101,7 @@ export const calculateBannerPricing = ({
   const unitBasePriceCents = Math.max(MINIMUM_UNIT_PRICE_CENTS, Math.round(areaSqFt * materialRate * 100));
   const baseBannerPriceCents = unitBasePriceCents * safeQuantity;
 
-  const ropeLinearFeet = addRope ? getRopeLinearFeet(safeWidthIn) : 0;
+  const ropeLinearFeet = addRope ? getRopeLinearFeet(safeWidthIn, safeHeightIn, ropePlacement) : 0;
   const ropeCostCents = addRope
     ? Math.round(ropeLinearFeet * safeQuantity * ROPE_PRICE_PER_LINEAR_FOOT_CENTS)
     : 0;

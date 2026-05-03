@@ -11,9 +11,7 @@ import { DESIGN_GROMMET_OPTIONS } from '@/lib/grommets';
 import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
 import {
   calculateBannerPricing,
-  POLE_POCKET_SETUP_FEE_CENTS,
-  POLE_POCKET_PRICE_PER_LINEAR_FOOT_CENTS,
-  ROPE_PRICE_PER_LINEAR_FOOT_CENTS,
+  type RopePlacement,
 } from '@/lib/bannerPricingEngine';
 import { resolvePromo, getKnownPromo } from '@/lib/promoEngine';
 import { useToast } from '@/components/ui/use-toast';
@@ -55,6 +53,7 @@ import { base64ToFile } from '@/utils/base64ToFile';
 import { computeSameDayFeesCents } from '@/lib/sameDayService';
 import ConfigCard from '@/components/design/layout/ConfigCard';
 import TrustStrip from '@/components/design/layout/TrustStrip';
+import FinishingOptionsCard, { type FinishingType } from '@/components/design/FinishingOptionsCard';
 
 const PRESET_SIZES = [
   { w: 48, h: 24 },
@@ -300,6 +299,7 @@ const Design: React.FC = () => {
       setGrommets('none');
       setPolePockets('none');
       setAddRope(false);
+      setFinishingType('none');
     }
   }, [productType, getProductQuerySlug, location.pathname, navigate]);
 
@@ -383,6 +383,16 @@ const Design: React.FC = () => {
       if (item.grommets) setGrommets(item.grommets);
       if (item.pole_pockets) setPolePockets(item.pole_pockets);
       setAddRope(!!item.rope_feet);
+      // Restore finishingType from cart item so the correct card appears selected
+      if (item.grommets && item.grommets !== 'none') {
+        setFinishingType('grommets');
+      } else if (item.pole_pockets && item.pole_pockets !== 'none') {
+        setFinishingType('pole_pockets');
+      } else if (item.rope_feet) {
+        setFinishingType('rope');
+      } else {
+        setFinishingType('none');
+      }
       setQuantity(item.quantity || 1);
 
       // Auto-open preview modal so user can adjust
@@ -425,7 +435,8 @@ const Design: React.FC = () => {
     () => (localStorage.getItem('banner-unit-pref') as 'in' | 'ft' | null) ?? 'ft'
   );
   const [addRope, setAddRope] = useState(false);
-  const [hemming, setHemming] = useState(true);
+  const [finishingType, setFinishingType] = useState<FinishingType>('none');
+  const [ropePlacement, setRopePlacement] = useState<RopePlacement>('top');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<{name: string; url: string; fileKey: string; size: number; isPdf: boolean; thumbnailUrl?: string} | null>(null);
   const [uploadError, setUploadError] = useState('');
@@ -660,6 +671,7 @@ const Design: React.FC = () => {
     material,
     grommets,
     addRope,
+    ropePlacement,
     polePockets,
   });
   const totals = calcTotals({ widthIn, heightIn, qty: quantity, material, addRope, polePockets });
@@ -1331,15 +1343,13 @@ const Design: React.FC = () => {
     };
     setPendingCheckoutData({ pos: posPercent, scale: imgScale, scaleY: imgScaleY });
 
-    const hasFinishing = grommets !== 'none' || polePockets !== 'none';
-    const hasRope = addRope;
-    if (hasFinishing && hasRope) {
+    if (finishingType !== 'none') {
       performCheckout([], { pos: posPercent, scale: imgScale, scaleY: imgScaleY });
     } else {
       setPendingActionType('checkout');
       setShowUpsellModal(true);
     }
-  }, [uploadedFile, imgPos, imgScale, imgScaleY, grommets, polePockets, addRope, performCheckout, isYardSign, isCarMagnet, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, toast]);
+  }, [uploadedFile, imgPos, imgScale, imgScaleY, finishingType, performCheckout, isYardSign, isCarMagnet, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, toast]);
 
   const handleAddToCart = useCallback(() => {
     if (isYardSign) {
@@ -1378,9 +1388,13 @@ const Design: React.FC = () => {
       y: (imgPos.y / containerHeight) * 100,
     };
     setPendingCheckoutData({ pos: posPercent, scale: imgScale, scaleY: imgScaleY });
-    setPendingActionType('cart');
-    setShowUpsellModal(true);
-  }, [uploadedFile, imgPos, imgScale, imgScaleY, performCheckout, isYardSign, isCarMagnet, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, toast]);
+    if (finishingType !== 'none') {
+      performCheckout([], { pos: posPercent, scale: imgScale, scaleY: imgScaleY }, 'cart');
+    } else {
+      setPendingActionType('cart');
+      setShowUpsellModal(true);
+    }
+  }, [uploadedFile, imgPos, imgScale, imgScaleY, finishingType, performCheckout, isYardSign, isCarMagnet, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid, toast]);
 
   // Trigger upsell modal after confirming position from preview modal
   const handleConfirmPosition = useCallback((pos: { x: number; y: number }, scale: number, scaleY?: number) => {
@@ -1400,15 +1414,13 @@ const Design: React.FC = () => {
       return;
     }
 
-    const hasFinishing = grommets !== 'none' || polePockets !== 'none';
-    const hasRope = addRope;
-    if (hasFinishing && hasRope) {
+    if (finishingType !== 'none') {
       performCheckout([], { pos: posPercent, scale, scaleY: scaleY ?? scale });
     } else {
       setPendingActionType('checkout');
       setShowUpsellModal(true);
     }
-  }, [uploadedFile, grommets, polePockets, addRope, performCheckout, isCarMagnet]);
+  }, [uploadedFile, finishingType, performCheckout, isCarMagnet]);
 
   // Handle upsell modal continue
   const handleUpsellContinue = useCallback((selectedOptions: UpsellOption[], dontAskAgain: boolean) => {
@@ -1417,6 +1429,20 @@ const Design: React.FC = () => {
     if (dontAskAgain) {
       sessionStorage.setItem('upsell-dont-show-again', 'true');
     }
+    // Sync chosen finishing options back to page state so preview and pricing reflect the choice
+    selectedOptions.forEach(opt => {
+      if (!opt.selected) return;
+      if (opt.id === 'grommets' && opt.grommetSelection) {
+        setGrommets(opt.grommetSelection);
+        setFinishingType('grommets');
+      } else if (opt.id === 'rope') {
+        setAddRope(true);
+        setFinishingType('rope');
+      } else if (opt.id === 'polePockets' && opt.polePocketSelection) {
+        setPolePockets(opt.polePocketSelection);
+        setFinishingType('pole_pockets');
+      }
+    });
     performCheckout(selectedOptions, undefined, pendingActionType);
     setIsProcessingUpsell(false);
   }, [pendingActionType, performCheckout]);
@@ -1895,38 +1921,18 @@ const Design: React.FC = () => {
                       </select>
                     </div>
                   ) : (
-                    <>
-                      <div className="grid md:grid-cols-2 gap-4">
-                        <div>
-                          <span className="text-xs text-gray-600">Grommets</span>
-                          <p className="text-xs font-semibold text-emerald-700">{bannerPricing.grommetsCostCents === 0 ? 'Included Free' : usd(bannerPricing.grommetsCostCents / 100)}</p>
-                          <select value={grommets} onChange={e => setGrommets(e.target.value)} className="w-full border rounded-xl px-3 py-1.5 text-base mt-1 bg-white">
-                            {DESIGN_GROMMET_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                          </select>
-                        </div>
-                        <div>
-                          <span className="text-xs text-gray-600">Pole Pockets</span>
-                          <p className="text-xs font-semibold text-slate-700">${(POLE_POCKET_SETUP_FEE_CENTS / 100).toFixed(0)} setup fee + ${(POLE_POCKET_PRICE_PER_LINEAR_FOOT_CENTS / 100).toFixed(2)} / linear ft</p>
-                          <select value={polePockets} onChange={e => setPolePockets(e.target.value)} className="w-full border rounded-xl px-3 py-1.5 text-base mt-1 bg-white">
-                            <option value="none">None</option>
-                            <option value="top">Top</option>
-                            <option value="bottom">Bottom</option>
-                            <option value="top-bottom">Top &amp; Bottom</option>
-                            <option value="left">Left</option>
-                            <option value="right">Right</option>
-                          </select>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-4 items-center">
-                        <label className="flex items-center gap-2 text-sm cursor-pointer">
-                          <input type="checkbox" checked={addRope} onChange={e => setAddRope(e.target.checked)} className="accent-orange-500" /> Rope
-                        </label>
-                        <span className="text-xs font-semibold text-slate-700 self-center">${(ROPE_PRICE_PER_LINEAR_FOOT_CENTS / 100).toFixed(2)} / linear ft</span>
-                        <label className="flex items-center gap-2 text-sm cursor-pointer">
-                          <input type="checkbox" checked={hemming} onChange={e => setHemming(e.target.checked)} className="accent-orange-500" /> Hemming (included)
-                        </label>
-                      </div>
-                    </>
+                    <FinishingOptionsCard
+                      finishingType={finishingType}
+                      setFinishingType={setFinishingType}
+                      grommets={grommets}
+                      setGrommets={setGrommets}
+                      polePockets={polePockets}
+                      setPolePockets={setPolePockets}
+                      addRope={addRope}
+                      setAddRope={setAddRope}
+                      ropePlacement={ropePlacement}
+                      setRopePlacement={setRopePlacement}
+                    />
                   )}
                 </div>
               </ConfigCard>
@@ -2001,7 +2007,7 @@ const Design: React.FC = () => {
                             boxShadow: '0 14px 28px -10px rgba(15, 23, 42, 0.28), 0 4px 8px rgba(15, 23, 42, 0.10), inset 0 0 0 1px rgba(255,255,255,0.6)',
                           }}
                           overlay={
-                            grommets !== 'none' ? (
+                            finishingType === 'grommets' && grommets !== 'none' ? (
                               <svg
                                 className="absolute inset-0 w-full h-full pointer-events-none"
                                 viewBox={`0 0 ${widthIn} ${heightIn}`}
@@ -2336,7 +2342,7 @@ const Design: React.FC = () => {
                       boxShadow: '0 14px 28px -10px rgba(15, 23, 42, 0.28), 0 4px 8px rgba(15, 23, 42, 0.10), inset 0 0 0 1px rgba(255,255,255,0.6)',
                     }}
                     overlay={
-                      grommets !== 'none' ? (
+                      finishingType === 'grommets' && grommets !== 'none' ? (
                         <svg
                           className="absolute inset-0 w-full h-full pointer-events-none"
                           viewBox={`0 0 ${widthIn} ${heightIn}`}
