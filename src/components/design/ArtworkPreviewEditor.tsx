@@ -582,6 +582,47 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
     }
   }, [constrain, onConstrainChange, onChange]);
 
+  // Click-outside-to-deselect. When the artwork is selected, listen for
+  // pointerdown events anywhere in the document and clear `selected` if
+  // the event target is outside the canvas. We deliberately ignore events
+  // while a drag/resize/pinch is in progress so the user doesn't lose
+  // their selection mid-gesture (the gesture itself originates outside
+  // the image bounds for resize handles, but those use stopPropagation
+  // and the pointerdown still falls within the canvas root, so the
+  // contains() check is sufficient).
+  useEffect(() => {
+    if (!selected) return;
+    const onDocPointerDown = (e: PointerEvent) => {
+      if (
+        dragRef.current.active ||
+        resizeRef.current?.active ||
+        pinchRef.current?.active
+      ) {
+        return;
+      }
+      const node = internalRef.current;
+      if (!node) return;
+      const target = e.target as Node | null;
+      if (target && node.contains(target)) return;
+      // Allow clicks on the toolbar (rendered via portal outside the
+      // canvas) without deselecting — losing selection would also unmount
+      // the toolbar before its click handler runs.
+      const targetEl = e.target as HTMLElement | null;
+      if (
+        targetEl &&
+        typeof targetEl.closest === 'function' &&
+        targetEl.closest('[data-artwork-toolbar="true"]')
+      ) {
+        return;
+      }
+      setSelected(false);
+    };
+    document.addEventListener('pointerdown', onDocPointerDown, true);
+    return () => {
+      document.removeEventListener('pointerdown', onDocPointerDown, true);
+    };
+  }, [selected]);
+
   // Visible nub size (the colored square). Hit area is 44px via invisible
   // padding wrapper.
   const nubSize = compactControls ? 14 : 16;

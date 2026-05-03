@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Info } from 'lucide-react';
 import {
   POLE_POCKET_SETUP_FEE_CENTS,
@@ -75,11 +75,28 @@ const FinishingOptionsCard: React.FC<FinishingOptionsCardProps> = ({
   const polePocketPerFt = POLE_POCKET_PRICE_PER_LINEAR_FOOT_CENTS / 100;
   const ropePerFt = ROPE_PRICE_PER_LINEAR_FOOT_CENTS / 100;
 
+  // Remember the last non-'none' grommet placement so switching to Pole
+  // Pockets / Rope and back to Grommets restores the previous selection
+  // (preview re-appears immediately). Falls back to 'every-2-3ft' the first
+  // time the user picks Grommets without ever choosing a placement.
+  const lastGrommetRef = useRef<string>(
+    grommets && grommets !== 'none' ? grommets : 'every-2-3ft'
+  );
+  useEffect(() => {
+    if (grommets && grommets !== 'none') {
+      lastGrommetRef.current = grommets;
+    }
+  }, [grommets]);
+
   const selectGrommets = () => {
     setFinishingType('grommets');
-    // Keep grommetPlacement as-is (user picks from dropdown); clear others
     setPolePockets('none');
     setAddRope(false);
+    // Restore the last grommet placement so the live preview shows
+    // grommets immediately when switching back from Pole Pockets / Rope.
+    if (!grommets || grommets === 'none') {
+      setGrommets(lastGrommetRef.current);
+    }
   };
 
   const selectPolePockets = () => {
