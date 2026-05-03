@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Minus, Plus } from 'lucide-react';
 
 interface SizeStepperProps {
@@ -14,7 +14,12 @@ interface SizeStepperProps {
 
 /**
  * Always-visible size stepper component with mobile-optimized touch targets
- * Ensures +/- buttons are always visible and tappable with 44px minimum size
+ * Ensures +/- buttons are always visible and tappable with 44px minimum size.
+ *
+ * Input handling: uses an internal raw string buffer so the user's keystrokes
+ * are preserved as-is while typing (no auto-prepended zeros, no cursor jumps).
+ * The string is only parsed/clamped/converted to a number on blur, per the
+ * dimension-input handling spec.
  */
 export function SizeStepper({
   label,
@@ -26,6 +31,20 @@ export function SizeStepper({
   unit = '',
   className = ''
 }: SizeStepperProps) {
+  // Raw input string the user is typing. Kept in sync with `value` from props
+  // when the value changes from outside (e.g. preset click, +/- buttons).
+  const [inputStr, setInputStr] = useState<string>(
+    Number.isFinite(value) && value > 0 ? String(value) : ''
+  );
+
+  useEffect(() => {
+    const parsed = parseInt(inputStr, 10);
+    if (parsed !== value) {
+      setInputStr(Number.isFinite(value) && value > 0 ? String(value) : '');
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
   const decrement = () => {
     const newValue = Math.max(min, value - step);
     onChange(newValue);
@@ -37,25 +56,23 @@ export function SizeStepper({
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const inputValue = e.target.value;
-    
-    // Allow empty input for editing
-    if (inputValue === '') {
-      onChange(0);
-      return;
-    }
-
-    const numValue = Number(inputValue);
-    if (!isNaN(numValue)) {
-      const clampedValue = Math.max(min, Math.min(max, numValue));
-      onChange(clampedValue);
-    }
+    // Only set the raw string. Do not parse/format/clamp during typing.
+    setInputStr(e.target.value);
   };
 
   const handleInputBlur = () => {
-    // Ensure value is within bounds when input loses focus
-    if (value < min) onChange(min);
-    if (value > max) onChange(max);
+    // On blur, validate, clamp, and propagate the numeric value.
+    const parsed = parseInt(inputStr, 10);
+    if (!Number.isFinite(parsed)) {
+      setInputStr(String(min));
+      onChange(min);
+      return;
+    }
+    const clamped = Math.max(min, Math.min(max, parsed));
+    setInputStr(String(clamped));
+    if (clamped !== value) {
+      onChange(clamped);
+    }
   };
 
   return (
@@ -82,8 +99,9 @@ export function SizeStepper({
             inputMode="numeric"
             pattern="[0-9]*"
             className="h-10 w-full min-w-[60px] rounded-md border border-slate-300 text-center font-medium tabular-nums text-slate-900 bg-white px-2 py-2 text-base focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
-            value={value || ''}
+            value={inputStr}
             onChange={handleInputChange}
+            onFocus={(e) => e.target.select()}
             onBlur={handleInputBlur}
             aria-label={`${label} value`}
           />

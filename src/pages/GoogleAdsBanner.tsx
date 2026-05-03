@@ -170,6 +170,10 @@ const GoogleAdsBanner: React.FC = () => {
   const [widthInRStr, setWidthInRStr] = useState('0');
   const [heightFtStr, setHeightFtStr] = useState('2');
   const [heightInRStr, setHeightInRStr] = useState('0');
+  // Raw string state for the inches-mode "Custom Size" inputs. See Design.tsx
+  // for rationale: keeps user keystrokes literal so "3" never becomes "03".
+  const [widthCustomInStr, setWidthCustomInStr] = useState('48');
+  const [heightCustomInStr, setHeightCustomInStr] = useState('24');
   // Derived numeric values for calculations (treat empty as 0)
   const widthFt = parseInt(widthFtStr, 10) || 0;
   const widthInR = parseInt(widthInRStr, 10) || 0;
@@ -283,6 +287,51 @@ const GoogleAdsBanner: React.FC = () => {
     setImgScale(1);
     setImgScaleY(1);
   }, [widthIn, heightIn]);
+
+  // Keep the inches-mode raw input strings in sync with widthIn/heightIn when
+  // those change from outside the inches inputs (presets, feet-mode editing,
+  // cart restore). See Design.tsx for the same pattern.
+  useEffect(() => {
+    const n = parseInt(widthCustomInStr, 10);
+    if (!Number.isFinite(n) || n !== widthIn) {
+      setWidthCustomInStr(String(widthIn));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [widthIn]);
+  useEffect(() => {
+    const n = parseInt(heightCustomInStr, 10);
+    if (!Number.isFinite(n) || n !== heightIn) {
+      setHeightCustomInStr(String(heightIn));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [heightIn]);
+
+  // Mirror the inches-mode raw strings into widthFtStr/widthInRStr so that
+  // pricing (derived from widthIn = widthFt*12 + widthInR) updates reactively
+  // while the user is typing in inches mode. Parsing happens here, not in
+  // onChange, per the input handling spec.
+  useEffect(() => {
+    const n = parseInt(widthCustomInStr, 10);
+    if (!Number.isFinite(n) || n < 1 || n > 600) return;
+    const ft = String(Math.floor(n / 12));
+    const inr = String(n % 12);
+    if (ft !== widthFtStr || inr !== widthInRStr) {
+      setWidthFtStr(ft);
+      setWidthInRStr(inr);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [widthCustomInStr]);
+  useEffect(() => {
+    const n = parseInt(heightCustomInStr, 10);
+    if (!Number.isFinite(n) || n < 1 || n > 600) return;
+    const ft = String(Math.floor(n / 12));
+    const inr = String(n % 12);
+    if (ft !== heightFtStr || inr !== heightInRStr) {
+      setHeightFtStr(ft);
+      setHeightInRStr(inr);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [heightCustomInStr]);
 
   // Show drag hint briefly when artwork is first uploaded
   useEffect(() => {
@@ -1597,20 +1646,19 @@ const GoogleAdsBanner: React.FC = () => {
                         <span className="text-xs text-gray-500">Width</span>
                         <div className="flex gap-1 mt-1">
                           <input
-                            type="number"
-                            min={1}
-                            max={600}
-                            value={widthIn}
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            value={widthCustomInStr}
                             onChange={e => {
-                              const n = parseInt(e.target.value, 10);
-                              const v = Number.isFinite(n) ? Math.max(0, n) : 0;
-                              setWidthFtStr(String(Math.floor(v / 12)));
-                              setWidthInRStr(String(v % 12));
+                              setWidthCustomInStr(e.target.value);
                               setActivePreset(null);
                             }}
+                            onFocus={e => e.target.select()}
                             onBlur={() => {
-                              const n = widthIn;
-                              const clamped = Math.max(1, Math.min(600, isNaN(n) ? 1 : n));
+                              const n = parseInt(widthCustomInStr, 10);
+                              const clamped = Math.max(1, Math.min(600, Number.isFinite(n) ? n : 1));
+                              setWidthCustomInStr(String(clamped));
                               setWidthFtStr(String(Math.floor(clamped / 12)));
                               setWidthInRStr(String(clamped % 12));
                             }}
@@ -1623,20 +1671,19 @@ const GoogleAdsBanner: React.FC = () => {
                         <span className="text-xs text-gray-500">Height</span>
                         <div className="flex gap-1 mt-1">
                           <input
-                            type="number"
-                            min={1}
-                            max={600}
-                            value={heightIn}
+                            type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
+                            value={heightCustomInStr}
                             onChange={e => {
-                              const n = parseInt(e.target.value, 10);
-                              const v = Number.isFinite(n) ? Math.max(0, n) : 0;
-                              setHeightFtStr(String(Math.floor(v / 12)));
-                              setHeightInRStr(String(v % 12));
+                              setHeightCustomInStr(e.target.value);
                               setActivePreset(null);
                             }}
+                            onFocus={e => e.target.select()}
                             onBlur={() => {
-                              const n = heightIn;
-                              const clamped = Math.max(1, Math.min(600, isNaN(n) ? 1 : n));
+                              const n = parseInt(heightCustomInStr, 10);
+                              const clamped = Math.max(1, Math.min(600, Number.isFinite(n) ? n : 1));
+                              setHeightCustomInStr(String(clamped));
                               setHeightFtStr(String(Math.floor(clamped / 12)));
                               setHeightInRStr(String(clamped % 12));
                             }}
@@ -1651,18 +1698,18 @@ const GoogleAdsBanner: React.FC = () => {
                       <div>
                         <span className="text-xs text-gray-500">Width</span>
                         <div className="flex gap-1 mt-1">
-                          <input type="number" min={1} max={50} value={widthFtStr} onChange={e => { setWidthFtStr(e.target.value); setActivePreset(null); }} onBlur={() => { const n = parseInt(widthFtStr, 10); setWidthFtStr(String(isNaN(n) ? 1 : Math.max(1, Math.min(50, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
+                          <input type="text" inputMode="numeric" pattern="[0-9]*" value={widthFtStr} onChange={e => { setWidthFtStr(e.target.value); setActivePreset(null); }} onFocus={e => e.target.select()} onBlur={() => { const n = parseInt(widthFtStr, 10); setWidthFtStr(String(isNaN(n) ? 1 : Math.max(1, Math.min(50, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
                           <span className="self-center text-xs text-gray-500">ft</span>
-                          <input type="number" min={0} max={11} value={widthInRStr} onChange={e => { setWidthInRStr(e.target.value); setActivePreset(null); }} onBlur={() => { const n = parseInt(widthInRStr, 10); setWidthInRStr(String(isNaN(n) ? 0 : Math.max(0, Math.min(11, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
+                          <input type="text" inputMode="numeric" pattern="[0-9]*" value={widthInRStr} onChange={e => { setWidthInRStr(e.target.value); setActivePreset(null); }} onFocus={e => e.target.select()} onBlur={() => { const n = parseInt(widthInRStr, 10); setWidthInRStr(String(isNaN(n) ? 0 : Math.max(0, Math.min(11, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
                           <span className="self-center text-xs text-gray-500">in</span>
                         </div>
                       </div>
                       <div>
                         <span className="text-xs text-gray-500">Height</span>
                         <div className="flex gap-1 mt-1">
-                          <input type="number" min={1} max={50} value={heightFtStr} onChange={e => { setHeightFtStr(e.target.value); setActivePreset(null); }} onBlur={() => { const n = parseInt(heightFtStr, 10); setHeightFtStr(String(isNaN(n) ? 1 : Math.max(1, Math.min(50, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
+                          <input type="text" inputMode="numeric" pattern="[0-9]*" value={heightFtStr} onChange={e => { setHeightFtStr(e.target.value); setActivePreset(null); }} onFocus={e => e.target.select()} onBlur={() => { const n = parseInt(heightFtStr, 10); setHeightFtStr(String(isNaN(n) ? 1 : Math.max(1, Math.min(50, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
                           <span className="self-center text-xs text-gray-500">ft</span>
-                          <input type="number" min={0} max={11} value={heightInRStr} onChange={e => { setHeightInRStr(e.target.value); setActivePreset(null); }} onBlur={() => { const n = parseInt(heightInRStr, 10); setHeightInRStr(String(isNaN(n) ? 0 : Math.max(0, Math.min(11, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
+                          <input type="text" inputMode="numeric" pattern="[0-9]*" value={heightInRStr} onChange={e => { setHeightInRStr(e.target.value); setActivePreset(null); }} onFocus={e => e.target.select()} onBlur={() => { const n = parseInt(heightInRStr, 10); setHeightInRStr(String(isNaN(n) ? 0 : Math.max(0, Math.min(11, n)))); }} className="w-16 border rounded-lg px-2 py-1.5 text-base" />
                           <span className="self-center text-xs text-gray-500">in</span>
                         </div>
                       </div>
