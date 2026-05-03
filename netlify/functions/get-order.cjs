@@ -35,7 +35,13 @@ exports.handler = async (event, context) => {
 
     // AUTO-MIGRATE: Ensure all referenced columns exist.
     // Each ALTER runs independently so a single failure does not roll back the rest.
+    const ALLOWED_TABLES = new Set(['orders', 'order_items']);
+    const SAFE_DDL_RE = /^[A-Za-z0-9_ ,'"\.\(\)\{\}\[\]:\-#=]+$/;
     const ensureColumn = async (table, columnDef) => {
+      if (!ALLOWED_TABLES.has(table) || !SAFE_DDL_RE.test(columnDef)) {
+        console.warn(`[get-order] Refusing unsafe migration for ${table}/${columnDef}`);
+        return;
+      }
       try {
         await sql(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS ${columnDef}`);
       } catch (migErr) {

@@ -66,10 +66,17 @@ exports.handler = async (event, context) => {
     // AUTO-MIGRATE: Ensure all columns referenced by the query exist.
     // Each ALTER runs independently so a single failure does not roll back the rest
     // (PostgreSQL ALTER TABLE with multiple ADD COLUMN clauses is atomic).
+    const ALLOWED_TABLES = new Set(['orders', 'order_items']);
+    // Whitelist allowed characters for column DDL: identifiers, types, defaults,
+    // simple JSON/string literals, parens. Refuses anything with semicolons,
+    // comments, or other statement-terminating characters.
+    const SAFE_DDL_RE = /^[A-Za-z0-9_ ,'"\.\(\)\{\}\[\]:\-#=]+$/;
     const ensureColumn = async (table, columnDef) => {
+      if (!ALLOWED_TABLES.has(table) || !SAFE_DDL_RE.test(columnDef)) {
+        console.warn(`[get-orders] Refusing unsafe migration for ${table}/${columnDef}`);
+        return;
+      }
       try {
-        // Plain-string call form: `sql(query, params)`. We never interpolate
-        // user input here — `table` and `columnDef` are hard-coded literals.
         await sql(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS ${columnDef}`);
       } catch (migErr) {
         console.warn(`[get-orders] Auto-migration ${table}.${columnDef} (non-fatal):`, migErr.message);
