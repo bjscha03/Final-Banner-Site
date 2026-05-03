@@ -11,9 +11,7 @@ import { DESIGN_GROMMET_OPTIONS } from '@/lib/grommets';
 import UpsellModal, { UpsellOption } from '@/components/cart/UpsellModal';
 import {
   calculateBannerPricing,
-  POLE_POCKET_SETUP_FEE_CENTS,
-  POLE_POCKET_PRICE_PER_LINEAR_FOOT_CENTS,
-  ROPE_PRICE_PER_LINEAR_FOOT_CENTS,
+  type RopePlacement,
 } from '@/lib/bannerPricingEngine';
 import { resolvePromo, getKnownPromo } from '@/lib/promoEngine';
 import { useToast } from '@/components/ui/use-toast';
@@ -55,6 +53,7 @@ import { base64ToFile } from '@/utils/base64ToFile';
 import { computeSameDayFeesCents } from '@/lib/sameDayService';
 import ConfigCard from '@/components/design/layout/ConfigCard';
 import TrustStrip from '@/components/design/layout/TrustStrip';
+import FinishingOptionsCard from '@/components/design/FinishingOptionsCard';
 
 const PRESET_SIZES = [
   { w: 48, h: 24 },
@@ -425,7 +424,7 @@ const Design: React.FC = () => {
     () => (localStorage.getItem('banner-unit-pref') as 'in' | 'ft' | null) ?? 'ft'
   );
   const [addRope, setAddRope] = useState(false);
-  const [hemming, setHemming] = useState(true);
+  const [ropePlacement, setRopePlacement] = useState<RopePlacement>('top');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<{name: string; url: string; fileKey: string; size: number; isPdf: boolean; thumbnailUrl?: string} | null>(null);
   const [uploadError, setUploadError] = useState('');
@@ -660,6 +659,7 @@ const Design: React.FC = () => {
     material,
     grommets,
     addRope,
+    ropePlacement,
     polePockets,
   });
   const totals = calcTotals({ widthIn, heightIn, qty: quantity, material, addRope, polePockets });
@@ -1895,38 +1895,16 @@ const Design: React.FC = () => {
                       </select>
                     </div>
                   ) : (
-                    <>
-                      <div className="grid md:grid-cols-2 gap-4">
-                        <div>
-                          <span className="text-xs text-gray-600">Grommets</span>
-                          <p className="text-xs font-semibold text-emerald-700">{bannerPricing.grommetsCostCents === 0 ? 'Included Free' : usd(bannerPricing.grommetsCostCents / 100)}</p>
-                          <select value={grommets} onChange={e => setGrommets(e.target.value)} className="w-full border rounded-xl px-3 py-1.5 text-base mt-1 bg-white">
-                            {DESIGN_GROMMET_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                          </select>
-                        </div>
-                        <div>
-                          <span className="text-xs text-gray-600">Pole Pockets</span>
-                          <p className="text-xs font-semibold text-slate-700">${(POLE_POCKET_SETUP_FEE_CENTS / 100).toFixed(0)} setup fee + ${(POLE_POCKET_PRICE_PER_LINEAR_FOOT_CENTS / 100).toFixed(2)} / linear ft</p>
-                          <select value={polePockets} onChange={e => setPolePockets(e.target.value)} className="w-full border rounded-xl px-3 py-1.5 text-base mt-1 bg-white">
-                            <option value="none">None</option>
-                            <option value="top">Top</option>
-                            <option value="bottom">Bottom</option>
-                            <option value="top-bottom">Top &amp; Bottom</option>
-                            <option value="left">Left</option>
-                            <option value="right">Right</option>
-                          </select>
-                        </div>
-                      </div>
-                      <div className="flex flex-wrap gap-4 items-center">
-                        <label className="flex items-center gap-2 text-sm cursor-pointer">
-                          <input type="checkbox" checked={addRope} onChange={e => setAddRope(e.target.checked)} className="accent-orange-500" /> Rope
-                        </label>
-                        <span className="text-xs font-semibold text-slate-700 self-center">${(ROPE_PRICE_PER_LINEAR_FOOT_CENTS / 100).toFixed(2)} / linear ft</span>
-                        <label className="flex items-center gap-2 text-sm cursor-pointer">
-                          <input type="checkbox" checked={hemming} onChange={e => setHemming(e.target.checked)} className="accent-orange-500" /> Hemming (included)
-                        </label>
-                      </div>
-                    </>
+                    <FinishingOptionsCard
+                      grommets={grommets}
+                      setGrommets={setGrommets}
+                      polePockets={polePockets}
+                      setPolePockets={setPolePockets}
+                      addRope={addRope}
+                      setAddRope={setAddRope}
+                      ropePlacement={ropePlacement}
+                      setRopePlacement={setRopePlacement}
+                    />
                   )}
                 </div>
               </ConfigCard>
