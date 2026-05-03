@@ -21,7 +21,7 @@ const FINISHING_IMAGES = {
 const FINISHING_CALLOUTS = {
   grommets: 'Metal grommets',
   polePockets: 'Pocket fits over pole',
-  rope: 'Rope sewn into the banner edge',
+  rope: 'Rope inserted into welded hem',
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -161,7 +161,7 @@ const FinishingOptionsCard: React.FC<FinishingOptionsCardProps> = ({
         onClick={selectPolePockets}
         title="Pole Pockets"
         priceLabel={`$${polePocketSetupFee.toFixed(0)} setup fee + $${polePocketPerFt.toFixed(2)} / linear ft`}
-        description="Fabric pockets are sewn on the top and bottom to slide over a pole."
+        description="Pole pockets are made with heat-welded hems to slide over a pole."
         imageSrc={FINISHING_IMAGES.polePockets}
         calloutText={FINISHING_CALLOUTS.polePockets}
       >
@@ -183,13 +183,13 @@ const FinishingOptionsCard: React.FC<FinishingOptionsCardProps> = ({
         )}
       </FinishingCard>
 
-      {/* ── Rope (Sewn In) ───────────────────────────────────────── */}
+      {/* ── Rope in Welded Hem ───────────────────────────────────── */}
       <FinishingCard
         active={finishingType === 'rope'}
         onClick={selectRope}
-        title="Rope (Sewn In)"
+        title="Rope in Welded Hem"
         priceLabel={`$${ropePerFt.toFixed(2)} / linear ft`}
-        description="Rope is sewn into the edges of the banner for secure tying."
+        description="Rope is inserted into the heat-welded hem for secure tying."
         imageSrc={FINISHING_IMAGES.rope}
         calloutText={FINISHING_CALLOUTS.rope}
       >
@@ -217,7 +217,7 @@ const FinishingOptionsCard: React.FC<FinishingOptionsCardProps> = ({
         <div className="flex-1 min-w-0">
           <p className="text-sm font-semibold text-gray-800">Hemming is always included.</p>
           <p className="text-xs text-gray-500">
-            All banners are finished with a folded and heat-sealed hem for added strength.
+            All banners are finished with a folded, heat-welded hem for added strength.
           </p>
         </div>
         {FINISHING_IMAGES.hemming && (

@@ -211,7 +211,7 @@ const RealBannerOverlay: React.FC<RealBannerOverlayProps> = ({
           </>
         )}
 
-        {/* Hemming — subtle inner stitched border */}
+        {/* Hemming — subtle inner welded border */}
         <rect
           x={bannerOffsetX + 0.08}
           y={bannerOffsetY + 0.08}
