@@ -1,6 +1,11 @@
 const { neon } = require('@neondatabase/serverless');
 const { normalizeShippingAddress } = require('./shipping-address-helpers.cjs');
 
+// Module-scoped cache: auto-migrations only need to run once per cold start.
+// Running ~50 ALTER TABLE statements on every request was risking the
+// 10-second Netlify Functions timeout, returning 5xx errors to admin pages.
+let _migrationsRan = false;
+
 exports.handler = async (event, context) => {
   const headers = {
     'Access-Control-Allow-Origin': '*',
@@ -90,8 +95,10 @@ exports.handler = async (event, context) => {
       `yard_sign_signs_subtotal_cents INTEGER DEFAULT 0`,
       `yard_sign_stakes_subtotal_cents INTEGER DEFAULT 0`,
     ];
-    for (const col of orderItemColumns) {
-      await ensureColumn('order_items', col);
+    if (!_migrationsRan) {
+      for (const col of orderItemColumns) {
+        await ensureColumn('order_items', col);
+      }
     }
 
     // AUTO-MIGRATE: Ensure shipping columns exist on orders table
@@ -113,8 +120,11 @@ exports.handler = async (event, context) => {
       `order_timestamp_et TEXT`,
       `same_day_qualified BOOLEAN DEFAULT FALSE`,
     ];
-    for (const col of orderColumns) {
-      await ensureColumn('orders', col);
+    if (!_migrationsRan) {
+      for (const col of orderColumns) {
+        await ensureColumn('orders', col);
+      }
+      _migrationsRan = true;
     }
 
     // Parse query parameters
@@ -130,14 +140,22 @@ exports.handler = async (event, context) => {
 
     // BULLETPROOF SELECT: introspect existing columns up front so a missing
     // column (e.g. silent migration failure) never 500s the endpoint.
+    // Use 'orders'::regclass / 'order_items'::regclass (resolved via
+    // search_path) so this works regardless of the connection's current_schema().
     let existingOrderCols = new Set();
     let existingItemCols = new Set();
     try {
       const [oCols, iCols] = await Promise.all([
-        sql(`SELECT column_name FROM information_schema.columns
-              WHERE table_schema = current_schema() AND table_name = 'orders'`),
-        sql(`SELECT column_name FROM information_schema.columns
-              WHERE table_schema = current_schema() AND table_name = 'order_items'`),
+        sql(`SELECT a.attname AS column_name
+               FROM pg_attribute a
+              WHERE a.attrelid = 'orders'::regclass
+                AND a.attnum > 0
+                AND NOT a.attisdropped`),
+        sql(`SELECT a.attname AS column_name
+               FROM pg_attribute a
+              WHERE a.attrelid = 'order_items'::regclass
+                AND a.attnum > 0
+                AND NOT a.attisdropped`),
       ]);
       existingOrderCols = new Set(oCols.map(r => r.column_name));
       existingItemCols = new Set(iCols.map(r => r.column_name));
