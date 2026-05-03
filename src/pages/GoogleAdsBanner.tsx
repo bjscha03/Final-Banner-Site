@@ -290,19 +290,19 @@ const GoogleAdsBanner: React.FC = () => {
 
   // Keep the inches-mode raw input strings in sync with widthIn/heightIn when
   // those change from outside the inches inputs (presets, feet-mode editing,
-  // cart restore). See Design.tsx for the same pattern.
+  // cart restore). Effect dep is [widthIn]/[heightIn], so this never fires
+  // while the user is only typing into the inches input — typing-in-progress
+  // (including empty/partial values) is preserved until blur.
   useEffect(() => {
     const n = parseInt(widthCustomInStr, 10);
-    if (!Number.isFinite(n) || n !== widthIn) {
-      setWidthCustomInStr(String(widthIn));
-    }
+    if (Number.isFinite(n) && n === widthIn) return;
+    setWidthCustomInStr(String(widthIn));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [widthIn]);
   useEffect(() => {
     const n = parseInt(heightCustomInStr, 10);
-    if (!Number.isFinite(n) || n !== heightIn) {
-      setHeightCustomInStr(String(heightIn));
-    }
+    if (Number.isFinite(n) && n === heightIn) return;
+    setHeightCustomInStr(String(heightIn));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [heightIn]);
 

@@ -38,10 +38,13 @@ export function SizeStepper({
   );
 
   useEffect(() => {
+    // Sync internal string buffer when the value prop changes from outside
+    // (e.g. preset click, +/- buttons, store update). Effect dep is [value],
+    // so it does NOT fire while the user is only typing — in-progress edits
+    // (including empty/partial values) are preserved until blur.
     const parsed = parseInt(inputStr, 10);
-    if (parsed !== value) {
-      setInputStr(Number.isFinite(value) && value > 0 ? String(value) : '');
-    }
+    if (Number.isFinite(parsed) && parsed === value) return;
+    setInputStr(Number.isFinite(value) && value > 0 ? String(value) : '');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
