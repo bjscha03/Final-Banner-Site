@@ -1196,16 +1196,15 @@ const GoogleAdsBanner: React.FC = () => {
     };
     setPendingCheckoutData({ pos: posPercent, scale: imgScale, scaleY: imgScaleY });
 
-    // Skip upsell if all options are already selected
-    const hasFinishing = grommets !== 'none' || polePockets !== 'none';
-    const hasRope = addRope;
-    if (hasFinishing && hasRope) {
+    // Skip upsell when the user has already chosen a finishing option
+    // (Grommets, Pole Pockets, or Rope). Otherwise prompt with the upsell.
+    if (finishingType !== 'none') {
       performCheckout([], { pos: posPercent, scale: imgScale, scaleY: imgScaleY });
     } else {
       setPendingActionType('checkout');
       setShowUpsellModal(true);
     }
-  }, [uploadedFile, imgPos, imgScale, imgScaleY, grommets, polePockets, addRope, performCheckout, isYardSign, isCarMagnet, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid]);
+  }, [uploadedFile, imgPos, imgScale, imgScaleY, finishingType, performCheckout, isYardSign, isCarMagnet, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid]);
 
   const handleAddToCart = useCallback(() => {
     if (isYardSign) {
@@ -1237,9 +1236,15 @@ const GoogleAdsBanner: React.FC = () => {
       y: (imgPos.y / containerHeight) * 100,
     };
     setPendingCheckoutData({ pos: posPercent, scale: imgScale, scaleY: imgScaleY });
-    setPendingActionType('cart');
-    setShowUpsellModal(true);
-  }, [uploadedFile, imgPos, imgScale, imgScaleY, performCheckout, isYardSign, isCarMagnet, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid]);
+    // Skip upsell when the user has already chosen a finishing option
+    // (Grommets, Pole Pockets, or Rope). Otherwise prompt with the upsell.
+    if (finishingType !== 'none') {
+      performCheckout([], { pos: posPercent, scale: imgScale, scaleY: imgScaleY }, 'cart');
+    } else {
+      setPendingActionType('cart');
+      setShowUpsellModal(true);
+    }
+  }, [uploadedFile, imgPos, imgScale, imgScaleY, finishingType, performCheckout, isYardSign, isCarMagnet, yardSignDesigns, yardSignTotalQty, yardSignQuantityValid]);
 
 
 // Trigger upsell modal after confirming position
@@ -1267,17 +1272,16 @@ const GoogleAdsBanner: React.FC = () => {
       return;
     }
 
-    // Skip upsell if all options are already selected
-    const hasFinishing = grommets !== 'none' || polePockets !== 'none';
-    const hasRope = addRope;
-    if (hasFinishing && hasRope) {
+    // Skip upsell when the user has already chosen a finishing option
+    // (Grommets, Pole Pockets, or Rope). Otherwise prompt with the upsell.
+    if (finishingType !== 'none') {
       // Go directly to checkout with current options, passing data directly
       performCheckout([], { pos: posPercent, scale, scaleY: sY });
     } else {
       setPendingActionType('checkout');
       setShowUpsellModal(true);
     }
-  }, [uploadedFile, grommets, polePockets, addRope, performCheckout, isYardSign, isCarMagnet]);
+  }, [uploadedFile, finishingType, performCheckout, isYardSign, isCarMagnet]);
 
   // Handle upsell modal continue
   const handleUpsellContinue = useCallback((selectedOptions: UpsellOption[], dontAskAgain: boolean) => {

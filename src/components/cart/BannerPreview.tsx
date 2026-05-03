@@ -78,11 +78,15 @@ function calculateGrommetPoints(w: number, h: number, mode: Grommets): Point[] {
   if (mode === 'top-corners') {
     return [corners[0], corners[1]];
   }
-  
+
+  if (mode === 'bottom-corners') {
+    return [corners[2], corners[3]];
+  }
+
   if (mode === 'left-corners') {
     return [corners[0], corners[2]];
   }
-  
+
   if (mode === 'right-corners') {
     return [corners[1], corners[3]];
   }
