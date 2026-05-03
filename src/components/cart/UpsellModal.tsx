@@ -150,24 +150,19 @@ const UpsellModal: React.FC<UpsellModalProps> = ({
     quote.quantity,
   ]);
 
-  // Handle option toggle with mutual exclusivity
+  // Handle option toggle with single-selection enforcement (radio-like).
+  // Only ONE finishing option (Grommets, Pole Pockets, or Rope) may be
+  // selected at a time. Clicking the already-selected option deselects it,
+  // returning to "no finishing option".
   const toggleOption = (optionId: string) => {
-    setSelectedOptions(prev => 
+    setSelectedOptions(prev =>
       prev.map(option => {
         if (option.id === optionId) {
           // Toggle the clicked option
           return { ...option, selected: !option.selected };
         }
-        
-        // MUTUAL EXCLUSIVITY: If selecting grommets, deselect pole pockets (and vice versa)
-        if (optionId === 'grommets' && option.id === 'polePockets') {
-          return { ...option, selected: false };
-        }
-        if (optionId === 'polePockets' && option.id === 'grommets') {
-          return { ...option, selected: false };
-        }
-        
-        return option;
+        // Any other option must be deselected when something is picked.
+        return { ...option, selected: false };
       })
     );
   };

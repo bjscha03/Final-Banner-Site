@@ -88,7 +88,20 @@ const FinishingOptionsCard: React.FC<FinishingOptionsCardProps> = ({
     }
   }, [grommets]);
 
+  // Reset all finishing-related option details so pricing/preview clear out.
+  const clearFinishing = () => {
+    setFinishingType('none');
+    setGrommets('none');
+    setPolePockets('none');
+    setAddRope(false);
+  };
+
   const selectGrommets = () => {
+    // Toggle off if already selected
+    if (finishingType === 'grommets') {
+      clearFinishing();
+      return;
+    }
     setFinishingType('grommets');
     setPolePockets('none');
     setAddRope(false);
@@ -100,6 +113,10 @@ const FinishingOptionsCard: React.FC<FinishingOptionsCardProps> = ({
   };
 
   const selectPolePockets = () => {
+    if (finishingType === 'pole_pockets') {
+      clearFinishing();
+      return;
+    }
     setFinishingType('pole_pockets');
     setGrommets('none');
     setAddRope(false);
@@ -108,6 +125,10 @@ const FinishingOptionsCard: React.FC<FinishingOptionsCardProps> = ({
   };
 
   const selectRope = () => {
+    if (finishingType === 'rope') {
+      clearFinishing();
+      return;
+    }
     setFinishingType('rope');
     setGrommets('none');
     setPolePockets('none');
