@@ -3,7 +3,7 @@ import { calculateQuantityDiscount } from './quantity-discount';
 import { getProductConfig, DEFAULT_PRODUCT_TYPE } from './products';
 
 export type PolePocketPosition = 'none' | 'top' | 'bottom' | 'left' | 'right' | 'top-bottom';
-export type RopePlacement = 'top' | 'bottom' | 'top-bottom' | 'all';
+export type RopePlacement = 'top' | 'bottom' | 'top-bottom';
 
 export interface BannerPricingInput {
   widthIn: number;
@@ -77,8 +77,6 @@ export const getRopeLinearFeet = (widthIn: number, heightIn = 0, placement: Rope
       return widthIn / 12;
     case 'top-bottom':
       return (widthIn / 12) * 2;
-    case 'all':
-      return (widthIn * 2 + heightIn * 2) / 12;
     default:
       return widthIn / 12;
   }

@@ -53,7 +53,7 @@ import { base64ToFile } from '@/utils/base64ToFile';
 import { computeSameDayFeesCents } from '@/lib/sameDayService';
 import ConfigCard from '@/components/design/layout/ConfigCard';
 import TrustStrip from '@/components/design/layout/TrustStrip';
-import FinishingOptionsCard from '@/components/design/FinishingOptionsCard';
+import FinishingOptionsCard, { type FinishingType } from '@/components/design/FinishingOptionsCard';
 
 const PRESET_SIZES = [
   { w: 48, h: 24 },
@@ -299,6 +299,7 @@ const Design: React.FC = () => {
       setGrommets('none');
       setPolePockets('none');
       setAddRope(false);
+      setFinishingType('none');
     }
   }, [productType, getProductQuerySlug, location.pathname, navigate]);
 
@@ -382,6 +383,16 @@ const Design: React.FC = () => {
       if (item.grommets) setGrommets(item.grommets);
       if (item.pole_pockets) setPolePockets(item.pole_pockets);
       setAddRope(!!item.rope_feet);
+      // Restore finishingType from cart item so the correct card appears selected
+      if (item.grommets && item.grommets !== 'none') {
+        setFinishingType('grommets');
+      } else if (item.pole_pockets && item.pole_pockets !== 'none') {
+        setFinishingType('pole_pockets');
+      } else if (item.rope_feet) {
+        setFinishingType('rope');
+      } else {
+        setFinishingType('none');
+      }
       setQuantity(item.quantity || 1);
 
       // Auto-open preview modal so user can adjust
@@ -424,6 +435,7 @@ const Design: React.FC = () => {
     () => (localStorage.getItem('banner-unit-pref') as 'in' | 'ft' | null) ?? 'ft'
   );
   const [addRope, setAddRope] = useState(false);
+  const [finishingType, setFinishingType] = useState<FinishingType>('none');
   const [ropePlacement, setRopePlacement] = useState<RopePlacement>('top');
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<{name: string; url: string; fileKey: string; size: number; isPdf: boolean; thumbnailUrl?: string} | null>(null);
@@ -1896,6 +1908,8 @@ const Design: React.FC = () => {
                     </div>
                   ) : (
                     <FinishingOptionsCard
+                      finishingType={finishingType}
+                      setFinishingType={setFinishingType}
                       grommets={grommets}
                       setGrommets={setGrommets}
                       polePockets={polePockets}

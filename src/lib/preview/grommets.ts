@@ -18,6 +18,7 @@ export function grommetPoints(w: number, h: number, mode: GrommetMode): Pt[] {
 
   if (mode === '4-corners') return c;
   if (mode === 'top-corners') return [c[0], c[1]];
+  if (mode === 'bottom-corners') return [c[2], c[3]];
   if (mode === 'right-corners') return [c[1], c[3]];
   if (mode === 'left-corners') return [c[0], c[2]];
 
