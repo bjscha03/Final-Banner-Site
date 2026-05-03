@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Minus, Plus, Ruler } from 'lucide-react';
 import { useQuoteStore } from '@/store/quote';
 import { formatArea, formatDimensions, inchesToSqFt } from '@/lib/pricing';
@@ -10,56 +10,49 @@ import {
   formatDimensionInUnit,
 } from '@/lib/dimensions/units';
 
-// Trim trailing zeros so e.g. 4 ft displays as "4", 2.5 displays as "2.5".
-const formatForInput = (n: number): string => {
-  if (!Number.isFinite(n)) return '';
-  return Number(n.toFixed(2)).toString();
-};
-
-// Convert a value from one unit to another (used when toggling units).
-const convertValue = (value: number, from: DimensionUnit, to: DimensionUnit): number => {
-  if (!Number.isFinite(value)) return 0;
-  if (from === to) return value;
-  return from === 'ft' ? feetToInches(value) : inchesToFeet(value);
-};
-
 const SizeCard: React.FC = () => {
   const { widthIn, heightIn, set } = useQuoteStore();
-
-  // The active working unit is the primary state. Default = feet so users
-  // see and edit "4 × 2" out of the box; inches remain selectable.
-  const [unit, setUnit] = useState<DimensionUnit>('ft');
-
-  // The displayed input strings ARE the primary working values, in the
-  // currently active unit. Initialize them in feet (matching the default
-  // unit) so first paint never flashes inch values. Use a function
-  // initializer so the conversion only happens once on mount.
-  const [widthStr, setWidthStr] = useState<string>(() =>
-    formatForInput(inchesToFeet(widthIn))
+  // Initialize the displayed input strings in feet to match the default
+  // unit below. The useEffect that mirrors store -> input keeps them in
+  // sync if the store value or unit changes.
+  const [widthInput, setWidthInput] = useState(() =>
+    Number(inchesToFeet(widthIn).toFixed(2)).toString()
   );
-  const [heightStr, setHeightStr] = useState<string>(() =>
-    formatForInput(inchesToFeet(heightIn))
+  const [heightInput, setHeightInput] = useState(() =>
+    Number(inchesToFeet(heightIn).toFixed(2)).toString()
   );
   const [widthError, setWidthError] = useState('');
   const [heightError, setHeightError] = useState('');
+  // UI-only unit toggle. Internal store always uses inches so pricing,
+  // cart, and print pipelines see no change. Default to feet for the
+  // friendlier "4 ft × 2 ft" presentation; inches remain selectable.
+  const [unit, setUnit] = useState<DimensionUnit>('ft');
 
-  // Track the inch values this component last pushed to the store so we
-  // can distinguish our own writes from external updates (cart restore,
-  // reset, etc.). When we see an external change, we re-derive the
-  // displayed values in the active unit.
-  const lastPushedRef = useRef<{ widthIn: number; heightIn: number }>({
-    widthIn,
-    heightIn,
-  });
+  // Trim trailing zeros so 4 ft displays as "4" not "4.000"
+  const formatForInput = (n: number): string => {
+    if (!Number.isFinite(n)) return '';
+    return Number(n.toFixed(2)).toString();
+  };
 
-  // Pipeline-boundary write: convert the displayed (active-unit) values
-  // to inches and push to the store. Debounced so typing doesn't thrash
-  // pricing recalculations. The store is the only place that holds
-  // inches; cart/checkout/admin/preview/print all read from there.
+
+  // Update local state when store values change OR when the displayed unit changes.
+  // Local input strings always reflect the value in the *currently displayed* unit;
+  // the store always holds inches.
+  useEffect(() => {
+    if (unit === 'ft') {
+      setWidthInput(formatForInput(inchesToFeet(widthIn)));
+      setHeightInput(formatForInput(inchesToFeet(heightIn)));
+    } else {
+      setWidthInput(widthIn.toString());
+      setHeightInput(heightIn.toString());
+    }
+  }, [widthIn, heightIn, unit]);
+
+  // Debounced update to store. Always stores inches, regardless of unit.
   useEffect(() => {
     const timer = setTimeout(() => {
-      const enteredW = parseFloat(widthStr);
-      const enteredH = parseFloat(heightStr);
+      const enteredW = parseFloat(widthInput);
+      const enteredH = parseFloat(heightInput);
       if (!Number.isFinite(enteredW) || !Number.isFinite(enteredH)) return;
       const widthInches = unit === 'ft' ? feetToInches(enteredW) : enteredW;
       const heightInches = unit === 'ft' ? feetToInches(enteredH) : enteredH;
@@ -67,55 +60,12 @@ const SizeCard: React.FC = () => {
         widthInches >= 1 && widthInches <= 1000 &&
         heightInches >= 1 && heightInches <= 1000
       ) {
-        lastPushedRef.current = { widthIn: widthInches, heightIn: heightInches };
         set({ widthIn: widthInches, heightIn: heightInches });
       }
     }, 150);
 
     return () => clearTimeout(timer);
-  }, [widthStr, heightStr, unit, set]);
-
-  // External-change sync: if the store's inch values change to something
-  // we did NOT write (e.g. reset, cart-restore), re-derive the displayed
-  // values in the active unit. Tolerate sub-pixel float drift from
-  // ft<->in round-trips. Does NOT depend on `unit`, so toggling the unit
-  // never re-reads from the store and the active-unit value is the
-  // source of truth between writes.
-  useEffect(() => {
-    const last = lastPushedRef.current;
-    const drift =
-      Math.abs(last.widthIn - widthIn) + Math.abs(last.heightIn - heightIn);
-    if (drift < 0.01) return; // our own write — already in sync
-    lastPushedRef.current = { widthIn, heightIn };
-    if (unit === 'ft') {
-      setWidthStr(formatForInput(inchesToFeet(widthIn)));
-      setHeightStr(formatForInput(inchesToFeet(heightIn)));
-    } else {
-      setWidthStr(formatForInput(widthIn));
-      setHeightStr(formatForInput(heightIn));
-    }
-    // `unit` intentionally excluded from deps: unit toggles must NOT
-    // trigger a store re-read; toggleUnit converts the active-unit
-    // values directly to preserve user input across toggles.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [widthIn, heightIn]);
-
-  // Toggle the active unit. Converts the *current displayed values*
-  // directly (not via the store) so the same physical size is preserved
-  // and any in-progress edits are kept. Empty / NaN inputs are coerced
-  // to a sensible minimum to avoid clearing the field.
-  const handleUnitChange = (next: DimensionUnit) => {
-    if (next === unit) return;
-    const w = parseFloat(widthStr);
-    const h = parseFloat(heightStr);
-    const wConv = Number.isFinite(w) ? convertValue(w, unit, next) : (next === 'ft' ? 4 : 48);
-    const hConv = Number.isFinite(h) ? convertValue(h, unit, next) : (next === 'ft' ? 2 : 24);
-    setUnit(next);
-    setWidthStr(formatForInput(wConv));
-    setHeightStr(formatForInput(hConv));
-    setWidthError('');
-    setHeightError('');
-  };
+  }, [widthInput, heightInput, unit, set]);
 
   // Bounds in the currently displayed unit. Both units share a 1 lower
   // bound (1 in / 1 ft) since 1 in is the inch-side minimum and 1 ft is
@@ -125,7 +75,7 @@ const SizeCard: React.FC = () => {
   const unitLabel = unit === 'ft' ? 'ft' : 'inches';
 
   const validateAndSetWidth = (value: string) => {
-    setWidthStr(value);
+    setWidthInput(value);
     const num = parseFloat(value);
     if (isNaN(num) || num < minDisplay || num > maxDisplay) {
       setWidthError(`Width must be between ${minDisplay} and ${maxDisplay} ${unitLabel}`);
@@ -135,7 +85,7 @@ const SizeCard: React.FC = () => {
   };
 
   const validateAndSetHeight = (value: string) => {
-    setHeightStr(value);
+    setHeightInput(value);
     const num = parseFloat(value);
     if (isNaN(num) || num < minDisplay || num > maxDisplay) {
       setHeightError(`Height must be between ${minDisplay} and ${maxDisplay} ${unitLabel}`);
@@ -145,59 +95,60 @@ const SizeCard: React.FC = () => {
   };
 
   const adjustWidth = (delta: number) => {
-    // delta is in displayed (active) units (1 in or 1 ft)
-    const current = parseFloat(widthStr);
-    const base = Number.isFinite(current)
-      ? current
-      : (unit === 'ft' ? inchesToFeet(widthIn) : widthIn);
-    const next = Math.max(minDisplay, Math.min(maxDisplay, base + delta));
-    setWidthStr(formatForInput(next));
-    setWidthError('');
+    // delta is in displayed units (1 in or 1 ft)
+    const currentDisplay = unit === 'ft' ? inchesToFeet(widthIn) : widthIn;
+    const nextDisplay = Math.max(minDisplay, Math.min(maxDisplay, currentDisplay + delta));
+    const nextInches = unit === 'ft' ? feetToInches(nextDisplay) : nextDisplay;
+    const clamped = Math.max(1, Math.min(1000, nextInches));
+    setWidthInput(formatForInput(nextDisplay));
+    set({ widthIn: clamped });
   };
 
   const adjustHeight = (delta: number) => {
-    const current = parseFloat(heightStr);
-    const base = Number.isFinite(current)
-      ? current
-      : (unit === 'ft' ? inchesToFeet(heightIn) : heightIn);
-    const next = Math.max(minDisplay, Math.min(maxDisplay, base + delta));
-    setHeightStr(formatForInput(next));
-    setHeightError('');
+    const currentDisplay = unit === 'ft' ? inchesToFeet(heightIn) : heightIn;
+    const nextDisplay = Math.max(minDisplay, Math.min(maxDisplay, currentDisplay + delta));
+    const nextInches = unit === 'ft' ? feetToInches(nextDisplay) : nextDisplay;
+    const clamped = Math.max(1, Math.min(1000, nextInches));
+    setHeightInput(formatForInput(nextDisplay));
+    set({ heightIn: clamped });
   };
 
   const handleWidthBlur = () => {
-    const num = parseFloat(widthStr);
-    if (!Number.isFinite(num) || num < minDisplay) {
-      setWidthStr(String(minDisplay));
-      setWidthError('');
+    const num = parseFloat(widthInput);
+    if (isNaN(num) || num < minDisplay) {
+      setWidthInput(String(minDisplay));
+      const inches = unit === 'ft' ? feetToInches(minDisplay) : minDisplay;
+      set({ widthIn: inches });
     } else if (num > maxDisplay) {
-      setWidthStr(String(maxDisplay));
-      setWidthError('');
+      setWidthInput(String(maxDisplay));
+      const inches = unit === 'ft' ? feetToInches(maxDisplay) : maxDisplay;
+      set({ widthIn: inches });
     }
   };
 
   const handleHeightBlur = () => {
-    const num = parseFloat(heightStr);
-    if (!Number.isFinite(num) || num < minDisplay) {
-      setHeightStr(String(minDisplay));
-      setHeightError('');
+    const num = parseFloat(heightInput);
+    if (isNaN(num) || num < minDisplay) {
+      setHeightInput(String(minDisplay));
+      const inches = unit === 'ft' ? feetToInches(minDisplay) : minDisplay;
+      set({ heightIn: inches });
     } else if (num > maxDisplay) {
-      setHeightStr(String(maxDisplay));
-      setHeightError('');
+      setHeightInput(String(maxDisplay));
+      const inches = unit === 'ft' ? feetToInches(maxDisplay) : maxDisplay;
+      set({ heightIn: inches });
     }
   };
 
   const handleReset = () => {
     setWidthError('');
     setHeightError('');
-    // Reset the displayed (active-unit) values directly. The debounced
-    // boundary effect will push the equivalent inches to the store.
+    set({ widthIn: 48, heightIn: 24 });
     if (unit === 'ft') {
-      setWidthStr('4');
-      setHeightStr('2');
+      setWidthInput('4');
+      setHeightInput('2');
     } else {
-      setWidthStr('48');
-      setHeightStr('24');
+      setWidthInput('48');
+      setHeightInput('24');
     }
   };
 
@@ -223,7 +174,7 @@ const SizeCard: React.FC = () => {
         >
           <button
             type="button"
-            onClick={() => handleUnitChange('in')}
+            onClick={() => setUnit('in')}
             aria-pressed={unit === 'in'}
             className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
               unit === 'in' ? 'bg-orange-500 text-white shadow-sm' : 'text-slate-700 hover:bg-slate-50'
@@ -233,7 +184,7 @@ const SizeCard: React.FC = () => {
           </button>
           <button
             type="button"
-            onClick={() => handleUnitChange('ft')}
+            onClick={() => setUnit('ft')}
             aria-pressed={unit === 'ft'}
             className={`px-3 py-1 text-xs font-semibold rounded-md transition-colors ${
               unit === 'ft' ? 'bg-orange-500 text-white shadow-sm' : 'text-slate-700 hover:bg-slate-50'
@@ -259,7 +210,7 @@ const SizeCard: React.FC = () => {
             </button>
             <Input
               type="number"
-              value={widthStr}
+              value={widthInput}
               onChange={(e) => validateAndSetWidth(e.target.value)}
               onBlur={handleWidthBlur}
               className="flex-1 min-w-[5rem] text-center bg-white border border-slate-300 rounded-md px-4 py-2 text-base font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
@@ -294,7 +245,7 @@ const SizeCard: React.FC = () => {
             </button>
             <Input
               type="number"
-              value={heightStr}
+              value={heightInput}
               onChange={(e) => validateAndSetHeight(e.target.value)}
               onBlur={handleHeightBlur}
               className="flex-1 min-w-[5rem] text-center bg-white border border-slate-300 rounded-md px-4 py-2 text-base font-medium text-slate-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-colors"
