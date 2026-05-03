@@ -64,76 +64,99 @@ exports.handler = async (event, context) => {
     }
 
     // AUTO-MIGRATE: Ensure all columns referenced by the query exist.
-    // These columns may be missing if certain migration scripts were never run.
-    try {
-      await sql`
-        ALTER TABLE order_items
-        ADD COLUMN IF NOT EXISTS image_scale NUMERIC DEFAULT 1,
-        ADD COLUMN IF NOT EXISTS image_position JSONB DEFAULT '{"x": 0, "y": 0}'::jsonb,
-        ADD COLUMN IF NOT EXISTS thumbnail_url TEXT,
-        ADD COLUMN IF NOT EXISTS overlay_image JSONB,
-        ADD COLUMN IF NOT EXISTS overlay_images JSONB,
-        ADD COLUMN IF NOT EXISTS canvas_background_color VARCHAR(20) DEFAULT '#FFFFFF',
-        ADD COLUMN IF NOT EXISTS file_key VARCHAR(255),
-        ADD COLUMN IF NOT EXISTS file_url TEXT,
-        ADD COLUMN IF NOT EXISTS print_ready_url TEXT,
-        ADD COLUMN IF NOT EXISTS web_preview_url TEXT,
-        ADD COLUMN IF NOT EXISTS text_elements JSONB DEFAULT '[]'::jsonb,
-        ADD COLUMN IF NOT EXISTS pole_pocket_position TEXT,
-        ADD COLUMN IF NOT EXISTS rope_placement TEXT,
-        ADD COLUMN IF NOT EXISTS pole_pocket_size TEXT,
-        ADD COLUMN IF NOT EXISTS pole_pocket_cost_cents INTEGER DEFAULT 0,
-        ADD COLUMN IF NOT EXISTS rounded_corners TEXT,
-        ADD COLUMN IF NOT EXISTS final_render_url TEXT,
-        ADD COLUMN IF NOT EXISTS final_render_file_key TEXT,
-        ADD COLUMN IF NOT EXISTS final_render_width_px INTEGER,
-        ADD COLUMN IF NOT EXISTS final_render_height_px INTEGER,
-        ADD COLUMN IF NOT EXISTS final_render_dpi INTEGER,
-        ADD COLUMN IF NOT EXISTS canvas_state_json TEXT,
-        ADD COLUMN IF NOT EXISTS design_service_enabled BOOLEAN DEFAULT FALSE,
-        ADD COLUMN IF NOT EXISTS design_request_text TEXT,
-        ADD COLUMN IF NOT EXISTS design_draft_preference VARCHAR(10),
-        ADD COLUMN IF NOT EXISTS design_draft_contact VARCHAR(255),
-        ADD COLUMN IF NOT EXISTS design_uploaded_assets JSONB DEFAULT '[]'::jsonb,
-        ADD COLUMN IF NOT EXISTS final_print_pdf_url TEXT,
-        ADD COLUMN IF NOT EXISTS final_print_pdf_file_key TEXT,
-        ADD COLUMN IF NOT EXISTS final_print_pdf_uploaded_at TIMESTAMP WITH TIME ZONE,
-        ADD COLUMN IF NOT EXISTS generated_print_pdf_url TEXT,
-        ADD COLUMN IF NOT EXISTS generated_print_pdf_uploaded_at TIMESTAMP WITH TIME ZONE,
-        ADD COLUMN IF NOT EXISTS product_type TEXT DEFAULT 'banner'
-      `;
-      console.log('[get-orders] Auto-migration: order_items columns verified');
-    } catch (migErr) {
-      console.warn('[get-orders] Auto-migration warning (non-fatal):', migErr.message);
+    // Each ALTER runs independently so a single failure does not roll back the rest
+    // (PostgreSQL ALTER TABLE with multiple ADD COLUMN clauses is atomic).
+    const ensureColumn = async (table, columnDef) => {
+      try {
+        // Plain-string call form: `sql(query, params)`. We never interpolate
+        // user input here — `table` and `columnDef` are hard-coded literals.
+        await sql(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS ${columnDef}`);
+      } catch (migErr) {
+        console.warn(`[get-orders] Auto-migration ${table}.${columnDef} (non-fatal):`, migErr.message);
+      }
+    };
+
+    const orderItemColumns = [
+      `image_scale NUMERIC DEFAULT 1`,
+      `image_position JSONB DEFAULT '{"x": 0, "y": 0}'::jsonb`,
+      `thumbnail_url TEXT`,
+      `overlay_image JSONB`,
+      `overlay_images JSONB`,
+      `canvas_background_color VARCHAR(20) DEFAULT '#FFFFFF'`,
+      `file_key VARCHAR(255)`,
+      `file_url TEXT`,
+      `print_ready_url TEXT`,
+      `web_preview_url TEXT`,
+      `text_elements JSONB DEFAULT '[]'::jsonb`,
+      `pole_pocket_position TEXT`,
+      `rope_placement TEXT`,
+      `pole_pocket_size TEXT`,
+      `pole_pocket_cost_cents INTEGER DEFAULT 0`,
+      `rounded_corners TEXT`,
+      `final_render_url TEXT`,
+      `final_render_file_key TEXT`,
+      `final_render_width_px INTEGER`,
+      `final_render_height_px INTEGER`,
+      `final_render_dpi INTEGER`,
+      `canvas_state_json TEXT`,
+      `design_service_enabled BOOLEAN DEFAULT FALSE`,
+      `design_request_text TEXT`,
+      `design_draft_preference VARCHAR(10)`,
+      `design_draft_contact VARCHAR(255)`,
+      `design_uploaded_assets JSONB DEFAULT '[]'::jsonb`,
+      `final_print_pdf_url TEXT`,
+      `final_print_pdf_file_key TEXT`,
+      `final_print_pdf_uploaded_at TIMESTAMP WITH TIME ZONE`,
+      `generated_print_pdf_url TEXT`,
+      `generated_print_pdf_uploaded_at TIMESTAMP WITH TIME ZONE`,
+      `product_type TEXT DEFAULT 'banner'`,
+      // Yard sign columns (added by create-order.cjs but referenced unconditionally
+      // by get-orders SELECT; ensure they exist here too).
+      `yard_sign_sidedness TEXT`,
+      `yard_sign_step_stakes_enabled BOOLEAN DEFAULT false`,
+      `yard_sign_step_stakes_qty INTEGER DEFAULT 0`,
+      `yard_sign_design_count INTEGER DEFAULT 0`,
+      `yard_sign_designs JSONB`,
+      `yard_sign_signs_subtotal_cents INTEGER DEFAULT 0`,
+      `yard_sign_stakes_subtotal_cents INTEGER DEFAULT 0`,
+    ];
+    for (const col of orderItemColumns) {
+      await ensureColumn('order_items', col);
     }
+    console.log('[get-orders] Auto-migration: order_items columns verified');
 
     // AUTO-MIGRATE: Ensure orders table columns exist
-    try {
-      await sql`
-        ALTER TABLE orders
-        ADD COLUMN IF NOT EXISTS email VARCHAR(255),
-        ADD COLUMN IF NOT EXISTS customer_name TEXT,
-        ADD COLUMN IF NOT EXISTS customer_first_name TEXT,
-        ADD COLUMN IF NOT EXISTS tracking_number VARCHAR(255),
-        ADD COLUMN IF NOT EXISTS shipping_name TEXT,
-        ADD COLUMN IF NOT EXISTS shipping_street TEXT,
-        ADD COLUMN IF NOT EXISTS shipping_street2 TEXT,
-        ADD COLUMN IF NOT EXISTS shipping_city TEXT,
-        ADD COLUMN IF NOT EXISTS shipping_state TEXT,
-        ADD COLUMN IF NOT EXISTS shipping_zip TEXT,
-        ADD COLUMN IF NOT EXISTS shipping_country TEXT DEFAULT 'US',
-        ADD COLUMN IF NOT EXISTS applied_discount_cents INTEGER DEFAULT 0,
-        ADD COLUMN IF NOT EXISTS applied_discount_label TEXT DEFAULT '',
-        ADD COLUMN IF NOT EXISTS applied_discount_type TEXT DEFAULT 'none',
-        ADD COLUMN IF NOT EXISTS production_email_sent BOOLEAN DEFAULT FALSE,
-        ADD COLUMN IF NOT EXISTS production_email_sent_at TIMESTAMP WITH TIME ZONE,
-        ADD COLUMN IF NOT EXISTS shipping_notification_sent BOOLEAN DEFAULT FALSE,
-        ADD COLUMN IF NOT EXISTS shipping_notification_sent_at TIMESTAMP WITH TIME ZONE
-      `;
-      console.log('[get-orders] Auto-migration: orders columns verified');
-    } catch (migErr) {
-      console.warn('[get-orders] Auto-migration orders table warning (non-fatal):', migErr.message);
+    const orderColumns = [
+      `email VARCHAR(255)`,
+      `customer_name TEXT`,
+      `customer_first_name TEXT`,
+      `tracking_number VARCHAR(255)`,
+      `shipping_name TEXT`,
+      `shipping_street TEXT`,
+      `shipping_street2 TEXT`,
+      `shipping_city TEXT`,
+      `shipping_state TEXT`,
+      `shipping_zip TEXT`,
+      `shipping_country TEXT DEFAULT 'US'`,
+      `applied_discount_cents INTEGER DEFAULT 0`,
+      `applied_discount_label TEXT DEFAULT ''`,
+      `applied_discount_type TEXT DEFAULT 'none'`,
+      `production_email_sent BOOLEAN DEFAULT FALSE`,
+      `production_email_sent_at TIMESTAMP WITH TIME ZONE`,
+      `shipping_notification_sent BOOLEAN DEFAULT FALSE`,
+      `shipping_notification_sent_at TIMESTAMP WITH TIME ZONE`,
+      // Same-Day Hit Service columns (added by create-order.cjs).
+      `same_day_hit_service BOOLEAN DEFAULT FALSE`,
+      `saturday_delivery BOOLEAN DEFAULT FALSE`,
+      `same_day_fee_cents INTEGER DEFAULT 0`,
+      `saturday_fee_cents INTEGER DEFAULT 0`,
+      `order_timestamp_et TEXT`,
+      `same_day_qualified BOOLEAN DEFAULT FALSE`,
+    ];
+    for (const col of orderColumns) {
+      await ensureColumn('orders', col);
     }
+    console.log('[get-orders] Auto-migration: orders columns verified');
 
     const { user_id, page = 1 } = event.queryStringParameters || {};
     const limit = 20;
