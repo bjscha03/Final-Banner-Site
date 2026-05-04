@@ -38,66 +38,12 @@ const StripePaymentForm: React.FC<{
   onError: StripeCheckoutProps['onError'];
   disabled?: boolean;
   paymentIntentId: string;
-}> = ({ total, onSuccess, onError, disabled, paymentIntentId }) => {
+  orderId: string;
+}> = ({ total, onSuccess, onError, disabled, paymentIntentId, orderId }) => {
   const stripe = useStripe();
   const elements = useElements();
   const { toast } = useToast();
-  const { user } = useAuth();
-  const {
-    items,
-    discountCode,
-    sameDayHitService,
-    saturdayDelivery,
-  } = useCartStore();
   const [submitting, setSubmitting] = useState(false);
-
-  const buildItemsPayload = () =>
-    items.map((item) => ({
-      width_in: item.width_in,
-      height_in: item.height_in,
-      quantity: item.quantity,
-      material: item.material,
-      grommets: item.grommets,
-      pole_pockets: item.pole_pockets,
-      pole_pocket_position: item.pole_pocket_position,
-      rounded_corners: (item as any).rounded_corners,
-      pole_pocket_size: item.pole_pocket_size,
-      pole_pocket_cost_cents: item.pole_pocket_cost_cents,
-      rope_feet: item.rope_feet,
-      rope_placement: item.rope_placement,
-      rope_cost_cents: item.rope_cost_cents,
-      area_sqft: item.area_sqft,
-      unit_price_cents: item.unit_price_cents,
-      line_total_cents: item.line_total_cents,
-      file_key: item.file_key,
-      file_url: item.file_url,
-      text_elements: item.text_elements,
-      overlay_image: item.overlay_image,
-      overlay_images: item.overlay_images,
-      canvas_background_color: item.canvas_background_color,
-      image_scale: item.image_scale,
-      thumbnail_url: item.thumbnail_url,
-      image_position: item.image_position,
-      final_render_url: item.final_render_url,
-      final_render_file_key: item.final_render_file_key,
-      final_render_width_px: item.final_render_width_px,
-      final_render_height_px: item.final_render_height_px,
-      final_render_dpi: item.final_render_dpi,
-      canvas_state_json: item.canvas_state_json,
-      design_service_enabled: item.design_service_enabled,
-      design_request_text: item.design_request_text,
-      design_draft_preference: item.design_draft_preference,
-      design_draft_contact: item.design_draft_contact,
-      design_uploaded_assets: item.design_uploaded_assets,
-      product_type: item.product_type || 'banner',
-      yard_sign_sidedness: item.yard_sign_sidedness,
-      yard_sign_step_stakes_enabled: item.yard_sign_step_stakes_enabled,
-      yard_sign_step_stakes_qty: item.yard_sign_step_stakes_qty,
-      yard_sign_design_count: item.yard_sign_design_count,
-      yard_sign_designs: item.yard_sign_designs,
-      yard_sign_signs_subtotal_cents: item.yard_sign_signs_subtotal_cents,
-      yard_sign_stakes_subtotal_cents: item.yard_sign_stakes_subtotal_cents,
-    }));
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -105,6 +51,7 @@ const StripePaymentForm: React.FC<{
 
     setSubmitting(true);
     try {
+      console.log('[StripeCheckout] confirmPayment start', { orderId, paymentIntentId });
       // Confirm the payment in the browser. We don't redirect for normal
       // card / Apple Pay / Google Pay flows; only redirect-based methods
       // (e.g., bank redirects) need a return_url, hence redirect: 'if_required'.
@@ -112,12 +59,12 @@ const StripePaymentForm: React.FC<{
         elements,
         redirect: 'if_required',
         confirmParams: {
-          return_url: `${window.location.origin}/payment-success`,
+          return_url: `${window.location.origin}/payment-success?orderId=${encodeURIComponent(orderId)}`,
         },
       });
 
       if (error) {
-        console.error('Stripe confirmPayment error:', error);
+        console.error('[StripeCheckout] confirmPayment error:', error);
         toast({
           title: 'Payment Failed',
           description: error.message || 'Your card was not charged.',
@@ -129,7 +76,7 @@ const StripePaymentForm: React.FC<{
 
       if (!paymentIntent || paymentIntent.status !== 'succeeded') {
         const status = paymentIntent?.status || 'unknown';
-        console.warn('Stripe payment did not succeed; status =', status);
+        console.warn('[StripeCheckout] payment not succeeded; status =', status);
         toast({
           title: 'Payment Not Completed',
           description: `Payment status: ${status}. Please try again.`,
@@ -139,88 +86,76 @@ const StripePaymentForm: React.FC<{
         return;
       }
 
-      // Pull billing details from the PaymentMethod when available so we
-      // can pre-fill shipping/customer fields on the order.
+      console.log('[StripeCheckout] payment succeeded — finalizing order', {
+        orderId,
+        paymentIntentId: paymentIntent.id,
+      });
+
+      // Pull billing/shipping details from Stripe so we can update the
+      // (already-existing) pending order row with real address data.
       const billing = (paymentIntent as any)?.charges?.data?.[0]?.billing_details
         || null;
-      const shipping = (paymentIntent as any)?.shipping || null;
+      const stripeShipping = (paymentIntent as any)?.shipping || null;
+      const stripeAddress = stripeShipping?.address || billing?.address || null;
+      const shippingPayload = stripeAddress
+        ? {
+            name: stripeShipping?.name || billing?.name || null,
+            line1: stripeAddress.line1 || null,
+            line2: stripeAddress.line2 || null,
+            city: stripeAddress.city || null,
+            state: stripeAddress.state || null,
+            postal_code: stripeAddress.postal_code || null,
+            country: stripeAddress.country || null,
+          }
+        : null;
 
-      const customerName =
-        shipping?.name ||
-        billing?.name ||
-        user?.user_metadata?.full_name ||
-        user?.email ||
-        null;
-
-      const shippingAddress = shipping?.address || billing?.address || null;
-
-      const orderResponse = await fetch('/.netlify/functions/create-order', {
+      // Mark the EXISTING pending order paid via the dedicated finalize
+      // endpoint. We do NOT call create-order here — the order was
+      // already persisted before the PaymentIntent was created.
+      const finalizeResp = await fetch('/.netlify/functions/stripe-finalize-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          user_id: user?.id || null,
-          email: user?.email || billing?.email || `guest-${Date.now()}@bannersonthefly.com`,
-          subtotal_cents: total,
-          tax_cents: Math.round(total * 0.06),
-          total_cents: total,
-          currency: 'usd',
-          payment_method: 'stripe',
-          stripe_payment_intent_id: paymentIntent.id,
-          customer_name: customerName,
-          customer_first_name: customerName
-            ? String(customerName).trim().split(/\s+/)[0]
-            : null,
-          shipping_name: shipping?.name || billing?.name || null,
-          shipping_street: shippingAddress?.line1 || null,
-          shipping_street2: shippingAddress?.line2 || null,
-          shipping_city: shippingAddress?.city || null,
-          shipping_state: shippingAddress?.state || null,
-          shipping_zip: shippingAddress?.postal_code || null,
-          shipping_country: shippingAddress?.country || 'US',
-          shippingAddress: shippingAddress
-            ? {
-                name: shipping?.name || billing?.name || '',
-                line1: shippingAddress.line1 || '',
-                line2: shippingAddress.line2 || '',
-                city: shippingAddress.city || '',
-                state: shippingAddress.state || '',
-                postalCode: shippingAddress.postal_code || '',
-                country: shippingAddress.country || 'US',
-              }
-            : null,
-          items: buildItemsPayload(),
-          discountCode: discountCode
-            ? {
-                code: discountCode.code,
-                discountPercentage: discountCode.discountPercentage,
-                discountAmountCents: discountCode.discountAmountCents,
-              }
-            : null,
-          sameDayHitService: !!sameDayHitService,
-          saturdayDelivery: !!saturdayDelivery,
+          orderId,
+          paymentIntentId: paymentIntent.id,
+          shipping: shippingPayload,
+          billing,
         }),
       });
 
-      let orderResult: any = {};
-      if (orderResponse.ok) {
-        orderResult = await orderResponse.json().catch(() => ({}));
-      } else {
-        // Payment succeeded but order persistence failed. Don't lose the
-        // sale: surface the PaymentIntent id to the user via the success
-        // handler so support can reconcile.
-        console.error('Stripe payment succeeded but create-order failed:',
-          orderResponse.status);
+      let finalizeResult: any = {};
+      try { finalizeResult = await finalizeResp.json(); } catch (_e) { /* ignore */ }
+
+      if (!finalizeResp.ok || !finalizeResult.ok) {
+        // Payment succeeded with Stripe — and the pending order ALREADY
+        // exists in our database (it was created before the
+        // PaymentIntent). The webhook will retry the finalize on the
+        // server side, so the order WILL be marked paid eventually.
+        // Surface the real orderId so the success page can show
+        // something useful.
+        console.error('[StripeCheckout] finalize failed (webhook will retry):', finalizeResult);
+        toast({
+          title: 'Payment received',
+          description: 'Your payment is being finalized. Order #' + orderId,
+        });
+        onSuccess(orderId, undefined);
+        return;
       }
+
+      console.log('[StripeCheckout] order finalized', {
+        orderId: finalizeResult.orderId,
+        alreadyPaid: !!finalizeResult.alreadyPaid,
+        emailSent: !!finalizeResult.emailSent,
+      });
 
       toast({
         title: 'Payment Successful!',
         description: `Payment of $${(total / 100).toFixed(2)} has been processed.`,
       });
 
-      const orderId = orderResult?.orderId || paymentIntent.id;
-      onSuccess(orderId, orderResult?.order);
+      onSuccess(finalizeResult.orderId || orderId, undefined);
     } catch (err: any) {
-      console.error('Stripe payment exception:', err);
+      console.error('[StripeCheckout] payment exception:', err);
       toast({
         title: 'Payment Error',
         description: err?.message || 'Unexpected error processing payment.',
@@ -280,6 +215,7 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({
   } = useCartStore();
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [paymentIntentId, setPaymentIntentId] = useState<string | null>(null);
+  const [orderId, setOrderId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -295,19 +231,66 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({
     let cancelled = false;
     setLoading(true);
     setLoadError(null);
+    setClientSecret(null);
+    setPaymentIntentId(null);
+    setOrderId(null);
+
+    // Send the FULL item shape that create-order expects so the pending
+    // order's order_items rows are populated correctly. The server-side
+    // function persists a pending order BEFORE creating the
+    // PaymentIntent, so we must give it everything it needs to insert.
+    const fullItems = items.map((item) => ({
+      width_in: item.width_in,
+      height_in: item.height_in,
+      quantity: item.quantity,
+      material: item.material,
+      grommets: item.grommets,
+      pole_pockets: item.pole_pockets,
+      pole_pocket_position: item.pole_pocket_position,
+      rounded_corners: (item as any).rounded_corners,
+      pole_pocket_size: item.pole_pocket_size,
+      pole_pocket_cost_cents: item.pole_pocket_cost_cents,
+      rope_feet: item.rope_feet,
+      rope_placement: item.rope_placement,
+      rope_cost_cents: item.rope_cost_cents,
+      area_sqft: item.area_sqft,
+      unit_price_cents: item.unit_price_cents,
+      line_total_cents: item.line_total_cents,
+      file_key: item.file_key,
+      file_url: item.file_url,
+      text_elements: item.text_elements,
+      overlay_image: item.overlay_image,
+      overlay_images: item.overlay_images,
+      canvas_background_color: item.canvas_background_color,
+      image_scale: item.image_scale,
+      thumbnail_url: item.thumbnail_url,
+      image_position: item.image_position,
+      final_render_url: item.final_render_url,
+      final_render_file_key: item.final_render_file_key,
+      final_render_width_px: item.final_render_width_px,
+      final_render_height_px: item.final_render_height_px,
+      final_render_dpi: item.final_render_dpi,
+      canvas_state_json: item.canvas_state_json,
+      design_service_enabled: item.design_service_enabled,
+      design_request_text: item.design_request_text,
+      design_draft_preference: item.design_draft_preference,
+      design_draft_contact: item.design_draft_contact,
+      design_uploaded_assets: item.design_uploaded_assets,
+      product_type: item.product_type || 'banner',
+      yard_sign_sidedness: item.yard_sign_sidedness,
+      yard_sign_step_stakes_enabled: item.yard_sign_step_stakes_enabled,
+      yard_sign_step_stakes_qty: item.yard_sign_step_stakes_qty,
+      yard_sign_design_count: item.yard_sign_design_count,
+      yard_sign_designs: item.yard_sign_designs,
+      yard_sign_signs_subtotal_cents: item.yard_sign_signs_subtotal_cents,
+      yard_sign_stakes_subtotal_cents: item.yard_sign_stakes_subtotal_cents,
+    }));
 
     fetch('/.netlify/functions/stripe-create-payment-intent', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        items: items.map((item) => ({
-          width_in: item.width_in,
-          height_in: item.height_in,
-          quantity: item.quantity,
-          material: item.material,
-          line_total_cents: item.line_total_cents,
-          product_type: item.product_type || 'banner',
-        })),
+        items: fullItems,
         discountCode: discountCode
           ? {
               code: discountCode.code,
@@ -323,17 +306,32 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({
     })
       .then(async (res) => {
         const data = await res.json().catch(() => ({}));
-        if (!res.ok || !data.clientSecret) {
-          throw new Error(data.error || `Failed to initialize Stripe (${res.status})`);
+        if (!res.ok || !data.clientSecret || !data.orderId) {
+          // Surface a clear, actionable message — the requirement is
+          // that the user knows we did NOT charge them when our backend
+          // could not save the order.
+          const detail =
+            data.message
+            || data.error
+            || `Failed to initialize Stripe (${res.status})`;
+          throw new Error(detail);
         }
         if (cancelled) return;
+        console.log('[StripeCheckout] pending order + PaymentIntent ready', {
+          orderId: data.orderId,
+          paymentIntentId: data.paymentIntentId,
+        });
         setClientSecret(data.clientSecret);
         setPaymentIntentId(data.paymentIntentId || null);
+        setOrderId(data.orderId);
       })
       .catch((err) => {
         if (cancelled) return;
-        console.error('stripe-create-payment-intent failed:', err);
-        setLoadError(err?.message || 'Failed to initialize Stripe.');
+        console.error('[StripeCheckout] stripe-create-payment-intent failed:', err);
+        setLoadError(
+          err?.message
+          || 'We could not save your order. Your card was NOT charged. Please try again.'
+        );
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -342,9 +340,10 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({
     return () => {
       cancelled = true;
     };
-    // We intentionally re-create the PaymentIntent when the priced total
-    // or eligibility changes. Recreating is cheap (Stripe doesn't charge
-    // until confirmation) and keeps the amount in sync.
+    // We intentionally re-create the PaymentIntent (and pending order)
+    // when the priced total or eligibility changes. Recreating is cheap
+    // (Stripe doesn't charge until confirmation) and keeps the amount
+    // in sync.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     total,
@@ -362,19 +361,20 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({
     );
   }
 
-  if (loading || !clientSecret) {
+  if (loadError) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-6 w-6 animate-spin mr-2" />
-        <span>Loading payment form...</span>
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 text-sm">
+        <p className="font-semibold mb-1">Could not start payment</p>
+        <p>{loadError}</p>
       </div>
     );
   }
 
-  if (loadError) {
+  if (loading || !clientSecret || !orderId) {
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 text-sm">
-        {loadError}
+      <div className="flex items-center justify-center py-8">
+        <Loader2 className="h-6 w-6 animate-spin mr-2" />
+        <span>Loading payment form...</span>
       </div>
     );
   }
@@ -393,6 +393,7 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({
         onError={onError}
         disabled={disabled}
         paymentIntentId={paymentIntentId || ''}
+        orderId={orderId}
       />
     </Elements>
   );

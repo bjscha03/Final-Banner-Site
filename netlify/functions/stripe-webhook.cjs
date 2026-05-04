@@ -4,21 +4,37 @@
 //   https://<site>/.netlify/functions/stripe-webhook
 // and copy the resulting "Signing secret" into STRIPE_WEBHOOK_SECRET.
 //
-// Primary purpose: confirm payment_intent.succeeded events from Stripe
-// as a backup safety net. The browser-side `confirmPayment` flow is
-// what normally calls /create-order to mark the order paid; this
-// webhook just logs / can be extended to trigger reconciliation if
-// the browser callback never fires (network drop, tab close, etc.).
+// On payment_intent.succeeded we look up the matching pending order
+// (via stripe_payment_intent_id, falling back to metadata.order_id)
+// and idempotently mark it 'paid' + send confirmation emails. This is
+// the safety net for cases where the browser's confirmPayment callback
+// never fires (tab closed, network drop, etc.) — the order still
+// becomes visible in admin.
 //
 // Stripe requires the RAW request body to verify signatures. Netlify
 // passes the body through `event.body`; if the request was base64
 // encoded (`event.isBase64Encoded`) we decode to a Buffer first.
 
 const Stripe = require('stripe');
+const { finalizeStripeOrder } = require('./_shared/finalizeStripeOrder.cjs');
 
 const responseHeaders = {
   'Content-Type': 'application/json',
 };
+
+function shippingFromIntent(intent) {
+  const s = intent && intent.shipping;
+  if (!s) return null;
+  return {
+    name: s.name || null,
+    line1: s.address && s.address.line1,
+    line2: s.address && s.address.line2,
+    city: s.address && s.address.city,
+    state: s.address && s.address.state,
+    postal_code: s.address && s.address.postal_code,
+    country: s.address && s.address.country,
+  };
+}
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
@@ -32,7 +48,7 @@ exports.handler = async (event) => {
   const secretKey = process.env.STRIPE_SECRET_KEY;
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   if (!secretKey || !webhookSecret) {
-    console.error('stripe-webhook: missing STRIPE_SECRET_KEY or STRIPE_WEBHOOK_SECRET');
+    console.error('[stripe-webhook] missing STRIPE_SECRET_KEY or STRIPE_WEBHOOK_SECRET');
     return {
       statusCode: 500,
       headers: responseHeaders,
@@ -59,7 +75,7 @@ exports.handler = async (event) => {
   try {
     stripeEvent = stripe.webhooks.constructEvent(rawBody, sigHeader, webhookSecret);
   } catch (err) {
-    console.error('stripe-webhook: signature verification failed:', err && err.message);
+    console.error('[stripe-webhook] signature verification failed:', err && err.message);
     return {
       statusCode: 400,
       headers: responseHeaders,
@@ -67,7 +83,7 @@ exports.handler = async (event) => {
     };
   }
 
-  console.log('stripe-webhook: received', {
+  console.log('[stripe-webhook] received', {
     type: stripeEvent.type,
     id: stripeEvent.id,
   });
@@ -76,31 +92,50 @@ exports.handler = async (event) => {
     switch (stripeEvent.type) {
       case 'payment_intent.succeeded': {
         const pi = stripeEvent.data.object;
-        console.log('stripe-webhook: payment_intent.succeeded', {
+        const orderId = (pi.metadata && pi.metadata.order_id) || null;
+        console.log('[stripe-webhook] payment_intent.succeeded', {
           paymentIntentId: pi.id,
+          orderId,
           amount: pi.amount,
-          currency: pi.currency,
-          email: (pi.receipt_email || (pi.metadata && pi.metadata.email)) || null,
         });
-        // Order creation is performed from the browser after
-        // stripe.confirmPayment resolves. The browser callback hits
-        // /.netlify/functions/create-order with stripe_payment_intent_id
-        // and that endpoint is idempotent on stripe_payment_intent_id, so
-        // a duplicate attempt here would no-op. Reconciliation logic can
-        // be added in the future if needed.
+
+        const result = await finalizeStripeOrder({
+          paymentIntentId: pi.id,
+          orderId,
+          shipping: shippingFromIntent(pi),
+          billing: pi.charges && pi.charges.data && pi.charges.data[0]
+            ? pi.charges.data[0].billing_details || null
+            : null,
+          source: 'webhook',
+        });
+
+        if (!result.ok) {
+          console.error('[stripe-webhook] finalizeStripeOrder failed:', result);
+          // Return 200 anyway so Stripe doesn't infinitely retry on
+          // configuration errors (e.g. ORDER_NOT_FOUND when the
+          // PaymentIntent was created outside our normal flow). Real
+          // outages will surface in our logs.
+        } else {
+          console.log('[stripe-webhook] order finalized', {
+            paymentIntentId: pi.id,
+            orderId: result.orderId,
+            alreadyPaid: !!result.alreadyPaid,
+            emailSent: !!result.emailSent,
+          });
+        }
         break;
       }
       case 'payment_intent.payment_failed': {
         const pi = stripeEvent.data.object;
-        console.warn('stripe-webhook: payment_intent.payment_failed', {
+        console.warn('[stripe-webhook] payment_intent.payment_failed', {
           paymentIntentId: pi.id,
+          orderId: pi.metadata && pi.metadata.order_id,
           lastPaymentError: pi.last_payment_error && pi.last_payment_error.message,
         });
         break;
       }
       default:
-        // Acknowledge unhandled events so Stripe stops retrying.
-        console.log('stripe-webhook: unhandled event type', stripeEvent.type);
+        console.log('[stripe-webhook] unhandled event type', stripeEvent.type);
     }
 
     return {
@@ -109,7 +144,7 @@ exports.handler = async (event) => {
       body: JSON.stringify({ received: true }),
     };
   } catch (err) {
-    console.error('stripe-webhook: handler error:', err);
+    console.error('[stripe-webhook] handler error:', err);
     return {
       statusCode: 500,
       headers: responseHeaders,

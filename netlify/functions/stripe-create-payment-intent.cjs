@@ -1,9 +1,15 @@
-// Creates a Stripe PaymentIntent priced server-side from the cart.
+// Creates a Stripe PaymentIntent priced server-side from the cart, AND
+// persists a pending order in our database BEFORE the PaymentIntent is
+// created. This is the critical fix for the "Stripe charged but no
+// order in admin" bug: if our database write fails we never call
+// Stripe, and once Stripe accepts the charge we already have a row to
+// flip from 'pending' to 'paid' (see stripe-finalize-order /
+// stripe-webhook).
 //
 // - Uses STRIPE_SECRET_KEY (server-only, never sent to the browser).
-// - Returns the resulting client_secret, which the frontend hands to
-//   Stripe Elements (PaymentElement) to confirm the payment in the
-//   browser. Apple Pay / Google Pay / cards are all enabled via
+// - Returns the resulting client_secret + the real database orderId.
+//   The frontend uses orderId for the success page and finalize call.
+// - Apple Pay / Google Pay / cards are all enabled via
 //   `automatic_payment_methods` so the wallet support comes for free.
 // - Pricing math is identical to paypal-create-order.cjs (shared in
 //   _shared/checkoutTotals.cjs) so a customer is charged the same
@@ -11,6 +17,7 @@
 
 const Stripe = require('stripe');
 const { randomUUID } = require('crypto');
+const { neon } = require('@neondatabase/serverless');
 const {
   reconcileSameDayFlags,
 } = require('./_shared/sameDayService.cjs');
@@ -19,12 +26,40 @@ const {
   computeTotals,
 } = require('./_shared/checkoutTotals.cjs');
 
+const sql = neon(process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL);
+
 const headers = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Content-Type': 'application/json',
 };
+
+// Internal call to the create-order Netlify function so the pending
+// order goes through the exact same INSERT path as a paid order
+// (order_items, schema migrations, validation, etc). We pass
+// `payment_status: 'pending'` so emails / AI processing / abandoned-
+// cart cleanup / discount-code consumption are deferred until finalize.
+async function createPendingOrder(orderPayload, cid) {
+  const url = `${process.env.URL || 'https://bannersonthefly.com'}/.netlify/functions/create-order`;
+  console.log('[stripe-create-payment-intent] POST create-order (pending):', {
+    cid,
+    url,
+    total_cents: orderPayload.total_cents,
+    item_count: (orderPayload.items || []).length,
+  });
+  const resp = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...orderPayload, payment_status: 'pending' }),
+  });
+  let body = {};
+  try { body = await resp.json(); } catch (_e) { /* ignore */ }
+  if (!resp.ok || !body.ok || !body.orderId) {
+    return { ok: false, status: resp.status, body };
+  }
+  return { ok: true, orderId: body.orderId };
+}
 
 exports.handler = async (event) => {
   const cid = randomUUID();
@@ -42,7 +77,7 @@ exports.handler = async (event) => {
 
   const secretKey = process.env.STRIPE_SECRET_KEY;
   if (!secretKey) {
-    console.error('stripe-create-payment-intent: STRIPE_SECRET_KEY not configured', { cid });
+    console.error('[stripe-create-payment-intent] STRIPE_SECRET_KEY not configured', { cid });
     return {
       statusCode: 500,
       headers,
@@ -53,7 +88,7 @@ exports.handler = async (event) => {
   let payload;
   try {
     payload = JSON.parse(event.body || '{}');
-  } catch (parseErr) {
+  } catch (_parseErr) {
     return {
       statusCode: 400,
       headers,
@@ -77,6 +112,8 @@ exports.handler = async (event) => {
       body: JSON.stringify({ ok: false, error: 'MISSING_ITEMS', cid }),
     };
   }
+
+  let pendingOrderId = null;
 
   try {
     const flags = getFeatureFlags();
@@ -118,7 +155,6 @@ exports.handler = async (event) => {
     const finalAmountCents = totals.total_cents + sameDayFeeCents + saturdayFeeCents;
 
     if (!Number.isFinite(finalAmountCents) || finalAmountCents < 50) {
-      // Stripe minimum charge is $0.50 in USD.
       return {
         statusCode: 400,
         headers,
@@ -131,13 +167,66 @@ exports.handler = async (event) => {
       };
     }
 
+    // ------------------------------------------------------------------
+    // STEP 1: Persist a PENDING order BEFORE asking Stripe for anything.
+    // If this fails, we never reach the Stripe API → the customer
+    // CANNOT be charged without a corresponding row in our database.
+    // ------------------------------------------------------------------
+    const pendingResult = await createPendingOrder({
+      user_id: userId || null,
+      email: email || `guest-${Date.now()}@bannersonthefly.com`,
+      subtotal_cents: totals.adjusted_subtotal_cents,
+      tax_cents: totals.tax_cents,
+      total_cents: finalAmountCents,
+      applied_discount_cents: totals.applied_discount_cents,
+      applied_discount_label: totals.applied_discount_type === 'quantity'
+        ? `Quantity ${(totals.applied_discount_rate * 100).toFixed(0)}%`
+        : (discountCode && discountCode.code) || '',
+      applied_discount_type: totals.applied_discount_type,
+      currency: 'usd',
+      payment_method: 'stripe',
+      sameDayHitService: !!reqSameDay,
+      saturdayDelivery: !!reqSaturday,
+      items,
+      discountCode: discountCode || null,
+    }, cid);
+
+    if (!pendingResult.ok) {
+      console.error('[stripe-create-payment-intent] PENDING order create FAILED — refusing to call Stripe', {
+        cid,
+        status: pendingResult.status,
+        body: pendingResult.body,
+      });
+      return {
+        statusCode: 500,
+        headers,
+        body: JSON.stringify({
+          ok: false,
+          error: 'ORDER_CREATE_FAILED',
+          message: 'We could not save your order. Your card was NOT charged. Please try again or contact support.',
+          details: (pendingResult.body && (pendingResult.body.error || pendingResult.body.details)) || null,
+          cid,
+        }),
+      };
+    }
+
+    pendingOrderId = pendingResult.orderId;
+    console.log('[stripe-create-payment-intent] PENDING order created', {
+      cid,
+      orderId: pendingOrderId,
+      total_cents: finalAmountCents,
+    });
+
+    // ------------------------------------------------------------------
+    // STEP 2: Create the Stripe PaymentIntent. Stash the pending order
+    // id in metadata so the webhook can reconcile even if the browser
+    // never reports back.
+    // ------------------------------------------------------------------
     const stripe = new Stripe(secretKey, { apiVersion: '2024-12-18.acacia' });
 
-    // Metadata must be string-valued. Keep it small (Stripe limits at
-    // 50 entries / 500 chars per value). Anything larger lives in our
-    // own database via create-order at confirmation time.
     const metadata = {
       cid,
+      order_id: pendingOrderId,
       banner_subtotal_cents: String(totals.adjusted_subtotal_cents),
       tax_cents: String(totals.tax_cents),
       same_day_fee_cents: String(sameDayFeeCents),
@@ -158,29 +247,49 @@ exports.handler = async (event) => {
       {
         amount: finalAmountCents,
         currency: 'usd',
-        // Enables cards, Apple Pay, Google Pay, Link, etc. based on what
-        // the merchant has activated in the Stripe dashboard.
         automatic_payment_methods: { enabled: true },
         receipt_email: email || undefined,
-        description: 'Banners On The Fly order',
+        description: `Banners On The Fly order ${pendingOrderId}`,
         metadata,
       },
-      // Per-request idempotency key derived from our cid so accidental
-      // double-submits return the same PaymentIntent.
       { idempotencyKey: `pi_create_${cid}` }
     );
 
-    console.log('stripe-create-payment-intent: created', {
+    console.log('[stripe-create-payment-intent] PaymentIntent created', {
       cid,
+      orderId: pendingOrderId,
       paymentIntentId: intent.id,
       amount: finalAmountCents,
     });
+
+    // ------------------------------------------------------------------
+    // STEP 3: Attach the PaymentIntent id to the pending order so both
+    // the browser callback (stripe-finalize-order) and the webhook
+    // (stripe-webhook) can find the row by either orderId or pi.id.
+    // ------------------------------------------------------------------
+    try {
+      await sql`
+        UPDATE orders
+        SET stripe_payment_intent_id = ${intent.id}
+        WHERE id = ${pendingOrderId}
+          AND (stripe_payment_intent_id IS NULL OR stripe_payment_intent_id = ${intent.id})
+      `;
+      console.log('[stripe-create-payment-intent] PaymentIntent id attached to order', {
+        cid,
+        orderId: pendingOrderId,
+        paymentIntentId: intent.id,
+      });
+    } catch (attachErr) {
+      // Non-fatal: the webhook can still find the row via metadata.order_id.
+      console.error('[stripe-create-payment-intent] Failed to attach PI id to order:', attachErr.message);
+    }
 
     return {
       statusCode: 200,
       headers,
       body: JSON.stringify({
         ok: true,
+        orderId: pendingOrderId,
         clientSecret: intent.client_secret,
         paymentIntentId: intent.id,
         amount: finalAmountCents,
@@ -191,7 +300,21 @@ exports.handler = async (event) => {
       }),
     };
   } catch (err) {
-    console.error('stripe-create-payment-intent error:', err && err.message, { cid });
+    console.error('[stripe-create-payment-intent] error:', err && err.message, { cid, pendingOrderId });
+    // Best-effort: mark the pending order as failed so admin can see what happened.
+    if (pendingOrderId) {
+      try {
+        await sql`
+          UPDATE orders
+          SET status = 'failed'
+          WHERE id = ${pendingOrderId} AND status = 'pending'
+        `;
+        console.log('[stripe-create-payment-intent] Marked pending order as failed', {
+          cid,
+          orderId: pendingOrderId,
+        });
+      } catch (_e) { /* ignore */ }
+    }
     return {
       statusCode: 500,
       headers,
@@ -204,3 +327,4 @@ exports.handler = async (event) => {
     };
   }
 };
+
