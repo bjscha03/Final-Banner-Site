@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { loadStripe, Stripe } from '@stripe/stripe-js';
 import {
   Elements,
-  ExpressCheckoutElement,
   PaymentElement,
   useElements,
   useStripe,
@@ -51,12 +50,6 @@ const StripePaymentForm: React.FC<{
   const elements = useElements();
   const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
-  // Tracks whether ExpressCheckoutElement reported any actually-available
-  // wallets (Apple Pay / Google Pay / Link). We render the container with
-  // `display: none` until the first onReady fires so we don't get a flash
-  // of empty space, and we keep the divider hidden when no wallets exist.
-  const [expressReady, setExpressReady] = useState(false);
-  const [expressAvailable, setExpressAvailable] = useState(false);
 
   // Shared confirm + finalize. Used by both the Pay button (card form)
   // and the ExpressCheckoutElement onConfirm handler so wallet payments
@@ -73,6 +66,12 @@ const StripePaymentForm: React.FC<{
         confirmParams: {
           return_url: `${window.location.origin}/payment-success?orderId=${encodeURIComponent(orderId)}`,
         },
+      });
+      console.log(`[StripeCheckout] ${label} confirmPayment result`, {
+        hasError: !!error,
+        errorCode: error?.code,
+        status: paymentIntent?.status,
+        paymentIntentId: paymentIntent?.id,
       });
 
       if (error) {
@@ -133,6 +132,14 @@ const StripePaymentForm: React.FC<{
 
       let finalizeResult: any = {};
       try { finalizeResult = await finalizeResp.json(); } catch (_e) { /* ignore */ }
+      console.log(`[StripeCheckout] ${label} finalize-order result`, {
+        httpOk: finalizeResp.ok,
+        status: finalizeResp.status,
+        ok: !!finalizeResult?.ok,
+        orderId: finalizeResult?.orderId,
+        alreadyPaid: !!finalizeResult?.alreadyPaid,
+        emailSent: !!finalizeResult?.emailSent,
+      });
 
       if (!finalizeResp.ok || !finalizeResult.ok) {
         console.error(`[StripeCheckout] ${label} finalize failed (webhook will retry):`, finalizeResult);
@@ -175,60 +182,21 @@ const StripePaymentForm: React.FC<{
     await confirmAndFinalize('card');
   };
 
-  // ExpressCheckoutElement -> Apple Pay / Google Pay / Link button(s).
-  // Stripe fires `onConfirm` after the user authorizes in the wallet
-  // sheet; we then call confirmPayment with the existing clientSecret.
-  const handleExpressConfirm = async () => {
-    if (!stripe || !elements || submitting || disabled) return;
-    await confirmAndFinalize('express');
-  };
-
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      {/* Express Checkout (Apple Pay / Google Pay / Link). Container is
-          always mounted so the Stripe element can mount, but kept
-          visually hidden until onReady reports at least one available
-          wallet. This avoids a flash of empty space on devices that
-          don't support any of them. */}
-      <div className={expressReady && expressAvailable ? 'space-y-3' : 'hidden'}>
-        <div className="text-xs uppercase tracking-wide text-gray-500 text-center font-medium">
-          Express checkout
-        </div>
-        <ExpressCheckoutElement
-          onReady={(event) => {
-            const methods = (event && (event as any).availablePaymentMethods) || {};
-            const anyAvailable = Boolean(
-              methods.applePay || methods.googlePay || methods.link || methods.paypal,
-            );
-            setExpressAvailable(anyAvailable);
-            setExpressReady(true);
-          }}
-          onConfirm={handleExpressConfirm}
-          options={{
-            // Match button styling to the rest of the page.
-            buttonHeight: 48,
-            buttonTheme: { applePay: 'black', googlePay: 'black' },
-            buttonType: { applePay: 'pay', googlePay: 'pay' },
-            // We disable PayPal here because we already render PayPal as
-            // a separate top-level tab — surfacing it inside the Stripe
-            // panel too would be confusing.
-            paymentMethods: { paypal: 'never' },
-          }}
-        />
-        <div className="flex items-center gap-3" aria-hidden="true">
-          <span className="h-px flex-1 bg-gray-200" />
-          <span className="text-xs text-gray-500">Or pay with card</span>
-          <span className="h-px flex-1 bg-gray-200" />
-        </div>
-      </div>
-
       <div className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4">
         <PaymentElement
+          onReady={() => {
+            console.log('[StripeCheckout] PaymentElement mounted', { orderId, paymentIntentId });
+          }}
           options={{
             // With `payment_method_types: ['card']` set on the
             // PaymentIntent, the Payment Element renders a single,
             // un-tabbed card form. No Klarna / Cash App / Amazon Pay
-            // dropdown can appear here.
+            // dropdown can appear here. Apple Pay / Google Pay / Link
+            // are intentionally disabled for now — we will re-enable
+            // them via ExpressCheckoutElement once the basic card flow
+            // is stable.
             layout: { type: 'accordion', defaultCollapsed: false, radios: false, spacedAccordionItems: false },
             wallets: { applePay: 'never', googlePay: 'never' },
             fields: { billingDetails: { phone: 'auto' } },
@@ -276,36 +244,22 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({
   const [orderId, setOrderId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  // The Stripe init flow (pending order create + PaymentIntent create)
-  // is gated behind an explicit user action so we don't try to save an
-  // order or talk to Stripe until the customer actually wants to pay
-  // with a card / Apple Pay / Google Pay. Without this gate, a backend
-  // error (e.g. database hiccup) would render a permanent "Could not
-  // save your order" banner the moment the checkout page mounts —
-  // which is exactly the bug we are fixing here.
-  const [started, setStarted] = useState(false);
   // Bumping this triggers a re-run of the init effect (used by the
   // Retry button after a failure).
   const [attempt, setAttempt] = useState(0);
 
   const stripeReady = useMemo(() => getStripePromise(), []);
 
-  // Reset any pending init state if the cart contents change before the
-  // user has started the Stripe flow. We deliberately do NOT reset
-  // `started` once init is in progress — that would cancel an in-flight
-  // PaymentIntent request and frustrate the user.
+  // Reset any pending init state when the cart contents/total change.
   useEffect(() => {
-    if (!started) {
-      setClientSecret(null);
-      setPaymentIntentId(null);
-      setOrderId(null);
-      setLoadError(null);
-    }
+    setClientSecret(null);
+    setPaymentIntentId(null);
+    setOrderId(null);
+    setLoadError(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [items.length, total, discountCode?.code, sameDayHitService, saturdayDelivery]);
 
   useEffect(() => {
-    if (!started) return;
     if (!PUBLISHABLE_KEY) {
       setLoadError('Stripe publishable key not configured.');
       return;
@@ -313,6 +267,11 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({
     if (!items || items.length === 0) return;
 
     let cancelled = false;
+    console.log('[StripeCheckout] init start — creating pending order + PaymentIntent', {
+      items: items.length,
+      totalCents: total,
+      attempt,
+    });
     setLoading(true);
     setLoadError(null);
     setClientSecret(null);
@@ -405,9 +364,10 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({
           throw new Error('init_failed');
         }
         if (cancelled) return;
-        console.log('[StripeCheckout] pending order + PaymentIntent ready', {
+        console.log('[StripeCheckout] pending order created + clientSecret received', {
           orderId: data.orderId,
           paymentIntentId: data.paymentIntentId,
+          clientSecretPresent: Boolean(data.clientSecret),
         });
         setClientSecret(data.clientSecret);
         setPaymentIntentId(data.paymentIntentId || null);
@@ -434,7 +394,6 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({
     // charge until confirmation) and keeps the amount in sync.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
-    started,
     attempt,
     total,
     items.length,
@@ -502,40 +461,14 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({
     );
   }
 
-  // Initial state: explicit "start" gate. We do NOT create a pending
-  // order or talk to Stripe until the user clicks this button. This is
-  // the requirement: "Stripe should not show a permanent error on page
-  // load unless the user selects Stripe and tries to start payment."
-  if (!started) {
-    return (
-      <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-5 space-y-3 min-h-[180px]">
-        <p className="text-sm text-gray-700 leading-snug">
-          Pay securely with your card, Apple Pay, Google Pay, or Link.
-        </p>
-        <Button
-          type="button"
-          disabled={disabled || !items || items.length === 0}
-          onClick={() => setStarted(true)}
-          className="w-full bg-[#18448D] hover:bg-[#143a7a] text-white py-3 px-4 text-base sm:text-lg font-semibold rounded-xl shadow-sm leading-tight whitespace-normal break-words text-center"
-          size="lg"
-        >
-          {/* Mobile: short label so it never overflows.
-              ≥sm: full label including Apple Pay. */}
-          <span className="sm:hidden">Continue to Pay</span>
-          <span className="hidden sm:inline">Continue with Card or Apple Pay</span>
-        </Button>
-        <p className="text-[11px] sm:text-xs text-gray-500 text-center leading-snug">
-          Secured by <span className="font-semibold text-gray-700">Stripe</span> · 256-bit SSL · PCI compliant
-        </p>
-      </div>
-    );
-  }
-
+  // Initial mount: while we're creating the pending order + PaymentIntent
+  // we show a small inline placeholder. We do NOT redirect or unmount the
+  // checkout page — Stripe stays embedded inside the payment card.
   if (loading || !clientSecret || !orderId) {
     return (
-      <div className="flex items-center justify-center py-12 min-h-[260px] rounded-xl border border-gray-200 bg-white">
-        <Loader2 className="h-6 w-6 animate-spin mr-2 text-[#18448D]" />
-        <span className="text-gray-700">Loading payment form...</span>
+      <div className="flex items-center justify-center py-12 min-h-[180px] rounded-xl border border-gray-200 bg-white">
+        <Loader2 className="h-5 w-5 animate-spin mr-2 text-[#18448D]" />
+        <span className="text-sm text-gray-700">Loading secure card form…</span>
       </div>
     );
   }
