@@ -705,9 +705,47 @@ exports.handler = async (event, context) => {
     const orderSameDayQualified = sameDayResult.eval.windowOpen && sameDayResult.eval.hasEligibleItem;
     const orderTimestampEt = getEasternTimeParts(sameDayNow);
 
+    // Idempotency: if a Stripe PaymentIntent already created an order
+    // (e.g. webhook ran before the browser callback, or duplicate submit),
+    // return the existing order instead of inserting a second one.
+    if (orderData.stripe_payment_intent_id) {
+      try {
+        const existing = await sql`
+          SELECT id FROM orders
+          WHERE stripe_payment_intent_id = ${orderData.stripe_payment_intent_id}
+          LIMIT 1
+        `;
+        if (existing && existing.length > 0) {
+          console.log('create-order: order already exists for stripe_payment_intent_id, returning existing', existing[0].id);
+          return {
+            statusCode: 200,
+            headers,
+            body: JSON.stringify({ ok: true, orderId: existing[0].id, deduped: true }),
+          };
+        }
+      } catch (dupCheckErr) {
+        // If the column does not yet exist (migration not run), log and continue.
+        console.warn('create-order: stripe dedupe check failed (continuing):', dupCheckErr.message);
+      }
+    }
+
+    // Support a "pending" pre-payment write so payment providers (Stripe)
+    // can persist the order BEFORE money is captured. Only 'pending' and
+    // 'paid' are accepted here — anything else falls back to 'paid' for
+    // backward compatibility with existing PayPal callers.
+    const requestedStatus = (orderData.payment_status === 'pending') ? 'pending' : 'paid';
+    if (requestedStatus === 'pending') {
+      console.log('[create-order] Creating PENDING order (pre-payment hold):', {
+        orderId,
+        userEmail,
+        total_cents: orderData.total_cents,
+        payment_method: orderData.payment_method || null,
+      });
+    }
+
     const orderResult = await sql`
-      INSERT INTO orders (id, user_id, email, customer_name, customer_first_name, subtotal_cents, tax_cents, total_cents, status, paypal_order_id, paypal_capture_id, shipping_name, shipping_street, shipping_street2, shipping_city, shipping_state, shipping_zip, shipping_country, applied_discount_cents, applied_discount_label, applied_discount_type, same_day_hit_service, saturday_delivery, same_day_fee_cents, saturday_fee_cents, order_timestamp_et, same_day_qualified)
-      VALUES (${orderId}, ${finalUserId}, ${userEmail}, ${orderData.customer_name || null}, ${orderData.customer_first_name || null}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, 'paid', ${orderData.paypal_order_id || null}, ${orderData.paypal_capture_id || null}, ${orderData.shipping_name || null}, ${orderData.shipping_street || null}, ${orderData.shipping_street2 || null}, ${orderData.shipping_city || null}, ${orderData.shipping_state || null}, ${orderData.shipping_zip || null}, ${orderData.shipping_country || 'US'}, ${orderData.applied_discount_cents || 0}, ${orderData.applied_discount_label || ''}, ${orderData.applied_discount_type || 'none'}, ${orderSameDayHitService}, ${orderSaturdayDelivery}, ${orderSameDayFeeCents}, ${orderSaturdayFeeCents}, ${orderTimestampEt.display}, ${orderSameDayQualified})
+      INSERT INTO orders (id, user_id, email, customer_name, customer_first_name, subtotal_cents, tax_cents, total_cents, status, paypal_order_id, paypal_capture_id, stripe_payment_intent_id, payment_method, shipping_name, shipping_street, shipping_street2, shipping_city, shipping_state, shipping_zip, shipping_country, applied_discount_cents, applied_discount_label, applied_discount_type, same_day_hit_service, saturday_delivery, same_day_fee_cents, saturday_fee_cents, order_timestamp_et, same_day_qualified)
+      VALUES (${orderId}, ${finalUserId}, ${userEmail}, ${orderData.customer_name || null}, ${orderData.customer_first_name || null}, ${orderData.subtotal_cents || 0}, ${orderData.tax_cents || 0}, ${orderData.total_cents || 0}, ${requestedStatus}, ${orderData.paypal_order_id || null}, ${orderData.paypal_capture_id || null}, ${orderData.stripe_payment_intent_id || null}, ${orderData.payment_method || (orderData.stripe_payment_intent_id ? 'stripe' : (orderData.paypal_order_id ? 'paypal' : null))}, ${orderData.shipping_name || null}, ${orderData.shipping_street || null}, ${orderData.shipping_street2 || null}, ${orderData.shipping_city || null}, ${orderData.shipping_state || null}, ${orderData.shipping_zip || null}, ${orderData.shipping_country || 'US'}, ${orderData.applied_discount_cents || 0}, ${orderData.applied_discount_label || ''}, ${orderData.applied_discount_type || 'none'}, ${orderSameDayHitService}, ${orderSaturdayDelivery}, ${orderSameDayFeeCents}, ${orderSaturdayFeeCents}, ${orderTimestampEt.display}, ${orderSameDayQualified})
       RETURNING *
     `;
 
@@ -850,8 +888,9 @@ exports.handler = async (event, context) => {
       }
     }
 
-    // Process AI artwork automatically for orders containing AI designs
-    try {
+    // Process AI artwork automatically for orders containing AI designs.
+    // Skipped for pending pre-payment orders — finalize-order will run it.
+    if (requestedStatus !== 'pending') try {
       const aiItems = orderData.items?.filter(item => item.aiDesign) || [];
       
       if (aiItems.length > 0) {
@@ -904,6 +943,37 @@ exports.handler = async (event, context) => {
 
 
     console.log('All order items created successfully');
+
+    // PENDING ORDERS: Stop here. Abandoned-cart cleanup, discount-code
+    // consumption, intake updates and emails all happen after the
+    // payment provider confirms the charge (see stripe-finalize-order
+    // and stripe-webhook). Returning early keeps the database state
+    // consistent if the customer never completes payment.
+    if (requestedStatus === 'pending') {
+      console.log('[create-order] PENDING order persisted, awaiting payment confirmation:', {
+        orderId,
+        userEmail,
+        total_cents: orderData.total_cents || 0,
+      });
+      return {
+        statusCode: 200,
+        headers,
+        body: JSON.stringify({
+          ok: true,
+          orderId,
+          status: 'pending',
+          order: {
+            id: orderId,
+            email: userEmail,
+            subtotal_cents: orderData.subtotal_cents || 0,
+            tax_cents: orderData.tax_cents || 0,
+            total_cents: orderData.total_cents || 0,
+            currency: orderData.currency || 'USD',
+            status: 'pending',
+          },
+        }),
+      };
+    }
 
     // Mark abandoned cart as recovered if this order came from an abandoned cart
     try {
