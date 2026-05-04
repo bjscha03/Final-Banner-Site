@@ -9,6 +9,7 @@ import Layout from '@/components/Layout';
 import { usd, formatDimensions, getFeatureFlags, getPricingOptions, computeTotals, PricingItem } from '@/lib/pricing';
 import { validateMinimumOrder, canProceedToCheckout } from '@/lib/validation/minimumOrder';
 import PayPalCheckout from '@/components/checkout/PayPalCheckout';
+import StripeCheckout from '@/components/checkout/StripeCheckout';
 import SignUpEncouragementModal from '@/components/checkout/SignUpEncouragementModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -44,6 +45,14 @@ const Checkout: React.FC = () => {
   const [isValidatingDiscount, setIsValidatingDiscount] = useState(false);
   const [discountError, setDiscountError] = useState('');
   const [guestDiscountEmail, setGuestDiscountEmail] = useState('');
+  // Selected payment provider tab. Stripe (cards + Apple/Google Pay) is
+  // shown first when configured; PayPal remains as an alternative.
+  const stripeAvailable = Boolean(
+    (import.meta as any).env?.VITE_STRIPE_PUBLISHABLE_KEY
+  );
+  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'paypal'>(
+    stripeAvailable ? 'stripe' : 'paypal'
+  );
 
 
   // Get totals from cart store methods
@@ -1177,11 +1186,63 @@ const Checkout: React.FC = () => {
                   <span className="text-sm font-medium text-blue-700">📦 Friday orders arrive Tuesday.</span>
                 </div>
                 
-                <PayPalCheckout disabled={!canProceed}
-                  total={totalCents}
-                  onSuccess={handlePaymentSuccess}
-                  onError={handlePaymentError}
-                />
+                {stripeAvailable ? (
+                  <>
+                    {/* Payment-method tabs. We render both providers but
+                        only mount the one the user has selected, so
+                        Stripe doesn't initialize a PaymentIntent until
+                        the user actually picks the card / wallet flow. */}
+                    <div className="grid grid-cols-2 gap-2 mb-4" role="tablist" aria-label="Payment method">
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={paymentMethod === 'stripe'}
+                        onClick={() => setPaymentMethod('stripe')}
+                        className={`py-2 px-3 rounded-lg border text-sm font-semibold transition-colors ${
+                          paymentMethod === 'stripe'
+                            ? 'bg-[#18448D] text-white border-[#18448D]'
+                            : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        Card / Apple Pay / Google Pay
+                      </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={paymentMethod === 'paypal'}
+                        onClick={() => setPaymentMethod('paypal')}
+                        className={`py-2 px-3 rounded-lg border text-sm font-semibold transition-colors ${
+                          paymentMethod === 'paypal'
+                            ? 'bg-[#18448D] text-white border-[#18448D]'
+                            : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        PayPal
+                      </button>
+                    </div>
+
+                    {paymentMethod === 'stripe' ? (
+                      <StripeCheckout
+                        disabled={!canProceed}
+                        total={totalCents}
+                        onSuccess={handlePaymentSuccess}
+                        onError={handlePaymentError}
+                      />
+                    ) : (
+                      <PayPalCheckout disabled={!canProceed}
+                        total={totalCents}
+                        onSuccess={handlePaymentSuccess}
+                        onError={handlePaymentError}
+                      />
+                    )}
+                  </>
+                ) : (
+                  <PayPalCheckout disabled={!canProceed}
+                    total={totalCents}
+                    onSuccess={handlePaymentSuccess}
+                    onError={handlePaymentError}
+                  />
+                )}
 
                 {/* Shop With Confidence — trust badges near payment area */}
                 <div className="mt-6 pt-5">
