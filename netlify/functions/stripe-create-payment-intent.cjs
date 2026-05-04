@@ -351,7 +351,14 @@ exports.handler = async (event) => {
       {
         amount: finalAmountCents,
         currency: 'usd',
-        automatic_payment_methods: { enabled: true },
+        // Restrict to `card` only. Apple Pay and Google Pay are wallets
+        // *within* the card payment method (surfaced via the Express
+        // Checkout / Payment Request flows on the client), so we don't
+        // need to list them separately here. Excluding
+        // `automatic_payment_methods` prevents Stripe from offering
+        // dashboard-default options the customer never asked for
+        // (Klarna, Afterpay, Cash App Pay, Amazon Pay, etc.).
+        payment_method_types: ['card'],
         receipt_email: email || undefined,
         description: `Banners on the Fly order ${pendingOrderId}${productSummary ? ` — ${productSummary}` : ''}`.slice(0, 350),
         metadata,

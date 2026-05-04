@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { loadStripe, Stripe } from '@stripe/stripe-js';
 import {
   Elements,
+  ExpressCheckoutElement,
   PaymentElement,
   useElements,
   useStripe,
@@ -50,17 +51,22 @@ const StripePaymentForm: React.FC<{
   const elements = useElements();
   const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
+  // Tracks whether ExpressCheckoutElement reported any actually-available
+  // wallets (Apple Pay / Google Pay / Link). We render the container with
+  // `display: none` until the first onReady fires so we don't get a flash
+  // of empty space, and we keep the divider hidden when no wallets exist.
+  const [expressReady, setExpressReady] = useState(false);
+  const [expressAvailable, setExpressAvailable] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!stripe || !elements || submitting || disabled) return;
-
+  // Shared confirm + finalize. Used by both the Pay button (card form)
+  // and the ExpressCheckoutElement onConfirm handler so wallet payments
+  // (Apple Pay / Google Pay / Link) flow through the exact same backend
+  // path as ordinary card payments.
+  const confirmAndFinalize = async (label: string) => {
+    if (!stripe || !elements) return;
     setSubmitting(true);
     try {
-      console.log('[StripeCheckout] confirmPayment start', { orderId, paymentIntentId });
-      // Confirm the payment in the browser. We don't redirect for normal
-      // card / Apple Pay / Google Pay flows; only redirect-based methods
-      // (e.g., bank redirects) need a return_url, hence redirect: 'if_required'.
+      console.log(`[StripeCheckout] ${label} confirmPayment start`, { orderId, paymentIntentId });
       const { error, paymentIntent } = await stripe.confirmPayment({
         elements,
         redirect: 'if_required',
@@ -70,10 +76,10 @@ const StripePaymentForm: React.FC<{
       });
 
       if (error) {
-        console.error('[StripeCheckout] confirmPayment error:', error);
+        console.error(`[StripeCheckout] ${label} confirmPayment error:`, error);
         toast({
           title: 'Payment Failed',
-          description: error.message || 'Your card was not charged.',
+          description: error.message || 'Your payment was not completed.',
           variant: 'destructive',
         });
         onError(error);
@@ -82,7 +88,7 @@ const StripePaymentForm: React.FC<{
 
       if (!paymentIntent || paymentIntent.status !== 'succeeded') {
         const status = paymentIntent?.status || 'unknown';
-        console.warn('[StripeCheckout] payment not succeeded; status =', status);
+        console.warn(`[StripeCheckout] ${label} payment not succeeded; status =`, status);
         toast({
           title: 'Payment Not Completed',
           description: `Payment status: ${status}. Please try again.`,
@@ -92,13 +98,11 @@ const StripePaymentForm: React.FC<{
         return;
       }
 
-      console.log('[StripeCheckout] payment succeeded — finalizing order', {
+      console.log(`[StripeCheckout] ${label} payment succeeded — finalizing order`, {
         orderId,
         paymentIntentId: paymentIntent.id,
       });
 
-      // Pull billing/shipping details from Stripe so we can update the
-      // (already-existing) pending order row with real address data.
       const billing = (paymentIntent as any)?.charges?.data?.[0]?.billing_details
         || null;
       const stripeShipping = (paymentIntent as any)?.shipping || null;
@@ -106,6 +110,7 @@ const StripePaymentForm: React.FC<{
       const shippingPayload = stripeAddress
         ? {
             name: stripeShipping?.name || billing?.name || null,
+            phone: stripeShipping?.phone || billing?.phone || null,
             line1: stripeAddress.line1 || null,
             line2: stripeAddress.line2 || null,
             city: stripeAddress.city || null,
@@ -115,9 +120,6 @@ const StripePaymentForm: React.FC<{
           }
         : null;
 
-      // Mark the EXISTING pending order paid via the dedicated finalize
-      // endpoint. We do NOT call create-order here — the order was
-      // already persisted before the PaymentIntent was created.
       const finalizeResp = await fetch('/.netlify/functions/stripe-finalize-order', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -133,13 +135,7 @@ const StripePaymentForm: React.FC<{
       try { finalizeResult = await finalizeResp.json(); } catch (_e) { /* ignore */ }
 
       if (!finalizeResp.ok || !finalizeResult.ok) {
-        // Payment succeeded with Stripe — and the pending order ALREADY
-        // exists in our database (it was created before the
-        // PaymentIntent). The webhook will retry the finalize on the
-        // server side, so the order WILL be marked paid eventually.
-        // Surface the real orderId so the success page can show
-        // something useful.
-        console.error('[StripeCheckout] finalize failed (webhook will retry):', finalizeResult);
+        console.error(`[StripeCheckout] ${label} finalize failed (webhook will retry):`, finalizeResult);
         toast({
           title: 'Payment received',
           description: 'Your payment is being finalized. Order #' + orderId,
@@ -148,7 +144,7 @@ const StripePaymentForm: React.FC<{
         return;
       }
 
-      console.log('[StripeCheckout] order finalized', {
+      console.log(`[StripeCheckout] ${label} order finalized`, {
         orderId: finalizeResult.orderId,
         alreadyPaid: !!finalizeResult.alreadyPaid,
         emailSent: !!finalizeResult.emailSent,
@@ -161,7 +157,7 @@ const StripePaymentForm: React.FC<{
 
       onSuccess(finalizeResult.orderId || orderId, undefined);
     } catch (err: any) {
-      console.error('[StripeCheckout] payment exception:', err);
+      console.error(`[StripeCheckout] ${label} payment exception:`, err);
       toast({
         title: 'Payment Error',
         description: err?.message || 'Unexpected error processing payment.',
@@ -173,16 +169,68 @@ const StripePaymentForm: React.FC<{
     }
   };
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stripe || !elements || submitting || disabled) return;
+    await confirmAndFinalize('card');
+  };
+
+  // ExpressCheckoutElement -> Apple Pay / Google Pay / Link button(s).
+  // Stripe fires `onConfirm` after the user authorizes in the wallet
+  // sheet; we then call confirmPayment with the existing clientSecret.
+  const handleExpressConfirm = async () => {
+    if (!stripe || !elements || submitting || disabled) return;
+    await confirmAndFinalize('express');
+  };
+
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4 min-h-[260px]">
+      {/* Express Checkout (Apple Pay / Google Pay / Link). Container is
+          always mounted so the Stripe element can mount, but kept
+          visually hidden until onReady reports at least one available
+          wallet. This avoids a flash of empty space on devices that
+          don't support any of them. */}
+      <div className={expressReady && expressAvailable ? 'space-y-3' : 'hidden'}>
+        <div className="text-xs uppercase tracking-wide text-gray-500 text-center font-medium">
+          Express checkout
+        </div>
+        <ExpressCheckoutElement
+          onReady={(event) => {
+            const methods = (event && (event as any).availablePaymentMethods) || {};
+            const anyAvailable = Boolean(
+              methods.applePay || methods.googlePay || methods.link || methods.paypal,
+            );
+            setExpressAvailable(anyAvailable);
+            setExpressReady(true);
+          }}
+          onConfirm={handleExpressConfirm}
+          options={{
+            // Match button styling to the rest of the page.
+            buttonHeight: 48,
+            buttonTheme: { applePay: 'black', googlePay: 'black' },
+            buttonType: { applePay: 'pay', googlePay: 'pay' },
+            // We disable PayPal here because we already render PayPal as
+            // a separate top-level tab — surfacing it inside the Stripe
+            // panel too would be confusing.
+            paymentMethods: { paypal: 'never' },
+          }}
+        />
+        <div className="flex items-center gap-3" aria-hidden="true">
+          <span className="h-px flex-1 bg-gray-200" />
+          <span className="text-xs text-gray-500">Or pay with card</span>
+          <span className="h-px flex-1 bg-gray-200" />
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4">
         <PaymentElement
           options={{
-            layout: { type: 'tabs', defaultCollapsed: false },
-            // Apple Pay / Google Pay / Link are surfaced automatically when
-            // automatic_payment_methods is enabled on the PaymentIntent.
-            wallets: { applePay: 'auto', googlePay: 'auto' },
-            // Capture phone for shipping/contact fallback.
+            // With `payment_method_types: ['card']` set on the
+            // PaymentIntent, the Payment Element renders a single,
+            // un-tabbed card form. No Klarna / Cash App / Amazon Pay
+            // dropdown can appear here.
+            layout: { type: 'accordion', defaultCollapsed: false, radios: false, spacedAccordionItems: false },
+            wallets: { applePay: 'never', googlePay: 'never' },
             fields: { billingDetails: { phone: 'auto' } },
           }}
         />

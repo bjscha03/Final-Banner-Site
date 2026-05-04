@@ -1212,7 +1212,7 @@ const Checkout: React.FC = () => {
                             : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'
                         }`}
                       >
-                        Card / Apple Pay / Google Pay
+                        Card
                       </button>
                       <button
                         type="button"
