@@ -174,7 +174,7 @@ exports.handler = async (event) => {
     // ------------------------------------------------------------------
     const pendingResult = await createPendingOrder({
       user_id: userId || null,
-      email: email || `guest-${Date.now()}@bannersonthefly.com`,
+      email: email || `guest-${cid}@bannersonthefly.com`,
       subtotal_cents: totals.adjusted_subtotal_cents,
       tax_cents: totals.tax_cents,
       total_cents: finalAmountCents,

@@ -167,10 +167,6 @@ const StripePaymentForm: React.FC<{
     }
   };
 
-  // Suppress unused-variable lint on paymentIntentId — it's intentionally
-  // kept on the form for debugging / future use.
-  void paymentIntentId;
-
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <PaymentElement
