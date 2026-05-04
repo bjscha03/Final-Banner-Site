@@ -159,8 +159,12 @@ exports.handler = async (event, context) => {
       `applied_discount_type TEXT DEFAULT 'none'`,
       `production_email_sent BOOLEAN DEFAULT FALSE`,
       `production_email_sent_at TIMESTAMP WITH TIME ZONE`,
+      `production_email_status TEXT DEFAULT 'pending'`,
       `shipping_notification_sent BOOLEAN DEFAULT FALSE`,
       `shipping_notification_sent_at TIMESTAMP WITH TIME ZONE`,
+      `shipping_notification_status TEXT DEFAULT 'pending'`,
+      `confirmation_email_status TEXT DEFAULT 'pending'`,
+      `confirmation_emailed_at TIMESTAMP WITH TIME ZONE`,
       // Same-Day Hit Service columns (added by create-order.cjs).
       `same_day_hit_service BOOLEAN DEFAULT FALSE`,
       `saturday_delivery BOOLEAN DEFAULT FALSE`,
@@ -363,7 +367,12 @@ exports.handler = async (event, context) => {
       applied_discount_type: order.applied_discount_type || 'none',
       production_email_sent: order.production_email_sent || false,
       production_email_sent_at: order.production_email_sent_at || null,
+      production_email_status: order.production_email_status || 'pending',
       shipping_notification_sent: order.shipping_notification_sent || false,
+      shipping_notification_sent_at: order.shipping_notification_sent_at || null,
+      shipping_notification_status: order.shipping_notification_status || 'pending',
+      confirmation_email_status: order.confirmation_email_status || 'pending',
+      confirmation_emailed_at: order.confirmation_emailed_at || null,
       created_at: order.created_at,
       items: _items
     };

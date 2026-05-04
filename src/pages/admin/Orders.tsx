@@ -1298,6 +1298,26 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
                 Graduation Designer Request
               </Badge>
             )}
+            {(() => {
+              // Surface a compact failure badge in the row when any of the
+              // transactional emails for this order failed delivery (error
+              // / bounced / complained). Full details + retry buttons live
+              // in the OrderDetails modal via <EmailDeliveryStatus />.
+              const FAILURE_STATUSES = new Set(['error', 'bounced', 'complained']);
+              const anyFailed =
+                FAILURE_STATUSES.has(order.confirmation_email_status || '') ||
+                FAILURE_STATUSES.has(order.production_email_status || '') ||
+                FAILURE_STATUSES.has(order.shipping_notification_status || '');
+              return anyFailed ? (
+                <Badge
+                  className="bg-red-100 text-red-800 text-xs border border-red-300"
+                  title="Email delivery failed – customer did NOT receive notifications"
+                >
+                  <Mail className="h-3 w-3 mr-1" />
+                  Email Failed
+                </Badge>
+              ) : null;
+            })()}
           </div>
           {isGraduation && (
             <a

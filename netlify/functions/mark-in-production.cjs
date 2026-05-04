@@ -126,14 +126,15 @@ exports.handler = async (event) => {
       await sql`
         ALTER TABLE orders
         ADD COLUMN IF NOT EXISTS production_email_sent BOOLEAN DEFAULT FALSE,
-        ADD COLUMN IF NOT EXISTS production_email_sent_at TIMESTAMP WITH TIME ZONE
+        ADD COLUMN IF NOT EXISTS production_email_sent_at TIMESTAMP WITH TIME ZONE,
+        ADD COLUMN IF NOT EXISTS production_email_status TEXT DEFAULT 'pending'
       `;
       console.log('[mark-in-production] Auto-migration: constraint and columns verified');
     } catch (migErr) {
       console.warn('[mark-in-production] Auto-migration warning (non-fatal):', migErr.message);
     }
 
-    const { orderId } = JSON.parse(event.body || '{}');
+    const { orderId, retryEmail = false } = JSON.parse(event.body || '{}');
 
     if (!orderId || typeof orderId !== 'string') {
       return {
@@ -161,8 +162,13 @@ exports.handler = async (event) => {
 
     const order = orderResult[0];
 
-    // Prevent duplicate sends (also check status in case column doesn't exist yet)
-    if (order.production_email_sent || order.status === 'in_production') {
+    // Prevent duplicate sends unless this is an explicit admin retry of a
+    // failed delivery (suppression cleared, bounce reason resolved, etc.).
+    // The retryEmail flag is sent by the admin "Retry email" button shown
+    // when production_email_status ∈ {error, bounced, complained}.
+    const isFailedStatus = ['error', 'bounced', 'complained'].includes(order.production_email_status);
+    const allowRetry = retryEmail === true && isFailedStatus;
+    if (!allowRetry && (order.production_email_sent || order.status === 'in_production')) {
       return {
         statusCode: 400,
         headers,
@@ -258,23 +264,39 @@ exports.handler = async (event) => {
         SET status = 'in_production',
             production_email_sent = ${emailResult.ok},
             production_email_sent_at = ${emailResult.ok ? new Date().toISOString() : null},
+            production_email_status = ${emailResult.ok ? 'sent' : 'error'},
             updated_at = NOW()
         WHERE id = ${orderId}
       `;
       dbUpdated = true;
     } catch (updateError) {
-      // If the production_email columns don't exist yet (migration not run), update status only
-      console.warn('Full update failed, trying status-only update:', updateError.message);
+      // If the production_email_status column does not exist yet, retry
+      // without it so the rest of the update still applies.
+      console.warn('Full update with status failed, retrying without production_email_status:', updateError.message);
       try {
         await sql`
           UPDATE orders
           SET status = 'in_production',
+              production_email_sent = ${emailResult.ok},
+              production_email_sent_at = ${emailResult.ok ? new Date().toISOString() : null},
               updated_at = NOW()
           WHERE id = ${orderId}
         `;
         dbUpdated = true;
-      } catch (fallbackError) {
-        console.error('Status-only update also failed:', fallbackError.message);
+      } catch (legacyError) {
+        // If the production_email columns also don't exist, fall back to status-only.
+        console.warn('Status+sent update failed, trying status-only update:', legacyError.message);
+        try {
+          await sql`
+            UPDATE orders
+            SET status = 'in_production',
+                updated_at = NOW()
+            WHERE id = ${orderId}
+          `;
+          dbUpdated = true;
+        } catch (fallbackError) {
+          console.error('Status-only update also failed:', fallbackError.message);
+        }
       }
     }
 
