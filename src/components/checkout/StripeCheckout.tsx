@@ -203,7 +203,7 @@ const StripePaymentForm: React.FC<{
         )}
       </Button>
       <p className="text-[11px] sm:text-xs text-gray-500 text-center leading-snug">
-        Secured by <span className="font-semibold text-gray-700">Stripe</span> · Card details are encrypted and never touch our servers.
+        Secured by <span className="font-semibold text-gray-700">Stripe</span> · Payment details are encrypted and never touch our servers.
       </p>
     </form>
   );

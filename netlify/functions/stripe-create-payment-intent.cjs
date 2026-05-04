@@ -312,7 +312,7 @@ exports.handler = async (event) => {
           const q = it.quantity;
           const mat = it.material || 'banner';
           const dims = (w && h) ? `${w}x${h}in` : '';
-          return `${q || 1}x ${dims} ${mat}`.trim();
+          return `${q || 1}x ${dims} ${mat}`.replace(/\s+/g, ' ').trim();
         });
         if ((items || []).length > 5) parts.push(`+${items.length - 5} more`);
         return parts.join(', ').slice(0, 480);
