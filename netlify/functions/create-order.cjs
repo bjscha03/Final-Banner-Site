@@ -6,6 +6,24 @@ const {
   getEasternTimeParts,
 } = require('./_shared/sameDayService.cjs');
 
+// Guard: only treat a value as a "real" authenticated user id if it is a
+// proper non-zero UUID. Placeholder values like the all-zero UUID, the
+// literal string "guest", empty strings, etc. are NOT real user ids and
+// MUST be ignored — otherwise we throw "User <id> not found in database"
+// for every guest checkout.
+const _UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function isRealUserId(value) {
+  if (value === null || value === undefined) return false;
+  if (typeof value !== 'string') return false;
+  const v = value.trim().toLowerCase();
+  if (!v) return false;
+  if (v === 'guest' || v.startsWith('guest-') || v.startsWith('guest_')) return false;
+  if (!_UUID_RE.test(v)) return false;
+  if (v.replace(/-/g, '').replace(/0/g, '') === '') return false; // all-zero UUID
+  if (v === '00000000-0000-0000-0000-000000000001') return false; // observed placeholder
+  return true;
+}
+
 // Helper to detect bad URLs (blob:, data:, or huge strings)
 function isBadUrl(url) {
   if (!url || typeof url !== 'string') return false;
@@ -604,28 +622,42 @@ exports.handler = async (event, context) => {
     console.log('🔍 ORDER CREATION DEBUG:');
     console.log('Order data received:', JSON.stringify(orderData, null, 2));
 
-    // STEP 1: If we have user_id, find the user and get their REAL email
-    if (orderData.user_id) {
+    // Sanitize incoming user_id. Placeholder values (all-zero UUID,
+    // "guest", malformed strings) must be treated as if no user_id was
+    // provided so guest checkout (Stripe pending orders, etc.) works.
+    const rawIncomingUserId = orderData.user_id;
+    const sanitizedUserId = isRealUserId(rawIncomingUserId) ? rawIncomingUserId : null;
+    if (rawIncomingUserId && !sanitizedUserId) {
+      console.log('🛡️ Ignoring placeholder/guest user_id; treating as guest order:', String(rawIncomingUserId).slice(0, 64));
+    }
+
+    // STEP 1: If we have a real user_id, find the user and get their REAL email
+    if (sanitizedUserId) {
       try {
-        console.log('🔍 Looking for user with ID:', orderData.user_id);
+        console.log('🔍 Looking for user with ID:', sanitizedUserId);
         const userCheck = await sql`
-          SELECT id, email, username, full_name FROM profiles WHERE id = ${orderData.user_id}
+          SELECT id, email, username, full_name FROM profiles WHERE id = ${sanitizedUserId}
         `;
 
         if (userCheck.length > 0) {
-          finalUserId = orderData.user_id;
+          finalUserId = sanitizedUserId;
           userEmail = userCheck[0].email; // CRITICAL: Use the REAL user email
           console.log('✅ User found in profiles table:');
           console.log('   - User ID:', finalUserId);
           console.log('   - Real Email:', userEmail);
           console.log('   - Username:', userCheck[0].username);
         } else {
-          console.log('❌ CRITICAL ERROR: User ID not found in profiles table!');
-          console.log('   - Provided user_id:', orderData.user_id);
-          console.log('   - This user needs to be created in database first');
-
-          // FAIL LOUDLY - don't create order with wrong email
-          throw new Error(`User ${orderData.user_id} not found in database. User must be created first.`);
+          // The user_id passed validation as a real-looking UUID but is
+          // not present in the profiles table. If we have a usable email
+          // on the order, treat this as a guest order rather than failing
+          // — this matches the expectation that Stripe pending orders
+          // can be created for guests.
+          console.log('⚠️ user_id not found in profiles table; falling back to guest/email path:', sanitizedUserId);
+          if (!orderData.email) {
+            // No email and no resolvable user → we genuinely cannot
+            // attribute the order. Fail loudly as before.
+            throw new Error(`User ${sanitizedUserId} not found in database. User must be created first.`);
+          }
         }
       } catch (userError) {
         console.error('❌ Error checking user profile:', userError);
@@ -1200,7 +1232,7 @@ exports.handler = async (event, context) => {
       orderId: orderId,
       order: {
         id: orderId,
-        user_id: orderData.user_id || null,
+        user_id: finalUserId,
         email: userEmail,
         subtotal_cents: orderData.subtotal_cents || 0,
         tax_cents: orderData.tax_cents || 0,
