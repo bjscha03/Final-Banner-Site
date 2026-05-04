@@ -330,6 +330,33 @@ exports.handler = async (event, context) => {
       console.warn('⚠️ Same-day hit service migration warning:', migrationError.message);
     }
 
+    // AUTO-MIGRATE: Stripe payment columns. The dedicated migration file
+    // (database-migrations/add-stripe-columns.sql) may not have been
+    // applied on every environment. Without these columns, the INSERT
+    // below fails with `column "payment_method" does not exist` and the
+    // Stripe pending-order create returns the generic "Failed to create
+    // order" we were debugging. Idempotent / safe to run on every call.
+    try {
+      await sql`
+        ALTER TABLE orders
+        ADD COLUMN IF NOT EXISTS stripe_payment_intent_id TEXT,
+        ADD COLUMN IF NOT EXISTS payment_method TEXT
+      `;
+      // Unique index for PaymentIntent dedupe (matches add-stripe-columns.sql).
+      try {
+        await sql`
+          CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_stripe_payment_intent_id
+            ON orders(stripe_payment_intent_id)
+            WHERE stripe_payment_intent_id IS NOT NULL
+        `;
+      } catch (idxErr) {
+        console.warn('⚠️ stripe_payment_intent_id index migration warning:', idxErr.message);
+      }
+      console.log('✅ Database migration: stripe_payment_intent_id + payment_method columns verified/created');
+    } catch (migrationError) {
+      console.warn('⚠️ Stripe columns migration warning:', migrationError.message);
+    }
+
     try {
       await sql`
         ALTER TABLE order_items

@@ -47,15 +47,47 @@ async function createPendingOrder(orderPayload, cid) {
     url,
     total_cents: orderPayload.total_cents,
     item_count: (orderPayload.items || []).length,
+    has_email: !!orderPayload.email,
+    has_customer_name: !!orderPayload.customer_name,
+    has_user_id: !!orderPayload.user_id,
+    has_discount_code: !!(orderPayload.discountCode && orderPayload.discountCode.code),
   });
-  const resp = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ...orderPayload, payment_status: 'pending' }),
-  });
+  let resp;
+  try {
+    resp = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...orderPayload,
+        payment_status: 'pending',
+        // Marker so create-order / downstream processors know this row
+        // originated from the Stripe pre-payment hold.
+        source: 'stripe',
+      }),
+    });
+  } catch (fetchErr) {
+    console.error('[stripe-create-payment-intent] create-order fetch threw', {
+      cid,
+      message: fetchErr && fetchErr.message,
+    });
+    return { ok: false, status: 0, body: { error: 'create-order_unreachable', details: fetchErr && fetchErr.message } };
+  }
+  // Always read the raw body so we can log what create-order actually
+  // returned — not just our interpretation of it. This is the log that
+  // shows the real reason for "Failed to create order" in Netlify.
+  const rawText = await resp.text().catch(() => '');
   let body = {};
-  try { body = await resp.json(); } catch (_e) { /* ignore */ }
+  try { body = rawText ? JSON.parse(rawText) : {}; } catch (_e) { body = { raw: rawText }; }
   if (!resp.ok || !body.ok || !body.orderId) {
+    console.error('[stripe-create-payment-intent] create-order rejected pending order', {
+      cid,
+      status: resp.status,
+      body_error: body && body.error,
+      body_details: body && body.details,
+      body_code: body && body.code,
+      body_message: body && body.message,
+      body_raw_excerpt: typeof rawText === 'string' ? rawText.slice(0, 1000) : null,
+    });
     return { ok: false, status: resp.status, body };
   }
   return { ok: true, orderId: body.orderId };
@@ -100,6 +132,7 @@ exports.handler = async (event) => {
     items,
     discountCode,
     email,
+    customer_name: customerName,
     user_id: userId,
     sameDayHitService: reqSameDay,
     saturdayDelivery: reqSaturday,
@@ -175,6 +208,7 @@ exports.handler = async (event) => {
     const pendingResult = await createPendingOrder({
       user_id: userId || null,
       email: email || `guest-${cid}@bannersonthefly.com`,
+      customer_name: customerName || null,
       subtotal_cents: totals.adjusted_subtotal_cents,
       tax_cents: totals.tax_cents,
       total_cents: finalAmountCents,
