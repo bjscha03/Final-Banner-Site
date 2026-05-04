@@ -45,17 +45,21 @@ const Checkout: React.FC = () => {
   const [isValidatingDiscount, setIsValidatingDiscount] = useState(false);
   const [discountError, setDiscountError] = useState('');
   const [guestDiscountEmail, setGuestDiscountEmail] = useState('');
+  // Feature flag to temporarily disable Stripe (Card / Apple Pay / Google Pay)
+  // in checkout. When false, the Stripe tab is hidden and PayPal is the only
+  // available payment method. Stripe code/components are preserved so this can
+  // be re-enabled later by simply switching ENABLE_STRIPE to true.
+  const ENABLE_STRIPE = false;
   // Selected payment provider tab. Stripe (cards + Apple/Google Pay) is
   // shown first when configured; PayPal remains as an alternative.
-  const stripeAvailable = Boolean(
+  const stripeAvailable = ENABLE_STRIPE && Boolean(
     (import.meta as any).env?.VITE_STRIPE_PUBLISHABLE_KEY
   );
-  // Default to Stripe (Card). The Card panel renders the embedded
-  // Stripe Payment Element inline — it never navigates away from
-  // /checkout. PayPal remains a one-click tab away. We previously
-  // defaulted to PayPal as a safety net while debugging, but the Card
-  // form is now the primary, stable flow.
-  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'paypal'>('stripe');
+  // Default to PayPal while Stripe is disabled. When ENABLE_STRIPE is flipped
+  // back to true, restore the previous default of 'stripe' (Card) here.
+  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'paypal'>(
+    ENABLE_STRIPE ? 'stripe' : 'paypal'
+  );
 
 
   // Get totals from cart store methods
