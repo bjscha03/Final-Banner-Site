@@ -2,6 +2,10 @@ const BRAND_LOGO_URL = 'https://res.cloudinary.com/dtrxl120u/image/fetch/f_auto,
 const BRAND_ORANGE = '#ff6b35';
 const BRAND_ORANGE_DARK = '#f45a24';
 const BRAND_NAVY = '#18448D';
+
+// Width (px) requested for the source artwork that feeds the email-banner-thumbnail
+// compositor; chosen so the resulting PNG stays sharp after server-side resizing.
+const EMAIL_THUMBNAIL_SOURCE_WIDTH = 1200;
 const {
   normalizeShippingAddress,
   hasShippingAddress,
@@ -47,13 +51,52 @@ function isHttpUrl(url) {
 function getFinalizedThumbnailUrl(item, maxWidth = 240) {
   if (!item || !item.thumbnail_url) return null;
   const url = String(item.thumbnail_url);
+
+  let directUrl = null;
   if (isCloudinaryUploadUrl(url)) {
-    return url.replace('/upload/', `/upload/w_${maxWidth},c_limit,f_auto,q_auto/`);
+    directUrl = url.replace('/upload/', `/upload/w_${maxWidth},c_limit,f_auto,q_auto/`);
+  } else if (isHttpUrl(url)) {
+    directUrl = `https://res.cloudinary.com/dtrxl120u/image/fetch/w_${maxWidth},c_limit,f_auto,q_auto/${url}`;
+  } else {
+    return null;
   }
-  if (isHttpUrl(url) && !isCloudinaryUploadUrl(url)) {
-    return `https://res.cloudinary.com/dtrxl120u/image/fetch/w_${maxWidth},c_limit,f_auto,q_auto/${url}`;
+
+  // For banners with grommets and known dimensions, return a URL that renders
+  // the artwork at the banner's true aspect ratio with grommet hardware
+  // overlaid on top, so email recipients can see exactly where the grommets
+  // will be placed.
+  const productType = item.product_type || item.productType || 'banner';
+  const isBanner = productType === 'banner';
+  const grommets = String(item.grommets || '').toLowerCase().trim();
+  const hasGrommets = grommets && grommets !== 'none' && grommets !== 'false';
+  const widthIn = Number(item.width_in || item.widthIn || 0);
+  const heightIn = Number(item.height_in || item.heightIn || 0);
+
+  if (isBanner && hasGrommets && widthIn > 0 && heightIn > 0) {
+    // Build a higher-resolution source URL so the composited PNG remains crisp
+    // when the email function resizes it.
+    let sourceUrl;
+    if (isCloudinaryUploadUrl(url)) {
+      sourceUrl = url.replace('/upload/', `/upload/w_${EMAIL_THUMBNAIL_SOURCE_WIDTH},c_limit,f_auto,q_auto/`);
+    } else {
+      sourceUrl = `https://res.cloudinary.com/dtrxl120u/image/fetch/w_${EMAIL_THUMBNAIL_SOURCE_WIDTH},c_limit,f_auto,q_auto/${url}`;
+    }
+
+    const baseUrl =
+      process.env.URL ||
+      process.env.DEPLOY_PRIME_URL ||
+      process.env.PUBLIC_SITE_URL ||
+      'https://www.bannersonthefly.com';
+    const params = new URLSearchParams({
+      url: sourceUrl,
+      w: String(widthIn),
+      h: String(heightIn),
+      g: grommets,
+    });
+    return `${baseUrl.replace(/\/$/, '')}/.netlify/functions/email-banner-thumbnail?${params.toString()}`;
   }
-  return null;
+
+  return directUrl;
 }
 
 function renderItems(items = []) {
@@ -74,8 +117,8 @@ function renderItems(items = []) {
               <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
                 <tr>
                   ${thumbnail ? `
-                  <td style="width:92px;padding-right:12px;vertical-align:top;">
-                    <img src="${escapeHtml(thumbnail)}" alt="${isYardSign ? 'Yard Sign Preview' : 'Banner Preview'}" width="88" style="display:block;border-radius:8px;border:1px solid #d1d5db;" />
+                  <td style="width:220px;padding-right:14px;vertical-align:top;">
+                    <img src="${escapeHtml(thumbnail)}" alt="${isYardSign ? 'Yard Sign Preview' : 'Banner Preview'}" width="220" style="display:block;width:220px;max-width:100%;height:auto;border-radius:8px;border:1px solid #d1d5db;" />
                   </td>` : ''}
                   <td style="vertical-align:top;">
                     <p style="margin:0 0 4px;color:#0f172a;font-size:15px;font-weight:700;">${escapeHtml(item.name || item.displayName || 'Item')}</p>
