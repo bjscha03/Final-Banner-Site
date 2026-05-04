@@ -17,6 +17,12 @@ interface StripeCheckoutProps {
   onSuccess: (orderId: string, orderData?: any) => void;
   onError: (error: any) => void;
   disabled?: boolean;
+  /**
+   * Optional callback invoked when the user opts to fall back to PayPal
+   * after a Stripe initialization failure. Lets the parent switch its
+   * payment-method tab so the customer can complete the order.
+   */
+  onSwitchToPayPal?: () => void;
 }
 
 const PUBLISHABLE_KEY =
@@ -201,6 +207,7 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({
   onSuccess,
   onError,
   disabled = false,
+  onSwitchToPayPal,
 }) => {
   const { user } = useAuth();
   const {
@@ -214,10 +221,36 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({
   const [orderId, setOrderId] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  // The Stripe init flow (pending order create + PaymentIntent create)
+  // is gated behind an explicit user action so we don't try to save an
+  // order or talk to Stripe until the customer actually wants to pay
+  // with a card / Apple Pay / Google Pay. Without this gate, a backend
+  // error (e.g. database hiccup) would render a permanent "Could not
+  // save your order" banner the moment the checkout page mounts —
+  // which is exactly the bug we are fixing here.
+  const [started, setStarted] = useState(false);
+  // Bumping this triggers a re-run of the init effect (used by the
+  // Retry button after a failure).
+  const [attempt, setAttempt] = useState(0);
 
   const stripeReady = useMemo(() => getStripePromise(), []);
 
+  // Reset any pending init state if the cart contents change before the
+  // user has started the Stripe flow. We deliberately do NOT reset
+  // `started` once init is in progress — that would cancel an in-flight
+  // PaymentIntent request and frustrate the user.
   useEffect(() => {
+    if (!started) {
+      setClientSecret(null);
+      setPaymentIntentId(null);
+      setOrderId(null);
+      setLoadError(null);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [items.length, total, discountCode?.code, sameDayHitService, saturdayDelivery]);
+
+  useEffect(() => {
+    if (!started) return;
     if (!PUBLISHABLE_KEY) {
       setLoadError('Stripe publishable key not configured.');
       return;
@@ -305,12 +338,18 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({
         if (!res.ok || !data.clientSecret || !data.orderId) {
           // Surface a clear, actionable message — the requirement is
           // that the user knows we did NOT charge them when our backend
-          // could not save the order.
-          const detail =
+          // could not save the order. Include the backend's `details`
+          // field so the real failure reason is visible (and reaches
+          // browser logs / support).
+          const baseMsg =
             data.message
             || data.error
             || `Failed to initialize Stripe (${res.status})`;
-          throw new Error(detail);
+          const detail = data.details && data.details !== baseMsg
+            ? ` (${data.details})`
+            : '';
+          const cidSuffix = data.cid ? ` [ref: ${data.cid}]` : '';
+          throw new Error(`${baseMsg}${detail}${cidSuffix}`);
         }
         if (cancelled) return;
         console.log('[StripeCheckout] pending order + PaymentIntent ready', {
@@ -337,11 +376,13 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({
       cancelled = true;
     };
     // We intentionally re-create the PaymentIntent (and pending order)
-    // when the priced total or eligibility changes. Recreating is cheap
-    // (Stripe doesn't charge until confirmation) and keeps the amount
-    // in sync.
+    // when the priced total or eligibility changes, OR when the user
+    // hits Retry (`attempt`). Recreating is cheap (Stripe doesn't
+    // charge until confirmation) and keeps the amount in sync.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
+    started,
+    attempt,
     total,
     items.length,
     discountCode?.code,
@@ -358,10 +399,73 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({
   }
 
   if (loadError) {
+    // Pending-order creation failed → we did NOT create a PaymentIntent
+    // and the customer was NOT charged (enforced server-side in
+    // stripe-create-payment-intent.cjs). Offer a clear retry path and a
+    // one-click fallback to PayPal so the order can still be completed.
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 text-sm">
-        <p className="font-semibold mb-1">Could not start payment</p>
-        <p>{loadError}</p>
+      <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 text-sm space-y-3">
+        <div>
+          <p className="font-semibold mb-1">Could not start card payment</p>
+          <p className="mb-1">{loadError}</p>
+          <p className="text-red-700/80">
+            Your card was <strong>not</strong> charged. You can try again or
+            switch to PayPal to complete your order.
+          </p>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button
+            type="button"
+            onClick={() => {
+              setLoadError(null);
+              setAttempt((n) => n + 1);
+            }}
+            disabled={loading}
+            className="bg-[#18448D] hover:bg-[#143a7a] text-white"
+          >
+            {loading ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Retrying...
+              </>
+            ) : (
+              'Retry card payment'
+            )}
+          </Button>
+          {onSwitchToPayPal && (
+            <Button
+              type="button"
+              variant="outline"
+              onClick={onSwitchToPayPal}
+              className="border-red-300 text-red-800 hover:bg-red-100"
+            >
+              Use PayPal instead
+            </Button>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Initial state: explicit "start" gate. We do NOT create a pending
+  // order or talk to Stripe until the user clicks this button. This is
+  // the requirement: "Stripe should not show a permanent error on page
+  // load unless the user selects Stripe and tries to start payment."
+  if (!started) {
+    return (
+      <div className="space-y-3">
+        <p className="text-sm text-gray-600">
+          Pay securely with your card, Apple Pay, or Google Pay.
+        </p>
+        <Button
+          type="button"
+          disabled={disabled || !items || items.length === 0}
+          onClick={() => setStarted(true)}
+          className="w-full bg-[#18448D] hover:bg-[#143a7a] text-white py-3 text-lg font-semibold"
+          size="lg"
+        >
+          Continue with Card / Apple Pay / Google Pay
+        </Button>
       </div>
     );
   }
