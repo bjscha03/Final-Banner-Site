@@ -175,18 +175,22 @@ const StripePaymentForm: React.FC<{
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <PaymentElement
-        options={{
-          layout: 'tabs',
-          // Apple Pay / Google Pay / Link are surfaced automatically when
-          // automatic_payment_methods is enabled on the PaymentIntent.
-          wallets: { applePay: 'auto', googlePay: 'auto' },
-        }}
-      />
+      <div className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4 min-h-[260px]">
+        <PaymentElement
+          options={{
+            layout: { type: 'tabs', defaultCollapsed: false },
+            // Apple Pay / Google Pay / Link are surfaced automatically when
+            // automatic_payment_methods is enabled on the PaymentIntent.
+            wallets: { applePay: 'auto', googlePay: 'auto' },
+            // Capture phone for shipping/contact fallback.
+            fields: { billingDetails: { phone: 'auto' } },
+          }}
+        />
+      </div>
       <Button
         type="submit"
         disabled={!stripe || !elements || submitting || disabled}
-        className="w-full bg-[#18448D] hover:bg-[#143a7a] text-white py-3 text-lg font-semibold"
+        className="w-full bg-[#18448D] hover:bg-[#143a7a] text-white py-3 text-base sm:text-lg font-semibold rounded-xl shadow-sm whitespace-normal break-words leading-tight"
         size="lg"
       >
         {submitting ? (
@@ -198,6 +202,9 @@ const StripePaymentForm: React.FC<{
           `Pay $${(total / 100).toFixed(2)}`
         )}
       </Button>
+      <p className="text-[11px] sm:text-xs text-gray-500 text-center leading-snug">
+        Secured by <span className="font-semibold text-gray-700">Stripe</span> · Card details are encrypted and never touch our servers.
+      </p>
     </form>
   );
 };
@@ -453,15 +460,15 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({
   // load unless the user selects Stripe and tries to start payment."
   if (!started) {
     return (
-      <div className="space-y-3">
-        <p className="text-sm text-gray-600">
-          Pay securely with your card, Apple Pay, or Google Pay.
+      <div className="rounded-xl border border-gray-200 bg-white p-4 sm:p-5 space-y-3 min-h-[180px]">
+        <p className="text-sm text-gray-700 leading-snug">
+          Pay securely with your card, Apple Pay, Google Pay, or Link.
         </p>
         <Button
           type="button"
           disabled={disabled || !items || items.length === 0}
           onClick={() => setStarted(true)}
-          className="w-full bg-[#18448D] hover:bg-[#143a7a] text-white py-3 px-4 text-base sm:text-lg font-semibold leading-tight whitespace-normal break-words text-center"
+          className="w-full bg-[#18448D] hover:bg-[#143a7a] text-white py-3 px-4 text-base sm:text-lg font-semibold rounded-xl shadow-sm leading-tight whitespace-normal break-words text-center"
           size="lg"
         >
           {/* Mobile: short label so it never overflows.
@@ -469,15 +476,18 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({
           <span className="sm:hidden">Continue to Pay</span>
           <span className="hidden sm:inline">Continue with Card or Apple Pay</span>
         </Button>
+        <p className="text-[11px] sm:text-xs text-gray-500 text-center leading-snug">
+          Secured by <span className="font-semibold text-gray-700">Stripe</span> · 256-bit SSL · PCI compliant
+        </p>
       </div>
     );
   }
 
   if (loading || !clientSecret || !orderId) {
     return (
-      <div className="flex items-center justify-center py-8">
-        <Loader2 className="h-6 w-6 animate-spin mr-2" />
-        <span>Loading payment form...</span>
+      <div className="flex items-center justify-center py-12 min-h-[260px] rounded-xl border border-gray-200 bg-white">
+        <Loader2 className="h-6 w-6 animate-spin mr-2 text-[#18448D]" />
+        <span className="text-gray-700">Loading payment form...</span>
       </div>
     );
   }
@@ -487,7 +497,42 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({
       stripe={stripeReady}
       options={{
         clientSecret,
-        appearance: { theme: 'stripe' },
+        appearance: {
+          theme: 'stripe',
+          variables: {
+            // Match Banners on the Fly: navy primary, orange accent,
+            // rounded corners, system font, comfortable spacing.
+            colorPrimary: '#18448D',
+            colorText: '#1f2937',
+            colorTextSecondary: '#6b7280',
+            colorBackground: '#ffffff',
+            colorDanger: '#dc2626',
+            fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+            fontSizeBase: '15px',
+            borderRadius: '10px',
+            spacingUnit: '4px',
+          },
+          rules: {
+            '.Tab': {
+              border: '1px solid #e5e7eb',
+              boxShadow: 'none',
+            },
+            '.Tab--selected': {
+              borderColor: '#18448D',
+              color: '#18448D',
+              backgroundColor: '#f5f8ff',
+            },
+            '.Input': {
+              border: '1px solid #e5e7eb',
+              boxShadow: 'none',
+            },
+            '.Input:focus': {
+              borderColor: '#18448D',
+              boxShadow: '0 0 0 3px rgba(24, 68, 141, 0.15)',
+            },
+            '.Label': { fontWeight: '500' },
+          },
+        },
       }}
     >
       <StripePaymentForm

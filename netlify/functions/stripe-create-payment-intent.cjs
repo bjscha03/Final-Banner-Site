@@ -301,9 +301,31 @@ exports.handler = async (event) => {
     // ------------------------------------------------------------------
     const stripe = new Stripe(secretKey, { apiVersion: '2024-12-18.acacia' });
 
+    // Build a short, human-readable product summary for the Stripe
+    // dashboard. Truncate aggressively — Stripe metadata values must be
+    // ≤500 chars and we want to leave headroom.
+    const productSummary = (() => {
+      try {
+        const parts = (items || []).slice(0, 5).map((it) => {
+          const w = it.width_in;
+          const h = it.height_in;
+          const q = it.quantity;
+          const mat = it.material || 'banner';
+          const dims = (w && h) ? `${w}x${h}in` : '';
+          return `${q || 1}x ${dims} ${mat}`.trim();
+        });
+        if ((items || []).length > 5) parts.push(`+${items.length - 5} more`);
+        return parts.join(', ').slice(0, 480);
+      } catch (_e) {
+        return '';
+      }
+    })();
+
     const metadata = {
       cid,
       order_id: pendingOrderId,
+      site: 'bannersonthefly.com',
+      item_count: String((items || []).reduce((n, it) => n + (Number(it.quantity) || 0), 0) || (items || []).length),
       banner_subtotal_cents: String(totals.adjusted_subtotal_cents),
       tax_cents: String(totals.tax_cents),
       same_day_fee_cents: String(sameDayFeeCents),
@@ -314,8 +336,13 @@ exports.handler = async (event) => {
       same_day_requested: reqSameDay ? '1' : '0',
       same_day_applied: sameDayResult.sameDay ? '1' : '0',
     };
+    if (productSummary) metadata.product_summary = productSummary;
     if (safeUserId) metadata.user_id = String(safeUserId).slice(0, 200);
-    if (email) metadata.email = String(email).slice(0, 200);
+    if (email) {
+      metadata.email = String(email).slice(0, 200);
+      metadata.customer_email = String(email).slice(0, 200);
+    }
+    if (customerName) metadata.customer_name = String(customerName).slice(0, 200);
     if (discountCode && discountCode.code) {
       metadata.discount_code = String(discountCode.code).slice(0, 100);
     }
@@ -326,7 +353,7 @@ exports.handler = async (event) => {
         currency: 'usd',
         automatic_payment_methods: { enabled: true },
         receipt_email: email || undefined,
-        description: `Banners On The Fly order ${pendingOrderId}`,
+        description: `Banners on the Fly order ${pendingOrderId}${productSummary ? ` — ${productSummary}` : ''}`.slice(0, 350),
         metadata,
       },
       { idempotencyKey: `pi_create_${cid}` }

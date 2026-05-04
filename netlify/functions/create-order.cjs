@@ -375,6 +375,32 @@ exports.handler = async (event, context) => {
       console.warn('⚠️ Stripe columns migration warning:', migrationError.message);
     }
 
+    // AUTO-MIGRATE: Stripe charge id + wallet type columns. Mirrors
+    // database-migrations/add-stripe-charge-id.sql so finalize/webhook
+    // can persist the underlying charge id (for Stripe-dashboard ↔
+    // admin lookups) and the wallet type (apple_pay / google_pay /
+    // link / null) without requiring an out-of-band schema deploy.
+    try {
+      await sql`
+        ALTER TABLE orders
+        ADD COLUMN IF NOT EXISTS stripe_charge_id TEXT,
+        ADD COLUMN IF NOT EXISTS stripe_wallet_type TEXT,
+        ADD COLUMN IF NOT EXISTS customer_phone TEXT
+      `;
+      try {
+        await sql`
+          CREATE INDEX IF NOT EXISTS idx_orders_stripe_charge_id
+            ON orders(stripe_charge_id)
+            WHERE stripe_charge_id IS NOT NULL
+        `;
+      } catch (idxErr) {
+        console.warn('⚠️ stripe_charge_id index migration warning:', idxErr.message);
+      }
+      console.log('✅ Database migration: stripe_charge_id + stripe_wallet_type columns verified/created');
+    } catch (migrationError) {
+      console.warn('⚠️ Stripe charge/wallet columns migration warning:', migrationError.message);
+    }
+
     try {
       await sql`
         ALTER TABLE order_items

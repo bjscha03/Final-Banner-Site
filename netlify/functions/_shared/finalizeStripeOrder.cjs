@@ -41,12 +41,15 @@ async function sendOrderEmails(orderId, source) {
  * @param {object} args
  * @param {string} args.paymentIntentId  - Stripe PaymentIntent id (required)
  * @param {string} [args.orderId]        - Optional order id; if omitted we look it up by paymentIntentId
- * @param {object} [args.shipping]       - Optional shipping object { name, line1, line2, city, state, postal_code, country }
- * @param {object} [args.billing]        - Optional billing object { name, email, address: {...} }
+ * @param {string} [args.chargeId]       - Optional Stripe Charge id (latest_charge on the PaymentIntent)
+ * @param {string} [args.walletType]     - Optional wallet type ('apple_pay' | 'google_pay' | 'link')
+ * @param {string} [args.receiptEmail]   - Optional receipt email captured by Stripe (used as fallback when guest order has no email)
+ * @param {object} [args.shipping]       - Optional shipping object { name, line1, line2, city, state, postal_code, country, phone }
+ * @param {object} [args.billing]        - Optional billing object { name, email, phone, address: {...} }
  * @param {string} args.source           - 'browser' | 'webhook' (used in logs)
  * @returns {Promise<{ ok: boolean, orderId?: string, alreadyPaid?: boolean, error?: string }>}
  */
-async function finalizeStripeOrder({ paymentIntentId, orderId, shipping, billing, source }) {
+async function finalizeStripeOrder({ paymentIntentId, orderId, chargeId, walletType, receiptEmail, shipping, billing, source }) {
   const tag = `[finalizeStripeOrder:${source || 'unknown'}]`;
   if (!paymentIntentId) {
     return { ok: false, error: 'MISSING_PAYMENT_INTENT_ID' };
@@ -107,6 +110,15 @@ async function finalizeStripeOrder({ paymentIntentId, orderId, shipping, billing
   const shippingState = (shipping && shipping.state) || null;
   const shippingZip = (shipping && (shipping.postal_code || shipping.postalCode || shipping.zip)) || null;
   const shippingCountry = (shipping && shipping.country) || null;
+  const phone = (shipping && shipping.phone)
+    || (billing && billing.phone)
+    || null;
+  // Use Stripe's billing/receipt email as a fallback for guest orders
+  // that were persisted with a synthetic guest-<cid>@... address before
+  // the customer entered their real email in the Payment Element.
+  const fallbackEmail = (billing && billing.email)
+    || receiptEmail
+    || null;
 
   const customerName = shippingName
     || (billing && billing.name)
@@ -121,9 +133,18 @@ async function finalizeStripeOrder({ paymentIntentId, orderId, shipping, billing
       SET
         status = 'paid',
         stripe_payment_intent_id = COALESCE(stripe_payment_intent_id, ${paymentIntentId}),
+        stripe_charge_id = COALESCE(stripe_charge_id, ${chargeId || null}),
+        stripe_wallet_type = COALESCE(stripe_wallet_type, ${walletType || null}),
         payment_method = COALESCE(payment_method, 'stripe'),
         customer_name = COALESCE(${customerName}, customer_name),
         customer_first_name = COALESCE(${customerFirstName}, customer_first_name),
+        customer_phone = COALESCE(${phone}, customer_phone),
+        email = CASE
+          WHEN ${fallbackEmail}::text IS NOT NULL
+            AND (email IS NULL OR email LIKE 'guest-%@bannersonthefly.com')
+          THEN ${fallbackEmail}
+          ELSE email
+        END,
         shipping_name = COALESCE(${shippingName}, shipping_name),
         shipping_street = COALESCE(${shippingStreet}, shipping_street),
         shipping_street2 = COALESCE(${shippingStreet2}, shipping_street2),

@@ -27,6 +27,7 @@ function shippingFromIntent(intent) {
   if (!s) return null;
   return {
     name: s.name || null,
+    phone: s.phone || null,
     line1: s.address && s.address.line1,
     line2: s.address && s.address.line2,
     city: s.address && s.address.city,
@@ -99,13 +100,36 @@ exports.handler = async (event) => {
           amount: pi.amount,
         });
 
+        const chargeId = pi.latest_charge
+          || (pi.charges && pi.charges.data && pi.charges.data[0] && pi.charges.data[0].id)
+          || null;
+        let walletType = null;
+        let billing = pi.charges && pi.charges.data && pi.charges.data[0]
+          ? pi.charges.data[0].billing_details || null
+          : null;
+        let receiptEmail = pi.receipt_email || null;
+        try {
+          if (chargeId) {
+            const charge = await stripe.charges.retrieve(chargeId);
+            const pmDetails = charge && charge.payment_method_details;
+            if (pmDetails && pmDetails.card && pmDetails.card.wallet && pmDetails.card.wallet.type) {
+              walletType = String(pmDetails.card.wallet.type);
+            }
+            if (!billing && charge && charge.billing_details) billing = charge.billing_details;
+            if (!receiptEmail && charge && charge.receipt_email) receiptEmail = charge.receipt_email;
+          }
+        } catch (chargeErr) {
+          console.warn('[stripe-webhook] failed to retrieve Charge:', chargeErr.message);
+        }
+
         const result = await finalizeStripeOrder({
           paymentIntentId: pi.id,
           orderId,
+          chargeId,
+          walletType,
+          receiptEmail,
           shipping: shippingFromIntent(pi),
-          billing: pi.charges && pi.charges.data && pi.charges.data[0]
-            ? pi.charges.data[0].billing_details || null
-            : null,
+          billing,
           source: 'webhook',
         });
 

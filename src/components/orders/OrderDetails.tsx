@@ -675,6 +675,65 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
             </div>
           )}
 
+          {/* Payment Information - Admin Only */}
+          {isAdminUser && (order.payment_method || order.stripe_payment_intent_id || order.paypal_order_id) && (() => {
+            const method = (order.payment_method || '').toLowerCase();
+            const isStripe = method === 'stripe' || !!order.stripe_payment_intent_id;
+            const isPayPal = method === 'paypal' || !!order.paypal_order_id;
+            const wallet = (order.stripe_wallet_type || '').toLowerCase();
+            const methodLabel = isStripe
+              ? (wallet === 'apple_pay' ? 'Apple Pay (Stripe)'
+                : wallet === 'google_pay' ? 'Google Pay (Stripe)'
+                : wallet === 'link' ? 'Stripe Link'
+                : 'Stripe / Card')
+              : isPayPal ? 'PayPal'
+              : (order.payment_method || 'Unknown');
+            return (
+              <div className="bg-indigo-50 border border-indigo-200 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center">
+                  <CreditCard className="h-5 w-5 text-indigo-600 mr-2" />
+                  Payment Information
+                </h3>
+                <div className="grid grid-cols-1 gap-2 text-sm">
+                  <div className="flex flex-wrap items-baseline gap-2">
+                    <span className="text-gray-600">Method:</span>
+                    <span className="font-semibold text-gray-900">{methodLabel}</span>
+                  </div>
+                  {order.stripe_payment_intent_id && (
+                    <div className="flex flex-wrap items-baseline gap-2">
+                      <span className="text-gray-600">Payment Intent:</span>
+                      <span className="font-mono text-xs text-gray-900 break-all">{order.stripe_payment_intent_id}</span>
+                    </div>
+                  )}
+                  {order.stripe_charge_id && (
+                    <div className="flex flex-wrap items-baseline gap-2">
+                      <span className="text-gray-600">Charge:</span>
+                      <span className="font-mono text-xs text-gray-900 break-all">{order.stripe_charge_id}</span>
+                    </div>
+                  )}
+                  {order.paypal_order_id && (
+                    <div className="flex flex-wrap items-baseline gap-2">
+                      <span className="text-gray-600">PayPal Order:</span>
+                      <span className="font-mono text-xs text-gray-900 break-all">{order.paypal_order_id}</span>
+                    </div>
+                  )}
+                  {order.paypal_capture_id && (
+                    <div className="flex flex-wrap items-baseline gap-2">
+                      <span className="text-gray-600">PayPal Capture:</span>
+                      <span className="font-mono text-xs text-gray-900 break-all">{order.paypal_capture_id}</span>
+                    </div>
+                  )}
+                  {order.customer_phone && (
+                    <div className="flex flex-wrap items-baseline gap-2">
+                      <span className="text-gray-600">Phone:</span>
+                      <span className="font-medium text-gray-900">{order.customer_phone}</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Design Service Section - Admin Only (for design service orders) */}
           {isAdminUser && order.items.some(item => item.design_service_enabled) && (
             <div className="bg-gradient-to-br from-purple-50 via-violet-50 to-fuchsia-50 border-2 border-purple-300 rounded-2xl p-6 shadow-lg">
