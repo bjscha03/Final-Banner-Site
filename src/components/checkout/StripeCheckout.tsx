@@ -328,6 +328,7 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({
             }
           : null,
         email: user?.email || null,
+        customer_name: (user as any)?.full_name || null,
         user_id: user?.id || null,
         sameDayHitService: !!sameDayHitService,
         saturdayDelivery: !!saturdayDelivery,
@@ -336,20 +337,17 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({
       .then(async (res) => {
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data.clientSecret || !data.orderId) {
-          // Surface a clear, actionable message — the requirement is
-          // that the user knows we did NOT charge them when our backend
-          // could not save the order. Include the backend's `details`
-          // field so the real failure reason is visible (and reaches
-          // browser logs / support).
-          const baseMsg =
-            data.message
-            || data.error
-            || `Failed to initialize Stripe (${res.status})`;
-          const detail = data.details && data.details !== baseMsg
-            ? ` (${data.details})`
-            : '';
-          const cidSuffix = data.cid ? ` [ref: ${data.cid}]` : '';
-          throw new Error(`${baseMsg}${detail}${cidSuffix}`);
+          // Log the real backend reason (error / details / cid) to the
+          // console for debugging, but DO NOT show any of it to the
+          // customer — they only get the friendly banner below.
+          console.error('[StripeCheckout] init failed', {
+            status: res.status,
+            error: data?.error,
+            message: data?.message,
+            details: data?.details,
+            cid: data?.cid,
+          });
+          throw new Error('init_failed');
         }
         if (cancelled) return;
         console.log('[StripeCheckout] pending order + PaymentIntent ready', {
@@ -363,10 +361,10 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({
       .catch((err) => {
         if (cancelled) return;
         console.error('[StripeCheckout] stripe-create-payment-intent failed:', err);
-        setLoadError(
-          err?.message
-          || 'We could not save your order. Your card was NOT charged. Please try again.'
-        );
+        // Customer-facing message must NEVER include developer detail
+        // (status codes, "Failed to create order", correlation ids,
+        // etc.). The error card is what the customer sees.
+        setLoadError('init_failed');
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
@@ -401,19 +399,21 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({
   if (loadError) {
     // Pending-order creation failed → we did NOT create a PaymentIntent
     // and the customer was NOT charged (enforced server-side in
-    // stripe-create-payment-intent.cjs). Offer a clear retry path and a
-    // one-click fallback to PayPal so the order can still be completed.
+    // stripe-create-payment-intent.cjs). Show a small, professional
+    // card with a Try Again primary action and a PayPal fallback.
+    // Developer detail (cid/ref/error code) is logged to the console
+    // only — never shown to the customer.
     return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-800 text-sm space-y-3">
-        <div>
-          <p className="font-semibold mb-1">Could not start card payment</p>
-          <p className="mb-1">{loadError}</p>
-          <p className="text-red-700/80">
-            Your card was <strong>not</strong> charged. You can try again or
-            switch to PayPal to complete your order.
-          </p>
-        </div>
-        <div className="flex flex-col sm:flex-row gap-2">
+      <div
+        role="alert"
+        className="rounded-lg border border-red-200 bg-red-50 p-4 text-sm text-red-800"
+      >
+        <p className="font-semibold mb-1">We couldn’t start card payment</p>
+        <p className="text-red-700/90">
+          Your card was <strong>not</strong> charged. Please try again, or use
+          PayPal to complete your order.
+        </p>
+        <div className="mt-3 flex flex-col sm:flex-row gap-2">
           <Button
             type="button"
             onClick={() => {
@@ -421,15 +421,15 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({
               setAttempt((n) => n + 1);
             }}
             disabled={loading}
-            className="bg-[#18448D] hover:bg-[#143a7a] text-white"
+            className="w-full sm:w-auto bg-[#18448D] hover:bg-[#143a7a] text-white"
           >
             {loading ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                Retrying...
+                Trying again...
               </>
             ) : (
-              'Retry card payment'
+              'Try Again'
             )}
           </Button>
           {onSwitchToPayPal && (
@@ -437,9 +437,9 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({
               type="button"
               variant="outline"
               onClick={onSwitchToPayPal}
-              className="border-red-300 text-red-800 hover:bg-red-100"
+              className="w-full sm:w-auto border-red-300 text-red-800 hover:bg-red-100"
             >
-              Use PayPal instead
+              Use PayPal
             </Button>
           )}
         </div>
@@ -461,10 +461,13 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({
           type="button"
           disabled={disabled || !items || items.length === 0}
           onClick={() => setStarted(true)}
-          className="w-full bg-[#18448D] hover:bg-[#143a7a] text-white py-3 text-lg font-semibold"
+          className="w-full bg-[#18448D] hover:bg-[#143a7a] text-white py-3 px-4 text-base sm:text-lg font-semibold leading-tight whitespace-normal break-words text-center"
           size="lg"
         >
-          Continue with Card / Apple Pay / Google Pay
+          {/* Mobile: short label so it never overflows.
+              ≥sm: full label including Apple Pay. */}
+          <span className="sm:hidden">Continue to Pay</span>
+          <span className="hidden sm:inline">Continue with Card or Apple Pay</span>
         </Button>
       </div>
     );
