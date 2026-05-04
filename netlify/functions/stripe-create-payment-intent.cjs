@@ -28,6 +28,31 @@ const {
 
 const sql = neon(process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL);
 
+// Guard: only treat a value as a "real" authenticated user id if it is a
+// proper non-zero UUID. Placeholder values like the all-zero UUID, the
+// literal string "guest", empty strings, etc. are NOT real user ids and
+// MUST NOT be forwarded to create-order — doing so causes the pending
+// order INSERT to fail with "User <id> not found in database" because
+// no matching row exists in the profiles table.
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const ZERO_UUID = '00000000-0000-0000-0000-000000000000';
+function isRealUserId(value) {
+  if (value === null || value === undefined) return false;
+  if (typeof value !== 'string') return false;
+  const v = value.trim().toLowerCase();
+  if (!v) return false;
+  if (v === 'guest' || v.startsWith('guest-') || v.startsWith('guest_')) return false;
+  if (!UUID_RE.test(v)) return false;
+  // Reject the all-zero UUID and the well-known "...0001" placeholder
+  // observed in production logs.
+  if (v === ZERO_UUID) return false;
+  if (v === '00000000-0000-0000-0000-000000000001') return false;
+  // Reject any UUID whose non-hyphen characters are all zeros (e.g.
+  // 00000000-0000-0000-0000-00000000000X for any single-char tail).
+  if (v.replace(/-/g, '').replace(/0/g, '') === '') return false;
+  return true;
+}
+
 const headers = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'Content-Type',
@@ -200,13 +225,31 @@ exports.handler = async (event) => {
       };
     }
 
+    // Sanitize the user_id before doing anything else. The frontend may
+    // send a placeholder UUID (e.g. 00000000-0000-0000-0000-000000000001)
+    // or even the literal string "guest" when the customer is not
+    // authenticated. Forwarding those values to create-order causes the
+    // pending order INSERT to fail because no matching profiles row
+    // exists — which in turn means we never call Stripe and the user
+    // sees a generic "could not start checkout" error.
+    const safeUserId = isRealUserId(userId) ? userId : null;
+    if (userId && !safeUserId) {
+      console.log('[stripe-create-payment-intent] Ignoring placeholder/guest user_id; treating as guest checkout', {
+        cid,
+        provided_user_id_excerpt: String(userId).slice(0, 64),
+      });
+    }
+
     // ------------------------------------------------------------------
     // STEP 1: Persist a PENDING order BEFORE asking Stripe for anything.
     // If this fails, we never reach the Stripe API → the customer
     // CANNOT be charged without a corresponding row in our database.
     // ------------------------------------------------------------------
     const pendingResult = await createPendingOrder({
-      user_id: userId || null,
+      // Only forward user_id when it is a real authenticated user; for
+      // guest checkout we omit it entirely and let create-order persist
+      // the order against the guest email below.
+      ...(safeUserId ? { user_id: safeUserId } : {}),
       email: email || `guest-${cid}@bannersonthefly.com`,
       customer_name: customerName || null,
       subtotal_cents: totals.adjusted_subtotal_cents,
@@ -258,9 +301,31 @@ exports.handler = async (event) => {
     // ------------------------------------------------------------------
     const stripe = new Stripe(secretKey, { apiVersion: '2024-12-18.acacia' });
 
+    // Build a short, human-readable product summary for the Stripe
+    // dashboard. Truncate aggressively — Stripe metadata values must be
+    // ≤500 chars and we want to leave headroom.
+    const productSummary = (() => {
+      try {
+        const parts = (items || []).slice(0, 5).map((it) => {
+          const w = it.width_in;
+          const h = it.height_in;
+          const q = it.quantity;
+          const mat = it.material || 'banner';
+          const dims = (w && h) ? `${w}x${h}in` : '';
+          return `${q || 1}x ${dims} ${mat}`.replace(/\s+/g, ' ').trim();
+        });
+        if ((items || []).length > 5) parts.push(`+${items.length - 5} more`);
+        return parts.join(', ').slice(0, 480);
+      } catch (_e) {
+        return '';
+      }
+    })();
+
     const metadata = {
       cid,
       order_id: pendingOrderId,
+      site: 'bannersonthefly.com',
+      item_count: String((items || []).reduce((n, it) => n + (Number(it.quantity) || 0), 0) || (items || []).length),
       banner_subtotal_cents: String(totals.adjusted_subtotal_cents),
       tax_cents: String(totals.tax_cents),
       same_day_fee_cents: String(sameDayFeeCents),
@@ -271,8 +336,13 @@ exports.handler = async (event) => {
       same_day_requested: reqSameDay ? '1' : '0',
       same_day_applied: sameDayResult.sameDay ? '1' : '0',
     };
-    if (userId) metadata.user_id = String(userId).slice(0, 200);
-    if (email) metadata.email = String(email).slice(0, 200);
+    if (productSummary) metadata.product_summary = productSummary;
+    if (safeUserId) metadata.user_id = String(safeUserId).slice(0, 200);
+    if (email) {
+      metadata.email = String(email).slice(0, 200);
+      metadata.customer_email = String(email).slice(0, 200);
+    }
+    if (customerName) metadata.customer_name = String(customerName).slice(0, 200);
     if (discountCode && discountCode.code) {
       metadata.discount_code = String(discountCode.code).slice(0, 100);
     }
@@ -281,9 +351,16 @@ exports.handler = async (event) => {
       {
         amount: finalAmountCents,
         currency: 'usd',
-        automatic_payment_methods: { enabled: true },
+        // Restrict to `card` only. Apple Pay and Google Pay are wallets
+        // *within* the card payment method (surfaced via the Express
+        // Checkout / Payment Request flows on the client), so we don't
+        // need to list them separately here. Excluding
+        // `automatic_payment_methods` prevents Stripe from offering
+        // dashboard-default options the customer never asked for
+        // (Klarna, Afterpay, Cash App Pay, Amazon Pay, etc.).
+        payment_method_types: ['card'],
         receipt_email: email || undefined,
-        description: `Banners On The Fly order ${pendingOrderId}`,
+        description: `Banners on the Fly order ${pendingOrderId}${productSummary ? ` — ${productSummary}` : ''}`.slice(0, 350),
         metadata,
       },
       { idempotencyKey: `pi_create_${cid}` }

@@ -107,6 +107,14 @@ export interface Order {
   saturday_fee_cents?: number;
   order_timestamp_et?: string | null;
   same_day_qualified?: boolean;
+  // Payment provider metadata (returned by get-orders via SELECT *)
+  payment_method?: 'stripe' | 'paypal' | string | null;
+  paypal_order_id?: string | null;
+  paypal_capture_id?: string | null;
+  stripe_payment_intent_id?: string | null;
+  stripe_charge_id?: string | null;
+  stripe_wallet_type?: string | null;
+  customer_phone?: string | null;
 }
 
 export interface CreateOrderData {

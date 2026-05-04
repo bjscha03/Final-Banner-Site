@@ -144,6 +144,7 @@ exports.handler = async (event) => {
       : (stripeShipping
           ? {
               name: stripeShipping.name || null,
+              phone: stripeShipping.phone || null,
               line1: stripeShipping.address && stripeShipping.address.line1,
               line2: stripeShipping.address && stripeShipping.address.line2,
               city: stripeShipping.address && stripeShipping.address.city,
@@ -153,11 +154,43 @@ exports.handler = async (event) => {
             }
           : null);
 
+    // Pull the underlying Charge id (and wallet type, when a wallet was
+    // used) so admin / Stripe-dashboard cross-reference works and we can
+    // label Apple Pay / Google Pay payments correctly.
+    const chargeId = intent.latest_charge
+      || (intent.charges && intent.charges.data && intent.charges.data[0] && intent.charges.data[0].id)
+      || null;
+    let walletType = null;
+    let resolvedBilling = billing || null;
+    let receiptEmail = intent.receipt_email || null;
+    try {
+      // latest_charge is a string id by default — fetch the Charge to
+      // read payment_method_details.card.wallet.type and billing_details.
+      if (chargeId) {
+        const charge = await stripe.charges.retrieve(chargeId);
+        const pmDetails = charge && charge.payment_method_details;
+        if (pmDetails && pmDetails.card && pmDetails.card.wallet && pmDetails.card.wallet.type) {
+          walletType = String(pmDetails.card.wallet.type); // 'apple_pay' | 'google_pay' | 'link' | ...
+        }
+        if (!resolvedBilling && charge && charge.billing_details) {
+          resolvedBilling = charge.billing_details;
+        }
+        if (!receiptEmail && charge && charge.receipt_email) {
+          receiptEmail = charge.receipt_email;
+        }
+      }
+    } catch (chargeErr) {
+      console.warn('[stripe-finalize-order] failed to retrieve Charge for wallet type:', chargeErr.message);
+    }
+
     const result = await finalizeStripeOrder({
       paymentIntentId,
       orderId: resolvedOrderId,
+      chargeId,
+      walletType,
+      receiptEmail,
       shipping: finalShipping,
-      billing,
+      billing: resolvedBilling,
       source: 'browser',
     });
 

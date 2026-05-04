@@ -50,17 +50,12 @@ const Checkout: React.FC = () => {
   const stripeAvailable = Boolean(
     (import.meta as any).env?.VITE_STRIPE_PUBLISHABLE_KEY
   );
-  // Default to PayPal so the page always loads with a working, fully-
-  // initialized payment provider. Stripe is kept as a selectable tab,
-  // but it does NOT initialize a PaymentIntent (or pre-create a pending
-  // order) until the user explicitly chooses Stripe AND clicks the
-  // "Continue with Card / Apple Pay / Google Pay" button inside the
-  // Stripe panel. This guarantees that:
-  //   1. PayPal is always usable, even if Stripe / our pending-order
-  //      endpoint is having problems.
-  //   2. We never show a permanent "Could not save your order" error on
-  //      page load.
-  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'paypal'>('paypal');
+  // Default to Stripe (Card). The Card panel renders the embedded
+  // Stripe Payment Element inline — it never navigates away from
+  // /checkout. PayPal remains a one-click tab away. We previously
+  // defaulted to PayPal as a safety net while debugging, but the Card
+  // form is now the primary, stable flow.
+  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'paypal'>('stripe');
 
 
   // Get totals from cart store methods
@@ -1212,7 +1207,7 @@ const Checkout: React.FC = () => {
                             : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'
                         }`}
                       >
-                        Card / Apple Pay / Google Pay
+                        Card
                       </button>
                       <button
                         type="button"

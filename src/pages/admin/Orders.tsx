@@ -84,6 +84,39 @@ const isGraduationOrder = (order: Order): boolean => {
   return items.some((item) => item.product_type === 'design_deposit');
 };
 
+// Compact payment-method descriptor for admin order rows. Stripe orders
+// can also have a wallet type (apple_pay / google_pay / link) which we
+// surface so admins can see at a glance what the customer paid with.
+type PaymentMethodInfo = {
+  label: string;
+  className: string;
+};
+
+const getPaymentMethodInfo = (order: Order): PaymentMethodInfo | null => {
+  const method = (order.payment_method || '').toLowerCase();
+  if (method === 'paypal' || order.paypal_order_id) {
+    return {
+      label: 'PayPal',
+      className: 'bg-[#FFC439] text-[#003087] border border-[#003087]/20',
+    };
+  }
+  if (method === 'stripe' || order.stripe_payment_intent_id) {
+    const wallet = (order.stripe_wallet_type || '').toLowerCase();
+    if (wallet === 'apple_pay') {
+      return { label: 'Apple Pay', className: 'bg-black text-white' };
+    }
+    if (wallet === 'google_pay') {
+      return { label: 'Google Pay', className: 'bg-white text-gray-900 border border-gray-300' };
+    }
+    if (wallet === 'link') {
+      return { label: 'Stripe Link', className: 'bg-[#00d66f]/10 text-[#0a6b3b] border border-[#00d66f]/30' };
+    }
+    return { label: 'Stripe / Card', className: 'bg-[#635BFF]/10 text-[#3a32d6] border border-[#635BFF]/30' };
+  }
+  if (!method) return null;
+  return { label: method.charAt(0).toUpperCase() + method.slice(1), className: 'bg-gray-100 text-gray-700' };
+};
+
 const AdminOrders: React.FC = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
@@ -1235,6 +1268,14 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
             <Badge className={`${getStatusColor(order.status)} capitalize`}>
               {getStatusLabel(order.status)}
             </Badge>
+            {(() => {
+              const pm = getPaymentMethodInfo(order);
+              return pm ? (
+                <Badge className={`${pm.className} text-xs font-semibold`}>
+                  {pm.label}
+                </Badge>
+              ) : null;
+            })()}
             {order.items.some(item => item.design_service_enabled) && (
               <Badge className="bg-purple-100 text-purple-800 text-xs">
                 <Palette className="h-3 w-3 mr-1" />
@@ -1599,6 +1640,14 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
               <Badge className={`${getStatusColor(order.status)} capitalize`}>
                 {getStatusLabel(order.status)}
               </Badge>
+              {(() => {
+                const pm = getPaymentMethodInfo(order);
+                return pm ? (
+                  <Badge className={`${pm.className} text-xs font-semibold`}>
+                    {pm.label}
+                  </Badge>
+                ) : null;
+              })()}
               {order.items.some(item => item.design_service_enabled) && (
                 <Badge className="bg-purple-100 text-purple-800 text-xs">
                   <Palette className="h-3 w-3 mr-1" />
