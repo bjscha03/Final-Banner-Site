@@ -502,6 +502,11 @@
   .scroll-reveal-delay-6 { transition-delay: 600ms; }
 
   /* Animated gradient shimmer for promo banner */
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+
   @keyframes promo-shimmer {
     0% { background-position: -200% center; }
     100% { background-position: 200% center; }

@@ -129,11 +129,17 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
   // when image aspect != canvas aspect (otherwise object-contain
   // letterboxing leaves the handles out in space).
   const [naturalSize, setNaturalSize] = useState<{ w: number; h: number } | null>(null);
+  const [isImageLoading, setIsImageLoading] = useState<boolean>(true);
+  useEffect(() => {
+    setNaturalSize(null);
+    setIsImageLoading(true);
+  }, [src]);
   const onImgLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const t = e.currentTarget;
     if (t.naturalWidth && t.naturalHeight) {
       setNaturalSize({ w: t.naturalWidth, h: t.naturalHeight });
     }
+    setIsImageLoading(false);
   }, []);
 
   // Track canvas (outer surface) size so we can compute the contained
@@ -648,7 +654,7 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
           touchAction: 'none',
           WebkitTransform: 'translateZ(0)',
           transform: 'translateZ(0)',
-          cursor: selected ? 'move' : 'pointer',
+          cursor: isImageLoading ? 'default' : selected ? 'move' : 'pointer',
           ...canvasStyle,
         }}
         onPointerDown={onPointerDown}
@@ -665,6 +671,32 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
             Until the image has loaded (and we know natural size + canvas
             size), fall back to filling the canvas so the <img> can render
             and report its natural dimensions. */}
+        <div
+          className="absolute"
+          style={{
+            position: 'absolute',
+            inset: 0,
+            background:
+              'linear-gradient(110deg, rgba(229,231,235,0.7) 8%, rgba(243,244,246,0.95) 18%, rgba(229,231,235,0.7) 33%)',
+            backgroundSize: '200% 100%',
+            animation: 'shimmer 1.2s linear infinite',
+            opacity: isImageLoading ? 1 : 0,
+            transition: 'opacity 160ms ease',
+            pointerEvents: 'none',
+            zIndex: 12,
+          }}
+          aria-hidden="true"
+        />
+        <div
+          className="absolute inset-0 flex items-center justify-center pointer-events-none"
+          style={{ opacity: isImageLoading ? 1 : 0, transition: 'opacity 160ms ease', zIndex: 13 }}
+          aria-hidden="true"
+        >
+          <span className="inline-flex items-center gap-2 rounded-full bg-white/85 px-3 py-1.5 text-xs text-gray-700 shadow-sm">
+            <span className="h-2 w-2 rounded-full bg-orange-500 animate-pulse" />
+            Loading artwork…
+          </span>
+        </div>
         <div
           className="absolute"
           style={
@@ -698,7 +730,7 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
             }
           />
           {/* Selection bounding box + handles (only when selected) */}
-          {selected && (
+          {!isImageLoading && selected && (
             <>
               <div
                 className="absolute inset-0 pointer-events-none"
@@ -773,7 +805,7 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
             hidden on EVERY screen size and the toolbar renders BELOW the
             canvas via portal so the controls never cover the printable
             artwork — on desktop or mobile. */}
-        {selected && !mobileToolbarContainer && (
+        {!isImageLoading && selected && !mobileToolbarContainer && (
           <div
             className="absolute left-1/2 z-30 pointer-events-none"
             style={{
@@ -788,7 +820,7 @@ const ArtworkPreviewEditor: React.FC<ArtworkPreviewEditorProps> = ({
       {/* Toolbar rendered below the canvas via portal so it doesn't sit
           on top of the printable artwork. Used for both desktop and
           mobile when the host page provides a mount point. */}
-      {selected && mobileToolbarContainer
+      {!isImageLoading && selected && mobileToolbarContainer
         ? createPortal(
             <div className="flex justify-center w-full">
               {renderToolbarPill('mobile')}
