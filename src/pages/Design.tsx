@@ -827,18 +827,33 @@ const Design: React.FC = () => {
       setUploadError('File too large. Please upload a file under 50MB.');
       return;
     }
+    // 60s safety timeout so the UI never gets stuck on "Uploading..." if the
+    // network or Cloudinary stalls. Always reset loading state in finally.
+    const UPLOAD_TIMEOUT_MS = 60_000;
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
     setIsUploading(true);
+    console.info('[upload] start', { name: file.name, size: file.size, type: file.type });
     try {
       const uploadFile = await compressImage(file);
       const formData = new FormData();
       formData.append('file', uploadFile);
-      const res = await fetch('/.netlify/functions/upload-file', { method: 'POST', body: formData });
-      if (!res.ok) throw new Error('Upload failed');
+      const res = await fetch('/.netlify/functions/upload-file', { method: 'POST', body: formData, signal: controller.signal });
+      if (!res.ok) throw new Error(`Upload failed (${res.status})`);
       const data = await res.json();
       setUploadedFile({ name: file.name, url: data.secureUrl, fileKey: data.fileKey || data.publicId, size: file.size, isPdf: file.type === 'application/pdf', thumbnailUrl: file.type === 'application/pdf' ? getPdfThumbnailUrl(data.secureUrl) : getImagePreviewUrl(data.secureUrl) });
-    } catch {
-      setUploadError('Upload failed. Please try again.');
+      console.info('[upload] success', { name: file.name, fileKey: data.fileKey || data.publicId });
+    } catch (err) {
+      const isAbort = (err as { name?: string } | null)?.name === 'AbortError';
+      if (isAbort) {
+        console.warn('[upload] timeout', { name: file.name, timeoutMs: UPLOAD_TIMEOUT_MS });
+        setUploadError('Upload timed out. Please check your connection and try again.');
+      } else {
+        console.error('[upload] failed', err);
+        setUploadError('Upload failed. Please try again or choose a different file.');
+      }
     } finally {
+      window.clearTimeout(timeoutId);
       setIsUploading(false);
     }
   }, [compressImage]);
@@ -1542,16 +1557,62 @@ const Design: React.FC = () => {
     setLastPinchDist(null);
   }, []);
 
-  const mobileCheckoutReady = isYardSign
-    ? yardSignTotalQty > 0 && yardSignQuantityValid.valid
-    : !!uploadedFile;
   const showEntryCta = !hasEnteredBuilder;
-  const mobileCtaLabel = showEntryCta
-    ? 'Start Order'
-    : (mobileCheckoutReady ? 'Checkout' : 'Continue Building');
-  const mobileCtaAction = showEntryCta
-    ? scrollToOrder
-    : (mobileCheckoutReady ? handleCheckout : scrollToOrder);
+
+  // Scroll to the upload card so the mobile sticky "Upload Artwork" /
+  // "Retry Upload" CTA always reveals the file picker, even if the user is
+  // currently viewing a different step of the builder.
+  const scrollToUpload = useCallback(() => {
+    setHasEnteredBuilder(true);
+    const el = typeof document !== 'undefined' ? document.getElementById('upload-section') : null;
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else {
+      const target = builderStartRef.current ?? orderRef.current;
+      target?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, []);
+
+  // Single contextual mobile CTA — replaces the old "Continue Building" /
+  // dual-button design so the sticky bar always shows ONE clear primary
+  // action whose label matches what tapping it will do. When disabled, a
+  // helper line explains exactly what is missing.
+  const mobileCta: {
+    label: string;
+    onClick: (() => void) | undefined;
+    disabled: boolean;
+    loading: boolean;
+    helper: string | null;
+  } = (() => {
+    if (showEntryCta) {
+      return { label: 'Start Order', onClick: scrollToOrder, disabled: false, loading: false, helper: null };
+    }
+    if (isYardSign) {
+      if (yardSignDesigns.length === 0) {
+        return { label: 'Add a Design', onClick: scrollToOrder, disabled: false, loading: false, helper: 'Add at least one yard sign design to continue.' };
+      }
+      if (yardSignTotalQty === 0 || !yardSignQuantityValid.valid) {
+        return { label: 'Add to Cart', onClick: undefined, disabled: true, loading: false, helper: yardSignQuantityValid.message ?? 'Set the yard sign quantity to continue.' };
+      }
+      return { label: 'Add to Cart', onClick: handleAddToCart, disabled: false, loading: false, helper: null };
+    }
+    if (isUploading) {
+      return { label: 'Uploading…', onClick: undefined, disabled: true, loading: true, helper: 'Uploading your artwork — this can take a few seconds.' };
+    }
+    if (uploadError) {
+      return { label: 'Retry Upload', onClick: scrollToUpload, disabled: false, loading: false, helper: uploadError };
+    }
+    if (!uploadedFile) {
+      const missing: string[] = [];
+      if (!widthIn || !heightIn) missing.push('a size');
+      if (!material) missing.push('a material');
+      if (missing.length > 0) {
+        return { label: 'Upload Artwork', onClick: undefined, disabled: true, loading: false, helper: `Choose ${missing.join(' and ')} first.` };
+      }
+      return { label: 'Upload Artwork', onClick: scrollToUpload, disabled: false, loading: false, helper: null };
+    }
+    return { label: 'Add to Cart', onClick: handleAddToCart, disabled: false, loading: false, helper: null };
+  })();
   const modeContent = PRODUCT_MODE_CONTENT[productType];
 
   return (
@@ -1944,6 +2005,7 @@ const Design: React.FC = () => {
                 </div>
               </ConfigCard>
               <ConfigCard step={5} title="Upload your artwork">
+                <div id="upload-section" className="scroll-mt-24" />
                 {!uploadedFile ? (
                   <>
                     <FileUploader
@@ -2182,16 +2244,16 @@ const Design: React.FC = () => {
                 }
               />
 
-              <button onClick={handleCheckout} disabled={!uploadedFile} className={`group w-full font-bold text-lg py-5 rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${uploadedFile ? 'bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white cursor-pointer shadow-orange-500/30' : 'bg-orange-300 text-white/80 cursor-not-allowed'}`}>
+              <button onClick={handleCheckout} disabled={!uploadedFile || isUploading} className={`group w-full font-bold text-lg py-5 rounded-xl shadow-lg transition-all duration-200 flex items-center justify-center gap-2 ${uploadedFile && !isUploading ? 'bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white cursor-pointer shadow-orange-500/30' : 'bg-orange-300 text-white/80 cursor-not-allowed'}`}>
                 <Lock className="h-4 w-4" aria-hidden="true" />
                 Checkout securely
                 <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-0.5" />
               </button>
               <button
                 onClick={handleAddToCart}
-                disabled={!uploadedFile}
+                disabled={!uploadedFile || isUploading}
                 className={`w-full font-semibold text-base py-4 rounded-xl border-2 transition-all duration-200 ${
-                  uploadedFile
+                  uploadedFile && !isUploading
                     ? 'border-slate-300 text-slate-800 hover:bg-slate-50'
                     : 'border-slate-200 text-slate-400 cursor-not-allowed'
                 }`}
@@ -2259,8 +2321,14 @@ const Design: React.FC = () => {
         </div>
       </section>
 
-      {/* Mobile sticky CTA */}
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 p-4 shadow-lg z-40 overflow-x-clip" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 1rem))' }}>
+      {/* Mobile sticky bottom-bar spacer — keeps page content from being
+          obscured by the fixed CTA below. Roughly matches the bar height
+          (Total + button + helper line + safe-area inset). */}
+      <div aria-hidden="true" className="md:hidden h-32" />
+
+      {/* Mobile sticky CTA — single contextual action so users always know
+          what tapping the button will do (or why it is disabled). */}
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 pt-3 shadow-lg z-40 overflow-x-clip" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0.75rem))' }}>
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs text-gray-500">Total</p>
@@ -2277,31 +2345,24 @@ const Design: React.FC = () => {
               <p className="text-xl font-bold text-gray-900">{usd(totals.materialTotal)}</p>
             )}
           </div>
-          {showEntryCta || !mobileCheckoutReady ? (
-            <button
-              onClick={mobileCtaAction}
-              disabled={!showEntryCta && isBuilderInView && !mobileCheckoutReady}
-              className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-xl disabled:bg-orange-300 disabled:cursor-not-allowed"
-            >
-              {mobileCtaLabel}
-            </button>
-          ) : (
-            <div className="flex-1 flex flex-col gap-2">
-              <button
-                onClick={handleCheckout}
-                className="w-full bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-xl"
-              >
-                Checkout
-              </button>
-              <button
-                onClick={handleAddToCart}
-                className="w-full border-2 border-slate-300 text-slate-800 font-semibold py-3 px-6 rounded-xl bg-white"
-              >
-                Add to Cart
-              </button>
-            </div>
-          )}
+          <button
+            type="button"
+            onClick={mobileCta.disabled ? undefined : mobileCta.onClick}
+            disabled={mobileCta.disabled}
+            aria-disabled={mobileCta.disabled}
+            aria-busy={mobileCta.loading}
+            aria-live="polite"
+            className="flex-1 inline-flex items-center justify-center gap-2 min-h-[48px] bg-orange-500 hover:bg-orange-600 active:scale-[0.99] text-white font-bold py-3 px-6 rounded-xl disabled:bg-orange-300 disabled:cursor-not-allowed disabled:active:scale-100 transition-colors"
+          >
+            {mobileCta.loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}
+            {mobileCta.label}
+          </button>
         </div>
+        {mobileCta.helper && (
+          <p className={`mt-2 text-xs ${uploadError && mobileCta.label === 'Retry Upload' ? 'text-red-600' : 'text-gray-500'}`} role="status">
+            {mobileCta.helper}
+          </p>
+        )}
       </div>
 
       {/* Preview Modal */}
