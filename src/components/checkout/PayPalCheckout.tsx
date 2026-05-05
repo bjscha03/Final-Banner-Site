@@ -73,10 +73,10 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
   // Load PayPal configuration on mount
   useEffect(() => {
     console.log('[PayPalCheckout] Loading PayPal configuration...');
-    const isDev = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
+    const isDev = import.meta.env.DEV || window.location.hostname === 'localhost';
 
     const setFallbackConfig = () => {
-      const fallbackClientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
+      const fallbackClientId = import.meta.env.VITE_PAYPAL_CLIENT_ID || import.meta.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID;
       if (fallbackClientId) {
         console.log('[PayPalCheckout] Using fallback config with client ID');
         setPaypalConfig({
@@ -85,23 +85,22 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
           environment: 'live', // Or determine from another env var
         });
       } else {
-        console.error('[PayPalCheckout] PayPal fallback failed: NEXT_PUBLIC_PAYPAL_CLIENT_ID is not set.');
+        console.error('[PayPalCheckout] PayPal fallback failed: VITE_PAYPAL_CLIENT_ID is not set.');
         setPaypalConfig({ enabled: false, clientId: null, environment: null });
       }
     };
 
     const loadPayPalConfig = async () => {
-      // CRITICAL FIX: Add timeout to prevent infinite loading
+      const controller = new AbortController();
       const timeoutId = setTimeout(() => {
-        console.error('[PayPalCheckout] PayPal config fetch timed out after 10 seconds');
-        setFallbackConfig();
-        setIsLoadingConfig(false);
-      }, 10000); // 10 second timeout
+        console.error('[PayPalCheckout] PayPal config fetch timed out after 4 seconds');
+        controller.abort();
+      }, 4000);
 
       try {
         console.log('[PayPalCheckout] Fetching PayPal config from function...');
-        const response = await fetch('/.netlify/functions/paypal-config');
-        clearTimeout(timeoutId); // Clear timeout if fetch succeeds
+        const response = await fetch('/.netlify/functions/paypal-config', { signal: controller.signal });
+        clearTimeout(timeoutId);
         
         if (response.ok) {
           const config = await response.json();
@@ -277,7 +276,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
     return (
       <div className="flex items-center justify-center py-8">
         <Loader2 className="h-6 w-6 animate-spin mr-2" />
-        <span>Loading payment options...</span>
+        <span>Loading secure checkout…</span>
       </div>
     );
   }
@@ -294,7 +293,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
             <strong>PayPal Unavailable:</strong> PayPal payments are currently disabled or not configured.
             {isAdminUser && ' Use the admin test payment button below.'}
             <br />
-            <small>Debug: enabled={String(paypalConfig?.enabled)}, clientId={paypalConfig?.clientId ? 'present' : 'missing'}</small>
+            <small>If this persists, please refresh or contact support.</small>
           </p>
         </div>
 
@@ -332,7 +331,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
       });
 
       // Development fallback - if functions aren't available, return a mock order ID
-      const isDev = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
+      const isDev = import.meta.env.DEV || window.location.hostname === 'localhost';
       
       const response = await fetch('/.netlify/functions/paypal-create-order', {
         method: 'POST',
@@ -425,7 +424,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
       console.error('PayPal create order error:', error);
       
       // Development fallback
-      const isDev = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
+      const isDev = import.meta.env.DEV || window.location.hostname === 'localhost';
       if (isDev) {
         console.log('Development mode: Using mock PayPal order ID due to error');
         return `DEV_ORDER_${Date.now()}`;
@@ -442,7 +441,7 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
     try {
       setIsCapturingPayment(true);
       
-      const isDev = process.env.NODE_ENV === 'development' || window.location.hostname === 'localhost';
+      const isDev = import.meta.env.DEV || window.location.hostname === 'localhost';
 
       // First capture the PayPal payment
       const captureResponse = await fetch('/.netlify/functions/paypal-capture-minimal', {
