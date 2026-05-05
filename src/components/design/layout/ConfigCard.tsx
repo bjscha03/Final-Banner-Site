@@ -32,7 +32,7 @@ export default function ConfigCard({
   return (
     <section
       id={id}
-      className={`bg-white border border-[#E5E7EB] rounded-xl shadow-sm p-4 md:p-6 scroll-mt-24 ${className ?? ''}`}
+      className={`bg-white border border-[#E5E7EB] rounded-xl shadow-sm p-4 md:p-6 scroll-mt-32 md:scroll-mt-24 ${className ?? ''}`}
     >
       {typeof step === 'number' && title ? (
         <>

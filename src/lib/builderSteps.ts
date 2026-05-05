@@ -277,19 +277,266 @@ export function getNextStep(state: BuilderStepState): BuilderCtaDescriptor {
   };
 }
 
+// Pixel heights of the page chrome that overlays the scroll target on
+// mobile. Update both here and the `scroll-mt-32` utility on `ConfigCard`
+// when the sticky header / product tabs change height.
+const STICKY_HEADER_HEIGHT_PX = 64;
+const PRODUCT_TABS_HEIGHT_PX = 56;
+const SCROLL_GAP_PX = 8;
+const TOTAL_SCROLL_OFFSET_PX = STICKY_HEADER_HEIGHT_PX + PRODUCT_TABS_HEIGHT_PX + SCROLL_GAP_PX;
+
 /**
- * Smooth-scroll a section into view by id. Mirrors the existing
- * scroll-to behaviour in Design.tsx / GoogleAdsBanner.tsx but is
- * shared here so both pages and the progress indicator behave
- * identically.
+ * Smooth-scroll a section into view by id. Honors `scroll-margin-top`
+ * (set on each `ConfigCard`) so the target lands below the sticky
+ * header / product tabs, not behind them. Falls back to a manual
+ * `window.scrollTo` calculation when `scrollIntoView` is unavailable.
  */
 export function scrollToStepAnchor(anchorId: string | null): void {
   if (!anchorId) return;
   if (typeof document === 'undefined') return;
   const el = document.getElementById(anchorId);
   if (!el) return;
-  el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  if (typeof el.scrollIntoView === 'function') {
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
+  if (typeof window !== 'undefined') {
+    const top = el.getBoundingClientRect().top + window.scrollY - TOTAL_SCROLL_OFFSET_PX;
+    window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+  }
 }
 
 export const STEP_LABEL_FOR = (key: BuilderStepKey): string => STEP_LABELS[key];
 export const STEP_ANCHOR_FOR = (key: BuilderStepKey): string => STEP_ANCHORS[key];
+
+// ============================================================================
+// YARD SIGN STATE MACHINE
+// ============================================================================
+//
+// Yard signs don't follow the size/material/quantity/options/upload pattern
+// because:
+//   - Size is locked (24" × 18")
+//   - "Material" is really print side (single vs. double-sided)
+//   - Multiple designs upload, each with its own quantity
+//   - Total quantity must be a multiple of 10
+//   - Stakes finishing should be reviewed before Add to Cart
+//
+// `getYardSignCtaState` returns a single contextual CTA descriptor that
+// always advances the user by exactly one step: Choose Print Side →
+// Add a Design → Uploading… → Retry Upload → Review Design → Assign
+// Quantities → Fix Quantity → Review Stakes → Add to Cart.
+
+export interface YardSignCtaState {
+  /** True until the user clicks "Start Order" / scrolls past hero. */
+  showEntryCta: boolean;
+  /** Print side selected? Yard signs default to 'single', so this is true unless the user explicitly cleared it. */
+  printSideSelected: boolean;
+  /** Has the user actively confirmed/reviewed the print side card? */
+  printSideReviewed: boolean;
+  /** Number of uploaded designs. */
+  designCount: number;
+  /** ID of the first design that has NOT yet been preview-confirmed (no previewThumbnailUrl), if any. */
+  unconfirmedDesignId: string | null;
+  /** Total signs across all designs. */
+  totalQuantity: number;
+  /** Whether totalQuantity is a valid multiple of 10 within bounds. */
+  quantityValid: boolean;
+  /** Validation message when quantityValid is false. */
+  quantityValidationMessage: string | null;
+  /** Has the user reviewed/confirmed the Add Stakes step? */
+  stakesReviewed: boolean;
+  /** Yard-sign-side upload lifecycle (mirrored from YardSignConfigurator). */
+  isUploading: boolean;
+  uploadError: string | null;
+  /** True once any item has just been added to the cart (post-add success state). */
+  hasJustAddedToCart: boolean;
+  /** Total cart item count (for the "View Cart (n)" label). */
+  cartItemCount: number;
+}
+
+export type YardSignCtaStep =
+  | 'entry'
+  | 'view_cart'
+  | 'print_side'
+  | 'add_design'
+  | 'uploading'
+  | 'upload_error'
+  | 'review_design'
+  | 'assign_quantities'
+  | 'fix_quantity'
+  | 'review_stakes'
+  | 'add_to_cart';
+
+export interface YardSignCtaDescriptor {
+  step: YardSignCtaStep;
+  label: string;
+  scrollTargetId: string | null;
+  /** When 'review_design', the design id that needs confirmation. */
+  designId?: string;
+  disabled: boolean;
+  loading: boolean;
+  helper: string | null;
+}
+
+export const YARD_SIGN_ANCHORS = {
+  size: 'yard-size-section',
+  printSide: 'yard-print-side-section',
+  upload: 'yard-upload-section',
+  quantity: 'yard-quantity-section',
+  finishing: 'yard-finishing-section',
+} as const;
+
+export function getYardSignCtaState(state: YardSignCtaState): YardSignCtaDescriptor {
+  // Post-add-to-cart: always show "View Cart" until the user starts another build.
+  if (state.hasJustAddedToCart) {
+    const n = state.cartItemCount;
+    return {
+      step: 'view_cart',
+      label: n > 0 ? `View Cart (${n})` : 'View Cart',
+      scrollTargetId: null,
+      disabled: false,
+      loading: false,
+      helper: 'Added to cart ✓',
+    };
+  }
+
+  if (state.showEntryCta) {
+    return {
+      step: 'entry',
+      label: 'Start Yard Sign Order',
+      scrollTargetId: 'order-builder',
+      disabled: false,
+      loading: false,
+      helper: null,
+    };
+  }
+
+  if (state.isUploading) {
+    return {
+      step: 'uploading',
+      label: 'Uploading…',
+      scrollTargetId: null,
+      disabled: true,
+      loading: true,
+      helper: 'Uploading your design — this can take a few seconds.',
+    };
+  }
+
+  // Upload error blocks progress only when there is no usable design yet.
+  if (state.uploadError && state.designCount === 0) {
+    return {
+      step: 'upload_error',
+      label: 'Retry Upload',
+      scrollTargetId: YARD_SIGN_ANCHORS.upload,
+      disabled: false,
+      loading: false,
+      helper: state.uploadError,
+    };
+  }
+
+  // Step 2 — Print side. Default 'single' is preselected, but a deliberate
+  // review by the user (tapping the CTA / a card) still counts.
+  if (!state.printSideSelected) {
+    return {
+      step: 'print_side',
+      label: 'Choose Print Side',
+      scrollTargetId: YARD_SIGN_ANCHORS.printSide,
+      disabled: false,
+      loading: false,
+      helper: 'Pick single- or double-sided printing.',
+    };
+  }
+
+  // Step 3 — At least one design must exist.
+  if (state.designCount === 0) {
+    return {
+      step: 'add_design',
+      label: 'Add a Design',
+      scrollTargetId: YARD_SIGN_ANCHORS.upload,
+      disabled: false,
+      loading: false,
+      helper: 'Upload artwork to continue.',
+    };
+  }
+
+  // Step 4a — Any uploaded design that hasn't been preview-confirmed?
+  // Done in the preview modal saves a previewThumbnailUrl; until then,
+  // the design is "uploaded but not reviewed".
+  if (state.unconfirmedDesignId) {
+    return {
+      step: 'review_design',
+      label: 'Review Design',
+      scrollTargetId: YARD_SIGN_ANCHORS.upload,
+      designId: state.unconfirmedDesignId,
+      disabled: false,
+      loading: false,
+      helper: 'Tap to position your design before adding to cart.',
+    };
+  }
+
+  // Step 4b — Quantity assignment. Total of 0 means user hasn't picked any.
+  if (state.totalQuantity === 0) {
+    return {
+      step: 'assign_quantities',
+      label: 'Assign Quantities',
+      scrollTargetId: YARD_SIGN_ANCHORS.quantity,
+      disabled: false,
+      loading: false,
+      helper: 'Yard signs must be ordered in increments of 10 (10, 20, 30, etc.).',
+    };
+  }
+
+  if (!state.quantityValid) {
+    return {
+      step: 'fix_quantity',
+      label: 'Fix Quantity',
+      scrollTargetId: YARD_SIGN_ANCHORS.quantity,
+      disabled: false,
+      loading: false,
+      helper:
+        state.quantityValidationMessage ??
+        'Yard signs must be ordered in increments of 10 (10, 20, 30, etc.).',
+    };
+  }
+
+  // Step 5 — Stakes review (optional but explicit).
+  if (!state.stakesReviewed) {
+    return {
+      step: 'review_stakes',
+      label: 'Review Stakes',
+      scrollTargetId: YARD_SIGN_ANCHORS.finishing,
+      disabled: false,
+      loading: false,
+      helper: 'Optional — choose whether to add wire H-stakes.',
+    };
+  }
+
+  return {
+    step: 'add_to_cart',
+    label: 'Add to Cart',
+    scrollTargetId: null,
+    disabled: false,
+    loading: false,
+    helper: null,
+  };
+}
+
+// ============================================================================
+// POST-ADD-TO-CART OVERRIDE FOR BANNER / CAR MAGNET FLOWS
+// ============================================================================
+//
+// When the user has just successfully added an item to the cart, the
+// shared step machine should NOT keep showing "Upload Artwork" — it
+// should switch to a "View Cart (n)" success state. Pages call this
+// helper after `getNextStep(...)` returns to wrap the descriptor.
+
+export function getPostAddToCartCta(cartItemCount: number): BuilderCtaDescriptor {
+  return {
+    step: 'add_to_cart', // re-uses the same step type for layout
+    label: cartItemCount > 0 ? `View Cart (${cartItemCount})` : 'View Cart',
+    scrollTargetId: null,
+    disabled: false,
+    loading: false,
+    helper: 'Added to cart ✓',
+  };
+}

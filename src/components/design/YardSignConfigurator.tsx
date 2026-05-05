@@ -43,6 +43,7 @@ import { ENABLE_AI } from '@/lib/featureFlags';
 import { base64ToFile } from '@/utils/base64ToFile';
 import ArtworkPreviewEditor, { type ArtworkTransform } from '@/components/design/ArtworkPreviewEditor';
 import ConfigCard from '@/components/design/layout/ConfigCard';
+import { logUx } from '@/lib/uxAnalytics';
 
 // Helper to generate PDF thumbnail URL from Cloudinary
 function getPdfThumbnailUrl(pdfUrl: string): string {
@@ -108,6 +109,18 @@ interface YardSignConfiguratorProps {
   autoOpenDesignId?: string | null;
   /** Optional quantity preset to apply to first uploaded design */
   initialDesignQuantity?: number;
+  /** Optional callback fired whenever the internal upload state changes — lets the parent drive the mobile sticky CTA. */
+  onUploadStatusChange?: (status: { isUploading: boolean; uploadError: string | null }) => void;
+  /** Optional callback fired when the user taps "Done" in the preview modal — lets the parent log analytics / advance the sticky CTA. */
+  onPreviewDone?: (designId: string) => void;
+  /**
+   * Optional ref-style trigger from the parent: incrementing this number
+   * tells the configurator to programmatically open the preview modal for
+   * the design at `previewOpenTrigger.designId`. Used by the "Review
+   * Design" sticky CTA so users can re-confirm a design without scrolling
+   * to find the row thumbnail.
+   */
+  previewOpenTrigger?: { designId: string; nonce: number } | null;
 }
 
 const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
@@ -126,11 +139,20 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
   onPromoRemove,
   autoOpenDesignId,
   initialDesignQuantity,
+  onUploadStatusChange,
+  onPreviewDone,
+  previewOpenTrigger,
 }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [isSavingPreview, setIsSavingPreview] = useState(false);
   const [uploadError, setUploadError] = useState('');
   const [aiModalOpen, setAiModalOpen] = useState(false);
+
+  // Mirror upload status to the parent so the mobile sticky CTA can render
+  // "Uploading…" / "Retry Upload" without duplicating state.
+  useEffect(() => {
+    onUploadStatusChange?.({ isUploading, uploadError: uploadError || null });
+  }, [isUploading, uploadError, onUploadStatusChange]);
 
   const totalQuantity = getTotalDesignQuantity(designs);
   const quantityValidation = validateYardSignQuantity(totalQuantity);
@@ -165,6 +187,19 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
       openPreview(design.id);
     }
   }, [autoOpenDesignId, designs, openPreview]);
+
+  // Programmatic open from the parent's "Review Design" sticky CTA. Each
+  // increment of `previewOpenTrigger.nonce` re-opens the preview for the
+  // requested design id (idempotent across renders).
+  const lastTriggerNonceRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (!previewOpenTrigger) return;
+    if (lastTriggerNonceRef.current === previewOpenTrigger.nonce) return;
+    const design = designs.find(d => d.id === previewOpenTrigger.designId);
+    if (!design) return;
+    lastTriggerNonceRef.current = previewOpenTrigger.nonce;
+    openPreview(design.id);
+  }, [previewOpenTrigger, designs, openPreview]);
 
   const previewCanvasRef = useRef<HTMLDivElement>(null);
 
@@ -380,11 +415,12 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
       onDesignsChange([...designs, newDesign]);
       // Auto-open preview modal immediately after upload
       setPreviewDesignId(newDesign.id);
+      logUx('preview_opened', { source: 'yard_sign_after_upload', designId: newDesign.id });
       setPreviewImgPos({ x: 0, y: 0 });
       setPreviewImgScale(1);
-      setIsDraggingPreview(false);
     } catch {
       setUploadError('Upload failed. Please try again.');
+      logUx('upload_error', { source: 'yard_sign' });
     } finally {
       setIsUploading(false);
     }
@@ -401,8 +437,9 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
 
   return (
     <div className="space-y-6 max-w-full overflow-hidden">
-      {/* Step 1 — Sign Size (fixed) */}
-      <ConfigCard step={1} title="Choose your size">
+      {/* Step 1 — Sign Size (fixed/locked) */}
+      <ConfigCard step={1} title="Yard Sign Size" id="yard-size-section">
+        <p className="text-xs text-gray-500 mb-2">Standard 24&quot; × 18&quot; corrugated plastic.</p>
         <div className="flex items-center gap-3 bg-gray-50 rounded-xl px-4 py-3 border border-gray-200">
           <div className="w-12 h-9 bg-white rounded border border-gray-300 flex items-center justify-center flex-shrink-0">
             <span className="text-[10px] font-bold text-gray-500">24×18</span>
@@ -415,8 +452,10 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
         </div>
       </ConfigCard>
 
-      {/* Step 2 — Print Side (sidedness selector) */}
-      <ConfigCard step={2} title="Select material">
+      {/* Step 2 — Print Side (sidedness selector). Renamed from
+          "Select material" to "Choose Print Side" — yard signs only ship on
+          one substrate, so the choice is single- vs double-sided printing. */}
+      <ConfigCard step={2} title="Choose Print Side" id="yard-print-side-section">
         <div className="grid grid-cols-2 gap-3">
           <button
             onClick={() => onSidednessChange('single')}
@@ -447,10 +486,10 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
         </div>
       </ConfigCard>
 
-      {/* Step 3 — Upload + per-design quantity */}
-      <ConfigCard step={3} title="Upload your artwork" headerRight={<span className="text-xs font-normal text-gray-400">Up to {YARD_SIGN_MAX_DESIGNS} designs per order</span>}>
+      {/* Step 3 — Add Designs (upload + per-design quantity) */}
+      <ConfigCard step={3} title="Add Designs" id="yard-upload-section" headerRight={<span className="text-xs font-normal text-gray-400">Up to {YARD_SIGN_MAX_DESIGNS} designs per order</span>}>
         <p className="text-xs text-gray-500 mb-2">
-          Each uploaded design will be printed at 24&quot; × 18&quot;. Assign a quantity to each design.
+          Upload up to {YARD_SIGN_MAX_DESIGNS} designs. Each will be printed at 24&quot; × 18&quot;. Assign a quantity to each design.
         </p>
         <p className="text-xs text-orange-600 font-medium mb-3">
           Total order must be in increments of {YARD_SIGN_INCREMENT} signs (10, 20, 30, etc.).
@@ -518,8 +557,8 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
               </div>
             ))}
 
-            {/* Running total */}
-            <div className={`flex items-center justify-between px-3 py-2 rounded-lg text-sm ${
+            {/* Running total — anchor target for "Assign Quantities" / "Fix Quantity" sticky CTA. */}
+            <div id="yard-quantity-section" className={`scroll-mt-32 flex items-center justify-between px-3 py-2 rounded-lg text-sm ${
               !quantityValidation.valid && totalQuantity > 0 ? 'bg-red-50 border border-red-200' : 'bg-gray-50'
             }`}>
               <span className={!quantityValidation.valid && totalQuantity > 0 ? 'text-red-700 font-semibold' : 'text-gray-600 font-medium'}>
@@ -620,8 +659,11 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
         )}
       </ConfigCard>
 
-      {/* Step 4 — Add-ons (step stakes) */}
-      <ConfigCard step={4} title="Finishing options">
+      {/* Step 4 — Add Stakes (optional). Renamed from "Finishing options" so
+          the mobile sticky CTA can ask the user to review this step before
+          Add to Cart. */}
+      <ConfigCard step={4} title="Add Stakes" id="yard-finishing-section">
+        <p className="text-xs text-gray-500 mb-3">Optional wire H-stakes for ground mounting.</p>
         <div
           className={`border rounded-xl p-4 transition-all cursor-pointer ${
             addStepStakes
@@ -760,7 +802,14 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
             </div>
             <div className="flex gap-3 p-4 border-t">
               <button onClick={closePreview} disabled={isSavingPreview} className="flex-1 py-3 rounded-xl border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 disabled:opacity-50">Cancel</button>
-              <button onClick={savePreviewAndClose} disabled={isSavingPreview} className="flex-1 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold shadow-lg disabled:opacity-70 flex items-center justify-center gap-2">
+              <button onClick={async () => {
+                const id = previewDesignId;
+                await savePreviewAndClose();
+                if (id) {
+                  logUx('preview_done', { source: 'yard_sign_preview', designId: id });
+                  onPreviewDone?.(id);
+                }
+              }} disabled={isSavingPreview} className="flex-1 py-3 rounded-xl bg-orange-500 hover:bg-orange-600 text-white font-semibold shadow-lg disabled:opacity-70 flex items-center justify-center gap-2">
                 {isSavingPreview ? (<><Loader2 className="w-4 h-4 animate-spin" /> Saving...</>) : 'Done'}
               </button>
             </div>
