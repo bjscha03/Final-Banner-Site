@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { X, Trash2, Plus, Minus, ShoppingBag, Eye, Tag } from 'lucide-react';
 import BannerPreview from './cart/BannerPreview';
 import ThumbnailPreviewWrapper from './preview/ThumbnailPreviewWrapper';
@@ -53,6 +53,27 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
     [items],
   );
 
+  const [enableHeavyPreviews, setEnableHeavyPreviews] = useState(false);
+
+  useEffect(() => {
+    if (!isOpen) {
+      setEnableHeavyPreviews(false);
+      return;
+    }
+
+    const defer = window.requestIdleCallback
+      ? window.requestIdleCallback(() => setEnableHeavyPreviews(true), { timeout: 250 })
+      : window.setTimeout(() => setEnableHeavyPreviews(true), 80);
+
+    return () => {
+      if (typeof defer === "number") {
+        window.clearTimeout(defer);
+      } else {
+        window.cancelIdleCallback?.(defer);
+      }
+    };
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
   const handleCheckout = () => {
@@ -99,7 +120,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
           </div>
 
           {/* Items */}
-          <div className="flex-1 overflow-y-auto p-6 bg-gray-50">
+          <div className="flex-1 overflow-y-auto p-6 bg-gray-50 [webkit-overflow-scrolling:touch] overscroll-contain touch-pan-y">
             {items.length === 0 ? (
               <div className="text-center py-12">
                 <ShoppingBag className="h-16 w-16 text-gray-300 mx-auto mb-4" />
@@ -145,7 +166,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                             ...(normalized.ropeDisplay ? [{ label: 'Rope', value: normalized.ropeDisplay }] : []),
                             ...(normalized.roundedCornersDisplay ? [{ label: 'Rounded Corners', value: normalized.roundedCornersDisplay }] : []),
                           ]}
-                          largePreview={
+                          renderLargePreview={() => (
                             <BannerPreview
                               widthIn={item.width_in}
                               heightIn={item.height_in}
@@ -163,8 +184,9 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                               isFinalizedSnapshot={!!item.thumbnail_url}
                               maxSize={820}
                             />
-                          }
+                          )}
                         >
+                          {enableHeavyPreviews ? (
                           <BannerPreview
                               key={`thumbnail-${item.id}-${item.text_elements?.length || 0}-${item.image_scale || 1}`}
                               widthIn={item.width_in}
@@ -182,6 +204,9 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
                               source={item.source}
                               isFinalizedSnapshot={!!item.thumbnail_url}
                             />
+                          ) : (
+                            <div className="h-[120px] w-[200px] animate-pulse rounded-lg border border-gray-200 bg-gray-100" aria-hidden="true" />
+                          )}
                         </ThumbnailPreviewWrapper>
                       </div>
 
