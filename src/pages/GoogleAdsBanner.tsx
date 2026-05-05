@@ -63,8 +63,11 @@ import MobileStepProgress from '@/components/design/MobileStepProgress';
 import {
   getNextStep,
   getProgress,
+  getYardSignCtaState,
+  getPostAddToCartCta,
   scrollToStepAnchor,
   STEP_ANCHOR_FOR,
+  YARD_SIGN_ANCHORS,
   type BuilderStepKey,
 } from '@/lib/builderSteps';
 import { logUx } from '@/lib/uxAnalytics';
@@ -224,6 +227,15 @@ const GoogleAdsBanner: React.FC = () => {
   const [hasConfirmedMaterial, setHasConfirmedMaterial] = useState(false);
   const [hasConfirmedQuantity, setHasConfirmedQuantity] = useState(false);
   const [hasReviewedOptions, setHasReviewedOptions] = useState(false);
+
+  // Yard-sign-specific confirmation flags + post-add-to-cart success state.
+  // See Design.tsx for the full rationale; both pages share the same
+  // sticky CTA state machine via @/lib/builderSteps.
+  const [hasReviewedYardSignPrintSide, setHasReviewedYardSignPrintSide] = useState(false);
+  const [hasReviewedYardSignStakes, setHasReviewedYardSignStakes] = useState(false);
+  const [yardSignUploadStatus, setYardSignUploadStatus] = useState<{ isUploading: boolean; uploadError: string | null }>({ isUploading: false, uploadError: null });
+  const [yardSignPreviewTrigger, setYardSignPreviewTrigger] = useState<{ designId: string; nonce: number } | null>(null);
+  const [hasJustAddedToCart, setHasJustAddedToCart] = useState(false);
 
   // Preview modal state
   const [showPreview, setShowPreview] = useState(false);
@@ -720,6 +732,9 @@ const GoogleAdsBanner: React.FC = () => {
     setHasConfirmedMaterial(false);
     setHasConfirmedQuantity(false);
     setHasReviewedOptions(false);
+    setHasReviewedYardSignPrintSide(false);
+    setHasReviewedYardSignStakes(false);
+    setHasJustAddedToCart(false);
     // Tab switch must reset Same-Day Hit Service / Saturday Delivery so the
     // new product never starts with these auto-selected.
     useCartStore.getState().setSameDayHitService(false);
@@ -888,6 +903,13 @@ const GoogleAdsBanner: React.FC = () => {
     setUploadError(null);
     setAiPrompt(null);
     setAiEditPrompt(null);
+    setHasJustAddedToCart(false);
+    setHasReviewedYardSignStakes(false);
+    setHasReviewedYardSignPrintSide(false);
+    setHasConfirmedSize(false);
+    setHasConfirmedMaterial(false);
+    setHasConfirmedQuantity(false);
+    setHasReviewedOptions(false);
     if (isYardSign) {
       setYardSignDesigns([]);
     }
@@ -895,7 +917,7 @@ const GoogleAdsBanner: React.FC = () => {
 
   // Shared post-add-to-cart UX:
   //  - 'checkout' -> open cart drawer + navigate to /checkout (no awaits)
-  //  - 'cart'     -> stay on page, show toast confirmation, reset preview
+  //  - 'cart'     -> stay on page, show toast confirmation, flip to "View Cart"
   const finishAddToCart = useCallback((
     actionType: 'checkout' | 'cart',
     navigateUrl?: string,
@@ -909,11 +931,16 @@ const GoogleAdsBanner: React.FC = () => {
       navigate('/checkout');
     } else {
       toast({
-        title: 'Item added to your cart',
+        title: 'Added to cart ✓',
       });
-      resetPreview();
+      // Flip to the post-add-to-cart success state (sticky CTA becomes
+      // "View Cart (n)"); MobileStepProgress hides; cleared on "Start
+      // another" / step pill click / product type change.
+      setHasJustAddedToCart(true);
+      logUx('add_to_cart_completed', { source: 'finish_add_to_cart' });
+      logUx('post_add_to_cart_cta_rendered', { variant: 'view_cart' });
     }
-  }, [setIsCartOpen, navigate, toast, resetPreview]);
+  }, [setIsCartOpen, navigate, toast]);
 
   // Background helper: upload positioned thumbnail to Cloudinary and patch
   // the cart item once it completes. Failures are silently swallowed —
@@ -1532,10 +1559,28 @@ const GoogleAdsBanner: React.FC = () => {
 
   const handleStepPillClick = useCallback((key: BuilderStepKey) => {
     setHasEnteredBuilder(true);
+    setHasJustAddedToCart(false);
     logUx('step_scrolled', { step: key, source: 'progress_pill' });
     scrollToStepAnchor(STEP_ANCHOR_FOR(key));
     if (key !== 'upload') confirmStep(key);
   }, [confirmStep]);
+
+  const yardSignUnconfirmedDesignId = useMemo(() => {
+    if (!isYardSign) return null;
+    const pending = yardSignDesigns.find(d => !d.previewThumbnailUrl);
+    return pending?.id ?? null;
+  }, [isYardSign, yardSignDesigns]);
+
+  const openCartDrawer = useCallback(() => {
+    logUx('cart_opened', { source: 'sticky_view_cart' });
+    setIsCartOpen(true);
+  }, [setIsCartOpen]);
+
+  const handleStartAnother = useCallback(() => {
+    resetPreview();
+    setHasEnteredBuilder(true);
+    scrollToStepAnchor('order-builder');
+  }, [resetPreview]);
 
   // Single contextual mobile CTA — replaces the old "Continue Building" /
   // dual-button design so the sticky bar always shows ONE clear primary
@@ -1548,17 +1593,55 @@ const GoogleAdsBanner: React.FC = () => {
     loading: boolean;
     helper: string | null;
   } = (() => {
+    if (hasJustAddedToCart) {
+      const post = getPostAddToCartCta(cartItemCount);
+      return { label: post.label, onClick: openCartDrawer, disabled: false, loading: false, helper: post.helper };
+    }
+
     if (isYardSign) {
-      if (showEntryCta) {
-        return { label: 'Start Order', onClick: scrollToOrder, disabled: false, loading: false, helper: null };
+      const desc = getYardSignCtaState({
+        showEntryCta,
+        printSideSelected: Boolean(yardSignSidedness),
+        printSideReviewed: hasReviewedYardSignPrintSide,
+        designCount: yardSignDesigns.length,
+        unconfirmedDesignId: yardSignUnconfirmedDesignId,
+        totalQuantity: yardSignTotalQty,
+        quantityValid: yardSignQuantityValid.valid,
+        quantityValidationMessage: yardSignQuantityValid.message ?? null,
+        stakesReviewed: hasReviewedYardSignStakes,
+        isUploading: yardSignUploadStatus.isUploading,
+        uploadError: yardSignUploadStatus.uploadError,
+        hasJustAddedToCart: false,
+        cartItemCount,
+      });
+      const wrap = (fn?: () => void) => fn ? () => {
+        logUx('cta_click', { step: desc.step, label: desc.label, productType: 'yard_sign' });
+        fn();
+      } : undefined;
+      switch (desc.step) {
+        case 'entry':
+          return { label: desc.label, onClick: wrap(scrollToOrder), disabled: false, loading: false, helper: desc.helper };
+        case 'uploading':
+          return { label: desc.label, onClick: undefined, disabled: true, loading: true, helper: desc.helper };
+        case 'upload_error':
+          return { label: desc.label, onClick: wrap(() => scrollToStepAnchor(YARD_SIGN_ANCHORS.upload)), disabled: false, loading: false, helper: desc.helper };
+        case 'print_side':
+          return { label: desc.label, onClick: wrap(() => { setHasEnteredBuilder(true); setHasReviewedYardSignPrintSide(true); scrollToStepAnchor(YARD_SIGN_ANCHORS.printSide); }), disabled: false, loading: false, helper: desc.helper };
+        case 'add_design':
+          return { label: desc.label, onClick: wrap(() => { setHasEnteredBuilder(true); scrollToStepAnchor(YARD_SIGN_ANCHORS.upload); }), disabled: false, loading: false, helper: desc.helper };
+        case 'review_design':
+          return { label: desc.label, onClick: wrap(() => { if (desc.designId) { setYardSignPreviewTrigger({ designId: desc.designId, nonce: Date.now() }); logUx('preview_opened', { source: 'sticky_review_design', designId: desc.designId }); } scrollToStepAnchor(YARD_SIGN_ANCHORS.upload); }), disabled: false, loading: false, helper: desc.helper };
+        case 'assign_quantities':
+          return { label: desc.label, onClick: wrap(() => scrollToStepAnchor(YARD_SIGN_ANCHORS.quantity)), disabled: false, loading: false, helper: desc.helper };
+        case 'fix_quantity':
+          return { label: desc.label, onClick: wrap(() => { logUx('quantity_invalid', { total: yardSignTotalQty }); scrollToStepAnchor(YARD_SIGN_ANCHORS.quantity); }), disabled: false, loading: false, helper: desc.helper };
+        case 'review_stakes':
+          return { label: desc.label, onClick: wrap(() => { setHasReviewedYardSignStakes(true); logUx('finishing_reviewed', { productType: 'yard_sign' }); scrollToStepAnchor(YARD_SIGN_ANCHORS.finishing); }), disabled: false, loading: false, helper: desc.helper };
+        case 'add_to_cart':
+          return { label: desc.label, onClick: wrap(() => { logUx('add_to_cart_attempted', { productType: 'yard_sign' }); handleAddToCart(); }), disabled: false, loading: false, helper: null };
+        default:
+          return { label: desc.label, onClick: undefined, disabled: true, loading: false, helper: desc.helper };
       }
-      if (yardSignDesigns.length === 0) {
-        return { label: 'Add a Design', onClick: scrollToOrder, disabled: false, loading: false, helper: 'Add at least one yard sign design to continue.' };
-      }
-      if (yardSignTotalQty === 0 || !yardSignQuantityValid.valid) {
-        return { label: 'Add to Cart', onClick: undefined, disabled: true, loading: false, helper: yardSignQuantityValid.message ?? 'Set the yard sign quantity to continue.' };
-      }
-      return { label: 'Add to Cart', onClick: handleAddToCart, disabled: false, loading: false, helper: null };
     }
 
     const desc = getNextStep(builderState);
@@ -1575,7 +1658,7 @@ const GoogleAdsBanner: React.FC = () => {
       case 'upload_error':
         return { label: desc.label, onClick: wrap(scrollToUpload), disabled: false, loading: false, helper: desc.helper };
       case 'add_to_cart':
-        return { label: desc.label, onClick: wrap(handleAddToCart), disabled: false, loading: false, helper: null };
+        return { label: desc.label, onClick: wrap(() => { logUx('add_to_cart_attempted', { productType }); handleAddToCart(); }), disabled: false, loading: false, helper: null };
       case 'size':
       case 'material':
       case 'quantity':
@@ -1598,6 +1681,18 @@ const GoogleAdsBanner: React.FC = () => {
         return { label: desc.label, onClick: undefined, disabled: true, loading: false, helper: desc.helper };
     }
   })();
+
+  // Emit sticky_cta_rendered every time the visible label changes.
+  const lastCtaLabelRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (lastCtaLabelRef.current === mobileCta.label) return;
+    lastCtaLabelRef.current = mobileCta.label;
+    logUx('sticky_cta_rendered', {
+      label: mobileCta.label,
+      productType,
+      disabled: mobileCta.disabled,
+    });
+  }, [mobileCta.label, mobileCta.disabled, productType]);
 
   return (
     <>
@@ -1746,7 +1841,7 @@ const GoogleAdsBanner: React.FC = () => {
             {/* Mobile-only step progress — driven by the same step machine as
                 the sticky CTA so they can never disagree. Hidden on yard sign
                 (uses a different multi-design flow). */}
-            {!isYardSign && (
+            {!isYardSign && !hasJustAddedToCart && (
               <div className="mb-4">
                 <MobileStepProgress progress={builderProgress} onStepClick={handleStepPillClick} />
               </div>
@@ -1759,9 +1854,9 @@ const GoogleAdsBanner: React.FC = () => {
                     designs={yardSignDesigns}
                     onDesignsChange={setYardSignDesigns}
                     sidedness={yardSignSidedness}
-                    onSidednessChange={setYardSignSidedness}
+                    onSidednessChange={(s) => { setYardSignSidedness(s); setHasReviewedYardSignPrintSide(true); }}
                     addStepStakes={yardSignAddStepStakes}
-                    onStepStakesChange={setYardSignAddStepStakes}
+                    onStepStakesChange={(v) => { setYardSignAddStepStakes(v); setHasReviewedYardSignStakes(true); }}
                     stepStakeQuantity={yardSignStepStakeQty}
                     onStepStakeQuantityChange={setYardSignStepStakeQty}
                     promoCode={promoCode}
@@ -1770,6 +1865,9 @@ const GoogleAdsBanner: React.FC = () => {
                     onPromoApply={handlePromoApply}
                     onPromoRemove={handlePromoRemove}
                     autoOpenDesignId={autoOpenDesignId}
+                    onUploadStatusChange={setYardSignUploadStatus}
+                    onPreviewDone={(id) => logUx('preview_done', { designId: id, productType: 'yard_sign' })}
+                    previewOpenTrigger={yardSignPreviewTrigger}
                   />
                 </div>
 
@@ -2500,8 +2598,20 @@ const GoogleAdsBanner: React.FC = () => {
             </button>
           </div>
           {mobileCta.helper && (
-            <p className={`mt-2 text-xs ${uploadError && mobileCta.label === 'Retry Upload' ? 'text-red-600' : 'text-gray-500'}`} role="status">
+            <p className={`mt-2 text-xs ${uploadError && mobileCta.label === 'Retry Upload' ? 'text-red-600' : hasJustAddedToCart ? 'text-green-700' : 'text-gray-500'}`} role="status">
               {mobileCta.helper}
+              {hasJustAddedToCart && (
+                <>
+                  {' · '}
+                  <button
+                    type="button"
+                    onClick={handleStartAnother}
+                    className="underline text-orange-600 hover:text-orange-700 font-medium"
+                  >
+                    Start another
+                  </button>
+                </>
+              )}
             </p>
           )}
         </div>
