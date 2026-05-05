@@ -23,7 +23,9 @@ export interface ThumbnailPreviewWrapperProps {
   /** Small thumbnail node to display (e.g., <BannerPreview /> at default size). */
   children: React.ReactNode;
   /** Enlarged preview node shown inside the lightbox. */
-  largePreview: React.ReactNode;
+  largePreview?: React.ReactNode;
+  /** Lazy renderer for enlarged preview; preferred to avoid heavy eager work. */
+  renderLargePreview?: () => React.ReactNode;
   /** Optional product title (e.g., "24" x 36" Vinyl Banner"). */
   title?: string;
   /** Optional product details displayed under the enlarged preview. */
@@ -41,6 +43,7 @@ export interface ThumbnailPreviewWrapperProps {
 const ThumbnailPreviewWrapper: React.FC<ThumbnailPreviewWrapperProps> = ({
   children,
   largePreview,
+  renderLargePreview,
   title,
   details,
   className = '',
@@ -98,7 +101,7 @@ const ThumbnailPreviewWrapper: React.FC<ThumbnailPreviewWrapperProps> = ({
         widthIn={widthIn}
         heightIn={heightIn}
       >
-        {largePreview}
+        {renderLargePreview ? renderLargePreview() : largePreview}
       </ProductPreviewLightbox>
     </>
   );
