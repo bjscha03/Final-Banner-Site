@@ -74,8 +74,7 @@
 
     /* Ensure drag areas don't interfere with scrolling */
     .drag-area {
-      touch-action: none;
-    }
+      }
 
     /* Fix sticky elements on mobile */
     .sticky {
@@ -128,7 +127,6 @@
   /* so the rest of the page can scroll normally. We own all gestures   */
   /* (drag / corner-resize / pinch) inside this layer.                  */
   .canvas-interaction-layer {
-    touch-action: none;
     -ms-touch-action: none;
     user-select: none;
     -webkit-user-select: none;
@@ -682,4 +680,41 @@ embed[type="application/pdf"] .pdfViewer .toolbar {
 @keyframes fadeOut {
   from { opacity: 1; }
   to { opacity: 0; }
+}
+
+@layer components {
+  .cart-modal {
+    overscroll-behavior: none;
+  }
+
+  .cart-modal__panel {
+    height: 100vh;
+    height: 100dvh;
+    max-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    contain: layout paint style;
+  }
+
+  .cart-modal__content {
+    scrollbar-gutter: stable both-edges;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+    overscroll-behavior-x: none;
+    touch-action: pan-y;
+  }
+
+  .cart-modal__footer {
+    position: sticky;
+    bottom: 0;
+    z-index: 1;
+    padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
+  }
+
+  html.cart-modal-open,
+  body.cart-modal-open {
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
 }

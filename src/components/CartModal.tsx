@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { X, Trash2, Plus, Minus, ShoppingBag, Eye, Tag } from 'lucide-react';
 import BannerPreview from './cart/BannerPreview';
 import ThumbnailPreviewWrapper from './preview/ThumbnailPreviewWrapper';
@@ -54,6 +54,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
   );
 
   const [enableHeavyPreviews, setEnableHeavyPreviews] = useState(false);
+  const contentRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!isOpen) {
@@ -74,6 +75,25 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
     };
   }, [isOpen]);
 
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const html = document.documentElement;
+    const body = document.body;
+    html.classList.add('cart-modal-open');
+    body.classList.add('cart-modal-open');
+
+    return () => {
+      html.classList.remove('cart-modal-open');
+      body.classList.remove('cart-modal-open');
+    };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !contentRef.current) return;
+    contentRef.current.scrollTop = 0;
+  }, [isOpen]);
   if (!isOpen) return null;
 
   const handleCheckout = () => {
@@ -105,10 +125,10 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
   const hasSameDayFee = sameDayFeeCents > 0;
 
   return (
-    <div className="fixed inset-0 z-50 overflow-hidden">
-      <div className="absolute inset-0 bg-black bg-opacity-50" onClick={onClose}></div>
-      <div className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-xl">
-        <div className="flex h-full flex-col">
+    <div className="cart-modal fixed inset-0 z-50 overflow-hidden" role="dialog" aria-modal="true" aria-label="Shopping cart">
+      <div className="absolute inset-0 bg-black/50" onClick={onClose} aria-hidden="true" />
+      <div className="cart-modal__panel absolute right-0 top-0 w-full max-w-md bg-white shadow-xl">
+        <div className="flex h-full min-h-0 flex-col">
           {/* Header */}
           <div className="flex items-center justify-between p-6 border-b border-gray-200 bg-white">
             <h2 className="text-xl font-bold text-gray-900 flex items-center">
@@ -120,7 +140,10 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
           </div>
 
           {/* Items */}
-          <div className="flex-1 overflow-y-auto p-6 bg-gray-50 [webkit-overflow-scrolling:touch] overscroll-contain touch-pan-y">
+          <div
+            ref={contentRef}
+            className="cart-modal__content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-6 bg-gray-50 overscroll-contain touch-pan-y"
+          >
             {items.length === 0 ? (
               <div className="text-center py-12">
                 <ShoppingBag className="h-16 w-16 text-gray-300 mx-auto mb-4" />
@@ -293,7 +316,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
 
           {/* Footer */}
           {items.length > 0 && (
-            <div className="border-t border-gray-200 p-6 space-y-3 bg-white shadow-lg">
+            <div className="cart-modal__footer border-t border-gray-200 p-6 space-y-3 bg-white shadow-lg">
               {/* Dynamic delivery timer — reflects HIT toggle if present */}
               <DeliveryTimer variant="compact" reflectCartSelection />
               <div className="flex justify-between text-gray-700">
