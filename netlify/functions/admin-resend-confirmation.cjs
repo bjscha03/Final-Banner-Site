@@ -61,8 +61,28 @@ async function sendEmail(type, payload) {
       to: payload.to,
       replyTo: emailReplyTo,
       subject,
-      html
+      html,
+      tags: [
+        { name: 'type', value: 'order_confirmation' },
+        // payload.order.id is the canonical order UUID; included so the
+        // Resend webhook can correlate delivery / bounce events back to
+        // this order.
+        ...(payload.order && payload.order.id
+          ? [{ name: 'order_id', value: String(payload.order.id) }]
+          : []),
+      ],
     });
+
+    if (result && result.error) {
+      // Resend's SDK can return { data: null, error: {...} } without
+      // throwing. Surface that as a failure so the caller marks the order
+      // as having a failed delivery.
+      return {
+        ok: false,
+        error: (result.error && (result.error.message || JSON.stringify(result.error))) || 'Resend rejected the email',
+        details: result.error,
+      };
+    }
 
     return { ok: true, id: result.data?.id };
   } catch (error) {
@@ -253,7 +273,20 @@ exports.handler = async (event) => {
       };
     } else {
       console.error(`Admin resend confirmation failed for order ${orderId}:`, emailResult);
-      
+
+      // Persist the failure so the admin warning banner reflects the latest
+      // attempt. The retry button can then be clicked again after the
+      // suppression / bounce reason is resolved.
+      try {
+        await db`
+          UPDATE orders
+          SET confirmation_email_status = 'error'
+          WHERE id = ${orderId}
+        `;
+      } catch (statusErr) {
+        console.error(`Failed to mark confirmation_email_status='error' for order ${orderId}:`, statusErr);
+      }
+
       return {
         statusCode: 500,
         headers,

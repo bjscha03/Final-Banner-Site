@@ -582,12 +582,23 @@ async function sendEmail(type, payload) {
       return { ok: false, error: `Unknown email type: ${type}` };
     }
 
+    // Tag the email so the Resend webhook can correlate delivery / bounce
+    // / complaint events back to the originating order and email type.
+    const orderIdForTag = (payload.order && payload.order.id) || null;
+    const tags = [
+      { name: 'type', value: type === 'order.confirmation' ? 'order_confirmation' : 'order_admin_notification' },
+    ];
+    if (orderIdForTag) {
+      tags.push({ name: 'order_id', value: String(orderIdForTag) });
+    }
+
     const emailData = {
       from: emailFrom,
       to: payload.to,
       replyTo: emailReplyTo,
       subject,
-      html
+      html,
+      tags,
     };
 
     const result = await sendEmailWithRetry(resend, emailData);
@@ -926,7 +937,21 @@ exports.handler = async (event) => {
       };
     } else {
       console.error(`Order confirmation email failed for order ${orderId}:`, emailResult);
-      
+
+      // Persist the failure on the order so the admin dashboard can show a
+      // visible warning ("Email delivery failed – customer did NOT receive
+      // notifications") and offer a retry button. This complements the row
+      // logged in email_events (which captures email + reason + timestamp).
+      try {
+        await db`
+          UPDATE orders
+          SET confirmation_email_status = 'error'
+          WHERE id = ${orderId}
+        `;
+      } catch (statusErr) {
+        console.error(`Failed to mark confirmation_email_status='error' for order ${orderId}:`, statusErr);
+      }
+
       // Don't update order status on failure, allowing for retry
       return {
         statusCode: 500,

@@ -68,19 +68,69 @@ exports.handler = async (event) => {
         )
     `;
 
-    // Extract order ID from tags for order confirmation emails
+    // Extract order ID and email type from tags so we can update the
+    // appropriate per-email-type status column on the order.
     let orderId = null;
+    let emailTypeTag = null;
     if (evt.data && evt.data.tags) {
       const orderIdTag = evt.data.tags.find(tag => tag.name === 'order_id');
       if (orderIdTag && orderIdTag.value) {
         orderId = orderIdTag.value;
+      }
+      const typeTag = evt.data.tags.find(tag => tag.name === 'type');
+      if (typeTag && typeTag.value) {
+        emailTypeTag = typeTag.value;
+      }
+    }
 
-        // Update orders.confirmation_email_status
-        await db`
-          UPDATE orders
-          SET confirmation_email_status = ${newStatus}
-          WHERE id = ${orderId}
-        `;
+    if (orderId) {
+      // Map the Resend `type` tag to the orders column we should update.
+      // Tag values are emitted by:
+      //   notify-order.cjs                -> 'order_confirmation' / 'order_admin_notification'
+      //   admin-resend-confirmation.cjs   -> 'order_confirmation'
+      //   mark-in-production.cjs          -> 'order_in_production'
+      //   send-shipping-notification.cjs  -> 'order_shipped'
+      // For backwards compatibility (older sent emails had no `type` tag),
+      // we default to updating confirmation_email_status.
+      const tagToColumn = {
+        order_confirmation: 'confirmation_email_status',
+        order_admin_notification: null, // admin notifications don't need a per-order column
+        order_in_production: 'production_email_status',
+        order_shipped: 'shipping_notification_status',
+      };
+      const column = Object.prototype.hasOwnProperty.call(tagToColumn, emailTypeTag)
+        ? tagToColumn[emailTypeTag]
+        : 'confirmation_email_status';
+
+      if (column) {
+        try {
+          // neon's tagged-template binding does not support dynamic column
+          // names, so we route to a fixed UPDATE per column. This keeps the
+          // query parameterised and avoids any SQL injection risk.
+          if (column === 'confirmation_email_status') {
+            await db`
+              UPDATE orders
+              SET confirmation_email_status = ${newStatus}
+              WHERE id = ${orderId}
+            `;
+          } else if (column === 'production_email_status') {
+            await db`
+              UPDATE orders
+              SET production_email_status = ${newStatus}
+              WHERE id = ${orderId}
+            `;
+          } else if (column === 'shipping_notification_status') {
+            await db`
+              UPDATE orders
+              SET shipping_notification_status = ${newStatus}
+              WHERE id = ${orderId}
+            `;
+          }
+        } catch (colErr) {
+          // The new status columns may not exist yet on legacy databases;
+          // log and continue so we still record the email_events row.
+          console.warn(`webhook: failed to update orders.${column} for ${orderId}:`, colErr.message);
+        }
       }
     }
 
@@ -88,6 +138,7 @@ exports.handler = async (event) => {
       providerMsgId,
       newStatus,
       orderId,
+      emailTypeTag,
       rowCount: result.count || result.rowCount,
       eventType: evt.type
     });

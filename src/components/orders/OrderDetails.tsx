@@ -7,6 +7,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useAuth, isAdmin } from '@/lib/auth';
 import { ShoppingCart, Package, Calendar, CreditCard, Mail, User, Download, FileText, Sparkles, MapPin, Loader2, Palette, Phone, Upload, MessageSquare, GraduationCap } from 'lucide-react';
 import TrackingBadge from './TrackingBadge';
+import EmailDeliveryStatus from './EmailDeliveryStatus';
 import { getItemDisplayName, getProductLabel, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
 import { formatShippingAddress, hasShippingAddress, normalizeShippingAddress } from '@/lib/shipping-address';
 import {
@@ -614,6 +615,13 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
               />
             </div>
           </div>
+
+          {/* Admin-only email delivery failure banner. Renders only when
+              one or more transactional emails (confirmation / in-production
+              / shipped) failed via Resend. Includes a per-email retry. */}
+          {isAdminUser && (
+            <EmailDeliveryStatus order={order} />
+          )}
 
           {/* Customer Information */}
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">

@@ -87,6 +87,17 @@ async function sendEmail(type, payload) {
       };
 
       const result = await resend.emails.send(emailData);
+      // The Resend SDK returns { data, error } and does NOT throw on API
+      // errors (e.g. suppressed recipients, invalid domain, 4xx). Surface
+      // that here so the caller can mark the order as having a failed
+      // delivery and the admin warning banner can render.
+      if (result && result.error) {
+        return {
+          ok: false,
+          error: (result.error && (result.error.message || JSON.stringify(result.error))) || 'Resend rejected the email',
+          details: result.error,
+        };
+      }
       return { ok: true, id: result.data?.id };
     }
 
@@ -284,6 +295,21 @@ exports.handler = async (event, context) => {
     });
 
     if (!emailResult.ok) {
+      // Persist the failure on the order so the admin dashboard can show a
+      // visible "Email delivery failed" warning and offer a retry button.
+      // We deliberately do NOT flip shipping_notification_sent to true on
+      // failure so the existing "Send Email" button remains available as a
+      // retry control alongside the explicit failure indicator.
+      try {
+        await sql`
+          UPDATE orders
+          SET shipping_notification_status = 'error'
+          WHERE id = ${orderId}
+        `;
+      } catch (statusErr) {
+        console.error(`Failed to mark shipping_notification_status='error' for order ${orderId}:`, statusErr);
+      }
+
       return {
         statusCode: 500,
         headers,
@@ -305,11 +331,25 @@ exports.handler = async (event, context) => {
     }
 
     // Mark that shipping notification was sent
-    await sql`
-      UPDATE orders
-      SET shipping_notification_sent = true, shipping_notification_sent_at = NOW()
-      WHERE id = ${orderId}
-    `;
+    try {
+      await sql`
+        UPDATE orders
+        SET shipping_notification_sent = true,
+            shipping_notification_sent_at = NOW(),
+            shipping_notification_status = 'sent'
+        WHERE id = ${orderId}
+      `;
+    } catch (e) {
+      // Fall back to the legacy column set if the new status column does
+      // not exist yet (migration not run).
+      console.warn('shipping_notification_status update failed, falling back:', e.message);
+      await sql`
+        UPDATE orders
+        SET shipping_notification_sent = true,
+            shipping_notification_sent_at = NOW()
+        WHERE id = ${orderId}
+      `;
+    }
 
     console.log(`Shipping notification sent for order ${orderId} to ${customerEmail}`);
 
