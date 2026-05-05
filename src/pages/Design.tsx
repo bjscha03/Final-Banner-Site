@@ -1763,7 +1763,7 @@ const Design: React.FC = () => {
     return pending?.id ?? null;
   }, [isYardSign, yardSignDesigns]);
 
-  const cartItemCount = useCartStore(s => s.items.reduce((acc, it) => acc + (it.quantity || 0), 0));
+  const cartItemCount = useCartStore(s => s.getItemCount());
 
   // Open the cart drawer and emit analytics for the post-add "View Cart" CTA.
   const openCartDrawer = useCallback(() => {

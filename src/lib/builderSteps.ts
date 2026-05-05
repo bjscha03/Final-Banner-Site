@@ -277,6 +277,14 @@ export function getNextStep(state: BuilderStepState): BuilderCtaDescriptor {
   };
 }
 
+// Pixel heights of the page chrome that overlays the scroll target on
+// mobile. Update both here and the `scroll-mt-32` utility on `ConfigCard`
+// when the sticky header / product tabs change height.
+const STICKY_HEADER_HEIGHT_PX = 64;
+const PRODUCT_TABS_HEIGHT_PX = 56;
+const SCROLL_GAP_PX = 8;
+const TOTAL_SCROLL_OFFSET_PX = STICKY_HEADER_HEIGHT_PX + PRODUCT_TABS_HEIGHT_PX + SCROLL_GAP_PX;
+
 /**
  * Smooth-scroll a section into view by id. Honors `scroll-margin-top`
  * (set on each `ConfigCard`) so the target lands below the sticky
@@ -288,18 +296,12 @@ export function scrollToStepAnchor(anchorId: string | null): void {
   if (typeof document === 'undefined') return;
   const el = document.getElementById(anchorId);
   if (!el) return;
-  // Best-effort offset accounting: sticky header (~64px) + product tabs
-  // (~56px) + breathing room. CSS `scroll-margin-top` already handles
-  // most of this on supported browsers (all evergreen + iOS Safari 14.5+);
-  // the manual fallback below handles older Safari and pages that omit
-  // the utility class on a custom element.
   if (typeof el.scrollIntoView === 'function') {
     el.scrollIntoView({ behavior: 'smooth', block: 'start' });
     return;
   }
   if (typeof window !== 'undefined') {
-    const offset = 128; // header (64) + product tabs (~56) + 8px gap
-    const top = el.getBoundingClientRect().top + window.scrollY - offset;
+    const top = el.getBoundingClientRect().top + window.scrollY - TOTAL_SCROLL_OFFSET_PX;
     window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
   }
 }
