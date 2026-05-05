@@ -50,6 +50,21 @@ export interface BuilderStepState {
   optionsRequired?: boolean;
   /** When `optionsRequired` is true, set this to whether they're satisfied. */
   optionsValid?: boolean;
+  /**
+   * Explicit user-confirmation flags. The step machine treats a step as
+   * incomplete unless the user has actively interacted with it — default
+   * preselected values (e.g. material `13oz`, quantity `1`, preset size 0)
+   * never advance the progress indicator on their own. All four default
+   * to `true` for backward compatibility so callers that don't track
+   * confirmation get the old "any valid value = complete" behaviour.
+   *
+   * Pages restoring a saved cart-edit state should pre-set every flag
+   * to true so the user doesn't have to re-confirm an existing order.
+   */
+  sizeConfirmed?: boolean;
+  materialConfirmed?: boolean;
+  quantityConfirmed?: boolean;
+  optionsReviewed?: boolean;
 }
 
 export interface BuilderCtaDescriptor {
@@ -68,23 +83,28 @@ export interface BuilderCtaDescriptor {
 }
 
 export interface BuilderProgress {
-  /** 1-indexed current step number. */
+  /** 1-indexed current step number. Equals `total` when all steps are complete. */
   current: number;
   /** Total number of steps shown in the progress indicator. */
   total: number;
-  /** Human-readable label for the current step. */
+  /** Human-readable label for the current step (or completion). */
   label: string;
   /** Per-step completion (parallel array to BUILDER_STEPS). */
   completed: Record<BuilderStepKey, boolean>;
+  /** True when every step has been completed. */
+  isComplete: boolean;
 }
 
 const STEP_LABELS: Record<BuilderStepKey, string> = {
-  size: 'Choose your size',
+  size: 'Choose size',
   material: 'Select material',
   quantity: 'Choose quantity',
   options: 'Choose options',
   upload: 'Upload artwork',
 };
+
+/** Label rendered when every step is complete and Add-to-Cart is the next action. */
+export const COMPLETE_PROGRESS_LABEL = 'Ready to add to cart';
 
 const STEP_ANCHORS: Record<BuilderStepKey, string> = {
   size: 'size-section',
@@ -95,22 +115,29 @@ const STEP_ANCHORS: Record<BuilderStepKey, string> = {
 };
 
 function isSizeValid(state: BuilderStepState): boolean {
-  return Boolean(state.widthIn && state.heightIn && state.widthIn > 0 && state.heightIn > 0);
+  if (!(state.widthIn && state.heightIn && state.widthIn > 0 && state.heightIn > 0)) return false;
+  return state.sizeConfirmed !== false;
 }
 
 function isMaterialValid(state: BuilderStepState): boolean {
-  return Boolean(state.material);
+  if (!state.material) return false;
+  return state.materialConfirmed !== false;
 }
 
 function isQuantityValid(state: BuilderStepState): boolean {
   const q = state.quantity;
-  return typeof q === 'number' && Number.isFinite(q) && q >= 1;
+  if (!(typeof q === 'number' && Number.isFinite(q) && q >= 1)) return false;
+  return state.quantityConfirmed !== false;
 }
 
 function isOptionsComplete(state: BuilderStepState): boolean {
-  // When the options card is informational (default), it's always "complete"
-  // for the purposes of advancing the CTA — a missing finishing selection
-  // is handled by the upsell modal at Add-to-Cart time, not by blocking.
+  // Even when the options card is informational (default), a step-by-step
+  // mobile flow still wants the user to acknowledge the section before
+  // moving on to upload — so an explicit `optionsReviewed === false` always
+  // marks this step incomplete. When the caller doesn't track review
+  // (`optionsReviewed` undefined), fall back to the previous behaviour
+  // (informational = always complete; required = check `optionsValid`).
+  if (state.optionsReviewed === false) return false;
   if (!state.optionsRequired) return true;
   return Boolean(state.optionsValid);
 }
@@ -128,13 +155,16 @@ export function getProgress(state: BuilderStepState): BuilderProgress {
   };
   // Current step = first incomplete step, or final step if all done.
   const idx = BUILDER_STEPS.findIndex(k => !completed[k]);
-  const current = idx === -1 ? BUILDER_STEPS.length : idx + 1;
-  const currentKey = BUILDER_STEPS[Math.min(current, BUILDER_STEPS.length) - 1];
+  const isComplete = idx === -1;
+  const current = isComplete ? BUILDER_STEPS.length : idx + 1;
+  const currentKey = BUILDER_STEPS[Math.min(current - 1, BUILDER_STEPS.length - 1)];
+  const label = isComplete ? COMPLETE_PROGRESS_LABEL : STEP_LABELS[currentKey];
   return {
     current,
     total: BUILDER_STEPS.length,
-    label: STEP_LABELS[currentKey],
+    label,
     completed,
+    isComplete,
   };
 }
 
@@ -215,7 +245,7 @@ export function getNextStep(state: BuilderStepState): BuilderCtaDescriptor {
     };
   }
 
-  if (state.optionsRequired && !isOptionsComplete(state)) {
+  if (!isOptionsComplete(state)) {
     return {
       step: 'options',
       label: 'Choose Options',

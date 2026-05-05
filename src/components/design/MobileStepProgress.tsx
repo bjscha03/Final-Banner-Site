@@ -30,7 +30,7 @@ const MobileStepProgress: React.FC<MobileStepProgressProps> = ({
   onStepClick,
   className,
 }) => {
-  const { current, total, label, completed } = progress;
+  const { current, total, label, completed, isComplete } = progress;
   const safeCurrent = Math.min(current, total);
 
   return (
@@ -38,18 +38,22 @@ const MobileStepProgress: React.FC<MobileStepProgressProps> = ({
       className={`md:hidden bg-white border border-gray-200 rounded-xl px-3 py-2.5 shadow-sm ${className ?? ''}`}
       role="status"
       aria-live="polite"
-      aria-label={`Step ${safeCurrent} of ${total}: ${label}`}
+      aria-label={isComplete ? `Complete — ${label}` : `Step ${safeCurrent} of ${total}: ${label}`}
     >
       <div className="flex items-center justify-between gap-2">
         <p className="text-xs font-medium text-gray-500">
-          Step <span className="text-gray-900 font-semibold">{safeCurrent}</span> of {total}
+          {isComplete ? (
+            <>Complete</>
+          ) : (
+            <>Step <span className="text-gray-900 font-semibold">{safeCurrent}</span> of {total}</>
+          )}
         </p>
         <p className="text-xs font-semibold text-orange-600 truncate">{label}</p>
       </div>
       <ol className="mt-2 flex items-center gap-1.5" aria-hidden="true">
         {BUILDER_STEPS.map((key, i) => {
           const isDone = completed[key];
-          const isCurrent = i + 1 === safeCurrent;
+          const isCurrent = !isComplete && i + 1 === safeCurrent;
           const stepLabel = STEP_LABEL_FOR(key);
           const dotClass = isDone
             ? 'bg-orange-500 text-white border-orange-500'

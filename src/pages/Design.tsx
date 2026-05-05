@@ -294,6 +294,13 @@ const Design: React.FC = () => {
     setQuantity(1);
     setPromoCode('');
     setPromoApplied(false);
+    // Switching product tabs is a fresh start — clear confirmation flags so
+    // the new product's mobile guided flow walks the user back through
+    // size → material → quantity → options → upload from Step 1.
+    setHasConfirmedSize(false);
+    setHasConfirmedMaterial(false);
+    setHasConfirmedQuantity(false);
+    setHasReviewedOptions(false);
     // Tab switch must reset Same-Day Hit Service / Saturday Delivery so the
     // new product never starts with these auto-selected.
     useCartStore.getState().setSameDayHitService(false);
@@ -322,6 +329,14 @@ const Design: React.FC = () => {
     const item = cartItems.find((i: CartItem) => i.id === editItemId);
     if (!item) return;
     setEditItemRestored(true);
+    // Editing an existing cart item: every section is implicitly already
+    // confirmed (the user previously checked out / saved this configuration),
+    // so the mobile guided flow shouldn't force them to re-confirm each
+    // section before they can update the artwork or change quantity.
+    setHasConfirmedSize(true);
+    setHasConfirmedMaterial(true);
+    setHasConfirmedQuantity(true);
+    setHasReviewedOptions(true);
 
     if (item.product_type === 'yard_sign' && item.yard_sign_designs) {
       // Switch to yard sign tab and restore designs with saved preview state
@@ -456,6 +471,19 @@ const Design: React.FC = () => {
   const [promoCode, setPromoCode] = useState('');
   const [promoApplied, setPromoApplied] = useState(false);
 
+  // Mobile guided-flow confirmation flags. These are the source of truth for
+  // the mobile step-progress indicator and sticky CTA. Default-preselected
+  // values (a preset size, the `13oz` material, quantity 1) MUST NOT
+  // auto-mark a step complete — the user has to interact with the section
+  // (or tap the sticky CTA which both scrolls to the section and confirms
+  // the step) before progress advances. When the user is editing an
+  // existing cart item, all four are pre-set to true so they don't have to
+  // re-confirm each section.
+  const [hasConfirmedSize, setHasConfirmedSize] = useState(false);
+  const [hasConfirmedMaterial, setHasConfirmedMaterial] = useState(false);
+  const [hasConfirmedQuantity, setHasConfirmedQuantity] = useState(false);
+  const [hasReviewedOptions, setHasReviewedOptions] = useState(false);
+
   // Preview modal state
   const [showPreview, setShowPreview] = useState(false);
   const [imgPos, setImgPos] = useState({ x: 0, y: 0 });
@@ -522,6 +550,59 @@ const Design: React.FC = () => {
       ? selectedCarMagnetSize.heightIn
       : (heightFt * 12 + heightInR);
   const sqft = (widthIn * heightIn) / 144;
+
+  // Mobile guided-flow auto-confirm watchers. We snapshot each step's
+  // user-controlled values on first render (so the initial defaults
+  // don't count as a confirmation) and bump the corresponding flag
+  // whenever the value subsequently changes WITHIN THE SAME PRODUCT
+  // TAB. The snapshot key is prefixed with `productType` so a tab
+  // switch (which programmatically resets values back to defaults
+  // inside `handleProductTypeChange`) re-snapshots silently instead
+  // of firing a spurious confirmation.
+  const sizeKeyRef = useRef<string>('');
+  const materialKeyRef = useRef<string>('');
+  const quantityKeyRef = useRef<string>('');
+  const optionsKeyRef = useRef<string>('');
+
+  useEffect(() => {
+    const key = `${productType}|${widthIn}|${heightIn}|${carMagnetSizeLabel}`;
+    const prev = sizeKeyRef.current;
+    sizeKeyRef.current = key;
+    if (prev === '') return;
+    if (prev.split('|', 1)[0] === productType && prev !== key) {
+      setHasConfirmedSize(true);
+    }
+  }, [productType, widthIn, heightIn, carMagnetSizeLabel]);
+
+  useEffect(() => {
+    const key = `${productType}|${material}`;
+    const prev = materialKeyRef.current;
+    materialKeyRef.current = key;
+    if (prev === '') return;
+    if (prev.split('|', 1)[0] === productType && prev !== key) {
+      setHasConfirmedMaterial(true);
+    }
+  }, [productType, material]);
+
+  useEffect(() => {
+    const key = `${productType}|${quantity}`;
+    const prev = quantityKeyRef.current;
+    quantityKeyRef.current = key;
+    if (prev === '') return;
+    if (prev.split('|', 1)[0] === productType && prev !== key) {
+      setHasConfirmedQuantity(true);
+    }
+  }, [productType, quantity]);
+
+  useEffect(() => {
+    const key = `${productType}|${finishingType}|${grommets}|${polePockets}|${addRope}|${ropePlacement}|${carMagnetRoundedCorners}`;
+    const prev = optionsKeyRef.current;
+    optionsKeyRef.current = key;
+    if (prev === '') return;
+    if (prev.split('|', 1)[0] === productType && prev !== key) {
+      setHasReviewedOptions(true);
+    }
+  }, [productType, finishingType, grommets, polePockets, addRope, ropePlacement, carMagnetRoundedCorners]);
 
   // Yard sign pricing (computed reactively)
   const yardSignTotalQty = getTotalDesignQuantity(yardSignDesigns);
@@ -775,6 +856,7 @@ const Design: React.FC = () => {
     setHeightFtStr(String(Math.floor(p.h / 12)));
     setHeightInRStr(String(p.h % 12));
     setActivePreset(idx);
+    setHasConfirmedSize(true);
   };
 
   const handlePromoApply = () => {
@@ -1602,15 +1684,34 @@ const Design: React.FC = () => {
     uploadError: uploadError || null,
     hasUpload: Boolean(uploadedFile),
     optionsRequired: false, // finishing options are upsell-only, never blocking
-  }), [showEntryCta, widthIn, heightIn, material, quantity, isUploading, uploadError, uploadedFile]);
+    sizeConfirmed: hasConfirmedSize,
+    materialConfirmed: hasConfirmedMaterial,
+    quantityConfirmed: hasConfirmedQuantity,
+    optionsReviewed: hasReviewedOptions,
+  }), [showEntryCta, widthIn, heightIn, material, quantity, isUploading, uploadError, uploadedFile, hasConfirmedSize, hasConfirmedMaterial, hasConfirmedQuantity, hasReviewedOptions]);
 
   const builderProgress = useMemo(() => getProgress(builderState), [builderState]);
+
+  // Confirm a step from a CTA / pill tap — the user has explicitly opted
+  // into that section so it counts as confirmed even if they accept the
+  // default value. Subsequent renders advance the sticky CTA + progress
+  // indicator to the next incomplete step.
+  const confirmStep = useCallback((step: BuilderStepKey) => {
+    if (step === 'size') setHasConfirmedSize(true);
+    else if (step === 'material') setHasConfirmedMaterial(true);
+    else if (step === 'quantity') setHasConfirmedQuantity(true);
+    else if (step === 'options') setHasReviewedOptions(true);
+  }, []);
 
   const handleStepPillClick = useCallback((key: BuilderStepKey) => {
     setHasEnteredBuilder(true);
     logUx('step_scrolled', { step: key, source: 'progress_pill' });
     scrollToStepAnchor(STEP_ANCHOR_FOR(key));
-  }, []);
+    // Tapping a pill counts as confirming that section (the user has
+    // explicitly chosen to visit it), but only for non-upload steps —
+    // upload still requires a successful file upload to be marked done.
+    if (key !== 'upload') confirmStep(key);
+  }, [confirmStep]);
 
   // Single contextual mobile CTA — replaces the old "Continue Building" /
   // dual-button design so the sticky bar always shows ONE clear primary
@@ -1660,10 +1761,16 @@ const Design: React.FC = () => {
       case 'options':
       case 'upload': {
         const targetId = desc.scrollTargetId;
+        const stepKey = desc.step;
         const onClick = wrap(() => {
           setHasEnteredBuilder(true);
-          logUx('step_scrolled', { step: desc.step, source: 'sticky_cta' });
+          logUx('step_scrolled', { step: stepKey, source: 'sticky_cta' });
           scrollToStepAnchor(targetId);
+          // Tapping the CTA both reveals the section AND counts as
+          // confirming it — so the next render advances the step
+          // machine to the next incomplete step. (Upload is excluded
+          // here because confirmation comes from a successful upload.)
+          if (stepKey !== 'upload') confirmStep(stepKey as BuilderStepKey);
         });
         return { label: desc.label, onClick, disabled: false, loading: false, helper: desc.helper };
       }
