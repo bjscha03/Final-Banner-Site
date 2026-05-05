@@ -7,6 +7,8 @@ export interface ConfigCardProps {
   headerRight?: React.ReactNode;
   className?: string;
   bodyClassName?: string;
+  /** Optional DOM id for the underlying <section>, used as a scroll anchor by the mobile sticky CTA. */
+  id?: string;
   children: React.ReactNode;
 }
 
@@ -24,11 +26,13 @@ export default function ConfigCard({
   headerRight,
   className,
   bodyClassName,
+  id,
   children,
 }: ConfigCardProps) {
   return (
     <section
-      className={`bg-white border border-[#E5E7EB] rounded-xl shadow-sm p-4 md:p-6 ${className ?? ''}`}
+      id={id}
+      className={`bg-white border border-[#E5E7EB] rounded-xl shadow-sm p-4 md:p-6 scroll-mt-24 ${className ?? ''}`}
     >
       {typeof step === 'number' && title ? (
         <>

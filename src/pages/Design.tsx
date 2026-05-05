@@ -55,6 +55,15 @@ import { computeSameDayFeesCents } from '@/lib/sameDayService';
 import ConfigCard from '@/components/design/layout/ConfigCard';
 import TrustStrip from '@/components/design/layout/TrustStrip';
 import FinishingOptionsCard, { type FinishingType } from '@/components/design/FinishingOptionsCard';
+import MobileStepProgress from '@/components/design/MobileStepProgress';
+import {
+  getNextStep,
+  getProgress,
+  scrollToStepAnchor,
+  STEP_ANCHOR_FOR,
+  type BuilderStepKey,
+} from '@/lib/builderSteps';
+import { logUx } from '@/lib/uxAnalytics';
 
 const PRESET_SIZES = [
   { w: 48, h: 24 },
@@ -285,6 +294,13 @@ const Design: React.FC = () => {
     setQuantity(1);
     setPromoCode('');
     setPromoApplied(false);
+    // Switching product tabs is a fresh start — clear confirmation flags so
+    // the new product's mobile guided flow walks the user back through
+    // size → material → quantity → options → upload from Step 1.
+    setHasConfirmedSize(false);
+    setHasConfirmedMaterial(false);
+    setHasConfirmedQuantity(false);
+    setHasReviewedOptions(false);
     // Tab switch must reset Same-Day Hit Service / Saturday Delivery so the
     // new product never starts with these auto-selected.
     useCartStore.getState().setSameDayHitService(false);
@@ -313,6 +329,14 @@ const Design: React.FC = () => {
     const item = cartItems.find((i: CartItem) => i.id === editItemId);
     if (!item) return;
     setEditItemRestored(true);
+    // Editing an existing cart item: every section is implicitly already
+    // confirmed (the user previously checked out / saved this configuration),
+    // so the mobile guided flow shouldn't force them to re-confirm each
+    // section before they can update the artwork or change quantity.
+    setHasConfirmedSize(true);
+    setHasConfirmedMaterial(true);
+    setHasConfirmedQuantity(true);
+    setHasReviewedOptions(true);
 
     if (item.product_type === 'yard_sign' && item.yard_sign_designs) {
       // Switch to yard sign tab and restore designs with saved preview state
@@ -447,6 +471,19 @@ const Design: React.FC = () => {
   const [promoCode, setPromoCode] = useState('');
   const [promoApplied, setPromoApplied] = useState(false);
 
+  // Mobile guided-flow confirmation flags. These are the source of truth for
+  // the mobile step-progress indicator and sticky CTA. Default-preselected
+  // values (a preset size, the `13oz` material, quantity 1) MUST NOT
+  // auto-mark a step complete — the user has to interact with the section
+  // (or tap the sticky CTA which both scrolls to the section and confirms
+  // the step) before progress advances. When the user is editing an
+  // existing cart item, all four are pre-set to true so they don't have to
+  // re-confirm each section.
+  const [hasConfirmedSize, setHasConfirmedSize] = useState(false);
+  const [hasConfirmedMaterial, setHasConfirmedMaterial] = useState(false);
+  const [hasConfirmedQuantity, setHasConfirmedQuantity] = useState(false);
+  const [hasReviewedOptions, setHasReviewedOptions] = useState(false);
+
   // Preview modal state
   const [showPreview, setShowPreview] = useState(false);
   const [imgPos, setImgPos] = useState({ x: 0, y: 0 });
@@ -513,6 +550,59 @@ const Design: React.FC = () => {
       ? selectedCarMagnetSize.heightIn
       : (heightFt * 12 + heightInR);
   const sqft = (widthIn * heightIn) / 144;
+
+  // Mobile guided-flow auto-confirm watchers. We snapshot each step's
+  // user-controlled values on first render (so the initial defaults
+  // don't count as a confirmation) and bump the corresponding flag
+  // whenever the value subsequently changes WITHIN THE SAME PRODUCT
+  // TAB. The snapshot key is prefixed with `productType` so a tab
+  // switch (which programmatically resets values back to defaults
+  // inside `handleProductTypeChange`) re-snapshots silently instead
+  // of firing a spurious confirmation.
+  const sizeKeyRef = useRef<string>('');
+  const materialKeyRef = useRef<string>('');
+  const quantityKeyRef = useRef<string>('');
+  const optionsKeyRef = useRef<string>('');
+
+  useEffect(() => {
+    const key = `${productType}|${widthIn}|${heightIn}|${carMagnetSizeLabel}`;
+    const prev = sizeKeyRef.current;
+    sizeKeyRef.current = key;
+    if (prev === '') return;
+    if (prev.split('|', 1)[0] === productType && prev !== key) {
+      setHasConfirmedSize(true);
+    }
+  }, [productType, widthIn, heightIn, carMagnetSizeLabel]);
+
+  useEffect(() => {
+    const key = `${productType}|${material}`;
+    const prev = materialKeyRef.current;
+    materialKeyRef.current = key;
+    if (prev === '') return;
+    if (prev.split('|', 1)[0] === productType && prev !== key) {
+      setHasConfirmedMaterial(true);
+    }
+  }, [productType, material]);
+
+  useEffect(() => {
+    const key = `${productType}|${quantity}`;
+    const prev = quantityKeyRef.current;
+    quantityKeyRef.current = key;
+    if (prev === '') return;
+    if (prev.split('|', 1)[0] === productType && prev !== key) {
+      setHasConfirmedQuantity(true);
+    }
+  }, [productType, quantity]);
+
+  useEffect(() => {
+    const key = `${productType}|${finishingType}|${grommets}|${polePockets}|${addRope}|${ropePlacement}|${carMagnetRoundedCorners}`;
+    const prev = optionsKeyRef.current;
+    optionsKeyRef.current = key;
+    if (prev === '') return;
+    if (prev.split('|', 1)[0] === productType && prev !== key) {
+      setHasReviewedOptions(true);
+    }
+  }, [productType, finishingType, grommets, polePockets, addRope, ropePlacement, carMagnetRoundedCorners]);
 
   // Yard sign pricing (computed reactively)
   const yardSignTotalQty = getTotalDesignQuantity(yardSignDesigns);
@@ -766,6 +856,7 @@ const Design: React.FC = () => {
     setHeightFtStr(String(Math.floor(p.h / 12)));
     setHeightInRStr(String(p.h % 12));
     setActivePreset(idx);
+    setHasConfirmedSize(true);
   };
 
   const handlePromoApply = () => {
@@ -834,6 +925,7 @@ const Design: React.FC = () => {
     const timeoutId = window.setTimeout(() => controller.abort(), UPLOAD_TIMEOUT_MS);
     setIsUploading(true);
     console.info('[upload] start', { name: file.name, size: file.size, type: file.type });
+    logUx('upload_start', { name: file.name, size: file.size, type: file.type });
     try {
       const uploadFile = await compressImage(file);
       const formData = new FormData();
@@ -843,13 +935,16 @@ const Design: React.FC = () => {
       const data = await res.json();
       setUploadedFile({ name: file.name, url: data.secureUrl, fileKey: data.fileKey || data.publicId, size: file.size, isPdf: file.type === 'application/pdf', thumbnailUrl: file.type === 'application/pdf' ? getPdfThumbnailUrl(data.secureUrl) : getImagePreviewUrl(data.secureUrl) });
       console.info('[upload] success', { name: file.name, fileKey: data.fileKey || data.publicId });
+      logUx('upload_success', { name: file.name, fileKey: data.fileKey || data.publicId });
     } catch (err) {
       const isAbort = (err as { name?: string } | null)?.name === 'AbortError';
       if (isAbort) {
         console.warn('[upload] timeout', { name: file.name, timeoutMs: UPLOAD_TIMEOUT_MS });
+        logUx('upload_timeout', { name: file.name, timeoutMs: UPLOAD_TIMEOUT_MS });
         setUploadError('Upload timed out. Please check your connection and try again.');
       } else {
         console.error('[upload] failed', err);
+        logUx('upload_error', { name: file.name, message: (err as Error)?.message });
         setUploadError('Upload failed. Please try again or choose a different file.');
       }
     } finally {
@@ -1407,8 +1502,10 @@ const Design: React.FC = () => {
     };
     setPendingCheckoutData({ pos: posPercent, scale: imgScale, scaleY: imgScaleY });
     if (finishingType !== 'none') {
+      logUx('add_to_cart_completed', { source: 'sticky', hasFinishing: true });
       performCheckout([], { pos: posPercent, scale: imgScale, scaleY: imgScaleY }, 'cart');
     } else {
+      logUx('upsell_opened', { source: 'add_to_cart' });
       setPendingActionType('cart');
       setShowUpsellModal(true);
     }
@@ -1573,6 +1670,49 @@ const Design: React.FC = () => {
     }
   }, []);
 
+  // Shared step-machine state used by the sticky CTA and the mobile
+  // step-progress indicator. For yard sign / car magnet flows we keep
+  // their existing custom CTA rules below — those don't follow the
+  // size/material/quantity/options/upload pattern.
+  const builderState = useMemo(() => ({
+    showEntryCta,
+    widthIn,
+    heightIn,
+    material,
+    quantity,
+    isUploading,
+    uploadError: uploadError || null,
+    hasUpload: Boolean(uploadedFile),
+    optionsRequired: false, // finishing options are upsell-only, never blocking
+    sizeConfirmed: hasConfirmedSize,
+    materialConfirmed: hasConfirmedMaterial,
+    quantityConfirmed: hasConfirmedQuantity,
+    optionsReviewed: hasReviewedOptions,
+  }), [showEntryCta, widthIn, heightIn, material, quantity, isUploading, uploadError, uploadedFile, hasConfirmedSize, hasConfirmedMaterial, hasConfirmedQuantity, hasReviewedOptions]);
+
+  const builderProgress = useMemo(() => getProgress(builderState), [builderState]);
+
+  // Confirm a step from a CTA / pill tap — the user has explicitly opted
+  // into that section so it counts as confirmed even if they accept the
+  // default value. Subsequent renders advance the sticky CTA + progress
+  // indicator to the next incomplete step.
+  const confirmStep = useCallback((step: BuilderStepKey) => {
+    if (step === 'size') setHasConfirmedSize(true);
+    else if (step === 'material') setHasConfirmedMaterial(true);
+    else if (step === 'quantity') setHasConfirmedQuantity(true);
+    else if (step === 'options') setHasReviewedOptions(true);
+  }, []);
+
+  const handleStepPillClick = useCallback((key: BuilderStepKey) => {
+    setHasEnteredBuilder(true);
+    logUx('step_scrolled', { step: key, source: 'progress_pill' });
+    scrollToStepAnchor(STEP_ANCHOR_FOR(key));
+    // Tapping a pill counts as confirming that section (the user has
+    // explicitly chosen to visit it), but only for non-upload steps —
+    // upload still requires a successful file upload to be marked done.
+    if (key !== 'upload') confirmStep(key);
+  }, [confirmStep]);
+
   // Single contextual mobile CTA — replaces the old "Continue Building" /
   // dual-button design so the sticky bar always shows ONE clear primary
   // action whose label matches what tapping it will do. When disabled, a
@@ -1584,10 +1724,12 @@ const Design: React.FC = () => {
     loading: boolean;
     helper: string | null;
   } = (() => {
-    if (showEntryCta) {
-      return { label: 'Start Order', onClick: scrollToOrder, disabled: false, loading: false, helper: null };
-    }
     if (isYardSign) {
+      // Yard sign flow has its own multi-design rules and isn't covered by the
+      // shared step machine — preserve the original behaviour.
+      if (showEntryCta) {
+        return { label: 'Start Order', onClick: scrollToOrder, disabled: false, loading: false, helper: null };
+      }
       if (yardSignDesigns.length === 0) {
         return { label: 'Add a Design', onClick: scrollToOrder, disabled: false, loading: false, helper: 'Add at least one yard sign design to continue.' };
       }
@@ -1596,22 +1738,45 @@ const Design: React.FC = () => {
       }
       return { label: 'Add to Cart', onClick: handleAddToCart, disabled: false, loading: false, helper: null };
     }
-    if (isUploading) {
-      return { label: 'Uploading…', onClick: undefined, disabled: true, loading: true, helper: 'Uploading your artwork — this can take a few seconds.' };
-    }
-    if (uploadError) {
-      return { label: 'Retry Upload', onClick: scrollToUpload, disabled: false, loading: false, helper: uploadError };
-    }
-    if (!uploadedFile) {
-      const missing: string[] = [];
-      if (!widthIn || !heightIn) missing.push('a size');
-      if (!material) missing.push('a material');
-      if (missing.length > 0) {
-        return { label: 'Upload Artwork', onClick: undefined, disabled: true, loading: false, helper: `Choose ${missing.join(' and ')} first.` };
+
+    // Banner / car magnet — use shared step machine.
+    const desc = getNextStep(builderState);
+    const wrap = (fn?: () => void) => fn ? () => {
+      logUx('cta_click', { step: desc.step, label: desc.label });
+      fn();
+    } : undefined;
+
+    switch (desc.step) {
+      case 'entry':
+        return { label: desc.label, onClick: wrap(scrollToOrder), disabled: false, loading: false, helper: null };
+      case 'uploading':
+        return { label: desc.label, onClick: undefined, disabled: true, loading: true, helper: desc.helper };
+      case 'upload_error':
+        return { label: desc.label, onClick: wrap(scrollToUpload), disabled: false, loading: false, helper: desc.helper };
+      case 'add_to_cart':
+        return { label: desc.label, onClick: wrap(handleAddToCart), disabled: false, loading: false, helper: null };
+      case 'size':
+      case 'material':
+      case 'quantity':
+      case 'options':
+      case 'upload': {
+        const targetId = desc.scrollTargetId;
+        const stepKey = desc.step;
+        const onClick = wrap(() => {
+          setHasEnteredBuilder(true);
+          logUx('step_scrolled', { step: stepKey, source: 'sticky_cta' });
+          scrollToStepAnchor(targetId);
+          // Tapping the CTA both reveals the section AND counts as
+          // confirming it — so the next render advances the step
+          // machine to the next incomplete step. (Upload is excluded
+          // here because confirmation comes from a successful upload.)
+          if (stepKey !== 'upload') confirmStep(stepKey as BuilderStepKey);
+        });
+        return { label: desc.label, onClick, disabled: false, loading: false, helper: desc.helper };
       }
-      return { label: 'Upload Artwork', onClick: scrollToUpload, disabled: false, loading: false, helper: null };
+      default:
+        return { label: desc.label, onClick: undefined, disabled: true, loading: false, helper: desc.helper };
     }
-    return { label: 'Add to Cart', onClick: handleAddToCart, disabled: false, loading: false, helper: null };
   })();
   const modeContent = PRODUCT_MODE_CONTENT[productType];
 
@@ -1686,6 +1851,14 @@ const Design: React.FC = () => {
           >
             {isYardSign ? 'Build Your Yard Sign Order' : isCarMagnet ? 'Design Your Custom Car Magnets' : 'Build Your Banner'}
           </h2>
+          {/* Mobile-only step progress — driven by the same step machine as the
+              sticky CTA so they can never disagree. Hidden on yard sign (uses a
+              different multi-design flow). */}
+          {!isYardSign && (
+            <div className="mb-4">
+              <MobileStepProgress progress={builderProgress} onStepClick={handleStepPillClick} />
+            </div>
+          )}
           {isYardSign ? (
             /* ========== YARD SIGN ORDER BUILDER ========== */
             <div className="grid md:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-10 max-w-full">
@@ -1776,6 +1949,7 @@ const Design: React.FC = () => {
               <ConfigCard
                 step={1}
                 title="Choose your size"
+                id="size-section"
                 headerRight={!isCarMagnet ? (
                   <div className="inline-flex items-center rounded-lg border border-gray-200 bg-white p-0.5 text-xs" role="group" aria-label="Display unit">
                     <button
@@ -1905,7 +2079,7 @@ const Design: React.FC = () => {
                   )}
                 </div>
               </ConfigCard>
-              <ConfigCard step={2} title="Select material">
+              <ConfigCard step={2} title="Select material" id="material-section">
                 <div ref={materialDropdownRef} className="relative">
                   {isCarMagnet ? (
                     <div className="w-full border rounded-xl px-3 py-2.5 text-base bg-gray-50 text-gray-800 font-medium">
@@ -1961,7 +2135,7 @@ const Design: React.FC = () => {
                   )}
                 </div>
               </ConfigCard>
-              <ConfigCard step={3} title="Quantity">
+              <ConfigCard step={3} title="Quantity" id="quantity-section">
                 <div className="flex items-center gap-3">
                   <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="w-9 h-9 flex items-center justify-center border border-gray-200 rounded-xl hover:border-gray-400 transition-colors">
                     <Minus className="h-4 w-4 text-gray-600" />
@@ -1980,7 +2154,7 @@ const Design: React.FC = () => {
                   <p className="text-xs text-gray-400 mt-1.5">Order 2+ for up to 13% off</p>
                 )}
               </ConfigCard>
-              <ConfigCard step={4} title={isCarMagnet ? 'Rounded Corners' : 'Finishing options'}>
+              <ConfigCard step={4} title={isCarMagnet ? 'Rounded Corners' : 'Finishing options'} id="options-section">
                 <div className="space-y-3">
                   {isCarMagnet ? (
                     <div>
@@ -2004,8 +2178,21 @@ const Design: React.FC = () => {
                   )}
                 </div>
               </ConfigCard>
-              <ConfigCard step={5} title="Upload your artwork">
-                <div id="upload-section" className="scroll-mt-24" />
+              <ConfigCard step={5} title="Upload your artwork" id="upload-section">
+                {/* Helper banner: shown when the user reaches the upload card before
+                    completing required choices. Doesn't block upload (per spec) — just
+                    surfaces what still needs to happen before "Add to Cart" works. */}
+                {!isYardSign && !isCarMagnet && !uploadedFile && (() => {
+                  const missing: string[] = [];
+                  if (!widthIn || !heightIn) missing.push('size');
+                  if (!material) missing.push('material');
+                  if (missing.length === 0) return null;
+                  return (
+                    <p className="mb-3 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+                      Choose {missing.join(' and ')} before adding to cart.
+                    </p>
+                  );
+                })()}
                 {!uploadedFile ? (
                   <>
                     <FileUploader
@@ -2331,7 +2518,10 @@ const Design: React.FC = () => {
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 pt-3 shadow-lg z-40 overflow-x-clip" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0.75rem))' }}>
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <p className="text-xs text-gray-500">Total</p>
+            {/* Pre-tax subtotal — labeled "Subtotal" so it lines up with the
+                cart/checkout breakdown (which shows Subtotal → Tax → Total).
+                Avoids the old "$36.00 Total" vs "$38.16 Total" confusion. */}
+            <p className="text-xs text-gray-500">Subtotal</p>
             {isYardSign && yardSignPricing ? (
               <p className="text-xl font-bold text-gray-900">
                 {yardSignTotalQty > 0 ? usd(yardSignPricing.totalCents / 100) : '—'}
