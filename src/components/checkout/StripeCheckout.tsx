@@ -59,8 +59,8 @@ const StripePaymentForm: React.FC<{
   // and the ExpressCheckoutElement onConfirm handler so wallet payments
   // (Apple Pay / Google Pay / Link) flow through the exact same backend
   // path as ordinary card payments.
-  const confirmAndFinalize = async (label: string) => {
-    if (!stripe || !elements) return;
+  const confirmAndFinalize = async (label: string): Promise<boolean> => {
+    if (!stripe || !elements) return false;
     setSubmitting(true);
     try {
       console.log(`[StripeCheckout] ${label} confirmPayment start`, { orderId, paymentIntentId });
@@ -86,7 +86,7 @@ const StripePaymentForm: React.FC<{
           variant: 'destructive',
         });
         onError(error);
-        return;
+        return false;
       }
 
       const status = paymentIntent?.status || 'unknown';
@@ -97,7 +97,7 @@ const StripePaymentForm: React.FC<{
           variant: 'destructive',
         });
         onError(new Error('Stripe payment missing PaymentIntent'));
-        return;
+        return false;
       }
       if (status === 'canceled') {
         toast({
@@ -105,7 +105,7 @@ const StripePaymentForm: React.FC<{
           description: 'No charge was made. You can choose another payment method or try again.',
         });
         onError(new Error('Stripe payment canceled'));
-        return;
+        return false;
       }
       if (status === 'processing') {
         toast({
@@ -113,7 +113,7 @@ const StripePaymentForm: React.FC<{
           description: 'Your payment is processing. We will finish your order as soon as Stripe confirms it.',
         });
         onSuccess(orderId, undefined);
-        return;
+        return true;
       }
       if (status === 'requires_action') {
         toast({
@@ -122,7 +122,7 @@ const StripePaymentForm: React.FC<{
           variant: 'destructive',
         });
         onError(new Error('Stripe payment requires action'));
-        return;
+        return false;
       }
       if (status !== 'succeeded') {
         console.warn(`[StripeCheckout] ${label} payment not succeeded; status =`, status);
@@ -132,7 +132,7 @@ const StripePaymentForm: React.FC<{
           variant: 'destructive',
         });
         onError(new Error(`Stripe payment status: ${status}`));
-        return;
+        return false;
       }
 
       console.log(`[StripeCheckout] ${label} payment succeeded — finalizing order`, {
@@ -186,7 +186,7 @@ const StripePaymentForm: React.FC<{
           description: 'Your payment is being finalized. Order #' + orderId,
         });
         onSuccess(orderId, undefined);
-        return;
+        return true;
       }
 
       console.log(`[StripeCheckout] ${label} order finalized`, {
@@ -201,6 +201,7 @@ const StripePaymentForm: React.FC<{
       });
 
       onSuccess(finalizeResult.orderId || orderId, undefined);
+      return true;
     } catch (err: any) {
       console.error(`[StripeCheckout] ${label} payment exception:`, err);
       toast({
@@ -209,6 +210,7 @@ const StripePaymentForm: React.FC<{
         variant: 'destructive',
       });
       onError(err);
+      return false;
     } finally {
       setSubmitting(false);
     }
@@ -230,12 +232,9 @@ const StripePaymentForm: React.FC<{
               setWalletReady(Boolean(availablePaymentMethods && Object.keys(availablePaymentMethods).length > 0));
             }}
             onConfirm={async (event) => {
-              try {
-                await confirmAndFinalize('wallet');
-                event.resolve?.();
-              } catch (_e) {
-                event.reject?.();
-              }
+              const ok = await confirmAndFinalize('wallet');
+              if (ok) event.resolve?.();
+              else event.reject?.();
             }}
             onCancel={() => {
               setSubmitting(false);
