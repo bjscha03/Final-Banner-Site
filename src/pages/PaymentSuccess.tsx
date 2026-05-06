@@ -47,13 +47,30 @@ const PaymentSuccess: React.FC = () => {
       postalCode?: string;
       country?: string;
     } | null;
+    subtotal_cents?: number;
+    tax_cents?: number;
+    total_cents?: number;
+    applied_discount_cents?: number;
+    applied_discount_label?: string;
+    applied_discount_type?: string;
+    same_day_fee_cents?: number;
+    saturday_fee_cents?: number;
   } | null>(null);
   
   // Get data from navigation state or defaults
   const items = loadedOrder?.items || state?.items || [];
   const total = state?.total || 0;
   const discountCode = state?.discountCode || null;
-  const serverPricing = state?.serverPricing || null; // Server-computed pricing from create-order
+  const serverPricing = loadedOrder
+    ? {
+        applied_discount_type: loadedOrder.applied_discount_type,
+        applied_discount_label: loadedOrder.applied_discount_label,
+        subtotal_cents: loadedOrder.subtotal_cents,
+        tax_cents: loadedOrder.tax_cents,
+        total_cents: loadedOrder.total_cents,
+        applied_discount_cents: loadedOrder.applied_discount_cents,
+      }
+    : (state?.serverPricing || null); // Prefer canonical DB pricing
   const stateShippingAddress = normalizeShippingAddress(state?.shippingAddress || {});
   const loadedShippingAddress = normalizeShippingAddress(loadedOrder?.shippingAddress || {});
   const normalizedShippingAddress = hasShippingAddress(loadedShippingAddress)
@@ -137,7 +154,7 @@ const PaymentSuccess: React.FC = () => {
   }, [orderId]); // Track once when orderId is available
   const calculatePricingBreakdown = () => {
     if (items.length === 0) {
-      return { subtotal: 0, tax: 0, total: 0, discountCents: 0, discountLabel: "" };
+      return { subtotal: 0, tax: 0, total: 0, discountCents: 0, discountLabel: "", shippingCents: 0 };
     }
 
     // FIXED: Use server-computed pricing when available (includes discount calculations)
@@ -155,6 +172,7 @@ const PaymentSuccess: React.FC = () => {
         total: serverPricing.total_cents || 0,
         discountCents: serverPricing.applied_discount_cents || 0,
         discountLabel,
+        shippingCents: 0,
       };
     }
 
@@ -169,6 +187,7 @@ const PaymentSuccess: React.FC = () => {
       total: totalCents,
       discountCents: 0,
       discountLabel: "",
+      shippingCents: 0,
     };
   };
 
@@ -289,6 +308,12 @@ const PaymentSuccess: React.FC = () => {
                     </span>
                   </div>
                 )}
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-700">Shipping</span>
+                  <span className="text-gray-900">
+                    {pricing.shippingCents > 0 ? usd(pricing.shippingCents / 100) : 'FREE'}
+                  </span>
+                </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-700">Tax (6%)</span>
                   <span className="text-gray-900">
