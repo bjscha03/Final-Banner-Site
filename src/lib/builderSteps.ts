@@ -37,6 +37,8 @@ export interface BuilderStepState {
   widthIn: number | null | undefined;
   heightIn: number | null | undefined;
   material: string | null | undefined;
+  /** Set false for products with a single fixed material (e.g. car magnets). */
+  materialRequired?: boolean;
   quantity: number | null | undefined;
   /** Upload lifecycle. */
   isUploading: boolean;
@@ -120,6 +122,7 @@ function isSizeValid(state: BuilderStepState): boolean {
 }
 
 function isMaterialValid(state: BuilderStepState): boolean {
+  if (state.materialRequired === false) return true;
   if (!state.material) return false;
   return state.materialConfirmed !== false;
 }
@@ -146,6 +149,7 @@ function isOptionsComplete(state: BuilderStepState): boolean {
  * Compute the per-step completion bitmap used by the progress indicator.
  */
 export function getProgress(state: BuilderStepState): BuilderProgress {
+  const visibleSteps = BUILDER_STEPS.filter((k) => !(k === 'material' && state.materialRequired === false));
   const completed: Record<BuilderStepKey, boolean> = {
     size: isSizeValid(state),
     material: isMaterialValid(state),
@@ -154,14 +158,14 @@ export function getProgress(state: BuilderStepState): BuilderProgress {
     upload: state.hasUpload,
   };
   // Current step = first incomplete step, or final step if all done.
-  const idx = BUILDER_STEPS.findIndex(k => !completed[k]);
+  const idx = visibleSteps.findIndex(k => !completed[k]);
   const isComplete = idx === -1;
-  const current = isComplete ? BUILDER_STEPS.length : idx + 1;
-  const currentKey = BUILDER_STEPS[Math.min(current - 1, BUILDER_STEPS.length - 1)];
+  const current = isComplete ? visibleSteps.length : idx + 1;
+  const currentKey = visibleSteps[Math.min(current - 1, visibleSteps.length - 1)];
   const label = isComplete ? COMPLETE_PROGRESS_LABEL : STEP_LABELS[currentKey];
   return {
     current,
-    total: BUILDER_STEPS.length,
+    total: visibleSteps.length,
     label,
     completed,
     isComplete,

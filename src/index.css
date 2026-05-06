@@ -711,6 +711,14 @@ embed[type="application/pdf"] .pdfViewer .toolbar {
     z-index: 1;
     padding-bottom: calc(1.5rem + env(safe-area-inset-bottom, 0px));
   }
+  @media (max-width: 640px) {
+    .cart-modal__footer {
+      max-height: 48dvh;
+      overflow-y: auto;
+      overscroll-behavior-y: contain;
+      -webkit-overflow-scrolling: touch;
+    }
+  }
 
   html.cart-modal-open,
   body.cart-modal-open {

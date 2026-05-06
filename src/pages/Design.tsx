@@ -1719,6 +1719,7 @@ const Design: React.FC = () => {
     widthIn,
     heightIn,
     material,
+    materialRequired: !isCarMagnet,
     quantity,
     isUploading,
     uploadError: uploadError || null,
@@ -1728,7 +1729,7 @@ const Design: React.FC = () => {
     materialConfirmed: hasConfirmedMaterial,
     quantityConfirmed: hasConfirmedQuantity,
     optionsReviewed: hasReviewedOptions,
-  }), [showEntryCta, widthIn, heightIn, material, quantity, isUploading, uploadError, uploadedFile, hasConfirmedSize, hasConfirmedMaterial, hasConfirmedQuantity, hasReviewedOptions]);
+  }), [showEntryCta, widthIn, heightIn, material, isCarMagnet, quantity, isUploading, uploadError, uploadedFile, hasConfirmedSize, hasConfirmedMaterial, hasConfirmedQuantity, hasReviewedOptions]);
 
   const builderProgress = useMemo(() => getProgress(builderState), [builderState]);
 
@@ -2283,6 +2284,7 @@ const Design: React.FC = () => {
                   )}
                 </div>
               </ConfigCard>
+              {!isCarMagnet && (
               <ConfigCard step={2} title="Select material" id="material-section">
                 <div ref={materialDropdownRef} className="relative">
                   {isCarMagnet ? (
@@ -2339,7 +2341,8 @@ const Design: React.FC = () => {
                   )}
                 </div>
               </ConfigCard>
-              <ConfigCard step={3} title="Quantity" id="quantity-section">
+              )}
+              <ConfigCard step={isCarMagnet ? 2 : 3} title="Quantity" id="quantity-section">
                 <div className="flex items-center gap-3">
                   <button onClick={() => setQuantity(q => Math.max(1, q - 1))} className="w-9 h-9 flex items-center justify-center border border-gray-200 rounded-xl hover:border-gray-400 transition-colors">
                     <Minus className="h-4 w-4 text-gray-600" />
@@ -2354,11 +2357,14 @@ const Design: React.FC = () => {
                     🎉 {Math.round(quantityDiscountRate * 100)}% bulk discount applied at checkout
                   </p>
                 )}
+                {quantity === 1 && (
+                  <p className="text-xs text-gray-500 mt-1.5">Quantity 1 selected — continue when ready.</p>
+                )}
                 {!isCarMagnet && quantity === 1 && (
-                  <p className="text-xs text-gray-400 mt-1.5">Order 2+ for up to 13% off</p>
+                  <p className="text-xs text-gray-400 mt-1">Order 2+ for up to 13% off</p>
                 )}
               </ConfigCard>
-              <ConfigCard step={4} title={isCarMagnet ? 'Rounded Corners' : 'Finishing options'} id="options-section">
+              <ConfigCard step={isCarMagnet ? 3 : 4} title={isCarMagnet ? 'Rounded Corners' : 'Finishing options'} id="options-section">
                 <div className="space-y-3">
                   {isCarMagnet ? (
                     <div>
@@ -2382,7 +2388,7 @@ const Design: React.FC = () => {
                   )}
                 </div>
               </ConfigCard>
-              <ConfigCard step={5} title="Upload your artwork" id="upload-section">
+              <ConfigCard step={isCarMagnet ? 4 : 5} title="Upload your artwork" id="upload-section">
                 {/* Helper banner: shown when the user reaches the upload card before
                     completing required choices. Doesn't block upload (per spec) — just
                     surfaces what still needs to happen before "Add to Cart" works. */}
