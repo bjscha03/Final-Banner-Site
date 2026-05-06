@@ -57,7 +57,7 @@ const Checkout: React.FC = () => {
   );
   // Keep PayPal as the default tab for strongest first-impression trust,
   // while still offering Stripe card + wallet flows as a secondary option.
-  const [paymentMethod, setPaymentMethod] = useState<'wallet' | 'paypal' | 'card'>('paypal');
+  const [paymentMethod, setPaymentMethod] = useState<'paypal' | 'card'>('paypal');
 
 
   // Get totals from cart store methods
@@ -1198,20 +1198,17 @@ const Checkout: React.FC = () => {
                         Stripe doesn't initialize a PaymentIntent until
                         the user actually picks the card / wallet flow. */}
                     <h3 className="text-base font-semibold text-gray-900 mb-3">Choose payment method</h3>
+                    <div className="mb-4">
+                      <StripeCheckout
+                        disabled={!canProceed}
+                        total={totalCents}
+                        onSuccess={handlePaymentSuccess}
+                        onError={handlePaymentError}
+                        onSwitchToPayPal={() => setPaymentMethod('paypal')}
+                        showCardForm={false}
+                      />
+                    </div>
                     <div className="grid grid-cols-1 gap-2 mb-4" role="tablist" aria-label="Payment method">
-                      <button
-                        type="button"
-                        role="tab"
-                        aria-selected={paymentMethod === 'wallet'}
-                        onClick={() => setPaymentMethod('wallet')}
-                        className={`py-2 px-3 rounded-lg border text-sm font-semibold transition-colors ${
-                          paymentMethod === 'wallet'
-                            ? 'bg-[#18448D] text-white border-[#18448D]'
-                            : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        Apple Pay / Google Pay
-                      </button>
                       <button
                         type="button"
                         role="tab"
@@ -1240,21 +1237,21 @@ const Checkout: React.FC = () => {
                       </button>
                     </div>
 
-                    <div className="min-h-[260px]">
+                    <div className="min-h-[180px]">
                       {paymentMethod === 'paypal' ? (
                         <PayPalCheckout disabled={!canProceed}
                           total={totalCents}
                           onSuccess={handlePaymentSuccess}
                           onError={handlePaymentError}
                         />
-                      ) : (
+                      ) :(
                         <StripeCheckout
                           disabled={!canProceed}
                           total={totalCents}
                           onSuccess={handlePaymentSuccess}
                           onError={handlePaymentError}
                           onSwitchToPayPal={() => setPaymentMethod('paypal')}
-                          showCardForm={paymentMethod === 'card'}
+                          showCardForm
                         />
                       )}
                     </div>
