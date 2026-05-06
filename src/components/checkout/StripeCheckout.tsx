@@ -24,6 +24,8 @@ interface StripeCheckoutProps {
    * payment-method tab so the customer can complete the order.
    */
   onSwitchToPayPal?: () => void;
+  showCardForm?: boolean;
+  showWallets?: boolean;
 }
 
 const PUBLISHABLE_KEY =
@@ -46,19 +48,21 @@ const StripePaymentForm: React.FC<{
   disabled?: boolean;
   paymentIntentId: string;
   orderId: string;
-}> = ({ total, onSuccess, onError, disabled, paymentIntentId, orderId }) => {
+  showCardForm?: boolean;
+  showWallets?: boolean;
+}> = ({ total, onSuccess, onError, disabled, paymentIntentId, orderId, showCardForm = true, showWallets = false }) => {
   const stripe = useStripe();
   const elements = useElements();
   const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
-  const [walletReady, setWalletReady] = useState<boolean | null>(null);
+  const [walletReady, setWalletReady] = useState<boolean | null>(showWallets ? null : false);
 
   // Shared confirm + finalize. Used by both the Pay button (card form)
   // and the ExpressCheckoutElement onConfirm handler so wallet payments
   // (Apple Pay / Google Pay / Link) flow through the exact same backend
   // path as ordinary card payments.
-  const confirmAndFinalize = async (label: string) => {
-    if (!stripe || !elements) return;
+  const confirmAndFinalize = async (label: string): Promise<boolean> => {
+    if (!stripe || !elements) return false;
     setSubmitting(true);
     try {
       console.log(`[StripeCheckout] ${label} confirmPayment start`, { orderId, paymentIntentId });
@@ -84,19 +88,53 @@ const StripePaymentForm: React.FC<{
           variant: 'destructive',
         });
         onError(error);
-        return;
+        return false;
       }
 
-      if (!paymentIntent || paymentIntent.status !== 'succeeded') {
-        const status = paymentIntent?.status || 'unknown';
+      const status = paymentIntent?.status || 'unknown';
+      if (!paymentIntent) {
+        toast({
+          title: 'Payment Not Completed',
+          description: 'We could not confirm your payment status. Please try again.',
+          variant: 'destructive',
+        });
+        onError(new Error('Stripe payment missing PaymentIntent'));
+        return false;
+      }
+      if (status === 'canceled') {
+        toast({
+          title: 'Payment canceled',
+          description: 'No charge was made. You can choose another payment method or try again.',
+        });
+        onError(new Error('Stripe payment canceled'));
+        return false;
+      }
+      if (status === 'processing') {
+        toast({
+          title: 'Payment processing',
+          description: 'Your payment is processing. We will finish your order as soon as Stripe confirms it.',
+        });
+        onSuccess(orderId, undefined);
+        return true;
+      }
+      if (status === 'requires_action') {
+        toast({
+          title: 'Additional verification needed',
+          description: 'Please complete verification with your bank or try another payment method.',
+          variant: 'destructive',
+        });
+        onError(new Error('Stripe payment requires action'));
+        return false;
+      }
+      if (status !== 'succeeded') {
         console.warn(`[StripeCheckout] ${label} payment not succeeded; status =`, status);
         toast({
           title: 'Payment Not Completed',
-          description: `Payment status: ${status}. Please try again.`,
+          description: `Payment status: ${status}. Please try again or use PayPal.`,
           variant: 'destructive',
         });
         onError(new Error(`Stripe payment status: ${status}`));
-        return;
+        return false;
       }
 
       console.log(`[StripeCheckout] ${label} payment succeeded — finalizing order`, {
@@ -150,7 +188,7 @@ const StripePaymentForm: React.FC<{
           description: 'Your payment is being finalized. Order #' + orderId,
         });
         onSuccess(orderId, undefined);
-        return;
+        return true;
       }
 
       console.log(`[StripeCheckout] ${label} order finalized`, {
@@ -165,6 +203,7 @@ const StripePaymentForm: React.FC<{
       });
 
       onSuccess(finalizeResult.orderId || orderId, undefined);
+      return true;
     } catch (err: any) {
       console.error(`[StripeCheckout] ${label} payment exception:`, err);
       toast({
@@ -173,6 +212,7 @@ const StripePaymentForm: React.FC<{
         variant: 'destructive',
       });
       onError(err);
+      return false;
     } finally {
       setSubmitting(false);
     }
@@ -187,24 +227,39 @@ const StripePaymentForm: React.FC<{
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-3">
-        <div className={walletReady === false ? 'hidden' : 'rounded-xl border border-gray-200 bg-white p-3 sm:p-4'}>
-          <p className="text-xs font-medium text-gray-600 mb-3">Express checkout</p>
-          <ExpressCheckoutElement
-            onReady={({ availablePaymentMethods }) => {
-              setWalletReady(Boolean(availablePaymentMethods && Object.keys(availablePaymentMethods).length > 0));
-            }}
-            onConfirm={async () => {
-              await confirmAndFinalize('wallet');
-            }}
-            onCancel={() => setSubmitting(false)}
-            onClick={() => setSubmitting(true)}
-            options={{
-              buttonHeight: 44,
-              buttonTheme: { applePay: 'black', googlePay: 'black' },
-              paymentMethods: { applePay: 'auto', googlePay: 'auto', link: 'never', paypal: 'never' },
-            }}
-          />
-        </div>
+        {showWallets && (
+          <div className={walletReady ? 'rounded-xl border border-gray-200 bg-white p-3 sm:p-4' : 'hidden'}>
+            <p className="text-sm font-semibold text-gray-800 mb-2">Fast checkout</p>
+            <ExpressCheckoutElement
+              onReady={({ availablePaymentMethods }) => {
+                const apple = !!availablePaymentMethods?.applePay;
+                const google = !!availablePaymentMethods?.googlePay;
+                if ((import.meta as any).env?.DEV) {
+                  console.log('[StripeCheckout][wallet-availability]', {
+                    applePayAvailable: apple,
+                    googlePayAvailable: google,
+                    availablePaymentMethods,
+                  });
+                }
+                setWalletReady(apple || google);
+              }}
+              onConfirm={async (event) => {
+                const ok = await confirmAndFinalize('wallet');
+                if (ok) event.resolve?.();
+                else event.reject?.();
+              }}
+              onCancel={() => {
+                setSubmitting(false);
+              }}
+              options={{
+                buttonHeight: 44,
+                paymentMethods: { applePay: 'auto', googlePay: 'auto', link: 'never', paypal: 'never' },
+                layout: { maxColumns: 1, maxRows: 2, overflow: 'never' },
+              }}
+            />
+          </div>
+        )}
+        {showCardForm && (
         <div className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4">
         <PaymentElement
           onReady={() => {
@@ -222,10 +277,12 @@ const StripePaymentForm: React.FC<{
             // Keep the card form focused. Apple Pay / Google Pay are
             // surfaced in the branded Express Checkout block above.
             wallets: { applePay: 'never', googlePay: 'never' },
+            paymentMethodOrder: ['card'],
             fields: { billingDetails: { phone: 'auto' } },
           }}
         />
       </div>
+      )}
       </div>
       <Button
         type="submit"
@@ -255,6 +312,8 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({
   onError,
   disabled = false,
   onSwitchToPayPal,
+  showCardForm = true,
+  showWallets = false,
 }) => {
   const { user } = useAuth();
   const {
@@ -547,6 +606,8 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({
         disabled={disabled}
         paymentIntentId={paymentIntentId || ''}
         orderId={orderId}
+        showCardForm={showCardForm}
+        showWallets={showWallets}
       />
     </Elements>
   );
