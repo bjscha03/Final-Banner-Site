@@ -108,7 +108,7 @@ exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
 
   const isProduction = process.env.CONTEXT === 'production' || process.env.NODE_ENV === 'production';
-  const debug = { success: false, stepFailed: null, durationMs: 0, model: 'gpt-image-1', openaiStatus: null, cloudinaryStatus: null, imageDetected: false, inspirationIncluded: false, fallbackAttempted: false, fallbackSucceeded: false, error: null, openaiError: null };
+  const debug = { success: false, stepFailed: null, durationMs: 0, model: 'gpt-image-1', openaiStatus: null, cloudinaryStatus: null, imageDetected: false, inspirationIncluded: false, fallbackAttempted: false, fallbackSucceeded: false, error: null, errorMessage: null, openaiError: null, cloudinaryError: null };
 
   const buildResponse = (statusCode, extra = {}) => ({
     statusCode,
@@ -124,6 +124,9 @@ exports.handler = async (event) => {
       cloudinaryStatus: debug.cloudinaryStatus,
       fallbackAttempted: debug.fallbackAttempted,
       fallbackSucceeded: debug.fallbackSucceeded,
+      errorMessage: debug.errorMessage,
+      openaiError: debug.openaiError,
+      cloudinaryError: debug.cloudinaryError,
       ...extra
     })
   });
@@ -238,6 +241,7 @@ Professional large-format ${productType || 'banner'} for ${width || size.wIn}x${
       uploaded = await cloudinary.uploader.upload(imageSource, { folder: 'ai-generated-banners', public_id: `banner-${Date.now()}`, resource_type: 'image', timeout: 45000 });
     } catch (uploadErr) {
       uploadErr.code = 'CLOUDINARY_UPLOAD_FAILED';
+      debug.cloudinaryError = { message: uploadErr?.message || 'Cloudinary upload failed', code: uploadErr?.code || null, http_code: uploadErr?.http_code || null };
       throw uploadErr;
     }
     const cloudinaryMs = Date.now() - cloudStart;
@@ -262,6 +266,7 @@ Professional large-format ${productType || 'banner'} for ${width || size.wIn}x${
     debug.durationMs = totalMs;
     debug.stepFailed = debug.cloudinaryStatus ? 'cloudinary_upload' : (debug.openaiStatus ? 'response_handling' : 'openai_request');
     debug.error = toAdminSafeError(error);
+    debug.errorMessage = error?.message || debug.error || 'Unknown failure';
     if (!debug.openaiError) debug.openaiError = extractOpenAIError(error);
     console.error('[AI-Gen] Full failure object', error);
     console.error('[AI-Gen] OpenAI exact error response', debug.openaiError);
