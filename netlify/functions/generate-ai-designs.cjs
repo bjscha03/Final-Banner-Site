@@ -268,8 +268,12 @@ async function assertAdminAccess(userEmail) {
   const dbUrl = process.env.DATABASE_URL || process.env.NETLIFY_DATABASE_URL;
   if (!dbUrl) return false;
   const sql = neon(dbUrl);
-  const rows = await sql`SELECT is_admin FROM users WHERE email = ${userEmail} LIMIT 1`;
-  return !!rows?.[0]?.is_admin;
+  // Primary auth source in this codebase is profiles.is_admin.
+  const profileRows = await sql`SELECT is_admin FROM profiles WHERE email = ${userEmail} LIMIT 1`;
+  if (profileRows.length > 0) return profileRows[0].is_admin === true;
+  // Backward-compatible fallback for environments that still mirror users table.
+  const userRows = await sql`SELECT is_admin FROM users WHERE email = ${userEmail} LIMIT 1`;
+  return userRows.length > 0 && userRows[0].is_admin === true;
 }
 
 exports.handler = async (event, context) => {
