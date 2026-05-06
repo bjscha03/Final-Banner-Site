@@ -27,6 +27,10 @@ const {
 } = require('./_shared/checkoutTotals.cjs');
 
 const sql = neon(process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL);
+// Emergency kill switch: keep Stripe code in place, but block new Stripe
+// checkout starts so no pre-payment placeholder orders can be created while
+// Stripe flow is under investigation/stabilization.
+const STRIPE_CHECKOUT_TEMP_DISABLED = true;
 
 // Guard: only treat a value as a "real" authenticated user id if it is a
 // proper non-zero UUID. Placeholder values like the all-zero UUID, the
@@ -129,6 +133,19 @@ exports.handler = async (event) => {
       statusCode: 405,
       headers,
       body: JSON.stringify({ ok: false, error: 'METHOD_NOT_ALLOWED', cid }),
+    };
+  }
+
+  if (STRIPE_CHECKOUT_TEMP_DISABLED) {
+    return {
+      statusCode: 503,
+      headers,
+      body: JSON.stringify({
+        ok: false,
+        error: 'STRIPE_TEMP_DISABLED',
+        message: 'Stripe checkout is temporarily unavailable. Please use PayPal.',
+        cid,
+      }),
     };
   }
 
@@ -438,4 +455,3 @@ exports.handler = async (event) => {
     };
   }
 };
-
