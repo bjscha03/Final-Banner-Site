@@ -706,7 +706,7 @@ exports.handler = async (event) => {
 
     const db = neon(dbUrl);
     
-    // Load order by DB UUID or public order number
+    // Load order by internal UUID first, then public suffix, then optional order_number
     const normalizedOrderId = String(orderId).trim();
     const upperOrderId = normalizedOrderId.toUpperCase();
     const orderRows = await db`
@@ -714,8 +714,15 @@ exports.handler = async (event) => {
       FROM orders
       WHERE id::text = ${normalizedOrderId}
          OR UPPER(RIGHT(id::text, 8)) = ${upperOrderId}
-         OR UPPER(number::text) = ${upperOrderId}
-      ORDER BY created_at DESC
+         OR UPPER(order_number::text) = ${upperOrderId}
+      ORDER BY
+        CASE
+          WHEN id::text = ${normalizedOrderId} THEN 0
+          WHEN UPPER(RIGHT(id::text, 8)) = ${upperOrderId} THEN 1
+          WHEN UPPER(order_number::text) = ${upperOrderId} THEN 2
+          ELSE 3
+        END,
+        created_at DESC
       LIMIT 1
     `;
     
