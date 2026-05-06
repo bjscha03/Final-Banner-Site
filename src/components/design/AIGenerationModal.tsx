@@ -16,6 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import AIDisclaimerDialog from './AIDisclaimerDialog';
+import { useAuth } from '@/lib/auth';
 
 const STYLE_CHIPS = [
   { id: 'modern', label: 'Modern' },
@@ -42,6 +43,7 @@ interface GeneratedImage {
 const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChange }) => {
   const { widthIn, heightIn, material, grommets, polePockets, addRope, set } = useQuoteStore();
   const { toast } = useToast();
+  const { user } = useAuth();
 
   const [prompt, setPrompt] = useState('');
   const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
@@ -52,6 +54,10 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
   const [showSelection, setShowSelection] = useState(false);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
+  const [inspirationImage, setInspirationImage] = useState<string | null>(null);
+  const [inspirationName, setInspirationName] = useState<string>('');
+
+  const PROMPT_HELPERS = ['Grand Opening', 'Trade Show', 'Food Truck', 'Contractor', 'Restaurant', 'Real Estate', 'Event Banner', 'Sale Promotion'];
 
   const handleStyleToggle = (styleId: string) => {
     setSelectedStyles(prev =>
@@ -94,20 +100,31 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
       return;
     }
 
+    if (!user?.is_admin || !user?.email) {
+      toast({ title: 'Admin access required', description: 'Only logged-in admins can use Create With AI.', variant: 'destructive' });
+      return;
+    }
+
     setIsGenerating(true);
     setGeneratedImages([]);
     setShowSelection(false);
 
     try {
       console.log('Sending AI generation request with colors:', colors);
-      const response = await fetch('/.netlify/functions/ai-generate-banner', {
+      const response = await fetch('/.netlify/functions/generate-ai-designs', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-cache', 'Pragma': 'no-cache' },
         body: JSON.stringify({
+          userEmail: user.email,
+          productType: 'banner',
           prompt: prompt.trim(),
           styles: selectedStyles,
           colors,
           size: { wIn: widthIn, hIn: heightIn },
+          width: widthIn,
+          height: heightIn,
+          material,
+          inspirationImage,
           variations: 3, // Always generate 3 images
           quality: 'high', // Always use high quality
           preset: 'loft_hero'
@@ -204,6 +221,24 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
     setVariations('3');
     setGeneratedImages([]);
     setShowSelection(false);
+    setInspirationImage(null);
+    setInspirationName('');
+  };
+
+  const onInspirationUpload = async (file: File) => {
+    const validTypes = ['image/png', 'image/jpg', 'image/jpeg', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      toast({ title: 'Invalid file type', description: 'Use PNG, JPG, JPEG, or WEBP.', variant: 'destructive' });
+      return;
+    }
+    const base64 = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+    setInspirationImage(base64);
+    setInspirationName(file.name);
   };
 
   const handleClose = () => {
@@ -275,6 +310,17 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
             {/* Left Column - Input Fields */}
             <div className="space-y-6">
               <div>
+                <Label className="text-base font-medium">Upload Inspiration (optional)</Label>
+                <Input type="file" accept=".png,.jpg,.jpeg,.webp,image/png,image/jpg,image/jpeg,image/webp" className="mt-2" onChange={(e) => e.target.files?.[0] && onInspirationUpload(e.target.files[0])} />
+                {inspirationImage && (
+                  <div className="mt-2">
+                    <img src={inspirationImage} alt="Inspiration preview" className="w-full max-h-40 object-cover rounded border" />
+                    <p className="text-xs text-gray-500 mt-1">{inspirationName}</p>
+                  </div>
+                )}
+              </div>
+
+              <div>
                 <Label htmlFor="prompt" className="text-base font-medium">
                   Describe your banner background
                 </Label>
@@ -289,6 +335,13 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
                 <p className="text-sm text-gray-500 mt-1">
                   AI creates the background. Your text stays editable and crisp.
                 </p>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {PROMPT_HELPERS.map((helper) => (
+                    <Button key={helper} type="button" variant="outline" size="sm" onClick={() => setPrompt((prev) => prev ? `${prev} ${helper} theme.` : `Create a premium ${helper} banner with bold readable typography, high contrast, and print-ready composition.`)}>
+                      {helper}
+                    </Button>
+                  ))}
+                </div>
               </div>
 
               <div>
@@ -361,6 +414,9 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
                   <strong>Note:</strong> Your banner text stays crisp as editable layers.
                 </p>
               </div>
+              <p className="text-xs text-gray-500">
+                Only upload images you have rights to use. AI-generated designs may require review before printing.
+              </p>
             </div>
           </div>
         ) : (
