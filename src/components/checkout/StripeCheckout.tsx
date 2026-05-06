@@ -24,6 +24,7 @@ interface StripeCheckoutProps {
    * payment-method tab so the customer can complete the order.
    */
   onSwitchToPayPal?: () => void;
+  showCardForm?: boolean;
 }
 
 const PUBLISHABLE_KEY =
@@ -46,7 +47,8 @@ const StripePaymentForm: React.FC<{
   disabled?: boolean;
   paymentIntentId: string;
   orderId: string;
-}> = ({ total, onSuccess, onError, disabled, paymentIntentId, orderId }) => {
+  showCardForm?: boolean;
+}> = ({ total, onSuccess, onError, disabled, paymentIntentId, orderId, showCardForm = true }) => {
   const stripe = useStripe();
   const elements = useElements();
   const { toast } = useToast();
@@ -87,12 +89,46 @@ const StripePaymentForm: React.FC<{
         return;
       }
 
-      if (!paymentIntent || paymentIntent.status !== 'succeeded') {
-        const status = paymentIntent?.status || 'unknown';
+      const status = paymentIntent?.status || 'unknown';
+      if (!paymentIntent) {
+        toast({
+          title: 'Payment Not Completed',
+          description: 'We could not confirm your payment status. Please try again.',
+          variant: 'destructive',
+        });
+        onError(new Error('Stripe payment missing PaymentIntent'));
+        return;
+      }
+      if (status === 'canceled') {
+        toast({
+          title: 'Payment canceled',
+          description: 'No charge was made. You can choose another payment method or try again.',
+        });
+        onError(new Error('Stripe payment canceled'));
+        return;
+      }
+      if (status === 'processing') {
+        toast({
+          title: 'Payment processing',
+          description: 'Your payment is processing. We will finish your order as soon as Stripe confirms it.',
+        });
+        onSuccess(orderId, undefined);
+        return;
+      }
+      if (status === 'requires_action') {
+        toast({
+          title: 'Additional verification needed',
+          description: 'Please complete verification with your bank or try another payment method.',
+          variant: 'destructive',
+        });
+        onError(new Error('Stripe payment requires action'));
+        return;
+      }
+      if (status !== 'succeeded') {
         console.warn(`[StripeCheckout] ${label} payment not succeeded; status =`, status);
         toast({
           title: 'Payment Not Completed',
-          description: `Payment status: ${status}. Please try again.`,
+          description: `Payment status: ${status}. Please try again or use PayPal.`,
           variant: 'destructive',
         });
         onError(new Error(`Stripe payment status: ${status}`));
@@ -188,15 +224,26 @@ const StripePaymentForm: React.FC<{
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-3">
         <div className={walletReady === false ? 'hidden' : 'rounded-xl border border-gray-200 bg-white p-3 sm:p-4'}>
-          <p className="text-xs font-medium text-gray-600 mb-3">Express checkout</p>
+          <p className="text-xs font-medium text-gray-600 mb-3">Apple Pay / Google Pay</p>
           <ExpressCheckoutElement
             onReady={({ availablePaymentMethods }) => {
               setWalletReady(Boolean(availablePaymentMethods && Object.keys(availablePaymentMethods).length > 0));
             }}
-            onConfirm={async () => {
-              await confirmAndFinalize('wallet');
+            onConfirm={async (event) => {
+              try {
+                await confirmAndFinalize('wallet');
+                event.resolve?.();
+              } catch (_e) {
+                event.reject?.();
+              }
             }}
-            onCancel={() => setSubmitting(false)}
+            onCancel={() => {
+              setSubmitting(false);
+              toast({
+                title: 'Wallet payment canceled',
+                description: 'No charge was made. You can choose another payment method.',
+              });
+            }}
             onClick={() => setSubmitting(true)}
             options={{
               buttonHeight: 44,
@@ -205,6 +252,7 @@ const StripePaymentForm: React.FC<{
             }}
           />
         </div>
+        {showCardForm && (
         <div className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4">
         <PaymentElement
           onReady={() => {
@@ -218,14 +266,16 @@ const StripePaymentForm: React.FC<{
             // are intentionally disabled for now — we will re-enable
             // them via ExpressCheckoutElement once the basic card flow
             // is stable.
-            layout: { type: 'accordion', defaultCollapsed: false, radios: false, spacedAccordionItems: false },
+            layout: { type: 'tabs', defaultCollapsed: false },
             // Keep the card form focused. Apple Pay / Google Pay are
             // surfaced in the branded Express Checkout block above.
             wallets: { applePay: 'never', googlePay: 'never' },
+            paymentMethodOrder: ['card'],
             fields: { billingDetails: { phone: 'auto' } },
           }}
         />
       </div>
+      )}
       </div>
       <Button
         type="submit"
@@ -255,6 +305,7 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({
   onError,
   disabled = false,
   onSwitchToPayPal,
+  showCardForm = true,
 }) => {
   const { user } = useAuth();
   const {
@@ -547,6 +598,7 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({
         disabled={disabled}
         paymentIntentId={paymentIntentId || ''}
         orderId={orderId}
+        showCardForm={showCardForm}
       />
     </Elements>
   );

@@ -57,7 +57,7 @@ const Checkout: React.FC = () => {
   );
   // Keep PayPal as the default tab for strongest first-impression trust,
   // while still offering Stripe card + wallet flows as a secondary option.
-  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'paypal'>('paypal');
+  const [paymentMethod, setPaymentMethod] = useState<'wallet' | 'paypal' | 'card'>('paypal');
 
 
   // Get totals from cart store methods
@@ -1197,19 +1197,20 @@ const Checkout: React.FC = () => {
                         only mount the one the user has selected, so
                         Stripe doesn't initialize a PaymentIntent until
                         the user actually picks the card / wallet flow. */}
-                    <div className="grid grid-cols-2 gap-2 mb-4" role="tablist" aria-label="Payment method">
+                    <h3 className="text-base font-semibold text-gray-900 mb-3">Choose payment method</h3>
+                    <div className="grid grid-cols-1 gap-2 mb-4" role="tablist" aria-label="Payment method">
                       <button
                         type="button"
                         role="tab"
-                        aria-selected={paymentMethod === 'stripe'}
-                        onClick={() => setPaymentMethod('stripe')}
+                        aria-selected={paymentMethod === 'wallet'}
+                        onClick={() => setPaymentMethod('wallet')}
                         className={`py-2 px-3 rounded-lg border text-sm font-semibold transition-colors ${
-                          paymentMethod === 'stripe'
+                          paymentMethod === 'wallet'
                             ? 'bg-[#18448D] text-white border-[#18448D]'
                             : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'
                         }`}
                       >
-                        Card
+                        Apple Pay / Google Pay
                       </button>
                       <button
                         type="button"
@@ -1224,22 +1225,36 @@ const Checkout: React.FC = () => {
                       >
                         PayPal
                       </button>
+                      <button
+                        type="button"
+                        role="tab"
+                        aria-selected={paymentMethod === 'card'}
+                        onClick={() => setPaymentMethod('card')}
+                        className={`py-2 px-3 rounded-lg border text-sm font-semibold transition-colors ${
+                          paymentMethod === 'card'
+                            ? 'bg-[#18448D] text-white border-[#18448D]'
+                            : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'
+                        }`}
+                      >
+                        Debit or Credit Card
+                      </button>
                     </div>
 
                     <div className="min-h-[260px]">
-                      {paymentMethod === 'stripe' ? (
+                      {paymentMethod === 'paypal' ? (
+                        <PayPalCheckout disabled={!canProceed}
+                          total={totalCents}
+                          onSuccess={handlePaymentSuccess}
+                          onError={handlePaymentError}
+                        />
+                      ) : (
                         <StripeCheckout
                           disabled={!canProceed}
                           total={totalCents}
                           onSuccess={handlePaymentSuccess}
                           onError={handlePaymentError}
                           onSwitchToPayPal={() => setPaymentMethod('paypal')}
-                        />
-                      ) : (
-                        <PayPalCheckout disabled={!canProceed}
-                          total={totalCents}
-                          onSuccess={handlePaymentSuccess}
-                          onError={handlePaymentError}
+                          showCardForm={paymentMethod === 'card'}
                         />
                       )}
                     </div>
