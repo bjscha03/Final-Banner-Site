@@ -3,6 +3,7 @@ import { loadStripe, Stripe } from '@stripe/stripe-js';
 import {
   Elements,
   PaymentElement,
+  ExpressCheckoutElement,
   useElements,
   useStripe,
 } from '@stripe/react-stripe-js';
@@ -50,6 +51,7 @@ const StripePaymentForm: React.FC<{
   const elements = useElements();
   const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
+  const [walletReady, setWalletReady] = useState<boolean | null>(null);
 
   // Shared confirm + finalize. Used by both the Pay button (card form)
   // and the ExpressCheckoutElement onConfirm handler so wallet payments
@@ -184,7 +186,26 @@ const StripePaymentForm: React.FC<{
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-      <div className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4">
+      <div className="space-y-3">
+        <div className={walletReady === false ? 'hidden' : 'rounded-xl border border-gray-200 bg-white p-3 sm:p-4'}>
+          <p className="text-xs font-medium text-gray-600 mb-3">Express checkout</p>
+          <ExpressCheckoutElement
+            onReady={({ availablePaymentMethods }) => {
+              setWalletReady(Boolean(availablePaymentMethods && Object.keys(availablePaymentMethods).length > 0));
+            }}
+            onConfirm={async () => {
+              await confirmAndFinalize('wallet');
+            }}
+            onCancel={() => setSubmitting(false)}
+            onClick={() => setSubmitting(true)}
+            options={{
+              buttonHeight: 44,
+              buttonTheme: { applePay: 'black', googlePay: 'black' },
+              paymentMethods: { applePay: 'auto', googlePay: 'auto', link: 'never', paypal: 'never' },
+            }}
+          />
+        </div>
+        <div className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4">
         <PaymentElement
           onReady={() => {
             console.log('[StripeCheckout] PaymentElement mounted', { orderId, paymentIntentId });
@@ -198,10 +219,11 @@ const StripePaymentForm: React.FC<{
             // them via ExpressCheckoutElement once the basic card flow
             // is stable.
             layout: { type: 'accordion', defaultCollapsed: false, radios: false, spacedAccordionItems: false },
-            wallets: { applePay: 'never', googlePay: 'never' },
+            wallets: { applePay: 'auto', googlePay: 'auto' },
             fields: { billingDetails: { phone: 'auto' } },
           }}
         />
+      </div>
       </div>
       <Button
         type="submit"
