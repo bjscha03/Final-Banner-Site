@@ -67,6 +67,7 @@ import {
   type BuilderStepKey,
 } from '@/lib/builderSteps';
 import { logUx } from '@/lib/uxAnalytics';
+import { useAuth, isAdmin } from '@/lib/auth';
 
 const PRESET_SIZES = [
   { w: 48, h: 24 },
@@ -210,6 +211,19 @@ function getImagePreviewUrl(imageUrl: string): string {
 }
 
 const Design: React.FC = () => {
+  const { user } = useAuth();
+  const userIsAdmin = isAdmin(user);
+  const showCreateWithAI = ENABLE_AI && !!user && userIsAdmin;
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    console.log('[AI_VISIBILITY][Design]', {
+      userId: user?.id ?? null,
+      email: user?.email ?? null,
+      isAdmin: userIsAdmin,
+      shouldRenderCreateWithAI: showCreateWithAI,
+    });
+  }, [user?.id, user?.email, userIsAdmin, showCreateWithAI]);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const location = useLocation();
@@ -2077,6 +2091,7 @@ const Design: React.FC = () => {
                   onPromoRemove={handlePromoRemove}
                   autoOpenDesignId={autoOpenDesignId}
                   onUploadStatusChange={setYardSignUploadStatus}
+                  showCreateWithAI={showCreateWithAI}
                   onPreviewDone={(id) => {
                     // The user finished positioning a design; advance the
                     // sticky CTA to the next step.
@@ -2415,7 +2430,7 @@ const Design: React.FC = () => {
                       style={previewCanvasStyle}
                       className="mx-auto"
                     />
-                    {!isYardSign && ENABLE_AI && (
+                    {!isYardSign && showCreateWithAI && (
                       <div className="mt-3 flex flex-col items-center gap-1">
                         <button
                           type="button"
@@ -2513,7 +2528,7 @@ const Design: React.FC = () => {
                       </div>
                       <button onClick={() => { setUploadedFile(null); setImgPos({ x: 0, y: 0 }); setImgScale(1); setImgScaleY(1); setAiPrompt(null); setAiEditPrompt(null); }} className="ml-2 flex-shrink-0 p-1.5 rounded-full hover:bg-green-100 text-gray-500 hover:text-gray-700 transition-colors"><X className="h-4 w-4" /></button>
                     </div>
-                    {aiPrompt && !isYardSign && ENABLE_AI && (
+                    {aiPrompt && !isYardSign && showCreateWithAI && (
                       <div className="mt-2 flex justify-center">
                         <button
                           type="button"
@@ -2886,7 +2901,7 @@ const Design: React.FC = () => {
         isProcessing={isProcessingUpsell}
       />
       {/* Create with AI Modal */}
-      {!isYardSign && ENABLE_AI && (
+      {!isYardSign && showCreateWithAI && (
         <CreateWithAIModal
           open={aiModalOpen}
           onOpenChange={setAiModalOpen}
@@ -2899,7 +2914,7 @@ const Design: React.FC = () => {
         />
       )}
       {/* Edit with AI Modal — only available after an AI design exists */}
-      {!isYardSign && ENABLE_AI && (
+      {!isYardSign && showCreateWithAI && (
         <EditWithAIModal
           open={aiEditModalOpen}
           onOpenChange={setAiEditModalOpen}
