@@ -672,8 +672,8 @@ exports.handler = async (event) => {
   }
 
   try {
-    const { orderId } = JSON.parse(event.body || '{}');
-    console.log('[notify-order] handler start', { orderId });
+    const { orderId, forceResendBoth = false } = JSON.parse(event.body || '{}');
+    console.log('[notify-order] handler start', { orderId, forceResendBoth });
     
     if (!orderId || typeof orderId !== 'string') {
       return {
@@ -717,7 +717,7 @@ exports.handler = async (event) => {
     });
 
     // Idempotency Check: If already sent, return success without sending
-    if (order.confirmation_email_status === 'sent' || order.confirmation_emailed_at) {
+    if (!forceResendBoth && (order.confirmation_email_status === 'sent' || order.confirmation_emailed_at)) {
       console.log(`Order ${orderId} confirmation email already sent, returning idempotent response`);
       return {
         statusCode: 200,
@@ -879,6 +879,8 @@ exports.handler = async (event) => {
 
     // Send confirmation email
     const emailResult = await sendEmail('order.confirmation', emailPayload);
+    let adminEmailResult = null;
+    const adminEmail = process.env.ADMIN_EMAIL || 'info@bannersonthefly.com';
     console.log('[notify-order] confirmation send result', { orderId, ok: emailResult.ok, error: emailResult.error });
     
     // Log email attempt
@@ -903,8 +905,6 @@ exports.handler = async (event) => {
       console.log(`Order confirmation email sent successfully for order ${orderId}, email ID: ${emailResult.id}`);
 
       // Send admin notification email to info@bannersonthefly.com
-      const adminEmail = process.env.ADMIN_EMAIL || 'info@bannersonthefly.com';
-
       try {
         // Add delay to prevent rate limiting (Resend allows 2 requests per second)
         await new Promise(resolve => setTimeout(resolve, 1000));
@@ -919,7 +919,7 @@ exports.handler = async (event) => {
           invoiceUrl: emailPayload.invoiceUrl
         };
 
-        const adminEmailResult = await sendEmail('order.admin_notification', adminEmailPayload);
+        adminEmailResult = await sendEmail('order.admin_notification', adminEmailPayload);
         console.log('[notify-order] admin send result', {
           orderId,
           adminEmail,
@@ -966,7 +966,20 @@ exports.handler = async (event) => {
       return {
         statusCode: 200,
         headers,
-        body: JSON.stringify({ ok: true, id: emailResult.id })
+        body: JSON.stringify({
+          ok: true,
+          orderId,
+          customerEmailSent: !!emailResult.ok,
+          adminEmailSent: !!adminEmailResult?.ok,
+          resendMessageIds: {
+            customer: emailResult.id || null,
+            admin: adminEmailResult?.id || null,
+          },
+          errors: [
+            ...(!emailResult.ok ? [`Customer confirmation failed: ${emailResult.error || 'unknown error'}`] : []),
+            ...(adminEmailResult && !adminEmailResult.ok ? [`Admin notification failed: ${adminEmailResult.error || 'unknown error'}`] : [])
+          ]
+        })
       };
     } else {
       console.error(`Order confirmation email failed for order ${orderId}:`, emailResult);
