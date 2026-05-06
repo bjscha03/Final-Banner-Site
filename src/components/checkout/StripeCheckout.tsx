@@ -3,7 +3,6 @@ import { loadStripe, Stripe } from '@stripe/stripe-js';
 import {
   Elements,
   PaymentElement,
-  ExpressCheckoutElement,
   useElements,
   useStripe,
 } from '@stripe/react-stripe-js';
@@ -53,8 +52,6 @@ const StripePaymentForm: React.FC<{
   const elements = useElements();
   const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
-  const [applePayReady, setApplePayReady] = useState(false);
-  const [googlePayReady, setGooglePayReady] = useState(false);
 
   // Shared confirm + finalize. Used by both the Pay button (card form)
   // and the ExpressCheckoutElement onConfirm handler so wallet payments
@@ -226,74 +223,6 @@ const StripePaymentForm: React.FC<{
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-3">
-        <div className={(!applePayReady && !googlePayReady) ? 'hidden' : 'space-y-2'}>
-          {applePayReady && (
-            <div className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4">
-              <ExpressCheckoutElement
-                onReady={({ availablePaymentMethods }) => {
-                  setApplePayReady(Boolean(availablePaymentMethods?.applePay));
-                }}
-                onConfirm={async (event) => {
-                  const ok = await confirmAndFinalize('wallet-apple-pay');
-                  if (ok) event.resolve?.();
-                  else event.reject?.();
-                }}
-                onCancel={() => {
-                  setSubmitting(false);
-                  toast({
-                    title: 'Apple Pay canceled',
-                    description: 'No charge was made. You can choose another payment method.',
-                  });
-                }}
-                onClick={() => setSubmitting(true)}
-                options={{
-                  buttonHeight: 44,
-                  buttonTheme: { applePay: 'black' },
-                  paymentMethods: { applePay: 'always', googlePay: 'never', link: 'never', paypal: 'never' },
-                }}
-              />
-            </div>
-          )}
-          {googlePayReady && (
-            <div className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4">
-              <ExpressCheckoutElement
-                onReady={({ availablePaymentMethods }) => {
-                  setGooglePayReady(Boolean(availablePaymentMethods?.googlePay));
-                }}
-                onConfirm={async (event) => {
-                  const ok = await confirmAndFinalize('wallet-google-pay');
-                  if (ok) event.resolve?.();
-                  else event.reject?.();
-                }}
-                onCancel={() => {
-                  setSubmitting(false);
-                  toast({
-                    title: 'Google Pay canceled',
-                    description: 'No charge was made. You can choose another payment method.',
-                  });
-                }}
-                onClick={() => setSubmitting(true)}
-                options={{
-                  buttonHeight: 44,
-                  buttonTheme: { googlePay: 'black' },
-                  paymentMethods: { applePay: 'never', googlePay: 'always', link: 'never', paypal: 'never' },
-                }}
-              />
-            </div>
-          )}
-          <div className="h-0 overflow-hidden opacity-0 pointer-events-none" aria-hidden="true">
-            <ExpressCheckoutElement
-              onReady={({ availablePaymentMethods }) => {
-                setApplePayReady(Boolean(availablePaymentMethods?.applePay));
-                setGooglePayReady(Boolean(availablePaymentMethods?.googlePay));
-              }}
-              options={{
-                buttonHeight: 40,
-                paymentMethods: { applePay: 'auto', googlePay: 'auto', link: 'never', paypal: 'never' },
-              }}
-            />
-          </div>
-        </div>
         {showCardForm && (
         <div className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4">
         <PaymentElement

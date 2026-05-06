@@ -1198,16 +1198,6 @@ const Checkout: React.FC = () => {
                         Stripe doesn't initialize a PaymentIntent until
                         the user actually picks the card / wallet flow. */}
                     <h3 className="text-base font-semibold text-gray-900 mb-3">Choose payment method</h3>
-                    <div className="mb-4">
-                      <StripeCheckout
-                        disabled={!canProceed}
-                        total={totalCents}
-                        onSuccess={handlePaymentSuccess}
-                        onError={handlePaymentError}
-                        onSwitchToPayPal={() => setPaymentMethod('paypal')}
-                        showCardForm={false}
-                      />
-                    </div>
                     <div className="grid grid-cols-1 gap-2 mb-4" role="tablist" aria-label="Payment method">
                       <button
                         type="button"
@@ -1237,7 +1227,7 @@ const Checkout: React.FC = () => {
                       </button>
                     </div>
 
-                    <div className="min-h-[180px]">
+                    <div className="min-h-[260px]">
                       {paymentMethod === 'paypal' ? (
                         <PayPalCheckout disabled={!canProceed}
                           total={totalCents}
