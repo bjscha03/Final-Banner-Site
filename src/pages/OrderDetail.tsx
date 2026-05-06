@@ -256,26 +256,26 @@ const OrderDetail: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3 text-sm">
-              <div className="min-w-0 rounded-md border border-gray-200 bg-gray-50 p-3 flex items-center space-x-2">
+              <div className="min-w-0 rounded-md border border-gray-200 bg-gray-50 p-3 flex flex-wrap items-start gap-x-2 gap-y-1">
                 <Package className="h-4 w-4 text-gray-400" />
                 <span className="text-gray-600">Customer:</span>
-                <span className="font-medium truncate">{customerName}</span>
+                <span className="font-medium break-words" title={customerName}>{customerName}</span>
               </div>
-              <div className="min-w-0 rounded-md border border-gray-200 bg-gray-50 p-3 flex items-center space-x-2">
+              <div className="min-w-0 rounded-md border border-gray-200 bg-gray-50 p-3 flex flex-wrap items-start gap-x-2 gap-y-1">
                 <Mail className="h-4 w-4 text-gray-400" />
                 <span className="text-gray-600">Email:</span>
-                <span className="font-medium truncate">{order.email}</span>
+                <span className="font-medium break-all" title={order.email}>{order.email}</span>
               </div>
-              <div className="min-w-0 rounded-md border border-gray-200 bg-gray-50 p-3 flex items-center space-x-2">
+              <div className="min-w-0 rounded-md border border-gray-200 bg-gray-50 p-3 flex flex-wrap items-start gap-x-2 gap-y-1">
                 <CreditCard className="h-4 w-4 text-gray-400" />
                 <span className="text-gray-600">Total:</span>
                 <span className="font-medium">{formatCurrency(getDisplayOrderTotalCents(order as any))}</span>
               </div>
               {order.tracking_number && (
-                <div className="min-w-0 rounded-md border border-gray-200 bg-gray-50 p-3 flex items-center space-x-2">
+                <div className="min-w-0 rounded-md border border-gray-200 bg-gray-50 p-3 flex flex-wrap items-start gap-x-2 gap-y-1">
                   <Truck className="h-4 w-4 text-gray-400" />
                   <span className="text-gray-600">Tracking:</span>
-                  <span className="font-medium truncate">{order.tracking_number}</span>
+                  <span className="font-medium break-all" title={order.tracking_number}>{order.tracking_number}</span>
                 </div>
               )}
             </div>

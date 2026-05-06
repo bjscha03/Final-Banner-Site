@@ -1430,10 +1430,10 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
             <div className="text-xs text-gray-500">
               {new Date(order.created_at).toLocaleDateString()}
             </div>
-            <div className="text-sm font-medium text-gray-900 truncate">
+            <div className="text-sm font-medium text-gray-900 break-words" title={order.customer_name || order.shipping_name || "Guest Customer"}>
               {order.customer_name || order.shipping_name || 'Guest Customer'}
             </div>
-            <div className="text-xs text-gray-600 truncate">
+            <div className="text-xs text-gray-600 break-all" title={order.email || (order.user_id ? `${order.user_id.slice(0, 8)}...` : "No email")}>
               {order.email || (order.user_id ? `${order.user_id.slice(0, 8)}...` : 'No email')}
             </div>
           </div>
