@@ -177,20 +177,21 @@ async function uploadToCloudinary(imageUrl, index) {
 async function generateSingleImage(openai, prompt, dalleSize, index) {
   try {
     const genStart = Date.now();
-    console.log(`[AI-Gen] Generating variation ${index + 1} with DALL-E 3...`);
+    console.log(`[AI-Gen] Generating variation ${index + 1} with gpt-image-1...`);
     console.log(`[AI-Gen] Prompt for variation ${index + 1}: ${prompt}`);
     
     const response = await openai.images.generate({
-      model: 'dall-e-3',
+      model: 'gpt-image-1',
       prompt: prompt,
       n: 1,
       size: dalleSize,
-      quality: 'hd',
-      style: 'vivid'
+      quality: 'high'
     });
     
     const genTime = Date.now() - genStart;
-    const imageUrl = response.data[0].url;
+    const image = response.data?.[0] || {};
+    const imageUrl = image.url || (image.b64_json ? `data:image/png;base64,${image.b64_json}` : null);
+    if (!imageUrl) { throw new Error('OpenAI returned no image URL or base64 payload.'); }
     console.log(`[AI-Gen] Generated image ${index + 1} in ${genTime}ms: ${imageUrl}`);
     
     // Upload to Cloudinary
@@ -233,8 +234,8 @@ async function generateWithDallE(prompt, size, variations = 3) {
   const widthPx = Math.round(size.wIn * 150);
   const heightPx = Math.round(size.hIn * 150);
   
-  // DALL-E 3 only supports specific sizes, so we'll use 1792x1024 (landscape)
-  const dalleSize = '1792x1024';
+  const aspect = size.wIn / size.hIn;
+  const dalleSize = aspect >= 1 ? '1536x1024' : '1024x1536';
   
   console.log(`[AI-Gen] ========================================`);
   console.log(`[AI-Gen] Starting parallel generation of ${variations} images`);
@@ -245,7 +246,9 @@ async function generateWithDallE(prompt, size, variations = 3) {
   // Generate all images in parallel (ISSUE #2 FIX)
   const imagePromises = [];
   for (let i = 0; i < variations; i++) {
-    imagePromises.push(generateSingleImage(openai, prompt, dalleSize, i));
+    imagePromises.push(generateSingleImage(openai, `${prompt}
+
+Variation seed ${i+1}: keep concept consistent while producing a distinct composition.`, dalleSize, i));
   }
   
   // Wait for all images to complete
@@ -320,9 +323,10 @@ exports.handler = async (event, context) => {
     console.log('[AI-Gen] CLOUDINARY_API_SECRET:', process.env.CLOUDINARY_API_SECRET ? '✅ SET' : '❌ NOT SET');
     console.log('[AI-Gen] ========================================');
 
-    const isAdmin = await assertAdminAccess(userEmail);
-    if (!isAdmin) {
-      return { statusCode: 403, headers, body: JSON.stringify({ error: 'Admin access required' }) };
+    const isProduction = process.env.CONTEXT === 'production' || process.env.NODE_ENV === 'production';
+    const isAdmin = userEmail ? await assertAdminAccess(userEmail) : false;
+    if (isProduction && !isAdmin) {
+      return { statusCode: 403, headers, body: JSON.stringify({ error: 'Admin access required in production' }) };
     }
 
     // ISSUE #4 FIX: Better validation and error messages
@@ -391,13 +395,16 @@ exports.handler = async (event, context) => {
 
     const printPrompt = `${trimmedPrompt}
 
-Create a professional large-format ${productType || 'banner'} design for ${width || size?.wIn}x${height || size?.hIn} inches. Keep critical content inside safe margins and avoid grommet zones. Use exact aspect ratio and fill entire canvas edge-to-edge without letterboxing or distortion.`;
+Hidden premium art direction (must follow): professional large-format ${productType || 'banner'} optimized for vinyl printing; bold readable typography; cinematic yet clean commercial composition; high contrast; strong hierarchy; realistic print-ready execution; clean spacing; trade-show marketing quality; print-safe margins; avoid edge collisions; use uploaded inspiration as branding/style reference only; create original artwork; keep exact ${width || size?.wIn}:${height || size?.hIn} aspect ratio and fill full canvas.`;
     const enhancedPrompt = enhancePrompt(printPrompt, styles, colors, size);
     console.log('[AI-Gen] Enhanced prompt:', enhancedPrompt);
     console.log('[AI-Gen] Enhanced prompt length:', enhancedPrompt.length);
     console.log('[AI-Gen] Starting parallel image generation...');
     
     const images = await generateWithDallE(enhancedPrompt, size, variations);
+    if (!Array.isArray(images) || images.length !== 3) {
+      throw new Error(`Expected exactly 3 images but received ${Array.isArray(images) ? images.length : 'none'}`);
+    }
     
     console.log('[AI-Gen] ========================================');
     console.log('[AI-Gen] Generation Complete');
@@ -414,10 +421,9 @@ Create a professional large-format ${productType || 'banner'} design for ${width
         images: images,
         prompt: enhancedPrompt,
         metadata: {
-          model: 'dall-e-3',
+          model: 'gpt-image-1',
           variations: variations,
-          quality: 'hd',
-          style: 'vivid'
+          quality: 'high'
         }
       })
     };
