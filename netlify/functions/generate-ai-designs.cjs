@@ -63,11 +63,24 @@ function toAdminSafeError(error) {
   if (error?.code === 'NO_IMAGE_FROM_OPENAI') return 'OpenAI returned no image';
   if (error?.code === 'MALFORMED_RESPONSE') return 'malformed response';
   if (error?.code === 'CLOUDINARY_UPLOAD_FAILED') return 'Cloudinary upload failed';
-  if (status === 401 || message.includes('api key') || message.includes('authentication')) return 'OpenAI auth failed';
-  if (status === 429 && (message.includes('quota') || message.includes('billing') || message.includes('rate limit'))) return 'billing limit reached';
+  if (status === 401 || message.includes('api key') || message.includes('authentication')) return 'OpenAI API key invalid';
+  if (status === 429 && (message.includes('quota') || message.includes('billing') || message.includes('rate limit'))) return 'OpenAI billing limit reached';
+  if (message.includes('unsupported image') || message.includes('invalid image') || message.includes('image format')) return 'OpenAI image input format invalid';
+  if (status === 404 || message.includes('model') && message.includes('not')) return 'OpenAI model not available';
   if (message.includes('timeout') || message.includes('timed out') || error?.code === 'ETIMEDOUT') return 'timeout';
   if (message.includes('function timed out')) return 'function timed out';
   return 'AI design generation failed';
+}
+
+function extractOpenAIError(error) {
+  const rawBody = error?.response?.data || error?.error || error?.body || error?.cause || null;
+  return {
+    status: error?.status || error?.response?.status || null,
+    code: error?.code || error?.response?.data?.error?.code || null,
+    type: error?.type || error?.response?.data?.error?.type || null,
+    message: error?.message || error?.response?.data?.error?.message || 'Unknown OpenAI error',
+    rawBody
+  };
 }
 
 async function assertAdminAccess(userEmail) {
@@ -95,7 +108,7 @@ exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
 
   const isProduction = process.env.CONTEXT === 'production' || process.env.NODE_ENV === 'production';
-  const debug = { success: false, stepFailed: null, durationMs: 0, model: 'gpt-image-1', openaiStatus: null, cloudinaryStatus: null, imageDetected: false, inspirationIncluded: false, error: null };
+  const debug = { success: false, stepFailed: null, durationMs: 0, model: 'gpt-image-1', openaiStatus: null, cloudinaryStatus: null, imageDetected: false, inspirationIncluded: false, error: null, openaiError: null };
 
   const buildResponse = (statusCode, extra = {}) => ({
     statusCode,
@@ -167,15 +180,40 @@ Professional large-format ${productType || 'banner'} for ${width || size.wIn}x${
     console.log('[AI-Gen] selected model', { model: debug.model, imageSize: dalleSize, mimeType: parsedImage.mimeType });
 
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-    const openaiPayload = { model: debug.model, prompt: promptText, n: 1, size: dalleSize, quality: 'high' };
-    if (parsedImage.includedInApiRequest) {
-      openaiPayload.image = inspirationImage;
-      openaiPayload.input_fidelity = 'high';
-    }
+    console.log('[AI-Gen] OpenAI config', {
+      hasOpenAIKey: Boolean(process.env.OPENAI_API_KEY),
+      model: debug.model,
+      imageInputIncluded: parsedImage.includedInApiRequest
+    });
 
-    console.log('[AI-Gen] OpenAI request start', { at: new Date().toISOString(), requestHasImage: Boolean(openaiPayload.image) });
+    const openaiPayload = { model: debug.model, prompt: promptText, n: 1, size: dalleSize, quality: 'high' };
+    const openaiEditPayload = parsedImage.includedInApiRequest
+      ? { model: debug.model, image: inspirationImage, prompt: promptText, n: 1, size: dalleSize, quality: 'high' }
+      : null;
+
+    console.log('[AI-Gen] OpenAI request start', {
+      at: new Date().toISOString(),
+      endpoint: openaiEditPayload ? 'images.edit' : 'images.generate',
+      requestPayloadKeys: Object.keys(openaiEditPayload || openaiPayload)
+    });
     const openaiStart = Date.now();
-    const response = await openai.images.generate(openaiPayload);
+    let response;
+    try {
+      response = openaiEditPayload
+        ? await openai.images.edit(openaiEditPayload)
+        : await openai.images.generate(openaiPayload);
+    } catch (primaryErr) {
+      const primaryDetails = extractOpenAIError(primaryErr);
+      debug.openaiError = primaryDetails;
+      console.error('[AI-Gen] OpenAI exact error response', primaryDetails);
+      if (openaiEditPayload) {
+        console.log('[AI-Gen] Retrying OpenAI with TEXT-ONLY fallback mode');
+        response = await openai.images.generate(openaiPayload);
+        debug.inspirationIncluded = false;
+      } else {
+        throw primaryErr;
+      }
+    }
     const openaiMs = Date.now() - openaiStart;
     debug.openaiStatus = 'ok';
     console.log('[AI-Gen] OpenAI response received', { at: new Date().toISOString(), openaiRequestMs: openaiMs });
@@ -220,15 +258,22 @@ Professional large-format ${productType || 'banner'} for ${width || size.wIn}x${
     debug.durationMs = totalMs;
     debug.stepFailed = debug.cloudinaryStatus ? 'cloudinary_upload' : (debug.openaiStatus ? 'response_handling' : 'openai_request');
     debug.error = toAdminSafeError(error);
+    if (!debug.openaiError) debug.openaiError = extractOpenAIError(error);
     console.error('[AI-Gen] Full failure object', error);
+    console.error('[AI-Gen] OpenAI exact error response', debug.openaiError);
     console.error('[AI-Gen] Full stack trace', error?.stack || 'No stack');
     console.log('[AI-Gen] total function ms', { totalFunctionMs: totalMs });
 
-    const safeError = isProduction ? 'AI design generation is temporarily unavailable. Please try again.' : debug.error;
+    const safeError = isProduction ? (debug.error || 'AI design generation is temporarily unavailable. Please try again.') : debug.error;
     return buildResponse(500, {
       error: {
         category: debug.stepFailed || 'unknown',
-        message: safeError
+        message: safeError,
+        status: debug.openaiError?.status || null,
+        code: debug.openaiError?.code || null,
+        type: debug.openaiError?.type || null,
+        details: debug.openaiError?.message || null,
+        raw: debug.openaiError?.rawBody || null
       },
       debug: isProduction ? undefined : debug
     });
