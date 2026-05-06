@@ -118,6 +118,13 @@ const getPaymentMethodInfo = (order: Order): PaymentMethodInfo | null => {
   return { label: method.charAt(0).toUpperCase() + method.slice(1), className: 'bg-gray-100 text-gray-700' };
 };
 
+const isHiddenStripeAttempt = (order: Order): boolean => {
+  const method = (order.payment_method || '').toLowerCase();
+  const isStripe = method === 'stripe' || !!order.stripe_payment_intent_id;
+  if (!isStripe) return false;
+  return order.status === 'pending' || order.status === 'failed' || order.status === 'canceled' || order.status === 'cancelled';
+};
+
 const AdminOrders: React.FC = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
@@ -287,8 +294,9 @@ const AdminOrders: React.FC = () => {
         }
       }
       
+      const visibleOrders = allOrders.filter((order) => !isHiddenStripeAttempt(order));
       setHasMore(allOrders.length === PAGE_SIZE);
-      setOrders(allOrders);
+      setOrders(visibleOrders);
     } catch (error) {
       console.error('Error loading orders:', error);
       toast({

@@ -195,8 +195,9 @@ exports.handler = async (event) => {
     });
 
     if (!result.ok) {
+      const statusCode = result.error === 'MISSING_CUSTOMER_INFO' ? 409 : 500;
       return {
-        statusCode: 500,
+        statusCode,
         headers,
         body: JSON.stringify(result),
       };

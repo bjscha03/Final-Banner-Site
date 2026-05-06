@@ -127,6 +127,29 @@ async function finalizeStripeOrder({ paymentIntentId, orderId, chargeId, walletT
     ? String(customerName).trim().split(/\s+/)[0]
     : null;
 
+  const normalizedEmail = (fallbackEmail || row.email || '').trim().toLowerCase();
+  const looksLikeGuestPlaceholder = normalizedEmail.startsWith('guest-') && normalizedEmail.endsWith('@bannersonthefly.com');
+  const hasRequiredCustomerInfo = Boolean(
+    customerName
+    && normalizedEmail
+    && !looksLikeGuestPlaceholder
+    && shippingStreet
+    && shippingCity
+    && shippingState
+    && shippingZip
+  );
+  if (!hasRequiredCustomerInfo) {
+    console.error(`${tag} refusing finalize for ${row.id}: missing required customer info`, {
+      hasName: !!customerName,
+      hasEmail: !!normalizedEmail && !looksLikeGuestPlaceholder,
+      hasStreet: !!shippingStreet,
+      hasCity: !!shippingCity,
+      hasState: !!shippingState,
+      hasZip: !!shippingZip,
+    });
+    return { ok: false, error: 'MISSING_CUSTOMER_INFO' };
+  }
+
   try {
     await sql`
       UPDATE orders
