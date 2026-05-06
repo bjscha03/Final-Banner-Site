@@ -139,31 +139,19 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
         })
       });
 
+      const result = await response.json().catch(() => ({}));
       if (!response.ok) {
-        let errorMessage = 'Generation failed';
-        try {
-          const error = await response.json();
-          errorMessage = error.error || errorMessage;
-        } catch (parseError) {
-          // If we can't parse the error response, use the status text
-          errorMessage = response.statusText || `HTTP ${response.status}`;
-        }
-        throw new Error(errorMessage);
+        const backendMessage = typeof result?.error === 'string' ? result.error : (result?.error?.message || response.statusText || `HTTP ${response.status}`);
+        const backendCategory = result?.stepFailed || result?.error?.category;
+        const detail = [backendCategory ? `Step failed: ${backendCategory}` : null, backendMessage ? `Error: ${backendMessage}` : null].filter(Boolean).join('\n');
+        throw new Error(detail);
       }
 
-      let result;
-      try {
-        result = await response.json();
-        console.log('AI Generation API Response:', result);
-        console.log('Generated Images:', result.images);
-        if (result.images && result.images.length > 0) {
-          console.log('Image URLs:', result.images.map(img => img.url));
-        }
-      } catch (parseError) {
-        console.error('Failed to parse response JSON:', parseError);
-        throw new Error('Invalid response from server. Please try again.');
+      console.log('AI Generation API Response:', result);
+      console.log('Generated Images:', result.images);
+      if (result.images && result.images.length > 0) {
+        console.log('Image URLs:', result.images.map(img => img.url));
       }
-      
       setGeneratedImages(result.images || []);
 
     } catch (error) {

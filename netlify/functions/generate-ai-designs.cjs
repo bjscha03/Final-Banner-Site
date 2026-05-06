@@ -93,23 +93,64 @@ exports.handler = async (event) => {
   };
 
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
-  if (event.httpMethod !== 'POST') return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
 
   const isProduction = process.env.CONTEXT === 'production' || process.env.NODE_ENV === 'production';
-  const debug = { success: false, stepFailed: null, durationMs: 0, model: 'gpt-image-1', openaiStatus: null, cloudinaryStatus: null, imageDetected: false, error: null };
+  const debug = { success: false, stepFailed: null, durationMs: 0, model: 'gpt-image-1', openaiStatus: null, cloudinaryStatus: null, imageDetected: false, inspirationIncluded: false, error: null };
+
+  const buildResponse = (statusCode, extra = {}) => ({
+    statusCode,
+    headers,
+    body: JSON.stringify({
+      success: debug.success,
+      stepFailed: debug.stepFailed,
+      durationMs: debug.durationMs,
+      model: debug.model,
+      imageDetected: debug.imageDetected,
+      inspirationIncluded: debug.inspirationIncluded,
+      openaiStatus: debug.openaiStatus,
+      cloudinaryStatus: debug.cloudinaryStatus,
+      ...extra
+    })
+  });
+
+  if (event.httpMethod !== 'POST') {
+    debug.durationMs = Date.now() - fnStart;
+    debug.stepFailed = 'request_validation';
+    return buildResponse(405, { error: { category: 'request_validation', message: 'Method not allowed' } });
+  }
 
   try {
     console.log('[AI-Gen] request received', { at: new Date().toISOString() });
     const body = JSON.parse(event.body || '{}');
     const { prompt, size, userEmail, productType, width, height, inspirationImage, brandMatchStrength, styleChips } = body;
 
-    if (!prompt || !prompt.trim()) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Prompt is required' }) };
-    if (!size?.wIn || !size?.hIn) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Size with wIn and hIn is required' }) };
-    if (!process.env.OPENAI_API_KEY) return { statusCode: 500, headers, body: JSON.stringify({ error: 'OpenAI API key not configured' }) };
-    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) return { statusCode: 500, headers, body: JSON.stringify({ error: 'Cloudinary not configured' }) };
+    if (!prompt || !prompt.trim()) {
+      debug.durationMs = Date.now() - fnStart;
+      debug.stepFailed = 'request_validation';
+      return buildResponse(400, { error: { category: 'request_validation', message: 'Prompt is required' } });
+    }
+    if (!size?.wIn || !size?.hIn) {
+      debug.durationMs = Date.now() - fnStart;
+      debug.stepFailed = 'request_validation';
+      return buildResponse(400, { error: { category: 'request_validation', message: 'Size with wIn and hIn is required' } });
+    }
+    if (!process.env.OPENAI_API_KEY) {
+      debug.durationMs = Date.now() - fnStart;
+      debug.stepFailed = 'openai_request';
+      return buildResponse(500, { error: { category: 'openai_request', message: 'OpenAI API key not configured' } });
+    }
+    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
+      debug.durationMs = Date.now() - fnStart;
+      debug.stepFailed = 'cloudinary_upload';
+      return buildResponse(500, { error: { category: 'cloudinary_upload', message: 'Cloudinary not configured' } });
+    }
 
     const isAdmin = userEmail ? await assertAdminAccess(userEmail) : false;
-    if (isProduction && !isAdmin) return { statusCode: 403, headers, body: JSON.stringify({ error: 'Admin access required in production' }) };
+    if (isProduction && !isAdmin) {
+      debug.durationMs = Date.now() - fnStart;
+      debug.stepFailed = 'authorization';
+      return buildResponse(403, { error: { category: 'authorization', message: 'Admin access required in production' } });
+    }
 
     const promptText = enhancePrompt({ prompt: `${prompt.trim()}
 
@@ -118,6 +159,7 @@ Professional large-format ${productType || 'banner'} for ${width || size.wIn}x${
     const dalleSize = aspect >= 1 ? '1536x1024' : '1024x1536';
     const parsedImage = parseInspirationImage(inspirationImage);
     debug.imageDetected = parsedImage.imageDetected;
+    debug.inspirationIncluded = parsedImage.includedInApiRequest;
 
     console.log('[AI-Gen] prompt', { prompt });
     console.log('[AI-Gen] enhanced prompt', { promptText });
@@ -166,17 +208,29 @@ Professional large-format ${productType || 'banner'} for ${width || size.wIn}x${
     debug.durationMs = totalMs;
     console.log('[AI-Gen] total function ms', { totalFunctionMs: totalMs, openaiRequestMs: openaiMs, cloudinaryUploadMs: cloudinaryMs });
 
-    return { statusCode: 200, headers, body: JSON.stringify({ success: true, image: { url: uploaded.secure_url, cloudinary_public_id: uploaded.public_id, width: uploaded.width, height: uploaded.height }, prompt: promptText, metadata: { model: debug.model, count: 1, quality: 'high' }, debug: isProduction ? undefined : debug }) };
+    return buildResponse(200, {
+      success: true,
+      image: { url: uploaded.secure_url, cloudinary_public_id: uploaded.public_id, width: uploaded.width, height: uploaded.height },
+      prompt: promptText,
+      metadata: { model: debug.model, count: 1, quality: 'high' },
+      debug: isProduction ? undefined : debug
+    });
   } catch (error) {
     const totalMs = Date.now() - fnStart;
     debug.durationMs = totalMs;
-    debug.stepFailed = debug.cloudinaryStatus ? 'cloudinary' : (debug.openaiStatus ? 'response_handling' : 'openai');
+    debug.stepFailed = debug.cloudinaryStatus ? 'cloudinary_upload' : (debug.openaiStatus ? 'response_handling' : 'openai_request');
     debug.error = toAdminSafeError(error);
     console.error('[AI-Gen] Full failure object', error);
     console.error('[AI-Gen] Full stack trace', error?.stack || 'No stack');
     console.log('[AI-Gen] total function ms', { totalFunctionMs: totalMs });
 
     const safeError = isProduction ? 'AI design generation is temporarily unavailable. Please try again.' : debug.error;
-    return { statusCode: 500, headers, body: JSON.stringify({ error: safeError, debug: isProduction ? undefined : debug }) };
+    return buildResponse(500, {
+      error: {
+        category: debug.stepFailed || 'unknown',
+        message: safeError
+      },
+      debug: isProduction ? undefined : debug
+    });
   }
 };
