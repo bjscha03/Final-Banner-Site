@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, Wand2, RefreshCw, X } from 'lucide-react';
+import { Sparkles, Wand2, RefreshCw, MessageSquarePlus } from 'lucide-react';
 import { useQuoteStore } from '@/store/quote';
 import { useToast } from '@/components/ui/use-toast';
 import { formatDimensions } from '@/lib/pricing';
@@ -14,7 +14,6 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import AIDisclaimerDialog from './AIDisclaimerDialog';
 import { useAuth } from '@/lib/auth';
 
@@ -48,10 +47,10 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
   const [prompt, setPrompt] = useState('');
   const [selectedStyles, setSelectedStyles] = useState<string[]>([]);
   const [colors, setColors] = useState(['#1e40af', '#ffffff', '#f3f4f6']);
-  const [variations, setVariations] = useState<'1' | '3'>('3'); // Always 3 images
+  const [editPrompt, setEditPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isRefining, setIsRefining] = useState(false);
   const [generatedImages, setGeneratedImages] = useState<GeneratedImage[]>([]);
-  const [showSelection, setShowSelection] = useState(false);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
   const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
   const [inspirationImage, setInspirationImage] = useState<string | null>(null);
@@ -116,7 +115,7 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
 
     setIsGenerating(true);
     setGeneratedImages([]);
-    setShowSelection(false);
+    setEditPrompt('');
 
     try {
       console.log('Sending AI generation request with colors:', colors);
@@ -134,7 +133,7 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
           height: heightIn,
           material,
           inspirationImage,
-          variations: 3, // Always generate 3 images
+          variations: 1,
           quality: 'high', // Always use high quality
           preset: 'loft_hero'
         })
@@ -165,9 +164,7 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
         throw new Error('Invalid response from server. Please try again.');
       }
       
-      // Always show selection (we always generate 3 images)
       setGeneratedImages(result.images || []);
-      setShowSelection(true);
 
     } catch (error) {
       console.error('Generation error:', error);
@@ -223,13 +220,58 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
     resetForm();
   };
 
+  const handleRefine = async () => {
+    if (!generatedImages[0] || !editPrompt.trim()) return;
+    setIsRefining(true);
+    try {
+      const current = generatedImages[0];
+      const aiMeta = useQuoteStore.getState().file?.aiMetadata as any;
+      const res = await fetch('/.netlify/functions/edit-design', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productType: 'banner',
+          width: widthIn,
+          height: heightIn,
+          material,
+          originalPrompt: aiMeta?.prompt || prompt.trim(),
+          editPrompt: editPrompt.trim()
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || 'Refinement failed');
+      }
+      const result = await res.json();
+      if (!result.imageBase64) throw new Error('No edited image returned');
+      const editedImage: GeneratedImage = {
+        url: `data:${result.mimeType || 'image/png'};base64,${result.imageBase64}`,
+        cloudinary_public_id: current.cloudinary_public_id,
+        model: 'imagen-edit',
+        aspectRatio: result.aspectRatio
+      };
+      setGeneratedImages([editedImage]);
+      setPrompt((prev) => prev || aiMeta?.prompt || '');
+      setEditPrompt('');
+      toast({ title: 'Design refined', description: 'Your AI designer applied the update.' });
+    } catch (error) {
+      toast({
+        title: 'Refinement failed',
+        description: error instanceof Error ? error.message : 'Please try another edit instruction.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsRefining(false);
+    }
+  };
+
   const resetForm = () => {
     setPrompt('');
     setSelectedStyles([]);
     setColors(['#1e40af', '#ffffff', '#f3f4f6']);
-    setVariations('3');
+    setEditPrompt('');
     setGeneratedImages([]);
-    setShowSelection(false);
     setInspirationImage(null);
     setInspirationName('');
   };
@@ -314,7 +356,7 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
           </DialogTitle>
         </DialogHeader>
 
-        {!showSelection ? (
+        {!generatedImages.length ? (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
             {/* Left Column - Input Fields */}
             <div className="space-y-6">
@@ -386,14 +428,6 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
                 </div>
               </div>
 
-              <div>
-                <Label className="text-base font-medium mb-3 block">Variations</Label>
-                <p className="text-sm text-gray-600">
-                  Always generates 3 high-quality images for you to choose from
-                </p>
-              </div>
-
-
             </div>
 
             {/* Right Column - Summary */}
@@ -429,54 +463,42 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
             </div>
           </div>
         ) : (
-          // Image Selection View
+          // Single Design + Conversational Refinement View
           <div className="space-y-4">
             <div className="flex justify-between items-center">
-              <h3 className="text-lg font-medium">Choose your favorite:</h3>
-              <Button
-                variant="outline"
-                onClick={handleGenerate}
-                disabled={isGenerating}
-                data-cta="ai-refresh-3"
-              >
-                {isGenerating ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                    Generating...
-                  </>
-                ) : (
-                  <>
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Refresh 3
-                  </>
-                )}
-              </Button>
+              <h3 className="text-lg font-medium">Your Premium Concept</h3>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              {generatedImages.map((image, index) => (
-                <div key={index} className="relative group cursor-pointer" onClick={() => applyGeneratedImage(image)}>
-                  <img
-                    src={image.url}
-                    alt={`Generated option ${index + 1}`}
-                    className="w-full h-48 object-cover rounded-lg border-2 border-transparent group-hover:border-blue-500 transition-colors"
-                    crossOrigin="anonymous"
-                    onError={(e) => {
-                      console.error('Image failed to load:', image.url);
-                      e.currentTarget.style.backgroundColor = '#f3f4f6';
-                    }}
-                    onLoad={() => {
-                      console.log('Image loaded successfully:', image.url);
-                    }}
+            <div className="space-y-4">
+              <img src={generatedImages[0].url} alt="Generated premium design" className="w-full max-h-[440px] object-contain rounded-lg border bg-gray-50 p-2" />
+              <div className="space-y-2">
+                <Label className="text-base font-medium">Edit with AI Designer</Label>
+                <div className="flex gap-2">
+                  <Input
+                    value={editPrompt}
+                    onChange={(e) => setEditPrompt(e.target.value)}
+                    placeholder="e.g. make text bigger, use darker colors, make more premium"
                   />
-                  <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 rounded-lg transition-opacity" />
-                  <Button
-                    className="absolute bottom-2 left-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity"
-                    data-cta="ai-variations-pick"
-                  >
-                    Select This One
+                  <Button onClick={handleRefine} disabled={isRefining || !editPrompt.trim()}>
+                    {isRefining ? <RefreshCw className="w-4 h-4 animate-spin" /> : <MessageSquarePlus className="w-4 h-4" />}
                   </Button>
                 </div>
-              ))}
+                <div className="flex flex-wrap gap-2">
+                  {['make text bigger', 'use darker colors', 'make typography bolder', 'move logo to top', 'make more minimal', 'use cream background', 'add more contrast'].map((suggestion) => (
+                    <Button key={suggestion} variant="outline" size="sm" onClick={() => setEditPrompt(suggestion)}>
+                      {suggestion}
+                    </Button>
+                  ))}
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={handleGenerate} disabled={isGenerating} data-cta="ai-generate-new-concept">
+                  <RefreshCw className={`w-4 h-4 mr-2 ${isGenerating ? 'animate-spin' : ''}`} />
+                  Generate Another Concept
+                </Button>
+                <Button onClick={() => applyGeneratedImage(generatedImages[0])} data-cta="ai-apply-design">
+                  Apply Design
+                </Button>
+              </div>
             </div>
           </div>
         )}
@@ -487,7 +509,7 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
             Cancel
           </Button>
           
-          {!showSelection && (
+          {!generatedImages.length && (
             <Button
               onClick={handleGenerate}
               disabled={isGenerating || !prompt.trim()}

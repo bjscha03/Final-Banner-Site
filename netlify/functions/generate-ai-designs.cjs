@@ -225,7 +225,7 @@ async function generateSingleImage(openai, prompt, dalleSize, index) {
 }
 
 // ISSUE #2 FIX: Parallel generation with detailed timing
-async function generateWithDallE(prompt, size, variations = 3) {
+async function generateWithDallE(prompt, size, variations = 1) {
   const totalStart = Date.now();
   
   const openai = new OpenAI({
@@ -326,7 +326,7 @@ exports.handler = async (event, context) => {
   try {
     const body = JSON.parse(event.body);
     const { prompt, styles = [], colors = [], size, userEmail, productType, width, height, material, inspirationImage } = body;
-    const variations = 3;
+    const variations = 1;
 
     console.log('[AI-Gen] ========================================');
     console.log('[AI-Gen] AI Banner Generation Request');
@@ -427,8 +427,8 @@ Hidden premium art direction (must follow): professional large-format ${productT
     console.log('[AI-Gen] Starting parallel image generation...');
     
     const images = await generateWithDallE(enhancedPrompt, size, variations);
-    if (!Array.isArray(images) || images.length !== 3) {
-      throw new Error(`Expected exactly 3 images but received ${Array.isArray(images) ? images.length : 'none'}`);
+    if (!Array.isArray(images) || images.length < 1) {
+      throw new Error(`Expected at least 1 image but received ${Array.isArray(images) ? images.length : 'none'}`);
     }
     
     console.log('[AI-Gen] ========================================');
