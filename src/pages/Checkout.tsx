@@ -57,7 +57,7 @@ const Checkout: React.FC = () => {
   );
   // Keep PayPal as the default tab for strongest first-impression trust,
   // while still offering Stripe card + wallet flows as a secondary option.
-  const [paymentMethod, setPaymentMethod] = useState<'paypal' | 'card'>('paypal');
+  const [showCardForm, setShowCardForm] = useState(false);
 
 
   // Get totals from cart store methods
@@ -1198,52 +1198,38 @@ const Checkout: React.FC = () => {
                         Stripe doesn't initialize a PaymentIntent until
                         the user actually picks the card / wallet flow. */}
                     <h3 className="text-base font-semibold text-gray-900 mb-3">Choose payment method</h3>
-                    <div className="grid grid-cols-1 gap-2 mb-4" role="tablist" aria-label="Payment method">
-                      <button
-                        type="button"
-                        role="tab"
-                        aria-selected={paymentMethod === 'paypal'}
-                        onClick={() => setPaymentMethod('paypal')}
-                        className={`py-2 px-3 rounded-lg border text-sm font-semibold transition-colors ${
-                          paymentMethod === 'paypal'
-                            ? 'bg-[#18448D] text-white border-[#18448D]'
-                            : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        PayPal
-                      </button>
-                      <button
-                        type="button"
-                        role="tab"
-                        aria-selected={paymentMethod === 'card'}
-                        onClick={() => setPaymentMethod('card')}
-                        className={`py-2 px-3 rounded-lg border text-sm font-semibold transition-colors ${
-                          paymentMethod === 'card'
-                            ? 'bg-[#18448D] text-white border-[#18448D]'
-                            : 'bg-white text-gray-700 border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        Debit or Credit Card
-                      </button>
-                    </div>
-
-                    <div className="min-h-[260px]">
-                      {paymentMethod === 'paypal' ? (
-                        <PayPalCheckout disabled={!canProceed}
-                          total={totalCents}
-                          onSuccess={handlePaymentSuccess}
-                          onError={handlePaymentError}
-                        />
-                      ) :(
-                        <StripeCheckout
-                          disabled={!canProceed}
-                          total={totalCents}
-                          onSuccess={handlePaymentSuccess}
-                          onError={handlePaymentError}
-                          onSwitchToPayPal={() => setPaymentMethod('paypal')}
-                          showCardForm
-                        />
-                      )}
+                    <div className="space-y-4">
+                      <PayPalCheckout
+                        disabled={!canProceed}
+                        total={totalCents}
+                        onSuccess={handlePaymentSuccess}
+                        onError={handlePaymentError}
+                      />
+                      <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={() => setShowCardForm((v) => !v)}
+                          className="w-full flex items-center justify-between p-4 text-left"
+                          aria-expanded={showCardForm}
+                        >
+                          <div>
+                            <p className="font-semibold text-gray-900">Debit or Credit Card</p>
+                            <p className="text-sm text-gray-600">Pay securely using your card</p>
+                          </div>
+                          <span className="text-xl text-gray-500">{showCardForm ? '−' : '+'}</span>
+                        </button>
+                        {showCardForm && (
+                          <div className="p-4 border-t border-gray-100">
+                            <StripeCheckout
+                              disabled={!canProceed}
+                              total={totalCents}
+                              onSuccess={handlePaymentSuccess}
+                              onError={handlePaymentError}
+                              showCardForm
+                            />
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </>
                 ) : (
