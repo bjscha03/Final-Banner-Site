@@ -32,6 +32,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar as CalendarIcon, Star, ShoppingCart, GraduationCap } from 'lucide-react';
 import OrderDetails from '@/components/orders/OrderDetails';
+import { fetchEvents } from '@/lib/events';
 import {
   Select,
   SelectContent,
@@ -130,6 +131,16 @@ const AdminOrders: React.FC = () => {
   const [activeAdminTab, setActiveAdminTab] = useState<'orders' | 'events' | 'abandoned-carts'>('orders');
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(false);
+  const [globalOverview, setGlobalOverview] = useState({
+    totalOrders: 0,
+    inProductionOrders: 0,
+    shippedOrders: 0,
+    pendingOrders: 0,
+    totalRevenueCents: 0,
+    totalEvents: 0,
+    abandonedCarts: 0,
+    graduationIntakes: 0,
+  });
   useEffect(() => {
 
     // Show access denied message instead of immediate redirect
@@ -140,8 +151,60 @@ const AdminOrders: React.FC = () => {
 
     if (user && isAdmin(user)) {
       loadOrders();
+      loadGlobalOverview(user.email);
     }
   }, [user, authLoading, navigate]);
+
+  const loadGlobalOverview = async (adminEmail?: string) => {
+    try {
+      const ordersAdapter = await getOrdersAdapter();
+      const allOrders = await ordersAdapter.listAll(1, 100000);
+
+      const [
+        eventsResult,
+        abandonedCartsResult,
+        graduationIntakesResult,
+      ] = await Promise.allSettled([
+        fetchEvents(),
+        fetch('/.netlify/functions/get-abandoned-carts').then(async (response) => {
+          if (!response.ok) throw new Error('Failed to fetch abandoned carts');
+          return response.json();
+        }),
+        adminEmail
+          ? fetch('/.netlify/functions/admin-graduation-list', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: adminEmail }),
+            }).then(async (response) => {
+              const data = await response.json();
+              if (!response.ok || !data?.ok) throw new Error(data?.error || 'Failed to fetch graduation intakes');
+              return data;
+            })
+          : Promise.resolve({ intakes: [] }),
+      ]);
+
+      const eventsCount = eventsResult.status === 'fulfilled' ? eventsResult.value.length : 0;
+      const abandonedCartsCount = abandonedCartsResult.status === 'fulfilled'
+        ? (abandonedCartsResult.value?.carts?.length ?? 0)
+        : 0;
+      const graduationIntakesCount = graduationIntakesResult.status === 'fulfilled'
+        ? (graduationIntakesResult.value?.intakes?.length ?? 0)
+        : 0;
+
+      setGlobalOverview({
+        totalOrders: allOrders.length,
+        inProductionOrders: allOrders.filter((o) => o.status === 'in_production').length,
+        shippedOrders: allOrders.filter((o) => o.tracking_number).length,
+        pendingOrders: allOrders.filter((o) => !o.tracking_number && o.status !== 'in_production').length,
+        totalRevenueCents: allOrders.reduce((sum, o) => sum + o.total_cents, 0),
+        totalEvents: eventsCount,
+        abandonedCarts: abandonedCartsCount,
+        graduationIntakes: graduationIntakesCount,
+      });
+    } catch (error) {
+      console.error('Error loading global admin overview:', error);
+    }
+  };
 
   useEffect(() => {
     // Filter orders based on search query
@@ -866,6 +929,34 @@ const AdminOrders: React.FC = () => {
           </div>
 
           {/* Stats */}
+          <div className="mb-4 rounded-2xl border border-[#18448D]/20 bg-gradient-to-r from-[#18448D] to-[#0f2d5c] p-4 sm:p-5 shadow-lg">
+            <div className="mb-3 flex items-center justify-between gap-3">
+              <h2 className="text-sm sm:text-base font-semibold tracking-wide text-white uppercase">
+                All Admin Overview
+              </h2>
+              <span className="text-[11px] sm:text-xs text-white/80">
+                Global totals across admin sections
+              </span>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
+              {[
+                { label: 'Total Orders', value: globalOverview.totalOrders.toLocaleString() },
+                { label: 'In Production', value: globalOverview.inProductionOrders.toLocaleString() },
+                { label: 'Shipped', value: globalOverview.shippedOrders.toLocaleString() },
+                { label: 'Pending', value: globalOverview.pendingOrders.toLocaleString() },
+                { label: 'Total Revenue', value: usd(globalOverview.totalRevenueCents / 100) },
+                { label: 'Total Events', value: globalOverview.totalEvents.toLocaleString() },
+                { label: 'Abandoned Carts', value: globalOverview.abandonedCarts.toLocaleString() },
+                { label: 'Graduation Intakes', value: globalOverview.graduationIntakes.toLocaleString() },
+              ].map((metric) => (
+                <div key={metric.label} className="rounded-xl border border-white/20 bg-white/10 p-3 backdrop-blur-sm">
+                  <p className="text-[11px] sm:text-xs text-white/80">{metric.label}</p>
+                  <p className="text-base sm:text-lg font-bold text-white mt-1 break-words">{metric.value}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-5 gap-6 mb-8">
             <div className="bg-white rounded-2xl shadow-lg p-6">
               <div className="flex items-center">
