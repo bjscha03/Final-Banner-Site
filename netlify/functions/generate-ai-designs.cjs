@@ -108,7 +108,7 @@ exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
 
   const isProduction = process.env.CONTEXT === 'production' || process.env.NODE_ENV === 'production';
-  const debug = { success: false, stepFailed: null, durationMs: 0, model: 'gpt-image-1', openaiStatus: null, cloudinaryStatus: null, imageDetected: false, inspirationIncluded: false, error: null, openaiError: null };
+  const debug = { success: false, stepFailed: null, durationMs: 0, model: 'gpt-image-1', openaiStatus: null, cloudinaryStatus: null, imageDetected: false, inspirationIncluded: false, fallbackAttempted: false, fallbackSucceeded: false, error: null, openaiError: null };
 
   const buildResponse = (statusCode, extra = {}) => ({
     statusCode,
@@ -122,6 +122,8 @@ exports.handler = async (event) => {
       inspirationIncluded: debug.inspirationIncluded,
       openaiStatus: debug.openaiStatus,
       cloudinaryStatus: debug.cloudinaryStatus,
+      fallbackAttempted: debug.fallbackAttempted,
+      fallbackSucceeded: debug.fallbackSucceeded,
       ...extra
     })
   });
@@ -186,9 +188,9 @@ Professional large-format ${productType || 'banner'} for ${width || size.wIn}x${
       imageInputIncluded: parsedImage.includedInApiRequest
     });
 
-    const openaiPayload = { model: debug.model, prompt: promptText, n: 1, size: dalleSize, quality: 'high' };
+    const openaiPayload = { model: debug.model, prompt: promptText, n: 1, size: dalleSize };
     const openaiEditPayload = parsedImage.includedInApiRequest
-      ? { model: debug.model, image: inspirationImage, prompt: promptText, n: 1, size: dalleSize, quality: 'high' }
+      ? { model: debug.model, image: inspirationImage, prompt: promptText, n: 1, size: dalleSize }
       : null;
 
     console.log('[AI-Gen] OpenAI request start', {
@@ -208,7 +210,9 @@ Professional large-format ${productType || 'banner'} for ${width || size.wIn}x${
       console.error('[AI-Gen] OpenAI exact error response', primaryDetails);
       if (openaiEditPayload) {
         console.log('[AI-Gen] Retrying OpenAI with TEXT-ONLY fallback mode');
+        debug.fallbackAttempted = true;
         response = await openai.images.generate(openaiPayload);
+        debug.fallbackSucceeded = true;
         debug.inspirationIncluded = false;
       } else {
         throw primaryErr;
@@ -250,7 +254,7 @@ Professional large-format ${productType || 'banner'} for ${width || size.wIn}x${
       success: true,
       image: { url: uploaded.secure_url, cloudinary_public_id: uploaded.public_id, width: uploaded.width, height: uploaded.height },
       prompt: promptText,
-      metadata: { model: debug.model, count: 1, quality: 'high' },
+      metadata: { model: debug.model, count: 1 },
       debug: isProduction ? undefined : debug
     });
   } catch (error) {
