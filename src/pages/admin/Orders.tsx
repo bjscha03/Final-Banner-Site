@@ -141,6 +141,13 @@ const AdminOrders: React.FC = () => {
     abandonedCarts: 0,
     graduationIntakes: 0,
   });
+
+  const [globalOverviewLoading, setGlobalOverviewLoading] = useState({
+    orders: false,
+    events: false,
+    abandonedCarts: false,
+    graduationIntakes: false,
+  });
   useEffect(() => {
 
     // Show access denied message instead of immediate redirect
@@ -155,55 +162,98 @@ const AdminOrders: React.FC = () => {
     }
   }, [user, authLoading, navigate]);
 
-  const loadGlobalOverview = async (adminEmail?: string) => {
-    try {
-      const ordersAdapter = await getOrdersAdapter();
-      const allOrders = await ordersAdapter.listAll(1, 100000);
+  const loadAllOrdersForOverview = async () => {
+    const ordersAdapter = await getOrdersAdapter();
+    const allOrders: Order[] = [];
+    let pageToLoad = 1;
 
-      const [
-        eventsResult,
-        abandonedCartsResult,
-        graduationIntakesResult,
-      ] = await Promise.allSettled([
-        fetchEvents(),
-        fetch('/.netlify/functions/get-abandoned-carts').then(async (response) => {
-          if (!response.ok) throw new Error('Failed to fetch abandoned carts');
-          return response.json();
-        }),
-        adminEmail
-          ? fetch('/.netlify/functions/admin-graduation-list', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ email: adminEmail }),
-            }).then(async (response) => {
-              const data = await response.json();
-              if (!response.ok || !data?.ok) throw new Error(data?.error || 'Failed to fetch graduation intakes');
-              return data;
-            })
-          : Promise.resolve({ intakes: [] }),
-      ]);
-
-      const eventsCount = eventsResult.status === 'fulfilled' ? eventsResult.value.length : 0;
-      const abandonedCartsCount = abandonedCartsResult.status === 'fulfilled'
-        ? (abandonedCartsResult.value?.carts?.length ?? 0)
-        : 0;
-      const graduationIntakesCount = graduationIntakesResult.status === 'fulfilled'
-        ? (graduationIntakesResult.value?.intakes?.length ?? 0)
-        : 0;
-
-      setGlobalOverview({
-        totalOrders: allOrders.length,
-        inProductionOrders: allOrders.filter((o) => o.status === 'in_production').length,
-        shippedOrders: allOrders.filter((o) => o.tracking_number).length,
-        pendingOrders: allOrders.filter((o) => !o.tracking_number && o.status !== 'in_production').length,
-        totalRevenueCents: allOrders.reduce((sum, o) => sum + o.total_cents, 0),
-        totalEvents: eventsCount,
-        abandonedCarts: abandonedCartsCount,
-        graduationIntakes: graduationIntakesCount,
-      });
-    } catch (error) {
-      console.error('Error loading global admin overview:', error);
+    while (true) {
+      const pageOrders = await ordersAdapter.listAll(pageToLoad);
+      if (!pageOrders.length) break;
+      allOrders.push(...pageOrders);
+      if (pageOrders.length < PAGE_SIZE) break;
+      pageToLoad += 1;
+      if (pageToLoad > 5000) {
+        console.warn('Global overview order pagination hit safety limit at 5000 pages');
+        break;
+      }
     }
+
+    return allOrders;
+  };
+
+  const loadGlobalOverview = async (adminEmail?: string) => {
+    setGlobalOverviewLoading({
+      orders: false,
+      events: false,
+      abandonedCarts: false,
+      graduationIntakes: false,
+    });
+
+    const [
+      ordersResult,
+      eventsResult,
+      abandonedCartsResult,
+      graduationIntakesResult,
+    ] = await Promise.allSettled([
+      loadAllOrdersForOverview(),
+      fetchEvents(),
+      fetch('/.netlify/functions/get-abandoned-carts').then(async (response) => {
+        if (!response.ok) throw new Error('Failed to fetch abandoned carts');
+        return response.json();
+      }),
+      adminEmail
+        ? fetch('/.netlify/functions/admin-graduation-list', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: adminEmail }),
+          }).then(async (response) => {
+            const data = await response.json();
+            if (!response.ok || !data?.ok) throw new Error(data?.error || 'Failed to fetch graduation intakes');
+            return data;
+          })
+        : Promise.resolve({ intakes: [] }),
+    ]);
+
+    const allOrders = ordersResult.status === 'fulfilled' ? ordersResult.value : [];
+    if (ordersResult.status === 'rejected') {
+      console.error('Error loading global order totals:', ordersResult.reason);
+    }
+    if (eventsResult.status === 'rejected') {
+      console.error('Error loading global events total:', eventsResult.reason);
+    }
+    if (abandonedCartsResult.status === 'rejected') {
+      console.error('Error loading global abandoned carts total:', abandonedCartsResult.reason);
+    }
+    if (graduationIntakesResult.status === 'rejected') {
+      console.error('Error loading global graduation intakes total:', graduationIntakesResult.reason);
+    }
+
+    const eventsCount = eventsResult.status === 'fulfilled' ? eventsResult.value.length : 0;
+    const abandonedCartsCount = abandonedCartsResult.status === 'fulfilled'
+      ? (abandonedCartsResult.value?.carts?.length ?? 0)
+      : 0;
+    const graduationIntakesCount = graduationIntakesResult.status === 'fulfilled'
+      ? (graduationIntakesResult.value?.intakes?.length ?? 0)
+      : 0;
+
+    setGlobalOverview({
+      totalOrders: allOrders.length,
+      inProductionOrders: allOrders.filter((o) => o.status === 'in_production').length,
+      shippedOrders: allOrders.filter((o) => o.tracking_number).length,
+      pendingOrders: allOrders.filter((o) => !o.tracking_number && o.status !== 'in_production').length,
+      totalRevenueCents: allOrders.reduce((sum, o) => sum + o.total_cents, 0),
+      totalEvents: eventsCount,
+      abandonedCarts: abandonedCartsCount,
+      graduationIntakes: graduationIntakesCount,
+    });
+
+    setGlobalOverviewLoading({
+      orders: true,
+      events: true,
+      abandonedCarts: true,
+      graduationIntakes: true,
+    });
   };
 
   useEffect(() => {
@@ -940,18 +990,50 @@ const AdminOrders: React.FC = () => {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-8 gap-3">
               {[
-                { label: 'Total Orders', value: globalOverview.totalOrders.toLocaleString() },
-                { label: 'In Production', value: globalOverview.inProductionOrders.toLocaleString() },
-                { label: 'Shipped', value: globalOverview.shippedOrders.toLocaleString() },
-                { label: 'Pending', value: globalOverview.pendingOrders.toLocaleString() },
-                { label: 'Total Revenue', value: usd(globalOverview.totalRevenueCents / 100) },
-                { label: 'Total Events', value: globalOverview.totalEvents.toLocaleString() },
-                { label: 'Abandoned Carts', value: globalOverview.abandonedCarts.toLocaleString() },
-                { label: 'Graduation Intakes', value: globalOverview.graduationIntakes.toLocaleString() },
+                {
+                  label: 'Total Orders',
+                  value: globalOverview.totalOrders.toLocaleString(),
+                  ready: globalOverviewLoading.orders,
+                },
+                {
+                  label: 'In Production',
+                  value: globalOverview.inProductionOrders.toLocaleString(),
+                  ready: globalOverviewLoading.orders,
+                },
+                {
+                  label: 'Shipped',
+                  value: globalOverview.shippedOrders.toLocaleString(),
+                  ready: globalOverviewLoading.orders,
+                },
+                {
+                  label: 'Pending',
+                  value: globalOverview.pendingOrders.toLocaleString(),
+                  ready: globalOverviewLoading.orders,
+                },
+                {
+                  label: 'Total Revenue',
+                  value: usd(globalOverview.totalRevenueCents / 100),
+                  ready: globalOverviewLoading.orders,
+                },
+                {
+                  label: 'Total Events',
+                  value: globalOverview.totalEvents.toLocaleString(),
+                  ready: globalOverviewLoading.events,
+                },
+                {
+                  label: 'Abandoned Carts',
+                  value: globalOverview.abandonedCarts.toLocaleString(),
+                  ready: globalOverviewLoading.abandonedCarts,
+                },
+                {
+                  label: 'Graduation Intakes',
+                  value: globalOverview.graduationIntakes.toLocaleString(),
+                  ready: globalOverviewLoading.graduationIntakes,
+                },
               ].map((metric) => (
                 <div key={metric.label} className="rounded-xl border border-white/20 bg-white/10 p-3 backdrop-blur-sm">
                   <p className="text-[11px] sm:text-xs text-white/80">{metric.label}</p>
-                  <p className="text-base sm:text-lg font-bold text-white mt-1 break-words">{metric.value}</p>
+                  <p className="text-base sm:text-lg font-bold text-white mt-1 break-words">{metric.ready ? metric.value : 'Loading…'}</p>
                 </div>
               ))}
             </div>
