@@ -8,6 +8,21 @@ exports.handler = async (event) => {
   };
 
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
+  if (event.queryStringParameters?.debugPing === 'true') {
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        success: true,
+        message: 'Function reached',
+        timestamp: new Date().toISOString(),
+        env: {
+          hasOpenAIKey: Boolean(process.env.OPENAI_API_KEY),
+          hasCloudinary: Boolean(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET)
+        }
+      })
+    };
+  }
   if (event.httpMethod !== 'POST') return { statusCode: 405, headers, body: JSON.stringify({ success: false, status: 405, code: 'method_not_allowed', type: 'request_validation', message: 'Method not allowed' }) };
 
   try {
