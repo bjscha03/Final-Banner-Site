@@ -59,6 +59,15 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
 
   const PROMPT_HELPERS = ['Grand Opening', 'Trade Show', 'Food Truck', 'Contractor', 'Restaurant', 'Real Estate', 'Event Banner', 'Sale Promotion'];
 
+  const isAdminUser = Boolean(
+    user && (
+      user.is_admin === true ||
+      String((user as any).role || '').toLowerCase() === 'admin' ||
+      String((user as any).user_role || '').toLowerCase() === 'admin' ||
+      String((user as any).account_type || '').toLowerCase() === 'admin'
+    )
+  );
+
   const handleStyleToggle = (styleId: string) => {
     setSelectedStyles(prev =>
       prev.includes(styleId)
@@ -100,7 +109,7 @@ const AIGenerationModal: React.FC<AIGenerationModalProps> = ({ open, onOpenChang
       return;
     }
 
-    if (!user?.is_admin || !user?.email) {
+    if (!isAdminUser || !user?.email) {
       toast({ title: 'Admin access required', description: 'Only logged-in admins can use Create With AI.', variant: 'destructive' });
       return;
     }
