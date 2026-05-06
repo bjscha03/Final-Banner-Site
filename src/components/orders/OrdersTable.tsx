@@ -8,6 +8,7 @@ import { useCartStore } from '@/store/cart';
 import { useToast } from '@/components/ui/use-toast';
 import TrackingBadge from './TrackingBadge';
 import OrderDetails from './OrderDetails';
+import { getDisplayOrderTotalCents } from '@/lib/order-totals';
 
 interface OrdersTableProps {
   orders: Order[];
@@ -68,7 +69,7 @@ const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading = false }) =>
   };
 
   // Use canonical server total (includes discount + same-day/saturday fees when present).
-  const getOrderTotal = (order: Order): number => Number(order.total_cents) || 0;
+  const getOrderTotal = (order: Order): number => getDisplayOrderTotalCents(order as any);
 
   const handleReorderAll = (order: Order) => {
     let totalItems = 0;

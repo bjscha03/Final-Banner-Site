@@ -32,6 +32,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Calendar as CalendarIcon, Star, ShoppingCart, GraduationCap } from 'lucide-react';
 import OrderDetails from '@/components/orders/OrderDetails';
+import { getDisplayOrderTotalCents } from '@/lib/order-totals';
 import { fetchEvents } from '@/lib/events';
 import {
   Select,
@@ -1444,7 +1445,7 @@ const AdminOrderRow: React.FC<AdminOrderRowProps> = ({
             <div className="text-xs text-gray-500">Order Details</div>
             <div className="text-sm text-gray-900">{getItemsSummary(order)}</div>
           </div>
-          <div className={`text-lg font-bold ${ORDER_ACCENT_TEXT_CLASS}`}>{usd(order.total_cents / 100)}</div>
+          <div className={`text-lg font-bold ${ORDER_ACCENT_TEXT_CLASS}`}>{usd(getDisplayOrderTotalCents(order as any) / 100)}</div>
           <div className="flex flex-wrap gap-1.5">
             <Badge className={`${getStatusColor(order.status)} capitalize`}>
               {getStatusLabel(order.status)}
@@ -1889,7 +1890,7 @@ const AdminOrderCard: React.FC<AdminOrderCardProps> = ({
             </div>
             <div>
               <div className="text-xs text-gray-500">Total</div>
-              <div className="text-lg font-bold text-[#18448D]">{usd(order.total_cents / 100)}</div>
+              <div className="text-lg font-bold text-[#18448D]">{usd(getDisplayOrderTotalCents(order as any) / 100)}</div>
             </div>
             {!isGraduation && order.tracking_number && (
               <div className="min-w-0">

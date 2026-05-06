@@ -10,6 +10,7 @@ import TrackingBadge from './TrackingBadge';
 import EmailDeliveryStatus from './EmailDeliveryStatus';
 import { getItemDisplayName, getProductLabel, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
 import { formatShippingAddress, hasShippingAddress, normalizeShippingAddress } from '@/lib/shipping-address';
+import { getDisplayOrderTotalCents } from '@/lib/order-totals';
 import {
   Dialog,
   DialogContent,
@@ -1092,7 +1093,7 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
               <div className="flex justify-between items-center pt-3 pb-1">
                 <span className="text-xl font-bold text-[#18448D]">Total</span>
                 <span className="text-2xl font-bold text-[#ff6b35]">
-                  {usd((order.total_cents || 0) / 100)}
+                  {usd(getDisplayOrderTotalCents(order as any) / 100)}
                 </span>
               </div>
             </div>
