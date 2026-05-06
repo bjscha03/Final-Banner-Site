@@ -1878,6 +1878,7 @@ const GoogleAdsBanner: React.FC = () => {
                     autoOpenDesignId={autoOpenDesignId}
                     onUploadStatusChange={setYardSignUploadStatus}
                     showCreateWithAI={showCreateWithAI}
+                    aiDebugStatus={{ enableAI: ENABLE_AI, hasUser: !!user, isAdmin: userIsAdmin }}
                     onPreviewDone={(id) => logUx('preview_done', { designId: id, productType: 'yard_sign' })}
                     previewOpenTrigger={yardSignPreviewTrigger}
                   />
@@ -2207,6 +2208,11 @@ const GoogleAdsBanner: React.FC = () => {
                   })()}
                   {!uploadedFile ? (
                     <>
+                      {userIsAdmin && (
+                        <div className="mb-3 inline-flex items-center rounded-md border border-orange-300 bg-orange-50 px-3 py-1 text-xs font-medium text-orange-800">
+                          AI Debug: ENABLE_AI={String(ENABLE_AI)} | user={user ? 'yes' : 'no'} | admin={String(userIsAdmin)}
+                        </div>
+                      )}
                       <FileUploader
                         onUpload={handleFileUpload}
                         acceptedTypes="image/png,image/jpeg,application/pdf,.png,.jpg,.jpeg,.pdf"

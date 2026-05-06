@@ -115,6 +115,7 @@ interface YardSignConfiguratorProps {
   onPreviewDone?: (designId: string) => void;
   /** Parent-provided admin gate for the visible Create With AI action. */
   showCreateWithAI?: boolean;
+  aiDebugStatus?: { enableAI: boolean; hasUser: boolean; isAdmin: boolean };
   /**
    * Optional ref-style trigger from the parent: incrementing this number
    * tells the configurator to programmatically open the preview modal for
@@ -145,6 +146,7 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
   onPreviewDone,
   previewOpenTrigger,
   showCreateWithAI = false,
+  aiDebugStatus,
 }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [isSavingPreview, setIsSavingPreview] = useState(false);
@@ -630,6 +632,11 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
         {/* Upload dropzone */}
         {canAddMoreDesigns && (
           <>
+            {aiDebugStatus?.isAdmin && (
+              <div className="mb-3 inline-flex items-center rounded-md border border-orange-300 bg-orange-50 px-3 py-1 text-xs font-medium text-orange-800">
+                AI Debug: ENABLE_AI={String(aiDebugStatus.enableAI)} | user={aiDebugStatus.hasUser ? 'yes' : 'no'} | admin={String(aiDebugStatus.isAdmin)}
+              </div>
+            )}
             <FileUploader
               onUpload={handleFileUpload}
               acceptedTypes="image/png,image/jpeg,.pdf"

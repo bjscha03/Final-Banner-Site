@@ -16,4 +16,10 @@
  *
  * Flip to `true` to re-enable the feature without code changes elsewhere.
  */
-export const ENABLE_AI = false;
+/**
+ * Netlify/Vite env var: `VITE_ENABLE_AI`
+ * - Set to `'true'` to force-enable AI
+ * - Set to `'false'` to force-disable AI
+ * - If omitted, defaults to enabled
+ */
+export const ENABLE_AI = import.meta.env.VITE_ENABLE_AI !== 'false';
