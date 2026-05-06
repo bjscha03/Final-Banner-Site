@@ -1205,7 +1205,7 @@ const Checkout: React.FC = () => {
                         onSuccess={handlePaymentSuccess}
                         onError={handlePaymentError}
                       />
-                      <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
+                      <div className="rounded-xl border border-[#18448D]/20 bg-gradient-to-b from-white to-[#f8fbff] overflow-hidden shadow-sm">
                         <button
                           type="button"
                           onClick={() => setShowCardForm((v) => !v)}
@@ -1213,11 +1213,25 @@ const Checkout: React.FC = () => {
                           aria-expanded={showCardForm}
                         >
                           <div>
-                            <p className="font-semibold text-gray-900">Debit or Credit Card</p>
-                            <p className="text-sm text-gray-600">Pay securely using your card</p>
+                            <p className="font-semibold text-[#18448D]">Debit or Credit Card</p>
+                            <p className="text-sm text-gray-600">Secure card payment powered by Stripe</p>
+                            <p className="text-xs text-gray-500 mt-1">Visa · Mastercard · Amex · Discover</p>
                           </div>
-                          <span className="text-xl text-gray-500">{showCardForm ? '−' : '+'}</span>
+                          <span className="text-xl text-[#18448D]">{showCardForm ? '−' : '+'}</span>
                         </button>
+                        <div className="px-4 pb-3">
+                          <p className="text-[11px] text-gray-500">Secure card processing by <span className="font-semibold text-gray-700">Stripe</span></p>
+                        </div>
+                        <div className="px-4 pb-1">
+                          <StripeCheckout
+                            disabled={!canProceed}
+                            total={totalCents}
+                            onSuccess={handlePaymentSuccess}
+                            onError={handlePaymentError}
+                            showCardForm={false}
+                            showWallets
+                          />
+                        </div>
                         {showCardForm && (
                           <div className="p-4 border-t border-gray-100">
                             <StripeCheckout
@@ -1226,6 +1240,7 @@ const Checkout: React.FC = () => {
                               onSuccess={handlePaymentSuccess}
                               onError={handlePaymentError}
                               showCardForm
+                              showWallets={false}
                             />
                           </div>
                         )}

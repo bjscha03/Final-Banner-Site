@@ -3,6 +3,7 @@ import { loadStripe, Stripe } from '@stripe/stripe-js';
 import {
   Elements,
   PaymentElement,
+  ExpressCheckoutElement,
   useElements,
   useStripe,
 } from '@stripe/react-stripe-js';
@@ -24,6 +25,7 @@ interface StripeCheckoutProps {
    */
   onSwitchToPayPal?: () => void;
   showCardForm?: boolean;
+  showWallets?: boolean;
 }
 
 const PUBLISHABLE_KEY =
@@ -47,11 +49,13 @@ const StripePaymentForm: React.FC<{
   paymentIntentId: string;
   orderId: string;
   showCardForm?: boolean;
-}> = ({ total, onSuccess, onError, disabled, paymentIntentId, orderId, showCardForm = true }) => {
+  showWallets?: boolean;
+}> = ({ total, onSuccess, onError, disabled, paymentIntentId, orderId, showCardForm = true, showWallets = false }) => {
   const stripe = useStripe();
   const elements = useElements();
   const { toast } = useToast();
   const [submitting, setSubmitting] = useState(false);
+  const [walletReady, setWalletReady] = useState<boolean | null>(showWallets ? null : false);
 
   // Shared confirm + finalize. Used by both the Pay button (card form)
   // and the ExpressCheckoutElement onConfirm handler so wallet payments
@@ -223,6 +227,38 @@ const StripePaymentForm: React.FC<{
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-3">
+        {showWallets && (
+          <div className={walletReady ? 'rounded-xl border border-gray-200 bg-white p-3 sm:p-4' : 'hidden'}>
+            <p className="text-sm font-semibold text-gray-800 mb-2">Fast checkout</p>
+            <ExpressCheckoutElement
+              onReady={({ availablePaymentMethods }) => {
+                const apple = !!availablePaymentMethods?.applePay;
+                const google = !!availablePaymentMethods?.googlePay;
+                if ((import.meta as any).env?.DEV) {
+                  console.log('[StripeCheckout][wallet-availability]', {
+                    applePayAvailable: apple,
+                    googlePayAvailable: google,
+                    availablePaymentMethods,
+                  });
+                }
+                setWalletReady(apple || google);
+              }}
+              onConfirm={async (event) => {
+                const ok = await confirmAndFinalize('wallet');
+                if (ok) event.resolve?.();
+                else event.reject?.();
+              }}
+              onCancel={() => {
+                setSubmitting(false);
+              }}
+              options={{
+                buttonHeight: 44,
+                paymentMethods: { applePay: 'auto', googlePay: 'auto', link: 'never', paypal: 'never' },
+                layout: { maxColumns: 1, maxRows: 2, overflow: 'never' },
+              }}
+            />
+          </div>
+        )}
         {showCardForm && (
         <div className="rounded-xl border border-gray-200 bg-white p-3 sm:p-4">
         <PaymentElement
@@ -237,7 +273,7 @@ const StripePaymentForm: React.FC<{
             // are intentionally disabled for now — we will re-enable
             // them via ExpressCheckoutElement once the basic card flow
             // is stable.
-            layout: { type: 'tabs', defaultCollapsed: false },
+            layout: { type: 'accordion', defaultCollapsed: false, radios: false, spacedAccordionItems: false },
             // Keep the card form focused. Apple Pay / Google Pay are
             // surfaced in the branded Express Checkout block above.
             wallets: { applePay: 'never', googlePay: 'never' },
@@ -277,6 +313,7 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({
   disabled = false,
   onSwitchToPayPal,
   showCardForm = true,
+  showWallets = false,
 }) => {
   const { user } = useAuth();
   const {
@@ -570,6 +607,7 @@ const StripeCheckout: React.FC<StripeCheckoutProps> = ({
         paymentIntentId={paymentIntentId || ''}
         orderId={orderId}
         showCardForm={showCardForm}
+        showWallets={showWallets}
       />
     </Elements>
   );
