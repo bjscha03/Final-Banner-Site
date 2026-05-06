@@ -55,11 +55,9 @@ const Checkout: React.FC = () => {
   const stripeAvailable = ENABLE_STRIPE && Boolean(
     (import.meta as any).env?.VITE_STRIPE_PUBLISHABLE_KEY
   );
-  // Default to PayPal while Stripe is disabled. When ENABLE_STRIPE is flipped
-  // back to true, restore the previous default of 'stripe' (Card) here.
-  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'paypal'>(
-    stripeAvailable ? 'stripe' : 'paypal'
-  );
+  // Keep PayPal as the default tab for strongest first-impression trust,
+  // while still offering Stripe card + wallet flows as a secondary option.
+  const [paymentMethod, setPaymentMethod] = useState<'stripe' | 'paypal'>('paypal');
 
 
   // Get totals from cart store methods
@@ -1228,21 +1226,23 @@ const Checkout: React.FC = () => {
                       </button>
                     </div>
 
-                    {paymentMethod === 'stripe' ? (
-                      <StripeCheckout
-                        disabled={!canProceed}
-                        total={totalCents}
-                        onSuccess={handlePaymentSuccess}
-                        onError={handlePaymentError}
-                        onSwitchToPayPal={() => setPaymentMethod('paypal')}
-                      />
-                    ) : (
-                      <PayPalCheckout disabled={!canProceed}
-                        total={totalCents}
-                        onSuccess={handlePaymentSuccess}
-                        onError={handlePaymentError}
-                      />
-                    )}
+                    <div className="min-h-[260px]">
+                      {paymentMethod === 'stripe' ? (
+                        <StripeCheckout
+                          disabled={!canProceed}
+                          total={totalCents}
+                          onSuccess={handlePaymentSuccess}
+                          onError={handlePaymentError}
+                          onSwitchToPayPal={() => setPaymentMethod('paypal')}
+                        />
+                      ) : (
+                        <PayPalCheckout disabled={!canProceed}
+                          total={totalCents}
+                          onSuccess={handlePaymentSuccess}
+                          onError={handlePaymentError}
+                        />
+                      )}
+                    </div>
                   </>
                 ) : (
                   <PayPalCheckout disabled={!canProceed}

@@ -219,7 +219,9 @@ const StripePaymentForm: React.FC<{
             // them via ExpressCheckoutElement once the basic card flow
             // is stable.
             layout: { type: 'accordion', defaultCollapsed: false, radios: false, spacedAccordionItems: false },
-            wallets: { applePay: 'auto', googlePay: 'auto' },
+            // Keep the card form focused. Apple Pay / Google Pay are
+            // surfaced in the branded Express Checkout block above.
+            wallets: { applePay: 'never', googlePay: 'never' },
             fields: { billingDetails: { phone: 'auto' } },
           }}
         />
