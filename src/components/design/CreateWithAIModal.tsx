@@ -41,7 +41,7 @@ const CreateWithAIModalImpl: React.FC<CreateWithAIModalProps> = ({ open, onOpenC
     if (!requirementsMet || !prompt.trim()) return;
     setError(null);
     setIsGenerating(true);
-    const payload = { prompt, productType, width: widthIn, height: heightIn, material, quantity, size: { wIn: widthIn, hIn: heightIn }, inspirationImage: inspirationDataUrl, userEmail: 'admin@local.dev' };
+    const payload = { prompt, productType, width: widthIn, height: heightIn, material, quantity, size: { wIn: widthIn, hIn: heightIn }, inspirationImage: inspirationDataUrl, userEmail: undefined };
     if (isDev) console.log('[CreateWithAI] request:start', payload);
     try {
       const res = await fetch('/.netlify/functions/generate-ai-designs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });

@@ -271,12 +271,35 @@ async function assertAdminAccess(userEmail) {
   const dbUrl = process.env.DATABASE_URL || process.env.NETLIFY_DATABASE_URL;
   if (!dbUrl) return false;
   const sql = neon(dbUrl);
-  // Primary auth source in this codebase is profiles.is_admin.
-  const profileRows = await sql`SELECT is_admin FROM profiles WHERE email = ${userEmail} LIMIT 1`;
-  if (profileRows.length > 0) return profileRows[0].is_admin === true;
-  // Backward-compatible fallback for environments that still mirror users table.
-  const userRows = await sql`SELECT is_admin FROM users WHERE email = ${userEmail} LIMIT 1`;
-  return userRows.length > 0 && userRows[0].is_admin === true;
+  // Resolve the actual admin column from the live `profiles` table.
+  const columns = await sql`
+    SELECT column_name
+    FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'profiles'
+  `;
+  const available = new Set(columns.map((c) => c.column_name));
+
+  if (available.has('is_admin')) {
+    const rows = await sql`SELECT is_admin FROM profiles WHERE email = ${userEmail} LIMIT 1`;
+    return rows.length > 0 && rows[0].is_admin === true;
+  }
+
+  if (available.has('role')) {
+    const rows = await sql`SELECT role FROM profiles WHERE email = ${userEmail} LIMIT 1`;
+    return rows.length > 0 && String(rows[0].role || '').toLowerCase() === 'admin';
+  }
+
+  if (available.has('user_role')) {
+    const rows = await sql`SELECT user_role FROM profiles WHERE email = ${userEmail} LIMIT 1`;
+    return rows.length > 0 && String(rows[0].user_role || '').toLowerCase() === 'admin';
+  }
+
+  if (available.has('account_type')) {
+    const rows = await sql`SELECT account_type FROM profiles WHERE email = ${userEmail} LIMIT 1`;
+    return rows.length > 0 && String(rows[0].account_type || '').toLowerCase() === 'admin';
+  }
+
+  throw new Error('No supported admin field found on public.profiles (expected is_admin/role/user_role/account_type).');
 }
 
 exports.handler = async (event, context) => {
