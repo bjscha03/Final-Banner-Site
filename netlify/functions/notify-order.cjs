@@ -714,7 +714,6 @@ exports.handler = async (event) => {
       FROM orders
       WHERE id::text = ${normalizedOrderId}
          OR UPPER(RIGHT(id::text, 8)) = ${upperOrderId}
-         OR UPPER(number::text) = ${upperOrderId}
       ORDER BY created_at DESC
       LIMIT 1
     `;
