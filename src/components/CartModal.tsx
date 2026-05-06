@@ -142,7 +142,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
           {/* Items */}
           <div
             ref={contentRef}
-            className="cart-modal__content flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-6 bg-gray-50 overscroll-contain touch-pan-y"
+            className="cart-modal__content flex-1 min-h-[42dvh] overflow-y-auto overflow-x-hidden p-4 sm:p-6 bg-gray-50 overscroll-contain touch-pan-y"
           >
             {items.length === 0 ? (
               <div className="text-center py-12">
@@ -316,7 +316,7 @@ const CartModal: React.FC<CartModalProps> = ({ isOpen, onClose }) => {
 
           {/* Footer */}
           {items.length > 0 && (
-            <div className="cart-modal__footer border-t border-gray-200 p-6 space-y-3 bg-white shadow-lg">
+            <div className="cart-modal__footer border-t border-gray-200 p-4 sm:p-6 space-y-2.5 sm:space-y-3 bg-white shadow-lg">
               {/* Dynamic delivery timer — reflects HIT toggle if present */}
               <DeliveryTimer variant="compact" reflectCartSelection />
               <div className="flex justify-between text-gray-700">
