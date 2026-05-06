@@ -321,6 +321,18 @@ exports.handler = async (event, context) => {
                 ) as items
            FROM orders o
            LEFT JOIN order_items oi ON o.id = oi.order_id
+           WHERE NOT (
+             COALESCE(o.payment_method, '') = 'stripe'
+             AND COALESCE(o.status, '') = 'pending'
+             AND o.paypal_order_id IS NULL
+             AND o.paypal_capture_id IS NULL
+             AND o.stripe_charge_id IS NULL
+             AND (
+               o.email IS NULL
+               OR NULLIF(TRIM(o.email), '') IS NULL
+               OR LOWER(TRIM(COALESCE(o.customer_name, ''))) IN ('guest', 'guest customer')
+             )
+           )
            GROUP BY o.id
            ORDER BY o.created_at DESC
            LIMIT $1 OFFSET $2`,

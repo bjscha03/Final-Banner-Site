@@ -49,7 +49,7 @@ const Checkout: React.FC = () => {
   // in checkout. When false, the Stripe tab is hidden and PayPal is the only
   // available payment method. Stripe code/components are preserved so this can
   // be re-enabled later by simply switching ENABLE_STRIPE to true.
-  const ENABLE_STRIPE = true;
+  const ENABLE_STRIPE = false;
   // Selected payment provider tab. Stripe (cards + Apple/Google Pay) is
   // shown first when configured; PayPal remains as an alternative.
   const stripeAvailable = ENABLE_STRIPE && Boolean(
