@@ -13,9 +13,9 @@ const CHIPS = ['Luxury','Bold','Minimal','Streetwear','Corporate','Contractor','
 const EDIT_EXAMPLES = ['make text bigger','use darker colors','make more premium','use stronger typography','use neon pink accents','make more luxury','increase contrast','use black background','make more minimal'];
 
 type DesignResult = { imageUrl: string; prompt: string; originalPrompt: string; revision: number };
-type ApiError = { category?: string | null; message?: string | null };
-type GenerationDebug = { success?: boolean; stepFailed?: string | null; durationMs?: number; model?: string; openaiStatus?: string | null; cloudinaryStatus?: string | null; imageDetected?: boolean; inspirationIncluded?: boolean; error?: string | ApiError | null };
-type GenerationResponse = { success?: boolean; stepFailed?: string | null; durationMs?: number; model?: string; imageDetected?: boolean; inspirationIncluded?: boolean; openaiStatus?: string | null; cloudinaryStatus?: string | null; error?: ApiError | string | null; image?: { url?: string }; images?: Array<{ url?: string }>; prompt?: string; debug?: GenerationDebug | null };
+type ApiError = { category?: string | null; message?: string | null; status?: number | null; code?: string | null; type?: string | null; details?: string | null };
+type GenerationDebug = { success?: boolean; stepFailed?: string | null; durationMs?: number; model?: string; openaiStatus?: string | null; cloudinaryStatus?: string | null; imageDetected?: boolean; inspirationIncluded?: boolean; fallbackAttempted?: boolean; fallbackSucceeded?: boolean; error?: string | ApiError | null; openaiError?: ApiError | null };
+type GenerationResponse = { success?: boolean; stepFailed?: string | null; durationMs?: number; model?: string; imageDetected?: boolean; inspirationIncluded?: boolean; fallbackAttempted?: boolean; fallbackSucceeded?: boolean; openaiStatus?: string | null; cloudinaryStatus?: string | null; error?: ApiError | string | null; image?: { url?: string }; images?: Array<{ url?: string }>; prompt?: string; debug?: GenerationDebug | null };
 const CreateWithAIModal: React.FC<CreateWithAIModalProps> = (props) => ENABLE_AI ? <CreateWithAIModalImpl {...props} /> : null;
 
 const toBase64FromUrl = async (url: string) => {
@@ -44,10 +44,20 @@ const CreateWithAIModalImpl: React.FC<CreateWithAIModalProps> = ({ open, onOpenC
     const body: GenerationResponse = await res.json().catch(() => ({} as GenerationResponse));
     setDebugInfo(body?.debug || body || null);
     if (!res.ok) {
-      const backendMessage = typeof body?.error === 'string' ? body.error : (body?.error?.message || null);
-      const backendCategory = body?.stepFailed || (typeof body?.error === 'object' ? body?.error?.category : null);
-      const detail = [backendCategory ? `Step failed: ${backendCategory}` : null, backendMessage ? `Error: ${backendMessage}` : null].filter(Boolean).join('\n');
-      throw new Error(detail || 'Unable to generate design right now. Please try again.');
+      const errObj = typeof body?.error === 'object' ? body.error : null;
+      const backendCategory = body?.stepFailed || errObj?.category || null;
+      const detail = [
+        backendCategory ? `stepFailed: ${backendCategory}` : null,
+        body?.openaiStatus ? `openaiStatus: ${body.openaiStatus}` : null,
+        errObj?.status != null ? `openai.error.status: ${errObj.status}` : null,
+        errObj?.code ? `openai.error.code: ${errObj.code}` : null,
+        errObj?.type ? `openai.error.type: ${errObj.type}` : null,
+        errObj?.message ? `openai.error.message: ${errObj.message}` : null,
+        body?.fallbackAttempted != null ? `fallbackAttempted: ${String(body.fallbackAttempted)}` : null,
+        body?.inspirationIncluded != null ? `inspirationIncluded: ${String(body.inspirationIncluded)}` : null,
+        errObj?.details ? `details: ${errObj.details}` : null,
+      ].filter(Boolean).join('\n');
+      throw new Error(detail || 'Unable to generate design right now.');
     }
     const image = body?.image || body?.images?.[0];
     if (!image?.url) throw new Error('No design preview was returned. Please try again.');
