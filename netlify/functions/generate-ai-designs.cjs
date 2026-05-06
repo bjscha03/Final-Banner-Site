@@ -8,6 +8,8 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
+const SUPPORTED_MIME_TYPES = new Set(['image/png', 'image/jpeg', 'image/jpg', 'image/webp']);
+
 function enhancePrompt({ prompt, size, inspirationImage, brandMatchStrength = 'strong', styleChips = [] }) {
   const aspect = size?.wIn && size?.hIn ? `${size.wIn}:${size.hIn}` : '';
   const strengthLine = brandMatchStrength === 'light' ? 'Lightly reference uploaded branding.' : brandMatchStrength === 'medium' ? 'Follow uploaded branding with moderate strength.' : 'Closely follow the uploaded branding reference.';
@@ -24,6 +26,48 @@ ${aspect ? `Use exact aspect ratio ${aspect}.` : ''}
 
 User request:
 ${prompt}`;
+}
+
+function parseInspirationImage(inspirationImage) {
+  if (!inspirationImage) return { imageDetected: false, includedInApiRequest: false, byteSize: 0, mimeType: null, base64Data: null };
+  const match = String(inspirationImage).match(/^data:(image\/[a-zA-Z0-9.+-]+);base64,(.+)$/);
+  if (!match) {
+    const e = new Error('Invalid image payload format. Expected data URL base64 image.');
+    e.code = 'INVALID_IMAGE_PAYLOAD';
+    throw e;
+  }
+  const mimeType = match[1].toLowerCase();
+  const base64Data = match[2];
+  if (!SUPPORTED_MIME_TYPES.has(mimeType)) {
+    const e = new Error(`Unsupported mime type: ${mimeType}`);
+    e.code = 'UNSUPPORTED_MIME_TYPE';
+    throw e;
+  }
+  let byteSize = 0;
+  try {
+    byteSize = Buffer.from(base64Data, 'base64').length;
+  } catch (_) {
+    const e = new Error('Bad base64 conversion for inspiration image');
+    e.code = 'BAD_BASE64';
+    throw e;
+  }
+  return { imageDetected: true, includedInApiRequest: true, byteSize, mimeType, base64Data };
+}
+
+function toAdminSafeError(error) {
+  const message = String(error?.message || '').toLowerCase();
+  const status = error?.status;
+  if (error?.code === 'INVALID_IMAGE_PAYLOAD') return 'invalid image payload';
+  if (error?.code === 'UNSUPPORTED_MIME_TYPE') return 'unsupported mime type';
+  if (error?.code === 'BAD_BASE64') return 'bad base64 conversion';
+  if (error?.code === 'NO_IMAGE_FROM_OPENAI') return 'OpenAI returned no image';
+  if (error?.code === 'MALFORMED_RESPONSE') return 'malformed response';
+  if (error?.code === 'CLOUDINARY_UPLOAD_FAILED') return 'Cloudinary upload failed';
+  if (status === 401 || message.includes('api key') || message.includes('authentication')) return 'OpenAI auth failed';
+  if (status === 429 && (message.includes('quota') || message.includes('billing') || message.includes('rate limit'))) return 'billing limit reached';
+  if (message.includes('timeout') || message.includes('timed out') || error?.code === 'ETIMEDOUT') return 'timeout';
+  if (message.includes('function timed out')) return 'function timed out';
+  return 'AI design generation failed';
 }
 
 async function assertAdminAccess(userEmail) {
@@ -51,7 +95,11 @@ exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
   if (event.httpMethod !== 'POST') return { statusCode: 405, headers, body: JSON.stringify({ error: 'Method not allowed' }) };
 
+  const isProduction = process.env.CONTEXT === 'production' || process.env.NODE_ENV === 'production';
+  const debug = { success: false, stepFailed: null, durationMs: 0, model: 'gpt-image-1', openaiStatus: null, cloudinaryStatus: null, imageDetected: false, error: null };
+
   try {
+    console.log('[AI-Gen] request received', { at: new Date().toISOString() });
     const body = JSON.parse(event.body || '{}');
     const { prompt, size, userEmail, productType, width, height, inspirationImage, brandMatchStrength, styleChips } = body;
 
@@ -60,53 +108,75 @@ exports.handler = async (event) => {
     if (!process.env.OPENAI_API_KEY) return { statusCode: 500, headers, body: JSON.stringify({ error: 'OpenAI API key not configured' }) };
     if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) return { statusCode: 500, headers, body: JSON.stringify({ error: 'Cloudinary not configured' }) };
 
-    const isProduction = process.env.CONTEXT === 'production' || process.env.NODE_ENV === 'production';
     const isAdmin = userEmail ? await assertAdminAccess(userEmail) : false;
     if (isProduction && !isAdmin) return { statusCode: 403, headers, body: JSON.stringify({ error: 'Admin access required in production' }) };
 
-    const promptText = enhancePrompt({ prompt: `${prompt.trim()}\n\nProfessional large-format ${productType || 'banner'} for ${width || size.wIn}x${height || size.hIn}.`, size, inspirationImage, brandMatchStrength, styleChips });
+    const promptText = enhancePrompt({ prompt: `${prompt.trim()}
+
+Professional large-format ${productType || 'banner'} for ${width || size.wIn}x${height || size.hIn}.`, size, inspirationImage, brandMatchStrength, styleChips });
     const aspect = size.wIn / size.hIn;
     const dalleSize = aspect >= 1 ? '1536x1024' : '1024x1536';
+    const parsedImage = parseInspirationImage(inspirationImage);
+    debug.imageDetected = parsedImage.imageDetected;
+
+    console.log('[AI-Gen] prompt', { prompt });
+    console.log('[AI-Gen] enhanced prompt', { promptText });
+    console.log('[AI-Gen] inspiration image', { detected: parsedImage.imageDetected, byteSize: parsedImage.byteSize, mimeType: parsedImage.mimeType, includedInApiRequest: parsedImage.includedInApiRequest });
+    console.log('[AI-Gen] selected model', { model: debug.model, imageSize: dalleSize, mimeType: parsedImage.mimeType });
 
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+    const openaiPayload = { model: debug.model, prompt: promptText, n: 1, size: dalleSize, quality: 'high' };
+    if (parsedImage.includedInApiRequest) {
+      openaiPayload.image = inspirationImage;
+      openaiPayload.input_fidelity = 'high';
+    }
 
-    console.log('[AI-Gen] OpenAI request start', { at: new Date().toISOString(), size: dalleSize });
+    console.log('[AI-Gen] OpenAI request start', { at: new Date().toISOString(), requestHasImage: Boolean(openaiPayload.image) });
     const openaiStart = Date.now();
-    const response = await openai.images.generate({
-      model: 'gpt-image-1',
-      prompt: promptText,
-      n: 1,
-      size: dalleSize,
-      quality: 'high'
-    });
-    console.log('[AI-Gen] OpenAI request end', { ms: Date.now() - openaiStart, at: new Date().toISOString() });
+    const response = await openai.images.generate(openaiPayload);
+    const openaiMs = Date.now() - openaiStart;
+    debug.openaiStatus = 'ok';
+    console.log('[AI-Gen] OpenAI response received', { at: new Date().toISOString(), openaiRequestMs: openaiMs });
 
-    const image = response.data?.[0] || {};
+    const image = response?.data?.[0] || {};
     const imageSource = image.url || (image.b64_json ? `data:image/png;base64,${image.b64_json}` : null);
-    if (!imageSource) throw new Error('OpenAI returned no image payload');
+    if (!response?.data) {
+      const e = new Error('Malformed OpenAI response'); e.code = 'MALFORMED_RESPONSE'; throw e;
+    }
+    if (!imageSource) {
+      const e = new Error('OpenAI returned no image'); e.code = 'NO_IMAGE_FROM_OPENAI'; throw e;
+    }
 
     console.log('[AI-Gen] Cloudinary upload start', { at: new Date().toISOString() });
     const cloudStart = Date.now();
-    const uploaded = await cloudinary.uploader.upload(imageSource, {
-      folder: 'ai-generated-banners',
-      public_id: `banner-${Date.now()}`,
-      resource_type: 'image',
-      timeout: 45000
-    });
-    console.log('[AI-Gen] Cloudinary upload end', { ms: Date.now() - cloudStart, at: new Date().toISOString() });
-    console.log('[AI-Gen] Total function duration', { ms: Date.now() - fnStart });
+    let uploaded;
+    try {
+      uploaded = await cloudinary.uploader.upload(imageSource, { folder: 'ai-generated-banners', public_id: `banner-${Date.now()}`, resource_type: 'image', timeout: 45000 });
+    } catch (uploadErr) {
+      uploadErr.code = 'CLOUDINARY_UPLOAD_FAILED';
+      throw uploadErr;
+    }
+    const cloudinaryMs = Date.now() - cloudStart;
+    debug.cloudinaryStatus = 'ok';
+    console.log('[AI-Gen] Cloudinary upload end', { at: new Date().toISOString(), cloudinaryUploadMs: cloudinaryMs });
+    console.log('[AI-Gen] final image URL', { url: uploaded.secure_url });
 
-    const resultImage = {
-      url: uploaded.secure_url,
-      cloudinary_public_id: uploaded.public_id,
-      width: uploaded.width,
-      height: uploaded.height
-    };
+    const totalMs = Date.now() - fnStart;
+    debug.success = true;
+    debug.durationMs = totalMs;
+    console.log('[AI-Gen] total function ms', { totalFunctionMs: totalMs, openaiRequestMs: openaiMs, cloudinaryUploadMs: cloudinaryMs });
 
-    return { statusCode: 200, headers, body: JSON.stringify({ success: true, image: resultImage, prompt: promptText, metadata: { model: 'gpt-image-1', count: 1, quality: 'high' } }) };
+    return { statusCode: 200, headers, body: JSON.stringify({ success: true, image: { url: uploaded.secure_url, cloudinary_public_id: uploaded.public_id, width: uploaded.width, height: uploaded.height }, prompt: promptText, metadata: { model: debug.model, count: 1, quality: 'high' }, debug: isProduction ? undefined : debug }) };
   } catch (error) {
-    console.error('[AI-Gen] Error', error);
-    console.log('[AI-Gen] Total function duration', { ms: Date.now() - fnStart });
-    return { statusCode: 500, headers, body: JSON.stringify({ error: 'AI design generation is temporarily unavailable. Please try again.' }) };
+    const totalMs = Date.now() - fnStart;
+    debug.durationMs = totalMs;
+    debug.stepFailed = debug.cloudinaryStatus ? 'cloudinary' : (debug.openaiStatus ? 'response_handling' : 'openai');
+    debug.error = toAdminSafeError(error);
+    console.error('[AI-Gen] Full failure object', error);
+    console.error('[AI-Gen] Full stack trace', error?.stack || 'No stack');
+    console.log('[AI-Gen] total function ms', { totalFunctionMs: totalMs });
+
+    const safeError = isProduction ? 'AI design generation is temporarily unavailable. Please try again.' : debug.error;
+    return { statusCode: 500, headers, body: JSON.stringify({ error: safeError, debug: isProduction ? undefined : debug }) };
   }
 };
