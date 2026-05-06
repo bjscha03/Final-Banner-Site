@@ -347,6 +347,14 @@ exports.handler = async (event, context) => {
       // Keep canonical server-stored totals (already include same-day/saturday fees).
       // Only sanitize item array from LEFT JOIN null row artifacts.
       const _items = (order.items || []).filter(item => item && item.id !== null);
+      const subtotal = Number(order.subtotal_cents) || 0;
+      const tax = Number(order.tax_cents) || 0;
+      const total = Number(order.total_cents) || 0;
+      const saturdayFee = Number(order.saturday_fee_cents) || 0;
+      const storedSameDayFee = Number(order.same_day_fee_cents) || 0;
+      const residual = total - subtotal - tax - saturdayFee;
+      const inferredSameDayFee = storedSameDayFee > 0 ? storedSameDayFee : (residual > 0 && String(order.status || '').toLowerCase() === 'paid' ? residual : 0);
+      const inferredSameDaySelected = !!order.same_day_hit_service || inferredSameDayFee > 0;
       return {
       id: order.id,
       user_id: order.user_id,
@@ -379,9 +387,9 @@ exports.handler = async (event, context) => {
       shipping_notification_status: order.shipping_notification_status || 'pending',
       confirmation_email_status: order.confirmation_email_status || 'pending',
       confirmation_emailed_at: order.confirmation_emailed_at || null,
-      same_day_hit_service: !!order.same_day_hit_service,
+      same_day_hit_service: inferredSameDaySelected,
       saturday_delivery: !!order.saturday_delivery,
-      same_day_fee_cents: Number(order.same_day_fee_cents) || 0,
+      same_day_fee_cents: inferredSameDayFee,
       saturday_fee_cents: Number(order.saturday_fee_cents) || 0,
       created_at: order.created_at,
       items: _items
