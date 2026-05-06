@@ -97,6 +97,7 @@ function enhancePrompt(prompt, styles = [], colors = [], size) {
     `- Fill the ENTIRE canvas edge-to-edge with the printed design — no margins, no padding, no outer background, no mockup framing.\n` +
     `- Extremely bold, simple layout with high contrast colors readable from a distance.\n` +
     `- One main headline rendered very large; optional short subheadline.\n` +
+    `- Generate ONLY one cohesive composition per image.\n` +
     `- Solid colored or fully designed background that fills 100% of the canvas.\n` +
     `\n` +
     `Do NOT show (hard fail):\n` +
@@ -109,6 +110,7 @@ function enhancePrompt(prompt, styles = [], colors = [], size) {
     `- NO lighting environment, studio lighting, ambient gradients, or vignette.\n` +
     `- NO gray or neutral studio background, NO empty padding around the design.\n` +
     `- NO frame around the artwork, NO product photo, NO design-inside-a-design.\n` +
+    `- NO presentation sheets, NO concept boards, NO side-by-side variants, NO multiple compositions in one image.\n` +
     `- NO tiny text, NO lorem ipsum, NO unreadable micro-text, NO decorative clutter.\n`;
 
   let userBlock = `\nUser request (the actual artwork to design):\n${prompt}\n`;
