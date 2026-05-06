@@ -74,6 +74,8 @@ interface Order {
   applied_discount_cents?: number;
   applied_discount_label?: string;
   applied_discount_type?: string;
+  same_day_fee_cents?: number;
+  saturday_fee_cents?: number;
   shipping_name?: string | null;
   shipping_street?: string | null;
   shipping_street2?: string | null;
@@ -444,40 +446,38 @@ const OrderDetail: React.FC = () => {
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">Order Summary</h2>
             <div className="space-y-2">
-              {(() => {
-                // Recalculate tax/total from line items minus discount
-                // Same approach as notify-order.cjs
-                const rawSubtotal = order.items.reduce((sum, item) => sum + item.line_total_cents, 0);
-                const discountCents = order.applied_discount_cents || 0;
-                const afterDiscount = rawSubtotal - discountCents;
-                const calculatedTax = Math.round(afterDiscount * 0.06);
-                const calculatedTotal = afterDiscount + calculatedTax;
-                
-                return (
-                    <>
-                    <div className="flex justify-between text-gray-600">
-                      <span>Subtotal</span>
-                      <span>{formatCurrency(rawSubtotal)}</span>
-                    </div>
-                    {discountCents > 0 && (
-                      <div className="flex justify-between text-green-600 font-medium">
-                        <span>{order.applied_discount_label || "Discount"}</span>
-                        <span>-{formatCurrency(discountCents)}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between text-gray-600">
-                      <span>Tax</span>
-                      <span>{formatCurrency(calculatedTax)}</span>
-                    </div>
-                    <div className="border-t border-gray-200 pt-2 mt-2">
-                      <div className="flex justify-between text-lg font-semibold text-gray-900">
-                        <span>Total</span>
-                        <span>{formatCurrency(calculatedTotal)}</span>
-                      </div>
-                    </div>
-                    </>
-                );
-              })()}
+              <div className="flex justify-between text-gray-600">
+                <span>Subtotal</span>
+                <span>{formatCurrency(order.subtotal_cents || 0)}</span>
+              </div>
+              {(order.applied_discount_cents || 0) > 0 && (
+                <div className="flex justify-between text-green-600 font-medium">
+                  <span>{order.applied_discount_label || "Discount"}</span>
+                  <span>-{formatCurrency(order.applied_discount_cents || 0)}</span>
+                </div>
+              )}
+              {(order.same_day_fee_cents || 0) > 0 && (
+                <div className="flex justify-between text-gray-600">
+                  <span>Same-Day Hit Service</span>
+                  <span>{formatCurrency(order.same_day_fee_cents || 0)}</span>
+                </div>
+              )}
+              {(order.saturday_fee_cents || 0) > 0 && (
+                <div className="flex justify-between text-gray-600">
+                  <span>Saturday Delivery</span>
+                  <span>{formatCurrency(order.saturday_fee_cents || 0)}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-gray-600">
+                <span>Tax</span>
+                <span>{formatCurrency(order.tax_cents || 0)}</span>
+              </div>
+              <div className="border-t border-gray-200 pt-2 mt-2">
+                <div className="flex justify-between text-lg font-semibold text-gray-900">
+                  <span>Total</span>
+                  <span>{formatCurrency(getDisplayOrderTotalCents(order as any))}</span>
+                </div>
+              </div>
             </div>
           </div>
 
