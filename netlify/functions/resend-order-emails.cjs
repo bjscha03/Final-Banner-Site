@@ -62,6 +62,7 @@ exports.handler = async (event) => {
     });
 
     const parsed = JSON.parse(notifyResponse.body || '{}');
+    const resolvedOrderId = parsed.resolvedOrderId || parsed.orderId || orderId;
 
     return {
       statusCode: notifyResponse.statusCode || 200,
@@ -69,10 +70,12 @@ exports.handler = async (event) => {
       body: JSON.stringify({
         ok: !!parsed.ok,
         orderId,
+        resolvedOrderId,
         customerEmailSent: !!parsed.customerEmailSent,
         adminEmailSent: !!parsed.adminEmailSent,
         resendMessageIds: parsed.resendMessageIds || { customer: null, admin: null },
         errors: parsed.errors || (parsed.error ? [parsed.error] : []),
+        details: parsed.details || null,
       }),
     };
   } catch (error) {

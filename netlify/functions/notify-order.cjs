@@ -436,6 +436,17 @@ const headers = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS'
 };
 
+
+function isSecretAuthorized(event) {
+  const secret = process.env.RESEND_ORDER_EMAIL_SECRET;
+  if (!secret) return false;
+
+  const authHeader = event.headers?.authorization || event.headers?.Authorization || '';
+  const bearer = authHeader.startsWith('Bearer ') ? authHeader.slice(7).trim() : '';
+  const headerSecret = event.headers?.['x-admin-secret'] || event.headers?.['X-Admin-Secret'] || '';
+  return bearer === secret || headerSecret === secret;
+}
+
 // Send email with retry logic for rate limiting
 async function sendEmailWithRetry(resendClient, emailData, maxAttempts = 3) {
   let lastError;
@@ -695,9 +706,17 @@ exports.handler = async (event) => {
 
     const db = neon(dbUrl);
     
-    // Load order by ID
+    // Load order by DB UUID or public order number
+    const normalizedOrderId = String(orderId).trim();
+    const upperOrderId = normalizedOrderId.toUpperCase();
     const orderRows = await db`
-      SELECT * FROM orders WHERE id = ${orderId}
+      SELECT *
+      FROM orders
+      WHERE id::text = ${normalizedOrderId}
+         OR UPPER(RIGHT(id::text, 8)) = ${upperOrderId}
+         OR UPPER(number::text) = ${upperOrderId}
+      ORDER BY created_at DESC
+      LIMIT 1
     `;
     
     if (orderRows.length === 0) {
@@ -709,8 +728,9 @@ exports.handler = async (event) => {
     }
 
     const order = orderRows[0];
+    const resolvedOrderId = order.id;
     console.log('[notify-order] order loaded', {
-      orderId,
+      orderId: normalizedOrderId,
       email: order.email,
       confirmation_email_status: order.confirmation_email_status,
       admin_notification_status: order.admin_notification_status
@@ -728,7 +748,7 @@ exports.handler = async (event) => {
     
     // Load order items
     const itemRows = await db`
-      SELECT * FROM order_items WHERE order_id = ${orderId}
+      SELECT * FROM order_items WHERE order_id = ${resolvedOrderId}
     `;
 
     // Build origin URL for order details link
@@ -736,7 +756,7 @@ exports.handler = async (event) => {
       ? `https://${event.headers['x-forwarded-host']}`
       : process.env.PUBLIC_SITE_URL || 'https://www.bannersonthefly.com';
 
-    const invoiceUrl = `${origin}/orders/${orderId}`;
+    const invoiceUrl = `${origin}/orders/${resolvedOrderId}`;
 
     // Convert database order to email format
     // Use customer_name first, then shipping_name as fallback (shipping_name often has the actual name)
@@ -899,7 +919,7 @@ exports.handler = async (event) => {
         UPDATE orders
         SET confirmation_email_status = 'sent',
             confirmation_emailed_at = NOW()
-        WHERE id = ${orderId}
+        WHERE id = ${resolvedOrderId}
       `;
 
       console.log(`Order confirmation email sent successfully for order ${orderId}, email ID: ${emailResult.id}`);
@@ -921,7 +941,7 @@ exports.handler = async (event) => {
 
         adminEmailResult = await sendEmail('order.admin_notification', adminEmailPayload);
         console.log('[notify-order] admin send result', {
-          orderId,
+          orderId: normalizedOrderId,
           adminEmail,
           ok: adminEmailResult.ok,
           error: adminEmailResult.error
@@ -943,7 +963,7 @@ exports.handler = async (event) => {
             UPDATE orders
             SET admin_notification_status = 'sent',
                 admin_notification_sent_at = NOW()
-            WHERE id = ${orderId}
+            WHERE id = ${resolvedOrderId}
           `;
           console.log(`Admin notification email sent successfully for order ${orderId}, email ID: ${adminEmailResult.id}`);
         } else {
@@ -968,7 +988,7 @@ exports.handler = async (event) => {
         headers,
         body: JSON.stringify({
           ok: true,
-          orderId,
+          orderId: normalizedOrderId,
           customerEmailSent: !!emailResult.ok,
           adminEmailSent: !!adminEmailResult?.ok,
           resendMessageIds: {
@@ -992,7 +1012,7 @@ exports.handler = async (event) => {
         await db`
           UPDATE orders
           SET confirmation_email_status = 'error'
-          WHERE id = ${orderId}
+          WHERE id = ${resolvedOrderId}
         `;
       } catch (statusErr) {
         console.error(`Failed to mark confirmation_email_status='error' for order ${orderId}:`, statusErr);
@@ -1004,6 +1024,8 @@ exports.handler = async (event) => {
         headers,
         body: JSON.stringify({ 
           ok: false, 
+          orderId: normalizedOrderId,
+          resolvedOrderId,
           error: emailResult.error || 'Failed to send email',
           details: emailResult.details
         })
@@ -1012,14 +1034,15 @@ exports.handler = async (event) => {
 
   } catch (error) {
     console.error('Order notification failed:', error);
-    
+    const authorized = isSecretAuthorized(event);
+
     return {
       statusCode: 500,
       headers,
       body: JSON.stringify({ 
-        ok: false, 
-        error: 'Internal server error',
-        details: error.message
+        ok: false,
+        error: authorized ? (error.message || 'Unknown error') : 'Internal server error',
+        details: authorized ? (error.stack || error.message) : error.message
       })
     };
   }
