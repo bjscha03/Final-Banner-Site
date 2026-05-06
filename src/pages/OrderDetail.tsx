@@ -5,6 +5,7 @@ import Layout from '@/components/Layout';
 import { useScrollToTop } from '@/components/ScrollToTop';
 import { getItemDisplayName, isYardSignItem, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
 import { formatShippingAddress, hasShippingAddress, normalizeShippingAddress } from '@/lib/shipping-address';
+import { getDisplayOrderTotalCents } from '@/lib/order-totals';
 
 const isCloudinaryUploadUrl = (url: string) => {
   try {
@@ -266,7 +267,7 @@ const OrderDetail: React.FC = () => {
               <div className="min-w-0 rounded-md border border-gray-200 bg-gray-50 p-3 flex items-center space-x-2">
                 <CreditCard className="h-4 w-4 text-gray-400" />
                 <span className="text-gray-600">Total:</span>
-                <span className="font-medium">{formatCurrency(order.total_cents)}</span>
+                <span className="font-medium">{formatCurrency(getDisplayOrderTotalCents(order as any))}</span>
               </div>
               {order.tracking_number && (
                 <div className="min-w-0 rounded-md border border-gray-200 bg-gray-50 p-3 flex items-center space-x-2">

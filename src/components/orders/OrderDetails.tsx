@@ -10,6 +10,7 @@ import TrackingBadge from './TrackingBadge';
 import EmailDeliveryStatus from './EmailDeliveryStatus';
 import { getItemDisplayName, getProductLabel, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
 import { formatShippingAddress, hasShippingAddress, normalizeShippingAddress } from '@/lib/shipping-address';
+import { getDisplayOrderTotalCents } from '@/lib/order-totals';
 import {
   Dialog,
   DialogContent,
@@ -1042,11 +1043,11 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
             </h3>
             
             <div className="space-y-3">
-              {/* Subtotal - Calculated from line items */}
+              {/* Subtotal - canonical server-computed value */}
               <div className="flex justify-between items-center py-2">
                 <span className="text-base font-medium text-slate-700">Subtotal</span>
                 <span className="text-lg font-semibold text-slate-900">
-                  {usd(order.items.reduce((sum, item) => sum + (item.line_total_cents || 0), 0) / 100)}
+                  {usd((order.subtotal_cents || 0) / 100)}
                 </span>
               </div>
               
@@ -1062,19 +1063,37 @@ const OrderDetails: React.FC<OrderDetailsProps> = ({ order, trigger, onUploadFin
                 </div>
               )}
               
+              {(order.same_day_fee_cents || 0) > 0 && (
+                <div className="flex justify-between items-center py-2">
+                  <span className="text-base font-medium text-slate-700">Same-Day Hit Service</span>
+                  <span className="text-lg font-semibold text-slate-900">
+                    {usd((order.same_day_fee_cents || 0) / 100)}
+                  </span>
+                </div>
+              )}
+
+              {(order.saturday_fee_cents || 0) > 0 && (
+                <div className="flex justify-between items-center py-2">
+                  <span className="text-base font-medium text-slate-700">Saturday Delivery</span>
+                  <span className="text-lg font-semibold text-slate-900">
+                    {usd((order.saturday_fee_cents || 0) / 100)}
+                  </span>
+                </div>
+              )}
+
               {/* Tax */}
               <div className="flex justify-between items-center py-2 border-b border-slate-300">
                 <span className="text-base font-medium text-slate-700">Tax (6%)</span>
                 <span className="text-lg font-semibold text-slate-900">
-                  {usd(Math.round((order.items.reduce((sum, item) => sum + (item.line_total_cents || 0), 0) - (order.applied_discount_cents || 0)) * 0.06) / 100)}
+                  {usd((order.tax_cents || 0) / 100)}
                 </span>
               </div>
               
-              {/* Total - Uses server-computed total (includes discount) */}
+              {/* Total - canonical server-computed total */}
               <div className="flex justify-between items-center pt-3 pb-1">
                 <span className="text-xl font-bold text-[#18448D]">Total</span>
                 <span className="text-2xl font-bold text-[#ff6b35]">
-                  {(() => { const sub = order.items.reduce((s, i) => s + (i.line_total_cents || 0), 0); const disc = order.applied_discount_cents || 0; const after = sub - disc; const tax = Math.round(after * 0.06); return usd((after + tax) / 100); })()}
+                  {usd(getDisplayOrderTotalCents(order as any) / 100)}
                 </span>
               </div>
             </div>

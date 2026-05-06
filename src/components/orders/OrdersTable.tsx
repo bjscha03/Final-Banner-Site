@@ -8,6 +8,7 @@ import { useCartStore } from '@/store/cart';
 import { useToast } from '@/components/ui/use-toast';
 import TrackingBadge from './TrackingBadge';
 import OrderDetails from './OrderDetails';
+import { getDisplayOrderTotalCents } from '@/lib/order-totals';
 
 interface OrdersTableProps {
   orders: Order[];
@@ -67,12 +68,8 @@ const OrdersTable: React.FC<OrdersTableProps> = ({ orders, loading = false }) =>
     return `${itemCount} banners (${uniqueItems} designs)`;
   };
 
-  // Calculate correct total from line items (DB total_cents can be stale/incorrect)
-  const getOrderTotal = (order: Order): number => {
-    const subtotal = order.items.reduce((sum, item) => sum + item.line_total_cents, 0);
-    const tax = Math.round(subtotal * 0.06);
-    return subtotal + tax;
-  };
+  // Use canonical server total (includes discount + same-day/saturday fees when present).
+  const getOrderTotal = (order: Order): number => getDisplayOrderTotalCents(order as any);
 
   const handleReorderAll = (order: Order) => {
     let totalItems = 0;

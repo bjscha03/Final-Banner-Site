@@ -195,6 +195,12 @@ exports.handler = async (event, context) => {
       'applied_discount_cents',
       'applied_discount_label',
       'applied_discount_type',
+      'same_day_hit_service',
+      'saturday_delivery',
+      'same_day_fee_cents',
+      'saturday_fee_cents',
+      'payment_method',
+      'paypal_order_id',
       'created_at',
       'updated_at',
     ].map(safeOrderCol).join(', ');
@@ -283,10 +289,27 @@ exports.handler = async (event, context) => {
       [orderId]
     );
 
+
+    // Legacy repair: infer missing Same-Day fee for historical paid PayPal orders
+    // when order-level fee columns were not persisted/populated.
+    const subtotal = Number(order.subtotal_cents) || 0;
+    const tax = Number(order.tax_cents) || 0;
+    const total = Number(order.total_cents) || 0;
+    const saturdayFee = Number(order.saturday_fee_cents) || 0;
+    const storedSameDayFee = Number(order.same_day_fee_cents) || 0;
+    const residual = total - subtotal - tax - saturdayFee;
+    const canInferSameDay = storedSameDayFee <= 0
+      && residual > 0
+      && String(order.status || '').toLowerCase() === 'paid';
+    const inferredSameDayFee = canInferSameDay ? residual : storedSameDayFee;
+    const inferredSameDaySelected = Boolean(order.same_day_hit_service) || inferredSameDayFee > 0;
+
     // Combine order with items
     const shippingAddress = normalizeShippingAddress(order);
     const orderWithItems = {
       ...order,
+      same_day_hit_service: inferredSameDaySelected,
+      same_day_fee_cents: inferredSameDayFee,
       shippingAddress,
       items: itemsResult
     };

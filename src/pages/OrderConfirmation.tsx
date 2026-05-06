@@ -10,6 +10,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useScrollToTop } from '@/components/ScrollToTop';
 import { getItemDisplayName, getInvoiceSubtitle, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
 import { formatShippingAddress, hasShippingAddress, normalizeShippingAddress } from '@/lib/shipping-address';
+import { getDisplayOrderTotalCents } from '@/lib/order-totals';
 const OrderConfirmation: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -246,10 +247,26 @@ const OrderConfirmation: React.FC = () => {
                   {usd((order.tax_cents || 0) / 100)}
                 </span>
               </div>
+              {(order.same_day_fee_cents || 0) > 0 && (
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-700">Same-Day Hit Service</span>
+                  <span className="text-gray-900">
+                    {usd((order.same_day_fee_cents || 0) / 100)}
+                  </span>
+                </div>
+              )}
+              {(order.saturday_fee_cents || 0) > 0 && (
+                <div className="flex justify-between items-center">
+                  <span className="text-gray-700">Saturday Delivery</span>
+                  <span className="text-gray-900">
+                    {usd((order.saturday_fee_cents || 0) / 100)}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between items-center border-t border-gray-200 pt-3">
                 <span className="text-xl font-semibold text-gray-900">Total Paid</span>
                 <span className="text-2xl font-bold text-gray-900">
-                  {usd(order.total_cents / 100)}
+                  {usd(getDisplayOrderTotalCents(order as any) / 100)}
                 </span>
               </div>
               <p className="text-sm text-gray-600 mt-2">

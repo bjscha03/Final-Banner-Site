@@ -7,6 +7,7 @@ import { usd } from '@/lib/pricing';
 import { trackPurchase, trackFBPurchase, trackGoogleAdsPurchaseConversion } from '@/lib/analytics';
 import { getItemDisplayName, normalizeOrderItemDisplay, type NormalizableOrderItem } from '@/lib/product-display';
 import { formatShippingAddress, hasShippingAddress, normalizeShippingAddress } from '@/lib/shipping-address';
+import { getDisplayOrderTotalCents } from '@/lib/order-totals';
 
 const PaymentSuccess: React.FC = () => {
   const navigate = useNavigate();
@@ -34,6 +35,8 @@ const PaymentSuccess: React.FC = () => {
       tax_cents?: number;
       total_cents?: number;
       applied_discount_cents?: number;
+      same_day_fee_cents?: number;
+      saturday_fee_cents?: number;
     } | null;
   } | null;
   const [loadedOrder, setLoadedOrder] = useState<{
@@ -69,6 +72,8 @@ const PaymentSuccess: React.FC = () => {
         tax_cents: loadedOrder.tax_cents,
         total_cents: loadedOrder.total_cents,
         applied_discount_cents: loadedOrder.applied_discount_cents,
+        same_day_fee_cents: loadedOrder.same_day_fee_cents,
+        saturday_fee_cents: loadedOrder.saturday_fee_cents,
       }
     : (state?.serverPricing || null); // Prefer canonical DB pricing
   const stateShippingAddress = normalizeShippingAddress(state?.shippingAddress || {});
@@ -154,7 +159,7 @@ const PaymentSuccess: React.FC = () => {
   }, [orderId]); // Track once when orderId is available
   const calculatePricingBreakdown = () => {
     if (items.length === 0) {
-      return { subtotal: 0, tax: 0, total: 0, discountCents: 0, discountLabel: "", shippingCents: 0 };
+      return { subtotal: 0, tax: 0, total: 0, discountCents: 0, discountLabel: "", shippingCents: 0, sameDayFeeCents: 0, saturdayFeeCents: 0 };
     }
 
     // FIXED: Use server-computed pricing when available (includes discount calculations)
@@ -169,10 +174,12 @@ const PaymentSuccess: React.FC = () => {
       return {
         subtotal: serverPricing.subtotal_cents || 0,
         tax: serverPricing.tax_cents || 0,
-        total: serverPricing.total_cents || 0,
+        total: getDisplayOrderTotalCents(serverPricing as any),
         discountCents: serverPricing.applied_discount_cents || 0,
         discountLabel,
         shippingCents: 0,
+        sameDayFeeCents: (serverPricing as any).same_day_fee_cents || 0,
+        saturdayFeeCents: (serverPricing as any).saturday_fee_cents || 0,
       };
     }
 
@@ -188,6 +195,8 @@ const PaymentSuccess: React.FC = () => {
       discountCents: 0,
       discountLabel: "",
       shippingCents: 0,
+      sameDayFeeCents: 0,
+      saturdayFeeCents: 0,
     };
   };
 
@@ -320,6 +329,22 @@ const PaymentSuccess: React.FC = () => {
                     {usd(pricing.tax / 100)}
                   </span>
                 </div>
+                {pricing.sameDayFeeCents > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-700">Same-Day Hit Service</span>
+                    <span className="text-gray-900">
+                      {usd(pricing.sameDayFeeCents / 100)}
+                    </span>
+                  </div>
+                )}
+                {pricing.saturdayFeeCents > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-gray-700">Saturday Delivery</span>
+                    <span className="text-gray-900">
+                      {usd(pricing.saturdayFeeCents / 100)}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between items-center border-t border-gray-200 pt-3">
                   <span className="text-xl font-semibold text-gray-900">Total Paid</span>
                   <span className="text-2xl font-bold text-gray-900">

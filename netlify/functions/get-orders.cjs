@@ -344,24 +344,26 @@ exports.handler = async (event, context) => {
 
     // Format the response
     const formattedOrders = orders.map(order => {
-      // Recalculate totals from line items (DB values may be incorrect)
-      // Filter out phantom null items from LEFT JOIN when order has no items
+      // Keep canonical server-stored totals (already include same-day/saturday fees).
+      // Only sanitize item array from LEFT JOIN null row artifacts.
       const _items = (order.items || []).filter(item => item && item.id !== null);
-      const _recalcSubtotal = _items.reduce((sum, item) => sum + (Number(item.line_total_cents) || 0), 0);
-      // Subtract discount before computing tax/total (same pattern as notify-order.cjs)
-      const _discountCents = Number(order.applied_discount_cents) || 0;
-      const _afterDiscount = _recalcSubtotal - _discountCents;
-      const _recalcTax = Math.round(_afterDiscount * 0.06);
-      const _recalcTotal = _afterDiscount + _recalcTax;
+      const subtotal = Number(order.subtotal_cents) || 0;
+      const tax = Number(order.tax_cents) || 0;
+      const total = Number(order.total_cents) || 0;
+      const saturdayFee = Number(order.saturday_fee_cents) || 0;
+      const storedSameDayFee = Number(order.same_day_fee_cents) || 0;
+      const residual = total - subtotal - tax - saturdayFee;
+      const inferredSameDayFee = storedSameDayFee > 0 ? storedSameDayFee : (residual > 0 && String(order.status || '').toLowerCase() === 'paid' ? residual : 0);
+      const inferredSameDaySelected = !!order.same_day_hit_service || inferredSameDayFee > 0;
       return {
       id: order.id,
       user_id: order.user_id,
       email: order.email,
       customer_name: order.customer_name,
       customer_first_name: order.customer_first_name,
-      subtotal_cents: _recalcSubtotal,
-      tax_cents: _recalcTax,
-      total_cents: _recalcTotal,
+      subtotal_cents: Number(order.subtotal_cents) || 0,
+      tax_cents: Number(order.tax_cents) || 0,
+      total_cents: Number(order.total_cents) || 0,
       status: order.status,
       currency: 'USD',
       tracking_number: order.tracking_number,
@@ -385,6 +387,10 @@ exports.handler = async (event, context) => {
       shipping_notification_status: order.shipping_notification_status || 'pending',
       confirmation_email_status: order.confirmation_email_status || 'pending',
       confirmation_emailed_at: order.confirmation_emailed_at || null,
+      same_day_hit_service: inferredSameDaySelected,
+      saturday_delivery: !!order.saturday_delivery,
+      same_day_fee_cents: inferredSameDayFee,
+      saturday_fee_cents: Number(order.saturday_fee_cents) || 0,
       created_at: order.created_at,
       items: _items
     };
