@@ -213,31 +213,63 @@ const computeTotals = (items, taxRate, opts, promoDiscount = null) => {
 
 // Send order confirmation email by calling notify-order function
 async function sendOrderConfirmationEmail(orderId) {
-  try {
-    console.log('Sending order confirmation email for order:', orderId);
+  const payload = JSON.stringify({ orderId });
+  const originCandidates = [
+    process.env.URL,
+    process.env.DEPLOY_PRIME_URL,
+    process.env.SITE_URL,
+    process.env.PUBLIC_SITE_URL,
+    'https://bannersonthefly.com',
+    'https://www.bannersonthefly.com',
+  ].filter(Boolean);
 
-    // CRITICAL: Use non-www URL to avoid redirect issues with POST requests
-    // Netlify redirects www to non-www, and POST requests don't follow redirects
-    const response = await fetch('https://bannersonthefly.com/.netlify/functions/notify-order', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ orderId }),
-    });
+  let lastError = null;
 
-    const result = await response.json();
+  for (const origin of originCandidates) {
+    const notifyUrl = `${String(origin).replace(/\/$/, '')}/.netlify/functions/notify-order`;
+    try {
+      console.log('[create-order] notify-order start', { orderId, notifyUrl });
+      const response = await fetch(notifyUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: payload,
+      });
 
-    if (response.ok && result.ok) {
-      return { ok: true, id: result.id };
-    } else {
-      console.error('Email notification failed:', result);
-      return { ok: false, error: result.error || 'Email send failed' };
+      const rawBody = await response.text();
+      let result = {};
+      try {
+        result = rawBody ? JSON.parse(rawBody) : {};
+      } catch {
+        result = { rawBody };
+      }
+
+      console.log('[create-order] notify-order response', {
+        orderId,
+        notifyUrl,
+        status: response.status,
+        ok: response.ok,
+        result,
+      });
+
+      if (response.ok && result.ok) {
+        return { ok: true, id: result.id, notifyUrl };
+      }
+
+      lastError = new Error(result.error || `notify-order failed with status ${response.status}`);
+    } catch (error) {
+      lastError = error;
+      console.error('[create-order] notify-order request failed', {
+        orderId,
+        notifyUrl,
+        error: error?.message || String(error),
+      });
     }
-  } catch (error) {
-    console.error('Error calling notify-order function:', error);
-    return { ok: false, error: error.message || 'Email send failed' };
   }
+
+  return {
+    ok: false,
+    error: lastError?.message || 'Email send failed',
+  };
 }
 
 // Neon database connection

@@ -475,14 +475,22 @@ async function sendEmail(type, payload) {
     const { Resend } = require('resend');
 
     if (!process.env.RESEND_API_KEY) {
+      console.error('[notify-order] RESEND_API_KEY missing');
       return { ok: false, error: 'RESEND_API_KEY not configured' };
     }
 
     const resend = new Resend(process.env.RESEND_API_KEY);
     
-    const emailFromRaw = process.env.EMAIL_FROM || 'orders@bannersonthefly.com';
+    const emailFromRaw = process.env.EMAIL_FROM || process.env.FROM_EMAIL || 'orders@bannersonthefly.com';
     const emailFrom = emailFromRaw.includes('<') ? emailFromRaw : `Banners on the Fly <${emailFromRaw}>`;
     const emailReplyTo = process.env.EMAIL_REPLY_TO || 'support@bannersonthefly.com';
+    console.log('[notify-order] sendEmail start', {
+      type,
+      to: payload?.to,
+      hasOrder: !!payload?.order,
+      emailFrom,
+      emailReplyTo
+    });
 
     let subject, html;
     
@@ -601,7 +609,18 @@ async function sendEmail(type, payload) {
       tags,
     };
 
+    console.log('[notify-order] template generated', {
+      type,
+      to: payload?.to,
+      subject,
+      tags
+    });
     const result = await sendEmailWithRetry(resend, emailData);
+    console.log('[notify-order] resend send success', {
+      type,
+      to: payload?.to,
+      providerId: result?.data?.id || null
+    });
 
     return { ok: true, id: result.data?.id };
   } catch (error) {
@@ -654,6 +673,7 @@ exports.handler = async (event) => {
 
   try {
     const { orderId } = JSON.parse(event.body || '{}');
+    console.log('[notify-order] handler start', { orderId });
     
     if (!orderId || typeof orderId !== 'string') {
       return {
@@ -689,6 +709,12 @@ exports.handler = async (event) => {
     }
 
     const order = orderRows[0];
+    console.log('[notify-order] order loaded', {
+      orderId,
+      email: order.email,
+      confirmation_email_status: order.confirmation_email_status,
+      admin_notification_status: order.admin_notification_status
+    });
 
     // Idempotency Check: If already sent, return success without sending
     if (order.confirmation_email_status === 'sent' || order.confirmation_emailed_at) {
@@ -853,6 +879,7 @@ exports.handler = async (event) => {
 
     // Send confirmation email
     const emailResult = await sendEmail('order.confirmation', emailPayload);
+    console.log('[notify-order] confirmation send result', { orderId, ok: emailResult.ok, error: emailResult.error });
     
     // Log email attempt
     await logEmailAttempt({
@@ -893,6 +920,12 @@ exports.handler = async (event) => {
         };
 
         const adminEmailResult = await sendEmail('order.admin_notification', adminEmailPayload);
+        console.log('[notify-order] admin send result', {
+          orderId,
+          adminEmail,
+          ok: adminEmailResult.ok,
+          error: adminEmailResult.error
+        });
 
         // Log admin email attempt
         await logEmailAttempt({
