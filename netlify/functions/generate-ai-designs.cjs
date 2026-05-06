@@ -8,9 +8,22 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET
 });
 
-function enhancePrompt(prompt, size) {
+function enhancePrompt({ prompt, size, inspirationImage, brandMatchStrength = 'strong', styleChips = [] }) {
   const aspect = size?.wIn && size?.hIn ? `${size.wIn}:${size.hIn}` : '';
-  return `Create a flat 2D print-ready vinyl banner design. No mockups, no environments, no 3D perspective, no frames, no side-by-side variants. Fill entire canvas edge-to-edge. Bold readable hierarchy for large-format print. ${aspect ? `Use exact aspect ratio ${aspect}.` : ''}\n\nUser request:\n${prompt}`;
+  const strengthLine = brandMatchStrength === 'light' ? 'Lightly reference uploaded branding.' : brandMatchStrength === 'medium' ? 'Follow uploaded branding with moderate strength.' : 'Closely follow the uploaded branding reference.';
+  const styles = Array.isArray(styleChips) && styleChips.length ? `Style direction: ${styleChips.join(', ')}.` : '';
+  return `You are a premium AI creative director producing ONE custom final banner artwork.
+Generate ONLY one flat print-ready composition.
+NEVER generate mockups, grommets, hems, folds, wall scenes, perspective views, presentation boards, multiple concepts, clipart, seasonal filler templates, or generic Canva-style layouts.
+Use bold readable typography, premium hierarchy, high contrast, safe margins, edge-to-edge composition, and exact selected aspect ratio for large-format print readability.
+${strengthLine}
+Use uploaded brand colors, tone, iconography, visual energy, and typography cues as primary influence.
+${styles}
+${inspirationImage ? 'An inspiration image is attached; treat it as the main visual reference for brand matching.' : ''}
+${aspect ? `Use exact aspect ratio ${aspect}.` : ''}
+
+User request:
+${prompt}`;
 }
 
 async function assertAdminAccess(userEmail) {
@@ -40,7 +53,7 @@ exports.handler = async (event) => {
 
   try {
     const body = JSON.parse(event.body || '{}');
-    const { prompt, size, userEmail, productType, width, height } = body;
+    const { prompt, size, userEmail, productType, width, height, inspirationImage, brandMatchStrength, styleChips } = body;
 
     if (!prompt || !prompt.trim()) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Prompt is required' }) };
     if (!size?.wIn || !size?.hIn) return { statusCode: 400, headers, body: JSON.stringify({ error: 'Size with wIn and hIn is required' }) };
@@ -51,7 +64,7 @@ exports.handler = async (event) => {
     const isAdmin = userEmail ? await assertAdminAccess(userEmail) : false;
     if (isProduction && !isAdmin) return { statusCode: 403, headers, body: JSON.stringify({ error: 'Admin access required in production' }) };
 
-    const promptText = enhancePrompt(`${prompt.trim()}\n\nProfessional large-format ${productType || 'banner'} for ${width || size.wIn}x${height || size.hIn}.`, size);
+    const promptText = enhancePrompt({ prompt: `${prompt.trim()}\n\nProfessional large-format ${productType || 'banner'} for ${width || size.wIn}x${height || size.hIn}.`, size, inspirationImage, brandMatchStrength, styleChips });
     const aspect = size.wIn / size.hIn;
     const dalleSize = aspect >= 1 ? '1536x1024' : '1024x1536';
 
@@ -64,7 +77,7 @@ exports.handler = async (event) => {
       prompt: promptText,
       n: 1,
       size: dalleSize,
-      quality: 'medium'
+      quality: 'high'
     });
     console.log('[AI-Gen] OpenAI request end', { ms: Date.now() - openaiStart, at: new Date().toISOString() });
 
@@ -90,10 +103,10 @@ exports.handler = async (event) => {
       height: uploaded.height
     };
 
-    return { statusCode: 200, headers, body: JSON.stringify({ success: true, image: resultImage, prompt: promptText, metadata: { model: 'gpt-image-1', count: 1, quality: 'medium' } }) };
+    return { statusCode: 200, headers, body: JSON.stringify({ success: true, image: resultImage, prompt: promptText, metadata: { model: 'gpt-image-1', count: 1, quality: 'high' } }) };
   } catch (error) {
     console.error('[AI-Gen] Error', error);
     console.log('[AI-Gen] Total function duration', { ms: Date.now() - fnStart });
-    return { statusCode: 500, headers, body: JSON.stringify({ error: 'Failed to generate image', details: error.message, type: error.name }) };
+    return { statusCode: 500, headers, body: JSON.stringify({ error: 'AI design generation is temporarily unavailable. Please try again.' }) };
   }
 };
