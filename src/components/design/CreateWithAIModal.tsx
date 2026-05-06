@@ -16,6 +16,7 @@ type DesignResult = { imageUrl: string; prompt: string; originalPrompt: string; 
 type ApiError = { category?: string | null; message?: string | null; status?: number | null; code?: string | null; type?: string | null; details?: string | null };
 type GenerationDebug = { success?: boolean; stepFailed?: string | null; durationMs?: number; model?: string; openaiStatus?: string | null; cloudinaryStatus?: string | null; imageDetected?: boolean; inspirationIncluded?: boolean; fallbackAttempted?: boolean; fallbackSucceeded?: boolean; error?: string | ApiError | null; openaiError?: ApiError | null };
 type GenerationResponse = { success?: boolean; stepFailed?: string | null; durationMs?: number; model?: string; imageDetected?: boolean; inspirationIncluded?: boolean; fallbackAttempted?: boolean; fallbackSucceeded?: boolean; openaiStatus?: string | null; cloudinaryStatus?: string | null; error?: ApiError | string | null; image?: { url?: string }; images?: Array<{ url?: string }>; prompt?: string; debug?: GenerationDebug | null };
+type FetchDebugRecord = { httpStatus: number | null; ok: boolean | null; rawText: string; parsedJson: unknown; fetchError: string | null };
 const CreateWithAIModal: React.FC<CreateWithAIModalProps> = (props) => ENABLE_AI ? <CreateWithAIModalImpl {...props} /> : null;
 
 const toBase64FromUrl = async (url: string) => {
@@ -39,12 +40,30 @@ const CreateWithAIModalImpl: React.FC<CreateWithAIModalProps> = ({ open, onOpenC
   const [rawGenerateResponse, setRawGenerateResponse] = useState<string>('');
   const [rawTestResponse, setRawTestResponse] = useState<string>('');
   const requirementsMet = useMemo(() => Number(widthIn) > 0 && Number(heightIn) > 0 && !!material, [widthIn, heightIn, material]);
+  const runDebugFetch = async (input: RequestInfo | URL, init?: RequestInit): Promise<{ debugRecord: FetchDebugRecord; response: Response | null }> => {
+    try {
+      const response = await fetch(input, init);
+      const rawText = await response.text();
+      let parsedJson: unknown = null;
+      try { parsedJson = rawText ? JSON.parse(rawText) : null; } catch { parsedJson = null; }
+      return {
+        response,
+        debugRecord: { httpStatus: response.status, ok: response.ok, rawText, parsedJson, fetchError: null }
+      };
+    } catch (error) {
+      return {
+        response: null,
+        debugRecord: { httpStatus: null, ok: null, rawText: '', parsedJson: null, fetchError: error instanceof Error ? error.message : String(error) }
+      };
+    }
+  };
 
   const generate = async (basePrompt: string, regenerate = false) => {
     const payload = { prompt: basePrompt, regenerate, productType, width: widthIn, height: heightIn, material, quantity, size: { wIn: widthIn, hIn: heightIn }, inspirationImage: inspirationDataUrl, brandMatchStrength, styleChips: CHIPS.filter((c)=>basePrompt.includes(c)) };
-    const res = await fetch('/.netlify/functions/generate-ai-designs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-    const body: GenerationResponse = await res.json().catch(() => ({} as GenerationResponse));
-    setRawGenerateResponse(JSON.stringify(body, null, 2));
+    const { response: res, debugRecord } = await runDebugFetch('/.netlify/functions/generate-ai-designs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    setRawGenerateResponse(JSON.stringify(debugRecord, null, 2));
+    const body: GenerationResponse = (debugRecord.parsedJson && typeof debugRecord.parsedJson === 'object' ? debugRecord.parsedJson : {}) as GenerationResponse;
+    if (!res) throw new Error(debugRecord.fetchError || 'Network error while calling generate-ai-designs');
     setDebugInfo(body?.debug || body || null);
     if (!res.ok) {
       const errObj = typeof body?.error === 'object' ? body.error : null;
@@ -85,13 +104,14 @@ const CreateWithAIModalImpl: React.FC<CreateWithAIModalProps> = ({ open, onOpenC
     setIsGenerating(true);
     setError(null);
     try {
-      const res = await fetch('/.netlify/functions/ai-generate-banner-test', {
+      const { response: res, debugRecord } = await runDebugFetch('/.netlify/functions/ai-generate-banner-test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt: prompt.trim() })
       });
-      const body = await res.json().catch(() => ({}));
-      setRawTestResponse(JSON.stringify(body, null, 2));
+      setRawTestResponse(JSON.stringify(debugRecord, null, 2));
+      const body = (debugRecord.parsedJson && typeof debugRecord.parsedJson === 'object' ? debugRecord.parsedJson : {}) as any;
+      if (!res) throw new Error(debugRecord.fetchError || 'Network error while calling ai-generate-banner-test');
       if (!res.ok) throw new Error(JSON.stringify(body));
       const testImage = body?.image?.url;
       if (testImage) setDesign((prev) => ({ imageUrl: testImage, prompt: body?.prompt || prompt, originalPrompt: prompt, revision: (prev?.revision || 0) + 1 }));

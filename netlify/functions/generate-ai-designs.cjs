@@ -106,6 +106,21 @@ exports.handler = async (event) => {
   };
 
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
+  if (event.queryStringParameters?.debugPing === 'true') {
+    return {
+      statusCode: 200,
+      headers,
+      body: JSON.stringify({
+        success: true,
+        message: 'Function reached',
+        timestamp: new Date().toISOString(),
+        env: {
+          hasOpenAIKey: Boolean(process.env.OPENAI_API_KEY),
+          hasCloudinary: Boolean(process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET)
+        }
+      })
+    };
+  }
 
   const isProduction = process.env.CONTEXT === 'production' || process.env.NODE_ENV === 'production';
   const debug = { success: false, stepFailed: null, durationMs: 0, model: 'gpt-image-1', openaiStatus: null, cloudinaryStatus: null, imageDetected: false, inspirationIncluded: false, fallbackAttempted: false, fallbackSucceeded: false, error: null, errorMessage: null, openaiError: null, cloudinaryError: null };
