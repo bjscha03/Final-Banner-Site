@@ -113,6 +113,8 @@ interface YardSignConfiguratorProps {
   onUploadStatusChange?: (status: { isUploading: boolean; uploadError: string | null }) => void;
   /** Optional callback fired when the user taps "Done" in the preview modal — lets the parent log analytics / advance the sticky CTA. */
   onPreviewDone?: (designId: string) => void;
+  /** Parent-provided admin gate for the visible Create With AI action. */
+  showCreateWithAI?: boolean;
   /**
    * Optional ref-style trigger from the parent: incrementing this number
    * tells the configurator to programmatically open the preview modal for
@@ -142,6 +144,7 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
   onUploadStatusChange,
   onPreviewDone,
   previewOpenTrigger,
+  showCreateWithAI = false,
 }) => {
   const [isUploading, setIsUploading] = useState(false);
   const [isSavingPreview, setIsSavingPreview] = useState(false);
@@ -153,6 +156,16 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
   useEffect(() => {
     onUploadStatusChange?.({ isUploading, uploadError: uploadError || null });
   }, [isUploading, uploadError, onUploadStatusChange]);
+
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    console.log('[AI_VISIBILITY][YardSignConfigurator]', {
+      userId: null,
+      email: null,
+      isAdmin: showCreateWithAI,
+      shouldRenderCreateWithAI: ENABLE_AI && showCreateWithAI,
+    });
+  }, [showCreateWithAI]);
 
   const totalQuantity = getTotalDesignQuantity(designs);
   const quantityValidation = validateYardSignQuantity(totalQuantity);
@@ -626,7 +639,7 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
               isUploading={isUploading}
             />
             <div className="mt-3 flex justify-center">
-              {ENABLE_AI && (
+              {ENABLE_AI && showCreateWithAI && (
                 <button
                   type="button"
                   onClick={() => setAiModalOpen(true)}
@@ -817,7 +830,7 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
         </div>
       )}
 
-      {ENABLE_AI && (
+      {ENABLE_AI && showCreateWithAI && (
         <CreateWithAIModal
           open={aiModalOpen}
           onOpenChange={setAiModalOpen}

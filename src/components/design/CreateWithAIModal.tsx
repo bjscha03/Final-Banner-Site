@@ -1,330 +1,112 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { Sparkles, Loader2, AlertTriangle } from 'lucide-react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import React, { useMemo, useState } from 'react';
+import { Sparkles, Loader2, Upload, Wand2, RefreshCw, Pencil } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/components/ui/use-toast';
 import { ENABLE_AI } from '@/lib/featureFlags';
 
 export type CreateWithAIProductType = 'banner' | 'yard_sign' | 'car_magnet';
+export interface CreateWithAIResult { imageBase64: string; mimeType: string; width: number; height: number; fileName: string; prompt: string; }
+interface CreateWithAIModalProps { open: boolean; onOpenChange: (open: boolean) => void; productType: CreateWithAIProductType; widthIn: number | null; heightIn: number | null; material: string | null; materialLabel?: string; quantity?: number | null; onGenerated: (result: CreateWithAIResult) => void | Promise<void>; }
 
-export interface CreateWithAIResult {
-  /** Cropped, exact-aspect-ratio PNG returned by /generate-design (base64). */
-  imageBase64: string;
-  mimeType: string;
-  width: number;
-  height: number;
-  /** Suggested filename for the generated artwork. */
-  fileName: string;
-  /** The trimmed user prompt — persist alongside the design for admin display. */
-  prompt: string;
-}
-
-interface CreateWithAIModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  productType: CreateWithAIProductType;
-  /** Width in inches. Required-selection. */
-  widthIn: number | null;
-  /** Height in inches. Required-selection. */
-  heightIn: number | null;
-  /** Material identifier (e.g. "13oz", "corrugated_plastic"). Required-selection. */
-  material: string | null;
-  /** Human-readable material label for display + prompt. */
-  materialLabel?: string;
-  /** Called when generation succeeds. Caller is responsible for inserting
-   *  the image into its own canvas / upload pipeline. */
-  onGenerated: (result: CreateWithAIResult) => void | Promise<void>;
-}
-
-const QUICK_CHIPS = [
-  'Grand Opening',
-  'Now Hiring',
-  'Real Estate',
-  'Sale',
-  'Event',
-  'Business Sign',
-];
-
-const MAX_PROMPT_LENGTH = 500;
-
-const STAGE_MESSAGES = [
-  'Understanding prompt',
-  'Generating design',
-  'Fitting to canvas',
-];
-
-const PRODUCT_LABEL: Record<CreateWithAIProductType, string> = {
-  banner: 'banner',
-  yard_sign: 'yard sign',
-  car_magnet: 'car magnet',
-};
+const CHIPS = ['Grand Opening', 'Trade Show', 'Food Truck', 'Contractor', 'Restaurant', 'Real Estate', 'Sale / Promo', 'Event Banner'];
 
 const CreateWithAIModal: React.FC<CreateWithAIModalProps> = (props) => {
-  // Feature-flagged off: render nothing and never mount the heavy implementation
-  // (no hooks, no fetch to /.netlify/functions/generate-design) when AI is disabled.
   if (!ENABLE_AI) return null;
   return <CreateWithAIModalImpl {...props} />;
 };
 
-const CreateWithAIModalImpl: React.FC<CreateWithAIModalProps> = ({
-  open,
-  onOpenChange,
-  productType,
-  widthIn,
-  heightIn,
-  material,
-  materialLabel,
-  onGenerated,
-}) => {
+const CreateWithAIModalImpl: React.FC<CreateWithAIModalProps> = ({ open, onOpenChange, productType, widthIn, heightIn, material, materialLabel, quantity, onGenerated }) => {
   const { toast } = useToast();
-  const [prompt, setPrompt] = useState('');
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [stageIndex, setStageIndex] = useState(0);
+  const [prompt, setPrompt] = useState('Create a bold, modern banner in Banners On The Fly brand colors (navy, orange, white).');
+  const [inspirationDataUrl, setInspirationDataUrl] = useState<string | null>(null);
+  const [options, setOptions] = useState<Array<{ id: string; imageBase64: string; mimeType: string; prompt: string }>>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isGenerating, setIsGenerating] = useState(false);
 
-  const requirementsMet = useMemo(
-    () =>
-      Number.isFinite(widthIn) &&
-      (widthIn || 0) > 0 &&
-      Number.isFinite(heightIn) &&
-      (heightIn || 0) > 0 &&
-      !!material,
-    [widthIn, heightIn, material],
-  );
+  const requirementsMet = useMemo(() => Number(widthIn) > 0 && Number(heightIn) > 0 && !!material, [widthIn, heightIn, material]);
 
-  // Reset transient state whenever the modal is opened.
-  useEffect(() => {
-    if (open) {
-      setError(null);
-      setStageIndex(0);
-      setIsGenerating(false);
-    }
-  }, [open]);
-
-  // Cycle through the staged loading messages while a request is in flight.
-  useEffect(() => {
-    if (!isGenerating) return;
-    setStageIndex(0);
-    const t1 = setTimeout(() => setStageIndex(1), 1200);
-    const t2 = setTimeout(() => setStageIndex(2), 4200);
-    return () => {
-      clearTimeout(t1);
-      clearTimeout(t2);
-    };
-  }, [isGenerating]);
-
-  const handleChipClick = (chip: string) => {
-    setPrompt((prev) => {
-      const trimmed = prev.trim();
-      const next = trimmed ? `${trimmed} — ${chip}` : chip;
-      return next.slice(0, MAX_PROMPT_LENGTH);
-    });
+  const handleInspirationUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setInspirationDataUrl(String(reader.result));
+    reader.readAsDataURL(file);
   };
 
-  const handleGenerate = async () => {
-    if (!ENABLE_AI) {
-      console.warn('AI generation disabled');
-      return;
-    }
-    if (!requirementsMet || !widthIn || !heightIn || !material) {
-      setError(
-        'Select size and material first so AI can fit your design perfectly.',
-      );
-      return;
-    }
-    if (!prompt.trim()) {
-      setError('Please describe your design.');
-      return;
-    }
+  const generateOne = async (seed: number) => {
+    const res = await fetch('/.netlify/functions/generate-design', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ productType, width: widthIn, height: heightIn, material, quantity, prompt: `${prompt}\nVariant ${seed + 1}`, inspirationImageBase64: inspirationDataUrl }),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(body?.error || body?.details || `Generation failed (${res.status})`);
+    if (!body?.imageBase64) throw new Error('No image returned by AI service.');
+    return { id: `${Date.now()}-${seed}`, imageBase64: body.imageBase64 as string, mimeType: body.mimeType || 'image/png', prompt };
+  };
 
+  const handleGenerateAll = async () => {
+    if (!requirementsMet || !prompt.trim()) return;
     setError(null);
     setIsGenerating(true);
     try {
-      const res = await fetch('/.netlify/functions/generate-design', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          productType,
-          width: widthIn,
-          height: heightIn,
-          material,
-          prompt: prompt.trim().slice(0, MAX_PROMPT_LENGTH),
-        }),
-      });
-
-      if (!res.ok) {
-        let detail = '';
-        try {
-          const body = await res.json();
-          detail = body?.error || body?.details || '';
-        } catch {
-          /* ignore */
-        }
-        throw new Error(
-          detail || `Generation failed (HTTP ${res.status}). Please try again.`,
-        );
-      }
-
-      const data = await res.json();
-      if (!data?.imageBase64) {
-        throw new Error('AI returned no image. Please try a different prompt.');
-      }
-
-      const fileName = `ai-${productType}-${Date.now()}.png`;
-      await onGenerated({
-        imageBase64: data.imageBase64,
-        mimeType: data.mimeType || 'image/png',
-        width: Number(data.width) || widthIn,
-        height: Number(data.height) || heightIn,
-        fileName,
-        prompt: prompt.trim().slice(0, MAX_PROMPT_LENGTH),
-      });
-
-      toast({
-        title: 'Design generated',
-        description: 'Your AI design is ready in the preview.',
-      });
-      onOpenChange(false);
-      setPrompt('');
+      const results = await Promise.all([generateOne(0), generateOne(1), generateOne(2)]);
+      setOptions(results);
+      setSelectedId(results[0].id);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Generation failed.';
-      setError(message);
-      toast({
-        title: 'Generation failed',
-        description: message,
-        variant: 'destructive',
-      });
-    } finally {
-      setIsGenerating(false);
-    }
+      const msg = err instanceof Error ? err.message : 'Generation failed';
+      if (import.meta.env.DEV) console.error('[CreateWithAI] generation error', err);
+      setError(msg);
+      toast({ title: 'Generation failed', description: msg, variant: 'destructive' });
+    } finally { setIsGenerating(false); }
   };
 
-  const dimensionsLabel =
-    widthIn && heightIn ? `${widthIn}" × ${heightIn}"` : '— × —';
+  const selected = options.find((o) => o.id === selectedId) || null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-w-[95vw] max-h-[90vh] overflow-y-auto p-0">
-        <div className="px-5 pt-5 pb-2">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-gray-900">
-              <Sparkles className="w-5 h-5 text-orange-500" />
-              Create with AI
-            </DialogTitle>
-          </DialogHeader>
-        </div>
+      <DialogContent className="w-[96vw] max-w-[1500px] max-h-[94vh] overflow-y-auto p-0 border-slate-700 bg-[#06152b] text-white">
+        <DialogHeader className="px-6 pt-6 pb-2 border-b border-slate-700">
+          <DialogTitle className="text-3xl font-extrabold tracking-tight">CREATE STUNNING BANNERS <span className="text-orange-500">WITH AI</span></DialogTitle>
+          <p className="text-slate-300 text-sm">Upload inspiration, describe your vision, generate 3 premium designs, then apply to cart flow.</p>
+        </DialogHeader>
 
-        <div className="px-5 pb-5 space-y-4">
-          <div className="text-xs text-gray-500">
-            {PRODUCT_LABEL[productType]} • {dimensionsLabel}
-            {materialLabel ? ` • ${materialLabel}` : ''}
-          </div>
-
-          {!requirementsMet && (
-            <div
-              role="alert"
-              className="flex items-start gap-2 p-3 rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-sm"
-            >
-              <AlertTriangle className="w-4 h-4 mt-0.5 flex-shrink-0" />
-              <span>
-                Select size and material first so AI can fit your design perfectly.
-              </span>
-            </div>
-          )}
-
-          <div>
-            <label
-              htmlFor="ai-prompt"
-              className="block text-sm font-semibold text-gray-700 mb-1.5"
-            >
-              Describe your design
+        <div className="grid grid-cols-1 xl:grid-cols-3 gap-4 p-6">
+          <section className="rounded-xl bg-[#0b2345] border border-slate-700 p-4 space-y-3">
+            <h3 className="font-bold text-lg">1. Upload Inspiration</h3>
+            <label className="block border border-dashed border-slate-500 rounded-lg p-5 text-center cursor-pointer hover:border-orange-400">
+              <Upload className="mx-auto mb-2" />
+              <span>Upload screenshot / logo / reference</span>
+              <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleInspirationUpload} />
             </label>
-            <Textarea
-              id="ai-prompt"
-              value={prompt}
-              onChange={(e) =>
-                setPrompt(e.target.value.slice(0, MAX_PROMPT_LENGTH))
-              }
-              placeholder="Describe your banner, yard sign, or magnet…"
-              maxLength={MAX_PROMPT_LENGTH}
-              rows={4}
-              disabled={isGenerating || !requirementsMet}
-              className="w-full resize-none"
-            />
-            <div className="mt-1 flex items-center justify-between text-xs text-gray-400">
-              <span>
-                AI will create a print-ready design sized to your product.
-              </span>
-              <span>
-                {prompt.length}/{MAX_PROMPT_LENGTH}
-              </span>
-            </div>
-          </div>
+            {inspirationDataUrl && <img src={inspirationDataUrl} alt="Inspiration" className="w-full rounded-lg border border-slate-600" />}
+          </section>
 
-          <div>
-            <div className="text-xs font-medium text-gray-500 mb-1.5">
-              Quick ideas
-            </div>
-            <div className="flex flex-wrap gap-2">
-              {QUICK_CHIPS.map((chip) => (
-                <button
-                  key={chip}
-                  type="button"
-                  onClick={() => handleChipClick(chip)}
-                  disabled={isGenerating || !requirementsMet}
-                  className="px-3 py-1.5 rounded-full text-xs font-medium bg-gray-100 text-gray-700 hover:bg-orange-100 hover:text-orange-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {chip}
-                </button>
+          <section className="rounded-xl bg-[#0b2345] border border-slate-700 p-4 space-y-3">
+            <h3 className="font-bold text-lg">2. Tell AI What You Want</h3>
+            <textarea value={prompt} onChange={(e) => setPrompt(e.target.value)} rows={7} className="w-full rounded-lg bg-[#071a35] border border-slate-600 p-3 text-white" />
+            <div className="flex flex-wrap gap-2">{CHIPS.map((c) => <button key={c} onClick={() => setPrompt((p) => `${p} ${c}`.trim())} className="px-2 py-1 text-xs rounded border border-slate-500 hover:border-orange-400">{c}</button>)}</div>
+            <button onClick={handleGenerateAll} disabled={isGenerating || !requirementsMet || !prompt.trim()} className="w-full mt-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-60 text-white font-bold py-3 rounded-lg inline-flex items-center justify-center gap-2">{isGenerating ? <><Loader2 className="animate-spin"/> Generating 3 designs…</> : <><Sparkles/> Generate AI Designs</>}</button>
+            {error && <div className="text-red-200 bg-red-900/40 border border-red-400/40 rounded p-2 text-sm">{error}</div>}
+          </section>
+
+          <section className="rounded-xl bg-[#0b2345] border border-slate-700 p-4 space-y-3">
+            <h3 className="font-bold text-lg">3. Choose Your Design</h3>
+            <p className="text-xs text-slate-300">{options.length} designs generated</p>
+            <div className="space-y-3 max-h-[56vh] overflow-auto pr-1">
+              {options.map((o) => (
+                <div key={o.id} className={`rounded-lg border p-2 ${selectedId === o.id ? 'border-orange-400 bg-slate-900/70' : 'border-slate-600'}`}>
+                  <img src={`data:${o.mimeType};base64,${o.imageBase64}`} alt="Generated design" className="w-full rounded-md" onClick={() => setSelectedId(o.id)} />
+                  <div className="mt-2 grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <button onClick={async () => { setSelectedId(o.id); await onGenerated({ imageBase64: o.imageBase64, mimeType: o.mimeType, width: Number(widthIn) || 96, height: Number(heightIn) || 48, fileName: `ai-${productType}-${Date.now()}.png`, prompt: o.prompt }); onOpenChange(false); }} className="bg-orange-500 hover:bg-orange-600 rounded py-2 text-sm font-semibold">Use This Design</button>
+                    <button onClick={handleGenerateAll} className="border border-slate-500 rounded py-2 text-sm inline-flex justify-center items-center gap-1"><RefreshCw className="w-3 h-3"/>Regenerate Similar</button>
+                    <button onClick={() => setPrompt(o.prompt)} className="border border-slate-500 rounded py-2 text-sm inline-flex justify-center items-center gap-1"><Pencil className="w-3 h-3"/>Edit Prompt</button>
+                  </div>
+                </div>
               ))}
             </div>
-          </div>
-
-          {error && (
-            <div
-              role="alert"
-              className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-2"
-            >
-              {error}
-            </div>
-          )}
-
-          <div className="flex flex-col gap-2 pt-1">
-            <Button
-              type="button"
-              onClick={handleGenerate}
-              disabled={
-                isGenerating || !requirementsMet || !prompt.trim()
-              }
-              className="w-full bg-orange-500 hover:bg-orange-600 text-white"
-            >
-              {isGenerating ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  {STAGE_MESSAGES[stageIndex]}…
-                </>
-              ) : (
-                <>
-                  <Sparkles className="w-4 h-4 mr-2" />
-                  Generate Design
-                </>
-              )}
-            </Button>
-            <button
-              type="button"
-              onClick={() => onOpenChange(false)}
-              disabled={isGenerating}
-              className="text-xs text-gray-500 hover:text-gray-700 disabled:opacity-50"
-            >
-              Cancel
-            </button>
-          </div>
+            {selected && <div className="text-xs text-slate-300 pt-2 border-t border-slate-700">4. Add to Cart: after choosing, the design is applied to your existing upload/canvas flow.</div>}
+          </section>
         </div>
       </DialogContent>
     </Dialog>
