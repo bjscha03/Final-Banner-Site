@@ -1264,26 +1264,54 @@ const Checkout: React.FC = () => {
                   </>
                 ) : (
                   <div className="space-y-3">
-                    <div className="rounded-lg border border-gray-200 bg-[#111827] text-white px-3 py-2">
-                      <p className="text-sm font-semibold">Debit or Credit Card</p>
-                      <p className="text-xs text-gray-200">Checkout with a card securely via PayPal — no PayPal account required.</p>
+                    <div className="space-y-2">
+                      <p className="text-xs text-gray-600">
+                        Checkout securely with a card — no PayPal account required.
+                      </p>
+                      <div className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
+                        <span className="rounded border border-gray-300 px-1.5 py-0.5">Visa</span>
+                        <span className="rounded border border-gray-300 px-1.5 py-0.5">Mastercard</span>
+                        <span className="rounded border border-gray-300 px-1.5 py-0.5">Amex</span>
+                        <span className="rounded border border-gray-300 px-1.5 py-0.5">Discover</span>
+                      </div>
+                      <Button
+                        type="button"
+                        disabled={!canProceed}
+                        onClick={() => {
+                          const section = document.getElementById('paypal-checkout-option');
+                          section?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        }}
+                        className="w-full h-11 bg-black hover:bg-black/90 text-white font-semibold"
+                      >
+                        Continue to Secure Checkout
+                      </Button>
                     </div>
-                    <PayPalCheckout disabled={!canProceed}
-                    total={totalCents}
-                    onSuccess={handlePaymentSuccess}
-                    onError={handlePaymentError}
-                  />
+
+                    <div className="flex items-center gap-2 py-0.5">
+                      <span className="h-px flex-1 bg-gray-200" />
+                      <span className="text-[11px] text-gray-400">or</span>
+                      <span className="h-px flex-1 bg-gray-200" />
+                    </div>
+
+                    <div id="paypal-checkout-option" className="rounded-lg border border-gray-100 p-2">
+                      <PayPalCheckout
+                        disabled={!canProceed}
+                        total={totalCents}
+                        onSuccess={handlePaymentSuccess}
+                        onError={handlePaymentError}
+                      />
+                    </div>
                   </div>
                 )}
 
                 <div className="mt-4 border-t border-gray-100 pt-4">
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-1.5">
                     {[
-                      { icon: <Lock className="h-3.5 w-3.5" />, label: 'Secure Checkout' },
-                      { icon: <Truck className="h-3.5 w-3.5" />, label: 'FREE Next-Day Air Shipping' },
-                      { icon: <CircleCheck className="h-3.5 w-3.5" />, label: 'Real Human Review' },
+                      { icon: <Lock className="h-3 w-3" />, label: 'Secure encrypted checkout' },
+                      { icon: <CircleCheck className="h-3 w-3" />, label: 'Printed within 24 hours' },
+                      { icon: <Truck className="h-3 w-3" />, label: 'FREE next-day air shipping' },
                     ].map((badge) => (
-                      <span key={badge.label} className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-700">
+                      <span key={badge.label} className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] font-medium text-gray-600">
                         {badge.icon}
                         {badge.label}
                       </span>
