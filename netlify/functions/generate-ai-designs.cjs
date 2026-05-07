@@ -97,6 +97,8 @@ async function assertAdminAccess(userEmail) {
   return false;
 }
 
+const OPENAI_TIMEOUT_MS = Number(process.env.OPENAI_IMAGE_TIMEOUT_MS || 25000);
+
 exports.handler = async (event) => {
   const fnStart = Date.now();
   const headers = {
@@ -155,7 +157,7 @@ exports.handler = async (event) => {
   try {
     console.log('[AI-Gen] request received', { at: new Date().toISOString() });
     const body = JSON.parse(event.body || '{}');
-    const { prompt, size, userEmail, productType, width, height, inspirationImage, brandMatchStrength, styleChips } = body;
+    const { prompt, size, userEmail, productType, width, height, inspirationImage, brandMatchStrength, styleChips, fastMode } = body;
 
     if (!prompt || !prompt.trim()) {
       debug.durationMs = Date.now() - fnStart;
@@ -178,6 +180,7 @@ exports.handler = async (event) => {
       return buildResponse(500, { error: { category: 'cloudinary_upload', message: 'Cloudinary not configured' } });
     }
 
+    const isFastMode = fastMode === true || event.queryStringParameters?.fastMode === 'true';
     const isAdmin = userEmail ? await assertAdminAccess(userEmail) : false;
     if (isProduction && !isAdmin) {
       debug.durationMs = Date.now() - fnStart;
@@ -188,9 +191,10 @@ exports.handler = async (event) => {
     const promptText = enhancePrompt({ prompt: `${prompt.trim()}
 
 Professional large-format ${productType || 'banner'} for ${width || size.wIn}x${height || size.hIn}.`, size, inspirationImage, brandMatchStrength, styleChips });
-    const aspect = size.wIn / size.hIn;
-    const dalleSize = aspect >= 1 ? '1536x1024' : '1024x1536';
-    const parsedImage = parseInspirationImage(inspirationImage);
+    const dalleSize = '1024x1024';
+    const parsedImage = isFastMode
+      ? { imageDetected: false, includedInApiRequest: false, byteSize: 0, mimeType: null, base64Data: null }
+      : parseInspirationImage(inspirationImage);
     debug.imageDetected = parsedImage.imageDetected;
     debug.inspirationIncluded = parsedImage.includedInApiRequest;
 
@@ -218,10 +222,12 @@ Professional large-format ${productType || 'banner'} for ${width || size.wIn}x${
     });
     const openaiStart = Date.now();
     let response;
+    const openaiController = new AbortController();
+    const openaiTimer = setTimeout(() => openaiController.abort(), OPENAI_TIMEOUT_MS);
     try {
       response = openaiEditPayload
-        ? await openai.images.edit(openaiEditPayload)
-        : await openai.images.generate(openaiPayload);
+        ? await openai.images.edit({ ...openaiEditPayload, signal: openaiController.signal })
+        : await openai.images.generate({ ...openaiPayload, signal: openaiController.signal });
     } catch (primaryErr) {
       const primaryDetails = extractOpenAIError(primaryErr);
       debug.openaiError = primaryDetails;
@@ -229,12 +235,14 @@ Professional large-format ${productType || 'banner'} for ${width || size.wIn}x${
       if (openaiEditPayload) {
         console.log('[AI-Gen] Retrying OpenAI with TEXT-ONLY fallback mode');
         debug.fallbackAttempted = true;
-        response = await openai.images.generate(openaiPayload);
+        response = await openai.images.generate({ ...openaiPayload, signal: openaiController.signal });
         debug.fallbackSucceeded = true;
         debug.inspirationIncluded = false;
       } else {
         throw primaryErr;
       }
+    } finally {
+      clearTimeout(openaiTimer);
     }
     const openaiMs = Date.now() - openaiStart;
     debug.openaiStatus = 'ok';
@@ -247,6 +255,18 @@ Professional large-format ${productType || 'banner'} for ${width || size.wIn}x${
     }
     if (!imageSource) {
       const e = new Error('OpenAI returned no image'); e.code = 'NO_IMAGE_FROM_OPENAI'; throw e;
+    }
+
+    if (isFastMode) {
+      const totalMs = Date.now() - fnStart;
+      debug.success = true;
+      debug.durationMs = totalMs;
+      console.log('[AI-Gen] total function ms', { totalFunctionMs: totalMs, openaiRequestMs: openaiMs, fastMode: true });
+      return buildResponse(200, {
+        success: true,
+        image: { url: image.url || null, base64: image.b64_json || null },
+        metadata: { model: debug.model, count: 1, fastMode: true, skippedCloudinary: true }
+      });
     }
 
     console.log('[AI-Gen] Cloudinary upload start', { at: new Date().toISOString() });

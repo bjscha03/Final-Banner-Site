@@ -1,8 +1,9 @@
 const OpenAI = require('openai');
 
 const DEFAULT_PROMPT = 'Create one flat print-ready vinyl banner design for a grand opening sale. No mockups, no grommets, no wall scene.';
-const DEFAULT_SIZE = '1536x1024';
+const DEFAULT_SIZE = '1024x1024';
 const MODEL = 'gpt-image-1';
+const OPENAI_TIMEOUT_MS = Number(process.env.OPENAI_IMAGE_TIMEOUT_MS || 25000);
 
 exports.handler = async (event) => {
   const hasOpenAIKey = Boolean(process.env.OPENAI_API_KEY);
@@ -32,12 +33,18 @@ exports.handler = async (event) => {
     const prompt = typeof body.prompt === 'string' && body.prompt.trim() ? body.prompt.trim() : DEFAULT_PROMPT;
     const size = typeof body.size === 'string' && body.size.trim() ? body.size.trim() : DEFAULT_SIZE;
 
+    const openaiStart = Date.now();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), OPENAI_TIMEOUT_MS);
     const result = await openai.images.generate({
       model: MODEL,
       prompt,
       size,
-      n: 1
+      n: 1,
+      signal: controller.signal
     });
+    clearTimeout(timer);
+    const openaiDurationMs = Date.now() - openaiStart;
 
     const image = result?.data?.[0] || {};
     const imageUrl = image.url || null;
@@ -55,7 +62,8 @@ exports.handler = async (event) => {
         base64Length: base64 ? base64.length : 0,
         imageBase64: base64,
         prompt,
-        size
+        size,
+        openaiDurationMs
       })
     };
   } catch (error) {
