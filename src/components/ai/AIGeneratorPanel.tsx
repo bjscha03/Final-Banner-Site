@@ -371,6 +371,11 @@ export const AIGeneratorPanel: React.FC<AIGeneratorPanelProps> = ({
           </>
         )}
       </Button>
+      {isGenerating && (
+        <p className="text-xs text-gray-600 text-center">
+          Designing your banner... this may take 15–30 seconds.
+        </p>
+      )}
 
       {/* Generated Images */}
       {generatedImages.length > 0 && (
