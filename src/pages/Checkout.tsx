@@ -13,7 +13,7 @@ import StripeCheckout from '@/components/checkout/StripeCheckout';
 import SignUpEncouragementModal from '@/components/checkout/SignUpEncouragementModal';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Package, Plus, Minus, Trash2, Eye, Tag, ShieldCheck, Headphones, Lock, Truck, Award, Shield, DollarSign } from 'lucide-react';
+import { ArrowLeft, Package, Plus, Minus, Trash2, Eye, Tag, Lock, Truck, CircleCheck } from 'lucide-react';
 import { useToast } from '@/components/ui/use-toast';
 import { emailApi } from '@/lib/api';
 import { CartItem } from '@/store/cart';
@@ -58,7 +58,7 @@ const Checkout: React.FC = () => {
   // Keep PayPal as the default tab for strongest first-impression trust,
   // while still offering Stripe card + wallet flows as a secondary option.
   const [showCardForm, setShowCardForm] = useState(false);
-
+  const [showPromoCode, setShowPromoCode] = useState(false);
 
   // Get totals from cart store methods
   const subtotalCents = getSubtotalCents();
@@ -495,8 +495,12 @@ const Checkout: React.FC = () => {
               Back
             </Button>
             <div className="text-center mb-8">
-              <h1 className="text-4xl sm:text-5xl font-bold text-[#18448D] mb-3">Secure Checkout</h1>
-              <p className="text-lg text-gray-600">Review your order and complete your purchase</p>
+              <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600 mb-3">
+                <span>Design</span><span>→</span><span>Review</span><span>→</span><span className="text-[#18448D]">Checkout</span><span>→</span><span>Complete</span>
+              </div>
+              <h1 className="text-3xl sm:text-4xl font-bold text-[#18448D] mb-2">Secure Checkout</h1>
+              <p className="text-base text-gray-600">Printed within 24 hours and shipped FREE via next-day air.</p>
+              <p className="text-sm text-[#18448D] font-medium">Order before tonight’s cutoff for fastest turnaround.</p>
             </div>
             
             <div className="mb-6">
@@ -945,6 +949,15 @@ const Checkout: React.FC = () => {
                 <div className="border-t border-gray-200 pt-6 mt-6">
                   {!discountCode ? (
                     <div className="space-y-3">
+                      <button
+                        type="button"
+                        onClick={() => setShowPromoCode((v) => !v)}
+                        className="text-sm font-semibold text-[#18448D] underline underline-offset-2"
+                      >
+                        Have a promo code?
+                      </button>
+                      {showPromoCode && (
+                      <>
                       <label htmlFor="discount-code" className="text-base font-semibold text-gray-900 flex items-center gap-2">
                         <svg className="w-5 h-5 text-[#18448D]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
@@ -992,6 +1005,8 @@ const Checkout: React.FC = () => {
                           {discountError}
                         </p>
                       )}
+                      </>
+                      )}
                     </div>
                   ) : (
                     <div className="flex items-center justify-between bg-green-50 border border-green-200 rounded-lg px-3 py-2">
@@ -1022,7 +1037,7 @@ const Checkout: React.FC = () => {
 
                 <div className="mt-6">
                   <div
-                    className="rounded-xl p-4 sm:p-5 space-y-1.5 text-sm"
+                    className="rounded-xl p-4 space-y-1.5 text-sm border-2 border-[#18448D]/15"
                     style={{
                       background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)',
                       boxShadow:
@@ -1116,7 +1131,7 @@ const Checkout: React.FC = () => {
                       </span>
                     </div>
                     <div className="flex justify-between gap-3">
-                      <span className="font-bold text-gray-800">Total with tax</span>
+                      <span className="font-bold text-gray-800">Final total</span>
                       <span className="font-bold text-[#ff6b35]">
                         {usd(totalCents / 100)}
                       </span>
@@ -1175,7 +1190,7 @@ const Checkout: React.FC = () => {
             )}
             {/* Payment */}
             <div className="space-y-6 w-full">
-              <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 sm:p-8 transition-shadow hover:shadow-xl lg:sticky lg:top-4" style={{ contain: 'layout paint' }}>
+              <div className="bg-white rounded-xl shadow-md border border-gray-100 p-4 sm:p-5 lg:sticky lg:top-4" style={{ contain: 'layout paint' }}>
                 <div className="flex items-center justify-between mb-6">
                   <h2 className="text-2xl font-bold text-[#18448D]">Payment</h2>
                   <div className="flex items-center gap-2 bg-green-50 px-3 py-1.5 rounded-full">
@@ -1186,9 +1201,9 @@ const Checkout: React.FC = () => {
                   </div>
                 </div>
                 
-                {/* Friday shipping badge */}
-                <div className="flex items-center justify-center gap-2 mb-4 py-2 px-3 bg-blue-50 border border-blue-200 rounded-lg">
-                  <span className="text-sm font-medium text-blue-700">📦 Friday orders arrive Tuesday.</span>
+                <div className="mb-3 rounded-lg border border-[#18448D]/15 bg-blue-50 px-3 py-2">
+                  <p className="text-sm font-semibold text-[#18448D]">Printed within 24 hours and shipped FREE via next-day air.</p>
+                  <p className="text-xs text-blue-700">Order before tonight’s cutoff for fastest turnaround.</p>
                 </div>
                 
                 {stripeAvailable ? (
@@ -1248,124 +1263,59 @@ const Checkout: React.FC = () => {
                     </div>
                   </>
                 ) : (
-                  <PayPalCheckout disabled={!canProceed}
-                    total={totalCents}
-                    onSuccess={handlePaymentSuccess}
-                    onError={handlePaymentError}
-                  />
+                  <div className="space-y-3">
+                    <div className="space-y-2 rounded-lg border border-[#E7D9C7] bg-[#FCF7F0] p-3 shadow-sm">
+                      <p className="text-xs text-gray-600">
+                        Checkout securely with a card — no PayPal account required.
+                      </p>
+                      <div className="flex justify-center">
+                        <img
+                          src="https://res.cloudinary.com/dtrxl120u/image/upload/v1778187843/8b1a7087-53d4-4389-a6b8-090268a31dd5_bscbcu.png"
+                          alt="Accepted payment methods: Visa, Mastercard, American Express, Discover"
+                          className="h-auto w-full max-w-[240px] sm:max-w-[280px] object-contain"
+                          loading="eager"
+                          decoding="async"
+                        />
+                      </div>
+                    </div>
+                    <PayPalCheckout
+                      disabled={!canProceed}
+                      total={totalCents}
+                      onSuccess={handlePaymentSuccess}
+                      onError={handlePaymentError}
+                      cardFirstLayout
+                    />
+                  </div>
                 )}
 
-                {/* Shop With Confidence — trust badges near payment area */}
-                <div className="mt-6 pt-5">
-                  {/* Header with side dividers */}
-                  <div className="flex items-center gap-3">
-                    <span className="h-px flex-1 bg-gray-200" />
-                    <h3 className="text-xs sm:text-sm font-bold tracking-[0.15em] text-[#FF7A00]">
-                      SHOP WITH CONFIDENCE
-                    </h3>
-                    <span className="h-px flex-1 bg-gray-200" />
+                <div className="mt-4 border-t border-gray-100 pt-4">
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { icon: <Lock className="h-3 w-3" />, label: 'Secure encrypted checkout' },
+                      { icon: <CircleCheck className="h-3 w-3" />, label: 'Printed within 24 hours' },
+                      { icon: <Truck className="h-3 w-3" />, label: 'FREE next-day air shipping' },
+                    ].map((badge) => (
+                      <span key={badge.label} className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-gray-50 px-2 py-0.5 text-[11px] font-medium text-gray-600">
+                        {badge.icon}
+                        {badge.label}
+                      </span>
+                    ))}
                   </div>
+                  <p className="mt-2 text-xs text-gray-600">Every order reviewed by a real production team · Custom printed to order · Secure encrypted checkout · Nationwide fulfillment.</p>
+                  <p className="text-xs text-gray-600">Fast turnaround trusted by businesses, events, and campaigns.</p>
+                </div>
+              </div>
 
-                  {/* 3-column grid of trust items.
-                      Border classes per item position:
-                        - top borders skip row 1 (i<2 mobile, i<3 desktop)
-                        - left borders skip first column (i%2===0 mobile, i%3===0 desktop) */}
-                  {(() => {
-                    // Single shared icon className → enforces identical size, color and stroke
-                    // for every trust item. Per spec: 24px square, orange #FF7A00, no white fills.
-                    const trustIconClass = "h-6 w-6 shrink-0 text-[#FF7A00]";
-                    const trustIconStroke = 2;
-
-                    const trustItems: Array<{
-                      title: React.ReactNode;
-                      subtitle: React.ReactNode;
-                      icon: React.ReactNode;
-                    }> = [
-                      {
-                        title: 'Secure Checkout',
-                        subtitle: 'SSL Encrypted',
-                        icon: <Lock aria-hidden="true" className={trustIconClass} strokeWidth={trustIconStroke} />,
-                      },
-                      {
-                        title: sameDayHitService ? (
-                          'Next-Day Air Shipping'
-                        ) : (
-                          <>
-                            <span className="text-[#FF7A00]">FREE</span> Next-Day Air Shipping
-                          </>
-                        ),
-                        subtitle: sameDayHitService ? 'Included' : '',
-                        icon: <Truck aria-hidden="true" className={trustIconClass} strokeWidth={trustIconStroke} />,
-                      },
-                      {
-                        title: 'Quality',
-                        subtitle: 'Guaranteed',
-                        icon: <Award aria-hidden="true" className={trustIconClass} strokeWidth={trustIconStroke} />,
-                      },
-                      {
-                        title: 'Custom Orders',
-                        subtitle: 'Replaced if damaged in transit',
-                        icon: <Shield aria-hidden="true" className={trustIconClass} strokeWidth={trustIconStroke} />,
-                      },
-                      {
-                        title: 'No Hidden Fees',
-                        subtitle: 'What you see is what you pay',
-                        icon: <DollarSign aria-hidden="true" className={trustIconClass} strokeWidth={trustIconStroke} />,
-                      },
-                      {
-                        title: 'Real People',
-                        subtitle: 'Here to help',
-                        icon: <Headphones aria-hidden="true" className={trustIconClass} strokeWidth={trustIconStroke} />,
-                      },
-                    ];
-
-                    // Border classes derived from position (mobile = 2 cols, sm = 3 cols).
-                    const borderClassFor = (i: number) => {
-                      const classes: string[] = [];
-                      // Top border: skip row 1. Mobile row 1 = i<2, desktop row 1 = i<3.
-                      if (i >= 3) classes.push('border-t border-gray-200');
-                      else if (i === 2) classes.push('border-t border-gray-200 sm:border-t-0');
-                      // Left border: skip first column. Mobile col 1 = i%2===0, desktop col 1 = i%3===0.
-                      const mobileLeft = i % 2 === 1;
-                      const desktopLeft = i % 3 !== 0;
-                      if (mobileLeft && desktopLeft) classes.push('border-l border-gray-200');
-                      else if (!mobileLeft && desktopLeft) classes.push('sm:border-l sm:border-gray-200');
-                      else if (mobileLeft && !desktopLeft) classes.push('border-l border-gray-200 sm:border-l-0');
-                      return classes.join(' ');
-                    };
-
-                    return (
-                      <ul className="mt-5 grid grid-cols-2 sm:grid-cols-3">
-                        {trustItems.map((item, i) => (
-                          <li
-                            key={i}
-                            className={`flex flex-col items-center text-center px-3 py-5 ${borderClassFor(i)}`}
-                          >
-                            <span className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-[#FFF1E5]">
-                              {item.icon}
-                            </span>
-                            <span className="text-sm font-bold text-[#1a1a1a]">{item.title}</span>
-                            {item.subtitle && (
-                              <span className="mt-0.5 text-xs text-[#666]">{item.subtitle}</span>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    );
-                  })()}
-
-                  {/* Footer info box */}
-                  <div className="mt-5 flex items-center gap-3 rounded-lg bg-[#FFF1E5] px-4 py-3">
-                    <ShieldCheck aria-hidden="true" className="h-6 w-6 shrink-0 text-[#FF7A00]" />
-                    <div className="text-sm leading-snug">
-                      <div className="font-bold text-[#1a1a1a]">Your information is safe with us.</div>
-                      <div className="text-[#666]">We never share your data.</div>
-                    </div>
+              <div className="md:hidden sticky bottom-2 z-20">
+                <div className="rounded-lg border border-[#18448D]/20 bg-white/95 backdrop-blur px-3 py-2 shadow-lg">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-gray-600">Final total</span>
+                    <span className="text-lg font-bold text-[#FF6A00]">{usd(totalCents / 100)}</span>
                   </div>
                 </div>
               </div>
 
-              {/* User Info */}
+
               {user && (
                 <div className="bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 rounded-xl p-6 shadow-sm">
                   <div className="flex items-center gap-3 mb-3">

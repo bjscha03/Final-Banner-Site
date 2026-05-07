@@ -11,6 +11,7 @@ interface PayPalCheckoutProps {
   onSuccess: (orderId: string, orderData?: any) => void; // orderData includes server-computed pricing
   onError: (error: any) => void;
   disabled?: boolean;
+  cardFirstLayout?: boolean;
 }
 
 interface PayPalConfig {
@@ -60,7 +61,15 @@ const extractShippingFromCapture = (captureResult: any) => {
   };
 };
 
-const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onError, disabled = false }) => {
+const trackCheckoutPaymentClick = (method: 'card' | 'paypal') => {
+  if (typeof window === 'undefined' || !window.gtag) return;
+  window.gtag('event', 'payment_button_click', {
+    payment_method: method,
+    device_type: window.innerWidth < 768 ? 'mobile' : 'desktop',
+  });
+};
+
+const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onError, disabled = false, cardFirstLayout = false }) => {
   const { toast } = useToast();
   const { user } = useAuth();
   const { items, discountCode, sameDayHitService, saturdayDelivery } = useCartStore();
@@ -641,36 +650,66 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
 
       <PayPalScriptProvider options={initialOptions}>
         <div className="relative z-10">
-          <PayPalButtons
-            key={total}
-            style={{
-              layout: "vertical",
-              color: "blue",
-              shape: "rect",
-              label: "paypal",
-            }}
-            disabled={disabled || isCreatingOrder || isCapturingPayment}
-            createOrder={async (data, actions) => {
-              const paypalOrderId = await handleCreateOrder();
-              return paypalOrderId;
-            }}
-            onApprove={handleApprove}
-            onError={(error) => {
-              console.error('PayPal error:', error);
-              toast({
-                title: "Payment Error",
-                description: "Payment could not be completed. Your card was not charged.",
-                variant: "destructive",
-              });
-              onError(error);
-            }}
-            onCancel={() => {
-              toast({
-                title: "Payment Cancelled",
-                description: "You cancelled the payment. Your order was not created.",
-              });
-            }}
-          />
+          {cardFirstLayout ? (
+            <div className="space-y-2.5">
+              <PayPalButtons
+                key={`card-${total}`}
+                fundingSource={"card" as any}
+                style={{ layout: "vertical", color: "black", shape: "rect", label: "checkout", height: 45 }}
+                disabled={disabled || isCreatingOrder || isCapturingPayment}
+                onClick={() => trackCheckoutPaymentClick('card')}
+                createOrder={async () => handleCreateOrder()}
+                onApprove={handleApprove}
+                onError={(error) => onError(error)}
+              />
+              <div className="flex items-center gap-2">
+                <span className="h-px flex-1 bg-[#E7D9C7]" />
+                <span className="text-[11px] text-[#8B7355]">or</span>
+                <span className="h-px flex-1 bg-[#E7D9C7]" />
+              </div>
+              <PayPalButtons
+                key={`paypal-${total}`}
+                fundingSource={"paypal" as any}
+                style={{ layout: "vertical", color: "gold", shape: "rect", label: "paypal", height: 42 }}
+                disabled={disabled || isCreatingOrder || isCapturingPayment}
+                onClick={() => trackCheckoutPaymentClick('paypal')}
+                createOrder={async () => handleCreateOrder()}
+                onApprove={handleApprove}
+                onError={(error) => onError(error)}
+              />
+            </div>
+          ) : (
+            <PayPalButtons
+              key={total}
+              style={{
+                layout: "vertical",
+                color: "blue",
+                shape: "rect",
+                label: "paypal",
+              }}
+              disabled={disabled || isCreatingOrder || isCapturingPayment}
+              createOrder={async (data, actions) => {
+                const paypalOrderId = await handleCreateOrder();
+                return paypalOrderId;
+              }}
+              onApprove={handleApprove}
+              onError={(error) => {
+                console.error('PayPal error:', error);
+                toast({
+                  title: "Payment Error",
+                  description: "Payment could not be completed. Your card was not charged.",
+                  variant: "destructive",
+                });
+                onError(error);
+              }}
+              onCancel={() => {
+                toast({
+                  title: "Payment Cancelled",
+                  description: "You cancelled the payment. Your order was not created.",
+                });
+              }}
+            />
+          )}
         </div>
       </PayPalScriptProvider>
 
