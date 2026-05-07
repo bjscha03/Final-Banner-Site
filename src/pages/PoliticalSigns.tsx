@@ -437,27 +437,28 @@ const PoliticalSigns: React.FC = () => {
   return (
     <Layout>
       <Helmet>
-        <title>Political Campaign Signs & Banners – Designed For You | Banners On The Fly</title>
+        <title>Political Campaign Signs & Banners | Banners On The Fly</title>
         <meta
           name="description"
-          content="Upload your own design or let our designers create one. Printed in 24 hours with free next-day air shipping."
+          content="Fast political campaign signs, banners, and yard signs with free next-day air shipping. Perfect for elections, rallies, events, and local campaigns."
         />
-        <meta property="og:title" content="Political Campaign Signs & Banners – Designed For You" />
+        <link rel="canonical" href="https://bannersonthefly.com/political-signs" />
+        <meta property="og:title" content="Political Campaign Signs & Banners | Banners On The Fly" />
         <meta
           property="og:description"
-          content="Upload your own design or let our designers create one. Printed in 24 hours with free next-day air shipping."
+          content="Fast political campaign signs, banners, and yard signs with free next-day air shipping. Perfect for elections, rallies, events, and local campaigns."
         />
         <meta property="og:type" content="website" />
-        <meta property="og:url" content="https://bannersonthefly.com/campaign-signs" />
+        <meta property="og:url" content="https://bannersonthefly.com/political-signs" />
         <meta
           property="og:image"
           content="https://res.cloudinary.com/dtrxl120u/image/upload/v1778177853/political_banners_cdgdgp.png"
         />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Political Campaign Signs & Banners – Designed For You" />
+        <meta name="twitter:title" content="Political Campaign Signs & Banners | Banners On The Fly" />
         <meta
           name="twitter:description"
-          content="Upload your own design or let our designers create one. Printed in 24 hours with free next-day air shipping."
+          content="Fast political campaign signs, banners, and yard signs with free next-day air shipping. Perfect for elections, rallies, events, and local campaigns."
         />
         <meta
           name="twitter:image"
