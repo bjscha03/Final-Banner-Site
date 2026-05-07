@@ -1839,7 +1839,7 @@ const GoogleAdsBanner: React.FC = () => {
         </section>
 
         <section ref={orderRef} id="order-builder" className="mt-8 py-12 px-4 bg-gray-50">
-          <div className="max-w-4xl lg:max-w-7xl mx-auto">
+          <div className="max-w-[1600px] mx-auto">
             {/* Product type switcher — public for all users */}
             <ProductTypeSwitcher productType={productType} onProductTypeChange={handleProductTypeChange} mobileStickyTopPx={56} />
             <h2
@@ -1859,7 +1859,7 @@ const GoogleAdsBanner: React.FC = () => {
             )}
             {isYardSign ? (
               /* ========== YARD SIGN ORDER BUILDER (v2) ========== */
-              <div className="grid md:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-10 max-w-full">
+              <div className="grid md:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_420px] xl:grid-cols-[minmax(0,1fr)_460px] gap-6 xl:gap-8 max-w-full">
                 <div className="space-y-8 min-w-0 max-w-full">
                   <YardSignConfigurator
                     designs={yardSignDesigns}
@@ -1945,7 +1945,7 @@ const GoogleAdsBanner: React.FC = () => {
               </div>
             ) : (
             /* ========== BANNER ORDER BUILDER (existing) ========== */
-            <div className="grid md:grid-cols-2 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)] gap-10 max-w-full">
+            <div className="grid md:grid-cols-2 lg:grid-cols-[minmax(0,1fr)_420px] xl:grid-cols-[minmax(0,1fr)_460px] gap-6 xl:gap-8 max-w-full">
               <div className="space-y-6 min-w-0 max-w-full">
                 {false ? (
                   null /* placeholder — yard sign path handled above */
@@ -2340,7 +2340,7 @@ const GoogleAdsBanner: React.FC = () => {
                 </ConfigCard>
               </div>
 
-              <div className="space-y-6 min-w-0 max-w-full lg:sticky lg:top-24 self-start">
+              <div className="space-y-6 min-w-0 max-w-full lg:sticky lg:top-6 self-start">
                 <p className="text-sm text-emerald-700 -mt-1 font-medium">
                   Includes next-day production &amp; <span className="text-emerald-700 font-semibold">free shipping</span>
                 </p>
