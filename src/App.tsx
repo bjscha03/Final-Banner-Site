@@ -73,6 +73,7 @@ const CityProductPage = lazy(() => import("./pages/CityProductPage"));
 
 // Graduation landing page - lazy load
 const GraduationSigns = lazy(() => import("./pages/GraduationSigns"));
+const PoliticalSigns = lazy(() => import("./pages/PoliticalSigns"));
 const GraduationSignsThankYou = lazy(() => import("./pages/GraduationSignsThankYou"));
 
 // Admin pages - lazy load (heavy, rarely accessed)
@@ -231,6 +232,7 @@ const App = () => (
 
             {/* Graduation landing page */}
             <Route path="/graduation-signs" element={<GraduationSigns />} />
+            <Route path="/political-signs" element={<PoliticalSigns />} />
             <Route path="/graduation-signs/thank-you" element={<GraduationSignsThankYou />} />
 
             {/* Customer-facing graduation proof approval (token-gated) */}
