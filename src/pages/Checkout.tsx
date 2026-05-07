@@ -1269,30 +1269,16 @@ const Checkout: React.FC = () => {
                         Checkout securely with a card — no PayPal account required.
                       </p>
                       <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
-                        <span className="inline-flex h-6 min-w-[42px] items-center justify-center rounded-md border border-[#E7D9C7] bg-[#FFF8EF] px-1">
-                          <svg viewBox="0 0 42 14" className="h-3.5 w-9" aria-label="Visa">
-                            <path fill="#1A1F71" d="M16.5 13.4h-3L15.4.7h3zM28 1c-.6-.2-1.6-.4-2.8-.4-3.1 0-5.2 1.6-5.2 4 0 1.7 1.6 2.7 2.8 3.2 1.3.6 1.7.9 1.7 1.4 0 .8-.9 1.1-1.8 1.1-1.2 0-1.9-.2-3-.7l-.4-.2-.4 2.7c.7.3 2 .6 3.4.6 3.2 0 5.3-1.6 5.3-4.1 0-1.4-.8-2.4-2.6-3.2-1.1-.5-1.8-.8-1.8-1.3 0-.5.5-1 1.6-1 .9 0 1.5.2 2 .4l.2.1.4-2.6zM34.8.7h-2.3c-.7 0-1.2.2-1.5.9l-4.4 11.8h3.2l.6-1.8h3.9l.4 1.8h2.8L34.8.7zm-3.5 8.5 1.6-4.8.9 4.8h-2.5zM12.2.7 9.3 9.5 9 .9c0-.1-.5-.2-1-.2H3.2l-.1.2c1.2.3 2.5.8 3.3 1.2l2.6 11.3h3.2L17 .7h-4.8z"/>
-                          </svg>
-                        </span>
-                        <span className="inline-flex h-6 min-w-[42px] items-center justify-center rounded-md border border-[#E7D9C7] bg-[#FFF8EF] px-1">
-                          <svg viewBox="0 0 36 22" className="h-3.5 w-7" aria-label="Mastercard">
-                            <circle cx="13" cy="11" r="7" fill="#EB001B" />
-                            <circle cx="23" cy="11" r="7" fill="#F79E1B" />
-                            <path fill="#FF5F00" d="M18 4.5A7 7 0 0 0 18 17.5A7 7 0 0 0 18 4.5z" />
-                          </svg>
-                        </span>
-                        <span className="inline-flex h-6 min-w-[42px] items-center justify-center rounded-md border border-[#E7D9C7] bg-[#FFF8EF] px-1">
-                          <svg viewBox="0 0 42 14" className="h-3.5 w-9" aria-label="American Express">
-                            <rect width="42" height="14" rx="2" fill="#016FD0" />
-                            <text x="21" y="9.5" textAnchor="middle" fontSize="5.2" fontWeight="700" fill="#fff" fontFamily="Arial, sans-serif">AMEX</text>
-                          </svg>
-                        </span>
-                        <span className="inline-flex h-6 min-w-[44px] items-center justify-center rounded-md border border-[#E7D9C7] bg-[#FFF8EF] px-1">
-                          <svg viewBox="0 0 42 14" className="h-3.5 w-9" aria-label="Discover">
-                            <text x="17" y="9.5" textAnchor="middle" fontSize="5.2" fontWeight="700" fill="#222" fontFamily="Arial, sans-serif">DISC</text>
-                            <path d="M22 7h14" stroke="#F58220" strokeWidth="3.5" strokeLinecap="round" />
-                          </svg>
-                        </span>
+                        {[
+                          { src: '/images/payments/visa.svg', alt: 'Visa' },
+                          { src: '/images/payments/mastercard.svg', alt: 'Mastercard' },
+                          { src: '/images/payments/amex.svg', alt: 'American Express' },
+                          { src: '/images/payments/discover.svg', alt: 'Discover' },
+                        ].map((brand) => (
+                          <span key={brand.alt} className="inline-flex h-9 min-w-[58px] items-center justify-center rounded-md border border-[#E7D9C7] bg-[#FEF9F2] px-1.5">
+                            <img src={brand.src} alt={brand.alt} className="h-5 w-auto object-contain" loading="lazy" />
+                          </span>
+                        ))}
                       </div>
                     </div>
                     <PayPalCheckout
