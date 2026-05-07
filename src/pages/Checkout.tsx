@@ -1268,17 +1268,14 @@ const Checkout: React.FC = () => {
                       <p className="text-xs text-gray-600">
                         Checkout securely with a card — no PayPal account required.
                       </p>
-                      <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
-                        {[
-                          { src: '/images/payments/visa.svg', alt: 'Visa' },
-                          { src: '/images/payments/mastercard.svg', alt: 'Mastercard' },
-                          { src: '/images/payments/amex.svg', alt: 'American Express' },
-                          { src: '/images/payments/discover.svg', alt: 'Discover' },
-                        ].map((brand) => (
-                          <span key={brand.alt} className="inline-flex h-9 min-w-[58px] items-center justify-center rounded-md border border-[#E7D9C7] bg-[#FEF9F2] px-1.5">
-                            <img src={brand.src} alt={brand.alt} className="h-5 w-auto object-contain" loading="lazy" />
-                          </span>
-                        ))}
+                      <div className="flex justify-center">
+                        <img
+                          src="https://res.cloudinary.com/dtrxl120u/image/upload/v1778187843/8b1a7087-53d4-4389-a6b8-090268a31dd5_bscbcu.png"
+                          alt="Accepted payment methods: Visa, Mastercard, American Express, Discover"
+                          className="h-auto w-full max-w-[240px] sm:max-w-[280px] object-contain"
+                          loading="eager"
+                          decoding="async"
+                        />
                       </div>
                     </div>
                     <PayPalCheckout
