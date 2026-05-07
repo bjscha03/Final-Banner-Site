@@ -1264,43 +1264,44 @@ const Checkout: React.FC = () => {
                   </>
                 ) : (
                   <div className="space-y-3">
-                    <div className="space-y-2">
+                    <div className="space-y-2 rounded-lg border border-[#E7D9C7] bg-[#FCF7F0] p-3 shadow-sm">
                       <p className="text-xs text-gray-600">
                         Checkout securely with a card — no PayPal account required.
                       </p>
-                      <div className="flex items-center gap-1.5 text-[10px] font-semibold text-gray-500 uppercase tracking-wide">
-                        <span className="rounded border border-gray-300 px-1.5 py-0.5">Visa</span>
-                        <span className="rounded border border-gray-300 px-1.5 py-0.5">Mastercard</span>
-                        <span className="rounded border border-gray-300 px-1.5 py-0.5">Amex</span>
-                        <span className="rounded border border-gray-300 px-1.5 py-0.5">Discover</span>
+                      <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5">
+                        <span className="inline-flex h-6 min-w-[42px] items-center justify-center rounded-md border border-[#E7D9C7] bg-[#FFF8EF] px-1">
+                          <svg viewBox="0 0 42 14" className="h-3.5 w-9" aria-label="Visa">
+                            <path fill="#1A1F71" d="M16.5 13.4h-3L15.4.7h3zM28 1c-.6-.2-1.6-.4-2.8-.4-3.1 0-5.2 1.6-5.2 4 0 1.7 1.6 2.7 2.8 3.2 1.3.6 1.7.9 1.7 1.4 0 .8-.9 1.1-1.8 1.1-1.2 0-1.9-.2-3-.7l-.4-.2-.4 2.7c.7.3 2 .6 3.4.6 3.2 0 5.3-1.6 5.3-4.1 0-1.4-.8-2.4-2.6-3.2-1.1-.5-1.8-.8-1.8-1.3 0-.5.5-1 1.6-1 .9 0 1.5.2 2 .4l.2.1.4-2.6zM34.8.7h-2.3c-.7 0-1.2.2-1.5.9l-4.4 11.8h3.2l.6-1.8h3.9l.4 1.8h2.8L34.8.7zm-3.5 8.5 1.6-4.8.9 4.8h-2.5zM12.2.7 9.3 9.5 9 .9c0-.1-.5-.2-1-.2H3.2l-.1.2c1.2.3 2.5.8 3.3 1.2l2.6 11.3h3.2L17 .7h-4.8z"/>
+                          </svg>
+                        </span>
+                        <span className="inline-flex h-6 min-w-[42px] items-center justify-center rounded-md border border-[#E7D9C7] bg-[#FFF8EF] px-1">
+                          <svg viewBox="0 0 36 22" className="h-3.5 w-7" aria-label="Mastercard">
+                            <circle cx="13" cy="11" r="7" fill="#EB001B" />
+                            <circle cx="23" cy="11" r="7" fill="#F79E1B" />
+                            <path fill="#FF5F00" d="M18 4.5A7 7 0 0 0 18 17.5A7 7 0 0 0 18 4.5z" />
+                          </svg>
+                        </span>
+                        <span className="inline-flex h-6 min-w-[42px] items-center justify-center rounded-md border border-[#E7D9C7] bg-[#FFF8EF] px-1">
+                          <svg viewBox="0 0 42 14" className="h-3.5 w-9" aria-label="American Express">
+                            <rect width="42" height="14" rx="2" fill="#016FD0" />
+                            <text x="21" y="9.5" textAnchor="middle" fontSize="5.2" fontWeight="700" fill="#fff" fontFamily="Arial, sans-serif">AMEX</text>
+                          </svg>
+                        </span>
+                        <span className="inline-flex h-6 min-w-[44px] items-center justify-center rounded-md border border-[#E7D9C7] bg-[#FFF8EF] px-1">
+                          <svg viewBox="0 0 42 14" className="h-3.5 w-9" aria-label="Discover">
+                            <text x="17" y="9.5" textAnchor="middle" fontSize="5.2" fontWeight="700" fill="#222" fontFamily="Arial, sans-serif">DISC</text>
+                            <path d="M22 7h14" stroke="#F58220" strokeWidth="3.5" strokeLinecap="round" />
+                          </svg>
+                        </span>
                       </div>
-                      <Button
-                        type="button"
-                        disabled={!canProceed}
-                        onClick={() => {
-                          const section = document.getElementById('paypal-checkout-option');
-                          section?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        }}
-                        className="w-full h-11 bg-black hover:bg-black/90 text-white font-semibold"
-                      >
-                        Continue to Secure Checkout
-                      </Button>
                     </div>
-
-                    <div className="flex items-center gap-2 py-0.5">
-                      <span className="h-px flex-1 bg-gray-200" />
-                      <span className="text-[11px] text-gray-400">or</span>
-                      <span className="h-px flex-1 bg-gray-200" />
-                    </div>
-
-                    <div id="paypal-checkout-option" className="rounded-lg border border-gray-100 p-2">
-                      <PayPalCheckout
-                        disabled={!canProceed}
-                        total={totalCents}
-                        onSuccess={handlePaymentSuccess}
-                        onError={handlePaymentError}
-                      />
-                    </div>
+                    <PayPalCheckout
+                      disabled={!canProceed}
+                      total={totalCents}
+                      onSuccess={handlePaymentSuccess}
+                      onError={handlePaymentError}
+                      cardFirstLayout
+                    />
                   </div>
                 )}
 
