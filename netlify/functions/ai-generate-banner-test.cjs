@@ -30,9 +30,9 @@ exports.handler = async (event) => {
       return { statusCode: 500, headers, body: JSON.stringify({ success: false, stepFailed: 'openai_request', status: 500, code: 'missing_openai_key', type: 'config_error', message: 'OPENAI_API_KEY missing' }) };
     }
 
-    const body = JSON.parse(event.body || '{}');
-    const prompt = (body.prompt || 'Professional flat print-ready banner, bold readable text, no mockup, no hardware.').trim();
-    const size = body.size || '1536x1024';
+    JSON.parse(event.body || '{}'); // Keep parse for request validation/log symmetry; request fields are ignored on purpose for speed tests.
+    const prompt = 'solid blue rectangle';
+    const size = '1024x1024'; // Smallest size supported by gpt-image-1
 
     const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
     const response = await openai.images.generate({ model: 'gpt-image-1', prompt, size, n: 1 });
