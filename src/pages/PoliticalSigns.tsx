@@ -45,7 +45,7 @@ interface InspirationFile {
   name: string;
   url: string;
   fileKey: string;
-  category: 'inspiration' | 'campaign_photo' | 'school_logo';
+  category: 'inspiration' | 'candidate_photo' | 'campaign_logo';
   size: number;
 }
 
@@ -89,7 +89,7 @@ const STYLE_OPTIONS = [
   'Clean / Classic',
   'Bold / Sports',
   'Elegant',
-  'School Spirit',
+  'Patriotic / Bold',
   'Fun / Party',
   'Custom / Other',
 ];
@@ -135,9 +135,9 @@ const PoliticalSigns: React.FC = () => {
   const [customer, setCustomer] = useState({ name: '', email: '', phone: '' });
   const [campaign, setGraduate] = useState({
     campaignName: '',
-    schoolName: '',
+    campaignNameOrg: '',
     campaignYear: '',
-    schoolColors: '',
+    campaignColors: '',
     campaignDate: '',
     partyDate: '',
   });
@@ -179,7 +179,7 @@ const PoliticalSigns: React.FC = () => {
     secondaryText: '',
     contactInfo: '',
     notes: '',
-    preferredStyle: 'School Spirit',
+    preferredStyle: 'Patriotic / Bold',
   });
 
   // Inspiration files (uploaded to Cloudinary via /.netlify/functions/upload-file)
@@ -349,10 +349,10 @@ const PoliticalSigns: React.FC = () => {
       });
       return;
     }
-    if (!campaign.campaignName.trim() || !campaign.schoolName.trim() || !campaign.campaignYear.trim()) {
+    if (!campaign.campaignName.trim() || !campaign.campaignNameOrg.trim() || !campaign.campaignYear.trim()) {
       toast({
         title: 'Missing campaign info',
-        description: 'Please provide the campaign\u2019s name, school, and campaign year.',
+        description: 'Please provide the candidate name, campaign name, and election year.',
         variant: 'destructive',
       });
       return;
@@ -412,7 +412,7 @@ const PoliticalSigns: React.FC = () => {
         customerName: customer.name.trim(),
         customerEmail: customer.email.trim(),
         campaignName: campaign.campaignName.trim(),
-        schoolName: campaign.schoolName.trim(),
+        campaignNameOrg: campaign.campaignNameOrg.trim(),
         campaignYear: campaign.campaignYear.trim(),
         productType: designerProduct,
         estimatedProductSubtotalCents: data.estimatedProductSubtotalCents ?? estimate?.subtotalCents ?? null,
@@ -451,7 +451,7 @@ const PoliticalSigns: React.FC = () => {
         <meta property="og:url" content="https://bannersonthefly.com/campaign-signs" />
         <meta
           property="og:image"
-          content="https://res.cloudinary.com/dtrxl120u/image/upload/v1777021980/Graduation_hero_xw9rnh.png"
+          content="https://res.cloudinary.com/dtrxl120u/image/upload/v1778177853/political_banners_cdgdgp.png"
         />
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Political Campaign Signs & Banners – Designed For You" />
@@ -461,7 +461,7 @@ const PoliticalSigns: React.FC = () => {
         />
         <meta
           name="twitter:image"
-          content="https://res.cloudinary.com/dtrxl120u/image/upload/v1777021980/Graduation_hero_xw9rnh.png"
+          content="https://res.cloudinary.com/dtrxl120u/image/upload/v1778177853/political_banners_cdgdgp.png"
         />
       </Helmet>
 
@@ -740,10 +740,10 @@ const PoliticalSigns: React.FC = () => {
                     onChange={(v) => setGraduate({ ...campaign, campaignName: v })}
                   />
                   <Field
-                    label="Campaign or organization name"
+                    label="Campaign name"
                     required
-                    value={campaign.schoolName}
-                    onChange={(v) => setGraduate({ ...campaign, schoolName: v })}
+                    value={campaign.campaignNameOrg}
+                    onChange={(v) => setGraduate({ ...campaign, campaignNameOrg: v })}
                   />
                   <Field
                     label="Election year"
@@ -754,8 +754,8 @@ const PoliticalSigns: React.FC = () => {
                   <Field
                     label="Campaign colors"
                     placeholder="e.g. Navy & Gold"
-                    value={campaign.schoolColors}
-                    onChange={(v) => setGraduate({ ...campaign, schoolColors: v })}
+                    value={campaign.campaignColors}
+                    onChange={(v) => setGraduate({ ...campaign, campaignColors: v })}
                   />
                   <Field
                     label="Election date (optional)"
@@ -928,13 +928,13 @@ const PoliticalSigns: React.FC = () => {
                 <div className="grid sm:grid-cols-2 gap-4">
                   <Field
                     label="Main text to include"
-                    placeholder="e.g. Congrats Sarah! Class of 2026"
+                    placeholder="e.g. Re-Elect Jordan Lee for City Council"
                     value={designDirection.mainText}
                     onChange={(v) => setDesignDirection({ ...designDirection, mainText: v })}
                   />
                   <Field
                     label="Secondary text"
-                    placeholder="e.g. Lincoln High Football"
+                    placeholder="e.g. Vote November 5 • Ward 3"
                     value={designDirection.secondaryText}
                     onChange={(v) => setDesignDirection({ ...designDirection, secondaryText: v })}
                   />
@@ -961,7 +961,7 @@ const PoliticalSigns: React.FC = () => {
                   label="Notes for the designer"
                   value={designDirection.notes}
                   onChange={(v) => setDesignDirection({ ...designDirection, notes: v })}
-                  placeholder="Anything else we should know? Inside jokes, must-have words, references, etc."
+                  placeholder="Tell us about your campaign, slogan, colors, key messaging, or any ideas for your sign/banner."
                 />
 
                 {/* File uploads */}
@@ -972,14 +972,14 @@ const PoliticalSigns: React.FC = () => {
                     onSelect={(f) => handleFileUpload(f, 'inspiration')}
                   />
                   <UploadButton
-                    label="Graduate photo"
-                    busy={uploadingCategory === 'campaign_photo'}
-                    onSelect={(f) => handleFileUpload(f, 'campaign_photo')}
+                    label="Candidate photo"
+                    busy={uploadingCategory === 'candidate_photo'}
+                    onSelect={(f) => handleFileUpload(f, 'candidate_photo')}
                   />
                   <UploadButton
-                    label="School logo"
-                    busy={uploadingCategory === 'school_logo'}
-                    onSelect={(f) => handleFileUpload(f, 'school_logo')}
+                    label="Campaign logo"
+                    busy={uploadingCategory === 'campaign_logo'}
+                    onSelect={(f) => handleFileUpload(f, 'campaign_logo')}
                   />
                 </div>
                 {files.length > 0 && (
