@@ -2,6 +2,13 @@ import type { Context } from "https://edge.netlify.com";
 
 // Static page metadata
 const staticPages: Record<string, { title: string; description: string; image: string; url: string; type: string }> = {
+  "political-signs": {
+    title: "Political Campaign Signs & Banners | Banners On The Fly",
+    description: "Fast political campaign signs, banners, and yard signs with free next-day air shipping.",
+    image: "https://res.cloudinary.com/dtrxl120u/image/upload/v1778180324/Screenshot_2026-05-07_at_2.58.40_PM_h8ozp5.png?v=2",
+    url: "https://bannersonthefly.com/political-signs",
+    type: "website"
+  },
   "graduation-signs": {
     title: "Custom Graduation Signs – Designed For You",
     description: "Upload your own design or let our designers create one. Printed in 24 hours with free next-day air shipping.",
