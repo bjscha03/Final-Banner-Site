@@ -522,19 +522,6 @@ const PoliticalSigns: React.FC = () => {
               >
                 <Upload className="h-5 w-5" /> Start Your Order Today
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setFlow('designer');
-                  setTimeout(
-                    () => document.getElementById('flow-section')?.scrollIntoView({ behavior: 'smooth' }),
-                    50
-                  );
-                }}
-                className="inline-flex items-center gap-2 rounded-lg bg-white/10 hover:bg-white/20 border border-white/30 text-white font-bold px-6 py-3.5 text-base shadow-lg transition backdrop-blur"
-              >
-                <Sparkles className="h-5 w-5" /> Shop Yard Signs
-              </button>
             </div>
             <p className="mt-4 text-xs text-white/70 max-w-sm">
               Need help with design? Upload artwork or let our designers create it for you.
