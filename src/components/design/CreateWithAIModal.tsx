@@ -60,10 +60,11 @@ const CreateWithAIModalImpl: React.FC<CreateWithAIModalProps> = ({ open, onOpenC
 
   const generate = async (basePrompt: string, regenerate = false) => {
     const payload = { prompt: basePrompt, regenerate, productType, width: widthIn, height: heightIn, material, quantity, size: { wIn: widthIn, hIn: heightIn }, inspirationImage: inspirationDataUrl, brandMatchStrength, styleChips: CHIPS.filter((c)=>basePrompt.includes(c)) };
-    const { response: res, debugRecord } = await runDebugFetch('/.netlify/functions/generate-ai-designs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const targetSize = Number(widthIn) >= Number(heightIn) ? '1536x1024' : '1024x1536';
+    const { response: res, debugRecord } = await runDebugFetch('/.netlify/functions/ai-smoke-test', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ prompt: basePrompt, size: targetSize }) });
     setRawGenerateResponse(JSON.stringify(debugRecord, null, 2));
-    const body: GenerationResponse = (debugRecord.parsedJson && typeof debugRecord.parsedJson === 'object' ? debugRecord.parsedJson : {}) as GenerationResponse;
-    if (!res) throw new Error(debugRecord.fetchError || 'Network error while calling generate-ai-designs');
+    const body: any = (debugRecord.parsedJson && typeof debugRecord.parsedJson === 'object' ? debugRecord.parsedJson : {}) as any;
+    if (!res) throw new Error(debugRecord.fetchError || 'Network error while calling ai-smoke-test');
     setDebugInfo(body?.debug || body || null);
     if (!res.ok) {
       const errObj = typeof body?.error === 'object' ? body.error : null;
@@ -81,9 +82,11 @@ const CreateWithAIModalImpl: React.FC<CreateWithAIModalProps> = ({ open, onOpenC
       ].filter(Boolean).join('\n');
       throw new Error(detail || JSON.stringify(body));
     }
-    const image = body?.image || body?.images?.[0];
-    if (!image?.url) throw new Error(JSON.stringify(body));
-    return { imageUrl: image.url, prompt: body?.prompt || basePrompt, originalPrompt: basePrompt, revision: (design?.revision || 0) + 1 };
+    const smokeImageUrl = body?.imageUrl || null;
+    const smokeImageBase64 = body?.imageBase64 || null;
+    if (!smokeImageUrl && !smokeImageBase64) throw new Error(JSON.stringify(body));
+    const imageUrl = smokeImageUrl || `data:image/png;base64,${smokeImageBase64}`;
+    return { imageUrl, prompt: body?.prompt || basePrompt, originalPrompt: basePrompt, revision: (design?.revision || 0) + 1 };
   };
 
   const handleGenerate = async (regenerate = false) => {
