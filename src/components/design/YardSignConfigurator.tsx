@@ -411,8 +411,8 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
       const isPdf = file.type === 'application/pdf';
       const thumbnailUrl = isPdf ? getPdfThumbnailUrl(data.secureUrl) : data.secureUrl;
       const presetFirstDesignQuantity = Math.max(
-        1,
-        Math.min(YARD_SIGN_MAX_QUANTITY, initialDesignQuantity || 1),
+        YARD_SIGN_MIN_QUANTITY,
+        Math.min(YARD_SIGN_MAX_QUANTITY, initialDesignQuantity || YARD_SIGN_MIN_QUANTITY),
       );
       const newDesign: YardSignDesign = {
         id: `${Date.now()}-${Math.random().toString(36).substring(2, 11)}`,
@@ -504,8 +504,8 @@ const YardSignConfigurator: React.FC<YardSignConfiguratorProps> = ({
         <p className="text-xs text-gray-500 mb-2">
           Upload up to {YARD_SIGN_MAX_DESIGNS} designs. Each will be printed at 24&quot; × 18&quot;. Assign a quantity to each design.
         </p>
-        <p className="text-xs text-orange-600 font-medium mb-3">
-          Total order must be in increments of {YARD_SIGN_INCREMENT} signs (10, 20, 30, etc.).
+        <p className="text-xs text-gray-500 font-medium mb-3">
+          Minimum order is {YARD_SIGN_MIN_QUANTITY} signs. Total must be in increments of {YARD_SIGN_INCREMENT}.
         </p>
 
         {/* Design rows */}
