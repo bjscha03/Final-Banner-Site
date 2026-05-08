@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Helmet } from 'react-helmet-async';
-import { Clock, Truck, ShieldCheck, CheckCircle, ArrowRight, Upload } from 'lucide-react';
+import { Clock, Truck, ShieldCheck, CheckCircle, ArrowRight } from 'lucide-react';
 import Layout from '@/components/Layout';
 
 type ProductType = 'banner' | 'yard_sign' | 'car_magnet';
@@ -61,19 +61,6 @@ const FAQS = [
 
 const PoliticalSigns: React.FC = () => {
   const navigate = useNavigate();
-  const [selectedProduct, setSelectedProduct] = useState<ProductType>('banner');
-
-  const activeProduct = useMemo(
-    () => PRODUCTS.find((p) => p.key === selectedProduct) ?? PRODUCTS[0],
-    [selectedProduct]
-  );
-
-  const selectProduct = (product: ProductType) => {
-    setSelectedProduct(product);
-    setTimeout(() => {
-      document.getElementById('product-builder')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }, 50);
-  };
 
   return (
     <Layout>
@@ -134,12 +121,8 @@ const PoliticalSigns: React.FC = () => {
               <button
                 key={product.key}
                 type="button"
-                onClick={() => selectProduct(product.key)}
-                className={`text-left rounded-2xl border-2 overflow-hidden transition shadow-sm hover:shadow-md min-h-[320px] ${
-                  selectedProduct === product.key
-                    ? 'border-[#FF6A00] ring-2 ring-[#FF6A00]/30'
-                    : 'border-[#E5E5E5] hover:border-[#FF6A00]/60'
-                }`}
+                onClick={() => navigate(`/design?product=${product.slug}&theme=political`)}
+                className="text-left rounded-2xl border-2 border-[#E5E5E5] overflow-hidden transition shadow-sm hover:shadow-md hover:border-[#FF6A00]/60 min-h-[320px]"
               >
                 <img src={product.image} alt={product.name} className="w-full h-44 object-cover" />
                 <div className="p-5">
@@ -152,22 +135,6 @@ const PoliticalSigns: React.FC = () => {
         </div>
       </section>
 
-      <section id="product-builder" className="bg-[#F7F7F7] py-14 sm:py-16">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="rounded-2xl border border-[#E5E5E5] bg-white p-6 sm:p-8">
-            <p className="text-sm font-bold uppercase tracking-wide text-[#FF6A00]">Step 2 of 3</p>
-            <h3 className="text-3xl font-extrabold text-[#0B1F3A] mt-1">Upload artwork for {activeProduct.name}</h3>
-            <p className="mt-2 text-gray-600">Select options, upload your file, and move directly to checkout.</p>
-            <button
-              type="button"
-              onClick={() => navigate(`/design?product=${activeProduct.slug}&theme=political`)}
-              className="mt-6 w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-lg bg-[#FF6A00] hover:bg-[#E65F00] text-white font-bold px-8 py-4 text-lg"
-            >
-              <Upload className="h-5 w-5" /> Upload Artwork & Continue
-            </button>
-          </div>
-        </div>
-      </section>
 
       <section className="bg-white py-14">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
