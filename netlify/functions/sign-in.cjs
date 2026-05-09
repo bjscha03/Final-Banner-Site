@@ -20,6 +20,17 @@ async function verifyPassword(password, hashedPassword) {
   return hash === verifyHash;
 }
 
+// Check whether an email is in the admin allowlist env var.
+// ADMIN_TEST_PAY_ALLOWLIST is a comma-separated list of admin emails and is the
+// runtime source of truth for admin access (used by check-admin-status.cjs too).
+function isEmailInAdminAllowlist(email) {
+  if (!email) return false;
+  const raw = process.env.ADMIN_TEST_PAY_ALLOWLIST;
+  if (!raw) return false;
+  const allowed = raw.split(',').map((e) => e.trim().toLowerCase()).filter(Boolean);
+  return allowed.includes(email.toLowerCase());
+}
+
 exports.handler = async (event) => {
   // Handle CORS preflight
   if (event.httpMethod === 'OPTIONS') {
@@ -105,7 +116,7 @@ exports.handler = async (event) => {
         email: user.email,
         full_name: user.full_name,
         username: user.username,
-        is_admin: user.is_admin
+        is_admin: user.is_admin === true || isEmailInAdminAllowlist(user.email)
       };
 
       return {
@@ -159,7 +170,7 @@ exports.handler = async (event) => {
       email: user.email,
       full_name: user.full_name,
       username: user.username,
-      is_admin: user.is_admin
+      is_admin: user.is_admin === true || isEmailInAdminAllowlist(user.email)
     };
 
     console.log(`Successful sign-in for user: ${user.email}`);

@@ -86,6 +86,30 @@ class SecureAuthAdapter implements AuthAdapter {
       }
 
       console.log('✅ getCurrentUser result:', user ? { id: user.id, email: user.email, is_admin: user.is_admin } : null);
+
+      // Upgrade admin status from server-side allowlist (ADMIN_TEST_PAY_ALLOWLIST)
+      // so already-signed-in admins don't have to log out / log back in to gain access.
+      // Best-effort, non-blocking on errors.
+      if (user && user.email && user.is_admin !== true) {
+        try {
+          const resp = await fetch(getNetlifyFunctionUrl('check-admin-status'), {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email: user.email }),
+          });
+          if (resp.ok) {
+            const data = await resp.json();
+            if (data && data.isAdmin === true) {
+              user.is_admin = true;
+              safeStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
+              console.log('🔧 Upgraded user is_admin=true via ADMIN_TEST_PAY_ALLOWLIST');
+            }
+          }
+        } catch (allowlistError) {
+          console.warn('check-admin-status lookup failed (non-fatal):', allowlistError);
+        }
+      }
+
       return user;
     } catch (error) {
       console.error('Error reading user from storage:', error);
