@@ -68,6 +68,17 @@ const SignIn: React.FC = () => {
   // }, [user, authLoading, navigate, nextUrl]);
 
   useEffect(() => {
+    const oauthError = searchParams.get('error');
+    if (oauthError) {
+      toast({
+        title: 'Google Sign-In Failed',
+        description: decodeURIComponent(oauthError),
+        variant: 'destructive',
+      });
+    }
+  }, [searchParams, toast]);
+
+  useEffect(() => {
     scrollToTop();
     if (titleRef.current) {
       setTimeout(() => {
