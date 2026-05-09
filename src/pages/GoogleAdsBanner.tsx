@@ -140,7 +140,7 @@ function getImagePreviewUrl(imageUrl: string): string {
   return imageUrl.replace('/upload/', '/upload/f_auto,q_auto:good,w_1600,c_limit/');
 }
 const GoogleAdsBanner: React.FC = () => {
-  const NEW_BUILDER_ACTIVE = false;
+  const NEW_BUILDER_ACTIVE = true;
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const getProductQuerySlug = useCallback((type: ProductTypeSlug) => {
@@ -1850,6 +1850,25 @@ const GoogleAdsBanner: React.FC = () => {
             >
               {isYardSign ? 'Build Your Yard Sign Order' : isCarMagnet ? 'Design Your Custom Car Magnets' : 'Build Your Banner'}
             </h2>
+          {NEW_BUILDER_ACTIVE ? (
+            <section className="product-builder-shell mb-8">
+              <div className="builder-grid grid lg:grid-cols-[minmax(0,1fr)_430px] gap-6 max-w-[1600px] mx-auto">
+                <div className="preview-column rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                  <div className="mb-3 inline-flex items-center rounded-full bg-amber-100 border border-amber-300 px-3 py-1 text-xs font-bold text-amber-800">NEW BUILDER ACTIVE</div>
+                  <h3 className="text-2xl font-bold text-slate-900">Design Your Banner</h3>
+                  <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4 min-h-[340px] flex items-center justify-center text-slate-500 text-sm">Live preview workspace placeholder (commit 2 shell)</div>
+                  <div className="mt-3 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">Preview controls placeholder</div>
+                  <div className="mt-3 rounded-xl border border-dashed border-slate-300 bg-white px-4 py-3 h-[120px] flex items-center text-sm text-slate-600">Compact upload placeholder container</div>
+                </div>
+                <aside className="customize-sidebar">
+                  <div className="sticky-config-card sticky top-[100px] rounded-2xl border border-slate-200 bg-white p-5 shadow-sm min-h-[420px]">
+                    <h3 className="text-xl font-bold text-slate-900 mb-3">Customize Your Banner</h3>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">Temporary configurator placeholder (controls migration in commit 3).</div>
+                  </div>
+                </aside>
+              </div>
+            </section>
+          ) : null}
             {/* Mobile-only step progress — driven by the same step machine as
                 the sticky CTA so they can never disagree. Hidden on yard sign
                 (uses a different multi-design flow). */}
