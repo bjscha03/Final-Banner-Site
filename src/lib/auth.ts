@@ -89,24 +89,32 @@ class SecureAuthAdapter implements AuthAdapter {
 
       // Upgrade admin status from server-side allowlist (ADMIN_TEST_PAY_ALLOWLIST)
       // so already-signed-in admins don't have to log out / log back in to gain access.
-      // Best-effort, non-blocking on errors.
+      // Best-effort, non-blocking on errors. Cached per-session per-email so we don't
+      // hit the function on every getCurrentUser() call.
       if (user && user.email && user.is_admin !== true) {
-        try {
-          const resp = await fetch(getNetlifyFunctionUrl('check-admin-status'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: user.email }),
-          });
-          if (resp.ok) {
-            const data = await resp.json();
-            if (data && data.isAdmin === true) {
-              user.is_admin = true;
-              safeStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
-              console.log('🔧 Upgraded user is_admin=true via ADMIN_TEST_PAY_ALLOWLIST');
+        const cacheKey = `admin_status_checked_${user.email.toLowerCase()}`;
+        const alreadyChecked = typeof sessionStorage !== 'undefined' && sessionStorage.getItem(cacheKey) === '1';
+        if (!alreadyChecked) {
+          try {
+            const resp = await fetch(getNetlifyFunctionUrl('check-admin-status'), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: user.email }),
+            });
+            if (resp.ok) {
+              const data = await resp.json();
+              if (data && data.isAdmin === true) {
+                user.is_admin = true;
+                safeStorage.setItem(this.CURRENT_USER_KEY, JSON.stringify(user));
+                console.log('🔧 Upgraded user is_admin=true via ADMIN_TEST_PAY_ALLOWLIST');
+              }
             }
+            if (typeof sessionStorage !== 'undefined') {
+              sessionStorage.setItem(cacheKey, '1');
+            }
+          } catch (allowlistError) {
+            console.warn('check-admin-status lookup failed (non-fatal):', allowlistError);
           }
-        } catch (allowlistError) {
-          console.warn('check-admin-status lookup failed (non-fatal):', allowlistError);
         }
       }
 
