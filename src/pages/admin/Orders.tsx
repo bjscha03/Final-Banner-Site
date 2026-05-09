@@ -891,14 +891,14 @@ const AdminOrders: React.FC = () => {
                 Admin Access Required
               </h1>
               <p className="text-gray-600 mb-6">
-                You need admin privileges to access this page. Please set up admin access first.
+                You need admin privileges to access this page. Please sign in with an admin account.
               </p>
               <div className="space-y-4">
                 <Button
-                  onClick={() => navigate('/admin/setup')}
+                  onClick={() => navigate('/sign-in?next=/admin/orders')}
                   className="w-full sm:w-auto"
                 >
-                  Set Up Admin Access
+                  Sign In as Admin
                 </Button>
                 <Button
                   variant="outline"
@@ -909,20 +909,6 @@ const AdminOrders: React.FC = () => {
                   Back to Home
                 </Button>
               </div>
-
-              {/* Debug info for production troubleshooting */}
-              <details className="mt-8 text-left">
-                <summary className="cursor-pointer text-sm text-gray-500 hover:text-gray-700">
-                  Debug Information (for troubleshooting)
-                </summary>
-                <div className="mt-2 p-4 bg-gray-50 rounded text-xs font-mono">
-                  <div>Auth Loading: {authLoading ? 'true' : 'false'}</div>
-                  <div>User: {user ? JSON.stringify({ id: user.id, email: user.email, is_admin: user.is_admin }) : 'null'}</div>
-                  <div>Is Admin: {user ? isAdmin(user) ? 'true' : 'false' : 'N/A'}</div>
-                  <div>Hostname: {typeof window !== 'undefined' ? window.location.hostname : 'unknown'}</div>
-                  <div>Cookies: {typeof document !== 'undefined' ? document.cookie || 'none' : 'unavailable'}</div>
-                </div>
-              </details>
             </div>
           </div>
         </div>

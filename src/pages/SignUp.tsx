@@ -299,7 +299,8 @@ const SignUp: React.FC = () => {
 
             {/* LinkedIn Button */}
             <LinkedInButton />
-            <GoogleButton mode="signup" />
+            {/* Google sign-up temporarily disabled while OAuth callback is being stabilized.
+                Re-enable by restoring: <GoogleButton mode="signup" /> */}
           </div>
 
           {/* Footer */}
