@@ -1863,7 +1863,16 @@ const GoogleAdsBanner: React.FC = () => {
                 <aside className="customize-sidebar">
                   <div className="sticky-config-card sticky top-[100px] rounded-2xl border border-slate-200 bg-white p-5 shadow-sm min-h-[420px]">
                     <h3 className="text-xl font-bold text-slate-900 mb-3">Customize Your Banner</h3>
-                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">Temporary configurator placeholder (controls migration in commit 3).</div>
+                    <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600"><div className="text-sm font-semibold text-slate-900 mb-2">1. Choose your size</div>
+                      <div className="inline-flex items-center rounded-lg border border-gray-200 bg-white p-0.5 text-xs mb-3" role="group" aria-label="Display unit">
+                        <button type="button" aria-pressed={unit === 'in'} onClick={() => setUnit('in')} className={`px-2.5 py-1 rounded-md transition-colors ${unit === 'in' ? 'bg-orange-500 text-white font-semibold' : 'text-gray-600 hover:text-gray-800'}`}>Inches</button>
+                        <button type="button" aria-pressed={unit === 'ft'} onClick={() => setUnit('ft')} className={`px-2.5 py-1 rounded-md transition-colors ${unit === 'ft' ? 'bg-orange-500 text-white font-semibold' : 'text-gray-600 hover:text-gray-800'}`}>Feet</button>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {(isCarMagnet ? CAR_MAGNET_SIZES.map((p) => ({ key: p.label, label: p.label, onClick: () => setCarMagnetSizeLabel(p.label), active: carMagnetSizeLabel === p.label })) : PRESET_SIZES.map((p, i) => ({ key: String(i), label: formatPresetLabel(p.w, p.h, unit), onClick: () => applyPreset(i), active: activePreset === i }))).map((opt) => (
+                          <button key={opt.key} onClick={opt.onClick} className={`border rounded-xl py-2 px-2 text-xs font-medium transition-all ${opt.active ? 'border-orange-500 bg-orange-50 text-orange-700' : 'border-gray-200 hover:border-gray-400 text-gray-700'}`}>{opt.label}</button>
+                        ))}
+                      </div></div>
                   </div>
                 </aside>
               </div>
@@ -1973,7 +1982,7 @@ const GoogleAdsBanner: React.FC = () => {
                   <>
                 {/* Step 1 — Choose your size. Wraps the in/ft toggle (header right slot, banner only),
                     popular sizes, and custom size inputs. */}
-                <ConfigCard
+                {!NEW_BUILDER_ACTIVE && <ConfigCard
                   step={1}
                   title="Choose your size"
                   id="size-section"
@@ -2102,7 +2111,7 @@ const GoogleAdsBanner: React.FC = () => {
                     </div>
                     )}
                   </div>
-                </ConfigCard>
+                </ConfigCard>}
                 <ConfigCard step={2} title="Select material" id="material-section">
                   <div ref={materialDropdownRef} className="relative">
                     {isCarMagnet ? (
