@@ -2548,7 +2548,7 @@ const Design: React.FC = () => {
               </ConfigCard>
             </div>
 
-            <div className="space-y-6 min-w-0 max-w-full lg:sticky lg:top-6 self-start">
+            <div className="space-y-6 min-w-0 max-w-full lg:sticky lg:top-[100px] self-start">
               <p className="text-sm text-emerald-700 -mt-1 font-medium">
                 Includes next-day production &amp; <span className="text-emerald-700 font-semibold">free shipping</span>
               </p>
