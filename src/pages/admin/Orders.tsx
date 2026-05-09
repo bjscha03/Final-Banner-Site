@@ -158,9 +158,11 @@ const AdminOrders: React.FC = () => {
   });
   useEffect(() => {
 
-    // Show access denied message instead of immediate redirect
+    // Redirect to the admin login page (not the customer sign-in page) when
+    // the visitor isn't an admin yet. This restores the legacy behavior where
+    // hitting /admin/orders directly takes you to the admin password gate.
     if (!authLoading && (!user || !isAdmin(user))) {
-      setShowAccessDenied(true);
+      navigate('/admin/setup', { replace: true });
       return;
     }
 
@@ -879,41 +881,11 @@ const AdminOrders: React.FC = () => {
     );
   }
 
-  // Show access denied message if user is not authenticated or not admin
+  // Show nothing while we redirect non-admin visitors to /admin/setup. The
+  // useEffect above handles the actual navigation; rendering null here just
+  // prevents a flash of an "access denied" screen before the redirect runs.
   if (showAccessDenied || (!authLoading && (!user || !isAdmin(user)))) {
-    return (
-      <Layout>
-        <div className="min-h-screen bg-gray-50 py-12">
-          <div className="max-w-2xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-              <Shield className="h-16 w-16 mx-auto text-red-600 mb-4" />
-              <h1 className="text-2xl font-bold text-gray-900 mb-4">
-                Admin Access Required
-              </h1>
-              <p className="text-gray-600 mb-6">
-                You need admin privileges to access this page. Please sign in with an admin account.
-              </p>
-              <div className="space-y-4">
-                <Button
-                  onClick={() => navigate('/sign-in?next=/admin/orders')}
-                  className="w-full sm:w-auto"
-                >
-                  Sign In as Admin
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => navigate('/')}
-                  className="w-full sm:w-auto ml-0 sm:ml-4"
-                >
-                  <ArrowLeft className="h-4 w-4 mr-2" />
-                  Back to Home
-                </Button>
-              </div>
-            </div>
-          </div>
-        </div>
-      </Layout>
-    );
+    return null;
   }
 
   return (

@@ -82,6 +82,7 @@ const AdminAbandonedCarts = lazy(() => import("./pages/admin/AbandonedCarts"));
 const AdminEvents = lazy(() => import("./pages/admin/Events"));
 const AdminGraduationIntakes = lazy(() => import("./pages/admin/GraduationIntakes"));
 const AdminGraduationIntake = lazy(() => import("./pages/admin/GraduationIntake"));
+const AdminSetup = lazy(() => import("./pages/AdminSetup"));
 const ProofApproval = lazy(() => import("./pages/ProofApproval"));
 
 // Utility/debug pages - lazy load
@@ -203,9 +204,10 @@ const App = () => (
             <Route path="/admin/events" element={<AdminEvents />} />
             <Route path="/admin/graduation-intakes" element={<AdminGraduationIntakes />} />
             <Route path="/admin/graduation/:intakeId" element={<AdminGraduationIntake />} />
+            {/* Admin login / setup page — password gate that grants admin access */}
+            <Route path="/admin/setup" element={<AdminSetup />} />
             {/* Legacy dev placeholder routes — redirect any deep links to the real admin entry */}
             <Route path="/admin/seed" element={<Navigate to="/admin/orders" replace />} />
-            <Route path="/admin/setup" element={<Navigate to="/admin/orders" replace />} />
             
             {/* Utility pages */}
             <Route path="/logo-showcase" element={<LogoShowcase />} />
