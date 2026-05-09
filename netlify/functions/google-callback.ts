@@ -118,82 +118,150 @@ export const handler: Handler = async (event) => {
     const googleUser = await userInfoResponse.json();
     console.log('🔵 Google user info received:', googleUser.email);
 
-    // Step 3: Create or update user in database
+    // ------------------------------------------------------------------
+    // Step 3: Create or update user in Neon
+    // Every awaited DB call below is wrapped in withTimeout() so the
+    // function fails fast (≤7s) instead of hanging to Netlify's 60s
+    // timeout if the Neon HTTP driver stalls. On any DB failure we
+    // redirect the browser back to /sign-in with a clear error code so
+    // the user is not left on a spinner.
+    // ------------------------------------------------------------------
+    const DB_TIMEOUT_MS = 7000;
+    const withTimeout = <T,>(p: Promise<T>, ms: number, label: string): Promise<T> =>
+      new Promise<T>((resolve, reject) => {
+        const timer = setTimeout(
+          () => reject(new Error(`Timeout after ${ms}ms during: ${label}`)),
+          ms,
+        );
+        p.then(
+          (v) => { clearTimeout(timer); resolve(v); },
+          (e) => { clearTimeout(timer); reject(e); },
+        );
+      });
+
     const dbUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
     if (!dbUrl) {
-      throw new Error('Database not configured. Missing NETLIFY_DATABASE_URL or DATABASE_URL.');
-    }
-    const sql = neon(dbUrl);
-
-    const normalizedEmail = googleUser.email?.toLowerCase();
-
-    // Check if user already exists with this email
-    const existingUsers = await sql`
-      SELECT * FROM profiles
-      WHERE email = ${normalizedEmail}
-      LIMIT 1
-    `;
-
-    let user: any;
-
-    if (existingUsers.length > 0) {
-      // USER EXISTS - Link Google to existing account
-      const existingUser = existingUsers[0];
-      console.log('🔵 Existing user found, linking Google OAuth');
-
-      // Update the existing user with Google OAuth info
-      await sql`
-        UPDATE profiles
-        SET google_id = ${googleUser.id},
-            updated_at = NOW()
-        WHERE id = ${existingUser.id}
-      `;
-
-      user = {
-        ...existingUser,
-        google_id: googleUser.id,
+      console.error('❌ Database not configured. Missing NETLIFY_DATABASE_URL or DATABASE_URL.');
+      return {
+        statusCode: 302,
+        headers: {
+          Location: '/sign-in?error=' + encodeURIComponent('google_callback_db_not_configured'),
+        },
+        body: '',
       };
-
-      console.log('🔵 Linked Google to existing account');
-    } else {
-      // NEW USER - Create account with Google OAuth
-      console.log('🔵 Creating new user with Google OAuth');
-
-      const newUsers = await sql`
-        INSERT INTO profiles (
-          email,
-          google_id,
-          email_verified,
-          created_at,
-          updated_at
-        ) VALUES (
-          ${normalizedEmail},
-          ${googleUser.id},
-          true,
-          NOW(),
-          NOW()
-        )
-        RETURNING *
-      `;
-
-      user = newUsers[0];
-
-      // Grant 10 free AI credits for new users (if table exists)
-      try {
-        await sql`
-          INSERT INTO ai_credits (user_id, credits_remaining, credits_total, created_at, updated_at)
-          VALUES (${user.id}, 10, 10, NOW(), NOW())
-        `;
-        console.log('🔵 New user created with 10 free AI credits');
-      } catch (creditsError: any) {
-        console.warn('⚠️ Could not grant AI credits (table may not exist):', creditsError.message);
-        console.log('🔵 New user created (AI credits skipped)');
-      }
-      
-      console.log('�� New user details:', { id: user.id, email: user.email, email_verified: user.email_verified });
     }
 
-    console.log('🔵 Final user object before creating safeUser:', { id: user.id, email: user.email, email_verified: user.email_verified, is_admin: user.is_admin });
+    const normalizedEmail = (googleUser.email || '').toLowerCase();
+    if (!normalizedEmail) {
+      console.error('❌ Google user info missing email');
+      return {
+        statusCode: 302,
+        headers: {
+          Location: '/sign-in?error=' + encodeURIComponent('google_callback_no_email'),
+        },
+        body: '',
+      };
+    }
+
+    const dbStartedAt = Date.now();
+    let user: any;
+    try {
+      console.log('🔵 [db] creating Neon client');
+      const sql = neon(dbUrl);
+
+      // 3a. Look up existing profile by normalized email
+      console.log('🔵 [db] BEFORE SELECT profiles by email');
+      const selectStartedAt = Date.now();
+      const existingUsers = await withTimeout(
+        sql`SELECT * FROM profiles WHERE email = ${normalizedEmail} LIMIT 1` as unknown as Promise<any[]>,
+        DB_TIMEOUT_MS,
+        'SELECT profiles by email',
+      );
+      console.log(
+        `🔵 [db] AFTER  SELECT profiles by email (${Date.now() - selectStartedAt}ms, rows=${existingUsers.length})`,
+      );
+
+      if (existingUsers.length > 0) {
+        // EXISTING USER - link Google id and continue
+        const existingUser = existingUsers[0];
+        console.log('🔵 [db] BEFORE UPDATE profiles set google_id', { id: existingUser.id });
+        const updateStartedAt = Date.now();
+        await withTimeout(
+          sql`
+            UPDATE profiles
+            SET google_id = ${googleUser.id},
+                updated_at = NOW()
+            WHERE id = ${existingUser.id}
+          ` as unknown as Promise<unknown>,
+          DB_TIMEOUT_MS,
+          'UPDATE profiles set google_id',
+        );
+        console.log(`🔵 [db] AFTER  UPDATE profiles set google_id (${Date.now() - updateStartedAt}ms)`);
+        user = { ...existingUser, google_id: googleUser.id };
+      } else {
+        // NEW USER - insert profile
+        console.log('🔵 [db] BEFORE INSERT profiles (new user)');
+        const insertStartedAt = Date.now();
+        const newUsers = await withTimeout(
+          sql`
+            INSERT INTO profiles (
+              email,
+              google_id,
+              email_verified,
+              created_at,
+              updated_at
+            ) VALUES (
+              ${normalizedEmail},
+              ${googleUser.id},
+              true,
+              NOW(),
+              NOW()
+            )
+            RETURNING *
+          ` as unknown as Promise<any[]>,
+          DB_TIMEOUT_MS,
+          'INSERT profiles (new user)',
+        );
+        console.log(`🔵 [db] AFTER  INSERT profiles (new user) (${Date.now() - insertStartedAt}ms)`);
+        user = newUsers[0];
+
+        // Grant 10 free AI credits — best-effort, short timeout, never blocks login
+        try {
+          console.log('🔵 [db] BEFORE INSERT ai_credits (best-effort)');
+          const creditsStartedAt = Date.now();
+          await withTimeout(
+            sql`
+              INSERT INTO ai_credits (user_id, credits_remaining, credits_total, created_at, updated_at)
+              VALUES (${user.id}, 10, 10, NOW(), NOW())
+            ` as unknown as Promise<unknown>,
+            3000,
+            'INSERT ai_credits',
+          );
+          console.log(`🔵 [db] AFTER  INSERT ai_credits (${Date.now() - creditsStartedAt}ms)`);
+        } catch (creditsError: any) {
+          console.warn('⚠️ ai_credits grant skipped:', creditsError?.message || creditsError);
+        }
+      }
+    } catch (dbError: any) {
+      const elapsed = Date.now() - dbStartedAt;
+      console.error(`❌ [db] Neon operation failed after ${elapsed}ms:`, dbError?.message || dbError);
+      const isTimeout =
+        typeof dbError?.message === 'string' && dbError.message.startsWith('Timeout after');
+      return {
+        statusCode: 302,
+        headers: {
+          Location:
+            '/sign-in?error=' +
+            encodeURIComponent(isTimeout ? 'google_callback_db_timeout' : 'google_callback_db_error'),
+        },
+        body: '',
+      };
+    }
+
+    console.log(
+      `🔵 [db] all Neon ops complete in ${Date.now() - dbStartedAt}ms; user:`,
+      { id: user.id, email: user.email, email_verified: user.email_verified, is_admin: user.is_admin },
+    );
 
     // Create safe user object (exclude sensitive fields)
     const safeUser = {
