@@ -211,6 +211,7 @@ function getImagePreviewUrl(imageUrl: string): string {
 }
 
 const Design: React.FC = () => {
+  const NEW_BUILDER_ACTIVE = false;
   const { user } = useAuth();
   const userIsAdmin = isAdmin(user);
   const showCreateWithAI = ENABLE_AI && !!user && userIsAdmin;
@@ -2045,6 +2046,11 @@ const Design: React.FC = () => {
         <div className="max-w-[1600px] mx-auto">
           {/* Product type switcher — public for all users */}
           <ProductTypeSwitcher productType={productType} onProductTypeChange={handleProductTypeChange} mobileStickyTopPx={64} />
+          {NEW_BUILDER_ACTIVE ? (
+            <div className="mb-3 inline-flex items-center rounded-full bg-amber-100 border border-amber-300 px-3 py-1 text-xs font-bold text-amber-800">
+              NEW BUILDER ACTIVE
+            </div>
+          ) : null}
           <h2
             ref={builderStartRef}
             id="builder-start"

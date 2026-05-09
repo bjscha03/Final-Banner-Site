@@ -140,6 +140,7 @@ function getImagePreviewUrl(imageUrl: string): string {
   return imageUrl.replace('/upload/', '/upload/f_auto,q_auto:good,w_1600,c_limit/');
 }
 const GoogleAdsBanner: React.FC = () => {
+  const NEW_BUILDER_ACTIVE = false;
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const getProductQuerySlug = useCallback((type: ProductTypeSlug) => {
