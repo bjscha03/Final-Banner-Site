@@ -1,6 +1,7 @@
 const { neon } = require('@neondatabase/serverless');
 const { randomUUID } = require('crypto');
 const { handler: notifyOrderHandler } = require('./notify-order.cjs');
+const { checkAdminAccess } = require('./lib/graduation.cjs');
 
 const headers = {
   'Access-Control-Allow-Origin': '*',
@@ -10,12 +11,6 @@ const headers = {
 };
 
 const toCents = (value) => Math.round((Number(value) || 0) * 100);
-
-async function isAdmin(sql, email) {
-  if (!email) return false;
-  const rows = await sql`SELECT is_admin FROM profiles WHERE LOWER(email)=LOWER(${email}) LIMIT 1`;
-  return rows.length > 0 && rows[0].is_admin === true;
-}
 
 exports.handler = async (event) => {
   if (event.httpMethod === 'OPTIONS') return { statusCode: 200, headers, body: '' };
@@ -29,7 +24,15 @@ exports.handler = async (event) => {
     if (!dbUrl) return { statusCode: 500, headers, body: JSON.stringify({ ok: false, error: 'Database not configured' }) };
     const sql = neon(dbUrl);
 
-    if (!(await isAdmin(sql, adminEmail))) {
+    const authorized = await checkAdminAccess(event, sql, adminEmail);
+    if (!authorized) {
+      console.warn('[recover-missing-order] admin authorization denied', {
+        reason: 'checkAdminAccess returned false',
+        hasAuthorizationHeader: !!(event.headers?.authorization || event.headers?.Authorization),
+        hasCookieHeader: !!(event.headers?.cookie || event.headers?.Cookie),
+        adminEmailProvided: typeof adminEmail === 'string' && adminEmail.length > 0,
+        normalizedAdminEmail: typeof adminEmail === 'string' ? adminEmail.toLowerCase().trim() : null,
+      });
       return { statusCode: 403, headers, body: JSON.stringify({ ok: false, error: 'Admin authorization failed' }) };
     }
 
