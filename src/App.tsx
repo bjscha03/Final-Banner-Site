@@ -18,6 +18,36 @@ import { initPostHog } from "@/lib/posthog";
 // Critical path - load immediately for homepage
 import Index from "./pages/Index";
 
+
+const CHUNK_RELOAD_KEY = 'vite_chunk_reload_once';
+
+function installChunkLoadRecovery() {
+  if (typeof window === 'undefined') return;
+
+  const shouldHandle = (message: string) => {
+    const m = message.toLowerCase();
+    return m.includes('failed to fetch dynamically imported module') ||
+      m.includes('importing a module script failed') ||
+      m.includes('loading chunk') ||
+      m.includes('chunkloaderror');
+  };
+
+  const recover = (raw: unknown) => {
+    const msg = String(raw || '');
+    if (!shouldHandle(msg)) return;
+    const reloaded = sessionStorage.getItem(CHUNK_RELOAD_KEY) === '1';
+    if (reloaded) {
+      sessionStorage.removeItem(CHUNK_RELOAD_KEY);
+      return;
+    }
+    sessionStorage.setItem(CHUNK_RELOAD_KEY, '1');
+    window.location.reload();
+  };
+
+  window.addEventListener('error', (event) => recover(event.message || (event.error && event.error.message)));
+  window.addEventListener('unhandledrejection', (event) => recover((event.reason && event.reason.message) || event.reason));
+}
+
 // Loading fallback component
 const PageLoader = () => (
   <div className="min-h-screen flex items-center justify-center">
@@ -141,7 +171,12 @@ const CartSyncWrapper = ({ children }: { children: React.ReactNode }) => {
 
 const queryClient = new QueryClient();
 
-const App = () => (
+const App = () => {
+  useEffect(() => {
+    installChunkLoadRecovery();
+  }, []);
+
+  return (
   <HelmetProvider>
   <ThemeProvider defaultTheme="light">
     <QueryClientProvider client={queryClient}>
@@ -199,6 +234,7 @@ const App = () => (
             <Route path="/events" element={<EventDiscovery />} />
             
             {/* Admin routes */}
+            <Route path="/admin" element={<Navigate to="/admin/orders" replace />} />
             <Route path="/admin/orders" element={<AdminOrders />} />
             <Route path="/admin/abandoned-carts" element={<AdminAbandonedCarts />} />
             <Route path="/admin/events" element={<AdminEvents />} />
@@ -248,6 +284,7 @@ const App = () => (
     </QueryClientProvider>
   </ThemeProvider>
   </HelmetProvider>
-);
+  );
+};
 
 export default App;
