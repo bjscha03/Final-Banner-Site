@@ -11,9 +11,10 @@ import { useToast } from '@/components/ui/use-toast';
 interface GoogleButtonProps {
   mode?: 'signin' | 'signup';
   className?: string;
+  returnUrl?: string;
 }
 
-const GoogleButton: React.FC<GoogleButtonProps> = ({ mode = 'signin', className = '' }) => {
+const GoogleButton: React.FC<GoogleButtonProps> = ({ mode = 'signin', className = '', returnUrl }) => {
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
 
@@ -38,6 +39,16 @@ const GoogleButton: React.FC<GoogleButtonProps> = ({ mode = 'signin', className 
       if (!result.ok || !result.authUrl) {
         console.error('❌ Invalid response structure:', result);
         throw new Error(result.error || 'Failed to initiate Google sign-in');
+      }
+
+
+      // Preserve intended post-login return URL for callback processing
+      if (returnUrl) {
+        try {
+          sessionStorage.setItem('google_oauth_return_url', returnUrl);
+        } catch (storageError) {
+          console.warn('Could not persist Google OAuth return URL:', storageError);
+        }
       }
 
       // Store state for CSRF protection
