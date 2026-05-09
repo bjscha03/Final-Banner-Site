@@ -1229,13 +1229,13 @@ const Checkout: React.FC = () => {
                         >
                           <div>
                             <p className="font-semibold text-[#18448D]">Debit or Credit Card</p>
-                            <p className="text-sm text-gray-600">Secure card payment powered by Stripe</p>
+                            <p className="text-sm text-gray-600">Secure card payment</p>
                             <p className="text-xs text-gray-500 mt-1">Visa · Mastercard · Amex · Discover</p>
                           </div>
                           <span className="text-xl text-[#18448D]">{showCardForm ? '−' : '+'}</span>
                         </button>
                         <div className="px-4 pb-3">
-                          <p className="text-[11px] text-gray-500">Secure card processing by <span className="font-semibold text-gray-700">Stripe</span></p>
+                          <p className="text-[11px] text-gray-500">Secure card processing</p>
                         </div>
                         <div className="px-4 pb-1">
                           <StripeCheckout
@@ -1266,7 +1266,7 @@ const Checkout: React.FC = () => {
                   <div className="space-y-3">
                     <div className="space-y-2 rounded-lg border border-[#E7D9C7] bg-[#FCF7F0] p-3 shadow-sm">
                       <p className="text-xs text-gray-600">
-                        Checkout securely with a card — no PayPal account required.
+                        Pay securely by card or PayPal. No PayPal account required.
                       </p>
                       <div className="flex justify-center">
                         <img
@@ -1301,8 +1301,8 @@ const Checkout: React.FC = () => {
                       </span>
                     ))}
                   </div>
-                  <p className="mt-2 text-xs text-gray-600">Every order reviewed by a real production team · Custom printed to order · Secure encrypted checkout · Nationwide fulfillment.</p>
-                  <p className="text-xs text-gray-600">Fast turnaround trusted by businesses, events, and campaigns.</p>
+                  <p className="mt-2 text-xs text-gray-600">Secure checkout · No PayPal account required · Upload almost any file type · We check your file before production.</p>
+                  <p className="text-xs text-gray-600">Printed within 24 hours · Free next-day air shipping.</p>
                 </div>
               </div>
 

@@ -308,7 +308,7 @@ const Design: React.FC = () => {
     // Keep the latest mirror in sync immediately so a rapid second
     // switch can't re-stash the just-restored snapshot.
     latestDesignRef.current = { ...restored };
-    setQuantity(1);
+    setQuantity(newType === 'yard_sign' ? 10 : 1);
     setPromoCode('');
     setPromoApplied(false);
     // Switching product tabs is a fresh start — clear confirmation flags so
@@ -489,7 +489,7 @@ const Design: React.FC = () => {
   const [uploadedFile, setUploadedFile] = useState<{name: string; url: string; fileKey: string; size: number; isPdf: boolean; thumbnailUrl?: string} | null>(null);
   const [uploadError, setUploadError] = useState('');
   const [activePreset, setActivePreset] = useState<number | null>(0);
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState(initialProductType === 'yard_sign' ? 10 : 1);
   const [promoCode, setPromoCode] = useState('');
   const [promoApplied, setPromoApplied] = useState(false);
 
@@ -2035,7 +2035,7 @@ const Design: React.FC = () => {
               onClick={scrollToOrder}
               className="group inline-flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white font-bold text-lg px-10 py-4 rounded-xl shadow-[0_4px_14px_rgba(251,146,60,0.4)] hover:shadow-[0_6px_20px_rgba(251,146,60,0.5)] transition-all w-full sm:w-auto"
             >
-              Upload &amp; Start Your Order →
+              Upload Design &amp; Continue
             </button>
           </div>
         </div>
@@ -2373,13 +2373,13 @@ const Design: React.FC = () => {
                   </p>
                 )}
                 {quantity === 1 && (
-                  <p className="text-xs text-gray-500 mt-1.5">Quantity 1 selected — continue when ready.</p>
+                  <p className="text-xs text-gray-500 mt-1.5">Use +/- to adjust quantity quickly.</p>
                 )}
                 {!isCarMagnet && quantity === 1 && (
                   <p className="text-xs text-gray-400 mt-1">Order 2+ for up to 13% off</p>
                 )}
               </ConfigCard>
-              <ConfigCard step={isCarMagnet ? 3 : 4} title={isCarMagnet ? 'Rounded Corners' : 'Finishing options'} id="options-section">
+              <ConfigCard step={isCarMagnet ? 3 : 4} title={isCarMagnet ? 'Rounded Corners' : 'More options'} id="options-section">
                 <div className="space-y-3">
                   {isCarMagnet ? (
                     <div>

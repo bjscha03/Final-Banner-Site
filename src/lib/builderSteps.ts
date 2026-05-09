@@ -252,7 +252,7 @@ export function getNextStep(state: BuilderStepState): BuilderCtaDescriptor {
   if (!isOptionsComplete(state)) {
     return {
       step: 'options',
-      label: 'Choose Options',
+      label: 'More options',
       scrollTargetId: STEP_ANCHORS.options,
       disabled: false,
       loading: false,
@@ -263,7 +263,7 @@ export function getNextStep(state: BuilderStepState): BuilderCtaDescriptor {
   if (!state.hasUpload) {
     return {
       step: 'upload',
-      label: 'Upload Artwork',
+      label: 'Upload Design & Continue',
       scrollTargetId: STEP_ANCHORS.upload,
       disabled: false,
       loading: false,
