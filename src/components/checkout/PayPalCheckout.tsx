@@ -649,6 +649,8 @@ const PayPalCheckout: React.FC<PayPalCheckoutProps> = ({ total, onSuccess, onErr
       )}
 
       <PayPalScriptProvider options={initialOptions}>
+
+      <p className="mb-3 text-xs text-gray-600">Pay securely by card or PayPal. No PayPal account required.</p>
         <div className="relative z-10">
           {cardFirstLayout ? (
             <div className="space-y-2.5">

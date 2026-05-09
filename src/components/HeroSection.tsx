@@ -65,7 +65,7 @@ const HeroSection: React.FC = () => {
                 onClick={handleUploadOrCreate}
                 className="group relative px-10 py-4 sm:px-11 sm:py-4 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-red-500 text-white text-lg font-bold rounded-lg transition-all duration-300 min-w-[240px] shadow-xl shadow-orange-900/30 hover:shadow-orange-500/45 hover:shadow-2xl hover:-translate-y-0.5 overflow-hidden focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300 focus-visible:ring-offset-2 focus-visible:ring-offset-slate-950"
               >
-                <span className="relative z-10">Upload Your Design →</span>
+                <span className="relative z-10">Upload Design & Continue</span>
                 <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/25 to-transparent opacity-0 group-hover:opacity-100 group-hover:animate-[btn-shine_0.8s_ease-in-out]" />
               </button>
             </div>
@@ -77,7 +77,7 @@ const HeroSection: React.FC = () => {
               </div>
               <div className="flex items-center gap-2">
                 <Lock className="w-4 h-4 text-slate-200" />
-                <span>Secure checkout</span>
+                <span>Secure checkout · No PayPal account required</span>
               </div>
               <div className="flex items-center gap-2">
                 <CheckCircle className="w-4 h-4 text-green-400" />

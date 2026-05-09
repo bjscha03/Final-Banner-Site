@@ -227,7 +227,7 @@ const GoogleAdsBanner: React.FC = () => {
   const [uploadedFile, setUploadedFile] = useState<{name: string; url: string; fileKey: string; size: number; isPdf: boolean; thumbnailUrl?: string} | null>(null);
   const [uploadError, setUploadError] = useState('');
   const [activePreset, setActivePreset] = useState<number | null>(0);
-  const [quantity, setQuantity] = useState(1);
+  const [quantity, setQuantity] = useState(initialProductType === 'yard_sign' ? 10 : 1);
   const [promoCode, setPromoCode] = useState('');
   const [promoApplied, setPromoApplied] = useState(false);
 
@@ -733,7 +733,7 @@ const GoogleAdsBanner: React.FC = () => {
     setImgScaleY(restored.imgScaleY);
     setConstrainProps(restored.constrainProps);
     latestDesignRef.current = { ...restored };
-    setQuantity(1);
+    setQuantity(newType === 'yard_sign' ? 10 : 1);
     setPromoCode('');
     setPromoApplied(false);
     // Switching product tabs is a fresh start — clear confirmation flags so
@@ -1818,9 +1818,9 @@ const GoogleAdsBanner: React.FC = () => {
                 onClick={scrollToOrder}
                 className="group inline-flex items-center justify-center gap-2 bg-orange-500 hover:bg-orange-600 active:scale-[0.98] text-white font-bold text-lg px-10 py-4 rounded-xl shadow-[0_4px_14px_rgba(251,146,60,0.4)] hover:shadow-[0_6px_20px_rgba(251,146,60,0.5)] transition-all w-full sm:w-auto"
               >
-                Upload &amp; Start Your Order →
+                Upload Design &amp; Continue
               </button>
-              <span className="text-xs text-gray-200">Takes less than 60 seconds</span>
+              <div className="text-xs text-gray-200 text-center space-y-1"><p>Upload your design in minutes.</p><p>We review files before printing.</p><p>Printed within 24 hours and shipped free via next-day air.</p></div>
 
               {/* Trust bar */}
               <div className="mt-4 flex flex-col items-center gap-2">
