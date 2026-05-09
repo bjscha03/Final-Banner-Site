@@ -120,6 +120,17 @@ export const handler: Handler = async (event) => {
 
     // Step 3: Create or update user in database
     const dbUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
+    if (!dbUrl) {
+      console.error('Database URL is not configured for Google OAuth callback');
+      return {
+        statusCode: 302,
+        headers: {
+          Location: '/sign-in?error=' + encodeURIComponent('Server authentication configuration error'),
+        },
+        body: '',
+      };
+    }
+
     const sql = neon(dbUrl);
 
     const normalizedEmail = googleUser.email?.toLowerCase();
@@ -253,6 +264,15 @@ export const handler: Handler = async (event) => {
   </div>
   <script>
     try {
+      const expectedState = sessionStorage.getItem('google_oauth_state');
+      const callbackState = ${JSON.stringify(state || '')};
+
+      if (!expectedState || !callbackState || expectedState !== callbackState) {
+        throw new Error('Invalid OAuth state. Please try signing in again.');
+      }
+
+      sessionStorage.removeItem('google_oauth_state');
+
       const user = ${JSON.stringify(safeUser)};
       console.log('✅ Google OAuth: Storing user in localStorage:', user);
       localStorage.setItem('banners_current_user', JSON.stringify(user));
