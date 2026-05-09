@@ -282,7 +282,7 @@ const SignIn: React.FC = () => {
 
             {/* LinkedIn Button */}
             <LinkedInButton />
-            <GoogleButton mode="signin" />
+            <GoogleButton mode="signin" returnUrl={getNextUrl()} />
           </div>
 
           {/* Footer */}

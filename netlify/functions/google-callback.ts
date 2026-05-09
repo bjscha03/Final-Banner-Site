@@ -120,6 +120,9 @@ export const handler: Handler = async (event) => {
 
     // Step 3: Create or update user in database
     const dbUrl = process.env.NETLIFY_DATABASE_URL || process.env.DATABASE_URL;
+    if (!dbUrl) {
+      throw new Error('Database not configured. Missing NETLIFY_DATABASE_URL or DATABASE_URL.');
+    }
     const sql = neon(dbUrl);
 
     const normalizedEmail = googleUser.email?.toLowerCase();
@@ -254,66 +257,44 @@ export const handler: Handler = async (event) => {
   <script>
     try {
       const user = ${JSON.stringify(safeUser)};
-      console.log('✅ Google OAuth: Storing user in localStorage:', user);
+      const redirectBase = '/';
+
+      const buildRedirectUrl = (path, params = {}) => {
+        const nextUrl = new URL(path || redirectBase, window.location.origin);
+        Object.entries(params).forEach(([k, v]) => {
+          if (v !== undefined && v !== null && v !== '') nextUrl.searchParams.set(k, String(v));
+        });
+        return nextUrl.pathname + nextUrl.search;
+      };
+
+      const callbackState = ${JSON.stringify(state || '')};
+      const storedState = sessionStorage.getItem('google_oauth_state');
+      if (!callbackState || !storedState || callbackState !== storedState) {
+        throw new Error('Security validation failed. Please try signing in again.');
+      }
+      sessionStorage.removeItem('google_oauth_state');
+
       localStorage.setItem('banners_current_user', JSON.stringify(user));
-      
-      // Verify storage was successful
       const stored = localStorage.getItem('banners_current_user');
-      if (!stored) {
-        throw new Error('Failed to store user in localStorage');
-      }
-      
-      console.log('✅ Google OAuth: User stored successfully, verified');
-      
-      // CRITICAL FIX: Dispatch user-changed event to trigger cart reload
-      // This ensures the cart loads immediately for Google OAuth users
-      // (Manual login already does this in auth.ts signIn() function)
-      console.log('🔔 Google OAuth: Dispatching user-changed event to trigger cart reload');
+      if (!stored) throw new Error('Failed to store user in localStorage');
+
       window.dispatchEvent(new Event('user-changed'));
-      window.dispatchEvent(new StorageEvent('storage', {
-        key: 'banners_current_user',
-        newValue: JSON.stringify(user),
-        oldValue: null,
-        storageArea: localStorage,
-        url: window.location.href
-      }));
-      console.log('✅ Google OAuth: Events dispatched successfully');
-      
-      // Check for checkout context to determine redirect
-      let redirectUrl = '/?oauth=success&provider=google';
-      try {
-        const checkoutContext = localStorage.getItem('checkout-context-storage');
-        if (checkoutContext) {
-          const context = JSON.parse(checkoutContext);
-          if (context?.state?.isInCheckoutFlow && context?.state?.returnUrl) {
-            const contextAge = Date.now() - (context.state.contextSetAt || 0);
-            const maxAge = 30 * 60 * 1000; // 30 minutes
-            
-            if (contextAge < maxAge) {
-              redirectUrl = context.state.returnUrl + '?oauth=success&provider=google';
-              console.log('✅ Google OAuth: Checkout context found, redirecting to:', redirectUrl);
-              
-              // Clear checkout context after using it
-              localStorage.removeItem('checkout-context-storage');
-            } else {
-              console.log('⏰ Google OAuth: Checkout context expired, using default redirect');
-            }
-          }
-        }
-      } catch (e) {
-        console.error('❌ Google OAuth: Error checking checkout context:', e);
+
+      let redirectUrl = buildRedirectUrl('/', { oauth: 'success', provider: 'google' });
+      const savedReturnUrl = sessionStorage.getItem('google_oauth_return_url');
+      if (savedReturnUrl) {
+        redirectUrl = buildRedirectUrl(savedReturnUrl, { oauth: 'success', provider: 'google' });
+        sessionStorage.removeItem('google_oauth_return_url');
       }
-      
-      console.log('✅ Google OAuth: Redirecting to:', redirectUrl);
-      
-      // Small delay to ensure localStorage is fully written and events are processed
-      setTimeout(() => {
-        window.location.replace(redirectUrl);
-      }, 250);
+
+      setTimeout(() => window.location.replace(redirectUrl), 200);
     } catch (error) {
-      console.error('❌ Google OAuth: Error storing user:', error);
-      alert('Error completing sign-in: ' + error.message);
-      window.location.replace('/sign-in?error=Failed to complete sign-in');
+      console.error('Google OAuth callback failed:', error);
+      sessionStorage.removeItem('google_oauth_state');
+      sessionStorage.removeItem('google_oauth_return_url');
+      const errorUrl = new URL('/sign-in', window.location.origin);
+      errorUrl.searchParams.set('error', error instanceof Error ? error.message : 'Failed to complete sign-in');
+      window.location.replace(errorUrl.pathname + errorUrl.search);
     }
   </script>
 </body>

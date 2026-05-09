@@ -22,7 +22,31 @@ class SecureAuthAdapter implements AuthAdapter {
   async getCurrentUser(): Promise<User | null> {
     try {
       const stored = safeStorage.getItem(this.CURRENT_USER_KEY);
-      let user = stored ? JSON.parse(stored) : null;
+      let user: User | null = null;
+
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          const parsedId = typeof parsed?.id === 'string' ? parsed.id.trim() : '';
+          const parsedEmail = typeof parsed?.email === 'string' ? parsed.email.trim() : '';
+
+          if (!parsedId || !parsedEmail) {
+            console.warn('Malformed stored user missing id/email; clearing banners_current_user');
+            safeStorage.removeItem(this.CURRENT_USER_KEY);
+          } else {
+            user = {
+              id: parsedId,
+              email: parsedEmail.toLowerCase(),
+              full_name: typeof parsed?.full_name === 'string' ? parsed.full_name : undefined,
+              username: typeof parsed?.username === 'string' ? parsed.username : undefined,
+              is_admin: parsed?.is_admin === true,
+            };
+          }
+        } catch (parseError) {
+          console.warn('Malformed JSON in banners_current_user; clearing value', parseError);
+          safeStorage.removeItem(this.CURRENT_USER_KEY);
+        }
+      }
 
       // Debug logging for production troubleshooting
       const hasAdminCookie = typeof document !== 'undefined' && document.cookie.includes('admin=1');
