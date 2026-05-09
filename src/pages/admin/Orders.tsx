@@ -891,14 +891,14 @@ const AdminOrders: React.FC = () => {
                 Admin Access Required
               </h1>
               <p className="text-gray-600 mb-6">
-                You need admin privileges to access this page. Please set up admin access first.
+                You need admin privileges to access this page. Please sign in with an admin account.
               </p>
               <div className="space-y-4">
                 <Button
-                  onClick={() => navigate('/admin/setup')}
+                  onClick={() => navigate('/sign-in?next=/admin/orders')}
                   className="w-full sm:w-auto"
                 >
-                  Set Up Admin Access
+                  Sign In as Admin
                 </Button>
                 <Button
                   variant="outline"
