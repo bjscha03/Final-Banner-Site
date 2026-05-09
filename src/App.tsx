@@ -113,8 +113,6 @@ const AdminEvents = lazy(() => import("./pages/admin/Events"));
 const AdminGraduationIntakes = lazy(() => import("./pages/admin/GraduationIntakes"));
 const AdminGraduationIntake = lazy(() => import("./pages/admin/GraduationIntake"));
 const ProofApproval = lazy(() => import("./pages/ProofApproval"));
-const AdminSeed = lazy(() => import("./pages/AdminSeed"));
-const AdminSetup = lazy(() => import("./pages/AdminSetup"));
 
 // Utility/debug pages - lazy load
 const LogoShowcase = lazy(() => import("./pages/LogoShowcase"));
@@ -240,8 +238,6 @@ const App = () => {
             <Route path="/admin/events" element={<AdminEvents />} />
             <Route path="/admin/graduation-intakes" element={<AdminGraduationIntakes />} />
             <Route path="/admin/graduation/:intakeId" element={<AdminGraduationIntake />} />
-            <Route path="/admin/seed" element={<AdminSeed />} />
-            <Route path="/admin/setup" element={<AdminSetup />} />
             
             {/* Utility pages */}
             <Route path="/logo-showcase" element={<LogoShowcase />} />
